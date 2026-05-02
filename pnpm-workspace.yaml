@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  electron: true
+  esbuild: true
+  spawn-sync: true

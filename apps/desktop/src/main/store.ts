@@ -1,0 +1,90 @@
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { app } from "electron";
+import type { Agent, DesktopStore, LlmProvider } from "@reader/shared";
+import { makeId } from "@reader/shared";
+
+const defaultStore: DesktopStore = {
+  providers: [],
+  agents: []
+};
+
+function storePath() {
+  return join(app.getPath("userData"), "reader-agent-store.json");
+}
+
+export async function readStore(): Promise<DesktopStore> {
+  try {
+    const raw = await readFile(storePath(), "utf8");
+    const parsed = JSON.parse(raw) as DesktopStore;
+    return {
+      providers: parsed.providers || [],
+      agents: parsed.agents || []
+    };
+  } catch {
+    return defaultStore;
+  }
+}
+
+export async function writeStore(store: DesktopStore): Promise<DesktopStore> {
+  const file = storePath();
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(store, null, 2));
+  return store;
+}
+
+export async function saveProvider(input: Partial<LlmProvider>): Promise<DesktopStore> {
+  const store = await readStore();
+  const now = new Date().toISOString();
+  const existing = input.id ? store.providers.find((provider) => provider.id === input.id) : undefined;
+  const provider: LlmProvider = {
+    id: existing?.id || makeId("provider"),
+    name: input.name?.trim() || "Untitled Provider",
+    type: input.type || existing?.type || "anthropic",
+    baseUrl: input.baseUrl?.trim() || existing?.baseUrl || "https://api.anthropic.com",
+    apiKey: input.apiKey?.trim() || existing?.apiKey || "",
+    modelName: input.modelName?.trim() || existing?.modelName || "claude-3-5-sonnet-latest",
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+
+  const providers = existing ? store.providers.map((item) => (item.id === provider.id ? provider : item)) : [...store.providers, provider];
+  return writeStore({ ...store, providers });
+}
+
+export async function deleteProvider(id: string): Promise<DesktopStore> {
+  const store = await readStore();
+  return writeStore({
+    providers: store.providers.filter((provider) => provider.id !== id),
+    agents: store.agents.filter((agent) => agent.providerId !== id)
+  });
+}
+
+export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
+  const store = await readStore();
+  const now = new Date().toISOString();
+  const existing = input.id ? store.agents.find((agent) => agent.id === input.id) : undefined;
+  const username = normalizeUsername(input.username || existing?.username || input.nickname || "agent");
+  const agent: Agent = {
+    id: existing?.id || makeId("agent"),
+    providerId: input.providerId || existing?.providerId || store.providers[0]?.id || "",
+    nickname: input.nickname?.trim() || existing?.nickname || "Reader Agent",
+    username,
+    avatar: input.avatar?.trim() || existing?.avatar || "🤖",
+    soul: input.soul?.trim() || existing?.soul || "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。",
+    createdAt: existing?.createdAt || now,
+    updatedAt: now
+  };
+
+  const agents = existing ? store.agents.map((item) => (item.id === agent.id ? agent : item)) : [...store.agents, agent];
+  return writeStore({ ...store, agents });
+}
+
+export async function deleteAgent(id: string): Promise<DesktopStore> {
+  const store = await readStore();
+  return writeStore({ ...store, agents: store.agents.filter((agent) => agent.id !== id) });
+}
+
+function normalizeUsername(value: string) {
+  return value.trim().replace(/^@/, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 32) || "agent";
+}

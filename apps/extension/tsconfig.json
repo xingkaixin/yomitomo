@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["wxt/client", "chrome", "node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["entrypoints", "src", "wxt.config.ts"]
+}
