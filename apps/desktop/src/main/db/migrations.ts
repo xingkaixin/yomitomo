@@ -146,4 +146,13 @@ ALTER TABLE articles ADD COLUMN reading_card_updated_at TEXT;
 ALTER TABLE agents ADD COLUMN kind TEXT NOT NULL DEFAULT 'annotation';
 `,
   },
+  {
+    id: '0007_reading_card_review',
+    sql: `
+ALTER TABLE articles ADD COLUMN reading_card_review_id TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_review_results TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_review_created_at TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_review_updated_at TEXT;
+`,
+  },
 ];

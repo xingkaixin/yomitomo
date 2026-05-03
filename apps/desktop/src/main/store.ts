@@ -16,6 +16,11 @@ import type {
   DesktopStore,
   LlmProvider,
   ReadingCardRecord,
+  ReadingCardReviewFinding,
+  ReadingCardReviewRecord,
+  ReadingCardReviewSeverity,
+  ReadingCardReviewVerdict,
+  ReadingCardReviewerResult,
   ReadingCardSection,
   TextAnchor,
   UserProfile,
@@ -231,7 +236,29 @@ export async function saveArticleReadingCard(
       readingCardModelName: readingCard.modelName,
       readingCardCreatedAt: readingCard.createdAt,
       readingCardUpdatedAt: readingCard.updatedAt,
+      readingCardReviewId: null,
+      readingCardReviewResults: null,
+      readingCardReviewCreatedAt: null,
+      readingCardReviewUpdatedAt: null,
       updatedAt: readingCard.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return readStore();
+}
+
+export async function saveArticleReadingCardReview(
+  articleId: string,
+  review: ReadingCardReviewRecord,
+): Promise<DesktopStore> {
+  getDatabase()
+    .update(schema.articles)
+    .set({
+      readingCardReviewId: review.id,
+      readingCardReviewResults: review.reviewerResults,
+      readingCardReviewCreatedAt: review.createdAt,
+      readingCardReviewUpdatedAt: review.updatedAt,
+      updatedAt: review.updatedAt,
     })
     .where(eq(schema.articles.id, articleId))
     .run();
@@ -381,6 +408,10 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       readingCardModelName: article.readingCard?.modelName,
       readingCardCreatedAt: article.readingCard?.createdAt,
       readingCardUpdatedAt: article.readingCard?.updatedAt,
+      readingCardReviewId: article.readingCard?.review?.id,
+      readingCardReviewResults: article.readingCard?.review?.reviewerResults,
+      readingCardReviewCreatedAt: article.readingCard?.review?.createdAt,
+      readingCardReviewUpdatedAt: article.readingCard?.review?.updatedAt,
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
     })
@@ -582,11 +613,26 @@ function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCard
     title: row.title,
     contentMarkdown: row.readingCardMarkdown,
     sections: normalizeReadingCardSections(row.readingCardSections),
+    review: rowToReadingCardReview(row),
     providerId: row.readingCardProviderId || '',
     providerName: row.readingCardProviderName || '',
     modelName: row.readingCardModelName || '',
     createdAt: row.readingCardCreatedAt || row.updatedAt,
     updatedAt: row.readingCardUpdatedAt || row.updatedAt,
+  };
+}
+
+function rowToReadingCardReview(
+  row: typeof schema.articles.$inferSelect,
+): ReadingCardReviewRecord | undefined {
+  if (!row.readingCardReviewId || !row.readingCardId) return undefined;
+  return {
+    id: row.readingCardReviewId,
+    articleId: row.id,
+    readingCardId: row.readingCardId,
+    reviewerResults: normalizeReadingCardReviewerResults(row.readingCardReviewResults),
+    createdAt: row.readingCardReviewCreatedAt || row.updatedAt,
+    updatedAt: row.readingCardReviewUpdatedAt || row.updatedAt,
   };
 }
 
@@ -599,6 +645,77 @@ function normalizeReadingCardSections(value: unknown): ReadingCardSection[] {
       ? [{ title: section.title, content: section.content }]
       : [];
   });
+}
+
+function normalizeReadingCardReviewerResults(value: unknown): ReadingCardReviewerResult[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const result = item as Record<string, unknown>;
+    const id = stringValue(result.id);
+    const reviewerId = stringValue(result.reviewerId);
+    if (!id || !reviewerId) return [];
+    return [
+      {
+        id,
+        reviewerId,
+        reviewerNickname: stringValue(result.reviewerNickname),
+        reviewerUsername: stringValue(result.reviewerUsername),
+        reviewerAvatar: stringValue(result.reviewerAvatar),
+        reviewerColor: stringValue(result.reviewerColor),
+        verdict: normalizeReviewVerdict(result.verdict),
+        summary: stringValue(result.summary),
+        findings: normalizeReviewFindings(result.findings),
+        acceptedClaims: stringArray(result.acceptedClaims),
+        missingAngles: stringArray(result.missingAngles),
+        rawResponse: stringValue(result.rawResponse) || undefined,
+        createdAt: stringValue(result.createdAt) || new Date(0).toISOString(),
+      },
+    ];
+  });
+}
+
+function normalizeReviewFindings(value: unknown): ReadingCardReviewFinding[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const finding = item as Record<string, unknown>;
+    const problem = stringValue(finding.problem);
+    if (!problem) return [];
+    return [
+      {
+        section: stringValue(finding.section),
+        severity: normalizeReviewSeverity(finding.severity),
+        problem,
+        evidenceIds: numberArray(finding.evidenceIds),
+        suggestedRewrite: stringValue(finding.suggestedRewrite) || undefined,
+      },
+    ];
+  });
+}
+
+function normalizeReviewVerdict(value: unknown): ReadingCardReviewVerdict {
+  return value === 'pass' ? 'pass' : 'revise';
+}
+
+function normalizeReviewSeverity(value: unknown): ReadingCardReviewSeverity {
+  return value === 'high' || value === 'medium' || value === 'low' ? value : 'medium';
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function numberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+    : [];
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
 }
 
 function normalizeUser(user: Partial<UserProfile> | undefined): UserProfile {

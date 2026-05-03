@@ -6,6 +6,8 @@ import type {
   ArticleRecord,
   Comment,
   LlmProvider,
+  ReadingCardRecord,
+  ReadingCardReviewerResult,
 } from '@yomitomo/shared';
 import {
   annotationDensityInstruction,
@@ -21,6 +23,16 @@ export type GenerateReadingCardInput = {
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
 };
+
+export type ReviewReadingCardInput = GenerateReadingCardInput & {
+  readingCard: ReadingCardRecord;
+  reviewAgentIds?: string[];
+};
+
+export type ReviewReadingCardResult = Pick<
+  ReadingCardReviewerResult,
+  'verdict' | 'summary' | 'findings' | 'acceptedClaims' | 'missingAngles' | 'rawResponse'
+>;
 
 export async function testProvider(
   provider: LlmProvider,
@@ -195,12 +207,34 @@ export async function generateReadingCard(provider: LlmProvider, input: Generate
   return callAnthropic(provider, system, buildReadingCardPrompt(input), 3000, 0.35);
 }
 
+export async function reviewReadingCard(
+  provider: LlmProvider,
+  agent: Agent,
+  input: ReviewReadingCardInput,
+): Promise<ReviewReadingCardResult> {
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
+  }
+
+  const system = `${agent.soul}\n\n你是 Yomitomo 的读后卡片审核助手。你要审当前读后卡片和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
+  const rawResponse = await callAnthropic(
+    provider,
+    system,
+    buildReviewReadingCardPrompt(input),
+    3200,
+    agent.temperature,
+    { failOnMaxTokens: true },
+  );
+  return normalizeReadingCardReviewResponse(rawResponse);
+}
+
 async function callAnthropic(
   provider: LlmProvider,
   system: string,
   user: string,
   maxTokens: number,
   temperature?: number,
+  options: { failOnMaxTokens?: boolean } = {},
 ) {
   const baseUrl = provider.baseUrl.replace(/\/$/, '') || 'https://api.anthropic.com';
   const url = `${baseUrl}/v1/messages`;
@@ -227,12 +261,27 @@ async function callAnthropic(
     throw new Error(`Anthropic 请求失败：${response.status} ${text.slice(0, 400)}`);
   }
 
-  const data = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
+  const data = (await response.json()) as {
+    content?: Array<{ type: string; text?: string }>;
+    stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const text = data.content
     ?.map((part) => (part.type === 'text' ? part.text || '' : ''))
     .join('\n')
     .trim();
   if (!text) throw new Error('Anthropic 返回为空');
+  logInfo('anthropic.response', {
+    model: provider.modelName,
+    providerName: provider.name,
+    stopReason: data.stop_reason || '',
+    inputTokens: data.usage?.input_tokens,
+    outputTokens: data.usage?.output_tokens,
+    textLength: text.length,
+  });
+  if (options.failOnMaxTokens && data.stop_reason === 'max_tokens') {
+    throw new Error(`模型输出达到 max_tokens=${maxTokens}，结构化 JSON 可能已被截断`);
+  }
   return text;
 }
 
@@ -416,4 +465,167 @@ ${JSON.stringify(evidence, null, 2).slice(0, 30000)}
 
 ## 后续行动线索
 列出后续阅读、验证假设或可执行动作。`;
+}
+
+function buildReviewReadingCardPrompt(input: ReviewReadingCardInput) {
+  const article = {
+    title: input.article.title,
+    url: input.article.canonicalUrl || input.article.url,
+    byline: input.article.byline || '',
+    excerpt: input.article.excerpt || '',
+  };
+  const card = {
+    id: input.readingCard.id,
+    sections: input.readingCard.sections,
+    markdown: input.readingCard.contentMarkdown,
+  };
+  const evidence = input.evidenceUnits.map((unit) => ({
+    id: unit.index,
+    type: unit.annotationType || '批注',
+    quote: unit.quote,
+    annotationAuthor: unit.annotationAuthorLabel,
+    comments: unit.comments.map((comment) => ({
+      author: comment.authorLabel,
+      content: comment.content,
+    })),
+  }));
+
+  return `请审核这张读后卡片，返回一个 JSON 对象。
+
+文章信息：
+${JSON.stringify(article, null, 2)}
+
+全文：
+${input.articleText.slice(0, 50000)}
+
+证据单元：
+${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+
+读后卡片：
+${JSON.stringify(card, null, 2).slice(0, 30000)}
+
+审核维度：
+- 证据链：关键判断是否能对应文章原文或证据单元。
+- 归因：文章观点、读者关注、助手讨论是否表达清楚。
+- 覆盖：高价值批注和评论是否被合理吸收。
+- 压缩质量：是否保留有效判断，去除空泛复述。
+- 行动线索：后续行动是否具体、能执行、和阅读材料有关。
+
+输出 JSON 格式：
+{
+  "verdict": "pass",
+  "summary": "整体审核结论，80 字以内",
+  "findings": [
+    {
+      "section": "核心主张",
+      "severity": "high",
+      "problem": "问题描述",
+      "evidenceIds": [1, 2],
+      "suggestedRewrite": "可选，给出更好的改写"
+    }
+  ],
+  "acceptedClaims": ["保留得好的判断"],
+  "missingAngles": ["建议补充的视角"]
+}
+
+约束：
+- verdict 只允许 pass 或 revise；存在高风险事实、归因或证据问题时使用 revise。
+- severity 只允许 high、medium、low。
+- evidenceIds 使用证据单元 id；没有对应证据时返回空数组。
+- findings 最多 6 条，acceptedClaims 最多 4 条，missingAngles 最多 4 条。
+- 只输出 JSON 对象，不要输出 Markdown。`;
+}
+
+function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingCardResult {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = parseJsonObject(rawResponse);
+  } catch (error) {
+    logError('reading_card.review.parse_error', error, {
+      rawLength: rawResponse.length,
+      rawPreview: rawResponse.slice(0, 1200),
+      rawTail: rawResponse.slice(-500),
+    });
+    return {
+      verdict: 'revise',
+      summary: '审核助手返回的内容格式异常，已保留原始输出供排查。',
+      findings: [
+        {
+          section: '整张卡片',
+          severity: 'high',
+          problem: '审稿结果 JSON 解析失败，当前这位审核助手的结构化结论无法可靠读取。',
+          evidenceIds: [],
+        },
+      ],
+      acceptedClaims: [],
+      missingAngles: [],
+      rawResponse,
+    };
+  }
+  return {
+    verdict: parsed.verdict === 'pass' ? 'pass' : 'revise',
+    summary: stringValue(parsed.summary).slice(0, 300),
+    findings: Array.isArray(parsed.findings)
+      ? parsed.findings.slice(0, 6).flatMap((item) => {
+          if (!item || typeof item !== 'object') return [];
+          const finding = item as Record<string, unknown>;
+          const problem = stringValue(finding.problem).slice(0, 500);
+          if (!problem) return [];
+          return [
+            {
+              section: stringValue(finding.section).slice(0, 80),
+              severity:
+                finding.severity === 'high' || finding.severity === 'low'
+                  ? finding.severity
+                  : 'medium',
+              problem,
+              evidenceIds: numberArray(finding.evidenceIds).slice(0, 8),
+              suggestedRewrite: stringValue(finding.suggestedRewrite).slice(0, 800) || undefined,
+            },
+          ];
+        })
+      : [],
+    acceptedClaims: stringArray(parsed.acceptedClaims).slice(0, 4),
+    missingAngles: stringArray(parsed.missingAngles).slice(0, 4),
+    rawResponse,
+  };
+}
+
+function parseJsonObject(value: string): Record<string, unknown> {
+  const cleaned = value
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/, '')
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    const start = cleaned.indexOf('{');
+    const end = cleaned.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      const parsed = JSON.parse(cleaned.slice(start, end + 1));
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    }
+    throw new Error('审稿结果不是有效 JSON');
+  }
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.flatMap((item) => {
+        const text = stringValue(item);
+        return text ? [text.slice(0, 500)] : [];
+      })
+    : [];
+}
+
+function numberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+    : [];
 }

@@ -40,6 +40,8 @@ import type {
   LlmProvider,
   ProviderType,
   ReadingCardRecord,
+  ReadingCardReviewRecord,
+  ReadingCardReviewerResult,
   ReadingCardSection as PersistedReadingCardSection,
 } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
@@ -464,7 +466,11 @@ function App() {
 
         <section className="settings-content">
           {activeSetting === 'library' ? (
-            <ReadingLibrary articles={store.articles} onRefresh={refreshStore} />
+            <ReadingLibrary
+              agents={store.agents}
+              articles={store.articles}
+              onRefresh={refreshStore}
+            />
           ) : null}
           {activeSetting === 'stats' ? (
             <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
@@ -721,9 +727,11 @@ function StatsMetric({ label, value }: { label: string; value: number }) {
 }
 
 function ReadingLibrary({
+  agents,
   articles,
   onRefresh,
 }: {
+  agents: Agent[];
   articles: ArticleRecord[];
   onRefresh: () => void;
 }) {
@@ -737,6 +745,7 @@ function ReadingLibrary({
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
   );
+  const reviewAgents = useMemo(() => agents.filter((agent) => agent.kind === 'review'), [agents]);
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
     annotations[0] ||
@@ -851,7 +860,11 @@ function ReadingLibrary({
         />
         <div className="library-shelf-content">
           {activeShelf === 'card' ? (
-            <ReadingCard article={selectedArticle} onGenerated={onRefresh} />
+            <ReadingCard
+              article={selectedArticle}
+              reviewAgents={reviewAgents}
+              onGenerated={onRefresh}
+            />
           ) : null}
         </div>
       </div>
@@ -1068,15 +1081,20 @@ function OpenArticleButton({ article }: { article: ArticleRecord }) {
 
 function ReadingCard({
   article,
+  reviewAgents,
   onGenerated,
 }: {
   article: ArticleRecord | null;
+  reviewAgents: Agent[];
   onGenerated: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [aiCard, setAiCard] = useState<ReadingCardRecord | null>(null);
   const [aiError, setAiError] = useState('');
   const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewState, setReviewState] = useState<'idle' | 'reviewing' | 'done' | 'error'>('idle');
+  const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<string[]>([]);
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
   const card = useMemo(
     () => (article ? aiCard?.contentMarkdown || buildReadingCard(article, articleText) : ''),
@@ -1091,12 +1109,24 @@ function ReadingCard({
     () => (article ? buildReadingCardSections(article, articleText) : []),
     [article, articleText],
   );
+  const reviewAgentIds = useMemo(() => reviewAgents.map((agent) => agent.id), [reviewAgents]);
+  const reviewAgentKey = reviewAgentIds.join('|');
 
   useEffect(() => {
     setAiCard(article?.readingCard || null);
     setAiError('');
     setAiState(article?.readingCard ? 'done' : 'idle');
-  }, [article?.id, article?.readingCard?.updatedAt]);
+    setReviewError('');
+    setReviewState(article?.readingCard?.review ? 'done' : 'idle');
+  }, [article?.id, article?.readingCard?.updatedAt, article?.readingCard?.review?.updatedAt]);
+
+  useEffect(() => {
+    setSelectedReviewAgentIds((current) => {
+      const availableIds = new Set(reviewAgentIds);
+      const kept = current.filter((id) => availableIds.has(id));
+      return kept.length > 0 ? kept : reviewAgentIds;
+    });
+  }, [reviewAgentKey]);
 
   async function copyCard() {
     if (!card) return;
@@ -1117,11 +1147,45 @@ function ReadingCard({
       });
       setAiCard(result.readingCard);
       setAiState('done');
+      setReviewError('');
+      setReviewState('idle');
       onGenerated();
     } catch (error) {
       setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
       setAiState('error');
     }
+  }
+
+  async function reviewAiCard() {
+    if (!article || !aiCard || reviewState === 'reviewing') return;
+    if (selectedReviewAgentIds.length === 0) {
+      setReviewError('请选择审核助手');
+      return;
+    }
+    setReviewState('reviewing');
+    setReviewError('');
+    try {
+      const result = await window.yomitomoDesktop.reviewReadingCard({
+        article,
+        articleText,
+        evidenceUnits,
+        readingCard: aiCard,
+        reviewAgentIds: selectedReviewAgentIds,
+      });
+      setAiCard({ ...aiCard, review: result.review });
+      setReviewState('done');
+      onGenerated();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : '读后卡片审稿失败');
+      setReviewState('error');
+    }
+  }
+
+  function toggleReviewAgent(agentId: string) {
+    setSelectedReviewAgentIds((current) =>
+      current.includes(agentId) ? current.filter((id) => id !== agentId) : [...current, agentId],
+    );
+    setReviewError('');
   }
 
   if (!article) {
@@ -1160,14 +1224,65 @@ function ReadingCard({
             )}
             {aiState === 'generating' ? '生成中' : aiCard ? '重新提炼' : 'AI 提炼'}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={
+              !aiCard ||
+              aiState === 'generating' ||
+              reviewState === 'reviewing' ||
+              selectedReviewAgentIds.length === 0
+            }
+            onClick={reviewAiCard}
+          >
+            {reviewState === 'reviewing' ? (
+              <LoaderCircle className="reading-card-spin" size={16} />
+            ) : (
+              <Scale size={16} />
+            )}
+            {reviewState === 'reviewing' ? '审稿中' : aiCard?.review ? '重新审稿' : '审核卡片'}
+          </Button>
           <Button type="button" variant="secondary" onClick={copyCard}>
             <Clipboard size={16} />
             {copied ? '已复制' : '复制 Markdown'}
           </Button>
         </div>
       </div>
+      {aiCard ? (
+        <div className="reading-card-review-agent-strip">
+          <span>审核助手</span>
+          {reviewAgents.length > 0 ? (
+            <div>
+              {reviewAgents.map((agent) => {
+                const selected = selectedReviewAgentIds.includes(agent.id);
+                return (
+                  <button
+                    aria-pressed={selected}
+                    className={selected ? 'is-selected' : ''}
+                    key={agent.id}
+                    type="button"
+                    onClick={() => toggleReviewAgent(agent.id)}
+                  >
+                    <i style={{ background: agent.annotationColor }} />
+                    <AvatarImage
+                      value={agent.avatar}
+                      className="size-6"
+                      fallback={agent.nickname.slice(0, 1) || 'AI'}
+                    />
+                    <strong>{agent.nickname}</strong>
+                    {selected ? <Check size={13} /> : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p>请先在助手设置中创建审核助手。</p>
+          )}
+        </div>
+      ) : null}
       <div className="reading-card-body">
         {aiError ? <p className="reading-card-error">{aiError}</p> : null}
+        {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
         {aiCard ? (
           <ReadingCardDeck article={article} readingCard={aiCard} stats={stats} />
         ) : (
@@ -1265,11 +1380,117 @@ function ReadingCardDeck({
         </p>
       </section>
 
+      {readingCard.review ? <ReadingCardReviewPanel review={readingCard.review} /> : null}
+
       {sections.map((section) => (
         <ReadingCardSectionCard section={section} key={section.title} />
       ))}
     </div>
   );
+}
+
+function ReadingCardReviewPanel({ review }: { review: ReadingCardReviewRecord }) {
+  const issueCount = review.reviewerResults.reduce(
+    (count, result) => count + result.findings.length,
+    0,
+  );
+  const passCount = review.reviewerResults.filter((result) => result.verdict === 'pass').length;
+
+  return (
+    <section className="reading-card-review-panel">
+      <header>
+        <div>
+          <span>审稿结果</span>
+          <h4>读后卡片审核</h4>
+        </div>
+        <time>{formatDate(review.updatedAt)}</time>
+      </header>
+      <div className="reading-card-review-summary">
+        <div>
+          <strong>{review.reviewerResults.length}</strong>
+          <span>审核助手</span>
+        </div>
+        <div>
+          <strong>{passCount}</strong>
+          <span>通过</span>
+        </div>
+        <div>
+          <strong>{issueCount}</strong>
+          <span>问题</span>
+        </div>
+      </div>
+      <div className="reading-card-reviewers">
+        {review.reviewerResults.map((result) => (
+          <ReadingCardReviewerCard result={result} key={result.id} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ReadingCardReviewerCard({ result }: { result: ReadingCardReviewerResult }) {
+  return (
+    <article className="reading-card-reviewer-card">
+      <header>
+        <AvatarImage
+          value={result.reviewerAvatar}
+          className="size-8"
+          fallback={result.reviewerNickname.slice(0, 1) || 'AI'}
+        />
+        <div>
+          <strong>{result.reviewerNickname}</strong>
+          <span>@{result.reviewerUsername}</span>
+        </div>
+        <mark className={result.verdict === 'pass' ? 'is-pass' : 'is-revise'}>
+          {result.verdict === 'pass' ? '通过' : '需修改'}
+        </mark>
+      </header>
+      {result.summary ? <p>{result.summary}</p> : null}
+      {result.findings.length > 0 ? (
+        <div className="reading-card-review-findings">
+          {result.findings.map((finding, index) => (
+            <article className="reading-card-review-finding" key={`${finding.problem}-${index}`}>
+              <header>
+                <span className={`is-${finding.severity}`}>
+                  {reviewSeverityLabel(finding.severity)}
+                </span>
+                <strong>{finding.section || '整张卡片'}</strong>
+                {finding.evidenceIds.length > 0 ? (
+                  <em>{finding.evidenceIds.map((id) => `#${id}`).join(' ')}</em>
+                ) : null}
+              </header>
+              <p>{finding.problem}</p>
+              {finding.suggestedRewrite ? (
+                <blockquote>{finding.suggestedRewrite}</blockquote>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="reading-card-review-empty">未发现需要修改的问题。</p>
+      )}
+      <ReadingCardReviewList title="保留点" items={result.acceptedClaims} />
+      <ReadingCardReviewList title="缺口" items={result.missingAngles} />
+    </article>
+  );
+}
+
+function ReadingCardReviewList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="reading-card-review-list">
+      <strong>{title}</strong>
+      <ul>
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function reviewSeverityLabel(severity: ReadingCardReviewerResult['findings'][number]['severity']) {
+  return severity === 'high' ? '高' : severity === 'low' ? '低' : '中';
 }
 
 function ReadingCardSectionCard({ section }: { section: PersistedReadingCardSection }) {

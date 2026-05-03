@@ -1,6 +1,13 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
-import type { Agent, LlmProvider, ReadingCardSection, UserProfile } from '@yomitomo/shared';
+import type {
+  Agent,
+  LlmProvider,
+  ReadingCardReviewRecord,
+  ReadingCardReviewerResult,
+  ReadingCardSection,
+  UserProfile,
+} from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
   deleteAgent,
@@ -8,11 +15,18 @@ import {
   readStore,
   saveAgent,
   saveArticleReadingCard,
+  saveArticleReadingCardReview,
   saveProvider,
   saveSettings,
   saveUser,
 } from './store';
-import { generateReadingCard, testProvider, type GenerateReadingCardInput } from './llm';
+import {
+  generateReadingCard,
+  reviewReadingCard,
+  testProvider,
+  type GenerateReadingCardInput,
+  type ReviewReadingCardInput,
+} from './llm';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { broadcastStatus, startLocalServer } from './server';
 
@@ -144,6 +158,63 @@ function registerIpc() {
     await saveArticleReadingCard(input.article.id, readingCard);
     return { readingCard };
   });
+  ipcMain.handle('reading-card:review', async (_event, input: ReviewReadingCardInput) => {
+    const store = await readStore();
+    const selectedReviewAgentIds = new Set(input.reviewAgentIds || []);
+    const reviewAgents = store.agents.filter(
+      (agent) =>
+        agent.kind === 'review' &&
+        (selectedReviewAgentIds.size === 0 || selectedReviewAgentIds.has(agent.id)),
+    );
+    if (reviewAgents.length === 0) {
+      throw new Error(
+        selectedReviewAgentIds.size > 0 ? '请选择有效的审核助手' : '请先创建审核助手',
+      );
+    }
+
+    const createdAt = new Date().toISOString();
+    const reviewerResults: ReadingCardReviewerResult[] = await Promise.all(
+      reviewAgents.map(async (agent) => {
+        try {
+          const provider = store.providers.find((item) => item.id === agent.providerId);
+          if (!provider) throw new Error(`审核助手 ${agent.nickname} 缺少供应商`);
+          const result = await reviewReadingCard(provider, agent, input);
+          return createReviewerResult(agent, result, createdAt);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '审稿失败';
+          return createReviewerResult(
+            agent,
+            {
+              verdict: 'revise',
+              summary: `${agent.nickname} 没有完成审稿：${message}`,
+              findings: [
+                {
+                  section: '整张卡片',
+                  severity: 'high',
+                  problem: message,
+                  evidenceIds: [],
+                },
+              ],
+              acceptedClaims: [],
+              missingAngles: [],
+              rawResponse: message,
+            },
+            createdAt,
+          );
+        }
+      }),
+    );
+    const review: ReadingCardReviewRecord = {
+      id: makeId('reading_card_review'),
+      articleId: input.article.id,
+      readingCardId: input.readingCard.id,
+      reviewerResults,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    await saveArticleReadingCardReview(input.article.id, review);
+    return { review };
+  });
   ipcMain.handle('agent:save', async (_event, input: Partial<Agent>) => {
     const store = await saveAgent(input);
     broadcastStatus();
@@ -154,6 +225,37 @@ function registerIpc() {
     broadcastStatus();
     return store;
   });
+}
+
+function createReviewerResult(
+  agent: Agent,
+  result: Omit<
+    ReadingCardReviewerResult,
+    | 'id'
+    | 'reviewerId'
+    | 'reviewerNickname'
+    | 'reviewerUsername'
+    | 'reviewerAvatar'
+    | 'reviewerColor'
+    | 'createdAt'
+  >,
+  createdAt: string,
+): ReadingCardReviewerResult {
+  return {
+    id: makeId('reading_card_reviewer_result'),
+    reviewerId: agent.id,
+    reviewerNickname: agent.nickname,
+    reviewerUsername: agent.username,
+    reviewerAvatar: agent.avatar,
+    reviewerColor: agent.annotationColor,
+    verdict: result.verdict,
+    summary: result.summary,
+    findings: result.findings,
+    acceptedClaims: result.acceptedClaims,
+    missingAngles: result.missingAngles,
+    rawResponse: result.rawResponse,
+    createdAt,
+  };
 }
 
 function parseReadingCardSections(markdown: string): ReadingCardSection[] {

@@ -6,6 +6,7 @@ import type {
   DesktopStore,
   LlmProvider,
   ReadingCardRecord,
+  ReadingCardReviewRecord,
   UserProfile,
 } from '@yomitomo/shared';
 import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
@@ -14,6 +15,11 @@ export type GenerateReadingCardInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+};
+
+export type ReviewReadingCardInput = GenerateReadingCardInput & {
+  readingCard: ReadingCardRecord;
+  reviewAgentIds?: string[];
 };
 
 const api = {
@@ -35,6 +41,10 @@ const api = {
   generateReadingCard: (input: GenerateReadingCardInput) =>
     ipcRenderer.invoke('reading-card:generate', input) as Promise<{
       readingCard: ReadingCardRecord;
+    }>,
+  reviewReadingCard: (input: ReviewReadingCardInput) =>
+    ipcRenderer.invoke('reading-card:review', input) as Promise<{
+      review: ReadingCardReviewRecord;
     }>,
   saveAgent: (agent: Partial<Agent>) =>
     ipcRenderer.invoke('agent:save', agent) as Promise<DesktopStore>,

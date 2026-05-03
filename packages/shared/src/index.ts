@@ -113,12 +113,50 @@ export type ReadingCardSection = {
   content: string;
 };
 
+export type ReadingCardReviewVerdict = 'pass' | 'revise';
+
+export type ReadingCardReviewSeverity = 'high' | 'medium' | 'low';
+
+export type ReadingCardReviewFinding = {
+  section: string;
+  severity: ReadingCardReviewSeverity;
+  problem: string;
+  evidenceIds: number[];
+  suggestedRewrite?: string;
+};
+
+export type ReadingCardReviewerResult = {
+  id: string;
+  reviewerId: string;
+  reviewerNickname: string;
+  reviewerUsername: string;
+  reviewerAvatar: string;
+  reviewerColor: string;
+  verdict: ReadingCardReviewVerdict;
+  summary: string;
+  findings: ReadingCardReviewFinding[];
+  acceptedClaims: string[];
+  missingAngles: string[];
+  rawResponse?: string;
+  createdAt: string;
+};
+
+export type ReadingCardReviewRecord = {
+  id: string;
+  articleId: string;
+  readingCardId: string;
+  reviewerResults: ReadingCardReviewerResult[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ReadingCardRecord = {
   id: string;
   articleId: string;
   title: string;
   contentMarkdown: string;
   sections: ReadingCardSection[];
+  review?: ReadingCardReviewRecord;
   providerId: string;
   providerName: string;
   modelName: string;

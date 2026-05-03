@@ -1575,12 +1575,77 @@
 }
 
 .reading-card {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   padding: 14px;
 }
 
+.reading-card-review-agent-strip {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid hsl(36 31% 72% / 0.56);
+  border-radius: 8px;
+  background: hsl(42 58% 95% / 0.62);
+  padding: 10px;
+}
+
+.reading-card-review-agent-strip > span {
+  color: hsl(34 22% 30%);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.reading-card-review-agent-strip > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.reading-card-review-agent-strip button {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  border: 1px solid hsl(36 31% 72% / 0.74);
+  border-radius: 999px;
+  background: hsl(43 63% 98% / 0.72);
+  color: hsl(31 23% 24%);
+  font-size: 12px;
+  font-weight: 880;
+  line-height: 1;
+  padding: 5px 9px 5px 6px;
+}
+
+.reading-card-review-agent-strip button.is-selected {
+  border-color: hsl(145 31% 45% / 0.36);
+  background: hsl(138 38% 88% / 0.66);
+  color: hsl(145 35% 24%);
+}
+
+.reading-card-review-agent-strip button i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+}
+
+.reading-card-review-agent-strip button strong {
+  overflow: hidden;
+  max-width: 112px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-card-review-agent-strip p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .reading-card-body {
+  flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
   margin-top: 14px;
@@ -1757,6 +1822,247 @@
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 760;
+}
+
+.reading-card-review-panel {
+  display: grid;
+  gap: 12px;
+  border: 1px solid hsl(211 22% 55% / 0.3);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(202 38% 97% / 0.88), hsl(48 52% 95% / 0.88)), hsl(var(--card));
+  box-shadow:
+    0 12px 26px hsl(31 34% 24% / 0.07),
+    inset 0 1px 0 hsl(42 80% 99% / 0.78);
+  padding: 14px;
+}
+
+.reading-card-review-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading-card-review-panel > header span {
+  display: inline-flex;
+  border: 1px solid hsl(211 22% 55% / 0.26);
+  border-radius: 999px;
+  background: hsl(202 34% 88% / 0.48);
+  color: hsl(209 24% 28%);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 9px;
+}
+
+.reading-card-review-panel > header h4 {
+  margin: 9px 0 0;
+  color: hsl(31 23% 19%);
+  font-size: 15px;
+  font-weight: 940;
+}
+
+.reading-card-review-panel > header time {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.reading-card-review-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reading-card-review-summary div {
+  border: 1px solid hsl(36 31% 72% / 0.48);
+  border-radius: 8px;
+  background: hsl(43 63% 97% / 0.68);
+  padding: 9px 10px;
+}
+
+.reading-card-review-summary strong,
+.reading-card-review-summary span {
+  display: block;
+}
+
+.reading-card-review-summary strong {
+  color: hsl(31 23% 18%);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 920;
+  line-height: 1;
+}
+
+.reading-card-review-summary span {
+  margin-top: 5px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.reading-card-reviewers {
+  display: grid;
+  gap: 10px;
+}
+
+.reading-card-reviewer-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid hsl(36 31% 72% / 0.54);
+  border-radius: 8px;
+  background: hsl(43 62% 98% / 0.76);
+  padding: 12px;
+}
+
+.reading-card-reviewer-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.reading-card-reviewer-card > header strong,
+.reading-card-reviewer-card > header span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-card-reviewer-card > header strong {
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.reading-card-reviewer-card > header span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.reading-card-reviewer-card mark {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.reading-card-reviewer-card mark.is-pass {
+  border-color: hsl(145 31% 45% / 0.28);
+  background: hsl(138 38% 88% / 0.62);
+  color: hsl(145 35% 26%);
+}
+
+.reading-card-reviewer-card mark.is-revise {
+  border-color: hsl(8 45% 46% / 0.25);
+  background: hsl(21 58% 89% / 0.56);
+  color: hsl(8 45% 30%);
+}
+
+.reading-card-reviewer-card > p,
+.reading-card-review-empty {
+  margin: 0;
+  color: hsl(31 20% 28%);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.reading-card-review-findings {
+  display: grid;
+  gap: 8px;
+}
+
+.reading-card-review-finding {
+  display: grid;
+  gap: 7px;
+  border: 1px solid hsl(36 31% 72% / 0.5);
+  border-radius: 8px;
+  background: hsl(42 55% 95% / 0.68);
+  padding: 10px;
+}
+
+.reading-card-review-finding header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.reading-card-review-finding header span {
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  padding: 5px 7px;
+}
+
+.reading-card-review-finding header span.is-high {
+  background: hsl(8 60% 90% / 0.72);
+  color: hsl(8 48% 30%);
+}
+
+.reading-card-review-finding header span.is-medium {
+  background: hsl(43 70% 86% / 0.72);
+  color: hsl(35 48% 27%);
+}
+
+.reading-card-review-finding header span.is-low {
+  background: hsl(202 38% 88% / 0.72);
+  color: hsl(209 28% 29%);
+}
+
+.reading-card-review-finding header strong {
+  color: hsl(31 23% 20%);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.reading-card-review-finding header em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 820;
+}
+
+.reading-card-review-finding p,
+.reading-card-review-finding blockquote {
+  margin: 0;
+  color: hsl(31 20% 28%);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.reading-card-review-finding blockquote {
+  border-left: 2px solid hsl(211 22% 55% / 0.34);
+  padding-left: 9px;
+}
+
+.reading-card-review-list {
+  display: grid;
+  gap: 6px;
+}
+
+.reading-card-review-list > strong {
+  color: hsl(31 23% 20%);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.reading-card-review-list ul {
+  gap: 5px;
+}
+
+.reading-card-review-list li {
+  font-size: 12px;
 }
 
 .reading-card-section-card {
