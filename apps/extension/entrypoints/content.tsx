@@ -349,6 +349,13 @@ function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfi
   };
 }
 
+function toCachedArticleRecord(record: ArticleRecord): ArticleRecord {
+  return {
+    ...record,
+    contentHtml: undefined,
+  };
+}
+
 function agentQueueKey(annotation: Annotation) {
   return annotation.agentId || annotation.agentUsername || '__agent__';
 }
@@ -443,10 +450,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         const migrated: Record<string, unknown> = {};
         const legacyKeys: string[] = [];
 
-        if (!stored[storageKey] && loaded) {
-          migrated[storageKey] = loaded;
-          legacyKeys.push(legacyStorageKey);
-        }
+        if (!stored[storageKey] && loaded) legacyKeys.push(legacyStorageKey);
 
         if (loaded) {
           const nextRecord = buildCurrentArticleRecord(
@@ -454,8 +458,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             loaded.createdAt,
             loaded.updatedAt,
           );
-          applyArticleRecord(nextRecord);
-          migrated[storageKey] = nextRecord;
+          if (applyNewerArticleRecord(nextRecord)) {
+            migrated[storageKey] = toCachedArticleRecord(nextRecord);
+          }
         }
         const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] ||
           stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
@@ -485,21 +490,23 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           });
         }
 
-        if (Object.keys(migrated).length > 0) {
-          await browser.storage.local.set(migrated);
-          await browser.storage.local.remove(legacyKeys);
+        try {
+          if (Object.keys(migrated).length > 0) await browser.storage.local.set(migrated);
+          if (legacyKeys.length > 0) await browser.storage.local.remove(legacyKeys);
+        } catch (error) {
+          readerLog('storage.migrate.error', { message: errorMessage(error) });
         }
       });
   }, [legacyStorageKey, storageKey]);
 
   const saveAnnotations = useCallback(
-    async (nextAnnotations: Annotation[]) => {
+    (nextAnnotations: Annotation[]) => {
       const now = new Date().toISOString();
       const createdAt = recordCreatedAtRef.current || now;
       const nextRecord = buildCurrentArticleRecord(nextAnnotations, createdAt, now);
       applyArticleRecord(nextRecord);
-      await browser.storage.local.set({ [storageKey]: nextRecord });
       sendArticleRecord(nextRecord);
+      void cacheArticleRecord(nextRecord);
     },
     [extracted, storageKey],
   );
@@ -529,6 +536,22 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     annotationsRef.current = record.annotations || [];
     articleRecordRef.current = record;
     setAnnotations(record.annotations || []);
+  }
+
+  function applyNewerArticleRecord(record: ArticleRecord) {
+    const current = articleRecordRef.current;
+    if (current && timestamp(current.updatedAt) >= timestamp(record.updatedAt)) return false;
+
+    applyArticleRecord(record);
+    return true;
+  }
+
+  async function cacheArticleRecord(record: ArticleRecord) {
+    try {
+      await browser.storage.local.set({ [storageKey]: toCachedArticleRecord(record) });
+    } catch (error) {
+      readerLog('storage.cache.error', { message: errorMessage(error) });
+    }
   }
 
   function sendArticleRecord(record: ArticleRecord) {
@@ -586,8 +609,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       record.updatedAt,
     );
     applyArticleRecord(nextRecord);
-    await browser.storage.local.set({ [storageKey]: nextRecord });
     sendArticleRecord(nextRecord);
+    void cacheArticleRecord(nextRecord);
   }
 
   const recalculateHighlights = useCallback(() => {
@@ -1021,7 +1044,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       updatedAt: now,
     };
 
-    await saveAnnotations([...annotations, annotation]);
+    await saveAnnotations([...annotationsRef.current, annotation]);
     setActiveId(annotation.id);
     setComposer(null);
     setSelectionAction(null);
@@ -1036,7 +1059,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   async function deleteAnnotation(annotationId: string) {
-    const nextAnnotations = annotations.filter((annotation) => annotation.id !== annotationId);
+    const nextAnnotations = annotationsRef.current.filter(
+      (annotation) => annotation.id !== annotationId,
+    );
     noteRefs.current.delete(annotationId);
     for (const [requestId, pending] of pendingAgentRequestsRef.current) {
       if (pending.annotationId === annotationId) pendingAgentRequestsRef.current.delete(requestId);
@@ -1374,20 +1399,29 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       userAvatar: userProfile.avatar,
       userAnnotationColor: userProfile.annotationColor,
     };
-    const nextAnnotations = annotations.map((annotation) => {
-      if (annotation.id !== annotationId) return annotation;
-      return { ...annotation, comments: [...annotation.comments, userComment], updatedAt: now };
-    });
+    const nextAnnotations: Annotation[] = [];
+    let nextAnnotation: Annotation | undefined;
+    for (const annotation of annotationsRef.current) {
+      if (annotation.id !== annotationId) {
+        nextAnnotations.push(annotation);
+        continue;
+      }
+
+      nextAnnotation = {
+        ...annotation,
+        comments: [...annotation.comments, userComment],
+        updatedAt: now,
+      };
+      nextAnnotations.push(nextAnnotation);
+    }
+    if (!nextAnnotation) return;
 
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
 
     const mentionedAgents = findMentionedAgents(trimmed, agents);
-    const nextAnnotation = nextAnnotations.find((annotation) => annotation.id === annotationId);
-    if (nextAnnotation) {
-      for (const agent of mentionedAgents) {
-        sendAgentMessage(agent, nextAnnotation, userComment);
-      }
+    for (const agent of mentionedAgents) {
+      sendAgentMessage(agent, nextAnnotation, userComment);
     }
   }
 
