@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from "electron";
 import type { Agent, LlmProvider, UserProfile } from "@yomitomo/shared";
 import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from "./store";
 import { testProvider } from "./llm";
@@ -14,6 +14,7 @@ app.setPath("userData", join(app.getPath("appData"), "@yomitomo/desktop"));
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
+    ...windowChromeOptions(),
     width: 1180,
     height: 820,
     minWidth: 980,
@@ -34,6 +35,29 @@ async function createWindow() {
   } else {
     await mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
+}
+
+function windowChromeOptions(): BrowserWindowConstructorOptions {
+  if (process.platform === "darwin") {
+    return {
+      titleBarStyle: "hiddenInset",
+    };
+  }
+
+  if (process.platform === "win32") {
+    return {
+      titleBarStyle: "hidden",
+      titleBarOverlay: {
+        color: "#f8f3e8",
+        symbolColor: "#251d16",
+        height: 42,
+      },
+    };
+  }
+
+  return {
+    frame: false,
+  };
 }
 
 app.whenReady().then(async () => {

@@ -4,7 +4,6 @@ import {
   BarChart3,
   BookOpen,
   Bot,
-  Cable,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -14,7 +13,8 @@ import {
   EyeOff,
   Info,
   KeyRound,
-  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Quote,
   RefreshCcw,
@@ -329,27 +329,23 @@ function App() {
 
   return (
     <main className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
+      <header className="app-window-header">
+        <button
+          aria-label={sidebarCollapsed ? "展开导航栏" : "折叠导航栏"}
+          className="sidebar-collapse-button"
+          type="button"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        >
+          {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
+        <div className="app-header-copy">
+          <h1>Yomitomo</h1>
+          <p>伴读 · 你的 AI 阅读伙伴</p>
+        </div>
+      </header>
+
       <section className="app-layout">
         <aside className="settings-sidebar">
-          <button
-            aria-label={sidebarCollapsed ? "展开导航栏" : "折叠导航栏"}
-            className="sidebar-collapse-button"
-            type="button"
-            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          >
-            <Menu size={18} />
-          </button>
-
-          <div className="sidebar-brand">
-            <div className="sidebar-brand-icon">
-              <Cable size={20} />
-            </div>
-            <div className="sidebar-brand-copy">
-              <h1>Yomitomo</h1>
-              <p>127.0.0.1:43891</p>
-            </div>
-          </div>
-
           <nav className="settings-nav">
             <SettingsNavButton
               active={activeSetting === "library"}
