@@ -69,6 +69,7 @@ type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
 type LogLevelFilter = "all" | "info" | "error";
+type AgentSaveState = "idle" | "saving" | "saved";
 type LogEntry = {
   id: string;
   at: string;
@@ -226,6 +227,7 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState("");
   const [agentSaveError, setAgentSaveError] = useState("");
+  const [agentSaveState, setAgentSaveState] = useState<AgentSaveState>("idle");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -239,6 +241,18 @@ function App() {
     () => store.providers.map((provider) => ({ id: provider.id, label: provider.name })),
     [store.providers],
   );
+  const selectedAgent = useMemo(
+    () => store.agents.find((agent) => agent.id === selectedAgentId) || null,
+    [selectedAgentId, store.agents],
+  );
+  const agentHasChanges = useMemo(
+    () => agentDraftHasChanges(agentDraft, selectedAgent),
+    [agentDraft, selectedAgent],
+  );
+  const canSaveAgent =
+    providerOptions.length > 0 &&
+    agentSaveState !== "saving" &&
+    (selectedAgentId ? agentHasChanges : true);
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -267,6 +281,7 @@ function App() {
     setSelectedAgentId(agent.id);
     setAgentDraft({ ...agent, personalityId: findAgentPersonalityId(agent.soul) });
     setAgentSaveError("");
+    setAgentSaveState("idle");
   }
 
   function createAgent() {
@@ -278,6 +293,7 @@ function App() {
       providerId: store.providers[0]?.id || "",
     });
     setAgentSaveError("");
+    setAgentSaveState("idle");
   }
 
   async function saveUserDraft() {
@@ -319,7 +335,7 @@ function App() {
   }
 
   async function saveAgentDraft() {
-    if (!window.yomitomoDesktop) return;
+    if (!window.yomitomoDesktop || !canSaveAgent) return;
     const personalityId =
       agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
     const personality = agentPersonalities.find((item) => item.id === personalityId);
@@ -332,19 +348,30 @@ function App() {
       return;
     }
     const providerId = agentDraft.providerId || store.providers[0]?.id || "";
-    const nextStore = await window.yomitomoDesktop.saveAgent({
-      ...agentDraft,
-      providerId,
-      soul: personality?.soul || agentDraft.soul,
-      temperature:
-        personality?.temperature ?? agentDraft.temperature ?? customPersonality.temperature,
-    });
-    const savedAgent = agentDraft.id
-      ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
-      : nextStore.agents.at(-1);
-    setStore(nextStore);
-    setAgentSaveError("");
-    if (savedAgent) selectAgent(savedAgent);
+    setAgentSaveState("saving");
+    try {
+      const nextStore = await window.yomitomoDesktop.saveAgent({
+        ...agentDraft,
+        providerId,
+        soul: personality?.soul || agentDraft.soul,
+        temperature:
+          personality?.temperature ?? agentDraft.temperature ?? customPersonality.temperature,
+      });
+      const savedAgent = agentDraft.id
+        ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
+        : nextStore.agents.at(-1);
+      setStore(nextStore);
+      setAgentSaveError("");
+      if (savedAgent) {
+        setSelectedAgentId(savedAgent.id);
+        setAgentDraft({ ...savedAgent, personalityId: findAgentPersonalityId(savedAgent.soul) });
+        setAgentSaveState("saved");
+        window.setTimeout(() => setAgentSaveState("idle"), 1200);
+      }
+    } catch (error) {
+      setAgentSaveError(error instanceof Error ? error.message : "保存失败。");
+      setAgentSaveState("idle");
+    }
   }
 
   async function deleteAgent(id: string) {
@@ -469,13 +496,16 @@ function App() {
               error={agentSaveError}
               providers={providerOptions}
               selectedId={selectedAgentId}
+              canSave={canSaveAgent}
               onChange={(draft) => {
                 setAgentDraft(draft);
                 setAgentSaveError("");
+                setAgentSaveState("idle");
               }}
               onCreate={createAgent}
               onDelete={deleteAgent}
               onSave={saveAgentDraft}
+              saveState={agentSaveState}
               onSelect={selectAgent}
             />
           ) : null}
@@ -1188,10 +1218,12 @@ function AgentSettings({
   error,
   providers,
   selectedId,
+  canSave,
   onChange,
   onCreate,
   onDelete,
   onSave,
+  saveState,
   onSelect,
 }: {
   agents: Agent[];
@@ -1199,12 +1231,16 @@ function AgentSettings({
   error: string;
   providers: Array<{ id: string; label: string }>;
   selectedId: string | null;
+  canSave: boolean;
   onChange: (draft: AgentDraft) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onSave: () => void;
+  saveState: AgentSaveState;
   onSelect: (agent: Agent) => void;
 }) {
+  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+
   return (
     <div className="settings-panel">
       <PanelHeader
@@ -1258,6 +1294,7 @@ function AgentSettings({
             <div className="flex gap-2">
               {draft.id ? (
                 <Button
+                  className="action-button danger-action"
                   variant="destructive"
                   size="icon"
                   type="button"
@@ -1266,9 +1303,18 @@ function AgentSettings({
                   <Trash2 size={15} />
                 </Button>
               ) : null}
-              <Button disabled={providers.length === 0} type="button" onClick={onSave}>
-                <Save size={16} />
-                保存
+              <Button
+                className={
+                  saveState === "saved"
+                    ? "action-button save-action is-saved"
+                    : "action-button save-action"
+                }
+                disabled={!canSave}
+                type="button"
+                onClick={onSave}
+              >
+                {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+                {saveLabel}
               </Button>
             </div>
           </div>
@@ -1298,7 +1344,7 @@ function ConfigList({
     <aside className="config-list">
       <div className="config-list-header">
         <div className="config-list-title">{title}</div>
-        <Button size="sm" type="button" onClick={onCreate}>
+        <Button className="action-button create-action" size="sm" type="button" onClick={onCreate}>
           <Plus size={16} />
           {createLabel}
         </Button>
@@ -1562,6 +1608,28 @@ function findAgentPersonalityId(soul: string) {
 function agentPersonalityName(agent: Agent) {
   return (
     agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || "自定义个性"
+  );
+}
+
+function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
+  if (!agent) return true;
+
+  const personalityId =
+    draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
+  const personality = agentPersonalities.find((item) => item.id === personalityId);
+  const soul = personality?.soul || draft.soul || "";
+  const temperature =
+    personality?.temperature ?? draft.temperature ?? customPersonality.temperature;
+
+  return (
+    (draft.providerId || "") !== agent.providerId ||
+    (draft.nickname || "").trim() !== agent.nickname ||
+    (draft.username || "").trim() !== agent.username ||
+    (draft.avatar || "").trim() !== agent.avatar ||
+    (draft.annotationColor || "") !== agent.annotationColor ||
+    (draft.annotationDensity || "medium") !== agent.annotationDensity ||
+    Math.abs(Number(temperature) - agent.temperature) > 0.001 ||
+    soul.trim() !== agent.soul
   );
 }
 

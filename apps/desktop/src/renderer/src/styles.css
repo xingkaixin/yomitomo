@@ -383,6 +383,11 @@
   cursor: pointer;
   padding: 10px;
   text-align: left;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .config-list-item.is-plain {
@@ -394,6 +399,10 @@
   border-color: hsl(8 45% 48% / 0.4);
   background: hsl(38 44% 90% / 0.68);
   box-shadow: 0 10px 26px hsl(31 34% 24% / 0.08);
+}
+
+.config-list-item:active {
+  transform: translateY(1px) scale(0.99);
 }
 
 .config-list-item strong {
@@ -463,6 +472,55 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.action-button {
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease;
+}
+
+.action-button:hover:not(:disabled) {
+  box-shadow: 0 10px 22px hsl(31 34% 24% / 0.12);
+  transform: translateY(-1px);
+}
+
+.action-button:active:not(:disabled) {
+  box-shadow: 0 4px 12px hsl(31 34% 24% / 0.1);
+  transform: translateY(1px) scale(0.98);
+}
+
+.action-button:disabled {
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.save-action.is-saved {
+  background: hsl(83 24% 35%);
+  color: hsl(var(--primary-foreground));
+  animation: save-confirm 520ms ease;
+}
+
+.danger-action:hover:not(:disabled) {
+  box-shadow: 0 10px 22px hsl(8 48% 30% / 0.16);
+}
+
+@keyframes save-confirm {
+  0% {
+    transform: scale(0.98);
+  }
+
+  45% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .field-copy {
@@ -1395,6 +1453,10 @@
   color: hsl(var(--muted-foreground));
   cursor: pointer;
   padding: 0;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 .avatar-choice:hover,
@@ -1402,6 +1464,11 @@
 .avatar-upload-choice:hover {
   border-color: hsl(var(--card));
   box-shadow: 0 0 0 2px hsl(8 45% 46% / 0.72);
+}
+
+.avatar-choice:active,
+.avatar-upload-choice:active {
+  transform: scale(0.94);
 }
 
 .avatar-choice img,
@@ -1512,6 +1579,11 @@
   cursor: pointer;
   padding: 10px 12px;
   text-align: left;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .density-choice strong {
@@ -1531,6 +1603,15 @@
   background: hsl(var(--primary) / 0.08);
 }
 
+.density-choice:hover {
+  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.07);
+  transform: translateY(-1px);
+}
+
+.density-choice:active {
+  transform: translateY(1px) scale(0.98);
+}
+
 .personality-choice {
   position: relative;
   display: grid;
@@ -1544,6 +1625,11 @@
   cursor: pointer;
   padding: 14px 12px 12px;
   text-align: left;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .personality-choice:hover,
@@ -1551,6 +1637,14 @@
   border-color: hsl(8 45% 46% / 0.58);
   background: hsl(38 48% 91% / 0.82);
   box-shadow: 0 10px 26px hsl(31 34% 24% / 0.08);
+}
+
+.personality-choice:hover {
+  transform: translateY(-2px);
+}
+
+.personality-choice:active {
+  transform: translateY(1px) scale(0.985);
 }
 
 .personality-choice strong {
@@ -1658,6 +1752,15 @@
   box-shadow: 0 0 0 1px hsl(var(--border));
   color: hsl(var(--card));
   cursor: pointer;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    filter 140ms ease;
+}
+
+.color-swatch:hover {
+  filter: saturate(1.08);
+  transform: translateY(-1px);
 }
 
 .color-swatch.is-active {
@@ -1669,4 +1772,8 @@
 .color-swatch svg {
   filter: drop-shadow(0 1px 2px hsl(31 34% 24% / 0.24));
   stroke-width: 3;
+}
+
+.color-swatch:active {
+  transform: scale(0.9);
 }
