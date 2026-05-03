@@ -5,19 +5,20 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(root, 'src/renderer');
+const workspaceDeps = ['@yomitomo/core', '@yomitomo/shared'];
 
 export default defineConfig({
   main: {
     build: {
       outDir: resolve(root, 'dist/main'),
     },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceDeps })],
   },
   preload: {
     build: {
       outDir: resolve(root, 'dist/preload'),
     },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: workspaceDeps })],
   },
   renderer: {
     root: rendererRoot,
