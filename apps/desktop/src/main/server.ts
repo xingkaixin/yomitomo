@@ -91,6 +91,22 @@ async function handleMessage(socket: WebSocket, raw: string) {
       return;
     }
 
+    if (message.type === 'article:get') {
+      const store = await readStore();
+      const article =
+        store.articles.find((item) => item.id === message.payload.id) ||
+        store.articles.find(
+          (item) =>
+            item.canonicalUrl === message.payload.canonicalUrl ||
+            item.url === message.payload.url ||
+            item.url === message.payload.canonicalUrl ||
+            item.canonicalUrl === message.payload.url,
+        ) ||
+        null;
+      send(socket, { type: 'article:get:result', requestId: message.requestId, article });
+      return;
+    }
+
     if (message.type === 'agent:message') {
       const store = await readStore();
       const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);

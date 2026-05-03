@@ -112,4 +112,10 @@ ALTER TABLE annotations ADD COLUMN annotation_type TEXT;
 ALTER TABLE agents ADD COLUMN temperature REAL NOT NULL DEFAULT 0.5;
 `,
   },
+  {
+    id: '0004_article_content_html',
+    sql: `
+ALTER TABLE articles ADD COLUMN content_html TEXT;
+`,
+  },
 ];

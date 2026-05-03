@@ -407,9 +407,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         }
 
         if (loaded) {
-          recordCreatedAtRef.current = loaded.createdAt;
-          articleRecordRef.current = loaded;
-          setAnnotations(loaded.annotations || []);
+          const nextRecord = buildCurrentArticleRecord(
+            loaded.annotations || [],
+            loaded.createdAt,
+            loaded.updatedAt,
+          );
+          applyArticleRecord(nextRecord);
+          migrated[storageKey] = nextRecord;
         }
         const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] ||
           stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
@@ -450,27 +454,40 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     async (nextAnnotations: Annotation[]) => {
       const now = new Date().toISOString();
       const createdAt = recordCreatedAtRef.current || now;
-      recordCreatedAtRef.current = createdAt;
-      const nextRecord: ArticleRecord = {
-        id: extracted.id,
-        url: extracted.url,
-        canonicalUrl: extracted.canonicalUrl,
-        title: extracted.title,
-        byline: extracted.byline,
-        excerpt: extracted.excerpt,
-        contentHash: extracted.contentHash,
-        annotations: nextAnnotations,
-        createdAt,
-        updatedAt: now,
-      };
-      annotationsRef.current = nextAnnotations;
-      articleRecordRef.current = nextRecord;
-      setAnnotations(nextAnnotations);
+      const nextRecord = buildCurrentArticleRecord(nextAnnotations, createdAt, now);
+      applyArticleRecord(nextRecord);
       await browser.storage.local.set({ [storageKey]: nextRecord });
       sendArticleRecord(nextRecord);
     },
     [extracted, storageKey],
   );
+
+  function buildCurrentArticleRecord(
+    nextAnnotations: Annotation[],
+    createdAt: string,
+    updatedAt: string,
+  ): ArticleRecord {
+    return {
+      id: extracted.id,
+      url: extracted.url,
+      canonicalUrl: extracted.canonicalUrl,
+      title: extracted.title,
+      byline: extracted.byline,
+      excerpt: extracted.excerpt,
+      contentHtml: extracted.content,
+      contentHash: extracted.contentHash,
+      annotations: nextAnnotations,
+      createdAt,
+      updatedAt,
+    };
+  }
+
+  function applyArticleRecord(record: ArticleRecord) {
+    recordCreatedAtRef.current = record.createdAt;
+    annotationsRef.current = record.annotations || [];
+    articleRecordRef.current = record;
+    setAnnotations(record.annotations || []);
+  }
 
   function sendArticleRecord(record: ArticleRecord) {
     const socket = wsRef.current;
@@ -481,7 +498,54 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function sendCurrentArticleRecord() {
-    if (articleRecordRef.current) sendArticleRecord(articleRecordRef.current);
+    const current = articleRecordRef.current;
+    if (!current) return;
+    const nextRecord = buildCurrentArticleRecord(
+      current.annotations || [],
+      current.createdAt,
+      current.updatedAt,
+    );
+    applyArticleRecord(nextRecord);
+    sendArticleRecord(nextRecord);
+  }
+
+  function requestDesktopArticleRecord() {
+    const socket = wsRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({
+        type: 'article:get',
+        requestId: makeId('request'),
+        payload: {
+          id: extracted.id,
+          url: extracted.url,
+          canonicalUrl: extracted.canonicalUrl,
+        },
+      }),
+    );
+  }
+
+  async function applyDesktopArticleRecord(record: ArticleRecord | null) {
+    if (!record) {
+      sendCurrentArticleRecord();
+      return;
+    }
+
+    const current = articleRecordRef.current;
+    const shouldUseRemote = !current || timestamp(record.updatedAt) > timestamp(current.updatedAt);
+    if (!shouldUseRemote) {
+      sendCurrentArticleRecord();
+      return;
+    }
+
+    const nextRecord = buildCurrentArticleRecord(
+      record.annotations || [],
+      record.createdAt,
+      record.updatedAt,
+    );
+    applyArticleRecord(nextRecord);
+    await browser.storage.local.set({ [storageKey]: nextRecord });
+    sendArticleRecord(nextRecord);
   }
 
   const recalculateHighlights = useCallback(() => {
@@ -525,7 +589,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setDesktopConnected(true);
         socket.send(JSON.stringify({ type: 'hello' }));
         socket.send(JSON.stringify({ type: 'agent:list', requestId: makeId('request') }));
-        sendCurrentArticleRecord();
+        requestDesktopArticleRecord();
       });
 
       socket.addEventListener('message', (event) => {
@@ -598,6 +662,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       await browser.storage.local.set({
         [DESKTOP_PROFILE_CACHE_KEY]: { user, agents: message.agents } satisfies DesktopProfileCache,
       });
+      return;
+    }
+
+    if (message.type === 'article:get:result') {
+      await applyDesktopArticleRecord(message.article);
       return;
     }
 
@@ -2104,6 +2173,11 @@ function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
 function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
   return Math.min(max, Math.max(min, value));
+}
+
+function timestamp(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function selectionActionPosition(lastRect: DOMRect, canvasRect: DOMRect) {

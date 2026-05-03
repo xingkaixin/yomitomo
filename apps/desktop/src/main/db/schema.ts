@@ -45,6 +45,7 @@ export const articles = sqliteTable(
     title: text('title').notNull(),
     byline: text('byline'),
     excerpt: text('excerpt'),
+    contentHtml: text('content_html'),
     contentHash: text('content_hash').notNull(),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

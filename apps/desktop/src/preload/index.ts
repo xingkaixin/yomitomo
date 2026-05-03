@@ -14,6 +14,7 @@ const api = {
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
+  openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   saveAgent: (agent: Partial<Agent>) =>
     ipcRenderer.invoke('agent:save', agent) as Promise<DesktopStore>,
   deleteAgent: (id: string) => ipcRenderer.invoke('agent:delete', id) as Promise<DesktopStore>,

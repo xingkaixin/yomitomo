@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, ipcMain, type BrowserWindowConstructorOptions } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
 import type { Agent, LlmProvider, UserProfile } from '@yomitomo/shared';
 import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from './store';
 import { testProvider } from './llm';
@@ -35,6 +35,11 @@ async function createWindow() {
   } else {
     await mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    void openExternalUrl(url);
+    return { action: 'deny' };
+  });
 }
 
 function windowChromeOptions(): BrowserWindowConstructorOptions {
@@ -83,6 +88,7 @@ function registerIpc() {
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
+  ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('provider:save', async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
@@ -114,4 +120,12 @@ function registerIpc() {
     broadcastStatus();
     return store;
   });
+}
+
+async function openExternalUrl(value: string) {
+  const url = new URL(value);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error('仅支持打开 HTTP 链接');
+  }
+  await shell.openExternal(url.toString());
 }

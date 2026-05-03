@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clipboard,
+  ExternalLink,
   FileText,
   Eye,
   EyeOff,
@@ -866,26 +867,31 @@ function AnnotationNotebook({
               {formatDate(article.updatedAt)}
             </p>
           </div>
-          <div className="annotation-pagination">
-            <button
-              aria-label="上一条批注"
-              type="button"
-              disabled={!canPage}
-              onClick={() => selectByOffset(-1)}
-            >
-              <ChevronLeft size={17} />
-            </button>
-            <span>
-              {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : '0 / 0'}
-            </span>
-            <button
-              aria-label="下一条批注"
-              type="button"
-              disabled={!canPage}
-              onClick={() => selectByOffset(1)}
-            >
-              <ChevronRight size={17} />
-            </button>
+          <div className="notebook-header-actions">
+            <OpenArticleButton article={article} />
+            <div className="annotation-pagination">
+              <button
+                aria-label="上一条批注"
+                type="button"
+                disabled={!canPage}
+                onClick={() => selectByOffset(-1)}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <span>
+                {annotations.length > 0
+                  ? `${selectedIndex + 1} / ${annotations.length}`
+                  : '0 / 0'}
+              </span>
+              <button
+                aria-label="下一条批注"
+                type="button"
+                disabled={!canPage}
+                onClick={() => selectByOffset(1)}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
           </div>
         </header>
 
@@ -977,6 +983,40 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
       onClick={copy}
     >
       {copied ? <Check size={15} /> : <Clipboard size={14} />}
+    </button>
+  );
+}
+
+function OpenArticleButton({ article }: { article: ArticleRecord }) {
+  const url = articleExternalUrl(article);
+
+  async function open() {
+    if (!url) return;
+    const desktop = window.yomitomoDesktop as typeof window.yomitomoDesktop & {
+      openUrl?: (url: string) => Promise<void>;
+    };
+    if (typeof desktop?.openUrl === 'function') {
+      try {
+        await desktop.openUrl(url);
+        return;
+      } catch {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  return (
+    <button
+      aria-label="在浏览器中打开原文"
+      className="open-article-button"
+      disabled={!url}
+      type="button"
+      title={url || '原文链接不可用'}
+      onClick={open}
+    >
+      <ExternalLink size={16} />
+      <span>打开原文</span>
     </button>
   );
 }
@@ -2085,6 +2125,19 @@ function urlHost(value: string) {
   }
 }
 
+function articleExternalUrl(article: ArticleRecord) {
+  return validExternalUrl(article.canonicalUrl) || validExternalUrl(article.url);
+}
+
+function validExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+}
+
 function buildReadingCard(article: ArticleRecord) {
   const sections = buildReadingCardSections(article);
   const lines = [
@@ -2109,6 +2162,7 @@ function buildReadingCard(article: ArticleRecord) {
 }
 
 function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] {
+  const articleText = articlePlainText(article);
   const comments = article.annotations.flatMap((annotation) =>
     annotation.comments.map((comment) => ({
       annotation,
@@ -2120,6 +2174,10 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
   const questions = comments.filter((item) => /[?？]/.test(item.comment.content));
 
   return [
+    {
+      title: '文章快照',
+      items: articleText ? [compactText(articleText, 260)] : [],
+    },
     {
       title: '关键原文',
       items: article.annotations
@@ -2152,6 +2210,14 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
       items: questions.slice(0, 6).map(({ comment }) => compactText(comment.content, 140)),
     },
   ];
+}
+
+function articlePlainText(article: ArticleRecord) {
+  const html = article.contentHtml || '';
+  if (!html) return article.excerpt || '';
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  return container.textContent?.replace(/\s+/g, ' ').trim() || article.excerpt || '';
 }
 
 function compactText(value: string, limit: number) {

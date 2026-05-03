@@ -97,6 +97,7 @@ export type ArticleRecord = {
   title: string;
   byline?: string;
   excerpt?: string;
+  contentHtml?: string;
   contentHash: string;
   annotations: Annotation[];
   createdAt: string;
@@ -135,6 +136,11 @@ export type AgentAnnotatePayload = {
 export type DesktopClientMessage =
   | { type: 'hello' }
   | { type: 'agent:list'; requestId: string }
+  | {
+      type: 'article:get';
+      requestId: string;
+      payload: { id: string; url: string; canonicalUrl: string };
+    }
   | { type: 'article:save'; requestId: string; payload: ArticleRecord }
   | { type: 'agent:message'; requestId: string; payload: AgentMessagePayload }
   | { type: 'agent:annotate'; requestId: string; payload: AgentAnnotatePayload };
@@ -142,6 +148,7 @@ export type DesktopClientMessage =
 export type DesktopServerMessage =
   | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[] }
   | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
+  | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
   | { type: 'agent:message:start'; requestId: string; annotationId: string; comment: Comment }
   | {
       type: 'agent:message:delta';
