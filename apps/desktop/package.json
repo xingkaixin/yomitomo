@@ -5,15 +5,19 @@
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "pnpm run rebuild:native && electron-vite dev",
+    "build": "pnpm run rebuild:native && electron-vite build",
+    "db:generate": "drizzle-kit generate",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^6.0.1",
     "@yomitomo/shared": "workspace:*",
+    "better-sqlite3": "^12.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
     "electron": "^41.5.0",
     "electron-vite": "^5.0.0",
     "lucide-react": "^1.14.0",
@@ -23,11 +27,14 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.4",
     "@tailwindcss/postcss": "^4.2.4",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
+    "drizzle-kit": "^0.31.10",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
