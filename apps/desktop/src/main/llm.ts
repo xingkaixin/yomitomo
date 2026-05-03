@@ -303,12 +303,31 @@ function buildAgentPrompt(payload: AgentMessagePayload) {
   const comments = payload.annotation.comments
     .map((comment) => {
       const author =
-        comment.author === 'ai' ? comment.agentNickname || comment.agentUsername || 'AI' : '用户';
+        comment.author === 'ai' ? formatAgentAuthor(comment) : formatUserAuthor(comment);
       return `${author}: ${comment.content}`;
     })
     .join('\n');
+  const userMention = formatUserMention(payload.userComment);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 30000)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的用户评论：\n${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 30000)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+}
+
+function formatAgentAuthor(comment: Comment) {
+  if (comment.agentNickname && comment.agentUsername) {
+    return `${comment.agentNickname} (@${comment.agentUsername})`;
+  }
+  return comment.agentNickname || (comment.agentUsername ? `@${comment.agentUsername}` : 'AI');
+}
+
+function formatUserAuthor(comment: Comment) {
+  if (comment.userNickname && comment.userUsername) {
+    return `${comment.userNickname} (@${comment.userUsername})`;
+  }
+  return comment.userNickname || formatUserMention(comment);
+}
+
+function formatUserMention(comment: Comment) {
+  return comment.userUsername ? `@${comment.userUsername}` : '读者';
 }
 
 function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload, agent: Agent) {
