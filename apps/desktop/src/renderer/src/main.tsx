@@ -329,23 +329,17 @@ function App() {
 
   return (
     <main className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
-      <header className="app-header">
-        <button
-          aria-label={sidebarCollapsed ? "展开导航栏" : "折叠菜单"}
-          className="app-header-toggle"
-          type="button"
-          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-        >
-          <Menu size={18} />
-        </button>
-        <div className="app-title">
-          <span>Yomitomo</span>
-          <span>伴读 · 你的 AI 阅读伙伴</span>
-        </div>
-      </header>
-
       <section className="app-layout">
         <aside className="settings-sidebar">
+          <button
+            aria-label={sidebarCollapsed ? "展开导航栏" : "折叠导航栏"}
+            className="sidebar-collapse-button"
+            type="button"
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          >
+            <Menu size={18} />
+          </button>
+
           <div className="sidebar-brand">
             <div className="sidebar-brand-icon">
               <Cable size={20} />

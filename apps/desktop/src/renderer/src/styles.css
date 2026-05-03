@@ -70,18 +70,7 @@
   color: hsl(var(--foreground));
 }
 
-.app-header {
-  display: flex;
-  height: 58px;
-  align-items: center;
-  gap: 14px;
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
-  background: hsl(var(--card) / 0.78);
-  padding: 0 18px;
-  backdrop-filter: blur(18px);
-}
-
-.app-header-toggle {
+.sidebar-collapse-button {
   display: grid;
   width: 34px;
   height: 34px;
@@ -93,35 +82,13 @@
   cursor: pointer;
 }
 
-.app-header-toggle:hover {
+.sidebar-collapse-button:hover {
   background: hsl(var(--primary) / 0.08);
-}
-
-.app-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-
-.app-title span:first-child {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.app-title span:last-child {
-  overflow: hidden;
-  color: hsl(var(--muted-foreground));
-  font-size: 14px;
-  font-weight: 760;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-layout {
   display: grid;
-  height: calc(100vh - 58px);
+  height: 100vh;
   grid-template-columns: 188px minmax(0, 1fr);
   gap: 12px;
   padding: 12px;
@@ -218,6 +185,10 @@
 .app-shell.is-sidebar-collapsed .settings-nav-item {
   justify-content: center;
   padding: 0;
+}
+
+.app-shell.is-sidebar-collapsed .sidebar-collapse-button {
+  margin-inline: auto;
 }
 
 .app-shell.is-sidebar-collapsed .settings-nav-item span,
@@ -667,12 +638,12 @@
   border-radius: 10px;
   isolation: isolate;
   background:
-    linear-gradient(90deg, hsl(31 26% 35%), hsl(35 33% 48%) 8px, transparent 9px),
-    linear-gradient(135deg, hsl(34 31% 42%), hsl(39 40% 64%));
+    linear-gradient(90deg, hsl(34 31% 32%) 0 9px, hsl(38 34% 52%) 10px 18px, transparent 19px),
+    linear-gradient(135deg, hsl(35 33% 47%), hsl(40 44% 70%));
   box-shadow:
     0 20px 52px hsl(31 34% 24% / 0.22),
     inset 0 0 0 1px hsl(32 25% 43% / 0.72);
-  padding: 10px 12px 13px 34px;
+  padding: 10px 12px 13px 22px;
 }
 
 .annotation-notebook::before,
@@ -689,13 +660,13 @@
 
 .annotation-notebook::before {
   z-index: 1;
-  inset: 17px 7px 7px 39px;
+  inset: 17px 7px 7px 28px;
   box-shadow: 0 8px 16px hsl(31 34% 24% / 0.12);
 }
 
 .annotation-notebook::after {
   z-index: 2;
-  inset: 13px 11px 11px 36px;
+  inset: 13px 11px 11px 25px;
   background:
     repeating-linear-gradient(0deg, transparent 0 31px, hsl(37 29% 74% / 0.31) 32px),
     hsl(42 59% 95%);
@@ -718,7 +689,9 @@
     auto,
     24px 24px,
     auto;
-  box-shadow: inset 0 0 40px hsl(37 34% 70% / 0.18);
+  box-shadow:
+    inset 18px 0 28px hsl(34 31% 49% / 0.13),
+    inset 0 0 40px hsl(37 34% 70% / 0.18);
   padding: 28px 30px 18px;
 }
 
@@ -745,63 +718,7 @@
 }
 
 .notebook-rings {
-  position: absolute;
-  z-index: 5;
-  top: 28px;
-  bottom: 28px;
-  left: -4px;
-  width: 68px;
-  pointer-events: none;
-}
-
-.notebook-rings::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 43px;
-  width: 18px;
-  background:
-    radial-gradient(
-        circle at 50% 31px,
-        hsl(40 49% 94%) 0 5px,
-        hsl(36 27% 63%) 5.5px 6.5px,
-        transparent 7px
-      )
-      0 0 / 18px 58px repeat-y,
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 27px,
-      hsl(31 22% 36% / 0.2) 28px 34px,
-      transparent 35px 58px
-    );
-  content: "";
-}
-
-.notebook-rings::after {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 60px;
-  background:
-    radial-gradient(
-        ellipse 24px 15px at 31px 31px,
-        transparent 0 10px,
-        hsl(42 35% 90%) 10.2px 11.5px,
-        hsl(36 18% 49%) 11.7px 13.2px,
-        hsl(43 26% 77%) 13.4px 14.6px,
-        transparent 14.8px
-      )
-      0 0 / 60px 58px repeat-y,
-    radial-gradient(
-        ellipse 21px 12px at 31px 29px,
-        transparent 0 10px,
-        hsl(0 0% 100% / 0.68) 10.4px 11px,
-        transparent 11.4px
-      )
-      0 0 / 60px 58px repeat-y;
-  content: "";
-  filter: drop-shadow(1px 2px 1px hsl(31 34% 20% / 0.45));
+  display: none;
 }
 
 .notebook-header,
@@ -821,10 +738,10 @@
 .notebook-header::after {
   position: absolute;
   right: 0;
-  bottom: -28px;
+  bottom: -14px;
   left: 0;
-  height: 34px;
-  background: linear-gradient(180deg, hsl(42 64% 96% / 0.94), hsl(42 64% 96% / 0));
+  height: 18px;
+  background: linear-gradient(180deg, hsl(42 64% 96% / 0.78), hsl(42 64% 96% / 0));
   content: "";
   filter: blur(2px);
   pointer-events: none;
@@ -886,33 +803,26 @@
   position: relative;
   min-height: 0;
   overflow: auto;
-  padding: 22px 4px 22px 0;
+  padding: 30px 4px 22px 0;
 }
 
 .quote-card,
 .comment-card {
   position: relative;
+  overflow: hidden;
   border: 1px solid hsl(36 31% 72% / 0.72);
   border-radius: 8px;
   background: hsl(43 62% 94% / 0.82);
   box-shadow: 0 9px 24px hsl(31 34% 24% / 0.09);
-  -webkit-mask-image: radial-gradient(circle at 0 34px, transparent 0 8px, #000 8.5px);
-  -webkit-mask-repeat: repeat-y;
-  -webkit-mask-size: 100% 48px;
-  mask-image: radial-gradient(circle at 0 34px, transparent 0 8px, #000 8.5px);
-  mask-repeat: repeat-y;
-  mask-size: 100% 48px;
 }
 
 .quote-card {
-  margin-left: 10px;
-  padding: 16px 18px 16px 28px;
+  padding: 18px;
 }
 
 .annotation-type {
-  position: absolute;
-  top: -13px;
-  left: 28px;
+  display: flex;
+  margin-bottom: 12px;
 }
 
 .annotation-type span {
@@ -1002,8 +912,7 @@
 }
 
 .comment-card {
-  margin-left: 10px;
-  padding: 14px 16px 14px 26px;
+  padding: 14px 16px;
 }
 
 .comment-card header {
