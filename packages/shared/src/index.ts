@@ -100,6 +100,7 @@ export type DesktopStore = {
   user: UserProfile;
   providers: LlmProvider[];
   agents: Agent[];
+  articles: ArticleRecord[];
 };
 
 export type AgentMessagePayload = {
@@ -127,6 +128,7 @@ export type AgentAnnotatePayload = {
 export type DesktopClientMessage =
   | { type: "hello" }
   | { type: "agent:list"; requestId: string }
+  | { type: "article:save"; requestId: string; payload: ArticleRecord }
   | { type: "agent:message"; requestId: string; payload: AgentMessagePayload }
   | { type: "agent:annotate"; requestId: string; payload: AgentAnnotatePayload };
 
@@ -134,7 +136,13 @@ export type DesktopServerMessage =
   | { type: "status"; ok: boolean; user: UserProfile; agents: PublicAgent[] }
   | { type: "agent:list:result"; requestId: string; user: UserProfile; agents: PublicAgent[] }
   | { type: "agent:message:start"; requestId: string; annotationId: string; comment: Comment }
-  | { type: "agent:message:delta"; requestId: string; annotationId: string; commentId: string; delta: string }
+  | {
+      type: "agent:message:delta";
+      requestId: string;
+      annotationId: string;
+      commentId: string;
+      delta: string;
+    }
   | { type: "agent:message:done"; requestId: string; annotationId: string; commentId: string }
   | { type: "agent:message:result"; requestId: string; annotationId: string; comment: Comment }
   | { type: "agent:annotate:start"; requestId: string; agent: PublicAgent }
@@ -164,11 +172,14 @@ export function createTextAnchor(text: string, start: number, end: number): Text
     prefix: text.slice(Math.max(0, safeStart - 48), safeStart),
     suffix: text.slice(safeEnd, Math.min(text.length, safeEnd + 48)),
     start: safeStart,
-    end: safeEnd
+    end: safeEnd,
   };
 }
 
-export function resolveTextAnchor(text: string, anchor: TextAnchor): { start: number; end: number } | null {
+export function resolveTextAnchor(
+  text: string,
+  anchor: TextAnchor,
+): { start: number; end: number } | null {
   if (!anchor.exact) return null;
 
   const direct = text.slice(anchor.start, anchor.end);
@@ -187,8 +198,14 @@ export function resolveTextAnchor(text: string, anchor: TextAnchor): { start: nu
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const start of exactMatches) {
     const before = text.slice(Math.max(0, start - anchor.prefix.length), start);
-    const after = text.slice(start + anchor.exact.length, start + anchor.exact.length + anchor.suffix.length);
-    const score = commonSuffixLength(before, anchor.prefix) + commonPrefixLength(after, anchor.suffix) - Math.abs(start - anchor.start) / 100;
+    const after = text.slice(
+      start + anchor.exact.length,
+      start + anchor.exact.length + anchor.suffix.length,
+    );
+    const score =
+      commonSuffixLength(before, anchor.prefix) +
+      commonPrefixLength(after, anchor.suffix) -
+      Math.abs(start - anchor.start) / 100;
     if (score > bestScore) {
       bestScore = score;
       bestStart = start;

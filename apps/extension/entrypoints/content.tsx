@@ -2,7 +2,17 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createRoot, type Root } from "react-dom/client";
 import { Readability } from "@mozilla/readability";
 import DOMPurify from "dompurify";
-import { Bot, CaseSensitive, Maximize2, MessageSquarePlus, Minus, Plus, Settings2, Trash2, X } from "lucide-react";
+import {
+  Bot,
+  CaseSensitive,
+  Maximize2,
+  MessageSquarePlus,
+  Minus,
+  Plus,
+  Settings2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { browser } from "wxt/browser";
 import { Kbd } from "../src/components/ui/kbd";
 import {
@@ -16,7 +26,7 @@ import {
   createTextAnchor,
   hashText,
   makeId,
-  resolveTextAnchor
+  resolveTextAnchor,
 } from "@yomitomo/shared";
 
 const HOST_ID = "yomitomo-root";
@@ -33,7 +43,7 @@ const defaultUserProfile: UserProfile = {
   username: "me",
   avatar: "",
   annotationColor: "#f4c95d",
-  updatedAt: ""
+  updatedAt: "",
 };
 
 type DesktopProfileCache = {
@@ -111,7 +121,7 @@ type VirtualReadingSession = {
 
 const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
-  contentWidth: 860
+  contentWidth: 860,
 };
 const DELETE_HOLD_MS = 1600;
 
@@ -123,7 +133,7 @@ export default defineContentScript({
         void toggleReader();
       }
     });
-  }
+  },
 });
 
 async function toggleReader() {
@@ -160,7 +170,8 @@ function closeReader(host: HTMLElement) {
 
 async function extractCurrentArticle(): Promise<ExtractedArticle> {
   const canonicalUrl = getCanonicalUrl();
-  const wechatContent = location.hostname === "mp.weixin.qq.com" ? document.getElementById("js_content") : null;
+  const wechatContent =
+    location.hostname === "mp.weixin.qq.com" ? document.getElementById("js_content") : null;
 
   if (wechatContent) {
     const defuddleArticle = await extractWithDefuddle(canonicalUrl);
@@ -169,13 +180,22 @@ async function extractCurrentArticle(): Promise<ExtractedArticle> {
     const title = document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled";
     const content = sanitizeArticleHtml(wechatContent.innerHTML);
     const contentHash = hashText(textFromHtml(content).slice(0, 8000));
-    return { id: hashText(canonicalUrl || contentHash), url: location.href, canonicalUrl, title, content, contentHash };
+    return {
+      id: hashText(canonicalUrl || contentHash),
+      url: location.href,
+      canonicalUrl,
+      title,
+      content,
+      contentHash,
+    };
   }
 
   const cloned = document.cloneNode(true) as Document;
   const parsed = new Readability(cloned).parse();
-  const fallbackTitle = document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled";
-  const rawContent = parsed?.content || document.querySelector("article")?.innerHTML || document.body.innerHTML;
+  const fallbackTitle =
+    document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled";
+  const rawContent =
+    parsed?.content || document.querySelector("article")?.innerHTML || document.body.innerHTML;
   const content = sanitizeArticleHtml(rawContent);
   const contentHash = hashText(textFromHtml(content).slice(0, 8000));
 
@@ -187,7 +207,7 @@ async function extractCurrentArticle(): Promise<ExtractedArticle> {
     byline: parsed?.byline || undefined,
     excerpt: parsed?.excerpt || undefined,
     content,
-    contentHash
+    contentHash,
   };
 }
 
@@ -204,11 +224,15 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
       id: hashText(canonicalUrl || contentHash),
       url: location.href,
       canonicalUrl,
-      title: result.title || document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled",
+      title:
+        result.title ||
+        document.querySelector("h1")?.textContent?.trim() ||
+        document.title ||
+        "Untitled",
       byline: result.author || result.site || undefined,
       excerpt: result.description || undefined,
       content,
-      contentHash
+      contentHash,
     };
   } catch {
     return null;
@@ -222,8 +246,19 @@ function getCanonicalUrl() {
 
 function sanitizeArticleHtml(html: string) {
   const sanitized = DOMPurify.sanitize(html, {
-    ADD_TAGS: ["math", "mrow", "mi", "mo", "mn", "msup", "msub", "msqrt", "semantics", "annotation"],
-    ADD_ATTR: ["display", "xmlns", "encoding"]
+    ADD_TAGS: [
+      "math",
+      "mrow",
+      "mi",
+      "mo",
+      "mn",
+      "msup",
+      "msub",
+      "msqrt",
+      "semantics",
+      "annotation",
+    ],
+    ADD_ATTR: ["display", "xmlns", "encoding"],
   });
   return normalizeReaderHtml(sanitized);
 }
@@ -254,7 +289,7 @@ function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfi
     ...defaultUserProfile,
     ...user,
     id: user?.id || defaultUserProfile.id,
-    annotationColor: user?.annotationColor || defaultUserProfile.annotationColor
+    annotationColor: user?.annotationColor || defaultUserProfile.annotationColor,
   };
 }
 
@@ -264,8 +299,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const annotationsRef = useRef<Annotation[]>([]);
+  const articleRecordRef = useRef<ArticleRecord | null>(null);
   const recordCreatedAtRef = useRef<string | null>(null);
-  const pendingAgentRequestsRef = useRef(new Map<string, { annotationId: string; commentId: string; agentId?: string }>());
+  const pendingAgentRequestsRef = useRef(
+    new Map<string, { annotationId: string; commentId: string; agentId?: string }>(),
+  );
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const agentAnnotationQueuesRef = useRef(new Map<string, Annotation[]>());
   const agentQueueOrderRef = useRef<string[]>([]);
@@ -305,46 +343,65 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [extracted.content]);
 
   useEffect(() => {
-    browser.storage.local.get([storageKey, legacyStorageKey, READER_SETTINGS_KEY, LEGACY_READER_SETTINGS_KEY, DESKTOP_PROFILE_CACHE_KEY, LEGACY_DESKTOP_PROFILE_CACHE_KEY]).then(async (stored) => {
-      const loaded = (stored[storageKey] || stored[legacyStorageKey]) as ArticleRecord | undefined;
-      const migrated: Record<string, unknown> = {};
-      const legacyKeys: string[] = [];
+    browser.storage.local
+      .get([
+        storageKey,
+        legacyStorageKey,
+        READER_SETTINGS_KEY,
+        LEGACY_READER_SETTINGS_KEY,
+        DESKTOP_PROFILE_CACHE_KEY,
+        LEGACY_DESKTOP_PROFILE_CACHE_KEY,
+      ])
+      .then(async (stored) => {
+        const loaded = (stored[storageKey] || stored[legacyStorageKey]) as
+          | ArticleRecord
+          | undefined;
+        const migrated: Record<string, unknown> = {};
+        const legacyKeys: string[] = [];
 
-      if (!stored[storageKey] && loaded) {
-        migrated[storageKey] = loaded;
-        legacyKeys.push(legacyStorageKey);
-      }
+        if (!stored[storageKey] && loaded) {
+          migrated[storageKey] = loaded;
+          legacyKeys.push(legacyStorageKey);
+        }
 
-      if (loaded) {
-        recordCreatedAtRef.current = loaded.createdAt;
-        setAnnotations(loaded.annotations || []);
-      }
-      const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] || stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
-      if (!stored[DESKTOP_PROFILE_CACHE_KEY] && cachedDesktopProfile) {
-        migrated[DESKTOP_PROFILE_CACHE_KEY] = cachedDesktopProfile;
-        legacyKeys.push(LEGACY_DESKTOP_PROFILE_CACHE_KEY);
-      }
-      if (cachedDesktopProfile) {
-        setUserProfile(normalizeUserProfile(cachedDesktopProfile.user));
-        setAgents(cachedDesktopProfile.agents || []);
-      }
-      const savedSettings = (stored[READER_SETTINGS_KEY] || stored[LEGACY_READER_SETTINGS_KEY]) as ReaderSettings | undefined;
-      if (!stored[READER_SETTINGS_KEY] && savedSettings) {
-        migrated[READER_SETTINGS_KEY] = savedSettings;
-        legacyKeys.push(LEGACY_READER_SETTINGS_KEY);
-      }
-      if (savedSettings) {
-        setReaderSettings({
-          fontSize: clampNumber(savedSettings.fontSize, 16, 28, defaultReaderSettings.fontSize),
-          contentWidth: clampNumber(savedSettings.contentWidth, 680, 1080, defaultReaderSettings.contentWidth)
-        });
-      }
+        if (loaded) {
+          recordCreatedAtRef.current = loaded.createdAt;
+          articleRecordRef.current = loaded;
+          setAnnotations(loaded.annotations || []);
+        }
+        const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] ||
+          stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
+        if (!stored[DESKTOP_PROFILE_CACHE_KEY] && cachedDesktopProfile) {
+          migrated[DESKTOP_PROFILE_CACHE_KEY] = cachedDesktopProfile;
+          legacyKeys.push(LEGACY_DESKTOP_PROFILE_CACHE_KEY);
+        }
+        if (cachedDesktopProfile) {
+          setUserProfile(normalizeUserProfile(cachedDesktopProfile.user));
+          setAgents(cachedDesktopProfile.agents || []);
+        }
+        const savedSettings = (stored[READER_SETTINGS_KEY] ||
+          stored[LEGACY_READER_SETTINGS_KEY]) as ReaderSettings | undefined;
+        if (!stored[READER_SETTINGS_KEY] && savedSettings) {
+          migrated[READER_SETTINGS_KEY] = savedSettings;
+          legacyKeys.push(LEGACY_READER_SETTINGS_KEY);
+        }
+        if (savedSettings) {
+          setReaderSettings({
+            fontSize: clampNumber(savedSettings.fontSize, 16, 28, defaultReaderSettings.fontSize),
+            contentWidth: clampNumber(
+              savedSettings.contentWidth,
+              680,
+              1080,
+              defaultReaderSettings.contentWidth,
+            ),
+          });
+        }
 
-      if (Object.keys(migrated).length > 0) {
-        await browser.storage.local.set(migrated);
-        await browser.storage.local.remove(legacyKeys);
-      }
-    });
+        if (Object.keys(migrated).length > 0) {
+          await browser.storage.local.set(migrated);
+          await browser.storage.local.remove(legacyKeys);
+        }
+      });
   }, [legacyStorageKey, storageKey]);
 
   const saveAnnotations = useCallback(
@@ -362,14 +419,28 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         contentHash: extracted.contentHash,
         annotations: nextAnnotations,
         createdAt,
-        updatedAt: now
+        updatedAt: now,
       };
       annotationsRef.current = nextAnnotations;
+      articleRecordRef.current = nextRecord;
       setAnnotations(nextAnnotations);
       await browser.storage.local.set({ [storageKey]: nextRecord });
+      sendArticleRecord(nextRecord);
     },
-    [extracted, storageKey]
+    [extracted, storageKey],
   );
+
+  function sendArticleRecord(record: ArticleRecord) {
+    const socket = wsRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(
+      JSON.stringify({ type: "article:save", requestId: makeId("request"), payload: record }),
+    );
+  }
+
+  function sendCurrentArticleRecord() {
+    if (articleRecordRef.current) sendArticleRecord(articleRecordRef.current);
+  }
 
   const recalculateHighlights = useCallback(() => {
     const article = articleRef.current;
@@ -391,7 +462,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         nextBoxes.push({
           ...box,
           annotationId: annotation.id,
-          color: annotationColor(annotation, userProfile, agents)
+          color: annotationColor(annotation, userProfile, agents),
         });
       });
     }
@@ -412,11 +483,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setDesktopConnected(true);
         socket.send(JSON.stringify({ type: "hello" }));
         socket.send(JSON.stringify({ type: "agent:list", requestId: makeId("request") }));
+        sendCurrentArticleRecord();
       });
 
       socket.addEventListener("message", (event) => {
         const message = JSON.parse(event.data) as DesktopServerMessage;
-        readerLog("ws.message", { type: message.type, requestId: "requestId" in message ? message.requestId : undefined });
+        readerLog("ws.message", {
+          type: message.type,
+          requestId: "requestId" in message ? message.requestId : undefined,
+        });
         void handleDesktopMessage(message);
       });
 
@@ -478,7 +553,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       setDesktopConnected(message.type === "status" ? message.ok : true);
       setUserProfile(user);
       setAgents(message.agents);
-      await browser.storage.local.set({ [DESKTOP_PROFILE_CACHE_KEY]: { user, agents: message.agents } satisfies DesktopProfileCache });
+      await browser.storage.local.set({
+        [DESKTOP_PROFILE_CACHE_KEY]: { user, agents: message.agents } satisfies DesktopProfileCache,
+      });
       return;
     }
 
@@ -505,7 +582,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === "agent:annotate:item") {
-      readerLog("agent.annotate.item", { annotationId: message.annotation.id, exact: message.annotation.anchor.exact.slice(0, 80) });
+      readerLog("agent.annotate.item", {
+        annotationId: message.annotation.id,
+        exact: message.annotation.anchor.exact.slice(0, 80),
+      });
       enqueueAgentAnnotation(message.annotation);
       void processAgentAnnotationQueue();
       return;
@@ -526,19 +606,28 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === "agent:message:start") {
-      pendingAgentRequestsRef.current.set(message.requestId, { annotationId: message.annotationId, commentId: message.comment.id });
+      pendingAgentRequestsRef.current.set(message.requestId, {
+        annotationId: message.annotationId,
+        commentId: message.comment.id,
+      });
       await appendComment(message.annotationId, message.comment);
       return;
     }
 
     if (message.type === "agent:message:delta") {
-      await updateComment(message.annotationId, message.commentId, (comment) => ({ ...comment, content: comment.content + message.delta }));
+      await updateComment(message.annotationId, message.commentId, (comment) => ({
+        ...comment,
+        content: comment.content + message.delta,
+      }));
       return;
     }
 
     if (message.type === "agent:message:done") {
       pendingAgentRequestsRef.current.delete(message.requestId);
-      await updateComment(message.annotationId, message.commentId, (comment) => ({ ...comment, pending: false }));
+      await updateComment(message.annotationId, message.commentId, (comment) => ({
+        ...comment,
+        pending: false,
+      }));
       return;
     }
 
@@ -558,7 +647,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       await updateComment(pending.annotationId, pending.commentId, (comment) => ({
         ...comment,
         content: comment.content || `Agent 回复失败：${message.message}`,
-        pending: false
+        pending: false,
       }));
     }
   }
@@ -568,7 +657,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const nextAnnotations = annotationsRef.current.map((annotation) => {
       if (annotation.id !== annotationId) return annotation;
       found = true;
-      return { ...annotation, comments: [...annotation.comments, comment], updatedAt: new Date().toISOString() };
+      return {
+        ...annotation,
+        comments: [...annotation.comments, comment],
+        updatedAt: new Date().toISOString(),
+      };
     });
     if (!found) return;
 
@@ -576,15 +669,21 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setActiveId(annotationId);
   }
 
-  async function updateComment(annotationId: string, commentId: string, update: (comment: Comment) => Comment) {
+  async function updateComment(
+    annotationId: string,
+    commentId: string,
+    update: (comment: Comment) => Comment,
+  ) {
     let found = false;
     const nextAnnotations = annotationsRef.current.map((annotation) => {
       if (annotation.id !== annotationId) return annotation;
       found = true;
       return {
         ...annotation,
-        comments: annotation.comments.map((comment) => (comment.id === commentId ? update(comment) : comment)),
-        updatedAt: new Date().toISOString()
+        comments: annotation.comments.map((comment) =>
+          comment.id === commentId ? update(comment) : comment,
+        ),
+        updatedAt: new Date().toISOString(),
       };
     });
     if (!found) return;
@@ -638,14 +737,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setSelectionAction({
       x: Math.min(rect.left + rect.width / 2 - 46, window.innerWidth - 120),
       y: Math.min(rect.bottom + 10, window.innerHeight - 64),
-      anchor
+      anchor,
     });
     setTemporaryBoxes(
       rangeHighlightBoxes(range, canvasRect, "selection").map((box) => ({
         ...box,
         annotationId: "__selection__",
-        color: userProfile.annotationColor
-      }))
+        color: userProfile.annotationColor,
+      })),
     );
     selection.removeAllRanges();
   }
@@ -655,17 +754,19 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const now = new Date().toISOString();
     const comments = note.trim()
-      ? [{
-          id: makeId("comment"),
-          author: "user" as const,
-          content: note.trim(),
-          createdAt: now,
-          userId: userProfile.id,
-          userUsername: userProfile.username,
-          userNickname: userProfile.nickname,
-          userAvatar: userProfile.avatar,
-          userAnnotationColor: userProfile.annotationColor
-        }]
+      ? [
+          {
+            id: makeId("comment"),
+            author: "user" as const,
+            content: note.trim(),
+            createdAt: now,
+            userId: userProfile.id,
+            userUsername: userProfile.username,
+            userNickname: userProfile.nickname,
+            userAvatar: userProfile.avatar,
+            userAnnotationColor: userProfile.annotationColor,
+          },
+        ]
       : [];
     const annotation: Annotation = {
       id: makeId("annotation"),
@@ -679,7 +780,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       userAnnotationColor: userProfile.annotationColor,
       comments,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
 
     await saveAnnotations([...annotations, annotation]);
@@ -712,7 +813,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     queue.push(annotation);
     agentAnnotationQueuesRef.current.set(key, queue);
     if (!agentQueueOrderRef.current.includes(key)) agentQueueOrderRef.current.push(key);
-    readerLog("agent.queue.enqueue", { annotationId: annotation.id, agent: key, size: queuedAnnotationsCount() });
+    readerLog("agent.queue.enqueue", {
+      annotationId: annotation.id,
+      agent: key,
+      size: queuedAnnotationsCount(),
+    });
   }
 
   function agentQueueKey(annotation: Annotation) {
@@ -788,7 +893,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       offset: (article && body ? offsetFromArticleStart(article, body, 0) : 0) + sessionIndex * 18,
       paused: false,
       done: false,
-      step
+      step,
     };
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
@@ -819,9 +924,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       visible: true,
       x: position.x,
       y: position.y,
-      label: position.offscreen ? `${session.agent.nickname} 正在${position.offscreen === "above" ? "上方" : "下方"}阅读` : `${session.agent.nickname} 正在阅读`,
+      label: position.offscreen
+        ? `${session.agent.nickname} 正在${position.offscreen === "above" ? "上方" : "下方"}阅读`
+        : `${session.agent.nickname} 正在阅读`,
       offscreen: position.offscreen,
-      agent: session.agent
+      agent: session.agent,
     });
   }
 
@@ -846,7 +953,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       x: Math.min(window.innerWidth - 80, current.x + 72),
       y: Math.max(72, current.y - 42),
       label: `${session?.agent.nickname || current.agent?.nickname || "助手"} ${suffix}`,
-      leaving: true
+      leaving: true,
     });
     window.setTimeout(() => updateVirtualCursor(agentId, null), 900);
   }
@@ -873,23 +980,33 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       while (queuedAnnotationsCount() > 0) {
         const queueKey = nextQueuedAgentKey();
         if (!queueKey) break;
-        const annotation = queueKey ? agentAnnotationQueuesRef.current.get(queueKey)?.shift() : undefined;
+        const annotation = queueKey
+          ? agentAnnotationQueuesRef.current.get(queueKey)?.shift()
+          : undefined;
         if (!annotation) continue;
 
         try {
           lastPlayedAgentRef.current = queueKey;
-          readerLog("agent.queue.play", { annotationId: annotation.id, agent: queueKey, remaining: queuedAnnotationsCount() });
-          const session = annotation.agentId ? virtualReadingSessionsRef.current.get(annotation.agentId) : undefined;
+          readerLog("agent.queue.play", {
+            annotationId: annotation.id,
+            agent: queueKey,
+            remaining: queuedAnnotationsCount(),
+          });
+          const session = annotation.agentId
+            ? virtualReadingSessionsRef.current.get(annotation.agentId)
+            : undefined;
           if (session) session.paused = true;
           await playAgentAnnotation(annotation);
         } catch (error) {
           readerLog("agent.queue.play.error", {
             annotationId: annotation.id,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
           await saveAnnotations([...annotationsRef.current, annotation]);
         } finally {
-          const session = annotation.agentId ? virtualReadingSessionsRef.current.get(annotation.agentId) : undefined;
+          const session = annotation.agentId
+            ? virtualReadingSessionsRef.current.get(annotation.agentId)
+            : undefined;
           if (session) session.paused = false;
           cleanupAgentQueue(queueKey);
           if (queueKey && shouldWaitForPeerAgent(queueKey)) await sleep(900);
@@ -907,7 +1024,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const canvas = canvasRef.current;
     const surface = surfaceRef.current;
     const cursorAgent = annotationToAgent(annotation);
-    const cursorId = cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
+    const cursorId =
+      cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
     if (!article || !canvas || !surface) {
       readerLog("agent.play.no_surface", { annotationId: annotation.id });
       await saveAnnotations([...annotationsRef.current, annotation]);
@@ -916,7 +1034,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const position = resolveTextAnchor(article.textContent || "", annotation.anchor);
     if (!position) {
-      readerLog("agent.play.anchor_unresolved", { annotationId: annotation.id, exact: annotation.anchor.exact.slice(0, 80) });
+      readerLog("agent.play.anchor_unresolved", {
+        annotationId: annotation.id,
+        exact: annotation.anchor.exact.slice(0, 80),
+      });
       await saveAnnotations([...annotationsRef.current, annotation]);
       return;
     }
@@ -928,7 +1049,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    const rects = Array.from(range.getClientRects()).filter((rect) => rect.width >= 2 && rect.height >= 2);
+    const rects = Array.from(range.getClientRects()).filter(
+      (rect) => rect.width >= 2 && rect.height >= 2,
+    );
     const firstRect = rects[0];
     const lastRect = rects[rects.length - 1];
     if (!firstRect || !lastRect) return;
@@ -943,7 +1066,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         y: firstRect.top < surfaceRect.top ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
         label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在${firstRect.top < surfaceRect.top ? "上方" : "下方"}批注`,
         offscreen: firstRect.top < surfaceRect.top ? "above" : "below",
-        agent: cursorAgent
+        agent: cursorAgent,
       });
       await sleep(700);
       await saveAnnotations([...annotationsRef.current, annotation]);
@@ -958,11 +1081,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       y: firstRect.top + firstRect.height / 2,
       label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在批注`,
       offscreen: null,
-      agent: cursorAgent
+      agent: cursorAgent,
     });
     await sleep(420);
 
-    const boxes = rangeHighlightBoxes(range, canvas.getBoundingClientRect(), `theater_${annotation.id}`).map((box) => ({ ...box, annotationId: annotation.id, color: annotation.color }));
+    const boxes = rangeHighlightBoxes(
+      range,
+      canvas.getBoundingClientRect(),
+      `theater_${annotation.id}`,
+    ).map((box) => ({ ...box, annotationId: annotation.id, color: annotation.color }));
     await animateTheaterHighlight(boxes, annotation.anchor.exact.length, (nextBoxes) => {
       const cursorBox = nextBoxes[nextBoxes.length - 1];
       if (cursorBox) {
@@ -974,7 +1101,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
           label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在批注`,
           offscreen: null,
-          agent: cursorAgent
+          agent: cursorAgent,
         });
       }
       setAgentTheaterBoxes(nextBoxes);
@@ -990,7 +1117,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       y: lastRect.top + lastRect.height / 2,
       label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 继续阅读`,
       offscreen: null,
-      agent: cursorAgent
+      agent: cursorAgent,
     });
     await sleep(360);
   }
@@ -1009,7 +1136,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       userUsername: userProfile.username,
       userNickname: userProfile.nickname,
       userAvatar: userProfile.avatar,
-      userAnnotationColor: userProfile.annotationColor
+      userAnnotationColor: userProfile.annotationColor,
     };
     const nextAnnotations = annotations.map((annotation) => {
       if (annotation.id !== annotationId) return annotation;
@@ -1039,11 +1166,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         payload: {
           agentId: agent.id,
           agentUsername: agent.username,
-          article: { title: extracted.title, url: extracted.canonicalUrl, text: articleRef.current?.textContent || "" },
+          article: {
+            title: extracted.title,
+            url: extracted.canonicalUrl,
+            text: articleRef.current?.textContent || "",
+          },
           annotation,
-          userComment
-        }
-      })
+          userComment,
+        },
+      }),
     );
   }
 
@@ -1052,7 +1183,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
     const requestId = makeId("request");
-    pendingAgentRequestsRef.current.set(requestId, { annotationId: "", commentId: "", agentId: agent.id });
+    pendingAgentRequestsRef.current.set(requestId, {
+      annotationId: "",
+      commentId: "",
+      agentId: agent.id,
+    });
     markAgentAnnotating(agent.id, true);
     socket.send(
       JSON.stringify({
@@ -1061,20 +1196,28 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         payload: {
           agentId: agent.id,
           agentUsername: agent.username,
-          article: { title: extracted.title, url: extracted.canonicalUrl, text: articleRef.current?.textContent || "" }
-        }
-      })
+          article: {
+            title: extracted.title,
+            url: extracted.canonicalUrl,
+            text: articleRef.current?.textContent || "",
+          },
+        },
+      }),
     );
   }
 
   function requestSelectedAgentAnnotations() {
-    const selectedAgents = agents.filter((agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id));
+    const selectedAgents = agents.filter(
+      (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
+    );
     for (const agent of selectedAgents) requestAgentAnnotations(agent);
     if (selectedAgents.length > 0) setAgentAnnotateOpen(false);
   }
 
   function toggleSelectedAgent(agentId: string) {
-    setSelectedAgentIds((ids) => (ids.includes(agentId) ? ids.filter((id) => id !== agentId) : [...ids, agentId]));
+    setSelectedAgentIds((ids) =>
+      ids.includes(agentId) ? ids.filter((id) => id !== agentId) : [...ids, agentId],
+    );
   }
 
   function cancelAgentAnnotateMenu() {
@@ -1111,33 +1254,69 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     surface.scrollBy({ top: headingRect.top - surfaceRect.top - 32, behavior: "smooth" });
   }
 
-  const activeAnnotation = useMemo(() => annotations.find((item) => item.id === activeId) || null, [activeId, annotations]);
+  const activeAnnotation = useMemo(
+    () => annotations.find((item) => item.id === activeId) || null,
+    [activeId, annotations],
+  );
 
   return (
     <div
       className="reader-app"
-      style={{ "--reader-font-size": `${readerSettings.fontSize}px`, "--reader-content-width": `${readerSettings.contentWidth}px` } as React.CSSProperties}
+      style={
+        {
+          "--reader-font-size": `${readerSettings.fontSize}px`,
+          "--reader-content-width": `${readerSettings.contentWidth}px`,
+        } as React.CSSProperties
+      }
     >
       <header className="reader-toolbar">
         <div>
           <div className="reader-eyebrow">Yomitomo</div>
-          <h1><span className={desktopConnected ? "reader-connection is-connected" : "reader-connection is-disconnected"} />{extracted.title}</h1>
+          <h1>
+            <span
+              className={
+                desktopConnected
+                  ? "reader-connection is-connected"
+                  : "reader-connection is-disconnected"
+              }
+            />
+            {extracted.title}
+          </h1>
           <p>{extracted.byline || extracted.canonicalUrl}</p>
         </div>
         <div className="reader-toolbar-actions">
-          <button className={settingsOpen ? "reader-icon-button is-active" : "reader-icon-button"} type="button" onClick={() => setSettingsOpen((open) => !open)} aria-label="阅读设置">
+          <button
+            className={settingsOpen ? "reader-icon-button is-active" : "reader-icon-button"}
+            type="button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            aria-label="阅读设置"
+          >
             <Settings2 size={18} />
           </button>
-          <button className="reader-close" type="button" onClick={onClose} aria-label="关闭阅读器"><X size={18} /></button>
+          <button className="reader-close" type="button" onClick={onClose} aria-label="关闭阅读器">
+            <X size={18} />
+          </button>
         </div>
       </header>
 
-      {settingsOpen ? <ReaderSettingsPanel settings={readerSettings} onChange={updateReaderSettings} /> : null}
+      {settingsOpen ? (
+        <ReaderSettingsPanel settings={readerSettings} onChange={updateReaderSettings} />
+      ) : null}
 
       <main className="reader-main">
         <aside className={tocItems.length > 0 ? "reader-toc" : "reader-toc is-empty"}>
           <div className="reader-toc-title">目录</div>
-          {tocItems.map((item) => <button className="reader-toc-item" data-depth={Math.min(item.depth, 4)} key={item.id} type="button" onClick={() => scrollToHeading(item.id)}>{item.text}</button>)}
+          {tocItems.map((item) => (
+            <button
+              className="reader-toc-item"
+              data-depth={Math.min(item.depth, 4)}
+              key={item.id}
+              type="button"
+              onClick={() => scrollToHeading(item.id)}
+            >
+              {item.text}
+            </button>
+          ))}
         </aside>
 
         <section className="reader-surface" ref={surfaceRef} onMouseUp={handleMouseUp}>
@@ -1145,14 +1324,43 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             <article className="reader-article" ref={articleRef}>
               <header className="reader-article-header">
                 <h1>{extracted.title}</h1>
-                {extracted.byline || extracted.excerpt ? <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(" · ")}</p> : null}
+                {extracted.byline || extracted.excerpt ? (
+                  <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(" · ")}</p>
+                ) : null}
               </header>
-              <div className="reader-article-body" dangerouslySetInnerHTML={{ __html: extracted.content }} />
+              <div
+                className="reader-article-body"
+                dangerouslySetInnerHTML={{ __html: extracted.content }}
+              />
             </article>
             <div className="reader-highlight-layer">
-              {boxes.map((box) => <button className={box.annotationId === activeId ? "reader-highlight is-active" : "reader-highlight"} key={box.id} style={highlightStyle(box, box.annotationId === activeId)} type="button" onClick={() => focusAnnotation(box.annotationId)} />)}
-              {temporaryBoxes.map((box) => <div className="reader-highlight is-temporary" key={box.id} style={highlightStyle(box, false)} />)}
-              {agentTheaterBoxes.map((box) => <div className="reader-highlight is-agent-theater" key={box.id} style={highlightStyle(box, false)} />)}
+              {boxes.map((box) => (
+                <button
+                  className={
+                    box.annotationId === activeId
+                      ? "reader-highlight is-active"
+                      : "reader-highlight"
+                  }
+                  key={box.id}
+                  style={highlightStyle(box, box.annotationId === activeId)}
+                  type="button"
+                  onClick={() => focusAnnotation(box.annotationId)}
+                />
+              ))}
+              {temporaryBoxes.map((box) => (
+                <div
+                  className="reader-highlight is-temporary"
+                  key={box.id}
+                  style={highlightStyle(box, false)}
+                />
+              ))}
+              {agentTheaterBoxes.map((box) => (
+                <div
+                  className="reader-highlight is-agent-theater"
+                  key={box.id}
+                  style={highlightStyle(box, false)}
+                />
+              ))}
             </div>
           </div>
         </section>
@@ -1161,7 +1369,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           <div className="reader-notes-header">
             <strong>批注</strong>
             <div className="reader-notes-actions">
-              <button className={agentAnnotateOpen ? "reader-agent-annotate is-active" : "reader-agent-annotate"} type="button" disabled={!desktopConnected || agents.length === 0} onClick={() => setAgentAnnotateOpen((open) => !open)}><Bot size={14} />{annotatingAgents.length > 0 ? "批注中" : "助手批注"}</button>
+              <button
+                className={
+                  agentAnnotateOpen ? "reader-agent-annotate is-active" : "reader-agent-annotate"
+                }
+                type="button"
+                disabled={!desktopConnected || agents.length === 0}
+                onClick={() => setAgentAnnotateOpen((open) => !open)}
+              >
+                <Bot size={14} />
+                {annotatingAgents.length > 0 ? "批注中" : "助手批注"}
+              </button>
               <span>{annotations.length}</span>
             </div>
           </div>
@@ -1197,26 +1415,69 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         </aside>
       </main>
 
-      {selectionAction && !composer ? <SelectionMenu action={selectionAction} onAnnotate={() => { setComposer({ x: Math.min(selectionAction.x, window.innerWidth - 340), y: Math.min(selectionAction.y + 44, window.innerHeight - 160), anchor: selectionAction.anchor }); setSelectionAction(null); }} /> : null}
-      {composer ? <Composer composer={composer} shortcutModifier={shortcutModifier} onCancel={cancelComposer} onSave={createAnnotation} /> : null}
-      {virtualCursors.map((cursor) => (cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null))}
+      {selectionAction && !composer ? (
+        <SelectionMenu
+          action={selectionAction}
+          onAnnotate={() => {
+            setComposer({
+              x: Math.min(selectionAction.x, window.innerWidth - 340),
+              y: Math.min(selectionAction.y + 44, window.innerHeight - 160),
+              anchor: selectionAction.anchor,
+            });
+            setSelectionAction(null);
+          }}
+        />
+      ) : null}
+      {composer ? (
+        <Composer
+          composer={composer}
+          shortcutModifier={shortcutModifier}
+          onCancel={cancelComposer}
+          onSave={createAnnotation}
+        />
+      ) : null}
+      {virtualCursors.map((cursor) =>
+        cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,
+      )}
     </div>
   );
 }
 
-function SelectionMenu({ action, onAnnotate }: { action: SelectionAction; onAnnotate: () => void }) {
-  return <div className="reader-selection-menu" style={{ left: action.x, top: action.y }}><button type="button" onClick={onAnnotate}><MessageSquarePlus size={15} strokeWidth={2.2} />批注</button></div>;
+function SelectionMenu({
+  action,
+  onAnnotate,
+}: {
+  action: SelectionAction;
+  onAnnotate: () => void;
+}) {
+  return (
+    <div className="reader-selection-menu" style={{ left: action.x, top: action.y }}>
+      <button type="button" onClick={onAnnotate}>
+        <MessageSquarePlus size={15} strokeWidth={2.2} />
+        批注
+      </button>
+    </div>
+  );
 }
 
 function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
   const color = cursor.agent?.annotationColor || "#b7352c";
   return (
     <div
-      className={["reader-virtual-cursor", cursor.offscreen ? "is-offscreen" : "", cursor.leaving ? "is-leaving" : ""].filter(Boolean).join(" ")}
+      className={[
+        "reader-virtual-cursor",
+        cursor.offscreen ? "is-offscreen" : "",
+        cursor.leaving ? "is-leaving" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       style={{ left: cursor.x, top: cursor.y, "--cursor-color": color } as React.CSSProperties}
     >
       <div className="reader-virtual-pointer" />
-      <div className="reader-virtual-label"><AvatarBadge avatar={cursor.agent?.avatar} />{cursor.label}</div>
+      <div className="reader-virtual-label">
+        <AvatarBadge avatar={cursor.agent?.avatar} />
+        {cursor.label}
+      </div>
     </div>
   );
 }
@@ -1225,7 +1486,9 @@ function AvatarBadge({ avatar, fallback = "AI" }: { avatar?: string; fallback?: 
   const value = avatar || fallback;
   const image = isImageAvatar(value);
   const svg = isSvgAvatar(value);
-  const classes = ["reader-avatar-badge", image ? "is-image" : "", svg ? "is-svg" : ""].filter(Boolean).join(" ");
+  const classes = ["reader-avatar-badge", image ? "is-image" : "", svg ? "is-svg" : ""]
+    .filter(Boolean)
+    .join(" ");
   return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
 }
 
@@ -1237,7 +1500,7 @@ function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agen
       fallback: "AI",
       nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || "Agent",
       username: agent?.username || annotation.agentUsername || "agent",
-      color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color
+      color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color,
     };
   }
 
@@ -1247,7 +1510,11 @@ function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agen
     fallback: "我",
     nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
     username: user?.username || annotation.userUsername || userProfile.username,
-    color: user?.annotationColor || annotation.userAnnotationColor || annotation.color || userProfile.annotationColor
+    color:
+      user?.annotationColor ||
+      annotation.userAnnotationColor ||
+      annotation.color ||
+      userProfile.annotationColor,
   };
 }
 
@@ -1259,7 +1526,10 @@ function commentPersona(comment: Comment, userProfile: UserProfile, agents: Publ
       fallback: "AI",
       nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || "Agent",
       username: agent?.username || comment.agentUsername || "agent",
-      color: agent?.annotationColor || comment.agentAnnotationColor || defaultUserProfile.annotationColor
+      color:
+        agent?.annotationColor ||
+        comment.agentAnnotationColor ||
+        defaultUserProfile.annotationColor,
     };
   }
 
@@ -1269,7 +1539,7 @@ function commentPersona(comment: Comment, userProfile: UserProfile, agents: Publ
     fallback: "我",
     nickname: user?.nickname || comment.userNickname || userProfile.nickname,
     username: user?.username || comment.userUsername || userProfile.username,
-    color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor
+    color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor,
   };
 }
 
@@ -1277,8 +1547,15 @@ function annotationColor(annotation: Annotation, userProfile: UserProfile, agent
   return annotationAuthor(annotation, userProfile, agents).color;
 }
 
-function findAgentIdentity(agentId: string | undefined, username: string | undefined, agents: PublicAgent[]) {
-  return agents.find((agent) => agent.id === agentId) || agents.find((agent) => agent.username === username);
+function findAgentIdentity(
+  agentId: string | undefined,
+  username: string | undefined,
+  agents: PublicAgent[],
+) {
+  return (
+    agents.find((agent) => agent.id === agentId) ||
+    agents.find((agent) => agent.username === username)
+  );
 }
 
 function findUserIdentity(userId: string | undefined, userProfile: UserProfile) {
@@ -1286,7 +1563,12 @@ function findUserIdentity(userId: string | undefined, userProfile: UserProfile) 
 }
 
 function EmptyNotes() {
-  return <div className="reader-empty"><strong>选择一段文字开始批注</strong><p>选中阅读器内的文本后，可以写下想法。高亮和讨论会保存在当前文章下。</p></div>;
+  return (
+    <div className="reader-empty">
+      <strong>选择一段文字开始批注</strong>
+      <p>选中阅读器内的文本后，可以写下想法。高亮和讨论会保存在当前文章下。</p>
+    </div>
+  );
 }
 
 function AgentAnnotateMenu({
@@ -1295,7 +1577,7 @@ function AgentAnnotateMenu({
   selectedAgentIds,
   onCancel,
   onStart,
-  onToggle
+  onToggle,
 }: {
   agents: PublicAgent[];
   annotatingAgents: string[];
@@ -1308,44 +1590,159 @@ function AgentAnnotateMenu({
   return (
     <div className="reader-agent-annotate-menu">
       {agents.map((agent) => (
-        <button className={selectedAgentIds.includes(agent.id) ? "is-selected" : ""} disabled={annotatingAgents.includes(agent.id)} key={agent.id} type="button" onClick={() => onToggle(agent.id)}>
+        <button
+          className={selectedAgentIds.includes(agent.id) ? "is-selected" : ""}
+          disabled={annotatingAgents.includes(agent.id)}
+          key={agent.id}
+          type="button"
+          onClick={() => onToggle(agent.id)}
+        >
           <AvatarBadge avatar={agent.avatar} />
           <strong>{agent.nickname}</strong>
           <em>{annotatingAgents.includes(agent.id) ? "阅读中..." : `@${agent.username}`}</em>
         </button>
       ))}
       <div className="reader-agent-annotate-actions">
-        <button type="button" onClick={onCancel}>取消</button>
-        <button disabled={runnableCount === 0} type="button" onClick={onStart}>启动{runnableCount > 0 ? ` ${runnableCount}` : ""}</button>
+        <button type="button" onClick={onCancel}>
+          取消
+        </button>
+        <button disabled={runnableCount === 0} type="button" onClick={onStart}>
+          启动{runnableCount > 0 ? ` ${runnableCount}` : ""}
+        </button>
       </div>
     </div>
   );
 }
 
-function ReaderSettingsPanel({ settings, onChange }: { settings: ReaderSettings; onChange: (settings: ReaderSettings) => void }) {
+function ReaderSettingsPanel({
+  settings,
+  onChange,
+}: {
+  settings: ReaderSettings;
+  onChange: (settings: ReaderSettings) => void;
+}) {
   return (
     <div className="reader-settings-panel">
-      <SettingStepper icon={<CaseSensitive size={17} />} label="字号" value={`${settings.fontSize}px`} onDecrease={() => onChange({ ...settings, fontSize: Math.max(16, settings.fontSize - 1) })} onIncrease={() => onChange({ ...settings, fontSize: Math.min(28, settings.fontSize + 1) })} />
-      <SettingStepper icon={<Maximize2 size={16} />} label="文章宽度" value={`${settings.contentWidth}px`} onDecrease={() => onChange({ ...settings, contentWidth: Math.max(680, settings.contentWidth - 40) })} onIncrease={() => onChange({ ...settings, contentWidth: Math.min(1080, settings.contentWidth + 40) })} />
+      <SettingStepper
+        icon={<CaseSensitive size={17} />}
+        label="字号"
+        value={`${settings.fontSize}px`}
+        onDecrease={() => onChange({ ...settings, fontSize: Math.max(16, settings.fontSize - 1) })}
+        onIncrease={() => onChange({ ...settings, fontSize: Math.min(28, settings.fontSize + 1) })}
+      />
+      <SettingStepper
+        icon={<Maximize2 size={16} />}
+        label="文章宽度"
+        value={`${settings.contentWidth}px`}
+        onDecrease={() =>
+          onChange({ ...settings, contentWidth: Math.max(680, settings.contentWidth - 40) })
+        }
+        onIncrease={() =>
+          onChange({ ...settings, contentWidth: Math.min(1080, settings.contentWidth + 40) })
+        }
+      />
     </div>
   );
 }
 
-function SettingStepper({ icon, label, value, onDecrease, onIncrease }: { icon: React.ReactNode; label: string; value: string; onDecrease: () => void; onIncrease: () => void }) {
-  return <div className="reader-setting-row"><div className="reader-setting-label">{icon}<span>{label}</span></div><div className="reader-stepper"><button type="button" onClick={onDecrease} aria-label={`减少${label}`}><Minus size={14} /></button><strong>{value}</strong><button type="button" onClick={onIncrease} aria-label={`增加${label}`}><Plus size={14} /></button></div></div>;
+function SettingStepper({
+  icon,
+  label,
+  value,
+  onDecrease,
+  onIncrease,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onDecrease: () => void;
+  onIncrease: () => void;
+}) {
+  return (
+    <div className="reader-setting-row">
+      <div className="reader-setting-label">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div className="reader-stepper">
+        <button type="button" onClick={onDecrease} aria-label={`减少${label}`}>
+          <Minus size={14} />
+        </button>
+        <strong>{value}</strong>
+        <button type="button" onClick={onIncrease} aria-label={`增加${label}`}>
+          <Plus size={14} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
-function Composer({ composer, shortcutModifier, onCancel, onSave }: { composer: PendingComposer; shortcutModifier: string; onCancel: () => void; onSave: (note: string) => void }) {
+function Composer({
+  composer,
+  shortcutModifier,
+  onCancel,
+  onSave,
+}: {
+  composer: PendingComposer;
+  shortcutModifier: string;
+  onCancel: () => void;
+  onSave: (note: string) => void;
+}) {
   const [note, setNote] = useState("");
   return (
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
-      <textarea autoFocus placeholder="写下你的批注..." value={note} onChange={(event) => setNote(event.target.value)} onKeyDown={(event) => { if (isSubmitShortcut(event)) { event.preventDefault(); onSave(note); } }} />
-      <div className="reader-composer-actions"><div className="reader-shortcut-hint"><Kbd className="reader-kbd">{shortcutModifier}</Kbd><Kbd className="reader-kbd">Enter</Kbd><span>保存</span></div><button type="button" onClick={onCancel}>取消</button><button type="button" onClick={() => onSave(note)}>保存批注</button></div>
+      <textarea
+        autoFocus
+        placeholder="写下你的批注..."
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        onKeyDown={(event) => {
+          if (isSubmitShortcut(event)) {
+            event.preventDefault();
+            onSave(note);
+          }
+        }}
+      />
+      <div className="reader-composer-actions">
+        <div className="reader-shortcut-hint">
+          <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
+          <Kbd className="reader-kbd">Enter</Kbd>
+          <span>保存</span>
+        </div>
+        <button type="button" onClick={onCancel}>
+          取消
+        </button>
+        <button type="button" onClick={() => onSave(note)}>
+          保存批注
+        </button>
+      </div>
     </div>
   );
 }
 
-function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef, shortcutModifier, userProfile, onAddComment, onDelete, onFocus }: { active: boolean; agents: PublicAgent[]; annotation: Annotation; desktopConnected: boolean; noteRef: (element: HTMLElement | null) => void; shortcutModifier: string; userProfile: UserProfile; onAddComment: (annotationId: string, content: string) => void; onDelete: (annotationId: string) => void; onFocus: (annotationId: string) => void }) {
+function AnnotationCard({
+  active,
+  agents,
+  annotation,
+  desktopConnected,
+  noteRef,
+  shortcutModifier,
+  userProfile,
+  onAddComment,
+  onDelete,
+  onFocus,
+}: {
+  active: boolean;
+  agents: PublicAgent[];
+  annotation: Annotation;
+  desktopConnected: boolean;
+  noteRef: (element: HTMLElement | null) => void;
+  shortcutModifier: string;
+  userProfile: UserProfile;
+  onAddComment: (annotationId: string, content: string) => void;
+  onDelete: (annotationId: string) => void;
+  onFocus: (annotationId: string) => void;
+}) {
   const [draft, setDraft] = useState("");
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
@@ -1353,7 +1750,16 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
   const mentionQuery = getMentionQuery(draft, caretIndex);
-  const matchedAgents = mentionQuery === null ? [] : agents.filter((agent) => agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) || agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase())).slice(0, 5);
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : agents
+          .filter(
+            (agent) =>
+              agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) ||
+              agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase()),
+          )
+          .slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
 
   useEffect(() => {
@@ -1361,7 +1767,8 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
   }, [mentionQuery?.query]);
 
   useEffect(() => {
-    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length) setSelectedMentionIndex(0);
+    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
+      setSelectedMentionIndex(0);
   }, [matchedAgents.length, selectedMentionIndex]);
 
   useEffect(() => () => stopDeleteTimer(), []);
@@ -1439,20 +1846,33 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
   }
 
   return (
-    <section className={active ? "reader-note is-active" : "reader-note"} ref={noteRef} style={noteStyle(author.color, active)}>
+    <section
+      className={active ? "reader-note is-active" : "reader-note"}
+      ref={noteRef}
+      style={noteStyle(author.color, active)}
+    >
       <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
-        <span className="reader-note-persona"><AvatarBadge avatar={author.avatar} fallback={author.fallback} /><strong>{author.nickname}</strong><em>@{author.username}</em></span>
+        <span className="reader-note-persona">
+          <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+          <strong>{author.nickname}</strong>
+          <em>@{author.username}</em>
+        </span>
         <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
       </button>
       <div className="reader-comments">
-        {annotation.comments.length === 0 ? <p className="reader-muted">已高亮，暂无文字批注。</p> : null}
+        {annotation.comments.length === 0 ? (
+          <p className="reader-muted">已高亮，暂无文字批注。</p>
+        ) : null}
         {annotation.comments.map((comment) => {
           const commentAuthor = commentPersona(comment, userProfile, agents);
           return (
             <div className="reader-comment" key={comment.id}>
               <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
               <div className="reader-comment-body">
-                <div className="reader-comment-author"><strong>{commentAuthor.nickname}</strong><em>@{commentAuthor.username}</em></div>
+                <div className="reader-comment-author">
+                  <strong>{commentAuthor.nickname}</strong>
+                  <em>@{commentAuthor.username}</em>
+                </div>
                 <MarkdownContent content={comment.content} pending={comment.pending} />
               </div>
             </div>
@@ -1465,13 +1885,32 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
           ref={textareaRef}
           placeholder={desktopConnected ? "继续评论，输入 @ 呼叫助手..." : "继续评论..."}
           value={draft}
-          onChange={(event) => { setDraft(event.currentTarget.value); updateCaret(event.currentTarget); }}
+          onChange={(event) => {
+            setDraft(event.currentTarget.value);
+            updateCaret(event.currentTarget);
+          }}
           onClick={(event) => updateCaret(event.currentTarget)}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onSelect={(event) => updateCaret(event.currentTarget)}
         />
-        {matchedAgents.length > 0 ? <div className="reader-agent-menu">{matchedAgents.map((agent, index) => <button className={index === selectedMentionIndex ? "is-active" : ""} key={agent.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectAgent(agent)}><AvatarBadge avatar={agent.avatar} /><strong>{agent.nickname}</strong><em>@{agent.username}</em></button>)}</div> : null}
+        {matchedAgents.length > 0 ? (
+          <div className="reader-agent-menu">
+            {matchedAgents.map((agent, index) => (
+              <button
+                className={index === selectedMentionIndex ? "is-active" : ""}
+                key={agent.id}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => selectAgent(agent)}
+              >
+                <AvatarBadge avatar={agent.avatar} />
+                <strong>{agent.nickname}</strong>
+                <em>@{agent.username}</em>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
       <div className="reader-note-footer">
         <button
@@ -1486,10 +1925,17 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
           onPointerLeave={clearDeleteHold}
           onPointerUp={clearDeleteHold}
         >
-          <Trash2 size={13} /><span>长按删除批注</span>
+          <Trash2 size={13} />
+          <span>长按删除批注</span>
         </button>
-        <div className="reader-shortcut-hint"><Kbd className="reader-kbd">{shortcutModifier}</Kbd><Kbd className="reader-kbd">Enter</Kbd><span>发送</span></div>
-        <button className="reader-add-comment" type="button" onClick={submit}>添加评论</button>
+        <div className="reader-shortcut-hint">
+          <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
+          <Kbd className="reader-kbd">Enter</Kbd>
+          <span>发送</span>
+        </div>
+        <button className="reader-add-comment" type="button" onClick={submit}>
+          添加评论
+        </button>
       </div>
     </section>
   );
@@ -1509,8 +1955,26 @@ function MarkdownContent({ content, pending }: { content: string; pending?: bool
 function renderMarkdown(content: string) {
   const html = renderMarkdownBlocks(content);
   return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ["p", "br", "strong", "em", "code", "pre", "a", "ul", "ol", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"],
-    ALLOWED_ATTR: ["href", "target", "rel"]
+    ALLOWED_TAGS: [
+      "p",
+      "br",
+      "strong",
+      "em",
+      "code",
+      "pre",
+      "a",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+    ],
+    ALLOWED_ATTR: ["href", "target", "rel"],
   });
 }
 
@@ -1518,7 +1982,7 @@ function renderMarkdownBlocks(content: string) {
   const lines = content.replace(/\r\n?/g, "\n").split("\n");
   const blocks: string[] = [];
 
-  for (let index = 0; index < lines.length;) {
+  for (let index = 0; index < lines.length; ) {
     const line = lines[index];
 
     if (!line.trim()) {
@@ -1608,7 +2072,9 @@ function renderMarkdownInline(content: string) {
     return id;
   };
 
-  let text = content.replace(/`([^`]+)`/g, (_match, code: string) => token(`<code>${escapeHtml(code)}</code>`));
+  let text = content.replace(/`([^`]+)`/g, (_match, code: string) =>
+    token(`<code>${escapeHtml(code)}</code>`),
+  );
   text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) => {
     if (!/^(https?:\/\/|mailto:)/i.test(href)) return escapeHtml(label);
     const safeHref = escapeHtml(href);
@@ -1638,19 +2104,32 @@ function escapeHtml(input: string) {
 }
 
 function isRangeInsideArticle(range: Range, article: HTMLElement) {
-  const start = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentNode;
-  const end = range.endContainer.nodeType === Node.ELEMENT_NODE ? range.endContainer : range.endContainer.parentNode;
+  const start =
+    range.startContainer.nodeType === Node.ELEMENT_NODE
+      ? range.startContainer
+      : range.startContainer.parentNode;
+  const end =
+    range.endContainer.nodeType === Node.ELEMENT_NODE
+      ? range.endContainer
+      : range.endContainer.parentNode;
   return Boolean(start && end && article.contains(start) && article.contains(end));
 }
 
 function extractTocItems(article: HTMLElement) {
-  const semanticHeadings = collectTocCandidates(Array.from(article.querySelectorAll<HTMLElement>("h1, h2, h3, h4")), (element) => Number(element.tagName.slice(1)) - 1);
+  const semanticHeadings = collectTocCandidates(
+    Array.from(article.querySelectorAll<HTMLElement>("h1, h2, h3, h4")),
+    (element) => Number(element.tagName.slice(1)) - 1,
+  );
   if (semanticHeadings.length > 0) return semanticHeadings;
 
   const inferredHeadings = Array.from(article.querySelectorAll<HTMLElement>("p, div, section"))
     .filter((element) => {
       const text = element.textContent?.trim() || "";
-      return text.length >= 3 && text.length <= 80 && /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/.test(text);
+      return (
+        text.length >= 3 &&
+        text.length <= 80 &&
+        /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/.test(text)
+      );
     })
     .filter((element) => !element.querySelector("p, div, section, h1, h2, h3, h4"))
     .slice(0, 24);
@@ -1659,12 +2138,14 @@ function extractTocItems(article: HTMLElement) {
 }
 
 function collectTocCandidates(elements: HTMLElement[], getDepth: (element: HTMLElement) => number) {
-  return elements.map((element, index) => {
-    const text = element.textContent?.trim().replace(/\s+/g, " ") || "";
-    if (!text) return null;
-    if (!element.id) element.id = `reader-heading-${hashText(`${index}:${text}`)}`;
-    return { id: element.id, text, depth: getDepth(element) };
-  }).filter((item): item is TocItem => Boolean(item));
+  return elements
+    .map((element, index) => {
+      const text = element.textContent?.trim().replace(/\s+/g, " ") || "";
+      if (!text) return null;
+      if (!element.id) element.id = `reader-heading-${hashText(`${index}:${text}`)}`;
+      return { id: element.id, text, depth: getDepth(element) };
+    })
+    .filter((item): item is TocItem => Boolean(item));
 }
 
 function offsetFromArticleStart(article: HTMLElement, node: Node, offset: number) {
@@ -1677,7 +2158,8 @@ function offsetFromArticleStart(article: HTMLElement, node: Node, offset: number
 function getArticleSelection(article: HTMLElement) {
   const rootNode = article.getRootNode();
   if (rootNode instanceof ShadowRoot) {
-    const getSelection = (rootNode as ShadowRoot & { getSelection?: () => Selection | null }).getSelection;
+    const getSelection = (rootNode as ShadowRoot & { getSelection?: () => Selection | null })
+      .getSelection;
     if (getSelection) return getSelection.call(rootNode);
   }
   return article.ownerDocument.getSelection();
@@ -1705,7 +2187,7 @@ function highlightStyle(box: HighlightBox, active: boolean): React.CSSProperties
     width: box.width,
     height: box.height,
     backgroundColor: alphaColor(color, active ? 0.45 : 0.28),
-    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(color, active ? 0.72 : 0.36)}`
+    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(color, active ? 0.72 : 0.36)}`,
   };
 }
 
@@ -1713,7 +2195,9 @@ function noteStyle(color: string, active: boolean): React.CSSProperties {
   const accent = color || defaultUserProfile.annotationColor;
   return {
     borderColor: alphaColor(accent, active ? 0.82 : 0.38),
-    boxShadow: active ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px rgba(55,42,24,.08)` : undefined
+    boxShadow: active
+      ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px rgba(55,42,24,.08)`
+      : undefined,
   };
 }
 
@@ -1749,11 +2233,15 @@ function getMentionQuery(content: string, caretIndex: number) {
   return {
     query: match[2],
     start: match.index + match[1].length,
-    end: caretIndex
+    end: caretIndex,
   };
 }
 
-function replaceMentionQuery(content: string, mentionQuery: { start: number; end: number }, username: string) {
+function replaceMentionQuery(
+  content: string,
+  mentionQuery: { start: number; end: number },
+  username: string,
+) {
   return `${content.slice(0, mentionQuery.start)}@${username} ${content.slice(mentionQuery.end)}`;
 }
 
@@ -1764,12 +2252,17 @@ function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
     username: annotation.agentUsername,
     nickname: annotation.agentNickname || annotation.agentUsername,
     avatar: annotation.agentAvatar || "AI",
-    annotationColor: annotation.agentAnnotationColor || annotation.color
+    annotationColor: annotation.agentAnnotationColor || annotation.color,
   };
 }
 
 function isImageAvatar(value: string) {
-  return value.startsWith("data:image/") || value.startsWith("blob:") || value.startsWith("http") || value.startsWith("/");
+  return (
+    value.startsWith("data:image/") ||
+    value.startsWith("blob:") ||
+    value.startsWith("http") ||
+    value.startsWith("/")
+  );
 }
 
 function isSvgAvatar(value: string) {
@@ -1792,19 +2285,29 @@ function cursorPositionFromOffset(article: HTMLElement, surface: HTMLElement, of
     const rect = range?.getClientRects()[0];
     if (!rect || rect.width < 1 || rect.height < 1) continue;
 
-    const offscreen = rect.bottom < surfaceRect.top ? "above" : rect.top > surfaceRect.bottom ? "below" : null;
+    const offscreen =
+      rect.bottom < surfaceRect.top ? "above" : rect.top > surfaceRect.bottom ? "below" : null;
     return {
       offset: cursor,
       x: offscreen ? surfaceRect.left + surfaceRect.width / 2 : rect.left + rect.width,
-      y: offscreen === "above" ? surfaceRect.top + 20 : offscreen === "below" ? surfaceRect.bottom - 20 : rect.top + rect.height / 2,
-      offscreen: offscreen as "above" | "below" | null
+      y:
+        offscreen === "above"
+          ? surfaceRect.top + 20
+          : offscreen === "below"
+            ? surfaceRect.bottom - 20
+            : rect.top + rect.height / 2,
+      offscreen: offscreen as "above" | "below" | null,
     };
   }
 
   return null;
 }
 
-function animateTheaterHighlight(boxes: HighlightBox[], textLength: number, onFrame: (boxes: HighlightBox[]) => void) {
+function animateTheaterHighlight(
+  boxes: HighlightBox[],
+  textLength: number,
+  onFrame: (boxes: HighlightBox[]) => void,
+) {
   const sortedBoxes = [...boxes].sort((a, b) => a.top - b.top || a.left - b.left);
   const duration = clampNumber(textLength * 28, 780, 2600, 1200);
   const start = performance.now();
@@ -1812,7 +2315,8 @@ function animateTheaterHighlight(boxes: HighlightBox[], textLength: number, onFr
   return new Promise<void>((resolve) => {
     const frame = (now: number) => {
       const progress = Math.min(1, (now - start) / duration);
-      const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      const eased =
+        progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
       const boxProgress = eased * sortedBoxes.length;
       const nextBoxes = sortedBoxes.flatMap((box, index) => {
         if (index < Math.floor(boxProgress)) return [box];
@@ -1848,17 +2352,17 @@ function rangeHighlightBoxes(range: Range, canvasRect: DOMRect, idPrefix: string
     const node = range.commonAncestorContainer as Text;
     if (node.textContent?.trim()) collectNodeRects(node);
   } else {
-  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
-      return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-    }
-  });
+    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
 
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    collectNodeRects(node);
-  }
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      collectNodeRects(node);
+    }
   }
 
   return mergeLineRects(rects)
@@ -1870,7 +2374,7 @@ function rangeHighlightBoxes(range: Range, canvasRect: DOMRect, idPrefix: string
       top: rect.top - canvasRect.top,
       left: rect.left - canvasRect.left,
       width: rect.width,
-      height: rect.height
+      height: rect.height,
     }));
 }
 
@@ -1878,7 +2382,9 @@ function mergeLineRects(rects: DOMRect[]) {
   const lines: Array<{ top: number; left: number; right: number; bottom: number }> = [];
   for (const rect of rects) {
     if (rect.width < 2 || rect.height < 2) continue;
-    const line = lines.find((item) => Math.abs(item.top - rect.top) < 3 && Math.abs(item.bottom - rect.bottom) < 3);
+    const line = lines.find(
+      (item) => Math.abs(item.top - rect.top) < 3 && Math.abs(item.bottom - rect.bottom) < 3,
+    );
     if (line) {
       line.left = Math.min(line.left, rect.left);
       line.right = Math.max(line.right, rect.right);
@@ -1895,7 +2401,7 @@ function mergeLineRects(rects: DOMRect[]) {
     right: line.right,
     bottom: line.bottom,
     width: line.right - line.left,
-    height: line.bottom - line.top
+    height: line.bottom - line.top,
   }));
 }
 

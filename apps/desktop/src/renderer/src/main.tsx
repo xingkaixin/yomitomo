@@ -1,7 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Bot, Cable, Eye, EyeOff, KeyRound, Plus, Save, Trash2, Upload, User } from "lucide-react";
-import type { Agent, DesktopStore, LlmProvider, ProviderType, UserProfile } from "@yomitomo/shared";
+import {
+  BookOpen,
+  Bot,
+  Cable,
+  Eye,
+  EyeOff,
+  KeyRound,
+  MessageCircle,
+  Plus,
+  RefreshCcw,
+  Save,
+  Trash2,
+  Upload,
+  User,
+} from "lucide-react";
+import type {
+  Agent,
+  ArticleRecord,
+  DesktopStore,
+  LlmProvider,
+  ProviderType,
+  UserProfile,
+} from "@yomitomo/shared";
 import avatar01Raw from "./assets/avatars/lorelei-1777775032907.svg?raw";
 import avatar02Raw from "./assets/avatars/lorelei-1777775031622.svg?raw";
 import avatar03Raw from "./assets/avatars/lorelei-1777775029913.svg?raw";
@@ -29,7 +50,7 @@ import { Select } from "./components/ui/select";
 import { Textarea } from "./components/ui/textarea";
 import "./styles.css";
 
-type SettingKey = "general" | "providers" | "agents";
+type SettingKey = "library" | "general" | "providers" | "agents";
 type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
@@ -54,33 +75,43 @@ const agentAvatars = [
   avatar17Raw,
   avatar18Raw,
   avatar19Raw,
-  avatar20Raw
+  avatar20Raw,
 ].map((raw, index) => ({ id: `avatar-${index + 1}`, src: svgToDataUrl(raw) }));
 
-const annotationColors = ["#f4c95d", "#8ab6d6", "#8fc7a3", "#d9a7c7", "#f2a65a", "#a7b8e8", "#c8b88a", "#e58f8a"];
-const defaultAgentSoul = "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。";
+const annotationColors = [
+  "#f4c95d",
+  "#8ab6d6",
+  "#8fc7a3",
+  "#d9a7c7",
+  "#f2a65a",
+  "#a7b8e8",
+  "#c8b88a",
+  "#e58f8a",
+];
+const defaultAgentSoul =
+  "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。";
 const customPersonalityId = "custom";
 const agentPersonalities = [
   {
     id: "reading-partner",
     name: "克制阅读伙伴",
-    soul: defaultAgentSoul
+    soul: defaultAgentSoul,
   },
   {
     id: "first-principles",
     name: "第一性原理审阅者",
-    soul: "你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。"
+    soul: "你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。",
   },
   {
     id: "question-coach",
     name: "追问型导师",
-    soul: "你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。"
+    soul: "你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。",
   },
   {
     id: "insight-synthesizer",
     name: "洞察整理者",
-    soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。"
-  }
+    soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。",
+  },
 ] as const;
 
 const defaultUser: UserProfile = {
@@ -89,7 +120,7 @@ const defaultUser: UserProfile = {
   username: "me",
   avatar: "",
   annotationColor: annotationColors[0],
-  updatedAt: ""
+  updatedAt: "",
 };
 
 const emptyProvider: ProviderDraft = {
@@ -97,7 +128,7 @@ const emptyProvider: ProviderDraft = {
   type: "anthropic",
   baseUrl: "https://api.anthropic.com",
   modelName: "claude-3-5-sonnet-latest",
-  apiKey: ""
+  apiKey: "",
 };
 
 const emptyAgent: AgentDraft = {
@@ -105,18 +136,19 @@ const emptyAgent: AgentDraft = {
   username: "yomitomo",
   avatar: agentAvatars[0]?.src || "",
   annotationColor: annotationColors[1],
-  soul: defaultAgentSoul
+  soul: defaultAgentSoul,
 };
 
 const emptyStore: DesktopStore = {
   user: defaultUser,
   providers: [],
-  agents: []
+  agents: [],
+  articles: [],
 };
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
-  const [activeSetting, setActiveSetting] = useState<SettingKey>("general");
+  const [activeSetting, setActiveSetting] = useState<SettingKey>("library");
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(emptyAgent);
@@ -130,16 +162,25 @@ function App() {
     const desktop = window.yomitomoDesktop;
     if (!desktop) return;
 
-    desktop.getState().then((nextStore) => {
-      setStore(nextStore);
-      setUserDraft(nextStore.user);
-      if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
-      if (nextStore.agents[0]) selectAgent(nextStore.agents[0]);
-    });
+    refreshStore();
     desktop.getLogPath().then(setLogPath);
   }, []);
 
-  const providerOptions = useMemo(() => store.providers.map((provider) => ({ id: provider.id, label: provider.name })), [store.providers]);
+  const providerOptions = useMemo(
+    () => store.providers.map((provider) => ({ id: provider.id, label: provider.name })),
+    [store.providers],
+  );
+
+  async function refreshStore() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    const nextStore = await desktop.getState();
+    setStore(nextStore);
+    setUserDraft(nextStore.user);
+    if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
+    if (nextStore.agents[0]) selectAgent(nextStore.agents[0]);
+  }
 
   function selectProvider(provider: LlmProvider) {
     setSelectedProviderId(provider.id);
@@ -161,7 +202,11 @@ function App() {
 
   function createAgent() {
     setSelectedAgentId(null);
-    setAgentDraft({ ...emptyAgent, personalityId: "reading-partner", providerId: store.providers[0]?.id || "" });
+    setAgentDraft({
+      ...emptyAgent,
+      personalityId: "reading-partner",
+      providerId: store.providers[0]?.id || "",
+    });
     setAgentSaveError("");
   }
 
@@ -175,7 +220,9 @@ function App() {
   async function saveProviderDraft() {
     if (!window.yomitomoDesktop) return;
     const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
-    const savedProvider = providerDraft.id ? nextStore.providers.find((provider) => provider.id === providerDraft.id) : nextStore.providers.at(-1);
+    const savedProvider = providerDraft.id
+      ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
+      : nextStore.providers.at(-1);
     setStore(nextStore);
     if (savedProvider) selectProvider(savedProvider);
   }
@@ -203,15 +250,22 @@ function App() {
 
   async function saveAgentDraft() {
     if (!window.yomitomoDesktop) return;
-    const personalityId = agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
+    const personalityId =
+      agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
     const personality = agentPersonalities.find((item) => item.id === personalityId);
     if (personalityId === customPersonalityId && !agentDraft.soul?.trim()) {
       setAgentSaveError("自定义个性必须输入内容。");
       return;
     }
     const providerId = agentDraft.providerId || store.providers[0]?.id || "";
-    const nextStore = await window.yomitomoDesktop.saveAgent({ ...agentDraft, providerId, soul: personality?.soul || agentDraft.soul });
-    const savedAgent = agentDraft.id ? nextStore.agents.find((agent) => agent.id === agentDraft.id) : nextStore.agents.at(-1);
+    const nextStore = await window.yomitomoDesktop.saveAgent({
+      ...agentDraft,
+      providerId,
+      soul: personality?.soul || agentDraft.soul,
+    });
+    const savedAgent = agentDraft.id
+      ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
+      : nextStore.agents.at(-1);
     setStore(nextStore);
     setAgentSaveError("");
     if (savedAgent) selectAgent(savedAgent);
@@ -241,20 +295,50 @@ function App() {
           </div>
 
           <nav className="grid gap-2">
-            <SettingsNavButton active={activeSetting === "general"} icon={<User size={17} />} label="通用" onClick={() => setActiveSetting("general")} />
-            <SettingsNavButton active={activeSetting === "providers"} icon={<KeyRound size={17} />} label="供应商" onClick={() => setActiveSetting("providers")} />
-            <SettingsNavButton active={activeSetting === "agents"} icon={<Bot size={17} />} label="助手" onClick={() => setActiveSetting("agents")} />
+            <SettingsNavButton
+              active={activeSetting === "library"}
+              icon={<BookOpen size={17} />}
+              label="阅读库"
+              onClick={() => setActiveSetting("library")}
+            />
+            <SettingsNavButton
+              active={activeSetting === "general"}
+              icon={<User size={17} />}
+              label="通用"
+              onClick={() => setActiveSetting("general")}
+            />
+            <SettingsNavButton
+              active={activeSetting === "providers"}
+              icon={<KeyRound size={17} />}
+              label="供应商"
+              onClick={() => setActiveSetting("providers")}
+            />
+            <SettingsNavButton
+              active={activeSetting === "agents"}
+              icon={<Bot size={17} />}
+              label="助手"
+              onClick={() => setActiveSetting("agents")}
+            />
           </nav>
 
           {logPath ? (
-            <button className="mt-auto rounded-2xl border border-border bg-background/60 p-3 text-left text-xs leading-5 text-muted-foreground" type="button" onClick={() => navigator.clipboard.writeText(logPath)}>
+            <button
+              className="mt-auto rounded-2xl border border-border bg-background/60 p-3 text-left text-xs leading-5 text-muted-foreground"
+              type="button"
+              onClick={() => navigator.clipboard.writeText(logPath)}
+            >
               日志文件：{logPath}
             </button>
           ) : null}
         </aside>
 
         <section className="settings-content">
-          {activeSetting === "general" ? <GeneralSettings draft={userDraft} onChange={setUserDraft} onSave={saveUserDraft} /> : null}
+          {activeSetting === "library" ? (
+            <ReadingLibrary articles={store.articles} onRefresh={refreshStore} />
+          ) : null}
+          {activeSetting === "general" ? (
+            <GeneralSettings draft={userDraft} onChange={setUserDraft} onSave={saveUserDraft} />
+          ) : null}
           {activeSetting === "providers" ? (
             <ProviderSettings
               draft={providerDraft}
@@ -292,29 +376,167 @@ function App() {
   );
 }
 
-function SettingsNavButton({ active, icon, label, onClick }: { active: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
+function SettingsNavButton({
+  active,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
   return (
-    <button className={active ? "settings-nav-item is-active" : "settings-nav-item"} type="button" onClick={onClick}>
+    <button
+      className={active ? "settings-nav-item is-active" : "settings-nav-item"}
+      type="button"
+      onClick={onClick}
+    >
       {icon}
       <span>{label}</span>
     </button>
   );
 }
 
-function GeneralSettings({ draft, onChange, onSave }: { draft: UserDraft; onChange: (draft: UserDraft) => void; onSave: () => void }) {
+function GeneralSettings({
+  draft,
+  onChange,
+  onSave,
+}: {
+  draft: UserDraft;
+  onChange: (draft: UserDraft) => void;
+  onSave: () => void;
+}) {
   return (
     <div className="settings-panel">
-      <PanelHeader icon={<User size={20} />} title="通用" description="配置用户头像、昵称和 username，后续批注会使用这组身份信息。" action={<Button type="button" onClick={onSave}><Save size={16} />保存</Button>} />
+      <PanelHeader
+        icon={<User size={20} />}
+        title="通用"
+        description="配置用户头像、昵称和 username，后续批注会使用这组身份信息。"
+        action={
+          <Button type="button" onClick={onSave}>
+            <Save size={16} />
+            保存
+          </Button>
+        }
+      />
       <div className="settings-form-grid max-w-3xl">
         <div className="col-span-2 flex items-center gap-4">
           <AvatarImage value={draft.avatar || ""} className="size-20" fallback="我" />
           <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
         </div>
-        <Field label="Nickname"><Input value={draft.nickname || ""} onChange={(event) => onChange({ ...draft, nickname: event.target.value })} /></Field>
-        <Field label="Username"><Input value={draft.username || ""} onChange={(event) => onChange({ ...draft, username: event.target.value })} /></Field>
-        <Field className="col-span-2" label="批注颜色"><ColorPicker value={draft.annotationColor || annotationColors[0]} onChange={(annotationColor) => onChange({ ...draft, annotationColor })} /></Field>
+        <Field label="Nickname">
+          <Input
+            value={draft.nickname || ""}
+            onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
+          />
+        </Field>
+        <Field label="Username">
+          <Input
+            value={draft.username || ""}
+            onChange={(event) => onChange({ ...draft, username: event.target.value })}
+          />
+        </Field>
+        <Field className="col-span-2" label="批注颜色">
+          <ColorPicker
+            value={draft.annotationColor || annotationColors[0]}
+            onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
+          />
+        </Field>
       </div>
     </div>
+  );
+}
+
+function ReadingLibrary({
+  articles,
+  onRefresh,
+}: {
+  articles: ArticleRecord[];
+  onRefresh: () => void;
+}) {
+  const stats = articles.reduce(
+    (result, article) => ({
+      annotations: result.annotations + article.annotations.length,
+      comments:
+        result.comments +
+        article.annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+    }),
+    { annotations: 0, comments: 0 },
+  );
+
+  return (
+    <div className="settings-panel">
+      <PanelHeader
+        icon={<BookOpen size={20} />}
+        title="阅读库"
+        description="从浏览器阅读器同步回来的文章、批注和讨论。"
+        action={
+          <Button type="button" variant="secondary" onClick={onRefresh}>
+            <RefreshCcw size={16} />
+            刷新
+          </Button>
+        }
+      />
+      <div className="library-stats">
+        <LibraryStat label="文章" value={articles.length} />
+        <LibraryStat label="批注" value={stats.annotations} />
+        <LibraryStat label="讨论" value={stats.comments} />
+      </div>
+      {articles.length > 0 ? (
+        <div className="library-list">
+          {articles.map((article) => (
+            <ArticleListItem article={article} key={article.id} />
+          ))}
+        </div>
+      ) : (
+        <section className="library-empty">
+          <BookOpen size={32} />
+          <h3>还没有同步文章</h3>
+          <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function LibraryStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="library-stat">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function ArticleListItem({ article }: { article: ArticleRecord }) {
+  const comments = article.annotations.reduce(
+    (count, annotation) => count + annotation.comments.length,
+    0,
+  );
+
+  return (
+    <article className="library-item">
+      <div className="min-w-0">
+        <div className="library-item-source">
+          {article.byline || urlHost(article.canonicalUrl || article.url)}
+        </div>
+        <h3>{article.title}</h3>
+        <p>{article.excerpt || article.canonicalUrl || article.url}</p>
+      </div>
+      <div className="library-item-meta">
+        <span>
+          <BookOpen size={14} />
+          {article.annotations.length} 批注
+        </span>
+        <span>
+          <MessageCircle size={14} />
+          {comments} 讨论
+        </span>
+        <time>{formatDateTime(article.updatedAt)}</time>
+      </div>
+    </article>
   );
 }
 
@@ -328,7 +550,7 @@ function ProviderSettings({
   onDelete,
   onSave,
   onSelect,
-  onTest
+  onTest,
 }: {
   draft: ProviderDraft;
   providers: LlmProvider[];
@@ -343,14 +565,29 @@ function ProviderSettings({
 }) {
   return (
     <div className="settings-panel">
-      <PanelHeader icon={<KeyRound size={20} />} title="供应商" description="管理 API 类型、Base URL、模型和 API Key。" />
+      <PanelHeader
+        icon={<KeyRound size={20} />}
+        title="供应商"
+        description="管理 API 类型、Base URL、模型和 API Key。"
+      />
       <div className="settings-detail-grid">
         <ConfigList title="已配置供应商" onCreate={onCreate}>
           {providers.map((provider) => (
-            <button className={provider.id === selectedId ? "config-list-item is-plain is-active" : "config-list-item is-plain"} key={provider.id} type="button" onClick={() => onSelect(provider)}>
+            <button
+              className={
+                provider.id === selectedId
+                  ? "config-list-item is-plain is-active"
+                  : "config-list-item is-plain"
+              }
+              key={provider.id}
+              type="button"
+              onClick={() => onSelect(provider)}
+            >
               <span className="min-w-0">
                 <strong>{provider.name}</strong>
-                <span>{provider.type} · {provider.modelName}</span>
+                <span>
+                  {provider.type} · {provider.modelName}
+                </span>
               </span>
             </button>
           ))}
@@ -362,13 +599,33 @@ function ProviderSettings({
               <p>{draft.id ? "点击左侧其他供应商切换详情。" : "填写完成后保存到供应商列表。"}</p>
             </div>
             <div className="flex gap-2">
-              {draft.id ? <Button variant="secondary" type="button" onClick={() => onTest(draft.id!)}>测试</Button> : null}
-              {draft.id ? <Button variant="destructive" size="icon" type="button" onClick={() => onDelete(draft.id!)}><Trash2 size={15} /></Button> : null}
-              <Button type="button" onClick={onSave}><Save size={16} />保存</Button>
+              {draft.id ? (
+                <Button variant="secondary" type="button" onClick={() => onTest(draft.id!)}>
+                  测试
+                </Button>
+              ) : null}
+              {draft.id ? (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  type="button"
+                  onClick={() => onDelete(draft.id!)}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              ) : null}
+              <Button type="button" onClick={onSave}>
+                <Save size={16} />
+                保存
+              </Button>
             </div>
           </div>
           <ProviderForm draft={draft} onChange={onChange} />
-          {testState ? <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">{testState}</p> : null}
+          {testState ? (
+            <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">
+              {testState}
+            </p>
+          ) : null}
         </section>
       </div>
     </div>
@@ -385,7 +642,7 @@ function AgentSettings({
   onCreate,
   onDelete,
   onSave,
-  onSelect
+  onSelect,
 }: {
   agents: Agent[];
   draft: AgentDraft;
@@ -400,11 +657,22 @@ function AgentSettings({
 }) {
   return (
     <div className="settings-panel">
-      <PanelHeader icon={<Bot size={20} />} title="助手" description="管理助手身份、头像、供应商和个性。" />
+      <PanelHeader
+        icon={<Bot size={20} />}
+        title="助手"
+        description="管理助手身份、头像、供应商和个性。"
+      />
       <div className="settings-detail-grid">
         <ConfigList title="已配置助手" onCreate={onCreate}>
           {agents.map((agent) => (
-            <button className={agent.id === selectedId ? "config-list-item is-active" : "config-list-item"} key={agent.id} type="button" onClick={() => onSelect(agent)}>
+            <button
+              className={
+                agent.id === selectedId ? "config-list-item is-active" : "config-list-item"
+              }
+              key={agent.id}
+              type="button"
+              onClick={() => onSelect(agent)}
+            >
               <AvatarImage value={agent.avatar} className="size-9" fallback="AI" />
               <span className="min-w-0">
                 <strong>{agent.nickname}</strong>
@@ -417,11 +685,27 @@ function AgentSettings({
           <div className="detail-pane-header">
             <div>
               <h3>{draft.id ? "编辑助手" : "新增助手"}</h3>
-              <p>{providers.length > 0 ? "选择预设个性，或切换到自定义个性。" : "先配置供应商，再保存助手。"}</p>
+              <p>
+                {providers.length > 0
+                  ? "选择预设个性，或切换到自定义个性。"
+                  : "先配置供应商，再保存助手。"}
+              </p>
             </div>
             <div className="flex gap-2">
-              {draft.id ? <Button variant="destructive" size="icon" type="button" onClick={() => onDelete(draft.id!)}><Trash2 size={15} /></Button> : null}
-              <Button disabled={providers.length === 0} type="button" onClick={onSave}><Save size={16} />保存</Button>
+              {draft.id ? (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  type="button"
+                  onClick={() => onDelete(draft.id!)}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              ) : null}
+              <Button disabled={providers.length === 0} type="button" onClick={onSave}>
+                <Save size={16} />
+                保存
+              </Button>
             </div>
           </div>
           <AgentForm draft={draft} error={error} providers={providers} onChange={onChange} />
@@ -431,21 +715,44 @@ function AgentSettings({
   );
 }
 
-function ConfigList({ title, children, onCreate }: { title: string; children: React.ReactNode; onCreate: () => void }) {
+function ConfigList({
+  title,
+  children,
+  onCreate,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onCreate: () => void;
+}) {
   return (
     <aside className="config-list">
       <div className="config-list-title">{title}</div>
       <div className="grid gap-2 overflow-auto pr-1">{children}</div>
-      <Button className="mt-auto w-full" type="button" onClick={onCreate}><Plus size={17} />新增</Button>
+      <Button className="mt-auto w-full" type="button" onClick={onCreate}>
+        <Plus size={17} />
+        新增
+      </Button>
     </aside>
   );
 }
 
-function PanelHeader({ icon, title, description, action }: { icon: React.ReactNode; title: string; description: string; action?: React.ReactNode }) {
+function PanelHeader({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
   return (
     <header className="panel-header">
       <div className="flex items-center gap-3">
-        <div className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground">{icon}</div>
+        <div className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground">
+          {icon}
+        </div>
         <div>
           <h2>{title}</h2>
           <p>{description}</p>
@@ -456,26 +763,66 @@ function PanelHeader({ icon, title, description, action }: { icon: React.ReactNo
   );
 }
 
-function ProviderForm({ draft, onChange }: { draft: ProviderDraft; onChange: (draft: ProviderDraft) => void }) {
+function ProviderForm({
+  draft,
+  onChange,
+}: {
+  draft: ProviderDraft;
+  onChange: (draft: ProviderDraft) => void;
+}) {
   return (
     <div className="settings-form-grid">
-      <Field label="名称"><Input value={draft.name || ""} onChange={(event) => onChange({ ...draft, name: event.target.value })} /></Field>
+      <Field label="名称">
+        <Input
+          value={draft.name || ""}
+          onChange={(event) => onChange({ ...draft, name: event.target.value })}
+        />
+      </Field>
       <Field label="API 类型">
-        <Select value={draft.type || "anthropic"} onChange={(event) => onChange({ ...draft, type: event.target.value as ProviderType })}>
+        <Select
+          value={draft.type || "anthropic"}
+          onChange={(event) => onChange({ ...draft, type: event.target.value as ProviderType })}
+        >
           <option value="anthropic">Anthropic</option>
           <option value="openai">OpenAI</option>
           <option value="gemini">Gemini</option>
         </Select>
       </Field>
-      <Field label="Base URL"><Input value={draft.baseUrl || ""} onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })} /></Field>
-      <Field label="模型"><Input value={draft.modelName || ""} onChange={(event) => onChange({ ...draft, modelName: event.target.value })} /></Field>
-      <Field className="col-span-2" label="API Key"><SecretInput value={draft.apiKey || ""} onChange={(apiKey) => onChange({ ...draft, apiKey })} /></Field>
+      <Field label="Base URL">
+        <Input
+          value={draft.baseUrl || ""}
+          onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
+        />
+      </Field>
+      <Field label="模型">
+        <Input
+          value={draft.modelName || ""}
+          onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
+        />
+      </Field>
+      <Field className="col-span-2" label="API Key">
+        <SecretInput
+          value={draft.apiKey || ""}
+          onChange={(apiKey) => onChange({ ...draft, apiKey })}
+        />
+      </Field>
     </div>
   );
 }
 
-function AgentForm({ draft, error, providers, onChange }: { draft: AgentDraft; error: string; providers: Array<{ id: string; label: string }>; onChange: (draft: AgentDraft) => void }) {
-  const personalityId = draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
+function AgentForm({
+  draft,
+  error,
+  providers,
+  onChange,
+}: {
+  draft: AgentDraft;
+  error: string;
+  providers: Array<{ id: string; label: string }>;
+  onChange: (draft: AgentDraft) => void;
+}) {
+  const personalityId =
+    draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
   const isCustomPersonality = personalityId === customPersonalityId;
 
   function changePersonality(nextId: string) {
@@ -490,17 +837,44 @@ function AgentForm({ draft, error, providers, onChange }: { draft: AgentDraft; e
   return (
     <div className="settings-form-grid">
       <Field label="供应商">
-        <Select value={draft.providerId || providers[0]?.id || ""} onChange={(event) => onChange({ ...draft, providerId: event.target.value })}>
-          {providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}
+        <Select
+          value={draft.providerId || providers[0]?.id || ""}
+          onChange={(event) => onChange({ ...draft, providerId: event.target.value })}
+        >
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.label}
+            </option>
+          ))}
         </Select>
       </Field>
-      <Field label="Nickname"><Input value={draft.nickname || ""} onChange={(event) => onChange({ ...draft, nickname: event.target.value })} /></Field>
-      <Field label="Username"><Input value={draft.username || ""} onChange={(event) => onChange({ ...draft, username: event.target.value })} /></Field>
-      <Field className="col-span-2" label="批注颜色"><ColorPicker value={draft.annotationColor || annotationColors[1]} onChange={(annotationColor) => onChange({ ...draft, annotationColor })} /></Field>
+      <Field label="Nickname">
+        <Input
+          value={draft.nickname || ""}
+          onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
+        />
+      </Field>
+      <Field label="Username">
+        <Input
+          value={draft.username || ""}
+          onChange={(event) => onChange({ ...draft, username: event.target.value })}
+        />
+      </Field>
+      <Field className="col-span-2" label="批注颜色">
+        <ColorPicker
+          value={draft.annotationColor || annotationColors[1]}
+          onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
+        />
+      </Field>
       <Field className="col-span-2" label="头像">
         <div className="avatar-grid">
           {agentAvatars.map((avatar) => (
-            <button className={draft.avatar === avatar.src ? "avatar-choice is-active" : "avatar-choice"} key={avatar.id} type="button" onClick={() => onChange({ ...draft, avatar: avatar.src })}>
+            <button
+              className={draft.avatar === avatar.src ? "avatar-choice is-active" : "avatar-choice"}
+              key={avatar.id}
+              type="button"
+              onClick={() => onChange({ ...draft, avatar: avatar.src })}
+            >
               <img alt="" src={avatar.src} />
             </button>
           ))}
@@ -510,15 +884,35 @@ function AgentForm({ draft, error, providers, onChange }: { draft: AgentDraft; e
         <div className="personality-editor">
           <div className="personality-grid">
             {agentPersonalities.map((personality) => (
-              <button className={personalityId === personality.id ? "personality-choice is-active" : "personality-choice"} key={personality.id} type="button" onClick={() => changePersonality(personality.id)}>
+              <button
+                className={
+                  personalityId === personality.id
+                    ? "personality-choice is-active"
+                    : "personality-choice"
+                }
+                key={personality.id}
+                type="button"
+                onClick={() => changePersonality(personality.id)}
+              >
                 {personality.name}
               </button>
             ))}
-            <button className={isCustomPersonality ? "personality-choice is-active" : "personality-choice"} type="button" onClick={() => changePersonality(customPersonalityId)}>
+            <button
+              className={
+                isCustomPersonality ? "personality-choice is-active" : "personality-choice"
+              }
+              type="button"
+              onClick={() => changePersonality(customPersonalityId)}
+            >
               自定义个性
             </button>
           </div>
-          {isCustomPersonality ? <Textarea value={draft.soul || ""} onChange={(event) => onChange({ ...draft, soul: event.target.value })} /> : null}
+          {isCustomPersonality ? (
+            <Textarea
+              value={draft.soul || ""}
+              onChange={(event) => onChange({ ...draft, soul: event.target.value })}
+            />
+          ) : null}
           {error ? <p className="form-error">{error}</p> : null}
         </div>
       </Field>
@@ -527,7 +921,9 @@ function AgentForm({ draft, error, providers, onChange }: { draft: AgentDraft; e
 }
 
 function findAgentPersonalityId(soul: string) {
-  return agentPersonalities.find((personality) => personality.soul === soul)?.id || customPersonalityId;
+  return (
+    agentPersonalities.find((personality) => personality.soul === soul)?.id || customPersonalityId
+  );
 }
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -535,10 +931,21 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (value: str
     <div className="color-picker">
       <div className="color-swatches">
         {annotationColors.map((color) => (
-          <button className={value === color ? "color-swatch is-active" : "color-swatch"} key={color} style={{ backgroundColor: color }} type="button" aria-label={`选择颜色 ${color}`} onClick={() => onChange(color)} />
+          <button
+            className={value === color ? "color-swatch is-active" : "color-swatch"}
+            key={color}
+            style={{ backgroundColor: color }}
+            type="button"
+            aria-label={`选择颜色 ${color}`}
+            onClick={() => onChange(color)}
+          />
         ))}
       </div>
-      <Input className="max-w-36" value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        className="max-w-36"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }
@@ -548,8 +955,18 @@ function SecretInput({ value, onChange }: { value: string; onChange: (value: str
 
   return (
     <div className="relative">
-      <Input className="pr-12" type={visible ? "text" : "password"} value={value} onChange={(event) => onChange(event.target.value)} />
-      <button className="secret-toggle" type="button" aria-label={visible ? "隐藏 API Key" : "显示 API Key"} onClick={() => setVisible((next) => !next)}>
+      <Input
+        className="pr-12"
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        className="secret-toggle"
+        type="button"
+        aria-label={visible ? "隐藏 API Key" : "显示 API Key"}
+        onClick={() => setVisible((next) => !next)}
+      >
         {visible ? <EyeOff size={17} /> : <Eye size={17} />}
       </button>
     </div>
@@ -567,16 +984,30 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
       <label className="upload-button">
         <Upload size={16} />
         上传头像
-        <input accept="image/*" type="file" onChange={(event) => loadFile(event.target.files?.[0])} />
+        <input
+          accept="image/*"
+          type="file"
+          onChange={(event) => loadFile(event.target.files?.[0])}
+        />
       </label>
     </div>
   );
 }
 
-function AvatarImage({ value, fallback, className = "size-10" }: { value: string; fallback: string; className?: string }) {
+function AvatarImage({
+  value,
+  fallback,
+  className = "size-10",
+}: {
+  value: string;
+  fallback: string;
+  className?: string;
+}) {
   const image = isImageAvatar(value);
   const svg = isSvgAvatar(value);
-  const classes = ["avatar-image", className, image ? "is-image" : "", svg ? "is-svg" : ""].filter(Boolean).join(" ");
+  const classes = ["avatar-image", className, image ? "is-image" : "", svg ? "is-svg" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <span className={classes}>
@@ -585,7 +1016,15 @@ function AvatarImage({ value, fallback, className = "size-10" }: { value: string
   );
 }
 
-function Field({ label, className = "", children }: { label: string; className?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className={`grid gap-2 ${className}`}>
       <Label>{label}</Label>
@@ -599,7 +1038,12 @@ function svgToDataUrl(raw: string) {
 }
 
 function isImageAvatar(value: string) {
-  return value.startsWith("data:image/") || value.startsWith("blob:") || value.startsWith("http") || value.startsWith("/");
+  return (
+    value.startsWith("data:image/") ||
+    value.startsWith("blob:") ||
+    value.startsWith("http") ||
+    value.startsWith("/")
+  );
 }
 
 function isSvgAvatar(value: string) {
@@ -613,6 +1057,25 @@ function readFileAsDataUrl(file: File) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function urlHost(value: string) {
+  try {
+    return new URL(value).host;
+  } catch {
+    return value;
+  }
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

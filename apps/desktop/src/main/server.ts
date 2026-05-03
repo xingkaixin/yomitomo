@@ -1,8 +1,14 @@
 import { createServer, type Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
-import type { Agent, DesktopClientMessage, DesktopServerMessage, PublicAgent, UserProfile } from "@yomitomo/shared";
+import type {
+  Agent,
+  DesktopClientMessage,
+  DesktopServerMessage,
+  PublicAgent,
+  UserProfile,
+} from "@yomitomo/shared";
 import { makeId } from "@yomitomo/shared";
-import { readStore } from "./store";
+import { readStore, saveArticle } from "./store";
 import { runAgentAnnotateStream, runAgentStream } from "./llm";
 import { logError, logInfo } from "./logger";
 
@@ -65,7 +71,23 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === "agent:list") {
       const store = await readStore();
-      send(socket, { type: "agent:list:result", requestId: message.requestId, user: toPublicUser(store.user), agents: toPublicAgents(store.agents) });
+      send(socket, {
+        type: "agent:list:result",
+        requestId: message.requestId,
+        user: toPublicUser(store.user),
+        agents: toPublicAgents(store.agents),
+      });
+      return;
+    }
+
+    if (message.type === "article:save") {
+      await saveArticle(message.payload);
+      logInfo("article.save", {
+        requestId: message.requestId,
+        articleId: message.payload.id,
+        title: message.payload.title,
+        annotations: message.payload.annotations.length,
+      });
       return;
     }
 
@@ -87,14 +109,14 @@ async function handleMessage(socket: WebSocket, raw: string) {
         agentNickname: agent.nickname,
         agentAvatar: agent.avatar,
         agentAnnotationColor: agent.annotationColor,
-        pending: true
+        pending: true,
       };
 
       send(socket, {
         type: "agent:message:start",
         requestId: message.requestId,
         annotationId: message.payload.annotation.id,
-        comment
+        comment,
       });
 
       await runAgentStream(provider, agent, message.payload, (delta) => {
@@ -103,7 +125,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
           requestId: message.requestId,
           annotationId: message.payload.annotation.id,
           commentId: comment.id,
-          delta
+          delta,
         });
       });
 
@@ -111,7 +133,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         type: "agent:message:done",
         requestId: message.requestId,
         annotationId: message.payload.annotation.id,
-        commentId: comment.id
+        commentId: comment.id,
       });
       return;
     }
@@ -128,12 +150,12 @@ async function handleMessage(socket: WebSocket, raw: string) {
         requestId: message.requestId,
         agent: agent.username,
         articleTitle: message.payload.article.title,
-        articleChars: message.payload.article.text.length
+        articleChars: message.payload.article.text.length,
       });
       send(socket, {
         type: "agent:annotate:start",
         requestId: message.requestId,
-        agent: toPublicAgents([agent])[0]
+        agent: toPublicAgents([agent])[0],
       });
 
       await runAgentAnnotateStream(provider, agent, message.payload, (annotation) => {
@@ -142,7 +164,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
           agent: agent.username,
           annotationId: annotation.id,
           exactChars: annotation.anchor.exact.length,
-          exactPreview: annotation.anchor.exact.slice(0, 80)
+          exactPreview: annotation.anchor.exact.slice(0, 80),
         });
         send(socket, { type: "agent:annotate:item", requestId: message.requestId, annotation });
       });
@@ -153,20 +175,33 @@ async function handleMessage(socket: WebSocket, raw: string) {
     }
   } catch (error) {
     logError("ws.message.error", error, { requestId });
-    send(socket, { type: "error", requestId, message: error instanceof Error ? error.message : "本地服务处理失败" });
+    send(socket, {
+      type: "error",
+      requestId,
+      message: error instanceof Error ? error.message : "本地服务处理失败",
+    });
   }
 }
 
 async function sendStatus(socket: WebSocket) {
   const store = await readStore();
-  send(socket, { type: "status", ok: true, user: toPublicUser(store.user), agents: toPublicAgents(store.agents) });
+  send(socket, {
+    type: "status",
+    ok: true,
+    user: toPublicUser(store.user),
+    agents: toPublicAgents(store.agents),
+  });
 }
 
 function send(socket: WebSocket, message: DesktopServerMessage) {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
   } else {
-    logInfo("ws.send.drop", { type: message.type, requestId: "requestId" in message ? message.requestId : undefined, readyState: socket.readyState });
+    logInfo("ws.send.drop", {
+      type: message.type,
+      requestId: "requestId" in message ? message.requestId : undefined,
+      readyState: socket.readyState,
+    });
   }
 }
 
@@ -176,12 +211,15 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
     nickname: agent.nickname,
     username: agent.username,
     avatar: agent.avatar,
-    annotationColor: agent.annotationColor
+    annotationColor: agent.annotationColor,
   }));
 }
 
 function findAgent(agents: Agent[], agentId: string | undefined, username: string) {
-  return agents.find((agent) => agent.id === agentId) || agents.find((agent) => agent.username === username);
+  return (
+    agents.find((agent) => agent.id === agentId) ||
+    agents.find((agent) => agent.username === username)
+  );
 }
 
 function toPublicUser(user: UserProfile): UserProfile {

@@ -220,6 +220,122 @@
   gap: 16px;
 }
 
+.library-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.library-stat {
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 16px;
+  background: hsl(var(--background) / 0.52);
+  padding: 15px;
+}
+
+.library-stat strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.library-stat span {
+  display: block;
+  margin-top: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-list {
+  display: grid;
+  gap: 12px;
+}
+
+.library-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.52);
+  padding: 16px;
+}
+
+.library-item-source {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-item h3 {
+  margin: 5px 0 0;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-item p {
+  display: -webkit-box;
+  margin: 7px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.library-item-meta {
+  display: flex;
+  min-width: 132px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.library-item-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.library-empty {
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+  align-content: center;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.38);
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.library-empty h3 {
+  margin: 12px 0 0;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.library-empty p {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
 .secret-toggle {
   position: absolute;
   top: 50%;
