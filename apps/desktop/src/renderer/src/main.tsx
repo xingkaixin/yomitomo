@@ -879,9 +879,7 @@ function AnnotationNotebook({
                 <ChevronLeft size={17} />
               </button>
               <span>
-                {annotations.length > 0
-                  ? `${selectedIndex + 1} / ${annotations.length}`
-                  : '0 / 0'}
+                {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : '0 / 0'}
               </span>
               <button
                 aria-label="下一条批注"
