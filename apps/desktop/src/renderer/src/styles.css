@@ -251,17 +251,35 @@
 
 .library-list {
   display: grid;
+  align-content: start;
   gap: 12px;
+}
+
+.library-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.72fr);
+  gap: 16px;
 }
 
 .library-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
+  width: 100%;
   border: 1px solid hsl(var(--border) / 0.72);
   border-radius: 18px;
   background: hsl(var(--background) / 0.52);
+  color: hsl(var(--foreground));
+  cursor: pointer;
   padding: 16px;
+  text-align: left;
+}
+
+.library-item:hover,
+.library-item.is-active {
+  border-color: hsl(var(--primary) / 0.42);
+  background: hsl(var(--card) / 0.82);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
 }
 
 .library-item-source {
@@ -334,6 +352,66 @@
 .library-empty p {
   margin: 6px 0 0;
   font-size: 13px;
+}
+
+.reading-card {
+  position: sticky;
+  top: 22px;
+  display: grid;
+  max-height: calc(100vh - 196px);
+  align-content: start;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.52);
+  padding: 16px;
+}
+
+.reading-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.reading-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.reading-card-header p {
+  display: -webkit-box;
+  margin: 5px 0 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.reading-card pre {
+  overflow: auto;
+  max-height: calc(100vh - 290px);
+  margin: 0;
+  border-radius: 12px;
+  background: hsl(var(--card) / 0.82);
+  color: hsl(var(--foreground));
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  padding: 12px;
+}
+
+.reading-card-empty {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  text-align: center;
 }
 
 .about-section {

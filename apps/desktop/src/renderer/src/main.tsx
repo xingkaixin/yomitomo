@@ -4,6 +4,7 @@ import {
   BookOpen,
   Bot,
   Cable,
+  Clipboard,
   FileText,
   Eye,
   EyeOff,
@@ -65,6 +66,10 @@ type LogEntry = {
   event: string;
   data?: unknown;
   raw: string;
+};
+type ReadingCardSection = {
+  title: string;
+  items: string[];
 };
 
 const agentAvatars = [
@@ -463,6 +468,9 @@ function ReadingLibrary({
   articles: ArticleRecord[];
   onRefresh: () => void;
 }) {
+  const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const selectedArticle =
+    articles.find((article) => article.id === selectedArticleId) || articles[0] || null;
   const stats = articles.reduce(
     (result, article) => ({
       annotations: result.annotations + article.annotations.length,
@@ -492,10 +500,18 @@ function ReadingLibrary({
         <LibraryStat label="讨论" value={stats.comments} />
       </div>
       {articles.length > 0 ? (
-        <div className="library-list">
-          {articles.map((article) => (
-            <ArticleListItem article={article} key={article.id} />
-          ))}
+        <div className="library-workspace">
+          <div className="library-list">
+            {articles.map((article) => (
+              <ArticleListItem
+                active={article.id === selectedArticle?.id}
+                article={article}
+                key={article.id}
+                onSelect={() => setSelectedArticleId(article.id)}
+              />
+            ))}
+          </div>
+          <ReadingCard article={selectedArticle} />
         </div>
       ) : (
         <section className="library-empty">
@@ -505,6 +521,42 @@ function ReadingLibrary({
         </section>
       )}
     </div>
+  );
+}
+
+function ReadingCard({ article }: { article: ArticleRecord | null }) {
+  const [copied, setCopied] = useState(false);
+  const card = useMemo(() => (article ? buildReadingCard(article) : ""), [article]);
+
+  async function copyCard() {
+    if (!card) return;
+    await navigator.clipboard.writeText(card);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  if (!article) {
+    return (
+      <aside className="reading-card">
+        <div className="reading-card-empty">选择一篇文章查看读后卡片</div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="reading-card">
+      <div className="reading-card-header">
+        <div>
+          <h3>读后卡片</h3>
+          <p>{article.title}</p>
+        </div>
+        <Button type="button" variant="secondary" onClick={copyCard}>
+          <Clipboard size={16} />
+          {copied ? "已复制" : "复制"}
+        </Button>
+      </div>
+      <pre>{card}</pre>
+    </aside>
   );
 }
 
@@ -648,14 +700,26 @@ function LibraryStat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ArticleListItem({ article }: { article: ArticleRecord }) {
+function ArticleListItem({
+  active,
+  article,
+  onSelect,
+}: {
+  active: boolean;
+  article: ArticleRecord;
+  onSelect: () => void;
+}) {
   const comments = article.annotations.reduce(
     (count, annotation) => count + annotation.comments.length,
     0,
   );
 
   return (
-    <article className="library-item">
+    <button
+      className={active ? "library-item is-active" : "library-item"}
+      type="button"
+      onClick={onSelect}
+    >
       <div className="min-w-0">
         <div className="library-item-source">
           {article.byline || urlHost(article.canonicalUrl || article.url)}
@@ -674,7 +738,7 @@ function ArticleListItem({ article }: { article: ArticleRecord }) {
         </span>
         <time>{formatDateTime(article.updatedAt)}</time>
       </div>
-    </article>
+    </button>
   );
 }
 
@@ -1203,6 +1267,74 @@ function urlHost(value: string) {
   } catch {
     return value;
   }
+}
+
+function buildReadingCard(article: ArticleRecord) {
+  const sections = buildReadingCardSections(article);
+  return [
+    `# ${article.title}`,
+    "",
+    `来源：${article.canonicalUrl || article.url}`,
+    `更新时间：${formatDateTime(article.updatedAt)}`,
+    "",
+    ...sections.flatMap((section) => [
+      `## ${section.title}`,
+      "",
+      ...(section.items.length > 0 ? section.items.map((item) => `- ${item}`) : ["- 暂无"]),
+      "",
+    ]),
+  ]
+    .join("\n")
+    .trim();
+}
+
+function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] {
+  const comments = article.annotations.flatMap((annotation) =>
+    annotation.comments.map((comment) => ({
+      annotation,
+      comment,
+    })),
+  );
+  const userComments = comments.filter((item) => item.comment.author === "user");
+  const aiComments = comments.filter((item) => item.comment.author === "ai");
+  const questions = comments.filter((item) => /[?？]/.test(item.comment.content));
+
+  return [
+    {
+      title: "关键原文",
+      items: article.annotations
+        .slice(0, 6)
+        .map((annotation) => `“${compactText(annotation.anchor.exact, 120)}”`),
+    },
+    {
+      title: "我的批注",
+      items: userComments
+        .slice(0, 6)
+        .map(
+          ({ annotation, comment }) =>
+            `${compactText(comment.content, 140)}（原文：${compactText(annotation.anchor.exact, 80)}）`,
+        ),
+    },
+    {
+      title: "助手补充",
+      items: aiComments
+        .slice(0, 6)
+        .map(
+          ({ annotation, comment }) =>
+            `${compactText(comment.content, 160)}（原文：${compactText(annotation.anchor.exact, 80)}）`,
+        ),
+    },
+    {
+      title: "后续问题",
+      items: questions.slice(0, 6).map(({ comment }) => compactText(comment.content, 140)),
+    },
+  ];
+}
+
+function compactText(value: string, limit: number) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit - 1)}…`;
 }
 
 function parseLogEntries(raw: string): LogEntry[] {
