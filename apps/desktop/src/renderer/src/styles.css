@@ -331,6 +331,43 @@
   flex-wrap: wrap;
 }
 
+.personality-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.personality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(142px, 1fr));
+  gap: 10px;
+}
+
+.personality-choice {
+  min-height: 48px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+  background: hsl(var(--background) / 0.62);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.personality-choice:hover,
+.personality-choice.is-active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+
+.form-error {
+  margin: 0;
+  color: hsl(var(--destructive));
+  font-size: 13px;
+  font-weight: 760;
+}
+
 .color-swatch {
   width: 30px;
   height: 30px;

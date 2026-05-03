@@ -31,7 +31,7 @@ import "./styles.css";
 
 type SettingKey = "general" | "providers" | "agents";
 type ProviderDraft = Partial<LlmProvider>;
-type AgentDraft = Partial<Agent>;
+type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
 
 const agentAvatars = [
@@ -58,6 +58,30 @@ const agentAvatars = [
 ].map((raw, index) => ({ id: `avatar-${index + 1}`, src: svgToDataUrl(raw) }));
 
 const annotationColors = ["#f4c95d", "#8ab6d6", "#8fc7a3", "#d9a7c7", "#f2a65a", "#a7b8e8", "#c8b88a", "#e58f8a"];
+const defaultAgentSoul = "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。";
+const customPersonalityId = "custom";
+const agentPersonalities = [
+  {
+    id: "reading-partner",
+    name: "克制阅读伙伴",
+    soul: defaultAgentSoul
+  },
+  {
+    id: "first-principles",
+    name: "第一性原理审阅者",
+    soul: "你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。"
+  },
+  {
+    id: "question-coach",
+    name: "追问型导师",
+    soul: "你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。"
+  },
+  {
+    id: "insight-synthesizer",
+    name: "洞察整理者",
+    soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。"
+  }
+] as const;
 
 const defaultUser: UserProfile = {
   id: "user_local",
@@ -81,7 +105,7 @@ const emptyAgent: AgentDraft = {
   username: "yomitomo",
   avatar: agentAvatars[0]?.src || "",
   annotationColor: annotationColors[1],
-  soul: "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。"
+  soul: defaultAgentSoul
 };
 
 const emptyStore: DesktopStore = {
@@ -99,6 +123,7 @@ function App() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState("");
+  const [agentSaveError, setAgentSaveError] = useState("");
   const [logPath, setLogPath] = useState("");
 
   useEffect(() => {
@@ -130,12 +155,14 @@ function App() {
 
   function selectAgent(agent: Agent) {
     setSelectedAgentId(agent.id);
-    setAgentDraft(agent);
+    setAgentDraft({ ...agent, personalityId: findAgentPersonalityId(agent.soul) });
+    setAgentSaveError("");
   }
 
   function createAgent() {
     setSelectedAgentId(null);
-    setAgentDraft({ ...emptyAgent, providerId: store.providers[0]?.id || "" });
+    setAgentDraft({ ...emptyAgent, personalityId: "reading-partner", providerId: store.providers[0]?.id || "" });
+    setAgentSaveError("");
   }
 
   async function saveUserDraft() {
@@ -176,10 +203,17 @@ function App() {
 
   async function saveAgentDraft() {
     if (!window.yomitomoDesktop) return;
+    const personalityId = agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
+    const personality = agentPersonalities.find((item) => item.id === personalityId);
+    if (personalityId === customPersonalityId && !agentDraft.soul?.trim()) {
+      setAgentSaveError("自定义个性必须输入内容。");
+      return;
+    }
     const providerId = agentDraft.providerId || store.providers[0]?.id || "";
-    const nextStore = await window.yomitomoDesktop.saveAgent({ ...agentDraft, providerId });
+    const nextStore = await window.yomitomoDesktop.saveAgent({ ...agentDraft, providerId, soul: personality?.soul || agentDraft.soul });
     const savedAgent = agentDraft.id ? nextStore.agents.find((agent) => agent.id === agentDraft.id) : nextStore.agents.at(-1);
     setStore(nextStore);
+    setAgentSaveError("");
     if (savedAgent) selectAgent(savedAgent);
   }
 
@@ -239,9 +273,13 @@ function App() {
             <AgentSettings
               agents={store.agents}
               draft={agentDraft}
+              error={agentSaveError}
               providers={providerOptions}
               selectedId={selectedAgentId}
-              onChange={setAgentDraft}
+              onChange={(draft) => {
+                setAgentDraft(draft);
+                setAgentSaveError("");
+              }}
               onCreate={createAgent}
               onDelete={deleteAgent}
               onSave={saveAgentDraft}
@@ -340,6 +378,7 @@ function ProviderSettings({
 function AgentSettings({
   agents,
   draft,
+  error,
   providers,
   selectedId,
   onChange,
@@ -350,6 +389,7 @@ function AgentSettings({
 }: {
   agents: Agent[];
   draft: AgentDraft;
+  error: string;
   providers: Array<{ id: string; label: string }>;
   selectedId: string | null;
   onChange: (draft: AgentDraft) => void;
@@ -360,7 +400,7 @@ function AgentSettings({
 }) {
   return (
     <div className="settings-panel">
-      <PanelHeader icon={<Bot size={20} />} title="助手" description="管理助手身份、头像、供应商和系统提示词。" />
+      <PanelHeader icon={<Bot size={20} />} title="助手" description="管理助手身份、头像、供应商和个性。" />
       <div className="settings-detail-grid">
         <ConfigList title="已配置助手" onCreate={onCreate}>
           {agents.map((agent) => (
@@ -377,14 +417,14 @@ function AgentSettings({
           <div className="detail-pane-header">
             <div>
               <h3>{draft.id ? "编辑助手" : "新增助手"}</h3>
-              <p>{providers.length > 0 ? "头像从内置 SVG 里选择。" : "先配置供应商，再保存助手。"}</p>
+              <p>{providers.length > 0 ? "选择预设个性，或切换到自定义个性。" : "先配置供应商，再保存助手。"}</p>
             </div>
             <div className="flex gap-2">
               {draft.id ? <Button variant="destructive" size="icon" type="button" onClick={() => onDelete(draft.id!)}><Trash2 size={15} /></Button> : null}
               <Button disabled={providers.length === 0} type="button" onClick={onSave}><Save size={16} />保存</Button>
             </div>
           </div>
-          <AgentForm draft={draft} providers={providers} onChange={onChange} />
+          <AgentForm draft={draft} error={error} providers={providers} onChange={onChange} />
         </section>
       </div>
     </div>
@@ -434,7 +474,19 @@ function ProviderForm({ draft, onChange }: { draft: ProviderDraft; onChange: (dr
   );
 }
 
-function AgentForm({ draft, providers, onChange }: { draft: AgentDraft; providers: Array<{ id: string; label: string }>; onChange: (draft: AgentDraft) => void }) {
+function AgentForm({ draft, error, providers, onChange }: { draft: AgentDraft; error: string; providers: Array<{ id: string; label: string }>; onChange: (draft: AgentDraft) => void }) {
+  const personalityId = draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
+  const isCustomPersonality = personalityId === customPersonalityId;
+
+  function changePersonality(nextId: string) {
+    const personality = agentPersonalities.find((item) => item.id === nextId);
+    if (personality) {
+      onChange({ ...draft, personalityId: nextId, soul: personality.soul });
+      return;
+    }
+    onChange({ ...draft, personalityId: customPersonalityId, soul: "" });
+  }
+
   return (
     <div className="settings-form-grid">
       <Field label="供应商">
@@ -454,9 +506,28 @@ function AgentForm({ draft, providers, onChange }: { draft: AgentDraft; provider
           ))}
         </div>
       </Field>
-      <Field className="col-span-2" label="Soul"><Textarea value={draft.soul || ""} onChange={(event) => onChange({ ...draft, soul: event.target.value })} /></Field>
+      <Field className="col-span-2" label="个性">
+        <div className="personality-editor">
+          <div className="personality-grid">
+            {agentPersonalities.map((personality) => (
+              <button className={personalityId === personality.id ? "personality-choice is-active" : "personality-choice"} key={personality.id} type="button" onClick={() => changePersonality(personality.id)}>
+                {personality.name}
+              </button>
+            ))}
+            <button className={isCustomPersonality ? "personality-choice is-active" : "personality-choice"} type="button" onClick={() => changePersonality(customPersonalityId)}>
+              自定义个性
+            </button>
+          </div>
+          {isCustomPersonality ? <Textarea value={draft.soul || ""} onChange={(event) => onChange({ ...draft, soul: event.target.value })} /> : null}
+          {error ? <p className="form-error">{error}</p> : null}
+        </div>
+      </Field>
     </div>
   );
+}
+
+function findAgentPersonalityId(soul: string) {
+  return agentPersonalities.find((personality) => personality.soul === soul)?.id || customPersonalityId;
 }
 
 function ColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
