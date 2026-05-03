@@ -33,6 +33,10 @@ export async function startLocalServer() {
     socket.on("message", (raw) => {
       void handleMessage(socket, raw.toString());
     });
+
+    socket.on("close", (code, reason) => {
+      logInfo("ws.close", { code, reason: reason.toString() });
+    });
   });
 
   httpServer.listen(PORT, "127.0.0.1");
@@ -161,6 +165,8 @@ async function sendStatus(socket: WebSocket) {
 function send(socket: WebSocket, message: DesktopServerMessage) {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
+  } else {
+    logInfo("ws.send.drop", { type: message.type, requestId: "requestId" in message ? message.requestId : undefined, readyState: socket.readyState });
   }
 }
 

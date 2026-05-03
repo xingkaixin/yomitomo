@@ -263,6 +263,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const annotationsRef = useRef<Annotation[]>([]);
+  const recordCreatedAtRef = useRef<string | null>(null);
   const pendingAgentRequestsRef = useRef(new Map<string, { annotationId: string; commentId: string; agentId?: string }>());
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const agentAnnotationQueuesRef = useRef(new Map<string, Annotation[]>());
@@ -271,7 +272,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const agentAnimationRunningRef = useRef(false);
   const virtualReadingSessionsRef = useRef(new Map<string, VirtualReadingSession>());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
-  const [record, setRecord] = useState<ArticleRecord | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [desktopConnected, setDesktopConnected] = useState(false);
@@ -315,7 +315,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       }
 
       if (loaded) {
-        setRecord(loaded);
+        recordCreatedAtRef.current = loaded.createdAt;
         setAnnotations(loaded.annotations || []);
       }
       const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] || stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
@@ -349,6 +349,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const saveAnnotations = useCallback(
     async (nextAnnotations: Annotation[]) => {
       const now = new Date().toISOString();
+      const createdAt = recordCreatedAtRef.current || now;
+      recordCreatedAtRef.current = createdAt;
       const nextRecord: ArticleRecord = {
         id: extracted.id,
         url: extracted.url,
@@ -358,15 +360,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         excerpt: extracted.excerpt,
         contentHash: extracted.contentHash,
         annotations: nextAnnotations,
-        createdAt: record?.createdAt || now,
+        createdAt,
         updatedAt: now
       };
       annotationsRef.current = nextAnnotations;
       setAnnotations(nextAnnotations);
-      setRecord(nextRecord);
       await browser.storage.local.set({ [storageKey]: nextRecord });
     },
-    [extracted, record?.createdAt, storageKey]
+    [extracted, storageKey]
   );
 
   const recalculateHighlights = useCallback(() => {
