@@ -9,9 +9,9 @@
 - Workspace：`pnpm-workspace.yaml`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
-- 桌面端：Electron 39、electron-vite、React 19、Vite 8、Tailwind CSS
+- 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS
 - 浏览器扩展：WXT、React 19、Tailwind CSS、Chrome MV3
-- 共享包：`@yomitomo/shared`
+- 共享包：`@yomitomo/shared`、`@yomitomo/core`
 - 测试：Vitest
 - Lint：oxlint
 - Format：oxfmt
@@ -20,10 +20,11 @@
 
 - `apps/desktop`：Electron 桌面端，包含 main、preload、renderer。
 - `apps/extension`：WXT 浏览器扩展，包含 content script 和 popup。
-- `packages/shared`：共享类型、工具函数、文本锚定逻辑。
+- `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、跨端协议类型。
+- `packages/core`：跨端业务核心逻辑，包括批注、评论、@ 提及、阅读统计和阅读卡片生成。
 - `dist/**`：各应用构建产物。
 
-Workspace 包使用 `@yomitomo/*` 命名。跨包引用共享代码时使用 `@yomitomo/shared`。
+Workspace 包使用 `@yomitomo/*` 命名。跨包引用基础类型和底层纯函数时使用 `@yomitomo/shared`，跨端业务逻辑使用 `@yomitomo/core`。
 
 ## 常用命令
 
@@ -51,6 +52,9 @@ pnpm --filter @yomitomo/extension test
 
 pnpm --filter @yomitomo/shared build
 pnpm --filter @yomitomo/shared test
+
+pnpm --filter @yomitomo/core build
+pnpm --filter @yomitomo/core test
 ```
 
 ## Lint、Format、Test
@@ -58,9 +62,9 @@ pnpm --filter @yomitomo/shared test
 - Lint：`pnpm lint`，底层为 `oxlint .`。
 - Format：`pnpm format`，底层为 `oxfmt --write .`。
 - Test：`pnpm test`，底层为 `turbo test`。
-- Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建共享包和应用。
+- Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core` 和应用。
 - 包内测试脚本统一使用 `vitest run --passWithNoTests`。
-- `@yomitomo/shared` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
+- `@yomitomo/shared` 和 `@yomitomo/core` 的 build 使用 `tsc -p tsconfig.json --noEmit` 做类型检查。
 
 提交前优先运行：
 
@@ -72,11 +76,15 @@ pnpm build
 
 ## 开发注意事项
 
-- 新共享类型和纯函数放在 `packages/shared/src/index.ts`。
+- 新共享类型、ID/哈希工具、文本锚定和协议类型放在 `packages/shared/src/index.ts`。
+- 桌面端和扩展端都要使用的业务逻辑放在 `packages/core/src`，按领域拆分模块，再从 `packages/core/src/index.ts` 导出。
+- 扩展阅读器的文章抽取、DOM 范围、高亮绘制、组件和工具逻辑放在 `apps/extension/src/reader-*` 或明确命名的相邻模块。
+- 桌面端 renderer 的设置业务和通用展示工具放在 `apps/desktop/src/renderer/src/app-*` 模块。
 - 桌面端持久化路径基于 Electron `app.getPath("userData")`。
 - 浏览器扩展的页面数据存入 `browser.storage.local`。
 - 扩展 content script 和 popup 通过 WXT 入口组织。
 - 桌面端和扩展通过本地 WebSocket `127.0.0.1:43891` 通信。
+- `pnpm dev` 通过 workspace 源码消费 `@yomitomo/core` 和 `@yomitomo/shared`；改动 core/shared 后，桌面端和扩展端的 Vite/WXT watch 链路会重新构建相关代码。
 - UI 图标优先使用 `lucide-react`。
 - 样式优先沿用现有 Tailwind、组件和 CSS 变量。
 - 修改 workspace 包名或依赖后运行 `pnpm install --lockfile-only` 更新 lockfile。
