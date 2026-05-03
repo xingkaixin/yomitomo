@@ -9,7 +9,8 @@ import { broadcastStatus, startLocalServer } from "./server";
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, "../../resources/icon.png");
 
-app.setName("@yomitomo/desktop");
+app.setName("Yomitomo");
+app.setPath("userData", join(app.getPath("appData"), "@yomitomo/desktop"));
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -17,7 +18,7 @@ async function createWindow() {
     height: 820,
     minWidth: 980,
     minHeight: 700,
-    title: "Yomitomo",
+    title: "Yomitomo | 伴读 · 你的 AI 阅读伙伴",
     icon: appIconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),

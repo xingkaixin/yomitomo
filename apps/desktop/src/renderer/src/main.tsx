@@ -5,14 +5,18 @@ import {
   BookOpen,
   Bot,
   Cable,
+  Check,
+  ChevronLeft,
+  ChevronRight,
   Clipboard,
   FileText,
   Eye,
   EyeOff,
   Info,
   KeyRound,
-  MessageCircle,
+  Menu,
   Plus,
+  Quote,
   RefreshCcw,
   Save,
   Search,
@@ -23,13 +27,16 @@ import {
 import type {
   Agent,
   AgentAnnotationDensity,
+  Annotation,
   AnnotationType,
   ArticleRecord,
+  Comment as AnnotationComment,
   DesktopStore,
   LlmProvider,
   ProviderType,
   UserProfile,
 } from "@yomitomo/shared";
+import { renderMarkdown } from "@yomitomo/shared";
 import avatar01Raw from "./assets/avatars/lorelei-1777775032907.svg?raw";
 import avatar02Raw from "./assets/avatars/lorelei-1777775031622.svg?raw";
 import avatar03Raw from "./assets/avatars/lorelei-1777775029913.svg?raw";
@@ -197,6 +204,7 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState("");
   const [agentSaveError, setAgentSaveError] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
@@ -320,57 +328,95 @@ function App() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <section className="mx-auto grid min-h-screen max-w-7xl grid-cols-[260px_1fr] gap-5 px-6 py-7">
+    <main className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
+      <header className="app-header">
+        <button
+          aria-label={sidebarCollapsed ? "展开导航栏" : "折叠菜单"}
+          className="app-header-toggle"
+          type="button"
+          onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+        >
+          <Menu size={18} />
+        </button>
+        <div className="app-title">
+          <span>Yomitomo</span>
+          <span>伴读 · 你的 AI 阅读伙伴</span>
+        </div>
+      </header>
+
+      <section className="app-layout">
         <aside className="settings-sidebar">
-          <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground">
-              <Cable size={21} />
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">
+              <Cable size={20} />
             </div>
-            <div>
-              <h1 className="text-lg font-black leading-tight">Yomitomo</h1>
-              <p className="text-xs text-muted-foreground">127.0.0.1:43891</p>
+            <div className="sidebar-brand-copy">
+              <h1>Yomitomo</h1>
+              <p>127.0.0.1:43891</p>
             </div>
           </div>
 
-          <nav className="grid gap-2">
+          <nav className="settings-nav">
             <SettingsNavButton
               active={activeSetting === "library"}
-              icon={<BookOpen size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<BookOpen size={18} />}
               label="阅读库"
               onClick={() => setActiveSetting("library")}
             />
             <SettingsNavButton
               active={activeSetting === "stats"}
-              icon={<BarChart3 size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<BarChart3 size={18} />}
               label="统计"
               onClick={() => setActiveSetting("stats")}
             />
             <SettingsNavButton
               active={activeSetting === "general"}
-              icon={<User size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<User size={18} />}
               label="通用"
               onClick={() => setActiveSetting("general")}
             />
             <SettingsNavButton
               active={activeSetting === "providers"}
-              icon={<KeyRound size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<KeyRound size={18} />}
               label="供应商"
               onClick={() => setActiveSetting("providers")}
             />
             <SettingsNavButton
               active={activeSetting === "agents"}
-              icon={<Bot size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<Bot size={18} />}
               label="助手"
               onClick={() => setActiveSetting("agents")}
             />
             <SettingsNavButton
               active={activeSetting === "about"}
-              icon={<Info size={17} />}
+              collapsed={sidebarCollapsed}
+              icon={<Info size={18} />}
               label="关于"
               onClick={() => setActiveSetting("about")}
             />
           </nav>
+
+          <div className="sidebar-note">
+            <div className="sidebar-plant" />
+            <div className="sidebar-paper">
+              <span>持续阅读</span>
+              <span>持续思考</span>
+              <span>持续成长</span>
+            </div>
+          </div>
+
+          <div className="sidebar-sync">
+            <span />
+            <div>
+              <strong>已同步</strong>
+              <p>刚刚</p>
+            </div>
+          </div>
         </aside>
 
         <section className="settings-content">
@@ -423,11 +469,13 @@ function App() {
 
 function SettingsNavButton({
   active,
+  collapsed,
   icon,
   label,
   onClick,
 }: {
   active: boolean;
+  collapsed: boolean;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
@@ -436,6 +484,7 @@ function SettingsNavButton({
     <button
       className={active ? "settings-nav-item is-active" : "settings-nav-item"}
       type="button"
+      title={collapsed ? label : undefined}
       onClick={onClick}
     >
       {icon}
@@ -560,8 +609,18 @@ function ReadingLibrary({
   onRefresh: () => void;
 }) {
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const sortedArticles = useMemo(() => sortArticles(articles), [articles]);
   const selectedArticle =
-    articles.find((article) => article.id === selectedArticleId) || articles[0] || null;
+    sortedArticles.find((article) => article.id === selectedArticleId) || sortedArticles[0] || null;
+  const annotations = useMemo(
+    () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
+    [selectedArticle],
+  );
+  const selectedAnnotation =
+    annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
+    annotations[0] ||
+    null;
   const stats = articles.reduce(
     (result, article) => ({
       annotations: result.annotations + article.annotations.length,
@@ -572,52 +631,228 @@ function ReadingLibrary({
     { annotations: 0, comments: 0 },
   );
 
+  useEffect(() => {
+    if (!selectedArticle) {
+      setSelectedAnnotationId(null);
+      return;
+    }
+    const nextAnnotation = sortAnnotations(selectedArticle.annotations)[0] || null;
+    setSelectedAnnotationId(nextAnnotation?.id || null);
+  }, [selectedArticle?.id]);
+
   return (
-    <div className="settings-panel">
-      <PanelHeader
-        icon={<BookOpen size={20} />}
-        title="阅读库"
-        description="从浏览器阅读器同步回来的文章、批注和讨论。"
-        action={
+    <div className="library-screen">
+      <section className="article-rail">
+        <div className="article-rail-header">
+          <div>
+            <h2>阅读库</h2>
+            <p>插件同步的已批注文章</p>
+          </div>
           <Button type="button" variant="secondary" onClick={onRefresh}>
             <RefreshCcw size={16} />
             刷新
           </Button>
-        }
-      />
-      <div className="library-stats">
-        <LibraryStat label="文章" value={articles.length} />
-        <LibraryStat label="批注" value={stats.annotations} />
-        <LibraryStat label="讨论" value={stats.comments} />
-      </div>
-      {articles.length > 0 ? (
-        <div className="library-workspace">
+        </div>
+        <div className="library-stats">
+          <LibraryStat label="文章" value={articles.length} />
+          <LibraryStat label="批注" value={stats.annotations} />
+          <LibraryStat label="讨论" value={stats.comments} />
+        </div>
+        {sortedArticles.length > 0 ? (
           <div className="library-list">
-            {articles.map((article) => (
+            {sortedArticles.map((article) => (
               <ArticleListItem
                 active={article.id === selectedArticle?.id}
                 article={article}
                 key={article.id}
-                onSelect={() => setSelectedArticleId(article.id)}
+                onSelect={() => {
+                  setSelectedArticleId(article.id);
+                  setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
+                }}
               />
             ))}
           </div>
-          <ReadingCard article={selectedArticle} />
-        </div>
+        ) : (
+          <section className="library-empty">
+            <BookOpen size={32} />
+            <h3>还没有同步文章</h3>
+            <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+          </section>
+        )}
+      </section>
+
+      {selectedArticle ? (
+        <AnnotationNotebook
+          annotation={selectedAnnotation}
+          annotations={annotations}
+          article={selectedArticle}
+          onSelect={setSelectedAnnotationId}
+        />
       ) : (
-        <section className="library-empty">
-          <BookOpen size={32} />
-          <h3>还没有同步文章</h3>
-          <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+        <section className="annotation-notebook is-empty">
+          <div className="notebook-empty">选择一篇文章查看批注</div>
         </section>
       )}
+
+      <ReadingCard article={selectedArticle} />
     </div>
+  );
+}
+
+function AnnotationNotebook({
+  annotation,
+  annotations,
+  article,
+  onSelect,
+}: {
+  annotation: Annotation | null;
+  annotations: Annotation[];
+  article: ArticleRecord;
+  onSelect: (id: string | null) => void;
+}) {
+  const selectedIndex = annotation
+    ? annotations.findIndex((item) => item.id === annotation.id)
+    : -1;
+  const annotationAuthor = annotation ? annotationAuthorProfile(annotation) : null;
+  const canPage = selectedIndex >= 0 && annotations.length > 1;
+
+  function selectByOffset(offset: number) {
+    if (!canPage) return;
+    const nextIndex = (selectedIndex + offset + annotations.length) % annotations.length;
+    onSelect(annotations[nextIndex]?.id || null);
+  }
+
+  return (
+    <section className="annotation-notebook">
+      <div className="notebook-rings" aria-hidden="true" />
+      <div className="notebook-cover">
+        <header className="notebook-header">
+          <div className="min-w-0">
+            <h2>{article.title}</h2>
+            <p>
+              {article.byline || urlHost(article.canonicalUrl || article.url)} ·{" "}
+              {formatDate(article.updatedAt)}
+            </p>
+          </div>
+          <div className="annotation-counter">
+            {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : "0 / 0"}
+          </div>
+        </header>
+
+        {annotation ? (
+          <>
+            <div className="notebook-scroll">
+              <section className="quote-card">
+                <div className="annotation-type">
+                  <span>
+                    {annotation.annotationType
+                      ? annotationTypeLabel(annotation.annotationType)
+                      : "批注"}
+                  </span>
+                </div>
+                <div className="quote-title">
+                  <Quote size={18} />
+                  <strong>原文</strong>
+                  <CopyIconButton label="复制原文" value={annotation.anchor.exact} />
+                </div>
+                <blockquote>{annotation.anchor.exact}</blockquote>
+                <div className="annotation-author">
+                  <AvatarImage
+                    value={annotationAuthor?.avatar || ""}
+                    className="size-8"
+                    fallback={(annotationAuthor?.name || "批").slice(0, 1)}
+                  />
+                  <div>
+                    <strong>{annotationAuthor?.name}</strong>
+                    <time>{formatDateTime(annotation.createdAt)}</time>
+                  </div>
+                </div>
+              </section>
+
+              <section className="comment-thread">
+                {annotation.comments.length > 0 ? (
+                  annotation.comments.map((comment) => (
+                    <CommentCard comment={comment} key={comment.id} />
+                  ))
+                ) : (
+                  <div className="comment-empty">这条批注还没有评论</div>
+                )}
+              </section>
+            </div>
+            <footer className="notebook-footer">
+              <time>批注时间：{formatDateTime(annotation.createdAt)}</time>
+              <div className="page-actions">
+                <button
+                  aria-label="上一条批注"
+                  type="button"
+                  disabled={!canPage}
+                  onClick={() => selectByOffset(-1)}
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <button
+                  aria-label="下一条批注"
+                  type="button"
+                  disabled={!canPage}
+                  onClick={() => selectByOffset(1)}
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </footer>
+          </>
+        ) : (
+          <div className="notebook-empty">这篇文章还没有批注</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CommentCard({ comment }: { comment: AnnotationComment }) {
+  const author = commentAuthorProfile(comment);
+  const html = useMemo(() => renderMarkdown(comment.content), [comment.content]);
+
+  return (
+    <article className="comment-card">
+      <header>
+        <AvatarImage value={author.avatar} className="size-9" fallback={author.name.slice(0, 1)} />
+        <div className="min-w-0">
+          <strong>{author.name}</strong>
+          <time>{formatDateTime(comment.createdAt)}</time>
+        </div>
+        <CopyIconButton label="复制评论" value={comment.content} />
+      </header>
+      <div className="comment-markdown" dangerouslySetInnerHTML={{ __html: html }} />
+    </article>
+  );
+}
+
+function CopyIconButton({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      aria-label={copied ? "已复制" : label}
+      className={copied ? "copy-icon-button is-copied" : "copy-icon-button"}
+      type="button"
+      onClick={copy}
+    >
+      {copied ? <Check size={15} /> : <Clipboard size={14} />}
+    </button>
   );
 }
 
 function ReadingCard({ article }: { article: ArticleRecord | null }) {
   const [copied, setCopied] = useState(false);
   const card = useMemo(() => (article ? buildReadingCard(article) : ""), [article]);
+  const sections = useMemo(() => (article ? buildReadingCardSections(article) : []), [article]);
 
   async function copyCard() {
     if (!card) return;
@@ -646,7 +881,18 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
           {copied ? "已复制" : "复制"}
         </Button>
       </div>
-      <pre>{card}</pre>
+      <div className="reading-card-body">
+        {sections.map((section) => (
+          <section key={section.title}>
+            <h4>{section.title}</h4>
+            <ul>
+              {(section.items.length > 0 ? section.items : ["暂无"]).map((item, index) => (
+                <li key={`${section.title}-${index}`}>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
     </aside>
   );
 }
@@ -812,23 +1058,13 @@ function ArticleListItem({
       onClick={onSelect}
     >
       <div className="min-w-0">
-        <div className="library-item-source">
-          {article.byline || urlHost(article.canonicalUrl || article.url)}
-        </div>
         <h3>{article.title}</h3>
-        <p>{article.excerpt || article.canonicalUrl || article.url}</p>
+        <p>{article.byline || urlHost(article.canonicalUrl || article.url) || "未知作者"}</p>
+        <time>{formatDate(article.updatedAt)}</time>
       </div>
-      <div className="library-item-meta">
-        <span>
-          <BookOpen size={14} />
-          {article.annotations.length} 批注
-        </span>
-        <span>
-          <MessageCircle size={14} />
-          {comments} 讨论
-        </span>
-        <time>{formatDateTime(article.updatedAt)}</time>
-      </div>
+      <span className="library-item-count">
+        {article.annotations.length} 批注 · {comments} 评
+      </span>
     </button>
   );
 }
@@ -1371,6 +1607,47 @@ function readFileAsDataUrl(file: File) {
   });
 }
 
+function sortArticles(articles: ArticleRecord[]) {
+  return [...articles].sort(
+    (left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt),
+  );
+}
+
+function sortAnnotations(annotations: Annotation[]) {
+  return [...annotations].sort((left, right) => {
+    const leftStart = Number.isFinite(left.anchor.start) ? left.anchor.start : 0;
+    const rightStart = Number.isFinite(right.anchor.start) ? right.anchor.start : 0;
+    if (leftStart !== rightStart) return leftStart - rightStart;
+    return timestamp(left.createdAt) - timestamp(right.createdAt);
+  });
+}
+
+function annotationAuthorProfile(annotation: Annotation) {
+  if (annotation.author === "ai") {
+    return {
+      avatar: annotation.agentAvatar || "",
+      name: annotation.agentNickname || annotation.agentUsername || "助手",
+    };
+  }
+  return {
+    avatar: annotation.userAvatar || "",
+    name: annotation.userNickname || annotation.userUsername || "我",
+  };
+}
+
+function commentAuthorProfile(comment: AnnotationComment) {
+  if (comment.author === "ai") {
+    return {
+      avatar: comment.agentAvatar || "",
+      name: comment.agentNickname || comment.agentUsername || "助手",
+    };
+  }
+  return {
+    avatar: comment.userAvatar || "",
+    name: comment.userNickname || comment.userUsername || "我",
+  };
+}
+
 function urlHost(value: string) {
   try {
     return new URL(value).host;
@@ -1448,6 +1725,11 @@ function compactText(value: string, limit: number) {
   const text = value.replace(/\s+/g, " ").trim();
   if (text.length <= limit) return text;
   return `${text.slice(0, limit - 1)}…`;
+}
+
+function timestamp(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function annotationTypeLabel(type: AnnotationType) {
@@ -1563,6 +1845,16 @@ function formatDateTime(value: string) {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+  }).format(date);
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
