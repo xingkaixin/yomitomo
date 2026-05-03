@@ -13,11 +13,12 @@ function Popup() {
     if (!tab.id) return;
 
     try {
-      await browser.tabs.sendMessage(tab.id, { type: 'yomitomo:toggle' });
+      setStatus('正在打开阅读器...');
+      await toggleReaderInTab(tab.id);
       setStatus('已发送到当前网页');
       window.close();
-    } catch {
-      setStatus('当前页面暂时无法注入插件，请换到普通网页后重试');
+    } catch (error) {
+      setStatus(`打开失败：${errorMessage(error)}`);
     }
   }
 
@@ -43,6 +44,22 @@ function Popup() {
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{status}</p>
     </main>
   );
+}
+
+async function toggleReaderInTab(tabId: number) {
+  await injectContentScript(tabId);
+  await browser.tabs.sendMessage(tabId, { type: 'yomitomo:toggle' });
+}
+
+async function injectContentScript(tabId: number) {
+  await browser.scripting.executeScript({
+    target: { tabId },
+    files: ['content-scripts/content.js'],
+  });
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 createRoot(document.getElementById('root')!).render(<Popup />);

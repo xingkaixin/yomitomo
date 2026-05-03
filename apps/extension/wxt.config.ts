@@ -24,7 +24,7 @@ export default defineConfig({
     name: 'Yomitomo',
     description: 'Yomitomo reader mode with persistent highlights and threaded annotations.',
     version: packageJson.version,
-    permissions: ['activeTab', 'storage', 'tabs'],
+    permissions: ['activeTab', 'scripting', 'storage', 'tabs'],
     host_permissions: ['<all_urls>', 'ws://127.0.0.1/*'],
     icons,
     action: {
