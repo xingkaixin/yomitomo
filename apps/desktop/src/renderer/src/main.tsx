@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Bot, Cable, Eye, EyeOff, KeyRound, Plus, Save, Trash2, Upload, User } from "lucide-react";
-import type { Agent, DesktopStore, LlmProvider, ProviderType, UserProfile } from "@reader/shared";
+import type { Agent, DesktopStore, LlmProvider, ProviderType, UserProfile } from "@yomitomo/shared";
 import avatar01Raw from "./assets/avatars/lorelei-1777775032907.svg?raw";
 import avatar02Raw from "./assets/avatars/lorelei-1777775031622.svg?raw";
 import avatar03Raw from "./assets/avatars/lorelei-1777775029913.svg?raw";
@@ -78,7 +78,7 @@ const emptyProvider: ProviderDraft = {
 
 const emptyAgent: AgentDraft = {
   nickname: "阅读伙伴",
-  username: "reader",
+  username: "yomitomo",
   avatar: agentAvatars[0]?.src || "",
   annotationColor: annotationColors[1],
   soul: "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。"
@@ -102,7 +102,7 @@ function App() {
   const [logPath, setLogPath] = useState("");
 
   useEffect(() => {
-    const desktop = window.readerDesktop;
+    const desktop = window.yomitomoDesktop;
     if (!desktop) return;
 
     desktop.getState().then((nextStore) => {
@@ -139,23 +139,23 @@ function App() {
   }
 
   async function saveUserDraft() {
-    if (!window.readerDesktop) return;
-    const nextStore = await window.readerDesktop.saveUser(userDraft);
+    if (!window.yomitomoDesktop) return;
+    const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
     setStore(nextStore);
     setUserDraft(nextStore.user);
   }
 
   async function saveProviderDraft() {
-    if (!window.readerDesktop) return;
-    const nextStore = await window.readerDesktop.saveProvider(providerDraft);
+    if (!window.yomitomoDesktop) return;
+    const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
     const savedProvider = providerDraft.id ? nextStore.providers.find((provider) => provider.id === providerDraft.id) : nextStore.providers.at(-1);
     setStore(nextStore);
     if (savedProvider) selectProvider(savedProvider);
   }
 
   async function deleteProvider(id: string) {
-    if (!window.readerDesktop) return;
-    const nextStore = await window.readerDesktop.deleteProvider(id);
+    if (!window.yomitomoDesktop) return;
+    const nextStore = await window.yomitomoDesktop.deleteProvider(id);
     setStore(nextStore);
     const nextProvider = nextStore.providers[0];
     if (nextProvider) selectProvider(nextProvider);
@@ -168,24 +168,24 @@ function App() {
   }
 
   async function testProvider(id: string) {
-    if (!window.readerDesktop) return;
+    if (!window.yomitomoDesktop) return;
     setTestState("测试中...");
-    const result = await window.readerDesktop.testProvider(id);
+    const result = await window.yomitomoDesktop.testProvider(id);
     setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
   }
 
   async function saveAgentDraft() {
-    if (!window.readerDesktop) return;
+    if (!window.yomitomoDesktop) return;
     const providerId = agentDraft.providerId || store.providers[0]?.id || "";
-    const nextStore = await window.readerDesktop.saveAgent({ ...agentDraft, providerId });
+    const nextStore = await window.yomitomoDesktop.saveAgent({ ...agentDraft, providerId });
     const savedAgent = agentDraft.id ? nextStore.agents.find((agent) => agent.id === agentDraft.id) : nextStore.agents.at(-1);
     setStore(nextStore);
     if (savedAgent) selectAgent(savedAgent);
   }
 
   async function deleteAgent(id: string) {
-    if (!window.readerDesktop) return;
-    const nextStore = await window.readerDesktop.deleteAgent(id);
+    if (!window.yomitomoDesktop) return;
+    const nextStore = await window.yomitomoDesktop.deleteAgent(id);
     setStore(nextStore);
     const nextAgent = nextStore.agents[0];
     if (nextAgent) selectAgent(nextAgent);
@@ -201,7 +201,7 @@ function App() {
               <Cable size={21} />
             </div>
             <div>
-              <h1 className="text-lg font-black leading-tight">Reader Agent</h1>
+              <h1 className="text-lg font-black leading-tight">Yomitomo</h1>
               <p className="text-xs text-muted-foreground">127.0.0.1:43891</p>
             </div>
           </div>

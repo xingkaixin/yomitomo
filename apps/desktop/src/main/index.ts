@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain } from "electron";
-import type { Agent, LlmProvider, UserProfile } from "@reader/shared";
+import type { Agent, LlmProvider, UserProfile } from "@yomitomo/shared";
 import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from "./store";
 import { testProvider } from "./llm";
 import { getLogPath, logInfo } from "./logger";
@@ -8,13 +8,15 @@ import { broadcastStatus, startLocalServer } from "./server";
 
 let mainWindow: BrowserWindow | null = null;
 
+app.setName("@yomitomo/desktop");
+
 async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
     minWidth: 980,
     minHeight: 700,
-    title: "Reader Agent",
+    title: "Yomitomo",
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       sandbox: false,

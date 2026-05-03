@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@reader/shared";
+import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@yomitomo/shared";
 
 const api = {
   getState: () => ipcRenderer.invoke("store:get") as Promise<DesktopStore>,
@@ -12,6 +12,6 @@ const api = {
   deleteAgent: (id: string) => ipcRenderer.invoke("agent:delete", id) as Promise<DesktopStore>
 };
 
-contextBridge.exposeInMainWorld("readerDesktop", api);
+contextBridge.exposeInMainWorld("yomitomoDesktop", api);
 
-export type ReaderDesktopApi = typeof api;
+export type YomitomoDesktopApi = typeof api;

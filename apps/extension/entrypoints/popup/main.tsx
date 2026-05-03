@@ -13,7 +13,7 @@ function Popup() {
     if (!tab.id) return;
 
     try {
-      await browser.tabs.sendMessage(tab.id, { type: "reader:toggle" });
+      await browser.tabs.sendMessage(tab.id, { type: "yomitomo:toggle" });
       setStatus("已发送到当前网页");
       window.close();
     } catch {
@@ -28,7 +28,7 @@ function Popup() {
           <BookOpen className="size-5" />
         </div>
         <div>
-          <h1 className="text-base font-semibold">Reader Agent</h1>
+          <h1 className="text-base font-semibold">Yomitomo</h1>
           <p className="text-xs text-muted-foreground">阅读器、高亮、批注讨论</p>
         </div>
       </div>

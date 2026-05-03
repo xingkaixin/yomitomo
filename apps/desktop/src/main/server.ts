@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
-import type { Agent, DesktopClientMessage, DesktopServerMessage, PublicAgent, UserProfile } from "@reader/shared";
-import { makeId } from "@reader/shared";
+import type { Agent, DesktopClientMessage, DesktopServerMessage, PublicAgent, UserProfile } from "@yomitomo/shared";
+import { makeId } from "@yomitomo/shared";
 import { readStore } from "./store";
 import { runAgentAnnotateStream, runAgentStream } from "./llm";
 import { logError, logInfo } from "./logger";

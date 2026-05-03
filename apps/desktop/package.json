@@ -1,5 +1,5 @@
 {
-  "name": "@reader/desktop",
+  "name": "@yomitomo/desktop",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@reader/shared": "workspace:*",
+    "@yomitomo/shared": "workspace:*",
     "@vitejs/plugin-react": "^5.1.1",
     "electron": "^39.2.7",
     "electron-vite": "^4.0.0",

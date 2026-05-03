@@ -12,13 +12,13 @@ export default defineConfig({
     disabled: true
   },
   manifest: {
-    name: "Reader Agent",
-    description: "Reader mode with persistent highlights and threaded annotations.",
+    name: "Yomitomo",
+    description: "Yomitomo reader mode with persistent highlights and threaded annotations.",
     version: "0.0.1",
     permissions: ["activeTab", "storage", "tabs"],
     host_permissions: ["<all_urls>", "ws://127.0.0.1/*"],
     action: {
-      default_title: "Reader Agent",
+      default_title: "Yomitomo",
       default_popup: "popup.html"
     }
   }

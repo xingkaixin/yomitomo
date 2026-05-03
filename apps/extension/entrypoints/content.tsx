@@ -17,12 +17,15 @@ import {
   hashText,
   makeId,
   resolveTextAnchor
-} from "@reader/shared";
+} from "@yomitomo/shared";
 
-const HOST_ID = "reader-agent-root";
-const STORAGE_PREFIX = "reader.article.";
-const READER_SETTINGS_KEY = "reader.settings";
-const DESKTOP_PROFILE_CACHE_KEY = "reader.desktopProfile";
+const HOST_ID = "yomitomo-root";
+const STORAGE_PREFIX = "yomitomo.article.";
+const LEGACY_STORAGE_PREFIX = "reader.article.";
+const READER_SETTINGS_KEY = "yomitomo.settings";
+const LEGACY_READER_SETTINGS_KEY = "reader.settings";
+const DESKTOP_PROFILE_CACHE_KEY = "yomitomo.desktopProfile";
+const LEGACY_DESKTOP_PROFILE_CACHE_KEY = "reader.desktopProfile";
 const DESKTOP_WS_URL = "ws://127.0.0.1:43891";
 const defaultUserProfile: UserProfile = {
   id: "user_local",
@@ -41,7 +44,7 @@ let root: Root | null = null;
 let previousOverflow = "";
 
 function readerLog(event: string, data?: Record<string, unknown>) {
-  console.log("[Reader Agent Extension]", event, data || "");
+  console.log("[Yomitomo Extension]", event, data || "");
 }
 
 type RuntimeMessage = { type?: string };
@@ -105,7 +108,7 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
     browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
-      if (message.type === "reader:toggle") {
+      if (message.type === "yomitomo:toggle") {
         void toggleReader();
       }
     });
@@ -279,6 +282,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
 
   const storageKey = `${STORAGE_PREFIX}${extracted.id}`;
+  const legacyStorageKey = `${LEGACY_STORAGE_PREFIX}${extracted.id}`;
   const shortcutModifier = getShortcutModifier();
 
   useEffect(() => {
@@ -295,26 +299,47 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [extracted.content]);
 
   useEffect(() => {
-    browser.storage.local.get([storageKey, READER_SETTINGS_KEY, DESKTOP_PROFILE_CACHE_KEY]).then((stored) => {
-      const loaded = stored[storageKey] as ArticleRecord | undefined;
+    browser.storage.local.get([storageKey, legacyStorageKey, READER_SETTINGS_KEY, LEGACY_READER_SETTINGS_KEY, DESKTOP_PROFILE_CACHE_KEY, LEGACY_DESKTOP_PROFILE_CACHE_KEY]).then(async (stored) => {
+      const loaded = (stored[storageKey] || stored[legacyStorageKey]) as ArticleRecord | undefined;
+      const migrated: Record<string, unknown> = {};
+      const legacyKeys: string[] = [];
+
+      if (!stored[storageKey] && loaded) {
+        migrated[storageKey] = loaded;
+        legacyKeys.push(legacyStorageKey);
+      }
+
       if (loaded) {
         setRecord(loaded);
         setAnnotations(loaded.annotations || []);
       }
-      const cachedDesktopProfile = stored[DESKTOP_PROFILE_CACHE_KEY] as DesktopProfileCache | undefined;
+      const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] || stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
+      if (!stored[DESKTOP_PROFILE_CACHE_KEY] && cachedDesktopProfile) {
+        migrated[DESKTOP_PROFILE_CACHE_KEY] = cachedDesktopProfile;
+        legacyKeys.push(LEGACY_DESKTOP_PROFILE_CACHE_KEY);
+      }
       if (cachedDesktopProfile) {
         setUserProfile(normalizeUserProfile(cachedDesktopProfile.user));
         setAgents(cachedDesktopProfile.agents || []);
       }
-      const savedSettings = stored[READER_SETTINGS_KEY] as ReaderSettings | undefined;
+      const savedSettings = (stored[READER_SETTINGS_KEY] || stored[LEGACY_READER_SETTINGS_KEY]) as ReaderSettings | undefined;
+      if (!stored[READER_SETTINGS_KEY] && savedSettings) {
+        migrated[READER_SETTINGS_KEY] = savedSettings;
+        legacyKeys.push(LEGACY_READER_SETTINGS_KEY);
+      }
       if (savedSettings) {
         setReaderSettings({
           fontSize: clampNumber(savedSettings.fontSize, 16, 28, defaultReaderSettings.fontSize),
           contentWidth: clampNumber(savedSettings.contentWidth, 680, 1080, defaultReaderSettings.contentWidth)
         });
       }
+
+      if (Object.keys(migrated).length > 0) {
+        await browser.storage.local.set(migrated);
+        await browser.storage.local.remove(legacyKeys);
+      }
     });
-  }, [storageKey]);
+  }, [legacyStorageKey, storageKey]);
 
   const saveAnnotations = useCallback(
     async (nextAnnotations: Annotation[]) => {
@@ -961,7 +986,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     >
       <header className="reader-toolbar">
         <div>
-          <div className="reader-eyebrow">Reader Agent</div>
+          <div className="reader-eyebrow">Yomitomo</div>
           <h1><span className={desktopConnected ? "reader-connection is-connected" : "reader-connection is-disconnected"} />{extracted.title}</h1>
           <p>{extracted.byline || extracted.canonicalUrl}</p>
         </div>

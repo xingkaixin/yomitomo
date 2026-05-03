@@ -1,5 +1,5 @@
-import type { Agent, AgentAnnotatePayload, AgentMessagePayload, Annotation, Comment, LlmProvider } from "@reader/shared";
-import { createTextAnchor, makeId } from "@reader/shared";
+import type { Agent, AgentAnnotatePayload, AgentMessagePayload, Annotation, Comment, LlmProvider } from "@yomitomo/shared";
+import { createTextAnchor, makeId } from "@yomitomo/shared";
 import { logError, logInfo } from "./logger";
 
 export async function testProvider(provider: LlmProvider): Promise<{ ok: boolean; message: string }> {

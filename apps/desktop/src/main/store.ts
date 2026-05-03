@@ -1,8 +1,11 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { app } from "electron";
-import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@reader/shared";
-import { makeId } from "@reader/shared";
+import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@yomitomo/shared";
+import { makeId } from "@yomitomo/shared";
+
+const STORE_FILE_NAME = "yomitomo-agent-store.json";
+const LEGACY_STORE_FILE_NAME = "reader-agent-store.json";
 
 const defaultUser: UserProfile = {
   id: "user_local",
@@ -20,12 +23,29 @@ const defaultStore: DesktopStore = {
 };
 
 function storePath() {
-  return join(app.getPath("userData"), "reader-agent-store.json");
+  return join(app.getPath("userData"), STORE_FILE_NAME);
+}
+
+function legacyStorePath() {
+  return join(app.getPath("appData"), "@reader", "desktop", LEGACY_STORE_FILE_NAME);
+}
+
+async function ensureStorePath() {
+  const file = storePath();
+  try {
+    await readFile(file, "utf8");
+    return file;
+  } catch {
+    const raw = await readFile(legacyStorePath(), "utf8");
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, raw);
+    return file;
+  }
 }
 
 export async function readStore(): Promise<DesktopStore> {
   try {
-    const raw = await readFile(storePath(), "utf8");
+    const raw = await readFile(await ensureStorePath(), "utf8");
     const parsed = JSON.parse(raw) as DesktopStore;
     return {
       user: { ...defaultUser, ...parsed.user, id: parsed.user?.id || defaultUser.id, annotationColor: parsed.user?.annotationColor || defaultUser.annotationColor },
@@ -96,7 +116,7 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
   const agent: Agent = {
     id: existing?.id || makeId("agent"),
     providerId: input.providerId || existing?.providerId || store.providers[0]?.id || "",
-    nickname: input.nickname?.trim() || existing?.nickname || "Reader Agent",
+    nickname: input.nickname?.trim() || existing?.nickname || "Yomitomo",
     username,
     avatar: input.avatar?.trim() || existing?.avatar || "🤖",
     annotationColor: input.annotationColor?.trim() || existing?.annotationColor || "#8ab6d6",

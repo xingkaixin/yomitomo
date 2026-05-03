@@ -1,4 +1,4 @@
-# Reader Annotation Chrome 扩展
+# Yomitomo Chrome 扩展
 
 这是一个最小可用版的阅读器 + 批注插件原型，包含：
 
