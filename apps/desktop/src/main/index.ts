@@ -37,7 +37,7 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   logInfo("app.ready", { logPath: getLogPath() });
-  if (process.platform === "darwin") app.dock.setIcon(appIconPath);
+  if (process.platform === "darwin" && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
   await startLocalServer();
   await createWindow();

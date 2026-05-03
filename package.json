@@ -10,10 +10,10 @@
     "test": "turbo test"
   },
   "devDependencies": {
+    "oxfmt": "^0.47.0",
     "oxlint": "^1.28.0",
-    "oxfmt": "^0.15.0",
     "turbo": "^2.6.3",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.18"
   }
 }

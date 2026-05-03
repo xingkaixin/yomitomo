@@ -103,6 +103,7 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
 export async function deleteProvider(id: string): Promise<DesktopStore> {
   const store = await readStore();
   return writeStore({
+    ...store,
     providers: store.providers.filter((provider) => provider.id !== id),
     agents: store.agents.filter((agent) => agent.providerId !== id)
   });

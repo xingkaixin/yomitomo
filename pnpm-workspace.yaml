@@ -1,6 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+peerDependencyRules:
+  allowedVersions:
+    "electron-vite@5>vite": "8"
 allowBuilds:
   electron: true
   esbuild: true

@@ -224,7 +224,7 @@ function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload) {
 }
 
 function buildAgentAnnotateStreamPrompt(payload: AgentAnnotatePayload) {
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{\"exact\":\"文章中的原文连续片段\",\"comment\":\"为什么这段值得讨论\"}\n\n选择标准：只挑有讨论价值的文本；文章长可以多挑，文章短可以少挑；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","comment":"为什么这段值得讨论"}\n\n选择标准：只挑有讨论价值的文本；文章长可以多挑，文章短可以少挑；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
 function createAgentAnnotation(agent: Agent, payload: AgentAnnotatePayload, suggestion: { exact: string; comment: string }, now: string): Annotation | null {

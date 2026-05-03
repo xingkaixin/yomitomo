@@ -1676,7 +1676,10 @@ function offsetFromArticleStart(article: HTMLElement, node: Node, offset: number
 
 function getArticleSelection(article: HTMLElement) {
   const rootNode = article.getRootNode();
-  if (rootNode instanceof ShadowRoot) return rootNode.getSelection();
+  if (rootNode instanceof ShadowRoot) {
+    const getSelection = (rootNode as ShadowRoot & { getSelection?: () => Selection | null }).getSelection;
+    if (getSelection) return getSelection.call(rootNode);
+  }
   return article.ownerDocument.getSelection();
 }
 
