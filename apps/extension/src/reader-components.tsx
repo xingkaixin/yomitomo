@@ -122,40 +122,45 @@ export function EmptyNotes() {
 export function AgentAnnotateMenu({
   agents,
   annotatingAgents,
-  selectedAgentIds,
   onCancel,
-  onStart,
-  onToggle,
+  onStartAgent,
+  onStartAll,
 }: {
   agents: PublicAgent[];
   annotatingAgents: string[];
-  selectedAgentIds: string[];
   onCancel: () => void;
-  onStart: () => void;
-  onToggle: (agentId: string) => void;
+  onStartAgent: (agent: PublicAgent) => void;
+  onStartAll: () => void;
 }) {
-  const runnableCount = selectedAgentIds.filter((id) => !annotatingAgents.includes(id)).length;
+  const runnableCount = agents.filter((agent) => !annotatingAgents.includes(agent.id)).length;
   return (
     <div className="reader-agent-annotate-menu">
+      <header>
+        <strong>助手精读</strong>
+        <span>选择阅读助手开始主动批注</span>
+      </header>
       {agents.map((agent) => (
         <button
-          className={selectedAgentIds.includes(agent.id) ? 'is-selected' : ''}
+          className={annotatingAgents.includes(agent.id) ? 'is-running' : ''}
           disabled={annotatingAgents.includes(agent.id)}
           key={agent.id}
           type="button"
-          onClick={() => onToggle(agent.id)}
+          onClick={() => onStartAgent(agent)}
         >
           <AvatarBadge avatar={agent.avatar} />
-          <strong>{agent.nickname}</strong>
-          <em>{annotatingAgents.includes(agent.id) ? '阅读中...' : `@${agent.username}`}</em>
+          <span>
+            <strong>{agent.nickname}</strong>
+            <em>@{agent.username}</em>
+          </span>
+          <b>{annotatingAgents.includes(agent.id) ? '阅读中' : '开始'}</b>
         </button>
       ))}
       <div className="reader-agent-annotate-actions">
         <button type="button" onClick={onCancel}>
-          取消
+          收起
         </button>
-        <button disabled={runnableCount === 0} type="button" onClick={onStart}>
-          启动{runnableCount > 0 ? ` ${runnableCount}` : ''}
+        <button disabled={runnableCount === 0} type="button" onClick={onStartAll}>
+          全部启动{runnableCount > 0 ? ` ${runnableCount}` : ''}
         </button>
       </div>
     </div>

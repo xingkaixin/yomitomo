@@ -206,7 +206,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [annotatingAgents, setAnnotatingAgents] = useState<string[]>([]);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
@@ -556,7 +555,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [saveAnnotations]);
 
   useEffect(() => {
-    setSelectedAgentIds((ids) => ids.filter((id) => agents.some((agent) => agent.id === id)));
     setAnnotatingAgents((ids) => ids.filter((id) => agents.some((agent) => agent.id === id)));
   }, [agents]);
 
@@ -718,11 +716,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   async function appendComment(annotationId: string, comment: Comment) {
-    const nextAnnotations = appendAnnotationComment(
-      annotationsRef.current,
-      annotationId,
-      comment,
-    );
+    const nextAnnotations = appendAnnotationComment(annotationsRef.current, annotationId, comment);
     if (!nextAnnotations) return;
 
     await saveAnnotations(nextAnnotations);
@@ -1202,6 +1196,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function requestAgentAnnotations(agent: PublicAgent) {
+    if (annotatingAgents.includes(agent.id)) return;
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
@@ -1230,22 +1225,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function requestSelectedAgentAnnotations() {
-    const selectedAgents = agents.filter(
-      (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
-    );
-    for (const agent of selectedAgents) requestAgentAnnotations(agent);
-    if (selectedAgents.length > 0) setAgentAnnotateOpen(false);
-  }
-
-  function toggleSelectedAgent(agentId: string) {
-    setSelectedAgentIds((ids) =>
-      ids.includes(agentId) ? ids.filter((id) => id !== agentId) : [...ids, agentId],
-    );
+    for (const agent of agents) requestAgentAnnotations(agent);
   }
 
   function cancelAgentAnnotateMenu() {
     setAgentAnnotateOpen(false);
-    setSelectedAgentIds([]);
   }
 
   function focusAnnotation(annotationId: string) {
@@ -1319,7 +1303,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             onClick={() => setAgentAnnotateOpen((open) => !open)}
           >
             <Bot size={14} />
-            {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
+            {annotatingAgents.length > 0 ? '精读中' : '助手精读'}
           </button>
           <button
             className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
@@ -1340,10 +1324,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           <AgentAnnotateMenu
             agents={agents}
             annotatingAgents={annotatingAgents}
-            selectedAgentIds={selectedAgentIds}
             onCancel={cancelAgentAnnotateMenu}
-            onStart={requestSelectedAgentAnnotations}
-            onToggle={toggleSelectedAgent}
+            onStartAgent={requestAgentAnnotations}
+            onStartAll={requestSelectedAgentAnnotations}
           />
         </div>
       ) : null}

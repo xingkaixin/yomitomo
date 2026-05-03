@@ -32,9 +32,16 @@ export const readerConversationStyles = `
 .reader-agent-annotate:hover,.reader-agent-annotate.is-active{background:#f3e2d4;color:#8f2f28}
 .reader-notes-actions span{background:var(--reader-ink)}
 .reader-agent-annotate-menu{gap:8px;margin:8px 0 18px;padding:12px;border-color:rgba(183,53,44,.16);border-radius:18px;background:rgba(255,250,240,.96);overflow:visible}
+.reader-agent-annotate-menu>header{display:grid;gap:3px;padding:2px 4px 6px}
+.reader-agent-annotate-menu>header strong{font-size:14px;font-weight:900}
+.reader-agent-annotate-menu>header span{color:var(--reader-muted);font-size:12px;font-weight:720}
 .reader-agent-annotate-menu button{grid-template-columns:30px minmax(0,1fr) auto;border:1px solid transparent}
-.reader-agent-annotate-menu button:hover,.reader-agent-annotate-menu button.is-selected{border-color:rgba(183,53,44,.18);background:#f3e2d4}
-.reader-agent-annotate-menu button.is-selected em{color:#8f2f28}
+.reader-agent-annotate-menu button:hover,.reader-agent-annotate-menu button.is-running{border-color:rgba(183,53,44,.18);background:#f3e2d4}
+.reader-agent-annotate-menu button>span:not(.reader-avatar-badge){display:grid;width:auto;height:auto;gap:2px;min-width:0;place-items:initial;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit}
+.reader-agent-annotate-menu button>span:not(.reader-avatar-badge) strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reader-agent-annotate-menu button b{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(37,29,22,.08);color:var(--reader-muted);font-size:11px;font-weight:850;line-height:1;padding:6px 8px}
+.reader-agent-annotate-menu button:hover b{background:#251d16;color:#fffaf0}
+.reader-agent-annotate-menu button.is-running b{background:rgba(183,53,44,.12);color:#8f2f28}
 .reader-agent-annotate-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;padding-top:10px;border-top:1px solid rgba(37,29,22,.1)}
 .reader-agent-annotate-actions button{display:inline-flex;height:40px;width:auto;grid-template-columns:none;align-items:center;justify-content:center;border:0;border-radius:999px;background:#e7dac9;color:var(--reader-ink);font:inherit;font-size:12px;font-weight:820;padding:0 14px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-agent-annotate-actions button:active:not(:disabled){transform:scale(.96)}
