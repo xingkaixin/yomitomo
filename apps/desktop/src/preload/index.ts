@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { Agent, DesktopStore, LlmProvider } from "@reader/shared";
+import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@reader/shared";
 
 const api = {
   getState: () => ipcRenderer.invoke("store:get") as Promise<DesktopStore>,
+  saveUser: (user: Partial<UserProfile>) => ipcRenderer.invoke("user:save", user) as Promise<DesktopStore>,
   saveProvider: (provider: Partial<LlmProvider>) => ipcRenderer.invoke("provider:save", provider) as Promise<DesktopStore>,
   deleteProvider: (id: string) => ipcRenderer.invoke("provider:delete", id) as Promise<DesktopStore>,
   testProvider: (id: string) => ipcRenderer.invoke("provider:test", id) as Promise<{ ok: boolean; message: string }>,

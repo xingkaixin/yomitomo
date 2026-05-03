@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { app, BrowserWindow, ipcMain } from "electron";
-import type { Agent, LlmProvider } from "@reader/shared";
-import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider } from "./store";
+import type { Agent, LlmProvider, UserProfile } from "@reader/shared";
+import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from "./store";
 import { testProvider } from "./llm";
 import { getLogPath, logInfo } from "./logger";
 import { broadcastStatus, startLocalServer } from "./server";
@@ -51,6 +51,7 @@ app.on("activate", () => {
 function registerIpc() {
   ipcMain.handle("store:get", () => readStore());
   ipcMain.handle("log:path", () => getLogPath());
+  ipcMain.handle("user:save", (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle("provider:save", async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
     broadcastStatus();

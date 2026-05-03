@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
-import type { Agent, DesktopClientMessage, DesktopServerMessage, PublicAgent } from "@reader/shared";
+import type { Agent, DesktopClientMessage, DesktopServerMessage, PublicAgent, UserProfile } from "@reader/shared";
 import { makeId } from "@reader/shared";
 import { readStore } from "./store";
 import { runAgentAnnotateStream, runAgentStream } from "./llm";
@@ -61,7 +61,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === "agent:list") {
       const store = await readStore();
-      send(socket, { type: "agent:list:result", requestId: message.requestId, agents: toPublicAgents(store.agents) });
+      send(socket, { type: "agent:list:result", requestId: message.requestId, user: toPublicUser(store.user), agents: toPublicAgents(store.agents) });
       return;
     }
 
@@ -82,6 +82,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         agentUsername: agent.username,
         agentNickname: agent.nickname,
         agentAvatar: agent.avatar,
+        agentAnnotationColor: agent.annotationColor,
         pending: true
       };
 
@@ -154,7 +155,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
 async function sendStatus(socket: WebSocket) {
   const store = await readStore();
-  send(socket, { type: "status", ok: true, agents: toPublicAgents(store.agents) });
+  send(socket, { type: "status", ok: true, user: toPublicUser(store.user), agents: toPublicAgents(store.agents) });
 }
 
 function send(socket: WebSocket, message: DesktopServerMessage) {
@@ -168,6 +169,11 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
     id: agent.id,
     nickname: agent.nickname,
     username: agent.username,
-    avatar: agent.avatar
+    avatar: agent.avatar,
+    annotationColor: agent.annotationColor
   }));
+}
+
+function toPublicUser(user: UserProfile): UserProfile {
+  return user;
 }

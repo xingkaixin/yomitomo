@@ -30,7 +30,7 @@ export async function runAgentStream(
   await streamAnthropic(provider, system, user, 1200, onDelta);
 }
 
-export async function runAgent(provider: LlmProvider, agent: { id: string; username: string; nickname: string; avatar: string; soul: string }, payload: AgentMessagePayload): Promise<Comment> {
+export async function runAgent(provider: LlmProvider, agent: { id: string; username: string; nickname: string; avatar: string; annotationColor: string; soul: string }, payload: AgentMessagePayload): Promise<Comment> {
   if (provider.type !== "anthropic") {
     throw new Error("当前只支持 Anthropic provider 调用");
   }
@@ -47,7 +47,8 @@ export async function runAgent(provider: LlmProvider, agent: { id: string; usern
     agentId: agent.id,
     agentUsername: agent.username,
     agentNickname: agent.nickname,
-    agentAvatar: agent.avatar
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor
   };
 }
 
@@ -236,22 +237,24 @@ function createAgentAnnotation(agent: Agent, payload: AgentAnnotatePayload, sugg
     id: makeId("annotation"),
     anchor: createTextAnchor(payload.article.text, start, start + exact.length),
     author: "ai",
-    color: "#d8e8df",
+    color: agent.annotationColor,
     agentId: agent.id,
     agentUsername: agent.username,
     agentNickname: agent.nickname,
     agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
     comments: comment
       ? [{
-        id: makeId("comment"),
-        author: "ai",
-        content: comment,
-        createdAt: now,
-        agentId: agent.id,
-        agentUsername: agent.username,
-        agentNickname: agent.nickname,
-        agentAvatar: agent.avatar
-      }]
+          id: makeId("comment"),
+          author: "ai",
+          content: comment,
+          createdAt: now,
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+          agentAvatar: agent.avatar,
+          agentAnnotationColor: agent.annotationColor
+        }]
       : [],
     createdAt: now,
     updatedAt: now

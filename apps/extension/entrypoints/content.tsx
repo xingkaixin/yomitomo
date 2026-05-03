@@ -12,6 +12,7 @@ import {
   type DesktopServerMessage,
   type PublicAgent,
   type TextAnchor,
+  type UserProfile,
   createTextAnchor,
   hashText,
   makeId,
@@ -22,6 +23,13 @@ const HOST_ID = "reader-agent-root";
 const STORAGE_PREFIX = "reader.article.";
 const READER_SETTINGS_KEY = "reader.settings";
 const DESKTOP_WS_URL = "ws://127.0.0.1:43891";
+const defaultUserProfile: UserProfile = {
+  nickname: "我",
+  username: "me",
+  avatar: "",
+  annotationColor: "#f4c95d",
+  updatedAt: ""
+};
 let root: Root | null = null;
 let previousOverflow = "";
 
@@ -53,6 +61,7 @@ type PendingComposer = SelectionAction;
 type HighlightBox = {
   id: string;
   annotationId: string;
+  color: string;
   top: number;
   left: number;
   width: number;
@@ -113,7 +122,7 @@ async function toggleReader() {
 
   const shadow = host.attachShadow({ mode: "open" });
   const style = document.createElement("style");
-  style.textContent = readerStyles;
+  style.textContent = `${readerStyles}\n${readerConversationStyles}`;
   const mount = document.createElement("div");
   shadow.append(style, mount);
 
@@ -239,6 +248,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [desktopConnected, setDesktopConnected] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [agents, setAgents] = useState<PublicAgent[]>([]);
   const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null);
   const [composer, setComposer] = useState<PendingComposer | null>(null);
@@ -327,7 +337,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       rangeHighlightBoxes(range, canvasRect, annotation.id).forEach((box) => {
         nextBoxes.push({
           ...box,
-          annotationId: annotation.id
+          annotationId: annotation.id,
+          color: annotation.color
         });
       });
     }
@@ -404,6 +415,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   async function handleDesktopMessage(message: DesktopServerMessage) {
     if (message.type === "status" || message.type === "agent:list:result") {
       setDesktopConnected(message.type === "status" ? message.ok : true);
+      setUserProfile(message.user);
       setAgents(message.agents);
       return;
     }
@@ -560,7 +572,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setTemporaryBoxes(
       rangeHighlightBoxes(range, canvasRect, "selection").map((box) => ({
         ...box,
-        annotationId: "__selection__"
+        annotationId: "__selection__",
+        color: userProfile.annotationColor
       }))
     );
     selection.removeAllRanges();
@@ -571,13 +584,26 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const now = new Date().toISOString();
     const comments = note.trim()
-      ? [{ id: makeId("comment"), author: "user" as const, content: note.trim(), createdAt: now }]
+      ? [{
+          id: makeId("comment"),
+          author: "user" as const,
+          content: note.trim(),
+          createdAt: now,
+          userUsername: userProfile.username,
+          userNickname: userProfile.nickname,
+          userAvatar: userProfile.avatar,
+          userAnnotationColor: userProfile.annotationColor
+        }]
       : [];
     const annotation: Annotation = {
       id: makeId("annotation"),
       anchor: composer.anchor,
       author: "user",
-      color: "#f4c95d",
+      color: userProfile.annotationColor,
+      userUsername: userProfile.username,
+      userNickname: userProfile.nickname,
+      userAvatar: userProfile.avatar,
+      userAnnotationColor: userProfile.annotationColor,
       comments,
       createdAt: now,
       updatedAt: now
@@ -769,7 +795,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     });
     await sleep(420);
 
-    const boxes = rangeHighlightBoxes(range, canvas.getBoundingClientRect(), `theater_${annotation.id}`).map((box) => ({ ...box, annotationId: annotation.id }));
+    const boxes = rangeHighlightBoxes(range, canvas.getBoundingClientRect(), `theater_${annotation.id}`).map((box) => ({ ...box, annotationId: annotation.id, color: annotation.color }));
     await animateTheaterHighlight(boxes, annotation.anchor.exact.length, (nextBoxes) => {
       const cursorBox = nextBoxes[nextBoxes.length - 1];
       if (cursorBox) {
@@ -805,7 +831,16 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (!trimmed) return;
 
     const now = new Date().toISOString();
-    const userComment: Comment = { id: makeId("comment"), author: "user", content: trimmed, createdAt: now };
+    const userComment: Comment = {
+      id: makeId("comment"),
+      author: "user",
+      content: trimmed,
+      createdAt: now,
+      userUsername: userProfile.username,
+      userNickname: userProfile.nickname,
+      userAvatar: userProfile.avatar,
+      userAnnotationColor: userProfile.annotationColor
+    };
     const nextAnnotations = annotations.map((annotation) => {
       if (annotation.id !== annotationId) return annotation;
       return { ...annotation, comments: [...annotation.comments, userComment], updatedAt: now };
@@ -814,9 +849,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
 
-    const agent = findMentionedAgent(trimmed, agents);
+    const mentionedAgents = findMentionedAgents(trimmed, agents);
     const nextAnnotation = nextAnnotations.find((annotation) => annotation.id === annotationId);
-    if (agent && nextAnnotation) sendAgentMessage(agent.username, nextAnnotation, userComment);
+    if (nextAnnotation) {
+      for (const agent of mentionedAgents) {
+        sendAgentMessage(agent.username, nextAnnotation, userComment);
+      }
+    }
   }
 
   function sendAgentMessage(agentUsername: string, annotation: Annotation, userComment: Comment) {
@@ -924,9 +963,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
               <div className="reader-article-body" dangerouslySetInnerHTML={{ __html: extracted.content }} />
             </article>
             <div className="reader-highlight-layer">
-              {boxes.map((box) => <button className={box.annotationId === activeId ? "reader-highlight is-active" : "reader-highlight"} key={box.id} style={{ top: box.top, left: box.left, width: box.width, height: box.height }} type="button" onClick={() => focusAnnotation(box.annotationId)} />)}
-              {temporaryBoxes.map((box) => <div className="reader-highlight is-temporary" key={box.id} style={{ top: box.top, left: box.left, width: box.width, height: box.height }} />)}
-              {agentTheaterBoxes.map((box) => <div className="reader-highlight is-agent-theater" key={box.id} style={{ top: box.top, left: box.left, width: box.width, height: box.height }} />)}
+              {boxes.map((box) => <button className={box.annotationId === activeId ? "reader-highlight is-active" : "reader-highlight"} key={box.id} style={highlightStyle(box, box.annotationId === activeId)} type="button" onClick={() => focusAnnotation(box.annotationId)} />)}
+              {temporaryBoxes.map((box) => <div className="reader-highlight is-temporary" key={box.id} style={highlightStyle(box, false)} />)}
+              {agentTheaterBoxes.map((box) => <div className="reader-highlight is-agent-theater" key={box.id} style={highlightStyle(box, false)} />)}
             </div>
           </div>
         </section>
@@ -953,6 +992,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
                 else noteRefs.current.delete(annotation.id);
               }}
               shortcutModifier={shortcutModifier}
+              userProfile={userProfile}
               onAddComment={addComment}
               onDelete={deleteAnnotation}
               onFocus={scrollToHighlight}
@@ -976,9 +1016,57 @@ function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
   return (
     <div className={["reader-virtual-cursor", cursor.offscreen ? "is-offscreen" : "", cursor.leaving ? "is-leaving" : ""].filter(Boolean).join(" ")} style={{ left: cursor.x, top: cursor.y }}>
       <div className="reader-virtual-pointer" />
-      <div className="reader-virtual-label"><span>{cursor.agent?.avatar || "AI"}</span>{cursor.label}</div>
+      <div className="reader-virtual-label"><AvatarBadge avatar={cursor.agent?.avatar} />{cursor.label}</div>
     </div>
   );
+}
+
+function AvatarBadge({ avatar, fallback = "AI" }: { avatar?: string; fallback?: string }) {
+  const value = avatar || fallback;
+  const image = isImageAvatar(value);
+  const svg = isSvgAvatar(value);
+  const classes = ["reader-avatar-badge", image ? "is-image" : "", svg ? "is-svg" : ""].filter(Boolean).join(" ");
+  return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
+}
+
+function annotationAuthor(annotation: Annotation, userProfile: UserProfile) {
+  if (annotation.author === "ai") {
+    return {
+      avatar: annotation.agentAvatar,
+      fallback: "AI",
+      nickname: annotation.agentNickname || annotation.agentUsername || "Agent",
+      username: annotation.agentUsername || "agent",
+      color: annotation.agentAnnotationColor || annotation.color
+    };
+  }
+
+  return {
+    avatar: annotation.userAvatar || userProfile.avatar,
+    fallback: "我",
+    nickname: annotation.userNickname || userProfile.nickname,
+    username: annotation.userUsername || userProfile.username,
+    color: annotation.userAnnotationColor || annotation.color || userProfile.annotationColor
+  };
+}
+
+function commentPersona(comment: Comment, userProfile: UserProfile) {
+  if (comment.author === "ai") {
+    return {
+      avatar: comment.agentAvatar,
+      fallback: "AI",
+      nickname: comment.agentNickname || comment.agentUsername || "Agent",
+      username: comment.agentUsername || "agent",
+      color: comment.agentAnnotationColor || defaultUserProfile.annotationColor
+    };
+  }
+
+  return {
+    avatar: comment.userAvatar || userProfile.avatar,
+    fallback: "我",
+    nickname: comment.userNickname || userProfile.nickname,
+    username: comment.userUsername || userProfile.username,
+    color: comment.userAnnotationColor || userProfile.annotationColor
+  };
 }
 
 function EmptyNotes() {
@@ -990,7 +1078,7 @@ function AgentAnnotateMenu({ agents, annotatingAgent, onSelect }: { agents: Publ
     <div className="reader-agent-annotate-menu">
       {agents.map((agent) => (
         <button disabled={Boolean(annotatingAgent)} key={agent.id} type="button" onClick={() => onSelect(agent.username)}>
-          <span>{agent.avatar}</span>
+          <AvatarBadge avatar={agent.avatar} />
           <strong>{agent.nickname}</strong>
           <em>{annotatingAgent === agent.username ? "阅读中..." : `@${agent.username}`}</em>
         </button>
@@ -1022,31 +1110,110 @@ function Composer({ composer, shortcutModifier, onCancel, onSave }: { composer: 
   );
 }
 
-function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef, shortcutModifier, onAddComment, onDelete, onFocus }: { active: boolean; agents: PublicAgent[]; annotation: Annotation; desktopConnected: boolean; noteRef: (element: HTMLElement | null) => void; shortcutModifier: string; onAddComment: (annotationId: string, content: string) => void; onDelete: (annotationId: string) => void; onFocus: (annotationId: string) => void }) {
+function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef, shortcutModifier, userProfile, onAddComment, onDelete, onFocus }: { active: boolean; agents: PublicAgent[]; annotation: Annotation; desktopConnected: boolean; noteRef: (element: HTMLElement | null) => void; shortcutModifier: string; userProfile: UserProfile; onAddComment: (annotationId: string, content: string) => void; onDelete: (annotationId: string) => void; onFocus: (annotationId: string) => void }) {
   const [draft, setDraft] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const mentionQuery = getMentionQuery(draft);
-  const matchedAgents = mentionQuery === null ? [] : agents.filter((agent) => agent.username.toLowerCase().startsWith(mentionQuery.toLowerCase()) || agent.nickname.toLowerCase().includes(mentionQuery.toLowerCase())).slice(0, 5);
+  const [caretIndex, setCaretIndex] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionQuery = getMentionQuery(draft, caretIndex);
+  const matchedAgents = mentionQuery === null ? [] : agents.filter((agent) => agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) || agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase())).slice(0, 5);
+  const author = annotationAuthor(annotation, userProfile);
+
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionQuery?.query]);
+
+  useEffect(() => {
+    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length) setSelectedMentionIndex(0);
+  }, [matchedAgents.length, selectedMentionIndex]);
 
   function submit() {
     onAddComment(annotation.id, draft);
     setDraft("");
+    setCaretIndex(0);
   }
 
   function selectAgent(agent: PublicAgent) {
-    setDraft(replaceMentionQuery(draft, agent.username));
+    if (!mentionQuery) return;
+    const nextDraft = replaceMentionQuery(draft, mentionQuery, agent.username);
+    const nextCaretIndex = mentionQuery.start + agent.username.length + 2;
+    setDraft(nextDraft);
+    setCaretIndex(nextCaretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCaretIndex, nextCaretIndex);
+    });
+  }
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    setCaretIndex(element.selectionStart);
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (matchedAgents.length > 0 && event.key === "ArrowDown") {
+      event.preventDefault();
+      setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === "ArrowUp") {
+      event.preventDefault();
+      setSelectedMentionIndex((index) => (index - 1 + matchedAgents.length) % matchedAgents.length);
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === "Tab") {
+      event.preventDefault();
+      selectAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]);
+      return;
+    }
+
+    if (isSubmitShortcut(event)) {
+      event.preventDefault();
+      submit();
+    }
+  }
+
+  function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp") return;
+    updateCaret(event.currentTarget);
   }
 
   return (
-    <section className={active ? "reader-note is-active" : "reader-note"} ref={noteRef}>
-      <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>{annotation.author === "ai" ? <span>{annotation.agentAvatar || "AI"} {annotation.agentNickname || annotation.agentUsername || "Agent"}</span> : null}“{annotation.anchor.exact}”</button>
+    <section className={active ? "reader-note is-active" : "reader-note"} ref={noteRef} style={noteStyle(annotation.color, active)}>
+      <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
+        <span className="reader-note-persona"><AvatarBadge avatar={author.avatar} fallback={author.fallback} /><strong>{author.nickname}</strong><em>@{author.username}</em></span>
+        <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
+      </button>
       <div className="reader-comments">
         {annotation.comments.length === 0 ? <p className="reader-muted">已高亮，暂无文字批注。</p> : null}
-        {annotation.comments.map((comment) => <div className="reader-comment" key={comment.id}><span>{comment.author === "ai" ? comment.agentAvatar || "AI" : "我"}</span><p>{comment.content}{comment.pending ? <i className="reader-spinner" /> : null}</p></div>)}
+        {annotation.comments.map((comment) => {
+          const commentAuthor = commentPersona(comment, userProfile);
+          return (
+            <div className="reader-comment" key={comment.id}>
+              <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
+              <div className="reader-comment-body">
+                <div className="reader-comment-author"><strong>{commentAuthor.nickname}</strong><em>@{commentAuthor.username}</em></div>
+                <p>{comment.content}{comment.pending ? <i className="reader-spinner" /> : null}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div className="reader-comment-box">
-        <textarea autoFocus={active} placeholder={desktopConnected ? "继续评论，输入 @ 呼叫 Agent..." : "继续评论..."} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (isSubmitShortcut(event)) { event.preventDefault(); submit(); } }} />
-        {matchedAgents.length > 0 ? <div className="reader-agent-menu">{matchedAgents.map((agent) => <button key={agent.id} type="button" onClick={() => selectAgent(agent)}><span>{agent.avatar}</span><strong>{agent.nickname}</strong><em>@{agent.username}</em></button>)}</div> : null}
+        <textarea
+          autoFocus={active}
+          ref={textareaRef}
+          placeholder={desktopConnected ? "继续评论，输入 @ 呼叫 Agent..." : "继续评论..."}
+          value={draft}
+          onChange={(event) => { setDraft(event.currentTarget.value); updateCaret(event.currentTarget); }}
+          onClick={(event) => updateCaret(event.currentTarget)}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onSelect={(event) => updateCaret(event.currentTarget)}
+        />
+        {matchedAgents.length > 0 ? <div className="reader-agent-menu">{matchedAgents.map((agent, index) => <button className={index === selectedMentionIndex ? "is-active" : ""} key={agent.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectAgent(agent)}><AvatarBadge avatar={agent.avatar} /><strong>{agent.nickname}</strong><em>@{agent.username}</em></button>)}</div> : null}
       </div>
       <div className="reader-note-footer">
         {confirmingDelete ? <div className="reader-delete-confirm"><span>删除这条批注？</span><button type="button" onClick={() => setConfirmingDelete(false)}>取消</button><button type="button" onClick={() => onDelete(annotation.id)}>确认删除</button></div> : <button className="reader-delete-note" type="button" onClick={() => setConfirmingDelete(true)}><Trash2 size={13} />删除批注</button>}
@@ -1114,18 +1281,64 @@ function clampNumber(value: number | undefined, min: number, max: number, fallba
   return Math.min(max, Math.max(min, value));
 }
 
-function findMentionedAgent(content: string, agents: PublicAgent[]) {
-  const mention = content.match(/@([a-zA-Z0-9_-]+)/)?.[1];
-  if (!mention) return null;
-  return agents.find((agent) => agent.username === mention) || null;
+function highlightStyle(box: HighlightBox, active: boolean): React.CSSProperties {
+  const color = box.color || defaultUserProfile.annotationColor;
+  return {
+    top: box.top,
+    left: box.left,
+    width: box.width,
+    height: box.height,
+    backgroundColor: alphaColor(color, active ? 0.45 : 0.28),
+    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(color, active ? 0.72 : 0.36)}`
+  };
 }
 
-function getMentionQuery(content: string) {
-  return content.match(/(?:^|\s)@([a-zA-Z0-9_-]*)$/)?.[1] ?? null;
+function noteStyle(color: string, active: boolean): React.CSSProperties {
+  const accent = color || defaultUserProfile.annotationColor;
+  return {
+    borderColor: alphaColor(accent, active ? 0.82 : 0.38),
+    boxShadow: active ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px rgba(55,42,24,.08)` : undefined
+  };
 }
 
-function replaceMentionQuery(content: string, username: string) {
-  return content.replace(/(^|\s)@([a-zA-Z0-9_-]*)$/, `$1@${username} `);
+function alphaColor(color: string, alpha: number) {
+  const hex = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
+  const red = Number.parseInt(hex.slice(1, 3), 16);
+  const green = Number.parseInt(hex.slice(3, 5), 16);
+  const blue = Number.parseInt(hex.slice(5, 7), 16);
+  return `rgba(${red},${green},${blue},${alpha})`;
+}
+
+function findMentionedAgents(content: string, agents: PublicAgent[]) {
+  const byUsername = new Map(agents.map((agent) => [agent.username, agent]));
+  const mentionedAgents: PublicAgent[] = [];
+  const seen = new Set<string>();
+
+  for (const match of content.matchAll(/@([a-zA-Z0-9_-]+)/g)) {
+    const username = match[1];
+    const agent = byUsername.get(username);
+    if (!agent || seen.has(username)) continue;
+    seen.add(username);
+    mentionedAgents.push(agent);
+  }
+
+  return mentionedAgents;
+}
+
+function getMentionQuery(content: string, caretIndex: number) {
+  const prefix = content.slice(0, caretIndex);
+  const match = prefix.match(/(^|\s)@([a-zA-Z0-9_-]*)$/);
+  if (!match || match.index === undefined) return null;
+  return {
+    query: match[2],
+    start: match.index + match[1].length,
+    end: caretIndex
+  };
+}
+
+function replaceMentionQuery(content: string, mentionQuery: { start: number; end: number }, username: string) {
+  return `${content.slice(0, mentionQuery.start)}@${username} ${content.slice(mentionQuery.end)}`;
 }
 
 function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
@@ -1134,8 +1347,17 @@ function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
     id: annotation.agentId,
     username: annotation.agentUsername,
     nickname: annotation.agentNickname || annotation.agentUsername,
-    avatar: annotation.agentAvatar || "AI"
+    avatar: annotation.agentAvatar || "AI",
+    annotationColor: annotation.agentAnnotationColor || annotation.color
   };
+}
+
+function isImageAvatar(value: string) {
+  return value.startsWith("data:image/") || value.startsWith("blob:") || value.startsWith("http") || value.startsWith("/");
+}
+
+function isSvgAvatar(value: string) {
+  return value.startsWith("data:image/svg+xml") || value.endsWith(".svg");
 }
 
 function sleep(ms: number) {
@@ -1228,6 +1450,7 @@ function rangeHighlightBoxes(range: Range, canvasRect: DOMRect, idPrefix: string
     .map((rect, index) => ({
       id: `${idPrefix}_${index}`,
       annotationId: "",
+      color: defaultUserProfile.annotationColor,
       top: rect.top - canvasRect.top,
       left: rect.left - canvasRect.left,
       width: rect.width,
@@ -1290,6 +1513,35 @@ function rangeFromOffsets(rootElement: HTMLElement, start: number, end: number) 
   return range;
 }
 
+const readerConversationStyles = `
+.reader-main{grid-template-columns:260px minmax(0,1fr) 460px}
+.reader-highlight{background:rgba(244,201,93,.28);box-shadow:0 0 0 1px rgba(239,169,39,.24)}
+.reader-highlight.is-active{background:rgba(244,201,93,.45)}
+.reader-notes{padding:28px 24px 48px}
+.reader-note{border-left-width:4px;border-radius:16px;padding:14px 15px}
+.reader-note-anchor{display:grid;gap:10px}
+.reader-note-anchor .reader-note-persona{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;color:var(--reader-ink);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-note-persona .reader-avatar-badge{width:32px;height:32px}
+.reader-note-persona strong{overflow:hidden;font-size:13px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
+.reader-note-persona em{color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:700}
+.reader-note-anchor .reader-note-quote{display:block;color:var(--reader-ink);font-family:Charter,Georgia,Cambria,"Times New Roman",serif;font-size:15px;font-weight:650;line-height:1.5}
+.reader-comments{display:grid;gap:12px;margin-top:14px}
+.reader-comment{grid-template-columns:32px minmax(0,1fr);gap:10px;margin-top:0}
+.reader-comment .reader-avatar-badge{width:30px;height:30px}
+.reader-note-anchor .reader-avatar-badge,.reader-comment .reader-avatar-badge,.reader-agent-menu .reader-avatar-badge,.reader-agent-annotate-menu .reader-avatar-badge,.reader-virtual-label .reader-avatar-badge{display:grid;place-items:center;overflow:hidden;border-radius:999px;background:var(--reader-green);color:white;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:800;padding:0;margin:0}
+.reader-avatar-badge.is-image{background:transparent;color:inherit}
+.reader-avatar-badge img{width:100%;height:100%;object-fit:cover;border-radius:999px}
+.reader-avatar-badge.is-svg img{object-fit:contain}
+.reader-agent-menu button.is-active{background:#f0e3cd}
+.reader-comment-body{min-width:0}
+.reader-comment-author{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-comment-author strong{font-size:12px;font-weight:850}
+.reader-comment-author em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700}
+.reader-comment-body p{margin:0;color:#3f352c;font-size:13px;line-height:1.6}
+.reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
+@media(max-width:980px){.reader-notes{width:min(460px,calc(100vw - 28px))}}
+`;
+
 const readerStyles = `
-:host{all:initial;color-scheme:light;--reader-bg:#f3efe4;--reader-paper:#fffaf0;--reader-ink:#251d16;--reader-muted:#776b5f;--reader-line:#ded2bd;--reader-green:#173f2c;--reader-yellow:#f4c95d;--reader-yellow-strong:#efa927;font-family:Charter,Georgia,Cambria,"Times New Roman",serif}*{box-sizing:border-box}.reader-app{position:fixed;inset:0;z-index:2147483647;display:grid;grid-template-rows:auto 1fr;background:radial-gradient(circle at 16% 12%,rgba(244,201,93,.25),transparent 28%),linear-gradient(135deg,#efe7d6 0%,#f8f3e8 48%,#e7eddf 100%);color:var(--reader-ink)}.reader-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:84px;padding:18px 28px 16px;border-bottom:1px solid rgba(37,29,22,.12);background:rgba(255,250,240,.82);backdrop-filter:blur(18px)}.reader-eyebrow{color:var(--reader-green);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}.reader-toolbar h1{display:flex;align-items:center;gap:9px;max-width:900px;margin:4px 0 2px;overflow:hidden;font-size:22px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.reader-toolbar p{max-width:900px;margin:0;overflow:hidden;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.reader-connection{width:10px;height:10px;border-radius:999px;box-shadow:0 0 0 3px rgba(0,0,0,.05)}.reader-connection.is-connected{background:#18a058}.reader-connection.is-disconnected{background:#cf3f2f}.reader-toolbar-actions{display:flex;align-items:center;gap:10px}.reader-close,.reader-icon-button{display:grid;width:38px;height:38px;place-items:center;border:1px solid rgba(37,29,22,.18);border-radius:999px;background:#fff7e7;color:var(--reader-ink);cursor:pointer}.reader-icon-button:hover,.reader-icon-button.is-active,.reader-close:hover{background:#f0e3cd}.reader-settings-panel{position:fixed;right:28px;top:96px;z-index:6;width:280px;padding:14px;border:1px solid rgba(37,29,22,.14);border-radius:18px;background:rgba(255,250,240,.96);box-shadow:0 20px 70px rgba(55,42,24,.2);backdrop-filter:blur(16px);font-family:ui-sans-serif,system-ui,sans-serif}.reader-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}.reader-setting-row+.reader-setting-row{border-top:1px solid rgba(37,29,22,.1)}.reader-setting-label{display:inline-flex;align-items:center;gap:8px;color:var(--reader-muted);font-size:13px;font-weight:720}.reader-stepper{display:inline-flex;align-items:center;overflow:hidden;border:1px solid rgba(37,29,22,.14);border-radius:999px;background:#fffdf7}.reader-stepper button{display:grid;width:30px;height:30px;place-items:center;border:0;background:transparent;color:var(--reader-muted);cursor:pointer}.reader-stepper button:hover{background:rgba(23,63,44,.08);color:var(--reader-green)}.reader-stepper strong{min-width:58px;color:var(--reader-ink);font-size:12px;text-align:center}.reader-main{min-height:0;display:grid;grid-template-columns:260px minmax(0,1fr) 360px}.reader-toc{min-width:0;overflow:auto;padding:42px 18px 48px 22px;border-right:1px solid rgba(37,29,22,.1);background:rgba(246,239,224,.58);font-family:ui-sans-serif,system-ui,sans-serif}.reader-toc.is-empty{visibility:hidden}.reader-toc-title{margin:0 0 12px;color:var(--reader-green);font-size:12px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}.reader-toc-item{display:block;width:100%;margin:2px 0;border:0;border-radius:10px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:13px;line-height:1.35;padding:7px 8px;text-align:left}.reader-toc-item:hover{background:rgba(255,250,240,.72);color:var(--reader-ink)}.reader-toc-item[data-depth="2"]{padding-left:20px}.reader-toc-item[data-depth="3"]{padding-left:32px}.reader-toc-item[data-depth="4"]{padding-left:44px}.reader-surface{min-width:0;overflow:auto;padding:42px 48px 84px}.reader-canvas{position:relative;width:min(var(--reader-content-width),100%);margin:0 auto}.reader-article{position:relative;z-index:1;padding:56px 64px;border:1px solid rgba(37,29,22,.12);border-radius:28px;background:rgba(255,250,240,.94);box-shadow:0 24px 80px rgba(55,42,24,.16);font-size:var(--reader-font-size);line-height:1.78;overflow-wrap:anywhere;word-break:break-word}.reader-article-header{margin-bottom:42px;padding-bottom:28px;border-bottom:1px solid rgba(37,29,22,.12)}.reader-article-header h1{margin:0;color:var(--reader-ink);font-size:36px;letter-spacing:-.035em;line-height:1.18}.reader-article-header p{margin:14px 0 0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5}.reader-article *{max-width:100%;min-width:0;overflow-wrap:anywhere}.reader-article img,.reader-article video,.reader-article iframe{max-width:100%;height:auto;border-radius:14px}.reader-article pre{overflow:auto;padding:18px;border-radius:16px;background:#1f261f;color:#f7efd9}.reader-article table{display:block;max-width:100%;overflow-x:auto}.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:#574b3e}.reader-highlight-layer{position:absolute;inset:0;z-index:3;pointer-events:none}.reader-highlight{position:absolute;border:0;border-radius:4px;background:rgba(244,201,93,.42);box-shadow:0 0 0 1px rgba(239,169,39,.2);cursor:pointer;mix-blend-mode:multiply;padding:0;pointer-events:auto}.reader-highlight.is-active{background:rgba(239,169,39,.58);box-shadow:0 0 0 2px rgba(23,63,44,.55)}.reader-highlight.is-temporary{background:rgba(25,128,96,.22);box-shadow:0 0 0 1px rgba(25,128,96,.28);pointer-events:none}.reader-highlight.is-agent-theater{background:rgba(25,128,96,.3);box-shadow:0 0 0 1px rgba(25,128,96,.32);pointer-events:none}.reader-selection-menu{position:fixed;z-index:5;padding:5px;border-radius:999px;background:rgba(39,36,32,.92);box-shadow:0 12px 34px rgba(37,29,22,.28)}.reader-selection-menu button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;border:0;border-radius:999px;background:transparent;color:#fff8e8;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:750;padding:0 12px}.reader-virtual-cursor{position:fixed;z-index:7;display:flex;align-items:center;gap:8px;pointer-events:none;transform:translate(-4px,-4px);transition:left .42s ease,top .42s ease}.reader-virtual-pointer{width:0;height:0;border-left:13px solid var(--reader-green);border-top:9px solid transparent;border-bottom:9px solid transparent;filter:drop-shadow(0 4px 8px rgba(23,63,44,.22));transform:rotate(-18deg)}.reader-virtual-label{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(23,63,44,.16);border-radius:999px;background:rgba(255,250,240,.96);box-shadow:0 12px 36px rgba(55,42,24,.18);color:var(--reader-green);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;padding:6px 10px;white-space:nowrap}.reader-virtual-label span{display:grid;width:22px;height:22px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:11px}.reader-virtual-cursor.is-offscreen .reader-virtual-pointer{opacity:.45}.reader-virtual-cursor.is-leaving{animation:reader-cursor-leave .9s ease forwards}@keyframes reader-cursor-leave{to{opacity:0;transform:translate(18px,-24px) scale(.86);filter:blur(2px)}}.reader-notes{min-width:0;overflow:auto;padding:28px 22px 48px;border-left:1px solid rgba(37,29,22,.12);background:rgba(246,239,224,.86)}.reader-notes-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;margin:-28px -22px 18px;padding:18px 22px;background:rgba(246,239,224,.94);backdrop-filter:blur(14px);font-family:ui-sans-serif,system-ui,sans-serif}.reader-notes-actions{display:flex;align-items:center;gap:8px}.reader-notes-actions span{display:grid;min-width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:12px}.reader-agent-annotate{display:inline-flex;align-items:center;gap:6px;height:30px;border:1px solid rgba(37,29,22,.14);border-radius:999px;background:#fff7e7;color:var(--reader-green);cursor:pointer;font:inherit;font-size:12px;font-weight:800;padding:0 10px}.reader-agent-annotate:hover,.reader-agent-annotate.is-active{background:#f0e3cd}.reader-agent-annotate:disabled{cursor:not-allowed;opacity:.55}.reader-agent-annotate-menu{display:grid;gap:6px;margin:-6px 0 14px;padding:10px;border:1px solid rgba(37,29,22,.12);border-radius:16px;background:rgba(255,250,240,.92);box-shadow:0 12px 36px rgba(55,42,24,.1);font-family:ui-sans-serif,system-ui,sans-serif}.reader-agent-annotate-menu button{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;border:0;border-radius:11px;background:transparent;color:var(--reader-ink);cursor:pointer;padding:8px;text-align:left}.reader-agent-annotate-menu button:hover{background:#f0e3cd}.reader-agent-annotate-menu button:disabled{cursor:not-allowed;opacity:.65}.reader-agent-annotate-menu button>span{display:grid;width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:12px;font-weight:800}.reader-agent-annotate-menu em{color:var(--reader-muted);font-size:12px;font-style:normal}.reader-empty,.reader-note{margin-bottom:14px;padding:16px;border:1px solid rgba(37,29,22,.12);border-radius:18px;background:rgba(255,250,240,.86);box-shadow:0 10px 34px rgba(55,42,24,.08)}.reader-empty strong,.reader-note-anchor{font-family:ui-sans-serif,system-ui,sans-serif;font-weight:750}.reader-empty p,.reader-muted{margin:8px 0 0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.6}.reader-note.is-active{border-color:rgba(23,63,44,.45);box-shadow:0 0 0 3px rgba(23,63,44,.12),0 10px 34px rgba(55,42,24,.08)}.reader-note-anchor{width:100%;border:0;background:transparent;color:var(--reader-ink);cursor:pointer;font-size:14px;line-height:1.5;padding:0;text-align:left}.reader-note-anchor span{display:inline-flex;align-items:center;margin:0 6px 6px 0;border-radius:999px;background:rgba(23,63,44,.1);color:var(--reader-green);font-size:12px;font-weight:800;padding:3px 8px}.reader-comments{margin-top:12px}.reader-comment{display:grid;grid-template-columns:32px 1fr;gap:9px;margin-top:10px;font-family:ui-sans-serif,system-ui,sans-serif}.reader-comment span{display:grid;width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:11px;font-weight:800}.reader-comment p{margin:0;color:#3f352c;font-size:13px;line-height:1.55}.reader-spinner{display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-2px;border:2px solid rgba(23,63,44,.22);border-top-color:var(--reader-green);border-radius:999px;animation:reader-spin .8s linear infinite}@keyframes reader-spin{to{transform:rotate(360deg)}}.reader-comment-box{position:relative}.reader-note textarea,.reader-composer textarea{width:100%;min-height:74px;resize:vertical;margin-top:12px;padding:10px 12px;border:1px solid rgba(37,29,22,.16);border-radius:12px;background:#fffdf7;color:var(--reader-ink);font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.5;outline:none}.reader-composer textarea{margin-top:0}.reader-agent-menu{position:absolute;left:0;right:0;bottom:calc(100% - 8px);z-index:4;display:grid;gap:4px;padding:8px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:#fffaf0;box-shadow:0 18px 50px rgba(55,42,24,.18)}.reader-agent-menu button{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;border:0;border-radius:10px;background:transparent;cursor:pointer;padding:7px;text-align:left}.reader-agent-menu button:hover{background:#f0e3cd}.reader-agent-menu em{color:var(--reader-muted);font-size:12px;font-style:normal}.reader-add-comment,.reader-composer-actions button{border:0;border-radius:999px;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760}.reader-delete-note{display:inline-flex;align-items:center;gap:5px;margin-right:auto;border:0;background:transparent;color:#8a3f32;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760}.reader-delete-confirm{display:inline-flex;align-items:center;gap:6px;margin-right:auto;color:#6b5d50;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px}.reader-delete-confirm button{border:0;border-radius:999px;background:#eadfce;color:#4c4137;cursor:pointer;font:inherit;font-weight:760;padding:6px 9px}.reader-delete-confirm button:last-child{background:#8a3f32;color:white}.reader-add-comment{padding:9px 13px;background:var(--reader-green);color:white}.reader-note-footer,.reader-composer-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px}.reader-shortcut-hint{display:inline-flex;align-items:center;gap:5px;margin-right:auto;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px}.reader-kbd{display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;border:1px solid rgba(37,29,22,.18);border-bottom-color:rgba(37,29,22,.32);border-radius:6px;background:#fffdf7;box-shadow:0 1px 0 rgba(37,29,22,.18);color:#4c4137;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:750;line-height:1;padding:0 5px}.reader-composer{position:fixed;z-index:5;width:340px;padding:14px;border:1px solid rgba(37,29,22,.16);border-radius:18px;background:rgba(255,250,240,.98);box-shadow:0 24px 80px rgba(55,42,24,.26)}.reader-quote{max-height:92px;overflow:auto;padding:10px 12px;border-left:4px solid var(--reader-yellow-strong);background:rgba(244,201,93,.16);color:#3f352c;font-size:13px;line-height:1.5}.reader-composer-actions button{padding:9px 13px;background:#e6dbc8;color:var(--reader-ink)}.reader-composer-actions button:last-child{background:var(--reader-green);color:white}@media(max-width:980px){.reader-main{grid-template-columns:1fr}.reader-toc{display:none}.reader-notes{position:fixed;right:14px;bottom:14px;width:min(380px,calc(100vw - 28px));max-height:42vh;border:1px solid rgba(37,29,22,.14);border-radius:22px;box-shadow:0 20px 70px rgba(55,42,24,.2)}.reader-surface{padding:24px 18px 220px}.reader-article{padding:34px 24px;font-size:18px}.reader-toolbar{padding:14px 16px}}
+:host{all:initial;color-scheme:light;--reader-bg:#f3efe4;--reader-paper:#fffaf0;--reader-ink:#251d16;--reader-muted:#776b5f;--reader-line:#ded2bd;--reader-green:#173f2c;--reader-yellow:#f4c95d;--reader-yellow-strong:#efa927;font-family:Charter,Georgia,Cambria,"Times New Roman",serif}*{box-sizing:border-box}.reader-app{position:fixed;inset:0;z-index:2147483647;display:grid;grid-template-rows:auto 1fr;background:radial-gradient(circle at 16% 12%,rgba(244,201,93,.25),transparent 28%),linear-gradient(135deg,#efe7d6 0%,#f8f3e8 48%,#e7eddf 100%);color:var(--reader-ink)}.reader-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:84px;padding:18px 28px 16px;border-bottom:1px solid rgba(37,29,22,.12);background:rgba(255,250,240,.82);backdrop-filter:blur(18px)}.reader-eyebrow{color:var(--reader-green);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}.reader-toolbar h1{display:flex;align-items:center;gap:9px;max-width:900px;margin:4px 0 2px;overflow:hidden;font-size:22px;line-height:1.15;text-overflow:ellipsis;white-space:nowrap}.reader-toolbar p{max-width:900px;margin:0;overflow:hidden;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.reader-connection{width:10px;height:10px;border-radius:999px;box-shadow:0 0 0 3px rgba(0,0,0,.05)}.reader-connection.is-connected{background:#18a058}.reader-connection.is-disconnected{background:#cf3f2f}.reader-toolbar-actions{display:flex;align-items:center;gap:10px}.reader-close,.reader-icon-button{display:grid;width:38px;height:38px;place-items:center;border:1px solid rgba(37,29,22,.18);border-radius:999px;background:#fff7e7;color:var(--reader-ink);cursor:pointer}.reader-icon-button:hover,.reader-icon-button.is-active,.reader-close:hover{background:#f0e3cd}.reader-settings-panel{position:fixed;right:28px;top:96px;z-index:6;width:280px;padding:14px;border:1px solid rgba(37,29,22,.14);border-radius:18px;background:rgba(255,250,240,.96);box-shadow:0 20px 70px rgba(55,42,24,.2);backdrop-filter:blur(16px);font-family:ui-sans-serif,system-ui,sans-serif}.reader-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}.reader-setting-row+.reader-setting-row{border-top:1px solid rgba(37,29,22,.1)}.reader-setting-label{display:inline-flex;align-items:center;gap:8px;color:var(--reader-muted);font-size:13px;font-weight:720}.reader-stepper{display:inline-flex;align-items:center;overflow:hidden;border:1px solid rgba(37,29,22,.14);border-radius:999px;background:#fffdf7}.reader-stepper button{display:grid;width:30px;height:30px;place-items:center;border:0;background:transparent;color:var(--reader-muted);cursor:pointer}.reader-stepper button:hover{background:rgba(23,63,44,.08);color:var(--reader-green)}.reader-stepper strong{min-width:58px;color:var(--reader-ink);font-size:12px;text-align:center}.reader-main{min-height:0;display:grid;grid-template-columns:260px minmax(0,1fr) 360px}.reader-toc{min-width:0;overflow:auto;padding:42px 18px 48px 22px;border-right:1px solid rgba(37,29,22,.1);background:rgba(246,239,224,.58);font-family:ui-sans-serif,system-ui,sans-serif}.reader-toc.is-empty{visibility:hidden}.reader-toc-title{margin:0 0 12px;color:var(--reader-green);font-size:12px;font-weight:850;letter-spacing:.14em;text-transform:uppercase}.reader-toc-item{display:block;width:100%;margin:2px 0;border:0;border-radius:10px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:13px;line-height:1.35;padding:7px 8px;text-align:left}.reader-toc-item:hover{background:rgba(255,250,240,.72);color:var(--reader-ink)}.reader-toc-item[data-depth="2"]{padding-left:20px}.reader-toc-item[data-depth="3"]{padding-left:32px}.reader-toc-item[data-depth="4"]{padding-left:44px}.reader-surface{min-width:0;overflow:auto;padding:42px 48px 84px}.reader-canvas{position:relative;width:min(var(--reader-content-width),100%);margin:0 auto}.reader-article{position:relative;z-index:1;padding:56px 64px;border:1px solid rgba(37,29,22,.12);border-radius:28px;background:rgba(255,250,240,.94);box-shadow:0 24px 80px rgba(55,42,24,.16);font-size:var(--reader-font-size);line-height:1.78;overflow-wrap:anywhere;word-break:break-word}.reader-article-header{margin-bottom:42px;padding-bottom:28px;border-bottom:1px solid rgba(37,29,22,.12)}.reader-article-header h1{margin:0;color:var(--reader-ink);font-size:36px;letter-spacing:-.035em;line-height:1.18}.reader-article-header p{margin:14px 0 0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:15px;line-height:1.5}.reader-article *{max-width:100%;min-width:0;overflow-wrap:anywhere}.reader-article img,.reader-article video,.reader-article iframe{max-width:100%;height:auto;border-radius:14px}.reader-article pre{overflow:auto;padding:18px;border-radius:16px;background:#1f261f;color:#f7efd9}.reader-article table{display:block;max-width:100%;overflow-x:auto}.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:#574b3e}.reader-highlight-layer{position:absolute;inset:0;z-index:3;pointer-events:none}.reader-highlight{position:absolute;border:0;border-radius:4px;background:rgba(244,201,93,.42);box-shadow:0 0 0 1px rgba(239,169,39,.2);cursor:pointer;mix-blend-mode:multiply;padding:0;pointer-events:auto}.reader-highlight.is-active{background:rgba(239,169,39,.58);box-shadow:0 0 0 2px rgba(23,63,44,.55)}.reader-highlight.is-temporary{background:rgba(25,128,96,.22);box-shadow:0 0 0 1px rgba(25,128,96,.28);pointer-events:none}.reader-highlight.is-agent-theater{background:rgba(25,128,96,.3);box-shadow:0 0 0 1px rgba(25,128,96,.32);pointer-events:none}.reader-selection-menu{position:fixed;z-index:5;padding:5px;border-radius:999px;background:rgba(39,36,32,.92);box-shadow:0 12px 34px rgba(37,29,22,.28)}.reader-selection-menu button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;border:0;border-radius:999px;background:transparent;color:#fff8e8;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:750;padding:0 12px}.reader-virtual-cursor{position:fixed;z-index:7;display:flex;align-items:center;gap:8px;pointer-events:none;transform:translate(-4px,-4px);transition:left .42s ease,top .42s ease}.reader-virtual-pointer{width:0;height:0;border-left:13px solid var(--reader-green);border-top:9px solid transparent;border-bottom:9px solid transparent;filter:drop-shadow(0 4px 8px rgba(23,63,44,.22));transform:rotate(-18deg)}.reader-virtual-label{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(23,63,44,.16);border-radius:999px;background:rgba(255,250,240,.96);box-shadow:0 12px 36px rgba(55,42,24,.18);color:var(--reader-green);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;padding:6px 10px;white-space:nowrap}.reader-virtual-label span{display:grid;width:22px;height:22px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:11px}.reader-virtual-cursor.is-offscreen .reader-virtual-pointer{opacity:.45}.reader-virtual-cursor.is-leaving{animation:reader-cursor-leave .9s ease forwards}@keyframes reader-cursor-leave{to{opacity:0;transform:translate(18px,-24px) scale(.86);filter:blur(2px)}}.reader-notes{min-width:0;overflow:auto;padding:28px 22px 48px;border-left:1px solid rgba(37,29,22,.12);background:rgba(246,239,224,.86)}.reader-notes-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;margin:-28px -22px 18px;padding:18px 22px;background:rgba(246,239,224,.94);backdrop-filter:blur(14px);font-family:ui-sans-serif,system-ui,sans-serif}.reader-notes-actions{display:flex;align-items:center;gap:8px}.reader-notes-actions span{display:grid;min-width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:12px}.reader-agent-annotate{display:inline-flex;align-items:center;gap:6px;height:30px;border:1px solid rgba(37,29,22,.14);border-radius:999px;background:#fff7e7;color:var(--reader-green);cursor:pointer;font:inherit;font-size:12px;font-weight:800;padding:0 10px}.reader-agent-annotate:hover,.reader-agent-annotate.is-active{background:#f0e3cd}.reader-agent-annotate:disabled{cursor:not-allowed;opacity:.55}.reader-agent-annotate-menu{display:grid;gap:6px;margin:-6px 0 14px;padding:10px;border:1px solid rgba(37,29,22,.12);border-radius:16px;background:rgba(255,250,240,.92);box-shadow:0 12px 36px rgba(55,42,24,.1);font-family:ui-sans-serif,system-ui,sans-serif}.reader-agent-annotate-menu button{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:8px;border:0;border-radius:11px;background:transparent;color:var(--reader-ink);cursor:pointer;padding:8px;text-align:left}.reader-agent-annotate-menu button:hover{background:#f0e3cd}.reader-agent-annotate-menu button:disabled{cursor:not-allowed;opacity:.65}.reader-agent-annotate-menu button>span{display:grid;width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:12px;font-weight:800}.reader-agent-annotate-menu em{color:var(--reader-muted);font-size:12px;font-style:normal}.reader-empty,.reader-note{margin-bottom:14px;padding:16px;border:1px solid rgba(37,29,22,.12);border-radius:18px;background:rgba(255,250,240,.86);box-shadow:0 10px 34px rgba(55,42,24,.08)}.reader-empty strong,.reader-note-anchor{font-family:ui-sans-serif,system-ui,sans-serif;font-weight:750}.reader-empty p,.reader-muted{margin:8px 0 0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.6}.reader-note.is-active{border-color:rgba(23,63,44,.45);box-shadow:0 0 0 3px rgba(23,63,44,.12),0 10px 34px rgba(55,42,24,.08)}.reader-note-anchor{width:100%;border:0;background:transparent;color:var(--reader-ink);cursor:pointer;font-size:14px;line-height:1.5;padding:0;text-align:left}.reader-note-anchor span{display:inline-flex;align-items:center;margin:0 6px 6px 0;border-radius:999px;background:rgba(23,63,44,.1);color:var(--reader-green);font-size:12px;font-weight:800;padding:3px 8px}.reader-comments{margin-top:12px}.reader-comment{display:grid;grid-template-columns:32px 1fr;gap:9px;margin-top:10px;font-family:ui-sans-serif,system-ui,sans-serif}.reader-comment span{display:grid;width:28px;height:28px;place-items:center;border-radius:999px;background:var(--reader-green);color:white;font-size:11px;font-weight:800}.reader-comment p{margin:0;color:#3f352c;font-size:13px;line-height:1.55}.reader-avatar-badge img{width:100%;height:100%;object-fit:cover;border-radius:999px}.reader-spinner{display:inline-block;width:12px;height:12px;margin-left:6px;vertical-align:-2px;border:2px solid rgba(23,63,44,.22);border-top-color:var(--reader-green);border-radius:999px;animation:reader-spin .8s linear infinite}@keyframes reader-spin{to{transform:rotate(360deg)}}.reader-comment-box{position:relative}.reader-note textarea,.reader-composer textarea{width:100%;min-height:74px;resize:vertical;margin-top:12px;padding:10px 12px;border:1px solid rgba(37,29,22,.16);border-radius:12px;background:#fffdf7;color:var(--reader-ink);font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.5;outline:none}.reader-composer textarea{margin-top:0}.reader-agent-menu{position:absolute;left:0;right:0;bottom:calc(100% - 8px);z-index:4;display:grid;gap:4px;padding:8px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:#fffaf0;box-shadow:0 18px 50px rgba(55,42,24,.18)}.reader-agent-menu button{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;border:0;border-radius:10px;background:transparent;cursor:pointer;padding:7px;text-align:left}.reader-agent-menu button:hover{background:#f0e3cd}.reader-agent-menu em{color:var(--reader-muted);font-size:12px;font-style:normal}.reader-add-comment,.reader-composer-actions button{border:0;border-radius:999px;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760}.reader-delete-note{display:inline-flex;align-items:center;gap:5px;margin-right:auto;border:0;background:transparent;color:#8a3f32;cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760}.reader-delete-confirm{display:inline-flex;align-items:center;gap:6px;margin-right:auto;color:#6b5d50;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px}.reader-delete-confirm button{border:0;border-radius:999px;background:#eadfce;color:#4c4137;cursor:pointer;font:inherit;font-weight:760;padding:6px 9px}.reader-delete-confirm button:last-child{background:#8a3f32;color:white}.reader-add-comment{padding:9px 13px;background:var(--reader-green);color:white}.reader-note-footer,.reader-composer-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px}.reader-shortcut-hint{display:inline-flex;align-items:center;gap:5px;margin-right:auto;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px}.reader-kbd{display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;border:1px solid rgba(37,29,22,.18);border-bottom-color:rgba(37,29,22,.32);border-radius:6px;background:#fffdf7;box-shadow:0 1px 0 rgba(37,29,22,.18);color:#4c4137;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:10px;font-weight:750;line-height:1;padding:0 5px}.reader-composer{position:fixed;z-index:5;width:340px;padding:14px;border:1px solid rgba(37,29,22,.16);border-radius:18px;background:rgba(255,250,240,.98);box-shadow:0 24px 80px rgba(55,42,24,.26)}.reader-quote{max-height:92px;overflow:auto;padding:10px 12px;border-left:4px solid var(--reader-yellow-strong);background:rgba(244,201,93,.16);color:#3f352c;font-size:13px;line-height:1.5}.reader-composer-actions button{padding:9px 13px;background:#e6dbc8;color:var(--reader-ink)}.reader-composer-actions button:last-child{background:var(--reader-green);color:white}@media(max-width:980px){.reader-main{grid-template-columns:1fr}.reader-toc{display:none}.reader-notes{position:fixed;right:14px;bottom:14px;width:min(380px,calc(100vw - 28px));max-height:42vh;border:1px solid rgba(37,29,22,.14);border-radius:22px;box-shadow:0 20px 70px rgba(55,42,24,.2)}.reader-surface{padding:24px 18px 220px}.reader-article{padding:34px 24px;font-size:18px}.reader-toolbar{padding:14px 16px}}
 `;

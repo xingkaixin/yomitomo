@@ -19,12 +19,21 @@ export type Agent = {
   nickname: string;
   username: string;
   avatar: string;
+  annotationColor: string;
   soul: string;
   createdAt: string;
   updatedAt: string;
 };
 
 export type PublicAgent = Omit<Agent, "providerId" | "soul" | "createdAt" | "updatedAt">;
+
+export type UserProfile = {
+  nickname: string;
+  username: string;
+  avatar: string;
+  annotationColor: string;
+  updatedAt: string;
+};
 
 export type TextAnchor = {
   exact: string;
@@ -44,6 +53,11 @@ export type Comment = {
   agentUsername?: string;
   agentNickname?: string;
   agentAvatar?: string;
+  agentAnnotationColor?: string;
+  userUsername?: string;
+  userNickname?: string;
+  userAvatar?: string;
+  userAnnotationColor?: string;
   pending?: boolean;
 };
 
@@ -56,6 +70,11 @@ export type Annotation = {
   agentUsername?: string;
   agentNickname?: string;
   agentAvatar?: string;
+  agentAnnotationColor?: string;
+  userUsername?: string;
+  userNickname?: string;
+  userAvatar?: string;
+  userAnnotationColor?: string;
   comments: Comment[];
   createdAt: string;
   updatedAt: string;
@@ -75,6 +94,7 @@ export type ArticleRecord = {
 };
 
 export type DesktopStore = {
+  user: UserProfile;
   providers: LlmProvider[];
   agents: Agent[];
 };
@@ -106,8 +126,8 @@ export type DesktopClientMessage =
   | { type: "agent:annotate"; requestId: string; payload: AgentAnnotatePayload };
 
 export type DesktopServerMessage =
-  | { type: "status"; ok: boolean; agents: PublicAgent[] }
-  | { type: "agent:list:result"; requestId: string; agents: PublicAgent[] }
+  | { type: "status"; ok: boolean; user: UserProfile; agents: PublicAgent[] }
+  | { type: "agent:list:result"; requestId: string; user: UserProfile; agents: PublicAgent[] }
   | { type: "agent:message:start"; requestId: string; annotationId: string; comment: Comment }
   | { type: "agent:message:delta"; requestId: string; annotationId: string; commentId: string; delta: string }
   | { type: "agent:message:done"; requestId: string; annotationId: string; commentId: string }
