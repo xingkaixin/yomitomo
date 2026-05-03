@@ -278,6 +278,7 @@ export function annotationToPublicAgent(annotation: Annotation): PublicAgent | u
   if (!annotation.agentId || !annotation.agentUsername) return undefined;
   return {
     id: annotation.agentId,
+    kind: 'annotation',
     username: annotation.agentUsername,
     nickname: annotation.agentNickname || annotation.agentUsername,
     avatar: annotation.agentAvatar || 'AI',

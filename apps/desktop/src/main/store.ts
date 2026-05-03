@@ -7,6 +7,7 @@ import SQLiteDatabase from 'better-sqlite3';
 import type {
   Agent,
   AgentAnnotationDensity,
+  AgentKind,
   Annotation,
   AnnotationType,
   AppSettings,
@@ -182,6 +183,7 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
   );
   const agent: Agent = {
     id: existing?.id || makeId('agent'),
+    kind: normalizeAgentKind(input.kind ?? existing?.kind) || 'annotation',
     providerId: input.providerId || existing?.providerId || store.providers[0]?.id || '',
     nickname: input.nickname?.trim() || existing?.nickname || 'Yomitomo',
     username,
@@ -310,6 +312,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     })),
     agents: agentRows.map((row) => ({
       id: row.id,
+      kind: normalizeAgentKind(row.kind) || 'annotation',
       providerId: row.providerId,
       nickname: row.nickname,
       username: row.username,
@@ -518,6 +521,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
     .insert(schema.agents)
     .values({
       id: agent.id,
+      kind: agent.kind,
       providerId: agent.providerId,
       nickname: agent.nickname,
       username: agent.username,
@@ -533,6 +537,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
       target: schema.agents.id,
       set: {
         providerId: agent.providerId,
+        kind: agent.kind,
         nickname: agent.nickname,
         username: agent.username,
         avatar: agent.avatar,
@@ -554,6 +559,7 @@ function normalizeStore(store: DesktopStore): DesktopStore {
     agents: (store.agents || []).map((agent) =>
       Object.assign({}, agent, {
         annotationColor: agent.annotationColor || '#8ab6d6',
+        kind: normalizeAgentKind(agent.kind) || 'annotation',
         annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || 'medium',
         temperature: normalizeTemperature(agent.temperature),
       }),
@@ -645,6 +651,10 @@ function normalizeUsername(value: string, fallback = 'me') {
 
 function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {
   return value === 'low' || value === 'medium' || value === 'high' ? value : null;
+}
+
+function normalizeAgentKind(value: unknown): AgentKind | null {
+  return value === 'annotation' || value === 'review' ? value : null;
 }
 
 function normalizeTemperature(value: unknown) {

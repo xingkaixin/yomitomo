@@ -20,6 +20,7 @@ const user: UserProfile = {
 
 const agent: Agent = {
   id: 'agent-1',
+  kind: 'annotation',
   providerId: 'provider-1',
   nickname: '阅读伙伴',
   username: 'reader',
@@ -108,6 +109,7 @@ describe('annotation core', () => {
     const agents: PublicAgent[] = [
       {
         id: 'a',
+        kind: 'annotation',
         nickname: 'A',
         username: 'reader',
         avatar: '',

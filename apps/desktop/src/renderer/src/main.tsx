@@ -14,12 +14,14 @@ import {
   EyeOff,
   Info,
   KeyRound,
+  ListChecks,
   LoaderCircle,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Quote,
   RefreshCcw,
+  Scale,
   Save,
   Search,
   Sparkles,
@@ -29,6 +31,7 @@ import {
 } from 'lucide-react';
 import type {
   Agent,
+  AgentKind,
   Annotation,
   AppSettings,
   ArticleRecord,
@@ -36,6 +39,8 @@ import type {
   DesktopStore,
   LlmProvider,
   ProviderType,
+  ReadingCardRecord,
+  ReadingCardSection as PersistedReadingCardSection,
 } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import {
@@ -52,8 +57,11 @@ import {
 } from '@yomitomo/core';
 import {
   agentDraftHasChanges,
+  agentKindLabel,
+  agentKindOptions,
   agentPersonalities,
   agentPersonalityName,
+  annotationAgentPersonalities,
   annotationColors,
   annotationDensityOptions,
   createEmptyAgent,
@@ -65,6 +73,7 @@ import {
   emptyStore,
   findAgentPersonalityId,
   isValidUsername,
+  personalitiesForKind,
   providerDraftHasChanges,
   sanitizeUsernameInput,
   userDraftHasChanges,
@@ -253,8 +262,9 @@ function App() {
     setSelectedAgentId(null);
     setAgentDraft({
       ...emptyAgent,
+      kind: 'annotation',
       personalityId: 'reading-partner',
-      temperature: agentPersonalities[0].temperature,
+      temperature: annotationAgentPersonalities[0]?.temperature ?? 0.35,
       providerId: store.providers[0]?.id || '',
     });
     setAgentSaveError('');
@@ -731,6 +741,8 @@ function ReadingLibrary({
     annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
     annotations[0] ||
     null;
+  const readingCardCount =
+    selectedArticle?.readingCard?.sections.length || (selectedArticle ? 4 : 0);
   const stats = articles.reduce(
     (result, article) => ({
       annotations: result.annotations + article.annotations.length,
@@ -832,7 +844,7 @@ function ReadingLibrary({
         }
       >
         <ShelfTab
-          count={selectedArticle?.annotations.length || 0}
+          count={readingCardCount}
           icon={<FileText size={18} />}
           label="读后卡片"
           onClick={() => setActiveShelf('card')}
@@ -1062,15 +1074,14 @@ function ReadingCard({
   onGenerated: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const [aiCard, setAiCard] = useState('');
+  const [aiCard, setAiCard] = useState<ReadingCardRecord | null>(null);
   const [aiError, setAiError] = useState('');
   const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
   const card = useMemo(
-    () => (article ? aiCard || buildReadingCard(article, articleText) : ''),
+    () => (article ? aiCard?.contentMarkdown || buildReadingCard(article, articleText) : ''),
     [aiCard, article, articleText],
   );
-  const aiCardHtml = useMemo(() => renderMarkdown(aiCard), [aiCard]);
   const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
   const evidenceUnits = useMemo(
     () => (article ? buildReadingCardEvidenceUnits(article) : []),
@@ -1082,7 +1093,7 @@ function ReadingCard({
   );
 
   useEffect(() => {
-    setAiCard(article?.readingCard?.contentMarkdown || '');
+    setAiCard(article?.readingCard || null);
     setAiError('');
     setAiState(article?.readingCard ? 'done' : 'idle');
   }, [article?.id, article?.readingCard?.updatedAt]);
@@ -1104,7 +1115,7 @@ function ReadingCard({
         articleText,
         evidenceUnits,
       });
-      setAiCard(result.readingCard.contentMarkdown);
+      setAiCard(result.readingCard);
       setAiState('done');
       onGenerated();
     } catch (error) {
@@ -1158,7 +1169,7 @@ function ReadingCard({
       <div className="reading-card-body">
         {aiError ? <p className="reading-card-error">{aiError}</p> : null}
         {aiCard ? (
-          <div className="reading-card-ai" dangerouslySetInnerHTML={{ __html: aiCardHtml }} />
+          <ReadingCardDeck article={article} readingCard={aiCard} stats={stats} />
         ) : (
           sections.map((section) => (
             <section key={section.title}>
@@ -1214,6 +1225,126 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
       ) : null}
     </article>
   );
+}
+
+function ReadingCardDeck({
+  article,
+  readingCard,
+  stats,
+}: {
+  article: ArticleRecord;
+  readingCard: ReadingCardRecord;
+  stats: ReturnType<typeof buildReadingCardStats> | null;
+}) {
+  const sections = normalizeReadingCardViewSections(readingCard);
+
+  return (
+    <div className="reading-card-deck">
+      <section className="reading-card-cover">
+        <div>
+          <span>AI 读后卡片</span>
+          <h4>{article.title}</h4>
+        </div>
+        <dl>
+          <div>
+            <dt>批注</dt>
+            <dd>{stats?.annotations ?? 0}</dd>
+          </div>
+          <div>
+            <dt>评论</dt>
+            <dd>{stats?.comments ?? 0}</dd>
+          </div>
+          <div>
+            <dt>助手</dt>
+            <dd>{stats?.aiContributions ?? 0}</dd>
+          </div>
+        </dl>
+        <p>
+          {readingCard.providerName || '默认供应商'} · {readingCard.modelName || '模型未记录'} ·{' '}
+          {formatDate(readingCard.updatedAt)}
+        </p>
+      </section>
+
+      {sections.map((section) => (
+        <ReadingCardSectionCard section={section} key={section.title} />
+      ))}
+    </div>
+  );
+}
+
+function ReadingCardSectionCard({ section }: { section: PersistedReadingCardSection }) {
+  const blocks = splitReadingCardSection(section.content);
+  const isCore = section.title === '核心主张';
+
+  return (
+    <section className={isCore ? 'reading-card-section-card is-core' : 'reading-card-section-card'}>
+      <header>
+        <span>{readingCardSectionIndex(section.title)}</span>
+        <h4>{section.title}</h4>
+      </header>
+      {blocks.map((block, index) => (
+        <article
+          className={block.title ? 'reading-card-mini-card has-title' : 'reading-card-mini-card'}
+          key={`${section.title}-${block.title || index}`}
+        >
+          {block.title ? <h5>{block.title}</h5> : null}
+          <div
+            className="reading-card-markdown"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(block.content) }}
+          />
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function normalizeReadingCardViewSections(
+  readingCard: ReadingCardRecord,
+): PersistedReadingCardSection[] {
+  if (readingCard.sections.length > 0) return readingCard.sections;
+  return parseReadingCardMarkdownSections(readingCard.contentMarkdown);
+}
+
+function parseReadingCardMarkdownSections(markdown: string): PersistedReadingCardSection[] {
+  const sections: PersistedReadingCardSection[] = [];
+  let current: PersistedReadingCardSection | null = null;
+  for (const line of markdown.split('\n')) {
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      if (current) sections.push(current);
+      current = { title: heading[1].trim(), content: '' };
+      continue;
+    }
+    if (!current) continue;
+    current.content = `${current.content}${current.content ? '\n' : ''}${line}`.trim();
+  }
+  if (current) sections.push(current);
+  return sections;
+}
+
+function splitReadingCardSection(content: string) {
+  const blocks: Array<{ title?: string; content: string }> = [];
+  let current: { title?: string; content: string } | null = null;
+
+  for (const line of content.split('\n')) {
+    const heading = line.match(/^###\s+(.+)$/);
+    if (heading) {
+      if (current) blocks.push(current);
+      current = { title: heading[1].trim(), content: '' };
+      continue;
+    }
+    if (!current) current = { content: '' };
+    current.content = `${current.content}${current.content ? '\n' : ''}${line}`.trim();
+  }
+
+  if (current && (current.title || current.content)) blocks.push(current);
+  return blocks.length > 0 ? blocks : [{ content: '暂无' }];
+}
+
+function readingCardSectionIndex(title: string) {
+  const order = ['核心主张', '我关注了什么', '讨论中浮现了什么', '可复用洞见', '后续行动线索'];
+  const index = order.indexOf(title);
+  return index >= 0 ? String(index + 1).padStart(2, '0') : '·';
 }
 
 function AboutSettings() {
@@ -1600,7 +1731,9 @@ function AgentSettings({
                 <AvatarImage value={agent.avatar} className="size-10" fallback="AI" />
                 <span className="min-w-0">
                   <strong>{agent.nickname}</strong>
-                  <span>{personalityName}</span>
+                  <span>
+                    {agentKindLabel(agent.kind)} · {personalityName}
+                  </span>
                 </span>
               </button>
             );
@@ -1770,12 +1903,29 @@ function AgentForm({
   providers: ProviderOption[];
   onChange: (draft: AgentDraft) => void;
 }) {
-  const personalityId =
+  const agentKind = draft.kind || 'annotation';
+  const availablePersonalities = personalitiesForKind(agentKind);
+  const rawPersonalityId =
     draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
+  const personalityId = availablePersonalities.some((item) => item.id === rawPersonalityId)
+    ? rawPersonalityId
+    : customPersonalityId;
   const isCustomPersonality = personalityId === customPersonalityId;
 
+  function changeKind(kind: AgentKind) {
+    const firstPersonality = personalitiesForKind(kind)[0];
+    onChange({
+      ...draft,
+      kind,
+      personalityId: firstPersonality?.id || customPersonalityId,
+      soul: firstPersonality?.soul || '',
+      temperature: firstPersonality?.temperature ?? customPersonality.temperature,
+      annotationDensity: draft.annotationDensity || 'medium',
+    });
+  }
+
   function changePersonality(nextId: string) {
-    const personality = agentPersonalities.find((item) => item.id === nextId);
+    const personality = availablePersonalities.find((item) => item.id === nextId);
     if (personality) {
       onChange({
         ...draft,
@@ -1795,6 +1945,27 @@ function AgentForm({
 
   return (
     <div className="settings-form-grid">
+      <Field
+        className="col-span-2"
+        description="阅读助手会出现在浏览器阅读器；审核助手用于后续读后卡片审稿流程。"
+        label="助手类型"
+      >
+        <div className="agent-kind-grid">
+          {agentKindOptions.map((option) => (
+            <button
+              className={
+                agentKind === option.value ? 'agent-kind-choice is-active' : 'agent-kind-choice'
+              }
+              key={option.value}
+              type="button"
+              onClick={() => changeKind(option.value)}
+            >
+              <strong>{option.label}</strong>
+              <span>{option.description}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
       <Field description="当前助手调用的模型供应商。" label="供应商">
         <Select
           disabled={providers.length === 0}
@@ -1842,36 +2013,38 @@ function AgentForm({
       <Field
         className="col-span-2"
         description="这些颜色已按阅读器高亮可见性筛选。"
-        label="批注颜色"
+        label={agentKind === 'review' ? '标识颜色' : '批注颜色'}
       >
         <ColorPicker
           value={draft.annotationColor || annotationColors[1]}
           onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
         />
       </Field>
-      <Field
-        className="col-span-2"
-        description="决定助手主动批注时的积极程度，会影响提示词和模型采样。"
-        label="批注密度"
-      >
-        <div className="density-grid">
-          {annotationDensityOptions.map((option) => (
-            <button
-              className={
-                (draft.annotationDensity || 'medium') === option.value
-                  ? 'density-choice is-active'
-                  : 'density-choice'
-              }
-              key={option.value}
-              type="button"
-              onClick={() => onChange({ ...draft, annotationDensity: option.value })}
-            >
-              <strong>{option.label}</strong>
-              <span>{option.description}</span>
-            </button>
-          ))}
-        </div>
-      </Field>
+      {agentKind === 'annotation' ? (
+        <Field
+          className="col-span-2"
+          description="决定助手主动批注时的积极程度，会影响提示词和模型采样。"
+          label="批注密度"
+        >
+          <div className="density-grid">
+            {annotationDensityOptions.map((option) => (
+              <button
+                className={
+                  (draft.annotationDensity || 'medium') === option.value
+                    ? 'density-choice is-active'
+                    : 'density-choice'
+                }
+                key={option.value}
+                type="button"
+                onClick={() => onChange({ ...draft, annotationDensity: option.value })}
+              >
+                <strong>{option.label}</strong>
+                <span>{option.description}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+      ) : null}
       <Field className="col-span-2" label="头像">
         <AvatarPicker
           value={draft.avatar || ''}
@@ -1881,7 +2054,7 @@ function AgentForm({
       <Field className="col-span-2" label="个性">
         <div className="personality-editor">
           <div className="personality-grid">
-            {agentPersonalities.map((personality) => (
+            {availablePersonalities.map((personality) => (
               <button
                 className={
                   personalityId === personality.id
@@ -2011,6 +2184,9 @@ function PersonalityIcon({
 }) {
   return (
     <span className={`personality-icon is-${type}`}>
+      {type === 'lens' ? <Search size={17} /> : null}
+      {type === 'scales' ? <Scale size={17} /> : null}
+      {type === 'checklist' ? <ListChecks size={17} /> : null}
       {type === 'leaf' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M8 18c7-9 13-9 18-9-1 9-6 15-15 15" />

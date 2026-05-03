@@ -140,4 +140,10 @@ ALTER TABLE articles ADD COLUMN reading_card_created_at TEXT;
 ALTER TABLE articles ADD COLUMN reading_card_updated_at TEXT;
 `,
   },
+  {
+    id: '0006_agent_kind',
+    sql: `
+ALTER TABLE agents ADD COLUMN kind TEXT NOT NULL DEFAULT 'annotation';
+`,
+  },
 ];

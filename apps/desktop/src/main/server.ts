@@ -75,7 +75,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         type: 'agent:list:result',
         requestId: message.requestId,
         user: toPublicUser(store.user),
-        agents: toPublicAgents(store.agents),
+        agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
       });
       return;
     }
@@ -205,7 +205,7 @@ async function sendStatus(socket: WebSocket) {
     type: 'status',
     ok: true,
     user: toPublicUser(store.user),
-    agents: toPublicAgents(store.agents),
+    agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
   });
 }
 
@@ -224,6 +224,7 @@ function send(socket: WebSocket, message: DesktopServerMessage) {
 function toPublicAgents(agents: Agent[]): PublicAgent[] {
   return agents.map((agent) => ({
     id: agent.id,
+    kind: agent.kind,
     nickname: agent.nickname,
     username: agent.username,
     avatar: agent.avatar,

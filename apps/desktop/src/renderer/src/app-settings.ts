@@ -1,6 +1,7 @@
 import type {
   Agent,
   AgentAnnotationDensity,
+  AgentKind,
   DesktopStore,
   LlmProvider,
   UserProfile,
@@ -9,6 +10,16 @@ import type {
 export type ProviderDraft = Partial<LlmProvider>;
 export type AgentDraft = Partial<Agent> & { personalityId?: string };
 export type UserDraft = Partial<UserProfile>;
+
+export type AgentPersonality = {
+  id: string;
+  kind: AgentKind;
+  name: string;
+  description: string;
+  icon: 'leaf' | 'pyramid' | 'question' | 'quill' | 'lens' | 'scales' | 'checklist';
+  temperature: number;
+  soul: string;
+};
 
 export const annotationColors = [
   '#f4c95d',
@@ -28,9 +39,10 @@ export const defaultAgentSoul =
 
 export const customPersonalityId = 'custom';
 
-export const agentPersonalities = [
+export const annotationAgentPersonalities: AgentPersonality[] = [
   {
     id: 'reading-partner',
+    kind: 'annotation',
     name: '克制阅读伙伴',
     description: '安静陪伴，适度提醒，帮助你稳步理解与反馈。',
     icon: 'leaf',
@@ -39,6 +51,7 @@ export const agentPersonalities = [
   },
   {
     id: 'first-principles',
+    kind: 'annotation',
     name: '第一性原理审阅者',
     description: '回到本质，拆解假设，挑战推理与结论。',
     icon: 'pyramid',
@@ -47,6 +60,7 @@ export const agentPersonalities = [
   },
   {
     id: 'question-coach',
+    kind: 'annotation',
     name: '追问型导师',
     description: '通过追问引导思考，帮助你发现更深层理解。',
     icon: 'question',
@@ -55,13 +69,49 @@ export const agentPersonalities = [
   },
   {
     id: 'insight-synthesizer',
+    kind: 'annotation',
     name: '洞察整理者',
     description: '提炼要点，建立联系，帮助形成可迁移洞察。',
     icon: 'quill',
     temperature: 0.45,
     soul: '你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。',
   },
-] as const;
+];
+
+export const reviewAgentPersonalities: AgentPersonality[] = [
+  {
+    id: 'evidence-reviewer',
+    kind: 'review',
+    name: '证据校验员',
+    description: '核对每条判断是否能回到原文、批注或证据编号。',
+    icon: 'lens',
+    temperature: 0.2,
+    soul: '你是 Yomitomo 的读后卡片证据校验员。你的任务是审查读后卡片中的关键判断是否有充分证据支撑，区分文章观点、读者观点和助手补充，指出证据缺失、归因含混和过度外推。输出要具体、克制、可执行。',
+  },
+  {
+    id: 'reader-focus-reviewer',
+    kind: 'review',
+    name: '读者关注守门员',
+    description: '检查卡片是否保留了读者真实关注和讨论线索。',
+    icon: 'scales',
+    temperature: 0.3,
+    soul: '你是 Yomitomo 的读者关注守门员。你的任务是审查读后卡片是否保留了用户批注、用户评论和讨论 thread 中真正重要的关注点，指出遗漏、错配和被模型声音覆盖的地方。输出要尊重读者视角，并给出具体改写建议。',
+  },
+  {
+    id: 'insight-editor',
+    kind: 'review',
+    name: '洞察编辑',
+    description: '审查洞见是否清晰、可迁移，并压掉泛泛而谈的表达。',
+    icon: 'checklist',
+    temperature: 0.35,
+    soul: '你是 Yomitomo 的读后卡片洞察编辑。你的任务是审查卡片里的核心主张、可复用洞见和后续行动是否准确、精炼、有迁移价值，指出空泛表达和可改写句子。输出要像严谨编辑给出的修改意见。',
+  },
+];
+
+export const agentPersonalities: AgentPersonality[] = [
+  ...annotationAgentPersonalities,
+  ...reviewAgentPersonalities,
+];
 
 export const customPersonality = {
   id: customPersonalityId,
@@ -70,6 +120,15 @@ export const customPersonality = {
   icon: 'custom',
   temperature: 0.7,
 } as const;
+
+export const agentKindOptions: Array<{
+  value: AgentKind;
+  label: string;
+  description: string;
+}> = [
+  { value: 'annotation', label: '阅读助手', description: '参与阅读器批注和评论讨论' },
+  { value: 'review', label: '审核助手', description: '审读读后卡片和整理产物' },
+];
 
 export const annotationDensityOptions: Array<{
   value: AgentAnnotationDensity;
@@ -108,12 +167,13 @@ export const emptyStore: DesktopStore = {
 
 export function createEmptyAgent(defaultAvatar: string): AgentDraft {
   return {
+    kind: 'annotation',
     nickname: '阅读伙伴',
     username: 'yomitomo',
     avatar: defaultAvatar,
     annotationColor: annotationColors[1],
     annotationDensity: 'medium',
-    temperature: agentPersonalities[0].temperature,
+    temperature: annotationAgentPersonalities[0]?.temperature ?? 0.35,
     soul: defaultAgentSoul,
   };
 }
@@ -128,6 +188,17 @@ export function agentPersonalityName(agent: Agent) {
   return (
     agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || '自定义个性'
   );
+}
+
+export function agentKindLabel(kind: AgentKind | undefined) {
+  return (
+    agentKindOptions.find((option) => option.value === (kind || 'annotation'))?.label || '阅读助手'
+  );
+}
+
+export function personalitiesForKind(kind: AgentKind | undefined) {
+  const normalizedKind = kind || 'annotation';
+  return agentPersonalities.filter((personality) => personality.kind === normalizedKind);
 }
 
 export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
@@ -163,6 +234,7 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
 
   return (
     (draft.providerId || '') !== agent.providerId ||
+    (draft.kind || 'annotation') !== (agent.kind || 'annotation') ||
     (draft.nickname || '').trim() !== agent.nickname ||
     (draft.username || '').trim() !== agent.username ||
     (draft.avatar || '').trim() !== agent.avatar ||

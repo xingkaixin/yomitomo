@@ -6,6 +6,8 @@ export type AnnotationType = 'key_point' | 'assumption' | 'concept' | 'question'
 
 export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
+export type AgentKind = 'annotation' | 'review';
+
 export type LlmProvider = {
   id: string;
   name: string;
@@ -19,6 +21,7 @@ export type LlmProvider = {
 
 export type Agent = {
   id: string;
+  kind: AgentKind;
   providerId: string;
   nickname: string;
   username: string;
