@@ -2030,20 +2030,20 @@ function sanitizeUsernameInput(value: string) {
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error);
+    reader.addEventListener("load", () => resolve(String(reader.result || "")), { once: true });
+    reader.addEventListener("error", () => reject(reader.error), { once: true });
     reader.readAsDataURL(file);
   });
 }
 
 function sortArticles(articles: ArticleRecord[]) {
-  return [...articles].sort(
+  return [...articles].toSorted(
     (left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt),
   );
 }
 
 function sortAnnotations(annotations: Annotation[]) {
-  return [...annotations].sort((left, right) => {
+  return [...annotations].toSorted((left, right) => {
     const leftStart = Number.isFinite(left.anchor.start) ? left.anchor.start : 0;
     const rightStart = Number.isFinite(right.anchor.start) ? right.anchor.start : 0;
     if (leftStart !== rightStart) return leftStart - rightStart;
@@ -2087,21 +2087,25 @@ function urlHost(value: string) {
 
 function buildReadingCard(article: ArticleRecord) {
   const sections = buildReadingCardSections(article);
-  return [
+  const lines = [
     `# ${article.title}`,
     "",
     `来源：${article.canonicalUrl || article.url}`,
     `更新时间：${formatDateTime(article.updatedAt)}`,
     "",
-    ...sections.flatMap((section) => [
-      `## ${section.title}`,
-      "",
-      ...(section.items.length > 0 ? section.items.map((item) => `- ${item}`) : ["- 暂无"]),
-      "",
-    ]),
-  ]
-    .join("\n")
-    .trim();
+  ];
+
+  for (const section of sections) {
+    lines.push(`## ${section.title}`, "");
+    if (section.items.length > 0) {
+      for (const item of section.items) lines.push(`- ${item}`);
+    } else {
+      lines.push("- 暂无");
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
 }
 
 function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] {

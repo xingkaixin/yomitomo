@@ -292,7 +292,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
       }))
-      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
+      .toSorted((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
   };
 }
 
@@ -478,12 +478,13 @@ function normalizeStore(store: DesktopStore): DesktopStore {
   return {
     user: normalizeUser(store.user),
     providers: store.providers || [],
-    agents: (store.agents || []).map((agent) => ({
-      ...agent,
-      annotationColor: agent.annotationColor || "#8ab6d6",
-      annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || "medium",
-      temperature: normalizeTemperature(agent.temperature),
-    })),
+    agents: (store.agents || []).map((agent) =>
+      Object.assign({}, agent, {
+        annotationColor: agent.annotationColor || "#8ab6d6",
+        annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || "medium",
+        temperature: normalizeTemperature(agent.temperature),
+      }),
+    ),
     articles: store.articles || [],
   };
 }
@@ -521,7 +522,7 @@ function userToRow(user: UserProfile): typeof schema.userProfiles.$inferInsert {
 }
 
 function sortByCreatedAt<T extends { createdAt: string }>(items: T[]) {
-  return [...items].sort((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
+  return [...items].toSorted((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
 }
 
 function normalizeUsername(value: string, fallback = "me") {

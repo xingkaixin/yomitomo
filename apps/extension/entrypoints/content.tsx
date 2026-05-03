@@ -299,6 +299,10 @@ function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfi
   };
 }
 
+function agentQueueKey(annotation: Annotation) {
+  return annotation.agentId || annotation.agentUsername || "__agent__";
+}
+
 function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -753,11 +757,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       anchor,
     });
     setTemporaryBoxes(
-      rangeHighlightBoxes(range, canvasRect, "selection").map((box) => ({
-        ...box,
-        annotationId: "__selection__",
-        color: userProfile.annotationColor,
-      })),
+      rangeHighlightBoxes(range, canvasRect, "selection").map((box) =>
+        Object.assign({}, box, {
+          annotationId: "__selection__",
+          color: userProfile.annotationColor,
+        }),
+      ),
     );
     selection.removeAllRanges();
   }
@@ -831,10 +836,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       agent: key,
       size: queuedAnnotationsCount(),
     });
-  }
-
-  function agentQueueKey(annotation: Annotation) {
-    return annotation.agentId || annotation.agentUsername || "__agent__";
   }
 
   function queuedAnnotationsCount() {
@@ -1098,12 +1099,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     });
     await sleep(420);
 
-    const boxes = rangeHighlightBoxes(
+    const theaterBoxes = rangeHighlightBoxes(
       range,
       canvas.getBoundingClientRect(),
       `theater_${annotation.id}`,
-    ).map((box) => ({ ...box, annotationId: annotation.id, color: annotation.color }));
-    await animateTheaterHighlight(boxes, annotation.anchor.exact.length, (nextBoxes) => {
+    ).map((box) =>
+      Object.assign({}, box, { annotationId: annotation.id, color: annotation.color }),
+    );
+    await animateTheaterHighlight(theaterBoxes, annotation.anchor.exact.length, (nextBoxes) => {
       const cursorBox = nextBoxes[nextBoxes.length - 1];
       if (cursorBox) {
         const canvasRect = canvas.getBoundingClientRect();
@@ -2221,7 +2224,7 @@ function animateTheaterHighlight(
   textLength: number,
   onFrame: (boxes: HighlightBox[]) => void,
 ) {
-  const sortedBoxes = [...boxes].sort((a, b) => a.top - b.top || a.left - b.left);
+  const sortedBoxes = [...boxes].toSorted((a, b) => a.top - b.top || a.left - b.left);
   const duration = clampNumber(textLength * 28, 780, 2600, 1200);
   const start = performance.now();
 
