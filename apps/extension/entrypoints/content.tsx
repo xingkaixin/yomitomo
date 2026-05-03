@@ -5,7 +5,10 @@ import DOMPurify from 'dompurify';
 import {
   Bot,
   CaseSensitive,
+  ChevronDown,
+  ChevronUp,
   Maximize2,
+  MessageSquare,
   MessageSquarePlus,
   Minus,
   Plus,
@@ -95,10 +98,24 @@ type TocItem = {
   index: number;
   text: string;
   depth: number;
+  start: number;
+  end: number;
 };
 
-type TocEntry = TocItem & {
+type TocEntry = Omit<TocItem, 'start' | 'end'> & {
   target: HTMLElement;
+};
+
+type NoteFilter = 'all' | 'ai' | 'user';
+
+type TocAnnotationStats = {
+  count: number;
+  colors: string[];
+};
+
+type ActiveConnection = {
+  path: string;
+  color: string;
 };
 
 type ReaderSettings = {
@@ -339,6 +356,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const notesRef = useRef<HTMLElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const annotationsRef = useRef<Annotation[]>([]);
   const articleRecordRef = useRef<ArticleRecord | null>(null);
@@ -366,14 +384,31 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [annotatingAgents, setAnnotatingAgents] = useState<string[]>([]);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
+  const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
 
   const storageKey = `${STORAGE_PREFIX}${extracted.id}`;
   const legacyStorageKey = `${LEGACY_STORAGE_PREFIX}${extracted.id}`;
   const shortcutModifier = getShortcutModifier();
+  const annotationTotals = useMemo(
+    () => ({
+      annotations: annotations.length,
+      comments: annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+    }),
+    [annotations],
+  );
+  const tocAnnotationStats = useMemo(
+    () => buildTocAnnotationStats(tocItems, annotations, userProfile, agents),
+    [agents, annotations, tocItems, userProfile],
+  );
+  const filteredAnnotations = useMemo(() => {
+    if (noteFilter === 'all') return annotations;
+    return annotations.filter((annotation) => annotation.author === noteFilter);
+  }, [annotations, noteFilter]);
 
   useEffect(() => {
     annotationsRef.current = annotations;
@@ -383,6 +418,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const article = articleRef.current;
     if (article) setTocItems(extractTocItems(article));
   }, [extracted.content]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    if (filteredAnnotations.some((annotation) => annotation.id === activeId)) return;
+    setActiveId(filteredAnnotations[0]?.id || null);
+  }, [activeId, filteredAnnotations]);
 
   useEffect(() => {
     browser.storage.local
@@ -576,6 +617,59 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setBoxes(nextBoxes);
   }, [agents, annotations, userProfile]);
 
+  const recalculateActiveConnection = useCallback(() => {
+    if (!activeId) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const surface = surfaceRef.current;
+    const notes = notesRef.current;
+    const note = noteRefs.current.get(activeId);
+    const annotation = annotations.find((item) => item.id === activeId);
+    const activeBoxes = boxes.filter((box) => box.annotationId === activeId);
+    if (!canvas || !surface || !notes || !note || !annotation || activeBoxes.length === 0) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const surfaceRect = surface.getBoundingClientRect();
+    const notesRect = notes.getBoundingClientRect();
+    const noteRect = note.getBoundingClientRect();
+    const noteY = noteRect.top + Math.min(72, noteRect.height / 2);
+    const box = activeBoxes.toSorted((left, right) => {
+      const leftY = canvasRect.top + left.top + left.height / 2;
+      const rightY = canvasRect.top + right.top + right.height / 2;
+      return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
+    })[0];
+    if (!box) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const startX = canvasRect.left + box.left + box.width + 6;
+    const startY = canvasRect.top + box.top + box.height / 2;
+    const endX = noteRect.left - 8;
+    const endY = noteY;
+    const highlightVisible = startY >= surfaceRect.top - 24 && startY <= surfaceRect.bottom + 24;
+    const noteVisible =
+      noteRect.bottom >= notesRect.top + 24 && noteRect.top <= notesRect.bottom - 24;
+    if (!highlightVisible || !noteVisible) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const direction = endX >= startX ? 1 : -1;
+    const tension = Math.max(48, Math.abs(endX - startX) * 0.42);
+    const path = `M ${startX} ${startY} C ${startX + tension * direction} ${startY}, ${endX - tension * direction} ${endY}, ${endX} ${endY}`;
+    const color = annotationColor(annotation, userProfile, agents);
+    setActiveConnection((current) =>
+      current?.path === path && current.color === color ? current : { path, color },
+    );
+  }, [activeId, agents, annotations, boxes, userProfile]);
+
   useEffect(() => {
     let closed = false;
     let reconnectTimer = 0;
@@ -634,6 +728,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     recalculateHighlights();
   }, [recalculateHighlights, readerSettings]);
 
+  useLayoutEffect(() => {
+    recalculateActiveConnection();
+  }, [recalculateActiveConnection]);
+
   useEffect(() => {
     const surface = surfaceRef.current;
     if (!surface) return;
@@ -652,6 +750,26 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       window.removeEventListener('resize', schedule);
     };
   }, [recalculateHighlights]);
+
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    const notes = notesRef.current;
+    let frame = 0;
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(recalculateActiveConnection);
+    };
+
+    surface?.addEventListener('scroll', schedule, { passive: true });
+    notes?.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      surface?.removeEventListener('scroll', schedule);
+      notes?.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [recalculateActiveConnection]);
 
   async function handleDesktopMessage(message: DesktopServerMessage) {
     if (message.type === 'status' || message.type === 'agent:list:result') {
@@ -1425,17 +1543,33 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       <main className="reader-main">
         <aside className={tocItems.length > 0 ? 'reader-toc' : 'reader-toc is-empty'}>
           <div className="reader-toc-title">目录</div>
-          {tocItems.map((item) => (
-            <button
-              className="reader-toc-item"
-              data-depth={Math.min(item.depth, 4)}
-              key={`${item.index}-${item.text}`}
-              type="button"
-              onClick={() => scrollToHeading(item)}
-            >
-              {item.text}
-            </button>
-          ))}
+          {tocItems.map((item) => {
+            const stats = isPrimaryTocItem(item) ? tocAnnotationStats.get(item.index) : undefined;
+            return (
+              <button
+                className="reader-toc-item"
+                data-depth={Math.min(item.depth, 4)}
+                key={`${item.index}-${item.text}`}
+                type="button"
+                onClick={() => scrollToHeading(item)}
+              >
+                <span className="reader-toc-item-main">
+                  <span>{item.text}</span>
+                  {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
+                </span>
+                {(stats?.colors.length || 0) > 0 ? (
+                  <span className="reader-toc-markers">
+                    {stats!.colors.slice(0, 5).map((color) => (
+                      <i key={color} style={{ backgroundColor: color }} />
+                    ))}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
+          <div className="reader-toc-summary">
+            共 {annotationTotals.annotations} 条批注 · {annotationTotals.comments} 条评论
+          </div>
         </aside>
 
         <section className="reader-surface" ref={surfaceRef} onMouseUp={handleMouseUp}>
@@ -1506,22 +1640,40 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           </div>
         </section>
 
-        <aside className="reader-notes">
+        <aside className="reader-notes" ref={notesRef}>
           <div className="reader-notes-header">
-            <strong>批注</strong>
-            <div className="reader-notes-actions">
-              <button
-                className={
-                  agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
-                }
-                type="button"
-                disabled={!desktopConnected || agents.length === 0}
-                onClick={() => setAgentAnnotateOpen((open) => !open)}
-              >
-                <Bot size={14} />
-                {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
-              </button>
-              <span>{annotations.length}</span>
+            <div className="reader-notes-title-row">
+              <strong>批注</strong>
+              <div className="reader-notes-actions">
+                <button
+                  className={
+                    agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
+                  }
+                  type="button"
+                  disabled={!desktopConnected || agents.length === 0}
+                  onClick={() => setAgentAnnotateOpen((open) => !open)}
+                >
+                  <Bot size={14} />
+                  {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
+                </button>
+              </div>
+            </div>
+            <div className="reader-note-filters">
+              <FilterButton
+                active={noteFilter === 'all'}
+                label="全部"
+                onClick={() => setNoteFilter('all')}
+              />
+              <FilterButton
+                active={noteFilter === 'ai'}
+                label="助手批注"
+                onClick={() => setNoteFilter('ai')}
+              />
+              <FilterButton
+                active={noteFilter === 'user'}
+                label="我的批注"
+                onClick={() => setNoteFilter('user')}
+              />
             </div>
           </div>
           {agentAnnotateOpen ? (
@@ -1535,7 +1687,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             />
           ) : null}
           {annotations.length === 0 ? <EmptyNotes /> : null}
-          {annotations.map((annotation) => (
+          {annotations.length > 0 && filteredAnnotations.length === 0 ? (
+            <div className="reader-empty">
+              <strong>没有匹配的批注</strong>
+              <p>切换筛选项可以查看其他批注。</p>
+            </div>
+          ) : null}
+          {filteredAnnotations.map((annotation) => (
             <AnnotationCard
               active={annotation.id === activeAnnotation?.id}
               agents={agents}
@@ -1555,6 +1713,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           ))}
         </aside>
       </main>
+
+      {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
       {virtualCursors.map((cursor) =>
         cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,
@@ -1577,6 +1737,30 @@ function SelectionMenu({
         批注
       </button>
     </div>
+  );
+}
+
+function FilterButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className={active ? 'is-active' : ''} type="button" onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
+function AnnotationConnection({ connection }: { connection: ActiveConnection }) {
+  return (
+    <svg className="reader-annotation-connection" aria-hidden="true">
+      <path d={connection.path} style={{ stroke: connection.color }} />
+    </svg>
   );
 }
 
@@ -1665,6 +1849,33 @@ function commentPersona(comment: Comment, userProfile: UserProfile, agents: Publ
 
 function annotationColor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
   return annotationAuthor(annotation, userProfile, agents).color;
+}
+
+function buildTocAnnotationStats(
+  tocItems: TocItem[],
+  annotations: Annotation[],
+  userProfile: UserProfile,
+  agents: PublicAgent[],
+) {
+  const stats = new Map<number, TocAnnotationStats>();
+
+  for (const item of tocItems) {
+    const sectionAnnotations = annotations.filter(
+      (annotation) => annotation.anchor.start >= item.start && annotation.anchor.start < item.end,
+    );
+    const colors = Array.from(
+      new Set(
+        sectionAnnotations.map((annotation) => annotationColor(annotation, userProfile, agents)),
+      ),
+    );
+    stats.set(item.index, { count: sectionAnnotations.length, colors });
+  }
+
+  return stats;
+}
+
+function isPrimaryTocItem(item: TocItem) {
+  return item.depth <= 1;
 }
 
 function annotationTypeLabel(type: AnnotationType) {
@@ -1875,6 +2086,7 @@ function AnnotationCard({
   onFocus: (annotationId: string) => void;
 }) {
   const [draft, setDraft] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
@@ -1905,6 +2117,7 @@ function AnnotationCard({
   useEffect(() => () => stopDeleteTimer(), []);
 
   function submit() {
+    if (draft.trim()) setExpanded(true);
     onAddComment(annotation.id, draft);
     setDraft('');
     setCaretIndex(0);
@@ -1982,94 +2195,132 @@ function AnnotationCard({
       ref={noteRef}
       style={noteStyle(author.color, active)}
     >
-      <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
-        <span className="reader-note-persona">
-          <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-          <strong>{author.nickname}</strong>
-          <em>@{author.username}</em>
-        </span>
-        {annotation.annotationType ? (
-          <span className="reader-note-type">{annotationTypeLabel(annotation.annotationType)}</span>
-        ) : null}
-        <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
-      </button>
-      <div className="reader-comments">
-        {annotation.comments.length === 0 ? (
-          <p className="reader-muted">已高亮，暂无文字批注。</p>
-        ) : null}
-        {annotation.comments.map((comment) => {
-          const commentAuthor = commentPersona(comment, userProfile, agents);
-          return (
-            <div className="reader-comment" key={comment.id}>
-              <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
-              <div className="reader-comment-body">
-                <div className="reader-comment-author">
-                  <strong>{commentAuthor.nickname}</strong>
-                  <em>@{commentAuthor.username}</em>
-                </div>
-                <MarkdownContent content={comment.content} pending={comment.pending} />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="reader-comment-box">
-        <textarea
-          autoFocus={active}
-          ref={textareaRef}
-          placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.currentTarget.value);
-            updateCaret(event.currentTarget);
-          }}
-          onClick={(event) => updateCaret(event.currentTarget)}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          onSelect={(event) => updateCaret(event.currentTarget)}
-        />
-        {matchedAgents.length > 0 ? (
-          <div className="reader-agent-menu">
-            {matchedAgents.map((agent, index) => (
-              <button
-                className={index === selectedMentionIndex ? 'is-active' : ''}
-                key={agent.id}
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => selectAgent(agent)}
-              >
-                <AvatarBadge avatar={agent.avatar} />
-                <strong>{agent.nickname}</strong>
-                <em>@{agent.username}</em>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="reader-note-footer">
+      <div className="reader-note-shell">
         <button
-          className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
-          style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+          className="reader-comment-count"
+          style={{ '--comment-color': author.color } as React.CSSProperties}
           type="button"
-          aria-label="长按删除批注"
-          onClick={(event) => event.preventDefault()}
-          onContextMenu={(event) => event.preventDefault()}
-          onPointerCancel={clearDeleteHold}
-          onPointerDown={startDeleteHold}
-          onPointerLeave={clearDeleteHold}
-          onPointerUp={clearDeleteHold}
+          onClick={() => setExpanded((open) => !open)}
+          aria-label={`${annotation.comments.length} 条评论`}
         >
-          <Trash2 size={13} />
-          <span>长按删除批注</span>
+          <MessageSquare size={14} />
+          <span>{annotation.comments.length}</span>
         </button>
-        <div className="reader-shortcut-hint">
-          <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
-          <Kbd className="reader-kbd">Enter</Kbd>
-          <span>发送</span>
+        <div className="reader-note-body">
+          <button
+            className="reader-note-anchor"
+            type="button"
+            onClick={() => onFocus(annotation.id)}
+          >
+            <span className="reader-note-persona">
+              <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+              <strong>{author.nickname}</strong>
+              <em>@{author.username}</em>
+            </span>
+            {annotation.annotationType ? (
+              <span className="reader-note-type">
+                {annotationTypeLabel(annotation.annotationType)}
+              </span>
+            ) : null}
+            <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
+          </button>
+          <div className="reader-note-toolbar">
+            <button
+              className="reader-comment-toggle"
+              type="button"
+              onClick={() => setExpanded((open) => !open)}
+            >
+              <MessageSquare size={14} />
+              {annotation.comments.length} 条评论
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <button
+              className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
+              style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+              type="button"
+              aria-label="长按删除批注"
+              onClick={(event) => event.preventDefault()}
+              onContextMenu={(event) => event.preventDefault()}
+              onPointerCancel={clearDeleteHold}
+              onPointerDown={startDeleteHold}
+              onPointerLeave={clearDeleteHold}
+              onPointerUp={clearDeleteHold}
+            >
+              <Trash2 size={13} />
+              <span>长按删除</span>
+            </button>
+          </div>
+          {expanded ? (
+            <>
+              <div className="reader-comments">
+                {annotation.comments.length === 0 ? (
+                  <p className="reader-muted">已高亮，暂无文字批注。</p>
+                ) : null}
+                {annotation.comments.map((comment) => {
+                  const commentAuthor = commentPersona(comment, userProfile, agents);
+                  return (
+                    <div className="reader-comment" key={comment.id}>
+                      <AvatarBadge
+                        avatar={commentAuthor.avatar}
+                        fallback={commentAuthor.fallback}
+                      />
+                      <div className="reader-comment-body">
+                        <div className="reader-comment-author">
+                          <strong>{commentAuthor.nickname}</strong>
+                          <em>@{commentAuthor.username}</em>
+                        </div>
+                        <MarkdownContent content={comment.content} pending={comment.pending} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="reader-comment-box">
+                <textarea
+                  autoFocus={active}
+                  ref={textareaRef}
+                  placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
+                  value={draft}
+                  onChange={(event) => {
+                    setDraft(event.currentTarget.value);
+                    updateCaret(event.currentTarget);
+                  }}
+                  onClick={(event) => updateCaret(event.currentTarget)}
+                  onKeyDown={handleKeyDown}
+                  onKeyUp={handleKeyUp}
+                  onSelect={(event) => updateCaret(event.currentTarget)}
+                />
+                {matchedAgents.length > 0 ? (
+                  <div className="reader-agent-menu">
+                    {matchedAgents.map((agent, index) => (
+                      <button
+                        className={index === selectedMentionIndex ? 'is-active' : ''}
+                        key={agent.id}
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectAgent(agent)}
+                      >
+                        <AvatarBadge avatar={agent.avatar} />
+                        <strong>{agent.nickname}</strong>
+                        <em>@{agent.username}</em>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="reader-note-footer">
+                <div className="reader-shortcut-hint">
+                  <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
+                  <Kbd className="reader-kbd">Enter</Kbd>
+                  <span>发送</span>
+                </div>
+                <button className="reader-add-comment" type="button" onClick={submit}>
+                  添加评论
+                </button>
+              </div>
+            </>
+          ) : null}
         </div>
-        <button className="reader-add-comment" type="button" onClick={submit}>
-          添加评论
-        </button>
       </div>
     </section>
   );
@@ -2099,7 +2350,30 @@ function isRangeInsideArticle(range: Range, article: HTMLElement) {
 }
 
 function extractTocItems(article: HTMLElement) {
-  return getTocEntries(article).map(({ index, text, depth }) => ({ index, text, depth }));
+  const entries = getTocEntries(article)
+    .map((entry) => ({
+      index: entry.index,
+      target: entry.target,
+      text: entry.text,
+      depth: entry.depth,
+      start: offsetFromArticleStart(article, entry.target, 0),
+    }))
+    .toSorted((left, right) => left.start - right.start);
+  const textLength = article.textContent?.length || 0;
+
+  return entries.map((entry, index) => {
+    const isRootIntro = index === 0 && entries[1] && entry.depth < entries[1].depth;
+    const nextEntry = entries
+      .slice(index + 1)
+      .find((item) => (isRootIntro ? true : item.depth <= entry.depth));
+    return {
+      index: entry.index,
+      text: entry.text,
+      depth: entry.depth,
+      start: entry.start,
+      end: nextEntry?.start || textLength,
+    };
+  });
 }
 
 function findCurrentTocTarget(article: HTMLElement, item: TocItem) {
@@ -2525,6 +2799,27 @@ const readerConversationStyles = `
 .reader-delete-note svg,.reader-delete-note span{position:relative;z-index:1}
 .reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
 @keyframes reader-delete-hold{to{width:100%}}
+.reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.reader-toc-item-main span{overflow:hidden;text-overflow:ellipsis}
+.reader-toc-item-main strong{display:grid;min-width:24px;height:24px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-ink);font-size:11px;font-weight:850}
+.reader-toc-markers{display:flex;align-items:center;gap:5px;margin-top:5px}
+.reader-toc-markers i{width:8px;height:8px;border:1px solid rgba(37,29,22,.14);border-radius:999px;box-shadow:0 1px 2px rgba(37,29,22,.12)}
+.reader-toc-summary{margin-top:18px;padding:12px 10px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:rgba(255,250,240,.72);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760;line-height:1.4}
+.reader-notes-header{display:grid;gap:12px}
+.reader-notes-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reader-note-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:rgba(255,250,240,.76)}
+.reader-note-filters button{height:30px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:12px;font-weight:820}
+.reader-note-filters button:hover,.reader-note-filters button.is-active{background:#fffaf0;color:var(--reader-ink);box-shadow:0 1px 4px rgba(55,42,24,.08)}
+.reader-note-shell{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px}
+.reader-note-body{min-width:0}
+.reader-comment-count{position:sticky;top:112px;display:grid;width:30px;height:42px;place-items:center;border:1px solid color-mix(in srgb,var(--comment-color,#251d16) 38%,transparent);border-radius:999px;background:color-mix(in srgb,var(--comment-color,#251d16) 10%,#fffaf0);color:var(--comment-color,#251d16);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:4px 0}
+.reader-comment-count span{line-height:1}
+.reader-note-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.reader-comment-toggle{display:inline-flex;align-items:center;gap:6px;height:34px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;padding:0 10px}
+.reader-comment-toggle:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-note-toolbar .reader-delete-note{height:34px;margin-right:0;padding:0 10px}
+.reader-annotation-connection{position:fixed;inset:0;z-index:4;width:100vw;height:100vh;overflow:visible;pointer-events:none}
+.reader-annotation-connection path{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 4px 8px rgba(55,42,24,.18));opacity:.92}
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
 .reader-note-anchor .reader-note-type{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(183,53,44,.18);border-radius:999px;background:rgba(183,53,44,.08);color:#8f2f28;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:5px 8px}
 @media(max-width:980px){.reader-notes{width:min(560px,calc(100vw - 28px))}}
