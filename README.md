@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/yomitomo-logo.png" alt="Yomitomo logo" width="120" />
+</p>
+
 # Yomitomo
 
 Yomitomo 是面向深度阅读的本地阅读伙伴，把网页阅读、文本批注、讨论线程和 AI 助手放进同一个阅读现场。它的目标是让用户在阅读时直接留下判断、追问和上下文，并让 AI 助手围绕原文参与批注。

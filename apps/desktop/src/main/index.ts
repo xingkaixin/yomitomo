@@ -7,6 +7,7 @@ import { getLogPath, logInfo } from "./logger";
 import { broadcastStatus, startLocalServer } from "./server";
 
 let mainWindow: BrowserWindow | null = null;
+const appIconPath = join(__dirname, "../../resources/icon.png");
 
 app.setName("@yomitomo/desktop");
 
@@ -17,6 +18,7 @@ async function createWindow() {
     minWidth: 980,
     minHeight: 700,
     title: "Yomitomo",
+    icon: appIconPath,
     webPreferences: {
       preload: join(__dirname, "../preload/index.mjs"),
       sandbox: false,
@@ -35,6 +37,7 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   logInfo("app.ready", { logPath: getLogPath() });
+  if (process.platform === "darwin") app.dock.setIcon(appIconPath);
   registerIpc();
   await startLocalServer();
   await createWindow();

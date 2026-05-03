@@ -1,5 +1,13 @@
 import { defineConfig } from "wxt";
 
+const icons = {
+  16: "icon/16.png",
+  32: "icon/32.png",
+  48: "icon/48.png",
+  96: "icon/96.png",
+  128: "icon/128.png"
+};
+
 export default defineConfig({
   outDir: "dist",
   modules: ["@wxt-dev/module-react"],
@@ -17,9 +25,11 @@ export default defineConfig({
     version: "0.0.1",
     permissions: ["activeTab", "storage", "tabs"],
     host_permissions: ["<all_urls>", "ws://127.0.0.1/*"],
+    icons,
     action: {
       default_title: "Yomitomo",
-      default_popup: "popup.html"
+      default_popup: "popup.html",
+      default_icon: icons
     }
   }
 });
