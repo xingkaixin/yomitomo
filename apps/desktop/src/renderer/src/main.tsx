@@ -734,8 +734,26 @@ function AnnotationNotebook({
               {formatDate(article.updatedAt)}
             </p>
           </div>
-          <div className="annotation-counter">
-            {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : "0 / 0"}
+          <div className="annotation-pagination">
+            <button
+              aria-label="上一条批注"
+              type="button"
+              disabled={!canPage}
+              onClick={() => selectByOffset(-1)}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span>
+              {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : "0 / 0"}
+            </span>
+            <button
+              aria-label="下一条批注"
+              type="button"
+              disabled={!canPage}
+              onClick={() => selectByOffset(1)}
+            >
+              <ChevronRight size={17} />
+            </button>
           </div>
         </header>
 
@@ -781,24 +799,6 @@ function AnnotationNotebook({
             </div>
             <footer className="notebook-footer">
               <time>批注时间：{formatDateTime(annotation.createdAt)}</time>
-              <div className="page-actions">
-                <button
-                  aria-label="上一条批注"
-                  type="button"
-                  disabled={!canPage}
-                  onClick={() => selectByOffset(-1)}
-                >
-                  <ChevronLeft size={17} />
-                </button>
-                <button
-                  aria-label="下一条批注"
-                  type="button"
-                  disabled={!canPage}
-                  onClick={() => selectByOffset(1)}
-                >
-                  <ChevronRight size={17} />
-                </button>
-              </div>
             </footer>
           </>
         ) : (
