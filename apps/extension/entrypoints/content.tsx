@@ -91,7 +91,7 @@ type HighlightBox = {
 };
 
 type TocItem = {
-  id: string;
+  targetId: string;
   text: string;
   depth: number;
 };
@@ -1254,8 +1254,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (firstRect && surface) scrollReaderSurfaceToRect(surface, firstRect, 96);
   }
 
-  function scrollToHeading(id: string) {
-    const heading = articleRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+  function scrollToHeading(targetId: string) {
+    const heading = articleRef.current?.querySelector<HTMLElement>(
+      `[data-reader-toc-id="${CSS.escape(targetId)}"]`,
+    );
     const surface = surfaceRef.current;
     if (!heading || !surface) return;
 
@@ -1318,9 +1320,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             <button
               className="reader-toc-item"
               data-depth={Math.min(item.depth, 4)}
-              key={item.id}
+              key={item.targetId}
               type="button"
-              onClick={() => scrollToHeading(item.id)}
+              onClick={() => scrollToHeading(item.targetId)}
             >
               {item.text}
             </button>
@@ -2014,8 +2016,9 @@ function collectTocCandidates(elements: HTMLElement[], getDepth: (element: HTMLE
     .map((element, index) => {
       const text = element.textContent?.trim().replace(/\s+/g, " ") || "";
       if (!text) return null;
-      if (!element.id) element.id = `reader-heading-${hashText(`${index}:${text}`)}`;
-      return { id: element.id, text, depth: getDepth(element) };
+      const targetId = `reader-toc-${index}-${hashText(text)}`;
+      element.dataset.readerTocId = targetId;
+      return { targetId, text, depth: getDepth(element) };
     })
     .filter((item): item is TocItem => Boolean(item));
 }
