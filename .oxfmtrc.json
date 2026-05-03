@@ -18,6 +18,8 @@
     "**/out/**",
     "**/build/**",
     "**/coverage/**",
+    "AGENTS.md",
+    "pnpm-workspace.yaml",
     "public/scripts/**"
   ]
 }

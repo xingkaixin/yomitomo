@@ -7,7 +7,7 @@
     "build": "turbo build",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
-    "format": "oxfmt --write .",
+    "format": "oxfmt --write \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
     "test": "turbo test"
   },
   "devDependencies": {
