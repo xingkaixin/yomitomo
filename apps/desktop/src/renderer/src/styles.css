@@ -37,6 +37,8 @@
     background: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   button,
@@ -44,6 +46,19 @@
   select,
   textarea {
     font: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  blockquote {
+    text-wrap: pretty;
   }
 }
 
@@ -93,9 +108,10 @@
 }
 
 .sidebar-collapse-button {
+  position: relative;
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   flex: none;
   place-items: center;
   border: 1px solid hsl(var(--border) / 0.78);
@@ -103,11 +119,24 @@
   background: hsl(var(--card) / 0.62);
   color: hsl(var(--foreground));
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
   -webkit-app-region: no-drag;
+}
+
+.sidebar-collapse-button::before {
+  position: absolute;
+  inset: -4px;
+  content: '';
 }
 
 .sidebar-collapse-button:hover {
   background: hsl(var(--primary) / 0.08);
+}
+
+.sidebar-collapse-button:active {
+  transform: scale(0.96);
 }
 
 .app-header-copy {
@@ -183,6 +212,10 @@
   font-weight: 780;
   padding: 0 11px;
   text-align: left;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
 }
 
 .settings-nav-item:hover,
@@ -193,6 +226,10 @@
 
 .settings-nav-item svg {
   flex: none;
+}
+
+.settings-nav-item:active {
+  transform: scale(0.96);
 }
 
 .app-shell.is-sidebar-collapsed .settings-nav-item {
@@ -402,7 +439,7 @@
 }
 
 .config-list-item:active {
-  transform: translateY(1px) scale(0.99);
+  transform: translateY(1px) scale(0.96);
 }
 
 .config-list-item strong {
@@ -490,7 +527,7 @@
 
 .action-button:active:not(:disabled) {
   box-shadow: 0 4px 12px hsl(31 34% 24% / 0.1);
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(1px) scale(0.96);
 }
 
 .action-button:disabled {
@@ -545,7 +582,7 @@
 
 @keyframes save-confirm {
   0% {
-    transform: scale(0.98);
+    transform: scale(0.96);
   }
 
   45% {
@@ -615,7 +652,7 @@
 }
 
 .provider-select-trigger:active:not(:disabled) {
-  transform: translateY(1px) scale(0.995);
+  transform: translateY(1px) scale(0.96);
 }
 
 .provider-select-trigger > span:first-child {
@@ -706,6 +743,7 @@
 .stats-metric strong {
   display: block;
   font-size: 24px;
+  font-variant-numeric: tabular-nums;
   font-weight: 900;
   line-height: 1;
 }
@@ -794,6 +832,7 @@
   display: block;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 23px;
+  font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1;
 }
@@ -868,6 +907,7 @@
 }
 
 .library-item-count {
+  font-variant-numeric: tabular-nums;
   font-weight: 800;
 }
 
@@ -1041,20 +1081,32 @@
   background: hsl(43 58% 93% / 0.72);
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   font-weight: 850;
   padding: 6px 10px;
 }
 
 .annotation-pagination button {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 1px solid hsl(36 31% 72%);
   border-radius: 999px;
   background: hsl(43 58% 93% / 0.72);
   color: hsl(var(--foreground));
   cursor: pointer;
+  transition:
+    background 140ms ease,
+    transform 140ms ease;
+}
+
+.annotation-pagination button:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.annotation-pagination button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .annotation-pagination button:disabled {
@@ -1109,8 +1161,8 @@
 
 .copy-icon-button {
   display: grid;
-  width: 30px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   margin-left: auto;
   border: 0;
@@ -1131,7 +1183,7 @@
 }
 
 .copy-icon-button:active {
-  transform: scale(0.9);
+  transform: scale(0.96);
 }
 
 .copy-icon-button.is-copied {
@@ -1343,6 +1395,7 @@
 .notebook-footer time {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .reading-card {
@@ -1543,8 +1596,8 @@
   top: 50%;
   right: 8px;
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   transform: translateY(-50%);
   border: 0;
@@ -1564,7 +1617,7 @@
 }
 
 .secret-toggle:active {
-  transform: translateY(-50%) scale(0.94);
+  transform: translateY(-50%) scale(0.96);
 }
 
 .avatar-picker {
@@ -1611,7 +1664,7 @@
 
 .avatar-choice:active,
 .avatar-upload-choice:active {
-  transform: scale(0.94);
+  transform: scale(0.96);
 }
 
 .avatar-choice img,
@@ -1619,6 +1672,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  outline: 1px solid rgb(0 0 0 / 0.1);
+  outline-offset: -1px;
 }
 
 .avatar-choice img,
@@ -1669,7 +1724,7 @@
 .upload-button {
   display: inline-flex;
   width: fit-content;
-  height: 38px;
+  height: 40px;
   align-items: center;
   justify-content: center;
   gap: 8px;
@@ -1696,7 +1751,7 @@
 
 .upload-button:active {
   box-shadow: 0 4px 12px hsl(31 34% 24% / 0.08);
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(1px) scale(0.96);
 }
 
 .upload-button input {
@@ -1706,7 +1761,7 @@
 .color-swatches {
   display: grid;
   width: fit-content;
-  grid-template-columns: repeat(5, 34px);
+  grid-template-columns: repeat(5, 40px);
   gap: 12px 14px;
 }
 
@@ -1769,7 +1824,7 @@
 }
 
 .density-choice:active {
-  transform: translateY(1px) scale(0.98);
+  transform: translateY(1px) scale(0.96);
 }
 
 .personality-choice {
@@ -1804,7 +1859,7 @@
 }
 
 .personality-choice:active {
-  transform: translateY(1px) scale(0.985);
+  transform: translateY(1px) scale(0.96);
 }
 
 .personality-choice strong {
@@ -1891,6 +1946,7 @@
 .temperature-control strong {
   color: hsl(var(--foreground));
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
   font-weight: 900;
   text-align: right;
 }
@@ -1904,8 +1960,8 @@
 
 .color-swatch {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   border: 3px solid hsl(var(--card));
   border-radius: 999px;
@@ -1935,5 +1991,5 @@
 }
 
 .color-swatch:active {
-  transform: scale(0.9);
+  transform: scale(0.96);
 }

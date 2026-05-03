@@ -25,10 +25,14 @@ function Popup() {
     <main className="w-80 bg-background p-4">
       <div className="mb-4 flex items-center gap-3">
         <div className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
-          <img alt="" className="size-12" src="/icon/128.png" />
+          <img
+            alt=""
+            className="size-12 [outline:1px_solid_rgba(0,0,0,0.1)] [outline-offset:-1px]"
+            src="/icon/128.png"
+          />
         </div>
         <div>
-          <h1 className="text-lg font-black tracking-tight">Yomitomo</h1>
+          <h1 className="text-lg font-black tracking-normal">Yomitomo</h1>
           <p className="text-xs text-muted-foreground">伴读、高亮、批注讨论</p>
         </div>
       </div>
