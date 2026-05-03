@@ -864,6 +864,10 @@ function ReadingLibrary({
               article={selectedArticle}
               reviewAgents={reviewAgents}
               onGenerated={onRefresh}
+              onOpenEvidence={(annotationId) => {
+                setSelectedAnnotationId(annotationId);
+                setActiveShelf('annotations');
+              }}
             />
           ) : null}
         </div>
@@ -1083,10 +1087,12 @@ function ReadingCard({
   article,
   reviewAgents,
   onGenerated,
+  onOpenEvidence,
 }: {
   article: ArticleRecord | null;
   reviewAgents: Agent[];
   onGenerated: () => void;
+  onOpenEvidence: (annotationId: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [aiCard, setAiCard] = useState<ReadingCardRecord | null>(null);
@@ -1284,7 +1290,13 @@ function ReadingCard({
         {aiError ? <p className="reading-card-error">{aiError}</p> : null}
         {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
         {aiCard ? (
-          <ReadingCardDeck article={article} readingCard={aiCard} stats={stats} />
+          <ReadingCardDeck
+            article={article}
+            evidenceUnits={evidenceUnits}
+            readingCard={aiCard}
+            stats={stats}
+            onOpenEvidence={onOpenEvidence}
+          />
         ) : (
           sections.map((section) => (
             <section key={section.title}>
@@ -1344,12 +1356,16 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
 
 function ReadingCardDeck({
   article,
+  evidenceUnits,
   readingCard,
   stats,
+  onOpenEvidence,
 }: {
   article: ArticleRecord;
+  evidenceUnits: ReadingCardEvidenceUnit[];
   readingCard: ReadingCardRecord;
   stats: ReturnType<typeof buildReadingCardStats> | null;
+  onOpenEvidence: (annotationId: string) => void;
 }) {
   const sections = normalizeReadingCardViewSections(readingCard);
 
@@ -1383,7 +1399,12 @@ function ReadingCardDeck({
       {readingCard.review ? <ReadingCardReviewPanel review={readingCard.review} /> : null}
 
       {sections.map((section) => (
-        <ReadingCardSectionCard section={section} key={section.title} />
+        <ReadingCardSectionCard
+          evidenceUnits={evidenceUnits}
+          section={section}
+          key={section.title}
+          onOpenEvidence={onOpenEvidence}
+        />
       ))}
     </div>
   );
@@ -1493,9 +1514,30 @@ function reviewSeverityLabel(severity: ReadingCardReviewerResult['findings'][num
   return severity === 'high' ? '高' : severity === 'low' ? '低' : '中';
 }
 
-function ReadingCardSectionCard({ section }: { section: PersistedReadingCardSection }) {
+function ReadingCardSectionCard({
+  evidenceUnits,
+  section,
+  onOpenEvidence,
+}: {
+  evidenceUnits: ReadingCardEvidenceUnit[];
+  section: PersistedReadingCardSection;
+  onOpenEvidence: (annotationId: string) => void;
+}) {
   const blocks = splitReadingCardSection(section.content);
   const isCore = section.title === '核心主张';
+  const evidenceByIndex = useMemo(
+    () => new Map(evidenceUnits.map((unit) => [unit.index, unit])),
+    [evidenceUnits],
+  );
+
+  function openEvidence(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target?.closest<HTMLButtonElement>('[data-reading-card-evidence-index]');
+    if (!button) return;
+    const index = Number(button.dataset.readingCardEvidenceIndex);
+    const unit = evidenceByIndex.get(index);
+    if (unit) onOpenEvidence(unit.id);
+  }
 
   return (
     <section className={isCore ? 'reading-card-section-card is-core' : 'reading-card-section-card'}>
@@ -1511,7 +1553,10 @@ function ReadingCardSectionCard({ section }: { section: PersistedReadingCardSect
           {block.title ? <h5>{block.title}</h5> : null}
           <div
             className="reading-card-markdown"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(block.content) }}
+            dangerouslySetInnerHTML={{
+              __html: renderReadingCardMarkdown(block.content, evidenceByIndex),
+            }}
+            onClick={openEvidence}
           />
         </article>
       ))}
@@ -1560,6 +1605,52 @@ function splitReadingCardSection(content: string) {
 
   if (current && (current.title || current.content)) blocks.push(current);
   return blocks.length > 0 ? blocks : [{ content: '暂无' }];
+}
+
+function renderReadingCardMarkdown(
+  content: string,
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+) {
+  return renderMarkdown(content).replace(/\[#(\d+)\]/g, (match, value: string) => {
+    const index = Number(value);
+    const unit = evidenceByIndex.get(index);
+    if (!unit) return match;
+    const meta = [
+      unit.annotationType || '批注',
+      unit.annotationAuthorLabel,
+      formatDateTime(unit.createdAt),
+    ].join(' · ');
+    const comments = unit.comments.slice(0, 2);
+    return `<button class="reading-card-ref" type="button" data-reading-card-evidence-index="${index}" aria-label="打开批注 #${index}">
+      <span class="reading-card-ref-label">#${index}</span>
+      <span class="reading-card-ref-popover" role="tooltip">
+        <strong>批注 #${index}</strong>
+        <em>${escapeHtml(meta)}</em>
+        <q>${escapeHtml(unit.quote)}</q>
+        ${
+          comments.length > 0
+            ? `<span class="reading-card-ref-comments">${comments
+                .map(
+                  (comment) =>
+                    `<span><b>${escapeHtml(comment.authorLabel)}</b>${escapeHtml(
+                      comment.content,
+                    )}</span>`,
+                )
+                .join('')}</span>`
+            : ''
+        }
+      </span>
+    </button>`;
+  });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function readingCardSectionIndex(title: string) {

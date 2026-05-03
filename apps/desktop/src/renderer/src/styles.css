@@ -2169,6 +2169,122 @@
   padding: 1px 4px;
 }
 
+.reading-card-ref {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 2px;
+  border: 1px solid hsl(209 28% 48% / 0.34);
+  border-radius: 999px;
+  background: hsl(202 42% 91% / 0.72);
+  color: hsl(209 34% 27%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.88em;
+  font-weight: 900;
+  line-height: 1;
+  padding: 2px 6px;
+  vertical-align: baseline;
+}
+
+.reading-card-ref:hover,
+.reading-card-ref:focus-visible {
+  border-color: hsl(209 34% 42% / 0.52);
+  background: hsl(202 48% 88% / 0.86);
+  color: hsl(209 38% 22%);
+}
+
+.reading-card-ref:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.45);
+  outline-offset: 2px;
+}
+
+.reading-card-ref-popover {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  display: grid;
+  width: min(310px, 72vw);
+  gap: 7px;
+  border: 1px solid hsl(36 31% 72% / 0.74);
+  border-radius: 8px;
+  background: hsl(43 64% 98%);
+  box-shadow: 0 18px 42px hsl(31 34% 24% / 0.18);
+  color: hsl(31 22% 22%);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.52;
+  opacity: 0;
+  padding: 11px;
+  pointer-events: none;
+  text-align: left;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+  white-space: normal;
+}
+
+.reading-card-ref:hover .reading-card-ref-popover,
+.reading-card-ref:focus-visible .reading-card-ref-popover {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.reading-card-ref-popover::after {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid hsl(36 31% 72% / 0.74);
+  border-bottom: 1px solid hsl(36 31% 72% / 0.74);
+  background: hsl(43 64% 98%);
+  content: '';
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.reading-card-ref-popover strong {
+  color: hsl(31 23% 18%);
+  font-size: 12px;
+  font-weight: 940;
+}
+
+.reading-card-ref-popover em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 760;
+}
+
+.reading-card-ref-popover q {
+  display: block;
+  color: hsl(31 22% 20%);
+  font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
+  font-size: 14px;
+  line-height: 1.58;
+  quotes: none;
+}
+
+.reading-card-ref-comments {
+  display: grid;
+  gap: 5px;
+  border-left: 2px solid hsl(37 31% 74% / 0.76);
+  padding-left: 8px;
+}
+
+.reading-card-ref-comments span {
+  display: grid;
+  gap: 2px;
+}
+
+.reading-card-ref-comments b {
+  color: hsl(34 23% 27%);
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .reading-card-error {
   margin: 0 0 14px;
   border: 1px solid hsl(var(--destructive) / 0.28);
