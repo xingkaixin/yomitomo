@@ -5,13 +5,13 @@
 :root {
   --background: 40 33% 96%;
   --foreground: 28 22% 13%;
-  --primary: 155 52% 19%;
+  --primary: 28 22% 13%;
   --primary-foreground: 40 33% 96%;
   --muted: 38 27% 88%;
   --muted-foreground: 30 12% 38%;
   --border: 34 18% 78%;
   --input: 34 18% 78%;
-  --ring: 155 52% 19%;
+  --ring: 7 55% 46%;
   --radius: 0.75rem;
 }
 

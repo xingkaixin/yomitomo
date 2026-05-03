@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
-import { BookOpen, MessageSquareText } from "lucide-react";
+import { MessageSquareText } from "lucide-react";
 import { browser } from "wxt/browser";
 import { Button } from "../../src/components/ui/button";
 import "../../src/styles.css";
@@ -22,17 +22,17 @@ function Popup() {
   }
 
   return (
-    <main className="w-80 p-4">
+    <main className="w-80 bg-background p-4">
       <div className="mb-4 flex items-center gap-3">
-        <div className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-          <BookOpen className="size-5" />
+        <div className="grid size-12 place-items-center overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+          <img alt="" className="size-12" src="/icon/128.png" />
         </div>
         <div>
-          <h1 className="text-base font-semibold">Yomitomo</h1>
-          <p className="text-xs text-muted-foreground">阅读器、高亮、批注讨论</p>
+          <h1 className="text-lg font-black tracking-tight">Yomitomo</h1>
+          <p className="text-xs text-muted-foreground">伴读、高亮、批注讨论</p>
         </div>
       </div>
-      <Button className="w-full" onClick={toggleReader}>
+      <Button className="h-11 w-full rounded-2xl shadow-sm" onClick={toggleReader}>
         <MessageSquareText className="size-4" />
         进入阅读器模式
       </Button>
