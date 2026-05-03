@@ -19,3 +19,9 @@ coverage
 
 # temp
 .temp
+
+
+# agent
+.agents
+.claude
+skills-lock.json
