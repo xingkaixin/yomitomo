@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  BarChart3,
   BookOpen,
   Bot,
   Cable,
@@ -54,7 +55,7 @@ import { Select } from "./components/ui/select";
 import { Textarea } from "./components/ui/textarea";
 import "./styles.css";
 
-type SettingKey = "library" | "general" | "providers" | "agents" | "about";
+type SettingKey = "library" | "stats" | "general" | "providers" | "agents" | "about";
 type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
@@ -70,6 +71,17 @@ type LogEntry = {
 type ReadingCardSection = {
   title: string;
   items: string[];
+};
+type ReadingStats = {
+  today: ReadingStatsPeriod;
+  week: ReadingStatsPeriod;
+  total: ReadingStatsPeriod;
+};
+type ReadingStatsPeriod = {
+  articles: number;
+  annotations: number;
+  comments: number;
+  aiComments: number;
 };
 
 const agentAvatars = [
@@ -317,6 +329,12 @@ function App() {
               onClick={() => setActiveSetting("library")}
             />
             <SettingsNavButton
+              active={activeSetting === "stats"}
+              icon={<BarChart3 size={17} />}
+              label="统计"
+              onClick={() => setActiveSetting("stats")}
+            />
+            <SettingsNavButton
               active={activeSetting === "general"}
               icon={<User size={17} />}
               label="通用"
@@ -346,6 +364,9 @@ function App() {
         <section className="settings-content">
           {activeSetting === "library" ? (
             <ReadingLibrary articles={store.articles} onRefresh={refreshStore} />
+          ) : null}
+          {activeSetting === "stats" ? (
+            <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
           ) : null}
           {activeSetting === "general" ? (
             <GeneralSettings draft={userDraft} onChange={setUserDraft} onSave={saveUserDraft} />
@@ -457,6 +478,64 @@ function GeneralSettings({
           />
         </Field>
       </div>
+    </div>
+  );
+}
+
+function ReadingStatsPanel({
+  articles,
+  onRefresh,
+}: {
+  articles: ArticleRecord[];
+  onRefresh: () => void;
+}) {
+  const stats = useMemo(() => computeReadingStats(articles), [articles]);
+
+  return (
+    <div className="settings-panel">
+      <PanelHeader
+        icon={<BarChart3 size={20} />}
+        title="统计"
+        description="基于本地阅读记录生成今日、本周和累计阅读概况。"
+        action={
+          <Button type="button" variant="secondary" onClick={onRefresh}>
+            <RefreshCcw size={16} />
+            刷新
+          </Button>
+        }
+      />
+      <div className="stats-periods">
+        <StatsPeriod title="今日" stats={stats.today} />
+        <StatsPeriod title="本周" stats={stats.week} />
+        <StatsPeriod title="累计" stats={stats.total} />
+      </div>
+      <section className="stats-note">
+        <h3>阅读时长</h3>
+        <p>阅读分钟需要插件端记录阅读器停留时间，后续会和文章记录一起同步到桌面端。</p>
+      </section>
+    </div>
+  );
+}
+
+function StatsPeriod({ stats, title }: { stats: ReadingStatsPeriod; title: string }) {
+  return (
+    <section className="stats-period">
+      <h3>{title}</h3>
+      <div className="stats-grid">
+        <StatsMetric label="文章" value={stats.articles} />
+        <StatsMetric label="批注" value={stats.annotations} />
+        <StatsMetric label="讨论" value={stats.comments} />
+        <StatsMetric label="AI 参与" value={stats.aiComments} />
+      </div>
+    </section>
+  );
+}
+
+function StatsMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="stats-metric">
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }
@@ -1335,6 +1414,57 @@ function compactText(value: string, limit: number) {
   const text = value.replace(/\s+/g, " ").trim();
   if (text.length <= limit) return text;
   return `${text.slice(0, limit - 1)}…`;
+}
+
+function computeReadingStats(articles: ArticleRecord[]): ReadingStats {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const weekStart = startOfWeek(now);
+
+  return {
+    today: countReadingStats(articles, todayStart),
+    week: countReadingStats(articles, weekStart),
+    total: countReadingStats(articles, null),
+  };
+}
+
+function countReadingStats(articles: ArticleRecord[], since: Date | null): ReadingStatsPeriod {
+  const inPeriod = (value: string) => {
+    if (!since) return true;
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date >= since;
+  };
+
+  return articles.reduce(
+    (result, article) => {
+      const annotations = article.annotations.filter((annotation) =>
+        inPeriod(annotation.createdAt),
+      );
+      const comments = annotations.flatMap((annotation) =>
+        annotation.comments.filter((comment) => inPeriod(comment.createdAt)),
+      );
+
+      return {
+        articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
+        annotations: result.annotations + annotations.length,
+        comments: result.comments + comments.length,
+        aiComments:
+          result.aiComments + comments.filter((comment) => comment.author === "ai").length,
+      };
+    },
+    { articles: 0, annotations: 0, comments: 0, aiComments: 0 },
+  );
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date) {
+  const start = startOfDay(date);
+  const day = start.getDay() || 7;
+  start.setDate(start.getDate() - day + 1);
+  return start;
 }
 
 function parseLogEntries(raw: string): LogEntry[] {

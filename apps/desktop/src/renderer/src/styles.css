@@ -220,6 +220,65 @@
   gap: 16px;
 }
 
+.stats-periods {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-period,
+.stats-note {
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.52);
+  padding: 16px;
+}
+
+.stats-period h3,
+.stats-note h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stats-metric {
+  border: 1px solid hsl(var(--border) / 0.64);
+  border-radius: 14px;
+  background: hsl(var(--card) / 0.66);
+  padding: 14px;
+}
+
+.stats-metric strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.stats-metric span {
+  display: block;
+  margin-top: 7px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stats-note {
+  margin-top: 16px;
+}
+
+.stats-note p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .library-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
