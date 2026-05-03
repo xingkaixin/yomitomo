@@ -17,6 +17,7 @@ import { browser } from "wxt/browser";
 import { Kbd } from "../src/components/ui/kbd";
 import {
   type Annotation,
+  type AnnotationType,
   type ArticleRecord,
   type Comment,
   type DesktopServerMessage,
@@ -1547,6 +1548,17 @@ function annotationColor(annotation: Annotation, userProfile: UserProfile, agent
   return annotationAuthor(annotation, userProfile, agents).color;
 }
 
+function annotationTypeLabel(type: AnnotationType) {
+  const labels: Record<AnnotationType, string> = {
+    key_point: "关键判断",
+    assumption: "前提漏洞",
+    concept: "概念解释",
+    question: "延伸问题",
+    quote: "金句",
+  };
+  return labels[type];
+}
+
 function findAgentIdentity(
   agentId: string | undefined,
   username: string | undefined,
@@ -1857,6 +1869,9 @@ function AnnotationCard({
           <strong>{author.nickname}</strong>
           <em>@{author.username}</em>
         </span>
+        {annotation.annotationType ? (
+          <span className="reader-note-type">{annotationTypeLabel(annotation.annotationType)}</span>
+        ) : null}
         <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
       </button>
       <div className="reader-comments">
@@ -2253,6 +2268,7 @@ function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
     nickname: annotation.agentNickname || annotation.agentUsername,
     avatar: annotation.agentAvatar || "AI",
     annotationColor: annotation.agentAnnotationColor || annotation.color,
+    annotationDensity: "medium",
   };
 }
 
@@ -2501,6 +2517,7 @@ const readerConversationStyles = `
 .reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
 @keyframes reader-delete-hold{to{width:100%}}
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
+.reader-note-anchor .reader-note-type{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(183,53,44,.18);border-radius:999px;background:rgba(183,53,44,.08);color:#8f2f28;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:5px 8px}
 @media(max-width:980px){.reader-notes{width:min(560px,calc(100vw - 28px))}}
 `;
 

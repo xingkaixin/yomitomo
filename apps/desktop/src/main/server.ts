@@ -212,6 +212,7 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
     username: agent.username,
     avatar: agent.avatar,
     annotationColor: agent.annotationColor,
+    annotationDensity: agent.annotationDensity,
   }));
 }
 

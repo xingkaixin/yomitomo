@@ -6,7 +6,9 @@ import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import SQLiteDatabase from "better-sqlite3";
 import type {
   Agent,
+  AgentAnnotationDensity,
   Annotation,
+  AnnotationType,
   ArticleRecord,
   Comment,
   DesktopStore,
@@ -167,6 +169,10 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
     username,
     avatar: input.avatar?.trim() || existing?.avatar || "🤖",
     annotationColor: input.annotationColor?.trim() || existing?.annotationColor || "#8ab6d6",
+    annotationDensity:
+      normalizeAnnotationDensity(input.annotationDensity) ||
+      normalizeAnnotationDensity(existing?.annotationDensity) ||
+      "medium",
     soul:
       input.soul?.trim() ||
       existing?.soul ||
@@ -228,6 +234,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       id: row.id,
       anchor: row.anchor as TextAnchor,
       author: row.author as Annotation["author"],
+      annotationType: normalizeAnnotationType(row.annotationType) || undefined,
       color: row.color,
       agentId: row.agentId || undefined,
       agentUsername: row.agentUsername || undefined,
@@ -265,6 +272,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       username: row.username,
       avatar: row.avatar,
       annotationColor: row.annotationColor || "#8ab6d6",
+      annotationDensity: normalizeAnnotationDensity(row.annotationDensity) || "medium",
       soul: row.soul,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -350,6 +358,7 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
       articleId,
       anchor: annotation.anchor,
       author: annotation.author,
+      annotationType: annotation.annotationType,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -440,6 +449,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
       username: agent.username,
       avatar: agent.avatar,
       annotationColor: agent.annotationColor,
+      annotationDensity: agent.annotationDensity,
       soul: agent.soul,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
@@ -452,6 +462,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
         username: agent.username,
         avatar: agent.avatar,
         annotationColor: agent.annotationColor,
+        annotationDensity: agent.annotationDensity,
         soul: agent.soul,
         updatedAt: agent.updatedAt,
       },
@@ -466,6 +477,7 @@ function normalizeStore(store: DesktopStore): DesktopStore {
     agents: (store.agents || []).map((agent) => ({
       ...agent,
       annotationColor: agent.annotationColor || "#8ab6d6",
+      annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || "medium",
     })),
     articles: store.articles || [],
   };
@@ -515,4 +527,18 @@ function normalizeUsername(value: string, fallback = "me") {
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .slice(0, 32) || fallback
   );
+}
+
+function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {
+  return value === "low" || value === "medium" || value === "high" ? value : null;
+}
+
+function normalizeAnnotationType(value: unknown): AnnotationType | null {
+  return value === "key_point" ||
+    value === "assumption" ||
+    value === "concept" ||
+    value === "question" ||
+    value === "quote"
+    ? value
+    : null;
 }

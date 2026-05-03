@@ -99,4 +99,11 @@ CREATE INDEX IF NOT EXISTS comments_annotation_id_idx ON comments(annotation_id)
 CREATE INDEX IF NOT EXISTS comments_created_at_idx ON comments(created_at);
 `,
   },
+  {
+    id: "0002_annotation_type_density",
+    sql: `
+ALTER TABLE agents ADD COLUMN annotation_density TEXT NOT NULL DEFAULT 'medium';
+ALTER TABLE annotations ADD COLUMN annotation_type TEXT;
+`,
+  },
 ];

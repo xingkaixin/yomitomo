@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import type {
   Agent,
+  AgentAnnotationDensity,
+  AnnotationType,
   ArticleRecord,
   DesktopStore,
   LlmProvider,
@@ -142,6 +144,15 @@ const agentPersonalities = [
     soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。",
   },
 ] as const;
+const annotationDensityOptions: Array<{
+  value: AgentAnnotationDensity;
+  label: string;
+  description: string;
+}> = [
+  { value: "low", label: "克制", description: "约 2-4 条" },
+  { value: "medium", label: "标准", description: "约 4-7 条" },
+  { value: "high", label: "积极", description: "约 7-12 条" },
+];
 
 const defaultUser: UserProfile = {
   id: "user_local",
@@ -165,6 +176,7 @@ const emptyAgent: AgentDraft = {
   username: "yomitomo",
   avatar: agentAvatars[0]?.src || "",
   annotationColor: annotationColors[1],
+  annotationDensity: "medium",
   soul: defaultAgentSoul,
 };
 
@@ -1147,6 +1159,25 @@ function AgentForm({
           onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
         />
       </Field>
+      <Field className="col-span-2" label="批注密度">
+        <div className="density-grid">
+          {annotationDensityOptions.map((option) => (
+            <button
+              className={
+                (draft.annotationDensity || "medium") === option.value
+                  ? "density-choice is-active"
+                  : "density-choice"
+              }
+              key={option.value}
+              type="button"
+              onClick={() => onChange({ ...draft, annotationDensity: option.value })}
+            >
+              <strong>{option.label}</strong>
+              <span>{option.description}</span>
+            </button>
+          ))}
+        </div>
+      </Field>
       <Field className="col-span-2" label="头像">
         <div className="avatar-grid">
           {agentAvatars.map((avatar) => (
@@ -1383,7 +1414,10 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
       title: "关键原文",
       items: article.annotations
         .slice(0, 6)
-        .map((annotation) => `“${compactText(annotation.anchor.exact, 120)}”`),
+        .map(
+          (annotation) =>
+            `${annotation.annotationType ? `【${annotationTypeLabel(annotation.annotationType)}】` : ""}“${compactText(annotation.anchor.exact, 120)}”`,
+        ),
     },
     {
       title: "我的批注",
@@ -1414,6 +1448,17 @@ function compactText(value: string, limit: number) {
   const text = value.replace(/\s+/g, " ").trim();
   if (text.length <= limit) return text;
   return `${text.slice(0, limit - 1)}…`;
+}
+
+function annotationTypeLabel(type: AnnotationType) {
+  const labels: Record<AnnotationType, string> = {
+    key_point: "关键判断",
+    assumption: "前提漏洞",
+    concept: "概念解释",
+    question: "延伸问题",
+    quote: "金句",
+  };
+  return labels[type];
 }
 
 function computeReadingStats(articles: ArticleRecord[]): ReadingStats {

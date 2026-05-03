@@ -2,6 +2,10 @@ export type AnnotationAuthor = "user" | "ai";
 
 export type ProviderType = "openai" | "anthropic" | "gemini";
 
+export type AnnotationType = "key_point" | "assumption" | "concept" | "question" | "quote";
+
+export type AgentAnnotationDensity = "low" | "medium" | "high";
+
 export type LlmProvider = {
   id: string;
   name: string;
@@ -20,6 +24,7 @@ export type Agent = {
   username: string;
   avatar: string;
   annotationColor: string;
+  annotationDensity: AgentAnnotationDensity;
   soul: string;
   createdAt: string;
   updatedAt: string;
@@ -67,6 +72,7 @@ export type Annotation = {
   id: string;
   anchor: TextAnchor;
   author: AnnotationAuthor;
+  annotationType?: AnnotationType;
   color: string;
   agentId?: string;
   agentUsername?: string;
