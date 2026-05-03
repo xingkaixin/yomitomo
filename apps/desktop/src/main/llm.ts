@@ -3,6 +3,7 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
+  ArticleRecord,
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
@@ -11,8 +12,15 @@ import {
   createAgentAnnotation,
   normalizeAnnotationType,
   parseAnnotationSuggestions,
+  type ReadingCardEvidenceUnit,
 } from '@yomitomo/core';
 import { logError, logInfo } from './logger';
+
+export type GenerateReadingCardInput = {
+  article: ArticleRecord;
+  articleText: string;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+};
 
 export async function testProvider(
   provider: LlmProvider,
@@ -174,6 +182,17 @@ export async function runAgentAnnotateStream(
   );
 
   flushLine(buffer);
+}
+
+export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
+  }
+
+  const system =
+    '你是 Yomitomo 的读后卡片生成器。你的任务是基于文章全文、读者批注和讨论证据生成一张可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
+
+  return callAnthropic(provider, system, buildReadingCardPrompt(input), 3000, 0.35);
 }
 
 async function callAnthropic(
@@ -340,4 +359,61 @@ function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload, agent: Agent) {
 
 function buildAgentAnnotateStreamPrompt(payload: AgentAnnotatePayload, agent: Agent) {
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+}
+
+function buildReadingCardPrompt(input: GenerateReadingCardInput) {
+  const article = {
+    title: input.article.title,
+    url: input.article.canonicalUrl || input.article.url,
+    byline: input.article.byline || '',
+    excerpt: input.article.excerpt || '',
+  };
+  const evidence = input.evidenceUnits.map((unit) => ({
+    id: unit.index,
+    type: unit.annotationType || '批注',
+    quote: unit.quote,
+    annotationAuthor: unit.annotationAuthorLabel,
+    comments: unit.comments.map((comment) => ({
+      author: comment.authorLabel,
+      content: comment.content,
+    })),
+  }));
+
+  return `请基于全文和证据单元生成一张中文 Markdown 读后卡片。
+
+文章信息：
+${JSON.stringify(article, null, 2)}
+
+全文：
+${input.articleText.slice(0, 50000)}
+
+证据单元：
+${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+
+输出要求：
+- 直接输出 Markdown，不要输出代码块。
+- 不要写“文章快照”。
+- 不要复述全文概要。
+- 每条关键判断尽量标注证据编号，例如 [#1]。
+- 保留读者自己的关注点，标明“我”或读者昵称。
+- 助手观点和文章观点分开表达。
+- 内容要精炼、有层次，适合作为读后笔记保存。
+
+固定结构：
+# ${input.article.title}
+
+## 核心主张
+用 1-2 句话说清文章最重要的判断。
+
+## 我关注了什么
+按主题归并读者批注和评论，每条带原文证据编号。
+
+## 讨论中浮现了什么
+整理共识、分歧、未回答问题。来源来自评论 thread。
+
+## 可复用洞见
+提炼 3-5 条可以迁移到其他阅读或决策里的洞见。
+
+## 后续行动线索
+列出后续阅读、验证假设或可执行动作。`;
 }

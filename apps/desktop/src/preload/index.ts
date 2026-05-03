@@ -1,10 +1,27 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Agent, DesktopStore, LlmProvider, UserProfile } from '@yomitomo/shared';
+import type {
+  Agent,
+  AppSettings,
+  ArticleRecord,
+  DesktopStore,
+  LlmProvider,
+  ReadingCardRecord,
+  UserProfile,
+} from '@yomitomo/shared';
+import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
+
+export type GenerateReadingCardInput = {
+  article: ArticleRecord;
+  articleText: string;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+};
 
 const api = {
   getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
   saveUser: (user: Partial<UserProfile>) =>
     ipcRenderer.invoke('user:save', user) as Promise<DesktopStore>,
+  saveSettings: (settings: AppSettings) =>
+    ipcRenderer.invoke('settings:save', settings) as Promise<DesktopStore>,
   saveProvider: (provider: Partial<LlmProvider>) =>
     ipcRenderer.invoke('provider:save', provider) as Promise<DesktopStore>,
   deleteProvider: (id: string) =>
@@ -15,6 +32,10 @@ const api = {
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
+  generateReadingCard: (input: GenerateReadingCardInput) =>
+    ipcRenderer.invoke('reading-card:generate', input) as Promise<{
+      readingCard: ReadingCardRecord;
+    }>,
   saveAgent: (agent: Partial<Agent>) =>
     ipcRenderer.invoke('agent:save', agent) as Promise<DesktopStore>,
   deleteAgent: (id: string) => ipcRenderer.invoke('agent:delete', id) as Promise<DesktopStore>,

@@ -98,7 +98,6 @@ describe('reading core', () => {
     );
 
     expect(sections.map((section) => section.title)).toEqual([
-      '文章快照',
       '阅读轨迹',
       '我的关注',
       '助手补充',

@@ -1,8 +1,18 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
-import type { Agent, LlmProvider, UserProfile } from '@yomitomo/shared';
-import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from './store';
-import { testProvider } from './llm';
+import type { Agent, LlmProvider, ReadingCardSection, UserProfile } from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
+import {
+  deleteAgent,
+  deleteProvider,
+  readStore,
+  saveAgent,
+  saveArticleReadingCard,
+  saveProvider,
+  saveSettings,
+  saveUser,
+} from './store';
+import { generateReadingCard, testProvider, type GenerateReadingCardInput } from './llm';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { broadcastStatus, startLocalServer } from './server';
 
@@ -90,6 +100,9 @@ function registerIpc() {
   ipcMain.handle('log:clear', () => clearLogFile());
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
+  ipcMain.handle('settings:save', (_event, input: { defaultProviderId?: string }) =>
+    saveSettings(input),
+  );
   ipcMain.handle('provider:save', async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
     broadcastStatus();
@@ -110,6 +123,27 @@ function registerIpc() {
       return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
     }
   });
+  ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
+    const store = await readStore();
+    const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
+    if (!provider) throw new Error('请先在通用设置里选择默认供应商');
+    const content = await generateReadingCard(provider, input);
+    const now = new Date().toISOString();
+    const readingCard = {
+      id: input.article.readingCard?.id || makeId('reading_card'),
+      articleId: input.article.id,
+      title: input.article.title,
+      contentMarkdown: content,
+      sections: parseReadingCardSections(content),
+      providerId: provider.id,
+      providerName: provider.name,
+      modelName: provider.modelName,
+      createdAt: input.article.readingCard?.createdAt || now,
+      updatedAt: now,
+    };
+    await saveArticleReadingCard(input.article.id, readingCard);
+    return { readingCard };
+  });
   ipcMain.handle('agent:save', async (_event, input: Partial<Agent>) => {
     const store = await saveAgent(input);
     broadcastStatus();
@@ -120,6 +154,23 @@ function registerIpc() {
     broadcastStatus();
     return store;
   });
+}
+
+function parseReadingCardSections(markdown: string): ReadingCardSection[] {
+  const sections: ReadingCardSection[] = [];
+  let current: ReadingCardSection | null = null;
+  for (const line of markdown.split('\n')) {
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      if (current) sections.push(current);
+      current = { title: heading[1].trim(), content: '' };
+      continue;
+    }
+    if (!current) continue;
+    current.content = `${current.content}${current.content ? '\n' : ''}${line}`.trim();
+  }
+  if (current) sections.push(current);
+  return sections;
 }
 
 async function openExternalUrl(value: string) {

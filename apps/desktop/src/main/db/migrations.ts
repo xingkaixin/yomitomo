@@ -118,4 +118,26 @@ ALTER TABLE agents ADD COLUMN temperature REAL NOT NULL DEFAULT 0.5;
 ALTER TABLE articles ADD COLUMN content_html TEXT;
 `,
   },
+  {
+    id: '0005_settings_reading_card',
+    sql: `
+CREATE TABLE IF NOT EXISTS app_settings (
+  id TEXT PRIMARY KEY NOT NULL,
+  default_provider_id TEXT,
+  updated_at TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO app_settings (id, default_provider_id, updated_at)
+VALUES ('default', NULL, datetime('now'));
+
+ALTER TABLE articles ADD COLUMN reading_card_id TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_markdown TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_sections TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_provider_id TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_provider_name TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_model_name TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_created_at TEXT;
+ALTER TABLE articles ADD COLUMN reading_card_updated_at TEXT;
+`,
+  },
 ];

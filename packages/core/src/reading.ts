@@ -96,7 +96,7 @@ export function buildReadingCard(article: ArticleRecord, articleText = '') {
 
 export function buildReadingCardSections(
   article: ArticleRecord,
-  articleText = '',
+  _articleText = '',
 ): ReadingCardSection[] {
   const units = buildReadingCardEvidenceUnits(article);
   const userUnits = units.filter(
@@ -122,10 +122,6 @@ export function buildReadingCardSections(
   });
 
   return [
-    {
-      title: '文章快照',
-      items: articleText ? [compactText(articleText, 260)] : [],
-    },
     {
       title: '阅读轨迹',
       items: units.map(

@@ -14,6 +14,7 @@ import {
   EyeOff,
   Info,
   KeyRound,
+  LoaderCircle,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -21,6 +22,7 @@ import {
   RefreshCcw,
   Save,
   Search,
+  Sparkles,
   Trash2,
   Upload,
   User,
@@ -28,6 +30,7 @@ import {
 import type {
   Agent,
   Annotation,
+  AppSettings,
   ArticleRecord,
   Comment as AnnotationComment,
   DesktopStore,
@@ -152,6 +155,7 @@ function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
+  const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(emptyAgent);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
@@ -184,6 +188,10 @@ function App() {
     () => userDraftHasChanges(userDraft, store.user),
     [store.user, userDraft],
   );
+  const settingsHasChanges = useMemo(
+    () => (settingsDraft.defaultProviderId || '') !== (store.settings.defaultProviderId || ''),
+    [settingsDraft.defaultProviderId, store.settings.defaultProviderId],
+  );
   const selectedProvider = useMemo(
     () => store.providers.find((provider) => provider.id === selectedProviderId) || null,
     [selectedProviderId, store.providers],
@@ -206,7 +214,7 @@ function App() {
     (selectedAgentId ? agentHasChanges : true);
   const canSaveProvider =
     providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
-  const canSaveUser = userSaveState !== 'saving' && userHasChanges;
+  const canSaveUser = userSaveState !== 'saving' && (userHasChanges || settingsHasChanges);
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -215,6 +223,7 @@ function App() {
     const nextStore = await desktop.getState();
     setStore(nextStore);
     setUserDraft(nextStore.user);
+    setSettingsDraft(nextStore.settings);
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
     if (nextStore.agents[0]) selectAgent(nextStore.agents[0]);
   }
@@ -256,9 +265,11 @@ function App() {
     if (!window.yomitomoDesktop || !canSaveUser) return;
     setUserSaveState('saving');
     try {
-      const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
+      let nextStore = await window.yomitomoDesktop.saveUser(userDraft);
+      nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
       setStore(nextStore);
       setUserDraft(nextStore.user);
+      setSettingsDraft(nextStore.settings);
       setUserSaveState('saved');
       window.setTimeout(() => setUserSaveState('idle'), 1200);
     } catch {
@@ -292,6 +303,7 @@ function App() {
     if (!window.yomitomoDesktop) return;
     const nextStore = await window.yomitomoDesktop.deleteProvider(id);
     setStore(nextStore);
+    setSettingsDraft(nextStore.settings);
     const nextProvider = nextStore.providers[0];
     if (nextProvider) selectProvider(nextProvider);
     if (!nextProvider) createProvider();
@@ -450,9 +462,15 @@ function App() {
           {activeSetting === 'general' ? (
             <GeneralSettings
               draft={userDraft}
+              providers={providerOptions}
+              settingsDraft={settingsDraft}
               canSave={canSaveUser}
               onChange={(draft) => {
                 setUserDraft(draft);
+                setUserSaveState('idle');
+              }}
+              onSettingsChange={(draft) => {
+                setSettingsDraft(draft);
                 setUserSaveState('idle');
               }}
               onSave={saveUserDraft}
@@ -533,14 +551,20 @@ function SettingsNavButton({
 
 function GeneralSettings({
   draft,
+  providers,
+  settingsDraft,
   canSave,
   onChange,
+  onSettingsChange,
   onSave,
   saveState,
 }: {
   draft: UserDraft;
+  providers: ProviderOption[];
+  settingsDraft: AppSettings;
   canSave: boolean;
   onChange: (draft: UserDraft) => void;
+  onSettingsChange: (draft: AppSettings) => void;
   onSave: () => void;
   saveState: SaveState;
 }) {
@@ -592,6 +616,36 @@ function GeneralSettings({
             value={draft.annotationColor || annotationColors[0]}
             onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
           />
+        </Field>
+        <Field
+          className="col-span-2"
+          description="读后卡片等默认 AI 任务会使用这个供应商。"
+          label="默认供应商"
+        >
+          <Select
+            disabled={providers.length === 0}
+            value={settingsDraft.defaultProviderId || ''}
+            onValueChange={(defaultProviderId) =>
+              onSettingsChange({ ...settingsDraft, defaultProviderId })
+            }
+          >
+            <SelectTrigger className="theme-select-trigger provider-select-trigger">
+              <SelectValue placeholder={providers.length > 0 ? '选择默认供应商' : '先添加供应商'} />
+            </SelectTrigger>
+            <SelectContent className="theme-select-content provider-select-content">
+              {providers.map((provider) => (
+                <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
+                  <span className="provider-select-item-mark" />
+                  <span className="provider-select-item-copy">
+                    <strong>{provider.label}</strong>
+                    <span>
+                      {provider.type} · {provider.modelName}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
       </div>
     </div>
@@ -784,7 +838,9 @@ function ReadingLibrary({
           onClick={() => setActiveShelf('card')}
         />
         <div className="library-shelf-content">
-          {activeShelf === 'card' ? <ReadingCard article={selectedArticle} /> : null}
+          {activeShelf === 'card' ? (
+            <ReadingCard article={selectedArticle} onGenerated={onRefresh} />
+          ) : null}
         </div>
       </div>
     </div>
@@ -998,13 +1054,23 @@ function OpenArticleButton({ article }: { article: ArticleRecord }) {
   );
 }
 
-function ReadingCard({ article }: { article: ArticleRecord | null }) {
+function ReadingCard({
+  article,
+  onGenerated,
+}: {
+  article: ArticleRecord | null;
+  onGenerated: () => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [aiCard, setAiCard] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
   const card = useMemo(
-    () => (article ? buildReadingCard(article, articleText) : ''),
-    [article, articleText],
+    () => (article ? aiCard || buildReadingCard(article, articleText) : ''),
+    [aiCard, article, articleText],
   );
+  const aiCardHtml = useMemo(() => renderMarkdown(aiCard), [aiCard]);
   const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
   const evidenceUnits = useMemo(
     () => (article ? buildReadingCardEvidenceUnits(article) : []),
@@ -1015,11 +1081,36 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
     [article, articleText],
   );
 
+  useEffect(() => {
+    setAiCard(article?.readingCard?.contentMarkdown || '');
+    setAiError('');
+    setAiState(article?.readingCard ? 'done' : 'idle');
+  }, [article?.id, article?.readingCard?.updatedAt]);
+
   async function copyCard() {
     if (!card) return;
     await navigator.clipboard.writeText(card);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  async function generateAiCard() {
+    if (!article || aiState === 'generating') return;
+    setAiState('generating');
+    setAiError('');
+    try {
+      const result = await window.yomitomoDesktop.generateReadingCard({
+        article,
+        articleText,
+        evidenceUnits,
+      });
+      setAiCard(result.readingCard.contentMarkdown);
+      setAiState('done');
+      onGenerated();
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
+      setAiState('error');
+    }
   }
 
   if (!article) {
@@ -1044,34 +1135,54 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
             </div>
           ) : null}
         </div>
-        <Button type="button" variant="secondary" onClick={copyCard}>
-          <Clipboard size={16} />
-          {copied ? '已复制' : '复制 Markdown'}
-        </Button>
+        <div className="reading-card-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={aiState === 'generating'}
+            onClick={generateAiCard}
+          >
+            {aiState === 'generating' ? (
+              <LoaderCircle className="reading-card-spin" size={16} />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {aiState === 'generating' ? '生成中' : aiCard ? '重新提炼' : 'AI 提炼'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={copyCard}>
+            <Clipboard size={16} />
+            {copied ? '已复制' : '复制 Markdown'}
+          </Button>
+        </div>
       </div>
       <div className="reading-card-body">
-        {sections.map((section) => (
-          <section key={section.title}>
-            <h4>{section.title}</h4>
-            {section.title === '阅读轨迹' ? (
-              evidenceUnits.length > 0 ? (
-                <div className="reading-card-evidence-list">
-                  {evidenceUnits.map((unit) => (
-                    <ReadingCardEvidence unit={unit} key={unit.id} />
-                  ))}
-                </div>
+        {aiError ? <p className="reading-card-error">{aiError}</p> : null}
+        {aiCard ? (
+          <div className="reading-card-ai" dangerouslySetInnerHTML={{ __html: aiCardHtml }} />
+        ) : (
+          sections.map((section) => (
+            <section key={section.title}>
+              <h4>{section.title}</h4>
+              {section.title === '阅读轨迹' ? (
+                evidenceUnits.length > 0 ? (
+                  <div className="reading-card-evidence-list">
+                    {evidenceUnits.map((unit) => (
+                      <ReadingCardEvidence unit={unit} key={unit.id} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="reading-card-placeholder">暂无</p>
+                )
               ) : (
-                <p className="reading-card-placeholder">暂无</p>
-              )
-            ) : (
-              <ul>
-                {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
-                  <li key={`${section.title}-${index}`}>{item}</li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))}
+                <ul>
+                  {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
+                    <li key={`${section.title}-${index}`}>{item}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))
+        )}
       </div>
     </aside>
   );

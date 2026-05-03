@@ -100,6 +100,7 @@ export const emptyProvider: ProviderDraft = {
 
 export const emptyStore: DesktopStore = {
   user: defaultUser,
+  settings: {},
   providers: [],
   agents: [],
   articles: [],

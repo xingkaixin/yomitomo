@@ -9,6 +9,12 @@ export const userProfiles = sqliteTable('user_profiles', {
   updatedAt: text('updated_at').notNull(),
 });
 
+export const appSettings = sqliteTable('app_settings', {
+  id: text('id').primaryKey(),
+  defaultProviderId: text('default_provider_id'),
+  updatedAt: text('updated_at').notNull(),
+});
+
 export const providers = sqliteTable('providers', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -47,6 +53,14 @@ export const articles = sqliteTable(
     excerpt: text('excerpt'),
     contentHtml: text('content_html'),
     contentHash: text('content_hash').notNull(),
+    readingCardId: text('reading_card_id'),
+    readingCardMarkdown: text('reading_card_markdown'),
+    readingCardSections: text('reading_card_sections', { mode: 'json' }),
+    readingCardProviderId: text('reading_card_provider_id'),
+    readingCardProviderName: text('reading_card_provider_name'),
+    readingCardModelName: text('reading_card_model_name'),
+    readingCardCreatedAt: text('reading_card_created_at'),
+    readingCardUpdatedAt: text('reading_card_updated_at'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

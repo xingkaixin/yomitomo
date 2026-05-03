@@ -9,10 +9,13 @@ import type {
   AgentAnnotationDensity,
   Annotation,
   AnnotationType,
+  AppSettings,
   ArticleRecord,
   Comment,
   DesktopStore,
   LlmProvider,
+  ReadingCardRecord,
+  ReadingCardSection,
   TextAnchor,
   UserProfile,
 } from '@yomitomo/shared';
@@ -33,6 +36,7 @@ const defaultUser: UserProfile = {
 
 const defaultStore: DesktopStore = {
   user: defaultUser,
+  settings: {},
   providers: [],
   agents: [],
   articles: [],
@@ -128,6 +132,13 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
   return readStore();
 }
 
+export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
+  upsertSettings(getDatabase(), {
+    defaultProviderId: input.defaultProviderId || undefined,
+  });
+  return readStore();
+}
+
 export async function saveProvider(input: Partial<LlmProvider>): Promise<DesktopStore> {
   const store = await readStore();
   const now = new Date().toISOString();
@@ -150,7 +161,14 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
 }
 
 export async function deleteProvider(id: string): Promise<DesktopStore> {
-  getDatabase().delete(schema.providers).where(eq(schema.providers.id, id)).run();
+  const database = getDatabase();
+  database.transaction((tx) => {
+    const settings = tx.select().from(schema.appSettings).limit(1).get();
+    if (settings?.defaultProviderId === id) {
+      upsertSettings(tx, {});
+    }
+    tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
+  });
   return readStore();
 }
 
@@ -196,8 +214,31 @@ export async function saveArticle(input: ArticleRecord): Promise<DesktopStore> {
   return readStore();
 }
 
+export async function saveArticleReadingCard(
+  articleId: string,
+  readingCard: ReadingCardRecord,
+): Promise<DesktopStore> {
+  getDatabase()
+    .update(schema.articles)
+    .set({
+      readingCardId: readingCard.id,
+      readingCardMarkdown: readingCard.contentMarkdown,
+      readingCardSections: readingCard.sections,
+      readingCardProviderId: readingCard.providerId,
+      readingCardProviderName: readingCard.providerName,
+      readingCardModelName: readingCard.modelName,
+      readingCardCreatedAt: readingCard.createdAt,
+      readingCardUpdatedAt: readingCard.updatedAt,
+      updatedAt: readingCard.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return readStore();
+}
+
 function readStoreRows(database: StoreDatabase): DesktopStore {
   const user = database.select().from(schema.userProfiles).limit(1).get();
+  const settings = database.select().from(schema.appSettings).limit(1).get();
   const providerRows = database.select().from(schema.providers).all();
   const agentRows = database.select().from(schema.agents).all();
   const articleRows = database.select().from(schema.articles).all();
@@ -256,6 +297,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
 
   return {
     user: normalizeUser(rowToUser(user)),
+    settings: rowToSettings(settings),
     providers: providerRows.map((row) => ({
       id: row.id,
       name: row.name,
@@ -289,6 +331,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         excerpt: row.excerpt || undefined,
         contentHtml: row.contentHtml || undefined,
         contentHash: row.contentHash,
+        readingCard: rowToReadingCard(row),
         annotations: sortByCreatedAt(annotationsByArticle.get(row.id) || []),
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
@@ -304,9 +347,11 @@ function writeStoreRows(database: StoreDatabase, store: DesktopStore) {
     tx.delete(schema.articles).run();
     tx.delete(schema.agents).run();
     tx.delete(schema.providers).run();
+    tx.delete(schema.appSettings).run();
     tx.delete(schema.userProfiles).run();
 
     upsertUser(tx, store.user);
+    upsertSettings(tx, store.settings);
     for (const provider of store.providers) upsertProvider(tx, provider);
     for (const agent of store.agents) upsertAgent(tx, agent);
     for (const article of store.articles) writeArticleRows(tx, article);
@@ -325,6 +370,14 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       excerpt: article.excerpt,
       contentHtml: article.contentHtml,
       contentHash: article.contentHash,
+      readingCardId: article.readingCard?.id,
+      readingCardMarkdown: article.readingCard?.contentMarkdown,
+      readingCardSections: article.readingCard?.sections,
+      readingCardProviderId: article.readingCard?.providerId,
+      readingCardProviderName: article.readingCard?.providerName,
+      readingCardModelName: article.readingCard?.modelName,
+      readingCardCreatedAt: article.readingCard?.createdAt,
+      readingCardUpdatedAt: article.readingCard?.updatedAt,
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
     })
@@ -417,6 +470,22 @@ function upsertUser(database: StoreExecutor, user: UserProfile) {
     .run();
 }
 
+function upsertSettings(database: StoreExecutor, settings: AppSettings) {
+  const row = {
+    id: 'default',
+    defaultProviderId: settings.defaultProviderId || null,
+    updatedAt: new Date().toISOString(),
+  };
+  database
+    .insert(schema.appSettings)
+    .values(row)
+    .onConflictDoUpdate({
+      target: schema.appSettings.id,
+      set: row,
+    })
+    .run();
+}
+
 function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
   database
     .insert(schema.providers)
@@ -480,6 +549,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
 function normalizeStore(store: DesktopStore): DesktopStore {
   return {
     user: normalizeUser(store.user),
+    settings: store.settings || {},
     providers: store.providers || [],
     agents: (store.agents || []).map((agent) =>
       Object.assign({}, agent, {
@@ -490,6 +560,39 @@ function normalizeStore(store: DesktopStore): DesktopStore {
     ),
     articles: store.articles || [],
   };
+}
+
+function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined): AppSettings {
+  return {
+    defaultProviderId: row?.defaultProviderId || undefined,
+  };
+}
+
+function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCardRecord | undefined {
+  if (!row.readingCardMarkdown || !row.readingCardId) return undefined;
+  return {
+    id: row.readingCardId,
+    articleId: row.id,
+    title: row.title,
+    contentMarkdown: row.readingCardMarkdown,
+    sections: normalizeReadingCardSections(row.readingCardSections),
+    providerId: row.readingCardProviderId || '',
+    providerName: row.readingCardProviderName || '',
+    modelName: row.readingCardModelName || '',
+    createdAt: row.readingCardCreatedAt || row.updatedAt,
+    updatedAt: row.readingCardUpdatedAt || row.updatedAt,
+  };
+}
+
+function normalizeReadingCardSections(value: unknown): ReadingCardSection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const section = item as { title?: unknown; content?: unknown };
+    return typeof section.title === 'string' && typeof section.content === 'string'
+      ? [{ title: section.title, content: section.content }]
+      : [];
+  });
 }
 
 function normalizeUser(user: Partial<UserProfile> | undefined): UserProfile {

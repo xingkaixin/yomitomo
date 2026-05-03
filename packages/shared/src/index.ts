@@ -100,12 +100,36 @@ export type ArticleRecord = {
   contentHtml?: string;
   contentHash: string;
   annotations: Annotation[];
+  readingCard?: ReadingCardRecord;
   createdAt: string;
   updatedAt: string;
 };
 
+export type ReadingCardSection = {
+  title: string;
+  content: string;
+};
+
+export type ReadingCardRecord = {
+  id: string;
+  articleId: string;
+  title: string;
+  contentMarkdown: string;
+  sections: ReadingCardSection[];
+  providerId: string;
+  providerName: string;
+  modelName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AppSettings = {
+  defaultProviderId?: string;
+};
+
 export type DesktopStore = {
   user: UserProfile;
+  settings: AppSettings;
   providers: LlmProvider[];
   agents: Agent[];
   articles: ArticleRecord[];
