@@ -1,25 +1,35 @@
 import { describe, expect, it } from 'vitest';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import {
+  buildReadingCard,
+  buildReadingCardEvidenceUnits,
   buildReadingCardSections,
   computeReadingStats,
   sortAnnotations,
   sortArticles,
 } from './reading';
 
-function annotation(id: string, start: number, createdAt: string): Annotation {
+function annotation(
+  id: string,
+  start: number,
+  createdAt: string,
+  input: Partial<Annotation> = {},
+): Annotation {
   return {
     id,
     anchor: {
-      exact: `text ${id}`,
-      prefix: '',
-      suffix: '',
+      exact: input.anchor?.exact || `text ${id}`,
+      prefix: input.anchor?.prefix || '',
+      suffix: input.anchor?.suffix || '',
       start,
       end: start + 6,
     },
-    author: 'user',
+    author: input.author || 'user',
+    annotationType: input.annotationType,
     color: '#f4c95d',
-    comments: [
+    agentNickname: input.agentNickname,
+    userNickname: input.userNickname,
+    comments: input.comments || [
       {
         id: `comment-${id}`,
         author: id === 'a2' ? 'ai' : 'user',
@@ -79,19 +89,93 @@ describe('reading core', () => {
   });
 
   it('builds reading card sections from annotations and comments', () => {
-    const sections = buildReadingCardSections(article('today', '2026-05-03', [
-      annotation('a1', 0, '2026-05-03T08:00:00.000Z'),
-      annotation('a2', 12, '2026-05-03T09:00:00.000Z'),
-      annotation('a3', 24, '2026-05-03T10:00:00.000Z'),
-    ]));
+    const sections = buildReadingCardSections(
+      article('today', '2026-05-03', [
+        annotation('a1', 0, '2026-05-03T08:00:00.000Z'),
+        annotation('a2', 12, '2026-05-03T09:00:00.000Z'),
+        annotation('a3', 24, '2026-05-03T10:00:00.000Z'),
+      ]),
+    );
 
     expect(sections.map((section) => section.title)).toEqual([
       '文章快照',
-      '关键原文',
-      '我的批注',
+      '阅读轨迹',
+      '我的关注',
       '助手补充',
       '后续问题',
     ]);
-    expect(sections.find((section) => section.title === '后续问题')?.items).toEqual(['为什么？']);
+    expect(sections.find((section) => section.title === '后续问题')?.items).toEqual([
+      '我：为什么？（原文：text a3）',
+    ]);
+  });
+
+  it('builds ordered evidence units with source labels and sorted comments', () => {
+    const units = buildReadingCardEvidenceUnits(
+      article('today', '2026-05-03', [
+        annotation('a2', 20, '2026-05-03T09:00:00.000Z', {
+          author: 'ai',
+          agentNickname: '研究助手',
+          annotationType: 'key_point',
+          comments: [
+            {
+              id: 'late',
+              author: 'user',
+              userNickname: 'Kevin',
+              content: '后回复',
+              createdAt: '2026-05-03T09:02:00.000Z',
+            },
+            {
+              id: 'early',
+              author: 'ai',
+              agentNickname: '研究助手',
+              content: '先补充',
+              createdAt: '2026-05-03T09:01:00.000Z',
+            },
+          ],
+        }),
+        annotation('a1', 10, '2026-05-03T08:00:00.000Z', {
+          userNickname: 'Kevin',
+        }),
+      ]),
+    );
+
+    expect(units.map((unit) => unit.id)).toEqual(['a1', 'a2']);
+    expect(units[0]).toMatchObject({
+      index: 1,
+      annotationAuthorLabel: 'Kevin',
+    });
+    expect(units[1]).toMatchObject({
+      index: 2,
+      annotationType: '关键判断',
+      annotationAuthorLabel: '研究助手',
+    });
+    expect(units[1].comments.map((comment) => comment.id)).toEqual(['early', 'late']);
+  });
+
+  it('builds a full markdown card from evidence units', () => {
+    const markdown = buildReadingCard(
+      article('today', '2026-05-03T10:00:00.000Z', [
+        annotation('a1', 0, '2026-05-03T08:00:00.000Z', {
+          userNickname: 'Kevin',
+          annotationType: 'question',
+          comments: [
+            {
+              id: 'c1',
+              author: 'user',
+              userNickname: 'Kevin',
+              content: '这里如何验证？',
+              createdAt: '2026-05-03T08:01:00.000Z',
+            },
+          ],
+        }),
+      ]),
+      '文章正文摘要',
+    );
+
+    expect(markdown).toContain('批注：1 条 · 评论：1 条 · 助手参与：0 条');
+    expect(markdown).toContain('## 阅读轨迹');
+    expect(markdown).toContain('1. 【延伸问题】【Kevin】“text a1”');
+    expect(markdown).toContain('Kevin');
+    expect(markdown).toContain('这里如何验证？');
   });
 });

@@ -27,6 +27,9 @@ import {
 } from 'lucide-react';
 import type {
   Agent,
+  Annotation,
+  ArticleRecord,
+  Comment as AnnotationComment,
   DesktopStore,
   LlmProvider,
   ProviderType,
@@ -35,10 +38,13 @@ import { renderMarkdown } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
   buildReadingCard,
+  buildReadingCardEvidenceUnits,
   buildReadingCardSections,
+  buildReadingCardStats,
   computeReadingStats,
   sortAnnotations,
   sortArticles,
+  type ReadingCardEvidenceUnit,
   type ReadingStatsPeriod,
 } from '@yomitomo/core';
 import {
@@ -657,6 +663,7 @@ function ReadingLibrary({
   articles: ArticleRecord[];
   onRefresh: () => void;
 }) {
+  const [activeShelf, setActiveShelf] = useState<'annotations' | 'card'>('annotations');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const sortedArticles = useMemo(() => sortArticles(articles), [articles]);
@@ -690,7 +697,13 @@ function ReadingLibrary({
   }, [selectedArticle?.id]);
 
   return (
-    <div className="library-screen">
+    <div
+      className={
+        activeShelf === 'card'
+          ? 'library-screen is-card-expanded'
+          : 'library-screen is-annotations-expanded'
+      }
+    >
       <section className="article-rail">
         <div className="article-rail-header">
           <div>
@@ -730,21 +743,71 @@ function ReadingLibrary({
         )}
       </section>
 
-      {selectedArticle ? (
-        <AnnotationNotebook
-          annotation={selectedAnnotation}
-          annotations={annotations}
-          article={selectedArticle}
-          onSelect={setSelectedAnnotationId}
+      <div
+        className={
+          activeShelf === 'annotations' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+        }
+      >
+        <ShelfTab
+          count={annotations.length}
+          icon={<Quote size={18} />}
+          label="批注"
+          onClick={() => setActiveShelf('annotations')}
         />
-      ) : (
-        <section className="annotation-notebook is-empty">
-          <div className="notebook-empty">选择一篇文章查看批注</div>
-        </section>
-      )}
+        <div className="library-shelf-content">
+          {activeShelf === 'annotations' ? (
+            selectedArticle ? (
+              <AnnotationNotebook
+                annotation={selectedAnnotation}
+                annotations={annotations}
+                article={selectedArticle}
+                onSelect={setSelectedAnnotationId}
+              />
+            ) : (
+              <section className="annotation-notebook is-empty">
+                <div className="notebook-empty">选择一篇文章查看批注</div>
+              </section>
+            )
+          ) : null}
+        </div>
+      </div>
 
-      <ReadingCard article={selectedArticle} />
+      <div
+        className={
+          activeShelf === 'card' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+        }
+      >
+        <ShelfTab
+          count={selectedArticle?.annotations.length || 0}
+          icon={<FileText size={18} />}
+          label="读后卡片"
+          onClick={() => setActiveShelf('card')}
+        />
+        <div className="library-shelf-content">
+          {activeShelf === 'card' ? <ReadingCard article={selectedArticle} /> : null}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function ShelfTab({
+  count,
+  icon,
+  label,
+  onClick,
+}: {
+  count: number;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="library-shelf-tab" type="button" onClick={onClick}>
+      <span className="library-shelf-tab-icon">{icon}</span>
+      <span className="library-shelf-tab-label">{label}</span>
+      <span className="library-shelf-tab-count">{count}</span>
+    </button>
   );
 }
 
@@ -938,10 +1001,15 @@ function OpenArticleButton({ article }: { article: ArticleRecord }) {
 function ReadingCard({ article }: { article: ArticleRecord | null }) {
   const [copied, setCopied] = useState(false);
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
-  const card = useMemo(() => (article ? buildReadingCard(article, articleText) : ''), [
-    article,
-    articleText,
-  ]);
+  const card = useMemo(
+    () => (article ? buildReadingCard(article, articleText) : ''),
+    [article, articleText],
+  );
+  const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
+  const evidenceUnits = useMemo(
+    () => (article ? buildReadingCardEvidenceUnits(article) : []),
+    [article],
+  );
   const sections = useMemo(
     () => (article ? buildReadingCardSections(article, articleText) : []),
     [article, articleText],
@@ -968,25 +1036,72 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
         <div>
           <h3>读后卡片</h3>
           <p>{article.title}</p>
+          {stats ? (
+            <div className="reading-card-meta">
+              <span>批注 {stats.annotations}</span>
+              <span>评论 {stats.comments}</span>
+              <span>助手 {stats.aiContributions}</span>
+            </div>
+          ) : null}
         </div>
         <Button type="button" variant="secondary" onClick={copyCard}>
           <Clipboard size={16} />
-          {copied ? '已复制' : '复制'}
+          {copied ? '已复制' : '复制 Markdown'}
         </Button>
       </div>
       <div className="reading-card-body">
         {sections.map((section) => (
           <section key={section.title}>
             <h4>{section.title}</h4>
-            <ul>
-              {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
-                <li key={`${section.title}-${index}`}>{item}</li>
-              ))}
-            </ul>
+            {section.title === '阅读轨迹' ? (
+              evidenceUnits.length > 0 ? (
+                <div className="reading-card-evidence-list">
+                  {evidenceUnits.map((unit) => (
+                    <ReadingCardEvidence unit={unit} key={unit.id} />
+                  ))}
+                </div>
+              ) : (
+                <p className="reading-card-placeholder">暂无</p>
+              )
+            ) : (
+              <ul>
+                {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
+                  <li key={`${section.title}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            )}
           </section>
         ))}
       </div>
     </aside>
+  );
+}
+
+function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
+  return (
+    <article className="reading-card-evidence">
+      <header>
+        <span className="reading-card-evidence-index">{unit.index}</span>
+        <div className="reading-card-evidence-heading">
+          <div className="reading-card-evidence-chips">
+            {unit.annotationType ? <span>{unit.annotationType}</span> : null}
+            <span>{unit.annotationAuthorLabel}</span>
+          </div>
+          <time>{formatDateTime(unit.createdAt)}</time>
+        </div>
+      </header>
+      <blockquote>{unit.quote}</blockquote>
+      {unit.comments.length > 0 ? (
+        <div className="reading-card-thread">
+          {unit.comments.map((comment) => (
+            <div className="reading-card-comment" key={comment.id}>
+              <strong>{comment.authorLabel}</strong>
+              <p>{comment.content}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </article>
   );
 }
 
