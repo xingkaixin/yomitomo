@@ -1,33 +1,84 @@
-# Yomitomo Chrome 扩展
+# Yomitomo
 
-这是一个最小可用版的阅读器 + 批注插件原型，包含：
+Yomitomo 是面向深度阅读的本地阅读伙伴，把网页阅读、文本批注、讨论线程和 AI 助手放进同一个阅读现场。它的目标是让用户在阅读时直接留下判断、追问和上下文，并让 AI 助手围绕原文参与批注。
 
-1. 点击插件图标进入/退出阅读器模式
-2. 进入阅读模式后对文本高亮并创建批注
-3. 每条高亮携带独立线程，可回复、嵌套展示
-4. 批注数据持久化到 `chrome.storage.local`，同一篇文章再次打开可恢复
+## 产品价值
 
-## 安装
+- 把网页转成更稳定的阅读视图，减少原站页面噪音。
+- 让高亮和批注绑定到原文片段，回到同一篇文章时可以继续阅读和讨论。
+- 用 threaded annotations 承载阅读过程中的想法、追问和回复。
+- 通过桌面端配置 AI provider 和助手身份，让 AI 基于当前文章和选中文本参与对话。
+- 数据优先保存在本机：扩展侧使用 `browser.storage.local`，桌面端使用 Electron `userData`。
 
-1. 打开 `chrome://extensions`
-2. 开启「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择本目录
+## 功能简述
 
-## 使用
+### 浏览器扩展
 
-- 打开任意网页后点击扩展图标，页面会切换到 `阅读器模式`
-- 用鼠标选中文本，会出现批注输入框
-- 发送批注后在右侧列表里看到该条讨论
-- 点击讨论卡片查看线程并继续回复
+- 点击扩展图标进入或退出阅读器模式。
+- 自动抽取网页正文、标题、作者和摘要信息。
+- 支持文章目录、阅读字号、内容宽度调节。
+- 选中文本后创建高亮和批注。
+- 每条批注拥有独立讨论线程，可继续回复。
+- 批注锚点使用文本偏移和上下文片段恢复，适配同一文章的再次打开。
+- 连接本地桌面端后，可选择 AI 助手进行主动批注。
 
-## 数据策略
+### 桌面端
 
-- 文章标识：优先使用 `<link rel="canonical">`，否则用当前 URL（去除 hash）
-- 锚定策略：先存 `start/end` 文本偏移，恢复时回退到 `prefix+exact+suffix` 模糊匹配
+- 运行本地 WebSocket 服务：`127.0.0.1:43891`。
+- 管理用户身份：昵称、username、头像、批注颜色。
+- 管理 LLM provider：类型、base URL、API key、模型名。
+- 管理 AI 助手：昵称、username、头像、批注颜色、角色提示词。
+- 提供 provider 连通性测试和本地日志路径。
 
-## 限制
+### 共享能力
 
-- 当前抽取器是轻量启发式清洗，不是完整 Readability 实现
-- 高亮采用 overlay 层绘制，不会改写阅读内容 DOM
-- 仅支持单网页入口；后续可直接接入 Electron/AI Agent 实现多人协作和主动批注
+- `@yomitomo/shared` 提供共享类型、ID 生成、文本哈希、文本锚点创建和解析。
+- desktop、extension 通过共享协议传递用户、助手、文章、批注和消息数据。
+
+## 项目结构
+
+```text
+apps/desktop      Electron 桌面端
+apps/extension    WXT 浏览器扩展
+packages/shared   共享类型和文本锚定工具
+```
+
+## 开发
+
+```bash
+pnpm install
+pnpm dev
+```
+
+常用命令：
+
+```bash
+pnpm lint
+pnpm test
+pnpm build
+pnpm format
+```
+
+单包运行：
+
+```bash
+pnpm --filter @yomitomo/desktop dev
+pnpm --filter @yomitomo/extension dev
+pnpm --filter @yomitomo/shared build
+```
+
+## 安装扩展
+
+```bash
+pnpm --filter @yomitomo/extension build
+```
+
+然后在 Chrome 打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3`。
+
+## 桌面端
+
+```bash
+pnpm --filter @yomitomo/desktop dev
+```
+
+桌面端启动后，扩展会通过 `ws://127.0.0.1:43891` 获取用户和助手配置，并把 AI 批注请求发送到本地服务处理。
