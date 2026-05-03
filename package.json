@@ -6,6 +6,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
     "format": "oxfmt --write .",
     "test": "turbo test"
   },

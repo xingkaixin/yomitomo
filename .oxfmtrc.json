@@ -5,6 +5,7 @@
   "useTabs": false,
   "singleQuote": true,
   "trailingComma": "all",
+  "sortPackageJson": false,
   "ignorePatterns": [
     "**/node_modules/**",
     "**/.next/**",
