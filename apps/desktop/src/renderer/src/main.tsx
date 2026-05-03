@@ -60,7 +60,14 @@ import avatar20Raw from "./assets/avatars/lorelei-1777774975114.svg?raw";
 import { Button } from "./components/ui/button";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
-import { Select } from "./components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
 import { Textarea } from "./components/ui/textarea";
 import "./styles.css";
 
@@ -69,7 +76,8 @@ type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
 type LogLevelFilter = "all" | "info" | "error";
-type AgentSaveState = "idle" | "saving" | "saved";
+type SaveState = "idle" | "saving" | "saved";
+type ProviderOption = { id: string; label: string; type: ProviderType; modelName: string };
 type LogEntry = {
   id: string;
   at: string;
@@ -227,7 +235,9 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState("");
   const [agentSaveError, setAgentSaveError] = useState("");
-  const [agentSaveState, setAgentSaveState] = useState<AgentSaveState>("idle");
+  const [userSaveState, setUserSaveState] = useState<SaveState>("idle");
+  const [providerSaveState, setProviderSaveState] = useState<SaveState>("idle");
+  const [agentSaveState, setAgentSaveState] = useState<SaveState>("idle");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -238,8 +248,26 @@ function App() {
   }, []);
 
   const providerOptions = useMemo(
-    () => store.providers.map((provider) => ({ id: provider.id, label: provider.name })),
+    () =>
+      store.providers.map((provider) => ({
+        id: provider.id,
+        label: provider.name,
+        type: provider.type,
+        modelName: provider.modelName,
+      })),
     [store.providers],
+  );
+  const userHasChanges = useMemo(
+    () => userDraftHasChanges(userDraft, store.user),
+    [store.user, userDraft],
+  );
+  const selectedProvider = useMemo(
+    () => store.providers.find((provider) => provider.id === selectedProviderId) || null,
+    [selectedProviderId, store.providers],
+  );
+  const providerHasChanges = useMemo(
+    () => providerDraftHasChanges(providerDraft, selectedProvider),
+    [providerDraft, selectedProvider],
   );
   const selectedAgent = useMemo(
     () => store.agents.find((agent) => agent.id === selectedAgentId) || null,
@@ -253,6 +281,9 @@ function App() {
     providerOptions.length > 0 &&
     agentSaveState !== "saving" &&
     (selectedAgentId ? agentHasChanges : true);
+  const canSaveProvider =
+    providerSaveState !== "saving" && (selectedProviderId ? providerHasChanges : true);
+  const canSaveUser = userSaveState !== "saving" && userHasChanges;
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -269,12 +300,14 @@ function App() {
     setSelectedProviderId(provider.id);
     setProviderDraft(provider);
     setTestState("");
+    setProviderSaveState("idle");
   }
 
   function createProvider() {
     setSelectedProviderId(null);
     setProviderDraft(emptyProvider);
     setTestState("");
+    setProviderSaveState("idle");
   }
 
   function selectAgent(agent: Agent) {
@@ -297,20 +330,39 @@ function App() {
   }
 
   async function saveUserDraft() {
-    if (!window.yomitomoDesktop) return;
-    const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
-    setStore(nextStore);
-    setUserDraft(nextStore.user);
+    if (!window.yomitomoDesktop || !canSaveUser) return;
+    setUserSaveState("saving");
+    try {
+      const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
+      setStore(nextStore);
+      setUserDraft(nextStore.user);
+      setUserSaveState("saved");
+      window.setTimeout(() => setUserSaveState("idle"), 1200);
+    } catch {
+      setUserSaveState("idle");
+    }
   }
 
   async function saveProviderDraft() {
-    if (!window.yomitomoDesktop) return;
-    const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
-    const savedProvider = providerDraft.id
-      ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
-      : nextStore.providers.at(-1);
-    setStore(nextStore);
-    if (savedProvider) selectProvider(savedProvider);
+    if (!window.yomitomoDesktop || !canSaveProvider) return;
+    setProviderSaveState("saving");
+    try {
+      const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
+      const savedProvider = providerDraft.id
+        ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
+        : nextStore.providers.at(-1);
+      setStore(nextStore);
+      setTestState("");
+      if (savedProvider) {
+        setSelectedProviderId(savedProvider.id);
+        setProviderDraft(savedProvider);
+        setProviderSaveState("saved");
+        window.setTimeout(() => setProviderSaveState("idle"), 1200);
+      }
+    } catch (error) {
+      setTestState(error instanceof Error ? `保存失败：${error.message}` : "保存失败。");
+      setProviderSaveState("idle");
+    }
   }
 
   async function deleteProvider(id: string) {
@@ -473,7 +525,16 @@ function App() {
             <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
           ) : null}
           {activeSetting === "general" ? (
-            <GeneralSettings draft={userDraft} onChange={setUserDraft} onSave={saveUserDraft} />
+            <GeneralSettings
+              draft={userDraft}
+              canSave={canSaveUser}
+              onChange={(draft) => {
+                setUserDraft(draft);
+                setUserSaveState("idle");
+              }}
+              onSave={saveUserDraft}
+              saveState={userSaveState}
+            />
           ) : null}
           {activeSetting === "providers" ? (
             <ProviderSettings
@@ -481,10 +542,15 @@ function App() {
               providers={store.providers}
               selectedId={selectedProviderId}
               testState={testState}
-              onChange={setProviderDraft}
+              canSave={canSaveProvider}
+              onChange={(draft) => {
+                setProviderDraft(draft);
+                setProviderSaveState("idle");
+              }}
               onCreate={createProvider}
               onDelete={deleteProvider}
               onSave={saveProviderDraft}
+              saveState={providerSaveState}
               onSelect={selectProvider}
               onTest={testProvider}
             />
@@ -544,13 +610,19 @@ function SettingsNavButton({
 
 function GeneralSettings({
   draft,
+  canSave,
   onChange,
   onSave,
+  saveState,
 }: {
   draft: UserDraft;
+  canSave: boolean;
   onChange: (draft: UserDraft) => void;
   onSave: () => void;
+  saveState: SaveState;
 }) {
+  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+
   return (
     <div className="settings-panel">
       <PanelHeader
@@ -558,9 +630,18 @@ function GeneralSettings({
         title="通用"
         description="配置用户头像、昵称和用户名，后续批注会使用这组身份信息。"
         action={
-          <Button type="button" onClick={onSave}>
-            <Save size={16} />
-            保存
+          <Button
+            className={
+              saveState === "saved"
+                ? "action-button save-action is-saved"
+                : "action-button save-action"
+            }
+            disabled={!canSave}
+            type="button"
+            onClick={onSave}
+          >
+            {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
           </Button>
         }
       />
@@ -969,12 +1050,15 @@ function LogViewer() {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<LogLevelFilter>("all");
   const [status, setStatus] = useState("");
+  const [refreshState, setRefreshState] = useState<SaveState>("idle");
+  const [clearState, setClearState] = useState<SaveState>("idle");
 
   useEffect(() => {
     loadLog();
   }, []);
 
   const entries = useMemo(() => parseLogEntries(rawLog), [rawLog]);
+  const hasLogContent = rawLog.trim().length > 0;
   const visibleEntries = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return entries.filter((entry) => {
@@ -986,21 +1070,27 @@ function LogViewer() {
 
   async function loadLog() {
     const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
+    if (!desktop || refreshState === "saving") return;
 
+    setRefreshState("saving");
     const [path, content] = await Promise.all([desktop.getLogPath(), desktop.readLog()]);
     setLogPath(path);
     setRawLog(content);
     setStatus(`已加载 ${formatDateTime(new Date().toISOString())}`);
+    setRefreshState("saved");
+    window.setTimeout(() => setRefreshState("idle"), 1000);
   }
 
   async function clearLog() {
     const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
+    if (!desktop || !hasLogContent || clearState === "saving") return;
 
+    setClearState("saving");
     await desktop.clearLog();
     setRawLog("");
     setStatus("日志已清理");
+    setClearState("saved");
+    window.setTimeout(() => setClearState("idle"), 1000);
   }
 
   return (
@@ -1011,13 +1101,33 @@ function LogViewer() {
           <p>打开此页时加载一次，点击刷新读取新内容。</p>
         </div>
         <div className="log-actions">
-          <Button variant="secondary" type="button" onClick={loadLog}>
+          <Button
+            className={
+              refreshState === "saving"
+                ? "action-button test-action log-refresh-action is-loading"
+                : "action-button test-action log-refresh-action"
+            }
+            disabled={refreshState === "saving"}
+            variant="secondary"
+            type="button"
+            onClick={loadLog}
+          >
             <RefreshCcw size={16} />
-            刷新
+            {refreshState === "saving" ? "刷新中" : refreshState === "saved" ? "已刷新" : "刷新"}
           </Button>
-          <Button variant="destructive" type="button" onClick={clearLog}>
-            <Trash2 size={16} />
-            清理
+          <Button
+            className={
+              clearState === "saved"
+                ? "action-button danger-action log-clear-action is-cleared"
+                : "action-button danger-action log-clear-action"
+            }
+            disabled={!hasLogContent || clearState === "saving"}
+            variant="destructive"
+            type="button"
+            onClick={clearLog}
+          >
+            {clearState === "saved" ? <Check size={16} /> : <Trash2 size={16} />}
+            {clearState === "saving" ? "清理中" : clearState === "saved" ? "已清理" : "清理"}
           </Button>
         </div>
       </div>
@@ -1043,10 +1153,17 @@ function LogViewer() {
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
-        <Select value={level} onChange={(event) => setLevel(event.target.value as LogLevelFilter)}>
-          <option value="all">全部级别</option>
-          <option value="info">Info</option>
-          <option value="error">Error</option>
+        <Select value={level} onValueChange={(value) => setLevel(value as LogLevelFilter)}>
+          <SelectTrigger className="log-level-select">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content">
+            <SelectGroup>
+              <SelectItem value="all">全部级别</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="error">Error</SelectItem>
+            </SelectGroup>
+          </SelectContent>
         </Select>
       </div>
       <div className="log-summary">
@@ -1125,10 +1242,12 @@ function ProviderSettings({
   providers,
   selectedId,
   testState,
+  canSave,
   onChange,
   onCreate,
   onDelete,
   onSave,
+  saveState,
   onSelect,
   onTest,
 }: {
@@ -1136,13 +1255,17 @@ function ProviderSettings({
   providers: LlmProvider[];
   selectedId: string | null;
   testState: string;
+  canSave: boolean;
   onChange: (draft: ProviderDraft) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onSave: () => void;
+  saveState: SaveState;
   onSelect: (provider: LlmProvider) => void;
   onTest: (id: string) => void;
 }) {
+  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+
   return (
     <div className="settings-panel">
       <PanelHeader
@@ -1180,12 +1303,18 @@ function ProviderSettings({
             </div>
             <div className="flex gap-2">
               {draft.id ? (
-                <Button variant="secondary" type="button" onClick={() => onTest(draft.id!)}>
+                <Button
+                  className="action-button test-action"
+                  variant="secondary"
+                  type="button"
+                  onClick={() => onTest(draft.id!)}
+                >
                   测试
                 </Button>
               ) : null}
               {draft.id ? (
                 <Button
+                  className="action-button danger-action"
                   variant="destructive"
                   size="icon"
                   type="button"
@@ -1194,9 +1323,18 @@ function ProviderSettings({
                   <Trash2 size={15} />
                 </Button>
               ) : null}
-              <Button type="button" onClick={onSave}>
-                <Save size={16} />
-                保存
+              <Button
+                className={
+                  saveState === "saved"
+                    ? "action-button save-action is-saved"
+                    : "action-button save-action"
+                }
+                disabled={!canSave}
+                type="button"
+                onClick={onSave}
+              >
+                {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+                {saveLabel}
               </Button>
             </div>
           </div>
@@ -1229,14 +1367,14 @@ function AgentSettings({
   agents: Agent[];
   draft: AgentDraft;
   error: string;
-  providers: Array<{ id: string; label: string }>;
+  providers: ProviderOption[];
   selectedId: string | null;
   canSave: boolean;
   onChange: (draft: AgentDraft) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onSave: () => void;
-  saveState: AgentSaveState;
+  saveState: SaveState;
   onSelect: (agent: Agent) => void;
 }) {
   const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
@@ -1398,11 +1536,18 @@ function ProviderForm({
       <Field label="API 类型">
         <Select
           value={draft.type || "anthropic"}
-          onChange={(event) => onChange({ ...draft, type: event.target.value as ProviderType })}
+          onValueChange={(value) => onChange({ ...draft, type: value as ProviderType })}
         >
-          <option value="anthropic">Anthropic</option>
-          <option value="openai">OpenAI</option>
-          <option value="gemini">Gemini</option>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content">
+            <SelectGroup>
+              <SelectItem value="anthropic">Anthropic</SelectItem>
+              <SelectItem value="openai">OpenAI</SelectItem>
+              <SelectItem value="gemini">Gemini</SelectItem>
+            </SelectGroup>
+          </SelectContent>
         </Select>
       </Field>
       <Field label="Base URL">
@@ -1435,7 +1580,7 @@ function AgentForm({
 }: {
   draft: AgentDraft;
   error: string;
-  providers: Array<{ id: string; label: string }>;
+  providers: ProviderOption[];
   onChange: (draft: AgentDraft) => void;
 }) {
   const personalityId =
@@ -1465,14 +1610,28 @@ function AgentForm({
     <div className="settings-form-grid">
       <Field description="当前助手调用的模型供应商。" label="供应商">
         <Select
+          disabled={providers.length === 0}
           value={draft.providerId || providers[0]?.id || ""}
-          onChange={(event) => onChange({ ...draft, providerId: event.target.value })}
+          onValueChange={(providerId) => onChange({ ...draft, providerId })}
         >
-          {providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.label}
-            </option>
-          ))}
+          <SelectTrigger className="provider-select-trigger">
+            <SelectValue placeholder="选择供应商" />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content provider-select-content">
+            <SelectGroup>
+              {providers.map((provider) => (
+                <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
+                  <span className="provider-select-item-mark" />
+                  <span className="provider-select-item-copy">
+                    <strong>{provider.label}</strong>
+                    <span>
+                      {provider.type} · {provider.modelName}
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
         </Select>
       </Field>
       <Field description="批注和评论中展示的名称。" label="昵称">
@@ -1608,6 +1767,27 @@ function findAgentPersonalityId(soul: string) {
 function agentPersonalityName(agent: Agent) {
   return (
     agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || "自定义个性"
+  );
+}
+
+function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
+  return (
+    (draft.nickname || "").trim() !== user.nickname ||
+    (draft.username || "").trim() !== user.username ||
+    (draft.avatar || "") !== user.avatar ||
+    (draft.annotationColor || "") !== user.annotationColor
+  );
+}
+
+function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvider | null) {
+  if (!provider) return true;
+
+  return (
+    (draft.name || "").trim() !== provider.name ||
+    (draft.type || "anthropic") !== provider.type ||
+    (draft.baseUrl || "").trim() !== provider.baseUrl ||
+    (draft.apiKey || "").trim() !== provider.apiKey ||
+    (draft.modelName || "").trim() !== provider.modelName
   );
 }
 

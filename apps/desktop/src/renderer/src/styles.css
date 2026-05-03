@@ -505,8 +505,42 @@
   animation: save-confirm 520ms ease;
 }
 
+.save-action.is-saved:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .danger-action:hover:not(:disabled) {
   box-shadow: 0 10px 22px hsl(8 48% 30% / 0.16);
+}
+
+.test-action:hover:not(:disabled) {
+  box-shadow: 0 10px 22px hsl(83 24% 30% / 0.12);
+}
+
+.log-refresh-action,
+.log-clear-action {
+  min-width: 86px;
+}
+
+.log-refresh-action.is-loading svg {
+  animation: log-refresh-spin 720ms linear infinite;
+}
+
+.log-clear-action.is-cleared {
+  background: hsl(83 24% 35%);
+  color: hsl(var(--primary-foreground));
+}
+
+.log-clear-action.is-cleared:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+@keyframes log-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes save-confirm {
@@ -533,6 +567,107 @@
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   line-height: 1.45;
+}
+
+.theme-select-content {
+  border-color: hsl(var(--border) / 0.82);
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.98), hsl(38 43% 93% / 0.98)), hsl(var(--card));
+  box-shadow:
+    0 20px 50px hsl(31 34% 24% / 0.16),
+    inset 0 1px 0 hsl(40 100% 98% / 0.72);
+}
+
+.theme-select-content [role="option"] {
+  color: hsl(var(--foreground));
+}
+
+.theme-select-content [role="option"]:focus,
+.theme-select-content [role="option"][data-highlighted] {
+  background: hsl(76 21% 72% / 0.38);
+  color: hsl(var(--foreground));
+}
+
+.provider-select-trigger {
+  height: 52px;
+  border-color: hsl(var(--border) / 0.78);
+  background:
+    linear-gradient(180deg, hsl(40 100% 97% / 0.96), hsl(38 42% 93% / 0.86)), hsl(var(--card));
+  box-shadow:
+    0 10px 24px hsl(31 34% 24% / 0.08),
+    inset 0 1px 0 hsl(40 100% 98% / 0.82);
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.provider-select-trigger:hover:not(:disabled),
+.provider-select-trigger[data-state="open"] {
+  border-color: hsl(8 45% 48% / 0.42);
+  background:
+    linear-gradient(180deg, hsl(40 100% 98% / 0.98), hsl(38 50% 94% / 0.94)), hsl(var(--card));
+  box-shadow:
+    0 14px 30px hsl(31 34% 24% / 0.12),
+    0 0 0 3px hsl(8 45% 46% / 0.08),
+    inset 0 1px 0 hsl(40 100% 98% / 0.9);
+}
+
+.provider-select-trigger:active:not(:disabled) {
+  transform: translateY(1px) scale(0.995);
+}
+
+.provider-select-trigger > span:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.provider-select-content {
+  padding: 4px;
+}
+
+.provider-select-item {
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 34px 9px 10px;
+}
+
+.provider-select-item-mark {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  background: hsl(83 24% 35%);
+  box-shadow: 0 0 0 4px hsl(83 24% 35% / 0.12);
+}
+
+.provider-select-item-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.provider-select-item-copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 880;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-select-item-copy span {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stats-periods {
@@ -1317,7 +1452,7 @@
   gap: 10px;
 }
 
-.log-toolbar select {
+.log-level-select {
   width: 160px;
 }
 
@@ -1417,11 +1552,19 @@
   background: transparent;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
+  transition:
+    transform 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
 }
 
 .secret-toggle:hover {
-  background: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background: hsl(76 21% 72% / 0.45);
+  color: hsl(var(--primary));
+}
+
+.secret-toggle:active {
+  transform: translateY(-50%) scale(0.94);
 }
 
 .avatar-picker {
@@ -1537,6 +1680,23 @@
   font-size: 13px;
   font-weight: 760;
   padding: 0 14px;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease,
+    color 140ms ease;
+}
+
+.upload-button:hover {
+  background: hsl(76 21% 72% / 0.48);
+  box-shadow: 0 10px 22px hsl(31 34% 24% / 0.1);
+  color: hsl(var(--primary));
+  transform: translateY(-1px);
+}
+
+.upload-button:active {
+  box-shadow: 0 4px 12px hsl(31 34% 24% / 0.08);
+  transform: translateY(1px) scale(0.98);
 }
 
 .upload-button input {
