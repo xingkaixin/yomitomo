@@ -60,6 +60,7 @@ const agentAvatars = [
 const annotationColors = ["#f4c95d", "#8ab6d6", "#8fc7a3", "#d9a7c7", "#f2a65a", "#a7b8e8", "#c8b88a", "#e58f8a"];
 
 const defaultUser: UserProfile = {
+  id: "user_local",
   nickname: "我",
   username: "me",
   avatar: "",

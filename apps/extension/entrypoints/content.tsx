@@ -22,13 +22,20 @@ import {
 const HOST_ID = "reader-agent-root";
 const STORAGE_PREFIX = "reader.article.";
 const READER_SETTINGS_KEY = "reader.settings";
+const DESKTOP_PROFILE_CACHE_KEY = "reader.desktopProfile";
 const DESKTOP_WS_URL = "ws://127.0.0.1:43891";
 const defaultUserProfile: UserProfile = {
+  id: "user_local",
   nickname: "我",
   username: "me",
   avatar: "",
   annotationColor: "#f4c95d",
   updatedAt: ""
+};
+
+type DesktopProfileCache = {
+  user: UserProfile;
+  agents: PublicAgent[];
 };
 let root: Root | null = null;
 let previousOverflow = "";
@@ -228,6 +235,15 @@ function textFromHtml(html: string) {
   return container.textContent || "";
 }
 
+function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfile {
+  return {
+    ...defaultUserProfile,
+    ...user,
+    id: user?.id || defaultUserProfile.id,
+    annotationColor: user?.annotationColor || defaultUserProfile.annotationColor
+  };
+}
+
 function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -279,11 +295,16 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [extracted.content]);
 
   useEffect(() => {
-    browser.storage.local.get([storageKey, READER_SETTINGS_KEY]).then((stored) => {
+    browser.storage.local.get([storageKey, READER_SETTINGS_KEY, DESKTOP_PROFILE_CACHE_KEY]).then((stored) => {
       const loaded = stored[storageKey] as ArticleRecord | undefined;
       if (loaded) {
         setRecord(loaded);
         setAnnotations(loaded.annotations || []);
+      }
+      const cachedDesktopProfile = stored[DESKTOP_PROFILE_CACHE_KEY] as DesktopProfileCache | undefined;
+      if (cachedDesktopProfile) {
+        setUserProfile(normalizeUserProfile(cachedDesktopProfile.user));
+        setAgents(cachedDesktopProfile.agents || []);
       }
       const savedSettings = stored[READER_SETTINGS_KEY] as ReaderSettings | undefined;
       if (savedSettings) {
@@ -338,13 +359,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         nextBoxes.push({
           ...box,
           annotationId: annotation.id,
-          color: annotation.color
+          color: annotationColor(annotation, userProfile, agents)
         });
       });
     }
 
     setBoxes(nextBoxes);
-  }, [annotations]);
+  }, [agents, annotations, userProfile]);
 
   useEffect(() => {
     let closed = false;
@@ -414,9 +435,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   async function handleDesktopMessage(message: DesktopServerMessage) {
     if (message.type === "status" || message.type === "agent:list:result") {
+      const user = normalizeUserProfile(message.user);
       setDesktopConnected(message.type === "status" ? message.ok : true);
-      setUserProfile(message.user);
+      setUserProfile(user);
       setAgents(message.agents);
+      await browser.storage.local.set({ [DESKTOP_PROFILE_CACHE_KEY]: { user, agents: message.agents } satisfies DesktopProfileCache });
       return;
     }
 
@@ -589,6 +612,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           author: "user" as const,
           content: note.trim(),
           createdAt: now,
+          userId: userProfile.id,
           userUsername: userProfile.username,
           userNickname: userProfile.nickname,
           userAvatar: userProfile.avatar,
@@ -600,6 +624,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       anchor: composer.anchor,
       author: "user",
       color: userProfile.annotationColor,
+      userId: userProfile.id,
       userUsername: userProfile.username,
       userNickname: userProfile.nickname,
       userAvatar: userProfile.avatar,
@@ -836,6 +861,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       author: "user",
       content: trimmed,
       createdAt: now,
+      userId: userProfile.id,
       userUsername: userProfile.username,
       userNickname: userProfile.nickname,
       userAvatar: userProfile.avatar,
@@ -853,12 +879,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const nextAnnotation = nextAnnotations.find((annotation) => annotation.id === annotationId);
     if (nextAnnotation) {
       for (const agent of mentionedAgents) {
-        sendAgentMessage(agent.username, nextAnnotation, userComment);
+        sendAgentMessage(agent, nextAnnotation, userComment);
       }
     }
   }
 
-  function sendAgentMessage(agentUsername: string, annotation: Annotation, userComment: Comment) {
+  function sendAgentMessage(agent: PublicAgent, annotation: Annotation, userComment: Comment) {
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
@@ -867,7 +893,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         type: "agent:message",
         requestId: makeId("request"),
         payload: {
-          agentUsername,
+          agentId: agent.id,
+          agentUsername: agent.username,
           article: { title: extracted.title, url: extracted.canonicalUrl, text: articleRef.current?.textContent || "" },
           annotation,
           userComment
@@ -876,19 +903,20 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     );
   }
 
-  function requestAgentAnnotations(agentUsername: string) {
+  function requestAgentAnnotations(agent: PublicAgent) {
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
     const requestId = makeId("request");
     pendingAgentRequestsRef.current.set(requestId, { annotationId: "", commentId: "" });
-    setAnnotatingAgent(agentUsername);
+    setAnnotatingAgent(agent.id);
     socket.send(
       JSON.stringify({
         type: "agent:annotate",
         requestId,
         payload: {
-          agentUsername,
+          agentId: agent.id,
+          agentUsername: agent.username,
           article: { title: extracted.title, url: extracted.canonicalUrl, text: articleRef.current?.textContent || "" }
         }
       })
@@ -1029,58 +1057,74 @@ function AvatarBadge({ avatar, fallback = "AI" }: { avatar?: string; fallback?: 
   return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
 }
 
-function annotationAuthor(annotation: Annotation, userProfile: UserProfile) {
+function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
   if (annotation.author === "ai") {
+    const agent = findAgentIdentity(annotation.agentId, annotation.agentUsername, agents);
     return {
-      avatar: annotation.agentAvatar,
+      avatar: agent?.avatar || annotation.agentAvatar,
       fallback: "AI",
-      nickname: annotation.agentNickname || annotation.agentUsername || "Agent",
-      username: annotation.agentUsername || "agent",
-      color: annotation.agentAnnotationColor || annotation.color
+      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || "Agent",
+      username: agent?.username || annotation.agentUsername || "agent",
+      color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color
     };
   }
 
+  const user = findUserIdentity(annotation.userId, userProfile);
   return {
-    avatar: annotation.userAvatar || userProfile.avatar,
+    avatar: user?.avatar || annotation.userAvatar || userProfile.avatar,
     fallback: "我",
-    nickname: annotation.userNickname || userProfile.nickname,
-    username: annotation.userUsername || userProfile.username,
-    color: annotation.userAnnotationColor || annotation.color || userProfile.annotationColor
+    nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
+    username: user?.username || annotation.userUsername || userProfile.username,
+    color: user?.annotationColor || annotation.userAnnotationColor || annotation.color || userProfile.annotationColor
   };
 }
 
-function commentPersona(comment: Comment, userProfile: UserProfile) {
+function commentPersona(comment: Comment, userProfile: UserProfile, agents: PublicAgent[]) {
   if (comment.author === "ai") {
+    const agent = findAgentIdentity(comment.agentId, comment.agentUsername, agents);
     return {
-      avatar: comment.agentAvatar,
+      avatar: agent?.avatar || comment.agentAvatar,
       fallback: "AI",
-      nickname: comment.agentNickname || comment.agentUsername || "Agent",
-      username: comment.agentUsername || "agent",
-      color: comment.agentAnnotationColor || defaultUserProfile.annotationColor
+      nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || "Agent",
+      username: agent?.username || comment.agentUsername || "agent",
+      color: agent?.annotationColor || comment.agentAnnotationColor || defaultUserProfile.annotationColor
     };
   }
 
+  const user = findUserIdentity(comment.userId, userProfile);
   return {
-    avatar: comment.userAvatar || userProfile.avatar,
+    avatar: user?.avatar || comment.userAvatar || userProfile.avatar,
     fallback: "我",
-    nickname: comment.userNickname || userProfile.nickname,
-    username: comment.userUsername || userProfile.username,
-    color: comment.userAnnotationColor || userProfile.annotationColor
+    nickname: user?.nickname || comment.userNickname || userProfile.nickname,
+    username: user?.username || comment.userUsername || userProfile.username,
+    color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor
   };
+}
+
+function annotationColor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
+  return annotationAuthor(annotation, userProfile, agents).color;
+}
+
+function findAgentIdentity(agentId: string | undefined, username: string | undefined, agents: PublicAgent[]) {
+  return agents.find((agent) => agent.id === agentId) || agents.find((agent) => agent.username === username);
+}
+
+function findUserIdentity(userId: string | undefined, userProfile: UserProfile) {
+  return !userId || userId === userProfile.id ? userProfile : null;
 }
 
 function EmptyNotes() {
   return <div className="reader-empty"><strong>选择一段文字开始批注</strong><p>选中阅读器内的文本后，可以写下想法。高亮和讨论会保存在当前文章下。</p></div>;
 }
 
-function AgentAnnotateMenu({ agents, annotatingAgent, onSelect }: { agents: PublicAgent[]; annotatingAgent: string | null; onSelect: (username: string) => void }) {
+function AgentAnnotateMenu({ agents, annotatingAgent, onSelect }: { agents: PublicAgent[]; annotatingAgent: string | null; onSelect: (agent: PublicAgent) => void }) {
   return (
     <div className="reader-agent-annotate-menu">
       {agents.map((agent) => (
-        <button disabled={Boolean(annotatingAgent)} key={agent.id} type="button" onClick={() => onSelect(agent.username)}>
+        <button disabled={Boolean(annotatingAgent)} key={agent.id} type="button" onClick={() => onSelect(agent)}>
           <AvatarBadge avatar={agent.avatar} />
           <strong>{agent.nickname}</strong>
-          <em>{annotatingAgent === agent.username ? "阅读中..." : `@${agent.username}`}</em>
+          <em>{annotatingAgent === agent.id ? "阅读中..." : `@${agent.username}`}</em>
         </button>
       ))}
     </div>
@@ -1118,7 +1162,7 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const matchedAgents = mentionQuery === null ? [] : agents.filter((agent) => agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) || agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase())).slice(0, 5);
-  const author = annotationAuthor(annotation, userProfile);
+  const author = annotationAuthor(annotation, userProfile, agents);
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -1181,7 +1225,7 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
   }
 
   return (
-    <section className={active ? "reader-note is-active" : "reader-note"} ref={noteRef} style={noteStyle(annotation.color, active)}>
+    <section className={active ? "reader-note is-active" : "reader-note"} ref={noteRef} style={noteStyle(author.color, active)}>
       <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
         <span className="reader-note-persona"><AvatarBadge avatar={author.avatar} fallback={author.fallback} /><strong>{author.nickname}</strong><em>@{author.username}</em></span>
         <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
@@ -1189,7 +1233,7 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
       <div className="reader-comments">
         {annotation.comments.length === 0 ? <p className="reader-muted">已高亮，暂无文字批注。</p> : null}
         {annotation.comments.map((comment) => {
-          const commentAuthor = commentPersona(comment, userProfile);
+          const commentAuthor = commentPersona(comment, userProfile, agents);
           return (
             <div className="reader-comment" key={comment.id}>
               <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />

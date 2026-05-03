@@ -67,7 +67,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === "agent:message") {
       const store = await readStore();
-      const agent = store.agents.find((item) => item.username === message.payload.agentUsername);
+      const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
       const provider = store.providers.find((item) => item.id === agent.providerId);
@@ -114,7 +114,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === "agent:annotate") {
       const store = await readStore();
-      const agent = store.agents.find((item) => item.username === message.payload.agentUsername);
+      const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
       const provider = store.providers.find((item) => item.id === agent.providerId);
@@ -172,6 +172,10 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
     avatar: agent.avatar,
     annotationColor: agent.annotationColor
   }));
+}
+
+function findAgent(agents: Agent[], agentId: string | undefined, username: string) {
+  return agents.find((agent) => agent.id === agentId) || agents.find((agent) => agent.username === username);
 }
 
 function toPublicUser(user: UserProfile): UserProfile {

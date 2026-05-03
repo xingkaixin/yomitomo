@@ -5,6 +5,7 @@ import type { Agent, DesktopStore, LlmProvider, UserProfile } from "@reader/shar
 import { makeId } from "@reader/shared";
 
 const defaultUser: UserProfile = {
+  id: "user_local",
   nickname: "我",
   username: "me",
   avatar: "",
@@ -27,7 +28,7 @@ export async function readStore(): Promise<DesktopStore> {
     const raw = await readFile(storePath(), "utf8");
     const parsed = JSON.parse(raw) as DesktopStore;
     return {
-      user: { ...defaultUser, ...parsed.user, annotationColor: parsed.user?.annotationColor || defaultUser.annotationColor },
+      user: { ...defaultUser, ...parsed.user, id: parsed.user?.id || defaultUser.id, annotationColor: parsed.user?.annotationColor || defaultUser.annotationColor },
       providers: parsed.providers || [],
       agents: (parsed.agents || []).map((agent) => ({
         ...agent,
@@ -49,6 +50,7 @@ export async function writeStore(store: DesktopStore): Promise<DesktopStore> {
 export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStore> {
   const store = await readStore();
   const user: UserProfile = {
+    id: store.user.id || defaultUser.id,
     nickname: input.nickname?.trim() || store.user.nickname,
     username: normalizeUsername(input.username || store.user.username || "me"),
     avatar: input.avatar || store.user.avatar,

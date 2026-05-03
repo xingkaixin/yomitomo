@@ -28,6 +28,7 @@ export type Agent = {
 export type PublicAgent = Omit<Agent, "providerId" | "soul" | "createdAt" | "updatedAt">;
 
 export type UserProfile = {
+  id: string;
   nickname: string;
   username: string;
   avatar: string;
@@ -54,6 +55,7 @@ export type Comment = {
   agentNickname?: string;
   agentAvatar?: string;
   agentAnnotationColor?: string;
+  userId?: string;
   userUsername?: string;
   userNickname?: string;
   userAvatar?: string;
@@ -71,6 +73,7 @@ export type Annotation = {
   agentNickname?: string;
   agentAvatar?: string;
   agentAnnotationColor?: string;
+  userId?: string;
   userUsername?: string;
   userNickname?: string;
   userAvatar?: string;
@@ -100,6 +103,7 @@ export type DesktopStore = {
 };
 
 export type AgentMessagePayload = {
+  agentId?: string;
   agentUsername: string;
   article: {
     title: string;
@@ -111,6 +115,7 @@ export type AgentMessagePayload = {
 };
 
 export type AgentAnnotatePayload = {
+  agentId?: string;
   agentUsername: string;
   article: {
     title: string;
