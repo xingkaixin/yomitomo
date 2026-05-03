@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import packageJson from "./package.json" with { type: "json" };
 
 const icons = {
   16: "icon/16.png",
@@ -22,7 +23,7 @@ export default defineConfig({
   manifest: {
     name: "Yomitomo",
     description: "Yomitomo reader mode with persistent highlights and threaded annotations.",
-    version: "0.0.1",
+    version: packageJson.version,
     permissions: ["activeTab", "storage", "tabs"],
     host_permissions: ["<all_urls>", "ws://127.0.0.1/*"],
     icons,
