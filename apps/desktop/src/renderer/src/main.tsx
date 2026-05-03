@@ -4,13 +4,16 @@ import {
   BookOpen,
   Bot,
   Cable,
+  FileText,
   Eye,
   EyeOff,
+  Info,
   KeyRound,
   MessageCircle,
   Plus,
   RefreshCcw,
   Save,
+  Search,
   Trash2,
   Upload,
   User,
@@ -50,10 +53,19 @@ import { Select } from "./components/ui/select";
 import { Textarea } from "./components/ui/textarea";
 import "./styles.css";
 
-type SettingKey = "library" | "general" | "providers" | "agents";
+type SettingKey = "library" | "general" | "providers" | "agents" | "about";
 type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
+type LogLevelFilter = "all" | "info" | "error";
+type LogEntry = {
+  id: string;
+  at: string;
+  level: string;
+  event: string;
+  data?: unknown;
+  raw: string;
+};
 
 const agentAvatars = [
   avatar01Raw,
@@ -156,14 +168,12 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState("");
   const [agentSaveError, setAgentSaveError] = useState("");
-  const [logPath, setLogPath] = useState("");
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
     if (!desktop) return;
 
     refreshStore();
-    desktop.getLogPath().then(setLogPath);
   }, []);
 
   const providerOptions = useMemo(
@@ -319,17 +329,13 @@ function App() {
               label="助手"
               onClick={() => setActiveSetting("agents")}
             />
+            <SettingsNavButton
+              active={activeSetting === "about"}
+              icon={<Info size={17} />}
+              label="关于"
+              onClick={() => setActiveSetting("about")}
+            />
           </nav>
-
-          {logPath ? (
-            <button
-              className="mt-auto rounded-2xl border border-border bg-background/60 p-3 text-left text-xs leading-5 text-muted-foreground"
-              type="button"
-              onClick={() => navigator.clipboard.writeText(logPath)}
-            >
-              日志文件：{logPath}
-            </button>
-          ) : null}
         </aside>
 
         <section className="settings-content">
@@ -370,6 +376,7 @@ function App() {
               onSelect={selectAgent}
             />
           ) : null}
+          {activeSetting === "about" ? <AboutSettings /> : null}
         </section>
       </section>
     </main>
@@ -498,6 +505,137 @@ function ReadingLibrary({
         </section>
       )}
     </div>
+  );
+}
+
+function AboutSettings() {
+  return (
+    <div className="settings-panel">
+      <PanelHeader
+        icon={<Info size={20} />}
+        title="关于"
+        description="应用信息、日志查看和本地诊断。"
+      />
+      <section className="detail-pane about-section">
+        <LogViewer />
+      </section>
+    </div>
+  );
+}
+
+function LogViewer() {
+  const [logPath, setLogPath] = useState("");
+  const [rawLog, setRawLog] = useState("");
+  const [query, setQuery] = useState("");
+  const [level, setLevel] = useState<LogLevelFilter>("all");
+  const [status, setStatus] = useState("");
+
+  useEffect(() => {
+    loadLog();
+  }, []);
+
+  const entries = useMemo(() => parseLogEntries(rawLog), [rawLog]);
+  const visibleEntries = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (level !== "all" && entry.level !== level) return false;
+      if (!needle) return true;
+      return entry.raw.toLowerCase().includes(needle);
+    });
+  }, [entries, level, query]);
+
+  async function loadLog() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    const [path, content] = await Promise.all([desktop.getLogPath(), desktop.readLog()]);
+    setLogPath(path);
+    setRawLog(content);
+    setStatus(`已加载 ${formatDateTime(new Date().toISOString())}`);
+  }
+
+  async function clearLog() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    await desktop.clearLog();
+    setRawLog("");
+    setStatus("日志已清理");
+  }
+
+  return (
+    <div className="log-viewer">
+      <div className="log-header">
+        <div>
+          <h3>日志</h3>
+          <p>打开此页时加载一次，点击刷新读取新内容。</p>
+        </div>
+        <div className="log-actions">
+          <Button variant="secondary" type="button" onClick={loadLog}>
+            <RefreshCcw size={16} />
+            刷新
+          </Button>
+          <Button variant="destructive" type="button" onClick={clearLog}>
+            <Trash2 size={16} />
+            清理
+          </Button>
+        </div>
+      </div>
+      <div className="log-path-row">
+        <FileText size={16} />
+        <span>{logPath || "日志路径加载中..."}</span>
+        {logPath ? (
+          <Button
+            variant="secondary"
+            type="button"
+            onClick={() => navigator.clipboard.writeText(logPath)}
+          >
+            复制路径
+          </Button>
+        ) : null}
+      </div>
+      <div className="log-toolbar">
+        <div className="log-search">
+          <Search size={16} />
+          <Input
+            placeholder="搜索日志事件、内容或路径"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        <Select value={level} onChange={(event) => setLevel(event.target.value as LogLevelFilter)}>
+          <option value="all">全部级别</option>
+          <option value="info">Info</option>
+          <option value="error">Error</option>
+        </Select>
+      </div>
+      <div className="log-summary">
+        <span>
+          {visibleEntries.length} / {entries.length} 条
+        </span>
+        <span>{status}</span>
+      </div>
+      <div className="log-list">
+        {visibleEntries.length > 0 ? (
+          visibleEntries.map((entry) => <LogEntryRow entry={entry} key={entry.id} />)
+        ) : (
+          <div className="log-empty">没有匹配的日志</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LogEntryRow({ entry }: { entry: LogEntry }) {
+  return (
+    <article className={`log-entry is-${entry.level}`}>
+      <div className="log-entry-meta">
+        <span>{entry.level}</span>
+        <time>{formatDateTime(entry.at)}</time>
+      </div>
+      <strong>{entry.event}</strong>
+      {entry.data === undefined ? null : <pre>{formatLogData(entry.data)}</pre>}
+    </article>
   );
 }
 
@@ -1065,6 +1203,49 @@ function urlHost(value: string) {
   } catch {
     return value;
   }
+}
+
+function parseLogEntries(raw: string): LogEntry[] {
+  return raw
+    .split("\n")
+    .map((line, index) => parseLogLine(line, index))
+    .filter((entry): entry is LogEntry => Boolean(entry));
+}
+
+function parseLogLine(line: string, index: number): LogEntry | null {
+  const raw = line.trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LogEntry> & {
+      at?: unknown;
+      level?: unknown;
+      event?: unknown;
+      data?: unknown;
+    };
+    return {
+      id: `${index}-${typeof parsed.at === "string" ? parsed.at : ""}`,
+      at: typeof parsed.at === "string" ? parsed.at : "",
+      level: typeof parsed.level === "string" ? parsed.level : "info",
+      event: typeof parsed.event === "string" ? parsed.event : "log",
+      data: parsed.data,
+      raw,
+    };
+  } catch {
+    return {
+      id: `${index}-raw`,
+      at: "",
+      level: "info",
+      event: "raw",
+      data: raw,
+      raw,
+    };
+  }
+}
+
+function formatLogData(data: unknown) {
+  if (typeof data === "string") return data;
+  return JSON.stringify(data, null, 2);
 }
 
 function formatDateTime(value: string) {

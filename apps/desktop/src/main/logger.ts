@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { appendFile, copyFile, mkdir } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { app } from "electron";
 
@@ -13,12 +13,22 @@ export function logInfo(event: string, data?: Record<string, unknown>) {
 export function logError(event: string, error: unknown, data?: Record<string, unknown>) {
   void writeLog("error", event, {
     ...data,
-    error: error instanceof Error ? { message: error.message, stack: error.stack } : error
+    error: error instanceof Error ? { message: error.message, stack: error.stack } : error,
   });
 }
 
 export function getLogPath() {
   return join(app.getPath("userData"), LOG_FILE_NAME);
+}
+
+export async function readLogFile() {
+  await ensureLogFile();
+  return readFile(getLogPath(), "utf8");
+}
+
+export async function clearLogFile() {
+  await ensureLogFile();
+  await writeFile(getLogPath(), "", "utf8");
 }
 
 function legacyLogPath() {
@@ -30,11 +40,16 @@ async function writeLog(level: "info" | "error", event: string, data?: Record<st
     at: new Date().toISOString(),
     level,
     event,
-    data
+    data,
   });
 
   console[level === "error" ? "error" : "log"]("[Yomitomo]", event, data || "");
+  await ensureLogFile();
+  await appendFile(getLogPath(), `${line}\n`, "utf8");
+}
+
+async function ensureLogFile() {
   await mkdir(dirname(getLogPath()), { recursive: true });
   await copyFile(legacyLogPath(), getLogPath(), constants.COPYFILE_EXCL).catch(() => undefined);
-  await appendFile(getLogPath(), `${line}\n`, "utf8");
+  await appendFile(getLogPath(), "", "utf8");
 }

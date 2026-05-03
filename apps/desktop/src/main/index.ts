@@ -3,7 +3,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import type { Agent, LlmProvider, UserProfile } from "@yomitomo/shared";
 import { deleteAgent, deleteProvider, readStore, saveAgent, saveProvider, saveUser } from "./store";
 import { testProvider } from "./llm";
-import { getLogPath, logInfo } from "./logger";
+import { clearLogFile, getLogPath, logInfo, readLogFile } from "./logger";
 import { broadcastStatus, startLocalServer } from "./server";
 
 let mainWindow: BrowserWindow | null = null;
@@ -23,8 +23,8 @@ async function createWindow() {
       preload: join(__dirname, "../preload/index.mjs"),
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
-    }
+      nodeIntegration: false,
+    },
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -56,6 +56,8 @@ app.on("activate", () => {
 function registerIpc() {
   ipcMain.handle("store:get", () => readStore());
   ipcMain.handle("log:path", () => getLogPath());
+  ipcMain.handle("log:read", () => readLogFile());
+  ipcMain.handle("log:clear", () => clearLogFile());
   ipcMain.handle("user:save", (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle("provider:save", async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
