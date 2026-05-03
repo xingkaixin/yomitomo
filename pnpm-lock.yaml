@@ -32,6 +32,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
+      '@yomitomo/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@yomitomo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -120,6 +123,9 @@ importers:
       '@wxt-dev/module-react':
         specifier: ^1.1.3
         version: 1.2.2(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))(wxt@0.20.25(@types/node@25.6.0)(jiti@2.6.1)(tsx@4.21.0))
+      '@yomitomo/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@yomitomo/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -175,6 +181,19 @@ importers:
       tailwindcss:
         specifier: ^4.2.4
         version: 4.2.4
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.0.18
+        version: 4.1.5(@types/node@25.6.0)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0))
+
+  packages/core:
+    dependencies:
+      '@yomitomo/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

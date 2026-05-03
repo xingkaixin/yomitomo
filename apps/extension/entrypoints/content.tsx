@@ -21,7 +21,6 @@ import { Kbd } from '../src/components/ui/kbd';
 import { Tabs, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import {
   type Annotation,
-  type AnnotationType,
   type ArticleRecord,
   type Comment,
   type DesktopServerMessage,
@@ -34,6 +33,21 @@ import {
   renderMarkdown,
   resolveTextAnchor,
 } from '@yomitomo/shared';
+import {
+  annotationColor,
+  annotationPersona as annotationAuthor,
+  annotationToPublicAgent as annotationToAgent,
+  annotationTypeLabel,
+  appendAnnotationComment,
+  commentPersona,
+  createUserAnnotation,
+  createUserComment,
+  findMentionedAgents,
+  getMentionQuery,
+  replaceMentionQuery,
+  timestamp,
+  updateAnnotationComment,
+} from '@yomitomo/core';
 
 const HOST_ID = 'yomitomo-root';
 const STORAGE_PREFIX = 'yomitomo.article.';
@@ -906,17 +920,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   async function appendComment(annotationId: string, comment: Comment) {
-    let found = false;
-    const nextAnnotations = annotationsRef.current.map((annotation) => {
-      if (annotation.id !== annotationId) return annotation;
-      found = true;
-      return {
-        ...annotation,
-        comments: [...annotation.comments, comment],
-        updatedAt: new Date().toISOString(),
-      };
-    });
-    if (!found) return;
+    const nextAnnotations = appendAnnotationComment(
+      annotationsRef.current,
+      annotationId,
+      comment,
+    );
+    if (!nextAnnotations) return;
 
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
@@ -927,19 +936,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     commentId: string,
     update: (comment: Comment) => Comment,
   ) {
-    let found = false;
-    const nextAnnotations = annotationsRef.current.map((annotation) => {
-      if (annotation.id !== annotationId) return annotation;
-      found = true;
-      return {
-        ...annotation,
-        comments: annotation.comments.map((comment) =>
-          comment.id === commentId ? update(comment) : comment,
-        ),
-        updatedAt: new Date().toISOString(),
-      };
-    });
-    if (!found) return;
+    const nextAnnotations = updateAnnotationComment(
+      annotationsRef.current,
+      annotationId,
+      commentId,
+      update,
+    );
+    if (!nextAnnotations) return;
 
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
@@ -1013,36 +1016,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   async function createAnnotation(note: string) {
     if (!composer) return;
 
-    const now = new Date().toISOString();
-    const comments = note.trim()
-      ? [
-          {
-            id: makeId('comment'),
-            author: 'user' as const,
-            content: note.trim(),
-            createdAt: now,
-            userId: userProfile.id,
-            userUsername: userProfile.username,
-            userNickname: userProfile.nickname,
-            userAvatar: userProfile.avatar,
-            userAnnotationColor: userProfile.annotationColor,
-          },
-        ]
-      : [];
-    const annotation: Annotation = {
-      id: makeId('annotation'),
-      anchor: composer.anchor,
-      author: 'user',
-      color: userProfile.annotationColor,
-      userId: userProfile.id,
-      userUsername: userProfile.username,
-      userNickname: userProfile.nickname,
-      userAvatar: userProfile.avatar,
-      userAnnotationColor: userProfile.annotationColor,
-      comments,
-      createdAt: now,
-      updatedAt: now,
-    };
+    const annotation = createUserAnnotation(composer.anchor, userProfile, note);
 
     await saveAnnotations([...annotationsRef.current, annotation]);
     setActiveId(annotation.id);
@@ -1387,34 +1361,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const trimmed = content.trim();
     if (!trimmed) return;
 
-    const now = new Date().toISOString();
-    const userComment: Comment = {
-      id: makeId('comment'),
-      author: 'user',
-      content: trimmed,
-      createdAt: now,
-      userId: userProfile.id,
-      userUsername: userProfile.username,
-      userNickname: userProfile.nickname,
-      userAvatar: userProfile.avatar,
-      userAnnotationColor: userProfile.annotationColor,
-    };
-    const nextAnnotations: Annotation[] = [];
-    let nextAnnotation: Annotation | undefined;
-    for (const annotation of annotationsRef.current) {
-      if (annotation.id !== annotationId) {
-        nextAnnotations.push(annotation);
-        continue;
-      }
-
-      nextAnnotation = {
-        ...annotation,
-        comments: [...annotation.comments, userComment],
-        updatedAt: now,
-      };
-      nextAnnotations.push(nextAnnotation);
-    }
-    if (!nextAnnotation) return;
+    const userComment = createUserComment(userProfile, trimmed);
+    const nextAnnotations = appendAnnotationComment(
+      annotationsRef.current,
+      annotationId,
+      userComment,
+      userComment.createdAt,
+    );
+    const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
+    if (!nextAnnotations || !nextAnnotation) return;
 
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
@@ -1815,61 +1770,6 @@ function AvatarBadge({ avatar, fallback = 'AI' }: { avatar?: string; fallback?: 
   return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
 }
 
-function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
-  if (annotation.author === 'ai') {
-    const agent = findAgentIdentity(annotation.agentId, annotation.agentUsername, agents);
-    return {
-      avatar: agent?.avatar || annotation.agentAvatar,
-      fallback: 'AI',
-      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || 'Agent',
-      username: agent?.username || annotation.agentUsername || 'agent',
-      color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color,
-    };
-  }
-
-  const user = findUserIdentity(annotation.userId, userProfile);
-  return {
-    avatar: user?.avatar || annotation.userAvatar || userProfile.avatar,
-    fallback: '我',
-    nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
-    username: user?.username || annotation.userUsername || userProfile.username,
-    color:
-      user?.annotationColor ||
-      annotation.userAnnotationColor ||
-      annotation.color ||
-      userProfile.annotationColor,
-  };
-}
-
-function commentPersona(comment: Comment, userProfile: UserProfile, agents: PublicAgent[]) {
-  if (comment.author === 'ai') {
-    const agent = findAgentIdentity(comment.agentId, comment.agentUsername, agents);
-    return {
-      avatar: agent?.avatar || comment.agentAvatar,
-      fallback: 'AI',
-      nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || 'Agent',
-      username: agent?.username || comment.agentUsername || 'agent',
-      color:
-        agent?.annotationColor ||
-        comment.agentAnnotationColor ||
-        defaultUserProfile.annotationColor,
-    };
-  }
-
-  const user = findUserIdentity(comment.userId, userProfile);
-  return {
-    avatar: user?.avatar || comment.userAvatar || userProfile.avatar,
-    fallback: '我',
-    nickname: user?.nickname || comment.userNickname || userProfile.nickname,
-    username: user?.username || comment.userUsername || userProfile.username,
-    color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor,
-  };
-}
-
-function annotationColor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
-  return annotationAuthor(annotation, userProfile, agents).color;
-}
-
 function buildTocAnnotationStats(
   tocItems: TocItem[],
   annotations: Annotation[],
@@ -1895,32 +1795,6 @@ function buildTocAnnotationStats(
 
 function isPrimaryTocItem(item: TocItem) {
   return item.depth <= 1;
-}
-
-function annotationTypeLabel(type: AnnotationType) {
-  const labels: Record<AnnotationType, string> = {
-    key_point: '关键判断',
-    assumption: '前提漏洞',
-    concept: '概念解释',
-    question: '延伸问题',
-    quote: '金句',
-  };
-  return labels[type];
-}
-
-function findAgentIdentity(
-  agentId: string | undefined,
-  username: string | undefined,
-  agents: PublicAgent[],
-) {
-  return (
-    agents.find((agent) => agent.id === agentId) ||
-    agents.find((agent) => agent.username === username)
-  );
-}
-
-function findUserIdentity(userId: string | undefined, userProfile: UserProfile) {
-  return !userId || userId === userProfile.id ? userProfile : null;
 }
 
 function EmptyNotes() {
@@ -2449,11 +2323,6 @@ function clampNumber(value: number | undefined, min: number, max: number, fallba
   return Math.min(max, Math.max(min, value));
 }
 
-function timestamp(value: string) {
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? 0 : time;
-}
-
 function selectionActionPosition(lastRect: DOMRect, canvasRect: DOMRect) {
   const maxX = Math.max(4, canvasRect.width - 124);
   return {
@@ -2503,53 +2372,6 @@ function alphaColor(color: string, alpha: number) {
   const green = Number.parseInt(hex.slice(3, 5), 16);
   const blue = Number.parseInt(hex.slice(5, 7), 16);
   return `rgba(${red},${green},${blue},${alpha})`;
-}
-
-function findMentionedAgents(content: string, agents: PublicAgent[]) {
-  const byUsername = new Map(agents.map((agent) => [agent.username, agent]));
-  const mentionedAgents: PublicAgent[] = [];
-  const seen = new Set<string>();
-
-  for (const match of content.matchAll(/@([a-zA-Z0-9_-]+)/g)) {
-    const username = match[1];
-    const agent = byUsername.get(username);
-    if (!agent || seen.has(username)) continue;
-    seen.add(username);
-    mentionedAgents.push(agent);
-  }
-
-  return mentionedAgents;
-}
-
-function getMentionQuery(content: string, caretIndex: number) {
-  const prefix = content.slice(0, caretIndex);
-  const match = prefix.match(/(^|\s)@([a-zA-Z0-9_-]*)$/);
-  if (!match || match.index === undefined) return null;
-  return {
-    query: match[2],
-    start: match.index + match[1].length,
-    end: caretIndex,
-  };
-}
-
-function replaceMentionQuery(
-  content: string,
-  mentionQuery: { start: number; end: number },
-  username: string,
-) {
-  return `${content.slice(0, mentionQuery.start)}@${username} ${content.slice(mentionQuery.end)}`;
-}
-
-function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
-  if (!annotation.agentId || !annotation.agentUsername) return undefined;
-  return {
-    id: annotation.agentId,
-    username: annotation.agentUsername,
-    nickname: annotation.agentNickname || annotation.agentUsername,
-    avatar: annotation.agentAvatar || 'AI',
-    annotationColor: annotation.agentAnnotationColor || annotation.color,
-    annotationDensity: 'medium',
-  };
 }
 
 function isImageAvatar(value: string) {

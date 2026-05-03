@@ -3,11 +3,15 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
-  AnnotationType,
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
-import { createTextAnchor, makeId } from '@yomitomo/shared';
+import {
+  annotationDensityInstruction,
+  createAgentAnnotation,
+  normalizeAnnotationType,
+  parseAnnotationSuggestions,
+} from '@yomitomo/core';
 import { logError, logInfo } from './logger';
 
 export async function testProvider(
@@ -100,7 +104,7 @@ export async function runAgentAnnotate(
   const now = new Date().toISOString();
 
   return suggestions.flatMap((suggestion) => {
-    const annotation = createAgentAnnotation(agent, payload, suggestion, now);
+    const annotation = createAgentAnnotation(agent, payload.article.text, suggestion, now);
     return annotation ? [annotation] : [];
   });
 }
@@ -130,7 +134,7 @@ export async function runAgentAnnotateStream(
       const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
       const annotation = createAgentAnnotation(
         agent,
-        payload,
+        payload.article.text,
         {
           exact,
           comment: typeof parsed.comment === 'string' ? parsed.comment : '',
@@ -336,76 +340,4 @@ function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload, agent: Agent) {
 
 function buildAgentAnnotateStreamPrompt(payload: AgentAnnotatePayload, agent: Agent) {
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
-}
-
-function createAgentAnnotation(
-  agent: Agent,
-  payload: AgentAnnotatePayload,
-  suggestion: { exact: string; comment: string; annotationType?: AnnotationType | null },
-  now: string,
-): Annotation | null {
-  const exact = suggestion.exact.trim();
-  const start = payload.article.text.indexOf(exact);
-  if (start < 0) return null;
-
-  const comment = suggestion.comment.trim();
-  return {
-    id: makeId('annotation'),
-    anchor: createTextAnchor(payload.article.text, start, start + exact.length),
-    author: 'ai',
-    annotationType: suggestion.annotationType || 'key_point',
-    color: agent.annotationColor,
-    agentId: agent.id,
-    agentUsername: agent.username,
-    agentNickname: agent.nickname,
-    agentAvatar: agent.avatar,
-    agentAnnotationColor: agent.annotationColor,
-    comments: comment
-      ? [
-          {
-            id: makeId('comment'),
-            author: 'ai',
-            content: comment,
-            createdAt: now,
-            agentId: agent.id,
-            agentUsername: agent.username,
-            agentNickname: agent.nickname,
-            agentAvatar: agent.avatar,
-            agentAnnotationColor: agent.annotationColor,
-          },
-        ]
-      : [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
-function parseAnnotationSuggestions(
-  content: string,
-): Array<{ exact: string; comment: string; annotationType: AnnotationType | null }> {
-  const json = content.match(/\[[\s\S]*\]/)?.[0] || content;
-  const parsed = JSON.parse(json) as Array<{ exact?: unknown; comment?: unknown; type?: unknown }>;
-  return parsed
-    .map((item) => ({
-      exact: typeof item.exact === 'string' ? item.exact : '',
-      comment: typeof item.comment === 'string' ? item.comment : '',
-      annotationType: normalizeAnnotationType(item.type),
-    }))
-    .filter((item) => item.exact.trim().length > 0);
-}
-
-function normalizeAnnotationType(value: unknown): AnnotationType | null {
-  return value === 'key_point' ||
-    value === 'assumption' ||
-    value === 'concept' ||
-    value === 'question' ||
-    value === 'quote'
-    ? value
-    : null;
-}
-
-function annotationDensityInstruction(density: Agent['annotationDensity']) {
-  if (density === 'low') return '克制，约 2-4 条，只选择最高价值片段。';
-  if (density === 'high') return '积极，约 7-12 条，覆盖更多值得讨论的片段。';
-  return '标准，约 4-7 条，保持覆盖和克制的平衡。';
 }
