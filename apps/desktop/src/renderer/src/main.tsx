@@ -118,13 +118,15 @@ const agentAvatars = [
 
 const annotationColors = [
   "#f4c95d",
+  "#efa927",
   "#8ab6d6",
-  "#8fc7a3",
-  "#d9a7c7",
-  "#f2a65a",
+  "#6fa48f",
+  "#9eb376",
+  "#d98aa5",
+  "#b99ac8",
+  "#d58b63",
   "#a7b8e8",
   "#c8b88a",
-  "#e58f8a",
 ];
 const defaultAgentSoul =
   "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。";
@@ -133,24 +135,43 @@ const agentPersonalities = [
   {
     id: "reading-partner",
     name: "克制阅读伙伴",
+    description: "安静陪伴，适度提醒，帮助你稳步理解与反馈。",
+    icon: "leaf",
+    temperature: 0.35,
     soul: defaultAgentSoul,
   },
   {
     id: "first-principles",
     name: "第一性原理审阅者",
+    description: "回到本质，拆解假设，挑战推理与结论。",
+    icon: "pyramid",
+    temperature: 0.25,
     soul: "你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。",
   },
   {
     id: "question-coach",
     name: "追问型导师",
+    description: "通过追问引导思考，帮助你发现更深层理解。",
+    icon: "question",
+    temperature: 0.6,
     soul: "你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。",
   },
   {
     id: "insight-synthesizer",
     name: "洞察整理者",
+    description: "提炼要点，建立联系，帮助形成可迁移洞察。",
+    icon: "quill",
+    temperature: 0.45,
     soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。",
   },
 ] as const;
+const customPersonality = {
+  id: customPersonalityId,
+  name: "自定义个性",
+  description: "编写系统提示词，调整温度，打造你的专属助手。",
+  icon: "custom",
+  temperature: 0.7,
+} as const;
 const annotationDensityOptions: Array<{
   value: AgentAnnotationDensity;
   label: string;
@@ -184,6 +205,7 @@ const emptyAgent: AgentDraft = {
   avatar: agentAvatars[0]?.src || "",
   annotationColor: annotationColors[1],
   annotationDensity: "medium",
+  temperature: agentPersonalities[0].temperature,
   soul: defaultAgentSoul,
 };
 
@@ -252,6 +274,7 @@ function App() {
     setAgentDraft({
       ...emptyAgent,
       personalityId: "reading-partner",
+      temperature: agentPersonalities[0].temperature,
       providerId: store.providers[0]?.id || "",
     });
     setAgentSaveError("");
@@ -304,11 +327,17 @@ function App() {
       setAgentSaveError("自定义个性必须输入内容。");
       return;
     }
+    if (!isValidUsername(agentDraft.username || "")) {
+      setAgentSaveError("用户名仅支持英文、数字和下划线。");
+      return;
+    }
     const providerId = agentDraft.providerId || store.providers[0]?.id || "";
     const nextStore = await window.yomitomoDesktop.saveAgent({
       ...agentDraft,
       providerId,
       soul: personality?.soul || agentDraft.soul,
+      temperature:
+        personality?.temperature ?? agentDraft.temperature ?? customPersonality.temperature,
     });
     const savedAgent = agentDraft.id
       ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
@@ -497,7 +526,7 @@ function GeneralSettings({
       <PanelHeader
         icon={<User size={20} />}
         title="通用"
-        description="配置用户头像、昵称和 username，后续批注会使用这组身份信息。"
+        description="配置用户头像、昵称和用户名，后续批注会使用这组身份信息。"
         action={
           <Button type="button" onClick={onSave}>
             <Save size={16} />
@@ -510,16 +539,18 @@ function GeneralSettings({
           <AvatarImage value={draft.avatar || ""} className="size-20" fallback="我" />
           <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
         </div>
-        <Field label="Nickname">
+        <Field description="批注和评论中展示的名称。" label="昵称">
           <Input
             value={draft.nickname || ""}
             onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
           />
         </Field>
-        <Field label="Username">
+        <Field description="用于 @ 提及，仅支持英文、数字和下划线。" label="用户名">
           <Input
             value={draft.username || ""}
-            onChange={(event) => onChange({ ...draft, username: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
+            }
           />
         </Field>
         <Field className="col-span-2" label="批注颜色">
@@ -1090,7 +1121,7 @@ function ProviderSettings({
         description="管理 API 类型、Base URL、模型和 API Key。"
       />
       <div className="settings-detail-grid">
-        <ConfigList title="已配置供应商" onCreate={onCreate}>
+        <ConfigList createLabel="新增供应商" title="已配置供应商" onCreate={onCreate}>
           {providers.map((provider) => (
             <button
               className={
@@ -1182,23 +1213,37 @@ function AgentSettings({
         description="管理助手身份、头像、供应商和个性。"
       />
       <div className="settings-detail-grid">
-        <ConfigList title="已配置助手" onCreate={onCreate}>
-          {agents.map((agent) => (
-            <button
-              className={
-                agent.id === selectedId ? "config-list-item is-active" : "config-list-item"
-              }
-              key={agent.id}
-              type="button"
-              onClick={() => onSelect(agent)}
-            >
-              <AvatarImage value={agent.avatar} className="size-9" fallback="AI" />
-              <span className="min-w-0">
-                <strong>{agent.nickname}</strong>
-                <span>@{agent.username}</span>
-              </span>
-            </button>
-          ))}
+        <ConfigList
+          createLabel="新增助手"
+          empty={
+            <div className="agent-list-empty">
+              <Bot size={22} />
+              <strong>还没有助手</strong>
+              <p>新增一个助手后，浏览器阅读器里就能邀请它参与批注。</p>
+            </div>
+          }
+          title="已配置助手"
+          onCreate={onCreate}
+        >
+          {agents.map((agent) => {
+            const personalityName = agentPersonalityName(agent);
+            return (
+              <button
+                className={
+                  agent.id === selectedId ? "config-list-item is-active" : "config-list-item"
+                }
+                key={agent.id}
+                type="button"
+                onClick={() => onSelect(agent)}
+              >
+                <AvatarImage value={agent.avatar} className="size-10" fallback="AI" />
+                <span className="min-w-0">
+                  <strong>{agent.nickname}</strong>
+                  <span>{personalityName}</span>
+                </span>
+              </button>
+            );
+          })}
         </ConfigList>
         <section className="detail-pane">
           <div className="detail-pane-header">
@@ -1237,24 +1282,31 @@ function AgentSettings({
 function ConfigList({
   title,
   children,
+  createLabel = "新增",
+  empty,
   onCreate,
 }: {
   title: string;
   children: React.ReactNode;
+  createLabel?: string;
+  empty?: React.ReactNode;
   onCreate: () => void;
 }) {
+  const hasItems = React.Children.count(children) > 0;
+
   return (
     <aside className="config-list">
-      <div className="config-list-title">{title}</div>
-      <div className="grid gap-2 overflow-auto pr-1">{children}</div>
-      <Button className="mt-auto w-full" type="button" onClick={onCreate}>
-        <Plus size={17} />
-        新增
-      </Button>
+      <div className="config-list-header">
+        <div className="config-list-title">{title}</div>
+        <Button size="sm" type="button" onClick={onCreate}>
+          <Plus size={16} />
+          {createLabel}
+        </Button>
+      </div>
+      <div className="config-list-scroll">{hasItems ? children : empty}</div>
     </aside>
   );
 }
-
 function PanelHeader({
   icon,
   title,
@@ -1347,15 +1399,25 @@ function AgentForm({
   function changePersonality(nextId: string) {
     const personality = agentPersonalities.find((item) => item.id === nextId);
     if (personality) {
-      onChange({ ...draft, personalityId: nextId, soul: personality.soul });
+      onChange({
+        ...draft,
+        personalityId: nextId,
+        soul: personality.soul,
+        temperature: personality.temperature,
+      });
       return;
     }
-    onChange({ ...draft, personalityId: customPersonalityId, soul: "" });
+    onChange({
+      ...draft,
+      personalityId: customPersonalityId,
+      soul: "",
+      temperature: draft.temperature ?? customPersonality.temperature,
+    });
   }
 
   return (
     <div className="settings-form-grid">
-      <Field label="供应商">
+      <Field description="当前助手调用的模型供应商。" label="供应商">
         <Select
           value={draft.providerId || providers[0]?.id || ""}
           onChange={(event) => onChange({ ...draft, providerId: event.target.value })}
@@ -1367,25 +1429,39 @@ function AgentForm({
           ))}
         </Select>
       </Field>
-      <Field label="Nickname">
+      <Field description="批注和评论中展示的名称。" label="昵称">
         <Input
           value={draft.nickname || ""}
           onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
         />
       </Field>
-      <Field label="Username">
+      <Field
+        className="col-span-2"
+        description="用于 @ 提及，仅支持英文、数字和下划线。"
+        label="用户名"
+      >
         <Input
           value={draft.username || ""}
-          onChange={(event) => onChange({ ...draft, username: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
+          }
         />
       </Field>
-      <Field className="col-span-2" label="批注颜色">
+      <Field
+        className="col-span-2"
+        description="这些颜色已按阅读器高亮可见性筛选。"
+        label="批注颜色"
+      >
         <ColorPicker
           value={draft.annotationColor || annotationColors[1]}
           onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
         />
       </Field>
-      <Field className="col-span-2" label="批注密度">
+      <Field
+        className="col-span-2"
+        description="决定助手主动批注时的积极程度，会影响提示词和模型采样。"
+        label="批注密度"
+      >
         <div className="density-grid">
           {annotationDensityOptions.map((option) => (
             <button
@@ -1405,18 +1481,10 @@ function AgentForm({
         </div>
       </Field>
       <Field className="col-span-2" label="头像">
-        <div className="avatar-grid">
-          {agentAvatars.map((avatar) => (
-            <button
-              className={draft.avatar === avatar.src ? "avatar-choice is-active" : "avatar-choice"}
-              key={avatar.id}
-              type="button"
-              onClick={() => onChange({ ...draft, avatar: avatar.src })}
-            >
-              <img alt="" src={avatar.src} />
-            </button>
-          ))}
-        </div>
+        <AvatarPicker
+          value={draft.avatar || ""}
+          onChange={(avatar) => onChange({ ...draft, avatar })}
+        />
       </Field>
       <Field className="col-span-2" label="个性">
         <div className="personality-editor">
@@ -1432,7 +1500,12 @@ function AgentForm({
                 type="button"
                 onClick={() => changePersonality(personality.id)}
               >
-                {personality.name}
+                <PersonalityIcon type={personality.icon} />
+                <strong>{personality.name}</strong>
+                <span>{personality.description}</span>
+                {personalityId === personality.id ? (
+                  <Check className="personality-check" size={16} />
+                ) : null}
               </button>
             ))}
             <button
@@ -1442,14 +1515,36 @@ function AgentForm({
               type="button"
               onClick={() => changePersonality(customPersonalityId)}
             >
-              自定义个性
+              <PersonalityIcon type={customPersonality.icon} />
+              <strong>{customPersonality.name}</strong>
+              <span>{customPersonality.description}</span>
+              {isCustomPersonality ? <Check className="personality-check" size={16} /> : null}
             </button>
           </div>
           {isCustomPersonality ? (
-            <Textarea
-              value={draft.soul || ""}
-              onChange={(event) => onChange({ ...draft, soul: event.target.value })}
-            />
+            <div className="custom-personality-panel">
+              <Field description="保存自定义个性时必填。" label="自定义系统提示词">
+                <Textarea
+                  value={draft.soul || ""}
+                  onChange={(event) => onChange({ ...draft, soul: event.target.value })}
+                />
+              </Field>
+              <Field description="数值越高，回复越发散；数值越低，回复越稳定。" label="温度">
+                <div className="temperature-control">
+                  <input
+                    max="1"
+                    min="0"
+                    step="0.05"
+                    type="range"
+                    value={draft.temperature ?? customPersonality.temperature}
+                    onChange={(event) =>
+                      onChange({ ...draft, temperature: Number(event.target.value) })
+                    }
+                  />
+                  <strong>{(draft.temperature ?? customPersonality.temperature).toFixed(2)}</strong>
+                </div>
+              </Field>
+            </div>
           ) : null}
           {error ? <p className="form-error">{error}</p> : null}
         </div>
@@ -1464,27 +1559,110 @@ function findAgentPersonalityId(soul: string) {
   );
 }
 
+function agentPersonalityName(agent: Agent) {
+  return (
+    agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || "自定义个性"
+  );
+}
+
 function ColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
-    <div className="color-picker">
-      <div className="color-swatches">
-        {annotationColors.map((color) => (
-          <button
-            className={value === color ? "color-swatch is-active" : "color-swatch"}
-            key={color}
-            style={{ backgroundColor: color }}
-            type="button"
-            aria-label={`选择颜色 ${color}`}
-            onClick={() => onChange(color)}
-          />
-        ))}
-      </div>
-      <Input
-        className="max-w-36"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
+    <div className="color-swatches">
+      {annotationColors.map((color) => (
+        <button
+          className={value === color ? "color-swatch is-active" : "color-swatch"}
+          key={color}
+          style={{ backgroundColor: color }}
+          type="button"
+          aria-label={`选择颜色 ${color}`}
+          onClick={() => onChange(color)}
+        >
+          {value === color ? <Check size={15} /> : null}
+        </button>
+      ))}
     </div>
+  );
+}
+
+function AvatarPicker({ value, onChange }: { value: string; onChange: (avatar: string) => void }) {
+  const usesCustomAvatar = value && agentAvatars.every((avatar) => avatar.src !== value);
+
+  async function loadFile(file: File | undefined) {
+    if (!file) return;
+    onChange(await readFileAsDataUrl(file));
+  }
+
+  return (
+    <div className="avatar-picker">
+      <div className="avatar-grid">
+        {agentAvatars.map((avatar) => (
+          <button
+            className={value === avatar.src ? "avatar-choice is-active" : "avatar-choice"}
+            key={avatar.id}
+            type="button"
+            onClick={() => onChange(avatar.src)}
+          >
+            <img alt="" src={avatar.src} />
+          </button>
+        ))}
+        {usesCustomAvatar ? (
+          <button className="avatar-choice is-active" type="button">
+            <img alt="" src={value} />
+          </button>
+        ) : null}
+      </div>
+      <label className="avatar-upload-choice">
+        <Upload size={17} />
+        <span>上传</span>
+        <input
+          accept="image/*"
+          type="file"
+          onChange={(event) => loadFile(event.target.files?.[0])}
+        />
+      </label>
+    </div>
+  );
+}
+
+function PersonalityIcon({
+  type,
+}: {
+  type: (typeof agentPersonalities)[number]["icon"] | "custom";
+}) {
+  return (
+    <span className={`personality-icon is-${type}`}>
+      {type === "leaf" ? (
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M8 18c7-9 13-9 18-9-1 9-6 15-15 15" />
+          <path d="M7 25c5-6 10-9 16-11" />
+        </svg>
+      ) : null}
+      {type === "pyramid" ? (
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M16 5 5 27h22L16 5Z" />
+          <path d="M11 18h10" />
+          <path d="M9 23h14" />
+        </svg>
+      ) : null}
+      {type === "question" ? (
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M12 12a5 5 0 1 1 8 4c-2 1.4-4 2.6-4 5" />
+          <path d="M16 26h.01" />
+        </svg>
+      ) : null}
+      {type === "quill" ? (
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M25 6c-7 1-12 4-15 9-2 3-2 6 0 8 2 2 5 2 8 0 5-3 8-8 9-15" />
+          <path d="M8 25c4-4 8-8 12-12" />
+        </svg>
+      ) : null}
+      {type === "custom" ? (
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M16 7v18" />
+          <path d="M7 16h18" />
+        </svg>
+      ) : null}
+    </span>
   );
 }
 
@@ -1556,16 +1734,21 @@ function AvatarImage({
 
 function Field({
   label,
+  description,
   className = "",
   children,
 }: {
   label: string;
+  description?: string;
   className?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className={`grid gap-2 ${className}`}>
-      <Label>{label}</Label>
+      <div className="field-copy">
+        <Label>{label}</Label>
+        {description ? <p>{description}</p> : null}
+      </div>
       {children}
     </div>
   );
@@ -1586,6 +1769,14 @@ function isImageAvatar(value: string) {
 
 function isSvgAvatar(value: string) {
   return value.startsWith("data:image/svg+xml") || value.endsWith(".svg");
+}
+
+function isValidUsername(value: string) {
+  return /^[A-Za-z0-9_]+$/.test(value.trim());
+}
+
+function sanitizeUsernameInput(value: string) {
+  return value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 32);
 }
 
 function readFileAsDataUrl(file: File) {

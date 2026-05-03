@@ -25,6 +25,7 @@ export type Agent = {
   avatar: string;
   annotationColor: string;
   annotationDensity: AgentAnnotationDensity;
+  temperature: number;
   soul: string;
   createdAt: string;
   updatedAt: string;

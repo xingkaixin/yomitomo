@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const userProfiles = sqliteTable("user_profiles", {
   id: text("id").primaryKey(),
@@ -30,6 +30,7 @@ export const agents = sqliteTable("agents", {
   avatar: text("avatar").notNull(),
   annotationColor: text("annotation_color").notNull(),
   annotationDensity: text("annotation_density").notNull(),
+  temperature: real("temperature").notNull(),
   soul: text("soul").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

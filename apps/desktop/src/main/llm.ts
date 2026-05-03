@@ -32,7 +32,7 @@ export async function testProvider(
 
 export async function runAgentStream(
   provider: LlmProvider,
-  agent: { soul: string },
+  agent: { soul: string; temperature: number },
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
@@ -42,7 +42,7 @@ export async function runAgentStream(
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
   const user = buildAgentPrompt(payload);
-  await streamAnthropic(provider, system, user, 1200, onDelta);
+  await streamAnthropic(provider, system, user, 1200, agent.temperature, onDelta);
 }
 
 export async function runAgent(
@@ -53,6 +53,7 @@ export async function runAgent(
     nickname: string;
     avatar: string;
     annotationColor: string;
+    temperature: number;
     soul: string;
   },
   payload: AgentMessagePayload,
@@ -63,7 +64,7 @@ export async function runAgent(
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
   const user = buildAgentPrompt(payload);
-  const content = await callAnthropic(provider, system, user, 1200);
+  const content = await callAnthropic(provider, system, user, 1200, agent.temperature);
 
   return {
     id: "",
@@ -93,6 +94,7 @@ export async function runAgentAnnotate(
     system,
     buildAgentAnnotatePrompt(payload, agent),
     4000,
+    agent.temperature,
   );
   const suggestions = parseAnnotationSuggestions(content);
   const now = new Date().toISOString();
@@ -158,6 +160,7 @@ export async function runAgentAnnotateStream(
     system,
     buildAgentAnnotateStreamPrompt(payload, agent),
     4000,
+    agent.temperature,
     (delta) => {
       buffer += delta;
       const lines = buffer.split("\n");
@@ -174,10 +177,11 @@ async function callAnthropic(
   system: string,
   user: string,
   maxTokens: number,
+  temperature?: number,
 ) {
   const baseUrl = provider.baseUrl.replace(/\/$/, "") || "https://api.anthropic.com";
   const url = `${baseUrl}/v1/messages`;
-  logAnthropicRequest(provider, url, { stream: false, maxTokens });
+  logAnthropicRequest(provider, url, { stream: false, maxTokens, temperature });
 
   const response = await fetch(url, {
     method: "POST",
@@ -189,6 +193,7 @@ async function callAnthropic(
     body: JSON.stringify({
       model: provider.modelName,
       max_tokens: maxTokens,
+      temperature,
       system,
       messages: [{ role: "user", content: user }],
     }),
@@ -213,11 +218,12 @@ async function streamAnthropic(
   system: string,
   user: string,
   maxTokens: number,
+  temperature: number,
   onDelta: (delta: string) => void,
 ) {
   const baseUrl = provider.baseUrl.replace(/\/$/, "") || "https://api.anthropic.com";
   const url = `${baseUrl}/v1/messages`;
-  logAnthropicRequest(provider, url, { stream: true, maxTokens });
+  logAnthropicRequest(provider, url, { stream: true, maxTokens, temperature });
 
   const response = await fetch(url, {
     method: "POST",
@@ -229,6 +235,7 @@ async function streamAnthropic(
     body: JSON.stringify({
       model: provider.modelName,
       max_tokens: maxTokens,
+      temperature,
       stream: true,
       system,
       messages: [{ role: "user", content: user }],

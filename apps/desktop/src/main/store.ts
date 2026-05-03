@@ -173,6 +173,7 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
       normalizeAnnotationDensity(input.annotationDensity) ||
       normalizeAnnotationDensity(existing?.annotationDensity) ||
       "medium",
+    temperature: normalizeTemperature(input.temperature ?? existing?.temperature),
     soul:
       input.soul?.trim() ||
       existing?.soul ||
@@ -273,6 +274,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       avatar: row.avatar,
       annotationColor: row.annotationColor || "#8ab6d6",
       annotationDensity: normalizeAnnotationDensity(row.annotationDensity) || "medium",
+      temperature: normalizeTemperature(row.temperature),
       soul: row.soul,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -450,6 +452,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
       avatar: agent.avatar,
       annotationColor: agent.annotationColor,
       annotationDensity: agent.annotationDensity,
+      temperature: agent.temperature,
       soul: agent.soul,
       createdAt: agent.createdAt,
       updatedAt: agent.updatedAt,
@@ -463,6 +466,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
         avatar: agent.avatar,
         annotationColor: agent.annotationColor,
         annotationDensity: agent.annotationDensity,
+        temperature: agent.temperature,
         soul: agent.soul,
         updatedAt: agent.updatedAt,
       },
@@ -478,6 +482,7 @@ function normalizeStore(store: DesktopStore): DesktopStore {
       ...agent,
       annotationColor: agent.annotationColor || "#8ab6d6",
       annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || "medium",
+      temperature: normalizeTemperature(agent.temperature),
     })),
     articles: store.articles || [],
   };
@@ -524,13 +529,19 @@ function normalizeUsername(value: string, fallback = "me") {
     value
       .trim()
       .replace(/^@/, "")
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .replace(/[^a-zA-Z0-9_]/g, "_")
       .slice(0, 32) || fallback
   );
 }
 
 function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {
   return value === "low" || value === "medium" || value === "high" ? value : null;
+}
+
+function normalizeTemperature(value: unknown) {
+  const temperature = Number(value);
+  if (!Number.isFinite(temperature)) return 0.5;
+  return Math.min(1, Math.max(0, temperature));
 }
 
 function normalizeAnnotationType(value: unknown): AnnotationType | null {

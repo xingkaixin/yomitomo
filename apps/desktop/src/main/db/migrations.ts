@@ -106,4 +106,10 @@ ALTER TABLE agents ADD COLUMN annotation_density TEXT NOT NULL DEFAULT 'medium';
 ALTER TABLE annotations ADD COLUMN annotation_type TEXT;
 `,
   },
+  {
+    id: "0003_agent_temperature",
+    sql: `
+ALTER TABLE agents ADD COLUMN temperature REAL NOT NULL DEFAULT 0.5;
+`,
+  },
 ];
