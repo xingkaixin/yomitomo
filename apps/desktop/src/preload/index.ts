@@ -5,6 +5,7 @@ import type {
   ArticleRecord,
   DesktopStore,
   LlmProvider,
+  ReadingDeliberationRecord,
   ReadingCardRecord,
   ReadingCardReviewRecord,
   UserProfile,
@@ -12,6 +13,13 @@ import type {
 import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
 
 export type GenerateReadingCardInput = {
+  article: ArticleRecord;
+  articleText: string;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+  readingDeliberation?: ReadingDeliberationRecord;
+};
+
+export type GenerateReadingDeliberationInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
@@ -41,6 +49,10 @@ const api = {
   generateReadingCard: (input: GenerateReadingCardInput) =>
     ipcRenderer.invoke('reading-card:generate', input) as Promise<{
       readingCard: ReadingCardRecord;
+    }>,
+  generateReadingDeliberation: (input: GenerateReadingDeliberationInput) =>
+    ipcRenderer.invoke('reading-deliberation:generate', input) as Promise<{
+      readingDeliberation: ReadingDeliberationRecord;
     }>,
   reviewReadingCard: (input: ReviewReadingCardInput) =>
     ipcRenderer.invoke('reading-card:review', input) as Promise<{

@@ -103,7 +103,26 @@ export type ArticleRecord = {
   contentHtml?: string;
   contentHash: string;
   annotations: Annotation[];
+  readingDeliberation?: ReadingDeliberationRecord;
   readingCard?: ReadingCardRecord;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ReadingDeliberationSection = {
+  title: string;
+  content: string;
+};
+
+export type ReadingDeliberationRecord = {
+  id: string;
+  articleId: string;
+  title: string;
+  contentMarkdown: string;
+  sections: ReadingDeliberationSection[];
+  providerId: string;
+  providerName: string;
+  modelName: string;
   createdAt: string;
   updatedAt: string;
 };

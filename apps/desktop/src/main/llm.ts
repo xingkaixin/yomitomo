@@ -6,6 +6,7 @@ import type {
   ArticleRecord,
   Comment,
   LlmProvider,
+  ReadingDeliberationRecord,
   ReadingCardRecord,
   ReadingCardReviewerResult,
 } from '@yomitomo/shared';
@@ -19,6 +20,13 @@ import {
 import { logError, logInfo } from './logger';
 
 export type GenerateReadingCardInput = {
+  article: ArticleRecord;
+  articleText: string;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+  readingDeliberation?: ReadingDeliberationRecord;
+};
+
+export type GenerateReadingDeliberationInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
@@ -205,6 +213,20 @@ export async function generateReadingCard(provider: LlmProvider, input: Generate
     '你是 Yomitomo 的读后卡片生成器。你的任务是基于文章全文、读者批注和讨论证据生成一张可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
 
   return callAnthropic(provider, system, buildReadingCardPrompt(input), 3000, 0.35);
+}
+
+export async function generateReadingDeliberation(
+  provider: LlmProvider,
+  input: GenerateReadingDeliberationInput,
+) {
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
+  }
+
+  const system =
+    '你是 Yomitomo 的阅读审议编辑。你的任务是基于文章全文、读者批注、助手批注和评论 thread，整理这场阅读讨论已经形成的判断、分歧、证据强弱和未决问题。保持中立、具体、可追溯，所有判断都要能回到原文或证据单元。';
+
+  return callAnthropic(provider, system, buildReadingDeliberationPrompt(input), 3600, 0.3);
 }
 
 export async function reviewReadingCard(
@@ -427,6 +449,13 @@ function buildReadingCardPrompt(input: GenerateReadingCardInput) {
       content: comment.content,
     })),
   }));
+  const deliberation = input.readingDeliberation
+    ? {
+        id: input.readingDeliberation.id,
+        markdown: input.readingDeliberation.contentMarkdown,
+        sections: input.readingDeliberation.sections,
+      }
+    : null;
 
   return `请基于全文和证据单元生成一张中文 Markdown 读后卡片。
 
@@ -439,6 +468,9 @@ ${input.articleText.slice(0, 50000)}
 证据单元：
 ${JSON.stringify(evidence, null, 2).slice(0, 30000)}
 
+阅读审议：
+${deliberation ? JSON.stringify(deliberation, null, 2).slice(0, 18000) : '暂无'}
+
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
 - 不要写“文章快照”。
@@ -446,6 +478,7 @@ ${JSON.stringify(evidence, null, 2).slice(0, 30000)}
 - 每条关键判断尽量标注证据编号，例如 [#1]。
 - 保留读者自己的关注点，标明“我”或读者昵称。
 - 助手观点和文章观点分开表达。
+- 如果有阅读审议，优先吸收其中的共识、分歧、证据强弱和未决问题。
 - 内容要精炼、有层次，适合作为读后笔记保存。
 
 固定结构：
@@ -465,6 +498,61 @@ ${JSON.stringify(evidence, null, 2).slice(0, 30000)}
 
 ## 后续行动线索
 列出后续阅读、验证假设或可执行动作。`;
+}
+
+function buildReadingDeliberationPrompt(input: GenerateReadingDeliberationInput) {
+  const article = {
+    title: input.article.title,
+    url: input.article.canonicalUrl || input.article.url,
+    byline: input.article.byline || '',
+    excerpt: input.article.excerpt || '',
+  };
+  const evidence = input.evidenceUnits.map((unit) => ({
+    id: unit.index,
+    type: unit.annotationType || '批注',
+    quote: unit.quote,
+    annotationAuthor: unit.annotationAuthorLabel,
+    comments: unit.comments.map((comment) => ({
+      author: comment.authorLabel,
+      content: comment.content,
+    })),
+  }));
+
+  return `请生成一份中文 Markdown 阅读审议。
+
+文章信息：
+${JSON.stringify(article, null, 2)}
+
+全文：
+${input.articleText.slice(0, 50000)}
+
+证据单元：
+${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+
+输出要求：
+- 直接输出 Markdown，不要输出代码块。
+- 每个关键判断尽量标注证据编号，例如 [#1]。
+- 区分文章观点、读者关注、助手补充和评论 thread。
+- 聚焦这场阅读讨论形成了什么判断，避免复述全文。
+- 对证据薄弱、归因不清或仍需验证的内容明确指出。
+
+固定结构：
+# ${input.article.title}｜阅读审议
+
+## 共识
+整理文章、读者和助手之间已经形成的主要共识。
+
+## 分歧与张力
+整理不同批注或评论之间的分歧、冲突、可挑战前提。
+
+## 证据强弱
+列出证据较强的判断和证据较弱的判断，说明依据。
+
+## 未决问题
+列出仍需要继续追问、回到原文确认或外部验证的问题。
+
+## 给读后卡片的建议
+说明生成读后卡片时应该保留、压缩或谨慎处理的内容。`;
 }
 
 function buildReviewReadingCardPrompt(input: ReviewReadingCardInput) {

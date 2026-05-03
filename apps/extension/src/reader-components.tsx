@@ -10,7 +10,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import {
   annotationPersona as annotationAuthor,
@@ -53,6 +53,13 @@ export type VirtualCursorState = {
 };
 
 const DELETE_HOLD_MS = 1600;
+const annotationTypeOptions: AnnotationType[] = [
+  'key_point',
+  'assumption',
+  'concept',
+  'question',
+  'quote',
+];
 export function SelectionMenu({
   action,
   onAnnotate,
@@ -239,11 +246,24 @@ export function Composer({
   composer: PendingComposer;
   shortcutModifier: string;
   onCancel: () => void;
-  onSave: (note: string) => void;
+  onSave: (note: string, annotationType: AnnotationType) => void;
 }) {
   const [note, setNote] = useState('');
+  const [annotationType, setAnnotationType] = useState<AnnotationType>('key_point');
   return (
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
+      <div className="reader-composer-types">
+        {annotationTypeOptions.map((type) => (
+          <button
+            className={annotationType === type ? 'is-active' : ''}
+            key={type}
+            type="button"
+            onClick={() => setAnnotationType(type)}
+          >
+            {annotationTypeLabel(type)}
+          </button>
+        ))}
+      </div>
       <textarea
         autoFocus
         placeholder="写下你的批注..."
@@ -252,7 +272,7 @@ export function Composer({
         onKeyDown={(event) => {
           if (isSubmitShortcut(event)) {
             event.preventDefault();
-            onSave(note);
+            onSave(note, annotationType);
           }
         }}
       />
@@ -265,7 +285,7 @@ export function Composer({
         <button type="button" onClick={onCancel}>
           取消
         </button>
-        <button type="button" onClick={() => onSave(note)}>
+        <button type="button" onClick={() => onSave(note, annotationType)}>
           保存批注
         </button>
       </div>

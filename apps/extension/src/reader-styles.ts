@@ -47,6 +47,9 @@ export const readerConversationStyles = `
 .reader-agent-annotate-actions button:active:not(:disabled){transform:scale(.96)}
 .reader-agent-annotate-actions button:last-child{background:var(--reader-ink);color:#fffaf0}
 .reader-agent-annotate-actions button:disabled{cursor:not-allowed;opacity:.48}
+.reader-composer-types{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.reader-composer-types button{border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf7;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:7px 9px}
+.reader-composer-types button:hover,.reader-composer-types button.is-active{border-color:rgba(183,53,44,.2);background:rgba(183,53,44,.08);color:#8f2f28}
 .reader-comment-body{min-width:0}
 .reader-comment-author{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-comment-author strong{font-size:12px;font-weight:850}

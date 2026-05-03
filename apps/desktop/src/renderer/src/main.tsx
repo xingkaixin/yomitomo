@@ -39,6 +39,7 @@ import type {
   DesktopStore,
   LlmProvider,
   ProviderType,
+  ReadingDeliberationRecord,
   ReadingCardRecord,
   ReadingCardReviewRecord,
   ReadingCardReviewerResult,
@@ -1095,6 +1096,11 @@ function ReadingCard({
   onOpenEvidence: (annotationId: string) => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [deliberation, setDeliberation] = useState<ReadingDeliberationRecord | null>(null);
+  const [deliberationError, setDeliberationError] = useState('');
+  const [deliberationState, setDeliberationState] = useState<
+    'idle' | 'generating' | 'done' | 'error'
+  >('idle');
   const [aiCard, setAiCard] = useState<ReadingCardRecord | null>(null);
   const [aiError, setAiError] = useState('');
   const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
@@ -1119,12 +1125,20 @@ function ReadingCard({
   const reviewAgentKey = reviewAgentIds.join('|');
 
   useEffect(() => {
+    setDeliberation(article?.readingDeliberation || null);
+    setDeliberationError('');
+    setDeliberationState(article?.readingDeliberation ? 'done' : 'idle');
     setAiCard(article?.readingCard || null);
     setAiError('');
     setAiState(article?.readingCard ? 'done' : 'idle');
     setReviewError('');
     setReviewState(article?.readingCard?.review ? 'done' : 'idle');
-  }, [article?.id, article?.readingCard?.updatedAt, article?.readingCard?.review?.updatedAt]);
+  }, [
+    article?.id,
+    article?.readingDeliberation?.updatedAt,
+    article?.readingCard?.updatedAt,
+    article?.readingCard?.review?.updatedAt,
+  ]);
 
   useEffect(() => {
     setSelectedReviewAgentIds((current) => {
@@ -1150,6 +1164,7 @@ function ReadingCard({
         article,
         articleText,
         evidenceUnits,
+        readingDeliberation: deliberation || undefined,
       });
       setAiCard(result.readingCard);
       setAiState('done');
@@ -1159,6 +1174,25 @@ function ReadingCard({
     } catch (error) {
       setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
       setAiState('error');
+    }
+  }
+
+  async function generateDeliberation() {
+    if (!article || deliberationState === 'generating') return;
+    setDeliberationState('generating');
+    setDeliberationError('');
+    try {
+      const result = await window.yomitomoDesktop.generateReadingDeliberation({
+        article,
+        articleText,
+        evidenceUnits,
+      });
+      setDeliberation(result.readingDeliberation);
+      setDeliberationState('done');
+      onGenerated();
+    } catch (error) {
+      setDeliberationError(error instanceof Error ? error.message : '阅读审议生成失败');
+      setDeliberationState('error');
     }
   }
 
@@ -1217,6 +1251,19 @@ function ReadingCard({
           ) : null}
         </div>
         <div className="reading-card-actions">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={deliberationState === 'generating'}
+            onClick={generateDeliberation}
+          >
+            {deliberationState === 'generating' ? (
+              <LoaderCircle className="reading-card-spin" size={16} />
+            ) : (
+              <ListChecks size={16} />
+            )}
+            {deliberationState === 'generating' ? '审议中' : deliberation ? '重新审议' : '生成审议'}
+          </Button>
           <Button
             type="button"
             variant="secondary"
@@ -1288,7 +1335,15 @@ function ReadingCard({
       ) : null}
       <div className="reading-card-body">
         {aiError ? <p className="reading-card-error">{aiError}</p> : null}
+        {deliberationError ? <p className="reading-card-error">{deliberationError}</p> : null}
         {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
+        {deliberation ? (
+          <ReadingDeliberationPanel
+            deliberation={deliberation}
+            evidenceUnits={evidenceUnits}
+            onOpenEvidence={onOpenEvidence}
+          />
+        ) : null}
         {aiCard ? (
           <ReadingCardDeck
             article={article}
@@ -1323,6 +1378,59 @@ function ReadingCard({
         )}
       </div>
     </aside>
+  );
+}
+
+function ReadingDeliberationPanel({
+  deliberation,
+  evidenceUnits,
+  onOpenEvidence,
+}: {
+  deliberation: ReadingDeliberationRecord;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+  onOpenEvidence: (annotationId: string) => void;
+}) {
+  const evidenceByIndex = useMemo(
+    () => new Map(evidenceUnits.map((unit) => [unit.index, unit])),
+    [evidenceUnits],
+  );
+  const sections =
+    deliberation.sections.length > 0
+      ? deliberation.sections
+      : parseReadingCardMarkdownSections(deliberation.contentMarkdown);
+
+  function openEvidence(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target?.closest<HTMLButtonElement>('[data-reading-card-evidence-index]');
+    if (!button) return;
+    const index = Number(button.dataset.readingCardEvidenceIndex);
+    const unit = evidenceByIndex.get(index);
+    if (unit) onOpenEvidence(unit.id);
+  }
+
+  return (
+    <section className="reading-deliberation-panel">
+      <header>
+        <div>
+          <span>阅读审议</span>
+          <h4>{deliberation.title}</h4>
+        </div>
+        <time>{formatDate(deliberation.updatedAt)}</time>
+      </header>
+      <div className="reading-deliberation-sections" onClick={openEvidence}>
+        {sections.map((section) => (
+          <article key={section.title}>
+            <h5>{section.title}</h5>
+            <div
+              className="reading-card-markdown"
+              dangerouslySetInnerHTML={{
+                __html: renderReadingCardMarkdown(section.content, evidenceByIndex),
+              }}
+            />
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

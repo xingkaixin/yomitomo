@@ -15,6 +15,8 @@ import type {
   Comment,
   DesktopStore,
   LlmProvider,
+  ReadingDeliberationRecord,
+  ReadingDeliberationSection,
   ReadingCardRecord,
   ReadingCardReviewFinding,
   ReadingCardReviewRecord,
@@ -247,6 +249,28 @@ export async function saveArticleReadingCard(
   return readStore();
 }
 
+export async function saveArticleReadingDeliberation(
+  articleId: string,
+  deliberation: ReadingDeliberationRecord,
+): Promise<DesktopStore> {
+  getDatabase()
+    .update(schema.articles)
+    .set({
+      readingDeliberationId: deliberation.id,
+      readingDeliberationMarkdown: deliberation.contentMarkdown,
+      readingDeliberationSections: deliberation.sections,
+      readingDeliberationProviderId: deliberation.providerId,
+      readingDeliberationProviderName: deliberation.providerName,
+      readingDeliberationModelName: deliberation.modelName,
+      readingDeliberationCreatedAt: deliberation.createdAt,
+      readingDeliberationUpdatedAt: deliberation.updatedAt,
+      updatedAt: deliberation.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return readStore();
+}
+
 export async function saveArticleReadingCardReview(
   articleId: string,
   review: ReadingCardReviewRecord,
@@ -361,6 +385,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         excerpt: row.excerpt || undefined,
         contentHtml: row.contentHtml || undefined,
         contentHash: row.contentHash,
+        readingDeliberation: rowToReadingDeliberation(row),
         readingCard: rowToReadingCard(row),
         annotations: sortByCreatedAt(annotationsByArticle.get(row.id) || []),
         createdAt: row.createdAt,
@@ -400,6 +425,14 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       excerpt: article.excerpt,
       contentHtml: article.contentHtml,
       contentHash: article.contentHash,
+      readingDeliberationId: article.readingDeliberation?.id,
+      readingDeliberationMarkdown: article.readingDeliberation?.contentMarkdown,
+      readingDeliberationSections: article.readingDeliberation?.sections,
+      readingDeliberationProviderId: article.readingDeliberation?.providerId,
+      readingDeliberationProviderName: article.readingDeliberation?.providerName,
+      readingDeliberationModelName: article.readingDeliberation?.modelName,
+      readingDeliberationCreatedAt: article.readingDeliberation?.createdAt,
+      readingDeliberationUpdatedAt: article.readingDeliberation?.updatedAt,
       readingCardId: article.readingCard?.id,
       readingCardMarkdown: article.readingCard?.contentMarkdown,
       readingCardSections: article.readingCard?.sections,
@@ -622,6 +655,24 @@ function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCard
   };
 }
 
+function rowToReadingDeliberation(
+  row: typeof schema.articles.$inferSelect,
+): ReadingDeliberationRecord | undefined {
+  if (!row.readingDeliberationMarkdown || !row.readingDeliberationId) return undefined;
+  return {
+    id: row.readingDeliberationId,
+    articleId: row.id,
+    title: row.title,
+    contentMarkdown: row.readingDeliberationMarkdown,
+    sections: normalizeReadingDeliberationSections(row.readingDeliberationSections),
+    providerId: row.readingDeliberationProviderId || '',
+    providerName: row.readingDeliberationProviderName || '',
+    modelName: row.readingDeliberationModelName || '',
+    createdAt: row.readingDeliberationCreatedAt || row.updatedAt,
+    updatedAt: row.readingDeliberationUpdatedAt || row.updatedAt,
+  };
+}
+
 function rowToReadingCardReview(
   row: typeof schema.articles.$inferSelect,
 ): ReadingCardReviewRecord | undefined {
@@ -637,6 +688,17 @@ function rowToReadingCardReview(
 }
 
 function normalizeReadingCardSections(value: unknown): ReadingCardSection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const section = item as { title?: unknown; content?: unknown };
+    return typeof section.title === 'string' && typeof section.content === 'string'
+      ? [{ title: section.title, content: section.content }]
+      : [];
+  });
+}
+
+function normalizeReadingDeliberationSections(value: unknown): ReadingDeliberationSection[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];

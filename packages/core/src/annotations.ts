@@ -74,6 +74,7 @@ export function createUserAnnotation(
   anchor: TextAnchor,
   user: UserProfile,
   note: string,
+  annotationType?: AnnotationType,
   now = new Date().toISOString(),
 ): Annotation {
   const trimmed = note.trim();
@@ -82,6 +83,7 @@ export function createUserAnnotation(
     id: makeId('annotation'),
     anchor,
     author: 'user',
+    annotationType,
     color: user.annotationColor,
     userId: user.id,
     userUsername: user.username,

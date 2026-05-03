@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOption
 import type {
   Agent,
   LlmProvider,
+  ReadingDeliberationSection,
   ReadingCardReviewRecord,
   ReadingCardReviewerResult,
   ReadingCardSection,
@@ -14,6 +15,7 @@ import {
   deleteProvider,
   readStore,
   saveAgent,
+  saveArticleReadingDeliberation,
   saveArticleReadingCard,
   saveArticleReadingCardReview,
   saveProvider,
@@ -22,7 +24,9 @@ import {
 } from './store';
 import {
   generateReadingCard,
+  generateReadingDeliberation,
   reviewReadingCard,
+  type GenerateReadingDeliberationInput,
   testProvider,
   type GenerateReadingCardInput,
   type ReviewReadingCardInput,
@@ -158,6 +162,30 @@ function registerIpc() {
     await saveArticleReadingCard(input.article.id, readingCard);
     return { readingCard };
   });
+  ipcMain.handle(
+    'reading-deliberation:generate',
+    async (_event, input: GenerateReadingDeliberationInput) => {
+      const store = await readStore();
+      const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
+      if (!provider) throw new Error('请先在通用设置里选择默认供应商');
+      const content = await generateReadingDeliberation(provider, input);
+      const now = new Date().toISOString();
+      const deliberation = {
+        id: input.article.readingDeliberation?.id || makeId('reading_deliberation'),
+        articleId: input.article.id,
+        title: input.article.title,
+        contentMarkdown: content,
+        sections: parseMarkdownSections(content),
+        providerId: provider.id,
+        providerName: provider.name,
+        modelName: provider.modelName,
+        createdAt: input.article.readingDeliberation?.createdAt || now,
+        updatedAt: now,
+      };
+      await saveArticleReadingDeliberation(input.article.id, deliberation);
+      return { readingDeliberation: deliberation };
+    },
+  );
   ipcMain.handle('reading-card:review', async (_event, input: ReviewReadingCardInput) => {
     const store = await readStore();
     const selectedReviewAgentIds = new Set(input.reviewAgentIds || []);
@@ -259,8 +287,12 @@ function createReviewerResult(
 }
 
 function parseReadingCardSections(markdown: string): ReadingCardSection[] {
-  const sections: ReadingCardSection[] = [];
-  let current: ReadingCardSection | null = null;
+  return parseMarkdownSections(markdown);
+}
+
+function parseMarkdownSections(markdown: string): ReadingDeliberationSection[] {
+  const sections: ReadingDeliberationSection[] = [];
+  let current: ReadingDeliberationSection | null = null;
   for (const line of markdown.split('\n')) {
     const heading = line.match(/^##\s+(.+)$/);
     if (heading) {

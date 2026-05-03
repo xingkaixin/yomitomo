@@ -155,4 +155,17 @@ ALTER TABLE articles ADD COLUMN reading_card_review_created_at TEXT;
 ALTER TABLE articles ADD COLUMN reading_card_review_updated_at TEXT;
 `,
   },
+  {
+    id: '0008_reading_deliberation',
+    sql: `
+ALTER TABLE articles ADD COLUMN reading_deliberation_id TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_markdown TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_sections TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_provider_id TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_provider_name TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_model_name TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_created_at TEXT;
+ALTER TABLE articles ADD COLUMN reading_deliberation_updated_at TEXT;
+`,
+  },
 ];

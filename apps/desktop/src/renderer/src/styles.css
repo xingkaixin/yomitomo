@@ -1837,6 +1837,74 @@
   padding: 14px;
 }
 
+.reading-deliberation-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  border: 1px solid hsl(83 22% 48% / 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(84 34% 96% / 0.9), hsl(43 62% 96% / 0.9)), hsl(var(--card));
+  box-shadow:
+    0 12px 26px hsl(31 34% 24% / 0.07),
+    inset 0 1px 0 hsl(42 80% 99% / 0.78);
+  padding: 14px;
+}
+
+.reading-deliberation-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading-deliberation-panel > header span {
+  display: inline-flex;
+  border: 1px solid hsl(83 22% 48% / 0.28);
+  border-radius: 999px;
+  background: hsl(84 24% 74% / 0.24);
+  color: hsl(82 23% 28%);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 6px 9px;
+}
+
+.reading-deliberation-panel > header h4 {
+  margin: 9px 0 0;
+  color: hsl(31 23% 19%);
+  font-size: 15px;
+  font-weight: 940;
+  line-height: 1.35;
+}
+
+.reading-deliberation-panel > header time {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.reading-deliberation-sections {
+  display: grid;
+  gap: 10px;
+}
+
+.reading-deliberation-sections article {
+  border: 1px solid hsl(36 31% 72% / 0.48);
+  border-radius: 8px;
+  background: hsl(43 63% 98% / 0.72);
+  padding: 11px;
+}
+
+.reading-deliberation-sections h5 {
+  margin: 0 0 8px;
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 920;
+}
+
 .reading-card-review-panel > header {
   display: flex;
   align-items: flex-start;

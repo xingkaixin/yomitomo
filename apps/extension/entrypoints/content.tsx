@@ -5,6 +5,7 @@ import { browser } from 'wxt/browser';
 import { Tabs, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import {
   type Annotation,
+  type AnnotationType,
   type ArticleRecord,
   type Comment,
   type DesktopServerMessage,
@@ -805,10 +806,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     selection.removeAllRanges();
   }
 
-  async function createAnnotation(note: string) {
+  async function createAnnotation(note: string, annotationType: AnnotationType) {
     if (!composer) return;
 
-    const annotation = createUserAnnotation(composer.anchor, userProfile, note);
+    const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType);
 
     await saveAnnotations([...annotationsRef.current, annotation]);
     setActiveId(annotation.id);
