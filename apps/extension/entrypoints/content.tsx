@@ -265,7 +265,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const annotationsRef = useRef<Annotation[]>([]);
   const pendingAgentRequestsRef = useRef(new Map<string, { annotationId: string; commentId: string; agentId?: string }>());
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const agentAnnotationQueueRef = useRef<Annotation[]>([]);
+  const agentAnnotationQueuesRef = useRef(new Map<string, Annotation[]>());
+  const agentQueueOrderRef = useRef<string[]>([]);
+  const lastPlayedAgentRef = useRef<string | null>(null);
   const agentAnimationRunningRef = useRef(false);
   const virtualReadingSessionsRef = useRef(new Map<string, VirtualReadingSession>());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
@@ -703,8 +705,63 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function enqueueAgentAnnotation(annotation: Annotation) {
-    agentAnnotationQueueRef.current.push(annotation);
-    readerLog("agent.queue.enqueue", { annotationId: annotation.id, size: agentAnnotationQueueRef.current.length });
+    const key = agentQueueKey(annotation);
+    const queue = agentAnnotationQueuesRef.current.get(key) || [];
+    queue.push(annotation);
+    agentAnnotationQueuesRef.current.set(key, queue);
+    if (!agentQueueOrderRef.current.includes(key)) agentQueueOrderRef.current.push(key);
+    readerLog("agent.queue.enqueue", { annotationId: annotation.id, agent: key, size: queuedAnnotationsCount() });
+  }
+
+  function agentQueueKey(annotation: Annotation) {
+    return annotation.agentId || annotation.agentUsername || "__agent__";
+  }
+
+  function queuedAnnotationsCount() {
+    let count = 0;
+    for (const queue of agentAnnotationQueuesRef.current.values()) count += queue.length;
+    return count;
+  }
+
+  function hasQueuedAnnotationForAgent(agentId: string) {
+    return (agentAnnotationQueuesRef.current.get(agentId)?.length || 0) > 0;
+  }
+
+  function hasQueuedAnnotationForOtherAgent(agentId: string) {
+    for (const [key, queue] of agentAnnotationQueuesRef.current) {
+      if (key !== agentId && queue.length > 0) return true;
+    }
+    return false;
+  }
+
+  function nextQueuedAgentKey() {
+    const order = agentQueueOrderRef.current;
+    if (order.length === 0) return null;
+
+    const lastIndex = lastPlayedAgentRef.current ? order.indexOf(lastPlayedAgentRef.current) : -1;
+    for (let index = 1; index <= order.length; index += 1) {
+      const key = order[(lastIndex + index + order.length) % order.length];
+      if ((agentAnnotationQueuesRef.current.get(key)?.length || 0) > 0) return key;
+    }
+    return null;
+  }
+
+  function cleanupAgentQueue(agentId: string | null) {
+    if (!agentId) return;
+    const queue = agentAnnotationQueuesRef.current.get(agentId);
+    if (queue && queue.length > 0) return;
+    if (virtualReadingSessionsRef.current.has(agentId)) return;
+    agentAnnotationQueuesRef.current.delete(agentId);
+    agentQueueOrderRef.current = agentQueueOrderRef.current.filter((key) => key !== agentId);
+    if (lastPlayedAgentRef.current === agentId) lastPlayedAgentRef.current = null;
+  }
+
+  function shouldWaitForPeerAgent(agentId: string) {
+    if (hasQueuedAnnotationForOtherAgent(agentId)) return false;
+    for (const [key, session] of virtualReadingSessionsRef.current) {
+      if (key !== agentId && !session.done) return true;
+    }
+    return false;
   }
 
   function markAgentAnnotating(agentId: string, annotating: boolean) {
@@ -799,7 +856,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       if (agentAnimationRunningRef.current) return;
       for (const id of agentIds) {
         const session = virtualReadingSessionsRef.current.get(id);
-        if (session?.done && !agentAnnotationQueueRef.current.some((annotation) => annotation.agentId === id)) {
+        if (session?.done && !hasQueuedAnnotationForAgent(id)) {
           finishVirtualReading(id);
         }
       }
@@ -811,12 +868,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     agentAnimationRunningRef.current = true;
     try {
-      while (agentAnnotationQueueRef.current.length > 0) {
-        const annotation = agentAnnotationQueueRef.current.shift();
+      while (queuedAnnotationsCount() > 0) {
+        const queueKey = nextQueuedAgentKey();
+        if (!queueKey) break;
+        const annotation = queueKey ? agentAnnotationQueuesRef.current.get(queueKey)?.shift() : undefined;
         if (!annotation) continue;
 
         try {
-          readerLog("agent.queue.play", { annotationId: annotation.id, remaining: agentAnnotationQueueRef.current.length });
+          lastPlayedAgentRef.current = queueKey;
+          readerLog("agent.queue.play", { annotationId: annotation.id, agent: queueKey, remaining: queuedAnnotationsCount() });
           const session = annotation.agentId ? virtualReadingSessionsRef.current.get(annotation.agentId) : undefined;
           if (session) session.paused = true;
           await playAgentAnnotation(annotation);
@@ -829,6 +889,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         } finally {
           const session = annotation.agentId ? virtualReadingSessionsRef.current.get(annotation.agentId) : undefined;
           if (session) session.paused = false;
+          cleanupAgentQueue(queueKey);
+          if (queueKey && shouldWaitForPeerAgent(queueKey)) await sleep(900);
         }
       }
     } finally {
@@ -1688,8 +1750,9 @@ const readerConversationStyles = `
 .reader-main{grid-template-columns:260px minmax(0,1fr) 460px}
 .reader-highlight{background:rgba(244,201,93,.28);box-shadow:0 0 0 1px rgba(239,169,39,.24)}
 .reader-highlight.is-active{background:rgba(244,201,93,.45)}
-.reader-notes{padding:28px 24px 48px}
-.reader-note{border-left-width:4px;border-radius:16px;padding:14px 15px}
+.reader-notes{padding:0 24px 48px;scroll-padding-top:104px}
+.reader-notes-header{margin:0 -24px 22px;padding:24px;background:rgba(246,239,224,.98);box-shadow:0 10px 24px rgba(55,42,24,.08)}
+.reader-note{scroll-margin-top:112px;border-left-width:4px;border-radius:16px;padding:14px 15px}
 .reader-note-anchor{display:grid;gap:10px}
 .reader-note-anchor .reader-note-persona{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:8px;margin:0;color:var(--reader-ink);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-note-persona .reader-avatar-badge{width:32px;height:32px}
