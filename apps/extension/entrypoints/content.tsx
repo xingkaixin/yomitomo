@@ -113,6 +113,7 @@ const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860
 };
+const DELETE_HOLD_MS = 1600;
 
 export default defineContentScript({
   matches: ["<all_urls>"],
@@ -1346,10 +1347,11 @@ function Composer({ composer, shortcutModifier, onCancel, onSave }: { composer: 
 
 function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef, shortcutModifier, userProfile, onAddComment, onDelete, onFocus }: { active: boolean; agents: PublicAgent[]; annotation: Annotation; desktopConnected: boolean; noteRef: (element: HTMLElement | null) => void; shortcutModifier: string; userProfile: UserProfile; onAddComment: (annotationId: string, content: string) => void; onDelete: (annotationId: string) => void; onFocus: (annotationId: string) => void }) {
   const [draft, setDraft] = useState("");
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const deleteTimerRef = useRef<number | null>(null);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const matchedAgents = mentionQuery === null ? [] : agents.filter((agent) => agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) || agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase())).slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
@@ -1362,10 +1364,32 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
     if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length) setSelectedMentionIndex(0);
   }, [matchedAgents.length, selectedMentionIndex]);
 
+  useEffect(() => () => stopDeleteTimer(), []);
+
   function submit() {
     onAddComment(annotation.id, draft);
     setDraft("");
     setCaretIndex(0);
+  }
+
+  function stopDeleteTimer() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+  }
+
+  function clearDeleteHold() {
+    stopDeleteTimer();
+    setDeleteHolding(false);
+  }
+
+  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
+    if (deleteTimerRef.current !== null) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDeleteHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      onDelete(annotation.id);
+    }, DELETE_HOLD_MS);
   }
 
   function selectAgent(agent: PublicAgent) {
@@ -1429,7 +1453,7 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
               <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
               <div className="reader-comment-body">
                 <div className="reader-comment-author"><strong>{commentAuthor.nickname}</strong><em>@{commentAuthor.username}</em></div>
-                <p>{comment.content}{comment.pending ? <i className="reader-spinner" /> : null}</p>
+                <MarkdownContent content={comment.content} pending={comment.pending} />
               </div>
             </div>
           );
@@ -1439,7 +1463,7 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
         <textarea
           autoFocus={active}
           ref={textareaRef}
-          placeholder={desktopConnected ? "继续评论，输入 @ 呼叫 Agent..." : "继续评论..."}
+          placeholder={desktopConnected ? "继续评论，输入 @ 呼叫助手..." : "继续评论..."}
           value={draft}
           onChange={(event) => { setDraft(event.currentTarget.value); updateCaret(event.currentTarget); }}
           onClick={(event) => updateCaret(event.currentTarget)}
@@ -1450,12 +1474,167 @@ function AnnotationCard({ active, agents, annotation, desktopConnected, noteRef,
         {matchedAgents.length > 0 ? <div className="reader-agent-menu">{matchedAgents.map((agent, index) => <button className={index === selectedMentionIndex ? "is-active" : ""} key={agent.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectAgent(agent)}><AvatarBadge avatar={agent.avatar} /><strong>{agent.nickname}</strong><em>@{agent.username}</em></button>)}</div> : null}
       </div>
       <div className="reader-note-footer">
-        {confirmingDelete ? <div className="reader-delete-confirm"><span>删除这条批注？</span><button type="button" onClick={() => setConfirmingDelete(false)}>取消</button><button type="button" onClick={() => onDelete(annotation.id)}>确认删除</button></div> : <button className="reader-delete-note" type="button" onClick={() => setConfirmingDelete(true)}><Trash2 size={13} />删除批注</button>}
+        <button
+          className={deleteHolding ? "reader-delete-note is-holding" : "reader-delete-note"}
+          style={{ "--delete-hold-ms": `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+          type="button"
+          aria-label="长按删除批注"
+          onClick={(event) => event.preventDefault()}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerCancel={clearDeleteHold}
+          onPointerDown={startDeleteHold}
+          onPointerLeave={clearDeleteHold}
+          onPointerUp={clearDeleteHold}
+        >
+          <Trash2 size={13} /><span>长按删除批注</span>
+        </button>
         <div className="reader-shortcut-hint"><Kbd className="reader-kbd">{shortcutModifier}</Kbd><Kbd className="reader-kbd">Enter</Kbd><span>发送</span></div>
         <button className="reader-add-comment" type="button" onClick={submit}>添加评论</button>
       </div>
     </section>
   );
+}
+
+function MarkdownContent({ content, pending }: { content: string; pending?: boolean }) {
+  const html = useMemo(() => renderMarkdown(content), [content]);
+
+  return (
+    <div className="reader-markdown">
+      <div className="reader-markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
+      {pending ? <i className="reader-spinner" /> : null}
+    </div>
+  );
+}
+
+function renderMarkdown(content: string) {
+  const html = renderMarkdownBlocks(content);
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["p", "br", "strong", "em", "code", "pre", "a", "ul", "ol", "li", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6"],
+    ALLOWED_ATTR: ["href", "target", "rel"]
+  });
+}
+
+function renderMarkdownBlocks(content: string) {
+  const lines = content.replace(/\r\n?/g, "\n").split("\n");
+  const blocks: string[] = [];
+
+  for (let index = 0; index < lines.length;) {
+    const line = lines[index];
+
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+
+    const fence = line.match(/^```/);
+    if (fence) {
+      const codeLines: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].match(/^```/)) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      if (index < lines.length) index += 1;
+      blocks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      blocks.push(`<h${level}>${renderMarkdownInline(heading[2].trim())}</h${level}>`);
+      index += 1;
+      continue;
+    }
+
+    if (/^\s*>\s?/.test(line)) {
+      const quoteLines: string[] = [];
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quoteLines.push(lines[index].replace(/^\s*>\s?/, ""));
+        index += 1;
+      }
+      blocks.push(`<blockquote>${renderParagraph(quoteLines)}</blockquote>`);
+      continue;
+    }
+
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\s*[-*+]\s+/.test(lines[index])) {
+        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*[-*+]\s+/, ""))}</li>`);
+        index += 1;
+      }
+      blocks.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) {
+        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*\d+\.\s+/, ""))}</li>`);
+        index += 1;
+      }
+      blocks.push(`<ol>${items.join("")}</ol>`);
+      continue;
+    }
+
+    const paragraphLines: string[] = [];
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !lines[index].startsWith("```") &&
+      !/^(#{1,6})\s+/.test(lines[index]) &&
+      !/^\s*>\s?/.test(lines[index]) &&
+      !/^\s*[-*+]\s+/.test(lines[index]) &&
+      !/^\s*\d+\.\s+/.test(lines[index])
+    ) {
+      paragraphLines.push(lines[index]);
+      index += 1;
+    }
+    blocks.push(`<p>${renderParagraph(paragraphLines)}</p>`);
+  }
+
+  return blocks.join("");
+}
+
+function renderParagraph(lines: string[]) {
+  return lines.map((line) => renderMarkdownInline(line)).join("<br>");
+}
+
+function renderMarkdownInline(content: string) {
+  const tokens: string[] = [];
+  const token = (value: string) => {
+    const id = `@@YOMITOMO_MD_${tokens.length}@@`;
+    tokens.push(value);
+    return id;
+  };
+
+  let text = content.replace(/`([^`]+)`/g, (_match, code: string) => token(`<code>${escapeHtml(code)}</code>`));
+  text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label: string, href: string) => {
+    if (!/^(https?:\/\/|mailto:)/i.test(href)) return escapeHtml(label);
+    const safeHref = escapeHtml(href);
+    return token(`<a href="${safeHref}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`);
+  });
+
+  text = escapeHtml(text)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+    .replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+
+  tokens.forEach((value, index) => {
+    text = text.replace(`@@YOMITOMO_MD_${index}@@`, value);
+  });
+
+  return text;
+}
+
+function escapeHtml(input: string) {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function isRangeInsideArticle(range: Range, article: HTMLElement) {
@@ -1748,7 +1927,7 @@ function rangeFromOffsets(rootElement: HTMLElement, start: number, end: number) 
 }
 
 const readerConversationStyles = `
-.reader-main{grid-template-columns:260px minmax(0,1fr) 460px}
+.reader-main{grid-template-columns:260px minmax(0,1fr) 560px}
 .reader-highlight{background:rgba(244,201,93,.28);box-shadow:0 0 0 1px rgba(239,169,39,.24)}
 .reader-highlight.is-active{background:rgba(244,201,93,.45)}
 .reader-notes{padding:0 24px 48px;scroll-padding-top:104px}
@@ -1791,9 +1970,29 @@ const readerConversationStyles = `
 .reader-comment-author{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-comment-author strong{font-size:12px;font-weight:850}
 .reader-comment-author em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700}
-.reader-comment-body p{margin:0;color:#3f352c;font-size:13px;line-height:1.6}
+.reader-markdown{min-width:0;color:#3f352c;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.66;overflow-wrap:anywhere;word-break:break-word}
+.reader-markdown-content>*:first-child{margin-top:0}
+.reader-markdown-content>*:last-child{margin-bottom:0}
+.reader-markdown p{margin:0 0 8px;color:inherit;font-size:13px;line-height:1.66}
+.reader-markdown h1,.reader-markdown h2,.reader-markdown h3,.reader-markdown h4,.reader-markdown h5,.reader-markdown h6{margin:10px 0 6px;color:var(--reader-ink);font-family:ui-sans-serif,system-ui,sans-serif;font-weight:850;line-height:1.35;letter-spacing:0}
+.reader-markdown h1{font-size:15px}
+.reader-markdown h2{font-size:14px}
+.reader-markdown h3,.reader-markdown h4,.reader-markdown h5,.reader-markdown h6{font-size:13px}
+.reader-markdown ul,.reader-markdown ol{margin:6px 0 8px;padding-left:18px}
+.reader-markdown li{margin:3px 0}
+.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid rgba(183,53,44,.35);color:#5d5147}
+.reader-markdown code{border-radius:5px;background:rgba(37,29,22,.08);font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12px;padding:1px 4px}
+.reader-markdown pre{max-width:100%;overflow:auto;margin:8px 0;padding:10px;border-radius:10px;background:#251d16;color:#fffaf0}
+.reader-markdown pre code{background:transparent;color:inherit;padding:0}
+.reader-markdown a{color:#8f2f28;text-decoration:underline;text-underline-offset:2px}
+.reader-delete-note{position:relative;isolation:isolate;overflow:hidden;height:32px;border-radius:999px;padding:0 10px;touch-action:none;user-select:none}
+.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:rgba(183,53,44,.16);z-index:0}
+.reader-delete-note:hover{background:rgba(183,53,44,.08)}
+.reader-delete-note svg,.reader-delete-note span{position:relative;z-index:1}
+.reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
+@keyframes reader-delete-hold{to{width:100%}}
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
-@media(max-width:980px){.reader-notes{width:min(460px,calc(100vw - 28px))}}
+@media(max-width:980px){.reader-notes{width:min(560px,calc(100vw - 28px))}}
 `;
 
 const readerStyles = `
