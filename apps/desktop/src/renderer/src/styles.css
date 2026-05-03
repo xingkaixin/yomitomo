@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @config "../../../tailwind.config.ts";
 
 @layer base {
@@ -36,7 +36,7 @@
     margin: 0;
     background: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
   }
 
   button,
@@ -121,7 +121,7 @@
 
 .app-header-copy h1 {
   margin: 0;
-  font-family: "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
   font-weight: 900;
   line-height: 1.1;
@@ -228,7 +228,7 @@
   border: 1px solid hsl(32 20% 59%);
   border-radius: 4px 4px 9px 9px;
   background: linear-gradient(hsl(34 44% 83%), hsl(33 36% 72%));
-  content: "";
+  content: '';
 }
 
 .sidebar-plant::after {
@@ -242,7 +242,7 @@
     radial-gradient(ellipse at 28px 24px, hsl(94 32% 43%) 0 10px, transparent 11px),
     radial-gradient(ellipse at 18px 14px, hsl(85 35% 46%) 0 8px, transparent 9px),
     linear-gradient(90deg, transparent 20px, hsl(88 22% 35%) 21px 23px, transparent 24px);
-  content: "";
+  content: '';
 }
 
 .sidebar-paper {
@@ -256,7 +256,7 @@
     repeating-linear-gradient(0deg, transparent 0 21px, hsl(36 26% 76% / 0.5) 22px), hsl(43 62% 92%);
   box-shadow: 0 7px 18px hsl(31 34% 24% / 0.13);
   color: hsl(35 22% 28%);
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 15px;
   line-height: 1.45;
   padding: 16px 18px;
@@ -578,12 +578,12 @@
     inset 0 1px 0 hsl(40 100% 98% / 0.72);
 }
 
-.theme-select-content [role="option"] {
+.theme-select-content [role='option'] {
   color: hsl(var(--foreground));
 }
 
-.theme-select-content [role="option"]:focus,
-.theme-select-content [role="option"][data-highlighted] {
+.theme-select-content [role='option']:focus,
+.theme-select-content [role='option'][data-highlighted] {
   background: hsl(76 21% 72% / 0.38);
   color: hsl(var(--foreground));
 }
@@ -604,7 +604,7 @@
 }
 
 .provider-select-trigger:hover:not(:disabled),
-.provider-select-trigger[data-state="open"] {
+.provider-select-trigger[data-state='open'] {
   border-color: hsl(8 45% 48% / 0.42);
   background:
     linear-gradient(180deg, hsl(40 100% 98% / 0.98), hsl(38 50% 94% / 0.94)), hsl(var(--card));
@@ -792,7 +792,7 @@
 
 .library-stat strong {
   display: block;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 23px;
   font-weight: 700;
   line-height: 1;
@@ -841,7 +841,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 15px;
   font-weight: 700;
   line-height: 1.28;
@@ -917,7 +917,7 @@
   background:
     repeating-linear-gradient(0deg, transparent 0 31px, hsl(37 29% 74% / 0.25) 32px),
     hsl(42 55% 93%);
-  content: "";
+  content: '';
   pointer-events: none;
 }
 
@@ -965,7 +965,7 @@
   width: 12px;
   border-radius: 0 4px 4px 0;
   box-shadow: 1px 2px 6px hsl(31 34% 24% / 0.15);
-  content: "";
+  content: '';
 }
 
 .notebook-cover::before {
@@ -1005,7 +1005,7 @@
   left: 0;
   height: 18px;
   background: linear-gradient(180deg, hsl(42 64% 96% / 0.78), hsl(42 64% 96% / 0));
-  content: "";
+  content: '';
   filter: blur(2px);
   pointer-events: none;
 }
@@ -1016,7 +1016,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: Georgia, 'Times New Roman', serif;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
@@ -1143,7 +1143,7 @@
 .quote-card blockquote {
   margin: 14px 0 0;
   color: hsl(32 22% 21%);
-  font-family: "Kaiti SC", "Songti SC", Georgia, serif;
+  font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
   font-size: 18px;
   line-height: 1.8;
 }
@@ -1203,7 +1203,7 @@
 .comment-markdown {
   margin: 12px 0 0;
   color: hsl(31 21% 24%);
-  font-family: "Kaiti SC", "Songti SC", Georgia, serif;
+  font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
   font-size: 17px;
   line-height: 1.78;
   overflow-wrap: anywhere;
@@ -1233,7 +1233,7 @@
 .comment-markdown h6 {
   margin: 16px 0 8px;
   color: hsl(31 22% 18%);
-  font-family: "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
   font-weight: 900;
   line-height: 1.35;
 }
@@ -1273,7 +1273,7 @@
 .comment-markdown code {
   border-radius: 5px;
   background: hsl(31 24% 22% / 0.08);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 0.86em;
   padding: 1px 5px;
 }
@@ -1284,7 +1284,7 @@
   border-radius: 8px;
   background: hsl(31 24% 17%);
   color: hsl(43 62% 94%);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
   padding: 12px;
@@ -1335,7 +1335,7 @@
   left: 0;
   height: 38px;
   background: linear-gradient(0deg, hsl(42 64% 96% / 0.94), hsl(42 64% 96% / 0));
-  content: "";
+  content: '';
   filter: blur(2px);
   pointer-events: none;
 }
@@ -1531,7 +1531,7 @@
   border-radius: 10px;
   background: hsl(var(--foreground) / 0.92);
   color: hsl(var(--primary-foreground));
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 11px;
   line-height: 1.55;
   white-space: pre-wrap;

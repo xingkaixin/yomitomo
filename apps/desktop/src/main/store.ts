@@ -1,9 +1,9 @@
-import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { app } from "electron";
-import { eq } from "drizzle-orm";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-import SQLiteDatabase from "better-sqlite3";
+import { mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { app } from 'electron';
+import { eq } from 'drizzle-orm';
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import SQLiteDatabase from 'better-sqlite3';
 import type {
   Agent,
   AgentAnnotationDensity,
@@ -15,19 +15,19 @@ import type {
   LlmProvider,
   TextAnchor,
   UserProfile,
-} from "@yomitomo/shared";
-import { makeId } from "@yomitomo/shared";
-import { migrations } from "./db/migrations";
-import * as schema from "./db/schema";
+} from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
+import { migrations } from './db/migrations';
+import * as schema from './db/schema';
 
-const DB_FILE_NAME = "yomitomo.sqlite";
+const DB_FILE_NAME = 'yomitomo.sqlite';
 
 const defaultUser: UserProfile = {
-  id: "user_local",
-  nickname: "我",
-  username: "me",
-  avatar: "",
-  annotationColor: "#f4c95d",
+  id: 'user_local',
+  nickname: '我',
+  username: 'me',
+  avatar: '',
+  annotationColor: '#f4c95d',
   updatedAt: new Date(0).toISOString(),
 };
 
@@ -41,13 +41,13 @@ const defaultStore: DesktopStore = {
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: BetterSQLite3Database<typeof schema> | null = null;
 type StoreDatabase = BetterSQLite3Database<typeof schema>;
-type StoreTransaction = Parameters<StoreDatabase["transaction"]>[0] extends (tx: infer T) => unknown
+type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (tx: infer T) => unknown
   ? T
   : never;
 type StoreExecutor = StoreDatabase | StoreTransaction;
 
 function databasePath() {
-  return join(app.getPath("userData"), DB_FILE_NAME);
+  return join(app.getPath('userData'), DB_FILE_NAME);
 }
 
 function getDatabase() {
@@ -57,8 +57,8 @@ function getDatabase() {
   mkdirSync(dirname(file), { recursive: true });
 
   sqlite = new SQLiteDatabase(file);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('foreign_keys = ON');
   runMigrations(sqlite);
 
   db = drizzle(sqlite, { schema });
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
 
   const applied = new Set(
     database
-      .prepare("SELECT id FROM __yomitomo_migrations")
+      .prepare('SELECT id FROM __yomitomo_migrations')
       .all()
       .map((row) => String((row as { id: string }).id)),
   );
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
     database.transaction(() => {
       database.exec(migration.sql);
       database
-        .prepare("INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)")
+        .prepare('INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)')
         .run(migration.id, new Date().toISOString());
     })();
   }
@@ -118,7 +118,7 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
   const user: UserProfile = {
     id: store.user.id || defaultUser.id,
     nickname: input.nickname?.trim() || store.user.nickname,
-    username: normalizeUsername(input.username || store.user.username || "me"),
+    username: normalizeUsername(input.username || store.user.username || 'me'),
     avatar: input.avatar || store.user.avatar,
     annotationColor: input.annotationColor?.trim() || store.user.annotationColor,
     updatedAt: new Date().toISOString(),
@@ -135,12 +135,12 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     ? store.providers.find((provider) => provider.id === input.id)
     : undefined;
   const provider: LlmProvider = {
-    id: existing?.id || makeId("provider"),
-    name: input.name?.trim() || "Untitled Provider",
-    type: input.type || existing?.type || "anthropic",
-    baseUrl: input.baseUrl?.trim() || existing?.baseUrl || "https://api.anthropic.com",
-    apiKey: input.apiKey?.trim() || existing?.apiKey || "",
-    modelName: input.modelName?.trim() || existing?.modelName || "claude-3-5-sonnet-latest",
+    id: existing?.id || makeId('provider'),
+    name: input.name?.trim() || 'Untitled Provider',
+    type: input.type || existing?.type || 'anthropic',
+    baseUrl: input.baseUrl?.trim() || existing?.baseUrl || 'https://api.anthropic.com',
+    apiKey: input.apiKey?.trim() || existing?.apiKey || '',
+    modelName: input.modelName?.trim() || existing?.modelName || 'claude-3-5-sonnet-latest',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -159,25 +159,25 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
   const now = new Date().toISOString();
   const existing = input.id ? store.agents.find((agent) => agent.id === input.id) : undefined;
   const username = normalizeUsername(
-    input.username || existing?.username || input.nickname || "agent",
-    "agent",
+    input.username || existing?.username || input.nickname || 'agent',
+    'agent',
   );
   const agent: Agent = {
-    id: existing?.id || makeId("agent"),
-    providerId: input.providerId || existing?.providerId || store.providers[0]?.id || "",
-    nickname: input.nickname?.trim() || existing?.nickname || "Yomitomo",
+    id: existing?.id || makeId('agent'),
+    providerId: input.providerId || existing?.providerId || store.providers[0]?.id || '',
+    nickname: input.nickname?.trim() || existing?.nickname || 'Yomitomo',
     username,
-    avatar: input.avatar?.trim() || existing?.avatar || "🤖",
-    annotationColor: input.annotationColor?.trim() || existing?.annotationColor || "#8ab6d6",
+    avatar: input.avatar?.trim() || existing?.avatar || '🤖',
+    annotationColor: input.annotationColor?.trim() || existing?.annotationColor || '#8ab6d6',
     annotationDensity:
       normalizeAnnotationDensity(input.annotationDensity) ||
       normalizeAnnotationDensity(existing?.annotationDensity) ||
-      "medium",
+      'medium',
     temperature: normalizeTemperature(input.temperature ?? existing?.temperature),
     soul:
       input.soul?.trim() ||
       existing?.soul ||
-      "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。",
+      '你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -209,7 +209,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     const list = commentsByAnnotation.get(row.annotationId) || [];
     list.push({
       id: row.id,
-      author: row.author as Comment["author"],
+      author: row.author as Comment['author'],
       content: row.content,
       createdAt: row.createdAt,
       replyTo: row.replyTo || undefined,
@@ -234,7 +234,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     list.push({
       id: row.id,
       anchor: row.anchor as TextAnchor,
-      author: row.author as Annotation["author"],
+      author: row.author as Annotation['author'],
       annotationType: normalizeAnnotationType(row.annotationType) || undefined,
       color: row.color,
       agentId: row.agentId || undefined,
@@ -259,7 +259,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     providers: providerRows.map((row) => ({
       id: row.id,
       name: row.name,
-      type: row.type as LlmProvider["type"],
+      type: row.type as LlmProvider['type'],
       baseUrl: row.baseUrl,
       apiKey: row.apiKey,
       modelName: row.modelName,
@@ -272,8 +272,8 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       nickname: row.nickname,
       username: row.username,
       avatar: row.avatar,
-      annotationColor: row.annotationColor || "#8ab6d6",
-      annotationDensity: normalizeAnnotationDensity(row.annotationDensity) || "medium",
+      annotationColor: row.annotationColor || '#8ab6d6',
+      annotationDensity: normalizeAnnotationDensity(row.annotationDensity) || 'medium',
       temperature: normalizeTemperature(row.temperature),
       soul: row.soul,
       createdAt: row.createdAt,
@@ -480,8 +480,8 @@ function normalizeStore(store: DesktopStore): DesktopStore {
     providers: store.providers || [],
     agents: (store.agents || []).map((agent) =>
       Object.assign({}, agent, {
-        annotationColor: agent.annotationColor || "#8ab6d6",
-        annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || "medium",
+        annotationColor: agent.annotationColor || '#8ab6d6',
+        annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || 'medium',
         temperature: normalizeTemperature(agent.temperature),
       }),
     ),
@@ -522,21 +522,23 @@ function userToRow(user: UserProfile): typeof schema.userProfiles.$inferInsert {
 }
 
 function sortByCreatedAt<T extends { createdAt: string }>(items: T[]) {
-  return [...items].toSorted((left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt));
+  return [...items].toSorted(
+    (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+  );
 }
 
-function normalizeUsername(value: string, fallback = "me") {
+function normalizeUsername(value: string, fallback = 'me') {
   return (
     value
       .trim()
-      .replace(/^@/, "")
-      .replace(/[^a-zA-Z0-9_]/g, "_")
+      .replace(/^@/, '')
+      .replace(/[^a-zA-Z0-9_]/g, '_')
       .slice(0, 32) || fallback
   );
 }
 
 function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {
-  return value === "low" || value === "medium" || value === "high" ? value : null;
+  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
 }
 
 function normalizeTemperature(value: unknown) {
@@ -546,11 +548,11 @@ function normalizeTemperature(value: unknown) {
 }
 
 function normalizeAnnotationType(value: unknown): AnnotationType | null {
-  return value === "key_point" ||
-    value === "assumption" ||
-    value === "concept" ||
-    value === "question" ||
-    value === "quote"
+  return value === 'key_point' ||
+    value === 'assumption' ||
+    value === 'concept' ||
+    value === 'question' ||
+    value === 'quote'
     ? value
     : null;
 }

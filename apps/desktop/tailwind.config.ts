@@ -1,13 +1,13 @@
-import type { Config } from "tailwindcss";
+import type { Config } from 'tailwindcss';
 
 export default {
-  content: ["./src/renderer/**/*.{html,ts,tsx}"],
+  content: ['./src/renderer/**/*.{html,ts,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Avenir Next", "ui-sans-serif", "system-ui", "sans-serif"]
-      }
-    }
+        sans: ['Avenir Next', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 } satisfies Config;

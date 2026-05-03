@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { Readability } from "@mozilla/readability";
-import DOMPurify from "dompurify";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { Readability } from '@mozilla/readability';
+import DOMPurify from 'dompurify';
 import {
   Bot,
   CaseSensitive,
@@ -12,9 +12,9 @@ import {
   Settings2,
   Trash2,
   X,
-} from "lucide-react";
-import { browser } from "wxt/browser";
-import { Kbd } from "../src/components/ui/kbd";
+} from 'lucide-react';
+import { browser } from 'wxt/browser';
+import { Kbd } from '../src/components/ui/kbd';
 import {
   type Annotation,
   type AnnotationType,
@@ -29,23 +29,23 @@ import {
   makeId,
   renderMarkdown,
   resolveTextAnchor,
-} from "@yomitomo/shared";
+} from '@yomitomo/shared';
 
-const HOST_ID = "yomitomo-root";
-const STORAGE_PREFIX = "yomitomo.article.";
-const LEGACY_STORAGE_PREFIX = "reader.article.";
-const READER_SETTINGS_KEY = "yomitomo.settings";
-const LEGACY_READER_SETTINGS_KEY = "reader.settings";
-const DESKTOP_PROFILE_CACHE_KEY = "yomitomo.desktopProfile";
-const LEGACY_DESKTOP_PROFILE_CACHE_KEY = "reader.desktopProfile";
-const DESKTOP_WS_URL = "ws://127.0.0.1:43891";
+const HOST_ID = 'yomitomo-root';
+const STORAGE_PREFIX = 'yomitomo.article.';
+const LEGACY_STORAGE_PREFIX = 'reader.article.';
+const READER_SETTINGS_KEY = 'yomitomo.settings';
+const LEGACY_READER_SETTINGS_KEY = 'reader.settings';
+const DESKTOP_PROFILE_CACHE_KEY = 'yomitomo.desktopProfile';
+const LEGACY_DESKTOP_PROFILE_CACHE_KEY = 'reader.desktopProfile';
+const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
 const defaultUserProfile: UserProfile = {
-  id: "user_local",
-  nickname: "我",
-  username: "me",
-  avatar: "",
-  annotationColor: "#f4c95d",
-  updatedAt: "",
+  id: 'user_local',
+  nickname: '我',
+  username: 'me',
+  avatar: '',
+  annotationColor: '#f4c95d',
+  updatedAt: '',
 };
 
 type DesktopProfileCache = {
@@ -53,10 +53,10 @@ type DesktopProfileCache = {
   agents: PublicAgent[];
 };
 let root: Root | null = null;
-let previousOverflow = "";
+let previousOverflow = '';
 
 function readerLog(event: string, data?: Record<string, unknown>) {
-  console.log("[Yomitomo Extension]", event, data || "");
+  console.log('[Yomitomo Extension]', event, data || '');
 }
 
 type RuntimeMessage = { type?: string };
@@ -112,7 +112,7 @@ type VirtualCursorState = {
   x: number;
   y: number;
   label: string;
-  offscreen: "above" | "below" | null;
+  offscreen: 'above' | 'below' | null;
   agent?: PublicAgent;
 };
 
@@ -132,10 +132,10 @@ const defaultReaderSettings: ReaderSettings = {
 const DELETE_HOLD_MS = 1600;
 
 export default defineContentScript({
-  matches: ["<all_urls>"],
+  matches: ['<all_urls>'],
   main() {
     browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
-      if (message.type === "yomitomo:toggle") {
+      if (message.type === 'yomitomo:toggle') {
         void toggleReader();
       }
     });
@@ -150,17 +150,17 @@ async function toggleReader() {
   }
 
   const article = await extractCurrentArticle();
-  const host = document.createElement("div");
+  const host = document.createElement('div');
   host.id = HOST_ID;
   document.documentElement.append(host);
 
   previousOverflow = document.documentElement.style.overflow;
-  document.documentElement.style.overflow = "hidden";
+  document.documentElement.style.overflow = 'hidden';
 
-  const shadow = host.attachShadow({ mode: "open" });
-  const style = document.createElement("style");
+  const shadow = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style');
   style.textContent = `${readerStyles}\n${readerConversationStyles}`;
-  const mount = document.createElement("div");
+  const mount = document.createElement('div');
   shadow.append(style, mount);
 
   root = createRoot(mount);
@@ -180,10 +180,10 @@ async function extractCurrentArticle(): Promise<ExtractedArticle> {
   if (defuddleArticle) return defuddleArticle;
 
   const wechatContent =
-    location.hostname === "mp.weixin.qq.com" ? document.getElementById("js_content") : null;
+    location.hostname === 'mp.weixin.qq.com' ? document.getElementById('js_content') : null;
 
   if (wechatContent) {
-    const title = document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled";
+    const title = document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled';
     const content = sanitizeArticleHtml(wechatContent.innerHTML);
     const contentHash = hashText(textFromHtml(content).slice(0, 8000));
     return {
@@ -199,9 +199,9 @@ async function extractCurrentArticle(): Promise<ExtractedArticle> {
   const cloned = document.cloneNode(true) as Document;
   const parsed = new Readability(cloned).parse();
   const fallbackTitle =
-    document.querySelector("h1")?.textContent?.trim() || document.title || "Untitled";
+    document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled';
   const rawContent =
-    parsed?.content || document.querySelector("article")?.innerHTML || document.body.innerHTML;
+    parsed?.content || document.querySelector('article')?.innerHTML || document.body.innerHTML;
   const content = sanitizeArticleHtml(rawContent);
   const contentHash = hashText(textFromHtml(content).slice(0, 8000));
 
@@ -219,7 +219,7 @@ async function extractCurrentArticle(): Promise<ExtractedArticle> {
 
 async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArticle | null> {
   try {
-    const { default: Defuddle } = (await import("defuddle")) as { default: any };
+    const { default: Defuddle } = (await import('defuddle')) as { default: any };
     const cloned = document.cloneNode(true) as Document;
     const result = await new Defuddle(cloned, { url: location.href }).parseAsync();
     if (!result?.content) return null;
@@ -232,9 +232,9 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
       canonicalUrl,
       title:
         result.title ||
-        document.querySelector("h1")?.textContent?.trim() ||
+        document.querySelector('h1')?.textContent?.trim() ||
         document.title ||
-        "Untitled",
+        'Untitled',
       byline: result.author || result.site || undefined,
       excerpt: result.description || undefined,
       content,
@@ -247,37 +247,37 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
 
 function getCanonicalUrl() {
   const link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-  return link?.href || location.href.split("#")[0];
+  return link?.href || location.href.split('#')[0];
 }
 
 function sanitizeArticleHtml(html: string) {
   const sanitized = DOMPurify.sanitize(html, {
     ADD_TAGS: [
-      "math",
-      "mrow",
-      "mi",
-      "mo",
-      "mn",
-      "msup",
-      "msub",
-      "msqrt",
-      "semantics",
-      "annotation",
+      'math',
+      'mrow',
+      'mi',
+      'mo',
+      'mn',
+      'msup',
+      'msub',
+      'msqrt',
+      'semantics',
+      'annotation',
     ],
-    ADD_ATTR: ["display", "xmlns", "encoding"],
+    ADD_ATTR: ['display', 'xmlns', 'encoding'],
   });
   return normalizeReaderHtml(sanitized);
 }
 
 function normalizeReaderHtml(html: string) {
-  const container = document.createElement("div");
+  const container = document.createElement('div');
   container.innerHTML = html;
-  container.querySelectorAll("script, style, link").forEach((element) => element.remove());
-  container.querySelectorAll<HTMLElement>("*").forEach((element) => {
-    element.removeAttribute("style");
-    element.removeAttribute("width");
-    element.removeAttribute("height");
-    if (element.tagName.includes("-")) {
+  container.querySelectorAll('script, style, link').forEach((element) => element.remove());
+  container.querySelectorAll<HTMLElement>('*').forEach((element) => {
+    element.removeAttribute('style');
+    element.removeAttribute('width');
+    element.removeAttribute('height');
+    if (element.tagName.includes('-')) {
       element.replaceWith(...Array.from(element.childNodes));
     }
   });
@@ -285,9 +285,9 @@ function normalizeReaderHtml(html: string) {
 }
 
 function textFromHtml(html: string) {
-  const container = document.createElement("div");
+  const container = document.createElement('div');
   container.innerHTML = html;
-  return container.textContent || "";
+  return container.textContent || '';
 }
 
 function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfile {
@@ -300,7 +300,7 @@ function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfi
 }
 
 function agentQueueKey(annotation: Annotation) {
-  return annotation.agentId || annotation.agentUsername || "__agent__";
+  return annotation.agentId || annotation.agentUsername || '__agent__';
 }
 
 function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
@@ -444,7 +444,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(
-      JSON.stringify({ type: "article:save", requestId: makeId("request"), payload: record }),
+      JSON.stringify({ type: 'article:save', requestId: makeId('request'), payload: record }),
     );
   }
 
@@ -457,7 +457,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const canvas = canvasRef.current;
     if (!article || !canvas) return;
 
-    const articleText = article.textContent || "";
+    const articleText = article.textContent || '';
     const canvasRect = canvas.getBoundingClientRect();
     const nextBoxes: HighlightBox[] = [];
 
@@ -488,31 +488,31 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       const socket = new WebSocket(DESKTOP_WS_URL);
       wsRef.current = socket;
 
-      socket.addEventListener("open", () => {
-        readerLog("ws.open");
+      socket.addEventListener('open', () => {
+        readerLog('ws.open');
         setDesktopConnected(true);
-        socket.send(JSON.stringify({ type: "hello" }));
-        socket.send(JSON.stringify({ type: "agent:list", requestId: makeId("request") }));
+        socket.send(JSON.stringify({ type: 'hello' }));
+        socket.send(JSON.stringify({ type: 'agent:list', requestId: makeId('request') }));
         sendCurrentArticleRecord();
       });
 
-      socket.addEventListener("message", (event) => {
+      socket.addEventListener('message', (event) => {
         const message = JSON.parse(event.data) as DesktopServerMessage;
-        readerLog("ws.message", {
+        readerLog('ws.message', {
           type: message.type,
-          requestId: "requestId" in message ? message.requestId : undefined,
+          requestId: 'requestId' in message ? message.requestId : undefined,
         });
         void handleDesktopMessage(message);
       });
 
-      socket.addEventListener("close", () => {
-        readerLog("ws.close");
+      socket.addEventListener('close', () => {
+        readerLog('ws.close');
         setDesktopConnected(false);
         if (!closed) reconnectTimer = window.setTimeout(connect, 2000);
       });
 
-      socket.addEventListener("error", () => {
-        readerLog("ws.error");
+      socket.addEventListener('error', () => {
+        readerLog('ws.error');
         setDesktopConnected(false);
       });
     };
@@ -548,19 +548,19 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       frame = requestAnimationFrame(recalculateHighlights);
     };
 
-    surface.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
+    surface.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
     return () => {
       cancelAnimationFrame(frame);
-      surface.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
+      surface.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
     };
   }, [recalculateHighlights]);
 
   async function handleDesktopMessage(message: DesktopServerMessage) {
-    if (message.type === "status" || message.type === "agent:list:result") {
+    if (message.type === 'status' || message.type === 'agent:list:result') {
       const user = normalizeUserProfile(message.user);
-      setDesktopConnected(message.type === "status" ? message.ok : true);
+      setDesktopConnected(message.type === 'status' ? message.ok : true);
       setUserProfile(user);
       setAgents(message.agents);
       await browser.storage.local.set({
@@ -569,12 +569,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:message:result") {
+    if (message.type === 'agent:message:result') {
       await appendComment(message.annotationId, message.comment);
       return;
     }
 
-    if (message.type === "agent:annotate:result") {
+    if (message.type === 'agent:annotate:result') {
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       pendingAgentRequestsRef.current.delete(message.requestId);
       if (pending?.agentId) markAgentAnnotating(pending.agentId, false);
@@ -584,15 +584,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:annotate:start") {
+    if (message.type === 'agent:annotate:start') {
       setAgentAnnotateOpen(false);
       markAgentAnnotating(message.agent.id, true);
       startVirtualReading(message.agent);
       return;
     }
 
-    if (message.type === "agent:annotate:item") {
-      readerLog("agent.annotate.item", {
+    if (message.type === 'agent:annotate:item') {
+      readerLog('agent.annotate.item', {
         annotationId: message.annotation.id,
         exact: message.annotation.anchor.exact.slice(0, 80),
       });
@@ -601,8 +601,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:annotate:done") {
-      readerLog("agent.annotate.done", { requestId: message.requestId });
+    if (message.type === 'agent:annotate:done') {
+      readerLog('agent.annotate.done', { requestId: message.requestId });
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       pendingAgentRequestsRef.current.delete(message.requestId);
       if (pending?.agentId) {
@@ -615,7 +615,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:message:start") {
+    if (message.type === 'agent:message:start') {
       pendingAgentRequestsRef.current.set(message.requestId, {
         annotationId: message.annotationId,
         commentId: message.comment.id,
@@ -624,7 +624,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:message:delta") {
+    if (message.type === 'agent:message:delta') {
       await updateComment(message.annotationId, message.commentId, (comment) => ({
         ...comment,
         content: comment.content + message.delta,
@@ -632,7 +632,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "agent:message:done") {
+    if (message.type === 'agent:message:done') {
       pendingAgentRequestsRef.current.delete(message.requestId);
       await updateComment(message.annotationId, message.commentId, (comment) => ({
         ...comment,
@@ -641,8 +641,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    if (message.type === "error" && message.requestId) {
-      readerLog("ws.error.message", { requestId: message.requestId, message: message.message });
+    if (message.type === 'error' && message.requestId) {
+      readerLog('ws.error.message', { requestId: message.requestId, message: message.message });
       setAgentAnnotateOpen(false);
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       if (!pending) return;
@@ -650,7 +650,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       pendingAgentRequestsRef.current.delete(message.requestId);
       if (pending.agentId) {
         markAgentAnnotating(pending.agentId, false);
-        finishVirtualReading(pending.agentId, "批注失败");
+        finishVirtualReading(pending.agentId, '批注失败');
       }
       if (!pending.annotationId) return;
 
@@ -737,7 +737,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    const articleText = article.textContent || "";
+    const articleText = article.textContent || '';
     const start = offsetFromArticleStart(article, range.startContainer, range.startOffset);
     const end = offsetFromArticleStart(article, range.endContainer, range.endOffset);
     const anchor = createTextAnchor(articleText, start, end);
@@ -757,9 +757,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       anchor,
     });
     setTemporaryBoxes(
-      rangeHighlightBoxes(range, canvasRect, "selection").map((box) =>
+      rangeHighlightBoxes(range, canvasRect, 'selection').map((box) =>
         Object.assign({}, box, {
-          annotationId: "__selection__",
+          annotationId: '__selection__',
           color: userProfile.annotationColor,
         }),
       ),
@@ -774,8 +774,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const comments = note.trim()
       ? [
           {
-            id: makeId("comment"),
-            author: "user" as const,
+            id: makeId('comment'),
+            author: 'user' as const,
             content: note.trim(),
             createdAt: now,
             userId: userProfile.id,
@@ -787,9 +787,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         ]
       : [];
     const annotation: Annotation = {
-      id: makeId("annotation"),
+      id: makeId('annotation'),
       anchor: composer.anchor,
-      author: "user",
+      author: 'user',
       color: userProfile.annotationColor,
       userId: userProfile.id,
       userUsername: userProfile.username,
@@ -831,7 +831,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     queue.push(annotation);
     agentAnnotationQueuesRef.current.set(key, queue);
     if (!agentQueueOrderRef.current.includes(key)) agentQueueOrderRef.current.push(key);
-    readerLog("agent.queue.enqueue", {
+    readerLog('agent.queue.enqueue', {
       annotationId: annotation.id,
       agent: key,
       size: queuedAnnotationsCount(),
@@ -897,7 +897,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (currentSession) window.clearInterval(currentSession.timerId);
 
     const article = articleRef.current;
-    const body = article?.querySelector(".reader-article-body");
+    const body = article?.querySelector('.reader-article-body');
     const sessionIndex = virtualReadingSessionsRef.current.size;
     const interval = 150 + Math.floor(Math.random() * 90);
     const step = 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
@@ -912,7 +912,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
     session.timerId = window.setInterval(() => tickVirtualReading(agent.id), interval);
-    readerLog("virtual.reading.start", { agent: agent.username });
+    readerLog('virtual.reading.start', { agent: agent.username });
   }
 
   function tickVirtualReading(agentId: string) {
@@ -923,9 +923,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const surface = surfaceRef.current;
     if (!article || !surface) return;
 
-    const text = article.textContent || "";
+    const text = article.textContent || '';
     if (session.offset >= text.length - 1) {
-      finishVirtualReading(agentId, "读完了");
+      finishVirtualReading(agentId, '读完了');
       return;
     }
 
@@ -939,7 +939,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       x: position.x,
       y: position.y,
       label: position.offscreen
-        ? `${session.agent.nickname} 正在${position.offscreen === "above" ? "上方" : "下方"}阅读`
+        ? `${session.agent.nickname} 正在${position.offscreen === 'above' ? '上方' : '下方'}阅读`
         : `${session.agent.nickname} 正在阅读`,
       offscreen: position.offscreen,
       agent: session.agent,
@@ -952,7 +952,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setVirtualCursors(Array.from(virtualCursorRef.current.values()));
   }
 
-  function finishVirtualReading(agentId: string, suffix = "批注完成") {
+  function finishVirtualReading(agentId: string, suffix = '批注完成') {
     const session = virtualReadingSessionsRef.current.get(agentId);
     if (session) {
       window.clearInterval(session.timerId);
@@ -966,7 +966,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       ...current,
       x: Math.min(window.innerWidth - 80, current.x + 72),
       y: Math.max(72, current.y - 42),
-      label: `${session?.agent.nickname || current.agent?.nickname || "助手"} ${suffix}`,
+      label: `${session?.agent.nickname || current.agent?.nickname || '助手'} ${suffix}`,
       leaving: true,
     });
     window.setTimeout(() => updateVirtualCursor(agentId, null), 900);
@@ -1001,7 +1001,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
         try {
           lastPlayedAgentRef.current = queueKey;
-          readerLog("agent.queue.play", {
+          readerLog('agent.queue.play', {
             annotationId: annotation.id,
             agent: queueKey,
             remaining: queuedAnnotationsCount(),
@@ -1012,7 +1012,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           if (session) session.paused = true;
           await playAgentAnnotation(annotation);
         } catch (error) {
-          readerLog("agent.queue.play.error", {
+          readerLog('agent.queue.play.error', {
             annotationId: annotation.id,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -1041,14 +1041,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const cursorId =
       cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
     if (!article || !canvas || !surface) {
-      readerLog("agent.play.no_surface", { annotationId: annotation.id });
+      readerLog('agent.play.no_surface', { annotationId: annotation.id });
       await saveAnnotations([...annotationsRef.current, annotation]);
       return;
     }
 
-    const position = resolveTextAnchor(article.textContent || "", annotation.anchor);
+    const position = resolveTextAnchor(article.textContent || '', annotation.anchor);
     if (!position) {
-      readerLog("agent.play.anchor_unresolved", {
+      readerLog('agent.play.anchor_unresolved', {
         annotationId: annotation.id,
         exact: annotation.anchor.exact.slice(0, 80),
       });
@@ -1058,7 +1058,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const range = rangeFromOffsets(article, position.start, position.end);
     if (!range) {
-      readerLog("agent.play.range_missing", { annotationId: annotation.id });
+      readerLog('agent.play.range_missing', { annotationId: annotation.id });
       await saveAnnotations([...annotationsRef.current, annotation]);
       return;
     }
@@ -1078,8 +1078,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         visible: true,
         x: surfaceRect.left + surfaceRect.width / 2,
         y: firstRect.top < surfaceRect.top ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-        label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在${firstRect.top < surfaceRect.top ? "上方" : "下方"}批注`,
-        offscreen: firstRect.top < surfaceRect.top ? "above" : "below",
+        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在${firstRect.top < surfaceRect.top ? '上方' : '下方'}批注`,
+        offscreen: firstRect.top < surfaceRect.top ? 'above' : 'below',
         agent: cursorAgent,
       });
       await sleep(700);
@@ -1093,7 +1093,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       visible: true,
       x: firstRect.left,
       y: firstRect.top + firstRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在批注`,
+      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
       offscreen: null,
       agent: cursorAgent,
     });
@@ -1115,7 +1115,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           visible: true,
           x: canvasRect.left + cursorBox.left + cursorBox.width,
           y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
-          label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 正在批注`,
+          label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
           offscreen: null,
           agent: cursorAgent,
         });
@@ -1131,7 +1131,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       visible: true,
       x: lastRect.right,
       y: lastRect.top + lastRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || "助手"} 继续阅读`,
+      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 继续阅读`,
       offscreen: null,
       agent: cursorAgent,
     });
@@ -1144,8 +1144,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const now = new Date().toISOString();
     const userComment: Comment = {
-      id: makeId("comment"),
-      author: "user",
+      id: makeId('comment'),
+      author: 'user',
       content: trimmed,
       createdAt: now,
       userId: userProfile.id,
@@ -1177,15 +1177,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     socket.send(
       JSON.stringify({
-        type: "agent:message",
-        requestId: makeId("request"),
+        type: 'agent:message',
+        requestId: makeId('request'),
         payload: {
           agentId: agent.id,
           agentUsername: agent.username,
           article: {
             title: extracted.title,
             url: extracted.canonicalUrl,
-            text: articleRef.current?.textContent || "",
+            text: articleRef.current?.textContent || '',
           },
           annotation,
           userComment,
@@ -1198,16 +1198,16 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const socket = wsRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
-    const requestId = makeId("request");
+    const requestId = makeId('request');
     pendingAgentRequestsRef.current.set(requestId, {
-      annotationId: "",
-      commentId: "",
+      annotationId: '',
+      commentId: '',
       agentId: agent.id,
     });
     markAgentAnnotating(agent.id, true);
     socket.send(
       JSON.stringify({
-        type: "agent:annotate",
+        type: 'agent:annotate',
         requestId,
         payload: {
           agentId: agent.id,
@@ -1215,7 +1215,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           article: {
             title: extracted.title,
             url: extracted.canonicalUrl,
-            text: articleRef.current?.textContent || "",
+            text: articleRef.current?.textContent || '',
           },
         },
       }),
@@ -1243,7 +1243,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function focusAnnotation(annotationId: string) {
     setActiveId(annotationId);
-    noteRefs.current.get(annotationId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    noteRefs.current.get(annotationId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function scrollToHighlight(annotationId: string) {
@@ -1252,7 +1252,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const article = articleRef.current;
     if (!annotation || !article) return;
 
-    const position = resolveTextAnchor(article.textContent || "", annotation.anchor);
+    const position = resolveTextAnchor(article.textContent || '', annotation.anchor);
     if (!position) return;
 
     const range = rangeFromOffsets(article, position.start, position.end);
@@ -1282,8 +1282,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       className="reader-app"
       style={
         {
-          "--reader-font-size": `${readerSettings.fontSize}px`,
-          "--reader-content-width": `${readerSettings.contentWidth}px`,
+          '--reader-font-size': `${readerSettings.fontSize}px`,
+          '--reader-content-width': `${readerSettings.contentWidth}px`,
         } as React.CSSProperties
       }
     >
@@ -1294,8 +1294,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             <span
               className={
                 desktopConnected
-                  ? "reader-connection is-connected"
-                  : "reader-connection is-disconnected"
+                  ? 'reader-connection is-connected'
+                  : 'reader-connection is-disconnected'
               }
             />
             {extracted.title}
@@ -1304,7 +1304,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         </div>
         <div className="reader-toolbar-actions">
           <button
-            className={settingsOpen ? "reader-icon-button is-active" : "reader-icon-button"}
+            className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
             type="button"
             onClick={() => setSettingsOpen((open) => !open)}
             aria-label="阅读设置"
@@ -1322,7 +1322,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       ) : null}
 
       <main className="reader-main">
-        <aside className={tocItems.length > 0 ? "reader-toc" : "reader-toc is-empty"}>
+        <aside className={tocItems.length > 0 ? 'reader-toc' : 'reader-toc is-empty'}>
           <div className="reader-toc-title">目录</div>
           {tocItems.map((item) => (
             <button
@@ -1343,7 +1343,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
               <header className="reader-article-header">
                 <h1>{extracted.title}</h1>
                 {extracted.byline || extracted.excerpt ? (
-                  <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(" · ")}</p>
+                  <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(' · ')}</p>
                 ) : null}
               </header>
               <div
@@ -1356,8 +1356,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
                 <button
                   className={
                     box.annotationId === activeId
-                      ? "reader-highlight is-active"
-                      : "reader-highlight"
+                      ? 'reader-highlight is-active'
+                      : 'reader-highlight'
                   }
                   key={box.id}
                   style={highlightStyle(box, box.annotationId === activeId)}
@@ -1411,14 +1411,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             <div className="reader-notes-actions">
               <button
                 className={
-                  agentAnnotateOpen ? "reader-agent-annotate is-active" : "reader-agent-annotate"
+                  agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
                 }
                 type="button"
                 disabled={!desktopConnected || agents.length === 0}
                 onClick={() => setAgentAnnotateOpen((open) => !open)}
               >
                 <Bot size={14} />
-                {annotatingAgents.length > 0 ? "批注中" : "助手批注"}
+                {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
               </button>
               <span>{annotations.length}</span>
             </div>
@@ -1480,17 +1480,17 @@ function SelectionMenu({
 }
 
 function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
-  const color = cursor.agent?.annotationColor || "#b7352c";
+  const color = cursor.agent?.annotationColor || '#b7352c';
   return (
     <div
       className={[
-        "reader-virtual-cursor",
-        cursor.offscreen ? "is-offscreen" : "",
-        cursor.leaving ? "is-leaving" : "",
+        'reader-virtual-cursor',
+        cursor.offscreen ? 'is-offscreen' : '',
+        cursor.leaving ? 'is-leaving' : '',
       ]
         .filter(Boolean)
-        .join(" ")}
-      style={{ left: cursor.x, top: cursor.y, "--cursor-color": color } as React.CSSProperties}
+        .join(' ')}
+      style={{ left: cursor.x, top: cursor.y, '--cursor-color': color } as React.CSSProperties}
     >
       <div className="reader-virtual-pointer" />
       <div className="reader-virtual-label">
@@ -1501,24 +1501,24 @@ function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
   );
 }
 
-function AvatarBadge({ avatar, fallback = "AI" }: { avatar?: string; fallback?: string }) {
+function AvatarBadge({ avatar, fallback = 'AI' }: { avatar?: string; fallback?: string }) {
   const value = avatar || fallback;
   const image = isImageAvatar(value);
   const svg = isSvgAvatar(value);
-  const classes = ["reader-avatar-badge", image ? "is-image" : "", svg ? "is-svg" : ""]
+  const classes = ['reader-avatar-badge', image ? 'is-image' : '', svg ? 'is-svg' : '']
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
   return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
 }
 
 function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agents: PublicAgent[]) {
-  if (annotation.author === "ai") {
+  if (annotation.author === 'ai') {
     const agent = findAgentIdentity(annotation.agentId, annotation.agentUsername, agents);
     return {
       avatar: agent?.avatar || annotation.agentAvatar,
-      fallback: "AI",
-      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || "Agent",
-      username: agent?.username || annotation.agentUsername || "agent",
+      fallback: 'AI',
+      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || 'Agent',
+      username: agent?.username || annotation.agentUsername || 'agent',
       color: agent?.annotationColor || annotation.agentAnnotationColor || annotation.color,
     };
   }
@@ -1526,7 +1526,7 @@ function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agen
   const user = findUserIdentity(annotation.userId, userProfile);
   return {
     avatar: user?.avatar || annotation.userAvatar || userProfile.avatar,
-    fallback: "我",
+    fallback: '我',
     nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
     username: user?.username || annotation.userUsername || userProfile.username,
     color:
@@ -1538,13 +1538,13 @@ function annotationAuthor(annotation: Annotation, userProfile: UserProfile, agen
 }
 
 function commentPersona(comment: Comment, userProfile: UserProfile, agents: PublicAgent[]) {
-  if (comment.author === "ai") {
+  if (comment.author === 'ai') {
     const agent = findAgentIdentity(comment.agentId, comment.agentUsername, agents);
     return {
       avatar: agent?.avatar || comment.agentAvatar,
-      fallback: "AI",
-      nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || "Agent",
-      username: agent?.username || comment.agentUsername || "agent",
+      fallback: 'AI',
+      nickname: agent?.nickname || comment.agentNickname || comment.agentUsername || 'Agent',
+      username: agent?.username || comment.agentUsername || 'agent',
       color:
         agent?.annotationColor ||
         comment.agentAnnotationColor ||
@@ -1555,7 +1555,7 @@ function commentPersona(comment: Comment, userProfile: UserProfile, agents: Publ
   const user = findUserIdentity(comment.userId, userProfile);
   return {
     avatar: user?.avatar || comment.userAvatar || userProfile.avatar,
-    fallback: "我",
+    fallback: '我',
     nickname: user?.nickname || comment.userNickname || userProfile.nickname,
     username: user?.username || comment.userUsername || userProfile.username,
     color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor,
@@ -1568,11 +1568,11 @@ function annotationColor(annotation: Annotation, userProfile: UserProfile, agent
 
 function annotationTypeLabel(type: AnnotationType) {
   const labels: Record<AnnotationType, string> = {
-    key_point: "关键判断",
-    assumption: "前提漏洞",
-    concept: "概念解释",
-    question: "延伸问题",
-    quote: "金句",
+    key_point: '关键判断',
+    assumption: '前提漏洞',
+    concept: '概念解释',
+    question: '延伸问题',
+    quote: '金句',
   };
   return labels[type];
 }
@@ -1621,7 +1621,7 @@ function AgentAnnotateMenu({
     <div className="reader-agent-annotate-menu">
       {agents.map((agent) => (
         <button
-          className={selectedAgentIds.includes(agent.id) ? "is-selected" : ""}
+          className={selectedAgentIds.includes(agent.id) ? 'is-selected' : ''}
           disabled={annotatingAgents.includes(agent.id)}
           key={agent.id}
           type="button"
@@ -1629,7 +1629,7 @@ function AgentAnnotateMenu({
         >
           <AvatarBadge avatar={agent.avatar} />
           <strong>{agent.nickname}</strong>
-          <em>{annotatingAgents.includes(agent.id) ? "阅读中..." : `@${agent.username}`}</em>
+          <em>{annotatingAgents.includes(agent.id) ? '阅读中...' : `@${agent.username}`}</em>
         </button>
       ))}
       <div className="reader-agent-annotate-actions">
@@ -1637,7 +1637,7 @@ function AgentAnnotateMenu({
           取消
         </button>
         <button disabled={runnableCount === 0} type="button" onClick={onStart}>
-          启动{runnableCount > 0 ? ` ${runnableCount}` : ""}
+          启动{runnableCount > 0 ? ` ${runnableCount}` : ''}
         </button>
       </div>
     </div>
@@ -1718,7 +1718,7 @@ function Composer({
   onCancel: () => void;
   onSave: (note: string) => void;
 }) {
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState('');
   return (
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
       <textarea
@@ -1773,7 +1773,7 @@ function AnnotationCard({
   onDelete: (annotationId: string) => void;
   onFocus: (annotationId: string) => void;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState('');
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
@@ -1805,7 +1805,7 @@ function AnnotationCard({
 
   function submit() {
     onAddComment(annotation.id, draft);
-    setDraft("");
+    setDraft('');
     setCaretIndex(0);
   }
 
@@ -1846,19 +1846,19 @@ function AnnotationCard({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (matchedAgents.length > 0 && event.key === "ArrowDown") {
+    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
       event.preventDefault();
       setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
       return;
     }
 
-    if (matchedAgents.length > 0 && event.key === "ArrowUp") {
+    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
       event.preventDefault();
       setSelectedMentionIndex((index) => (index - 1 + matchedAgents.length) % matchedAgents.length);
       return;
     }
 
-    if (matchedAgents.length > 0 && event.key === "Tab") {
+    if (matchedAgents.length > 0 && event.key === 'Tab') {
       event.preventDefault();
       selectAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]);
       return;
@@ -1871,13 +1871,13 @@ function AnnotationCard({
   }
 
   function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp") return;
+    if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp') return;
     updateCaret(event.currentTarget);
   }
 
   return (
     <section
-      className={active ? "reader-note is-active" : "reader-note"}
+      className={active ? 'reader-note is-active' : 'reader-note'}
       ref={noteRef}
       style={noteStyle(author.color, active)}
     >
@@ -1916,7 +1916,7 @@ function AnnotationCard({
         <textarea
           autoFocus={active}
           ref={textareaRef}
-          placeholder={desktopConnected ? "继续评论，输入 @ 呼叫助手..." : "继续评论..."}
+          placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
           value={draft}
           onChange={(event) => {
             setDraft(event.currentTarget.value);
@@ -1931,7 +1931,7 @@ function AnnotationCard({
           <div className="reader-agent-menu">
             {matchedAgents.map((agent, index) => (
               <button
-                className={index === selectedMentionIndex ? "is-active" : ""}
+                className={index === selectedMentionIndex ? 'is-active' : ''}
                 key={agent.id}
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
@@ -1947,8 +1947,8 @@ function AnnotationCard({
       </div>
       <div className="reader-note-footer">
         <button
-          className={deleteHolding ? "reader-delete-note is-holding" : "reader-delete-note"}
-          style={{ "--delete-hold-ms": `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+          className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
+          style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
           type="button"
           aria-label="长按删除批注"
           onClick={(event) => event.preventDefault()}
@@ -2010,21 +2010,21 @@ function findCurrentTocTarget(article: HTMLElement, item: TocItem) {
 
 function getTocEntries(article: HTMLElement): TocEntry[] {
   const semanticHeadings = collectTocCandidates(
-    Array.from(article.querySelectorAll<HTMLElement>("h1, h2, h3, h4")),
+    Array.from(article.querySelectorAll<HTMLElement>('h1, h2, h3, h4')),
     (element) => Number(element.tagName.slice(1)) - 1,
   );
   if (semanticHeadings.length > 0) return semanticHeadings;
 
-  const inferredHeadings = Array.from(article.querySelectorAll<HTMLElement>("p, div, section"))
+  const inferredHeadings = Array.from(article.querySelectorAll<HTMLElement>('p, div, section'))
     .filter((element) => {
-      const text = element.textContent?.trim() || "";
+      const text = element.textContent?.trim() || '';
       return (
         text.length >= 3 &&
         text.length <= 80 &&
         /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/.test(text)
       );
     })
-    .filter((element) => !element.querySelector("p, div, section, h1, h2, h3, h4"))
+    .filter((element) => !element.querySelector('p, div, section, h1, h2, h3, h4'))
     .slice(0, 24);
 
   return collectTocCandidates(inferredHeadings, () => 1);
@@ -2036,7 +2036,7 @@ function collectTocCandidates(
 ): TocEntry[] {
   return elements
     .map((element, index) => {
-      const text = element.textContent?.trim().replace(/\s+/g, " ") || "";
+      const text = element.textContent?.trim().replace(/\s+/g, ' ') || '';
       if (!text) return null;
       return { index, target: element, text, depth: getDepth(element) };
     })
@@ -2061,16 +2061,16 @@ function getArticleSelection(article: HTMLElement) {
 }
 
 function getShortcutModifier() {
-  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? "⌘" : "Ctrl";
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? '⌘' : 'Ctrl';
 }
 
 function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
   const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
-  return event.key === "Enter" && (isMac ? event.metaKey : event.ctrlKey);
+  return event.key === 'Enter' && (isMac ? event.metaKey : event.ctrlKey);
 }
 
 function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
-  if (typeof value !== "number" || Number.isNaN(value)) return fallback;
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
   return Math.min(max, Math.max(min, value));
 }
 
@@ -2090,7 +2090,7 @@ function scrollReaderSurfaceToRect(surface: HTMLElement, rect: DOMRect, offset: 
   const surfaceRect = surface.getBoundingClientRect();
   surface.scrollTo({
     top: Math.max(0, surface.scrollTop + rect.top - surfaceRect.top - offset),
-    behavior: "smooth",
+    behavior: 'smooth',
   });
 }
 
@@ -2166,23 +2166,23 @@ function annotationToAgent(annotation: Annotation): PublicAgent | undefined {
     id: annotation.agentId,
     username: annotation.agentUsername,
     nickname: annotation.agentNickname || annotation.agentUsername,
-    avatar: annotation.agentAvatar || "AI",
+    avatar: annotation.agentAvatar || 'AI',
     annotationColor: annotation.agentAnnotationColor || annotation.color,
-    annotationDensity: "medium",
+    annotationDensity: 'medium',
   };
 }
 
 function isImageAvatar(value: string) {
   return (
-    value.startsWith("data:image/") ||
-    value.startsWith("blob:") ||
-    value.startsWith("http") ||
-    value.startsWith("/")
+    value.startsWith('data:image/') ||
+    value.startsWith('blob:') ||
+    value.startsWith('http') ||
+    value.startsWith('/')
   );
 }
 
 function isSvgAvatar(value: string) {
-  return value.startsWith("data:image/svg+xml") || value.endsWith(".svg");
+  return value.startsWith('data:image/svg+xml') || value.endsWith('.svg');
 }
 
 function sleep(ms: number) {
@@ -2190,7 +2190,7 @@ function sleep(ms: number) {
 }
 
 function cursorPositionFromOffset(article: HTMLElement, surface: HTMLElement, offset: number) {
-  const text = article.textContent || "";
+  const text = article.textContent || '';
   const surfaceRect = surface.getBoundingClientRect();
   const start = Math.max(0, Math.min(offset, text.length - 1));
 
@@ -2202,17 +2202,17 @@ function cursorPositionFromOffset(article: HTMLElement, surface: HTMLElement, of
     if (!rect || rect.width < 1 || rect.height < 1) continue;
 
     const offscreen =
-      rect.bottom < surfaceRect.top ? "above" : rect.top > surfaceRect.bottom ? "below" : null;
+      rect.bottom < surfaceRect.top ? 'above' : rect.top > surfaceRect.bottom ? 'below' : null;
     return {
       offset: cursor,
       x: offscreen ? surfaceRect.left + surfaceRect.width / 2 : rect.left + rect.width,
       y:
-        offscreen === "above"
+        offscreen === 'above'
           ? surfaceRect.top + 20
-          : offscreen === "below"
+          : offscreen === 'below'
             ? surfaceRect.bottom - 20
             : rect.top + rect.height / 2,
-      offscreen: offscreen as "above" | "below" | null,
+      offscreen: offscreen as 'above' | 'below' | null,
     };
   }
 
@@ -2285,7 +2285,7 @@ function rangeHighlightBoxes(range: Range, canvasRect: DOMRect, idPrefix: string
     .filter((rect) => rect.width >= 2 && rect.height >= 2)
     .map((rect, index) => ({
       id: `${idPrefix}_${index}`,
-      annotationId: "",
+      annotationId: '',
       color: defaultUserProfile.annotationColor,
       top: rect.top - canvasRect.top,
       left: rect.left - canvasRect.left,

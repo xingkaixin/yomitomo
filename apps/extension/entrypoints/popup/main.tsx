@@ -1,23 +1,23 @@
-import React, { useState } from "react";
-import { createRoot } from "react-dom/client";
-import { MessageSquareText } from "lucide-react";
-import { browser } from "wxt/browser";
-import { Button } from "../../src/components/ui/button";
-import "../../src/styles.css";
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { MessageSquareText } from 'lucide-react';
+import { browser } from 'wxt/browser';
+import { Button } from '../../src/components/ui/button';
+import '../../src/styles.css';
 
 function Popup() {
-  const [status, setStatus] = useState("准备进入阅读器模式");
+  const [status, setStatus] = useState('准备进入阅读器模式');
 
   async function toggleReader() {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (!tab.id) return;
 
     try {
-      await browser.tabs.sendMessage(tab.id, { type: "yomitomo:toggle" });
-      setStatus("已发送到当前网页");
+      await browser.tabs.sendMessage(tab.id, { type: 'yomitomo:toggle' });
+      setStatus('已发送到当前网页');
       window.close();
     } catch {
-      setStatus("当前页面暂时无法注入插件，请换到普通网页后重试");
+      setStatus('当前页面暂时无法注入插件，请换到普通网页后重试');
     }
   }
 
@@ -41,4 +41,4 @@ function Popup() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<Popup />);
+createRoot(document.getElementById('root')!).render(<Popup />);

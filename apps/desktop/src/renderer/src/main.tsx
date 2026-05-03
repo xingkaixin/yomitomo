@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { createRoot } from "react-dom/client";
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import {
   BarChart3,
   BookOpen,
@@ -23,7 +23,7 @@ import {
   Trash2,
   Upload,
   User,
-} from "lucide-react";
+} from 'lucide-react';
 import type {
   Agent,
   AgentAnnotationDensity,
@@ -35,31 +35,31 @@ import type {
   LlmProvider,
   ProviderType,
   UserProfile,
-} from "@yomitomo/shared";
-import { renderMarkdown } from "@yomitomo/shared";
-import avatar01Raw from "./assets/avatars/lorelei-1777775032907.svg?raw";
-import avatar02Raw from "./assets/avatars/lorelei-1777775031622.svg?raw";
-import avatar03Raw from "./assets/avatars/lorelei-1777775029913.svg?raw";
-import avatar04Raw from "./assets/avatars/lorelei-1777775028333.svg?raw";
-import avatar05Raw from "./assets/avatars/lorelei-1777775026600.svg?raw";
-import avatar06Raw from "./assets/avatars/lorelei-1777775024807.svg?raw";
-import avatar07Raw from "./assets/avatars/lorelei-1777775022413.svg?raw";
-import avatar08Raw from "./assets/avatars/lorelei-1777775020299.svg?raw";
-import avatar09Raw from "./assets/avatars/lorelei-1777775017575.svg?raw";
-import avatar10Raw from "./assets/avatars/lorelei-1777775015590.svg?raw";
-import avatar11Raw from "./assets/avatars/lorelei-1777775014247.svg?raw";
-import avatar12Raw from "./assets/avatars/lorelei-1777775012500.svg?raw";
-import avatar13Raw from "./assets/avatars/lorelei-1777775010023.svg?raw";
-import avatar14Raw from "./assets/avatars/lorelei-1777775007436.svg?raw";
-import avatar15Raw from "./assets/avatars/lorelei-1777775004996.svg?raw";
-import avatar16Raw from "./assets/avatars/lorelei-1777775003025.svg?raw";
-import avatar17Raw from "./assets/avatars/lorelei-1777775001230.svg?raw";
-import avatar18Raw from "./assets/avatars/lorelei-1777774999602.svg?raw";
-import avatar19Raw from "./assets/avatars/lorelei-1777774980195.svg?raw";
-import avatar20Raw from "./assets/avatars/lorelei-1777774975114.svg?raw";
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
-import { Label } from "./components/ui/label";
+} from '@yomitomo/shared';
+import { renderMarkdown } from '@yomitomo/shared';
+import avatar01Raw from './assets/avatars/lorelei-1777775032907.svg?raw';
+import avatar02Raw from './assets/avatars/lorelei-1777775031622.svg?raw';
+import avatar03Raw from './assets/avatars/lorelei-1777775029913.svg?raw';
+import avatar04Raw from './assets/avatars/lorelei-1777775028333.svg?raw';
+import avatar05Raw from './assets/avatars/lorelei-1777775026600.svg?raw';
+import avatar06Raw from './assets/avatars/lorelei-1777775024807.svg?raw';
+import avatar07Raw from './assets/avatars/lorelei-1777775022413.svg?raw';
+import avatar08Raw from './assets/avatars/lorelei-1777775020299.svg?raw';
+import avatar09Raw from './assets/avatars/lorelei-1777775017575.svg?raw';
+import avatar10Raw from './assets/avatars/lorelei-1777775015590.svg?raw';
+import avatar11Raw from './assets/avatars/lorelei-1777775014247.svg?raw';
+import avatar12Raw from './assets/avatars/lorelei-1777775012500.svg?raw';
+import avatar13Raw from './assets/avatars/lorelei-1777775010023.svg?raw';
+import avatar14Raw from './assets/avatars/lorelei-1777775007436.svg?raw';
+import avatar15Raw from './assets/avatars/lorelei-1777775004996.svg?raw';
+import avatar16Raw from './assets/avatars/lorelei-1777775003025.svg?raw';
+import avatar17Raw from './assets/avatars/lorelei-1777775001230.svg?raw';
+import avatar18Raw from './assets/avatars/lorelei-1777774999602.svg?raw';
+import avatar19Raw from './assets/avatars/lorelei-1777774980195.svg?raw';
+import avatar20Raw from './assets/avatars/lorelei-1777774975114.svg?raw';
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
 import {
   Select,
   SelectContent,
@@ -67,16 +67,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./components/ui/select";
-import { Textarea } from "./components/ui/textarea";
-import "./styles.css";
+} from './components/ui/select';
+import { Textarea } from './components/ui/textarea';
+import './styles.css';
 
-type SettingKey = "library" | "stats" | "general" | "providers" | "agents" | "about";
+type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
 type ProviderDraft = Partial<LlmProvider>;
 type AgentDraft = Partial<Agent> & { personalityId?: string };
 type UserDraft = Partial<UserProfile>;
-type LogLevelFilter = "all" | "info" | "error";
-type SaveState = "idle" | "saving" | "saved";
+type LogLevelFilter = 'all' | 'info' | 'error';
+type SaveState = 'idle' | 'saving' | 'saved';
 type ProviderOption = { id: string; label: string; type: ProviderType; modelName: string };
 type LogEntry = {
   id: string;
@@ -126,59 +126,59 @@ const agentAvatars = [
 ].map((raw, index) => ({ id: `avatar-${index + 1}`, src: svgToDataUrl(raw) }));
 
 const annotationColors = [
-  "#f4c95d",
-  "#efa927",
-  "#8ab6d6",
-  "#6fa48f",
-  "#9eb376",
-  "#d98aa5",
-  "#b99ac8",
-  "#d58b63",
-  "#a7b8e8",
-  "#c8b88a",
+  '#f4c95d',
+  '#efa927',
+  '#8ab6d6',
+  '#6fa48f',
+  '#9eb376',
+  '#d98aa5',
+  '#b99ac8',
+  '#d58b63',
+  '#a7b8e8',
+  '#c8b88a',
 ];
 const defaultAgentSoul =
-  "你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。";
-const customPersonalityId = "custom";
+  '你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。';
+const customPersonalityId = 'custom';
 const agentPersonalities = [
   {
-    id: "reading-partner",
-    name: "克制阅读伙伴",
-    description: "安静陪伴，适度提醒，帮助你稳步理解与反馈。",
-    icon: "leaf",
+    id: 'reading-partner',
+    name: '克制阅读伙伴',
+    description: '安静陪伴，适度提醒，帮助你稳步理解与反馈。',
+    icon: 'leaf',
     temperature: 0.35,
     soul: defaultAgentSoul,
   },
   {
-    id: "first-principles",
-    name: "第一性原理审阅者",
-    description: "回到本质，拆解假设，挑战推理与结论。",
-    icon: "pyramid",
+    id: 'first-principles',
+    name: '第一性原理审阅者',
+    description: '回到本质，拆解假设，挑战推理与结论。',
+    icon: 'pyramid',
     temperature: 0.25,
-    soul: "你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。",
+    soul: '你是一个基于第一性原理思考的阅读伙伴。先拆解概念、约束和因果链，再指出论证里的关键前提、跳跃和可验证判断。',
   },
   {
-    id: "question-coach",
-    name: "追问型导师",
-    description: "通过追问引导思考，帮助你发现更深层理解。",
-    icon: "question",
+    id: 'question-coach',
+    name: '追问型导师',
+    description: '通过追问引导思考，帮助你发现更深层理解。',
+    icon: 'question',
     temperature: 0.6,
-    soul: "你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。",
+    soul: '你是一个擅长追问的阅读伙伴。围绕原文提出具体问题，帮助用户澄清概念、补足证据、发现下一步值得深挖的方向。',
   },
   {
-    id: "insight-synthesizer",
-    name: "洞察整理者",
-    description: "提炼要点，建立联系，帮助形成可迁移洞察。",
-    icon: "quill",
+    id: 'insight-synthesizer',
+    name: '洞察整理者',
+    description: '提炼要点，建立联系，帮助形成可迁移洞察。',
+    icon: 'quill',
     temperature: 0.45,
-    soul: "你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。",
+    soul: '你是一个擅长整理洞察的阅读伙伴。把原文里的关键判断、信息结构和行动启发压缩成清晰、可复用的批注。',
   },
 ] as const;
 const customPersonality = {
   id: customPersonalityId,
-  name: "自定义个性",
-  description: "编写系统提示词，调整温度，打造你的专属助手。",
-  icon: "custom",
+  name: '自定义个性',
+  description: '编写系统提示词，调整温度，打造你的专属助手。',
+  icon: 'custom',
   temperature: 0.7,
 } as const;
 const annotationDensityOptions: Array<{
@@ -186,34 +186,34 @@ const annotationDensityOptions: Array<{
   label: string;
   description: string;
 }> = [
-  { value: "low", label: "克制", description: "约 2-4 条" },
-  { value: "medium", label: "标准", description: "约 4-7 条" },
-  { value: "high", label: "积极", description: "约 7-12 条" },
+  { value: 'low', label: '克制', description: '约 2-4 条' },
+  { value: 'medium', label: '标准', description: '约 4-7 条' },
+  { value: 'high', label: '积极', description: '约 7-12 条' },
 ];
 
 const defaultUser: UserProfile = {
-  id: "user_local",
-  nickname: "我",
-  username: "me",
-  avatar: "",
+  id: 'user_local',
+  nickname: '我',
+  username: 'me',
+  avatar: '',
   annotationColor: annotationColors[0],
-  updatedAt: "",
+  updatedAt: '',
 };
 
 const emptyProvider: ProviderDraft = {
-  name: "Anthropic",
-  type: "anthropic",
-  baseUrl: "https://api.anthropic.com",
-  modelName: "claude-3-5-sonnet-latest",
-  apiKey: "",
+  name: 'Anthropic',
+  type: 'anthropic',
+  baseUrl: 'https://api.anthropic.com',
+  modelName: 'claude-3-5-sonnet-latest',
+  apiKey: '',
 };
 
 const emptyAgent: AgentDraft = {
-  nickname: "阅读伙伴",
-  username: "yomitomo",
-  avatar: agentAvatars[0]?.src || "",
+  nickname: '阅读伙伴',
+  username: 'yomitomo',
+  avatar: agentAvatars[0]?.src || '',
   annotationColor: annotationColors[1],
-  annotationDensity: "medium",
+  annotationDensity: 'medium',
   temperature: agentPersonalities[0].temperature,
   soul: defaultAgentSoul,
 };
@@ -227,17 +227,17 @@ const emptyStore: DesktopStore = {
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
-  const [activeSetting, setActiveSetting] = useState<SettingKey>("library");
+  const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
   const [agentDraft, setAgentDraft] = useState<AgentDraft>(emptyAgent);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [testState, setTestState] = useState("");
-  const [agentSaveError, setAgentSaveError] = useState("");
-  const [userSaveState, setUserSaveState] = useState<SaveState>("idle");
-  const [providerSaveState, setProviderSaveState] = useState<SaveState>("idle");
-  const [agentSaveState, setAgentSaveState] = useState<SaveState>("idle");
+  const [testState, setTestState] = useState('');
+  const [agentSaveError, setAgentSaveError] = useState('');
+  const [userSaveState, setUserSaveState] = useState<SaveState>('idle');
+  const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
+  const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -279,11 +279,11 @@ function App() {
   );
   const canSaveAgent =
     providerOptions.length > 0 &&
-    agentSaveState !== "saving" &&
+    agentSaveState !== 'saving' &&
     (selectedAgentId ? agentHasChanges : true);
   const canSaveProvider =
-    providerSaveState !== "saving" && (selectedProviderId ? providerHasChanges : true);
-  const canSaveUser = userSaveState !== "saving" && userHasChanges;
+    providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
+  const canSaveUser = userSaveState !== 'saving' && userHasChanges;
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -299,69 +299,69 @@ function App() {
   function selectProvider(provider: LlmProvider) {
     setSelectedProviderId(provider.id);
     setProviderDraft(provider);
-    setTestState("");
-    setProviderSaveState("idle");
+    setTestState('');
+    setProviderSaveState('idle');
   }
 
   function createProvider() {
     setSelectedProviderId(null);
     setProviderDraft(emptyProvider);
-    setTestState("");
-    setProviderSaveState("idle");
+    setTestState('');
+    setProviderSaveState('idle');
   }
 
   function selectAgent(agent: Agent) {
     setSelectedAgentId(agent.id);
     setAgentDraft({ ...agent, personalityId: findAgentPersonalityId(agent.soul) });
-    setAgentSaveError("");
-    setAgentSaveState("idle");
+    setAgentSaveError('');
+    setAgentSaveState('idle');
   }
 
   function createAgent() {
     setSelectedAgentId(null);
     setAgentDraft({
       ...emptyAgent,
-      personalityId: "reading-partner",
+      personalityId: 'reading-partner',
       temperature: agentPersonalities[0].temperature,
-      providerId: store.providers[0]?.id || "",
+      providerId: store.providers[0]?.id || '',
     });
-    setAgentSaveError("");
-    setAgentSaveState("idle");
+    setAgentSaveError('');
+    setAgentSaveState('idle');
   }
 
   async function saveUserDraft() {
     if (!window.yomitomoDesktop || !canSaveUser) return;
-    setUserSaveState("saving");
+    setUserSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
       setStore(nextStore);
       setUserDraft(nextStore.user);
-      setUserSaveState("saved");
-      window.setTimeout(() => setUserSaveState("idle"), 1200);
+      setUserSaveState('saved');
+      window.setTimeout(() => setUserSaveState('idle'), 1200);
     } catch {
-      setUserSaveState("idle");
+      setUserSaveState('idle');
     }
   }
 
   async function saveProviderDraft() {
     if (!window.yomitomoDesktop || !canSaveProvider) return;
-    setProviderSaveState("saving");
+    setProviderSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
       const savedProvider = providerDraft.id
         ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
         : nextStore.providers.at(-1);
       setStore(nextStore);
-      setTestState("");
+      setTestState('');
       if (savedProvider) {
         setSelectedProviderId(savedProvider.id);
         setProviderDraft(savedProvider);
-        setProviderSaveState("saved");
-        window.setTimeout(() => setProviderSaveState("idle"), 1200);
+        setProviderSaveState('saved');
+        window.setTimeout(() => setProviderSaveState('idle'), 1200);
       }
     } catch (error) {
-      setTestState(error instanceof Error ? `保存失败：${error.message}` : "保存失败。");
-      setProviderSaveState("idle");
+      setTestState(error instanceof Error ? `保存失败：${error.message}` : '保存失败。');
+      setProviderSaveState('idle');
     }
   }
 
@@ -381,7 +381,7 @@ function App() {
 
   async function testProvider(id: string) {
     if (!window.yomitomoDesktop) return;
-    setTestState("测试中...");
+    setTestState('测试中...');
     const result = await window.yomitomoDesktop.testProvider(id);
     setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
   }
@@ -392,15 +392,15 @@ function App() {
       agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
     const personality = agentPersonalities.find((item) => item.id === personalityId);
     if (personalityId === customPersonalityId && !agentDraft.soul?.trim()) {
-      setAgentSaveError("自定义个性必须输入内容。");
+      setAgentSaveError('自定义个性必须输入内容。');
       return;
     }
-    if (!isValidUsername(agentDraft.username || "")) {
-      setAgentSaveError("用户名仅支持英文、数字和下划线。");
+    if (!isValidUsername(agentDraft.username || '')) {
+      setAgentSaveError('用户名仅支持英文、数字和下划线。');
       return;
     }
-    const providerId = agentDraft.providerId || store.providers[0]?.id || "";
-    setAgentSaveState("saving");
+    const providerId = agentDraft.providerId || store.providers[0]?.id || '';
+    setAgentSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveAgent({
         ...agentDraft,
@@ -413,16 +413,16 @@ function App() {
         ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
         : nextStore.agents.at(-1);
       setStore(nextStore);
-      setAgentSaveError("");
+      setAgentSaveError('');
       if (savedAgent) {
         setSelectedAgentId(savedAgent.id);
         setAgentDraft({ ...savedAgent, personalityId: findAgentPersonalityId(savedAgent.soul) });
-        setAgentSaveState("saved");
-        window.setTimeout(() => setAgentSaveState("idle"), 1200);
+        setAgentSaveState('saved');
+        window.setTimeout(() => setAgentSaveState('idle'), 1200);
       }
     } catch (error) {
-      setAgentSaveError(error instanceof Error ? error.message : "保存失败。");
-      setAgentSaveState("idle");
+      setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
+      setAgentSaveState('idle');
     }
   }
 
@@ -436,10 +436,10 @@ function App() {
   }
 
   return (
-    <main className={sidebarCollapsed ? "app-shell is-sidebar-collapsed" : "app-shell"}>
+    <main className={sidebarCollapsed ? 'app-shell is-sidebar-collapsed' : 'app-shell'}>
       <header className="app-window-header">
         <button
-          aria-label={sidebarCollapsed ? "展开导航栏" : "折叠导航栏"}
+          aria-label={sidebarCollapsed ? '展开导航栏' : '折叠导航栏'}
           className="sidebar-collapse-button"
           type="button"
           onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
@@ -456,46 +456,46 @@ function App() {
         <aside className="settings-sidebar">
           <nav className="settings-nav">
             <SettingsNavButton
-              active={activeSetting === "library"}
+              active={activeSetting === 'library'}
               collapsed={sidebarCollapsed}
               icon={<BookOpen size={18} />}
               label="阅读库"
-              onClick={() => setActiveSetting("library")}
+              onClick={() => setActiveSetting('library')}
             />
             <SettingsNavButton
-              active={activeSetting === "stats"}
+              active={activeSetting === 'stats'}
               collapsed={sidebarCollapsed}
               icon={<BarChart3 size={18} />}
               label="统计"
-              onClick={() => setActiveSetting("stats")}
+              onClick={() => setActiveSetting('stats')}
             />
             <SettingsNavButton
-              active={activeSetting === "general"}
+              active={activeSetting === 'general'}
               collapsed={sidebarCollapsed}
               icon={<User size={18} />}
               label="通用"
-              onClick={() => setActiveSetting("general")}
+              onClick={() => setActiveSetting('general')}
             />
             <SettingsNavButton
-              active={activeSetting === "providers"}
+              active={activeSetting === 'providers'}
               collapsed={sidebarCollapsed}
               icon={<KeyRound size={18} />}
               label="供应商"
-              onClick={() => setActiveSetting("providers")}
+              onClick={() => setActiveSetting('providers')}
             />
             <SettingsNavButton
-              active={activeSetting === "agents"}
+              active={activeSetting === 'agents'}
               collapsed={sidebarCollapsed}
               icon={<Bot size={18} />}
               label="助手"
-              onClick={() => setActiveSetting("agents")}
+              onClick={() => setActiveSetting('agents')}
             />
             <SettingsNavButton
-              active={activeSetting === "about"}
+              active={activeSetting === 'about'}
               collapsed={sidebarCollapsed}
               icon={<Info size={18} />}
               label="关于"
-              onClick={() => setActiveSetting("about")}
+              onClick={() => setActiveSetting('about')}
             />
           </nav>
 
@@ -518,25 +518,25 @@ function App() {
         </aside>
 
         <section className="settings-content">
-          {activeSetting === "library" ? (
+          {activeSetting === 'library' ? (
             <ReadingLibrary articles={store.articles} onRefresh={refreshStore} />
           ) : null}
-          {activeSetting === "stats" ? (
+          {activeSetting === 'stats' ? (
             <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
           ) : null}
-          {activeSetting === "general" ? (
+          {activeSetting === 'general' ? (
             <GeneralSettings
               draft={userDraft}
               canSave={canSaveUser}
               onChange={(draft) => {
                 setUserDraft(draft);
-                setUserSaveState("idle");
+                setUserSaveState('idle');
               }}
               onSave={saveUserDraft}
               saveState={userSaveState}
             />
           ) : null}
-          {activeSetting === "providers" ? (
+          {activeSetting === 'providers' ? (
             <ProviderSettings
               draft={providerDraft}
               providers={store.providers}
@@ -545,7 +545,7 @@ function App() {
               canSave={canSaveProvider}
               onChange={(draft) => {
                 setProviderDraft(draft);
-                setProviderSaveState("idle");
+                setProviderSaveState('idle');
               }}
               onCreate={createProvider}
               onDelete={deleteProvider}
@@ -555,7 +555,7 @@ function App() {
               onTest={testProvider}
             />
           ) : null}
-          {activeSetting === "agents" ? (
+          {activeSetting === 'agents' ? (
             <AgentSettings
               agents={store.agents}
               draft={agentDraft}
@@ -565,8 +565,8 @@ function App() {
               canSave={canSaveAgent}
               onChange={(draft) => {
                 setAgentDraft(draft);
-                setAgentSaveError("");
-                setAgentSaveState("idle");
+                setAgentSaveError('');
+                setAgentSaveState('idle');
               }}
               onCreate={createAgent}
               onDelete={deleteAgent}
@@ -575,7 +575,7 @@ function App() {
               onSelect={selectAgent}
             />
           ) : null}
-          {activeSetting === "about" ? <AboutSettings /> : null}
+          {activeSetting === 'about' ? <AboutSettings /> : null}
         </section>
       </section>
     </main>
@@ -597,7 +597,7 @@ function SettingsNavButton({
 }) {
   return (
     <button
-      className={active ? "settings-nav-item is-active" : "settings-nav-item"}
+      className={active ? 'settings-nav-item is-active' : 'settings-nav-item'}
       type="button"
       title={collapsed ? label : undefined}
       onClick={onClick}
@@ -621,7 +621,7 @@ function GeneralSettings({
   onSave: () => void;
   saveState: SaveState;
 }) {
-  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
 
   return (
     <div className="settings-panel">
@@ -632,33 +632,33 @@ function GeneralSettings({
         action={
           <Button
             className={
-              saveState === "saved"
-                ? "action-button save-action is-saved"
-                : "action-button save-action"
+              saveState === 'saved'
+                ? 'action-button save-action is-saved'
+                : 'action-button save-action'
             }
             disabled={!canSave}
             type="button"
             onClick={onSave}
           >
-            {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
             {saveLabel}
           </Button>
         }
       />
       <div className="settings-form-grid max-w-3xl">
         <div className="col-span-2 flex items-center gap-4">
-          <AvatarImage value={draft.avatar || ""} className="size-20" fallback="我" />
+          <AvatarImage value={draft.avatar || ''} className="size-20" fallback="我" />
           <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
         </div>
         <Field description="批注和评论中展示的名称。" label="昵称">
           <Input
-            value={draft.nickname || ""}
+            value={draft.nickname || ''}
             onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
           />
         </Field>
         <Field description="用于 @ 提及，仅支持英文、数字和下划线。" label="用户名">
           <Input
-            value={draft.username || ""}
+            value={draft.username || ''}
             onChange={(event) =>
               onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
             }
@@ -862,7 +862,7 @@ function AnnotationNotebook({
           <div className="min-w-0">
             <h2>{article.title}</h2>
             <p>
-              {article.byline || urlHost(article.canonicalUrl || article.url)} ·{" "}
+              {article.byline || urlHost(article.canonicalUrl || article.url)} ·{' '}
               {formatDate(article.updatedAt)}
             </p>
           </div>
@@ -876,7 +876,7 @@ function AnnotationNotebook({
               <ChevronLeft size={17} />
             </button>
             <span>
-              {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : "0 / 0"}
+              {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : '0 / 0'}
             </span>
             <button
               aria-label="下一条批注"
@@ -897,7 +897,7 @@ function AnnotationNotebook({
                   <span>
                     {annotation.annotationType
                       ? annotationTypeLabel(annotation.annotationType)
-                      : "批注"}
+                      : '批注'}
                   </span>
                 </div>
                 <div className="quote-title">
@@ -908,9 +908,9 @@ function AnnotationNotebook({
                 <blockquote>{annotation.anchor.exact}</blockquote>
                 <div className="annotation-author">
                   <AvatarImage
-                    value={annotationAuthor?.avatar || ""}
+                    value={annotationAuthor?.avatar || ''}
                     className="size-8"
-                    fallback={(annotationAuthor?.name || "批").slice(0, 1)}
+                    fallback={(annotationAuthor?.name || '批').slice(0, 1)}
                   />
                   <div>
                     <strong>{annotationAuthor?.name}</strong>
@@ -971,8 +971,8 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
 
   return (
     <button
-      aria-label={copied ? "已复制" : label}
-      className={copied ? "copy-icon-button is-copied" : "copy-icon-button"}
+      aria-label={copied ? '已复制' : label}
+      className={copied ? 'copy-icon-button is-copied' : 'copy-icon-button'}
       type="button"
       onClick={copy}
     >
@@ -983,7 +983,7 @@ function CopyIconButton({ label, value }: { label: string; value: string }) {
 
 function ReadingCard({ article }: { article: ArticleRecord | null }) {
   const [copied, setCopied] = useState(false);
-  const card = useMemo(() => (article ? buildReadingCard(article) : ""), [article]);
+  const card = useMemo(() => (article ? buildReadingCard(article) : ''), [article]);
   const sections = useMemo(() => (article ? buildReadingCardSections(article) : []), [article]);
 
   async function copyCard() {
@@ -1010,7 +1010,7 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
         </div>
         <Button type="button" variant="secondary" onClick={copyCard}>
           <Clipboard size={16} />
-          {copied ? "已复制" : "复制"}
+          {copied ? '已复制' : '复制'}
         </Button>
       </div>
       <div className="reading-card-body">
@@ -1018,7 +1018,7 @@ function ReadingCard({ article }: { article: ArticleRecord | null }) {
           <section key={section.title}>
             <h4>{section.title}</h4>
             <ul>
-              {(section.items.length > 0 ? section.items : ["暂无"]).map((item, index) => (
+              {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
                 <li key={`${section.title}-${index}`}>{item}</li>
               ))}
             </ul>
@@ -1045,13 +1045,13 @@ function AboutSettings() {
 }
 
 function LogViewer() {
-  const [logPath, setLogPath] = useState("");
-  const [rawLog, setRawLog] = useState("");
-  const [query, setQuery] = useState("");
-  const [level, setLevel] = useState<LogLevelFilter>("all");
-  const [status, setStatus] = useState("");
-  const [refreshState, setRefreshState] = useState<SaveState>("idle");
-  const [clearState, setClearState] = useState<SaveState>("idle");
+  const [logPath, setLogPath] = useState('');
+  const [rawLog, setRawLog] = useState('');
+  const [query, setQuery] = useState('');
+  const [level, setLevel] = useState<LogLevelFilter>('all');
+  const [status, setStatus] = useState('');
+  const [refreshState, setRefreshState] = useState<SaveState>('idle');
+  const [clearState, setClearState] = useState<SaveState>('idle');
 
   useEffect(() => {
     loadLog();
@@ -1062,7 +1062,7 @@ function LogViewer() {
   const visibleEntries = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return entries.filter((entry) => {
-      if (level !== "all" && entry.level !== level) return false;
+      if (level !== 'all' && entry.level !== level) return false;
       if (!needle) return true;
       return entry.raw.toLowerCase().includes(needle);
     });
@@ -1070,27 +1070,27 @@ function LogViewer() {
 
   async function loadLog() {
     const desktop = window.yomitomoDesktop;
-    if (!desktop || refreshState === "saving") return;
+    if (!desktop || refreshState === 'saving') return;
 
-    setRefreshState("saving");
+    setRefreshState('saving');
     const [path, content] = await Promise.all([desktop.getLogPath(), desktop.readLog()]);
     setLogPath(path);
     setRawLog(content);
     setStatus(`已加载 ${formatDateTime(new Date().toISOString())}`);
-    setRefreshState("saved");
-    window.setTimeout(() => setRefreshState("idle"), 1000);
+    setRefreshState('saved');
+    window.setTimeout(() => setRefreshState('idle'), 1000);
   }
 
   async function clearLog() {
     const desktop = window.yomitomoDesktop;
-    if (!desktop || !hasLogContent || clearState === "saving") return;
+    if (!desktop || !hasLogContent || clearState === 'saving') return;
 
-    setClearState("saving");
+    setClearState('saving');
     await desktop.clearLog();
-    setRawLog("");
-    setStatus("日志已清理");
-    setClearState("saved");
-    window.setTimeout(() => setClearState("idle"), 1000);
+    setRawLog('');
+    setStatus('日志已清理');
+    setClearState('saved');
+    window.setTimeout(() => setClearState('idle'), 1000);
   }
 
   return (
@@ -1103,37 +1103,37 @@ function LogViewer() {
         <div className="log-actions">
           <Button
             className={
-              refreshState === "saving"
-                ? "action-button test-action log-refresh-action is-loading"
-                : "action-button test-action log-refresh-action"
+              refreshState === 'saving'
+                ? 'action-button test-action log-refresh-action is-loading'
+                : 'action-button test-action log-refresh-action'
             }
-            disabled={refreshState === "saving"}
+            disabled={refreshState === 'saving'}
             variant="secondary"
             type="button"
             onClick={loadLog}
           >
             <RefreshCcw size={16} />
-            {refreshState === "saving" ? "刷新中" : refreshState === "saved" ? "已刷新" : "刷新"}
+            {refreshState === 'saving' ? '刷新中' : refreshState === 'saved' ? '已刷新' : '刷新'}
           </Button>
           <Button
             className={
-              clearState === "saved"
-                ? "action-button danger-action log-clear-action is-cleared"
-                : "action-button danger-action log-clear-action"
+              clearState === 'saved'
+                ? 'action-button danger-action log-clear-action is-cleared'
+                : 'action-button danger-action log-clear-action'
             }
-            disabled={!hasLogContent || clearState === "saving"}
+            disabled={!hasLogContent || clearState === 'saving'}
             variant="destructive"
             type="button"
             onClick={clearLog}
           >
-            {clearState === "saved" ? <Check size={16} /> : <Trash2 size={16} />}
-            {clearState === "saving" ? "清理中" : clearState === "saved" ? "已清理" : "清理"}
+            {clearState === 'saved' ? <Check size={16} /> : <Trash2 size={16} />}
+            {clearState === 'saving' ? '清理中' : clearState === 'saved' ? '已清理' : '清理'}
           </Button>
         </div>
       </div>
       <div className="log-path-row">
         <FileText size={16} />
-        <span>{logPath || "日志路径加载中..."}</span>
+        <span>{logPath || '日志路径加载中...'}</span>
         {logPath ? (
           <Button
             variant="secondary"
@@ -1221,13 +1221,13 @@ function ArticleListItem({
 
   return (
     <button
-      className={active ? "library-item is-active" : "library-item"}
+      className={active ? 'library-item is-active' : 'library-item'}
       type="button"
       onClick={onSelect}
     >
       <div className="min-w-0">
         <h3>{article.title}</h3>
-        <p>{article.byline || urlHost(article.canonicalUrl || article.url) || "未知作者"}</p>
+        <p>{article.byline || urlHost(article.canonicalUrl || article.url) || '未知作者'}</p>
         <time>{formatDate(article.updatedAt)}</time>
       </div>
       <span className="library-item-count">
@@ -1264,7 +1264,7 @@ function ProviderSettings({
   onSelect: (provider: LlmProvider) => void;
   onTest: (id: string) => void;
 }) {
-  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
 
   return (
     <div className="settings-panel">
@@ -1279,8 +1279,8 @@ function ProviderSettings({
             <button
               className={
                 provider.id === selectedId
-                  ? "config-list-item is-plain is-active"
-                  : "config-list-item is-plain"
+                  ? 'config-list-item is-plain is-active'
+                  : 'config-list-item is-plain'
               }
               key={provider.id}
               type="button"
@@ -1298,8 +1298,8 @@ function ProviderSettings({
         <section className="detail-pane">
           <div className="detail-pane-header">
             <div>
-              <h3>{draft.id ? "编辑供应商" : "新增供应商"}</h3>
-              <p>{draft.id ? "点击左侧其他供应商切换详情。" : "填写完成后保存到供应商列表。"}</p>
+              <h3>{draft.id ? '编辑供应商' : '新增供应商'}</h3>
+              <p>{draft.id ? '点击左侧其他供应商切换详情。' : '填写完成后保存到供应商列表。'}</p>
             </div>
             <div className="flex gap-2">
               {draft.id ? (
@@ -1325,15 +1325,15 @@ function ProviderSettings({
               ) : null}
               <Button
                 className={
-                  saveState === "saved"
-                    ? "action-button save-action is-saved"
-                    : "action-button save-action"
+                  saveState === 'saved'
+                    ? 'action-button save-action is-saved'
+                    : 'action-button save-action'
                 }
                 disabled={!canSave}
                 type="button"
                 onClick={onSave}
               >
-                {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+                {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
                 {saveLabel}
               </Button>
             </div>
@@ -1377,7 +1377,7 @@ function AgentSettings({
   saveState: SaveState;
   onSelect: (agent: Agent) => void;
 }) {
-  const saveLabel = saveState === "saving" ? "保存中" : saveState === "saved" ? "已保存" : "保存";
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
 
   return (
     <div className="settings-panel">
@@ -1404,7 +1404,7 @@ function AgentSettings({
             return (
               <button
                 className={
-                  agent.id === selectedId ? "config-list-item is-active" : "config-list-item"
+                  agent.id === selectedId ? 'config-list-item is-active' : 'config-list-item'
                 }
                 key={agent.id}
                 type="button"
@@ -1422,11 +1422,11 @@ function AgentSettings({
         <section className="detail-pane">
           <div className="detail-pane-header">
             <div>
-              <h3>{draft.id ? "编辑助手" : "新增助手"}</h3>
+              <h3>{draft.id ? '编辑助手' : '新增助手'}</h3>
               <p>
                 {providers.length > 0
-                  ? "选择预设个性，或切换到自定义个性。"
-                  : "先配置供应商，再保存助手。"}
+                  ? '选择预设个性，或切换到自定义个性。'
+                  : '先配置供应商，再保存助手。'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -1443,15 +1443,15 @@ function AgentSettings({
               ) : null}
               <Button
                 className={
-                  saveState === "saved"
-                    ? "action-button save-action is-saved"
-                    : "action-button save-action"
+                  saveState === 'saved'
+                    ? 'action-button save-action is-saved'
+                    : 'action-button save-action'
                 }
                 disabled={!canSave}
                 type="button"
                 onClick={onSave}
               >
-                {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+                {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
                 {saveLabel}
               </Button>
             </div>
@@ -1466,7 +1466,7 @@ function AgentSettings({
 function ConfigList({
   title,
   children,
-  createLabel = "新增",
+  createLabel = '新增',
   empty,
   onCreate,
 }: {
@@ -1529,13 +1529,13 @@ function ProviderForm({
     <div className="settings-form-grid">
       <Field label="名称">
         <Input
-          value={draft.name || ""}
+          value={draft.name || ''}
           onChange={(event) => onChange({ ...draft, name: event.target.value })}
         />
       </Field>
       <Field label="API 类型">
         <Select
-          value={draft.type || "anthropic"}
+          value={draft.type || 'anthropic'}
           onValueChange={(value) => onChange({ ...draft, type: value as ProviderType })}
         >
           <SelectTrigger>
@@ -1552,19 +1552,19 @@ function ProviderForm({
       </Field>
       <Field label="Base URL">
         <Input
-          value={draft.baseUrl || ""}
+          value={draft.baseUrl || ''}
           onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
         />
       </Field>
       <Field label="模型">
         <Input
-          value={draft.modelName || ""}
+          value={draft.modelName || ''}
           onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
         />
       </Field>
       <Field className="col-span-2" label="API Key">
         <SecretInput
-          value={draft.apiKey || ""}
+          value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey })}
         />
       </Field>
@@ -1601,7 +1601,7 @@ function AgentForm({
     onChange({
       ...draft,
       personalityId: customPersonalityId,
-      soul: "",
+      soul: '',
       temperature: draft.temperature ?? customPersonality.temperature,
     });
   }
@@ -1611,7 +1611,7 @@ function AgentForm({
       <Field description="当前助手调用的模型供应商。" label="供应商">
         <Select
           disabled={providers.length === 0}
-          value={draft.providerId || providers[0]?.id || ""}
+          value={draft.providerId || providers[0]?.id || ''}
           onValueChange={(providerId) => onChange({ ...draft, providerId })}
         >
           <SelectTrigger className="provider-select-trigger">
@@ -1636,7 +1636,7 @@ function AgentForm({
       </Field>
       <Field description="批注和评论中展示的名称。" label="昵称">
         <Input
-          value={draft.nickname || ""}
+          value={draft.nickname || ''}
           onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
         />
       </Field>
@@ -1646,7 +1646,7 @@ function AgentForm({
         label="用户名"
       >
         <Input
-          value={draft.username || ""}
+          value={draft.username || ''}
           onChange={(event) =>
             onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
           }
@@ -1671,9 +1671,9 @@ function AgentForm({
           {annotationDensityOptions.map((option) => (
             <button
               className={
-                (draft.annotationDensity || "medium") === option.value
-                  ? "density-choice is-active"
-                  : "density-choice"
+                (draft.annotationDensity || 'medium') === option.value
+                  ? 'density-choice is-active'
+                  : 'density-choice'
               }
               key={option.value}
               type="button"
@@ -1687,7 +1687,7 @@ function AgentForm({
       </Field>
       <Field className="col-span-2" label="头像">
         <AvatarPicker
-          value={draft.avatar || ""}
+          value={draft.avatar || ''}
           onChange={(avatar) => onChange({ ...draft, avatar })}
         />
       </Field>
@@ -1698,8 +1698,8 @@ function AgentForm({
               <button
                 className={
                   personalityId === personality.id
-                    ? "personality-choice is-active"
-                    : "personality-choice"
+                    ? 'personality-choice is-active'
+                    : 'personality-choice'
                 }
                 key={personality.id}
                 type="button"
@@ -1715,7 +1715,7 @@ function AgentForm({
             ))}
             <button
               className={
-                isCustomPersonality ? "personality-choice is-active" : "personality-choice"
+                isCustomPersonality ? 'personality-choice is-active' : 'personality-choice'
               }
               type="button"
               onClick={() => changePersonality(customPersonalityId)}
@@ -1730,7 +1730,7 @@ function AgentForm({
             <div className="custom-personality-panel">
               <Field description="保存自定义个性时必填。" label="自定义系统提示词">
                 <Textarea
-                  value={draft.soul || ""}
+                  value={draft.soul || ''}
                   onChange={(event) => onChange({ ...draft, soul: event.target.value })}
                 />
               </Field>
@@ -1766,16 +1766,16 @@ function findAgentPersonalityId(soul: string) {
 
 function agentPersonalityName(agent: Agent) {
   return (
-    agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || "自定义个性"
+    agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || '自定义个性'
   );
 }
 
 function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
   return (
-    (draft.nickname || "").trim() !== user.nickname ||
-    (draft.username || "").trim() !== user.username ||
-    (draft.avatar || "") !== user.avatar ||
-    (draft.annotationColor || "") !== user.annotationColor
+    (draft.nickname || '').trim() !== user.nickname ||
+    (draft.username || '').trim() !== user.username ||
+    (draft.avatar || '') !== user.avatar ||
+    (draft.annotationColor || '') !== user.annotationColor
   );
 }
 
@@ -1783,11 +1783,11 @@ function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvider | n
   if (!provider) return true;
 
   return (
-    (draft.name || "").trim() !== provider.name ||
-    (draft.type || "anthropic") !== provider.type ||
-    (draft.baseUrl || "").trim() !== provider.baseUrl ||
-    (draft.apiKey || "").trim() !== provider.apiKey ||
-    (draft.modelName || "").trim() !== provider.modelName
+    (draft.name || '').trim() !== provider.name ||
+    (draft.type || 'anthropic') !== provider.type ||
+    (draft.baseUrl || '').trim() !== provider.baseUrl ||
+    (draft.apiKey || '').trim() !== provider.apiKey ||
+    (draft.modelName || '').trim() !== provider.modelName
   );
 }
 
@@ -1797,17 +1797,17 @@ function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
   const personalityId =
     draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
   const personality = agentPersonalities.find((item) => item.id === personalityId);
-  const soul = personality?.soul || draft.soul || "";
+  const soul = personality?.soul || draft.soul || '';
   const temperature =
     personality?.temperature ?? draft.temperature ?? customPersonality.temperature;
 
   return (
-    (draft.providerId || "") !== agent.providerId ||
-    (draft.nickname || "").trim() !== agent.nickname ||
-    (draft.username || "").trim() !== agent.username ||
-    (draft.avatar || "").trim() !== agent.avatar ||
-    (draft.annotationColor || "") !== agent.annotationColor ||
-    (draft.annotationDensity || "medium") !== agent.annotationDensity ||
+    (draft.providerId || '') !== agent.providerId ||
+    (draft.nickname || '').trim() !== agent.nickname ||
+    (draft.username || '').trim() !== agent.username ||
+    (draft.avatar || '').trim() !== agent.avatar ||
+    (draft.annotationColor || '') !== agent.annotationColor ||
+    (draft.annotationDensity || 'medium') !== agent.annotationDensity ||
     Math.abs(Number(temperature) - agent.temperature) > 0.001 ||
     soul.trim() !== agent.soul
   );
@@ -1818,7 +1818,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (value: str
     <div className="color-swatches">
       {annotationColors.map((color) => (
         <button
-          className={value === color ? "color-swatch is-active" : "color-swatch"}
+          className={value === color ? 'color-swatch is-active' : 'color-swatch'}
           key={color}
           style={{ backgroundColor: color }}
           type="button"
@@ -1845,7 +1845,7 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (avatar: s
       <div className="avatar-grid">
         {agentAvatars.map((avatar) => (
           <button
-            className={value === avatar.src ? "avatar-choice is-active" : "avatar-choice"}
+            className={value === avatar.src ? 'avatar-choice is-active' : 'avatar-choice'}
             key={avatar.id}
             type="button"
             onClick={() => onChange(avatar.src)}
@@ -1875,36 +1875,36 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (avatar: s
 function PersonalityIcon({
   type,
 }: {
-  type: (typeof agentPersonalities)[number]["icon"] | "custom";
+  type: (typeof agentPersonalities)[number]['icon'] | 'custom';
 }) {
   return (
     <span className={`personality-icon is-${type}`}>
-      {type === "leaf" ? (
+      {type === 'leaf' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M8 18c7-9 13-9 18-9-1 9-6 15-15 15" />
           <path d="M7 25c5-6 10-9 16-11" />
         </svg>
       ) : null}
-      {type === "pyramid" ? (
+      {type === 'pyramid' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M16 5 5 27h22L16 5Z" />
           <path d="M11 18h10" />
           <path d="M9 23h14" />
         </svg>
       ) : null}
-      {type === "question" ? (
+      {type === 'question' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M12 12a5 5 0 1 1 8 4c-2 1.4-4 2.6-4 5" />
           <path d="M16 26h.01" />
         </svg>
       ) : null}
-      {type === "quill" ? (
+      {type === 'quill' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M25 6c-7 1-12 4-15 9-2 3-2 6 0 8 2 2 5 2 8 0 5-3 8-8 9-15" />
           <path d="M8 25c4-4 8-8 12-12" />
         </svg>
       ) : null}
-      {type === "custom" ? (
+      {type === 'custom' ? (
         <svg aria-hidden="true" viewBox="0 0 32 32">
           <path d="M16 7v18" />
           <path d="M7 16h18" />
@@ -1921,14 +1921,14 @@ function SecretInput({ value, onChange }: { value: string; onChange: (value: str
     <div className="relative">
       <Input
         className="pr-12"
-        type={visible ? "text" : "password"}
+        type={visible ? 'text' : 'password'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
       <button
         className="secret-toggle"
         type="button"
-        aria-label={visible ? "隐藏 API Key" : "显示 API Key"}
+        aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
         onClick={() => setVisible((next) => !next)}
       >
         {visible ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -1961,7 +1961,7 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
 function AvatarImage({
   value,
   fallback,
-  className = "size-10",
+  className = 'size-10',
 }: {
   value: string;
   fallback: string;
@@ -1969,9 +1969,9 @@ function AvatarImage({
 }) {
   const image = isImageAvatar(value);
   const svg = isSvgAvatar(value);
-  const classes = ["avatar-image", className, image ? "is-image" : "", svg ? "is-svg" : ""]
+  const classes = ['avatar-image', className, image ? 'is-image' : '', svg ? 'is-svg' : '']
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   return (
     <span className={classes}>
@@ -1983,7 +1983,7 @@ function AvatarImage({
 function Field({
   label,
   description,
-  className = "",
+  className = '',
   children,
 }: {
   label: string;
@@ -2008,15 +2008,15 @@ function svgToDataUrl(raw: string) {
 
 function isImageAvatar(value: string) {
   return (
-    value.startsWith("data:image/") ||
-    value.startsWith("blob:") ||
-    value.startsWith("http") ||
-    value.startsWith("/")
+    value.startsWith('data:image/') ||
+    value.startsWith('blob:') ||
+    value.startsWith('http') ||
+    value.startsWith('/')
   );
 }
 
 function isSvgAvatar(value: string) {
-  return value.startsWith("data:image/svg+xml") || value.endsWith(".svg");
+  return value.startsWith('data:image/svg+xml') || value.endsWith('.svg');
 }
 
 function isValidUsername(value: string) {
@@ -2024,14 +2024,14 @@ function isValidUsername(value: string) {
 }
 
 function sanitizeUsernameInput(value: string) {
-  return value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 32);
+  return value.replace(/[^A-Za-z0-9_]/g, '').slice(0, 32);
 }
 
 function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result || "")), { once: true });
-    reader.addEventListener("error", () => reject(reader.error), { once: true });
+    reader.addEventListener('load', () => resolve(String(reader.result || '')), { once: true });
+    reader.addEventListener('error', () => reject(reader.error), { once: true });
     reader.readAsDataURL(file);
   });
 }
@@ -2052,28 +2052,28 @@ function sortAnnotations(annotations: Annotation[]) {
 }
 
 function annotationAuthorProfile(annotation: Annotation) {
-  if (annotation.author === "ai") {
+  if (annotation.author === 'ai') {
     return {
-      avatar: annotation.agentAvatar || "",
-      name: annotation.agentNickname || annotation.agentUsername || "助手",
+      avatar: annotation.agentAvatar || '',
+      name: annotation.agentNickname || annotation.agentUsername || '助手',
     };
   }
   return {
-    avatar: annotation.userAvatar || "",
-    name: annotation.userNickname || annotation.userUsername || "我",
+    avatar: annotation.userAvatar || '',
+    name: annotation.userNickname || annotation.userUsername || '我',
   };
 }
 
 function commentAuthorProfile(comment: AnnotationComment) {
-  if (comment.author === "ai") {
+  if (comment.author === 'ai') {
     return {
-      avatar: comment.agentAvatar || "",
-      name: comment.agentNickname || comment.agentUsername || "助手",
+      avatar: comment.agentAvatar || '',
+      name: comment.agentNickname || comment.agentUsername || '助手',
     };
   }
   return {
-    avatar: comment.userAvatar || "",
-    name: comment.userNickname || comment.userUsername || "我",
+    avatar: comment.userAvatar || '',
+    name: comment.userNickname || comment.userUsername || '我',
   };
 }
 
@@ -2089,23 +2089,23 @@ function buildReadingCard(article: ArticleRecord) {
   const sections = buildReadingCardSections(article);
   const lines = [
     `# ${article.title}`,
-    "",
+    '',
     `来源：${article.canonicalUrl || article.url}`,
     `更新时间：${formatDateTime(article.updatedAt)}`,
-    "",
+    '',
   ];
 
   for (const section of sections) {
-    lines.push(`## ${section.title}`, "");
+    lines.push(`## ${section.title}`, '');
     if (section.items.length > 0) {
       for (const item of section.items) lines.push(`- ${item}`);
     } else {
-      lines.push("- 暂无");
+      lines.push('- 暂无');
     }
-    lines.push("");
+    lines.push('');
   }
 
-  return lines.join("\n").trim();
+  return lines.join('\n').trim();
 }
 
 function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] {
@@ -2115,22 +2115,22 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
       comment,
     })),
   );
-  const userComments = comments.filter((item) => item.comment.author === "user");
-  const aiComments = comments.filter((item) => item.comment.author === "ai");
+  const userComments = comments.filter((item) => item.comment.author === 'user');
+  const aiComments = comments.filter((item) => item.comment.author === 'ai');
   const questions = comments.filter((item) => /[?？]/.test(item.comment.content));
 
   return [
     {
-      title: "关键原文",
+      title: '关键原文',
       items: article.annotations
         .slice(0, 6)
         .map(
           (annotation) =>
-            `${annotation.annotationType ? `【${annotationTypeLabel(annotation.annotationType)}】` : ""}“${compactText(annotation.anchor.exact, 120)}”`,
+            `${annotation.annotationType ? `【${annotationTypeLabel(annotation.annotationType)}】` : ''}“${compactText(annotation.anchor.exact, 120)}”`,
         ),
     },
     {
-      title: "我的批注",
+      title: '我的批注',
       items: userComments
         .slice(0, 6)
         .map(
@@ -2139,7 +2139,7 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
         ),
     },
     {
-      title: "助手补充",
+      title: '助手补充',
       items: aiComments
         .slice(0, 6)
         .map(
@@ -2148,14 +2148,14 @@ function buildReadingCardSections(article: ArticleRecord): ReadingCardSection[] 
         ),
     },
     {
-      title: "后续问题",
+      title: '后续问题',
       items: questions.slice(0, 6).map(({ comment }) => compactText(comment.content, 140)),
     },
   ];
 }
 
 function compactText(value: string, limit: number) {
-  const text = value.replace(/\s+/g, " ").trim();
+  const text = value.replace(/\s+/g, ' ').trim();
   if (text.length <= limit) return text;
   return `${text.slice(0, limit - 1)}…`;
 }
@@ -2167,11 +2167,11 @@ function timestamp(value: string) {
 
 function annotationTypeLabel(type: AnnotationType) {
   const labels: Record<AnnotationType, string> = {
-    key_point: "关键判断",
-    assumption: "前提漏洞",
-    concept: "概念解释",
-    question: "延伸问题",
-    quote: "金句",
+    key_point: '关键判断',
+    assumption: '前提漏洞',
+    concept: '概念解释',
+    question: '延伸问题',
+    quote: '金句',
   };
   return labels[type];
 }
@@ -2209,7 +2209,7 @@ function countReadingStats(articles: ArticleRecord[], since: Date | null): Readi
         annotations: result.annotations + annotations.length,
         comments: result.comments + comments.length,
         aiComments:
-          result.aiComments + comments.filter((comment) => comment.author === "ai").length,
+          result.aiComments + comments.filter((comment) => comment.author === 'ai').length,
       };
     },
     { articles: 0, annotations: 0, comments: 0, aiComments: 0 },
@@ -2229,7 +2229,7 @@ function startOfWeek(date: Date) {
 
 function parseLogEntries(raw: string): LogEntry[] {
   return raw
-    .split("\n")
+    .split('\n')
     .map((line, index) => parseLogLine(line, index))
     .filter((entry): entry is LogEntry => Boolean(entry));
 }
@@ -2246,19 +2246,19 @@ function parseLogLine(line: string, index: number): LogEntry | null {
       data?: unknown;
     };
     return {
-      id: `${index}-${typeof parsed.at === "string" ? parsed.at : ""}`,
-      at: typeof parsed.at === "string" ? parsed.at : "",
-      level: typeof parsed.level === "string" ? parsed.level : "info",
-      event: typeof parsed.event === "string" ? parsed.event : "log",
+      id: `${index}-${typeof parsed.at === 'string' ? parsed.at : ''}`,
+      at: typeof parsed.at === 'string' ? parsed.at : '',
+      level: typeof parsed.level === 'string' ? parsed.level : 'info',
+      event: typeof parsed.event === 'string' ? parsed.event : 'log',
       data: parsed.data,
       raw,
     };
   } catch {
     return {
       id: `${index}-raw`,
-      at: "",
-      level: "info",
-      event: "raw",
+      at: '',
+      level: 'info',
+      event: 'raw',
       data: raw,
       raw,
     };
@@ -2266,29 +2266,29 @@ function parseLogLine(line: string, index: number): LogEntry | null {
 }
 
 function formatLogData(data: unknown) {
-  if (typeof data === "string") return data;
+  if (typeof data === 'string') return data;
   return JSON.stringify(data, null, 2);
 }
 
 function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(date);
 }
 
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).format(date);
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById('root')!).render(<App />);

@@ -5,7 +5,7 @@ export type DatabaseMigration = {
 
 export const migrations: DatabaseMigration[] = [
   {
-    id: "0001_initial",
+    id: '0001_initial',
     sql: `
 CREATE TABLE IF NOT EXISTS user_profiles (
   id TEXT PRIMARY KEY NOT NULL,
@@ -100,14 +100,14 @@ CREATE INDEX IF NOT EXISTS comments_created_at_idx ON comments(created_at);
 `,
   },
   {
-    id: "0002_annotation_type_density",
+    id: '0002_annotation_type_density',
     sql: `
 ALTER TABLE agents ADD COLUMN annotation_density TEXT NOT NULL DEFAULT 'medium';
 ALTER TABLE annotations ADD COLUMN annotation_type TEXT;
 `,
   },
   {
-    id: "0003_agent_temperature",
+    id: '0003_agent_temperature',
     sql: `
 ALTER TABLE agents ADD COLUMN temperature REAL NOT NULL DEFAULT 0.5;
 `,

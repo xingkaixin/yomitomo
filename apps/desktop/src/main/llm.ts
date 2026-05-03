@@ -6,27 +6,27 @@ import type {
   AnnotationType,
   Comment,
   LlmProvider,
-} from "@yomitomo/shared";
-import { createTextAnchor, makeId } from "@yomitomo/shared";
-import { logError, logInfo } from "./logger";
+} from '@yomitomo/shared';
+import { createTextAnchor, makeId } from '@yomitomo/shared';
+import { logError, logInfo } from './logger';
 
 export async function testProvider(
   provider: LlmProvider,
 ): Promise<{ ok: boolean; message: string }> {
   try {
-    if (provider.type !== "anthropic") {
-      return { ok: false, message: "当前只支持测试 Anthropic provider" };
+    if (provider.type !== 'anthropic') {
+      return { ok: false, message: '当前只支持测试 Anthropic provider' };
     }
 
     const content = await callAnthropic(
       provider,
-      "You are a connectivity test assistant.",
-      "Reply with OK only.",
+      'You are a connectivity test assistant.',
+      'Reply with OK only.',
       128,
     );
     return { ok: true, message: content };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : "Provider 测试失败" };
+    return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
   }
 }
 
@@ -36,8 +36,8 @@ export async function runAgentStream(
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
-  if (provider.type !== "anthropic") {
-    throw new Error("当前只支持 Anthropic provider 调用");
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
@@ -58,8 +58,8 @@ export async function runAgent(
   },
   payload: AgentMessagePayload,
 ): Promise<Comment> {
-  if (provider.type !== "anthropic") {
-    throw new Error("当前只支持 Anthropic provider 调用");
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
@@ -67,8 +67,8 @@ export async function runAgent(
   const content = await callAnthropic(provider, system, user, 1200, agent.temperature);
 
   return {
-    id: "",
-    author: "ai",
+    id: '',
+    author: 'ai',
     content,
     createdAt: new Date().toISOString(),
     agentId: agent.id,
@@ -84,8 +84,8 @@ export async function runAgentAnnotate(
   agent: Agent,
   payload: AgentAnnotatePayload,
 ): Promise<Annotation[]> {
-  if (provider.type !== "anthropic") {
-    throw new Error("当前只支持 Anthropic provider 调用");
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
@@ -111,29 +111,29 @@ export async function runAgentAnnotateStream(
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<void> {
-  if (provider.type !== "anthropic") {
-    throw new Error("当前只支持 Anthropic provider 调用");
+  if (provider.type !== 'anthropic') {
+    throw new Error('当前只支持 Anthropic provider 调用');
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
-  let buffer = "";
+  let buffer = '';
   const flushLine = (line: string) => {
     const cleaned = line
       .trim()
-      .replace(/^```(?:json)?/, "")
-      .replace(/```$/, "")
+      .replace(/^```(?:json)?/, '')
+      .replace(/```$/, '')
       .trim();
     if (!cleaned) return;
 
     try {
       const parsed = JSON.parse(cleaned) as { exact?: unknown; comment?: unknown; type?: unknown };
-      const exact = typeof parsed.exact === "string" ? parsed.exact : "";
+      const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
       const annotation = createAgentAnnotation(
         agent,
         payload,
         {
           exact,
-          comment: typeof parsed.comment === "string" ? parsed.comment : "",
+          comment: typeof parsed.comment === 'string' ? parsed.comment : '',
           annotationType: normalizeAnnotationType(parsed.type),
         },
         new Date().toISOString(),
@@ -141,14 +141,14 @@ export async function runAgentAnnotateStream(
       if (annotation) {
         onAnnotation(annotation);
       } else {
-        logInfo("agent.annotate.skip", {
+        logInfo('agent.annotate.skip', {
           agent: agent.username,
-          reason: "exact_not_found",
+          reason: 'exact_not_found',
           exactPreview: exact.slice(0, 120),
         });
       }
     } catch (error) {
-      logError("agent.annotate.ndjson_parse_error", error, {
+      logError('agent.annotate.ndjson_parse_error', error, {
         agent: agent.username,
         line: cleaned.slice(0, 500),
       });
@@ -163,8 +163,8 @@ export async function runAgentAnnotateStream(
     agent.temperature,
     (delta) => {
       buffer += delta;
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
       for (const line of lines) flushLine(line);
     },
   );
@@ -179,23 +179,23 @@ async function callAnthropic(
   maxTokens: number,
   temperature?: number,
 ) {
-  const baseUrl = provider.baseUrl.replace(/\/$/, "") || "https://api.anthropic.com";
+  const baseUrl = provider.baseUrl.replace(/\/$/, '') || 'https://api.anthropic.com';
   const url = `${baseUrl}/v1/messages`;
   logAnthropicRequest(provider, url, { stream: false, maxTokens, temperature });
 
   const response = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "content-type": "application/json",
-      "x-api-key": provider.apiKey,
-      "anthropic-version": "2023-06-01",
+      'content-type': 'application/json',
+      'x-api-key': provider.apiKey,
+      'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
       model: provider.modelName,
       max_tokens: maxTokens,
       temperature,
       system,
-      messages: [{ role: "user", content: user }],
+      messages: [{ role: 'user', content: user }],
     }),
   });
 
@@ -206,10 +206,10 @@ async function callAnthropic(
 
   const data = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
   const text = data.content
-    ?.map((part) => (part.type === "text" ? part.text || "" : ""))
-    .join("\n")
+    ?.map((part) => (part.type === 'text' ? part.text || '' : ''))
+    .join('\n')
     .trim();
-  if (!text) throw new Error("Anthropic 返回为空");
+  if (!text) throw new Error('Anthropic 返回为空');
   return text;
 }
 
@@ -221,16 +221,16 @@ async function streamAnthropic(
   temperature: number,
   onDelta: (delta: string) => void,
 ) {
-  const baseUrl = provider.baseUrl.replace(/\/$/, "") || "https://api.anthropic.com";
+  const baseUrl = provider.baseUrl.replace(/\/$/, '') || 'https://api.anthropic.com';
   const url = `${baseUrl}/v1/messages`;
   logAnthropicRequest(provider, url, { stream: true, maxTokens, temperature });
 
   const response = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers: {
-      "content-type": "application/json",
-      "x-api-key": provider.apiKey,
-      "anthropic-version": "2023-06-01",
+      'content-type': 'application/json',
+      'x-api-key': provider.apiKey,
+      'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
       model: provider.modelName,
@@ -238,7 +238,7 @@ async function streamAnthropic(
       temperature,
       stream: true,
       system,
-      messages: [{ role: "user", content: user }],
+      messages: [{ role: 'user', content: user }],
     }),
   });
 
@@ -247,34 +247,34 @@ async function streamAnthropic(
     throw new Error(`Anthropic 请求失败：${response.status} ${text.slice(0, 400)}`);
   }
 
-  if (!response.body) throw new Error("Anthropic streaming body 为空");
+  if (!response.body) throw new Error('Anthropic streaming body 为空');
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
+  let buffer = '';
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() || "";
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || '';
 
     for (const event of events) {
-      const dataLine = event.split("\n").find((line) => line.startsWith("data: "));
+      const dataLine = event.split('\n').find((line) => line.startsWith('data: '));
       if (!dataLine) continue;
 
       const data = dataLine.slice(6);
-      if (data === "[DONE]") continue;
+      if (data === '[DONE]') continue;
 
       const parsed = JSON.parse(data) as {
         type?: string;
         delta?: { type?: string; text?: string };
       };
       if (
-        parsed.type === "content_block_delta" &&
-        parsed.delta?.type === "text_delta" &&
+        parsed.type === 'content_block_delta' &&
+        parsed.delta?.type === 'text_delta' &&
         parsed.delta.text
       ) {
         onDelta(parsed.delta.text);
@@ -284,7 +284,7 @@ async function streamAnthropic(
 }
 
 function logAnthropicRequest(provider: LlmProvider, url: string, extra: Record<string, unknown>) {
-  logInfo("anthropic.request", {
+  logInfo('anthropic.request', {
     url,
     model: provider.modelName,
     providerName: provider.name,
@@ -294,8 +294,8 @@ function logAnthropicRequest(provider: LlmProvider, url: string, extra: Record<s
 }
 
 function previewSecret(value: string) {
-  if (!value) return "<empty>";
-  if (value.length <= 8) return "<too-short>";
+  if (!value) return '<empty>';
+  if (value.length <= 8) return '<too-short>';
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
@@ -303,10 +303,10 @@ function buildAgentPrompt(payload: AgentMessagePayload) {
   const comments = payload.annotation.comments
     .map((comment) => {
       const author =
-        comment.author === "ai" ? comment.agentNickname || comment.agentUsername || "AI" : "用户";
+        comment.author === 'ai' ? comment.agentNickname || comment.agentUsername || 'AI' : '用户';
       return `${author}: ${comment.content}`;
     })
-    .join("\n");
+    .join('\n');
 
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 30000)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的用户评论：\n${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。`;
 }
@@ -331,10 +331,10 @@ function createAgentAnnotation(
 
   const comment = suggestion.comment.trim();
   return {
-    id: makeId("annotation"),
+    id: makeId('annotation'),
     anchor: createTextAnchor(payload.article.text, start, start + exact.length),
-    author: "ai",
-    annotationType: suggestion.annotationType || "key_point",
+    author: 'ai',
+    annotationType: suggestion.annotationType || 'key_point',
     color: agent.annotationColor,
     agentId: agent.id,
     agentUsername: agent.username,
@@ -344,8 +344,8 @@ function createAgentAnnotation(
     comments: comment
       ? [
           {
-            id: makeId("comment"),
-            author: "ai",
+            id: makeId('comment'),
+            author: 'ai',
             content: comment,
             createdAt: now,
             agentId: agent.id,
@@ -368,25 +368,25 @@ function parseAnnotationSuggestions(
   const parsed = JSON.parse(json) as Array<{ exact?: unknown; comment?: unknown; type?: unknown }>;
   return parsed
     .map((item) => ({
-      exact: typeof item.exact === "string" ? item.exact : "",
-      comment: typeof item.comment === "string" ? item.comment : "",
+      exact: typeof item.exact === 'string' ? item.exact : '',
+      comment: typeof item.comment === 'string' ? item.comment : '',
       annotationType: normalizeAnnotationType(item.type),
     }))
     .filter((item) => item.exact.trim().length > 0);
 }
 
 function normalizeAnnotationType(value: unknown): AnnotationType | null {
-  return value === "key_point" ||
-    value === "assumption" ||
-    value === "concept" ||
-    value === "question" ||
-    value === "quote"
+  return value === 'key_point' ||
+    value === 'assumption' ||
+    value === 'concept' ||
+    value === 'question' ||
+    value === 'quote'
     ? value
     : null;
 }
 
-function annotationDensityInstruction(density: Agent["annotationDensity"]) {
-  if (density === "low") return "克制，约 2-4 条，只选择最高价值片段。";
-  if (density === "high") return "积极，约 7-12 条，覆盖更多值得讨论的片段。";
-  return "标准，约 4-7 条，保持覆盖和克制的平衡。";
+function annotationDensityInstruction(density: Agent['annotationDensity']) {
+  if (density === 'low') return '克制，约 2-4 条，只选择最高价值片段。';
+  if (density === 'high') return '积极，约 7-12 条，覆盖更多值得讨论的片段。';
+  return '标准，约 4-7 条，保持覆盖和克制的平衡。';
 }

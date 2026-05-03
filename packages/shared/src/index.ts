@@ -1,10 +1,10 @@
-export type AnnotationAuthor = "user" | "ai";
+export type AnnotationAuthor = 'user' | 'ai';
 
-export type ProviderType = "openai" | "anthropic" | "gemini";
+export type ProviderType = 'openai' | 'anthropic' | 'gemini';
 
-export type AnnotationType = "key_point" | "assumption" | "concept" | "question" | "quote";
+export type AnnotationType = 'key_point' | 'assumption' | 'concept' | 'question' | 'quote';
 
-export type AgentAnnotationDensity = "low" | "medium" | "high";
+export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type LlmProvider = {
   id: string;
@@ -31,7 +31,7 @@ export type Agent = {
   updatedAt: string;
 };
 
-export type PublicAgent = Omit<Agent, "providerId" | "soul" | "createdAt" | "updatedAt">;
+export type PublicAgent = Omit<Agent, 'providerId' | 'soul' | 'createdAt' | 'updatedAt'>;
 
 export type UserProfile = {
   id: string;
@@ -133,30 +133,30 @@ export type AgentAnnotatePayload = {
 };
 
 export type DesktopClientMessage =
-  | { type: "hello" }
-  | { type: "agent:list"; requestId: string }
-  | { type: "article:save"; requestId: string; payload: ArticleRecord }
-  | { type: "agent:message"; requestId: string; payload: AgentMessagePayload }
-  | { type: "agent:annotate"; requestId: string; payload: AgentAnnotatePayload };
+  | { type: 'hello' }
+  | { type: 'agent:list'; requestId: string }
+  | { type: 'article:save'; requestId: string; payload: ArticleRecord }
+  | { type: 'agent:message'; requestId: string; payload: AgentMessagePayload }
+  | { type: 'agent:annotate'; requestId: string; payload: AgentAnnotatePayload };
 
 export type DesktopServerMessage =
-  | { type: "status"; ok: boolean; user: UserProfile; agents: PublicAgent[] }
-  | { type: "agent:list:result"; requestId: string; user: UserProfile; agents: PublicAgent[] }
-  | { type: "agent:message:start"; requestId: string; annotationId: string; comment: Comment }
+  | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[] }
+  | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
+  | { type: 'agent:message:start'; requestId: string; annotationId: string; comment: Comment }
   | {
-      type: "agent:message:delta";
+      type: 'agent:message:delta';
       requestId: string;
       annotationId: string;
       commentId: string;
       delta: string;
     }
-  | { type: "agent:message:done"; requestId: string; annotationId: string; commentId: string }
-  | { type: "agent:message:result"; requestId: string; annotationId: string; comment: Comment }
-  | { type: "agent:annotate:start"; requestId: string; agent: PublicAgent }
-  | { type: "agent:annotate:item"; requestId: string; annotation: Annotation }
-  | { type: "agent:annotate:done"; requestId: string }
-  | { type: "agent:annotate:result"; requestId: string; annotations: Annotation[] }
-  | { type: "error"; requestId?: string; message: string };
+  | { type: 'agent:message:done'; requestId: string; annotationId: string; commentId: string }
+  | { type: 'agent:message:result'; requestId: string; annotationId: string; comment: Comment }
+  | { type: 'agent:annotate:start'; requestId: string; agent: PublicAgent }
+  | { type: 'agent:annotate:item'; requestId: string; annotation: Annotation }
+  | { type: 'agent:annotate:done'; requestId: string }
+  | { type: 'agent:annotate:result'; requestId: string; annotations: Annotation[] }
+  | { type: 'error'; requestId?: string; message: string };
 
 export function makeId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
@@ -227,7 +227,7 @@ export function renderMarkdown(content: string): string {
 }
 
 function renderMarkdownBlocks(content: string) {
-  const lines = content.replace(/\r\n?/g, "\n").split("\n");
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
   const blocks: string[] = [];
 
   for (let index = 0; index < lines.length; ) {
@@ -246,7 +246,7 @@ function renderMarkdownBlocks(content: string) {
         index += 1;
       }
       if (index < lines.length) index += 1;
-      blocks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      blocks.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
       continue;
     }
 
@@ -261,7 +261,7 @@ function renderMarkdownBlocks(content: string) {
     if (/^\s*>\s?/.test(line)) {
       const quoteLines: string[] = [];
       while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
-        quoteLines.push(lines[index].replace(/^\s*>\s?/, ""));
+        quoteLines.push(lines[index].replace(/^\s*>\s?/, ''));
         index += 1;
       }
       blocks.push(`<blockquote>${renderParagraph(quoteLines)}</blockquote>`);
@@ -271,20 +271,20 @@ function renderMarkdownBlocks(content: string) {
     if (/^\s*[-*+]\s+/.test(line)) {
       const items: string[] = [];
       while (index < lines.length && /^\s*[-*+]\s+/.test(lines[index])) {
-        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*[-*+]\s+/, ""))}</li>`);
+        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*[-*+]\s+/, ''))}</li>`);
         index += 1;
       }
-      blocks.push(`<ul>${items.join("")}</ul>`);
+      blocks.push(`<ul>${items.join('')}</ul>`);
       continue;
     }
 
     if (/^\s*\d+\.\s+/.test(line)) {
       const items: string[] = [];
       while (index < lines.length && /^\s*\d+\.\s+/.test(lines[index])) {
-        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*\d+\.\s+/, ""))}</li>`);
+        items.push(`<li>${renderMarkdownInline(lines[index].replace(/^\s*\d+\.\s+/, ''))}</li>`);
         index += 1;
       }
-      blocks.push(`<ol>${items.join("")}</ol>`);
+      blocks.push(`<ol>${items.join('')}</ol>`);
       continue;
     }
 
@@ -292,7 +292,7 @@ function renderMarkdownBlocks(content: string) {
     while (
       index < lines.length &&
       lines[index].trim() &&
-      !lines[index].startsWith("```") &&
+      !lines[index].startsWith('```') &&
       !/^(#{1,6})\s+/.test(lines[index]) &&
       !/^\s*>\s?/.test(lines[index]) &&
       !/^\s*[-*+]\s+/.test(lines[index]) &&
@@ -304,11 +304,11 @@ function renderMarkdownBlocks(content: string) {
     blocks.push(`<p>${renderParagraph(paragraphLines)}</p>`);
   }
 
-  return blocks.join("");
+  return blocks.join('');
 }
 
 function renderParagraph(lines: string[]) {
-  return lines.map((line) => renderMarkdownInline(line)).join("<br>");
+  return lines.map((line) => renderMarkdownInline(line)).join('<br>');
 }
 
 function renderMarkdownInline(content: string) {
@@ -329,10 +329,10 @@ function renderMarkdownInline(content: string) {
   });
 
   text = escapeHtml(text)
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
-    .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
-    .replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>');
 
   tokens.forEach((value, index) => {
     text = text.replace(`@@YOMITOMO_MD_${index}@@`, value);
@@ -343,11 +343,11 @@ function renderMarkdownInline(content: string) {
 
 function escapeHtml(input: string) {
   return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function findAll(text: string, exact: string): number[] {

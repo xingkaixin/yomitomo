@@ -1,16 +1,16 @@
-import { createServer, type Server } from "node:http";
-import { WebSocket, WebSocketServer } from "ws";
+import { createServer, type Server } from 'node:http';
+import { WebSocket, WebSocketServer } from 'ws';
 import type {
   Agent,
   DesktopClientMessage,
   DesktopServerMessage,
   PublicAgent,
   UserProfile,
-} from "@yomitomo/shared";
-import { makeId } from "@yomitomo/shared";
-import { readStore, saveArticle } from "./store";
-import { runAgentAnnotateStream, runAgentStream } from "./llm";
-import { logError, logInfo } from "./logger";
+} from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
+import { readStore, saveArticle } from './store';
+import { runAgentAnnotateStream, runAgentStream } from './llm';
+import { logError, logInfo } from './logger';
 
 const PORT = 43891;
 
@@ -21,8 +21,8 @@ export async function startLocalServer() {
   if (httpServer) return;
 
   httpServer = createServer((request, response) => {
-    if (request.url === "/health") {
-      response.writeHead(200, { "content-type": "application/json" });
+    if (request.url === '/health') {
+      response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ ok: true }));
       return;
     }
@@ -32,21 +32,21 @@ export async function startLocalServer() {
   });
 
   wsServer = new WebSocketServer({ server: httpServer });
-  wsServer.on("connection", (socket) => {
-    logInfo("ws.connection");
+  wsServer.on('connection', (socket) => {
+    logInfo('ws.connection');
     void sendStatus(socket);
 
-    socket.on("message", (raw) => {
+    socket.on('message', (raw) => {
       void handleMessage(socket, raw.toString());
     });
 
-    socket.on("close", (code, reason) => {
-      logInfo("ws.close", { code, reason: reason.toString() });
+    socket.on('close', (code, reason) => {
+      logInfo('ws.close', { code, reason: reason.toString() });
     });
   });
 
-  httpServer.listen(PORT, "127.0.0.1");
-  logInfo("server.listen", { port: PORT });
+  httpServer.listen(PORT, '127.0.0.1');
+  logInfo('server.listen', { port: PORT });
 }
 
 export function broadcastStatus() {
@@ -61,18 +61,18 @@ async function handleMessage(socket: WebSocket, raw: string) {
   let requestId: string | undefined;
   try {
     const message = JSON.parse(raw) as DesktopClientMessage;
-    requestId = "requestId" in message ? message.requestId : undefined;
-    logInfo("ws.message", { type: message.type, requestId });
+    requestId = 'requestId' in message ? message.requestId : undefined;
+    logInfo('ws.message', { type: message.type, requestId });
 
-    if (message.type === "hello") {
+    if (message.type === 'hello') {
       await sendStatus(socket);
       return;
     }
 
-    if (message.type === "agent:list") {
+    if (message.type === 'agent:list') {
       const store = await readStore();
       send(socket, {
-        type: "agent:list:result",
+        type: 'agent:list:result',
         requestId: message.requestId,
         user: toPublicUser(store.user),
         agents: toPublicAgents(store.agents),
@@ -80,9 +80,9 @@ async function handleMessage(socket: WebSocket, raw: string) {
       return;
     }
 
-    if (message.type === "article:save") {
+    if (message.type === 'article:save') {
       await saveArticle(message.payload);
-      logInfo("article.save", {
+      logInfo('article.save', {
         requestId: message.requestId,
         articleId: message.payload.id,
         title: message.payload.title,
@@ -91,7 +91,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       return;
     }
 
-    if (message.type === "agent:message") {
+    if (message.type === 'agent:message') {
       const store = await readStore();
       const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
@@ -100,9 +100,9 @@ async function handleMessage(socket: WebSocket, raw: string) {
       if (!provider) throw new Error(`Agent ${agent.nickname} 没有关联可用 provider`);
 
       const comment = {
-        id: makeId("comment"),
-        author: "ai" as const,
-        content: "",
+        id: makeId('comment'),
+        author: 'ai' as const,
+        content: '',
         createdAt: new Date().toISOString(),
         agentId: agent.id,
         agentUsername: agent.username,
@@ -113,7 +113,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       };
 
       send(socket, {
-        type: "agent:message:start",
+        type: 'agent:message:start',
         requestId: message.requestId,
         annotationId: message.payload.annotation.id,
         comment,
@@ -121,7 +121,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
       await runAgentStream(provider, agent, message.payload, (delta) => {
         send(socket, {
-          type: "agent:message:delta",
+          type: 'agent:message:delta',
           requestId: message.requestId,
           annotationId: message.payload.annotation.id,
           commentId: comment.id,
@@ -130,7 +130,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       });
 
       send(socket, {
-        type: "agent:message:done",
+        type: 'agent:message:done',
         requestId: message.requestId,
         annotationId: message.payload.annotation.id,
         commentId: comment.id,
@@ -138,7 +138,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       return;
     }
 
-    if (message.type === "agent:annotate") {
+    if (message.type === 'agent:annotate') {
       const store = await readStore();
       const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
@@ -146,39 +146,39 @@ async function handleMessage(socket: WebSocket, raw: string) {
       const provider = store.providers.find((item) => item.id === agent.providerId);
       if (!provider) throw new Error(`Agent ${agent.nickname} 没有关联可用 provider`);
 
-      logInfo("agent.annotate.start", {
+      logInfo('agent.annotate.start', {
         requestId: message.requestId,
         agent: agent.username,
         articleTitle: message.payload.article.title,
         articleChars: message.payload.article.text.length,
       });
       send(socket, {
-        type: "agent:annotate:start",
+        type: 'agent:annotate:start',
         requestId: message.requestId,
         agent: toPublicAgents([agent])[0],
       });
 
       await runAgentAnnotateStream(provider, agent, message.payload, (annotation) => {
-        logInfo("agent.annotate.item", {
+        logInfo('agent.annotate.item', {
           requestId: message.requestId,
           agent: agent.username,
           annotationId: annotation.id,
           exactChars: annotation.anchor.exact.length,
           exactPreview: annotation.anchor.exact.slice(0, 80),
         });
-        send(socket, { type: "agent:annotate:item", requestId: message.requestId, annotation });
+        send(socket, { type: 'agent:annotate:item', requestId: message.requestId, annotation });
       });
 
-      logInfo("agent.annotate.done", { requestId: message.requestId, agent: agent.username });
-      send(socket, { type: "agent:annotate:done", requestId: message.requestId });
+      logInfo('agent.annotate.done', { requestId: message.requestId, agent: agent.username });
+      send(socket, { type: 'agent:annotate:done', requestId: message.requestId });
       return;
     }
   } catch (error) {
-    logError("ws.message.error", error, { requestId });
+    logError('ws.message.error', error, { requestId });
     send(socket, {
-      type: "error",
+      type: 'error',
       requestId,
-      message: error instanceof Error ? error.message : "本地服务处理失败",
+      message: error instanceof Error ? error.message : '本地服务处理失败',
     });
   }
 }
@@ -186,7 +186,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 async function sendStatus(socket: WebSocket) {
   const store = await readStore();
   send(socket, {
-    type: "status",
+    type: 'status',
     ok: true,
     user: toPublicUser(store.user),
     agents: toPublicAgents(store.agents),
@@ -197,9 +197,9 @@ function send(socket: WebSocket, message: DesktopServerMessage) {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(message));
   } else {
-    logInfo("ws.send.drop", {
+    logInfo('ws.send.drop', {
       type: message.type,
-      requestId: "requestId" in message ? message.requestId : undefined,
+      requestId: 'requestId' in message ? message.requestId : undefined,
       readyState: socket.readyState,
     });
   }
