@@ -91,9 +91,13 @@ type HighlightBox = {
 };
 
 type TocItem = {
-  targetId: string;
+  index: number;
   text: string;
   depth: number;
+};
+
+type TocEntry = TocItem & {
+  target: HTMLElement;
 };
 
 type ReaderSettings = {
@@ -1254,12 +1258,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (firstRect && surface) scrollReaderSurfaceToRect(surface, firstRect, 96);
   }
 
-  function scrollToHeading(targetId: string) {
-    const heading = articleRef.current?.querySelector<HTMLElement>(
-      `[data-reader-toc-id="${CSS.escape(targetId)}"]`,
-    );
+  function scrollToHeading(item: TocItem) {
+    const article = articleRef.current;
     const surface = surfaceRef.current;
-    if (!heading || !surface) return;
+    if (!article || !surface) return;
+
+    const heading = findCurrentTocTarget(article, item);
+    if (!heading) return;
 
     scrollReaderSurfaceToElement(surface, heading, 32);
   }
@@ -1320,9 +1325,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
             <button
               className="reader-toc-item"
               data-depth={Math.min(item.depth, 4)}
-              key={item.targetId}
+              key={`${item.index}-${item.text}`}
               type="button"
-              onClick={() => scrollToHeading(item.targetId)}
+              onClick={() => scrollToHeading(item)}
             >
               {item.text}
             </button>
@@ -1990,6 +1995,17 @@ function isRangeInsideArticle(range: Range, article: HTMLElement) {
 }
 
 function extractTocItems(article: HTMLElement) {
+  return getTocEntries(article).map(({ index, text, depth }) => ({ index, text, depth }));
+}
+
+function findCurrentTocTarget(article: HTMLElement, item: TocItem) {
+  const entries = getTocEntries(article);
+  const indexed = entries[item.index];
+  if (indexed?.text === item.text) return indexed.target;
+  return entries.find((entry) => entry.text === item.text)?.target || null;
+}
+
+function getTocEntries(article: HTMLElement): TocEntry[] {
   const semanticHeadings = collectTocCandidates(
     Array.from(article.querySelectorAll<HTMLElement>("h1, h2, h3, h4")),
     (element) => Number(element.tagName.slice(1)) - 1,
@@ -2011,16 +2027,17 @@ function extractTocItems(article: HTMLElement) {
   return collectTocCandidates(inferredHeadings, () => 1);
 }
 
-function collectTocCandidates(elements: HTMLElement[], getDepth: (element: HTMLElement) => number) {
+function collectTocCandidates(
+  elements: HTMLElement[],
+  getDepth: (element: HTMLElement) => number,
+): TocEntry[] {
   return elements
     .map((element, index) => {
       const text = element.textContent?.trim().replace(/\s+/g, " ") || "";
       if (!text) return null;
-      const targetId = `reader-toc-${index}-${hashText(text)}`;
-      element.dataset.readerTocId = targetId;
-      return { targetId, text, depth: getDepth(element) };
+      return { index, target: element, text, depth: getDepth(element) };
     })
-    .filter((item): item is TocItem => Boolean(item));
+    .filter((item): item is TocEntry => Boolean(item));
 }
 
 function offsetFromArticleStart(article: HTMLElement, node: Node, offset: number) {
