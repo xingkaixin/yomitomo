@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { Kbd } from '../src/components/ui/kbd';
+import { Tabs, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import {
   type Annotation,
   type AnnotationType,
@@ -1523,6 +1524,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         </div>
         <div className="reader-toolbar-actions">
           <button
+            className={
+              agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
+            }
+            type="button"
+            disabled={!desktopConnected || agents.length === 0}
+            onClick={() => setAgentAnnotateOpen((open) => !open)}
+          >
+            <Bot size={14} />
+            {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
+          </button>
+          <button
             className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
             type="button"
             onClick={() => setSettingsOpen((open) => !open)}
@@ -1535,6 +1547,19 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           </button>
         </div>
       </header>
+
+      {agentAnnotateOpen ? (
+        <div className="reader-agent-annotate-popover">
+          <AgentAnnotateMenu
+            agents={agents}
+            annotatingAgents={annotatingAgents}
+            selectedAgentIds={selectedAgentIds}
+            onCancel={cancelAgentAnnotateMenu}
+            onStart={requestSelectedAgentAnnotations}
+            onToggle={toggleSelectedAgent}
+          />
+        </div>
+      ) : null}
 
       {settingsOpen ? (
         <ReaderSettingsPanel settings={readerSettings} onChange={updateReaderSettings} />
@@ -1555,15 +1580,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
               >
                 <span className="reader-toc-item-main">
                   <span>{item.text}</span>
-                  {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
-                </span>
-                {(stats?.colors.length || 0) > 0 ? (
-                  <span className="reader-toc-markers">
-                    {stats!.colors.slice(0, 5).map((color) => (
-                      <i key={color} style={{ backgroundColor: color }} />
-                    ))}
+                  <span className="reader-toc-meta">
+                    {(stats?.colors.length || 0) > 0 ? (
+                      <span className="reader-toc-markers">
+                        {stats!.colors.slice(0, 5).map((color) => (
+                          <i key={color} style={{ backgroundColor: color }} />
+                        ))}
+                      </span>
+                    ) : null}
+                    {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
                   </span>
-                ) : null}
+                </span>
               </button>
             );
           })}
@@ -1644,48 +1671,22 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           <div className="reader-notes-header">
             <div className="reader-notes-title-row">
               <strong>批注</strong>
-              <div className="reader-notes-actions">
-                <button
-                  className={
-                    agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
-                  }
-                  type="button"
-                  disabled={!desktopConnected || agents.length === 0}
-                  onClick={() => setAgentAnnotateOpen((open) => !open)}
-                >
-                  <Bot size={14} />
-                  {annotatingAgents.length > 0 ? '批注中' : '助手批注'}
-                </button>
-              </div>
+              <span>
+                {filteredAnnotations.length} / {annotations.length}
+              </span>
             </div>
-            <div className="reader-note-filters">
-              <FilterButton
-                active={noteFilter === 'all'}
-                label="全部"
-                onClick={() => setNoteFilter('all')}
-              />
-              <FilterButton
-                active={noteFilter === 'ai'}
-                label="助手批注"
-                onClick={() => setNoteFilter('ai')}
-              />
-              <FilterButton
-                active={noteFilter === 'user'}
-                label="我的批注"
-                onClick={() => setNoteFilter('user')}
-              />
-            </div>
+            <Tabs
+              className="reader-note-tabs"
+              value={noteFilter}
+              onValueChange={(value) => setNoteFilter(value as NoteFilter)}
+            >
+              <TabsList>
+                <TabsTrigger value="all">全部</TabsTrigger>
+                <TabsTrigger value="ai">助手批注</TabsTrigger>
+                <TabsTrigger value="user">我的批注</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          {agentAnnotateOpen ? (
-            <AgentAnnotateMenu
-              agents={agents}
-              annotatingAgents={annotatingAgents}
-              selectedAgentIds={selectedAgentIds}
-              onCancel={cancelAgentAnnotateMenu}
-              onStart={requestSelectedAgentAnnotations}
-              onToggle={toggleSelectedAgent}
-            />
-          ) : null}
           {annotations.length === 0 ? <EmptyNotes /> : null}
           {annotations.length > 0 && filteredAnnotations.length === 0 ? (
             <div className="reader-empty">
@@ -1737,22 +1738,6 @@ function SelectionMenu({
         批注
       </button>
     </div>
-  );
-}
-
-function FilterButton({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button className={active ? 'is-active' : ''} type="button" onClick={onClick}>
-      {label}
-    </button>
   );
 }
 
@@ -2195,132 +2180,113 @@ function AnnotationCard({
       ref={noteRef}
       style={noteStyle(author.color, active)}
     >
-      <div className="reader-note-shell">
-        <button
-          className="reader-comment-count"
-          style={{ '--comment-color': author.color } as React.CSSProperties}
-          type="button"
-          onClick={() => setExpanded((open) => !open)}
-          aria-label={`${annotation.comments.length} 条评论`}
-        >
-          <MessageSquare size={14} />
-          <span>{annotation.comments.length}</span>
-        </button>
-        <div className="reader-note-body">
-          <button
-            className="reader-note-anchor"
-            type="button"
-            onClick={() => onFocus(annotation.id)}
-          >
-            <span className="reader-note-persona">
-              <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-              <strong>{author.nickname}</strong>
-              <em>@{author.username}</em>
+      <div className="reader-note-body">
+        <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
+          <span className="reader-note-persona">
+            <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+            <strong>{author.nickname}</strong>
+            <em>@{author.username}</em>
+          </span>
+          {annotation.annotationType ? (
+            <span className="reader-note-type">
+              {annotationTypeLabel(annotation.annotationType)}
             </span>
-            {annotation.annotationType ? (
-              <span className="reader-note-type">
-                {annotationTypeLabel(annotation.annotationType)}
-              </span>
-            ) : null}
-            <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
-          </button>
-          <div className="reader-note-toolbar">
-            <button
-              className="reader-comment-toggle"
-              type="button"
-              onClick={() => setExpanded((open) => !open)}
-            >
-              <MessageSquare size={14} />
-              {annotation.comments.length} 条评论
-              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            <button
-              className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
-              style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
-              type="button"
-              aria-label="长按删除批注"
-              onClick={(event) => event.preventDefault()}
-              onContextMenu={(event) => event.preventDefault()}
-              onPointerCancel={clearDeleteHold}
-              onPointerDown={startDeleteHold}
-              onPointerLeave={clearDeleteHold}
-              onPointerUp={clearDeleteHold}
-            >
-              <Trash2 size={13} />
-              <span>长按删除</span>
-            </button>
-          </div>
-          {expanded ? (
-            <>
-              <div className="reader-comments">
-                {annotation.comments.length === 0 ? (
-                  <p className="reader-muted">已高亮，暂无文字批注。</p>
-                ) : null}
-                {annotation.comments.map((comment) => {
-                  const commentAuthor = commentPersona(comment, userProfile, agents);
-                  return (
-                    <div className="reader-comment" key={comment.id}>
-                      <AvatarBadge
-                        avatar={commentAuthor.avatar}
-                        fallback={commentAuthor.fallback}
-                      />
-                      <div className="reader-comment-body">
-                        <div className="reader-comment-author">
-                          <strong>{commentAuthor.nickname}</strong>
-                          <em>@{commentAuthor.username}</em>
-                        </div>
-                        <MarkdownContent content={comment.content} pending={comment.pending} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="reader-comment-box">
-                <textarea
-                  autoFocus={active}
-                  ref={textareaRef}
-                  placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
-                  value={draft}
-                  onChange={(event) => {
-                    setDraft(event.currentTarget.value);
-                    updateCaret(event.currentTarget);
-                  }}
-                  onClick={(event) => updateCaret(event.currentTarget)}
-                  onKeyDown={handleKeyDown}
-                  onKeyUp={handleKeyUp}
-                  onSelect={(event) => updateCaret(event.currentTarget)}
-                />
-                {matchedAgents.length > 0 ? (
-                  <div className="reader-agent-menu">
-                    {matchedAgents.map((agent, index) => (
-                      <button
-                        className={index === selectedMentionIndex ? 'is-active' : ''}
-                        key={agent.id}
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => selectAgent(agent)}
-                      >
-                        <AvatarBadge avatar={agent.avatar} />
-                        <strong>{agent.nickname}</strong>
-                        <em>@{agent.username}</em>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="reader-note-footer">
-                <div className="reader-shortcut-hint">
-                  <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
-                  <Kbd className="reader-kbd">Enter</Kbd>
-                  <span>发送</span>
-                </div>
-                <button className="reader-add-comment" type="button" onClick={submit}>
-                  添加评论
-                </button>
-              </div>
-            </>
           ) : null}
+          <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
+        </button>
+        <div className="reader-note-toolbar">
+          <button
+            className="reader-comment-toggle"
+            type="button"
+            onClick={() => setExpanded((open) => !open)}
+          >
+            <MessageSquare size={14} />
+            {annotation.comments.length} 条评论
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          <button
+            className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
+            style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+            type="button"
+            aria-label="长按删除批注"
+            onClick={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
+            onPointerCancel={clearDeleteHold}
+            onPointerDown={startDeleteHold}
+            onPointerLeave={clearDeleteHold}
+            onPointerUp={clearDeleteHold}
+          >
+            <Trash2 size={13} />
+            <span>长按删除</span>
+          </button>
         </div>
+        {expanded ? (
+          <>
+            <div className="reader-comments">
+              {annotation.comments.length === 0 ? (
+                <p className="reader-muted">已高亮，暂无文字批注。</p>
+              ) : null}
+              {annotation.comments.map((comment) => {
+                const commentAuthor = commentPersona(comment, userProfile, agents);
+                return (
+                  <div className="reader-comment" key={comment.id}>
+                    <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
+                    <div className="reader-comment-body">
+                      <div className="reader-comment-author">
+                        <strong>{commentAuthor.nickname}</strong>
+                        <em>@{commentAuthor.username}</em>
+                      </div>
+                      <MarkdownContent content={comment.content} pending={comment.pending} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="reader-comment-box">
+              <textarea
+                autoFocus={active}
+                ref={textareaRef}
+                placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
+                value={draft}
+                onChange={(event) => {
+                  setDraft(event.currentTarget.value);
+                  updateCaret(event.currentTarget);
+                }}
+                onClick={(event) => updateCaret(event.currentTarget)}
+                onKeyDown={handleKeyDown}
+                onKeyUp={handleKeyUp}
+                onSelect={(event) => updateCaret(event.currentTarget)}
+              />
+              {matchedAgents.length > 0 ? (
+                <div className="reader-agent-menu">
+                  {matchedAgents.map((agent, index) => (
+                    <button
+                      className={index === selectedMentionIndex ? 'is-active' : ''}
+                      key={agent.id}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectAgent(agent)}
+                    >
+                      <AvatarBadge avatar={agent.avatar} />
+                      <strong>{agent.nickname}</strong>
+                      <em>@{agent.username}</em>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="reader-note-footer">
+              <div className="reader-shortcut-hint">
+                <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
+                <Kbd className="reader-kbd">Enter</Kbd>
+                <span>发送</span>
+              </div>
+              <button className="reader-add-comment" type="button" onClick={submit}>
+                添加评论
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -2732,7 +2698,7 @@ function rangeFromOffsets(rootElement: HTMLElement, start: number, end: number) 
 }
 
 const readerConversationStyles = `
-.reader-main{grid-template-columns:260px minmax(0,1fr) 560px}
+.reader-main{grid-template-columns:320px minmax(0,1fr) 560px}
 .reader-highlight{background:rgba(244,201,93,.28);box-shadow:0 0 0 1px rgba(239,169,39,.24)}
 .reader-highlight.is-active{background:rgba(244,201,93,.45)}
 .reader-notes{padding:0 24px 48px;scroll-padding-top:104px}
@@ -2799,21 +2765,24 @@ const readerConversationStyles = `
 .reader-delete-note svg,.reader-delete-note span{position:relative;z-index:1}
 .reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
 @keyframes reader-delete-hold{to{width:100%}}
-.reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
-.reader-toc-item-main span{overflow:hidden;text-overflow:ellipsis}
+.reader-agent-annotate-popover{position:fixed;right:84px;top:76px;z-index:8;width:320px}
+.reader-agent-annotate-popover .reader-agent-annotate-menu{margin:0}
+.reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+.reader-toc-item-main>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reader-toc-meta{display:inline-flex;align-items:center;gap:8px}
 .reader-toc-item-main strong{display:grid;min-width:24px;height:24px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-ink);font-size:11px;font-weight:850}
-.reader-toc-markers{display:flex;align-items:center;gap:5px;margin-top:5px}
+.reader-toc-markers{display:flex;align-items:center;gap:5px}
 .reader-toc-markers i{width:8px;height:8px;border:1px solid rgba(37,29,22,.14);border-radius:999px;box-shadow:0 1px 2px rgba(37,29,22,.12)}
 .reader-toc-summary{margin-top:18px;padding:12px 10px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:rgba(255,250,240,.72);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760;line-height:1.4}
-.reader-notes-header{display:grid;gap:12px}
+.reader-notes-header{display:grid;gap:14px;margin:0 -24px 22px;padding:22px 24px 24px;border-bottom:1px solid rgba(37,29,22,.08);background:linear-gradient(180deg,rgba(246,239,224,.98),rgba(246,239,224,.9));box-shadow:0 14px 32px rgba(55,42,24,.08)}
 .reader-notes-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.reader-note-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:rgba(255,250,240,.76)}
-.reader-note-filters button{height:30px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:12px;font-weight:820}
-.reader-note-filters button:hover,.reader-note-filters button.is-active{background:#fffaf0;color:var(--reader-ink);box-shadow:0 1px 4px rgba(55,42,24,.08)}
-.reader-note-shell{display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px}
+.reader-notes-title-row strong{font-size:22px;font-weight:900;letter-spacing:0}
+.reader-notes-title-row span{display:inline-flex;align-items:center;height:28px;border:1px solid rgba(37,29,22,.1);border-radius:999px;background:rgba(255,250,240,.76);color:var(--reader-muted);font-size:12px;font-weight:820;padding:0 10px}
+.reader-note-tabs [data-slot="tabs-list"]{display:grid;width:100%;height:42px;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:rgba(255,250,240,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.72)}
+.reader-note-tabs [data-slot="tabs-trigger"]{height:32px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;font-weight:850;letter-spacing:0;padding:0 12px}
+.reader-note-tabs [data-slot="tabs-trigger"][data-state="active"]{background:#fffaf0;color:var(--reader-ink);box-shadow:0 5px 14px rgba(55,42,24,.1)}
+.reader-note-tabs [data-slot="tabs-trigger"]:focus-visible{outline:2px solid rgba(37,29,22,.24);outline-offset:2px}
 .reader-note-body{min-width:0}
-.reader-comment-count{position:sticky;top:112px;display:grid;width:30px;height:42px;place-items:center;border:1px solid color-mix(in srgb,var(--comment-color,#251d16) 38%,transparent);border-radius:999px;background:color-mix(in srgb,var(--comment-color,#251d16) 10%,#fffaf0);color:var(--comment-color,#251d16);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:4px 0}
-.reader-comment-count span{line-height:1}
 .reader-note-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
 .reader-comment-toggle{display:inline-flex;align-items:center;gap:6px;height:34px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;padding:0 10px}
 .reader-comment-toggle:hover{background:#f0e3cd;color:var(--reader-ink)}
