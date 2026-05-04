@@ -14,6 +14,9 @@ export type AnnotationSuggestion = {
   exact: string;
   comment: string;
   annotationType?: AnnotationType | null;
+  prefix?: string;
+  suffix?: string;
+  context?: string;
 };
 
 export type MentionQuery = {
@@ -103,7 +106,7 @@ export function createAgentAnnotation(
   now = new Date().toISOString(),
 ): Annotation | null {
   const exact = suggestion.exact.trim();
-  const start = articleText.indexOf(exact);
+  const start = findAgentAnnotationStart(articleText, exact, suggestion);
   if (start < 0) return null;
 
   const comment = suggestion.comment.trim();
@@ -135,6 +138,54 @@ export function createAgentAnnotation(
       : [],
     createdAt: now,
     updatedAt: now,
+  };
+}
+
+function findAgentAnnotationStart(
+  articleText: string,
+  exact: string,
+  suggestion: AnnotationSuggestion,
+) {
+  if (!exact) return -1;
+
+  const exactMatches = findAll(articleText, exact);
+  if (exactMatches.length === 0) return -1;
+  if (exactMatches.length === 1) return exactMatches[0];
+
+  const context = suggestionContext(exact, suggestion);
+  if (!context) return exactMatches[0];
+
+  let bestStart = exactMatches[0];
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (const start of exactMatches) {
+    const before = articleText.slice(Math.max(0, start - context.prefix.length), start);
+    const after = articleText.slice(
+      start + exact.length,
+      start + exact.length + context.suffix.length,
+    );
+    const score =
+      commonSuffixLength(before, context.prefix) + commonPrefixLength(after, context.suffix);
+    if (score > bestScore) {
+      bestScore = score;
+      bestStart = start;
+    }
+  }
+
+  return bestStart;
+}
+
+function suggestionContext(exact: string, suggestion: AnnotationSuggestion) {
+  const explicitPrefix = typeof suggestion.prefix === 'string' ? suggestion.prefix : '';
+  const explicitSuffix = typeof suggestion.suffix === 'string' ? suggestion.suffix : '';
+  if (explicitPrefix || explicitSuffix) return { prefix: explicitPrefix, suffix: explicitSuffix };
+
+  if (typeof suggestion.context !== 'string') return null;
+  const contextIndex = suggestion.context.indexOf(exact);
+  if (contextIndex < 0) return null;
+
+  return {
+    prefix: suggestion.context.slice(0, contextIndex),
+    suffix: suggestion.context.slice(contextIndex + exact.length),
   };
 }
 
@@ -292,10 +343,20 @@ export function annotationToPublicAgent(annotation: Annotation): PublicAgent | u
 
 export function parseAnnotationSuggestions(content: string): AnnotationSuggestion[] {
   const json = content.match(/\[[\s\S]*\]/)?.[0] || content;
-  const parsed = JSON.parse(json) as Array<{ exact?: unknown; comment?: unknown; type?: unknown }>;
+  const parsed = JSON.parse(json) as Array<{
+    exact?: unknown;
+    prefix?: unknown;
+    suffix?: unknown;
+    context?: unknown;
+    comment?: unknown;
+    type?: unknown;
+  }>;
   return parsed
     .map((item) => ({
       exact: typeof item.exact === 'string' ? item.exact : '',
+      prefix: typeof item.prefix === 'string' ? item.prefix : undefined,
+      suffix: typeof item.suffix === 'string' ? item.suffix : undefined,
+      context: typeof item.context === 'string' ? item.context : undefined,
       comment: typeof item.comment === 'string' ? item.comment : '',
       annotationType: normalizeAnnotationType(item.type),
     }))
@@ -321,4 +382,30 @@ function findAgentIdentity(
 
 function findUserIdentity(userId: string | undefined, userProfile: UserProfile) {
   return !userId || userId === userProfile.id ? userProfile : null;
+}
+
+function findAll(text: string, exact: string): number[] {
+  const matches: number[] = [];
+  let index = text.indexOf(exact);
+  while (index >= 0) {
+    matches.push(index);
+    index = text.indexOf(exact, index + exact.length);
+  }
+  return matches;
+}
+
+function commonPrefixLength(left: string, right: string): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    if (left[index] !== right[index]) return index;
+  }
+  return length;
+}
+
+function commonSuffixLength(left: string, right: string): number {
+  const length = Math.min(left.length, right.length);
+  for (let index = 1; index <= length; index += 1) {
+    if (left[left.length - index] !== right[right.length - index]) return index - 1;
+  }
+  return length;
 }

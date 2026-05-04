@@ -5,6 +5,7 @@ import {
   createAgentAnnotation,
   findMentionedAgents,
   getMentionQuery,
+  parseAnnotationSuggestions,
   replaceMentionQuery,
   updateAnnotationComment,
 } from './annotations';
@@ -89,6 +90,39 @@ describe('annotation core', () => {
     ).toBeNull();
   });
 
+  it('anchors repeated agent suggestion text with prefix and suffix context', () => {
+    const result = createAgentAnnotation(
+      agent,
+      'Alpha target closes one thought. Beta target opens the useful thought.',
+      {
+        exact: 'target',
+        prefix: 'Beta ',
+        suffix: ' opens',
+        comment: 'second target is the useful one',
+      },
+      '2026-01-02T00:00:00.000Z',
+    );
+
+    expect(result?.anchor.start).toBe(38);
+    expect(result?.anchor.prefix).toContain('Beta ');
+    expect(result?.comments[0]?.content).toBe('second target is the useful one');
+  });
+
+  it('anchors repeated agent suggestion text from a context window', () => {
+    const result = createAgentAnnotation(
+      agent,
+      'Alpha target closes one thought. Beta target opens the useful thought.',
+      {
+        exact: 'target',
+        context: 'Beta target opens',
+        comment: 'context selects the second target',
+      },
+      '2026-01-02T00:00:00.000Z',
+    );
+
+    expect(result?.anchor.start).toBe(38);
+  });
+
   it('updates annotation comments immutably', () => {
     const base = annotation();
     const added = appendAnnotationComment([base], base.id, comment(), '2026-01-02T00:00:00.000Z');
@@ -127,5 +161,22 @@ describe('annotation core', () => {
 
     expect(query).toEqual({ query: 'rea', start: 4, end: 8 });
     expect(replaceMentionQuery('ask @rea today', query!, 'reader')).toBe('ask @reader  today');
+  });
+
+  it('parses agent annotation suggestions with context fields', () => {
+    expect(
+      parseAnnotationSuggestions(
+        '[{"exact":"target","prefix":"Beta ","suffix":" opens","context":"Beta target opens","type":"quote","comment":"note"}]',
+      ),
+    ).toEqual([
+      {
+        exact: 'target',
+        prefix: 'Beta ',
+        suffix: ' opens',
+        context: 'Beta target opens',
+        annotationType: 'quote',
+        comment: 'note',
+      },
+    ]);
   });
 });

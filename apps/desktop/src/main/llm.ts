@@ -158,13 +158,23 @@ export async function runAgentAnnotateStream(
     if (!cleaned) return;
 
     try {
-      const parsed = JSON.parse(cleaned) as { exact?: unknown; comment?: unknown; type?: unknown };
+      const parsed = JSON.parse(cleaned) as {
+        exact?: unknown;
+        prefix?: unknown;
+        suffix?: unknown;
+        context?: unknown;
+        comment?: unknown;
+        type?: unknown;
+      };
       const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
       const annotation = createAgentAnnotation(
         agent,
         payload.article.text,
         {
           exact,
+          prefix: typeof parsed.prefix === 'string' ? parsed.prefix : undefined,
+          suffix: typeof parsed.suffix === 'string' ? parsed.suffix : undefined,
+          context: typeof parsed.context === 'string' ? parsed.context : undefined,
           comment: typeof parsed.comment === 'string' ? parsed.comment : '',
           annotationType: normalizeAnnotationType(parsed.type),
         },
@@ -425,11 +435,11 @@ function formatUserMention(comment: Comment) {
 }
 
 function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload, agent: Agent) {
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
 }
 
 function buildAgentAnnotateStreamPrompt(payload: AgentAnnotatePayload, agent: Agent) {
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
 function buildReadingCardPrompt(input: GenerateReadingCardInput) {

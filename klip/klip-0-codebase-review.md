@@ -159,11 +159,16 @@ Status: Draft
 
 #### 4. AI 批注锚定在重复文本场景会落到首次匹配
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `packages/core/src/annotations.ts:99`
-  - `packages/core/src/annotations.ts:105`
-  - `packages/core/src/annotations.ts:106`
-  - `packages/shared/src/index.ts:256`
+  - `packages/core/src/annotations.ts:13`
+  - `packages/core/src/annotations.ts:102`
+  - `packages/core/src/annotations.ts:144`
+  - `packages/core/src/annotations.ts:344`
+  - `apps/desktop/src/main/llm.ts:160`
+  - `apps/desktop/src/main/llm.ts:437`
+  - `apps/desktop/src/main/llm.ts:441`
 - 现象 / 风险：
   - `createAgentAnnotation` 使用 `articleText.indexOf(exact)` 创建 anchor。
   - 当文章中存在多个相同 `exact` 片段时，AI 批注会绑定到第一次出现的位置。
@@ -175,9 +180,16 @@ Status: Draft
   - 调整 `buildAgentAnnotateStreamPrompt`，让模型输出短上下文。
   - `createAgentAnnotation` 优先使用上下文匹配，缺上下文时保留当前 exact 兼容路径。
   - 对重复 exact 添加单元测试。
+- 实施进展：
+  - `AnnotationSuggestion` 已新增可选 `prefix`、`suffix`、`context`。
+  - `createAgentAnnotation` 已改为在重复 `exact` 中按前后文相似度选择锚点；只有单一匹配时直接使用该位置。
+  - `parseAnnotationSuggestions` 已保留模型返回的 `prefix`、`suffix`、`context` 字段。
+  - 非流式和流式 Agent 批注 prompt 已要求输出 `prefix` / `suffix`；流式 NDJSON parser 已读取这些字段。
+  - `packages/core/src/annotations.test.ts` 已覆盖 prefix/suffix 锚定、context 锚定、旧 exact-only suggestion 和新字段解析。
+  - 验证：`pnpm lint`、`pnpm test`、`pnpm build` 均通过。
 - 验收标准：
-  - 两处相同 exact 但上下文不同的文章，批注落在匹配上下文的位置。
-  - 缺上下文字段的旧 suggestion 仍可创建批注。
+  - [x] 两处相同 exact 但上下文不同的文章，批注落在匹配上下文的位置。
+  - [x] 缺上下文字段的旧 suggestion 仍可创建批注。
 
 #### 5. 桌面端和扩展端缺少关键 UI / 集成测试
 
