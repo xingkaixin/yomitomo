@@ -26,6 +26,14 @@ describe('shared markdown rendering', () => {
     expect(html).toContain('<strong>world</strong>');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
   });
+
+  it('keeps unsafe markdown links as escaped text', () => {
+    const html = renderMarkdown('[click](javascript:alert(1)) [mail](mailto:test@example.com)');
+
+    expect(html).toContain('click');
+    expect(html).not.toContain('javascript:alert');
+    expect(html).toContain('href="mailto:test@example.com"');
+  });
 });
 
 describe('desktop socket origin policy', () => {
@@ -44,6 +52,18 @@ describe('desktop socket origin policy', () => {
 });
 
 describe('desktop client message parser', () => {
+  it('accepts auth and hello control messages without request ids', () => {
+    expect(parseDesktopClientMessage({ type: 'auth', token: 'pairing-token' })).toEqual({
+      ok: true,
+      message: { type: 'auth', token: 'pairing-token' },
+    });
+
+    expect(parseDesktopClientMessage({ type: 'hello' })).toEqual({
+      ok: true,
+      message: { type: 'hello' },
+    });
+  });
+
   it('accepts a valid article save message', () => {
     const result = parseDesktopClientMessage({
       type: 'article:save',
@@ -98,6 +118,49 @@ describe('desktop client message parser', () => {
     });
   });
 
+  it('rejects oversized nested annotation and comment payloads', () => {
+    const baseAnnotation = articleRecord().annotations[0] as Record<string, unknown> & {
+      comments: Record<string, unknown>[];
+    };
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:save',
+        requestId: 'request-1',
+        payload: articleRecord({
+          annotations: Array.from({ length: 1001 }, (_, index) => ({
+            ...baseAnnotation,
+            id: `annotation-${index}`,
+          })),
+        }),
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'article.annotations 超出数量限制' },
+    });
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:save',
+        requestId: 'request-1',
+        payload: articleRecord({
+          annotations: [
+            {
+              ...baseAnnotation,
+              comments: Array.from({ length: 201 }, (_, index) => ({
+                ...baseAnnotation.comments[0],
+                id: `comment-${index}`,
+              })),
+            },
+          ],
+        }),
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'article.annotations comments 超出数量限制' },
+    });
+  });
+
   it('accepts valid agent messages with empty pending ai comments', () => {
     const record = articleRecord();
     const result = parseDesktopClientMessage({
@@ -121,6 +184,26 @@ describe('desktop client message parser', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('validates agent annotate prompt boundaries', () => {
+    expect(
+      parseDesktopClientMessage({
+        type: 'agent:annotate',
+        requestId: 'request-1',
+        payload: {
+          agentUsername: 'reader',
+          article: {
+            title: 'Article',
+            url: 'https://example.com/article',
+            text: 'x'.repeat(300_001),
+          },
+        },
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'agent:annotate.article.text 超出传输容量边界' },
+    });
   });
 });
 

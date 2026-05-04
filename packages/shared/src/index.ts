@@ -943,7 +943,7 @@ function renderParagraph(lines: string[]) {
 function renderMarkdownInline(content: string) {
   const tokens: string[] = [];
   const token = (value: string) => {
-    const id = `@@YOMITOMO_MD_${tokens.length}@@`;
+    const id = `@@YOMITOMOMD${tokens.length}@@`;
     tokens.push(value);
     return id;
   };
@@ -964,7 +964,7 @@ function renderMarkdownInline(content: string) {
     .replace(/(^|[^_])_([^_]+)_/g, '$1<em>$2</em>');
 
   tokens.forEach((value, index) => {
-    text = text.replace(`@@YOMITOMO_MD_${index}@@`, value);
+    text = text.replace(`@@YOMITOMOMD${index}@@`, value);
   });
 
   return text;
