@@ -164,14 +164,25 @@ export function GeneralSettings({
           <AvatarImage value={draft.avatar || ''} className="size-20" fallback="我" />
           <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
         </div>
-        <Field description="批注和评论中展示的名称。" label="昵称">
+        <Field id="general-nickname" description="批注和评论中展示的名称。" label="昵称">
           <Input
+            id="general-nickname"
+            name="nickname"
+            autoComplete="off"
             value={draft.nickname || ''}
             onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
           />
         </Field>
-        <Field description="用于 @ 提及，仅支持英文、数字和下划线。" label="用户名">
+        <Field
+          id="general-username"
+          description="用于 @ 提及，仅支持英文、数字和下划线。"
+          label="用户名"
+        >
           <Input
+            id="general-username"
+            name="username"
+            autoComplete="off"
+            spellCheck={false}
             value={draft.username || ''}
             onChange={(event) =>
               onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
@@ -185,6 +196,7 @@ export function GeneralSettings({
           />
         </Field>
         <Field
+          id="general-default-provider"
           className="col-span-2"
           description="读后卡片等默认 AI 任务会使用这个供应商。"
           label="默认供应商"
@@ -196,7 +208,12 @@ export function GeneralSettings({
               onSettingsChange({ ...settingsDraft, defaultProviderId })
             }
           >
-            <SelectTrigger className="theme-select-trigger provider-select-trigger">
+            <SelectTrigger
+              id="general-default-provider"
+              aria-describedby="general-default-provider-description"
+              aria-labelledby="general-default-provider-label"
+              className="theme-select-trigger provider-select-trigger"
+            >
               <SelectValue placeholder={providers.length > 0 ? '选择默认供应商' : '先添加供应商'} />
             </SelectTrigger>
             <SelectContent className="theme-select-content provider-select-content">
@@ -475,34 +492,8 @@ function ConfigList({
     </aside>
   );
 }
-function PanelHeader({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <header className="panel-header">
-      <div className="flex items-center gap-3">
-        <div className="grid size-11 place-items-center rounded-2xl bg-primary text-primary-foreground">
-          {icon}
-        </div>
-        <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
-        </div>
-      </div>
-      {action}
-    </header>
-  );
-}
 
-function ProviderForm({
+export function ProviderForm({
   draft,
   onChange,
 }: {
@@ -511,18 +502,21 @@ function ProviderForm({
 }) {
   return (
     <div className="settings-form-grid">
-      <Field label="名称">
+      <Field id="provider-name" label="名称">
         <Input
+          id="provider-name"
+          name="provider-name"
+          autoComplete="off"
           value={draft.name || ''}
           onChange={(event) => onChange({ ...draft, name: event.target.value })}
         />
       </Field>
-      <Field label="API 类型">
+      <Field id="provider-type" label="API 类型">
         <Select
           value={draft.type || 'anthropic'}
           onValueChange={(value) => onChange({ ...draft, type: value as ProviderType })}
         >
-          <SelectTrigger>
+          <SelectTrigger id="provider-type" aria-labelledby="provider-type-label">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="theme-select-content">
@@ -534,20 +528,29 @@ function ProviderForm({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Base URL">
+      <Field id="provider-base-url" label="Base URL">
         <Input
+          id="provider-base-url"
+          name="provider-base-url"
+          type="url"
+          autoComplete="off"
           value={draft.baseUrl || ''}
           onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
         />
       </Field>
-      <Field label="模型">
+      <Field id="provider-model" label="模型">
         <Input
+          id="provider-model"
+          name="provider-model"
+          autoComplete="off"
+          spellCheck={false}
           value={draft.modelName || ''}
           onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
         />
       </Field>
-      <Field className="col-span-2" label="API Key">
+      <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput
+          id="provider-api-key"
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey })}
         />
@@ -556,7 +559,41 @@ function ProviderForm({
   );
 }
 
-function AgentForm({
+function moveOptionSelection<T extends string>(
+  event: React.KeyboardEvent<HTMLElement>,
+  values: T[],
+  current: T,
+  onSelect: (value: T) => void,
+) {
+  const keyOffset: Record<string, number> = {
+    ArrowDown: 1,
+    ArrowRight: 1,
+    ArrowLeft: -1,
+    ArrowUp: -1,
+  };
+  const currentIndex = Math.max(0, values.indexOf(current));
+  let nextIndex = currentIndex;
+
+  if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = values.length - 1;
+  else if (event.key in keyOffset) {
+    nextIndex = (currentIndex + keyOffset[event.key] + values.length) % values.length;
+  } else {
+    return;
+  }
+
+  const nextValue = values[nextIndex];
+  if (!nextValue) return;
+
+  event.preventDefault();
+  onSelect(nextValue);
+  requestAnimationFrame(() => {
+    const radios = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]'));
+    radios[nextIndex]?.focus();
+  });
+}
+
+export function AgentForm({
   draft,
   error,
   providers,
@@ -610,17 +647,34 @@ function AgentForm({
   return (
     <div className="settings-form-grid">
       <Field
+        id="agent-kind"
         className="col-span-2"
         description="阅读助手会出现在浏览器阅读器；审核助手用于后续读后卡片审稿流程。"
         label="助手类型"
       >
-        <div className="agent-kind-grid">
+        <div
+          aria-describedby="agent-kind-description"
+          aria-labelledby="agent-kind-label"
+          className="agent-kind-grid"
+          role="radiogroup"
+          onKeyDown={(event) =>
+            moveOptionSelection(
+              event,
+              agentKindOptions.map((option) => option.value),
+              agentKind,
+              changeKind,
+            )
+          }
+        >
           {agentKindOptions.map((option) => (
             <button
+              aria-checked={agentKind === option.value}
               className={
                 agentKind === option.value ? 'agent-kind-choice is-active' : 'agent-kind-choice'
               }
               key={option.value}
+              role="radio"
+              tabIndex={agentKind === option.value ? 0 : -1}
               type="button"
               onClick={() => changeKind(option.value)}
             >
@@ -630,13 +684,18 @@ function AgentForm({
           ))}
         </div>
       </Field>
-      <Field description="当前助手调用的模型供应商。" label="供应商">
+      <Field id="agent-provider" description="当前助手调用的模型供应商。" label="供应商">
         <Select
           disabled={providers.length === 0}
           value={draft.providerId || providers[0]?.id || ''}
           onValueChange={(providerId) => onChange({ ...draft, providerId })}
         >
-          <SelectTrigger className="provider-select-trigger">
+          <SelectTrigger
+            id="agent-provider"
+            aria-describedby="agent-provider-description"
+            aria-labelledby="agent-provider-label"
+            className="provider-select-trigger"
+          >
             <SelectValue placeholder="选择供应商" />
           </SelectTrigger>
           <SelectContent className="theme-select-content provider-select-content">
@@ -656,18 +715,26 @@ function AgentForm({
           </SelectContent>
         </Select>
       </Field>
-      <Field description="批注和评论中展示的名称。" label="昵称">
+      <Field id="agent-nickname" description="批注和评论中展示的名称。" label="昵称">
         <Input
+          id="agent-nickname"
+          name="agent-nickname"
+          autoComplete="off"
           value={draft.nickname || ''}
           onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
         />
       </Field>
       <Field
         className="col-span-2"
+        id="agent-username"
         description="用于 @ 提及，仅支持英文、数字和下划线。"
         label="用户名"
       >
         <Input
+          id="agent-username"
+          name="agent-username"
+          autoComplete="off"
+          spellCheck={false}
           value={draft.username || ''}
           onChange={(event) =>
             onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
@@ -676,6 +743,7 @@ function AgentForm({
       </Field>
       <Field
         className="col-span-2"
+        id="agent-color"
         description="这些颜色已按阅读器高亮可见性筛选。"
         label={agentKind === 'review' ? '标识颜色' : '批注颜色'}
       >
@@ -687,18 +755,35 @@ function AgentForm({
       {agentKind === 'annotation' ? (
         <Field
           className="col-span-2"
+          id="agent-annotation-density"
           description="决定助手主动批注时的积极程度，会影响提示词和模型采样。"
           label="批注密度"
         >
-          <div className="density-grid">
+          <div
+            aria-describedby="agent-annotation-density-description"
+            aria-labelledby="agent-annotation-density-label"
+            className="density-grid"
+            role="radiogroup"
+            onKeyDown={(event) =>
+              moveOptionSelection(
+                event,
+                annotationDensityOptions.map((option) => option.value),
+                draft.annotationDensity || 'medium',
+                (annotationDensity) => onChange({ ...draft, annotationDensity }),
+              )
+            }
+          >
             {annotationDensityOptions.map((option) => (
               <button
+                aria-checked={(draft.annotationDensity || 'medium') === option.value}
                 className={
                   (draft.annotationDensity || 'medium') === option.value
                     ? 'density-choice is-active'
                     : 'density-choice'
                 }
                 key={option.value}
+                role="radio"
+                tabIndex={(draft.annotationDensity || 'medium') === option.value ? 0 : -1}
                 type="button"
                 onClick={() => onChange({ ...draft, annotationDensity: option.value })}
               >
@@ -715,17 +800,35 @@ function AgentForm({
           onChange={(avatar) => onChange({ ...draft, avatar })}
         />
       </Field>
-      <Field className="col-span-2" label="个性">
+      <Field className="col-span-2" id="agent-personality" label="个性">
         <div className="personality-editor">
-          <div className="personality-grid">
+          <div
+            aria-labelledby="agent-personality-label"
+            className="personality-grid"
+            role="radiogroup"
+            onKeyDown={(event) =>
+              moveOptionSelection(
+                event,
+                [
+                  ...availablePersonalities.map((personality) => personality.id),
+                  customPersonalityId,
+                ],
+                personalityId,
+                changePersonality,
+              )
+            }
+          >
             {availablePersonalities.map((personality) => (
               <button
+                aria-checked={personalityId === personality.id}
                 className={
                   personalityId === personality.id
                     ? 'personality-choice is-active'
                     : 'personality-choice'
                 }
                 key={personality.id}
+                role="radio"
+                tabIndex={personalityId === personality.id ? 0 : -1}
                 type="button"
                 onClick={() => changePersonality(personality.id)}
               >
@@ -738,9 +841,12 @@ function AgentForm({
               </button>
             ))}
             <button
+              aria-checked={isCustomPersonality}
               className={
                 isCustomPersonality ? 'personality-choice is-active' : 'personality-choice'
               }
+              role="radio"
+              tabIndex={isCustomPersonality ? 0 : -1}
               type="button"
               onClick={() => changePersonality(customPersonalityId)}
             >
@@ -752,15 +858,30 @@ function AgentForm({
           </div>
           {isCustomPersonality ? (
             <div className="custom-personality-panel">
-              <Field description="保存自定义个性时必填。" label="自定义系统提示词">
+              <Field
+                id="agent-custom-soul"
+                description="保存自定义个性时必填。"
+                label="自定义系统提示词"
+              >
                 <Textarea
+                  id="agent-custom-soul"
+                  name="agent-custom-soul"
+                  aria-describedby="agent-custom-soul-description"
+                  autoComplete="off"
                   value={draft.soul || ''}
                   onChange={(event) => onChange({ ...draft, soul: event.target.value })}
                 />
               </Field>
-              <Field description="数值越高，回复越发散；数值越低，回复越稳定。" label="温度">
+              <Field
+                id="agent-temperature"
+                description="数值越高，回复越发散；数值越低，回复越稳定。"
+                label="温度"
+              >
                 <div className="temperature-control">
                   <input
+                    id="agent-temperature"
+                    name="agent-temperature"
+                    aria-describedby="agent-temperature-description"
                     max="1"
                     min="0"
                     step="0.05"
@@ -886,13 +1007,25 @@ function PersonalityIcon({
   );
 }
 
-function SecretInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function SecretInput({
+  id,
+  value,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
   const [visible, setVisible] = useState(false);
 
   return (
     <div className="relative">
       <Input
+        id={id}
         className="pr-12"
+        name={id}
+        autoComplete="off"
+        spellCheck={false}
         type={visible ? 'text' : 'password'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -926,50 +1059,6 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
           onChange={(event) => loadFile(event.target.files?.[0])}
         />
       </label>
-    </div>
-  );
-}
-
-function AvatarImage({
-  value,
-  fallback,
-  className = 'size-10',
-}: {
-  value: string;
-  fallback: string;
-  className?: string;
-}) {
-  const image = isImageAvatar(value);
-  const svg = isSvgAvatar(value);
-  const classes = ['avatar-image', className, image ? 'is-image' : '', svg ? 'is-svg' : '']
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <span className={classes}>
-      {image ? <img alt="" src={value} /> : <span>{value || fallback}</span>}
-    </span>
-  );
-}
-
-function Field({
-  label,
-  description,
-  className = '',
-  children,
-}: {
-  label: string;
-  description?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={`grid gap-2 ${className}`}>
-      <div className="field-copy">
-        <Label>{label}</Label>
-        {description ? <p>{description}</p> : null}
-      </div>
-      {children}
     </div>
   );
 }

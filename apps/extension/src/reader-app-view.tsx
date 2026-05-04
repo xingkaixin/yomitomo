@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot, Settings2, X } from 'lucide-react';
 import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
+import { annotationTypeLabel } from '@yomitomo/core';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 import type { ExtractedArticle } from './article-extraction';
 import type { HighlightBox, TocItem } from './reader-dom';
@@ -125,6 +126,15 @@ export function ReaderAppView({
 }: ReaderAppViewProps) {
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
 
+  function highlightLabel(annotationId: string) {
+    const index = annotations.findIndex((annotation) => annotation.id === annotationId);
+    const annotation = annotations[index];
+    const type = annotation?.annotationType
+      ? annotationTypeLabel(annotation.annotationType)
+      : '批注';
+    return index >= 0 ? `打开${type} ${index + 1}` : '打开批注';
+  }
+
   return (
     <div
       className="reader-app"
@@ -243,6 +253,7 @@ export function ReaderAppView({
             <div className="reader-highlight-layer">
               {boxes.map((box) => (
                 <button
+                  aria-label={highlightLabel(box.annotationId)}
                   className={
                     box.annotationId === activeId
                       ? 'reader-highlight is-active'

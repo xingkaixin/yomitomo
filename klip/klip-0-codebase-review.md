@@ -244,16 +244,15 @@ Status: Draft
 
 #### 7. 表单标签和输入控件缺少可访问关联
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/desktop/src/renderer/src/main.tsx:2617`
-  - `apps/desktop/src/renderer/src/main.tsx:2640`
-  - `apps/desktop/src/renderer/src/main.tsx:2762`
-  - `apps/desktop/src/renderer/src/main.tsx:2773`
-  - `apps/desktop/src/renderer/src/main.tsx:2997`
-  - `apps/desktop/src/renderer/src/main.tsx:3058`
-  - `apps/desktop/src/renderer/src/main.tsx:3072`
+  - `apps/desktop/src/renderer/src/app-ui.tsx:111`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:551`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:727`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:861`
   - `apps/extension/src/reader-components.tsx:267`
-  - `apps/extension/src/reader-components.tsx:492`
+  - `apps/extension/src/reader-components.tsx:493`
 - 现象 / 风险：
   - `Field` 渲染 `<Label>{label}</Label>`，但没有 `htmlFor`，子级 input 也没有稳定 `id`。
   - 纯 placeholder 的 textarea 对屏幕阅读器和语音输入不稳定。
@@ -263,16 +262,25 @@ Status: Draft
   - Provider、Agent、General 设置表单为每个 Input/Textarea/SelectTrigger 补稳定 id。
   - 扩展阅读器 composer/comment textarea 补 `aria-label` 或可见 label。
   - 对 `ProviderForm` 和 `AgentForm` 加 RTL 测试，使用 `getByLabelText` 查询关键控件。
+- 实施进展：
+  - `Field` 已支持 `id`、`htmlFor`、label id 和 description id。
+  - Provider、Agent、General 关键输入已补稳定 `id`、`name`、`autocomplete` 和必要的 `spellCheck={false}`。
+  - `SecretInput` 接收外部 `id`，API Key 输入框可由视觉 label 查询。
+  - 扩展端批注 textarea 和评论 textarea 已补 `aria-label`。
+  - 新增 `apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx` 和 `apps/extension/src/__tests__/reader-components.test.tsx`。
 - 验收标准：
-  - `getByLabelText("API Key")`、`getByLabelText("用户名")`、`getByLabelText("自定义系统提示词")` 能找到控件。
-  - 扩展端两个 textarea 都有可访问名称。
+  - [x] `getByLabelText("API Key")`、`getByLabelText("用户名")`、`getByLabelText("自定义系统提示词")` 能找到控件。
+  - [x] 扩展端两个 textarea 都有可访问名称。
 
 #### 8. 扩展阅读器的焦点和 motion 保护不完整
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/extension/entrypoints/content.tsx:1389`
-  - `apps/extension/src/reader-styles.ts:77`
-  - `apps/extension/src/reader-styles.ts:109`
+  - `apps/extension/src/reader-app-view.tsx:129`
+  - `apps/extension/src/reader-app-view.tsx:255`
+  - `apps/extension/src/reader-styles.ts:105`
+  - `apps/extension/src/reader-styles.ts:107`
 - 现象 / 风险：
   - 阅读器高亮按钮没有 `aria-label`，键盘用户无法知道按钮指向哪条批注。
   - 扩展样式里有 keyframes 和 transition，缺少 `prefers-reduced-motion` 保护。
@@ -282,17 +290,23 @@ Status: Draft
   - 在 `readerStyles` 加全局 `:focus-visible`，覆盖按钮、textarea、输入、tab。
   - 为扩展阅读器加入 `@media (prefers-reduced-motion: reduce)`，关闭动画并缩短 transition。
   - 保持现有视觉，不改布局。
+- 实施进展：
+  - 高亮按钮已按批注序号和类型生成 `aria-label`。
+  - 阅读器样式已添加全局 `:focus-visible`，覆盖 button、textarea、input 和 tabindex 元素，并给高亮按钮单独增强 focus ring。
+  - `prefers-reduced-motion: reduce` 已覆盖虚拟光标、删除 hold 进度和 spinner 动画。
 - 验收标准：
-  - 键盘 Tab 可以看到 toolbar、目录、批注、评论、关闭按钮的焦点位置。
-  - 系统 reduced motion 打开时，虚拟光标 leave、delete hold、spinner 以静态或低运动反馈呈现。
+  - [x] 键盘 Tab 可以看到 toolbar、目录、批注、评论、关闭按钮的焦点位置。
+  - [x] 系统 reduced motion 打开时，虚拟光标 leave、delete hold、spinner 以静态或低运动反馈呈现。
 
 #### 9. UI polish 已有基础，但部分 shadcn / 组件语义可以收敛
 
+状态：已完成（2026-05-04）
+
 - 位置：
   - `apps/desktop/components.json`
-  - `apps/desktop/src/renderer/src/main.tsx:2720`
-  - `apps/desktop/src/renderer/src/main.tsx:2796`
-  - `apps/desktop/src/renderer/src/main.tsx:2823`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:655`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:762`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:805`
   - `apps/desktop/src/renderer/src/styles.css:37`
   - `apps/desktop/src/renderer/src/styles.css:53`
 - 现象 / 风险：
@@ -302,9 +316,13 @@ Status: Draft
 - 建议方案：
   - 保留现有视觉 class，给 option button 加 `aria-pressed` 或改为语义化 ToggleGroup / RadioGroup。
   - 优先处理可访问语义和测试查询，随后评估是否纳入 shadcn form primitives。
+- 实施进展：
+  - 助手类型、批注密度、个性选择已保留现有视觉 class，并改为 `role="radiogroup"` / `role="radio"` / `aria-checked`。
+  - 三组 option set 已支持 ArrowUp、ArrowDown、ArrowLeft、ArrowRight、Home、End 键盘切换。
+  - `app-settings-panels.test.tsx` 已覆盖 option set 的 radio 语义和键盘切换。
 - 验收标准：
-  - 助手类型、批注密度、个性选择均可通过键盘操作和可访问名称识别当前选择。
-  - UI 回归测试覆盖至少一个 option set。
+  - [x] 助手类型、批注密度、个性选择均可通过键盘操作和可访问名称识别当前选择。
+  - [x] UI 回归测试覆盖至少一个 option set。
 
 ## 建议落地顺序
 
@@ -325,7 +343,9 @@ pnpm lint
 pnpm test
 # 6 successful, 6 total
 # packages/core: 2 test files, 10 tests passed
-# packages/shared/apps/desktop/apps/extension: passWithNoTests
+# apps/desktop: app-settings-panels.test.tsx, 3 tests passed
+# apps/extension: reader-components.test.tsx, 2 tests passed
+# packages/shared: passWithNoTests
 
 pnpm build
 # 4 successful, 4 total

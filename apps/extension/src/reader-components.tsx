@@ -265,8 +265,9 @@ export function Composer({
         ))}
       </div>
       <textarea
+        aria-label="批注内容"
         autoFocus
-        placeholder="写下你的批注..."
+        placeholder="写下你的批注…"
         value={note}
         onChange={(event) => setNote(event.target.value)}
         onKeyDown={(event) => {
@@ -490,9 +491,10 @@ export function AnnotationCard({
             </div>
             <div className="reader-comment-box">
               <textarea
+                aria-label="评论内容"
                 autoFocus={active}
                 ref={textareaRef}
-                placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手...' : '继续评论...'}
+                placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手…' : '继续评论…'}
                 value={draft}
                 onChange={(event) => {
                   setDraft(event.currentTarget.value);
