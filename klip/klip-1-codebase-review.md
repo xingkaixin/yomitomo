@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
-Updated: 2026-05-04
-Status: Draft
+Updated: 2026-05-05
+Status: Complete
 ---
 
 # klip-1-codebase-review
@@ -9,11 +9,11 @@ Status: Draft
 ## 背景
 
 - 本次审查覆盖 `apps/desktop`、`apps/extension`、`packages/shared`、`packages/core`、workspace 测试与构建链路。
-- `klip/klip-0-codebase-review.md` 已记录并完成本地 WebSocket 配对认证、协议 parser、LLM 输入预算、流式持久化合并、AI 批注上下文锚定等问题；本文只记录当前代码中仍存在的风险。
+- `klip/klip-0-codebase-review.md` 已记录并完成本地 WebSocket 配对认证、协议 parser、LLM 输入预算、流式持久化合并、AI 批注上下文锚定等问题；本文记录本轮审查发现、修复方案与完成证据。
 - 外部校准参考包含 2026-05-04 拉取的 Vercel Web Interface Guidelines、React performance best practices、React composition patterns、interface polish、transitions、frontend testing 与 Vitest 约束。
-- 本轮验证命令结果：`pnpm test` 通过，`pnpm build` 通过，`pnpm lint` 返回 0 且保留 1 个 warning。
+- 本轮验证命令结果：`pnpm lint` 0 warning / 0 error，`pnpm test` 通过，`pnpm build` 通过。
 
-## 现状
+## 初始现状（修复前）
 
 - 扩展的 content script 在 `apps/extension/entrypoints/content.tsx` 通过 `defineContentScript({ matches: ['<all_urls>'] })` 注册运行时消息监听；构建产物 `apps/extension/dist/chrome-mv3/manifest.json` 同时生成 `content_scripts`。
 - popup 在 `apps/extension/entrypoints/popup/main.tsx` 里先调用 `browser.scripting.executeScript({ files: ['content-scripts/content.js'] })`，再向当前 tab 发送 `yomitomo:toggle`。
@@ -303,9 +303,9 @@ Status: Draft
 
 ## 本轮验证记录
 
-- `pnpm test`：通过，4 个 package 共 63 个测试通过。
-- `pnpm build`：通过，desktop renderer bundle 输出 `dist/renderer/assets/index-DwfoIuiO.js`，大小 2,204.36 kB；extension 总大小 943.38 kB。
-- `pnpm lint`：返回 0，输出 1 个 warning：`packages/core/src/annotations.ts:227` 使用 `Array#sort()`。
+- `pnpm lint`：通过，0 warning / 0 error。
+- `pnpm test`：通过，4 个 package 共 17 个 test files、72 个 tests 通过。
+- `pnpm build`：通过，desktop renderer bundle 输出 `dist/renderer/assets/index-DwfoIuiO.js`，大小 2,204.36 kB；extension 总大小 943.93 kB。
 - `curl -fsSL https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md`：已拉取最新 Web Interface Guidelines。
 
 ## 本次代码复核证据
@@ -321,6 +321,14 @@ Status: Draft
 - `apps/extension/entrypoints/popup/main.tsx`
 - `apps/extension/entrypoints/content.tsx`
 - `apps/extension/entrypoints/background.ts`
+- `apps/extension/src/background-bridge.ts`
+- `apps/extension/src/content-runtime.ts`
+- `apps/extension/src/popup-actions.ts`
+- `apps/extension/src/popup-view.tsx`
+- `apps/extension/src/__tests__/background-bridge.test.ts`
+- `apps/extension/src/__tests__/content-runtime.test.ts`
+- `apps/extension/src/__tests__/popup-actions.test.ts`
+- `apps/extension/src/__tests__/popup-view.test.tsx`
 - `apps/extension/src/use-article-record-sync.ts`
 - `apps/extension/src/reader-components.tsx`
 - `apps/extension/src/reader-app-view.tsx`
