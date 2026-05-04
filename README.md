@@ -6,6 +6,8 @@
 
 Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Electron 桌面端组成：扩展把网页转成稳定阅读视图，桌面端保存阅读数据、管理 LLM provider 和阅读助手，并通过本机 WebSocket 为扩展提供 AI 批注能力。
 
+当前发布形式为源码仓库。项目处于 early alpha 阶段，以 macOS 本地开发和源码运行体验为主。
+
 ## 核心能力
 
 - 网页阅读器：正文抽取、目录、字号、宽度和批注侧栏。
@@ -15,6 +17,11 @@ Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Ele
 - 读后卡片：基于原文、批注和讨论生成阅读审议报告、AI 读后卡片，并交给审核助手检查。
 - 阅读统计：按文章、批注、讨论和读后卡片生成本地阅读趋势。
 - 本地配对：扩展使用桌面端配对码连接 `ws://127.0.0.1:43891`。
+- 零遥测：源码发布版采用本地优先设计，阅读数据和 provider API key 保存在本机。
+
+## 示例
+
+
 
 ## 项目结构
 
@@ -37,16 +44,30 @@ assets             项目静态资源
 - 测试：Vitest
 - Lint / Format：oxlint、oxfmt
 
-## 快速开始
+## 从源码运行
+
+### 环境准备
+
+- Node.js
+- pnpm 11
+- Chrome 或 Chromium 系浏览器
+- macOS 桌面开发环境
+- Xcode Command Line Tools，供 `better-sqlite3` native rebuild 使用
+
+启用 pnpm：
+
+```bash
+corepack enable
+corepack prepare pnpm@11.0.3 --activate
+```
+
+安装依赖：
 
 ```bash
 pnpm install
-pnpm dev
 ```
 
-`pnpm dev` 会通过 Turbo 同时启动 workspace 内的开发任务。常见开发流程是启动桌面端，再加载浏览器扩展。
-
-### 启动桌面端
+### 运行桌面端
 
 ```bash
 pnpm --filter @yomitomo/desktop dev
@@ -58,27 +79,45 @@ pnpm --filter @yomitomo/desktop dev
 - 在 Electron `userData` 目录保存 `yomitomo.sqlite`。
 - 提供用户、provider、助手、配对码、阅读库、统计、读后卡片和日志视图。
 
-### 启动扩展
+### 运行浏览器扩展
 
 ```bash
 pnpm --filter @yomitomo/extension dev
 ```
 
-也可以构建后手动加载 Chrome 扩展：
+WXT 会生成开发扩展产物。打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3-dev` 或 WXT 终端输出里的 Chrome MV3 目录。
+
+### 构建后加载扩展
+
+构建 Chrome MV3 扩展：
 
 ```bash
 pnpm --filter @yomitomo/extension build
 ```
 
-然后打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3`。
+打开 `chrome://extensions`，启用开发者模式，加载：
 
-## 使用方式
+```text
+apps/extension/dist/chrome-mv3
+```
+
+### 本地配对和 AI 配置
 
 1. 启动桌面端，在「通用」页复制桌面端配对码。
-2. 加载浏览器扩展，打开网页后点击扩展图标进入阅读器。
-3. 在阅读器设置中填入配对码，连接本机桌面端。
-4. 选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
-5. 回到桌面端「阅读库」查看已同步文章，并生成阅读审议、读后卡片和审核结果。
+2. 在「供应商」页创建 LLM provider，填写 base URL、API key 和模型名。
+3. 在「助手」页创建批注助手或审核助手，并关联 provider。
+4. 加载浏览器扩展，打开任意文章页后点击扩展图标进入阅读器。
+5. 在阅读器设置中填入配对码，连接本机桌面端。
+6. 选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
+7. 回到桌面端「阅读库」查看已同步文章，并生成阅读审议、读后卡片和审核结果。
+
+### 同时启动 workspace 开发任务
+
+```bash
+pnpm dev
+```
+
+`pnpm dev` 会通过 Turbo 启动各 workspace 的开发任务。日常调试时，分别运行桌面端和扩展更容易观察日志。
 
 ## 常用命令
 
@@ -129,4 +168,16 @@ pnpm --filter @yomitomo/shared test
 pnpm lint
 pnpm test
 pnpm build
+```
+
+## 开源许可证
+
+Yomitomo 使用 [Apache-2.0](LICENSE) 许可证发布。
+
+Copyright 2026 Yomitomo contributors.
+
+第三方生产依赖的许可证清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。清单可通过以下命令重新生成基础数据：
+
+```bash
+pnpm licenses list --prod --json
 ```
