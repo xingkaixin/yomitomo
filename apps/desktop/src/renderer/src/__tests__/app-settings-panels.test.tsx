@@ -3,7 +3,13 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentForm, GeneralSettings, ProviderForm } from '../app-settings-panels';
+import {
+  AgentForm,
+  GeneralSettings,
+  ProviderForm,
+  readingAgentAvatars,
+  reviewAgentAvatars,
+} from '../app-settings-panels';
 import { customPersonalityId, defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { ProviderOption } from '../app-types';
 
@@ -75,6 +81,27 @@ describe('AgentForm', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ annotationDensity: 'high' }));
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ personalityId: 'reading-partner' }),
+    );
+  });
+
+  it('uses type-specific avatar presets without assistant upload', () => {
+    const onChange = vi.fn();
+    render(
+      <AgentForm
+        draft={{ ...draft, avatar: readingAgentAvatars[0]?.src }}
+        error=""
+        providers={providers}
+        onChange={onChange}
+      />,
+    );
+
+    expect(screen.queryByText('上传')).toBeNull();
+    expect(document.querySelectorAll('.avatar-choice')).toHaveLength(20);
+
+    fireEvent.click(screen.getByRole('radio', { name: /审核助手/ }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'review', avatar: reviewAgentAvatars[0]?.src }),
     );
   });
 });

@@ -3425,9 +3425,7 @@
 
 .avatar-picker {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 76px;
-  align-items: start;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .avatar-grid {
@@ -3439,8 +3437,7 @@
   padding: 2px 4px 2px 2px;
 }
 
-.avatar-choice,
-.avatar-upload-choice {
+.avatar-choice {
   display: grid;
   aspect-ratio: 1;
   place-items: center;
@@ -3459,14 +3456,12 @@
 }
 
 .avatar-choice:hover,
-.avatar-choice.is-active,
-.avatar-upload-choice:hover {
+.avatar-choice.is-active {
   border-color: hsl(var(--card));
   box-shadow: 0 0 0 2px hsl(8 45% 46% / 0.72);
 }
 
-.avatar-choice:active,
-.avatar-upload-choice:active {
+.avatar-choice:active {
   transform: scale(0.96);
 }
 
@@ -3482,21 +3477,6 @@
 .avatar-choice img,
 .avatar-image.is-svg img {
   object-fit: contain;
-}
-
-.avatar-upload-choice {
-  width: 64px;
-  height: 64px;
-  font-size: 12px;
-  font-weight: 820;
-}
-
-.avatar-upload-choice input {
-  display: none;
-}
-
-.avatar-upload-choice span {
-  margin-top: -7px;
 }
 
 .avatar-image {

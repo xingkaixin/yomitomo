@@ -37,7 +37,8 @@ import {
   GeneralSettings,
   ProviderSettings,
   SettingsNavButton,
-  agentAvatars,
+  avatarForKind,
+  defaultAvatarForKind,
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import type { SaveState } from './app-types';
@@ -45,7 +46,7 @@ import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
-const emptyAgent = createEmptyAgent(agentAvatars[0]?.src || '');
+const emptyAgent = createEmptyAgent(defaultAvatarForKind('annotation'));
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -180,7 +181,11 @@ function App() {
 
   function selectAgent(agent: Agent) {
     setSelectedAgentId(agent.id);
-    setAgentDraft({ ...agent, personalityId: findAgentPersonalityId(agent.soul) });
+    setAgentDraft({
+      ...agent,
+      avatar: avatarForKind(agent.avatar, agent.kind),
+      personalityId: findAgentPersonalityId(agent.soul),
+    });
     setAgentSaveError('');
     setAgentSaveState('idle');
   }
@@ -276,6 +281,7 @@ function App() {
     try {
       const nextStore = await window.yomitomoDesktop.saveAgent({
         ...agentDraft,
+        avatar: avatarForKind(agentDraft.avatar, agentDraft.kind),
         providerId,
         soul: personality?.soul || agentDraft.soul,
         temperature:

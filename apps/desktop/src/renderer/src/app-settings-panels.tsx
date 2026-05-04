@@ -54,6 +54,26 @@ import avatar17Raw from './assets/avatars/lorelei-1777775001230.svg?raw';
 import avatar18Raw from './assets/avatars/lorelei-1777774999602.svg?raw';
 import avatar19Raw from './assets/avatars/lorelei-1777774980195.svg?raw';
 import avatar20Raw from './assets/avatars/lorelei-1777774975114.svg?raw';
+import reviewAvatar01Raw from './assets/review-avatars/notionists-1777882430781.svg?raw';
+import reviewAvatar02Raw from './assets/review-avatars/notionists-1777882429343.svg?raw';
+import reviewAvatar03Raw from './assets/review-avatars/notionists-1777882427960.svg?raw';
+import reviewAvatar04Raw from './assets/review-avatars/notionists-1777882426245.svg?raw';
+import reviewAvatar05Raw from './assets/review-avatars/notionists-1777882424152.svg?raw';
+import reviewAvatar06Raw from './assets/review-avatars/notionists-1777882422463.svg?raw';
+import reviewAvatar07Raw from './assets/review-avatars/notionists-1777882420595.svg?raw';
+import reviewAvatar08Raw from './assets/review-avatars/notionists-1777882418767.svg?raw';
+import reviewAvatar09Raw from './assets/review-avatars/notionists-1777882415900.svg?raw';
+import reviewAvatar10Raw from './assets/review-avatars/notionists-1777882413773.svg?raw';
+import reviewAvatar11Raw from './assets/review-avatars/notionists-1777882411527.svg?raw';
+import reviewAvatar12Raw from './assets/review-avatars/notionists-1777882408840.svg?raw';
+import reviewAvatar13Raw from './assets/review-avatars/notionists-1777882406509.svg?raw';
+import reviewAvatar14Raw from './assets/review-avatars/notionists-1777882404878.svg?raw';
+import reviewAvatar15Raw from './assets/review-avatars/notionists-1777882403212.svg?raw';
+import reviewAvatar16Raw from './assets/review-avatars/notionists-1777882401189.svg?raw';
+import reviewAvatar17Raw from './assets/review-avatars/notionists-1777882399095.svg?raw';
+import reviewAvatar18Raw from './assets/review-avatars/notionists-1777882397541.svg?raw';
+import reviewAvatar19Raw from './assets/review-avatars/notionists-1777882396039.svg?raw';
+import reviewAvatar20Raw from './assets/review-avatars/notionists-1777882394280.svg?raw';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import {
@@ -69,7 +89,13 @@ import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
 import type { ProviderOption, SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
-export const agentAvatars = [
+type AvatarOption = { id: string; src: string };
+
+function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
+  return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
+}
+
+export const readingAgentAvatars = makeAvatarOptions('reading-avatar', [
   avatar01Raw,
   avatar02Raw,
   avatar03Raw,
@@ -90,7 +116,45 @@ export const agentAvatars = [
   avatar18Raw,
   avatar19Raw,
   avatar20Raw,
-].map((raw, index) => ({ id: `avatar-${index + 1}`, src: svgToDataUrl(raw) }));
+]);
+
+export const reviewAgentAvatars = makeAvatarOptions('review-avatar', [
+  reviewAvatar01Raw,
+  reviewAvatar02Raw,
+  reviewAvatar03Raw,
+  reviewAvatar04Raw,
+  reviewAvatar05Raw,
+  reviewAvatar06Raw,
+  reviewAvatar07Raw,
+  reviewAvatar08Raw,
+  reviewAvatar09Raw,
+  reviewAvatar10Raw,
+  reviewAvatar11Raw,
+  reviewAvatar12Raw,
+  reviewAvatar13Raw,
+  reviewAvatar14Raw,
+  reviewAvatar15Raw,
+  reviewAvatar16Raw,
+  reviewAvatar17Raw,
+  reviewAvatar18Raw,
+  reviewAvatar19Raw,
+  reviewAvatar20Raw,
+]);
+
+export const agentAvatars = readingAgentAvatars;
+
+export function agentAvatarsForKind(kind: AgentKind | undefined) {
+  return (kind || 'annotation') === 'review' ? reviewAgentAvatars : readingAgentAvatars;
+}
+
+export function defaultAvatarForKind(kind: AgentKind | undefined) {
+  return agentAvatarsForKind(kind)[0]?.src || '';
+}
+
+export function avatarForKind(value: string | undefined, kind: AgentKind | undefined) {
+  const avatars = agentAvatarsForKind(kind);
+  return avatars.some((avatar) => avatar.src === value) ? value || '' : defaultAvatarForKind(kind);
+}
 
 export function SettingsNavButton({
   active,
@@ -459,7 +523,11 @@ export function AgentSettings({
                 type="button"
                 onClick={() => onSelect(agent)}
               >
-                <AvatarImage value={agent.avatar} className="size-10" fallback="AI" />
+                <AvatarImage
+                  value={avatarForKind(agent.avatar, agent.kind)}
+                  className="size-10"
+                  fallback="AI"
+                />
                 <span className="min-w-0">
                   <strong>{agent.nickname}</strong>
                   <span>
@@ -669,6 +737,7 @@ export function AgentForm({
     onChange({
       ...draft,
       kind,
+      avatar: avatarForKind(draft.avatar, kind),
       personalityId: firstPersonality?.id || customPersonalityId,
       soul: firstPersonality?.soul || '',
       temperature: firstPersonality?.temperature ?? customPersonality.temperature,
@@ -847,6 +916,7 @@ export function AgentForm({
       ) : null}
       <Field className="col-span-2" label="头像">
         <AvatarPicker
+          kind={agentKind}
           value={draft.avatar || ''}
           onChange={(avatar) => onChange({ ...draft, avatar })}
         />
@@ -973,18 +1043,21 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function AvatarPicker({ value, onChange }: { value: string; onChange: (avatar: string) => void }) {
-  const usesCustomAvatar = value && agentAvatars.every((avatar) => avatar.src !== value);
-
-  async function loadFile(file: File | undefined) {
-    if (!file) return;
-    onChange(await readFileAsDataUrl(file));
-  }
+function AvatarPicker({
+  kind,
+  value,
+  onChange,
+}: {
+  kind: AgentKind;
+  value: string;
+  onChange: (avatar: string) => void;
+}) {
+  const avatars = agentAvatarsForKind(kind);
 
   return (
     <div className="avatar-picker">
       <div className="avatar-grid">
-        {agentAvatars.map((avatar) => (
+        {avatars.map((avatar) => (
           <button
             className={value === avatar.src ? 'avatar-choice is-active' : 'avatar-choice'}
             key={avatar.id}
@@ -994,21 +1067,7 @@ function AvatarPicker({ value, onChange }: { value: string; onChange: (avatar: s
             <img alt="" src={avatar.src} />
           </button>
         ))}
-        {usesCustomAvatar ? (
-          <button className="avatar-choice is-active" type="button">
-            <img alt="" src={value} />
-          </button>
-        ) : null}
       </div>
-      <label className="avatar-upload-choice">
-        <Upload size={17} />
-        <span>上传</span>
-        <input
-          accept="image/*"
-          type="file"
-          onChange={(event) => loadFile(event.target.files?.[0])}
-        />
-      </label>
     </div>
   );
 }
