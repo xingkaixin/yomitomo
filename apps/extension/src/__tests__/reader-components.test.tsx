@@ -80,11 +80,33 @@ describe('Composer', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '延伸问题' }));
+    fireEvent.click(screen.getByRole('radio', { name: '延伸问题' }));
     fireEvent.change(screen.getByLabelText('批注内容'), { target: { value: '这里需要追问' } });
     fireEvent.click(screen.getByRole('button', { name: '保存批注' }));
 
     expect(onSave).toHaveBeenCalledWith('这里需要追问', 'question');
+  });
+
+  it('exposes annotation types as a keyboard selectable radio group', () => {
+    render(
+      <Composer
+        composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        shortcutModifier="⌘"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    const group = screen.getByRole('radiogroup', { name: '批注标签' });
+    expect(screen.getByRole('radio', { name: '关键判断' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+
+    fireEvent.keyDown(group, { key: 'ArrowRight' });
+
+    expect(screen.getByRole('radio', { name: '前提漏洞' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
   });
 });
 

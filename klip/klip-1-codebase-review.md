@@ -218,10 +218,16 @@ Status: Draft
   - 为单选按钮组加 `role="radiogroup"`，每个按钮加 `role="radio"` 与 `aria-checked`。
   - 或使用原生 radio input 加自定义视觉样式。
   - 测试用 `getByRole('radio', { checked: true })` 覆盖默认选中和切换行为。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - 扩展 Composer 的批注标签组已增加 `role="radiogroup"`、`role="radio"`、`aria-checked` 和 roving `tabIndex`。
+  - 扩展 Composer 已支持方向键、Home、End 切换批注类型。
+  - 桌面端 Agent annotation density 控件已具备 radiogroup/radio 语义，本项补齐扩展端缺口。
+  - `reader-components.test.tsx` 已覆盖批注标签默认选中与键盘切换语义。
 - 验收标准：
-  - [ ] 批注类型与密度控件在 Accessibility Tree 中有明确单选语义。
-  - [ ] 键盘操作可以完成选择切换。
-  - [ ] React Testing Library 覆盖选择态语义。
+  - [x] 批注类型与密度控件在 Accessibility Tree 中有明确单选语义。
+  - [x] 键盘操作可以完成选择切换。
+  - [x] React Testing Library 覆盖选择态语义。
 
 #### 7. `pnpm lint` 仍有 warning，质量门禁表达与“通过”语义不一致
 

@@ -70,6 +70,29 @@ const annotationTypeOptions: AnnotationType[] = [
   'question',
   'quote',
 ];
+
+function moveAnnotationTypeSelection(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  current: AnnotationType,
+  onChange: (nextType: AnnotationType) => void,
+) {
+  const currentIndex = annotationTypeOptions.indexOf(current);
+  const lastIndex = annotationTypeOptions.length - 1;
+  const nextIndexByKey: Record<string, number> = {
+    ArrowRight: Math.min(currentIndex + 1, lastIndex),
+    ArrowDown: Math.min(currentIndex + 1, lastIndex),
+    ArrowLeft: Math.max(currentIndex - 1, 0),
+    ArrowUp: Math.max(currentIndex - 1, 0),
+    Home: 0,
+    End: lastIndex,
+  };
+  const nextIndex = nextIndexByKey[event.key];
+  if (nextIndex === undefined) return;
+
+  event.preventDefault();
+  onChange(annotationTypeOptions[nextIndex]);
+}
+
 export function SelectionMenu({
   action,
   onAnnotate,
@@ -434,11 +457,21 @@ export function Composer({
             <span>保存</span>
           </div>
         </div>
-        <div className="reader-composer-types" aria-label="批注标签">
+        <div
+          aria-label="批注标签"
+          className="reader-composer-types"
+          role="radiogroup"
+          onKeyDown={(event) =>
+            moveAnnotationTypeSelection(event, annotationType, setAnnotationType)
+          }
+        >
           {annotationTypeOptions.map((type) => (
             <button
+              aria-checked={annotationType === type}
               className={annotationType === type ? 'is-active' : ''}
               key={type}
+              role="radio"
+              tabIndex={annotationType === type ? 0 : -1}
               type="button"
               onClick={() => setAnnotationType(type)}
             >
