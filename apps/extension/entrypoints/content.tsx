@@ -397,6 +397,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
         readerLog('ws.close');
         if (hasPendingAgentComment()) commitAnnotations();
+        clearPendingAgentRequests('连接中断');
         desktopAuthenticatedRef.current = false;
         desktopInitialSyncRef.current = false;
         setPairingId('');
@@ -427,6 +428,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
         if (message.type === 'desktop:error') {
           readerLog('ws.error', { message: message.message });
+          clearPendingAgentRequests('连接中断');
           desktopAuthenticatedRef.current = false;
           desktopInitialSyncRef.current = false;
           setPairingId('');
@@ -909,6 +911,27 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       if (pending.annotationId && pending.commentId) return true;
     }
     return false;
+  }
+
+  function clearPendingAgentRequests(reason: string) {
+    const pendingRequests = Array.from(pendingAgentRequestsRef.current.values());
+    if (pendingRequests.length === 0) return;
+
+    pendingAgentRequestsRef.current.clear();
+    setAgentAnnotateOpen(false);
+    for (const pending of pendingRequests) {
+      if (pending.agentId) {
+        markAgentAnnotating(pending.agentId, false);
+        finishVirtualReading(pending.agentId, reason);
+      }
+      if (pending.annotationId && pending.commentId) {
+        void updateComment(pending.annotationId, pending.commentId, (comment) => ({
+          ...comment,
+          content: comment.content || `Agent 回复中断：${reason}`,
+          pending: false,
+        }));
+      }
+    }
   }
 
   function cancelAgentAnnotateMenu() {
