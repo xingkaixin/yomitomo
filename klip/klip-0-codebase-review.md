@@ -17,8 +17,8 @@ Status: Draft
 
 - 本地通信入口在 `apps/desktop/src/main/server.ts`。桌面端监听 `127.0.0.1:43891`，扩展端在 `apps/extension/entrypoints/content.tsx` 用 `new WebSocket(DESKTOP_WS_URL)` 连接。
 - 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 允许 `hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`。
-- 桌面端 renderer 主入口集中在 `apps/desktop/src/renderer/src/main.tsx`，当前 3080 行，包含设置、阅读库、原文、批注、读后卡片、审核和日志 UI。
-- 扩展 content script 主入口集中在 `apps/extension/entrypoints/content.tsx`，当前 1496 行，包含阅读器挂载、状态同步、WebSocket、批注、Agent 流式回复、虚拟阅读动画和高亮定位。
+- 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 417 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
+- 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 802 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
 - 当前测试文件只有 `packages/core/src/annotations.test.ts` 和 `packages/core/src/reading.test.ts`。`apps/desktop`、`apps/extension`、`packages/shared` 的 `test` 脚本使用 `vitest run --passWithNoTests`，目前可以在零测试下通过。
 - 2026-05-04 校准结果：`pnpm lint` 通过，`pnpm test` 通过，`pnpm build` 通过。
 
@@ -206,9 +206,18 @@ Status: Draft
 
 #### 6. renderer 和 content script 文件承担过多职责
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/desktop/src/renderer/src/main.tsx`：3080 行
-  - `apps/extension/entrypoints/content.tsx`：1496 行
+  - `apps/desktop/src/renderer/src/main.tsx`：417 行
+  - `apps/desktop/src/renderer/src/app-reading-library.tsx`：676 行
+  - `apps/desktop/src/renderer/src/app-reading-card-panel.tsx`：791 行
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx`：975 行
+  - `apps/desktop/src/renderer/src/app-log-viewer.tsx`：184 行
+  - `apps/extension/entrypoints/content.tsx`：802 行
+  - `apps/extension/src/reader-app-view.tsx`：344 行
+  - `apps/extension/src/use-article-record-sync.ts`：251 行
+  - `apps/extension/src/use-agent-annotation-queue.ts`：400 行
   - `apps/extension/src/reader-components.tsx`：586 行
 - 现象 / 风险：
   - `apps/desktop/src/renderer/src/main.tsx` 同时包含 App shell、导航、设置页、表单、阅读库、原文渲染、批注本、读后卡片、审核结果、日志查看。
@@ -219,13 +228,17 @@ Status: Draft
 - 建议方案：
   - 按现有功能域拆文件，避免抽象层膨胀：
     - desktop：`ReadingLibrary`、`ReadingCardPanel`、`SettingsPanels`、`LogViewer`。
-    - extension：`useDesktopBridge`、`useArticleRecordSync`、`useAgentAnnotationQueue`、`ReaderAppView`。
+    - extension：`useArticleRecordSync`、`useAgentAnnotationQueue`、`ReaderAppView`。
   - 首轮只做搬迁，保持行为和 CSS class 名稳定。
   - 每次搬迁配套一个最小测试或 typecheck 校验。
+- 实施进展：
+  - desktop：`main.tsx` 保留 App shell、导航和 store 保存编排；`ReadingLibrary`、`ReadingCard`、统计面板、设置面板、日志查看已搬到功能域模块。
+  - extension：`ReaderAppView` 承接 JSX 渲染；`useArticleRecordSync` 承接本地 storage 迁移、文章记录构建、桌面端拉取和保存提交；`useAgentAnnotationQueue` 承接 Agent 批注排队、虚拟阅读光标和剧场高亮播放。
+  - 验证：`pnpm --filter @yomitomo/desktop build` 通过；`pnpm --filter @yomitomo/extension build` 通过。
 - 验收标准：
-  - `main.tsx` 降到 1200 行以内。
-  - `content.tsx` 降到 900 行以内。
-  - 拆出的模块至少各有一个测试或清晰导出边界。
+  - [x] `main.tsx` 降到 1200 行以内，当前 417 行。
+  - [x] `content.tsx` 降到 900 行以内，当前 802 行。
+  - [x] 拆出的模块具备清晰导出边界，并已通过 desktop / extension build 校验。
 
 ### P2（UI / 可访问性 / 体验一致性）
 

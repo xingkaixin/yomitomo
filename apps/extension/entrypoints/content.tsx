@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { Bot, Settings2, X } from 'lucide-react';
 import { browser } from 'wxt/browser';
-import { Tabs, TabsList, TabsTrigger } from '../src/components/ui/tabs';
 import {
   type Annotation,
   type AnnotationType,
@@ -10,15 +8,12 @@ import {
   type Comment,
   type DesktopServerMessage,
   type PublicAgent,
-  type TextAnchor,
   type UserProfile,
   createTextAnchor,
-  makeId,
   resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
   annotationColor,
-  annotationToPublicAgent as annotationToAgent,
   appendAnnotationComment,
   createUserAnnotation,
   createUserComment,
@@ -33,7 +28,6 @@ import {
 import {
   type HighlightBox,
   type TocItem,
-  cursorPositionFromOffset,
   extractTocItems,
   findCurrentTocTarget,
   getArticleSelection,
@@ -45,48 +39,21 @@ import {
   scrollReaderSurfaceToRect,
   selectionActionPosition,
 } from '../src/reader-dom';
-import {
-  AgentAnnotateMenu,
-  AnnotationCard,
-  AnnotationConnection,
-  Composer,
-  EmptyNotes,
-  ReaderSettingsPanel,
-  SelectionMenu,
-  VirtualCursor,
-  type ActiveConnection,
-  type ReaderSettings,
-  type VirtualCursorState,
-} from '../src/reader-components';
+import type { ActiveConnection } from '../src/reader-components';
 import { readerConversationStyles, readerStyles } from '../src/reader-styles';
 import {
-  agentQueueKey,
-  animateTheaterHighlight,
   buildTocAnnotationStats,
-  clampNumber,
   defaultReaderSettings,
   defaultUserProfile,
   getShortcutModifier,
-  highlightStyle,
-  isNewerArticleRecord,
-  isPrimaryTocItem,
   normalizeUserProfile,
-  sleep,
-  toCachedArticleRecord,
 } from '../src/reader-utils';
+import { ReaderAppView, type NoteFilter, type PendingComposer, type SelectionAction } from '../src/reader-app-view';
+import { useAgentAnnotationQueue } from '../src/use-agent-annotation-queue';
+import { useArticleRecordSync } from '../src/use-article-record-sync';
 
 const HOST_ID = 'yomitomo-root';
-const STORAGE_PREFIX = 'yomitomo.article.';
-const LEGACY_STORAGE_PREFIX = 'reader.article.';
-const READER_SETTINGS_KEY = 'yomitomo.settings';
-const LEGACY_READER_SETTINGS_KEY = 'reader.settings';
-const DESKTOP_PROFILE_CACHE_KEY = 'yomitomo.desktopProfile';
-const LEGACY_DESKTOP_PROFILE_CACHE_KEY = 'reader.desktopProfile';
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
-type DesktopProfileCache = {
-  user: UserProfile;
-  agents: PublicAgent[];
-};
 let root: Root | null = null;
 let previousOverflow = '';
 
@@ -96,25 +63,6 @@ function readerLog(event: string, data?: Record<string, unknown>) {
 
 type RuntimeMessage = { type?: string };
 type RuntimeResponse = { ok: true } | { ok: false; error: string };
-
-type SelectionAction = {
-  x: number;
-  y: number;
-  anchor: TextAnchor;
-};
-
-type PendingComposer = SelectionAction;
-
-type NoteFilter = 'all' | 'ai' | 'user';
-
-type VirtualReadingSession = {
-  agent: PublicAgent;
-  timerId: number;
-  offset: number;
-  paused: boolean;
-  done: boolean;
-  step: number;
-};
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -187,12 +135,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     new Map<string, { annotationId: string; commentId: string; agentId?: string }>(),
   );
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const agentAnnotationQueuesRef = useRef(new Map<string, Annotation[]>());
-  const agentQueueOrderRef = useRef<string[]>([]);
-  const lastPlayedAgentRef = useRef<string | null>(null);
-  const agentAnimationRunningRef = useRef(false);
-  const virtualReadingSessionsRef = useRef(new Map<string, VirtualReadingSession>());
-  const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [desktopConnected, setDesktopConnected] = useState(false);
@@ -202,18 +144,56 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [composer, setComposer] = useState<PendingComposer | null>(null);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
-  const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
-  const [annotatingAgents, setAnnotatingAgents] = useState<string[]>([]);
-  const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
 
-  const storageKey = `${STORAGE_PREFIX}${extracted.id}`;
-  const legacyStorageKey = `${LEGACY_STORAGE_PREFIX}${extracted.id}`;
+  const {
+    applyDesktopArticleRecord,
+    cacheDesktopProfile,
+    requestDesktopArticleRecord,
+    saveAnnotations,
+    updateReaderSettings,
+  } = useArticleRecordSync({
+    extracted,
+    wsRef,
+    annotationsRef,
+    articleRecordRef,
+    recordCreatedAtRef,
+    setAnnotations,
+    setAgents,
+    setReaderSettings,
+    setUserProfile,
+    normalizeUserProfile,
+    readerLog,
+    errorMessage,
+  });
+
+  const {
+    agentTheaterBoxes,
+    annotatingAgents,
+    virtualCursors,
+    cleanupVirtualReadingSessions,
+    enqueueAgentAnnotation,
+    finishVirtualReading,
+    finishVirtualReadingIfIdle,
+    markAgentAnnotating,
+    markVirtualReadingDone,
+    processAgentAnnotationQueue,
+    startVirtualReading,
+  } = useAgentAnnotationQueue({
+    agents,
+    articleRef,
+    canvasRef,
+    surfaceRef,
+    annotationsRef,
+    saveAnnotations: (nextAnnotations) => saveAnnotations(nextAnnotations),
+    setActiveId,
+    readerLog,
+  });
   const shortcutModifier = getShortcutModifier();
   const annotationTotals = useMemo(
     () => ({
@@ -246,184 +226,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setActiveId(filteredAnnotations[0]?.id || null);
   }, [activeId, filteredAnnotations]);
 
-  useEffect(() => {
-    browser.storage.local
-      .get([
-        storageKey,
-        legacyStorageKey,
-        READER_SETTINGS_KEY,
-        LEGACY_READER_SETTINGS_KEY,
-        DESKTOP_PROFILE_CACHE_KEY,
-        LEGACY_DESKTOP_PROFILE_CACHE_KEY,
-      ])
-      .then(async (stored) => {
-        const loaded = (stored[storageKey] || stored[legacyStorageKey]) as
-          | ArticleRecord
-          | undefined;
-        const migrated: Record<string, unknown> = {};
-        const legacyKeys: string[] = [];
-
-        if (!stored[storageKey] && loaded) legacyKeys.push(legacyStorageKey);
-
-        if (loaded) {
-          const nextRecord = buildCurrentArticleRecord(
-            loaded.annotations || [],
-            loaded.createdAt,
-            loaded.updatedAt,
-          );
-          if (applyNewerArticleRecord(nextRecord)) {
-            migrated[storageKey] = toCachedArticleRecord(nextRecord);
-          }
-        }
-        const cachedDesktopProfile = (stored[DESKTOP_PROFILE_CACHE_KEY] ||
-          stored[LEGACY_DESKTOP_PROFILE_CACHE_KEY]) as DesktopProfileCache | undefined;
-        if (!stored[DESKTOP_PROFILE_CACHE_KEY] && cachedDesktopProfile) {
-          migrated[DESKTOP_PROFILE_CACHE_KEY] = cachedDesktopProfile;
-          legacyKeys.push(LEGACY_DESKTOP_PROFILE_CACHE_KEY);
-        }
-        if (cachedDesktopProfile) {
-          setUserProfile(normalizeUserProfile(cachedDesktopProfile.user));
-          setAgents(cachedDesktopProfile.agents || []);
-        }
-        const savedSettings = (stored[READER_SETTINGS_KEY] ||
-          stored[LEGACY_READER_SETTINGS_KEY]) as ReaderSettings | undefined;
-        if (!stored[READER_SETTINGS_KEY] && savedSettings) {
-          migrated[READER_SETTINGS_KEY] = savedSettings;
-          legacyKeys.push(LEGACY_READER_SETTINGS_KEY);
-        }
-        if (savedSettings) {
-          setReaderSettings({
-            fontSize: clampNumber(savedSettings.fontSize, 16, 28, defaultReaderSettings.fontSize),
-            contentWidth: clampNumber(
-              savedSettings.contentWidth,
-              680,
-              1080,
-              defaultReaderSettings.contentWidth,
-            ),
-          });
-        }
-
-        try {
-          if (Object.keys(migrated).length > 0) await browser.storage.local.set(migrated);
-          if (legacyKeys.length > 0) await browser.storage.local.remove(legacyKeys);
-        } catch (error) {
-          readerLog('storage.migrate.error', { message: errorMessage(error) });
-        }
-      });
-  }, [legacyStorageKey, storageKey]);
-
-  const saveAnnotations = useCallback(
-    (nextAnnotations: Annotation[]) => {
-      const now = new Date().toISOString();
-      const createdAt = recordCreatedAtRef.current || now;
-      const nextRecord = buildCurrentArticleRecord(nextAnnotations, createdAt, now);
-      applyArticleRecord(nextRecord);
-      sendArticleRecord(nextRecord);
-      void cacheArticleRecord(nextRecord);
-    },
-    [extracted, storageKey],
-  );
-
-  function buildCurrentArticleRecord(
-    nextAnnotations: Annotation[],
-    createdAt: string,
-    updatedAt: string,
-  ): ArticleRecord {
-    return {
-      id: extracted.id,
-      url: extracted.url,
-      canonicalUrl: extracted.canonicalUrl,
-      title: extracted.title,
-      byline: extracted.byline,
-      excerpt: extracted.excerpt,
-      contentHtml: extracted.content,
-      contentHash: extracted.contentHash,
-      annotations: nextAnnotations,
-      createdAt,
-      updatedAt,
-    };
-  }
-
-  function applyArticleRecord(record: ArticleRecord) {
-    recordCreatedAtRef.current = record.createdAt;
-    annotationsRef.current = record.annotations || [];
-    articleRecordRef.current = record;
-    setAnnotations(record.annotations || []);
-  }
-
-  function applyNewerArticleRecord(record: ArticleRecord) {
-    const current = articleRecordRef.current;
-    if (!isNewerArticleRecord(record, current)) return false;
-
-    applyArticleRecord(record);
-    return true;
-  }
-
-  async function cacheArticleRecord(record: ArticleRecord) {
-    try {
-      await browser.storage.local.set({ [storageKey]: toCachedArticleRecord(record) });
-    } catch (error) {
-      readerLog('storage.cache.error', { message: errorMessage(error) });
-    }
-  }
-
-  function sendArticleRecord(record: ArticleRecord) {
-    const socket = wsRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(
-      JSON.stringify({ type: 'article:save', requestId: makeId('request'), payload: record }),
-    );
-  }
-
-  function sendCurrentArticleRecord() {
-    const current = articleRecordRef.current;
-    if (!current) return;
-    const nextRecord = buildCurrentArticleRecord(
-      current.annotations || [],
-      current.createdAt,
-      current.updatedAt,
-    );
-    applyArticleRecord(nextRecord);
-    sendArticleRecord(nextRecord);
-  }
-
-  function requestDesktopArticleRecord() {
-    const socket = wsRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(
-      JSON.stringify({
-        type: 'article:get',
-        requestId: makeId('request'),
-        payload: {
-          id: extracted.id,
-          url: extracted.url,
-          canonicalUrl: extracted.canonicalUrl,
-        },
-      }),
-    );
-  }
-
-  async function applyDesktopArticleRecord(record: ArticleRecord | null) {
-    if (!record) {
-      sendCurrentArticleRecord();
-      return;
-    }
-
-    const current = articleRecordRef.current;
-    if (!isNewerArticleRecord(record, current)) {
-      sendCurrentArticleRecord();
-      return;
-    }
-
-    const nextRecord = buildCurrentArticleRecord(
-      record.annotations || [],
-      record.createdAt,
-      record.updatedAt,
-    );
-    applyArticleRecord(nextRecord);
-    sendArticleRecord(nextRecord);
-    void cacheArticleRecord(nextRecord);
-  }
 
   const recalculateHighlights = useCallback(() => {
     const article = articleRef.current;
@@ -548,16 +350,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     return () => {
       closed = true;
       window.clearTimeout(reconnectTimer);
-      for (const session of virtualReadingSessionsRef.current.values()) {
-        window.clearInterval(session.timerId);
-      }
+      cleanupVirtualReadingSessions();
       wsRef.current?.close();
     };
   }, [saveAnnotations]);
 
-  useEffect(() => {
-    setAnnotatingAgents((ids) => ids.filter((id) => agents.some((agent) => agent.id === id)));
-  }, [agents]);
 
   useLayoutEffect(() => {
     recalculateHighlights();
@@ -612,9 +409,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       setDesktopConnected(message.type === 'status' ? message.ok : true);
       setUserProfile(user);
       setAgents(message.agents);
-      await browser.storage.local.set({
-        [DESKTOP_PROFILE_CACHE_KEY]: { user, agents: message.agents } satisfies DesktopProfileCache,
-      });
+      await cacheDesktopProfile(user, message.agents);
       return;
     }
 
@@ -661,8 +456,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       pendingAgentRequestsRef.current.delete(message.requestId);
       if (pending?.agentId) {
         markAgentAnnotating(pending.agentId, false);
-        const session = virtualReadingSessionsRef.current.get(pending.agentId);
-        if (session) session.done = true;
+        markVirtualReadingDone(pending.agentId);
       }
       setAgentAnnotateOpen(false);
       finishVirtualReadingIfIdle(pending?.agentId);
@@ -739,11 +533,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     await saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
-  }
-
-  async function updateReaderSettings(nextSettings: ReaderSettings) {
-    setReaderSettings(nextSettings);
-    await browser.storage.local.set({ [READER_SETTINGS_KEY]: nextSettings });
   }
 
   function handleMouseUp() {
@@ -837,318 +626,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (activeId === annotationId) setActiveId(null);
   }
 
-  function enqueueAgentAnnotation(annotation: Annotation) {
-    const key = agentQueueKey(annotation);
-    const queue = agentAnnotationQueuesRef.current.get(key) || [];
-    queue.push(annotation);
-    agentAnnotationQueuesRef.current.set(key, queue);
-    if (!agentQueueOrderRef.current.includes(key)) agentQueueOrderRef.current.push(key);
-    readerLog('agent.queue.enqueue', {
-      annotationId: annotation.id,
-      agent: key,
-      size: queuedAnnotationsCount(),
-    });
-  }
-
-  function queuedAnnotationsCount() {
-    let count = 0;
-    for (const queue of agentAnnotationQueuesRef.current.values()) count += queue.length;
-    return count;
-  }
-
-  function hasQueuedAnnotationForAgent(agentId: string) {
-    return (agentAnnotationQueuesRef.current.get(agentId)?.length || 0) > 0;
-  }
-
-  function hasQueuedAnnotationForOtherAgent(agentId: string) {
-    for (const [key, queue] of agentAnnotationQueuesRef.current) {
-      if (key !== agentId && queue.length > 0) return true;
-    }
-    return false;
-  }
-
-  function nextQueuedAgentKey() {
-    const order = agentQueueOrderRef.current;
-    if (order.length === 0) return null;
-
-    const lastIndex = lastPlayedAgentRef.current ? order.indexOf(lastPlayedAgentRef.current) : -1;
-    for (let index = 1; index <= order.length; index += 1) {
-      const key = order[(lastIndex + index + order.length) % order.length];
-      if ((agentAnnotationQueuesRef.current.get(key)?.length || 0) > 0) return key;
-    }
-    return null;
-  }
-
-  function cleanupAgentQueue(agentId: string | null) {
-    if (!agentId) return;
-    const queue = agentAnnotationQueuesRef.current.get(agentId);
-    if (queue && queue.length > 0) return;
-    if (virtualReadingSessionsRef.current.has(agentId)) return;
-    agentAnnotationQueuesRef.current.delete(agentId);
-    agentQueueOrderRef.current = agentQueueOrderRef.current.filter((key) => key !== agentId);
-    if (lastPlayedAgentRef.current === agentId) lastPlayedAgentRef.current = null;
-  }
-
-  function shouldWaitForPeerAgent(agentId: string) {
-    if (hasQueuedAnnotationForOtherAgent(agentId)) return false;
-    for (const [key, session] of virtualReadingSessionsRef.current) {
-      if (key !== agentId && !session.done) return true;
-    }
-    return false;
-  }
-
-  function markAgentAnnotating(agentId: string, annotating: boolean) {
-    setAnnotatingAgents((ids) => {
-      if (annotating) return ids.includes(agentId) ? ids : [...ids, agentId];
-      return ids.filter((id) => id !== agentId);
-    });
-  }
-
-  function startVirtualReading(agent: PublicAgent) {
-    const currentSession = virtualReadingSessionsRef.current.get(agent.id);
-    if (currentSession) window.clearInterval(currentSession.timerId);
-
-    const article = articleRef.current;
-    const body = article?.querySelector('.reader-article-body');
-    const sessionIndex = virtualReadingSessionsRef.current.size;
-    const interval = 150 + Math.floor(Math.random() * 90);
-    const step = 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
-    const session: VirtualReadingSession = {
-      agent,
-      timerId: 0,
-      offset: (article && body ? offsetFromArticleStart(article, body, 0) : 0) + sessionIndex * 18,
-      paused: false,
-      done: false,
-      step,
-    };
-    virtualReadingSessionsRef.current.set(agent.id, session);
-    tickVirtualReading(agent.id);
-    session.timerId = window.setInterval(() => tickVirtualReading(agent.id), interval);
-    readerLog('virtual.reading.start', { agent: agent.username });
-  }
-
-  function tickVirtualReading(agentId: string) {
-    const session = virtualReadingSessionsRef.current.get(agentId);
-    if (!session || session.paused) return;
-
-    const article = articleRef.current;
-    const surface = surfaceRef.current;
-    if (!article || !surface) return;
-
-    const text = article.textContent || '';
-    if (session.offset >= text.length - 1) {
-      finishVirtualReading(agentId, '读完了');
-      return;
-    }
-
-    const position = cursorPositionFromOffset(article, surface, session.offset + session.step);
-    if (!position) return;
-
-    session.offset = position.offset;
-    updateVirtualCursor(agentId, {
-      id: agentId,
-      visible: true,
-      x: position.x,
-      y: position.y,
-      label: position.offscreen
-        ? `${session.agent.nickname} 正在${position.offscreen === 'above' ? '上方' : '下方'}阅读`
-        : `${session.agent.nickname} 正在阅读`,
-      offscreen: position.offscreen,
-      agent: session.agent,
-    });
-  }
-
-  function updateVirtualCursor(agentId: string, cursor: VirtualCursorState | null) {
-    if (cursor) virtualCursorRef.current.set(agentId, cursor);
-    else virtualCursorRef.current.delete(agentId);
-    setVirtualCursors(Array.from(virtualCursorRef.current.values()));
-  }
-
-  function finishVirtualReading(agentId: string, suffix = '批注完成') {
-    const session = virtualReadingSessionsRef.current.get(agentId);
-    if (session) {
-      window.clearInterval(session.timerId);
-      virtualReadingSessionsRef.current.delete(agentId);
-    }
-
-    const current = virtualCursorRef.current.get(agentId);
-    if (!current) return;
-
-    updateVirtualCursor(agentId, {
-      ...current,
-      x: Math.min(window.innerWidth - 80, current.x + 72),
-      y: Math.max(72, current.y - 42),
-      label: `${session?.agent.nickname || current.agent?.nickname || '助手'} ${suffix}`,
-      leaving: true,
-    });
-    window.setTimeout(() => updateVirtualCursor(agentId, null), 900);
-  }
-
-  function finishVirtualReadingIfIdle(agentId?: string) {
-    const agentIds = agentId ? [agentId] : Array.from(virtualReadingSessionsRef.current.keys());
-    if (agentAnimationRunningRef.current) return;
-    window.setTimeout(() => {
-      if (agentAnimationRunningRef.current) return;
-      for (const id of agentIds) {
-        const session = virtualReadingSessionsRef.current.get(id);
-        if (session?.done && !hasQueuedAnnotationForAgent(id)) {
-          finishVirtualReading(id);
-        }
-      }
-    }, 900);
-  }
-
-  async function processAgentAnnotationQueue() {
-    if (agentAnimationRunningRef.current) return;
-
-    agentAnimationRunningRef.current = true;
-    try {
-      while (queuedAnnotationsCount() > 0) {
-        const queueKey = nextQueuedAgentKey();
-        if (!queueKey) break;
-        const annotation = queueKey
-          ? agentAnnotationQueuesRef.current.get(queueKey)?.shift()
-          : undefined;
-        if (!annotation) continue;
-
-        try {
-          lastPlayedAgentRef.current = queueKey;
-          readerLog('agent.queue.play', {
-            annotationId: annotation.id,
-            agent: queueKey,
-            remaining: queuedAnnotationsCount(),
-          });
-          const session = annotation.agentId
-            ? virtualReadingSessionsRef.current.get(annotation.agentId)
-            : undefined;
-          if (session) session.paused = true;
-          await playAgentAnnotation(annotation);
-        } catch (error) {
-          readerLog('agent.queue.play.error', {
-            annotationId: annotation.id,
-            error: error instanceof Error ? error.message : String(error),
-          });
-          await saveAnnotations([...annotationsRef.current, annotation]);
-        } finally {
-          const session = annotation.agentId
-            ? virtualReadingSessionsRef.current.get(annotation.agentId)
-            : undefined;
-          if (session) session.paused = false;
-          cleanupAgentQueue(queueKey);
-          if (queueKey && shouldWaitForPeerAgent(queueKey)) await sleep(900);
-        }
-      }
-    } finally {
-      agentAnimationRunningRef.current = false;
-      setAgentTheaterBoxes([]);
-      finishVirtualReadingIfIdle();
-    }
-  }
-
-  async function playAgentAnnotation(annotation: Annotation) {
-    const article = articleRef.current;
-    const canvas = canvasRef.current;
-    const surface = surfaceRef.current;
-    const cursorAgent = annotationToAgent(annotation);
-    const cursorId =
-      cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
-    if (!article || !canvas || !surface) {
-      readerLog('agent.play.no_surface', { annotationId: annotation.id });
-      await saveAnnotations([...annotationsRef.current, annotation]);
-      return;
-    }
-
-    const position = resolveTextAnchor(article.textContent || '', annotation.anchor);
-    if (!position) {
-      readerLog('agent.play.anchor_unresolved', {
-        annotationId: annotation.id,
-        exact: annotation.anchor.exact.slice(0, 80),
-      });
-      await saveAnnotations([...annotationsRef.current, annotation]);
-      return;
-    }
-
-    const range = rangeFromOffsets(article, position.start, position.end);
-    if (!range) {
-      readerLog('agent.play.range_missing', { annotationId: annotation.id });
-      await saveAnnotations([...annotationsRef.current, annotation]);
-      return;
-    }
-
-    const rects = Array.from(range.getClientRects()).filter(
-      (rect) => rect.width >= 2 && rect.height >= 2,
-    );
-    const firstRect = rects[0];
-    const lastRect = rects[rects.length - 1];
-    if (!firstRect || !lastRect) return;
-
-    const surfaceRect = surface.getBoundingClientRect();
-    const isVisible = firstRect.bottom >= surfaceRect.top && firstRect.top <= surfaceRect.bottom;
-    if (!isVisible) {
-      updateVirtualCursor(cursorId, {
-        id: cursorId,
-        visible: true,
-        x: surfaceRect.left + surfaceRect.width / 2,
-        y: firstRect.top < surfaceRect.top ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在${firstRect.top < surfaceRect.top ? '上方' : '下方'}批注`,
-        offscreen: firstRect.top < surfaceRect.top ? 'above' : 'below',
-        agent: cursorAgent,
-      });
-      await sleep(700);
-      await saveAnnotations([...annotationsRef.current, annotation]);
-      setActiveId(annotation.id);
-      return;
-    }
-
-    updateVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: firstRect.left,
-      y: firstRect.top + firstRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(420);
-
-    const theaterBoxes = rangeHighlightBoxes(
-      range,
-      canvas.getBoundingClientRect(),
-      `theater_${annotation.id}`,
-    ).map((box) =>
-      Object.assign({}, box, { annotationId: annotation.id, color: annotation.color }),
-    );
-    await animateTheaterHighlight(theaterBoxes, annotation.anchor.exact.length, (nextBoxes) => {
-      const cursorBox = nextBoxes[nextBoxes.length - 1];
-      if (cursorBox) {
-        const canvasRect = canvas.getBoundingClientRect();
-        updateVirtualCursor(cursorId, {
-          id: cursorId,
-          visible: true,
-          x: canvasRect.left + cursorBox.left + cursorBox.width,
-          y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
-          label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
-          offscreen: null,
-          agent: cursorAgent,
-        });
-      }
-      setAgentTheaterBoxes(nextBoxes);
-    });
-
-    await saveAnnotations([...annotationsRef.current, annotation]);
-    setActiveId(annotation.id);
-    setAgentTheaterBoxes([]);
-    updateVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: lastRect.right,
-      y: lastRect.top + lastRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 继续阅读`,
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(360);
-  }
 
   async function addComment(annotationId: string, content: string) {
     const trimmed = content.trim();
@@ -1264,233 +741,62 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     scrollReaderSurfaceToElement(surface, heading, 32);
   }
 
-  const activeAnnotation = useMemo(
-    () => annotations.find((item) => item.id === activeId) || null,
-    [activeId, annotations],
-  );
 
   return (
-    <div
-      className="reader-app"
-      style={
-        {
-          '--reader-font-size': `${readerSettings.fontSize}px`,
-          '--reader-content-width': `${readerSettings.contentWidth}px`,
-        } as React.CSSProperties
-      }
-    >
-      <header className="reader-toolbar">
-        <div>
-          <div className="reader-eyebrow">Yomitomo</div>
-          <h1>
-            <span
-              className={
-                desktopConnected
-                  ? 'reader-connection is-connected'
-                  : 'reader-connection is-disconnected'
-              }
-            />
-            {extracted.title}
-          </h1>
-          <p>{extracted.byline || extracted.canonicalUrl}</p>
-        </div>
-        <div className="reader-toolbar-actions">
-          <button
-            className={
-              agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
-            }
-            type="button"
-            disabled={!desktopConnected || agents.length === 0}
-            onClick={() => setAgentAnnotateOpen((open) => !open)}
-          >
-            <Bot size={14} />
-            {annotatingAgents.length > 0 ? '精读中' : '助手精读'}
-          </button>
-          <button
-            className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
-            type="button"
-            onClick={() => setSettingsOpen((open) => !open)}
-            aria-label="阅读设置"
-          >
-            <Settings2 size={18} />
-          </button>
-          <button className="reader-close" type="button" onClick={onClose} aria-label="关闭阅读器">
-            <X size={18} />
-          </button>
-        </div>
-      </header>
-
-      {agentAnnotateOpen ? (
-        <div className="reader-agent-annotate-popover">
-          <AgentAnnotateMenu
-            agents={agents}
-            annotatingAgents={annotatingAgents}
-            onCancel={cancelAgentAnnotateMenu}
-            onStartAgent={requestAgentAnnotations}
-            onStartAll={requestSelectedAgentAnnotations}
-          />
-        </div>
-      ) : null}
-
-      {settingsOpen ? (
-        <ReaderSettingsPanel settings={readerSettings} onChange={updateReaderSettings} />
-      ) : null}
-
-      <main className="reader-main">
-        <aside className={tocItems.length > 0 ? 'reader-toc' : 'reader-toc is-empty'}>
-          <div className="reader-toc-title">目录</div>
-          {tocItems.map((item) => {
-            const stats = isPrimaryTocItem(item) ? tocAnnotationStats.get(item.index) : undefined;
-            return (
-              <button
-                className="reader-toc-item"
-                data-depth={Math.min(item.depth, 4)}
-                key={`${item.index}-${item.text}`}
-                type="button"
-                onClick={() => scrollToHeading(item)}
-              >
-                <span className="reader-toc-item-main">
-                  <span>{item.text}</span>
-                  <span className="reader-toc-meta">
-                    {(stats?.colors.length || 0) > 0 ? (
-                      <span className="reader-toc-markers">
-                        {stats!.colors.slice(0, 5).map((color) => (
-                          <i key={color} style={{ backgroundColor: color }} />
-                        ))}
-                      </span>
-                    ) : null}
-                    {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-          <div className="reader-toc-summary">
-            共 {annotationTotals.annotations} 条批注 · {annotationTotals.comments} 条评论
-          </div>
-        </aside>
-
-        <section className="reader-surface" ref={surfaceRef} onMouseUp={handleMouseUp}>
-          <div className="reader-canvas" ref={canvasRef}>
-            <article className="reader-article" ref={articleRef}>
-              <header className="reader-article-header">
-                <h1>{extracted.title}</h1>
-                {extracted.byline || extracted.excerpt ? (
-                  <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(' · ')}</p>
-                ) : null}
-              </header>
-              <div
-                className="reader-article-body"
-                dangerouslySetInnerHTML={{ __html: extracted.content }}
-              />
-            </article>
-            <div className="reader-highlight-layer">
-              {boxes.map((box) => (
-                <button
-                  className={
-                    box.annotationId === activeId
-                      ? 'reader-highlight is-active'
-                      : 'reader-highlight'
-                  }
-                  key={box.id}
-                  style={highlightStyle(box, box.annotationId === activeId)}
-                  type="button"
-                  onClick={() => focusAnnotation(box.annotationId)}
-                />
-              ))}
-              {temporaryBoxes.map((box) => (
-                <div
-                  className="reader-highlight is-temporary"
-                  key={box.id}
-                  style={highlightStyle(box, false)}
-                />
-              ))}
-              {agentTheaterBoxes.map((box) => (
-                <div
-                  className="reader-highlight is-agent-theater"
-                  key={box.id}
-                  style={highlightStyle(box, false)}
-                />
-              ))}
-            </div>
-            {selectionAction && !composer ? (
-              <SelectionMenu
-                action={selectionAction}
-                onAnnotate={() => {
-                  const canvasWidth = canvasRef.current?.clientWidth || 340;
-                  setComposer({
-                    x: Math.min(selectionAction.x, Math.max(4, canvasWidth - 344)),
-                    y: selectionAction.y + 44,
-                    anchor: selectionAction.anchor,
-                  });
-                  setSelectionAction(null);
-                }}
-              />
-            ) : null}
-            {composer ? (
-              <Composer
-                composer={composer}
-                shortcutModifier={shortcutModifier}
-                onCancel={cancelComposer}
-                onSave={createAnnotation}
-              />
-            ) : null}
-          </div>
-        </section>
-
-        <aside className="reader-notes" ref={notesRef}>
-          <div className="reader-notes-header">
-            <div className="reader-notes-title-row">
-              <strong>批注</strong>
-              <span>
-                {filteredAnnotations.length} / {annotations.length}
-              </span>
-            </div>
-            <Tabs
-              className="reader-note-tabs"
-              value={noteFilter}
-              onValueChange={(value) => setNoteFilter(value as NoteFilter)}
-            >
-              <TabsList>
-                <TabsTrigger value="all">全部</TabsTrigger>
-                <TabsTrigger value="ai">助手批注</TabsTrigger>
-                <TabsTrigger value="user">我的批注</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-          {annotations.length === 0 ? <EmptyNotes /> : null}
-          {annotations.length > 0 && filteredAnnotations.length === 0 ? (
-            <div className="reader-empty">
-              <strong>没有匹配的批注</strong>
-              <p>切换筛选项可以查看其他批注。</p>
-            </div>
-          ) : null}
-          {filteredAnnotations.map((annotation) => (
-            <AnnotationCard
-              active={annotation.id === activeAnnotation?.id}
-              agents={agents}
-              annotation={annotation}
-              desktopConnected={desktopConnected}
-              key={annotation.id}
-              noteRef={(element) => {
-                if (element) noteRefs.current.set(annotation.id, element);
-                else noteRefs.current.delete(annotation.id);
-              }}
-              shortcutModifier={shortcutModifier}
-              userProfile={userProfile}
-              onAddComment={addComment}
-              onDelete={deleteAnnotation}
-              onFocus={scrollToHighlight}
-            />
-          ))}
-        </aside>
-      </main>
-
-      {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
-
-      {virtualCursors.map((cursor) =>
-        cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,
-      )}
-    </div>
+    <ReaderAppView
+      activeConnection={activeConnection}
+      activeId={activeId}
+      agentAnnotateOpen={agentAnnotateOpen}
+      agentTheaterBoxes={agentTheaterBoxes}
+      agents={agents}
+      annotatingAgents={annotatingAgents}
+      annotationTotals={annotationTotals}
+      annotations={annotations}
+      articleRef={articleRef}
+      boxes={boxes}
+      canvasRef={canvasRef}
+      composer={composer}
+      desktopConnected={desktopConnected}
+      extracted={extracted}
+      filteredAnnotations={filteredAnnotations}
+      noteFilter={noteFilter}
+      noteRefs={noteRefs}
+      notesRef={notesRef}
+      readerSettings={readerSettings}
+      selectionAction={selectionAction}
+      settingsOpen={settingsOpen}
+      shortcutModifier={shortcutModifier}
+      surfaceRef={surfaceRef}
+      temporaryBoxes={temporaryBoxes}
+      tocAnnotationStats={tocAnnotationStats}
+      tocItems={tocItems}
+      userProfile={userProfile}
+      virtualCursors={virtualCursors}
+      onAddComment={addComment}
+      onCancelAgentAnnotateMenu={cancelAgentAnnotateMenu}
+      onCancelComposer={cancelComposer}
+      onClose={onClose}
+      onCreateAnnotation={createAnnotation}
+      onDeleteAnnotation={deleteAnnotation}
+      onFocusAnnotation={focusAnnotation}
+      onMouseUp={handleMouseUp}
+      onOpenComposer={(action) => {
+        const canvasWidth = canvasRef.current?.clientWidth || 340;
+        setComposer({
+          x: Math.min(action.x, Math.max(4, canvasWidth - 344)),
+          y: action.y + 44,
+          anchor: action.anchor,
+        });
+        setSelectionAction(null);
+      }}
+      onRequestAgentAnnotations={requestAgentAnnotations}
+      onRequestSelectedAgentAnnotations={requestSelectedAgentAnnotations}
+      onScrollToHeading={scrollToHeading}
+      onScrollToHighlight={scrollToHighlight}
+      onSetNoteFilter={(filter) => setNoteFilter(filter)}
+      onToggleAgentAnnotate={() => setAgentAnnotateOpen((open) => !open)}
+      onToggleSettings={() => setSettingsOpen((open) => !open)}
+      onUpdateReaderSettings={updateReaderSettings}
+    />
   );
 }
