@@ -5,19 +5,23 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord } from '@yomitomo/shared';
 
-vi.mock('recharts', async () => {
-  const React = await import('react');
-  const passthrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
-  return {
-    Area: () => <path data-testid="chart-area" />,
-    AreaChart: passthrough,
-    CartesianGrid: () => <g data-testid="chart-grid" />,
-    ResponsiveContainer: passthrough,
-    Tooltip: () => null,
-    XAxis: () => <g data-testid="chart-x-axis" />,
-    YAxis: () => <g data-testid="chart-y-axis" />,
-  };
-});
+function MockResponsiveContainer({ children }: { children?: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+function MockAreaChart({ children }: { children?: React.ReactNode }) {
+  return <svg>{children}</svg>;
+}
+
+vi.mock('recharts', () => ({
+  Area: () => <path data-testid="chart-area" />,
+  AreaChart: MockAreaChart,
+  CartesianGrid: () => <g data-testid="chart-grid" />,
+  ResponsiveContainer: MockResponsiveContainer,
+  Tooltip: () => null,
+  XAxis: () => <g data-testid="chart-x-axis" />,
+  YAxis: () => <g data-testid="chart-y-axis" />,
+}));
 
 import { ReadingStatsPanel } from '../app-reading-stats';
 
