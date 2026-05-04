@@ -149,6 +149,18 @@ type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'ab
 type LogLevelFilter = 'all' | 'info' | 'error';
 type SaveState = 'idle' | 'saving' | 'saved';
 type ProviderOption = { id: string; label: string; type: ProviderType; modelName: string };
+type ReadingCardWorkflowStepId = 'deliberation' | 'card' | 'review';
+type ReadingCardWorkflowStepState = 'waiting' | 'active' | 'running' | 'done' | 'error';
+type ReadingCardWorkflowStep = {
+  id: ReadingCardWorkflowStepId;
+  number: number;
+  title: string;
+  description: string;
+  state: ReadingCardWorkflowStepState;
+  actionLabel: string;
+  disabled: boolean;
+  onAction: () => void;
+};
 const agentAvatars = [
   avatar01Raw,
   avatar02Raw,
@@ -1334,11 +1346,20 @@ function ReadingCard({
   const [reviewError, setReviewError] = useState('');
   const [reviewState, setReviewState] = useState<'idle' | 'reviewing' | 'done' | 'error'>('idle');
   const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<string[]>([]);
+  const deliberationTime = deliberation ? Date.parse(deliberation.updatedAt) : 0;
+  const aiCardTime = aiCard ? Date.parse(aiCard.updatedAt) : 0;
+  const reviewTime = aiCard?.review ? Date.parse(aiCard.review.updatedAt) : 0;
+  const aiCardIsCurrent = Boolean(aiCard && deliberation && aiCardTime >= deliberationTime);
+  const reviewIsCurrent = Boolean(aiCard?.review && aiCardIsCurrent && reviewTime >= aiCardTime);
+  const currentAiCard = aiCardIsCurrent
+    ? { ...aiCard, review: reviewIsCurrent ? aiCard?.review : undefined }
+    : null;
+  const isWorkflowBusy =
+    deliberationState === 'generating' || aiState === 'generating' || reviewState === 'reviewing';
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
-  const card = useMemo(
-    () => (article ? aiCard?.contentMarkdown || buildReadingCard(article, articleText) : ''),
-    [aiCard, article, articleText],
-  );
+  const card = article
+    ? currentAiCard?.contentMarkdown || buildReadingCard(article, articleText)
+    : '';
   const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
   const evidenceUnits = useMemo(
     () => (article ? buildReadingCardEvidenceUnits(article) : []),
@@ -1375,8 +1396,97 @@ function ReadingCard({
     });
   }, [reviewAgentKey]);
 
+  const workflowSteps: ReadingCardWorkflowStep[] = [
+    {
+      id: 'deliberation',
+      number: 1,
+      title: '阅读审议报告',
+      description:
+        deliberationState === 'generating'
+          ? '正在整理证据与分歧'
+          : deliberationState === 'error'
+            ? '生成失败，可重试'
+            : deliberation
+              ? `已生成 · ${formatDate(deliberation.updatedAt)}`
+              : '从批注和讨论生成报告',
+      state:
+        deliberationState === 'generating'
+          ? 'running'
+          : deliberationState === 'error'
+            ? 'error'
+            : deliberation
+              ? 'done'
+              : 'active',
+      actionLabel: deliberation ? '重新生成' : '生成审议',
+      disabled: isWorkflowBusy,
+      onAction: generateDeliberation,
+    },
+    {
+      id: 'card',
+      number: 2,
+      title: 'AI 提炼',
+      description:
+        aiState === 'generating'
+          ? '正在提炼读后卡片'
+          : aiState === 'error'
+            ? '生成失败，可重试'
+            : currentAiCard
+              ? `已提炼 · ${formatDate(currentAiCard.updatedAt)}`
+              : aiCard && deliberation
+                ? '审议已更新，等待重新提炼'
+                : deliberation
+                  ? '基于审议报告生成卡片'
+                  : '完成审议后开始',
+      state:
+        aiState === 'generating'
+          ? 'running'
+          : aiState === 'error'
+            ? 'error'
+            : currentAiCard
+              ? 'done'
+              : deliberation
+                ? 'active'
+                : 'waiting',
+      actionLabel: currentAiCard ? '重新提炼' : 'AI 提炼',
+      disabled: !deliberation || isWorkflowBusy,
+      onAction: generateAiCard,
+    },
+    {
+      id: 'review',
+      number: 3,
+      title: '卡片审核',
+      description:
+        reviewState === 'reviewing'
+          ? '审核助手正在检查'
+          : reviewState === 'error'
+            ? '审核失败，可重试'
+            : currentAiCard?.review
+              ? `已审核 · ${formatDate(currentAiCard.review.updatedAt)}`
+              : currentAiCard && aiCard?.review
+                ? '读后卡片已更新，等待重新审核'
+                : currentAiCard
+                  ? selectedReviewAgentIds.length > 0
+                    ? '选择审核助手后审稿'
+                    : '请选择审核助手'
+                  : '完成 AI 提炼后开始',
+      state:
+        reviewState === 'reviewing'
+          ? 'running'
+          : reviewState === 'error'
+            ? 'error'
+            : currentAiCard?.review
+              ? 'done'
+              : currentAiCard
+                ? 'active'
+                : 'waiting',
+      actionLabel: currentAiCard?.review ? '重新审核' : '审核卡片',
+      disabled: !currentAiCard || selectedReviewAgentIds.length === 0 || isWorkflowBusy,
+      onAction: reviewAiCard,
+    },
+  ];
+
   async function generateAiCard() {
-    if (!article || aiState === 'generating') return;
+    if (!article || !deliberation || aiState === 'generating' || isWorkflowBusy) return;
     setAiState('generating');
     setAiError('');
     try {
@@ -1398,7 +1508,7 @@ function ReadingCard({
   }
 
   async function generateDeliberation() {
-    if (!article || deliberationState === 'generating') return;
+    if (!article || isWorkflowBusy) return;
     setDeliberationState('generating');
     setDeliberationError('');
     try {
@@ -1409,6 +1519,9 @@ function ReadingCard({
       });
       setDeliberation(result.readingDeliberation);
       setDeliberationState('done');
+      setAiState('idle');
+      setReviewState('idle');
+      setReviewError('');
       onGenerated();
     } catch (error) {
       setDeliberationError(error instanceof Error ? error.message : '阅读审议生成失败');
@@ -1417,7 +1530,7 @@ function ReadingCard({
   }
 
   async function reviewAiCard() {
-    if (!article || !aiCard || reviewState === 'reviewing') return;
+    if (!article || !currentAiCard || reviewState === 'reviewing' || isWorkflowBusy) return;
     if (selectedReviewAgentIds.length === 0) {
       setReviewError('请选择审核助手');
       return;
@@ -1429,10 +1542,10 @@ function ReadingCard({
         article,
         articleText,
         evidenceUnits,
-        readingCard: aiCard,
+        readingCard: currentAiCard,
         reviewAgentIds: selectedReviewAgentIds,
       });
-      setAiCard({ ...aiCard, review: result.review });
+      setAiCard({ ...currentAiCard, review: result.review });
       setReviewState('done');
       onGenerated();
     } catch (error) {
@@ -1471,54 +1584,11 @@ function ReadingCard({
           ) : null}
         </div>
         <div className="reading-card-actions">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={deliberationState === 'generating'}
-            onClick={generateDeliberation}
-          >
-            {deliberationState === 'generating' ? (
-              <LoaderCircle className="reading-card-spin" size={16} />
-            ) : (
-              <ListChecks size={16} />
-            )}
-            {deliberationState === 'generating' ? '审议中' : deliberation ? '重新审议' : '生成审议'}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={aiState === 'generating'}
-            onClick={generateAiCard}
-          >
-            {aiState === 'generating' ? (
-              <LoaderCircle className="reading-card-spin" size={16} />
-            ) : (
-              <Sparkles size={16} />
-            )}
-            {aiState === 'generating' ? '生成中' : aiCard ? '重新提炼' : 'AI 提炼'}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={
-              !aiCard ||
-              aiState === 'generating' ||
-              reviewState === 'reviewing' ||
-              selectedReviewAgentIds.length === 0
-            }
-            onClick={reviewAiCard}
-          >
-            {reviewState === 'reviewing' ? (
-              <LoaderCircle className="reading-card-spin" size={16} />
-            ) : (
-              <Scale size={16} />
-            )}
-            {reviewState === 'reviewing' ? '审稿中' : aiCard?.review ? '重新审稿' : '审核卡片'}
-          </Button>
           <CopyIconButton label="复制读后卡片 Markdown" value={card} />
         </div>
       </div>
-      {aiCard ? (
+      <ReadingCardWorkflow steps={workflowSteps} />
+      {currentAiCard ? (
         <div className="reading-card-review-agent-strip">
           <span>审核助手</span>
           {reviewAgents.length > 0 ? (
@@ -1561,11 +1631,11 @@ function ReadingCard({
             onOpenEvidence={onOpenEvidence}
           />
         ) : null}
-        {aiCard ? (
+        {currentAiCard ? (
           <ReadingCardDeck
             article={article}
             evidenceUnits={evidenceUnits}
-            readingCard={aiCard}
+            readingCard={currentAiCard}
             stats={stats}
             onOpenEvidence={onOpenEvidence}
           />
@@ -1595,6 +1665,44 @@ function ReadingCard({
         )}
       </div>
     </aside>
+  );
+}
+
+function ReadingCardWorkflow({ steps }: { steps: ReadingCardWorkflowStep[] }) {
+  return (
+    <section className="reading-card-workflow" aria-label="读后卡片流程进度">
+      {steps.map((step) => (
+        <article className={`reading-card-workflow-step is-${step.state}`} key={step.id}>
+          <header>
+            <span className="reading-card-workflow-index" aria-hidden="true">
+              {step.state === 'running' ? (
+                <LoaderCircle className="reading-card-spin" size={15} />
+              ) : step.state === 'done' ? (
+                <Check size={15} />
+              ) : (
+                step.number
+              )}
+            </span>
+            <div>
+              <strong>{step.title}</strong>
+              <p>{step.description}</p>
+            </div>
+          </header>
+          <Button
+            type="button"
+            size="sm"
+            variant={step.state === 'active' || step.state === 'error' ? 'default' : 'secondary'}
+            disabled={step.disabled}
+            onClick={step.onAction}
+          >
+            {step.id === 'deliberation' ? <ListChecks size={14} /> : null}
+            {step.id === 'card' ? <Sparkles size={14} /> : null}
+            {step.id === 'review' ? <Scale size={14} /> : null}
+            {step.actionLabel}
+          </Button>
+        </article>
+      ))}
+    </section>
   );
 }
 

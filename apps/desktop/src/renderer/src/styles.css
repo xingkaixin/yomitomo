@@ -987,6 +987,151 @@
   color: hsl(92 27% 28%);
 }
 
+.reading-card-workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.reading-card-workflow-step {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 116px;
+  grid-template-rows: 1fr auto;
+  gap: 12px;
+  border: 1px solid hsl(36 31% 72% / 0.62);
+  border-radius: 8px;
+  background: hsl(43 60% 95% / 0.68);
+  box-shadow:
+    0 8px 18px hsl(31 34% 24% / 0.06),
+    inset 0 1px 0 hsl(42 80% 99% / 0.72);
+  padding: 12px;
+}
+
+.reading-card-workflow-step + .reading-card-workflow-step::before {
+  position: absolute;
+  top: 27px;
+  left: -11px;
+  width: 10px;
+  border-top: 2px solid hsl(36 31% 72% / 0.78);
+  content: '';
+}
+
+.reading-card-workflow-step header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.reading-card-workflow-index {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border: 1px solid hsl(36 31% 66% / 0.7);
+  border-radius: 999px;
+  background: hsl(43 66% 98% / 0.86);
+  color: hsl(34 22% 32%);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 920;
+}
+
+.reading-card-workflow-step strong,
+.reading-card-workflow-step p {
+  display: block;
+}
+
+.reading-card-workflow-step strong {
+  color: hsl(31 23% 20%);
+  font-size: 13px;
+  font-weight: 940;
+  line-height: 1.25;
+}
+
+.reading-card-workflow-step p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1.4;
+}
+
+.reading-card-workflow-step button {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid hsl(36 31% 72% / 0.62);
+  box-shadow: 0 5px 12px hsl(31 34% 24% / 0.08);
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.reading-card-workflow-step button:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.46);
+  box-shadow: 0 12px 22px hsl(31 34% 24% / 0.16);
+  transform: translateY(-1px);
+}
+
+.reading-card-workflow-step button:active:not(:disabled) {
+  box-shadow: 0 5px 12px hsl(31 34% 24% / 0.1);
+  transform: translateY(1px) scale(0.96);
+}
+
+.reading-card-workflow-step.is-active {
+  border-color: hsl(var(--primary) / 0.56);
+  background:
+    linear-gradient(180deg, hsl(43 66% 98% / 0.9), hsl(var(--primary) / 0.08)), hsl(var(--card));
+}
+
+.reading-card-workflow-step.is-active .reading-card-workflow-index,
+.reading-card-workflow-step.is-running .reading-card-workflow-index {
+  border-color: hsl(var(--primary) / 0.62);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.reading-card-workflow-step.is-done {
+  border-color: hsl(136 28% 48% / 0.42);
+  background:
+    linear-gradient(180deg, hsl(43 66% 98% / 0.86), hsl(135 38% 89% / 0.58)), hsl(var(--card));
+}
+
+.reading-card-workflow-step.is-done .reading-card-workflow-index {
+  border-color: hsl(136 28% 46% / 0.58);
+  background: hsl(134 30% 44%);
+  color: hsl(43 66% 98%);
+}
+
+.reading-card-workflow-step.is-error {
+  border-color: hsl(var(--destructive) / 0.42);
+  background:
+    linear-gradient(180deg, hsl(43 66% 98% / 0.88), hsl(var(--destructive) / 0.08)),
+    hsl(var(--card));
+}
+
+.reading-card-workflow-step.is-error .reading-card-workflow-index {
+  border-color: hsl(var(--destructive) / 0.5);
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.reading-card-workflow-step.is-waiting {
+  color: hsl(var(--muted-foreground));
+}
+
+.reading-card-workflow-step.is-waiting .reading-card-workflow-index {
+  background: hsl(42 29% 90% / 0.68);
+  color: hsl(var(--muted-foreground));
+}
+
 .reading-card-spin {
   animation: reading-card-spin 900ms linear infinite;
 }
