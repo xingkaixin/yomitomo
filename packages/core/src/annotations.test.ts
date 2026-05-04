@@ -149,6 +149,7 @@ describe('annotation core', () => {
         avatar: '',
         annotationColor: '#8ab6d6',
         annotationDensity: 'medium',
+        personalityName: '克制阅读伙伴',
         temperature: 0.35,
       },
     ];

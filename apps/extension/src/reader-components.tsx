@@ -183,43 +183,74 @@ export function AgentAnnotateMenu({
   annotatingAgents,
   onCancel,
   onStartAgent,
-  onStartAll,
 }: {
   agents: PublicAgent[];
   annotatingAgents: string[];
   onCancel: () => void;
   onStartAgent: (agent: PublicAgent) => void;
-  onStartAll: () => void;
 }) {
-  const runnableCount = agents.filter((agent) => !annotatingAgents.includes(agent.id)).length;
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const selectedAgents = agents.filter(
+    (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
+  );
+
+  useEffect(() => {
+    setSelectedAgentIds((ids) =>
+      ids.filter((id) => agents.some((agent) => agent.id === id) && !annotatingAgents.includes(id)),
+    );
+  }, [agents, annotatingAgents]);
+
+  function toggleAgent(agent: PublicAgent) {
+    if (annotatingAgents.includes(agent.id)) return;
+    setSelectedAgentIds((ids) =>
+      ids.includes(agent.id) ? ids.filter((id) => id !== agent.id) : [...ids, agent.id],
+    );
+  }
+
+  function startSelectedAgents() {
+    for (const agent of selectedAgents) onStartAgent(agent);
+    setSelectedAgentIds([]);
+  }
+
   return (
     <div className="reader-agent-annotate-menu">
       <header>
         <strong>助手精读</strong>
-        <span>选择阅读助手开始主动批注</span>
+        <span>先选择阅读助手，再开始主动批注</span>
       </header>
-      {agents.map((agent) => (
-        <button
-          className={annotatingAgents.includes(agent.id) ? 'is-running' : ''}
-          disabled={annotatingAgents.includes(agent.id)}
-          key={agent.id}
-          type="button"
-          onClick={() => onStartAgent(agent)}
-        >
-          <AvatarBadge avatar={agent.avatar} />
-          <span>
-            <strong>{agent.nickname}</strong>
-            <em>@{agent.username}</em>
-          </span>
-          <b>{annotatingAgents.includes(agent.id) ? '阅读中' : '开始'}</b>
-        </button>
-      ))}
+      {agents.map((agent) => {
+        const running = annotatingAgents.includes(agent.id);
+        const selected = selectedAgentIds.includes(agent.id);
+        return (
+          <button
+            aria-pressed={selected}
+            className={[running ? 'is-running' : '', selected ? 'is-selected' : '']
+              .filter(Boolean)
+              .join(' ')}
+            disabled={running}
+            key={agent.id}
+            type="button"
+            onClick={() => toggleAgent(agent)}
+          >
+            <div className="reader-agent-avatar">
+              <i style={{ background: agent.annotationColor }} />
+              <AvatarBadge avatar={agent.avatar} />
+            </div>
+            <span>
+              <strong>{agent.nickname}</strong>
+              <em>@{agent.username}</em>
+              <small>{agent.personalityName || '自定义个性'}</small>
+            </span>
+            <b>{running ? '阅读中' : selected ? '已选' : '选择'}</b>
+          </button>
+        );
+      })}
       <div className="reader-agent-annotate-actions">
         <button type="button" onClick={onCancel}>
           收起
         </button>
-        <button disabled={runnableCount === 0} type="button" onClick={onStartAll}>
-          全部启动{runnableCount > 0 ? ` ${runnableCount}` : ''}
+        <button disabled={selectedAgents.length === 0} type="button" onClick={startSelectedAgents}>
+          开始精读
         </button>
       </div>
     </div>
@@ -227,6 +258,7 @@ export function AgentAnnotateMenu({
 }
 
 export function ReaderSettingsPanel({
+  panelProps,
   desktopConnected,
   hasSavedPairing,
   pairingId,
@@ -238,6 +270,7 @@ export function ReaderSettingsPanel({
   onSavePairingToken,
   onSetPairingTokenDraft,
 }: {
+  panelProps?: React.HTMLAttributes<HTMLDivElement>;
   desktopConnected: boolean;
   hasSavedPairing: boolean;
   pairingId: string;
@@ -259,7 +292,7 @@ export function ReaderSettingsPanel({
     : 'reader-pairing-status';
 
   return (
-    <div className="reader-settings-panel">
+    <div className="reader-settings-panel" {...panelProps}>
       <div className="reader-pairing-row">
         {showPairingSummary ? (
           <div className={pairingConnectedClass}>

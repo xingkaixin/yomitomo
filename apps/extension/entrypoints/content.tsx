@@ -899,10 +899,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     });
   }
 
-  function requestSelectedAgentAnnotations() {
-    for (const agent of agents) requestAgentAnnotations(agent);
-  }
-
   async function savePairingToken() {
     const token = pairingTokenDraft.trim();
     if (!token) {
@@ -1075,6 +1071,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onHighlightClick={handleHighlightClick}
       onMouseUp={handleMouseUp}
       onCloseHighlightChoice={() => setHighlightChoice(null)}
+      onCloseFloatingPanels={() => {
+        setSettingsOpen(false);
+        setAgentAnnotateOpen(false);
+      }}
       onCloseResponsivePanels={() => {
         setTocOpen(false);
         setNotesOpen(false);
@@ -1089,7 +1089,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setSelectionAction(null);
       }}
       onRequestAgentAnnotations={requestAgentAnnotations}
-      onRequestSelectedAgentAnnotations={requestSelectedAgentAnnotations}
       onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}
       onScrollToHighlight={scrollToHighlight}
@@ -1097,8 +1096,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onSetPairingTokenDraft={setPairingTokenDraft}
       onToggleNotes={() => setNotesOpen((open) => !open)}
       onToggleToc={() => setTocOpen((open) => !open)}
-      onToggleAgentAnnotate={() => setAgentAnnotateOpen((open) => !open)}
-      onToggleSettings={() => setSettingsOpen((open) => !open)}
+      onToggleAgentAnnotate={() => {
+        setSettingsOpen(false);
+        setAgentAnnotateOpen((open) => !open);
+      }}
+      onToggleSettings={() => {
+        setAgentAnnotateOpen(false);
+        setSettingsOpen((open) => !open);
+      }}
       onDisconnectDesktop={disconnectDesktop}
       onUpdateReaderSettings={updateReaderSettings}
     />

@@ -8,7 +8,12 @@ import type {
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
-import { isDesktopSocketOriginAllowed, makeId, parseDesktopClientMessage } from '@yomitomo/shared';
+import {
+  agentPersonalityName,
+  isDesktopSocketOriginAllowed,
+  makeId,
+  parseDesktopClientMessage,
+} from '@yomitomo/shared';
 import { readStore, saveArticle } from './store';
 import { runAgentAnnotateStream, runAgentStream } from './llm';
 import { logError, logInfo } from './logger';
@@ -352,6 +357,8 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
     avatar: agent.avatar,
     annotationColor: agent.annotationColor,
     annotationDensity: agent.annotationDensity,
+    personalityName: agentPersonalityName(agent),
+    temperature: agent.temperature,
   }));
 }
 

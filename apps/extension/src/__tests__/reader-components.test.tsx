@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
+  AgentAnnotateMenu,
   AnnotationCard,
   Composer,
   HighlightChoiceMenu,
@@ -50,6 +51,7 @@ const agent: PublicAgent = {
   avatar: '',
   annotationColor: '#8ab6d6',
   annotationDensity: 'medium',
+  personalityName: '追问型导师',
   temperature: 0.35,
 };
 
@@ -185,6 +187,28 @@ describe('HighlightChoiceMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
 
     expect(onSelect).toHaveBeenCalledWith('annotation_2');
+  });
+});
+
+describe('AgentAnnotateMenu', () => {
+  it('selects an agent before starting careful reading', () => {
+    const onStartAgent = vi.fn();
+    render(
+      <AgentAnnotateMenu
+        agents={[agent]}
+        annotatingAgents={[]}
+        onCancel={vi.fn()}
+        onStartAgent={onStartAgent}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '开始精读' })).toHaveProperty('disabled', true);
+    expect(screen.getByText('追问型导师')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
+
+    expect(onStartAgent).toHaveBeenCalledWith(agent);
   });
 });
 

@@ -81,10 +81,10 @@ type ReaderAppViewProps = {
   onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onCloseHighlightChoice: () => void;
+  onCloseFloatingPanels: () => void;
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onRequestAgentAnnotations: (agent: PublicAgent) => void;
-  onRequestSelectedAgentAnnotations: () => void;
   onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -144,10 +144,10 @@ export function ReaderAppView({
   onHighlightClick,
   onMouseUp,
   onCloseHighlightChoice,
+  onCloseFloatingPanels,
   onCloseResponsivePanels,
   onOpenComposer,
   onRequestAgentAnnotations,
-  onRequestSelectedAgentAnnotations,
   onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
@@ -176,6 +176,13 @@ export function ReaderAppView({
     return index >= 0 ? `打开${type} ${index + 1}` : '打开批注';
   }
 
+  function handleOutsidePanelPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (!settingsOpen && !agentAnnotateOpen) return;
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) return;
+    onCloseFloatingPanels();
+  }
+
   return (
     <div
       className={['reader-app', tocOpen ? 'is-toc-open' : '', notesOpen ? 'is-notes-open' : '']
@@ -187,6 +194,7 @@ export function ReaderAppView({
           '--reader-content-width': `${readerSettings.contentWidth}px`,
         } as React.CSSProperties
       }
+      onPointerDownCapture={handleOutsidePanelPointerDown}
     >
       <header className="reader-toolbar">
         <div>
@@ -233,15 +241,17 @@ export function ReaderAppView({
             className={
               agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
             }
+            data-reader-popover-anchor
             type="button"
             disabled={!desktopConnected || agents.length === 0}
             onClick={onToggleAgentAnnotate}
           >
-            <Bot size={14} />
+            <Bot size={18} />
             {annotatingAgents.length > 0 ? '精读中' : '助手精读'}
           </button>
           <button
             className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
+            data-reader-popover-anchor
             type="button"
             onClick={onToggleSettings}
             aria-label="阅读设置"
@@ -255,19 +265,19 @@ export function ReaderAppView({
       </header>
 
       {agentAnnotateOpen ? (
-        <div className="reader-agent-annotate-popover">
+        <div className="reader-agent-annotate-popover" data-reader-floating-panel>
           <AgentAnnotateMenu
             agents={agents}
             annotatingAgents={annotatingAgents}
             onCancel={onCancelAgentAnnotateMenu}
             onStartAgent={onRequestAgentAnnotations}
-            onStartAll={onRequestSelectedAgentAnnotations}
           />
         </div>
       ) : null}
 
       {settingsOpen ? (
         <ReaderSettingsPanel
+          panelProps={{ 'data-reader-floating-panel': true }}
           desktopConnected={desktopConnected}
           pairingId={pairingId}
           pairingStatus={pairingStatus}
