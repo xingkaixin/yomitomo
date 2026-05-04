@@ -45,6 +45,14 @@ export type ReadingStatsPeriod = {
   aiComments: number;
 };
 
+export type ReadingActivityDay = ReadingStatsPeriod & {
+  date: string;
+  label: string;
+  cards: number;
+  score: number;
+  level: number;
+};
+
 export function sortArticles(articles: ArticleRecord[]) {
   return articles.toSorted((left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt));
 }
@@ -189,6 +197,58 @@ export function computeReadingStats(articles: ArticleRecord[], now = new Date())
   };
 }
 
+export function computeReadingActivityDays(
+  articles: ArticleRecord[],
+  days = 70,
+  now = new Date(),
+): ReadingActivityDay[] {
+  const start = startOfDay(now);
+  start.setDate(start.getDate() - days + 1);
+  const items = Array.from({ length: days }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return emptyActivityDay(date);
+  });
+  const byDate = new Map(items.map((item) => [item.date, item]));
+
+  const addToDay = (value: string, update: (day: ReadingActivityDay) => void) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime()) || date < start) return;
+    const day = byDate.get(dateKey(date));
+    if (day) update(day);
+  };
+
+  for (const article of articles) {
+    addToDay(article.updatedAt, (day) => {
+      day.articles += 1;
+      day.score += 1;
+    });
+    addToDay(article.readingCard?.createdAt || '', (day) => {
+      day.cards += 1;
+      day.score += 2;
+    });
+    for (const annotation of article.annotations) {
+      addToDay(annotation.createdAt, (day) => {
+        day.annotations += 1;
+        day.score += 1;
+      });
+      for (const comment of annotation.comments) {
+        addToDay(comment.createdAt, (day) => {
+          day.comments += 1;
+          day.score += 1;
+          if (comment.author === 'ai') day.aiComments += 1;
+        });
+      }
+    }
+  }
+
+  const maxScore = Math.max(...items.map((item) => item.score));
+  for (const item of items) {
+    item.level = activityLevel(item.score, maxScore);
+  }
+  return items;
+}
+
 export function compactText(value: string, limit: number) {
   const text = lineText(value);
   if (text.length <= limit) return text;
@@ -212,7 +272,7 @@ function countReadingStats(articles: ArticleRecord[], since: Date | null): Readi
       const annotations = article.annotations.filter((annotation) =>
         inPeriod(annotation.createdAt),
       );
-      const comments = annotations.flatMap((annotation) =>
+      const comments = article.annotations.flatMap((annotation) =>
         annotation.comments.filter((comment) => inPeriod(comment.createdAt)),
       );
 
@@ -237,6 +297,31 @@ function startOfWeek(date: Date) {
   const day = start.getDay() || 7;
   start.setDate(start.getDate() - day + 1);
   return start;
+}
+
+function emptyActivityDay(date: Date): ReadingActivityDay {
+  return {
+    date: dateKey(date),
+    label: `${date.getMonth() + 1}/${date.getDate()}`,
+    articles: 0,
+    annotations: 0,
+    comments: 0,
+    aiComments: 0,
+    cards: 0,
+    score: 0,
+    level: 0,
+  };
+}
+
+function dateKey(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function activityLevel(score: number, maxScore: number) {
+  if (score === 0 || maxScore === 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil((score / maxScore) * 4)));
 }
 
 function formatDateTime(value: string) {

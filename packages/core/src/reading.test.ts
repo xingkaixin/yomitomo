@@ -4,6 +4,7 @@ import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
   buildReadingCardSections,
+  computeReadingActivityDays,
   computeReadingStats,
   sortAnnotations,
   sortArticles,
@@ -86,6 +87,64 @@ describe('reading core', () => {
     expect(stats.today).toEqual({ articles: 1, annotations: 2, comments: 2, aiComments: 1 });
     expect(stats.week).toEqual({ articles: 1, annotations: 2, comments: 2, aiComments: 1 });
     expect(stats.total).toEqual({ articles: 2, annotations: 3, comments: 3, aiComments: 1 });
+  });
+
+  it('counts comments by their own created date', () => {
+    const stats = computeReadingStats(
+      [
+        article('older', '2026-04-20T08:00:00.000Z', [
+          annotation('a1', 0, '2026-04-20T08:00:00.000Z', {
+            comments: [
+              {
+                id: 'today-comment',
+                author: 'ai',
+                content: 'today',
+                createdAt: '2026-05-03T08:00:00.000Z',
+              },
+            ],
+          }),
+        ]),
+      ],
+      new Date('2026-05-03T12:00:00.000Z'),
+    );
+
+    expect(stats.today).toEqual({ articles: 0, annotations: 0, comments: 1, aiComments: 1 });
+  });
+
+  it('builds daily reading activity levels', () => {
+    const days = computeReadingActivityDays(
+      [
+        {
+          ...article('today', '2026-05-03T08:00:00.000Z', [
+            annotation('a1', 0, '2026-05-03T09:00:00.000Z'),
+          ]),
+          readingCard: {
+            id: 'card-1',
+            articleId: 'today',
+            title: 'Card',
+            contentMarkdown: '',
+            sections: [],
+            providerId: 'provider-1',
+            providerName: 'Provider',
+            modelName: 'model',
+            createdAt: '2026-05-03T10:00:00.000Z',
+            updatedAt: '2026-05-03T10:00:00.000Z',
+          },
+        },
+      ],
+      3,
+      new Date('2026-05-03T12:00:00.000Z'),
+    );
+
+    expect(days.map((day) => day.date)).toEqual(['2026-05-01', '2026-05-02', '2026-05-03']);
+    expect(days[2]).toMatchObject({
+      articles: 1,
+      annotations: 1,
+      comments: 1,
+      cards: 1,
+      score: 5,
+      level: 4,
+    });
   });
 
   it('builds reading card sections from annotations and comments', () => {

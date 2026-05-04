@@ -22,6 +22,9 @@
     --border: 34 29% 79%;
     --input: 34 29% 79%;
     --ring: 7 55% 46%;
+    --chart-1: hsl(83 24% 35%);
+    --chart-2: hsl(8 45% 46%);
+    --chart-3: hsl(205 30% 38%);
     --radius: 0.85rem;
     --resize-dur: 300ms;
     --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -934,9 +937,12 @@
 
 .provider-select-trigger > span:first-child {
   display: flex;
+  flex: 1;
   min-width: 0;
   align-items: center;
   gap: 10px;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .provider-select-content {
@@ -1009,19 +1015,21 @@
 
 .stats-periods {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 }
 
 .stats-period,
-.stats-note {
+.stats-chart-card,
+.stats-activity-card {
   border: 1px solid hsl(var(--border) / 0.72);
-  border-radius: 18px;
+  border-radius: 8px;
   background: hsl(var(--background) / 0.52);
   padding: 16px;
 }
 
 .stats-period h3,
-.stats-note h3 {
+.stats-section-heading h3 {
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 900;
@@ -1029,13 +1037,13 @@
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .stats-metric {
   border: 1px solid hsl(var(--border) / 0.64);
-  border-radius: 14px;
+  border-radius: 8px;
   background: hsl(var(--card) / 0.66);
   padding: 14px;
 }
@@ -1056,15 +1064,68 @@
   font-weight: 800;
 }
 
-.stats-note {
+.stats-visual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+  gap: 16px;
   margin-top: 16px;
 }
 
-.stats-note p {
+.stats-section-heading {
+  margin-bottom: 14px;
+}
+
+.stats-section-heading p {
   margin: 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
-  line-height: 1.6;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.activity-heatmap {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 12px);
+  justify-content: start;
+  gap: 6px;
+  overflow: auto;
+  padding: 2px 2px 8px;
+}
+
+.activity-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: hsl(76 17% 78% / 0.46);
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.48);
+}
+
+.activity-dot.level-1 {
+  background: hsl(88 28% 72%);
+}
+
+.activity-dot.level-2 {
+  background: hsl(91 31% 57%);
+}
+
+.activity-dot.level-3 {
+  background: hsl(94 35% 42%);
+}
+
+.activity-dot.level-4 {
+  background: hsl(99 42% 27%);
+}
+
+.activity-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .library-screen {
