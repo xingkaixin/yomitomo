@@ -501,8 +501,13 @@
 
 .provider-model-field {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
+}
+
+.provider-model-mode-button.is-active {
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
 }
 
 .field-inline-note {

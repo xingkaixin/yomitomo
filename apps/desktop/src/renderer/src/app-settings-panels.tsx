@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  Keyboard,
   ListChecks,
   Plus,
   RefreshCw,
@@ -794,6 +795,8 @@ export function ProviderForm({
   const [modelError, setModelError] = useState('');
   const [modelNotice, setModelNotice] = useState('');
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
+  const modelInputMode = draft.modelInputMode || 'list';
+  const isCustomModel = modelInputMode === 'custom';
   const visibleModels =
     modelOptions.length > 0 ? modelOptions : draft.modelNames || selectedPreset?.modelNames || [];
 
@@ -807,6 +810,16 @@ export function ProviderForm({
           ? '已显示预设模型；填写 API Key 后可获取实时列表'
           : '填写 API Key 后可获取模型列表',
       );
+      if (fallbackModels.length > 0) {
+        onChange({
+          ...draft,
+          modelInputMode: 'list',
+          modelName: fallbackModels.includes(draft.modelName || '')
+            ? draft.modelName
+            : fallbackModels[0],
+          modelNames: fallbackModels,
+        });
+      }
       return;
     }
     setModelLoading(true);
@@ -820,8 +833,15 @@ export function ProviderForm({
       if (names.length > 0) {
         onChange({
           ...draft,
+          modelInputMode: 'list',
           modelName: names.includes(draft.modelName || '') ? draft.modelName : names[0],
           modelNames: names,
+        });
+      } else {
+        onChange({
+          ...draft,
+          modelInputMode: 'list',
+          modelNames: [],
         });
       }
     } catch (error) {
@@ -847,6 +867,18 @@ export function ProviderForm({
       baseUrl: preset.baseUrl,
       modelName: preset.modelName,
       modelNames: preset.modelNames,
+      modelInputMode: 'list',
+    });
+  }
+
+  function useCustomModel() {
+    setModelOptions([]);
+    setModelError('');
+    setModelNotice('');
+    onChange({
+      ...draft,
+      modelInputMode: 'custom',
+      modelNames: undefined,
     });
   }
 
@@ -916,24 +948,47 @@ export function ProviderForm({
       </Field>
       <Field id="provider-model" label="模型">
         <div className="provider-model-field">
-          <Select
-            disabled={visibleModels.length === 0}
-            value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
-            onValueChange={(modelName) => onChange({ ...draft, modelName })}
+          {isCustomModel ? (
+            <Input
+              id="provider-model"
+              name="provider-model"
+              autoComplete="off"
+              value={draft.modelName || ''}
+              onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
+            />
+          ) : (
+            <Select
+              disabled={visibleModels.length === 0}
+              value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
+              onValueChange={(modelName) => onChange({ ...draft, modelName })}
+            >
+              <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
+                <SelectValue placeholder="选择模型" />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content">
+                <SelectGroup>
+                  {visibleModels.map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            className={
+              isCustomModel
+                ? 'action-button provider-model-mode-button is-active'
+                : 'action-button provider-model-mode-button'
+            }
+            type="button"
+            variant="secondary"
+            onClick={useCustomModel}
           >
-            <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
-              <SelectValue placeholder="选择模型" />
-            </SelectTrigger>
-            <SelectContent className="theme-select-content">
-              <SelectGroup>
-                {visibleModels.map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+            <Keyboard size={15} />
+            自定义
+          </Button>
           <Button
             className="action-button"
             type="button"

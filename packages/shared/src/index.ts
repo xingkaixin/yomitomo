@@ -45,6 +45,8 @@ export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type AgentKind = 'annotation' | 'review';
 
+export type ProviderModelInputMode = 'list' | 'custom';
+
 export type LlmProvider = {
   id: string;
   name: string;
@@ -55,6 +57,7 @@ export type LlmProvider = {
   apiKey: string;
   modelName: string;
   modelNames?: string[];
+  modelInputMode?: ProviderModelInputMode;
   reasoningEffort?: ReasoningEffort;
   createdAt: string;
   updatedAt: string;

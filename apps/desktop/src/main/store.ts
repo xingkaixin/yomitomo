@@ -157,6 +157,8 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     ? store.providers.find((provider) => provider.id === input.id)
     : undefined;
   const preset = providerPresets.find((item) => item.id === input.presetId);
+  const modelInputMode =
+    normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
   const provider: LlmProvider = {
     id: existing?.id || makeId('provider'),
     name: input.name?.trim() || preset?.name || 'Untitled Provider',
@@ -169,9 +171,12 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     modelName:
       input.modelName?.trim() || existing?.modelName || preset?.modelName || 'claude-sonnet-4-5',
     modelNames:
-      normalizeModelNames(input.modelNames) ||
-      normalizeModelNames(existing?.modelNames) ||
-      preset?.modelNames,
+      modelInputMode === 'custom'
+        ? undefined
+        : normalizeModelNames(input.modelNames) ||
+          normalizeModelNames(existing?.modelNames) ||
+          preset?.modelNames,
+    modelInputMode,
     reasoningEffort:
       normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'default',
     createdAt: existing?.createdAt || now,
@@ -375,6 +380,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       apiKey: row.apiKey,
       modelName: row.modelName,
       modelNames: normalizeModelNames(row.modelNames) || undefined,
+      modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
       reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'default',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -584,6 +590,7 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
       apiKey: provider.apiKey,
       modelName: provider.modelName,
       modelNames: provider.modelNames,
+      modelInputMode: provider.modelInputMode,
       reasoningEffort: provider.reasoningEffort,
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
@@ -599,6 +606,7 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
         apiKey: provider.apiKey,
         modelName: provider.modelName,
         modelNames: provider.modelNames,
+        modelInputMode: provider.modelInputMode,
         reasoningEffort: provider.reasoningEffort,
         updatedAt: provider.updatedAt,
       },
@@ -649,7 +657,11 @@ function normalizeStore(store: DesktopStore): DesktopStore {
       Object.assign({}, provider, {
         type: normalizeProviderType(provider.type) || 'anthropic',
         presetId: normalizePresetId(provider.presetId),
-        modelNames: normalizeModelNames(provider.modelNames),
+        modelNames:
+          provider.modelInputMode === 'custom'
+            ? undefined
+            : normalizeModelNames(provider.modelNames),
+        modelInputMode: normalizeProviderModelInputMode(provider.modelInputMode) || 'list',
         reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'default',
       }),
     ),
@@ -877,6 +889,10 @@ function normalizeProviderType(value: unknown): ProviderType | null {
     value === 'gemini'
     ? value
     : null;
+}
+
+function normalizeProviderModelInputMode(value: unknown) {
+  return value === 'custom' || value === 'list' ? value : null;
 }
 
 function normalizePresetId(value: unknown): ProviderPresetId | undefined {

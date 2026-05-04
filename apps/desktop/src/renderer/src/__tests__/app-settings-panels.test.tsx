@@ -60,9 +60,50 @@ describe('ProviderForm', () => {
     expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
     expect(listProviderModels).toHaveBeenCalledOnce();
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'gpt-5.2' }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ modelInputMode: 'list', modelName: 'gpt-5.2' }),
+    );
+  });
+
+  it('switches model input between custom text and fetched list', async () => {
+    const listProviderModels = vi.fn().mockResolvedValue([{ id: 'kimi-k2' }]);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        listProviderModels,
+      },
+    });
+
+    render(
+      <StatefulProviderForm
+        initialDraft={{
+          ...emptyProvider,
+          apiKey: 'sk-test',
+          modelName: 'vendor/model',
+          modelNames: ['preset-model'],
+          modelInputMode: 'list',
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /自定义/ }));
+    const input = screen.getByRole('textbox', { name: '模型' }) as HTMLInputElement;
+    expect(input.value).toBe('vendor/model');
+
+    fireEvent.change(input, { target: { value: 'custom/model' } });
+    expect(input.value).toBe('custom/model');
+
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+
+    expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
   });
 });
+
+function StatefulProviderForm({ initialDraft }: { initialDraft: typeof emptyProvider }) {
+  const [draft, setDraft] = React.useState(initialDraft);
+  return <ProviderForm draft={draft} onChange={setDraft} />;
+}
 
 describe('AgentForm', () => {
   const providers: ProviderOption[] = [

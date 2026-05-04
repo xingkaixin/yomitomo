@@ -160,6 +160,7 @@ export const emptyProvider: ProviderDraft = {
   baseUrl: defaultProviderPreset?.baseUrl || 'https://api.anthropic.com',
   modelName: defaultProviderPreset?.modelName || 'claude-sonnet-4-5',
   modelNames: defaultProviderPreset?.modelNames,
+  modelInputMode: 'list',
   apiKey: '',
   reasoningEffort: 'default',
 };
@@ -236,6 +237,7 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
     (draft.apiKey || '').trim() !== provider.apiKey ||
     (draft.modelName || '').trim() !== provider.modelName ||
     modelNamesChanged(draft.modelNames, provider.modelNames) ||
+    (draft.modelInputMode || 'list') !== (provider.modelInputMode || 'list') ||
     (draft.reasoningEffort || 'default') !== (provider.reasoningEffort || 'default')
   );
 }

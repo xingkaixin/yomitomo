@@ -183,4 +183,10 @@ UPDATE providers SET type = 'openai-chat' WHERE type = 'openai';
 ALTER TABLE providers ADD COLUMN model_names TEXT;
 `,
   },
+  {
+    id: '0011_provider_model_input_mode',
+    sql: `
+ALTER TABLE providers ADD COLUMN model_input_mode TEXT NOT NULL DEFAULT 'list';
+`,
+  },
 ];
