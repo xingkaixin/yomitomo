@@ -4,59 +4,83 @@
 
 # Yomitomo
 
-Yomitomo 是面向深度阅读的本地阅读伙伴，把网页阅读、文本批注、讨论线程和 AI 助手放进同一个阅读现场。它的目标是让用户在阅读时直接留下判断、追问和上下文，并让 AI 助手围绕原文参与批注。
+Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Electron 桌面端组成：扩展把网页转成稳定阅读视图，桌面端保存阅读数据、管理 LLM provider 和阅读助手，并通过本机 WebSocket 为扩展提供 AI 批注能力。
 
-## 产品价值
+## 核心能力
 
-- 把网页转成更稳定的阅读视图，减少原站页面噪音。
-- 让高亮和批注绑定到原文片段，回到同一篇文章时可以继续阅读和讨论。
-- 用 threaded annotations 承载阅读过程中的想法、追问和回复。
-- 通过桌面端配置 AI provider 和助手身份，让 AI 基于当前文章和选中文本参与对话。
-- 数据优先保存在本机：扩展侧使用 `browser.storage.local`，桌面端使用 Electron `userData`。
-
-## 功能简述
-
-### 浏览器扩展
-
-- 点击扩展图标进入或退出阅读器模式。
-- 自动抽取网页正文、标题、作者和摘要信息。
-- 支持文章目录、阅读字号、内容宽度调节。
-- 选中文本后创建高亮和批注。
-- 每条批注拥有独立讨论线程，可继续回复。
-- 批注锚点使用文本偏移和上下文片段恢复，适配同一文章的再次打开。
-- 连接本地桌面端后，可选择 AI 助手进行主动批注。
-
-### 桌面端
-
-- 运行本地 WebSocket 服务：`127.0.0.1:43891`。
-- 管理用户身份：昵称、username、头像、批注颜色。
-- 管理 LLM provider：类型、base URL、API key、模型名。
-- 管理 AI 助手：昵称、username、头像、批注颜色、角色提示词。
-- 提供 provider 连通性测试和本地日志路径。
-
-### 共享能力
-
-- `@yomitomo/shared` 提供共享类型、ID 生成、文本哈希、文本锚点创建和解析。
-- `@yomitomo/core` 提供跨端业务核心逻辑，包括批注创建、评论更新、@ 提及解析、批注作者信息、阅读统计和阅读卡片生成。
-- desktop、extension 通过共享协议传递用户、助手、文章、批注和消息数据。
+- 网页阅读器：正文抽取、目录、字号、宽度和批注侧栏。
+- 文本批注：高亮、批注类型、讨论线程、评论回复和 `@助手` 触发。
+- 主动精读：选择一个或多个阅读助手，让 AI 围绕文章生成批注。
+- 阅读库：桌面端汇总扩展同步的文章、批注、评论和原文链接。
+- 读后卡片：基于原文、批注和讨论生成阅读审议报告、AI 读后卡片，并交给审核助手检查。
+- 阅读统计：按文章、批注、讨论和读后卡片生成本地阅读趋势。
+- 本地配对：扩展使用桌面端配对码连接 `ws://127.0.0.1:43891`。
 
 ## 项目结构
 
 ```text
-apps/desktop      Electron 桌面端
-apps/extension    WXT 浏览器扩展
+apps/desktop      Electron 桌面端，包含 main、preload、renderer
+apps/extension    WXT 浏览器扩展，包含 background、content script 和 popup
 packages/core     跨端业务核心逻辑
-packages/shared   共享类型和文本锚定工具
+packages/shared   共享类型、协议、ID、哈希和文本锚定工具
+assets             项目静态资源
 ```
 
-## 开发
+## 技术栈
+
+- 包管理器：`pnpm@11.0.3`
+- 构建编排：Turbo
+- 语言：TypeScript，ESM
+- 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
+- 浏览器扩展：WXT、Chrome MV3、React 19、Tailwind CSS 4
+- 本地数据库：SQLite、better-sqlite3、Drizzle ORM
+- 测试：Vitest
+- Lint / Format：oxlint、oxfmt
+
+## 快速开始
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-常用命令：
+`pnpm dev` 会通过 Turbo 同时启动 workspace 内的开发任务。常见开发流程是启动桌面端，再加载浏览器扩展。
+
+### 启动桌面端
+
+```bash
+pnpm --filter @yomitomo/desktop dev
+```
+
+桌面端启动后会：
+
+- 在 `127.0.0.1:43891` 运行本地 HTTP / WebSocket 服务。
+- 在 Electron `userData` 目录保存 `yomitomo.sqlite`。
+- 提供用户、provider、助手、配对码、阅读库、统计、读后卡片和日志视图。
+
+### 启动扩展
+
+```bash
+pnpm --filter @yomitomo/extension dev
+```
+
+也可以构建后手动加载 Chrome 扩展：
+
+```bash
+pnpm --filter @yomitomo/extension build
+```
+
+然后打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3`。
+
+## 使用方式
+
+1. 启动桌面端，在「通用」页复制桌面端配对码。
+2. 加载浏览器扩展，打开网页后点击扩展图标进入阅读器。
+3. 在阅读器设置中填入配对码，连接本机桌面端。
+4. 选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
+5. 回到桌面端「阅读库」查看已同步文章，并生成阅读审议、读后卡片和审核结果。
+
+## 常用命令
 
 ```bash
 pnpm lint
@@ -65,34 +89,44 @@ pnpm build
 pnpm format
 ```
 
-单包运行：
+按包运行：
 
 ```bash
 pnpm --filter @yomitomo/desktop dev
+pnpm --filter @yomitomo/desktop build
+pnpm --filter @yomitomo/desktop test
+
 pnpm --filter @yomitomo/extension dev
-pnpm --filter @yomitomo/core test
-pnpm --filter @yomitomo/shared build
-```
-
-## 安装扩展
-
-```bash
 pnpm --filter @yomitomo/extension build
+pnpm --filter @yomitomo/extension test
+
+pnpm --filter @yomitomo/core build
+pnpm --filter @yomitomo/core test
+
+pnpm --filter @yomitomo/shared build
+pnpm --filter @yomitomo/shared test
 ```
 
-然后在 Chrome 打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3`。
+## 数据与通信
 
-## 桌面端
+- 扩展通过 `browser.storage.local` 保存阅读器设置、配对码缓存和文章缓存。
+- 桌面端通过 SQLite 保存用户、provider、助手、文章、批注、评论、阅读审议和读后卡片。
+- 扩展和桌面端通过 `ws://127.0.0.1:43891` 通信，消息类型定义在 `@yomitomo/shared`。
+- WebSocket 连接需要配对码认证，桌面端支持旋转配对码并断开旧连接。
+- provider API key 保存在本机桌面端数据库中。
+
+## 分层约定
+
+- `packages/shared` 放共享类型、协议类型、provider preset、ID/哈希、文本锚定和 Markdown 渲染工具。
+- `packages/core` 放批注、评论、提及解析、阅读统计、阅读卡片和阅读器 DOM 相关纯逻辑。
+- `apps/extension/src/reader-*` 放扩展阅读器的文章抽取、DOM 范围、高亮绘制、组件和工具逻辑。
+- `apps/desktop/src/main` 放 Electron 主进程、本地服务、SQLite store、LLM 调用和日志。
+- `apps/desktop/src/renderer/src/app-*` 放桌面端阅读库、统计、设置、日志和读后卡片 UI。
+
+## 提交前检查
 
 ```bash
-pnpm --filter @yomitomo/desktop dev
+pnpm lint
+pnpm test
+pnpm build
 ```
-
-桌面端启动后，扩展会通过 `ws://127.0.0.1:43891` 获取用户和助手配置，并把 AI 批注请求发送到本地服务处理。
-
-## 代码分层
-
-- `packages/shared` 保持为基础层：共享类型、协议类型、ID/哈希、文本锚定。
-- `packages/core` 承载跨端业务逻辑：批注、评论、提及、阅读统计、阅读卡片。
-- `apps/extension/src/reader-*` 承载扩展阅读器的文章抽取、DOM 范围、高亮、展示组件和工具逻辑。
-- `apps/desktop/src/renderer/src/app-*` 承载桌面端 renderer 的设置业务和展示工具。
