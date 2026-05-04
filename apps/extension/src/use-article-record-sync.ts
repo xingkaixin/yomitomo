@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { browser } from 'wxt/browser';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
@@ -57,6 +57,7 @@ export function useArticleRecordSync({
 }: UseArticleRecordSyncOptions) {
   const storageKey = `${STORAGE_PREFIX}${extracted.id}`;
   const legacyStorageKey = `${LEGACY_STORAGE_PREFIX}${extracted.id}`;
+  const lastSentArticleSignatureRef = useRef('');
 
   useEffect(() => {
     browser.storage.local
@@ -200,6 +201,7 @@ export function useArticleRecordSync({
     const bridge = desktopBridgeRef.current;
     if (!desktopAuthenticatedRef.current) return;
     if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
+    lastSentArticleSignatureRef.current = articleAnnotationsSignature(record);
     bridge.send({ type: 'article:save', requestId: makeId('request'), payload: record });
   }
 
@@ -230,7 +232,10 @@ export function useArticleRecordSync({
     });
   }
 
-  async function applyDesktopArticleRecord(record: ArticleRecord | null) {
+  async function applyDesktopArticleRecord(
+    record: ArticleRecord | null,
+    options: { backfillLocalChanges?: boolean } = {},
+  ) {
     if (!record) {
       sendCurrentArticleRecord();
       return;
@@ -254,12 +259,13 @@ export function useArticleRecordSync({
       void cacheArticleRecord(nextRecord);
     }
 
-    if (changedDesktop) {
+    if (
+      options.backfillLocalChanges &&
+      changedDesktop &&
+      articleAnnotationsSignature(nextRecord) !== lastSentArticleSignatureRef.current
+    ) {
       sendArticleRecord(nextRecord);
-      return;
     }
-
-    if (!current) sendArticleRecord(nextRecord);
   }
 
   function matchesExtractedArticle(record: ArticleRecord) {
@@ -337,8 +343,39 @@ function mergeAnnotation(current: Annotation, desktop: Annotation): Annotation {
 function articleAnnotationsSignature(record: ArticleRecord) {
   return JSON.stringify(
     record.annotations.map((annotation) => ({
-      ...annotation,
-      comments: annotation.comments.map((comment) => ({ ...comment })),
+      id: annotation.id,
+      anchor: annotation.anchor,
+      author: annotation.author,
+      annotationType: annotation.annotationType,
+      color: annotation.color,
+      agentId: annotation.agentId,
+      agentUsername: annotation.agentUsername,
+      agentNickname: annotation.agentNickname,
+      agentAvatar: annotation.agentAvatar,
+      agentAnnotationColor: annotation.agentAnnotationColor,
+      userId: annotation.userId,
+      userUsername: annotation.userUsername,
+      userNickname: annotation.userNickname,
+      userAvatar: annotation.userAvatar,
+      userAnnotationColor: annotation.userAnnotationColor,
+      comments: annotation.comments.map((comment) => ({
+        id: comment.id,
+        author: comment.author,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        replyTo: comment.replyTo,
+        agentId: comment.agentId,
+        agentUsername: comment.agentUsername,
+        agentNickname: comment.agentNickname,
+        agentAvatar: comment.agentAvatar,
+        agentAnnotationColor: comment.agentAnnotationColor,
+        userId: comment.userId,
+        userUsername: comment.userUsername,
+        userNickname: comment.userNickname,
+        userAvatar: comment.userAvatar,
+        userAnnotationColor: comment.userAnnotationColor,
+        pending: comment.pending || undefined,
+      })),
     })),
   );
 }

@@ -11,6 +11,7 @@ import {
   type PublicAgent,
   type UserProfile,
   createTextAnchor,
+  makeId,
   resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
@@ -19,6 +20,7 @@ import {
   createUserAnnotation,
   createUserComment,
   findMentionedAgents,
+  updateAnnotationComment,
 } from '@yomitomo/core';
 import {
   type ExtractedArticle,
@@ -550,7 +552,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === 'article:get:result') {
-      await applyDesktopArticleRecord(message.article);
+      await applyDesktopArticleRecord(message.article, { backfillLocalChanges: true });
       return;
     }
 

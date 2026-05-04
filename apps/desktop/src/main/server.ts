@@ -163,6 +163,15 @@ async function handleMessage(socket: WebSocket, raw: string) {
     }
 
     if (message.type === 'article:save') {
+      const previousStore = await readStore();
+      const previousArticle = previousStore.articles.find((item) => item.id === message.payload.id);
+      if (
+        previousArticle &&
+        articleSyncSignature(previousArticle) === articleSyncSignature(message.payload)
+      ) {
+        return;
+      }
+
       const store = await saveArticle(message.payload);
       const article = store.articles.find((item) => item.id === message.payload.id);
       logInfo('article.save', {
@@ -349,4 +358,51 @@ function findAgent(agents: Agent[], agentId: string | undefined, username: strin
 
 function toPublicUser(user: UserProfile): UserProfile {
   return user;
+}
+
+function articleSyncSignature(article: ArticleRecord) {
+  return JSON.stringify({
+    id: article.id,
+    url: article.url,
+    canonicalUrl: article.canonicalUrl,
+    title: article.title,
+    byline: article.byline,
+    excerpt: article.excerpt,
+    contentHash: article.contentHash,
+    annotations: article.annotations.map((annotation) => ({
+      id: annotation.id,
+      anchor: annotation.anchor,
+      author: annotation.author,
+      annotationType: annotation.annotationType,
+      color: annotation.color,
+      agentId: annotation.agentId,
+      agentUsername: annotation.agentUsername,
+      agentNickname: annotation.agentNickname,
+      agentAvatar: annotation.agentAvatar,
+      agentAnnotationColor: annotation.agentAnnotationColor,
+      userId: annotation.userId,
+      userUsername: annotation.userUsername,
+      userNickname: annotation.userNickname,
+      userAvatar: annotation.userAvatar,
+      userAnnotationColor: annotation.userAnnotationColor,
+      comments: annotation.comments.map((comment) => ({
+        id: comment.id,
+        author: comment.author,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        replyTo: comment.replyTo,
+        agentId: comment.agentId,
+        agentUsername: comment.agentUsername,
+        agentNickname: comment.agentNickname,
+        agentAvatar: comment.agentAvatar,
+        agentAnnotationColor: comment.agentAnnotationColor,
+        userId: comment.userId,
+        userUsername: comment.userUsername,
+        userNickname: comment.userNickname,
+        userAvatar: comment.userAvatar,
+        userAnnotationColor: comment.userAnnotationColor,
+        pending: comment.pending || undefined,
+      })),
+    })),
+  });
 }

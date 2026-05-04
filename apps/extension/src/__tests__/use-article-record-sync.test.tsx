@@ -144,7 +144,63 @@ describe('useArticleRecordSync streaming commits', () => {
     });
 
     expect(annotationsRef.current).toHaveLength(1);
+    expect(send).toHaveBeenCalledTimes(0);
     await waitFor(() => expect(storageSet).toHaveBeenCalled());
+  });
+
+  it('backfills local annotations only during explicit desktop sync', async () => {
+    const send = vi.fn();
+    const bridge = { readyState: WebSocket.OPEN, send, close: vi.fn() };
+    const annotationsRef = { current: [annotation()] };
+    const articleRecordRef = {
+      current: articleRecord([annotation()], '2026-05-04T01:00:00.000Z'),
+    };
+    const setAnnotations = vi.fn((next: Annotation[]) => {
+      annotationsRef.current = next;
+    });
+
+    const { result } = renderHook(() =>
+      useArticleRecordSync({
+        extracted: {
+          id: 'article-1',
+          url: 'https://example.com/article',
+          canonicalUrl: 'https://example.com/article',
+          title: 'Article',
+          byline: '',
+          excerpt: '',
+          content: '<p>Article text</p>',
+          contentHash: 'hash-1',
+        },
+        desktopBridgeRef: { current: bridge },
+        desktopAuthenticatedRef: { current: true },
+        annotationsRef,
+        articleRecordRef,
+        recordCreatedAtRef: { current: articleRecordRef.current.createdAt },
+        setAnnotations,
+        setAgents: vi.fn(),
+        setReaderSettings: vi.fn(),
+        setUserProfile: vi.fn(),
+        normalizeUserProfile: (user) => user as never,
+        readerLog: vi.fn(),
+        errorMessage: (error) => String(error),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.applyDesktopArticleRecord(
+        articleRecord([], '2026-05-04T00:00:00.000Z'),
+        { backfillLocalChanges: true },
+      );
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
+      type: 'article:save',
+      payload: {
+        id: 'article-1',
+        annotations: [{ id: 'annotation-1' }],
+      },
+    });
   });
 });
 
