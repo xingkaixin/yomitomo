@@ -1,10 +1,11 @@
 import { browser } from 'wxt/browser';
-import type { DesktopClientMessage, DesktopServerMessage } from '@yomitomo/shared';
+import type { DesktopClientMessage } from '@yomitomo/shared';
 import {
   DESKTOP_BRIDGE_PORT_NAME,
   type DesktopBridgeContentMessage,
   type DesktopBridgePortMessage,
 } from '../src/desktop-bridge';
+import { desktopMessageFromData } from '../src/background-bridge';
 
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
 
@@ -37,10 +38,7 @@ export default defineBackground(() => {
       });
 
       nextSocket.addEventListener('message', (event) => {
-        post({
-          type: 'desktop:message',
-          message: JSON.parse(String(event.data)) as DesktopServerMessage,
-        });
+        post(desktopMessageFromData(event.data));
       });
 
       nextSocket.addEventListener('close', () => {

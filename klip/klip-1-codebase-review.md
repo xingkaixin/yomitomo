@@ -270,10 +270,16 @@ Status: Draft
   - 为 popup 的 `toggleReaderInTab()` 抽出可测试函数，mock `browser.tabs` 与 `browser.scripting`。
   - 为 content script 的 listener 注册建立单例测试，验证重复执行时只保留一个 toggle handler。
   - 为 background 的 `desktop:message` JSON parse 增加异常路径测试，避免异常 payload 打断 bridge。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - P0 已新增 `popup-actions.test.ts` 覆盖 popup toggle 入口和动态注入移除。
+  - P0 已新增 `content-runtime.test.ts` 覆盖 content listener 单例注册。
+  - background WebSocket message parse 已抽到 `background-bridge.ts`，malformed payload 会返回 `desktop:error`。
+  - 新增 `background-bridge.test.ts` 覆盖正常 desktop message 与 malformed desktop message。
 - 验收标准：
-  - [ ] 测试能复现 P0 双注册问题，并在修复后通过。
-  - [ ] background bridge 能处理 malformed desktop message 并向 content 返回结构化错误。
-  - [ ] `pnpm --filter @yomitomo/extension test` 覆盖 popup、content、background 至少一条集成路径。
+  - [x] 测试能复现 P0 双注册问题，并在修复后通过。
+  - [x] background bridge 能处理 malformed desktop message 并向 content 返回结构化错误。
+  - [x] `pnpm --filter @yomitomo/extension test` 覆盖 popup、content、background 至少一条集成路径。
 
 ## 建议落地顺序
 
