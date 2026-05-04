@@ -118,8 +118,18 @@ export function useArticleRecordSync({
       });
   }, [legacyStorageKey, storageKey]);
 
-  const saveAnnotations = useCallback(
+  const applyAnnotations = useCallback(
     (nextAnnotations: Annotation[]) => {
+      const now = new Date().toISOString();
+      const createdAt = recordCreatedAtRef.current || now;
+      const nextRecord = buildCurrentArticleRecord(nextAnnotations, createdAt, now);
+      applyArticleRecord(nextRecord);
+    },
+    [extracted],
+  );
+
+  const commitAnnotations = useCallback(
+    (nextAnnotations = annotationsRef.current) => {
       const now = new Date().toISOString();
       const createdAt = recordCreatedAtRef.current || now;
       const nextRecord = buildCurrentArticleRecord(nextAnnotations, createdAt, now);
@@ -128,6 +138,13 @@ export function useArticleRecordSync({
       void cacheArticleRecord(nextRecord);
     },
     [extracted, storageKey],
+  );
+
+  const saveAnnotations = useCallback(
+    (nextAnnotations: Annotation[]) => {
+      commitAnnotations(nextAnnotations);
+    },
+    [commitAnnotations],
   );
 
   function buildCurrentArticleRecord(
@@ -246,8 +263,10 @@ export function useArticleRecordSync({
   }
 
   return {
+    applyAnnotations,
     applyDesktopArticleRecord,
     cacheDesktopProfile,
+    commitAnnotations,
     requestDesktopArticleRecord,
     saveAnnotations,
     updateReaderSettings,

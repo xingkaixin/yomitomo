@@ -164,8 +164,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [pairingStatus, setPairingStatus] = useState('未配对');
 
   const {
+    applyAnnotations,
     applyDesktopArticleRecord,
     cacheDesktopProfile,
+    commitAnnotations,
     requestDesktopArticleRecord,
     saveAnnotations,
     updateReaderSettings,
@@ -375,6 +377,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
       socket.addEventListener('close', () => {
         readerLog('ws.close');
+        if (hasPendingAgentComment()) commitAnnotations();
         desktopAuthenticatedRef.current = false;
         setDesktopConnected(false);
         setPairingStatus(
@@ -397,11 +400,23 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     return () => {
       closed = true;
       window.clearTimeout(reconnectTimer);
+      if (hasPendingAgentComment()) commitAnnotations();
       cleanupVirtualReadingSessions();
       desktopAuthenticatedRef.current = false;
       wsRef.current?.close();
     };
-  }, [pairingLoaded, pairingToken, saveAnnotations]);
+  }, [commitAnnotations, pairingLoaded, pairingToken, saveAnnotations]);
+
+  useEffect(() => {
+    const commitPendingAgentComment = () => {
+      if (hasPendingAgentComment()) commitAnnotations();
+    };
+
+    window.addEventListener('beforeunload', commitPendingAgentComment);
+    return () => {
+      window.removeEventListener('beforeunload', commitPendingAgentComment);
+    };
+  }, [commitAnnotations]);
 
   useLayoutEffect(() => {
     recalculateHighlights();
@@ -483,7 +498,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === 'agent:message:result') {
-      await appendComment(message.annotationId, message.comment);
+      appendComment(message.annotationId, message.comment);
       return;
     }
 
@@ -532,12 +547,12 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         annotationId: message.annotationId,
         commentId: message.comment.id,
       });
-      await appendComment(message.annotationId, message.comment);
+      appendComment(message.annotationId, message.comment, { commit: false });
       return;
     }
 
     if (message.type === 'agent:message:delta') {
-      await updateAgentCommentDelta(message.annotationId, message.commentId, message.delta);
+      updateAgentCommentDelta(message.annotationId, message.commentId, message.delta);
       return;
     }
 
@@ -571,15 +586,20 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
   }
 
-  async function appendComment(annotationId: string, comment: Comment) {
+  function appendComment(
+    annotationId: string,
+    comment: Comment,
+    options: { commit?: boolean } = {},
+  ) {
     const nextAnnotations = appendAnnotationComment(annotationsRef.current, annotationId, comment);
     if (!nextAnnotations) return;
 
-    await saveAnnotations(nextAnnotations);
+    if (options.commit === false) applyAnnotations(nextAnnotations);
+    else saveAnnotations(nextAnnotations);
     setActiveId(annotationId);
   }
 
-  async function updateAgentCommentDelta(annotationId: string, commentId: string, delta: string) {
+  function updateAgentCommentDelta(annotationId: string, commentId: string, delta: string) {
     const nextAnnotations = applyAgentCommentDelta(
       annotationsRef.current,
       annotationId,
@@ -588,7 +608,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     );
     if (!nextAnnotations) return;
 
-    await saveAnnotations(nextAnnotations);
+    applyAnnotations(nextAnnotations);
     setActiveId(annotationId);
   }
 
@@ -802,6 +822,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setAgents([]);
     desktopAuthenticatedRef.current = false;
     wsRef.current?.close();
+  }
+
+  function hasPendingAgentComment() {
+    for (const pending of pendingAgentRequestsRef.current.values()) {
+      if (pending.annotationId && pending.commentId) return true;
+    }
+    return false;
   }
 
   function cancelAgentAnnotateMenu() {

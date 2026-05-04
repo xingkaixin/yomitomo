@@ -19,7 +19,7 @@ Status: Draft
 - 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 已包含 `auth`、`hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`；`DesktopServerMessage` 已包含 `auth:result`。
 - 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 436 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
 - 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 904 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
-- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/main/server-auth.test.ts`、`apps/desktop/src/main/llm-budget.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
+- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/main/server-auth.test.ts`、`apps/desktop/src/main/llm-budget.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`、`apps/extension/src/__tests__/use-article-record-sync.test.tsx`。
 - 2026-05-04 校准结果：`pnpm lint` 通过，`pnpm test` 通过，`pnpm build` 通过。
 
 ## 目标
@@ -184,13 +184,21 @@ Status: Draft
 
 #### 3. 流式 Agent 回复每个 delta 都触发整篇文章持久化和同步
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/extension/entrypoints/content.tsx:315`
-  - `apps/extension/entrypoints/content.tsx:320`
-  - `apps/extension/entrypoints/content.tsx:370`
-  - `apps/extension/entrypoints/content.tsx:681`
-  - `apps/extension/entrypoints/content.tsx:727`
-  - `apps/extension/entrypoints/content.tsx:740`
+  - `apps/extension/src/use-article-record-sync.ts:121`
+  - `apps/extension/src/use-article-record-sync.ts:131`
+  - `apps/extension/src/use-article-record-sync.ts:143`
+  - `apps/extension/entrypoints/content.tsx:380`
+  - `apps/extension/entrypoints/content.tsx:400`
+  - `apps/extension/entrypoints/content.tsx:410`
+  - `apps/extension/entrypoints/content.tsx:545`
+  - `apps/extension/entrypoints/content.tsx:554`
+  - `apps/extension/entrypoints/content.tsx:559`
+  - `apps/extension/entrypoints/content.tsx:589`
+  - `apps/extension/entrypoints/content.tsx:602`
+  - `apps/extension/src/__tests__/use-article-record-sync.test.tsx:35`
 - 现象 / 风险：
   - `agent:message:delta` 每到一个文本片段就调用 `updateComment`。
   - `updateComment` 每次都调用 `saveAnnotations`。
@@ -203,10 +211,19 @@ Status: Draft
   - delta 阶段只更新 React state 和 ref，使用 `requestAnimationFrame` 或短间隔合并 UI 更新。
   - `agent:message:done`、错误结束、手动评论保存、批注新增/删除时执行持久化提交。
   - 对异常关闭场景加一次 `beforeunload` / cleanup commit，保存最后已收到内容。
+- 实施进展：
+  - `useArticleRecordSync` 已拆出 `applyAnnotations` 和 `commitAnnotations`。`applyAnnotations` 只更新 `annotationsRef`、`articleRecordRef` 和 React state；`commitAnnotations` 才发送 `article:save` 并写入 `browser.storage.local`。
+  - 既有 `saveAnnotations` 已保留为提交路径，批注新增、删除、手动评论、Agent 主动批注队列继续使用原有提交语义。
+  - `agent:message:start` 已改为只调用 `appendComment(..., { commit: false })`，用于立即显示 pending AI 评论。
+  - `agent:message:delta` 已改为只调用 `applyAnnotations`，用于实时更新 UI 和 ref。
+  - `agent:message:done` 和 `error` 分支继续通过 `updateComment` 提交最终状态，包含已收到 delta 和 pending 状态变化。
+  - WebSocket `close`、组件 cleanup、`beforeunload` 已在存在 pending Agent 评论时调用 `commitAnnotations()`，保存最后已收到文本。
+  - 新增 `apps/extension/src/__tests__/use-article-record-sync.test.tsx`，模拟 100 个 delta 后断言 `article:save` 只发送 1 次。
+  - 验证：`pnpm lint`、`pnpm test`、`pnpm build` 均通过。
 - 验收标准：
-  - 一次 100 个 delta 的流式回复最多触发 1 次桌面 `article:save`。
-  - UI 仍然能实时显示流式内容。
-  - socket 中断后保留已收到文本。
+  - [x] 一次 100 个 delta 的流式回复最多触发 1 次桌面 `article:save`。
+  - [x] UI 仍然能实时显示流式内容。
+  - [x] socket 中断后保留已收到文本。
 
 #### 4. AI 批注锚定在重复文本场景会落到首次匹配
 
