@@ -430,7 +430,36 @@
 }
 
 .config-list-item.is-plain {
-  grid-template-columns: 1fr;
+  grid-template-columns: auto 1fr;
+}
+
+.provider-logo,
+.provider-preset-logo {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.provider-preset-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.provider-model-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.field-inline-error {
+  margin: 8px 0 0;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .config-list-item:hover,

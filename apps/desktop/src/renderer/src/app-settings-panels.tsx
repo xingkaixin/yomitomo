@@ -7,6 +7,7 @@ import {
   KeyRound,
   ListChecks,
   Plus,
+  RefreshCw,
   Save,
   Scale,
   Search,
@@ -16,6 +17,7 @@ import {
   User,
 } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, ProviderType } from '@yomitomo/shared';
+import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
 import {
   agentKindLabel,
   agentKindOptions,
@@ -74,6 +76,16 @@ import reviewAvatar17Raw from './assets/review-avatars/notionists-1777882399095.
 import reviewAvatar18Raw from './assets/review-avatars/notionists-1777882397541.svg?raw';
 import reviewAvatar19Raw from './assets/review-avatars/notionists-1777882396039.svg?raw';
 import reviewAvatar20Raw from './assets/review-avatars/notionists-1777882394280.svg?raw';
+import anthropicLogo from './assets/providers/anthropic.png';
+import bailianLogo from './assets/providers/bailian.png';
+import deepseekLogo from './assets/providers/deepseek.png';
+import googleLogo from './assets/providers/google.png';
+import minimaxLogo from './assets/providers/minimax.png';
+import mimoLogo from './assets/providers/mimo.svg';
+import moonshotLogo from './assets/providers/moonshot.webp';
+import openaiLogo from './assets/providers/openai.png';
+import volcengineLogo from './assets/providers/volcengine.png';
+import zhipuLogo from './assets/providers/zhipu.png';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import {
@@ -90,6 +102,19 @@ import type { ProviderOption, SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 type AvatarOption = { id: string; src: string };
+
+const providerLogoMap: Record<string, string> = {
+  'anthropic.png': anthropicLogo,
+  'bailian.png': bailianLogo,
+  'deepseek.png': deepseekLogo,
+  'google.png': googleLogo,
+  'minimax.png': minimaxLogo,
+  'mimo.svg': mimoLogo,
+  'moonshot.webp': moonshotLogo,
+  'openai.png': openaiLogo,
+  'volcengine.png': volcengineLogo,
+  'zhipu.png': zhipuLogo,
+};
 
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
   return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
@@ -399,6 +424,14 @@ export function ProviderSettings({
               type="button"
               onClick={() => onSelect(provider)}
             >
+              <img
+                className="provider-logo"
+                src={
+                  providerLogoMap[provider.logo || 'anthropic.png'] ||
+                  providerLogoMap['anthropic.png']
+                }
+                alt=""
+              />
               <span className="min-w-0">
                 <strong>{provider.name}</strong>
                 <span>
@@ -618,8 +651,72 @@ export function ProviderForm({
   draft: ProviderDraft;
   onChange: (draft: ProviderDraft) => void;
 }) {
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelError, setModelError] = useState('');
+  const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
+  const presetModels = modelOptions.length > 0 ? modelOptions : selectedPreset?.modelNames || [];
+  const visibleModels = [
+    ...new Set([draft.modelName, ...presetModels].filter(Boolean) as string[]),
+  ];
+
+  async function fetchModels() {
+    if (!window.yomitomoDesktop) return;
+    setModelLoading(true);
+    setModelError('');
+    try {
+      const models = await window.yomitomoDesktop.listProviderModels(draft);
+      const names = models.map((model) => model.id).filter(Boolean);
+      setModelOptions(names);
+      if (!draft.modelName && names[0]) onChange({ ...draft, modelName: names[0] });
+    } catch (error) {
+      setModelError(error instanceof Error ? error.message : '获取模型列表失败');
+    } finally {
+      setModelLoading(false);
+    }
+  }
+
+  function applyPreset(presetId: string) {
+    const preset = providerPresets.find((item) => item.id === presetId);
+    if (!preset) return;
+    setModelOptions([]);
+    setModelError('');
+    onChange({
+      ...draft,
+      presetId: preset.id,
+      name: preset.name,
+      type: preset.type,
+      logo: preset.logo,
+      baseUrl: preset.baseUrl,
+      modelName: preset.modelName,
+    });
+  }
+
   return (
     <div className="settings-form-grid">
+      <Field id="provider-preset" className="col-span-2" label="预设服务商">
+        <Select value={draft.presetId || ''} onValueChange={applyPreset}>
+          <SelectTrigger id="provider-preset" aria-labelledby="provider-preset-label">
+            <SelectValue placeholder="选择服务商" />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content">
+            <SelectGroup>
+              {providerPresets.map((preset) => (
+                <SelectItem key={preset.id} value={preset.id}>
+                  <span className="provider-preset-item">
+                    <img
+                      className="provider-preset-logo"
+                      src={providerLogoMap[preset.logo]}
+                      alt=""
+                    />
+                    {preset.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
       <Field id="provider-name" label="名称">
         <Input
           id="provider-name"
@@ -632,15 +729,18 @@ export function ProviderForm({
       <Field id="provider-type" label="API 类型">
         <Select
           value={draft.type || 'anthropic'}
-          onValueChange={(value) => onChange({ ...draft, type: value as ProviderType })}
+          onValueChange={(value) =>
+            onChange({ ...draft, type: value as ProviderType, presetId: undefined })
+          }
         >
           <SelectTrigger id="provider-type" aria-labelledby="provider-type-label">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="theme-select-content">
             <SelectGroup>
+              <SelectItem value="openai-chat">OpenAI Chat</SelectItem>
+              <SelectItem value="openai-responses">OpenAI Responses</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
-              <SelectItem value="openai">OpenAI</SelectItem>
               <SelectItem value="gemini">Gemini</SelectItem>
             </SelectGroup>
           </SelectContent>
@@ -657,14 +757,33 @@ export function ProviderForm({
         />
       </Field>
       <Field id="provider-model" label="模型">
-        <Input
-          id="provider-model"
-          name="provider-model"
-          autoComplete="off"
-          spellCheck={false}
-          value={draft.modelName || ''}
-          onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
-        />
+        <div className="provider-model-field">
+          <Input
+            id="provider-model"
+            name="provider-model"
+            list="provider-model-options"
+            autoComplete="off"
+            spellCheck={false}
+            value={draft.modelName || ''}
+            onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
+          />
+          <datalist id="provider-model-options">
+            {visibleModels.map((model) => (
+              <option key={model} value={model} />
+            ))}
+          </datalist>
+          <Button
+            className="action-button"
+            type="button"
+            variant="secondary"
+            disabled={modelLoading}
+            onClick={fetchModels}
+          >
+            <RefreshCw size={15} />
+            {modelLoading ? '获取中' : '获取'}
+          </Button>
+        </div>
+        {modelError ? <p className="field-inline-error">{modelError}</p> : null}
       </Field>
       <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput
@@ -672,6 +791,30 @@ export function ProviderForm({
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey })}
         />
+      </Field>
+      <Field id="provider-reasoning" className="col-span-2" label="思考强度">
+        <Select
+          value={draft.reasoningEffort || 'default'}
+          onValueChange={(reasoningEffort) =>
+            onChange({
+              ...draft,
+              reasoningEffort: reasoningEffort as LlmProvider['reasoningEffort'],
+            })
+          }
+        >
+          <SelectTrigger id="provider-reasoning" aria-labelledby="provider-reasoning-label">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content">
+            <SelectGroup>
+              {reasoningEffortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </Field>
     </div>
   );

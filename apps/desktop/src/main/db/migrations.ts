@@ -168,4 +168,13 @@ ALTER TABLE articles ADD COLUMN reading_deliberation_created_at TEXT;
 ALTER TABLE articles ADD COLUMN reading_deliberation_updated_at TEXT;
 `,
   },
+  {
+    id: '0009_provider_presets_reasoning',
+    sql: `
+ALTER TABLE providers ADD COLUMN preset_id TEXT;
+ALTER TABLE providers ADD COLUMN logo TEXT;
+ALTER TABLE providers ADD COLUMN reasoning_effort TEXT;
+UPDATE providers SET type = 'openai-chat' WHERE type = 'openai';
+`,
+  },
 ];

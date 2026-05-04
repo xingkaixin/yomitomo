@@ -5,6 +5,7 @@ import type {
   ArticleRecord,
   DesktopStore,
   LlmProvider,
+  ProviderModel,
   ReadingDeliberationRecord,
   ReadingCardRecord,
   ReadingCardReviewRecord,
@@ -57,6 +58,8 @@ const api = {
     ipcRenderer.invoke('provider:delete', id) as Promise<DesktopStore>,
   testProvider: (id: string) =>
     ipcRenderer.invoke('provider:test', id) as Promise<{ ok: boolean; message: string }>,
+  listProviderModels: (provider: Partial<LlmProvider>) =>
+    ipcRenderer.invoke('provider:list-models', provider) as Promise<ProviderModel[]>,
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,

@@ -19,9 +19,12 @@ export const providers = sqliteTable('providers', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   type: text('type').notNull(),
+  presetId: text('preset_id'),
+  logo: text('logo'),
   baseUrl: text('base_url').notNull(),
   apiKey: text('api_key').notNull(),
   modelName: text('model_name').notNull(),
+  reasoningEffort: text('reasoning_effort'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });

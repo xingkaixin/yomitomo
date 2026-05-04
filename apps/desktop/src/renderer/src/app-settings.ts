@@ -6,6 +6,7 @@ import type {
   LlmProvider,
   UserProfile,
 } from '@yomitomo/shared';
+import { providerPresets } from '@yomitomo/shared';
 
 export type ProviderDraft = Partial<LlmProvider>;
 export type AgentDraft = Partial<Agent> & { personalityId?: string };
@@ -149,12 +150,17 @@ export const defaultUser: UserProfile = {
   updatedAt: '',
 };
 
+const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'anthropic');
+
 export const emptyProvider: ProviderDraft = {
-  name: 'Anthropic',
-  type: 'anthropic',
-  baseUrl: 'https://api.anthropic.com',
-  modelName: 'claude-3-5-sonnet-latest',
+  presetId: defaultProviderPreset?.id,
+  name: defaultProviderPreset?.name || 'Anthropic',
+  type: defaultProviderPreset?.type || 'anthropic',
+  logo: defaultProviderPreset?.logo,
+  baseUrl: defaultProviderPreset?.baseUrl || 'https://api.anthropic.com',
+  modelName: defaultProviderPreset?.modelName || 'claude-sonnet-4-5',
   apiKey: '',
+  reasoningEffort: 'default',
 };
 
 export const emptyStore: DesktopStore = {
@@ -216,9 +222,12 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
   return (
     (draft.name || '').trim() !== provider.name ||
     (draft.type || 'anthropic') !== provider.type ||
+    (draft.presetId || '') !== (provider.presetId || '') ||
+    (draft.logo || '') !== (provider.logo || '') ||
     (draft.baseUrl || '').trim() !== provider.baseUrl ||
     (draft.apiKey || '').trim() !== provider.apiKey ||
-    (draft.modelName || '').trim() !== provider.modelName
+    (draft.modelName || '').trim() !== provider.modelName ||
+    (draft.reasoningEffort || 'default') !== (provider.reasoningEffort || 'default')
   );
 }
 

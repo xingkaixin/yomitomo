@@ -96,6 +96,7 @@ function App() {
         label: provider.name,
         type: provider.type,
         modelName: provider.modelName,
+        logo: provider.logo,
       })),
     [store.providers],
   );

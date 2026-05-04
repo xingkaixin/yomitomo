@@ -31,6 +31,7 @@ import {
   type GenerateReadingCardInput,
   type ReviewReadingCardInput,
 } from './llm';
+import { listProviderModels } from './llm-provider-client';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { getPairingInfo, rotatePairingInfo } from './pairing';
 import {
@@ -161,6 +162,9 @@ function registerIpc() {
       return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
     }
   });
+  ipcMain.handle('provider:list-models', (_event, input: Partial<LlmProvider>) =>
+    listProviderModels(input),
+  );
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
     const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);

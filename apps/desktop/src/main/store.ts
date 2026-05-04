@@ -15,6 +15,8 @@ import type {
   Comment,
   DesktopStore,
   LlmProvider,
+  ProviderPresetId,
+  ProviderType,
   ReadingDeliberationRecord,
   ReadingDeliberationSection,
   ReadingCardRecord,
@@ -26,8 +28,9 @@ import type {
   ReadingCardSection,
   TextAnchor,
   UserProfile,
+  ReasoningEffort,
 } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
+import { makeId, providerPresets } from '@yomitomo/shared';
 import { migrations } from './db/migrations';
 import * as schema from './db/schema';
 
@@ -153,13 +156,20 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
   const existing = input.id
     ? store.providers.find((provider) => provider.id === input.id)
     : undefined;
+  const preset = providerPresets.find((item) => item.id === input.presetId);
   const provider: LlmProvider = {
     id: existing?.id || makeId('provider'),
-    name: input.name?.trim() || 'Untitled Provider',
-    type: input.type || existing?.type || 'anthropic',
-    baseUrl: input.baseUrl?.trim() || existing?.baseUrl || 'https://api.anthropic.com',
+    name: input.name?.trim() || preset?.name || 'Untitled Provider',
+    type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'anthropic',
+    presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
+    logo: input.logo || existing?.logo || preset?.logo,
+    baseUrl:
+      input.baseUrl?.trim() || existing?.baseUrl || preset?.baseUrl || 'https://api.anthropic.com',
     apiKey: input.apiKey?.trim() || existing?.apiKey || '',
-    modelName: input.modelName?.trim() || existing?.modelName || 'claude-3-5-sonnet-latest',
+    modelName:
+      input.modelName?.trim() || existing?.modelName || preset?.modelName || 'claude-sonnet-4-5',
+    reasoningEffort:
+      normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'default',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -354,10 +364,13 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     providers: providerRows.map((row) => ({
       id: row.id,
       name: row.name,
-      type: row.type as LlmProvider['type'],
+      type: normalizeProviderType(row.type) || 'anthropic',
+      presetId: normalizePresetId(row.presetId || undefined),
+      logo: row.logo || undefined,
       baseUrl: row.baseUrl,
       apiKey: row.apiKey,
       modelName: row.modelName,
+      reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'default',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     })),
@@ -560,9 +573,12 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
       id: provider.id,
       name: provider.name,
       type: provider.type,
+      presetId: provider.presetId,
+      logo: provider.logo,
       baseUrl: provider.baseUrl,
       apiKey: provider.apiKey,
       modelName: provider.modelName,
+      reasoningEffort: provider.reasoningEffort,
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
     })
@@ -571,9 +587,12 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
       set: {
         name: provider.name,
         type: provider.type,
+        presetId: provider.presetId,
+        logo: provider.logo,
         baseUrl: provider.baseUrl,
         apiKey: provider.apiKey,
         modelName: provider.modelName,
+        reasoningEffort: provider.reasoningEffort,
         updatedAt: provider.updatedAt,
       },
     })
@@ -619,7 +638,13 @@ function normalizeStore(store: DesktopStore): DesktopStore {
   return {
     user: normalizeUser(store.user),
     settings: store.settings || {},
-    providers: store.providers || [],
+    providers: (store.providers || []).map((provider) =>
+      Object.assign({}, provider, {
+        type: normalizeProviderType(provider.type) || 'anthropic',
+        presetId: normalizePresetId(provider.presetId),
+        reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'default',
+      }),
+    ),
     agents: (store.agents || []).map((agent) =>
       Object.assign({}, agent, {
         annotationColor: agent.annotationColor || '#8ab6d6',
@@ -834,6 +859,35 @@ function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | nu
 
 function normalizeAgentKind(value: unknown): AgentKind | null {
   return value === 'annotation' || value === 'review' ? value : null;
+}
+
+function normalizeProviderType(value: unknown): ProviderType | null {
+  if (value === 'openai') return 'openai-chat';
+  return value === 'openai-chat' ||
+    value === 'openai-responses' ||
+    value === 'anthropic' ||
+    value === 'gemini'
+    ? value
+    : null;
+}
+
+function normalizePresetId(value: unknown): ProviderPresetId | undefined {
+  return providerPresets.some((preset) => preset.id === value)
+    ? (value as ProviderPresetId)
+    : undefined;
+}
+
+function normalizeReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  return value === 'default' ||
+    value === 'none' ||
+    value === 'minimal' ||
+    value === 'low' ||
+    value === 'medium' ||
+    value === 'high' ||
+    value === 'xhigh' ||
+    value === 'auto'
+    ? value
+    : undefined;
 }
 
 function normalizeTemperature(value: unknown) {

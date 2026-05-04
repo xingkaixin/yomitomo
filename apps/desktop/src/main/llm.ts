@@ -24,8 +24,8 @@ import {
   budgetEvidenceJson,
   budgetReadingCardJson,
   formatBudgetNotice,
-  normalizeAnthropicError,
 } from './llm-budget';
+import { callProviderText, streamProviderText } from './llm-provider-client';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
@@ -54,16 +54,11 @@ export async function testProvider(
   provider: LlmProvider,
 ): Promise<{ ok: boolean; message: string }> {
   try {
-    if (provider.type !== 'anthropic') {
-      return { ok: false, message: '当前只支持测试 Anthropic provider' };
-    }
-
-    const content = await callAnthropic(
-      provider,
-      'You are a connectivity test assistant.',
-      'Reply with OK only.',
-      128,
-    );
+    const content = await callProviderText(provider, {
+      system: 'You are a connectivity test assistant.',
+      user: 'Reply with OK only.',
+      maxTokens: 128,
+    });
     return { ok: true, message: content };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
@@ -76,13 +71,13 @@ export async function runAgentStream(
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
   const user = buildAgentPrompt(provider, payload);
-  await streamAnthropic(provider, system, user, 1200, agent.temperature, onDelta);
+  await streamProviderText(
+    provider,
+    { system, user, maxTokens: 1200, temperature: agent.temperature },
+    onDelta,
+  );
 }
 
 export async function runAgent(
@@ -98,13 +93,14 @@ export async function runAgent(
   },
   payload: AgentMessagePayload,
 ): Promise<Comment> {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
   const user = buildAgentPrompt(provider, payload);
-  const content = await callAnthropic(provider, system, user, 1200, agent.temperature);
+  const content = await callProviderText(provider, {
+    system,
+    user,
+    maxTokens: 1200,
+    temperature: agent.temperature,
+  });
 
   return {
     id: '',
@@ -124,18 +120,13 @@ export async function runAgentAnnotate(
   agent: Agent,
   payload: AgentAnnotatePayload,
 ): Promise<Annotation[]> {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
-  const content = await callAnthropic(
-    provider,
+  const content = await callProviderText(provider, {
     system,
-    buildAgentAnnotatePrompt(provider, payload, agent),
-    4000,
-    agent.temperature,
-  );
+    user: buildAgentAnnotatePrompt(provider, payload, agent),
+    maxTokens: 4000,
+    temperature: agent.temperature,
+  });
   const suggestions = parseAnnotationSuggestions(content);
   const now = new Date().toISOString();
 
@@ -151,10 +142,6 @@ export async function runAgentAnnotateStream(
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<void> {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
   let buffer = '';
   const flushLine = (line: string) => {
@@ -205,12 +192,14 @@ export async function runAgentAnnotateStream(
     }
   };
 
-  await streamAnthropic(
+  await streamProviderText(
     provider,
-    system,
-    buildAgentAnnotateStreamPrompt(provider, payload, agent),
-    4000,
-    agent.temperature,
+    {
+      system,
+      user: buildAgentAnnotateStreamPrompt(provider, payload, agent),
+      maxTokens: 4000,
+      temperature: agent.temperature,
+    },
     (delta) => {
       buffer += delta;
       const lines = buffer.split('\n');
@@ -223,34 +212,30 @@ export async function runAgentAnnotateStream(
 }
 
 export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system =
     '你是 Yomitomo 的读后卡片生成器。你的任务是基于文章全文、读者批注和讨论证据生成一张可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
 
-  return callAnthropic(provider, system, buildReadingCardPrompt(provider, input), 3000, 0.35);
+  return callProviderText(provider, {
+    system,
+    user: buildReadingCardPrompt(provider, input),
+    maxTokens: 3000,
+    temperature: 0.35,
+  });
 }
 
 export async function generateReadingDeliberation(
   provider: LlmProvider,
   input: GenerateReadingDeliberationInput,
 ) {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system =
     '你是 Yomitomo 的阅读审议编辑。你的任务是基于文章全文、读者批注、助手批注和评论 thread，整理这场阅读讨论已经形成的判断、分歧、证据强弱和未决问题。保持中立、具体、可追溯，所有判断都要能回到原文或证据单元。';
 
-  return callAnthropic(
-    provider,
+  return callProviderText(provider, {
     system,
-    buildReadingDeliberationPrompt(provider, input),
-    3600,
-    0.3,
-  );
+    user: buildReadingDeliberationPrompt(provider, input),
+    maxTokens: 3600,
+    temperature: 0.3,
+  });
 }
 
 export async function reviewReadingCard(
@@ -258,163 +243,18 @@ export async function reviewReadingCard(
   agent: Agent,
   input: ReviewReadingCardInput,
 ): Promise<ReviewReadingCardResult> {
-  if (provider.type !== 'anthropic') {
-    throw new Error('当前只支持 Anthropic provider 调用');
-  }
-
   const system = `${agent.soul}\n\n你是 Yomitomo 的读后卡片审核助手。你要审当前读后卡片和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
-  const rawResponse = await callAnthropic(
+  const rawResponse = await callProviderText(
     provider,
-    system,
-    buildReviewReadingCardPrompt(provider, input),
-    3200,
-    agent.temperature,
+    {
+      system,
+      user: buildReviewReadingCardPrompt(provider, input),
+      maxTokens: 3200,
+      temperature: agent.temperature,
+    },
     { failOnMaxTokens: true },
   );
   return normalizeReadingCardReviewResponse(rawResponse);
-}
-
-async function callAnthropic(
-  provider: LlmProvider,
-  system: string,
-  user: string,
-  maxTokens: number,
-  temperature?: number,
-  options: { failOnMaxTokens?: boolean } = {},
-) {
-  const baseUrl = provider.baseUrl.replace(/\/$/, '') || 'https://api.anthropic.com';
-  const url = `${baseUrl}/v1/messages`;
-  logAnthropicRequest(provider, url, { stream: false, maxTokens, temperature });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': provider.apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: provider.modelName,
-      max_tokens: maxTokens,
-      temperature,
-      system,
-      messages: [{ role: 'user', content: user }],
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(normalizeAnthropicError(response.status, text));
-  }
-
-  const data = (await response.json()) as {
-    content?: Array<{ type: string; text?: string }>;
-    stop_reason?: string;
-    usage?: { input_tokens?: number; output_tokens?: number };
-  };
-  const text = data.content
-    ?.map((part) => (part.type === 'text' ? part.text || '' : ''))
-    .join('\n')
-    .trim();
-  if (!text) throw new Error('Anthropic 返回为空');
-  logInfo('anthropic.response', {
-    model: provider.modelName,
-    providerName: provider.name,
-    stopReason: data.stop_reason || '',
-    inputTokens: data.usage?.input_tokens,
-    outputTokens: data.usage?.output_tokens,
-    textLength: text.length,
-  });
-  if (options.failOnMaxTokens && data.stop_reason === 'max_tokens') {
-    throw new Error(`模型输出达到 max_tokens=${maxTokens}，结构化 JSON 可能已被截断`);
-  }
-  return text;
-}
-
-async function streamAnthropic(
-  provider: LlmProvider,
-  system: string,
-  user: string,
-  maxTokens: number,
-  temperature: number,
-  onDelta: (delta: string) => void,
-) {
-  const baseUrl = provider.baseUrl.replace(/\/$/, '') || 'https://api.anthropic.com';
-  const url = `${baseUrl}/v1/messages`;
-  logAnthropicRequest(provider, url, { stream: true, maxTokens, temperature });
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': provider.apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: provider.modelName,
-      max_tokens: maxTokens,
-      temperature,
-      stream: true,
-      system,
-      messages: [{ role: 'user', content: user }],
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(normalizeAnthropicError(response.status, text));
-  }
-
-  if (!response.body) throw new Error('Anthropic streaming body 为空');
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split('\n\n');
-    buffer = events.pop() || '';
-
-    for (const event of events) {
-      const dataLine = event.split('\n').find((line) => line.startsWith('data: '));
-      if (!dataLine) continue;
-
-      const data = dataLine.slice(6);
-      if (data === '[DONE]') continue;
-
-      const parsed = JSON.parse(data) as {
-        type?: string;
-        delta?: { type?: string; text?: string };
-      };
-      if (
-        parsed.type === 'content_block_delta' &&
-        parsed.delta?.type === 'text_delta' &&
-        parsed.delta.text
-      ) {
-        onDelta(parsed.delta.text);
-      }
-    }
-  }
-}
-
-function logAnthropicRequest(provider: LlmProvider, url: string, extra: Record<string, unknown>) {
-  logInfo('anthropic.request', {
-    url,
-    model: provider.modelName,
-    providerName: provider.name,
-    apiKeyPreview: previewSecret(provider.apiKey),
-    ...extra,
-  });
-}
-
-function previewSecret(value: string) {
-  if (!value) return '<empty>';
-  if (value.length <= 8) return '<too-short>';
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
 function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
@@ -450,7 +290,11 @@ function formatUserMention(comment: Comment) {
   return comment.userUsername ? `@${comment.userUsername}` : '读者';
 }
 
-function buildAgentAnnotatePrompt(provider: LlmProvider, payload: AgentAnnotatePayload, agent: Agent) {
+function buildAgentAnnotatePrompt(
+  provider: LlmProvider,
+  payload: AgentAnnotatePayload,
+  agent: Agent,
+) {
   const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
@@ -546,7 +390,10 @@ ${deliberationJson.text}
 列出后续阅读、验证假设或可执行动作。`;
 }
 
-function buildReadingDeliberationPrompt(provider: LlmProvider, input: GenerateReadingDeliberationInput) {
+function buildReadingDeliberationPrompt(
+  provider: LlmProvider,
+  input: GenerateReadingDeliberationInput,
+) {
   const article = {
     title: input.article.title,
     url: input.article.canonicalUrl || input.article.url,
@@ -631,7 +478,11 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
   const articleText = budgetArticleText(provider, 'reading-card-review', input.articleText);
   const evidenceJson = budgetEvidenceJson('reading-card-review', evidence);
   const cardJson = budgetReadingCardJson('reading-card-review', card);
-  const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report, cardJson.report]);
+  const budgetNotice = formatBudgetNotice([
+    articleText.report,
+    evidenceJson.report,
+    cardJson.report,
+  ]);
 
   return `请审核这张读后卡片，返回一个 JSON 对象。
 
