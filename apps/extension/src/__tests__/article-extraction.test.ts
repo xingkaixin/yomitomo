@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { extractCurrentArticle, fallbackCurrentArticle } from '../article-extraction';
+
+vi.mock('defuddle', () => ({
+  default: class {
+    async parseAsync() {
+      return {
+        title: 'Defuddle 标题',
+        author: 'Defuddle 作者',
+        description: 'Defuddle 摘要',
+        content:
+          '<article><p style="color:red">正文</p><script>bad()</script><custom-card><strong>重点</strong></custom-card></article>',
+      };
+    }
+  },
+}));
+
+afterEach(() => {
+  document.head.innerHTML = '';
+  document.body.innerHTML = '';
+  vi.clearAllMocks();
+});
+
+describe('article extraction', () => {
+  it('normalizes fallback article html and canonical url', () => {
+    document.title = '页面标题';
+    document.head.innerHTML = '<link rel="canonical" href="https://example.com/post#canonical" />';
+    document.body.innerHTML = `
+      <h1>文章标题</h1>
+      <article>
+        <p style="color:red" width="320">安全正文</p>
+        <script>bad()</script>
+        <custom-card><strong>保留文本</strong></custom-card>
+      </article>
+    `;
+
+    const article = fallbackCurrentArticle();
+
+    expect(article.title).toBe('文章标题');
+    expect(article.canonicalUrl).toBe('https://example.com/post#canonical');
+    expect(article.content).toContain('<p>安全正文</p>');
+    expect(article.content).toContain('<strong>保留文本</strong>');
+    expect(article.content).not.toContain('script');
+    expect(article.content).not.toContain('style=');
+    expect(article.contentHash).toMatch(/^[a-z0-9]+$/);
+  });
+
+  it('uses a mocked Defuddle result before readability fallback', async () => {
+    document.title = '页面标题';
+    document.head.innerHTML = '<link rel="canonical" href="https://example.com/post" />';
+    document.body.innerHTML = '<main><h1>页面标题</h1><p>页面正文</p></main>';
+
+    const article = await extractCurrentArticle();
+
+    expect(article.title).toBe('Defuddle 标题');
+    expect(article.byline).toBe('Defuddle 作者');
+    expect(article.excerpt).toBe('Defuddle 摘要');
+    expect(article.content).toContain('<p>正文</p>');
+    expect(article.content).toContain('<strong>重点</strong>');
+    expect(article.content).not.toContain('custom-card');
+    expect(article.contentHash).toMatch(/^[a-z0-9]+$/);
+  });
+});
