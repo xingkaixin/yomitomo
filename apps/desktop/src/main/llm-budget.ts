@@ -34,7 +34,12 @@ export function budgetArticleText(
   task: ModelInputTask,
   text: string,
 ): { text: string; report: ModelBudgetReport } {
-  return budgetText(task, 'articleText', text, TASK_ARTICLE_BUDGETS[task] * modelBudgetFactor(provider));
+  return budgetText(
+    task,
+    'articleText',
+    text,
+    TASK_ARTICLE_BUDGETS[task] * modelBudgetFactor(provider),
+  );
 }
 
 export function budgetEvidenceJson(task: ModelInputTask, value: unknown) {
@@ -88,7 +93,13 @@ function budgetText(
   if (text.length <= maxChars) {
     return {
       text,
-      report: { task, field, originalChars: text.length, includedChars: text.length, compressed: false },
+      report: {
+        task,
+        field,
+        originalChars: text.length,
+        includedChars: text.length,
+        compressed: false,
+      },
     };
   }
 
