@@ -916,6 +916,23 @@ type SourceHighlightBox = {
   height: number;
 };
 
+type SourceTocItem = {
+  index: number;
+  text: string;
+  depth: number;
+  start: number;
+  end: number;
+};
+
+type SourceTocStats = {
+  count: number;
+  colors: string[];
+};
+
+type SourceTocEntry = Omit<SourceTocItem, 'start' | 'end'> & {
+  target: HTMLElement;
+};
+
 function SourceBookcase({
   annotations,
   article,
@@ -927,16 +944,27 @@ function SourceBookcase({
   selectedAnnotationId: string | null;
   onOpenAnnotation: (annotationId: string) => void;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [boxes, setBoxes] = useState<SourceHighlightBox[]>([]);
+  const [tocItems, setTocItems] = useState<SourceTocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
+  const tocStats = useMemo(
+    () => buildSourceTocStats(tocItems, annotations),
+    [tocItems, annotations],
+  );
+  const commentCount = useMemo(
+    () => annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+    [annotations],
+  );
 
   useEffect(() => {
     const articleElement = articleRef.current;
     const canvasElement = canvasRef.current;
     if (!article || !articleElement || !canvasElement) {
       setBoxes([]);
+      setTocItems([]);
       return;
     }
 
@@ -946,6 +974,7 @@ function SourceBookcase({
       frame = window.requestAnimationFrame(() => {
         const text = articleElement.textContent || '';
         const canvasRect = canvasElement.getBoundingClientRect();
+        const nextTocItems = extractSourceTocItems(articleElement);
         const nextBoxes = annotations.flatMap((annotation) => {
           const position = resolveTextAnchor(text, annotation.anchor);
           if (!position) return [];
@@ -958,6 +987,7 @@ function SourceBookcase({
             }),
           );
         });
+        setTocItems(nextTocItems);
         setBoxes(nextBoxes);
       });
     };
@@ -974,6 +1004,20 @@ function SourceBookcase({
       window.removeEventListener('resize', updateBoxes);
     };
   }, [annotations, article, contentHtml]);
+
+  function scrollToTocItem(item: SourceTocItem) {
+    const articleElement = articleRef.current;
+    const scrollElement = scrollRef.current;
+    if (!articleElement || !scrollElement) return;
+    const target = findSourceTocTarget(articleElement, item);
+    if (!target) return;
+    const targetRect = target.getBoundingClientRect();
+    const scrollRect = scrollElement.getBoundingClientRect();
+    scrollElement.scrollTo({
+      top: Math.max(0, scrollElement.scrollTop + targetRect.top - scrollRect.top - 18),
+      behavior: 'smooth',
+    });
+  }
 
   if (!article) {
     return (
@@ -995,35 +1039,69 @@ function SourceBookcase({
         </div>
         <OpenArticleButton article={article} />
       </header>
-      <div className="source-scroll">
-        <div className="source-canvas" ref={canvasRef}>
-          <article className="source-article" ref={articleRef}>
-            <header className="source-article-header">
-              <h1>{article.title}</h1>
-              {article.byline || article.excerpt ? (
-                <p>{[article.byline, article.excerpt].filter(Boolean).join(' · ')}</p>
-              ) : null}
-            </header>
-            <div
-              className="source-article-body"
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
-            />
-          </article>
-          <div className="source-highlight-layer">
-            {boxes.map((box) => (
+      <div className={tocItems.length > 0 ? 'source-body-layout' : 'source-body-layout is-no-toc'}>
+        <aside className={tocItems.length > 0 ? 'source-toc' : 'source-toc is-empty'}>
+          <div className="source-toc-title">目录</div>
+          {tocItems.map((item) => {
+            const stats = isPrimarySourceTocItem(item) ? tocStats.get(item.index) : undefined;
+            return (
               <button
-                aria-label="打开对应批注"
-                className={
-                  box.annotationId === selectedAnnotationId
-                    ? 'source-highlight is-active'
-                    : 'source-highlight'
-                }
-                key={box.id}
-                style={sourceHighlightStyle(box, box.annotationId === selectedAnnotationId)}
+                className="source-toc-item"
+                data-depth={Math.min(item.depth, 4)}
+                key={`${item.index}-${item.text}`}
                 type="button"
-                onClick={() => onOpenAnnotation(box.annotationId)}
+                onClick={() => scrollToTocItem(item)}
+              >
+                <span className="source-toc-item-main">
+                  <span>{item.text}</span>
+                  <span className="source-toc-meta">
+                    {(stats?.colors.length || 0) > 0 ? (
+                      <span className="source-toc-markers">
+                        {stats!.colors.slice(0, 5).map((color) => (
+                          <i key={color} style={{ backgroundColor: color }} />
+                        ))}
+                      </span>
+                    ) : null}
+                    {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          <div className="source-toc-summary">
+            共 {annotations.length} 条批注 · {commentCount} 条评论
+          </div>
+        </aside>
+        <div className="source-scroll" ref={scrollRef}>
+          <div className="source-canvas" ref={canvasRef}>
+            <article className="source-article" ref={articleRef}>
+              <header className="source-article-header">
+                <h1>{article.title}</h1>
+                {article.byline || article.excerpt ? (
+                  <p>{[article.byline, article.excerpt].filter(Boolean).join(' · ')}</p>
+                ) : null}
+              </header>
+              <div
+                className="source-article-body"
+                dangerouslySetInnerHTML={{ __html: contentHtml }}
               />
-            ))}
+            </article>
+            <div className="source-highlight-layer">
+              {boxes.map((box) => (
+                <button
+                  aria-label="打开对应批注"
+                  className={
+                    box.annotationId === selectedAnnotationId
+                      ? 'source-highlight is-active'
+                      : 'source-highlight'
+                  }
+                  key={box.id}
+                  style={sourceHighlightStyle(box, box.annotationId === selectedAnnotationId)}
+                  type="button"
+                  onClick={() => onOpenAnnotation(box.annotationId)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -1929,6 +2007,115 @@ function sourceArticleBodyHtml(article: ArticleRecord) {
     });
   });
   return container.innerHTML;
+}
+
+function extractSourceTocItems(articleElement: HTMLElement): SourceTocItem[] {
+  const entries = getSourceTocEntries(articleElement)
+    .map((entry) => ({
+      index: entry.index,
+      target: entry.target,
+      text: entry.text,
+      depth: entry.depth,
+      start: offsetFromElementStart(articleElement, entry.target, 0),
+    }))
+    .toSorted((left, right) => left.start - right.start);
+  const textLength = articleElement.textContent?.length || 0;
+
+  return entries.map((entry, index) => {
+    const isRootIntro = index === 0 && entries[1] && entry.depth < entries[1].depth;
+    const nextEntry = entries
+      .slice(index + 1)
+      .find((item) => (isRootIntro ? true : item.depth <= entry.depth));
+    return {
+      index: entry.index,
+      text: entry.text,
+      depth: entry.depth,
+      start: entry.start,
+      end: nextEntry?.start || textLength,
+    };
+  });
+}
+
+function getSourceTocEntries(articleElement: HTMLElement): SourceTocEntry[] {
+  const semanticHeadings = collectSourceTocCandidates(
+    Array.from(
+      articleElement.querySelectorAll<HTMLElement>(
+        '.source-article-body h1, .source-article-body h2, .source-article-body h3, .source-article-body h4',
+      ),
+    ),
+    (element) => sourceHeadingDepth(element),
+  );
+  if (semanticHeadings.length > 0) return semanticHeadings;
+
+  const inferredHeadings = Array.from(
+    articleElement.querySelectorAll<HTMLElement>(
+      '.source-article-body p, .source-article-body div, .source-article-body section',
+    ),
+  )
+    .filter((element) => {
+      const text = element.textContent?.trim() || '';
+      return (
+        text.length >= 3 &&
+        text.length <= 80 &&
+        /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/.test(text)
+      );
+    })
+    .filter((element) => !element.querySelector('p, div, section, h1, h2, h3, h4'))
+    .slice(0, 24);
+
+  return collectSourceTocCandidates(inferredHeadings, () => 1);
+}
+
+function collectSourceTocCandidates(
+  elements: HTMLElement[],
+  getDepth: (element: HTMLElement) => number,
+): SourceTocEntry[] {
+  return elements
+    .map((element, index) => {
+      const text = element.textContent?.trim().replace(/\s+/g, ' ') || '';
+      if (!text) return null;
+      return { index, target: element, text, depth: getDepth(element) };
+    })
+    .filter((item): item is SourceTocEntry => Boolean(item));
+}
+
+function findSourceTocTarget(articleElement: HTMLElement, item: SourceTocItem) {
+  const entries = getSourceTocEntries(articleElement);
+  const indexed = entries[item.index];
+  if (indexed?.text === item.text) return indexed.target;
+  return entries.find((entry) => entry.text === item.text)?.target || null;
+}
+
+function buildSourceTocStats(tocItems: SourceTocItem[], annotations: Annotation[]) {
+  const stats = new Map<number, SourceTocStats>();
+  for (const item of tocItems) {
+    const sectionAnnotations = annotations.filter((annotation) => {
+      const start = Number.isFinite(annotation.anchor.start) ? annotation.anchor.start : -1;
+      return start >= item.start && start < item.end;
+    });
+    stats.set(item.index, {
+      count: sectionAnnotations.length,
+      colors: Array.from(new Set(sectionAnnotations.map(annotationDisplayColor))),
+    });
+  }
+  return stats;
+}
+
+function isPrimarySourceTocItem(item: SourceTocItem) {
+  return item.depth <= 1;
+}
+
+function sourceHeadingDepth(element: HTMLElement) {
+  const level = Number(element.tagName.slice(1));
+  if (level <= 2) return 1;
+  return Math.min(4, level - 1);
+}
+
+function offsetFromElementStart(rootElement: HTMLElement, node: Node, offset: number) {
+  const range = document.createRange();
+  range.selectNodeContents(rootElement);
+  range.setEnd(node, offset);
+  return range.toString().length;
 }
 
 function annotationDisplayColor(annotation: Annotation) {
