@@ -1,6 +1,11 @@
-import type React from 'react';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { annotationColor, timestamp } from '@yomitomo/core';
+import {
+  annotationColor,
+  buildTocAnnotationStats as buildCoreTocAnnotationStats,
+  highlightStyle,
+  isPrimaryTocItem,
+  timestamp,
+} from '@yomitomo/core';
 import type { ReaderSettings } from './reader-components';
 import type { HighlightBox, TocItem } from './reader-dom';
 
@@ -16,11 +21,6 @@ export const defaultUserProfile: UserProfile = {
 export const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860,
-};
-
-export type TocAnnotationStats = {
-  count: number;
-  colors: string[];
 };
 
 export function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfile {
@@ -53,25 +53,9 @@ export function buildTocAnnotationStats(
   userProfile: UserProfile,
   agents: PublicAgent[],
 ) {
-  const stats = new Map<number, TocAnnotationStats>();
-
-  for (const item of tocItems) {
-    const sectionAnnotations = annotations.filter(
-      (annotation) => annotation.anchor.start >= item.start && annotation.anchor.start < item.end,
-    );
-    const colors = Array.from(
-      new Set(
-        sectionAnnotations.map((annotation) => annotationColor(annotation, userProfile, agents)),
-      ),
-    );
-    stats.set(item.index, { count: sectionAnnotations.length, colors });
-  }
-
-  return stats;
-}
-
-export function isPrimaryTocItem(item: TocItem) {
-  return item.depth <= 1;
+  return buildCoreTocAnnotationStats(tocItems, annotations, (annotation) =>
+    annotationColor(annotation, userProfile, agents),
+  );
 }
 
 export function getShortcutModifier() {
@@ -83,17 +67,7 @@ export function clampNumber(value: number | undefined, min: number, max: number,
   return Math.min(max, Math.max(min, value));
 }
 
-export function highlightStyle(box: HighlightBox, active: boolean): React.CSSProperties {
-  const color = box.color || defaultUserProfile.annotationColor;
-  return {
-    top: box.top,
-    left: box.left,
-    width: box.width,
-    height: box.height,
-    backgroundColor: alphaColor(color, active ? 0.45 : 0.28),
-    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(color, active ? 0.72 : 0.36)}`,
-  };
-}
+export { highlightStyle, isPrimaryTocItem };
 
 export function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -133,13 +107,4 @@ export function animateTheaterHighlight(
 
     requestAnimationFrame(frame);
   });
-}
-
-function alphaColor(color: string, alpha: number) {
-  const hex = color.trim();
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
-  const red = Number.parseInt(hex.slice(1, 3), 16);
-  const green = Number.parseInt(hex.slice(3, 5), 16);
-  const blue = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgba(${red},${green},${blue},${alpha})`;
 }

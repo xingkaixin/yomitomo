@@ -48,15 +48,26 @@ import type {
 import { renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
+  annotationStoredColor,
   buildReadingCard,
   buildReadingCardEvidenceUnits,
   buildReadingCardSections,
   buildReadingCardStats,
+  buildTocAnnotationStats,
   computeReadingStats,
+  extractTocItems,
+  findCurrentTocTarget,
+  highlightStyle,
+  isPrimaryTocItem,
+  rangeFromOffsets,
+  rangeHighlightBoxes,
   sortAnnotations,
   sortArticles,
+  type ExtractTocOptions,
+  type HighlightBox,
   type ReadingCardEvidenceUnit,
   type ReadingStatsPeriod,
+  type TocItem,
 } from '@yomitomo/core';
 import {
   agentDraftHasChanges,
@@ -906,31 +917,11 @@ function ReadingLibrary({
   );
 }
 
-type SourceHighlightBox = {
-  id: string;
-  annotationId: string;
-  color: string;
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-};
-
-type SourceTocItem = {
-  index: number;
-  text: string;
-  depth: number;
-  start: number;
-  end: number;
-};
-
-type SourceTocStats = {
-  count: number;
-  colors: string[];
-};
-
-type SourceTocEntry = Omit<SourceTocItem, 'start' | 'end'> & {
-  target: HTMLElement;
+const sourceTocOptions: ExtractTocOptions = {
+  headingSelector:
+    '.source-article-body h1, .source-article-body h2, .source-article-body h3, .source-article-body h4',
+  inferredSelector:
+    '.source-article-body p, .source-article-body div, .source-article-body section',
 };
 
 function SourceBookcase({
@@ -947,11 +938,11 @@ function SourceBookcase({
   const scrollRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [boxes, setBoxes] = useState<SourceHighlightBox[]>([]);
-  const [tocItems, setTocItems] = useState<SourceTocItem[]>([]);
+  const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
-    () => buildSourceTocStats(tocItems, annotations),
+    () => buildTocAnnotationStats(tocItems, annotations),
     [tocItems, annotations],
   );
   const commentCount = useMemo(
@@ -974,16 +965,16 @@ function SourceBookcase({
       frame = window.requestAnimationFrame(() => {
         const text = articleElement.textContent || '';
         const canvasRect = canvasElement.getBoundingClientRect();
-        const nextTocItems = extractSourceTocItems(articleElement);
+        const nextTocItems = extractTocItems(articleElement, sourceTocOptions);
         const nextBoxes = annotations.flatMap((annotation) => {
           const position = resolveTextAnchor(text, annotation.anchor);
           if (!position) return [];
-          const range = rangeFromTextOffsets(articleElement, position.start, position.end);
+          const range = rangeFromOffsets(articleElement, position.start, position.end);
           if (!range) return [];
-          return rangeSourceHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
+          return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
             Object.assign(box, {
               annotationId: annotation.id,
-              color: annotationDisplayColor(annotation),
+              color: annotationStoredColor(annotation),
             }),
           );
         });
@@ -1005,11 +996,11 @@ function SourceBookcase({
     };
   }, [annotations, article, contentHtml]);
 
-  function scrollToTocItem(item: SourceTocItem) {
+  function scrollToTocItem(item: TocItem) {
     const articleElement = articleRef.current;
     const scrollElement = scrollRef.current;
     if (!articleElement || !scrollElement) return;
-    const target = findSourceTocTarget(articleElement, item);
+    const target = findCurrentTocTarget(articleElement, item, sourceTocOptions);
     if (!target) return;
     const targetRect = target.getBoundingClientRect();
     const scrollRect = scrollElement.getBoundingClientRect();
@@ -1043,7 +1034,7 @@ function SourceBookcase({
         <aside className={tocItems.length > 0 ? 'source-toc' : 'source-toc is-empty'}>
           <div className="source-toc-title">目录</div>
           {tocItems.map((item) => {
-            const stats = isPrimarySourceTocItem(item) ? tocStats.get(item.index) : undefined;
+            const stats = isPrimaryTocItem(item) ? tocStats.get(item.index) : undefined;
             return (
               <button
                 className="source-toc-item"
@@ -1096,7 +1087,7 @@ function SourceBookcase({
                       : 'source-highlight'
                   }
                   key={box.id}
-                  style={sourceHighlightStyle(box, box.annotationId === selectedAnnotationId)}
+                  style={highlightStyle(box, box.annotationId === selectedAnnotationId)}
                   type="button"
                   onClick={() => onOpenAnnotation(box.annotationId)}
                 />
@@ -2007,243 +1998,6 @@ function sourceArticleBodyHtml(article: ArticleRecord) {
     });
   });
   return container.innerHTML;
-}
-
-function extractSourceTocItems(articleElement: HTMLElement): SourceTocItem[] {
-  const entries = getSourceTocEntries(articleElement)
-    .map((entry) => ({
-      index: entry.index,
-      target: entry.target,
-      text: entry.text,
-      depth: entry.depth,
-      start: offsetFromElementStart(articleElement, entry.target, 0),
-    }))
-    .toSorted((left, right) => left.start - right.start);
-  const textLength = articleElement.textContent?.length || 0;
-
-  return entries.map((entry, index) => {
-    const isRootIntro = index === 0 && entries[1] && entry.depth < entries[1].depth;
-    const nextEntry = entries
-      .slice(index + 1)
-      .find((item) => (isRootIntro ? true : item.depth <= entry.depth));
-    return {
-      index: entry.index,
-      text: entry.text,
-      depth: entry.depth,
-      start: entry.start,
-      end: nextEntry?.start || textLength,
-    };
-  });
-}
-
-function getSourceTocEntries(articleElement: HTMLElement): SourceTocEntry[] {
-  const semanticHeadings = collectSourceTocCandidates(
-    Array.from(
-      articleElement.querySelectorAll<HTMLElement>(
-        '.source-article-body h1, .source-article-body h2, .source-article-body h3, .source-article-body h4',
-      ),
-    ),
-    (element) => sourceHeadingDepth(element),
-  );
-  if (semanticHeadings.length > 0) return semanticHeadings;
-
-  const inferredHeadings = Array.from(
-    articleElement.querySelectorAll<HTMLElement>(
-      '.source-article-body p, .source-article-body div, .source-article-body section',
-    ),
-  )
-    .filter((element) => {
-      const text = element.textContent?.trim() || '';
-      return (
-        text.length >= 3 &&
-        text.length <= 80 &&
-        /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/.test(text)
-      );
-    })
-    .filter((element) => !element.querySelector('p, div, section, h1, h2, h3, h4'))
-    .slice(0, 24);
-
-  return collectSourceTocCandidates(inferredHeadings, () => 1);
-}
-
-function collectSourceTocCandidates(
-  elements: HTMLElement[],
-  getDepth: (element: HTMLElement) => number,
-): SourceTocEntry[] {
-  return elements
-    .map((element, index) => {
-      const text = element.textContent?.trim().replace(/\s+/g, ' ') || '';
-      if (!text) return null;
-      return { index, target: element, text, depth: getDepth(element) };
-    })
-    .filter((item): item is SourceTocEntry => Boolean(item));
-}
-
-function findSourceTocTarget(articleElement: HTMLElement, item: SourceTocItem) {
-  const entries = getSourceTocEntries(articleElement);
-  const indexed = entries[item.index];
-  if (indexed?.text === item.text) return indexed.target;
-  return entries.find((entry) => entry.text === item.text)?.target || null;
-}
-
-function buildSourceTocStats(tocItems: SourceTocItem[], annotations: Annotation[]) {
-  const stats = new Map<number, SourceTocStats>();
-  for (const item of tocItems) {
-    const sectionAnnotations = annotations.filter((annotation) => {
-      const start = Number.isFinite(annotation.anchor.start) ? annotation.anchor.start : -1;
-      return start >= item.start && start < item.end;
-    });
-    stats.set(item.index, {
-      count: sectionAnnotations.length,
-      colors: Array.from(new Set(sectionAnnotations.map(annotationDisplayColor))),
-    });
-  }
-  return stats;
-}
-
-function isPrimarySourceTocItem(item: SourceTocItem) {
-  return item.depth <= 1;
-}
-
-function sourceHeadingDepth(element: HTMLElement) {
-  const level = Number(element.tagName.slice(1));
-  if (level <= 2) return 1;
-  return Math.min(4, level - 1);
-}
-
-function offsetFromElementStart(rootElement: HTMLElement, node: Node, offset: number) {
-  const range = document.createRange();
-  range.selectNodeContents(rootElement);
-  range.setEnd(node, offset);
-  return range.toString().length;
-}
-
-function annotationDisplayColor(annotation: Annotation) {
-  return (
-    annotation.agentAnnotationColor ||
-    annotation.userAnnotationColor ||
-    annotation.color ||
-    '#f4c95d'
-  );
-}
-
-function sourceHighlightStyle(box: SourceHighlightBox, active: boolean): React.CSSProperties {
-  return {
-    top: box.top,
-    left: box.left,
-    width: box.width,
-    height: box.height,
-    backgroundColor: alphaColor(box.color, active ? 0.45 : 0.28),
-    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(box.color, active ? 0.72 : 0.36)}`,
-  };
-}
-
-function rangeSourceHighlightBoxes(
-  range: Range,
-  canvasRect: DOMRect,
-  idPrefix: string,
-): SourceHighlightBox[] {
-  const rects: DOMRect[] = [];
-  const collectNodeRects = (node: Text) => {
-    const nodeRange = document.createRange();
-    nodeRange.setStart(node, node === range.startContainer ? range.startOffset : 0);
-    nodeRange.setEnd(node, node === range.endContainer ? range.endOffset : node.data.length);
-    rects.push(...Array.from(nodeRange.getClientRects()));
-  };
-
-  if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE) {
-    const node = range.commonAncestorContainer as Text;
-    if (node.textContent?.trim()) collectNodeRects(node);
-  } else {
-    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
-        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      },
-    });
-
-    while (walker.nextNode()) {
-      collectNodeRects(walker.currentNode as Text);
-    }
-  }
-
-  return mergeLineRects(rects)
-    .filter((rect) => rect.width >= 2 && rect.height >= 2)
-    .map((rect, index) => ({
-      id: `${idPrefix}_${index}`,
-      annotationId: idPrefix,
-      color: '#f4c95d',
-      top: rect.top - canvasRect.top,
-      left: rect.left - canvasRect.left,
-      width: rect.width,
-      height: rect.height,
-    }));
-}
-
-function rangeFromTextOffsets(rootElement: HTMLElement, start: number, end: number) {
-  const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT);
-  let currentOffset = 0;
-  let startNode: Text | null = null;
-  let endNode: Text | null = null;
-  let startOffset = 0;
-  let endOffset = 0;
-
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
-    const nextOffset = currentOffset + node.data.length;
-    if (!startNode && start >= currentOffset && start <= nextOffset) {
-      startNode = node;
-      startOffset = start - currentOffset;
-    }
-    if (!endNode && end >= currentOffset && end <= nextOffset) {
-      endNode = node;
-      endOffset = end - currentOffset;
-      break;
-    }
-    currentOffset = nextOffset;
-  }
-
-  if (!startNode || !endNode) return null;
-  const range = document.createRange();
-  range.setStart(startNode, startOffset);
-  range.setEnd(endNode, endOffset);
-  return range;
-}
-
-function mergeLineRects(rects: DOMRect[]) {
-  const lines: Array<{ top: number; left: number; right: number; bottom: number }> = [];
-  for (const rect of rects) {
-    if (rect.width < 2 || rect.height < 2) continue;
-    const line = lines.find(
-      (item) => Math.abs(item.top - rect.top) < 3 && Math.abs(item.bottom - rect.bottom) < 3,
-    );
-    if (line) {
-      line.left = Math.min(line.left, rect.left);
-      line.right = Math.max(line.right, rect.right);
-      line.top = Math.min(line.top, rect.top);
-      line.bottom = Math.max(line.bottom, rect.bottom);
-    } else {
-      lines.push({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom });
-    }
-  }
-
-  return lines.map((line) => ({
-    top: line.top,
-    left: line.left,
-    right: line.right,
-    bottom: line.bottom,
-    width: line.right - line.left,
-    height: line.bottom - line.top,
-  }));
-}
-
-function alphaColor(color: string, alpha: number) {
-  const hex = color.trim();
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
-  const red = Number.parseInt(hex.slice(1, 3), 16);
-  const green = Number.parseInt(hex.slice(3, 5), 16);
-  const blue = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgba(${red},${green},${blue},${alpha})`;
 }
 
 function readingCardSectionIndex(title: string) {
