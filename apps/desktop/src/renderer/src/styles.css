@@ -941,6 +941,39 @@
   gap: 8px;
 }
 
+.reading-card-actions > button {
+  border: 1px solid hsl(36 31% 72% / 0.72);
+  background: hsl(43 58% 93% / 0.72);
+  box-shadow: 0 4px 12px hsl(31 34% 24% / 0.06);
+}
+
+.reading-card-actions > button:hover:not(:disabled) {
+  border-color: hsl(36 31% 65% / 0.9);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  box-shadow: 0 6px 16px hsl(31 34% 24% / 0.1);
+}
+
+.reading-card-actions > button:active:not(:disabled) {
+  box-shadow: 0 3px 8px hsl(31 34% 24% / 0.08);
+}
+
+.reading-card-actions .copy-icon-button {
+  margin-left: 0;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.reading-card-actions > button.copy-icon-button.is-copied {
+  border-color: hsl(93 28% 70%);
+  background: hsl(93 28% 82%);
+  color: hsl(92 27% 28%);
+}
+
 .reading-card-spin {
   animation: reading-card-spin 900ms linear infinite;
 }
@@ -1210,11 +1243,13 @@
   flex: none;
   align-items: center;
   gap: 8px;
+  --annotation-control-size: 40px;
 }
 
 .open-article-button {
   display: inline-flex;
-  height: 40px;
+  box-sizing: border-box;
+  height: var(--annotation-control-size);
   align-items: center;
   gap: 7px;
   border: 1px solid hsl(36 31% 72%);
@@ -1252,6 +1287,12 @@
 }
 
 .annotation-pagination span {
+  display: inline-flex;
+  box-sizing: border-box;
+  min-width: 72px;
+  height: var(--annotation-control-size);
+  align-items: center;
+  justify-content: center;
   border: 1px solid hsl(36 31% 72%);
   border-radius: 999px;
   background: hsl(43 58% 93% / 0.72);
@@ -1259,13 +1300,15 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   font-weight: 850;
-  padding: 6px 10px;
+  line-height: 1;
+  padding: 0 12px;
 }
 
 .annotation-pagination button {
   display: grid;
-  width: 40px;
-  height: 40px;
+  box-sizing: border-box;
+  width: var(--annotation-control-size);
+  height: var(--annotation-control-size);
   place-items: center;
   border: 1px solid hsl(36 31% 72%);
   border-radius: 999px;

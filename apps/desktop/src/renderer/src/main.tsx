@@ -1095,7 +1095,6 @@ function ReadingCard({
   onGenerated: () => void;
   onOpenEvidence: (annotationId: string) => void;
 }) {
-  const [copied, setCopied] = useState(false);
   const [deliberation, setDeliberation] = useState<ReadingDeliberationRecord | null>(null);
   const [deliberationError, setDeliberationError] = useState('');
   const [deliberationState, setDeliberationState] = useState<
@@ -1147,13 +1146,6 @@ function ReadingCard({
       return kept.length > 0 ? kept : reviewAgentIds;
     });
   }, [reviewAgentKey]);
-
-  async function copyCard() {
-    if (!card) return;
-    await navigator.clipboard.writeText(card);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  }
 
   async function generateAiCard() {
     if (!article || aiState === 'generating') return;
@@ -1295,10 +1287,7 @@ function ReadingCard({
             )}
             {reviewState === 'reviewing' ? '审稿中' : aiCard?.review ? '重新审稿' : '审核卡片'}
           </Button>
-          <Button type="button" variant="secondary" onClick={copyCard}>
-            <Clipboard size={16} />
-            {copied ? '已复制' : '复制 Markdown'}
-          </Button>
+          <CopyIconButton label="复制读后卡片 Markdown" value={card} />
         </div>
       </div>
       {aiCard ? (
