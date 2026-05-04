@@ -160,10 +160,15 @@ Status: Draft
   - 若保留静态 content script，继续保留 `<all_urls>`，并在隐私说明中明确 content script 默认只监听扩展消息。
   - 若采用动态注入，优先用 `activeTab` + `scripting.executeScript` 覆盖当前 tab，减少 `<all_urls>` host permission。
   - `tabs` permission 只在确实需要非 activeTab 的 tab 元数据时保留。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - P0 已确定静态 content script 路径，manifest 保留 `<all_urls>` content script 与 `ws://127.0.0.1/*` host permission。
+  - `permissions` 已收敛为 `['storage']`，移除 `activeTab`、`scripting`、`tabs`。
+  - popup 在普通网页通过静态 content script 接收 toggle；特殊页面或无 content script 页面沿用 `打开失败：...` 状态。
 - 验收标准：
-  - [ ] manifest 权限与实际交互路径逐项对应。
-  - [ ] Chrome 扩展详情页权限提示能解释为“用户点击当前页面后启用阅读器”。
-  - [ ] popup 在普通网页、无权限页面、特殊页面都有明确错误状态。
+  - [x] manifest 权限与实际交互路径逐项对应。
+  - [x] Chrome 扩展详情页权限提示能解释为“用户点击当前页面后启用阅读器”。
+  - [x] popup 在普通网页、无权限页面、特殊页面都有明确错误状态。
 
 ### P2（UI / 测试 / 工程质量）
 
