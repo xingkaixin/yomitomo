@@ -400,6 +400,56 @@
   font-weight: 850;
 }
 
+.agent-filter-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  border: 1px solid hsl(var(--border) / 0.66);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.54);
+  padding: 4px;
+}
+
+.agent-filter-tab {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 7px 8px;
+  text-align: left;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.agent-filter-tab span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-filter-tab strong {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+}
+
+.agent-filter-tab:hover,
+.agent-filter-tab.is-active {
+  background: hsl(var(--card) / 0.9);
+  color: hsl(var(--foreground));
+  box-shadow: 0 6px 18px hsl(31 34% 24% / 0.08);
+}
+
 .config-list-scroll {
   display: grid;
   align-content: start;
@@ -541,6 +591,104 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.agent-create-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: hsl(24 22% 10% / 0.32);
+  padding: 24px;
+}
+
+.agent-create-dialog {
+  display: grid;
+  width: min(520px, 100%);
+  gap: 18px;
+  border: 1px solid hsl(var(--border) / 0.8);
+  border-radius: 12px;
+  background: hsl(var(--card));
+  padding: 18px;
+  box-shadow: 0 28px 90px hsl(31 34% 18% / 0.24);
+}
+
+.agent-create-dialog header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.agent-create-dialog h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.agent-create-dialog p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.agent-create-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-create-choice {
+  display: grid;
+  min-height: 142px;
+  align-content: start;
+  gap: 9px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.62);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.agent-create-choice:hover {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+  box-shadow: 0 12px 28px hsl(31 34% 24% / 0.1);
+  transform: translateY(-1px);
+}
+
+.agent-create-choice:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.agent-create-choice-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 8px;
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+}
+
+.agent-create-choice strong {
+  font-size: 15px;
+  font-weight: 880;
+}
+
+.agent-create-choice span:last-child {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .settings-form-grid {
@@ -3624,14 +3772,7 @@
   gap: 10px;
 }
 
-.agent-kind-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.density-choice,
-.agent-kind-choice {
+.density-choice {
   display: grid;
   min-height: 64px;
   align-content: center;
@@ -3650,35 +3791,29 @@
     box-shadow 140ms ease;
 }
 
-.density-choice strong,
-.agent-kind-choice strong {
+.density-choice strong {
   font-size: 13px;
   font-weight: 820;
 }
 
-.density-choice span,
-.agent-kind-choice span {
+.density-choice span {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 700;
 }
 
 .density-choice:hover,
-.density-choice.is-active,
-.agent-kind-choice:hover,
-.agent-kind-choice.is-active {
+.density-choice.is-active {
   border-color: hsl(var(--primary));
   background: hsl(var(--primary) / 0.08);
 }
 
-.density-choice:hover,
-.agent-kind-choice:hover {
+.density-choice:hover {
   box-shadow: 0 8px 18px hsl(31 34% 24% / 0.07);
   transform: translateY(-1px);
 }
 
-.density-choice:active,
-.agent-kind-choice:active {
+.density-choice:active {
   transform: translateY(1px) scale(0.96);
 }
 

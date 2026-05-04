@@ -172,16 +172,23 @@ export const emptyStore: DesktopStore = {
   articles: [],
 };
 
-export function createEmptyAgent(defaultAvatar: string): AgentDraft {
+export function createEmptyAgent(
+  defaultAvatar: string,
+  kind: AgentKind = 'annotation',
+): AgentDraft {
+  const personality =
+    kind === 'review' ? reviewAgentPersonalities[0] : annotationAgentPersonalities[0];
+
   return {
-    kind: 'annotation',
-    nickname: '阅读伙伴',
-    username: 'yomitomo',
+    kind,
+    nickname: kind === 'review' ? '审核助手' : '阅读伙伴',
+    username: kind === 'review' ? 'reviewer' : 'yomitomo',
     avatar: defaultAvatar,
     annotationColor: annotationColors[1],
     annotationDensity: 'medium',
-    temperature: annotationAgentPersonalities[0]?.temperature ?? 0.35,
-    soul: defaultAgentSoul,
+    personalityId: personality?.id,
+    temperature: personality?.temperature ?? 0.35,
+    soul: personality?.soul || defaultAgentSoul,
   };
 }
 

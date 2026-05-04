@@ -102,6 +102,13 @@ import type { ProviderOption, SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 type AvatarOption = { id: string; src: string };
+type AgentFilter = 'all' | AgentKind;
+
+const agentFilterOptions: Array<{ value: AgentFilter; label: string }> = [
+  { value: 'all', label: '全部助手' },
+  { value: 'annotation', label: '阅读助手' },
+  { value: 'review', label: '审核助手' },
+];
 
 const providerLogoMap: Record<string, string> = {
   'anthropic.png': anthropicLogo,
@@ -531,13 +538,24 @@ export function AgentSettings({
   selectedId: string | null;
   canSave: boolean;
   onChange: (draft: AgentDraft) => void;
-  onCreate: () => void;
+  onCreate: (kind: AgentKind) => void;
   onDelete: (id: string) => void;
   onSave: () => void;
   saveState: SaveState;
   onSelect: (agent: Agent) => void;
 }) {
+  const [filter, setFilter] = useState<AgentFilter>('all');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const filteredAgents =
+    filter === 'all' ? agents : agents.filter((agent) => (agent.kind || 'annotation') === filter);
+  const emptyKindLabel = filter === 'all' ? '助手' : agentKindLabel(filter);
+
+  function createAgent(kind: AgentKind) {
+    setFilter(kind);
+    setCreateDialogOpen(false);
+    onCreate(kind);
+  }
 
   return (
     <div className="settings-panel">
@@ -552,14 +570,28 @@ export function AgentSettings({
           empty={
             <div className="agent-list-empty">
               <Bot size={22} />
-              <strong>还没有助手</strong>
-              <p>新增一个助手后，浏览器阅读器里就能邀请它参与批注。</p>
+              <strong>还没有{emptyKindLabel}</strong>
+              <p>选择类型后创建助手，配置项会按用途展开。</p>
             </div>
           }
           title="已配置助手"
-          onCreate={onCreate}
+          controls={
+            <AgentFilterTabs
+              agents={agents}
+              value={filter}
+              onChange={(nextFilter) => {
+                setFilter(nextFilter);
+                const nextAgent =
+                  nextFilter === 'all'
+                    ? agents[0]
+                    : agents.find((agent) => (agent.kind || 'annotation') === nextFilter);
+                if (nextAgent && nextAgent.id !== selectedId) onSelect(nextAgent);
+              }}
+            />
+          }
+          onCreate={() => setCreateDialogOpen(true)}
         >
-          {agents.map((agent) => {
+          {filteredAgents.map((agent) => {
             const personalityName = agentPersonalityName(agent);
             return (
               <button
@@ -625,6 +657,9 @@ export function AgentSettings({
           <AgentForm draft={draft} error={error} providers={providers} onChange={onChange} />
         </section>
       </div>
+      {createDialogOpen ? (
+        <AgentCreateDialog onClose={() => setCreateDialogOpen(false)} onCreate={createAgent} />
+      ) : null}
     </div>
   );
 }
@@ -633,12 +668,14 @@ function ConfigList({
   title,
   children,
   createLabel = '新增',
+  controls,
   empty,
   onCreate,
 }: {
   title: string;
   children: React.ReactNode;
   createLabel?: string;
+  controls?: React.ReactNode;
   empty?: React.ReactNode;
   onCreate: () => void;
 }) {
@@ -653,8 +690,95 @@ function ConfigList({
           {createLabel}
         </Button>
       </div>
+      {controls}
       <div className="config-list-scroll">{hasItems ? children : empty}</div>
     </aside>
+  );
+}
+
+function AgentFilterTabs({
+  agents,
+  value,
+  onChange,
+}: {
+  agents: Agent[];
+  value: AgentFilter;
+  onChange: (value: AgentFilter) => void;
+}) {
+  return (
+    <div className="agent-filter-tabs" role="tablist" aria-label="助手过滤">
+      {agentFilterOptions.map((option) => {
+        const count =
+          option.value === 'all'
+            ? agents.length
+            : agents.filter((agent) => (agent.kind || 'annotation') === option.value).length;
+        return (
+          <button
+            aria-selected={value === option.value}
+            className={value === option.value ? 'agent-filter-tab is-active' : 'agent-filter-tab'}
+            key={option.value}
+            role="tab"
+            type="button"
+            onClick={() => onChange(option.value)}
+          >
+            <span>{option.label}</span>
+            <strong>{count}</strong>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AgentCreateDialog({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void;
+  onCreate: (kind: AgentKind) => void;
+}) {
+  return (
+    <div className="agent-create-overlay" role="presentation" onMouseDown={onClose}>
+      <section
+        aria-labelledby="agent-create-title"
+        aria-modal="true"
+        className="agent-create-dialog"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <h3 id="agent-create-title">选择助手类型</h3>
+            <p>不同类型会使用不同头像、个性预设和配置项。</p>
+          </div>
+          <Button
+            className="action-button"
+            size="icon"
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+          >
+            <span aria-hidden="true">×</span>
+          </Button>
+        </header>
+        <div className="agent-create-choice-grid">
+          {agentKindOptions.map((option) => (
+            <button
+              className="agent-create-choice"
+              key={option.value}
+              type="button"
+              onClick={() => onCreate(option.value)}
+            >
+              <span className="agent-create-choice-icon">
+                {option.value === 'review' ? <Scale size={18} /> : <Bot size={18} />}
+              </span>
+              <strong>{option.label}</strong>
+              <span>{option.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -914,19 +1038,6 @@ export function AgentForm({
     : customPersonalityId;
   const isCustomPersonality = personalityId === customPersonalityId;
 
-  function changeKind(kind: AgentKind) {
-    const firstPersonality = personalitiesForKind(kind)[0];
-    onChange({
-      ...draft,
-      kind,
-      avatar: avatarForKind(draft.avatar, kind),
-      personalityId: firstPersonality?.id || customPersonalityId,
-      soul: firstPersonality?.soul || '',
-      temperature: firstPersonality?.temperature ?? customPersonality.temperature,
-      annotationDensity: draft.annotationDensity || 'medium',
-    });
-  }
-
   function changePersonality(nextId: string) {
     const personality = availablePersonalities.find((item) => item.id === nextId);
     if (personality) {
@@ -948,44 +1059,6 @@ export function AgentForm({
 
   return (
     <div className="settings-form-grid">
-      <Field
-        id="agent-kind"
-        className="col-span-2"
-        description="阅读助手会出现在浏览器阅读器；审核助手用于后续读后卡片审稿流程。"
-        label="助手类型"
-      >
-        <div
-          aria-describedby="agent-kind-description"
-          aria-labelledby="agent-kind-label"
-          className="agent-kind-grid"
-          role="radiogroup"
-          onKeyDown={(event) =>
-            moveOptionSelection(
-              event,
-              agentKindOptions.map((option) => option.value),
-              agentKind,
-              changeKind,
-            )
-          }
-        >
-          {agentKindOptions.map((option) => (
-            <button
-              aria-checked={agentKind === option.value}
-              className={
-                agentKind === option.value ? 'agent-kind-choice is-active' : 'agent-kind-choice'
-              }
-              key={option.value}
-              role="radio"
-              tabIndex={agentKind === option.value ? 0 : -1}
-              type="button"
-              onClick={() => changeKind(option.value)}
-            >
-              <strong>{option.label}</strong>
-              <span>{option.description}</span>
-            </button>
-          ))}
-        </div>
-      </Field>
       <Field id="agent-provider" description="当前助手调用的模型供应商。" label="供应商">
         <Select
           disabled={providers.length === 0}

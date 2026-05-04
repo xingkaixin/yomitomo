@@ -10,11 +10,10 @@ import {
   PanelLeftOpen,
   User,
 } from 'lucide-react';
-import type { Agent, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type { Agent, AgentKind, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
   agentDraftHasChanges,
   agentPersonalities,
-  annotationAgentPersonalities,
   createEmptyAgent,
   customPersonality,
   customPersonalityId,
@@ -191,13 +190,11 @@ function App() {
     setAgentSaveState('idle');
   }
 
-  function createAgent() {
+  function createAgent(kind: AgentKind = 'annotation') {
+    const draft = createEmptyAgent(defaultAvatarForKind(kind), kind);
     setSelectedAgentId(null);
     setAgentDraft({
-      ...emptyAgent,
-      kind: 'annotation',
-      personalityId: 'reading-partner',
-      temperature: annotationAgentPersonalities[0]?.temperature ?? 0.35,
+      ...draft,
       providerId: store.providers[0]?.id || '',
     });
     setAgentSaveError('');
