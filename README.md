@@ -21,7 +21,13 @@ Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Ele
 
 ## 示例
 
+### 浏览器扩展阅读器
 
+![Yomitomo 浏览器扩展阅读器](assets/yomitomo-extension.png)
+
+### Electron 桌面端
+
+![Yomitomo Electron 桌面端](assets/yomitomo-desktop.png)
 
 ## 项目结构
 
