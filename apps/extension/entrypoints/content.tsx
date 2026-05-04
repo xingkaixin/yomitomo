@@ -171,6 +171,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
@@ -957,6 +959,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function focusAnnotation(annotationId: string) {
     setHighlightChoice(null);
+    setNotesOpen(true);
     setActiveId(annotationId);
     noteRefs.current.get(annotationId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -994,6 +997,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function scrollToHighlight(annotationId: string) {
     setHighlightChoice(null);
+    setNotesOpen(false);
     setActiveId(annotationId);
     const annotation = annotations.find((item) => item.id === annotationId);
     const article = articleRef.current;
@@ -1009,6 +1013,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function scrollToHeading(item: TocItem) {
+    setTocOpen(false);
     const article = articleRef.current;
     const surface = surfaceRef.current;
     if (!article || !surface) return;
@@ -1037,6 +1042,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       extracted={extracted}
       filteredAnnotations={filteredAnnotations}
       highlightChoice={highlightChoice}
+      notesOpen={notesOpen}
       noteFilter={noteFilter}
       noteRefs={noteRefs}
       notesRef={notesRef}
@@ -1050,6 +1056,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       shortcutModifier={shortcutModifier}
       surfaceRef={surfaceRef}
       temporaryBoxes={temporaryBoxes}
+      tocOpen={tocOpen}
       tocAnnotationStats={tocAnnotationStats}
       tocItems={tocItems}
       userProfile={userProfile}
@@ -1064,6 +1071,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onHighlightClick={handleHighlightClick}
       onMouseUp={handleMouseUp}
       onCloseHighlightChoice={() => setHighlightChoice(null)}
+      onCloseResponsivePanels={() => {
+        setTocOpen(false);
+        setNotesOpen(false);
+      }}
       onOpenComposer={(action) => {
         const canvasWidth = canvasRef.current?.clientWidth || 340;
         setComposer({
@@ -1080,6 +1091,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onScrollToHighlight={scrollToHighlight}
       onSetNoteFilter={(filter) => setNoteFilter(filter)}
       onSetPairingTokenDraft={setPairingTokenDraft}
+      onToggleNotes={() => setNotesOpen((open) => !open)}
+      onToggleToc={() => setTocOpen((open) => !open)}
       onToggleAgentAnnotate={() => setAgentAnnotateOpen((open) => !open)}
       onToggleSettings={() => setSettingsOpen((open) => !open)}
       onDisconnectDesktop={disconnectDesktop}

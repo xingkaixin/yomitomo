@@ -1,5 +1,10 @@
 export const readerConversationStyles = `
-.reader-main{grid-template-columns:320px minmax(0,1fr) 560px}
+.reader-main{grid-template-columns:minmax(240px,280px) minmax(0,1fr) minmax(360px,440px)}
+.reader-toolbar>div:first-child{min-width:0}
+.reader-article{padding:clamp(34px,4vw,56px) clamp(28px,4.6vw,64px)}
+.reader-toc-toggle,.reader-notes-toggle{display:none;position:relative}
+.reader-notes-toggle span{position:absolute;right:-5px;top:-5px;display:grid;min-width:18px;height:18px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#251d16;color:#fffaf0;font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:850;line-height:1;padding:0 5px}
+.reader-responsive-scrim{display:none;position:fixed;inset:84px 0 0;z-index:5;border:0;background:rgba(37,29,22,.18);backdrop-filter:blur(2px);padding:0}
 .reader-highlight{background:rgba(244,201,93,.28);box-shadow:0 0 0 1px rgba(239,169,39,.24)}
 .reader-highlight.is-active{background:rgba(244,201,93,.45)}
 .reader-notes{padding:0 24px 48px;scroll-padding-top:104px}
@@ -139,7 +144,9 @@ export const readerConversationStyles = `
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
 .reader-highlight:focus-visible{box-shadow:0 0 0 2px #fffaf0,0 0 0 5px rgba(37,29,22,.5)}
 @media(prefers-reduced-motion:reduce){.reader-app *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.reader-virtual-cursor{transition:none!important}.reader-virtual-cursor.is-leaving{animation:none!important;opacity:0}.reader-delete-note.is-holding::before{animation:none!important;width:100%}.reader-spinner{animation:none!important;border-top-color:rgba(23,63,44,.22)}}
-@media(max-width:980px){.reader-notes{width:min(560px,calc(100vw - 28px))}}
+@media(max-width:1320px){.reader-main{grid-template-columns:minmax(0,1fr) minmax(340px,420px)}.reader-toc-toggle{display:grid}.reader-toc{display:none}.reader-app.is-toc-open .reader-toc{position:fixed;display:block;left:0;top:84px;bottom:0;z-index:6;width:min(320px,calc(100vw - 32px));border-right:1px solid rgba(37,29,22,.12);background:rgba(246,239,224,.98);box-shadow:18px 0 52px rgba(55,42,24,.18)}.reader-app.is-toc-open .reader-responsive-scrim{display:block}}
+@media(max-width:1100px){.reader-main{grid-template-columns:minmax(0,1fr)}.reader-notes-toggle{display:grid}.reader-notes{display:none}.reader-app.is-notes-open .reader-notes{position:fixed;display:block;right:16px;top:96px;bottom:16px;z-index:6;width:min(560px,calc(100vw - 32px));max-height:none;border:1px solid rgba(37,29,22,.14);border-radius:22px;box-shadow:0 22px 72px rgba(55,42,24,.24)}.reader-app.is-notes-open .reader-responsive-scrim{display:block}.reader-surface{padding:32px 28px 64px}.reader-article{font-size:min(var(--reader-font-size),22px)}.reader-annotation-connection{display:none}}
+@media(max-width:760px){.reader-toolbar{min-height:72px;padding:12px 14px}.reader-toolbar h1{font-size:18px}.reader-toolbar p{font-size:11px}.reader-toolbar-actions{gap:7px}.reader-agent-annotate{width:34px;padding:0;justify-content:center}.reader-agent-annotate{font-size:0}.reader-agent-annotate svg{width:16px;height:16px}.reader-surface{padding:20px 14px 46px}.reader-article{border-radius:18px;padding:28px 20px;font-size:min(var(--reader-font-size),20px);line-height:1.72}.reader-article-header h1{font-size:28px}.reader-composer{left:8px!important;width:calc(100vw - 16px)}.reader-app.is-toc-open .reader-toc{top:72px}.reader-responsive-scrim{inset:72px 0 0}.reader-app.is-notes-open .reader-notes{inset:84px 10px 10px;width:auto}}
 `;
 
 export const readerStyles = `

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, Settings2, X } from 'lucide-react';
+import { Bot, List, MessageSquare, Settings2, X } from 'lucide-react';
 import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
@@ -53,6 +53,7 @@ type ReaderAppViewProps = {
   filteredAnnotations: Annotation[];
   hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
+  notesOpen: boolean;
   noteFilter: NoteFilter;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
@@ -65,6 +66,7 @@ type ReaderAppViewProps = {
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
+  tocOpen: boolean;
   tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
   tocItems: TocItem[];
   userProfile: UserProfile;
@@ -79,6 +81,7 @@ type ReaderAppViewProps = {
   onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseUp: () => void;
   onCloseHighlightChoice: () => void;
+  onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onRequestAgentAnnotations: (agent: PublicAgent) => void;
   onRequestSelectedAgentAnnotations: () => void;
@@ -87,6 +90,8 @@ type ReaderAppViewProps = {
   onScrollToHighlight: (annotationId: string) => void;
   onSetNoteFilter: (filter: NoteFilter) => void;
   onSetPairingTokenDraft: (token: string) => void;
+  onToggleNotes: () => void;
+  onToggleToc: () => void;
   onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
   onDisconnectDesktop: () => void | Promise<void>;
@@ -111,6 +116,7 @@ export function ReaderAppView({
   filteredAnnotations,
   hasSavedPairing,
   highlightChoice,
+  notesOpen,
   noteFilter,
   noteRefs,
   notesRef,
@@ -123,6 +129,7 @@ export function ReaderAppView({
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
+  tocOpen,
   tocAnnotationStats,
   tocItems,
   userProfile,
@@ -137,6 +144,7 @@ export function ReaderAppView({
   onHighlightClick,
   onMouseUp,
   onCloseHighlightChoice,
+  onCloseResponsivePanels,
   onOpenComposer,
   onRequestAgentAnnotations,
   onRequestSelectedAgentAnnotations,
@@ -145,6 +153,8 @@ export function ReaderAppView({
   onScrollToHighlight,
   onSetNoteFilter,
   onSetPairingTokenDraft,
+  onToggleNotes,
+  onToggleToc,
   onToggleAgentAnnotate,
   onToggleSettings,
   onDisconnectDesktop,
@@ -168,7 +178,9 @@ export function ReaderAppView({
 
   return (
     <div
-      className="reader-app"
+      className={['reader-app', tocOpen ? 'is-toc-open' : '', notesOpen ? 'is-notes-open' : '']
+        .filter(Boolean)
+        .join(' ')}
       style={
         {
           '--reader-font-size': `${readerSettings.fontSize}px`,
@@ -192,6 +204,31 @@ export function ReaderAppView({
           <p>{extracted.byline || extracted.canonicalUrl}</p>
         </div>
         <div className="reader-toolbar-actions">
+          <button
+            className={
+              tocOpen
+                ? 'reader-icon-button reader-toc-toggle is-active'
+                : 'reader-icon-button reader-toc-toggle'
+            }
+            type="button"
+            onClick={onToggleToc}
+            aria-label="切换目录"
+          >
+            <List size={18} />
+          </button>
+          <button
+            className={
+              notesOpen
+                ? 'reader-icon-button reader-notes-toggle is-active'
+                : 'reader-icon-button reader-notes-toggle'
+            }
+            type="button"
+            onClick={onToggleNotes}
+            aria-label="切换批注"
+          >
+            <MessageSquare size={18} />
+            <span>{annotations.length}</span>
+          </button>
           <button
             className={
               agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
@@ -243,6 +280,13 @@ export function ReaderAppView({
           onSetPairingTokenDraft={onSetPairingTokenDraft}
         />
       ) : null}
+
+      <button
+        className="reader-responsive-scrim"
+        type="button"
+        aria-label="关闭侧栏"
+        onClick={onCloseResponsivePanels}
+      />
 
       <main className="reader-main">
         <aside className={tocItems.length > 0 ? 'reader-toc' : 'reader-toc is-empty'}>
