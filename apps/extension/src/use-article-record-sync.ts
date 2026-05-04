@@ -326,13 +326,15 @@ function mergeArticleRecords(current: ArticleRecord, desktop: ArticleRecord): Ar
 
 function mergeAnnotation(current: Annotation, desktop: Annotation): Annotation {
   const currentWins = Date.parse(current.updatedAt) >= Date.parse(desktop.updatedAt);
-  const commentsById = new Map(current.comments.map((comment) => [comment.id, comment]));
-  for (const comment of desktop.comments) {
+  const base = currentWins ? current : desktop;
+  const incoming = currentWins ? desktop : current;
+  const commentsById = new Map(base.comments.map((comment) => [comment.id, comment]));
+  for (const comment of incoming.comments) {
     if (!commentsById.has(comment.id)) commentsById.set(comment.id, comment);
   }
 
   return {
-    ...(currentWins ? current : desktop),
+    ...base,
     comments: Array.from(commentsById.values()).toSorted(
       (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
     ),

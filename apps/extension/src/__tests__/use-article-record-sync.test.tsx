@@ -202,6 +202,98 @@ describe('useArticleRecordSync streaming commits', () => {
       },
     });
   });
+
+  it('keeps the newer comment version when annotation ids match', async () => {
+    const send = vi.fn();
+    const bridge = { readyState: WebSocket.OPEN, send, close: vi.fn() };
+    const currentAnnotation = annotation({
+      comments: [
+        {
+          id: 'comment-1',
+          author: 'ai',
+          content: 'partial',
+          createdAt: '2026-05-04T00:00:00.000Z',
+          pending: true,
+        },
+        {
+          id: 'comment-local',
+          author: 'user',
+          content: 'local note',
+          createdAt: '2026-05-04T00:01:00.000Z',
+        },
+      ],
+      updatedAt: '2026-05-04T00:00:00.000Z',
+    });
+    const desktopAnnotation = annotation({
+      comments: [
+        {
+          id: 'comment-1',
+          author: 'ai',
+          content: 'final answer',
+          createdAt: '2026-05-04T00:00:00.000Z',
+        },
+        {
+          id: 'comment-desktop',
+          author: 'ai',
+          content: 'desktop note',
+          createdAt: '2026-05-04T00:02:00.000Z',
+        },
+      ],
+      updatedAt: '2026-05-04T01:00:00.000Z',
+    });
+    const annotationsRef = { current: [currentAnnotation] };
+    const articleRecordRef = {
+      current: articleRecord([currentAnnotation], '2026-05-04T00:00:00.000Z'),
+    };
+    const setAnnotations = vi.fn((next: Annotation[]) => {
+      annotationsRef.current = next;
+    });
+
+    const { result } = renderHook(() =>
+      useArticleRecordSync({
+        extracted: {
+          id: 'article-1',
+          url: 'https://example.com/article',
+          canonicalUrl: 'https://example.com/article',
+          title: 'Article',
+          byline: '',
+          excerpt: '',
+          content: '<p>Article text</p>',
+          contentHash: 'hash-1',
+        },
+        desktopBridgeRef: { current: bridge },
+        desktopAuthenticatedRef: { current: true },
+        annotationsRef,
+        articleRecordRef,
+        recordCreatedAtRef: { current: articleRecordRef.current.createdAt },
+        setAnnotations,
+        setAgents: vi.fn(),
+        setReaderSettings: vi.fn(),
+        setUserProfile: vi.fn(),
+        normalizeUserProfile: (user) => user as never,
+        readerLog: vi.fn(),
+        errorMessage: (error) => String(error),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.applyDesktopArticleRecord(
+        articleRecord([desktopAnnotation], '2026-05-04T01:00:00.000Z'),
+      );
+    });
+
+    expect(
+      annotationsRef.current[0]?.comments.map((comment) => [
+        comment.id,
+        comment.content,
+        comment.pending,
+      ]),
+    ).toEqual([
+      ['comment-1', 'final answer', undefined],
+      ['comment-local', 'local note', undefined],
+      ['comment-desktop', 'desktop note', undefined],
+    ]);
+  });
 });
 
 function articleRecord(annotations: Annotation[], updatedAt: string): ArticleRecord {
@@ -220,7 +312,7 @@ function articleRecord(annotations: Annotation[], updatedAt: string): ArticleRec
   };
 }
 
-function annotation(): Annotation {
+function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
     id: 'annotation-1',
     anchor: {
@@ -243,5 +335,6 @@ function annotation(): Annotation {
     ],
     createdAt: '2026-05-04T00:00:00.000Z',
     updatedAt: '2026-05-04T00:00:00.000Z',
+    ...overrides,
   };
 }

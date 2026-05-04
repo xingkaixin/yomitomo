@@ -98,10 +98,14 @@ Status: Draft
   - 最小修复：以 annotation 的 `updatedAt` 决定同 id comment 冲突方向。`desktop.updatedAt` 更新时，desktop 版本覆盖同 id current comment，同时保留 current-only comments。
   - 更完整的后续方案：给 `Comment` 增加 `updatedAt`，同步签名和 SQLite comment row 一起持久化，再按 comment 级别比较。
   - 为 `mergeAnnotation()` 增加单元测试：current 持有同 id pending comment，desktop 持有同 id final comment，合并后保留 final content。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - `mergeAnnotation()` 已按较新的 annotation 选择同 id comment 主版本，并补齐另一侧独有 comments。
+  - `use-article-record-sync.test.tsx` 已覆盖 current pending comment 与 desktop final comment 的同 id 合并场景。
 - 验收标准：
-  - [ ] 两个 tab 同步同一篇文章时，AI comment 的 done 状态可以从桌面端回填到旧 tab。
-  - [ ] 同 id comment 合并覆盖策略有单元测试。
-  - [ ] current-only 和 desktop-only comments 都被保留。
+  - [x] 两个 tab 同步同一篇文章时，AI comment 的 done 状态可以从桌面端回填到旧 tab。
+  - [x] 同 id comment 合并覆盖策略有单元测试。
+  - [x] current-only 和 desktop-only comments 都被保留。
 
 #### 3. 扩展阅读器在滚动时重算全量 highlight boxes，滚动成本随批注数线性增长
 
