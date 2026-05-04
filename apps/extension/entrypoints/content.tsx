@@ -18,7 +18,6 @@ import {
   createUserAnnotation,
   createUserComment,
   findMentionedAgents,
-  updateAnnotationComment,
 } from '@yomitomo/core';
 import {
   type ExtractedArticle,
@@ -46,9 +45,15 @@ import {
   defaultReaderSettings,
   defaultUserProfile,
   getShortcutModifier,
+  applyAgentCommentDelta,
   normalizeUserProfile,
 } from '../src/reader-utils';
-import { ReaderAppView, type NoteFilter, type PendingComposer, type SelectionAction } from '../src/reader-app-view';
+import {
+  ReaderAppView,
+  type NoteFilter,
+  type PendingComposer,
+  type SelectionAction,
+} from '../src/reader-app-view';
 import { useAgentAnnotationQueue } from '../src/use-agent-annotation-queue';
 import { useArticleRecordSync } from '../src/use-article-record-sync';
 
@@ -226,7 +231,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setActiveId(filteredAnnotations[0]?.id || null);
   }, [activeId, filteredAnnotations]);
 
-
   const recalculateHighlights = useCallback(() => {
     const article = articleRef.current;
     const canvas = canvasRef.current;
@@ -355,7 +359,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     };
   }, [saveAnnotations]);
 
-
   useLayoutEffect(() => {
     recalculateHighlights();
   }, [recalculateHighlights, readerSettings]);
@@ -473,10 +476,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === 'agent:message:delta') {
-      await updateComment(message.annotationId, message.commentId, (comment) => ({
-        ...comment,
-        content: comment.content + message.delta,
-      }));
+      await updateAgentCommentDelta(message.annotationId, message.commentId, message.delta);
       return;
     }
 
@@ -512,6 +512,19 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   async function appendComment(annotationId: string, comment: Comment) {
     const nextAnnotations = appendAnnotationComment(annotationsRef.current, annotationId, comment);
+    if (!nextAnnotations) return;
+
+    await saveAnnotations(nextAnnotations);
+    setActiveId(annotationId);
+  }
+
+  async function updateAgentCommentDelta(annotationId: string, commentId: string, delta: string) {
+    const nextAnnotations = applyAgentCommentDelta(
+      annotationsRef.current,
+      annotationId,
+      commentId,
+      delta,
+    );
     if (!nextAnnotations) return;
 
     await saveAnnotations(nextAnnotations);
@@ -626,7 +639,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (activeId === annotationId) setActiveId(null);
   }
 
-
   async function addComment(annotationId: string, content: string) {
     const trimmed = content.trim();
     if (!trimmed) return;
@@ -740,7 +752,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     scrollReaderSurfaceToElement(surface, heading, 32);
   }
-
 
   return (
     <ReaderAppView

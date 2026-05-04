@@ -18,8 +18,8 @@ Status: Draft
 - 本地通信入口在 `apps/desktop/src/main/server.ts`。桌面端监听 `127.0.0.1:43891`，扩展端在 `apps/extension/entrypoints/content.tsx` 用 `new WebSocket(DESKTOP_WS_URL)` 连接。
 - 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 允许 `hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`。
 - 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 417 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
-- 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 802 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
-- 当前测试文件只有 `packages/core/src/annotations.test.ts` 和 `packages/core/src/reading.test.ts`。`apps/desktop`、`apps/extension`、`packages/shared` 的 `test` 脚本使用 `vitest run --passWithNoTests`，目前可以在零测试下通过。
+- 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 813 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
+- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
 - 2026-05-04 校准结果：`pnpm lint` 通过，`pnpm test` 通过，`pnpm build` 通过。
 
 ## 目标
@@ -181,6 +181,8 @@ Status: Draft
 
 #### 5. 桌面端和扩展端缺少关键 UI / 集成测试
 
+状态：已完成（2026-05-04）
+
 - 位置：
   - `apps/desktop/package.json:11`
   - `apps/extension/package.json:8`
@@ -199,10 +201,16 @@ Status: Draft
   - 把扩展端 WebSocket message reducer、annotation commit 策略、桌面端 reading card markdown/evidence rendering 抽到小函数。
   - 为抽出的函数写 Vitest。
   - 对 2 个代表性组件补 React Testing Library 测试：`ReadingCardWorkflow`、`AnnotationCard`。
+- 实施进展：
+  - shared：新增 `packages/shared/src/index.test.ts`，覆盖重复文本锚定解析和 Markdown HTML 转义。
+  - desktop：新增 `apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`，覆盖读后卡片流程、审议生成入参和 evidence 引用打开；既有 `app-settings-panels.test.tsx` 覆盖 provider / agent 表单可访问名称与 radio group 键盘操作。
+  - extension：新增 `apps/extension/src/__tests__/reader-utils.test.ts`，覆盖 Agent 流式 delta 合并；扩展 `reader-components.test.tsx` 覆盖 Composer 批注提交、mention 选择、评论提交和文本框可访问名称。
+  - extension：抽出 `applyAgentCommentDelta` 并接入 `apps/extension/entrypoints/content.tsx` 的 `agent:message:delta` 分支。
+  - 验证：`pnpm lint`、`pnpm test`、`pnpm build` 均通过。
 - 验收标准：
-  - `apps/desktop` 至少有 3 个测试覆盖读后卡片流程、表单可访问名称、evidence 引用渲染。
-  - `apps/extension` 至少有 3 个测试覆盖 delta 合并、mention 选择、批注提交。
-  - CI 报告显示 desktop、extension、shared、core 都有真实测试文件。
+  - [x] `apps/desktop` 至少有 3 个测试覆盖读后卡片流程、表单可访问名称、evidence 引用渲染。
+  - [x] `apps/extension` 至少有 3 个测试覆盖 delta 合并、mention 选择、批注提交。
+  - [x] CI 报告显示 desktop、extension、shared、core 都有真实测试文件。
 
 #### 6. renderer 和 content script 文件承担过多职责
 
@@ -214,11 +222,11 @@ Status: Draft
   - `apps/desktop/src/renderer/src/app-reading-card-panel.tsx`：791 行
   - `apps/desktop/src/renderer/src/app-settings-panels.tsx`：975 行
   - `apps/desktop/src/renderer/src/app-log-viewer.tsx`：184 行
-  - `apps/extension/entrypoints/content.tsx`：802 行
+  - `apps/extension/entrypoints/content.tsx`：813 行
   - `apps/extension/src/reader-app-view.tsx`：344 行
   - `apps/extension/src/use-article-record-sync.ts`：251 行
   - `apps/extension/src/use-agent-annotation-queue.ts`：400 行
-  - `apps/extension/src/reader-components.tsx`：586 行
+  - `apps/extension/src/reader-components.tsx`：588 行
 - 现象 / 风险：
   - `apps/desktop/src/renderer/src/main.tsx` 同时包含 App shell、导航、设置页、表单、阅读库、原文渲染、批注本、读后卡片、审核结果、日志查看。
   - `apps/extension/entrypoints/content.tsx` 同时包含浏览器消息、文章状态、WebSocket 生命周期、同步协议、批注创建、Agent 队列、虚拟光标和渲染。
@@ -237,7 +245,7 @@ Status: Draft
   - 验证：`pnpm --filter @yomitomo/desktop build` 通过；`pnpm --filter @yomitomo/extension build` 通过。
 - 验收标准：
   - [x] `main.tsx` 降到 1200 行以内，当前 417 行。
-  - [x] `content.tsx` 降到 900 行以内，当前 802 行。
+  - [x] `content.tsx` 降到 900 行以内，当前 813 行。
   - [x] 拆出的模块具备清晰导出边界，并已通过 desktop / extension build 校验。
 
 ### P2（UI / 可访问性 / 体验一致性）

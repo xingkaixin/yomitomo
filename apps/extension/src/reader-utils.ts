@@ -5,6 +5,7 @@ import {
   highlightStyle,
   isPrimaryTocItem,
   timestamp,
+  updateAnnotationComment,
 } from '@yomitomo/core';
 import type { ReaderSettings } from './reader-components';
 import type { HighlightBox, TocItem } from './reader-dom';
@@ -45,6 +46,18 @@ export function agentQueueKey(annotation: Annotation) {
 
 export function isNewerArticleRecord(record: ArticleRecord, current: ArticleRecord | null) {
   return !current || timestamp(record.updatedAt) > timestamp(current.updatedAt);
+}
+
+export function applyAgentCommentDelta(
+  annotations: Annotation[],
+  annotationId: string,
+  commentId: string,
+  delta: string,
+) {
+  return updateAnnotationComment(annotations, annotationId, commentId, (comment) => ({
+    ...comment,
+    content: comment.content + delta,
+  }));
 }
 
 export function buildTocAnnotationStats(
