@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Agent, Annotation, Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
+  annotationColor,
+  annotationDensityInstruction,
+  annotationPersona,
+  annotationToPublicAgent,
+  annotationTypeLabel,
   appendAnnotationComment,
+  commentPersona,
   createAgentAnnotation,
   findMentionedAgents,
   getMentionQuery,
@@ -211,5 +217,54 @@ describe('annotation core', () => {
         comment: 'note',
       },
     ]);
+  });
+
+  it('builds public personas and colors from annotation identity fields', () => {
+    const aiAnnotation = {
+      ...annotation(),
+      author: 'ai' as const,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      agentAvatar: agent.avatar,
+      agentAnnotationColor: agent.annotationColor,
+    };
+    const aiComment = {
+      ...comment(),
+      author: 'ai' as const,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      agentAvatar: agent.avatar,
+    };
+
+    expect(annotationPersona(aiAnnotation, user, [agent])).toEqual({
+      avatar: agent.avatar,
+      fallback: 'AI',
+      color: agent.annotationColor,
+      nickname: agent.nickname,
+      username: agent.username,
+    });
+    expect(commentPersona(aiComment, user, [agent])).toEqual({
+      avatar: agent.avatar,
+      fallback: 'AI',
+      color: '#8ab6d6',
+      nickname: agent.nickname,
+      username: agent.username,
+    });
+    expect(annotationColor(aiAnnotation, user, [])).toBe(agent.annotationColor);
+    expect(annotationToPublicAgent(aiAnnotation)).toEqual(
+      expect.objectContaining({
+        id: agent.id,
+        nickname: agent.nickname,
+        username: agent.username,
+      }),
+    );
+  });
+
+  it('normalizes public labels and density instructions', () => {
+    expect(annotationTypeLabel('assumption')).toBe('前提漏洞');
+    expect(annotationDensityInstruction('low')).toContain('2-4 条');
+    expect(annotationDensityInstruction('medium')).toContain('4-7 条');
+    expect(annotationDensityInstruction('high')).toContain('7-12 条');
   });
 });
