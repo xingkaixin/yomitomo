@@ -40,7 +40,7 @@ Status: Draft
 
 ### P0（安全 / 成本边界）
 
-#### 1. 本地 WebSocket 缺少调用方认证
+#### 1. 本地 WebSocket 缺少配对认证
 
 - 位置：
   - `apps/desktop/src/main/server.ts:34`
@@ -59,22 +59,34 @@ Status: Draft
   - 浏览器页面可以直接发起 `ws://127.0.0.1:43891` 连接，服务端当前没有 Origin、token、extension id 或会话校验。
 - 根因：
   - 协议把 `localhost` 当作可信边界。浏览器同源策略覆盖 HTTP 读写语义，WebSocket 连接仍会把 `Origin` 交给服务端决策。
+  - 桌面端和插件端都是 Yomitomo 自有客户端，但用户可以只安装插件。插件单独运行时仍应支持本地批注，连接桌面端和调用助手属于用户主动配对后的增强能力。
+- 可行性校准：
+  - 当前 manifest 已声明 `storage` permission 和 `ws://127.0.0.1/*` host permission，位置在 `apps/extension/wxt.config.ts:27-28`。
+  - 开发态 unpacked extension 与发布态 Chrome Web Store extension 都可以使用 `chrome.storage.local` 保存本机数据。
+  - 发布态 extension id 稳定，开发态 extension id 可能随加载方式变化；配对 token 不应依赖固定 extension id。
+  - 浏览器 WebSocket API 不能像普通 HTTP 请求一样设置任意自定义 header，因此认证 token 应放在第一条应用层消息，或作为 WebSocket subprotocol / query 参数。本文采用第一条应用层消息，避免 token 出现在 URL 和代理日志中。
+  - `Origin` 校验作为 defense-in-depth：它能拦截普通网页脚本直接连本地服务；配对 token 承担真正的授权判断。
 - 建议方案：
-  - 桌面端启动时生成本地持久化 `desktopPairingToken`，保存在 SQLite 或 userData 下的安全配置文件。
-  - WebSocket 握手只建立 TCP 连接，第一条应用层消息必须是 `{ type: "auth", token }`。认证前只允许 `auth` 和有限错误响应。
+  - 桌面端生成 `desktopPairingToken`，持久化在 userData 或 SQLite 中。token 只在用户点击“配对插件”时展示。
+  - 插件端保持独立可用：未配对时允许本地批注、页面缓存、阅读器设置；隐藏或禁用助手、桌面同步、读后卡片相关入口。
+  - 用户安装桌面端后，在桌面端打开“配对插件”，复制一次性配对码；插件端输入配对码后保存到 `browser.storage.local`。
+  - WebSocket 第一条应用层消息必须是 `{ type: "auth", token }`。认证前只允许 `auth` 和有限错误响应。
   - 认证状态绑定到 socket，`handleMessage` 在分发业务消息前检查认证状态。
-  - 服务端同时校验 `request.headers.origin`：允许 `chrome-extension://*` 和开发态显式 allow-list，记录异常 origin。
-  - 扩展端从 `browser.storage.local` 读取 token。缺 token 时进入配对流程，桌面端提供一次性复制 token 或 QR 文本。
+  - 服务端同时校验 `request.headers.origin`：允许 `chrome-extension://*`，开发态允许显式配置的 extension origin 或 localhost dev origin，记录异常 origin。
+  - 桌面端提供“解除配对”：旋转 `desktopPairingToken`，主动关闭已认证 socket，并广播配对状态变化。
+  - 插件端提供“断开桌面端”：删除本地 token，关闭 socket，回到插件独立模式。
   - 给 `agent:message`、`agent:annotate` 加每 socket 并发上限和最小节流。
 - 验收标准：
   - 任意网页直接连接 `ws://127.0.0.1:43891` 后发送 `agent:list`，服务端返回未认证错误。
-  - 扩展端带正确 token 后可以完成 `hello`、`agent:list`、`article:get`、`article:save`。
+  - 未配对插件可以创建本地批注，并在 UI 上明确显示“桌面端未连接”状态。
+  - 扩展端配对成功后可以完成 `hello`、`agent:list`、`article:get`、`article:save`。
+  - 桌面端解除配对后，旧 token 立即失效；插件端回到未配对状态。
   - 未认证 socket 发送 `agent:message` 或 `agent:annotate` 时不会触发 `runAgentStream` 或 `runAgentAnnotateStream`。
-  - Vitest 覆盖认证成功、认证失败、认证前业务消息拦截、认证后业务消息通过。
+  - Vitest 覆盖认证成功、认证失败、认证前业务消息拦截、认证后业务消息通过、token 旋转后旧连接失效。
 
 ### P1（正确性 / 性能 / 可维护性）
 
-#### 2. WebSocket 外部消息缺少运行时 schema 和大小边界
+#### 2. WebSocket 外部消息缺少运行时 schema、容量边界和模型上下文预算
 
 - 位置：
   - `apps/desktop/src/main/server.ts:63`
@@ -87,20 +99,37 @@ Status: Draft
   - `article:save` 的 payload、`agent:message` 的文章正文、批注和评论内容都来自 socket 边界。
   - 当前类型只能约束编译期调用方，无法约束运行期恶意或损坏消息。
   - 大 payload 会进入 SQLite 写入、日志、文章同步和 LLM prompt 构造路径。
+  - 真实文章可能很长，保存层需要完整保留原文；模型调用层需要根据 provider / model 的上下文窗口处理超长输入。
+  - 当前 LLM prompt 已在调用处用固定字符数裁剪，例如 `buildAgentPrompt`、`buildAgentAnnotatePrompt`、`buildReadingCardPrompt`，但裁剪策略和用户提示尚未形成统一契约。
 - 根因：
   - `DesktopClientMessage` 同时承担内部类型和外部协议契约，缺少边界 parser。
+  - 存储完整性、传输防滥用、模型上下文预算是三类边界，目前混在同一条“消息大小”问题里。
+  - provider 类型和 modelName 还没有映射到可解释的上下文预算，超限失败只能表现为上游 API 错误。
 - 建议方案：
   - 在 `packages/shared` 增加 `parseDesktopClientMessage(value: unknown)`，返回窄化后的消息或结构化错误。
-  - 在 parser 内定义字段类型、最大长度和数组上限：
-    - article text 上限沿用 LLM prompt 截断量级。
-    - article annotations/comments 上限按产品容量设定。
+  - parser 负责结构校验和防滥用容量边界，避免对正常长文做内容裁剪：
     - URL 只接受 `http:` / `https:`。
+    - annotations/comments 数量设置产品容量上限。
+    - 单条 comment、title、byline、excerpt 设置字段长度上限。
+    - `contentHtml` 和 `article.text` 设置高水位上限，高水位用于拒绝异常 payload 或提示用户文章过大，阈值应明显高于常规长文。
+  - `article:save` 保存层完整保留已通过边界校验的 `contentHtml`，不按模型上下文裁剪原文。
+  - 新增模型输入预算层，输入为 provider、modelName、任务类型、全文、证据单元，输出为 prompt segments 和 budget report。
+  - 模型输入预算层按任务降级：
+    - 批注：长文按章节 / 段落分块，让 Agent 在每块内生成候选批注，再合并去重。
+    - 评论回复：优先保留当前高亮、thread、文章标题、局部上下文，再附加截断后的全文摘要或前后文。
+    - 读后卡片 / 审议：优先保留 evidenceUnits 和用户/助手讨论，全文按章节摘要或片段索引参与。
+  - provider / modelName 未知时使用保守默认预算；用户选择小上下文模型时允许流程继续，但 UI 明确提示“已按模型上下文压缩输入，输出质量可能下降”。
+  - 上游 API 返回上下文超限时，捕获错误并返回结构化失败原因，提示用户换大上下文模型、缩小文章范围或改用分块模式。
   - `apps/desktop/src/main/server.ts` 只接受 parser 输出的消息。
   - 对 `article:save`、`agent:message`、`agent:annotate` 分别写单元测试。
 - 验收标准：
-  - malformed JSON、未知 type、缺 requestId、超长 article text、非 HTTP URL 都返回结构化错误。
+  - malformed JSON、未知 type、缺 requestId、非 HTTP URL 都返回结构化错误。
+  - 正常长文可以完整保存到桌面端并在阅读库查看原文。
+  - 异常超大 payload 会在 parser 层得到结构化错误，错误文案说明是传输/存储容量边界。
   - 合法扩展消息照常通过。
-  - LLM 调用入口只收到 parser 校验后的 payload。
+  - LLM 调用入口只收到 parser 校验后的 payload，并通过模型输入预算层生成 prompt。
+  - 小上下文模型执行批注/读后卡片任务时流程可继续，UI 能显示输入压缩或分块处理提示。
+  - 上游 API 上下文超限错误会转成用户可理解的错误信息。
 
 #### 3. 流式 Agent 回复每个 delta 都触发整篇文章持久化和同步
 
@@ -266,7 +295,7 @@ Status: Draft
 
 ## 建议落地顺序
 
-1. 修复 P0 WebSocket 认证边界，同时加协议 parser 的第一批测试。
+1. 修复 P0 WebSocket 配对认证边界，同时加协议 parser 的第一批测试。
 2. 为 `DesktopClientMessage` 增加运行时 schema 和 payload 上限。
 3. 拆分扩展端流式 UI 更新与持久化提交，降低 delta 写入放大。
 4. 修复 AI 批注重复文本锚定，扩展 suggestion 上下文。
