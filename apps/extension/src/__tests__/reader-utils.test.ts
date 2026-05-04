@@ -116,14 +116,11 @@ describe('reader utility state helpers', () => {
       agentAnnotationColor: agent.annotationColor,
     };
     const toc: TocItem = {
-      id: 'toc_1',
       index: 0,
+      text: '章节',
       depth: 2,
-      title: '章节',
       start: 0,
       end: 10,
-      element: {} as HTMLElement,
-      inferred: false,
     };
 
     expect(agentQueueKey(aiAnnotation)).toBe(agent.id);
