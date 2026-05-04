@@ -149,7 +149,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const articleRecordRef = useRef<ArticleRecord | null>(null);
   const recordCreatedAtRef = useRef<string | null>(null);
   const pendingAgentRequestsRef = useRef(
-    new Map<string, { annotationId: string; commentId: string; agentId?: string }>(),
+    new Map<
+      string,
+      { annotationId: string; commentId: string; agentId?: string; annotationCount?: number }
+    >(),
   );
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -569,10 +572,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (message.type === 'agent:annotate:result') {
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       pendingAgentRequestsRef.current.delete(message.requestId);
-      if (pending?.agentId) markAgentAnnotating(pending.agentId, false);
+      if (pending?.agentId) {
+        markAgentAnnotating(pending.agentId, false);
+        markVirtualReadingDone(pending.agentId);
+      }
       setAgentAnnotateOpen(false);
       for (const annotation of message.annotations) enqueueAgentAnnotation(annotation);
-      void processAgentAnnotationQueue();
+      if (pending?.agentId && message.annotations.length === 0) {
+        finishVirtualReading(pending.agentId, '没有批注');
+      } else {
+        void processAgentAnnotationQueue();
+      }
       return;
     }
 
@@ -584,6 +594,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     }
 
     if (message.type === 'agent:annotate:item') {
+      const pending = pendingAgentRequestsRef.current.get(message.requestId);
+      if (pending) pending.annotationCount = (pending.annotationCount || 0) + 1;
       readerLog('agent.annotate.item', {
         annotationId: message.annotation.id,
         exact: message.annotation.anchor.exact.slice(0, 80),
@@ -602,7 +614,15 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         markVirtualReadingDone(pending.agentId);
       }
       setAgentAnnotateOpen(false);
-      finishVirtualReadingIfIdle(pending?.agentId);
+      if (pending?.agentId && !pending.annotationCount) {
+        readerLog('agent.annotate.empty', {
+          requestId: message.requestId,
+          agentId: pending.agentId,
+        });
+        finishVirtualReading(pending.agentId, '没有批注');
+      } else {
+        finishVirtualReadingIfIdle(pending?.agentId);
+      }
       return;
     }
 
@@ -836,6 +856,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       annotationId: '',
       commentId: '',
       agentId: agent.id,
+      annotationCount: 0,
     });
     markAgentAnnotating(agent.id, true);
     bridge.send({

@@ -268,7 +268,9 @@ async function handleMessage(socket: WebSocket, raw: string) {
         agent: toPublicAgents([agent])[0],
       });
 
+      let annotationCount = 0;
       await runAgentAnnotateStream(provider, agent, message.payload, (annotation) => {
+        annotationCount += 1;
         logInfo('agent.annotate.item', {
           requestId: message.requestId,
           agent: agent.username,
@@ -279,7 +281,11 @@ async function handleMessage(socket: WebSocket, raw: string) {
         send(socket, { type: 'agent:annotate:item', requestId: message.requestId, annotation });
       });
 
-      logInfo('agent.annotate.done', { requestId: message.requestId, agent: agent.username });
+      logInfo('agent.annotate.done', {
+        requestId: message.requestId,
+        agent: agent.username,
+        annotations: annotationCount,
+      });
       send(socket, { type: 'agent:annotate:done', requestId: message.requestId });
       return;
     }
