@@ -654,6 +654,7 @@ export function ProviderForm({
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelError, setModelError] = useState('');
+  const [modelNotice, setModelNotice] = useState('');
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
   const presetModels = modelOptions.length > 0 ? modelOptions : selectedPreset?.modelNames || [];
   const visibleModels = [
@@ -661,16 +662,31 @@ export function ProviderForm({
   ];
 
   async function fetchModels() {
+    const fallbackModels = selectedPreset?.modelNames || [];
     if (!window.yomitomoDesktop) return;
+    if (!draft.apiKey?.trim()) {
+      setModelOptions(fallbackModels);
+      setModelError('');
+      setModelNotice(
+        fallbackModels.length > 0
+          ? '已显示预设模型；填写 API Key 后可获取实时列表'
+          : '填写 API Key 后可获取模型列表',
+      );
+      return;
+    }
     setModelLoading(true);
     setModelError('');
+    setModelNotice('');
     try {
       const models = await window.yomitomoDesktop.listProviderModels(draft);
       const names = models.map((model) => model.id).filter(Boolean);
       setModelOptions(names);
+      setModelNotice(names.length > 0 ? `已获取 ${names.length} 个模型` : '未获取到模型列表');
       if (!draft.modelName && names[0]) onChange({ ...draft, modelName: names[0] });
     } catch (error) {
+      setModelOptions(fallbackModels);
       setModelError(error instanceof Error ? error.message : '获取模型列表失败');
+      setModelNotice(fallbackModels.length > 0 ? '已显示预设模型作为候选' : '');
     } finally {
       setModelLoading(false);
     }
@@ -681,6 +697,7 @@ export function ProviderForm({
     if (!preset) return;
     setModelOptions([]);
     setModelError('');
+    setModelNotice('');
     onChange({
       ...draft,
       presetId: preset.id,
@@ -783,6 +800,30 @@ export function ProviderForm({
             {modelLoading ? '获取中' : '获取'}
           </Button>
         </div>
+        {visibleModels.length > 0 ? (
+          <Select
+            value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
+            onValueChange={(modelName) => onChange({ ...draft, modelName })}
+          >
+            <SelectTrigger
+              className="provider-model-select"
+              aria-label="选择模型"
+              id="provider-model-select"
+            >
+              <SelectValue placeholder="从候选模型中选择" />
+            </SelectTrigger>
+            <SelectContent className="theme-select-content">
+              <SelectGroup>
+                {visibleModels.map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        ) : null}
+        {modelNotice ? <p className="field-inline-note">{modelNotice}</p> : null}
         {modelError ? <p className="field-inline-error">{modelError}</p> : null}
       </Field>
       <Field id="provider-api-key" className="col-span-2" label="API Key">

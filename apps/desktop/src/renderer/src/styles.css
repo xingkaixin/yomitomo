@@ -455,6 +455,17 @@
   gap: 8px;
 }
 
+.provider-model-select {
+  margin-top: 8px;
+}
+
+.field-inline-note {
+  margin: 8px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .field-inline-error {
   margin: 8px 0 0;
   color: hsl(var(--destructive));

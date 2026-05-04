@@ -27,6 +27,34 @@ describe('ProviderForm', () => {
     expect(screen.getByLabelText('模型')).toBeTruthy();
     expect(screen.getByLabelText('API Key')).toBeTruthy();
   });
+
+  it('shows fetched models after clicking get', async () => {
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        listProviderModels: vi.fn().mockResolvedValue([{ id: 'gpt-5.2' }, { id: 'gpt-5.2-mini' }]),
+      },
+    });
+
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          presetId: 'openai',
+          type: 'openai-responses',
+          apiKey: 'sk-test',
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+
+    expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '选择模型' })).toBeTruthy();
+    expect(document.querySelector('option[value="gpt-5.2"]')).toBeTruthy();
+    expect(document.querySelector('option[value="gpt-5.2-mini"]')).toBeTruthy();
+  });
 });
 
 describe('AgentForm', () => {
