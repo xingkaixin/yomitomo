@@ -487,20 +487,20 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [recalculateActiveConnection]);
 
   useEffect(() => {
-    const surface = surfaceRef.current;
-    if (!surface) return;
-
     let frame = 0;
     const schedule = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(recalculateHighlights);
     };
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    if (canvasRef.current) resizeObserver?.observe(canvasRef.current);
+    if (articleRef.current) resizeObserver?.observe(articleRef.current);
 
-    surface.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
     return () => {
       cancelAnimationFrame(frame);
-      surface.removeEventListener('scroll', schedule);
+      resizeObserver?.disconnect();
       window.removeEventListener('resize', schedule);
     };
   }, [recalculateHighlights]);

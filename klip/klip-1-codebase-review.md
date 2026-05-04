@@ -131,10 +131,15 @@ Status: Draft
   - 扩展端参考桌面端：`recalculateHighlights()` 只在 annotations、article content、font size、content width、resize 或 ResizeObserver 触发。
   - scroll listener 只更新 active connection、浮层位置或可见态。
   - 大文章场景再加可见区过滤：只为当前 viewport 附近的 annotation 渲染 highlight buttons。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - `recalculateHighlights()` 已从 reader surface scroll listener 移出。
+  - 高亮重算现在由 annotations / userProfile / agents / readerSettings、window resize、article/canvas `ResizeObserver` 触发。
+  - scroll listener 保留在 active connection 路径，用于更新连线位置和可见态。
 - 验收标准：
-  - [ ] scroll 事件不会触发全量 `resolveTextAnchor()`。
-  - [ ] 200 条批注文章滚动时主线程帧耗时稳定在可交互范围。
-  - [ ] 字号、内容宽度、窗口 resize 后高亮位置仍准确。
+  - [x] scroll 事件不会触发全量 `resolveTextAnchor()`。
+  - [x] 200 条批注文章滚动时主线程帧耗时稳定在可交互范围。
+  - [x] 字号、内容宽度、窗口 resize 后高亮位置仍准确。
 
 #### 4. 扩展权限与运行范围大于当前交互模型需要
 
