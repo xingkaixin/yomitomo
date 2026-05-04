@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   BarChart3,
@@ -45,7 +45,7 @@ import type {
   ReadingCardReviewerResult,
   ReadingCardSection as PersistedReadingCardSection,
 } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
+import { renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
   buildReadingCard,
@@ -736,7 +736,7 @@ function ReadingLibrary({
   articles: ArticleRecord[];
   onRefresh: () => void;
 }) {
-  const [activeShelf, setActiveShelf] = useState<'annotations' | 'card'>('annotations');
+  const [activeShelf, setActiveShelf] = useState<'source' | 'annotations' | 'card'>('source');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const sortedArticles = useMemo(() => sortArticles(articles), [articles]);
@@ -775,9 +775,11 @@ function ReadingLibrary({
   return (
     <div
       className={
-        activeShelf === 'card'
-          ? 'library-screen is-card-expanded'
-          : 'library-screen is-annotations-expanded'
+        activeShelf === 'source'
+          ? 'library-screen is-source-expanded'
+          : activeShelf === 'card'
+            ? 'library-screen is-card-expanded'
+            : 'library-screen is-annotations-expanded'
       }
     >
       <section className="article-rail">
@@ -821,6 +823,32 @@ function ReadingLibrary({
 
       <div
         className={
+          activeShelf === 'source' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+        }
+      >
+        <ShelfTab
+          count={annotations.length}
+          icon={<BookOpen size={18} />}
+          label="原文"
+          onClick={() => setActiveShelf('source')}
+        />
+        <div className="library-shelf-content">
+          {activeShelf === 'source' ? (
+            <SourceBookcase
+              annotations={annotations}
+              article={selectedArticle}
+              selectedAnnotationId={selectedAnnotation?.id || null}
+              onOpenAnnotation={(annotationId) => {
+                setSelectedAnnotationId(annotationId);
+                setActiveShelf('annotations');
+              }}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      <div
+        className={
           activeShelf === 'annotations' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
         }
       >
@@ -837,6 +865,7 @@ function ReadingLibrary({
                 annotation={selectedAnnotation}
                 annotations={annotations}
                 article={selectedArticle}
+                onOpenSource={() => setActiveShelf('source')}
                 onSelect={setSelectedAnnotationId}
               />
             ) : (
@@ -877,6 +906,131 @@ function ReadingLibrary({
   );
 }
 
+type SourceHighlightBox = {
+  id: string;
+  annotationId: string;
+  color: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+function SourceBookcase({
+  annotations,
+  article,
+  selectedAnnotationId,
+  onOpenAnnotation,
+}: {
+  annotations: Annotation[];
+  article: ArticleRecord | null;
+  selectedAnnotationId: string | null;
+  onOpenAnnotation: (annotationId: string) => void;
+}) {
+  const articleRef = useRef<HTMLElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [boxes, setBoxes] = useState<SourceHighlightBox[]>([]);
+  const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
+
+  useEffect(() => {
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    if (!article || !articleElement || !canvasElement) {
+      setBoxes([]);
+      return;
+    }
+
+    let frame = 0;
+    const updateBoxes = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const text = articleElement.textContent || '';
+        const canvasRect = canvasElement.getBoundingClientRect();
+        const nextBoxes = annotations.flatMap((annotation) => {
+          const position = resolveTextAnchor(text, annotation.anchor);
+          if (!position) return [];
+          const range = rangeFromTextOffsets(articleElement, position.start, position.end);
+          if (!range) return [];
+          return rangeSourceHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
+            Object.assign(box, {
+              annotationId: annotation.id,
+              color: annotationDisplayColor(annotation),
+            }),
+          );
+        });
+        setBoxes(nextBoxes);
+      });
+    };
+
+    updateBoxes();
+    const resizeObserver = new ResizeObserver(updateBoxes);
+    resizeObserver.observe(articleElement);
+    resizeObserver.observe(canvasElement);
+    window.addEventListener('resize', updateBoxes);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateBoxes);
+    };
+  }, [annotations, article, contentHtml]);
+
+  if (!article) {
+    return (
+      <section className="source-bookcase is-empty">
+        <div className="source-empty">选择一篇文章查看原文</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="source-bookcase">
+      <header className="source-bookcase-header">
+        <div className="min-w-0">
+          <h2>{article.title}</h2>
+          <p>
+            {article.byline || urlHost(article.canonicalUrl || article.url)} ·{' '}
+            {formatDate(article.updatedAt)}
+          </p>
+        </div>
+        <OpenArticleButton article={article} />
+      </header>
+      <div className="source-scroll">
+        <div className="source-canvas" ref={canvasRef}>
+          <article className="source-article" ref={articleRef}>
+            <header className="source-article-header">
+              <h1>{article.title}</h1>
+              {article.byline || article.excerpt ? (
+                <p>{[article.byline, article.excerpt].filter(Boolean).join(' · ')}</p>
+              ) : null}
+            </header>
+            <div
+              className="source-article-body"
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
+          </article>
+          <div className="source-highlight-layer">
+            {boxes.map((box) => (
+              <button
+                aria-label="打开对应批注"
+                className={
+                  box.annotationId === selectedAnnotationId
+                    ? 'source-highlight is-active'
+                    : 'source-highlight'
+                }
+                key={box.id}
+                style={sourceHighlightStyle(box, box.annotationId === selectedAnnotationId)}
+                type="button"
+                onClick={() => onOpenAnnotation(box.annotationId)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ShelfTab({
   count,
   icon,
@@ -901,11 +1055,13 @@ function AnnotationNotebook({
   annotation,
   annotations,
   article,
+  onOpenSource,
   onSelect,
 }: {
   annotation: Annotation | null;
   annotations: Annotation[];
   article: ArticleRecord;
+  onOpenSource: () => void;
   onSelect: (id: string | null) => void;
 }) {
   const selectedIndex = annotation
@@ -933,7 +1089,10 @@ function AnnotationNotebook({
             </p>
           </div>
           <div className="notebook-header-actions">
-            <OpenArticleButton article={article} />
+            <button className="open-article-button" type="button" onClick={onOpenSource}>
+              <BookOpen size={16} />
+              <span>查看原文</span>
+            </button>
             <div className="annotation-pagination">
               <button
                 aria-label="上一条批注"
@@ -1071,7 +1230,7 @@ function OpenArticleButton({ article }: { article: ArticleRecord }) {
 
   return (
     <button
-      aria-label="在浏览器中打开原文"
+      aria-label="在浏览器中打开原始链接"
       className="open-article-button"
       disabled={!url}
       type="button"
@@ -1079,7 +1238,7 @@ function OpenArticleButton({ article }: { article: ArticleRecord }) {
       onClick={open}
     >
       <ExternalLink size={16} />
-      <span>打开原文</span>
+      <span>打开原始链接</span>
     </button>
   );
 }
@@ -1748,6 +1907,156 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function sourceArticleBodyHtml(article: ArticleRecord) {
+  const container = document.createElement('div');
+  container.innerHTML =
+    article.contentHtml || `<p>${escapeHtml(article.excerpt || '暂无原文内容')}</p>`;
+  container.querySelectorAll('script, style, link, iframe, object, embed').forEach((element) => {
+    element.remove();
+  });
+  container.querySelectorAll<HTMLElement>('*').forEach((element) => {
+    Array.from(element.attributes).forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+      const value = attribute.value.trim().toLowerCase();
+      if (
+        name.startsWith('on') ||
+        ((name === 'href' || name === 'src') && value.startsWith('javascript:'))
+      ) {
+        element.removeAttribute(attribute.name);
+      }
+    });
+  });
+  return container.innerHTML;
+}
+
+function annotationDisplayColor(annotation: Annotation) {
+  return (
+    annotation.agentAnnotationColor ||
+    annotation.userAnnotationColor ||
+    annotation.color ||
+    '#f4c95d'
+  );
+}
+
+function sourceHighlightStyle(box: SourceHighlightBox, active: boolean): React.CSSProperties {
+  return {
+    top: box.top,
+    left: box.left,
+    width: box.width,
+    height: box.height,
+    backgroundColor: alphaColor(box.color, active ? 0.45 : 0.28),
+    boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(box.color, active ? 0.72 : 0.36)}`,
+  };
+}
+
+function rangeSourceHighlightBoxes(
+  range: Range,
+  canvasRect: DOMRect,
+  idPrefix: string,
+): SourceHighlightBox[] {
+  const rects: DOMRect[] = [];
+  const collectNodeRects = (node: Text) => {
+    const nodeRange = document.createRange();
+    nodeRange.setStart(node, node === range.startContainer ? range.startOffset : 0);
+    nodeRange.setEnd(node, node === range.endContainer ? range.endOffset : node.data.length);
+    rects.push(...Array.from(nodeRange.getClientRects()));
+  };
+
+  if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE) {
+    const node = range.commonAncestorContainer as Text;
+    if (node.textContent?.trim()) collectNodeRects(node);
+  } else {
+    const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!range.intersectsNode(node)) return NodeFilter.FILTER_REJECT;
+        return node.textContent?.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      },
+    });
+
+    while (walker.nextNode()) {
+      collectNodeRects(walker.currentNode as Text);
+    }
+  }
+
+  return mergeLineRects(rects)
+    .filter((rect) => rect.width >= 2 && rect.height >= 2)
+    .map((rect, index) => ({
+      id: `${idPrefix}_${index}`,
+      annotationId: idPrefix,
+      color: '#f4c95d',
+      top: rect.top - canvasRect.top,
+      left: rect.left - canvasRect.left,
+      width: rect.width,
+      height: rect.height,
+    }));
+}
+
+function rangeFromTextOffsets(rootElement: HTMLElement, start: number, end: number) {
+  const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT);
+  let currentOffset = 0;
+  let startNode: Text | null = null;
+  let endNode: Text | null = null;
+  let startOffset = 0;
+  let endOffset = 0;
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    const nextOffset = currentOffset + node.data.length;
+    if (!startNode && start >= currentOffset && start <= nextOffset) {
+      startNode = node;
+      startOffset = start - currentOffset;
+    }
+    if (!endNode && end >= currentOffset && end <= nextOffset) {
+      endNode = node;
+      endOffset = end - currentOffset;
+      break;
+    }
+    currentOffset = nextOffset;
+  }
+
+  if (!startNode || !endNode) return null;
+  const range = document.createRange();
+  range.setStart(startNode, startOffset);
+  range.setEnd(endNode, endOffset);
+  return range;
+}
+
+function mergeLineRects(rects: DOMRect[]) {
+  const lines: Array<{ top: number; left: number; right: number; bottom: number }> = [];
+  for (const rect of rects) {
+    if (rect.width < 2 || rect.height < 2) continue;
+    const line = lines.find(
+      (item) => Math.abs(item.top - rect.top) < 3 && Math.abs(item.bottom - rect.bottom) < 3,
+    );
+    if (line) {
+      line.left = Math.min(line.left, rect.left);
+      line.right = Math.max(line.right, rect.right);
+      line.top = Math.min(line.top, rect.top);
+      line.bottom = Math.max(line.bottom, rect.bottom);
+    } else {
+      lines.push({ top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom });
+    }
+  }
+
+  return lines.map((line) => ({
+    top: line.top,
+    left: line.left,
+    right: line.right,
+    bottom: line.bottom,
+    width: line.right - line.left,
+    height: line.bottom - line.top,
+  }));
+}
+
+function alphaColor(color: string, alpha: number) {
+  const hex = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
+  const red = Number.parseInt(hex.slice(1, 3), 16);
+  const green = Number.parseInt(hex.slice(3, 5), 16);
+  const blue = Number.parseInt(hex.slice(5, 7), 16);
+  return `rgba(${red},${green},${blue},${alpha})`;
 }
 
 function readingCardSectionIndex(title: string) {

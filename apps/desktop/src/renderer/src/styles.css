@@ -773,14 +773,22 @@
   display: grid;
   height: 100%;
   min-height: 0;
-  grid-template-columns: minmax(240px, 300px) minmax(540px, 1fr) 64px;
+  grid-template-columns: minmax(240px, 300px) minmax(600px, 1fr) 64px 64px;
   gap: 12px;
   transition: grid-template-columns var(--resize-dur) var(--resize-ease);
   will-change: grid-template-columns;
 }
 
+.library-screen.is-source-expanded {
+  grid-template-columns: minmax(240px, 300px) minmax(600px, 1fr) 64px 64px;
+}
+
+.library-screen.is-annotations-expanded {
+  grid-template-columns: minmax(240px, 300px) 64px minmax(540px, 1fr) 64px;
+}
+
 .library-screen.is-card-expanded {
-  grid-template-columns: minmax(240px, 300px) 64px minmax(600px, 1fr);
+  grid-template-columns: minmax(240px, 300px) 64px 64px minmax(600px, 1fr);
 }
 
 .library-shelf {
@@ -807,6 +815,7 @@
 }
 
 .library-shelf .annotation-notebook,
+.library-shelf .source-bookcase,
 .library-shelf .reading-card {
   height: 100%;
 }
@@ -877,6 +886,7 @@
 }
 
 .article-rail,
+.source-bookcase,
 .reading-card {
   min-height: 0;
   border: 1px solid hsl(var(--border) / 0.72);
@@ -892,6 +902,7 @@
 }
 
 .article-rail-header,
+.source-bookcase-header,
 .reading-card-header {
   display: flex;
   align-items: flex-start;
@@ -900,6 +911,7 @@
 }
 
 .article-rail-header h2,
+.source-bookcase-header h2,
 .reading-card-header h3 {
   margin: 0;
   font-size: 18px;
@@ -908,6 +920,7 @@
 }
 
 .article-rail-header p,
+.source-bookcase-header p,
 .reading-card-header p {
   margin: 5px 0 0;
   color: hsl(var(--muted-foreground));
@@ -976,6 +989,149 @@
 
 .reading-card-spin {
   animation: reading-card-spin 900ms linear infinite;
+}
+
+.source-bookcase {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  padding: 18px;
+}
+
+.source-bookcase.is-empty {
+  place-items: center;
+}
+
+.source-scroll {
+  min-height: 0;
+  overflow: auto;
+  padding: 22px 6px 34px;
+}
+
+.source-canvas {
+  position: relative;
+  width: min(820px, 100%);
+  margin: 0 auto;
+}
+
+.source-article {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border: 1px solid hsl(36 31% 76% / 0.76);
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 35px, hsl(37 29% 74% / 0.18) 36px),
+    hsl(42 64% 96%);
+  box-shadow:
+    0 18px 54px hsl(31 34% 24% / 0.12),
+    inset 0 0 42px hsl(37 34% 70% / 0.14);
+  color: hsl(32 22% 21%);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  line-height: 1.78;
+  padding: 42px 48px 54px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.source-article-header {
+  margin-bottom: 34px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid hsl(36 31% 72% / 0.72);
+}
+
+.source-article-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.source-article-header p {
+  margin: 12px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.source-article-body > *:first-child {
+  margin-top: 0;
+}
+
+.source-article-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.source-article-body h1,
+.source-article-body h2,
+.source-article-body h3,
+.source-article-body h4 {
+  margin: 1.5em 0 0.55em;
+  color: hsl(32 22% 18%);
+  line-height: 1.25;
+}
+
+.source-article-body p,
+.source-article-body ul,
+.source-article-body ol,
+.source-article-body blockquote {
+  margin: 1em 0;
+}
+
+.source-article-body img,
+.source-article-body video,
+.source-article-body iframe {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.source-article-body pre,
+.source-article-body table {
+  max-width: 100%;
+  overflow: auto;
+}
+
+.source-article-body blockquote {
+  margin-left: 0;
+  padding-left: 18px;
+  border-left: 4px solid hsl(43 65% 60%);
+  color: hsl(31 21% 30%);
+}
+
+.source-article-body a {
+  color: inherit;
+  text-decoration-color: hsl(32 22% 21% / 0.35);
+  text-underline-offset: 0.16em;
+}
+
+.source-highlight-layer {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.source-highlight {
+  position: absolute;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  mix-blend-mode: multiply;
+  padding: 0;
+  pointer-events: auto;
+}
+
+.source-highlight.is-active {
+  outline: 1px solid hsl(31 24% 24% / 0.28);
+}
+
+.source-empty {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+  font-weight: 800;
 }
 
 @keyframes reading-card-spin {
