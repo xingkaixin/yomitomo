@@ -3,8 +3,14 @@ import { browser } from 'wxt/browser';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import type { ExtractedArticle } from './article-extraction';
+import type { DesktopBridge } from './desktop-bridge';
 import type { ReaderSettings } from './reader-components';
-import { clampNumber, defaultReaderSettings, isNewerArticleRecord, toCachedArticleRecord } from './reader-utils';
+import {
+  clampNumber,
+  defaultReaderSettings,
+  isNewerArticleRecord,
+  toCachedArticleRecord,
+} from './reader-utils';
 
 const STORAGE_PREFIX = 'yomitomo.article.';
 const LEGACY_STORAGE_PREFIX = 'reader.article.';
@@ -20,7 +26,7 @@ type DesktopProfileCache = {
 
 type UseArticleRecordSyncOptions = {
   extracted: ExtractedArticle;
-  wsRef: React.MutableRefObject<WebSocket | null>;
+  desktopBridgeRef: React.MutableRefObject<DesktopBridge | null>;
   desktopAuthenticatedRef: React.MutableRefObject<boolean>;
   annotationsRef: React.MutableRefObject<Annotation[]>;
   articleRecordRef: React.MutableRefObject<ArticleRecord | null>;
@@ -36,7 +42,7 @@ type UseArticleRecordSyncOptions = {
 
 export function useArticleRecordSync({
   extracted,
-  wsRef,
+  desktopBridgeRef,
   desktopAuthenticatedRef,
   annotationsRef,
   articleRecordRef,
@@ -191,12 +197,10 @@ export function useArticleRecordSync({
   }
 
   function sendArticleRecord(record: ArticleRecord) {
-    const socket = wsRef.current;
+    const bridge = desktopBridgeRef.current;
     if (!desktopAuthenticatedRef.current) return;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(
-      JSON.stringify({ type: 'article:save', requestId: makeId('request'), payload: record }),
-    );
+    if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
+    bridge.send({ type: 'article:save', requestId: makeId('request'), payload: record });
   }
 
   function sendCurrentArticleRecord() {
@@ -212,20 +216,18 @@ export function useArticleRecordSync({
   }
 
   function requestDesktopArticleRecord() {
-    const socket = wsRef.current;
+    const bridge = desktopBridgeRef.current;
     if (!desktopAuthenticatedRef.current) return;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
-    socket.send(
-      JSON.stringify({
-        type: 'article:get',
-        requestId: makeId('request'),
-        payload: {
-          id: extracted.id,
-          url: extracted.url,
-          canonicalUrl: extracted.canonicalUrl,
-        },
-      }),
-    );
+    if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
+    bridge.send({
+      type: 'article:get',
+      requestId: makeId('request'),
+      payload: {
+        id: extracted.id,
+        url: extracted.url,
+        canonicalUrl: extracted.canonicalUrl,
+      },
+    });
   }
 
   async function applyDesktopArticleRecord(record: ArticleRecord | null) {
@@ -233,23 +235,42 @@ export function useArticleRecordSync({
       sendCurrentArticleRecord();
       return;
     }
+    if (!matchesExtractedArticle(record)) return;
 
     const current = articleRecordRef.current;
-    if (!isNewerArticleRecord(record, current)) {
-      sendCurrentArticleRecord();
-      return;
-    }
-
-    const nextRecord = buildCurrentArticleRecord(
+    const desktopRecord = buildCurrentArticleRecord(
       record.annotations || [],
       record.createdAt,
       record.updatedAt,
     );
-    applyArticleRecord(nextRecord);
-    sendArticleRecord(nextRecord);
-    void cacheArticleRecord(nextRecord);
+    const nextRecord = current ? mergeArticleRecords(current, desktopRecord) : desktopRecord;
+    const changedLocally =
+      !current || articleAnnotationsSignature(nextRecord) !== articleAnnotationsSignature(current);
+    const changedDesktop =
+      articleAnnotationsSignature(nextRecord) !== articleAnnotationsSignature(desktopRecord);
+
+    if (changedLocally || isNewerArticleRecord(nextRecord, current)) {
+      applyArticleRecord(nextRecord);
+      void cacheArticleRecord(nextRecord);
+    }
+
+    if (changedDesktop) {
+      sendArticleRecord(nextRecord);
+      return;
+    }
+
+    if (!current) sendArticleRecord(nextRecord);
   }
 
+  function matchesExtractedArticle(record: ArticleRecord) {
+    return (
+      record.id === extracted.id ||
+      record.canonicalUrl === extracted.canonicalUrl ||
+      record.url === extracted.url ||
+      record.url === extracted.canonicalUrl ||
+      record.canonicalUrl === extracted.url
+    );
+  }
 
   async function cacheDesktopProfile(user: UserProfile, agents: PublicAgent[]) {
     await browser.storage.local.set({
@@ -271,4 +292,61 @@ export function useArticleRecordSync({
     saveAnnotations,
     updateReaderSettings,
   };
+}
+
+function mergeArticleRecords(current: ArticleRecord, desktop: ArticleRecord): ArticleRecord {
+  const annotationsById = new Map(
+    current.annotations.map((annotation) => [annotation.id, annotation]),
+  );
+  for (const annotation of desktop.annotations) {
+    const currentAnnotation = annotationsById.get(annotation.id);
+    annotationsById.set(
+      annotation.id,
+      currentAnnotation ? mergeAnnotation(currentAnnotation, annotation) : annotation,
+    );
+  }
+
+  const annotations = Array.from(annotationsById.values()).toSorted(
+    (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+  );
+  const updatedAt = maxIsoDate(current.updatedAt, desktop.updatedAt);
+  return {
+    ...current,
+    annotations,
+    createdAt: minIsoDate(current.createdAt, desktop.createdAt),
+    updatedAt,
+  };
+}
+
+function mergeAnnotation(current: Annotation, desktop: Annotation): Annotation {
+  const currentWins = Date.parse(current.updatedAt) >= Date.parse(desktop.updatedAt);
+  const commentsById = new Map(current.comments.map((comment) => [comment.id, comment]));
+  for (const comment of desktop.comments) {
+    if (!commentsById.has(comment.id)) commentsById.set(comment.id, comment);
+  }
+
+  return {
+    ...(currentWins ? current : desktop),
+    comments: Array.from(commentsById.values()).toSorted(
+      (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+    ),
+    updatedAt: maxIsoDate(current.updatedAt, desktop.updatedAt),
+  };
+}
+
+function articleAnnotationsSignature(record: ArticleRecord) {
+  return JSON.stringify(
+    record.annotations.map((annotation) => ({
+      ...annotation,
+      comments: annotation.comments.map((comment) => ({ ...comment })),
+    })),
+  );
+}
+
+function maxIsoDate(left: string, right: string) {
+  return Date.parse(left) >= Date.parse(right) ? left : right;
+}
+
+function minIsoDate(left: string, right: string) {
+  return Date.parse(left) <= Date.parse(right) ? left : right;
 }

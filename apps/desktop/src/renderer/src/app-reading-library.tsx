@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, Check, ChevronLeft, ChevronRight, Quote, RefreshCcw, FileText } from 'lucide-react';
-import type { Agent, Annotation, ArticleRecord, Comment as AnnotationComment } from '@yomitomo/shared';
+import { BookOpen, ChevronLeft, ChevronRight, Quote, RefreshCcw, FileText } from 'lucide-react';
+import type {
+  Agent,
+  Annotation,
+  ArticleRecord,
+  Comment as AnnotationComment,
+} from '@yomitomo/shared';
 import { renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
@@ -545,61 +550,6 @@ function CommentCard({ comment }: { comment: AnnotationComment }) {
       </header>
       <div className="comment-markdown" dangerouslySetInnerHTML={{ __html: html }} />
     </article>
-  );
-}
-
-function CopyIconButton({ label, value }: { label: string; value: string }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
-  }
-
-  return (
-    <button
-      aria-label={copied ? '已复制' : label}
-      className={copied ? 'copy-icon-button is-copied' : 'copy-icon-button'}
-      type="button"
-      onClick={copy}
-    >
-      {copied ? <Check size={15} /> : <Clipboard size={14} />}
-    </button>
-  );
-}
-
-function OpenArticleButton({ article }: { article: ArticleRecord }) {
-  const url = articleExternalUrl(article);
-
-  async function open() {
-    if (!url) return;
-    const desktop = window.yomitomoDesktop as typeof window.yomitomoDesktop & {
-      openUrl?: (url: string) => Promise<void>;
-    };
-    if (typeof desktop?.openUrl === 'function') {
-      try {
-        await desktop.openUrl(url);
-        return;
-      } catch {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
-  }
-
-  return (
-    <button
-      aria-label="在浏览器中打开原始链接"
-      className="open-article-button"
-      disabled={!url}
-      type="button"
-      title={url || '原文链接不可用'}
-      onClick={open}
-    >
-      <ExternalLink size={16} />
-      <span>打开原始链接</span>
-    </button>
   );
 }
 

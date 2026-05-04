@@ -33,7 +33,15 @@ import {
 } from './llm';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { getPairingInfo, rotatePairingInfo } from './pairing';
-import { broadcastStatus, disconnectAuthenticatedSockets, startLocalServer } from './server';
+import {
+  broadcastStatus,
+  disconnectAuthenticatedSockets,
+  getDesktopConnectionStatus,
+  setArticleUpdateListener,
+  setSocketStatusListener,
+  startLocalServer,
+  type DesktopConnectionStatus,
+} from './server';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -69,6 +77,7 @@ async function createWindow() {
     void openExternalUrl(url);
     return { action: 'deny' };
   });
+  sendPairingConnectionStatus();
 }
 
 function windowChromeOptions(): BrowserWindowConstructorOptions {
@@ -98,6 +107,8 @@ app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
+  setSocketStatusListener(sendPairingConnectionStatus);
+  setArticleUpdateListener(sendStoreUpdated);
   await startLocalServer();
   await createWindow();
 });
@@ -119,9 +130,11 @@ function registerIpc() {
   ipcMain.handle('log:clear', () => clearLogFile());
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('pairing:get', () => getPairingInfo());
+  ipcMain.handle('pairing:connection-status', () => getDesktopConnectionStatus());
   ipcMain.handle('pairing:rotate', async () => {
     const pairing = await rotatePairingInfo();
     disconnectAuthenticatedSockets();
+    sendPairingConnectionStatus({ authenticatedSocketCount: 0 });
     return pairing;
   });
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
@@ -260,6 +273,16 @@ function registerIpc() {
     broadcastStatus();
     return store;
   });
+}
+
+function sendPairingConnectionStatus(
+  status: DesktopConnectionStatus = getDesktopConnectionStatus(),
+) {
+  mainWindow?.webContents.send('pairing:connection-status', status);
+}
+
+function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
+  mainWindow?.webContents.send('store:updated', store);
 }
 
 function createReviewerResult(

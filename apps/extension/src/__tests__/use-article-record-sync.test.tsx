@@ -35,7 +35,7 @@ beforeEach(() => {
 describe('useArticleRecordSync streaming commits', () => {
   it('applies streamed deltas locally and commits once', async () => {
     const send = vi.fn();
-    const socket = { readyState: WebSocket.OPEN, send } as unknown as WebSocket;
+    const bridge = { readyState: WebSocket.OPEN, send, close: vi.fn() };
     const annotationsRef = { current: [annotation()] };
     const articleRecordRef = { current: null as ArticleRecord | null };
     const setAnnotations = vi.fn((next: Annotation[]) => {
@@ -54,7 +54,7 @@ describe('useArticleRecordSync streaming commits', () => {
           content: '<p>Article text</p>',
           contentHash: 'hash-1',
         },
-        wsRef: { current: socket },
+        desktopBridgeRef: { current: bridge },
         desktopAuthenticatedRef: { current: true },
         annotationsRef,
         articleRecordRef,
@@ -89,7 +89,7 @@ describe('useArticleRecordSync streaming commits', () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(send.mock.calls[0]?.[0]))).toMatchObject({
+    expect(send.mock.calls[0]?.[0]).toMatchObject({
       type: 'article:save',
       payload: {
         id: 'article-1',
@@ -98,7 +98,71 @@ describe('useArticleRecordSync streaming commits', () => {
     });
     await waitFor(() => expect(storageSet).toHaveBeenCalled());
   });
+
+  it('keeps desktop annotations when the local cache has a newer empty record', async () => {
+    const send = vi.fn();
+    const bridge = { readyState: WebSocket.OPEN, send, close: vi.fn() };
+    const annotationsRef = { current: [] as Annotation[] };
+    const articleRecordRef = {
+      current: articleRecord([], '2026-05-04T01:00:00.000Z'),
+    };
+    const setAnnotations = vi.fn((next: Annotation[]) => {
+      annotationsRef.current = next;
+    });
+
+    const { result } = renderHook(() =>
+      useArticleRecordSync({
+        extracted: {
+          id: 'article-1',
+          url: 'https://example.com/article',
+          canonicalUrl: 'https://example.com/article',
+          title: 'Article',
+          byline: '',
+          excerpt: '',
+          content: '<p>Article text</p>',
+          contentHash: 'hash-1',
+        },
+        desktopBridgeRef: { current: bridge },
+        desktopAuthenticatedRef: { current: true },
+        annotationsRef,
+        articleRecordRef,
+        recordCreatedAtRef: { current: articleRecordRef.current.createdAt },
+        setAnnotations,
+        setAgents: vi.fn(),
+        setReaderSettings: vi.fn(),
+        setUserProfile: vi.fn(),
+        normalizeUserProfile: (user) => user as never,
+        readerLog: vi.fn(),
+        errorMessage: (error) => String(error),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.applyDesktopArticleRecord(
+        articleRecord([annotation()], '2026-05-04T00:00:00.000Z'),
+      );
+    });
+
+    expect(annotationsRef.current).toHaveLength(1);
+    await waitFor(() => expect(storageSet).toHaveBeenCalled());
+  });
 });
+
+function articleRecord(annotations: Annotation[], updatedAt: string): ArticleRecord {
+  return {
+    id: 'article-1',
+    url: 'https://example.com/article',
+    canonicalUrl: 'https://example.com/article',
+    title: 'Article',
+    byline: '',
+    excerpt: '',
+    contentHtml: '<p>Article text</p>',
+    contentHash: 'hash-1',
+    annotations,
+    createdAt: '2026-05-04T00:00:00.000Z',
+    updatedAt,
+  };
+}
 
 function annotation(): Annotation {
   return {

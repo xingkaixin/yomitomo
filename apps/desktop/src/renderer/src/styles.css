@@ -608,6 +608,74 @@
   line-height: 1.45;
 }
 
+.pairing-connected-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, hsl(92 28% 91% / 0.86), hsl(43 58% 93% / 0.86)), hsl(var(--card));
+  box-shadow:
+    inset 0 0 0 1px hsl(90 24% 48% / 0.18),
+    0 12px 28px hsl(31 34% 24% / 0.08);
+  padding: 12px;
+}
+
+.pairing-connected-main {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.pairing-connected-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(93 29% 33%);
+  color: hsl(var(--primary-foreground));
+}
+
+.pairing-connected-main strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.pairing-connected-main p {
+  margin: 3px 0 0;
+  color: hsl(88 16% 34%);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.pairing-identity {
+  display: grid;
+  gap: 2px;
+  min-width: 116px;
+  border-radius: 12px;
+  background: hsl(40 100% 97% / 0.76);
+  box-shadow: inset 0 0 0 1px hsl(36 28% 70% / 0.48);
+  padding: 8px 11px;
+}
+
+.pairing-identity span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.pairing-identity strong {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .theme-select-content {
   border-color: hsl(var(--border) / 0.82);
   background:

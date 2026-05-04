@@ -231,10 +231,11 @@ export type DesktopClientMessage =
   | { type: 'agent:annotate'; requestId: string; payload: AgentAnnotatePayload };
 
 export type DesktopServerMessage =
-  | { type: 'auth:result'; ok: boolean; message?: string }
-  | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[] }
+  | { type: 'auth:result'; ok: boolean; message?: string; pairingId?: string }
+  | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[]; pairingId: string }
   | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
   | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
+  | { type: 'article:updated'; article: ArticleRecord }
   | { type: 'agent:message:start'; requestId: string; annotationId: string; comment: Comment }
   | {
       type: 'agent:message:delta';

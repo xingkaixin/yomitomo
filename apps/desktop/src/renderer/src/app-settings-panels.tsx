@@ -66,7 +66,7 @@ import {
 import { Textarea } from './components/ui/textarea';
 import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
 import type { ProviderOption, SaveState } from './app-types';
-import type { PairingInfo } from '../../preload';
+import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 export const agentAvatars = [
   avatar01Raw,
@@ -119,6 +119,7 @@ export function SettingsNavButton({
 
 export function GeneralSettings({
   draft,
+  pairingConnectionStatus,
   pairingInfo,
   providers,
   settingsDraft,
@@ -130,6 +131,7 @@ export function GeneralSettings({
   saveState,
 }: {
   draft: UserDraft;
+  pairingConnectionStatus: PairingConnectionStatus;
   pairingInfo: PairingInfo | null;
   providers: ProviderOption[];
   settingsDraft: AppSettings;
@@ -141,6 +143,7 @@ export function GeneralSettings({
   saveState: SaveState;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const extensionConnected = pairingConnectionStatus.authenticatedSocketCount > 0;
 
   return (
     <div className="settings-panel">
@@ -239,17 +242,43 @@ export function GeneralSettings({
         <Field
           id="desktop-pairing-token"
           className="col-span-2"
-          description="浏览器扩展输入这段配对码后，才能连接本机桌面端。"
-          label="扩展配对码"
+          description={
+            extensionConnected
+              ? '当前浏览器扩展已经完成配对，连接标识会同步显示在扩展端。'
+              : '浏览器扩展输入这段配对码后，才能连接本机桌面端。'
+          }
+          label={extensionConnected ? '扩展连接' : '扩展配对码'}
         >
-          <div className="flex items-center gap-2">
-            <Input id="desktop-pairing-token" readOnly value={pairingInfo?.token || ''} />
-            <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
-            <Button type="button" variant="secondary" onClick={onRotatePairing}>
-              <KeyRound size={16} />
-              换新配对码
-            </Button>
-          </div>
+          {extensionConnected ? (
+            <div className="pairing-connected-card">
+              <div className="pairing-connected-main">
+                <span className="pairing-connected-icon">
+                  <Check size={17} />
+                </span>
+                <div>
+                  <strong>已配对</strong>
+                  <p>{pairingConnectionStatus.authenticatedSocketCount} 个浏览器扩展正在连接本机</p>
+                </div>
+              </div>
+              <div className="pairing-identity">
+                <span>连接标识</span>
+                <strong>{pairingInfo?.pairingId || 'YMT-......'}</strong>
+              </div>
+              <Button type="button" variant="secondary" onClick={onRotatePairing}>
+                <KeyRound size={16} />
+                重新配对
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input id="desktop-pairing-token" readOnly value={pairingInfo?.token || ''} />
+              <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
+              <Button type="button" variant="secondary" onClick={onRotatePairing}>
+                <KeyRound size={16} />
+                换新配对码
+              </Button>
+            </div>
+          )}
         </Field>
       </div>
     </div>

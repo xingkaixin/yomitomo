@@ -2,7 +2,9 @@ import { createServer, type Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
   Agent,
+  ArticleRecord,
   DesktopServerMessage,
+  DesktopStore,
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
@@ -22,6 +24,28 @@ const PORT = 43891;
 let httpServer: Server | null = null;
 let wsServer: WebSocketServer | null = null;
 const socketStates = new WeakMap<WebSocket, DesktopSocketAuthState>();
+let socketStatusListener: ((status: DesktopConnectionStatus) => void) | null = null;
+let articleUpdateListener: ((store: DesktopStore) => void) | null = null;
+
+export type DesktopConnectionStatus = {
+  authenticatedSocketCount: number;
+};
+
+export function setSocketStatusListener(listener: (status: DesktopConnectionStatus) => void) {
+  socketStatusListener = listener;
+}
+
+export function getDesktopConnectionStatus(): DesktopConnectionStatus {
+  return {
+    authenticatedSocketCount: Array.from(wsServer?.clients || []).filter(
+      (client) => socketStates.get(client)?.authenticated,
+    ).length,
+  };
+}
+
+export function setArticleUpdateListener(listener: (store: DesktopStore) => void) {
+  articleUpdateListener = listener;
+}
 
 export async function startLocalServer() {
   if (httpServer) return;
@@ -50,6 +74,7 @@ export async function startLocalServer() {
 
     socket.on('close', (code, reason) => {
       logInfo('ws.close', { code, reason: reason.toString() });
+      notifySocketStatusChange();
     });
   });
 
@@ -61,6 +86,14 @@ export function broadcastStatus() {
   wsServer?.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN && socketStates.get(client)?.authenticated) {
       void sendStatus(client);
+    }
+  });
+}
+
+function broadcastArticleUpdate(article: ArticleRecord) {
+  wsServer?.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN && socketStates.get(client)?.authenticated) {
+      send(client, { type: 'article:updated', article });
     }
   });
 }
@@ -130,13 +163,16 @@ async function handleMessage(socket: WebSocket, raw: string) {
     }
 
     if (message.type === 'article:save') {
-      await saveArticle(message.payload);
+      const store = await saveArticle(message.payload);
+      const article = store.articles.find((item) => item.id === message.payload.id);
       logInfo('article.save', {
         requestId: message.requestId,
         articleId: message.payload.id,
         title: message.payload.title,
         annotations: message.payload.annotations.length,
       });
+      if (article) broadcastArticleUpdate(article);
+      articleUpdateListener?.(store);
       return;
     }
 
@@ -259,17 +295,20 @@ async function authenticateSocket(socket: WebSocket, token: string) {
   }
 
   socketStates.set(socket, auth.state);
-  send(socket, { type: 'auth:result', ok: true });
+  send(socket, { type: 'auth:result', ok: true, pairingId: pairing.pairingId });
+  notifySocketStatusChange();
   await sendStatus(socket);
 }
 
 async function sendStatus(socket: WebSocket) {
   const store = await readStore();
+  const pairing = await getPairingInfo();
   send(socket, {
     type: 'status',
     ok: true,
     user: toPublicUser(store.user),
     agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
+    pairingId: pairing.pairingId,
   });
 }
 
@@ -283,6 +322,10 @@ function send(socket: WebSocket, message: DesktopServerMessage) {
       readyState: socket.readyState,
     });
   }
+}
+
+function notifySocketStatusChange() {
+  socketStatusListener?.(getDesktopConnectionStatus());
 }
 
 function toPublicAgents(agents: Agent[]): PublicAgent[] {

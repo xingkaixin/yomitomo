@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
   Agent,
   AppSettings,
@@ -32,11 +32,21 @@ export type ReviewReadingCardInput = GenerateReadingCardInput & {
 
 export type PairingInfo = {
   token: string;
+  pairingId: string;
   updatedAt: string;
+};
+
+export type PairingConnectionStatus = {
+  authenticatedSocketCount: number;
 };
 
 const api = {
   getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
+  onStoreUpdated: (callback: (store: DesktopStore) => void) => {
+    const listener = (_event: IpcRendererEvent, store: DesktopStore) => callback(store);
+    ipcRenderer.on('store:updated', listener);
+    return () => ipcRenderer.removeListener('store:updated', listener);
+  },
   saveUser: (user: Partial<UserProfile>) =>
     ipcRenderer.invoke('user:save', user) as Promise<DesktopStore>,
   saveSettings: (settings: AppSettings) =>
@@ -53,6 +63,14 @@ const api = {
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
   rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
+  getPairingConnectionStatus: () =>
+    ipcRenderer.invoke('pairing:connection-status') as Promise<PairingConnectionStatus>,
+  onPairingConnectionStatus: (callback: (status: PairingConnectionStatus) => void) => {
+    const listener = (_event: IpcRendererEvent, status: PairingConnectionStatus) =>
+      callback(status);
+    ipcRenderer.on('pairing:connection-status', listener);
+    return () => ipcRenderer.removeListener('pairing:connection-status', listener);
+  },
   generateReadingCard: (input: GenerateReadingCardInput) =>
     ipcRenderer.invoke('reading-card:generate', input) as Promise<{
       readingCard: ReadingCardRecord;

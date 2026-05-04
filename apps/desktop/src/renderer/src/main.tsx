@@ -1,6 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BarChart3, BookOpen, Bot, Info, KeyRound, PanelLeftClose, PanelLeftOpen, User } from 'lucide-react';
+import {
+  BarChart3,
+  BookOpen,
+  Bot,
+  Info,
+  KeyRound,
+  PanelLeftClose,
+  PanelLeftOpen,
+  User,
+} from 'lucide-react';
 import type { Agent, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
   agentDraftHasChanges,
@@ -32,7 +41,7 @@ import {
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import type { SaveState } from './app-types';
-import type { PairingInfo } from '../../preload';
+import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
@@ -54,6 +63,9 @@ function App() {
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
+  const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
+    authenticatedSocketCount: 0,
+  });
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
@@ -61,6 +73,19 @@ function App() {
 
     refreshStore();
     refreshPairingInfo();
+    refreshPairingConnectionStatus();
+    const offPairingConnectionStatus = desktop.onPairingConnectionStatus(
+      setPairingConnectionStatus,
+    );
+    const offStoreUpdated = desktop.onStoreUpdated((nextStore) => {
+      setStore(nextStore);
+      setUserDraft(nextStore.user);
+      setSettingsDraft(nextStore.settings);
+    });
+    return () => {
+      offPairingConnectionStatus();
+      offStoreUpdated();
+    };
   }, []);
 
   const providerOptions = useMemo(
@@ -129,6 +154,14 @@ function App() {
     if (!desktop) return;
 
     setPairingInfo(await desktop.rotatePairingInfo());
+    setPairingConnectionStatus({ authenticatedSocketCount: 0 });
+  }
+
+  async function refreshPairingConnectionStatus() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    setPairingConnectionStatus(await desktop.getPairingConnectionStatus());
   }
 
   function selectProvider(provider: LlmProvider) {
@@ -370,6 +403,7 @@ function App() {
           {activeSetting === 'general' ? (
             <GeneralSettings
               draft={userDraft}
+              pairingConnectionStatus={pairingConnectionStatus}
               pairingInfo={pairingInfo}
               providers={providerOptions}
               settingsDraft={settingsDraft}

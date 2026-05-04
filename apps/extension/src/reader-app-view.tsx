@@ -49,6 +49,7 @@ type ReaderAppViewProps = {
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   pairingStatus: string;
+  pairingId: string;
   pairingTokenDraft: string;
   readerSettings: ReaderSettings;
   selectionAction: SelectionAction | null;
@@ -102,6 +103,7 @@ export function ReaderAppView({
   noteRefs,
   notesRef,
   pairingStatus,
+  pairingId,
   pairingTokenDraft,
   readerSettings,
   selectionAction,
@@ -211,6 +213,7 @@ export function ReaderAppView({
       {settingsOpen ? (
         <ReaderSettingsPanel
           desktopConnected={desktopConnected}
+          pairingId={pairingId}
           pairingStatus={pairingStatus}
           pairingTokenDraft={pairingTokenDraft}
           settings={readerSettings}
