@@ -13,7 +13,9 @@ export function registerContentToggleListener({
   toggleReader,
   errorMessage,
 }: {
-  addListener: (listener: (message: RuntimeMessage) => Promise<RuntimeResponse> | undefined) => void;
+  addListener: (
+    listener: (message: RuntimeMessage) => Promise<RuntimeResponse> | undefined,
+  ) => void;
   targetWindow?: Window;
   toggleReader: () => Promise<void>;
   errorMessage: (error: unknown) => string;

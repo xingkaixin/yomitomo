@@ -67,9 +67,9 @@ describe('reader annotation stats', () => {
         }),
       ),
     ).toBe('#8ab6d6');
-    expect(
-      annotationStoredColor(annotation('user', 0, { userAnnotationColor: '#f4c95d' })),
-    ).toBe('#f4c95d');
+    expect(annotationStoredColor(annotation('user', 0, { userAnnotationColor: '#f4c95d' }))).toBe(
+      '#f4c95d',
+    );
     expect(annotationStoredColor(annotation('fallback', 0, { color: '' }))).toBe('#f4c95d');
   });
 });

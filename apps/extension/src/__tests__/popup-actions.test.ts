@@ -33,7 +33,9 @@ describe('toggleReaderInTab', () => {
 
   it('injects the content script when the tab has no listener yet', async () => {
     sendMessage
-      .mockRejectedValueOnce(new Error('Could not establish connection. Receiving end does not exist.'))
+      .mockRejectedValueOnce(
+        new Error('Could not establish connection. Receiving end does not exist.'),
+      )
       .mockResolvedValueOnce({ ok: true });
 
     await toggleReaderInTab(123);

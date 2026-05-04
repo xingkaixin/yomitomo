@@ -42,7 +42,6 @@ export const annotationColors = [
   '#c8b88a',
 ];
 
-
 export const agentKindOptions: Array<{
   value: AgentKind;
   label: string;
