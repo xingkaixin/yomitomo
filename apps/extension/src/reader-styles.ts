@@ -141,6 +141,19 @@ export const readerConversationStyles = `
 .reader-annotation-connection path{fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 4px 8px rgba(55,42,24,.18));opacity:.92}
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
 .reader-note-anchor .reader-note-type{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(183,53,44,.18);border-radius:999px;background:rgba(183,53,44,.08);color:#8f2f28;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px}
+.reader-composer{width:360px;padding:0;overflow:hidden;border-color:rgba(37,29,22,.18);border-radius:20px;background:rgba(255,250,240,.98);box-shadow:0 26px 76px rgba(37,29,22,.24),0 0 0 1px rgba(255,255,255,.62) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
+.reader-composer-header{display:grid;gap:12px;padding:14px 14px 12px;border-bottom:1px solid rgba(37,29,22,.1);background:linear-gradient(180deg,rgba(255,253,247,.96),rgba(255,250,240,.88));font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.reader-composer-title-row strong{font-size:14px;font-weight:900;letter-spacing:0}
+.reader-composer-title-row .reader-shortcut-hint{margin-right:0}
+.reader-composer-types{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:0}
+.reader-composer-types button{height:28px;overflow:hidden;padding:0 6px;text-overflow:ellipsis;white-space:nowrap;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.reader-composer-types button:active{transform:scale(.96)}
+.reader-composer textarea{display:block;min-height:112px;margin:0;border:0;border-radius:0;background:rgba(255,253,247,.74);font-size:14px;padding:14px 15px}
+.reader-composer-actions{margin:0;padding:12px 14px;border-top:1px solid rgba(37,29,22,.1);background:rgba(250,243,230,.9)}
+.reader-composer-actions button{height:36px;padding:0 13px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-composer-actions button:active{transform:scale(.96)}
+@keyframes reader-composer-pop{from{opacity:0;transform:translateY(-6px) scale(.88);filter:blur(2px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
 .reader-highlight:focus-visible{box-shadow:0 0 0 2px #fffaf0,0 0 0 5px rgba(37,29,22,.5)}
 @media(prefers-reduced-motion:reduce){.reader-app *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.reader-virtual-cursor{transition:none!important}.reader-virtual-cursor.is-leaving{animation:none!important;opacity:0}.reader-delete-note.is-holding::before{animation:none!important;width:100%}.reader-spinner{animation:none!important;border-top-color:rgba(23,63,44,.22)}}

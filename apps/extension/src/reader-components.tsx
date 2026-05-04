@@ -392,18 +392,28 @@ export function Composer({
   const [annotationType, setAnnotationType] = useState<AnnotationType>('key_point');
   return (
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
-      <div className="reader-composer-types">
-        {annotationTypeOptions.map((type) => (
-          <button
-            className={annotationType === type ? 'is-active' : ''}
-            key={type}
-            type="button"
-            onClick={() => setAnnotationType(type)}
-          >
-            {annotationTypeLabel(type)}
-          </button>
-        ))}
-      </div>
+      <header className="reader-composer-header">
+        <div className="reader-composer-title-row">
+          <strong>批注</strong>
+          <div className="reader-shortcut-hint">
+            <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
+            <Kbd className="reader-kbd">Enter</Kbd>
+            <span>保存</span>
+          </div>
+        </div>
+        <div className="reader-composer-types" aria-label="批注标签">
+          {annotationTypeOptions.map((type) => (
+            <button
+              className={annotationType === type ? 'is-active' : ''}
+              key={type}
+              type="button"
+              onClick={() => setAnnotationType(type)}
+            >
+              {annotationTypeLabel(type)}
+            </button>
+          ))}
+        </div>
+      </header>
       <textarea
         aria-label="批注内容"
         autoFocus
@@ -418,11 +428,6 @@ export function Composer({
         }}
       />
       <div className="reader-composer-actions">
-        <div className="reader-shortcut-hint">
-          <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
-          <Kbd className="reader-kbd">Enter</Kbd>
-          <span>保存</span>
-        </div>
         <button type="button" onClick={onCancel}>
           取消
         </button>

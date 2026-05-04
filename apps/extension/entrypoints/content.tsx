@@ -734,7 +734,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setActiveId(annotationId);
   }
 
-  function handleMouseUp() {
+  function handleMouseUp(event: React.MouseEvent<HTMLElement>) {
+    const article = articleRef.current;
+    const target = event.target;
+    if (!article || !(target instanceof Node) || !article.contains(target)) return;
+
     requestAnimationFrame(readSelection);
   }
 
@@ -1076,10 +1080,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setNotesOpen(false);
       }}
       onOpenComposer={(action) => {
-        const canvasWidth = canvasRef.current?.clientWidth || 340;
+        const canvasWidth = canvasRef.current?.clientWidth || 360;
         setComposer({
-          x: Math.min(action.x, Math.max(4, canvasWidth - 344)),
-          y: action.y + 44,
+          x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
+          y: action.y,
           anchor: action.anchor,
         });
         setSelectionAction(null);
