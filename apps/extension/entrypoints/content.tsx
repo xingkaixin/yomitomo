@@ -58,6 +58,7 @@ import {
   type DesktopBridgeContentMessage,
   type DesktopBridgePortMessage,
 } from '../src/desktop-bridge';
+import { registerContentToggleListener } from '../src/content-runtime';
 import {
   ReaderAppView,
   type HighlightChoice,
@@ -78,21 +79,13 @@ function readerLog(event: string, data?: Record<string, unknown>) {
   console.log('[Yomitomo Extension]', event, data || '');
 }
 
-type RuntimeMessage = { type?: string };
-type RuntimeResponse = { ok: true } | { ok: false; error: string };
-
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    browser.runtime.onMessage.addListener((message: RuntimeMessage) => {
-      if (message.type !== 'yomitomo:toggle' && message.type !== 'yomitomo:toggle:v2') return;
-
-      return toggleReader()
-        .then(() => ({ ok: true }) satisfies RuntimeResponse)
-        .catch((error: unknown) => {
-          console.error('[Yomitomo Extension] toggle failed', error);
-          return { ok: false, error: errorMessage(error) } satisfies RuntimeResponse;
-        });
+    registerContentToggleListener({
+      addListener: browser.runtime.onMessage.addListener,
+      toggleReader,
+      errorMessage,
     });
   },
 });

@@ -63,11 +63,16 @@ Status: Draft
   - 选择单一路径。当前最小修复是保留 manifest content script，删除 popup 的 `injectContentScript()` 调用，只发送 `tabs.sendMessage()`。
   - 若后续要减少权限面，则改成动态注入路径：content 入口使用 WXT `registration: 'runtime'` 或 unlisted script，并删除 manifest 自动 content script。
   - 增加一个运行时哨兵，例如 `window.__YOMITOMO_CONTENT_READY__` 或通过 `browser.runtime.onMessage` 的单例注册，防止未来重复注入。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - popup 已移除 `browser.scripting.executeScript()` 动态注入路径，`toggleReaderInTab()` 只向当前 tab 发送 `yomitomo:toggle`。
+  - content script 已通过 `window.__YOMITOMO_CONTENT_READY__` 建立单例 listener 防护，重复执行时只注册第一个 listener。
+  - 新增 `content-runtime.test.ts` 与 `popup-actions.test.ts` 覆盖单例注册、toggle 消息投递和动态注入移除。
 - 验收标准：
-  - [ ] 构建后的 `manifest.json` 与 popup 注入逻辑只保留一条 content script 生命周期。
-  - [ ] 在同一网页连续点击 popup 3 次，阅读器状态按打开、关闭、打开切换。
-  - [ ] content script 的 `browser.runtime.onMessage` listener 在同一 tab 内只有一个有效实例。
-  - [ ] 新增测试或手工验证记录覆盖“已加载 content script 的页面再次点击 popup”。
+  - [x] 构建后的 `manifest.json` 与 popup 注入逻辑只保留一条 content script 生命周期。
+  - [x] 在同一网页连续点击 popup 3 次，阅读器状态按打开、关闭、打开切换。
+  - [x] content script 的 `browser.runtime.onMessage` listener 在同一 tab 内只有一个有效实例。
+  - [x] 新增测试或手工验证记录覆盖“已加载 content script 的页面再次点击 popup”。
 
 ### P1（数据一致性 / 性能 / 权限边界）
 

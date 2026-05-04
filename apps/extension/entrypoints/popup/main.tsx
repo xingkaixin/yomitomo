@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { MessageSquareText } from 'lucide-react';
 import { browser } from 'wxt/browser';
 import { Button } from '../../src/components/ui/button';
+import { toggleReaderInTab } from '../../src/popup-actions';
 import '../../src/styles.css';
 
 function Popup() {
@@ -44,18 +45,6 @@ function Popup() {
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{status}</p>
     </main>
   );
-}
-
-async function toggleReaderInTab(tabId: number) {
-  await injectContentScript(tabId);
-  await browser.tabs.sendMessage(tabId, { type: 'yomitomo:toggle' });
-}
-
-async function injectContentScript(tabId: number) {
-  await browser.scripting.executeScript({
-    target: { tabId },
-    files: ['content-scripts/content.js'],
-  });
 }
 
 function errorMessage(error: unknown) {
