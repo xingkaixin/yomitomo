@@ -395,21 +395,15 @@ export function ReaderAppView({
 
         <aside className="reader-notes" ref={notesRef}>
           <div className="reader-notes-header">
-            <div className="reader-notes-title-row">
-              <strong>批注</strong>
-              <span>
-                {filteredAnnotations.length} / {annotations.length}
-              </span>
-            </div>
             <Tabs
               className="reader-note-tabs"
               value={noteFilter}
               onValueChange={(value) => onSetNoteFilter(value as NoteFilter)}
             >
               <TabsList>
-                <TabsTrigger value="all">全部</TabsTrigger>
-                <TabsTrigger value="ai">助手批注</TabsTrigger>
+                <TabsTrigger value="all">全部批注</TabsTrigger>
                 <TabsTrigger value="user">我的批注</TabsTrigger>
+                <TabsTrigger value="ai">助手批注</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
