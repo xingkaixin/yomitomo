@@ -159,6 +159,7 @@ export const emptyProvider: ProviderDraft = {
   logo: defaultProviderPreset?.logo,
   baseUrl: defaultProviderPreset?.baseUrl || 'https://api.anthropic.com',
   modelName: defaultProviderPreset?.modelName || 'claude-sonnet-4-5',
+  modelNames: defaultProviderPreset?.modelNames,
   apiKey: '',
   reasoningEffort: 'default',
 };
@@ -227,6 +228,7 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
     (draft.baseUrl || '').trim() !== provider.baseUrl ||
     (draft.apiKey || '').trim() !== provider.apiKey ||
     (draft.modelName || '').trim() !== provider.modelName ||
+    modelNamesChanged(draft.modelNames, provider.modelNames) ||
     (draft.reasoningEffort || 'default') !== (provider.reasoningEffort || 'default')
   );
 }
@@ -256,6 +258,15 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
 
 export function isValidUsername(value: string) {
   return /^[A-Za-z0-9_]+$/.test(value.trim());
+}
+
+function modelNamesChanged(left: string[] | undefined, right: string[] | undefined) {
+  const leftNames = left || [];
+  const rightNames = right || [];
+  return (
+    leftNames.length !== rightNames.length ||
+    leftNames.some((item, index) => item !== rightNames[index])
+  );
 }
 
 export function sanitizeUsernameInput(value: string) {

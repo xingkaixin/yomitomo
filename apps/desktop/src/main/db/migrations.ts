@@ -177,4 +177,10 @@ ALTER TABLE providers ADD COLUMN reasoning_effort TEXT;
 UPDATE providers SET type = 'openai-chat' WHERE type = 'openai';
 `,
   },
+  {
+    id: '0010_provider_model_names',
+    sql: `
+ALTER TABLE providers ADD COLUMN model_names TEXT;
+`,
+  },
 ];

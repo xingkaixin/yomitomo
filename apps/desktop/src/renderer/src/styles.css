@@ -455,10 +455,6 @@
   gap: 8px;
 }
 
-.provider-model-select {
-  margin-top: 8px;
-}
-
 .field-inline-note {
   margin: 8px 0 0;
   color: hsl(var(--muted-foreground));
@@ -801,6 +797,21 @@
   padding: 9px 34px 9px 10px;
 }
 
+.provider-select-item [data-radix-select-item-text] {
+  display: block;
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-option-content {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
 .provider-select-item-mark {
   width: 9px;
   height: 9px;
@@ -808,6 +819,14 @@
   border-radius: 999px;
   background: hsl(83 24% 35%);
   box-shadow: 0 0 0 4px hsl(83 24% 35% / 0.12);
+}
+
+.provider-select-logo {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 .provider-select-item-copy {

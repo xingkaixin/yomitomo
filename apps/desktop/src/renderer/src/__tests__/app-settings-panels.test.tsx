@@ -29,10 +29,14 @@ describe('ProviderForm', () => {
   });
 
   it('shows fetched models after clicking get', async () => {
+    const onChange = vi.fn();
+    const listProviderModels = vi
+      .fn()
+      .mockResolvedValue([{ id: 'gpt-5.2' }, { id: 'gpt-5.2-mini' }]);
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        listProviderModels: vi.fn().mockResolvedValue([{ id: 'gpt-5.2' }, { id: 'gpt-5.2-mini' }]),
+        listProviderModels,
       },
     });
 
@@ -43,17 +47,18 @@ describe('ProviderForm', () => {
           presetId: 'openai',
           type: 'openai-responses',
           apiKey: 'sk-test',
+          modelName: 'gpt-5.1',
         }}
-        onChange={vi.fn()}
+        onChange={onChange}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: '选择模型' })).toBeTruthy();
-    expect(document.querySelector('option[value="gpt-5.2"]')).toBeTruthy();
-    expect(document.querySelector('option[value="gpt-5.2-mini"]')).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
+    expect(listProviderModels).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'gpt-5.2' }));
   });
 });
 
@@ -64,6 +69,7 @@ describe('AgentForm', () => {
       label: 'Anthropic',
       type: 'anthropic',
       modelName: 'claude-3-5-sonnet-latest',
+      logo: 'anthropic.png',
     },
   ];
   const draft: AgentDraft = {
@@ -83,6 +89,7 @@ describe('AgentForm', () => {
 
     expect(screen.getByLabelText('用户名')).toBeTruthy();
     expect(screen.getByLabelText('自定义系统提示词')).toBeTruthy();
+    expect(document.querySelector('.provider-select-logo')).toBeTruthy();
   });
 
   it('exposes option sets as keyboard-operable radio groups', () => {

@@ -54,6 +54,7 @@ export type LlmProvider = {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  modelNames?: string[];
   reasoningEffort?: ReasoningEffort;
   createdAt: string;
   updatedAt: string;

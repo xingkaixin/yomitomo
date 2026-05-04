@@ -116,6 +116,26 @@ const providerLogoMap: Record<string, string> = {
   'zhipu.png': zhipuLogo,
 };
 
+function ProviderOptionContent({ provider }: { provider: ProviderOption }) {
+  const logoSrc = provider.logo ? providerLogoMap[provider.logo] : undefined;
+
+  return (
+    <span className="provider-option-content">
+      {logoSrc ? (
+        <img className="provider-select-logo" src={logoSrc} alt="" />
+      ) : (
+        <span className="provider-select-item-mark" />
+      )}
+      <span className="provider-select-item-copy">
+        <strong>{provider.label}</strong>
+        <span>
+          {provider.type} · {provider.modelName}
+        </span>
+      </span>
+    </span>
+  );
+}
+
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
   return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
 }
@@ -322,13 +342,7 @@ export function GeneralSettings({
             <SelectContent className="theme-select-content provider-select-content">
               {providers.map((provider) => (
                 <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
-                  <span className="provider-select-item-mark" />
-                  <span className="provider-select-item-copy">
-                    <strong>{provider.label}</strong>
-                    <span>
-                      {provider.type} · {provider.modelName}
-                    </span>
-                  </span>
+                  <ProviderOptionContent provider={provider} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -656,16 +670,13 @@ export function ProviderForm({
   const [modelError, setModelError] = useState('');
   const [modelNotice, setModelNotice] = useState('');
   const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
-  const presetModels = modelOptions.length > 0 ? modelOptions : selectedPreset?.modelNames || [];
-  const visibleModels = [
-    ...new Set([draft.modelName, ...presetModels].filter(Boolean) as string[]),
-  ];
+  const visibleModels =
+    modelOptions.length > 0 ? modelOptions : draft.modelNames || selectedPreset?.modelNames || [];
 
   async function fetchModels() {
     const fallbackModels = selectedPreset?.modelNames || [];
     if (!window.yomitomoDesktop) return;
     if (!draft.apiKey?.trim()) {
-      setModelOptions(fallbackModels);
       setModelError('');
       setModelNotice(
         fallbackModels.length > 0
@@ -682,9 +693,14 @@ export function ProviderForm({
       const names = models.map((model) => model.id).filter(Boolean);
       setModelOptions(names);
       setModelNotice(names.length > 0 ? `已获取 ${names.length} 个模型` : '未获取到模型列表');
-      if (!draft.modelName && names[0]) onChange({ ...draft, modelName: names[0] });
+      if (names.length > 0) {
+        onChange({
+          ...draft,
+          modelName: names.includes(draft.modelName || '') ? draft.modelName : names[0],
+          modelNames: names,
+        });
+      }
     } catch (error) {
-      setModelOptions(fallbackModels);
       setModelError(error instanceof Error ? error.message : '获取模型列表失败');
       setModelNotice(fallbackModels.length > 0 ? '已显示预设模型作为候选' : '');
     } finally {
@@ -706,6 +722,7 @@ export function ProviderForm({
       logo: preset.logo,
       baseUrl: preset.baseUrl,
       modelName: preset.modelName,
+      modelNames: preset.modelNames,
     });
   }
 
@@ -775,42 +792,13 @@ export function ProviderForm({
       </Field>
       <Field id="provider-model" label="模型">
         <div className="provider-model-field">
-          <Input
-            id="provider-model"
-            name="provider-model"
-            list="provider-model-options"
-            autoComplete="off"
-            spellCheck={false}
-            value={draft.modelName || ''}
-            onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
-          />
-          <datalist id="provider-model-options">
-            {visibleModels.map((model) => (
-              <option key={model} value={model} />
-            ))}
-          </datalist>
-          <Button
-            className="action-button"
-            type="button"
-            variant="secondary"
-            disabled={modelLoading}
-            onClick={fetchModels}
-          >
-            <RefreshCw size={15} />
-            {modelLoading ? '获取中' : '获取'}
-          </Button>
-        </div>
-        {visibleModels.length > 0 ? (
           <Select
+            disabled={visibleModels.length === 0}
             value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
             onValueChange={(modelName) => onChange({ ...draft, modelName })}
           >
-            <SelectTrigger
-              className="provider-model-select"
-              aria-label="选择模型"
-              id="provider-model-select"
-            >
-              <SelectValue placeholder="从候选模型中选择" />
+            <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
+              <SelectValue placeholder="选择模型" />
             </SelectTrigger>
             <SelectContent className="theme-select-content">
               <SelectGroup>
@@ -822,7 +810,17 @@ export function ProviderForm({
               </SelectGroup>
             </SelectContent>
           </Select>
-        ) : null}
+          <Button
+            className="action-button"
+            type="button"
+            variant="secondary"
+            disabled={modelLoading}
+            onClick={fetchModels}
+          >
+            <RefreshCw size={15} />
+            {modelLoading ? '获取中' : '获取'}
+          </Button>
+        </div>
         {modelNotice ? <p className="field-inline-note">{modelNotice}</p> : null}
         {modelError ? <p className="field-inline-error">{modelError}</p> : null}
       </Field>
@@ -1006,13 +1004,7 @@ export function AgentForm({
             <SelectGroup>
               {providers.map((provider) => (
                 <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
-                  <span className="provider-select-item-mark" />
-                  <span className="provider-select-item-copy">
-                    <strong>{provider.label}</strong>
-                    <span>
-                      {provider.type} · {provider.modelName}
-                    </span>
-                  </span>
+                  <ProviderOptionContent provider={provider} />
                 </SelectItem>
               ))}
             </SelectGroup>

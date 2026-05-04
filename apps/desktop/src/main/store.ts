@@ -168,6 +168,10 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     apiKey: input.apiKey?.trim() || existing?.apiKey || '',
     modelName:
       input.modelName?.trim() || existing?.modelName || preset?.modelName || 'claude-sonnet-4-5',
+    modelNames:
+      normalizeModelNames(input.modelNames) ||
+      normalizeModelNames(existing?.modelNames) ||
+      preset?.modelNames,
     reasoningEffort:
       normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'default',
     createdAt: existing?.createdAt || now,
@@ -370,6 +374,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       baseUrl: row.baseUrl,
       apiKey: row.apiKey,
       modelName: row.modelName,
+      modelNames: normalizeModelNames(row.modelNames) || undefined,
       reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'default',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -578,6 +583,7 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
       baseUrl: provider.baseUrl,
       apiKey: provider.apiKey,
       modelName: provider.modelName,
+      modelNames: provider.modelNames,
       reasoningEffort: provider.reasoningEffort,
       createdAt: provider.createdAt,
       updatedAt: provider.updatedAt,
@@ -592,6 +598,7 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
         baseUrl: provider.baseUrl,
         apiKey: provider.apiKey,
         modelName: provider.modelName,
+        modelNames: provider.modelNames,
         reasoningEffort: provider.reasoningEffort,
         updatedAt: provider.updatedAt,
       },
@@ -642,6 +649,7 @@ function normalizeStore(store: DesktopStore): DesktopStore {
       Object.assign({}, provider, {
         type: normalizeProviderType(provider.type) || 'anthropic',
         presetId: normalizePresetId(provider.presetId),
+        modelNames: normalizeModelNames(provider.modelNames),
         reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'default',
       }),
     ),
@@ -875,6 +883,16 @@ function normalizePresetId(value: unknown): ProviderPresetId | undefined {
   return providerPresets.some((preset) => preset.id === value)
     ? (value as ProviderPresetId)
     : undefined;
+}
+
+function normalizeModelNames(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const names = Array.from(
+    new Set(
+      value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()),
+    ),
+  ).filter(Boolean);
+  return names.length > 0 ? names : undefined;
 }
 
 function normalizeReasoningEffort(value: unknown): ReasoningEffort | undefined {

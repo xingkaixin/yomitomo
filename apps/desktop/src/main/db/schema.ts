@@ -24,6 +24,7 @@ export const providers = sqliteTable('providers', {
   baseUrl: text('base_url').notNull(),
   apiKey: text('api_key').notNull(),
   modelName: text('model_name').notNull(),
+  modelNames: text('model_names', { mode: 'json' }),
   reasoningEffort: text('reasoning_effort'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
