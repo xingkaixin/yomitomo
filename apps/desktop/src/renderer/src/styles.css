@@ -1563,6 +1563,102 @@
   outline: 1px solid hsl(31 24% 24% / 0.28);
 }
 
+.source-highlight-choice-menu {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  width: 228px;
+  gap: 6px;
+  border: 1px solid hsl(36 31% 72% / 0.78);
+  border-radius: 8px;
+  background: hsl(42 64% 96% / 0.98);
+  box-shadow: 0 18px 46px hsl(31 34% 24% / 0.2);
+  color: hsl(32 22% 21%);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  padding: 10px;
+}
+
+.source-highlight-choice-menu header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 4px;
+}
+
+.source-highlight-choice-menu header strong {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.source-highlight-choice-menu header button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 0;
+}
+
+.source-highlight-choice-menu header button:hover,
+.source-highlight-choice-menu > button:hover {
+  background: hsl(36 41% 87%);
+}
+
+.source-highlight-choice-menu > button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 7px;
+  text-align: left;
+}
+
+.source-highlight-choice-menu > button > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.source-highlight-choice-menu > button strong,
+.source-highlight-choice-menu > button em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-highlight-choice-menu > button strong {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.source-highlight-choice-menu > button em {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.source-highlight-choice-menu > button b {
+  border-radius: 999px;
+  background: hsl(8 48% 48% / 0.1);
+  color: hsl(8 48% 32%);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
 .source-empty {
   color: hsl(var(--muted-foreground));
   font-size: 14px;

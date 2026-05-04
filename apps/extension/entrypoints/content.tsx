@@ -16,6 +16,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationColor,
+  annotationIdsAtHighlightPoint,
   appendAnnotationComment,
   createUserAnnotation,
   createUserComment,
@@ -59,6 +60,7 @@ import {
 } from '../src/desktop-bridge';
 import {
   ReaderAppView,
+  type HighlightChoice,
   type NoteFilter,
   type PendingComposer,
   type SelectionAction,
@@ -161,6 +163,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [agents, setAgents] = useState<PublicAgent[]>([]);
   const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null);
+  const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
   const [composer, setComposer] = useState<PendingComposer | null>(null);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
@@ -272,6 +275,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (filteredAnnotations.some((annotation) => annotation.id === activeId)) return;
     setActiveId(filteredAnnotations[0]?.id || null);
   }, [activeId, filteredAnnotations]);
+
+  useEffect(() => {
+    if (!highlightChoice) return;
+    const annotationIds = new Set(annotations.map((annotation) => annotation.id));
+    if (highlightChoice.annotationIds.every((id) => annotationIds.has(id))) return;
+    setHighlightChoice(null);
+  }, [annotations, highlightChoice]);
 
   const recalculateHighlights = useCallback(() => {
     const article = articleRef.current;
@@ -939,11 +949,44 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   function focusAnnotation(annotationId: string) {
+    setHighlightChoice(null);
     setActiveId(annotationId);
     noteRefs.current.get(annotationId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
+  function handleHighlightClick(annotationId: string, event: React.MouseEvent<HTMLButtonElement>) {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      focusAnnotation(annotationId);
+      return;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const annotationIds = annotationIdsAtHighlightPoint(
+      boxes,
+      {
+        x: event.clientX - canvasRect.left,
+        y: event.clientY - canvasRect.top,
+      },
+      1,
+    );
+
+    if (annotationIds.length <= 1) {
+      focusAnnotation(annotationIds[0] || annotationId);
+      return;
+    }
+
+    setSelectionAction(null);
+    const x = event.clientX - canvasRect.left + 8;
+    setHighlightChoice({
+      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 240), x)),
+      y: Math.max(8, event.clientY - canvasRect.top + 8),
+      annotationIds,
+    });
+  }
+
   function scrollToHighlight(annotationId: string) {
+    setHighlightChoice(null);
     setActiveId(annotationId);
     const annotation = annotations.find((item) => item.id === annotationId);
     const article = articleRef.current;
@@ -986,6 +1029,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       desktopConnected={desktopConnected}
       extracted={extracted}
       filteredAnnotations={filteredAnnotations}
+      highlightChoice={highlightChoice}
       noteFilter={noteFilter}
       noteRefs={noteRefs}
       notesRef={notesRef}
@@ -1009,7 +1053,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onCreateAnnotation={createAnnotation}
       onDeleteAnnotation={deleteAnnotation}
       onFocusAnnotation={focusAnnotation}
+      onHighlightClick={handleHighlightClick}
       onMouseUp={handleMouseUp}
+      onCloseHighlightChoice={() => setHighlightChoice(null)}
       onOpenComposer={(action) => {
         const canvasWidth = canvasRef.current?.clientWidth || 340;
         setComposer({

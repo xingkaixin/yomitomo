@@ -13,6 +13,7 @@ import {
   Save,
   Trash2,
   Unplug,
+  X,
 } from 'lucide-react';
 import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
@@ -56,6 +57,11 @@ export type VirtualCursorState = {
   agent?: PublicAgent;
 };
 
+export type HighlightChoiceAction = {
+  x: number;
+  y: number;
+};
+
 const DELETE_HOLD_MS = 1600;
 const annotationTypeOptions: AnnotationType[] = [
   'key_point',
@@ -77,6 +83,48 @@ export function SelectionMenu({
         <MessageSquarePlus size={15} strokeWidth={2.2} />
         批注
       </button>
+    </div>
+  );
+}
+
+export function HighlightChoiceMenu({
+  action,
+  agents,
+  annotations,
+  userProfile,
+  onCancel,
+  onSelect,
+}: {
+  action: HighlightChoiceAction;
+  agents: PublicAgent[];
+  annotations: Annotation[];
+  userProfile: UserProfile;
+  onCancel: () => void;
+  onSelect: (annotationId: string) => void;
+}) {
+  return (
+    <div className="reader-highlight-choice-menu" style={{ left: action.x, top: action.y }}>
+      <header>
+        <strong>选择批注</strong>
+        <button type="button" onClick={onCancel} aria-label="关闭批注选择">
+          <X size={14} />
+        </button>
+      </header>
+      {annotations.map((annotation) => {
+        const persona = annotationAuthor(annotation, userProfile, agents);
+        return (
+          <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
+            <AvatarBadge avatar={persona.avatar} fallback={persona.fallback} />
+            <span>
+              <strong>{persona.nickname}</strong>
+              <em>@{persona.username}</em>
+            </span>
+            {annotation.annotationType ? (
+              <b>{annotationTypeLabel(annotation.annotationType)}</b>
+            ) : null}
+          </button>
+        );
+      })}
     </div>
   );
 }

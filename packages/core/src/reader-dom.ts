@@ -8,6 +8,11 @@ export type HighlightBox = {
   height: number;
 };
 
+export type HighlightPoint = {
+  x: number;
+  y: number;
+};
+
 export type TocItem = {
   index: number;
   text: string;
@@ -242,6 +247,32 @@ export function highlightStyle(box: HighlightBox, active: boolean, fallbackColor
     backgroundColor: alphaColor(color, active ? 0.45 : 0.28),
     boxShadow: `0 0 0 ${active ? 2 : 1}px ${alphaColor(color, active ? 0.72 : 0.36)}`,
   };
+}
+
+export function annotationIdsAtHighlightPoint(
+  boxes: HighlightBox[],
+  point: HighlightPoint,
+  padding = 0,
+) {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+
+  for (const box of boxes) {
+    if (
+      point.x < box.left - padding ||
+      point.x > box.left + box.width + padding ||
+      point.y < box.top - padding ||
+      point.y > box.top + box.height + padding
+    ) {
+      continue;
+    }
+
+    if (seen.has(box.annotationId)) continue;
+    seen.add(box.annotationId);
+    ids.push(box.annotationId);
+  }
+
+  return ids;
 }
 
 export function alphaColor(color: string, alpha: number) {

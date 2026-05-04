@@ -12,10 +12,12 @@ import {
   AnnotationConnection,
   Composer,
   EmptyNotes,
+  HighlightChoiceMenu,
   ReaderSettingsPanel,
   SelectionMenu,
   VirtualCursor,
   type ActiveConnection,
+  type HighlightChoiceAction,
   type ReaderSettings,
   type VirtualCursorState,
 } from './reader-components';
@@ -28,6 +30,10 @@ export type SelectionAction = {
 
 export type PendingComposer = SelectionAction;
 export type NoteFilter = 'all' | 'ai' | 'user';
+
+export type HighlightChoice = HighlightChoiceAction & {
+  annotationIds: string[];
+};
 
 type ReaderAppViewProps = {
   activeConnection: ActiveConnection | null;
@@ -45,6 +51,7 @@ type ReaderAppViewProps = {
   desktopConnected: boolean;
   extracted: ExtractedArticle;
   filteredAnnotations: Annotation[];
+  highlightChoice: HighlightChoice | null;
   noteFilter: NoteFilter;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
@@ -68,7 +75,9 @@ type ReaderAppViewProps = {
   onCreateAnnotation: (note: string, annotationType: AnnotationType) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
+  onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseUp: () => void;
+  onCloseHighlightChoice: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onRequestAgentAnnotations: (agent: PublicAgent) => void;
   onRequestSelectedAgentAnnotations: () => void;
@@ -99,6 +108,7 @@ export function ReaderAppView({
   desktopConnected,
   extracted,
   filteredAnnotations,
+  highlightChoice,
   noteFilter,
   noteRefs,
   notesRef,
@@ -122,7 +132,9 @@ export function ReaderAppView({
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
+  onHighlightClick,
   onMouseUp,
+  onCloseHighlightChoice,
   onOpenComposer,
   onRequestAgentAnnotations,
   onRequestSelectedAgentAnnotations,
@@ -137,6 +149,11 @@ export function ReaderAppView({
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
+  const highlightChoiceAnnotations = highlightChoice
+    ? highlightChoice.annotationIds
+        .map((id) => annotations.find((annotation) => annotation.id === id))
+        .filter((annotation): annotation is Annotation => Boolean(annotation))
+    : [];
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
@@ -284,7 +301,7 @@ export function ReaderAppView({
                   key={box.id}
                   style={highlightStyle(box, box.annotationId === activeId)}
                   type="button"
-                  onClick={() => onFocusAnnotation(box.annotationId)}
+                  onClick={(event) => onHighlightClick(box.annotationId, event)}
                 />
               ))}
               {temporaryBoxes.map((box) => (
@@ -306,6 +323,16 @@ export function ReaderAppView({
               <SelectionMenu
                 action={selectionAction}
                 onAnnotate={() => onOpenComposer(selectionAction)}
+              />
+            ) : null}
+            {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
+              <HighlightChoiceMenu
+                action={highlightChoice}
+                agents={agents}
+                annotations={highlightChoiceAnnotations}
+                userProfile={userProfile}
+                onCancel={onCloseHighlightChoice}
+                onSelect={onFocusAnnotation}
               />
             ) : null}
             {composer ? (

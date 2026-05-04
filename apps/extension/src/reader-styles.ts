@@ -24,6 +24,18 @@ export const readerConversationStyles = `
 .reader-highlight.is-agent-theater{background:rgba(183,53,44,.24);box-shadow:0 0 0 1px rgba(183,53,44,.3)}
 .reader-selection-menu{background:rgba(37,29,22,.95);box-shadow:0 14px 36px rgba(37,29,22,.3)}
 .reader-selection-menu button{color:#fffaf0}
+.reader-highlight-choice-menu{position:absolute;z-index:6;width:240px;display:grid;gap:6px;padding:10px;border:1px solid rgba(37,29,22,.14);border-radius:16px;background:rgba(255,250,240,.97);box-shadow:0 18px 52px rgba(55,42,24,.22);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-highlight-choice-menu header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 4px}
+.reader-highlight-choice-menu header strong{font-size:13px;font-weight:900}
+.reader-highlight-choice-menu header button{display:grid;width:26px;height:26px;place-items:center;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;padding:0}
+.reader-highlight-choice-menu header button:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-highlight-choice-menu>button{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;border:0;border-radius:11px;background:transparent;color:var(--reader-ink);cursor:pointer;padding:8px;text-align:left}
+.reader-highlight-choice-menu>button:hover{background:#f0e3cd}
+.reader-highlight-choice-menu .reader-avatar-badge{display:grid;width:30px;height:30px;place-items:center;overflow:hidden;border-radius:999px;background:var(--reader-green);color:white;font-size:11px;font-weight:800}
+.reader-highlight-choice-menu span{display:grid;gap:2px;min-width:0}
+.reader-highlight-choice-menu span strong{overflow:hidden;font-size:13px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
+.reader-highlight-choice-menu span em{overflow:hidden;color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
+.reader-highlight-choice-menu b{border-radius:999px;background:rgba(183,53,44,.08);color:#8f2f28;font-size:11px;font-weight:850;line-height:1;padding:6px 8px;white-space:nowrap}
 .reader-virtual-cursor{gap:7px;transition:left .34s ease,top .34s ease}
 .reader-virtual-pointer{width:18px;height:24px;border:0;background:var(--cursor-color,#b7352c);clip-path:polygon(0 0,0 21px,5px 16px,9px 24px,13px 22px,9px 15px,18px 15px);filter:drop-shadow(0 5px 8px rgba(37,29,22,.25));transform:rotate(-10deg)}
 .reader-virtual-label{border-color:color-mix(in srgb,var(--cursor-color,#b7352c) 28%,transparent);color:var(--cursor-color,#b7352c)}

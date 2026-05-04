@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, Quote, RefreshCcw, FileText } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Quote, RefreshCcw, FileText, X } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -10,6 +10,7 @@ import { renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
   annotationStoredColor,
+  annotationIdsAtHighlightPoint,
   buildTocAnnotationStats,
   extractTocItems,
   findCurrentTocTarget,
@@ -142,6 +143,7 @@ export function ReadingLibrary({
         <div className="library-shelf-content">
           {activeShelf === 'source' ? (
             <SourceBookcase
+              agents={agents}
               annotations={annotations}
               article={selectedArticle}
               selectedAnnotationId={selectedAnnotation?.id || null}
@@ -221,11 +223,13 @@ const sourceTocOptions: ExtractTocOptions = {
 };
 
 function SourceBookcase({
+  agents,
   annotations,
   article,
   selectedAnnotationId,
   onOpenAnnotation,
 }: {
+  agents: Agent[];
   annotations: Annotation[];
   article: ArticleRecord | null;
   selectedAnnotationId: string | null;
@@ -235,6 +239,11 @@ function SourceBookcase({
   const articleRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [highlightChoice, setHighlightChoice] = useState<{
+    x: number;
+    y: number;
+    annotationIds: string[];
+  } | null>(null);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
@@ -291,6 +300,45 @@ function SourceBookcase({
       window.removeEventListener('resize', updateBoxes);
     };
   }, [annotations, article, contentHtml]);
+
+  useEffect(() => {
+    setHighlightChoice(null);
+  }, [article?.id, annotations]);
+
+  function openAnnotation(annotationId: string) {
+    setHighlightChoice(null);
+    onOpenAnnotation(annotationId);
+  }
+
+  function handleHighlightClick(annotationId: string, event: React.MouseEvent<HTMLButtonElement>) {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) {
+      openAnnotation(annotationId);
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const annotationIds = annotationIdsAtHighlightPoint(
+      boxes,
+      {
+        x: event.clientX - canvasRect.left,
+        y: event.clientY - canvasRect.top,
+      },
+      1,
+    );
+
+    if (annotationIds.length <= 1) {
+      openAnnotation(annotationIds[0] || annotationId);
+      return;
+    }
+
+    const x = event.clientX - canvasRect.left + 8;
+    setHighlightChoice({
+      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
+      y: Math.max(8, event.clientY - canvasRect.top + 8),
+      annotationIds,
+    });
+  }
 
   function scrollToTocItem(item: TocItem) {
     const articleElement = articleRef.current;
@@ -385,15 +433,94 @@ function SourceBookcase({
                   key={box.id}
                   style={highlightStyle(box, box.annotationId === selectedAnnotationId)}
                   type="button"
-                  onClick={() => onOpenAnnotation(box.annotationId)}
+                  onClick={(event) => handleHighlightClick(box.annotationId, event)}
                 />
               ))}
             </div>
+            {highlightChoice ? (
+              <SourceHighlightChoiceMenu
+                agents={agents}
+                annotations={highlightChoice.annotationIds
+                  .map((id) => annotations.find((annotation) => annotation.id === id))
+                  .filter((annotation): annotation is Annotation => Boolean(annotation))}
+                x={highlightChoice.x}
+                y={highlightChoice.y}
+                onClose={() => setHighlightChoice(null)}
+                onSelect={openAnnotation}
+              />
+            ) : null}
           </div>
         </div>
       </div>
     </section>
   );
+}
+
+function SourceHighlightChoiceMenu({
+  agents,
+  annotations,
+  x,
+  y,
+  onClose,
+  onSelect,
+}: {
+  agents: Agent[];
+  annotations: Annotation[];
+  x: number;
+  y: number;
+  onClose: () => void;
+  onSelect: (annotationId: string) => void;
+}) {
+  if (annotations.length <= 1) return null;
+
+  return (
+    <div className="source-highlight-choice-menu" style={{ left: x, top: y }}>
+      <header>
+        <strong>选择批注</strong>
+        <button type="button" onClick={onClose} aria-label="关闭批注选择">
+          <X size={14} />
+        </button>
+      </header>
+      {annotations.map((annotation) => {
+        const author = sourceAnnotationAuthor(annotation, agents);
+        return (
+          <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
+            <AvatarImage value={author.avatar} className="size-8" fallback={author.fallback} />
+            <span>
+              <strong>{author.nickname}</strong>
+              <em>@{author.username}</em>
+            </span>
+            {annotation.annotationType ? (
+              <b>{annotationTypeLabel(annotation.annotationType)}</b>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function sourceAnnotationAuthor(annotation: Annotation, agents: Agent[]) {
+  if (annotation.author === 'ai') {
+    const agent = agents.find(
+      (item) =>
+        item.id === annotation.agentId ||
+        (annotation.agentUsername && item.username === annotation.agentUsername),
+    );
+    return {
+      avatar: agent?.avatar || annotation.agentAvatar || '',
+      fallback: 'AI',
+      nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || 'Agent',
+      username: agent?.username || annotation.agentUsername || 'agent',
+    };
+  }
+
+  return {
+    avatar: annotation.userAvatar || '',
+    fallback: '我',
+    nickname: annotation.userNickname || annotation.userUsername || '我',
+    username: annotation.userUsername || 'me',
+  };
 }
 
 function ShelfTab({

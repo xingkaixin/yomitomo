@@ -4,7 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { AnnotationCard, Composer } from '../reader-components';
+import { AnnotationCard, Composer, HighlightChoiceMenu } from '../reader-components';
 
 afterEach(() => {
   cleanup();
@@ -148,5 +148,37 @@ describe('AnnotationCard', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加评论' }));
 
     expect(onAddComment).toHaveBeenCalledWith('annotation_1', '补充评论');
+  });
+});
+
+describe('HighlightChoiceMenu', () => {
+  it('selects the overlapping annotation by author choice', () => {
+    const onSelect = vi.fn();
+    render(
+      <HighlightChoiceMenu
+        action={{ x: 0, y: 0 }}
+        agents={[agent]}
+        annotations={[
+          annotation,
+          {
+            ...annotation,
+            id: 'annotation_2',
+            author: 'ai',
+            agentId: agent.id,
+            agentUsername: agent.username,
+            agentNickname: agent.nickname,
+            agentAvatar: agent.avatar,
+            agentAnnotationColor: agent.annotationColor,
+          },
+        ]}
+        userProfile={userProfile}
+        onCancel={vi.fn()}
+        onSelect={onSelect}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+
+    expect(onSelect).toHaveBeenCalledWith('annotation_2');
   });
 });
