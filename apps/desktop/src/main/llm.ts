@@ -18,6 +18,14 @@ import {
   type ReadingCardEvidenceUnit,
 } from '@yomitomo/core';
 import { logError, logInfo } from './logger';
+import {
+  budgetArticleText,
+  budgetDeliberationJson,
+  budgetEvidenceJson,
+  budgetReadingCardJson,
+  formatBudgetNotice,
+  normalizeAnthropicError,
+} from './llm-budget';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
@@ -73,7 +81,7 @@ export async function runAgentStream(
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
-  const user = buildAgentPrompt(payload);
+  const user = buildAgentPrompt(provider, payload);
   await streamAnthropic(provider, system, user, 1200, agent.temperature, onDelta);
 }
 
@@ -95,7 +103,7 @@ export async function runAgent(
   }
 
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
-  const user = buildAgentPrompt(payload);
+  const user = buildAgentPrompt(provider, payload);
   const content = await callAnthropic(provider, system, user, 1200, agent.temperature);
 
   return {
@@ -124,7 +132,7 @@ export async function runAgentAnnotate(
   const content = await callAnthropic(
     provider,
     system,
-    buildAgentAnnotatePrompt(payload, agent),
+    buildAgentAnnotatePrompt(provider, payload, agent),
     4000,
     agent.temperature,
   );
@@ -200,7 +208,7 @@ export async function runAgentAnnotateStream(
   await streamAnthropic(
     provider,
     system,
-    buildAgentAnnotateStreamPrompt(payload, agent),
+    buildAgentAnnotateStreamPrompt(provider, payload, agent),
     4000,
     agent.temperature,
     (delta) => {
@@ -222,7 +230,7 @@ export async function generateReadingCard(provider: LlmProvider, input: Generate
   const system =
     '你是 Yomitomo 的读后卡片生成器。你的任务是基于文章全文、读者批注和讨论证据生成一张可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
 
-  return callAnthropic(provider, system, buildReadingCardPrompt(input), 3000, 0.35);
+  return callAnthropic(provider, system, buildReadingCardPrompt(provider, input), 3000, 0.35);
 }
 
 export async function generateReadingDeliberation(
@@ -236,7 +244,13 @@ export async function generateReadingDeliberation(
   const system =
     '你是 Yomitomo 的阅读审议编辑。你的任务是基于文章全文、读者批注、助手批注和评论 thread，整理这场阅读讨论已经形成的判断、分歧、证据强弱和未决问题。保持中立、具体、可追溯，所有判断都要能回到原文或证据单元。';
 
-  return callAnthropic(provider, system, buildReadingDeliberationPrompt(input), 3600, 0.3);
+  return callAnthropic(
+    provider,
+    system,
+    buildReadingDeliberationPrompt(provider, input),
+    3600,
+    0.3,
+  );
 }
 
 export async function reviewReadingCard(
@@ -252,7 +266,7 @@ export async function reviewReadingCard(
   const rawResponse = await callAnthropic(
     provider,
     system,
-    buildReviewReadingCardPrompt(input),
+    buildReviewReadingCardPrompt(provider, input),
     3200,
     agent.temperature,
     { failOnMaxTokens: true },
@@ -290,7 +304,7 @@ async function callAnthropic(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Anthropic 请求失败：${response.status} ${text.slice(0, 400)}`);
+    throw new Error(normalizeAnthropicError(response.status, text));
   }
 
   const data = (await response.json()) as {
@@ -348,7 +362,7 @@ async function streamAnthropic(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Anthropic 请求失败：${response.status} ${text.slice(0, 400)}`);
+    throw new Error(normalizeAnthropicError(response.status, text));
   }
 
   if (!response.body) throw new Error('Anthropic streaming body 为空');
@@ -403,7 +417,7 @@ function previewSecret(value: string) {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
-function buildAgentPrompt(payload: AgentMessagePayload) {
+function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
   const comments = payload.annotation.comments
     .map((comment) => {
       const author =
@@ -412,8 +426,10 @@ function buildAgentPrompt(payload: AgentMessagePayload) {
     })
     .join('\n');
   const userMention = formatUserMention(payload.userComment);
+  const article = budgetArticleText(provider, 'agent-message', payload.article.text);
+  const budgetNotice = formatBudgetNotice([article.report]);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 30000)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
 function formatAgentAuthor(comment: Comment) {
@@ -434,15 +450,23 @@ function formatUserMention(comment: Comment) {
   return comment.userUsername ? `@${comment.userUsername}` : '读者';
 }
 
-function buildAgentAnnotatePrompt(payload: AgentAnnotatePayload, agent: Agent) {
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
+function buildAgentAnnotatePrompt(provider: LlmProvider, payload: AgentAnnotatePayload, agent: Agent) {
+  const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+  const budgetNotice = formatBudgetNotice([article.report]);
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
 }
 
-function buildAgentAnnotateStreamPrompt(payload: AgentAnnotatePayload, agent: Agent) {
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n全文：\n${payload.article.text.slice(0, 50000)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+function buildAgentAnnotateStreamPrompt(
+  provider: LlmProvider,
+  payload: AgentAnnotatePayload,
+  agent: Agent,
+) {
+  const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+  const budgetNotice = formatBudgetNotice([article.report]);
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
-function buildReadingCardPrompt(input: GenerateReadingCardInput) {
+function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCardInput) {
   const article = {
     title: input.article.title,
     url: input.article.canonicalUrl || input.article.url,
@@ -466,20 +490,32 @@ function buildReadingCardPrompt(input: GenerateReadingCardInput) {
         sections: input.readingDeliberation.sections,
       }
     : null;
+  const articleText = budgetArticleText(provider, 'reading-card', input.articleText);
+  const evidenceJson = budgetEvidenceJson('reading-card', evidence);
+  const deliberationJson = deliberation
+    ? budgetDeliberationJson('reading-card', deliberation)
+    : { text: '暂无', report: null };
+  const budgetNotice = formatBudgetNotice(
+    [articleText.report, evidenceJson.report, deliberationJson.report].filter(
+      (report) => report !== null,
+    ),
+  );
 
   return `请基于全文和证据单元生成一张中文 Markdown 读后卡片。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
 
+${budgetNotice}
+
 全文：
-${input.articleText.slice(0, 50000)}
+${articleText.text}
 
 证据单元：
-${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+${evidenceJson.text}
 
 阅读审议：
-${deliberation ? JSON.stringify(deliberation, null, 2).slice(0, 18000) : '暂无'}
+${deliberationJson.text}
 
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
@@ -510,7 +546,7 @@ ${deliberation ? JSON.stringify(deliberation, null, 2).slice(0, 18000) : '暂无
 列出后续阅读、验证假设或可执行动作。`;
 }
 
-function buildReadingDeliberationPrompt(input: GenerateReadingDeliberationInput) {
+function buildReadingDeliberationPrompt(provider: LlmProvider, input: GenerateReadingDeliberationInput) {
   const article = {
     title: input.article.title,
     url: input.article.canonicalUrl || input.article.url,
@@ -527,17 +563,22 @@ function buildReadingDeliberationPrompt(input: GenerateReadingDeliberationInput)
       content: comment.content,
     })),
   }));
+  const articleText = budgetArticleText(provider, 'reading-deliberation', input.articleText);
+  const evidenceJson = budgetEvidenceJson('reading-deliberation', evidence);
+  const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report]);
 
   return `请生成一份中文 Markdown 阅读审议。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
 
+${budgetNotice}
+
 全文：
-${input.articleText.slice(0, 50000)}
+${articleText.text}
 
 证据单元：
-${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+${evidenceJson.text}
 
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
@@ -565,7 +606,7 @@ ${JSON.stringify(evidence, null, 2).slice(0, 30000)}
 说明生成读后卡片时应该保留、压缩或谨慎处理的内容。`;
 }
 
-function buildReviewReadingCardPrompt(input: ReviewReadingCardInput) {
+function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadingCardInput) {
   const article = {
     title: input.article.title,
     url: input.article.canonicalUrl || input.article.url,
@@ -587,20 +628,26 @@ function buildReviewReadingCardPrompt(input: ReviewReadingCardInput) {
       content: comment.content,
     })),
   }));
+  const articleText = budgetArticleText(provider, 'reading-card-review', input.articleText);
+  const evidenceJson = budgetEvidenceJson('reading-card-review', evidence);
+  const cardJson = budgetReadingCardJson('reading-card-review', card);
+  const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report, cardJson.report]);
 
   return `请审核这张读后卡片，返回一个 JSON 对象。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
 
+${budgetNotice}
+
 全文：
-${input.articleText.slice(0, 50000)}
+${articleText.text}
 
 证据单元：
-${JSON.stringify(evidence, null, 2).slice(0, 30000)}
+${evidenceJson.text}
 
 读后卡片：
-${JSON.stringify(card, null, 2).slice(0, 30000)}
+${cardJson.text}
 
 审核维度：
 - 证据链：关键判断是否能对应文章原文或证据单元。

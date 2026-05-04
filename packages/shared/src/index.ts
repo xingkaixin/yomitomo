@@ -251,6 +251,88 @@ export type DesktopServerMessage =
   | { type: 'agent:annotate:result'; requestId: string; annotations: Annotation[] }
   | { type: 'error'; requestId?: string; message: string };
 
+export type DesktopClientMessageParseError = {
+  requestId?: string;
+  message: string;
+};
+
+export type DesktopClientMessageParseResult =
+  | { ok: true; message: DesktopClientMessage }
+  | { ok: false; error: DesktopClientMessageParseError };
+
+const MESSAGE_LIMITS = {
+  tokenChars: 512,
+  requestIdChars: 128,
+  idChars: 256,
+  usernameChars: 64,
+  urlChars: 4096,
+  titleChars: 512,
+  bylineChars: 512,
+  excerptChars: 2000,
+  contentHtmlChars: 2_000_000,
+  articleTextChars: 300_000,
+  annotations: 1000,
+  commentsPerAnnotation: 200,
+  commentChars: 20_000,
+  anchorExactChars: 20_000,
+  anchorContextChars: 2000,
+};
+
+export function parseDesktopClientMessage(value: unknown): DesktopClientMessageParseResult {
+  if (!isPlainObject(value)) return parseError(undefined, '消息必须是 JSON object');
+
+  const type = value.type;
+  const requestId = optionalBoundedString(value.requestId, MESSAGE_LIMITS.requestIdChars);
+  if (requestId === false) return parseError(undefined, 'requestId 超出长度限制');
+
+  if (type === 'auth') {
+    if (!boundedString(value.token, MESSAGE_LIMITS.tokenChars)) {
+      return parseError(undefined, 'auth.token 必须是非空字符串');
+    }
+    return { ok: true, message: value as { type: 'auth'; token: string } };
+  }
+
+  if (type === 'hello') return { ok: true, message: { type: 'hello' } };
+
+  if (!requestId) return parseError(undefined, 'requestId 必须是非空字符串');
+
+  if (type === 'agent:list') {
+    return { ok: true, message: value as { type: 'agent:list'; requestId: string } };
+  }
+
+  if (type === 'article:get') {
+    if (!isPlainObject(value.payload)) return parseError(requestId, 'article:get.payload 缺失');
+    const payload = value.payload;
+    if (!boundedString(payload.id, MESSAGE_LIMITS.idChars)) {
+      return parseError(requestId, 'article:get.payload.id 必须是非空字符串');
+    }
+    if (!isHttpUrl(payload.url) || !isHttpUrl(payload.canonicalUrl)) {
+      return parseError(requestId, 'article:get URL 必须是 http 或 https');
+    }
+    return { ok: true, message: value as DesktopClientMessage };
+  }
+
+  if (type === 'article:save') {
+    const error = validateArticleRecord(value.payload);
+    if (error) return parseError(requestId, error);
+    return { ok: true, message: value as DesktopClientMessage };
+  }
+
+  if (type === 'agent:message') {
+    const error = validateAgentMessagePayload(value.payload);
+    if (error) return parseError(requestId, error);
+    return { ok: true, message: value as DesktopClientMessage };
+  }
+
+  if (type === 'agent:annotate') {
+    const error = validateAgentAnnotatePayload(value.payload);
+    if (error) return parseError(requestId, error);
+    return { ok: true, message: value as DesktopClientMessage };
+  }
+
+  return parseError(requestId, '未知消息类型');
+}
+
 export function isDesktopSocketOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return false;
 
@@ -263,6 +345,149 @@ export function isDesktopSocketOriginAllowed(origin: string | undefined): boolea
   }
 
   return false;
+}
+
+function validateAgentMessagePayload(value: unknown) {
+  if (!isPlainObject(value)) return 'agent:message.payload 缺失';
+  if (!validateAgentIdentity(value)) return 'Agent 标识必须包含有效 username';
+  const articleError = validatePromptArticle(value.article);
+  if (articleError) return `agent:message.${articleError}`;
+  const annotationError = validateAnnotation(value.annotation);
+  if (annotationError) return `agent:message.annotation ${annotationError}`;
+  const commentError = validateComment(value.userComment);
+  if (commentError) return `agent:message.userComment ${commentError}`;
+  return '';
+}
+
+function validateAgentAnnotatePayload(value: unknown) {
+  if (!isPlainObject(value)) return 'agent:annotate.payload 缺失';
+  if (!validateAgentIdentity(value)) return 'Agent 标识必须包含有效 username';
+  const articleError = validatePromptArticle(value.article);
+  return articleError ? `agent:annotate.${articleError}` : '';
+}
+
+function validateAgentIdentity(value: Record<string, unknown>) {
+  return (
+    optionalBoundedString(value.agentId, MESSAGE_LIMITS.idChars) !== false &&
+    boundedString(value.agentUsername, MESSAGE_LIMITS.usernameChars)
+  );
+}
+
+function validatePromptArticle(value: unknown) {
+  if (!isPlainObject(value)) return 'article 缺失';
+  if (!boundedString(value.title, MESSAGE_LIMITS.titleChars)) return 'article.title 无效';
+  if (!isHttpUrl(value.url)) return 'article.url 必须是 http 或 https';
+  if (!boundedString(value.text, MESSAGE_LIMITS.articleTextChars)) {
+    return 'article.text 超出传输容量边界';
+  }
+  return '';
+}
+
+function validateArticleRecord(value: unknown) {
+  if (!isPlainObject(value)) return 'article:save.payload 缺失';
+  if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) return 'article.id 无效';
+  if (!isHttpUrl(value.url) || !isHttpUrl(value.canonicalUrl)) {
+    return 'article URL 必须是 http 或 https';
+  }
+  if (!boundedString(value.title, MESSAGE_LIMITS.titleChars)) return 'article.title 无效';
+  if (optionalBoundedString(value.byline, MESSAGE_LIMITS.bylineChars) === false) {
+    return 'article.byline 超出长度限制';
+  }
+  if (optionalBoundedString(value.excerpt, MESSAGE_LIMITS.excerptChars) === false) {
+    return 'article.excerpt 超出长度限制';
+  }
+  if (optionalBoundedString(value.contentHtml, MESSAGE_LIMITS.contentHtmlChars) === false) {
+    return 'article.contentHtml 超出存储容量边界';
+  }
+  if (!boundedString(value.contentHash, MESSAGE_LIMITS.idChars)) return 'article.contentHash 无效';
+  if (!Array.isArray(value.annotations)) return 'article.annotations 必须是数组';
+  if (value.annotations.length > MESSAGE_LIMITS.annotations) {
+    return 'article.annotations 超出数量限制';
+  }
+  for (const annotation of value.annotations) {
+    const error = validateAnnotation(annotation);
+    if (error) return `article.annotations ${error}`;
+  }
+  if (!boundedString(value.createdAt, MESSAGE_LIMITS.idChars)) return 'article.createdAt 无效';
+  if (!boundedString(value.updatedAt, MESSAGE_LIMITS.idChars)) return 'article.updatedAt 无效';
+  return '';
+}
+
+function validateAnnotation(value: unknown) {
+  if (!isPlainObject(value)) return '元素必须是 object';
+  if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) return 'id 无效';
+  if (!isPlainObject(value.anchor)) return 'anchor 缺失';
+  if (!boundedString(value.anchor.exact, MESSAGE_LIMITS.anchorExactChars)) {
+    return 'anchor.exact 无效';
+  }
+  if (!limitedString(value.anchor.prefix, MESSAGE_LIMITS.anchorContextChars)) {
+    return 'anchor.prefix 无效';
+  }
+  if (!limitedString(value.anchor.suffix, MESSAGE_LIMITS.anchorContextChars)) {
+    return 'anchor.suffix 无效';
+  }
+  if (!Number.isFinite(value.anchor.start) || !Number.isFinite(value.anchor.end)) {
+    return 'anchor start/end 无效';
+  }
+  if (value.author !== 'user' && value.author !== 'ai') return 'author 无效';
+  if (!boundedString(value.color, MESSAGE_LIMITS.idChars)) return 'color 无效';
+  if (!Array.isArray(value.comments)) return 'comments 必须是数组';
+  if (value.comments.length > MESSAGE_LIMITS.commentsPerAnnotation) {
+    return 'comments 超出数量限制';
+  }
+  for (const comment of value.comments) {
+    const error = validateComment(comment);
+    if (error) return `comment ${error}`;
+  }
+  if (!boundedString(value.createdAt, MESSAGE_LIMITS.idChars)) return 'createdAt 无效';
+  if (!boundedString(value.updatedAt, MESSAGE_LIMITS.idChars)) return 'updatedAt 无效';
+  return '';
+}
+
+function validateComment(value: unknown) {
+  if (!isPlainObject(value)) return '必须是 object';
+  if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) return 'id 无效';
+  if (value.author !== 'user' && value.author !== 'ai') return 'author 无效';
+  if (!limitedString(value.content, MESSAGE_LIMITS.commentChars)) {
+    return 'content 超出长度限制';
+  }
+  if (!boundedString(value.createdAt, MESSAGE_LIMITS.idChars)) return 'createdAt 无效';
+  return '';
+}
+
+function parseError(
+  requestId: string | undefined,
+  message: string,
+): { ok: false; error: DesktopClientMessageParseError } {
+  return { ok: false, error: { requestId, message } };
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function boundedString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
+}
+
+function limitedString(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.length <= maxLength;
+}
+
+function optionalBoundedString(value: unknown, maxLength: number): string | undefined | false {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string' || value.length > maxLength) return false;
+  return value;
+}
+
+function isHttpUrl(value: unknown) {
+  if (!boundedString(value, MESSAGE_LIMITS.urlChars)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function makeId(prefix: string): string {

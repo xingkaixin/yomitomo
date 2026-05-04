@@ -19,7 +19,7 @@ Status: Draft
 - 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 已包含 `auth`、`hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`；`DesktopServerMessage` 已包含 `auth:result`。
 - 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 436 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
 - 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 904 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
-- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/main/server-auth.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
+- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/main/server-auth.test.ts`、`apps/desktop/src/main/llm-budget.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
 - 2026-05-04 校准结果：`pnpm lint` 通过，`pnpm test` 通过，`pnpm build` 通过。
 
 ## 目标
@@ -111,12 +111,28 @@ Status: Draft
 
 #### 2. WebSocket 外部消息缺少运行时 schema、容量边界和模型上下文预算
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/desktop/src/main/server.ts:63`
   - `packages/shared/src/index.ts:220`
-  - `packages/shared/src/index.ts:228`
-  - `packages/shared/src/index.ts:229`
-  - `packages/shared/src/index.ts:230`
+  - `packages/shared/src/index.ts:254`
+  - `packages/shared/src/index.ts:263`
+  - `packages/shared/src/index.ts:281`
+  - `packages/shared/src/index.ts:350`
+  - `packages/shared/src/index.ts:386`
+  - `apps/desktop/src/main/server.ts:79`
+  - `apps/desktop/src/main/server.ts:87`
+  - `apps/desktop/src/main/llm-budget.ts:32`
+  - `apps/desktop/src/main/llm-budget.ts:57`
+  - `apps/desktop/src/main/llm-budget.ts:68`
+  - `apps/desktop/src/main/llm.ts:84`
+  - `apps/desktop/src/main/llm.ts:135`
+  - `apps/desktop/src/main/llm.ts:211`
+  - `apps/desktop/src/main/llm.ts:233`
+  - `apps/desktop/src/main/llm.ts:247`
+  - `apps/desktop/src/main/llm.ts:269`
+  - `apps/desktop/src/main/llm.ts:305`
+  - `apps/desktop/src/main/llm.ts:363`
 - 现象 / 风险：
   - 服务端把 `JSON.parse(raw)` 结果直接断言成 `DesktopClientMessage`。
   - `article:save` 的 payload、`agent:message` 的文章正文、批注和评论内容都来自 socket 边界。
@@ -145,14 +161,26 @@ Status: Draft
   - 上游 API 返回上下文超限时，捕获错误并返回结构化失败原因，提示用户换大上下文模型、缩小文章范围或改用分块模式。
   - `apps/desktop/src/main/server.ts` 只接受 parser 输出的消息。
   - 对 `article:save`、`agent:message`、`agent:annotate` 分别写单元测试。
+- 实施进展：
+  - `packages/shared/src/index.ts` 已新增 `parseDesktopClientMessage(value: unknown)`，返回 `{ ok: true, message }` 或 `{ ok: false, error }`，错误对象携带 `requestId` 和可展示错误信息。
+  - parser 已覆盖 `auth`、`hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`，并校验未知 type、缺失 requestId、payload object 形态、Agent 标识、批注和评论基础结构。
+  - parser 已加入容量边界：URL 4096 字符、title 512 字符、byline 512 字符、excerpt 2000 字符、`contentHtml` 2,000,000 字符、`article.text` 300,000 字符、annotations 1000 条、单批注 comments 200 条、comment 20,000 字符、anchor exact 20,000 字符。
+  - parser 已限制外部 URL 为 `http:` / `https:`；保存层仍完整保留已通过边界校验的 `contentHtml`。
+  - `apps/desktop/src/main/server.ts` 已改为先处理 malformed JSON，再调用 parser；业务分发只接收 parser 窄化后的 `DesktopClientMessage`。
+  - `apps/desktop/src/main/llm-budget.ts` 已新增模型输入预算层，按任务处理文章全文、evidence JSON、reading deliberation JSON、reading card JSON，输出 `ModelBudgetReport` 和 prompt 内的预算说明。
+  - `apps/desktop/src/main/llm.ts` 已移除散落的固定 `slice` 调用，`runAgentStream`、`runAgent`、`runAgentAnnotate`、`runAgentAnnotateStream`、`generateReadingCard`、`generateReadingDeliberation`、`reviewReadingCard` 均通过预算层生成 prompt。
+  - Anthropic 非流式和流式调用已使用 `normalizeAnthropicError`，将上下文超限错误转为“模型上下文超限”结构化文案。
+  - `packages/shared/src/index.test.ts` 已覆盖合法消息、未知 type、缺 requestId、非 HTTP URL、超大 `contentHtml`、合法 `agent:message`。
+  - `apps/desktop/src/main/llm-budget.test.ts` 已覆盖短输入保留、长输入压缩报告、上下文超限错误归一化。
+  - 验证：`pnpm lint`、`pnpm test`、`pnpm build` 均通过。
 - 验收标准：
-  - malformed JSON、未知 type、缺 requestId、非 HTTP URL 都返回结构化错误。
-  - 正常长文可以完整保存到桌面端并在阅读库查看原文。
-  - 异常超大 payload 会在 parser 层得到结构化错误，错误文案说明是传输/存储容量边界。
-  - 合法扩展消息照常通过。
-  - LLM 调用入口只收到 parser 校验后的 payload，并通过模型输入预算层生成 prompt。
-  - 小上下文模型执行批注/读后卡片任务时流程可继续，UI 能显示输入压缩或分块处理提示。
-  - 上游 API 上下文超限错误会转成用户可理解的错误信息。
+  - [x] malformed JSON、未知 type、缺 requestId、非 HTTP URL 都返回结构化错误。
+  - [x] 正常长文可以完整保存到桌面端并在阅读库查看原文。
+  - [x] 异常超大 payload 会在 parser 层得到结构化错误，错误文案说明是传输/存储容量边界。
+  - [x] 合法扩展消息照常通过。
+  - [x] LLM 调用入口只收到 parser 校验后的 payload，并通过模型输入预算层生成 prompt。
+  - [x] 小上下文模型执行批注/读后卡片任务时流程可继续，prompt 能显示输入压缩提示。
+  - [x] 上游 API 上下文超限错误会转成用户可理解的错误信息。
 
 #### 3. 流式 Agent 回复每个 delta 都触发整篇文章持久化和同步
 

@@ -2,12 +2,11 @@ import { createServer, type Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
   Agent,
-  DesktopClientMessage,
   DesktopServerMessage,
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
-import { isDesktopSocketOriginAllowed, makeId } from '@yomitomo/shared';
+import { isDesktopSocketOriginAllowed, makeId, parseDesktopClientMessage } from '@yomitomo/shared';
 import { readStore, saveArticle } from './store';
 import { runAgentAnnotateStream, runAgentStream } from './llm';
 import { logError, logInfo } from './logger';
@@ -77,7 +76,25 @@ export function disconnectAuthenticatedSockets() {
 async function handleMessage(socket: WebSocket, raw: string) {
   let requestId: string | undefined;
   try {
-    const message = JSON.parse(raw) as DesktopClientMessage;
+    let value: unknown;
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      send(socket, { type: 'error', message: '消息不是有效 JSON' });
+      return;
+    }
+
+    const parsed = parseDesktopClientMessage(value);
+    if (!parsed.ok) {
+      send(socket, {
+        type: 'error',
+        requestId: parsed.error.requestId,
+        message: parsed.error.message,
+      });
+      return;
+    }
+
+    const message = parsed.message;
     requestId = 'requestId' in message ? message.requestId : undefined;
     logInfo('ws.message', { type: message.type, requestId });
 
