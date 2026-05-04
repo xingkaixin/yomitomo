@@ -224,7 +224,7 @@ function agentAnnotationCandidates(exact: string) {
   for (const part of exact.split(/\n+/)) add(part);
   for (const sentence of splitAnnotationSentences(exact)) add(sentence);
 
-  return candidates.sort((left, right) => right.length - left.length);
+  return candidates.toSorted((left, right) => right.length - left.length);
 }
 
 function splitAnnotationSentences(text: string) {

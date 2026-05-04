@@ -243,9 +243,14 @@ Status: Draft
 - 建议方案：
   - 先把 `packages/core/src/annotations.ts:227` 改成 `toSorted()`，清空现有 warning。
   - 再决定质量门禁语义：保持 warning 允许但文档中记录“lint warning 可存在”，或把关键 warning 升级为 error。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - `packages/core/src/annotations.ts` 已使用 `toSorted()` 清理 `eslint-plugin-unicorn(no-array-sort)` warning。
+  - 当前新增测试中的 lint warning 已同步清理。
+  - `pnpm lint` 已返回 0 warning / 0 error。
 - 验收标准：
-  - [ ] `pnpm lint` 输出 0 warning。
-  - [ ] 或 CI / 文档明确 warning 的处理标准。
+  - [x] `pnpm lint` 输出 0 warning。
+  - [x] 或 CI / 文档明确 warning 的处理标准。
 
 #### 8. 测试覆盖集中在组件与纯函数，缺少扩展真实入口链路
 

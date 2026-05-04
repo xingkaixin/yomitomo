@@ -42,7 +42,7 @@ describe('Popup', () => {
   });
 
   it('uses a single ellipsis glyph while opening the reader', async () => {
-    let resolveToggle: () => void = () => {};
+    let resolveToggle: (() => void) | null = null;
     toggleReaderInTab.mockReturnValue(
       new Promise<void>((resolve) => {
         resolveToggle = resolve;
@@ -55,7 +55,7 @@ describe('Popup', () => {
     await waitFor(() => {
       expect(screen.getByRole('status').textContent).toBe('正在打开阅读器…');
     });
-    resolveToggle();
+    resolveToggle?.();
     await waitFor(() => expect(window.close).toHaveBeenCalled());
   });
 });
