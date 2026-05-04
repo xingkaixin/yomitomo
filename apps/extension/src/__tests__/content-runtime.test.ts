@@ -42,4 +42,30 @@ describe('registerContentToggleListener', () => {
     await expect(listener?.({ type: 'yomitomo:toggle:v2' })).resolves.toEqual({ ok: true });
     expect(toggleReader).toHaveBeenCalledTimes(2);
   });
+
+  it('marks the window ready only after listener registration succeeds', () => {
+    const listeners: Array<(message: { type?: string }) => unknown> = [];
+    const targetWindow = {} as Window;
+
+    expect(() =>
+      registerContentToggleListener({
+        addListener: () => {
+          throw new TypeError('Illegal invocation');
+        },
+        targetWindow,
+        toggleReader: vi.fn(),
+        errorMessage: String,
+      }),
+    ).toThrow('Illegal invocation');
+
+    const registered = registerContentToggleListener({
+      addListener: (listener) => listeners.push(listener),
+      targetWindow,
+      toggleReader: vi.fn(),
+      errorMessage: String,
+    });
+
+    expect(registered).toBe(true);
+    expect(listeners).toHaveLength(1);
+  });
 });

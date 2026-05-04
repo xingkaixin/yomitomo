@@ -21,7 +21,6 @@ export function registerContentToggleListener({
   const yomitomoWindow = targetWindow as YomitomoWindow;
   if (yomitomoWindow[CONTENT_READY_KEY]) return false;
 
-  yomitomoWindow[CONTENT_READY_KEY] = true;
   addListener((message) => {
     if (message.type !== 'yomitomo:toggle' && message.type !== 'yomitomo:toggle:v2') return;
 
@@ -32,5 +31,6 @@ export function registerContentToggleListener({
         return { ok: false, error: errorMessage(error) } satisfies RuntimeResponse;
       });
   });
+  yomitomoWindow[CONTENT_READY_KEY] = true;
   return true;
 }

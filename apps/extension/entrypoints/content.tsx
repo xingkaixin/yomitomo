@@ -83,7 +83,7 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
     registerContentToggleListener({
-      addListener: browser.runtime.onMessage.addListener,
+      addListener: (listener) => browser.runtime.onMessage.addListener(listener),
       toggleReader,
       errorMessage,
     });
