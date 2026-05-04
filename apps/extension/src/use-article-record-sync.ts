@@ -21,6 +21,7 @@ type DesktopProfileCache = {
 type UseArticleRecordSyncOptions = {
   extracted: ExtractedArticle;
   wsRef: React.MutableRefObject<WebSocket | null>;
+  desktopAuthenticatedRef: React.MutableRefObject<boolean>;
   annotationsRef: React.MutableRefObject<Annotation[]>;
   articleRecordRef: React.MutableRefObject<ArticleRecord | null>;
   recordCreatedAtRef: React.MutableRefObject<string | null>;
@@ -36,6 +37,7 @@ type UseArticleRecordSyncOptions = {
 export function useArticleRecordSync({
   extracted,
   wsRef,
+  desktopAuthenticatedRef,
   annotationsRef,
   articleRecordRef,
   recordCreatedAtRef,
@@ -173,6 +175,7 @@ export function useArticleRecordSync({
 
   function sendArticleRecord(record: ArticleRecord) {
     const socket = wsRef.current;
+    if (!desktopAuthenticatedRef.current) return;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(
       JSON.stringify({ type: 'article:save', requestId: makeId('request'), payload: record }),
@@ -193,6 +196,7 @@ export function useArticleRecordSync({
 
   function requestDesktopArticleRecord() {
     const socket = wsRef.current;
+    if (!desktopAuthenticatedRef.current) return;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     socket.send(
       JSON.stringify({

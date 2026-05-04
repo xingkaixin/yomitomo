@@ -59,6 +59,7 @@ import { useArticleRecordSync } from '../src/use-article-record-sync';
 
 const HOST_ID = 'yomitomo-root';
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
+const DESKTOP_PAIRING_TOKEN_KEY = 'yomitomo.desktopPairingToken';
 let root: Root | null = null;
 let previousOverflow = '';
 
@@ -133,6 +134,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const notesRef = useRef<HTMLElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const desktopAuthenticatedRef = useRef(false);
+  const pairingFailureRef = useRef('');
   const annotationsRef = useRef<Annotation[]>([]);
   const articleRecordRef = useRef<ArticleRecord | null>(null);
   const recordCreatedAtRef = useRef<string | null>(null);
@@ -155,6 +158,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
+  const [pairingLoaded, setPairingLoaded] = useState(false);
+  const [pairingToken, setPairingToken] = useState('');
+  const [pairingTokenDraft, setPairingTokenDraft] = useState('');
+  const [pairingStatus, setPairingStatus] = useState('未配对');
 
   const {
     applyDesktopArticleRecord,
@@ -165,6 +172,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   } = useArticleRecordSync({
     extracted,
     wsRef,
+    desktopAuthenticatedRef,
     annotationsRef,
     articleRecordRef,
     recordCreatedAtRef,
@@ -219,6 +227,25 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   useEffect(() => {
     annotationsRef.current = annotations;
   }, [annotations]);
+
+  useEffect(() => {
+    browser.storage.local
+      .get(DESKTOP_PAIRING_TOKEN_KEY)
+      .then((stored) => {
+        const token =
+          typeof stored[DESKTOP_PAIRING_TOKEN_KEY] === 'string'
+            ? stored[DESKTOP_PAIRING_TOKEN_KEY]
+            : '';
+        setPairingToken(token);
+        setPairingTokenDraft(token);
+        setPairingStatus(token ? '正在连接' : '未配对');
+      })
+      .catch((error: unknown) => {
+        readerLog('pairing.load.error', { message: errorMessage(error) });
+        setPairingStatus('读取配对码失败');
+      })
+      .finally(() => setPairingLoaded(true));
+  }, []);
 
   useLayoutEffect(() => {
     const article = articleRef.current;
@@ -313,19 +340,28 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [activeId, agents, annotations, boxes, userProfile]);
 
   useEffect(() => {
+    if (!pairingLoaded) return;
+    if (!pairingToken.trim()) {
+      desktopAuthenticatedRef.current = false;
+      setDesktopConnected(false);
+      setAgents([]);
+      setPairingStatus('未配对');
+      return;
+    }
+
     let closed = false;
     let reconnectTimer = 0;
 
     const connect = () => {
       const socket = new WebSocket(DESKTOP_WS_URL);
       wsRef.current = socket;
+      desktopAuthenticatedRef.current = false;
+      pairingFailureRef.current = '';
+      setPairingStatus('正在连接');
 
       socket.addEventListener('open', () => {
         readerLog('ws.open');
-        setDesktopConnected(true);
-        socket.send(JSON.stringify({ type: 'hello' }));
-        socket.send(JSON.stringify({ type: 'agent:list', requestId: makeId('request') }));
-        requestDesktopArticleRecord();
+        socket.send(JSON.stringify({ type: 'auth', token: pairingToken.trim() }));
       });
 
       socket.addEventListener('message', (event) => {
@@ -339,12 +375,19 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
       socket.addEventListener('close', () => {
         readerLog('ws.close');
+        desktopAuthenticatedRef.current = false;
         setDesktopConnected(false);
-        if (!closed) reconnectTimer = window.setTimeout(connect, 2000);
+        setPairingStatus(
+          pairingFailureRef.current || (pairingToken.trim() ? '桌面端未连接' : '未配对'),
+        );
+        if (!closed && !pairingFailureRef.current) {
+          reconnectTimer = window.setTimeout(connect, 2000);
+        }
       });
 
       socket.addEventListener('error', () => {
         readerLog('ws.error');
+        desktopAuthenticatedRef.current = false;
         setDesktopConnected(false);
       });
     };
@@ -355,9 +398,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       closed = true;
       window.clearTimeout(reconnectTimer);
       cleanupVirtualReadingSessions();
+      desktopAuthenticatedRef.current = false;
       wsRef.current?.close();
     };
-  }, [saveAnnotations]);
+  }, [pairingLoaded, pairingToken, saveAnnotations]);
 
   useLayoutEffect(() => {
     recalculateHighlights();
@@ -407,6 +451,23 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [recalculateActiveConnection]);
 
   async function handleDesktopMessage(message: DesktopServerMessage) {
+    if (message.type === 'auth:result') {
+      desktopAuthenticatedRef.current = message.ok;
+      setDesktopConnected(message.ok);
+      setPairingStatus(message.ok ? '已配对' : message.message || '配对失败');
+      if (!message.ok) {
+        pairingFailureRef.current = message.message || '配对失败';
+        return;
+      }
+
+      const socket = wsRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      socket.send(JSON.stringify({ type: 'hello' }));
+      socket.send(JSON.stringify({ type: 'agent:list', requestId: makeId('request') }));
+      requestDesktopArticleRecord();
+      return;
+    }
+
     if (message.type === 'status' || message.type === 'agent:list:result') {
       const user = normalizeUserProfile(message.user);
       setDesktopConnected(message.type === 'status' ? message.ok : true);
@@ -664,6 +725,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function sendAgentMessage(agent: PublicAgent, annotation: Annotation, userComment: Comment) {
     const socket = wsRef.current;
+    if (!desktopAuthenticatedRef.current) return;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
     socket.send(
@@ -688,6 +750,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   function requestAgentAnnotations(agent: PublicAgent) {
     if (annotatingAgents.includes(agent.id)) return;
     const socket = wsRef.current;
+    if (!desktopAuthenticatedRef.current) return;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
 
     const requestId = makeId('request');
@@ -716,6 +779,29 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function requestSelectedAgentAnnotations() {
     for (const agent of agents) requestAgentAnnotations(agent);
+  }
+
+  async function savePairingToken() {
+    const token = pairingTokenDraft.trim();
+    if (!token) {
+      await disconnectDesktop();
+      return;
+    }
+
+    await browser.storage.local.set({ [DESKTOP_PAIRING_TOKEN_KEY]: token });
+    setPairingToken(token);
+    setPairingStatus('正在连接');
+  }
+
+  async function disconnectDesktop() {
+    await browser.storage.local.remove(DESKTOP_PAIRING_TOKEN_KEY);
+    setPairingToken('');
+    setPairingTokenDraft('');
+    setPairingStatus('未配对');
+    setDesktopConnected(false);
+    setAgents([]);
+    desktopAuthenticatedRef.current = false;
+    wsRef.current?.close();
   }
 
   function cancelAgentAnnotateMenu() {
@@ -773,6 +859,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       noteFilter={noteFilter}
       noteRefs={noteRefs}
       notesRef={notesRef}
+      pairingStatus={pairingStatus}
+      pairingTokenDraft={pairingTokenDraft}
       readerSettings={readerSettings}
       selectionAction={selectionAction}
       settingsOpen={settingsOpen}
@@ -802,11 +890,14 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       }}
       onRequestAgentAnnotations={requestAgentAnnotations}
       onRequestSelectedAgentAnnotations={requestSelectedAgentAnnotations}
+      onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}
       onScrollToHighlight={scrollToHighlight}
       onSetNoteFilter={(filter) => setNoteFilter(filter)}
+      onSetPairingTokenDraft={setPairingTokenDraft}
       onToggleAgentAnnotate={() => setAgentAnnotateOpen((open) => !open)}
       onToggleSettings={() => setSettingsOpen((open) => !open)}
+      onDisconnectDesktop={disconnectDesktop}
       onUpdateReaderSettings={updateReaderSettings}
     />
   );

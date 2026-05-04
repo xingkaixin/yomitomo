@@ -30,6 +30,11 @@ export type ReviewReadingCardInput = GenerateReadingCardInput & {
   reviewAgentIds?: string[];
 };
 
+export type PairingInfo = {
+  token: string;
+  updatedAt: string;
+};
+
 const api = {
   getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
   saveUser: (user: Partial<UserProfile>) =>
@@ -46,6 +51,8 @@ const api = {
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
+  getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
+  rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
   generateReadingCard: (input: GenerateReadingCardInput) =>
     ipcRenderer.invoke('reading-card:generate', input) as Promise<{
       readingCard: ReadingCardRecord;

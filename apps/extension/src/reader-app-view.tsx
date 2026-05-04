@@ -48,6 +48,8 @@ type ReaderAppViewProps = {
   noteFilter: NoteFilter;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
+  pairingStatus: string;
+  pairingTokenDraft: string;
   readerSettings: ReaderSettings;
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
@@ -69,11 +71,14 @@ type ReaderAppViewProps = {
   onOpenComposer: (action: SelectionAction) => void;
   onRequestAgentAnnotations: (agent: PublicAgent) => void;
   onRequestSelectedAgentAnnotations: () => void;
+  onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
   onSetNoteFilter: (filter: NoteFilter) => void;
+  onSetPairingTokenDraft: (token: string) => void;
   onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
+  onDisconnectDesktop: () => void | Promise<void>;
   onUpdateReaderSettings: (settings: ReaderSettings) => void | Promise<void>;
 };
 
@@ -96,6 +101,8 @@ export function ReaderAppView({
   noteFilter,
   noteRefs,
   notesRef,
+  pairingStatus,
+  pairingTokenDraft,
   readerSettings,
   selectionAction,
   settingsOpen,
@@ -117,11 +124,14 @@ export function ReaderAppView({
   onOpenComposer,
   onRequestAgentAnnotations,
   onRequestSelectedAgentAnnotations,
+  onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
   onSetNoteFilter,
+  onSetPairingTokenDraft,
   onToggleAgentAnnotate,
   onToggleSettings,
+  onDisconnectDesktop,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
@@ -199,7 +209,16 @@ export function ReaderAppView({
       ) : null}
 
       {settingsOpen ? (
-        <ReaderSettingsPanel settings={readerSettings} onChange={onUpdateReaderSettings} />
+        <ReaderSettingsPanel
+          desktopConnected={desktopConnected}
+          pairingStatus={pairingStatus}
+          pairingTokenDraft={pairingTokenDraft}
+          settings={readerSettings}
+          onChange={onUpdateReaderSettings}
+          onDisconnectDesktop={onDisconnectDesktop}
+          onSavePairingToken={onSavePairingToken}
+          onSetPairingTokenDraft={onSetPairingTokenDraft}
+        />
       ) : null}
 
       <main className="reader-main">

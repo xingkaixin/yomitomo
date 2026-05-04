@@ -78,6 +78,15 @@ export const readerConversationStyles = `
 @keyframes reader-delete-hold{to{width:100%}}
 .reader-agent-annotate-popover{position:fixed;right:84px;top:76px;z-index:8;width:320px}
 .reader-agent-annotate-popover .reader-agent-annotate-menu{margin:0}
+.reader-pairing-row{display:grid;gap:8px;padding:0 0 10px;margin-bottom:8px;border-bottom:1px solid rgba(37,29,22,.1)}
+.reader-pairing-row label{display:inline-flex;align-items:center;gap:8px;color:var(--reader-muted);font-size:13px;font-weight:760}
+.reader-pairing-row input{width:100%;height:34px;border:1px solid rgba(37,29,22,.16);border-radius:10px;background:#fffdf7;color:var(--reader-ink);font:inherit;font-size:12px;padding:0 10px}
+.reader-pairing-actions{display:flex;gap:8px}
+.reader-pairing-actions button{display:inline-flex;height:32px;align-items:center;gap:6px;border:0;border-radius:999px;background:#e7dac9;color:var(--reader-ink);cursor:pointer;font:inherit;font-size:12px;font-weight:820;padding:0 11px}
+.reader-pairing-actions button:first-child{background:var(--reader-ink);color:#fffaf0}
+.reader-pairing-actions button:disabled{cursor:not-allowed;opacity:.48}
+.reader-pairing-status{color:#8f2f28;font-size:12px;font-weight:760}
+.reader-pairing-status.is-connected{color:#166434}
 .reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
 .reader-toc-item-main>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-toc-meta{display:inline-flex;align-items:center;gap:8px}

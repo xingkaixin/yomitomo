@@ -7,15 +7,22 @@ import type {
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
+import { isDesktopSocketOriginAllowed, makeId } from '@yomitomo/shared';
 import { readStore, saveArticle } from './store';
 import { runAgentAnnotateStream, runAgentStream } from './llm';
 import { logError, logInfo } from './logger';
+import { getPairingInfo, verifyPairingToken } from './pairing';
+import {
+  authorizeDesktopClientMessage,
+  resolveSocketAuthResult,
+  type DesktopSocketAuthState,
+} from './server-auth';
 
 const PORT = 43891;
 
 let httpServer: Server | null = null;
 let wsServer: WebSocketServer | null = null;
+const socketStates = new WeakMap<WebSocket, DesktopSocketAuthState>();
 
 export async function startLocalServer() {
   if (httpServer) return;
@@ -32,9 +39,11 @@ export async function startLocalServer() {
   });
 
   wsServer = new WebSocketServer({ server: httpServer });
-  wsServer.on('connection', (socket) => {
-    logInfo('ws.connection');
-    void sendStatus(socket);
+  wsServer.on('connection', (socket, request) => {
+    const origin = request.headers.origin;
+    const originAllowed = isDesktopSocketOriginAllowed(origin);
+    socketStates.set(socket, { authenticated: false, originAllowed });
+    logInfo('ws.connection', { origin, originAllowed });
 
     socket.on('message', (raw) => {
       void handleMessage(socket, raw.toString());
@@ -51,8 +60,16 @@ export async function startLocalServer() {
 
 export function broadcastStatus() {
   wsServer?.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
+    if (client.readyState === WebSocket.OPEN && socketStates.get(client)?.authenticated) {
       void sendStatus(client);
+    }
+  });
+}
+
+export function disconnectAuthenticatedSockets() {
+  wsServer?.clients.forEach((client) => {
+    if (socketStates.get(client)?.authenticated) {
+      client.close(1008, 'pairing rotated');
     }
   });
 }
@@ -63,6 +80,21 @@ async function handleMessage(socket: WebSocket, raw: string) {
     const message = JSON.parse(raw) as DesktopClientMessage;
     requestId = 'requestId' in message ? message.requestId : undefined;
     logInfo('ws.message', { type: message.type, requestId });
+
+    if (message.type === 'auth') {
+      await authenticateSocket(socket, message.token);
+      return;
+    }
+
+    const authorization = authorizeDesktopClientMessage(socketStates.get(socket), message);
+    if (!authorization.ok) {
+      send(socket, {
+        type: 'error',
+        requestId: authorization.requestId,
+        message: authorization.message,
+      });
+      return;
+    }
 
     if (message.type === 'hello') {
       await sendStatus(socket);
@@ -197,6 +229,21 @@ async function handleMessage(socket: WebSocket, raw: string) {
       message: error instanceof Error ? error.message : '本地服务处理失败',
     });
   }
+}
+
+async function authenticateSocket(socket: WebSocket, token: string) {
+  const state = socketStates.get(socket);
+  const pairing = await getPairingInfo();
+  const auth = resolveSocketAuthResult(state, verifyPairingToken(token, pairing.token));
+  if (!auth.ok) {
+    send(socket, { type: 'auth:result', ok: false, message: auth.message });
+    socket.close(1008, auth.message);
+    return;
+  }
+
+  socketStates.set(socket, auth.state);
+  send(socket, { type: 'auth:result', ok: true });
+  await sendStatus(socket);
 }
 
 async function sendStatus(socket: WebSocket) {

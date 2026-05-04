@@ -32,7 +32,8 @@ import {
   type ReviewReadingCardInput,
 } from './llm';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
-import { broadcastStatus, startLocalServer } from './server';
+import { getPairingInfo, rotatePairingInfo } from './pairing';
+import { broadcastStatus, disconnectAuthenticatedSockets, startLocalServer } from './server';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -117,6 +118,12 @@ function registerIpc() {
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
+  ipcMain.handle('pairing:get', () => getPairingInfo());
+  ipcMain.handle('pairing:rotate', async () => {
+    const pairing = await rotatePairingInfo();
+    disconnectAuthenticatedSockets();
+    return pairing;
+  });
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('settings:save', (_event, input: { defaultProviderId?: string }) =>
     saveSettings(input),

@@ -3,12 +3,15 @@ import {
   CaseSensitive,
   ChevronDown,
   ChevronUp,
+  KeyRound,
   Maximize2,
   MessageSquare,
   MessageSquarePlus,
   Minus,
   Plus,
+  Save,
   Trash2,
+  Unplug,
 } from 'lucide-react';
 import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
@@ -175,14 +178,60 @@ export function AgentAnnotateMenu({
 }
 
 export function ReaderSettingsPanel({
+  desktopConnected,
+  pairingStatus,
+  pairingTokenDraft,
   settings,
   onChange,
+  onDisconnectDesktop,
+  onSavePairingToken,
+  onSetPairingTokenDraft,
 }: {
+  desktopConnected: boolean;
+  pairingStatus: string;
+  pairingTokenDraft: string;
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
+  onDisconnectDesktop: () => void | Promise<void>;
+  onSavePairingToken: () => void | Promise<void>;
+  onSetPairingTokenDraft: (token: string) => void;
 }) {
   return (
     <div className="reader-settings-panel">
+      <div className="reader-pairing-row">
+        <label htmlFor="reader-pairing-token">
+          <KeyRound size={16} />
+          桌面端配对码
+        </label>
+        <input
+          id="reader-pairing-token"
+          autoComplete="off"
+          spellCheck={false}
+          value={pairingTokenDraft}
+          onChange={(event) => onSetPairingTokenDraft(event.target.value)}
+        />
+        <div className="reader-pairing-actions">
+          <button type="button" onClick={onSavePairingToken}>
+            <Save size={13} />
+            保存
+          </button>
+          <button
+            disabled={!pairingTokenDraft && !desktopConnected}
+            type="button"
+            onClick={onDisconnectDesktop}
+          >
+            <Unplug size={13} />
+            断开
+          </button>
+        </div>
+        <span
+          className={
+            desktopConnected ? 'reader-pairing-status is-connected' : 'reader-pairing-status'
+          }
+        >
+          {pairingStatus}
+        </span>
+      </div>
       <SettingStepper
         icon={<CaseSensitive size={17} />}
         label="字号"

@@ -64,8 +64,9 @@ import {
   SelectValue,
 } from './components/ui/select';
 import { Textarea } from './components/ui/textarea';
-import { AvatarImage, Field, PanelHeader } from './app-ui';
+import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
 import type { ProviderOption, SaveState } from './app-types';
+import type { PairingInfo } from '../../preload';
 
 export const agentAvatars = [
   avatar01Raw,
@@ -118,21 +119,25 @@ export function SettingsNavButton({
 
 export function GeneralSettings({
   draft,
+  pairingInfo,
   providers,
   settingsDraft,
   canSave,
   onChange,
   onSettingsChange,
   onSave,
+  onRotatePairing,
   saveState,
 }: {
   draft: UserDraft;
+  pairingInfo: PairingInfo | null;
   providers: ProviderOption[];
   settingsDraft: AppSettings;
   canSave: boolean;
   onChange: (draft: UserDraft) => void;
   onSettingsChange: (draft: AppSettings) => void;
   onSave: () => void;
+  onRotatePairing: () => void;
   saveState: SaveState;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
@@ -230,6 +235,21 @@ export function GeneralSettings({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+        <Field
+          id="desktop-pairing-token"
+          className="col-span-2"
+          description="浏览器扩展输入这段配对码后，才能连接本机桌面端。"
+          label="扩展配对码"
+        >
+          <div className="flex items-center gap-2">
+            <Input id="desktop-pairing-token" readOnly value={pairingInfo?.token || ''} />
+            <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
+            <Button type="button" variant="secondary" onClick={onRotatePairing}>
+              <KeyRound size={16} />
+              换新配对码
+            </Button>
+          </div>
         </Field>
       </div>
     </div>

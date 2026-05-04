@@ -32,6 +32,7 @@ import {
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import type { SaveState } from './app-types';
+import type { PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
@@ -52,12 +53,14 @@ function App() {
   const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
     if (!desktop) return;
 
     refreshStore();
+    refreshPairingInfo();
   }, []);
 
   const providerOptions = useMemo(
@@ -112,6 +115,20 @@ function App() {
     setSettingsDraft(nextStore.settings);
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
     if (nextStore.agents[0]) selectAgent(nextStore.agents[0]);
+  }
+
+  async function refreshPairingInfo() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    setPairingInfo(await desktop.getPairingInfo());
+  }
+
+  async function rotatePairingInfo() {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    setPairingInfo(await desktop.rotatePairingInfo());
   }
 
   function selectProvider(provider: LlmProvider) {
@@ -353,6 +370,7 @@ function App() {
           {activeSetting === 'general' ? (
             <GeneralSettings
               draft={userDraft}
+              pairingInfo={pairingInfo}
               providers={providerOptions}
               settingsDraft={settingsDraft}
               canSave={canSaveUser}
@@ -365,6 +383,7 @@ function App() {
                 setUserSaveState('idle');
               }}
               onSave={saveUserDraft}
+              onRotatePairing={rotatePairingInfo}
               saveState={userSaveState}
             />
           ) : null}

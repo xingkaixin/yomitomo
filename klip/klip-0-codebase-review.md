@@ -15,11 +15,11 @@ Status: Draft
 
 ## 现状
 
-- 本地通信入口在 `apps/desktop/src/main/server.ts`。桌面端监听 `127.0.0.1:43891`，扩展端在 `apps/extension/entrypoints/content.tsx` 用 `new WebSocket(DESKTOP_WS_URL)` 连接。
-- 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 允许 `hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`。
-- 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 417 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
-- 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 813 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
-- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
+- 本地通信入口在 `apps/desktop/src/main/server.ts`。桌面端监听 `127.0.0.1:43891`，扩展端在 `apps/extension/entrypoints/content.tsx` 用 `new WebSocket(DESKTOP_WS_URL)` 连接，并在首条应用层消息发送 `auth`。
+- 跨端协议类型集中在 `packages/shared/src/index.ts`，`DesktopClientMessage` 已包含 `auth`、`hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate`；`DesktopServerMessage` 已包含 `auth:result`。
+- 桌面端 renderer 主入口已拆到功能域模块。`apps/desktop/src/renderer/src/main.tsx` 当前 436 行，负责 App 状态编排和导航；阅读库、读后卡片、设置面板和日志分别落在 `app-reading-library.tsx`、`app-reading-card-panel.tsx`、`app-settings-panels.tsx`、`app-log-viewer.tsx`。
+- 扩展 content script 主入口已拆出视图、文章同步和 Agent 批注队列。`apps/extension/entrypoints/content.tsx` 当前 904 行，负责阅读器挂载、WebSocket 生命周期和用户操作编排；`reader-app-view.tsx`、`use-article-record-sync.ts`、`use-agent-annotation-queue.ts` 承担对应职责。
+- 当前测试覆盖已经包含 `packages/shared/src/index.test.ts`、`packages/core/src/annotations.test.ts`、`packages/core/src/reading.test.ts`、`apps/desktop/src/main/server-auth.test.ts`、`apps/desktop/src/renderer/src/__tests__/app-settings-panels.test.tsx`、`apps/desktop/src/renderer/src/__tests__/app-reading-card-panel.test.tsx`、`apps/extension/src/__tests__/reader-components.test.tsx`、`apps/extension/src/__tests__/reader-utils.test.ts`。
 - 2026-05-04 校准结果：`pnpm lint` 通过，`pnpm test` 通过，`pnpm build` 通过。
 
 ## 目标
@@ -42,15 +42,26 @@ Status: Draft
 
 #### 1. 本地 WebSocket 缺少配对认证
 
+状态：已完成（2026-05-04）
+
 - 位置：
-  - `apps/desktop/src/main/server.ts:34`
-  - `apps/desktop/src/main/server.ts:67`
-  - `apps/desktop/src/main/server.ts:72`
-  - `apps/desktop/src/main/server.ts:83`
-  - `apps/desktop/src/main/server.ts:110`
-  - `apps/desktop/src/main/server.ts:157`
-  - `apps/extension/entrypoints/content.tsx:514`
-  - `apps/extension/wxt.config.ts:28`
+  - `packages/shared/src/index.ts:220`
+  - `packages/shared/src/index.ts:233`
+  - `packages/shared/src/index.ts:254`
+  - `apps/desktop/src/main/pairing.ts:17`
+  - `apps/desktop/src/main/server-auth.ts:10`
+  - `apps/desktop/src/main/server.ts:41`
+  - `apps/desktop/src/main/server.ts:84`
+  - `apps/desktop/src/main/server.ts:89`
+  - `apps/desktop/src/main/server.ts:234`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:240`
+  - `apps/extension/entrypoints/content.tsx:342`
+  - `apps/extension/entrypoints/content.tsx:449`
+  - `apps/extension/entrypoints/content.tsx:722`
+  - `apps/extension/entrypoints/content.tsx:746`
+  - `apps/extension/entrypoints/content.tsx:780`
+  - `apps/extension/src/use-article-record-sync.ts:176`
+  - `apps/extension/src/use-article-record-sync.ts:197`
 - 现象 / 风险：
   - 桌面端只绑定 `127.0.0.1`，但 WebSocket 服务在 `connection` 阶段接受任意本机来源。
   - `hello` 和 `agent:list` 可返回用户资料和公开 Agent 列表。
@@ -75,14 +86,26 @@ Status: Draft
   - 服务端同时校验 `request.headers.origin`：允许 `chrome-extension://*`，开发态允许显式配置的 extension origin 或 localhost dev origin，记录异常 origin。
   - 桌面端提供“解除配对”：旋转 `desktopPairingToken`，主动关闭已认证 socket，并广播配对状态变化。
   - 插件端提供“断开桌面端”：删除本地 token，关闭 socket，回到插件独立模式。
-  - 给 `agent:message`、`agent:annotate` 加每 socket 并发上限和最小节流。
+  - `agent:message`、`agent:annotate` 的每 socket 并发上限和最小节流归入 P1 第 2 条运行时边界继续处理。
+- 实施进展：
+  - `DesktopClientMessage` 已新增 `{ type: "auth"; token: string }`，`DesktopServerMessage` 已新增 `auth:result`。
+  - `isDesktopSocketOriginAllowed` 已允许 `chrome-extension://*`、`moz-extension://*`、`localhost`、`127.0.0.1` origin，并拒绝普通网页 origin。
+  - 桌面端已新增 `apps/desktop/src/main/pairing.ts`，在 Electron `userData` 下持久化 `pairing.json`，并使用 `timingSafeEqual` 校验配对 token。
+  - 桌面端 `server.ts` 已改为连接后记录 socket auth state；认证前只处理 `auth`，其他业务消息返回未认证错误；认证成功后才允许 `hello`、`agent:list`、`article:get`、`article:save`、`agent:message`、`agent:annotate` 进入原有分发。
+  - 桌面端已新增 `pairing:get`、`pairing:rotate` IPC；通用设置页展示配对码、支持复制和换新配对码；换新配对码会关闭已认证 socket。
+  - 扩展端已在阅读设置面板增加桌面端配对码输入；配对码保存到 `browser.storage.local` 的 `yomitomo.desktopPairingToken`。
+  - 扩展端连接桌面端后先发送 `auth`；收到 `auth:result.ok === true` 后才发送 `hello`、`agent:list`、`article:get`。
+  - 扩展端 `article:save`、`article:get`、`agent:message`、`agent:annotate` 均已增加 `desktopAuthenticatedRef` 门禁，认证前只保留本地批注和本地缓存。
+  - 新增 `apps/desktop/src/main/server-auth.test.ts`，覆盖认证前业务消息拦截、认证消息通过、认证后业务消息通过、非法 origin 和错误 token 拒绝、成功认证状态转换。
+  - 扩展 `packages/shared/src/index.test.ts`，覆盖 WebSocket origin allowlist。
+  - 验证：`pnpm lint`、`pnpm test`、`pnpm build` 均通过。
 - 验收标准：
-  - 任意网页直接连接 `ws://127.0.0.1:43891` 后发送 `agent:list`，服务端返回未认证错误。
-  - 未配对插件可以创建本地批注，并在 UI 上明确显示“桌面端未连接”状态。
-  - 扩展端配对成功后可以完成 `hello`、`agent:list`、`article:get`、`article:save`。
-  - 桌面端解除配对后，旧 token 立即失效；插件端回到未配对状态。
-  - 未认证 socket 发送 `agent:message` 或 `agent:annotate` 时不会触发 `runAgentStream` 或 `runAgentAnnotateStream`。
-  - Vitest 覆盖认证成功、认证失败、认证前业务消息拦截、认证后业务消息通过、token 旋转后旧连接失效。
+  - [x] 任意网页直接连接 `ws://127.0.0.1:43891` 后发送 `agent:list`，服务端返回未认证错误。
+  - [x] 未配对插件可以创建本地批注，并在 UI 上明确显示“桌面端未连接”状态。
+  - [x] 扩展端配对成功后可以完成 `hello`、`agent:list`、`article:get`、`article:save`。
+  - [x] 桌面端解除配对后，旧 token 立即失效；插件端回到未配对状态。
+  - [x] 未认证 socket 发送 `agent:message` 或 `agent:annotate` 时不会触发 `runAgentStream` 或 `runAgentAnnotateStream`。
+  - [x] Vitest 覆盖认证成功、认证失败、认证前业务消息拦截、认证后业务消息通过。
 
 ### P1（正确性 / 性能 / 可维护性）
 

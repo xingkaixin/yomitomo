@@ -218,6 +218,7 @@ export type AgentAnnotatePayload = {
 };
 
 export type DesktopClientMessage =
+  | { type: 'auth'; token: string }
   | { type: 'hello' }
   | { type: 'agent:list'; requestId: string }
   | {
@@ -230,6 +231,7 @@ export type DesktopClientMessage =
   | { type: 'agent:annotate'; requestId: string; payload: AgentAnnotatePayload };
 
 export type DesktopServerMessage =
+  | { type: 'auth:result'; ok: boolean; message?: string }
   | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[] }
   | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
   | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
@@ -248,6 +250,20 @@ export type DesktopServerMessage =
   | { type: 'agent:annotate:done'; requestId: string }
   | { type: 'agent:annotate:result'; requestId: string; annotations: Annotation[] }
   | { type: 'error'; requestId?: string; message: string };
+
+export function isDesktopSocketOriginAllowed(origin: string | undefined): boolean {
+  if (!origin) return false;
+
+  try {
+    const url = new URL(origin);
+    if (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') return true;
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return true;
+  } catch {
+    return false;
+  }
+
+  return false;
+}
 
 export function makeId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;

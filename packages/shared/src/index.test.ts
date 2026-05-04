@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createTextAnchor, renderMarkdown, resolveTextAnchor } from './index';
+import {
+  createTextAnchor,
+  isDesktopSocketOriginAllowed,
+  renderMarkdown,
+  resolveTextAnchor,
+} from './index';
 
 describe('shared text anchors', () => {
   it('resolves repeated exact text with prefix and suffix context', () => {
@@ -19,5 +24,20 @@ describe('shared markdown rendering', () => {
 
     expect(html).toContain('<strong>world</strong>');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+  });
+});
+
+describe('desktop socket origin policy', () => {
+  it('accepts extension and localhost origins', () => {
+    expect(isDesktopSocketOriginAllowed('chrome-extension://abcdefghijklmnop')).toBe(true);
+    expect(isDesktopSocketOriginAllowed('moz-extension://abcdefghijklmnop')).toBe(true);
+    expect(isDesktopSocketOriginAllowed('http://localhost:3000')).toBe(true);
+    expect(isDesktopSocketOriginAllowed('http://127.0.0.1:3000')).toBe(true);
+  });
+
+  it('rejects web page and missing origins', () => {
+    expect(isDesktopSocketOriginAllowed('https://example.com')).toBe(false);
+    expect(isDesktopSocketOriginAllowed('not a url')).toBe(false);
+    expect(isDesktopSocketOriginAllowed(undefined)).toBe(false);
   });
 });
