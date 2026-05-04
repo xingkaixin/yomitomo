@@ -511,22 +511,28 @@ async function readSse(response: Response, onData: (data: string) => void) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  const flushEvent = (event: string) => {
+    const dataLines = event
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data: '))
+      .map((line) => line.slice(6));
+    for (const data of dataLines) {
+      if (data && data !== '[DONE]') onData(data);
+    }
+  };
+
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split('\n\n');
-    buffer = events.pop() || '';
-    for (const event of events) {
-      const dataLines = event
-        .split('\n')
-        .filter((line) => line.startsWith('data: '))
-        .map((line) => line.slice(6));
-      for (const data of dataLines) {
-        if (data && data !== '[DONE]') onData(data);
-      }
+    if (done) {
+      buffer += decoder.decode();
+      break;
     }
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() || '';
+    for (const event of events) flushEvent(event);
   }
+  if (buffer.trim()) flushEvent(buffer);
 }
 
 function dedupeModels(models: ProviderModel[]) {

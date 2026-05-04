@@ -123,6 +123,38 @@ describe('annotation core', () => {
     expect(result?.anchor.start).toBe(38);
   });
 
+  it('anchors model suggestions when whitespace differs from article text', () => {
+    const result = createAgentAnnotation(
+      agent,
+      '工具一旦进入手里，也会进入脑子。能力会反过来定义问题。\n知道什么时候不敲，是一种对冲工具偏见的能力。',
+      {
+        exact:
+          '工具一旦进入手里，也会进入脑子。能力会反过来定义问题。 知道什么时候不敲，是一种对冲工具偏见的能力。',
+        comment: 'whitespace differs',
+      },
+      '2026-01-02T00:00:00.000Z',
+    );
+
+    expect(result?.anchor.exact).toContain('\n知道什么时候不敲');
+  });
+
+  it('anchors the longest recoverable fragment when a model uses ellipses', () => {
+    const result = createAgentAnnotation(
+      agent,
+      '朴素 RAG 并不总是有效：\n对于频繁变更的代码库而言，为其建立向量和全文索引的成本会自然放大，而且由于存在分块等处理逻辑。\n另一个严重的问题在于语义的难以弥合。',
+      {
+        exact:
+          '朴素 RAG 并不总是有效：对于频繁变更的代码库而言，为其建立向量和全文索引的成本会自然放大...另一个严重的问题在于语义的难以弥合。',
+        comment: 'ellipsis differs',
+      },
+      '2026-01-02T00:00:00.000Z',
+    );
+
+    expect(result?.anchor.exact).toBe(
+      '朴素 RAG 并不总是有效：\n对于频繁变更的代码库而言，为其建立向量和全文索引的成本会自然放大',
+    );
+  });
+
   it('updates annotation comments immutably', () => {
     const base = annotation();
     const added = appendAnnotationComment([base], base.id, comment(), '2026-01-02T00:00:00.000Z');

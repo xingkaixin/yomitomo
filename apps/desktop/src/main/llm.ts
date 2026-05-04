@@ -143,17 +143,9 @@ export async function runAgentAnnotateStream(
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<void> {
   const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
-  let buffer = '';
-  const flushLine = (line: string) => {
-    const cleaned = line
-      .trim()
-      .replace(/^```(?:json)?/, '')
-      .replace(/```$/, '')
-      .trim();
-    if (!cleaned) return;
-
+  const flushJson = (json: string) => {
     try {
-      const parsed = JSON.parse(cleaned) as {
+      const parsed = JSON.parse(json) as {
         exact?: unknown;
         prefix?: unknown;
         suffix?: unknown;
@@ -187,9 +179,15 @@ export async function runAgentAnnotateStream(
     } catch (error) {
       logError('agent.annotate.ndjson_parse_error', error, {
         agent: agent.username,
-        line: cleaned.slice(0, 500),
+        line: json.slice(0, 500),
       });
     }
+  };
+  let buffer = '';
+  const flushBuffer = () => {
+    const result = extractJsonObjects(buffer);
+    buffer = result.rest;
+    for (const json of result.objects) flushJson(json);
   };
 
   await streamProviderText(
@@ -202,13 +200,74 @@ export async function runAgentAnnotateStream(
     },
     (delta) => {
       buffer += delta;
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-      for (const line of lines) flushLine(line);
+      flushBuffer();
     },
   );
 
-  flushLine(buffer);
+  flushBuffer();
+  if (hasIncompleteJson(buffer)) {
+    logInfo('agent.annotate.incomplete_json', {
+      agent: agent.username,
+      line: buffer.trim().slice(0, 500),
+    });
+  }
+}
+
+export function extractJsonObjects(input: string): { objects: string[]; rest: string } {
+  const objects: string[] = [];
+  let depth = 0;
+  let start = -1;
+  let restStart = input.length;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+
+    if (start < 0) {
+      if (char === '{') {
+        start = index;
+        depth = 1;
+        inString = false;
+        escaped = false;
+      }
+      continue;
+    }
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        objects.push(input.slice(start, index + 1).trim());
+        start = -1;
+        restStart = index + 1;
+      }
+    }
+  }
+
+  return { objects, rest: input.slice(start >= 0 ? start : restStart) };
+}
+
+function hasIncompleteJson(input: string) {
+  return input
+    .replace(/^```(?:json)?/m, '')
+    .replace(/```$/m, '')
+    .trim()
+    .startsWith('{');
 }
 
 export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {

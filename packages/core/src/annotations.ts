@@ -105,14 +105,13 @@ export function createAgentAnnotation(
   suggestion: AnnotationSuggestion,
   now = new Date().toISOString(),
 ): Annotation | null {
-  const exact = suggestion.exact.trim();
-  const start = findAgentAnnotationStart(articleText, exact, suggestion);
-  if (start < 0) return null;
+  const match = findAgentAnnotationMatch(articleText, suggestion);
+  if (!match) return null;
 
   const comment = suggestion.comment.trim();
   return {
     id: makeId('annotation'),
-    anchor: createTextAnchor(articleText, start, start + exact.length),
+    anchor: createTextAnchor(articleText, match.start, match.end),
     author: 'ai',
     annotationType: suggestion.annotationType || 'key_point',
     color: agent.annotationColor,
@@ -141,37 +140,159 @@ export function createAgentAnnotation(
   };
 }
 
-function findAgentAnnotationStart(
+function findAgentAnnotationMatch(
+  articleText: string,
+  suggestion: AnnotationSuggestion,
+): { start: number; end: number } | null {
+  const exact = suggestion.exact.trim();
+  if (!exact) return null;
+
+  for (const candidate of agentAnnotationCandidates(exact)) {
+    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion);
+    if (match) return match;
+  }
+
+  return null;
+}
+
+function findAgentAnnotationCandidate(
   articleText: string,
   exact: string,
   suggestion: AnnotationSuggestion,
 ) {
-  if (!exact) return -1;
+  const exactMatches = findAll(articleText, exact).map((start) => ({
+    start,
+    end: start + exact.length,
+  }));
+  if (exactMatches.length > 0) {
+    return selectAgentAnnotationMatch(articleText, exactMatches, exact, suggestion);
+  }
 
-  const exactMatches = findAll(articleText, exact);
-  if (exactMatches.length === 0) return -1;
-  if (exactMatches.length === 1) return exactMatches[0];
+  const normalizedMatches = findWhitespaceInsensitiveMatches(articleText, exact);
+  if (normalizedMatches.length > 0) {
+    return selectAgentAnnotationMatch(articleText, normalizedMatches, exact, suggestion);
+  }
+
+  const compactMatches = findWhitespaceAgnosticMatches(articleText, exact);
+  if (compactMatches.length > 0) {
+    return selectAgentAnnotationMatch(articleText, compactMatches, exact, suggestion);
+  }
+
+  return null;
+}
+
+function selectAgentAnnotationMatch(
+  articleText: string,
+  matches: Array<{ start: number; end: number }>,
+  exact: string,
+  suggestion: AnnotationSuggestion,
+) {
+  if (matches.length === 1) return matches[0];
 
   const context = suggestionContext(exact, suggestion);
-  if (!context) return exactMatches[0];
+  if (!context) return matches[0];
 
-  let bestStart = exactMatches[0];
+  let bestMatch = matches[0];
   let bestScore = Number.NEGATIVE_INFINITY;
-  for (const start of exactMatches) {
+  for (const match of matches) {
+    const { start, end } = match;
     const before = articleText.slice(Math.max(0, start - context.prefix.length), start);
-    const after = articleText.slice(
-      start + exact.length,
-      start + exact.length + context.suffix.length,
-    );
+    const after = articleText.slice(end, end + context.suffix.length);
     const score =
       commonSuffixLength(before, context.prefix) + commonPrefixLength(after, context.suffix);
     if (score > bestScore) {
       bestScore = score;
-      bestStart = start;
+      bestMatch = match;
     }
   }
 
-  return bestStart;
+  return bestMatch;
+}
+
+function agentAnnotationCandidates(exact: string) {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: string, minLength = 12) => {
+    const candidate = value.trim();
+    if (candidate.length < minLength || seen.has(candidate)) return;
+    seen.add(candidate);
+    candidates.push(candidate);
+  };
+
+  add(exact, 1);
+  for (const part of exact.split(/\.{3,}|…+/)) add(part);
+  for (const part of exact.split(/\n+/)) add(part);
+  for (const sentence of splitAnnotationSentences(exact)) add(sentence);
+
+  return candidates.sort((left, right) => right.length - left.length);
+}
+
+function splitAnnotationSentences(text: string) {
+  const sentences: string[] = [];
+  let start = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    if (!'。！？；;'.includes(text[index])) continue;
+    sentences.push(text.slice(start, index + 1));
+    start = index + 1;
+  }
+  if (start < text.length) sentences.push(text.slice(start));
+  return sentences;
+}
+
+function findWhitespaceInsensitiveMatches(text: string, query: string) {
+  const normalizedText = normalizeTextWithMap(text);
+  const normalizedQuery = query.replace(/\s+/g, ' ').trim();
+  if (normalizedQuery.length < 12) return [];
+
+  const matches: Array<{ start: number; end: number }> = [];
+  let index = normalizedText.text.indexOf(normalizedQuery);
+  while (index >= 0) {
+    const start = normalizedText.map[index];
+    const end = normalizedText.map[index + normalizedQuery.length - 1] + 1;
+    matches.push({ start, end });
+    index = normalizedText.text.indexOf(normalizedQuery, index + normalizedQuery.length);
+  }
+  return matches;
+}
+
+function findWhitespaceAgnosticMatches(text: string, query: string) {
+  const normalizedText = normalizeTextWithMap(text, false);
+  const normalizedQuery = query.replace(/\s+/g, '');
+  if (normalizedQuery.length < 12) return [];
+
+  const matches: Array<{ start: number; end: number }> = [];
+  let index = normalizedText.text.indexOf(normalizedQuery);
+  while (index >= 0) {
+    const start = normalizedText.map[index];
+    const end = normalizedText.map[index + normalizedQuery.length - 1] + 1;
+    matches.push({ start, end });
+    index = normalizedText.text.indexOf(normalizedQuery, index + normalizedQuery.length);
+  }
+  return matches;
+}
+
+function normalizeTextWithMap(text: string, keepWhitespace = true) {
+  let normalized = '';
+  const map: number[] = [];
+  let pendingSpaceIndex = -1;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (/\s/.test(char)) {
+      if (keepWhitespace && normalized.length > 0) pendingSpaceIndex = index;
+      continue;
+    }
+
+    if (pendingSpaceIndex >= 0) {
+      normalized += ' ';
+      map.push(pendingSpaceIndex);
+      pendingSpaceIndex = -1;
+    }
+    normalized += char;
+    map.push(index);
+  }
+
+  return { text: normalized.trim(), map };
 }
 
 function suggestionContext(exact: string, suggestion: AnnotationSuggestion) {
