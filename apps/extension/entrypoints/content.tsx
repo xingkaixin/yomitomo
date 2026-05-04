@@ -70,6 +70,7 @@ import { useArticleRecordSync } from '../src/use-article-record-sync';
 
 const HOST_ID = 'yomitomo-root';
 const DESKTOP_PAIRING_TOKEN_KEY = 'yomitomo.desktopPairingToken';
+const DESKTOP_PAIRING_ID_KEY = 'yomitomo.desktopPairingId';
 let root: Root | null = null;
 let previousOverflow = '';
 
@@ -248,14 +249,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   useEffect(() => {
     browser.storage.local
-      .get(DESKTOP_PAIRING_TOKEN_KEY)
+      .get([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY])
       .then((stored) => {
         const token =
           typeof stored[DESKTOP_PAIRING_TOKEN_KEY] === 'string'
             ? stored[DESKTOP_PAIRING_TOKEN_KEY]
             : '';
+        const savedPairingId =
+          typeof stored[DESKTOP_PAIRING_ID_KEY] === 'string' ? stored[DESKTOP_PAIRING_ID_KEY] : '';
         setPairingToken(token);
         setPairingTokenDraft(token);
+        setPairingId(savedPairingId);
         setPairingStatus(token ? '正在连接' : '未配对');
       })
       .catch((error: unknown) => {
@@ -369,9 +373,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (!pairingToken.trim()) {
       desktopAuthenticatedRef.current = false;
       desktopInitialSyncRef.current = false;
+      setPairingId('');
       setDesktopConnected(false);
       setAgents([]);
-      setPairingId('');
       setPairingStatus('未配对');
       return;
     }
@@ -410,10 +414,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         clearPendingAgentRequests('连接中断');
         desktopAuthenticatedRef.current = false;
         desktopInitialSyncRef.current = false;
-        setPairingId('');
         setDesktopConnected(false);
         setPairingStatus(
-          pairingFailureRef.current || (pairingToken.trim() ? '桌面端未连接' : '未配对'),
+          pairingFailureRef.current || (pairingToken.trim() ? '桌面端未连通' : '未配对'),
         );
         if (!closed && !pairingFailureRef.current) {
           reconnectTimer = window.setTimeout(connect, 2000);
@@ -441,7 +444,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
           clearPendingAgentRequests('连接中断');
           desktopAuthenticatedRef.current = false;
           desktopInitialSyncRef.current = false;
-          setPairingId('');
           setDesktopConnected(false);
           return;
         }
@@ -465,7 +467,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       cleanupVirtualReadingSessions();
       desktopAuthenticatedRef.current = false;
       desktopInitialSyncRef.current = false;
-      setPairingId('');
       desktopBridgeRef.current?.close();
       desktopBridgeRef.current = null;
     };
@@ -540,7 +541,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (message.type === 'auth:result') {
       desktopAuthenticatedRef.current = message.ok;
       setDesktopConnected(message.ok);
-      setPairingId(message.ok ? message.pairingId || '' : '');
+      if (message.ok && message.pairingId) {
+        setPairingId(message.pairingId);
+        await browser.storage.local.set({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
+      }
       setPairingStatus(message.ok ? '已配对' : message.message || '配对失败');
       desktopInitialSyncRef.current = false;
       if (!message.ok) {
@@ -555,7 +559,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (message.type === 'status' || message.type === 'agent:list:result') {
       const user = normalizeUserProfile(message.user);
       setDesktopConnected(message.type === 'status' ? message.ok : true);
-      if (message.type === 'status') setPairingId(message.pairingId);
+      if (message.type === 'status') {
+        setPairingId(message.pairingId);
+        await browser.storage.local.set({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
+      }
       setUserProfile(user);
       setAgents(message.agents);
       await cacheDesktopProfile(user, message.agents);
@@ -903,7 +910,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }
 
   async function disconnectDesktop() {
-    await browser.storage.local.remove(DESKTOP_PAIRING_TOKEN_KEY);
+    await browser.storage.local.remove([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY]);
     setPairingToken('');
     setPairingTokenDraft('');
     setPairingId('');
@@ -1036,6 +1043,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       pairingStatus={pairingStatus}
       pairingId={pairingId}
       pairingTokenDraft={pairingTokenDraft}
+      hasSavedPairing={Boolean(pairingToken.trim())}
       readerSettings={readerSettings}
       selectionAction={selectionAction}
       settingsOpen={settingsOpen}

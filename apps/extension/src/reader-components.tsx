@@ -228,6 +228,7 @@ export function AgentAnnotateMenu({
 
 export function ReaderSettingsPanel({
   desktopConnected,
+  hasSavedPairing,
   pairingId,
   pairingStatus,
   pairingTokenDraft,
@@ -238,6 +239,7 @@ export function ReaderSettingsPanel({
   onSetPairingTokenDraft,
 }: {
   desktopConnected: boolean;
+  hasSavedPairing: boolean;
   pairingId: string;
   pairingStatus: string;
   pairingTokenDraft: string;
@@ -247,28 +249,42 @@ export function ReaderSettingsPanel({
   onSavePairingToken: () => void | Promise<void>;
   onSetPairingTokenDraft: (token: string) => void;
 }) {
+  const [pairingEditorOpen, setPairingEditorOpen] = useState(false);
+  const showPairingSummary = hasSavedPairing && !pairingEditorOpen;
+  const pairingConnectedClass = desktopConnected
+    ? 'reader-pairing-connected'
+    : 'reader-pairing-connected is-offline';
+  const pairingStatusClass = desktopConnected
+    ? 'reader-pairing-status is-connected'
+    : 'reader-pairing-status';
+
   return (
     <div className="reader-settings-panel">
       <div className="reader-pairing-row">
-        {desktopConnected ? (
-          <div className="reader-pairing-connected">
+        {showPairingSummary ? (
+          <div className={pairingConnectedClass}>
             <div className="reader-pairing-connected-main">
-              <span>
-                <Check size={15} />
-              </span>
+              <span>{desktopConnected ? <Check size={15} /> : <Unplug size={15} />}</span>
               <div>
-                <strong>已配对</strong>
-                <p>已连接本机桌面端</p>
+                <strong>已保存配对</strong>
+                <p>{desktopConnected ? '已连接本机桌面端' : '桌面端未连通'}</p>
               </div>
             </div>
             <div className="reader-pairing-identity">
               <span>连接标识</span>
-              <strong>{pairingId || 'YMT-......'}</strong>
+              <strong>{pairingId || '本机桌面端'}</strong>
             </div>
-            <button type="button" onClick={onDisconnectDesktop}>
-              <Unplug size={13} />
-              断开
-            </button>
+            <span className={pairingStatusClass}>{pairingStatus}</span>
+            <div className="reader-pairing-connected-actions">
+              <button type="button" onClick={() => setPairingEditorOpen(true)}>
+                <KeyRound size={13} />
+                更换
+              </button>
+              <button type="button" onClick={onDisconnectDesktop}>
+                <Unplug size={13} />
+                断开
+              </button>
+            </div>
           </div>
         ) : (
           <>
@@ -284,7 +300,13 @@ export function ReaderSettingsPanel({
               onChange={(event) => onSetPairingTokenDraft(event.target.value)}
             />
             <div className="reader-pairing-actions">
-              <button type="button" onClick={onSavePairingToken}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPairingEditorOpen(false);
+                  void onSavePairingToken();
+                }}
+              >
                 <Save size={13} />
                 保存
               </button>

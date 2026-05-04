@@ -11,6 +11,7 @@ import {
   Scale,
   Search,
   Trash2,
+  Unplug,
   Upload,
   User,
 } from 'lucide-react';
@@ -143,7 +144,12 @@ export function GeneralSettings({
   saveState: SaveState;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-  const extensionConnected = pairingConnectionStatus.authenticatedSocketCount > 0;
+  const readerSessionCount = pairingConnectionStatus.authenticatedSocketCount;
+  const extensionConnected = readerSessionCount > 0;
+  const pairingTitle = extensionConnected ? '已连通' : '插件未工作';
+  const pairingDescription = extensionConnected
+    ? `${readerSessionCount} 个阅读器会话正在连接本机`
+    : '打开浏览器阅读器后会自动连接本机';
 
   return (
     <div className="settings-panel">
@@ -240,45 +246,40 @@ export function GeneralSettings({
           </Select>
         </Field>
         <Field
-          id="desktop-pairing-token"
           className="col-span-2"
           description={
             extensionConnected
-              ? '当前浏览器扩展已经完成配对，连接标识会同步显示在扩展端。'
-              : '浏览器扩展输入这段配对码后，才能连接本机桌面端。'
+              ? '当前有浏览器阅读器会话连到本机，连接标识会同步显示在扩展端。'
+              : '配对标识保留在本机，阅读器启动后会按已保存的配对信息连接。'
           }
-          label={extensionConnected ? '扩展连接' : '扩展配对码'}
+          label="扩展连接"
         >
-          {extensionConnected ? (
-            <div className="pairing-connected-card">
-              <div className="pairing-connected-main">
-                <span className="pairing-connected-icon">
-                  <Check size={17} />
-                </span>
-                <div>
-                  <strong>已配对</strong>
-                  <p>{pairingConnectionStatus.authenticatedSocketCount} 个浏览器扩展正在连接本机</p>
-                </div>
+          <div
+            className={
+              extensionConnected ? 'pairing-connected-card' : 'pairing-connected-card is-idle'
+            }
+          >
+            <div className="pairing-connected-main">
+              <span className="pairing-connected-icon">
+                {extensionConnected ? <Check size={17} /> : <Unplug size={17} />}
+              </span>
+              <div>
+                <strong>{pairingTitle}</strong>
+                <p>{pairingDescription}</p>
               </div>
-              <div className="pairing-identity">
-                <span>连接标识</span>
-                <strong>{pairingInfo?.pairingId || 'YMT-......'}</strong>
-              </div>
+            </div>
+            <div className="pairing-identity">
+              <span>连接标识</span>
+              <strong>{pairingInfo?.pairingId || 'YMT-......'}</strong>
+            </div>
+            <div className="pairing-actions">
+              <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
               <Button type="button" variant="secondary" onClick={onRotatePairing}>
                 <KeyRound size={16} />
                 重新配对
               </Button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Input id="desktop-pairing-token" readOnly value={pairingInfo?.token || ''} />
-              <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
-              <Button type="button" variant="secondary" onClick={onRotatePairing}>
-                <KeyRound size={16} />
-                换新配对码
-              </Button>
-            </div>
-          )}
+          </div>
         </Field>
       </div>
     </div>
@@ -635,9 +636,10 @@ function moveOptionSelection<T extends string>(
   if (!nextValue) return;
 
   event.preventDefault();
+  const target = event.currentTarget;
   onSelect(nextValue);
   requestAnimationFrame(() => {
-    const radios = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]'));
+    const radios = Array.from(target.querySelectorAll<HTMLElement>('[role="radio"]'));
     radios[nextIndex]?.focus();
   });
 }

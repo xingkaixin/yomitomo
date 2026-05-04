@@ -3,8 +3,8 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentForm, ProviderForm } from '../app-settings-panels';
-import { customPersonalityId, emptyProvider, type AgentDraft } from '../app-settings';
+import { AgentForm, GeneralSettings, ProviderForm } from '../app-settings-panels';
+import { customPersonalityId, defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { ProviderOption } from '../app-types';
 
 afterEach(() => {
@@ -76,5 +76,57 @@ describe('AgentForm', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ personalityId: 'reading-partner' }),
     );
+  });
+});
+
+describe('GeneralSettings', () => {
+  it('keeps the pairing identity visible when no reader session is active', () => {
+    render(
+      <GeneralSettings
+        draft={defaultUser}
+        pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
+        pairingInfo={{
+          token: 'desktop-token',
+          pairingId: 'YMT-123456',
+          updatedAt: '2026-05-04T00:00:00.000Z',
+        }}
+        providers={[]}
+        settingsDraft={{}}
+        canSave={false}
+        onChange={vi.fn()}
+        onSettingsChange={vi.fn()}
+        onSave={vi.fn()}
+        onRotatePairing={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(screen.getByText('插件未工作')).toBeTruthy();
+    expect(screen.getByText('YMT-123456')).toBeTruthy();
+    expect(screen.queryByDisplayValue('desktop-token')).toBeNull();
+  });
+
+  it('describes active connections as reader sessions', () => {
+    render(
+      <GeneralSettings
+        draft={defaultUser}
+        pairingConnectionStatus={{ authenticatedSocketCount: 2 }}
+        pairingInfo={{
+          token: 'desktop-token',
+          pairingId: 'YMT-123456',
+          updatedAt: '2026-05-04T00:00:00.000Z',
+        }}
+        providers={[]}
+        settingsDraft={{}}
+        canSave={false}
+        onChange={vi.fn()}
+        onSettingsChange={vi.fn()}
+        onSave={vi.fn()}
+        onRotatePairing={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(screen.getByText('2 个阅读器会话正在连接本机')).toBeTruthy();
   });
 });

@@ -51,6 +51,7 @@ type ReaderAppViewProps = {
   desktopConnected: boolean;
   extracted: ExtractedArticle;
   filteredAnnotations: Annotation[];
+  hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
   noteFilter: NoteFilter;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -108,6 +109,7 @@ export function ReaderAppView({
   desktopConnected,
   extracted,
   filteredAnnotations,
+  hasSavedPairing,
   highlightChoice,
   noteFilter,
   noteRefs,
@@ -233,6 +235,7 @@ export function ReaderAppView({
           pairingId={pairingId}
           pairingStatus={pairingStatus}
           pairingTokenDraft={pairingTokenDraft}
+          hasSavedPairing={hasSavedPairing}
           settings={readerSettings}
           onChange={onUpdateReaderSettings}
           onDisconnectDesktop={onDisconnectDesktop}

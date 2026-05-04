@@ -100,6 +100,8 @@ export const readerConversationStyles = `
 .reader-pairing-status{color:#8f2f28;font-size:12px;font-weight:760}
 .reader-pairing-status.is-connected{color:#166434}
 .reader-pairing-connected{display:grid;gap:10px}
+.reader-pairing-connected.is-offline .reader-pairing-connected-main>span{background:#8f2f28}
+.reader-pairing-connected-actions{display:flex;gap:8px;flex-wrap:wrap}
 .reader-pairing-connected-main{display:flex;align-items:center;gap:10px;min-width:0}
 .reader-pairing-connected-main>span{display:grid;width:34px;height:34px;flex:none;place-items:center;border-radius:999px;background:#1f6b3a;color:#fffaf0}
 .reader-pairing-connected-main strong{display:block;font-size:14px;font-weight:900}

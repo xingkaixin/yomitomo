@@ -4,7 +4,12 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { AnnotationCard, Composer, HighlightChoiceMenu } from '../reader-components';
+import {
+  AnnotationCard,
+  Composer,
+  HighlightChoiceMenu,
+  ReaderSettingsPanel,
+} from '../reader-components';
 
 afterEach(() => {
   cleanup();
@@ -180,5 +185,28 @@ describe('HighlightChoiceMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
 
     expect(onSelect).toHaveBeenCalledWith('annotation_2');
+  });
+});
+
+describe('ReaderSettingsPanel', () => {
+  it('shows saved pairing identity while the desktop is unreachable', () => {
+    render(
+      <ReaderSettingsPanel
+        desktopConnected={false}
+        hasSavedPairing
+        pairingId="YMT-123456"
+        pairingStatus="桌面端未连通"
+        pairingTokenDraft="token"
+        settings={{ fontSize: 20, contentWidth: 860 }}
+        onChange={vi.fn()}
+        onDisconnectDesktop={vi.fn()}
+        onSavePairingToken={vi.fn()}
+        onSetPairingTokenDraft={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('已保存配对')).toBeTruthy();
+    expect(screen.getByText('YMT-123456')).toBeTruthy();
+    expect(screen.queryByLabelText('桌面端配对码')).toBeNull();
   });
 });
