@@ -9,6 +9,7 @@ import {
   appendAnnotationComment,
   commentPersona,
   createAgentAnnotation,
+  createUserAnnotation,
   findMentionedAgents,
   getMentionQuery,
   parseAnnotationSuggestions,
@@ -177,6 +178,25 @@ describe('annotation core', () => {
     expect(updated?.[0]?.updatedAt).toBe('2026-01-03T00:00:00.000Z');
   });
 
+  it('creates user annotations with trimmed optional notes', () => {
+    const anchor = {
+      exact: 'first principles',
+      prefix: '',
+      suffix: '',
+      start: 0,
+      end: 16,
+    };
+
+    expect(
+      createUserAnnotation(anchor, user, '  这里重要  ', 'concept', '2026-01-02T00:00:00.000Z'),
+    ).toMatchObject({
+      author: 'user',
+      annotationType: 'concept',
+      comments: [{ content: '这里重要', userId: user.id }],
+    });
+    expect(createUserAnnotation(anchor, user, '   ').comments).toEqual([]);
+  });
+
   it('finds mentioned agents by username once', () => {
     const agents: PublicAgent[] = [
       {
@@ -236,15 +256,26 @@ describe('annotation core', () => {
       agentNickname: agent.nickname,
       agentAvatar: agent.avatar,
     };
+    const publicAgent: PublicAgent = {
+      id: agent.id,
+      kind: agent.kind,
+      nickname: agent.nickname,
+      username: agent.username,
+      avatar: agent.avatar,
+      annotationColor: agent.annotationColor,
+      annotationDensity: agent.annotationDensity,
+      personalityName: '克制阅读伙伴',
+      temperature: agent.temperature,
+    };
 
-    expect(annotationPersona(aiAnnotation, user, [agent])).toEqual({
+    expect(annotationPersona(aiAnnotation, user, [publicAgent])).toEqual({
       avatar: agent.avatar,
       fallback: 'AI',
       color: agent.annotationColor,
       nickname: agent.nickname,
       username: agent.username,
     });
-    expect(commentPersona(aiComment, user, [agent])).toEqual({
+    expect(commentPersona(aiComment, user, [publicAgent])).toEqual({
       avatar: agent.avatar,
       fallback: 'AI',
       color: '#8ab6d6',

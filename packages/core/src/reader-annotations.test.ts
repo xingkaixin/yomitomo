@@ -5,14 +5,11 @@ import { annotationStoredColor, buildTocAnnotationStats } from './reader-annotat
 
 function tocItem(index: number, start: number, end: number): TocItem {
   return {
-    id: `toc_${index}`,
     index,
+    text: `章节 ${index}`,
     depth: 2,
-    title: `章节 ${index}`,
     start,
     end,
-    element: {} as HTMLElement,
-    inferred: false,
   };
 }
 
