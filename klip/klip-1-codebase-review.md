@@ -189,9 +189,14 @@ Status: Draft
   - 给状态 `<p>` 增加 `role="status"` 或 `aria-live="polite"`。
   - 把 `正在打开阅读器...` 改成 `正在打开阅读器…`。
   - 为失败状态保留具体错误文案。
+- 状态：Complete（2026-05-05）
+- 进展：
+  - popup 视图已抽到 `popup-view.tsx`，状态 `<p>` 已增加 `role="status"` 与 `aria-live="polite"`。
+  - loading 文案已改为 `正在打开阅读器…`。
+  - 新增 `popup-view.test.tsx` 覆盖状态语义和省略号文案。
 - 验收标准：
-  - [ ] popup 状态变化可被辅助技术播报。
-  - [ ] UI 文案中 loading 省略号统一为 `…`。
+  - [x] popup 状态变化可被辅助技术播报。
+  - [x] UI 文案中 loading 省略号统一为 `…`。
 
 #### 6. 批注类型选择控件缺少选择语义
 
