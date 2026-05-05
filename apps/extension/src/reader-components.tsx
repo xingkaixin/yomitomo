@@ -1014,9 +1014,12 @@ export function AnnotationCard({
   agents,
   annotation,
   desktopConnected,
-  focusRequest,
+  isStackFront = true,
   noteRef,
   shortcutModifier,
+  stackCount = 1,
+  stackIndex = 0,
+  style,
   userProfile,
   onAddComment,
   onDelete,
@@ -1026,9 +1029,12 @@ export function AnnotationCard({
   agents: PublicAgent[];
   annotation: Annotation;
   desktopConnected: boolean;
-  focusRequest: number;
+  isStackFront?: boolean;
   noteRef: (element: HTMLElement | null) => void;
   shortcutModifier: string;
+  stackCount?: number;
+  stackIndex?: number;
+  style?: React.CSSProperties;
   userProfile: UserProfile;
   onAddComment: (annotationId: string, content: string) => void;
   onDelete: (annotationId: string) => void;
@@ -1041,8 +1047,8 @@ export function AnnotationCard({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
-  const previousActiveRef = useRef(active);
   const mentionQuery = getMentionQuery(draft, caretIndex);
+  const mentionAgents = annotationMentionAgents(annotation, agents);
   const matchedAgents =
     mentionQuery === null
       ? []
@@ -1054,6 +1060,12 @@ export function AnnotationCard({
           )
           .slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
+  const primaryComment = annotation.comments[0] || null;
+  const threadComments = primaryComment ? annotation.comments.slice(1) : annotation.comments;
+  const annotationStyle = {
+    ...noteStyle(author.color, active),
+    ...style,
+  };
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -1065,18 +1077,12 @@ export function AnnotationCard({
   }, [matchedAgents.length, selectedMentionIndex]);
 
   useEffect(() => {
-    if (active && !previousActiveRef.current) setExpanded(true);
-    previousActiveRef.current = active;
-  }, [active]);
-
-  useEffect(() => {
-    if (active && focusRequest > 0) setExpanded(true);
-  }, [active, focusRequest]);
+    if (!active && expanded) setExpanded(false);
+  }, [active, expanded]);
 
   useEffect(() => () => stopDeleteTimer(), []);
 
   function submit() {
-    if (draft.trim()) setExpanded(true);
     onAddComment(annotation.id, draft);
     setDraft('');
     setCaretIndex(0);
@@ -1103,14 +1109,16 @@ export function AnnotationCard({
   }
 
   function selectAgent(agent: PublicAgent) {
-    if (!mentionQuery) return;
-    const nextDraft = replaceMentionQuery(draft, mentionQuery, agent.username);
-    const nextCaretIndex = mentionQuery.start + agent.username.length + 2;
-    setDraft(nextDraft);
-    setCaretIndex(nextCaretIndex);
+    insertAgent(agent);
+  }
+
+  function insertAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
+    setDraft(next.content);
+    setCaretIndex(next.caretIndex);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(nextCaretIndex, nextCaretIndex);
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
     });
   }
 
@@ -1148,34 +1156,70 @@ export function AnnotationCard({
     updateCaret(event.currentTarget);
   }
 
+  function handleCardClick(event: React.MouseEvent<HTMLElement>) {
+    if (active) return;
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('button,textarea,input,a,[role="button"]')) return;
+    onFocus(annotation.id);
+  }
+
+  function toggleComments() {
+    if (!active) {
+      onFocus(annotation.id);
+      return;
+    }
+    setExpanded((open) => !open);
+  }
+
   return (
     <section
-      className={active ? 'reader-note is-active' : 'reader-note'}
+      className={[
+        'reader-note',
+        active ? 'is-active' : '',
+        stackCount > 1 ? 'is-stacked' : '',
+        isStackFront ? 'is-stack-front' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-stack-count={stackCount}
+      data-stack-index={stackIndex}
       ref={noteRef}
-      style={noteStyle(author.color, active)}
+      style={annotationStyle}
+      onClick={handleCardClick}
     >
       <div className="reader-note-body">
+        <div className="reader-note-action-row">
+          {annotation.annotationType ? (
+            <span className="reader-note-type">
+              {annotationTypeLabel(annotation.annotationType)}
+            </span>
+          ) : null}
+          {annotation.readingIntent ? (
+            <span className="reader-note-intent">
+              {agentReadingIntentLabel(annotation.readingIntent)}
+            </span>
+          ) : null}
+          <time dateTime={annotation.createdAt}>{formatTime(annotation.createdAt)}</time>
+        </div>
         <button className="reader-note-anchor" type="button" onClick={() => onFocus(annotation.id)}>
           <span className="reader-note-persona">
             <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
             <strong>{author.nickname}</strong>
             <em>@{author.username}</em>
           </span>
-          {annotation.annotationType ? (
-            <span className="reader-note-type">
-              {annotationTypeLabel(annotation.annotationType)}
-            </span>
-          ) : null}
-          <span className="reader-note-quote">“{annotation.anchor.exact}”</span>
         </button>
+        <button className="reader-note-quote" type="button" onClick={() => onFocus(annotation.id)}>
+          “{annotation.anchor.exact}”
+        </button>
+        {primaryComment ? (
+          <div className="reader-note-primary-comment">
+            <MarkdownContent content={primaryComment.content} pending={primaryComment.pending} />
+          </div>
+        ) : null}
         <div className="reader-note-toolbar">
-          <button
-            className="reader-comment-toggle"
-            type="button"
-            onClick={() => setExpanded((open) => !open)}
-          >
+          <button className="reader-comment-toggle" type="button" onClick={toggleComments}>
             <MessageSquare size={14} />
-            {annotation.comments.length} 条评论
+            {threadComments.length} 条评论
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           <button
@@ -1194,13 +1238,16 @@ export function AnnotationCard({
             <span>长按删除</span>
           </button>
         </div>
-        {expanded ? (
-          <>
+      </div>
+      {expanded ? (
+        <div className="reader-note-comments-popover">
+          <div className="reader-note-comments-panel">
+            <header>
+              <strong>评论</strong>
+              <span>{threadComments.length} 条</span>
+            </header>
             <div className="reader-comments">
-              {annotation.comments.length === 0 ? (
-                <p className="reader-muted">已高亮，暂无文字批注。</p>
-              ) : null}
-              {annotation.comments.map((comment) => {
+              {threadComments.map((comment) => {
                 const commentAuthor = commentPersona(comment, userProfile, agents);
                 return (
                   <div className="reader-comment" key={comment.id}>
@@ -1215,6 +1262,7 @@ export function AnnotationCard({
                         {comment.questionStatus ? (
                           <span>{questionStatusLabel(comment.questionStatus)}</span>
                         ) : null}
+                        <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
                       </div>
                       <MarkdownContent content={comment.content} pending={comment.pending} />
                     </div>
@@ -1225,9 +1273,8 @@ export function AnnotationCard({
             <div className="reader-comment-box">
               <textarea
                 aria-label="评论内容"
-                autoFocus={active}
                 ref={textareaRef}
-                placeholder={desktopConnected ? '继续评论，输入 @ 呼叫助手…' : '继续评论…'}
+                placeholder="继续评论，输入 @ 呼叫助手"
                 value={draft}
                 onChange={(event) => {
                   setDraft(event.currentTarget.value);
@@ -1257,18 +1304,41 @@ export function AnnotationCard({
               ) : null}
             </div>
             <div className="reader-note-footer">
+              <div className="reader-comment-agent-tray">
+                <span className="reader-comment-mention-label" aria-hidden="true">
+                  @
+                </span>
+                {desktopConnected
+                  ? mentionAgents.slice(0, 6).map((agent) => (
+                      <button
+                        className="reader-comment-agent-avatar"
+                        key={agent.id}
+                        type="button"
+                        aria-label={`插入 @${agent.username}`}
+                        title={`${agent.nickname} @${agent.username}，双击查看`}
+                        onClick={() => insertAgent(agent)}
+                      >
+                        <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      </button>
+                    ))
+                  : null}
+              </div>
               <div className="reader-shortcut-hint">
                 <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
                 <Kbd className="reader-kbd">Enter</Kbd>
-                <span>发送</span>
               </div>
-              <button className="reader-add-comment" type="button" onClick={submit}>
-                添加评论
+              <button
+                className="reader-add-comment"
+                type="button"
+                aria-label="添加评论"
+                onClick={submit}
+              >
+                发送
               </button>
             </div>
-          </>
-        ) : null}
-      </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1317,6 +1387,41 @@ function MarkdownContent({ content, pending }: { content: string; pending?: bool
     </div>
   );
 }
+
+function formatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function annotationMentionAgents(annotation: Annotation, agents: PublicAgent[]) {
+  const authorAgent =
+    annotation.author === 'ai' && annotation.agentUsername
+      ? agents.find(
+          (agent) => agent.id === annotation.agentId || agent.username === annotation.agentUsername,
+        ) || {
+          id: annotation.agentId || `agent-${annotation.agentUsername}`,
+          kind: 'annotation' as const,
+          nickname: annotation.agentNickname || annotation.agentUsername,
+          username: annotation.agentUsername,
+          avatar: annotation.agentAvatar || annotation.agentUsername.slice(0, 1),
+          annotationColor: annotation.agentAnnotationColor || annotation.color,
+          annotationDensity: 'medium' as const,
+          personalityName: '批注助手',
+          temperature: 0.35,
+        }
+      : null;
+  const ordered = authorAgent
+    ? [authorAgent, ...agents.filter((agent) => agent.username !== authorAgent.username)]
+    : agents;
+  return ordered;
+}
+
 function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
   const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
   return event.key === 'Enter' && (isMac ? event.metaKey : event.ctrlKey);

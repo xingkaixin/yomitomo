@@ -160,7 +160,6 @@ describe('AnnotationCard', () => {
         agents={[]}
         annotation={annotation}
         desktopConnected
-        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}
@@ -182,7 +181,6 @@ describe('AnnotationCard', () => {
         agents={[agent]}
         annotation={annotation}
         desktopConnected
-        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}
@@ -207,7 +205,6 @@ describe('AnnotationCard', () => {
         agents={[]}
         annotation={annotation}
         desktopConnected
-        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}

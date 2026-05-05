@@ -9,8 +9,7 @@ import type {
   QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
-import { annotationTypeLabel } from '@yomitomo/core';
-import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
+import { annotationTypeLabel, isQuestionComment, questionStatusOrOpen } from '@yomitomo/core';
 import type { ExtractedArticle } from './article-extraction';
 import type { HighlightBox, TocItem } from './reader-dom';
 import { buildTocAnnotationStats, highlightStyle, isPrimaryTocItem } from './reader-utils';
@@ -41,10 +40,17 @@ export type SelectionAction = {
 };
 
 export type PendingComposer = SelectionAction;
-export type NoteFilter = 'all' | 'ai' | 'user';
 
 export type HighlightChoice = HighlightChoiceAction & {
   annotationIds: string[];
+};
+
+type AnnotationRailItem = {
+  annotation: Annotation;
+  isStackFront: boolean;
+  stackCount: number;
+  stackIndex: number;
+  style: React.CSSProperties;
 };
 
 type ReaderAppViewProps = {
@@ -62,12 +68,10 @@ type ReaderAppViewProps = {
   composer: PendingComposer | null;
   desktopConnected: boolean;
   extracted: ExtractedArticle;
-  focusRequest: number;
   filteredAnnotations: Annotation[];
   hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
   notesOpen: boolean;
-  noteFilter: NoteFilter;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   pairingStatus: string;
@@ -113,7 +117,6 @@ type ReaderAppViewProps = {
     commentId: string,
     status: QuestionStatus,
   ) => void;
-  onSetNoteFilter: (filter: NoteFilter) => void;
   onSetPairingTokenDraft: (token: string) => void;
   onToggleNotes: () => void;
   onToggleToc: () => void;
@@ -138,12 +141,10 @@ export function ReaderAppView({
   composer,
   desktopConnected,
   extracted,
-  focusRequest,
   filteredAnnotations,
   hasSavedPairing,
   highlightChoice,
   notesOpen,
-  noteFilter,
   noteRefs,
   notesRef,
   pairingStatus,
@@ -181,7 +182,6 @@ export function ReaderAppView({
   onScrollToHighlight,
   onSetAnnotationQuestionStatus,
   onSetCommentQuestionStatus,
-  onSetNoteFilter,
   onSetPairingTokenDraft,
   onToggleNotes,
   onToggleToc,
@@ -197,6 +197,11 @@ export function ReaderAppView({
         .map((id) => annotations.find((annotation) => annotation.id === id))
         .filter((annotation): annotation is Annotation => Boolean(annotation))
     : [];
+  const annotationRailItems = React.useMemo(
+    () => buildAnnotationRailItems(filteredAnnotations, boxes, activeId),
+    [activeId, boxes, filteredAnnotations],
+  );
+  const questionCount = React.useMemo(() => countQuestions(annotations), [annotations]);
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
@@ -265,10 +270,11 @@ export function ReaderAppView({
             }
             type="button"
             onClick={onToggleNotes}
-            aria-label="切换批注"
+            aria-label="切换未决问题"
+            title="未决问题"
           >
             <MessageSquare size={18} />
-            <span>{annotations.length}</span>
+            <span>{questionCount}</span>
           </button>
           <button
             className={
@@ -416,6 +422,48 @@ export function ReaderAppView({
                 />
               ))}
             </div>
+            <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
+              {annotations.length === 0 ? <EmptyNotes /> : null}
+              {annotations.length > 0 && filteredAnnotations.length === 0 ? (
+                <div className="reader-empty">
+                  <strong>没有匹配的批注</strong>
+                  <p>当前筛选项下没有批注。</p>
+                </div>
+              ) : null}
+              {annotationRailItems.map(
+                ({ annotation, isStackFront, stackCount, stackIndex, style }) => (
+                  <AnnotationCard
+                    active={annotation.id === activeAnnotation?.id}
+                    agents={agents}
+                    annotation={annotation}
+                    desktopConnected={desktopConnected}
+                    isStackFront={isStackFront}
+                    key={annotation.id}
+                    noteRef={(element) => {
+                      if (element) noteRefs.current.set(annotation.id, element);
+                      else noteRefs.current.delete(annotation.id);
+                    }}
+                    shortcutModifier={shortcutModifier}
+                    stackCount={stackCount}
+                    stackIndex={stackIndex}
+                    style={style}
+                    userProfile={userProfile}
+                    onAddComment={onAddComment}
+                    onDelete={onDeleteAnnotation}
+                    onFocus={onScrollToHighlight}
+                  />
+                ),
+              )}
+              {pendingAgentAnnotations.map((pending, index) => (
+                <div
+                  className="reader-pending-rail-item"
+                  key={pending.id}
+                  style={{ top: 88 + index * 118 }}
+                >
+                  <AgentAnnotationSkeletonCard pending={pending} />
+                </div>
+              ))}
+            </aside>
             {selectionAction && !composer ? (
               <SelectionMenu
                 action={selectionAction}
@@ -445,20 +493,7 @@ export function ReaderAppView({
           </div>
         </section>
 
-        <aside className="reader-notes" ref={notesRef}>
-          <div className="reader-notes-header">
-            <Tabs
-              className="reader-note-tabs"
-              value={noteFilter}
-              onValueChange={(value) => onSetNoteFilter(value as NoteFilter)}
-            >
-              <TabsList>
-                <TabsTrigger value="all">全部批注</TabsTrigger>
-                <TabsTrigger value="user">我的批注</TabsTrigger>
-                <TabsTrigger value="ai">助手批注</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
+        <aside className="reader-question-drawer">
           <QuestionPanel
             agents={agents}
             annotations={annotations}
@@ -467,37 +502,6 @@ export function ReaderAppView({
             onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
             onSetCommentQuestionStatus={onSetCommentQuestionStatus}
           />
-          {annotations.length === 0 ? <EmptyNotes /> : null}
-          {annotations.length > 0 && filteredAnnotations.length === 0 ? (
-            <div className="reader-empty">
-              <strong>没有匹配的批注</strong>
-              <p>切换筛选项可以查看其他批注。</p>
-            </div>
-          ) : null}
-          {filteredAnnotations.map((annotation) => (
-            <AnnotationCard
-              active={annotation.id === activeAnnotation?.id}
-              agents={agents}
-              annotation={annotation}
-              desktopConnected={desktopConnected}
-              focusRequest={focusRequest}
-              key={annotation.id}
-              noteRef={(element) => {
-                if (element) noteRefs.current.set(annotation.id, element);
-                else noteRefs.current.delete(annotation.id);
-              }}
-              shortcutModifier={shortcutModifier}
-              userProfile={userProfile}
-              onAddComment={onAddComment}
-              onDelete={onDeleteAnnotation}
-              onFocus={onScrollToHighlight}
-            />
-          ))}
-          {noteFilter !== 'user'
-            ? pendingAgentAnnotations.map((pending) => (
-                <AgentAnnotationSkeletonCard key={pending.id} pending={pending} />
-              ))
-            : null}
         </aside>
       </main>
 
@@ -508,4 +512,125 @@ export function ReaderAppView({
       )}
     </div>
   );
+}
+
+function buildAnnotationRailItems(
+  annotations: Annotation[],
+  boxes: HighlightBox[],
+  activeId: string | null,
+): AnnotationRailItem[] {
+  const boxesByAnnotation = new Map<string, HighlightBox[]>();
+  for (const box of boxes) {
+    const items = boxesByAnnotation.get(box.annotationId) || [];
+    items.push(box);
+    boxesByAnnotation.set(box.annotationId, items);
+  }
+
+  const positioned = annotations
+    .map((annotation, index) => {
+      const annotationBoxes = boxesByAnnotation.get(annotation.id) || [];
+      const top =
+        annotationBoxes.length > 0
+          ? Math.max(0, Math.min(...annotationBoxes.map((box) => box.top)) - 10)
+          : 120 + index * 150;
+      return {
+        annotation,
+        index,
+        start: annotation.anchor.start,
+        end: annotation.anchor.end,
+        top,
+      };
+    })
+    .toSorted((left, right) => left.top - right.top || left.index - right.index);
+
+  const groups: Array<typeof positioned> = [];
+  for (const item of positioned) {
+    const group = groups.find((items) =>
+      items.some((groupItem) => anchorsOverlap(item, groupItem)),
+    );
+    if (group) group.push(item);
+    else groups.push([item]);
+  }
+
+  const railGroups = groups
+    .map((group) =>
+      group.toSorted((left, right) => left.top - right.top || left.index - right.index),
+    )
+    .map((group) => ({
+      group,
+      desiredTop: group[0]?.top || 0,
+      height: estimateRailGroupHeight(group),
+    }))
+    .toSorted((left, right) => left.desiredTop - right.desiredTop);
+
+  const groupTops = railGroups.map((group) => group.desiredTop);
+  for (let index = 1; index < railGroups.length; index += 1) {
+    const previousBottom = groupTops[index - 1] + railGroups[index - 1]!.height + 18;
+    groupTops[index] = Math.max(groupTops[index], previousBottom);
+  }
+  for (let index = railGroups.length - 2; index >= 0; index -= 1) {
+    const nextTop = groupTops[index + 1] - railGroups[index]!.height - 18;
+    groupTops[index] = Math.max(0, Math.min(groupTops[index], nextTop));
+  }
+
+  return railGroups.flatMap(({ group }, groupIndex) => {
+    const stackCount = group.length;
+    const groupTop = groupTops[groupIndex] || 0;
+    const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
+    const frontIndex = activeIndex >= 0 ? activeIndex : 0;
+    return group.map((item, stackIndex) => {
+      const stackDepth = stackCount > 1 ? (stackIndex - frontIndex + stackCount) % stackCount : 0;
+      const isStackFront = stackDepth === 0;
+      const isActive = item.annotation.id === activeId;
+      return {
+        annotation: item.annotation,
+        isStackFront,
+        stackCount,
+        stackIndex: stackDepth,
+        style: {
+          top: groupTop + stackDepth * 42,
+          zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
+          '--stack-offset': `${Math.min(stackDepth, 4) * 14}px`,
+        },
+      };
+    });
+  });
+}
+
+function anchorsOverlap(
+  left: { start: number; end: number },
+  right: { start: number; end: number },
+) {
+  return Math.max(left.start, right.start) < Math.min(left.end, right.end);
+}
+
+function estimateRailGroupHeight(group: Array<{ annotation: Annotation }>) {
+  const first = group[0];
+  if (!first) return 176;
+  return estimateAnnotationCardHeight(first.annotation) + Math.max(0, group.length - 1) * 42;
+}
+
+function estimateAnnotationCardHeight(annotation: Annotation) {
+  const quoteLines = Math.max(1, Math.ceil(annotation.anchor.exact.length / 24));
+  const primaryComment = annotation.comments[0]?.content || '';
+  const commentLines = primaryComment
+    ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
+    : 0;
+  return 118 + quoteLines * 18 + commentLines * 24;
+}
+
+function countQuestions(annotations: Annotation[]) {
+  return annotations.reduce((count, annotation) => {
+    const annotationQuestion =
+      annotation.annotationType === 'question' || annotation.questionStatus
+        ? questionStatusOrOpen(annotation.questionStatus) === 'open'
+          ? 1
+          : 0
+        : 0;
+    const commentQuestions = annotation.comments.filter(
+      (comment) =>
+        isQuestionComment(comment) && questionStatusOrOpen(comment.questionStatus) === 'open',
+    ).length;
+    return count + annotationQuestion + commentQuestions;
+  }, 0);
 }

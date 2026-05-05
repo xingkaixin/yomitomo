@@ -75,7 +75,6 @@ import { registerContentToggleListener } from '../src/content-runtime';
 import {
   ReaderAppView,
   type HighlightChoice,
-  type NoteFilter,
   type PendingComposer,
   type SelectionAction,
 } from '../src/reader-app-view';
@@ -243,7 +242,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [focusRequest, setFocusRequest] = useState(0);
   const [desktopConnected, setDesktopConnected] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [agents, setAgents] = useState<PublicAgent[]>([]);
@@ -258,7 +256,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
   const [pendingAgentAnnotations, setPendingAgentAnnotations] = useState<PendingAgentAnnotation[]>(
@@ -329,10 +326,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, agents),
     [agents, annotations, tocItems, userProfile],
   );
-  const filteredAnnotations = useMemo(() => {
-    if (noteFilter === 'all') return annotations;
-    return annotations.filter((annotation) => annotation.author === noteFilter);
-  }, [annotations, noteFilter]);
+  const filteredAnnotations = annotations;
 
   useEffect(() => {
     annotationsRef.current = annotations;
@@ -417,18 +411,16 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const canvas = canvasRef.current;
     const surface = surfaceRef.current;
-    const notes = notesRef.current;
     const note = noteRefs.current.get(activeId);
     const annotation = annotations.find((item) => item.id === activeId);
     const activeBoxes = boxes.filter((box) => box.annotationId === activeId);
-    if (!canvas || !surface || !notes || !note || !annotation || activeBoxes.length === 0) {
+    if (!canvas || !surface || !note || !annotation || activeBoxes.length === 0) {
       setActiveConnection(null);
       return;
     }
 
     const canvasRect = canvas.getBoundingClientRect();
     const surfaceRect = surface.getBoundingClientRect();
-    const notesRect = notes.getBoundingClientRect();
     const noteRect = note.getBoundingClientRect();
     const noteY = noteRect.top + Math.min(72, noteRect.height / 2);
     const box = activeBoxes.toSorted((left, right) => {
@@ -447,7 +439,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     const endY = noteY;
     const highlightVisible = startY >= surfaceRect.top - 24 && startY <= surfaceRect.bottom + 24;
     const noteVisible =
-      noteRect.bottom >= notesRect.top + 24 && noteRect.top <= notesRect.bottom - 24;
+      noteRect.bottom >= surfaceRect.top + 24 && noteRect.top <= surfaceRect.bottom - 24;
     if (!highlightVisible || !noteVisible) {
       setActiveConnection(null);
       return;
@@ -607,7 +599,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   useEffect(() => {
     const surface = surfaceRef.current;
-    const notes = notesRef.current;
     let frame = 0;
     const schedule = () => {
       cancelAnimationFrame(frame);
@@ -615,12 +606,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     };
 
     surface?.addEventListener('scroll', schedule, { passive: true });
-    notes?.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
     return () => {
       cancelAnimationFrame(frame);
       surface?.removeEventListener('scroll', schedule);
-      notes?.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
   }, [recalculateActiveConnection]);
@@ -1255,7 +1244,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   function focusAnnotation(annotationId: string) {
     setHighlightChoice(null);
-    setNotesOpen(true);
     setActiveId(annotationId);
     noteRefs.current.get(annotationId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -1295,7 +1283,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setHighlightChoice(null);
     setNotesOpen(false);
     setActiveId(annotationId);
-    setFocusRequest((value) => value + 1);
     const annotation = annotations.find((item) => item.id === annotationId);
     const article = articleRef.current;
     if (!annotation || !article) return;
@@ -1337,11 +1324,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       composer={composer}
       desktopConnected={desktopConnected}
       extracted={extracted}
-      focusRequest={focusRequest}
       filteredAnnotations={filteredAnnotations}
       highlightChoice={highlightChoice}
       notesOpen={notesOpen}
-      noteFilter={noteFilter}
       noteRefs={noteRefs}
       notesRef={notesRef}
       pairingStatus={pairingStatus}
@@ -1394,7 +1379,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onScrollToHighlight={scrollToHighlight}
       onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
       onSetCommentQuestionStatus={setCommentQuestionStatus}
-      onSetNoteFilter={(filter) => setNoteFilter(filter)}
       onSetPairingTokenDraft={setPairingTokenDraft}
       onToggleNotes={() => setNotesOpen((open) => !open)}
       onToggleToc={() => setTocOpen((open) => !open)}
