@@ -154,7 +154,7 @@ export function SelectionMenu({
                 setSelectedIntent((current) => (current === option.value ? null : option.value))
               }
             >
-              {option.shortLabel}
+              <strong>{option.shortLabel}</strong>
             </button>
           ))}
         </div>
