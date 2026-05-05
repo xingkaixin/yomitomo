@@ -60,6 +60,12 @@ import {
   type DesktopBridgeContentMessage,
   type DesktopBridgePortMessage,
 } from '../src/desktop-bridge';
+import {
+  connectExtensionPort,
+  readExtensionStorage,
+  removeExtensionStorage,
+  writeExtensionStorage,
+} from '../src/extension-runtime';
 import { registerContentToggleListener } from '../src/content-runtime';
 import {
   ReaderAppView,
@@ -247,9 +253,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   }, [annotations]);
 
   useEffect(() => {
-    browser.storage.local
-      .get([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY])
+    readExtensionStorage([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY])
       .then((stored) => {
+        if (!stored) return;
         const token =
           typeof stored[DESKTOP_PAIRING_TOKEN_KEY] === 'string'
             ? stored[DESKTOP_PAIRING_TOKEN_KEY]
@@ -383,7 +389,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     let reconnectTimer = 0;
 
     const connect = () => {
-      const port = browser.runtime.connect({ name: DESKTOP_BRIDGE_PORT_NAME });
+      const port = connectExtensionPort(DESKTOP_BRIDGE_PORT_NAME);
+      if (!port) return;
       let portClosed = false;
       const bridge: DesktopBridge = {
         readyState: WebSocket.CONNECTING,
@@ -542,7 +549,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       setDesktopConnected(message.ok);
       if (message.ok && message.pairingId) {
         setPairingId(message.pairingId);
-        await browser.storage.local.set({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
+        await writeExtensionStorage({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
       }
       setPairingStatus(message.ok ? '已配对' : message.message || '配对失败');
       desktopInitialSyncRef.current = false;
@@ -560,7 +567,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       setDesktopConnected(message.type === 'status' ? message.ok : true);
       if (message.type === 'status') {
         setPairingId(message.pairingId);
-        await browser.storage.local.set({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
+        await writeExtensionStorage({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
       }
       setUserProfile(user);
       setAgents(message.agents);
@@ -985,13 +992,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
-    await browser.storage.local.set({ [DESKTOP_PAIRING_TOKEN_KEY]: token });
+    await writeExtensionStorage({ [DESKTOP_PAIRING_TOKEN_KEY]: token });
     setPairingToken(token);
     setPairingStatus('正在连接');
   }
 
   async function disconnectDesktop() {
-    await browser.storage.local.remove([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY]);
+    await removeExtensionStorage([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY]);
     setPairingToken('');
     setPairingTokenDraft('');
     setPairingId('');

@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { browser } from 'wxt/browser';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import type { ExtractedArticle } from './article-extraction';
 import type { DesktopBridge } from './desktop-bridge';
+import {
+  readExtensionStorage,
+  removeExtensionStorage,
+  writeExtensionStorage,
+} from './extension-runtime';
 import type { ReaderSettings } from './reader-components';
 import {
   clampNumber,
@@ -60,16 +64,16 @@ export function useArticleRecordSync({
   const lastSentArticleSignatureRef = useRef('');
 
   useEffect(() => {
-    browser.storage.local
-      .get([
-        storageKey,
-        legacyStorageKey,
-        READER_SETTINGS_KEY,
-        LEGACY_READER_SETTINGS_KEY,
-        DESKTOP_PROFILE_CACHE_KEY,
-        LEGACY_DESKTOP_PROFILE_CACHE_KEY,
-      ])
+    readExtensionStorage([
+      storageKey,
+      legacyStorageKey,
+      READER_SETTINGS_KEY,
+      LEGACY_READER_SETTINGS_KEY,
+      DESKTOP_PROFILE_CACHE_KEY,
+      LEGACY_DESKTOP_PROFILE_CACHE_KEY,
+    ])
       .then(async (stored) => {
+        if (!stored) return;
         const loaded = (stored[storageKey] || stored[legacyStorageKey]) as
           | ArticleRecord
           | undefined;
@@ -117,11 +121,14 @@ export function useArticleRecordSync({
         }
 
         try {
-          if (Object.keys(migrated).length > 0) await browser.storage.local.set(migrated);
-          if (legacyKeys.length > 0) await browser.storage.local.remove(legacyKeys);
+          if (Object.keys(migrated).length > 0) await writeExtensionStorage(migrated);
+          if (legacyKeys.length > 0) await removeExtensionStorage(legacyKeys);
         } catch (error) {
           readerLog('storage.migrate.error', { message: errorMessage(error) });
         }
+      })
+      .catch((error: unknown) => {
+        readerLog('storage.load.error', { message: errorMessage(error) });
       });
   }, [legacyStorageKey, storageKey]);
 
@@ -191,7 +198,7 @@ export function useArticleRecordSync({
 
   async function cacheArticleRecord(record: ArticleRecord) {
     try {
-      await browser.storage.local.set({ [storageKey]: toCachedArticleRecord(record) });
+      await writeExtensionStorage({ [storageKey]: toCachedArticleRecord(record) });
     } catch (error) {
       readerLog('storage.cache.error', { message: errorMessage(error) });
     }
@@ -278,7 +285,7 @@ export function useArticleRecordSync({
     lastSentArticleSignatureRef.current = '';
     setAnnotations([]);
     try {
-      await browser.storage.local.remove([storageKey, legacyStorageKey]);
+      await removeExtensionStorage([storageKey, legacyStorageKey]);
     } catch (error) {
       readerLog('storage.delete.error', { message: errorMessage(error) });
     }
@@ -295,14 +302,14 @@ export function useArticleRecordSync({
   }
 
   async function cacheDesktopProfile(user: UserProfile, agents: PublicAgent[]) {
-    await browser.storage.local.set({
+    await writeExtensionStorage({
       [DESKTOP_PROFILE_CACHE_KEY]: { user, agents } satisfies DesktopProfileCache,
     });
   }
 
   async function updateReaderSettings(nextSettings: ReaderSettings) {
     setReaderSettings(nextSettings);
-    await browser.storage.local.set({ [READER_SETTINGS_KEY]: nextSettings });
+    await writeExtensionStorage({ [READER_SETTINGS_KEY]: nextSettings });
   }
 
   return {
