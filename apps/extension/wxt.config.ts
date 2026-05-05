@@ -26,6 +26,12 @@ export default defineConfig({
     version: packageJson.version,
     permissions: ['storage', 'scripting'],
     host_permissions: ['<all_urls>', 'http://127.0.0.1/*', 'ws://127.0.0.1/*'],
+    web_accessible_resources: [
+      {
+        resources: ['icon/128.png'],
+        matches: ['<all_urls>'],
+      },
+    ],
     icons,
     action: {
       default_title: 'Yomitomo',

@@ -185,6 +185,7 @@ export function ReaderAppView({
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
+  const logoUrl = chrome.runtime.getURL('icon/128.png');
   const highlightChoiceAnnotations = highlightChoice
     ? highlightChoice.annotationIds
         .map((id) => annotations.find((annotation) => annotation.id === id))
@@ -221,19 +222,21 @@ export function ReaderAppView({
       onPointerDownCapture={handleOutsidePanelPointerDown}
     >
       <header className="reader-toolbar">
-        <div>
-          <div className="reader-eyebrow">Yomitomo</div>
-          <h1>
-            <span
-              className={
-                desktopConnected
-                  ? 'reader-connection is-connected'
-                  : 'reader-connection is-disconnected'
-              }
-            />
-            {extracted.title}
-          </h1>
-          <p>{extracted.byline || extracted.canonicalUrl}</p>
+        <div className="reader-brand">
+          <img className="reader-brand-mark" src={logoUrl} alt="" />
+          <div className="reader-brand-copy">
+            <div className="reader-brand-title">Yomitomo</div>
+            <p>
+              <span
+                className={
+                  desktopConnected
+                    ? 'reader-connection is-connected'
+                    : 'reader-connection is-disconnected'
+                }
+              />
+              阅读器模式
+            </p>
+          </div>
         </div>
         <div className="reader-toolbar-actions">
           <button
