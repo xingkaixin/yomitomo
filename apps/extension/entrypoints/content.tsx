@@ -248,6 +248,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null);
   const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
   const [composer, setComposer] = useState<PendingComposer | null>(null);
+  const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
+    null,
+  );
+  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
@@ -1296,6 +1300,18 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (firstRect && surface) scrollReaderSurfaceToRect(surface, firstRect, 96);
   }
 
+  function answerQuestion(annotationId: string) {
+    setHighlightChoice(null);
+    setNotesOpen(false);
+    focusAnnotation(annotationId);
+    setReplyRequest({ annotationId, key: Date.now() });
+  }
+
+  function toggleNotes() {
+    if (!notesOpen) setCommentsCloseKey((key) => key + 1);
+    setNotesOpen((open) => !open);
+  }
+
   function scrollToHeading(item: TocItem) {
     setTocOpen(false);
     const article = articleRef.current;
@@ -1321,6 +1337,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       articleRef={articleRef}
       boxes={boxes}
       canvasRef={canvasRef}
+      commentsCloseKey={commentsCloseKey}
       composer={composer}
       desktopConnected={desktopConnected}
       extracted={extracted}
@@ -1333,6 +1350,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       pendingAgentAnnotations={pendingAgentAnnotations}
       pairingId={pairingId}
       pairingTokenDraft={pairingTokenDraft}
+      replyRequest={replyRequest}
       hasSavedPairing={Boolean(pairingToken.trim())}
       readerSettings={readerSettings}
       readingSections={readingSections}
@@ -1353,6 +1371,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onCreateAnnotation={createAnnotation}
       onDeleteAnnotation={deleteAnnotation}
       onFocusAnnotation={focusAnnotation}
+      onAnswerQuestion={answerQuestion}
       onHighlightClick={handleHighlightClick}
       onMouseUp={handleMouseUp}
       onCloseHighlightChoice={() => setHighlightChoice(null)}
@@ -1380,7 +1399,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
       onSetCommentQuestionStatus={setCommentQuestionStatus}
       onSetPairingTokenDraft={setPairingTokenDraft}
-      onToggleNotes={() => setNotesOpen((open) => !open)}
+      onToggleNotes={toggleNotes}
       onToggleToc={() => setTocOpen((open) => !open)}
       onToggleAgentAnnotate={() => {
         setSettingsOpen(false);

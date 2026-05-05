@@ -159,6 +159,7 @@ describe('AnnotationCard', () => {
         active
         agents={[]}
         annotation={annotation}
+        commentsCloseKey={0}
         desktopConnected
         noteRef={vi.fn()}
         shortcutModifier="⌘"
@@ -180,6 +181,7 @@ describe('AnnotationCard', () => {
         active
         agents={[agent]}
         annotation={annotation}
+        commentsCloseKey={0}
         desktopConnected
         noteRef={vi.fn()}
         shortcutModifier="⌘"
@@ -204,6 +206,7 @@ describe('AnnotationCard', () => {
         active
         agents={[]}
         annotation={annotation}
+        commentsCloseKey={0}
         desktopConnected
         noteRef={vi.fn()}
         shortcutModifier="⌘"
@@ -257,6 +260,7 @@ describe('HighlightChoiceMenu', () => {
 describe('QuestionPanel', () => {
   it('opens questions and parks comment questions', () => {
     const onFocus = vi.fn();
+    const onAnswer = vi.fn();
     const onSetAnnotationQuestionStatus = vi.fn();
     const onSetCommentQuestionStatus = vi.fn();
     render(
@@ -278,6 +282,7 @@ describe('QuestionPanel', () => {
           },
         ]}
         userProfile={userProfile}
+        onAnswer={onAnswer}
         onFocus={onFocus}
         onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
         onSetCommentQuestionStatus={onSetCommentQuestionStatus}
@@ -287,12 +292,66 @@ describe('QuestionPanel', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '回答' })[0]);
     fireEvent.click(screen.getAllByRole('button', { name: '搁置' })[1]);
 
-    expect(onFocus).toHaveBeenCalledWith('annotation_1');
+    expect(screen.queryByRole('button', { name: '跳转' })).toBeNull();
+    expect(onAnswer).toHaveBeenCalledWith('annotation_1');
     expect(onSetCommentQuestionStatus).toHaveBeenCalledWith(
       'annotation_1',
       'comment_question',
       'parked',
     );
+  });
+
+  it('limits question actions by status tab', () => {
+    render(
+      <QuestionPanel
+        agents={[agent]}
+        annotations={[
+          {
+            ...annotation,
+            annotationType: 'question',
+            questionStatus: 'open',
+            comments: [
+              {
+                id: 'comment_answered',
+                author: 'user',
+                content: '已解决？',
+                createdAt: '2026-05-04T00:01:00.000Z',
+                questionStatus: 'answered',
+              },
+              {
+                id: 'comment_parked',
+                author: 'user',
+                content: '以后再看？',
+                createdAt: '2026-05-04T00:02:00.000Z',
+                questionStatus: 'parked',
+              },
+            ],
+          },
+        ]}
+        userProfile={userProfile}
+        onAnswer={vi.fn()}
+        onFocus={vi.fn()}
+        onSetAnnotationQuestionStatus={vi.fn()}
+        onSetCommentQuestionStatus={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: '跳转' })).toBeNull();
+    expect(screen.getByRole('button', { name: '搁置' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '回答' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: /已答1/ }));
+
+    expect(screen.getByRole('button', { name: '查看' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '回答' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '跳转' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: /搁置1/ }));
+
+    expect(screen.getByRole('button', { name: '恢复' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '回答' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '查看' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '跳转' })).toBeNull();
   });
 });
 

@@ -267,6 +267,7 @@ export function QuestionPanel({
   annotations,
   userProfile,
   onFocus,
+  onAnswer,
   onSetAnnotationQuestionStatus,
   onSetCommentQuestionStatus,
 }: {
@@ -274,6 +275,7 @@ export function QuestionPanel({
   annotations: Annotation[];
   userProfile: UserProfile;
   onFocus: (annotationId: string) => void;
+  onAnswer: (annotationId: string) => void;
   onSetAnnotationQuestionStatus: (annotationId: string, status: QuestionStatus) => void;
   onSetCommentQuestionStatus: (
     annotationId: string,
@@ -281,6 +283,7 @@ export function QuestionPanel({
     status: QuestionStatus,
   ) => void;
 }) {
+  const [activeStatus, setActiveStatus] = useState<QuestionStatus>('open');
   const questions = annotations.flatMap((annotation) => {
     const annotationAuthorPersona = annotationAuthor(annotation, userProfile, agents);
     const annotationQuestion =
@@ -293,6 +296,12 @@ export function QuestionPanel({
               persona: annotationAuthorPersona,
               text: annotation.anchor.exact,
               quote: annotation.anchor.exact,
+              createdAt: annotation.createdAt,
+              typeLabel: annotation.readingIntent
+                ? agentReadingIntentLabel(annotation.readingIntent)
+                : annotation.annotationType
+                  ? annotationTypeLabel(annotation.annotationType)
+                  : '问题',
               setStatus: (status: QuestionStatus) =>
                 onSetAnnotationQuestionStatus(annotation.id, status),
             },
@@ -307,36 +316,68 @@ export function QuestionPanel({
         persona: commentAuthorPersona,
         text: comment.content,
         quote: annotation.anchor.exact,
+        createdAt: comment.createdAt,
+        typeLabel: comment.readingIntent ? agentReadingIntentLabel(comment.readingIntent) : '追问',
         setStatus: (status: QuestionStatus) =>
           onSetCommentQuestionStatus(annotation.id, comment.id, status),
       };
     });
     return [...annotationQuestion, ...commentQuestions];
   });
-  const openQuestions = questions.filter((question) => question.status === 'open');
+  const statusTabs: Array<{ status: QuestionStatus; label: string }> = [
+    { status: 'open', label: '未答' },
+    { status: 'answered', label: '已答' },
+    { status: 'parked', label: '搁置' },
+  ];
+  const questionCounts = statusTabs.reduce<Record<QuestionStatus, number>>(
+    (counts, tab) => {
+      counts[tab.status] = questions.filter((question) => question.status === tab.status).length;
+      return counts;
+    },
+    { open: 0, answered: 0, parked: 0 },
+  );
+  const activeStatusLabel =
+    statusTabs.find((tab) => tab.status === activeStatus)?.label ||
+    questionStatusLabel(activeStatus);
+  const visibleQuestions = questions.filter((question) => question.status === activeStatus);
 
   if (questions.length === 0) return null;
 
   return (
-    <section className="reader-question-panel" aria-label="未决问题">
-      <header>
+    <section className="reader-question-panel" aria-label="待答问题">
+      <header className="reader-question-panel-header">
         <div>
-          <strong>未决问题</strong>
-          <span>{openQuestions.length} 个待推进</span>
+          <strong>待回应</strong>
+          <span>INBOX · {questions.length}</span>
         </div>
       </header>
+      <div className="reader-question-tabs" role="tablist" aria-label="待答问题状态">
+        {statusTabs.map((tab) => (
+          <button
+            aria-selected={activeStatus === tab.status}
+            className={activeStatus === tab.status ? 'is-active' : ''}
+            key={tab.status}
+            role="tab"
+            type="button"
+            onClick={() => setActiveStatus(tab.status)}
+          >
+            <i />
+            <span>{tab.label}</span>
+            <b>{questionCounts[tab.status]}</b>
+          </button>
+        ))}
+      </div>
       <div className="reader-question-list">
-        {questions.map((question) => (
+        {visibleQuestions.length === 0 ? (
+          <p className="reader-question-empty">当前没有{activeStatusLabel}内容。</p>
+        ) : null}
+        {visibleQuestions.map((question) => (
           <article
             className={`is-${question.status}`}
             key={question.id}
             style={questionCardStyle(question.persona.color)}
           >
-            <button
-              className="reader-question-open"
-              type="button"
-              onClick={() => onFocus(question.annotationId)}
-            >
+            <div className="reader-question-open">
               <span className="reader-question-meta">
                 <span className="reader-question-persona">
                   <AvatarBadge
@@ -347,23 +388,31 @@ export function QuestionPanel({
                     <strong>{question.persona.nickname}</strong>
                   </span>
                 </span>
-                <i>{questionStatusLabel(question.status)}</i>
+                <time dateTime={question.createdAt}>{formatRelativeTime(question.createdAt)}</time>
               </span>
-              <span>{question.text}</span>
+              <span className="reader-question-type">{question.typeLabel}</span>
               <em>“{question.quote}”</em>
-            </button>
+              <span className="reader-question-content">{question.text}</span>
+            </div>
             <div className="reader-question-actions">
-              <button type="button" onClick={() => onFocus(question.annotationId)}>
-                {question.status === 'answered' ? '查看' : '回答'}
-              </button>
+              {question.status === 'open' ? (
+                <>
+                  <button type="button" onClick={() => question.setStatus('parked')}>
+                    搁置
+                  </button>
+                  <button type="button" onClick={() => onAnswer(question.annotationId)}>
+                    回答
+                  </button>
+                </>
+              ) : null}
               {question.status === 'parked' ? (
                 <button type="button" onClick={() => question.setStatus('open')}>
                   恢复
                 </button>
               ) : null}
-              {question.status === 'open' ? (
-                <button type="button" onClick={() => question.setStatus('parked')}>
-                  搁置
+              {question.status === 'answered' ? (
+                <button type="button" onClick={() => onFocus(question.annotationId)}>
+                  查看
                 </button>
               ) : null}
             </div>
@@ -1019,6 +1068,8 @@ export function AnnotationCard({
   shortcutModifier,
   stackCount = 1,
   stackIndex = 0,
+  commentsCloseKey,
+  replyRequestKey,
   style,
   userProfile,
   onAddComment,
@@ -1034,6 +1085,8 @@ export function AnnotationCard({
   shortcutModifier: string;
   stackCount?: number;
   stackIndex?: number;
+  commentsCloseKey: number;
+  replyRequestKey?: number;
   style?: React.CSSProperties;
   userProfile: UserProfile;
   onAddComment: (annotationId: string, content: string) => void;
@@ -1079,6 +1132,16 @@ export function AnnotationCard({
   useEffect(() => {
     if (!active && expanded) setExpanded(false);
   }, [active, expanded]);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [commentsCloseKey]);
+
+  useEffect(() => {
+    if (replyRequestKey === undefined) return;
+    setExpanded(true);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [replyRequestKey]);
 
   useEffect(() => () => stopDeleteTimer(), []);
 
@@ -1397,6 +1460,27 @@ function formatTime(value: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
+}
+
+function formatRelativeTime(value: string) {
+  const date = new Date(value);
+  const timestamp = date.getTime();
+  if (Number.isNaN(timestamp)) return value;
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (elapsedSeconds < 60) return '刚刚';
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) return `${elapsedMinutes} 分钟前`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) return `${elapsedHours} 小时前`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  if (elapsedDays === 1) return '昨天';
+  if (elapsedDays < 7) return `${elapsedDays} 天前`;
+
+  return formatTime(value);
 }
 
 function annotationMentionAgents(annotation: Annotation, agents: PublicAgent[]) {

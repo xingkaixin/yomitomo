@@ -65,6 +65,7 @@ type ReaderAppViewProps = {
   articleRef: React.RefObject<HTMLElement | null>;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  commentsCloseKey: number;
   composer: PendingComposer | null;
   desktopConnected: boolean;
   extracted: ExtractedArticle;
@@ -78,6 +79,7 @@ type ReaderAppViewProps = {
   pendingAgentAnnotations: PendingAgentAnnotation[];
   pairingId: string;
   pairingTokenDraft: string;
+  replyRequest: { annotationId: string; key: number } | null;
   readerSettings: ReaderSettings;
   readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
@@ -101,6 +103,7 @@ type ReaderAppViewProps = {
   ) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
+  onAnswerQuestion: (annotationId: string) => void;
   onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onCloseHighlightChoice: () => void;
@@ -138,6 +141,7 @@ export function ReaderAppView({
   articleRef,
   boxes,
   canvasRef,
+  commentsCloseKey,
   composer,
   desktopConnected,
   extracted,
@@ -151,6 +155,7 @@ export function ReaderAppView({
   pendingAgentAnnotations,
   pairingId,
   pairingTokenDraft,
+  replyRequest,
   readerSettings,
   readingSections,
   selectionAction,
@@ -170,6 +175,7 @@ export function ReaderAppView({
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
+  onAnswerQuestion,
   onHighlightClick,
   onMouseUp,
   onCloseHighlightChoice,
@@ -446,6 +452,10 @@ export function ReaderAppView({
                     shortcutModifier={shortcutModifier}
                     stackCount={stackCount}
                     stackIndex={stackIndex}
+                    commentsCloseKey={commentsCloseKey}
+                    replyRequestKey={
+                      replyRequest?.annotationId === annotation.id ? replyRequest.key : undefined
+                    }
                     style={style}
                     userProfile={userProfile}
                     onAddComment={onAddComment}
@@ -498,6 +508,7 @@ export function ReaderAppView({
             agents={agents}
             annotations={annotations}
             userProfile={userProfile}
+            onAnswer={onAnswerQuestion}
             onFocus={onScrollToHighlight}
             onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
             onSetCommentQuestionStatus={onSetCommentQuestionStatus}
