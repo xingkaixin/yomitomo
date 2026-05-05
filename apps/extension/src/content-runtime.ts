@@ -15,7 +15,7 @@ export function registerContentToggleListener({
 }: {
   addListener: (
     listener: (message: RuntimeMessage) => Promise<RuntimeResponse> | undefined,
-  ) => void;
+  ) => boolean | void;
   targetWindow?: Window;
   toggleReader: () => Promise<void>;
   errorMessage: (error: unknown) => string;
@@ -23,7 +23,7 @@ export function registerContentToggleListener({
   const yomitomoWindow = targetWindow as YomitomoWindow;
   if (yomitomoWindow[CONTENT_READY_KEY]) return false;
 
-  addListener((message) => {
+  const registered = addListener((message) => {
     if (message.type !== 'yomitomo:toggle' && message.type !== 'yomitomo:toggle:v2') return;
 
     return toggleReader()
@@ -33,6 +33,7 @@ export function registerContentToggleListener({
         return { ok: false, error: errorMessage(error) } satisfies RuntimeResponse;
       });
   });
+  if (registered === false) return false;
   yomitomoWindow[CONTENT_READY_KEY] = true;
   return true;
 }

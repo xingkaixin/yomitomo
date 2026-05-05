@@ -1,4 +1,5 @@
 import { browser } from 'wxt/browser';
+import type { RuntimeMessage, RuntimeResponse } from './content-runtime';
 
 export function isExtensionContextInvalidated(error: unknown) {
   return errorMessage(error).includes('Extension context invalidated');
@@ -42,6 +43,18 @@ export function connectExtensionPort(name: string) {
     return browser.runtime.connect({ name });
   } catch (error) {
     if (isExtensionContextInvalidated(error)) return null;
+    throw error;
+  }
+}
+
+export function addExtensionMessageListener(
+  listener: (message: RuntimeMessage) => Promise<RuntimeResponse> | undefined,
+) {
+  try {
+    browser.runtime.onMessage.addListener(listener);
+    return true;
+  } catch (error) {
+    if (isExtensionContextInvalidated(error)) return false;
     throw error;
   }
 }

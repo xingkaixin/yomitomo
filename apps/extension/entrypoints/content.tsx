@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { browser } from 'wxt/browser';
 import {
   type Annotation,
   type AnnotationType,
@@ -61,6 +60,7 @@ import {
   type DesktopBridgePortMessage,
 } from '../src/desktop-bridge';
 import {
+  addExtensionMessageListener,
   connectExtensionPort,
   readExtensionStorage,
   removeExtensionStorage,
@@ -91,7 +91,7 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
     registerContentToggleListener({
-      addListener: (listener) => browser.runtime.onMessage.addListener(listener),
+      addListener: addExtensionMessageListener,
       toggleReader,
       errorMessage,
     });

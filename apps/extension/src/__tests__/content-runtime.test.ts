@@ -68,4 +68,25 @@ describe('registerContentToggleListener', () => {
     expect(registered).toBe(true);
     expect(listeners).toHaveLength(1);
   });
+
+  it('leaves the window unready when the extension context is gone', () => {
+    const targetWindow = {} as Window;
+
+    const registered = registerContentToggleListener({
+      addListener: () => false,
+      targetWindow,
+      toggleReader: vi.fn(),
+      errorMessage: String,
+    });
+
+    expect(registered).toBe(false);
+    expect(
+      registerContentToggleListener({
+        addListener: () => true,
+        targetWindow,
+        toggleReader: vi.fn(),
+        errorMessage: String,
+      }),
+    ).toBe(true);
+  });
 });
