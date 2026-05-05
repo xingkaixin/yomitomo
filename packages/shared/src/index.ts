@@ -43,6 +43,8 @@ export type AnnotationType = 'key_point' | 'assumption' | 'concept' | 'question'
 
 export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
+export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'question' | 'connect';
+
 export type AgentKind = 'annotation' | 'review';
 
 export type ProviderModelInputMode = 'list' | 'custom';
@@ -217,6 +219,66 @@ export const providerPresets: ProviderPreset[] = [
 export const defaultAgentSoul =
   '你是一个克制、敏锐的结对阅读伙伴。优先回应用户正在讨论的文本，给出清晰、具体、可追问的判断。';
 
+export const agentReadingIntentOptions: Array<{
+  value: AgentReadingIntent;
+  label: string;
+  shortLabel: string;
+  description: string;
+  prompt: string;
+}> = [
+  {
+    value: 'explain',
+    label: '解释',
+    shortLabel: '解释',
+    description: '解释概念、背景和句子里的隐含信息。',
+    prompt:
+      '动作取向：解释。优先澄清概念、背景、隐含定义和句子里的信息压缩，让读者能准确理解原文。',
+  },
+  {
+    value: 'decompose',
+    label: '拆解',
+    shortLabel: '拆解',
+    description: '拆出结构、因果链、前提和结论。',
+    prompt: '动作取向：拆解。优先拆出论证结构、因果链、前提、证据和结论之间的关系。',
+  },
+  {
+    value: 'challenge',
+    label: '挑战',
+    shortLabel: '挑战',
+    description: '指出薄弱前提、跳跃和可验证处。',
+    prompt: '动作取向：挑战。优先指出薄弱前提、推理跳跃、证据缺口、替代解释和可验证判断。',
+  },
+  {
+    value: 'question',
+    label: '追问',
+    shortLabel: '追问',
+    description: '提出能推动继续阅读的问题。',
+    prompt: '动作取向：追问。优先提出具体、可继续阅读和可继续讨论的问题，帮助读者打开下一层理解。',
+  },
+  {
+    value: 'connect',
+    label: '联系全文',
+    shortLabel: '全文',
+    description: '把选段放回全文主题和上下文。',
+    prompt:
+      '动作取向：联系全文。优先把当前片段放回全文主线、上下文、前后论点和读者已形成的批注关系里。',
+  },
+];
+
+export function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
+  return value === 'explain' ||
+    value === 'decompose' ||
+    value === 'challenge' ||
+    value === 'question' ||
+    value === 'connect'
+    ? value
+    : null;
+}
+
+export function agentReadingIntentLabel(intent: AgentReadingIntent) {
+  return agentReadingIntentOptions.find((option) => option.value === intent)?.label || intent;
+}
+
 export const customPersonalityId = 'custom';
 
 export const annotationAgentPersonalities: AgentPersonality[] = [
@@ -365,6 +427,7 @@ export type Comment = {
   userNickname?: string;
   userAvatar?: string;
   userAnnotationColor?: string;
+  readingIntent?: AgentReadingIntent;
   pending?: boolean;
 };
 
@@ -384,6 +447,7 @@ export type Annotation = {
   userNickname?: string;
   userAvatar?: string;
   userAnnotationColor?: string;
+  readingIntent?: AgentReadingIntent;
   comments: Comment[];
   createdAt: string;
   updatedAt: string;
@@ -494,6 +558,7 @@ export type DesktopStore = {
 export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
+  readingIntent?: AgentReadingIntent;
   article: {
     title: string;
     url: string;
@@ -506,6 +571,8 @@ export type AgentMessagePayload = {
 export type AgentAnnotatePayload = {
   agentId?: string;
   agentUsername: string;
+  readingIntent?: AgentReadingIntent;
+  targetAnchor?: TextAnchor;
   article: {
     title: string;
     url: string;
@@ -649,6 +716,9 @@ function validateAgentMessagePayload(value: unknown) {
   if (!validateAgentIdentity(value)) return 'Agent 标识必须包含有效 username';
   const articleError = validatePromptArticle(value.article);
   if (articleError) return `agent:message.${articleError}`;
+  if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
+    return 'agent:message.readingIntent 无效';
+  }
   const annotationError = validateAnnotation(value.annotation);
   if (annotationError) return `agent:message.annotation ${annotationError}`;
   const commentError = validateComment(value.userComment);
@@ -660,7 +730,15 @@ function validateAgentAnnotatePayload(value: unknown) {
   if (!isPlainObject(value)) return 'agent:annotate.payload 缺失';
   if (!validateAgentIdentity(value)) return 'Agent 标识必须包含有效 username';
   const articleError = validatePromptArticle(value.article);
-  return articleError ? `agent:annotate.${articleError}` : '';
+  if (articleError) return `agent:annotate.${articleError}`;
+  if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
+    return 'agent:annotate.readingIntent 无效';
+  }
+  if (value.targetAnchor !== undefined) {
+    const anchorError = validateTextAnchor(value.targetAnchor);
+    if (anchorError) return `agent:annotate.targetAnchor ${anchorError}`;
+  }
+  return '';
 }
 
 function validateAgentIdentity(value: Record<string, unknown>) {
@@ -713,20 +791,12 @@ function validateArticleRecord(value: unknown) {
 function validateAnnotation(value: unknown) {
   if (!isPlainObject(value)) return '元素必须是 object';
   if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) return 'id 无效';
-  if (!isPlainObject(value.anchor)) return 'anchor 缺失';
-  if (!boundedString(value.anchor.exact, MESSAGE_LIMITS.anchorExactChars)) {
-    return 'anchor.exact 无效';
-  }
-  if (!limitedString(value.anchor.prefix, MESSAGE_LIMITS.anchorContextChars)) {
-    return 'anchor.prefix 无效';
-  }
-  if (!limitedString(value.anchor.suffix, MESSAGE_LIMITS.anchorContextChars)) {
-    return 'anchor.suffix 无效';
-  }
-  if (!Number.isFinite(value.anchor.start) || !Number.isFinite(value.anchor.end)) {
-    return 'anchor start/end 无效';
-  }
+  const anchorError = validateTextAnchor(value.anchor);
+  if (anchorError) return `anchor ${anchorError}`;
   if (value.author !== 'user' && value.author !== 'ai') return 'author 无效';
+  if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
+    return 'readingIntent 无效';
+  }
   if (!boundedString(value.color, MESSAGE_LIMITS.idChars)) return 'color 无效';
   if (!Array.isArray(value.comments)) return 'comments 必须是数组';
   if (value.comments.length > MESSAGE_LIMITS.commentsPerAnnotation) {
@@ -745,10 +815,22 @@ function validateComment(value: unknown) {
   if (!isPlainObject(value)) return '必须是 object';
   if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) return 'id 无效';
   if (value.author !== 'user' && value.author !== 'ai') return 'author 无效';
+  if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
+    return 'readingIntent 无效';
+  }
   if (!limitedString(value.content, MESSAGE_LIMITS.commentChars)) {
     return 'content 超出长度限制';
   }
   if (!boundedString(value.createdAt, MESSAGE_LIMITS.idChars)) return 'createdAt 无效';
+  return '';
+}
+
+function validateTextAnchor(value: unknown) {
+  if (!isPlainObject(value)) return '缺失';
+  if (!boundedString(value.exact, MESSAGE_LIMITS.anchorExactChars)) return 'exact 无效';
+  if (!limitedString(value.prefix, MESSAGE_LIMITS.anchorContextChars)) return 'prefix 无效';
+  if (!limitedString(value.suffix, MESSAGE_LIMITS.anchorContextChars)) return 'suffix 无效';
+  if (!Number.isFinite(value.start) || !Number.isFinite(value.end)) return 'start/end 无效';
   return '';
 }
 

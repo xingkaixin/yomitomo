@@ -10,6 +10,7 @@ import type {
   ReadingCardRecord,
   ReadingCardReviewerResult,
 } from '@yomitomo/shared';
+import { agentReadingIntentOptions } from '@yomitomo/shared';
 import {
   annotationDensityInstruction,
   createAgentAnnotation,
@@ -71,7 +72,7 @@ export async function runAgentStream(
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
+  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}`;
   const user = buildAgentPrompt(provider, payload);
   await streamProviderText(
     provider,
@@ -93,7 +94,7 @@ export async function runAgent(
   },
   payload: AgentMessagePayload,
 ): Promise<Comment> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。`;
+  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}`;
   const user = buildAgentPrompt(provider, payload);
   const content = await callProviderText(provider, {
     system,
@@ -112,6 +113,7 @@ export async function runAgent(
     agentNickname: agent.nickname,
     agentAvatar: agent.avatar,
     agentAnnotationColor: agent.annotationColor,
+    readingIntent: payload.readingIntent,
   };
 }
 
@@ -120,7 +122,7 @@ export async function runAgentAnnotate(
   agent: Agent,
   payload: AgentAnnotatePayload,
 ): Promise<Annotation[]> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
+  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。${readingIntentSystemPrompt(payload)}`;
   const content = await callProviderText(provider, {
     system,
     user: buildAgentAnnotatePrompt(provider, payload, agent),
@@ -131,7 +133,16 @@ export async function runAgentAnnotate(
   const now = new Date().toISOString();
 
   return suggestions.flatMap((suggestion) => {
-    const annotation = createAgentAnnotation(agent, payload.article.text, suggestion, now);
+    const annotation = createAgentAnnotation(
+      agent,
+      payload.article.text,
+      {
+        ...suggestion,
+        ...targetAnchorSuggestion(payload),
+        readingIntent: payload.readingIntent || suggestion.readingIntent,
+      },
+      now,
+    );
     return annotation ? [annotation] : [];
   });
 }
@@ -142,7 +153,7 @@ export async function runAgentAnnotateStream(
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<void> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
+  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。${readingIntentSystemPrompt(payload)}`;
   const flushJson = (json: string) => {
     try {
       const parsed = JSON.parse(json) as {
@@ -164,6 +175,8 @@ export async function runAgentAnnotateStream(
           context: typeof parsed.context === 'string' ? parsed.context : undefined,
           comment: typeof parsed.comment === 'string' ? parsed.comment : '',
           annotationType: normalizeAnnotationType(parsed.type),
+          readingIntent: payload.readingIntent,
+          ...targetAnchorSuggestion(payload),
         },
         new Date().toISOString(),
       );
@@ -316,6 +329,31 @@ export async function reviewReadingCard(
   return normalizeReadingCardReviewResponse(rawResponse);
 }
 
+function readingIntentOption(payload: AgentAnnotatePayload | AgentMessagePayload) {
+  return agentReadingIntentOptions.find((option) => option.value === payload.readingIntent);
+}
+
+function readingIntentSystemPrompt(payload: AgentAnnotatePayload | AgentMessagePayload) {
+  const option = readingIntentOption(payload);
+  return option ? `\n\n${option.prompt}` : '';
+}
+
+function readingIntentPromptLine(payload: AgentAnnotatePayload | AgentMessagePayload) {
+  const option = readingIntentOption(payload);
+  return option ? `\n\n本轮阅读动作：${option.label}\n动作说明：${option.description}` : '';
+}
+
+function targetAnchorSuggestion(payload: AgentAnnotatePayload) {
+  const anchor = payload.targetAnchor;
+  return anchor
+    ? {
+        exact: anchor.exact,
+        prefix: anchor.prefix,
+        suffix: anchor.suffix,
+      }
+    : {};
+}
+
 function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
   const comments = payload.annotation.comments
     .map((comment) => {
@@ -328,7 +366,7 @@ function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
   const article = budgetArticleText(provider, 'agent-message', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
 function formatAgentAuthor(comment: Comment) {
@@ -356,7 +394,10 @@ function buildAgentAnnotatePrompt(
 ) {
   const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：你为什么认为这段值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
+  if (payload.targetAnchor) {
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n目标选区：\n${payload.targetAnchor.exact}\n\n请只针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- prefix：目标选区前方 10-40 个字，来自文章原文\n- suffix：目标选区后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：按本轮阅读动作写给读者的批注评论\n\n只返回 JSON，不要输出 Markdown。`;
+  }
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：按本轮阅读动作说明这段为什么值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
 }
 
 function buildAgentAnnotateStreamPrompt(
@@ -366,7 +407,10 @@ function buildAgentAnnotateStreamPrompt(
 ) {
   const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"为什么这段值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  if (payload.targetAnchor) {
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n目标选区：\n${payload.targetAnchor.exact}\n\n请只针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","prefix":"目标选区前方 10-40 个字","suffix":"目标选区后方 10-40 个字","type":"key_point","comment":"按本轮阅读动作写给读者的批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- prefix 和 suffix 必须来自目标选区周围的文章原文\n- type 只允许 key_point、assumption、concept、question、quote\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
+  }
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"按本轮阅读动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
 function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCardInput) {

@@ -224,6 +224,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         agentNickname: agent.nickname,
         agentAvatar: agent.avatar,
         agentAnnotationColor: agent.annotationColor,
+        readingIntent: message.payload.readingIntent,
         pending: true,
       };
 
@@ -264,8 +265,10 @@ async function handleMessage(socket: WebSocket, raw: string) {
       logInfo('agent.annotate.start', {
         requestId: message.requestId,
         agent: agent.username,
+        readingIntent: message.payload.readingIntent,
         articleTitle: message.payload.article.title,
         articleChars: message.payload.article.text.length,
+        targeted: Boolean(message.payload.targetAnchor),
       });
       send(socket, {
         type: 'agent:annotate:start',
@@ -280,6 +283,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
           requestId: message.requestId,
           agent: agent.username,
           annotationId: annotation.id,
+          readingIntent: annotation.readingIntent,
           exactChars: annotation.anchor.exact.length,
           exactPreview: annotation.anchor.exact.slice(0, 80),
         });
@@ -387,6 +391,7 @@ function articleSyncSignature(article: ArticleRecord) {
       anchor: annotation.anchor,
       author: annotation.author,
       annotationType: annotation.annotationType,
+      readingIntent: annotation.readingIntent,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -409,6 +414,7 @@ function articleSyncSignature(article: ArticleRecord) {
         agentNickname: comment.agentNickname,
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
+        readingIntent: comment.readingIntent,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,

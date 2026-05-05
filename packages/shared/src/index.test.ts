@@ -187,6 +187,27 @@ describe('desktop client message parser', () => {
   });
 
   it('validates agent annotate prompt boundaries', () => {
+    const record = articleRecord();
+    expect(
+      parseDesktopClientMessage({
+        type: 'agent:annotate',
+        requestId: 'request-1',
+        payload: {
+          agentUsername: 'reader',
+          readingIntent: 'decompose',
+          targetAnchor: record.annotations[0].anchor,
+          article: {
+            title: 'Article',
+            url: 'https://example.com/article',
+            text: 'Article text',
+          },
+        },
+      }),
+    ).toEqual({
+      ok: true,
+      message: expect.objectContaining({ type: 'agent:annotate' }),
+    });
+
     expect(
       parseDesktopClientMessage({
         type: 'agent:annotate',
@@ -203,6 +224,25 @@ describe('desktop client message parser', () => {
     ).toEqual({
       ok: false,
       error: { requestId: 'request-1', message: 'agent:annotate.article.text 超出传输容量边界' },
+    });
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'agent:annotate',
+        requestId: 'request-1',
+        payload: {
+          agentUsername: 'reader',
+          readingIntent: 'summarize',
+          article: {
+            title: 'Article',
+            url: 'https://example.com/article',
+            text: 'Article text',
+          },
+        },
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'agent:annotate.readingIntent 无效' },
     });
   });
 });

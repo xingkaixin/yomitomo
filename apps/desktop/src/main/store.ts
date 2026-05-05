@@ -7,6 +7,7 @@ import SQLiteDatabase from 'better-sqlite3';
 import type {
   Agent,
   AgentAnnotationDensity,
+  AgentReadingIntent,
   AgentKind,
   Annotation,
   AnnotationType,
@@ -331,6 +332,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       agentNickname: row.agentNickname || undefined,
       agentAvatar: row.agentAvatar || undefined,
       agentAnnotationColor: row.agentAnnotationColor || undefined,
+      readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
       userId: row.userId || undefined,
       userUsername: row.userUsername || undefined,
       userNickname: row.userNickname || undefined,
@@ -349,6 +351,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       anchor: row.anchor as TextAnchor,
       author: row.author as Annotation['author'],
       annotationType: normalizeAnnotationType(row.annotationType) || undefined,
+      readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
       color: row.color,
       agentId: row.agentId || undefined,
       agentUsername: row.agentUsername || undefined,
@@ -508,6 +511,7 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
       anchor: annotation.anchor,
       author: annotation.author,
       annotationType: annotation.annotationType,
+      readingIntent: annotation.readingIntent,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -539,6 +543,7 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
         agentNickname: comment.agentNickname,
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
+        readingIntent: comment.readingIntent,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,
@@ -936,6 +941,16 @@ function normalizeAnnotationType(value: unknown): AnnotationType | null {
     value === 'concept' ||
     value === 'question' ||
     value === 'quote'
+    ? value
+    : null;
+}
+
+function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
+  return value === 'explain' ||
+    value === 'decompose' ||
+    value === 'challenge' ||
+    value === 'question' ||
+    value === 'connect'
     ? value
     : null;
 }

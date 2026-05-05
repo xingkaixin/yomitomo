@@ -4,6 +4,7 @@ import { browser } from 'wxt/browser';
 import {
   type Annotation,
   type AnnotationType,
+  type AgentReadingIntent,
   type ArticleRecord,
   type Comment,
   type DesktopClientMessage,
@@ -863,7 +864,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     });
   }
 
-  function requestAgentAnnotations(agent: PublicAgent) {
+  function requestAgentAnnotations(
+    agent: PublicAgent,
+    readingIntent: AgentReadingIntent,
+    targetAnchor?: Annotation['anchor'],
+  ) {
     if (annotatingAgents.includes(agent.id)) return;
     if (!desktopAuthenticatedRef.current) return;
     const bridge = desktopBridgeRef.current;
@@ -883,6 +888,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       payload: {
         agentId: agent.id,
         agentUsername: agent.username,
+        readingIntent,
+        targetAnchor,
         article: {
           title: extracted.title,
           url: extracted.canonicalUrl,
@@ -890,6 +897,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         },
       },
     });
+  }
+
+  function requestSelectionAgentAction(
+    action: SelectionAction,
+    readingIntent: AgentReadingIntent,
+    agent: PublicAgent,
+  ) {
+    requestAgentAnnotations(agent, readingIntent, action.anchor);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+    if (articleRef.current) getArticleSelection(articleRef.current)?.removeAllRanges();
   }
 
   async function savePairingToken() {
@@ -1082,6 +1100,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setSelectionAction(null);
       }}
       onRequestAgentAnnotations={requestAgentAnnotations}
+      onRequestSelectionAgentAction={requestSelectionAgentAction}
       onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}
       onScrollToHighlight={scrollToHighlight}

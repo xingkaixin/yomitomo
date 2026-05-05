@@ -78,14 +78,16 @@ describe('annotation core', () => {
     const result = createAgentAnnotation(
       agent,
       'A first principles note.',
-      { exact: 'first principles', comment: 'good point' },
+      { exact: 'first principles', comment: 'good point', readingIntent: 'explain' },
       '2026-01-02T00:00:00.000Z',
     );
 
     expect(result?.author).toBe('ai');
     expect(result?.annotationType).toBe('key_point');
+    expect(result?.readingIntent).toBe('explain');
     expect(result?.anchor.start).toBe(2);
     expect(result?.comments[0]?.content).toBe('good point');
+    expect(result?.comments[0]?.readingIntent).toBe('explain');
   });
 
   it('returns null when agent suggestion cannot be anchored', () => {
@@ -225,7 +227,7 @@ describe('annotation core', () => {
   it('parses agent annotation suggestions with context fields', () => {
     expect(
       parseAnnotationSuggestions(
-        '[{"exact":"target","prefix":"Beta ","suffix":" opens","context":"Beta target opens","type":"quote","comment":"note"}]',
+        '[{"exact":"target","prefix":"Beta ","suffix":" opens","context":"Beta target opens","type":"quote","readingIntent":"challenge","comment":"note"}]',
       ),
     ).toEqual([
       {
@@ -234,6 +236,7 @@ describe('annotation core', () => {
         suffix: ' opens',
         context: 'Beta target opens',
         annotationType: 'quote',
+        readingIntent: 'challenge',
         comment: 'note',
       },
     ]);

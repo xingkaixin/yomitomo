@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
@@ -10,6 +10,7 @@ import {
   Composer,
   HighlightChoiceMenu,
   ReaderSettingsPanel,
+  SelectionMenu,
 } from '../reader-components';
 
 afterEach(() => {
@@ -230,7 +231,80 @@ describe('AgentAnnotateMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
-    expect(onStartAgent).toHaveBeenCalledWith(agent);
+    expect(onStartAgent).toHaveBeenCalledWith(agent, 'explain');
+  });
+
+  it('passes the selected reading intent into careful reading', () => {
+    const onStartAgent = vi.fn();
+    render(
+      <AgentAnnotateMenu
+        agents={[agent]}
+        annotatingAgents={[]}
+        onCancel={vi.fn()}
+        onStartAgent={onStartAgent}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('radio', { name: /挑战/ }));
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
+
+    expect(onStartAgent).toHaveBeenCalledWith(agent, 'challenge');
+  });
+
+  it('keeps a separate reading intent for each selected agent', () => {
+    const secondAgent: PublicAgent = {
+      ...agent,
+      id: 'agent_2',
+      nickname: '拆解助手',
+      username: 'decomposer',
+    };
+    const onStartAgent = vi.fn();
+    render(
+      <AgentAnnotateMenu
+        agents={[agent, secondAgent]}
+        annotatingAgents={[]}
+        onCancel={vi.fn()}
+        onStartAgent={onStartAgent}
+      />,
+    );
+
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: '阅读伙伴 精读动作' })).getByRole('radio', {
+        name: '挑战',
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: '拆解助手 精读动作' })).getByRole('radio', {
+        name: '拆解',
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('button', { name: /拆解助手/ }));
+    fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
+
+    expect(onStartAgent).toHaveBeenNthCalledWith(1, agent, 'challenge');
+    expect(onStartAgent).toHaveBeenNthCalledWith(2, secondAgent, 'decompose');
+  });
+});
+
+describe('SelectionMenu', () => {
+  it('requests an agent action for the selected text', () => {
+    const onRequestAgentAction = vi.fn();
+    render(
+      <SelectionMenu
+        action={{ x: 0, y: 0 }}
+        agents={[agent]}
+        desktopConnected
+        onAnnotate={vi.fn()}
+        onRequestAgentAction={onRequestAgentAction}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '解释' }));
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+
+    expect(onRequestAgentAction).toHaveBeenCalledWith('explain', agent);
   });
 });
 

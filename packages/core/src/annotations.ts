@@ -1,6 +1,7 @@
 import type {
   Agent,
   AgentAnnotationDensity,
+  AgentReadingIntent,
   Annotation,
   AnnotationType,
   Comment,
@@ -14,6 +15,7 @@ export type AnnotationSuggestion = {
   exact: string;
   comment: string;
   annotationType?: AnnotationType | null;
+  readingIntent?: AgentReadingIntent | null;
   prefix?: string;
   suffix?: string;
   context?: string;
@@ -114,6 +116,7 @@ export function createAgentAnnotation(
     anchor: createTextAnchor(articleText, match.start, match.end),
     author: 'ai',
     annotationType: suggestion.annotationType || 'key_point',
+    readingIntent: suggestion.readingIntent || undefined,
     color: agent.annotationColor,
     agentId: agent.id,
     agentUsername: agent.username,
@@ -132,6 +135,7 @@ export function createAgentAnnotation(
             agentNickname: agent.nickname,
             agentAvatar: agent.avatar,
             agentAnnotationColor: agent.annotationColor,
+            readingIntent: suggestion.readingIntent || undefined,
           },
         ]
       : [],
@@ -472,6 +476,7 @@ export function parseAnnotationSuggestions(content: string): AnnotationSuggestio
     context?: unknown;
     comment?: unknown;
     type?: unknown;
+    readingIntent?: unknown;
   }>;
   return parsed
     .map((item) => ({
@@ -481,6 +486,7 @@ export function parseAnnotationSuggestions(content: string): AnnotationSuggestio
       context: typeof item.context === 'string' ? item.context : undefined,
       comment: typeof item.comment === 'string' ? item.comment : '',
       annotationType: normalizeAnnotationType(item.type),
+      readingIntent: normalizeAgentReadingIntent(item.readingIntent),
     }))
     .filter((item) => item.exact.trim().length > 0);
 }
@@ -504,6 +510,16 @@ function findAgentIdentity(
 
 function findUserIdentity(userId: string | undefined, userProfile: UserProfile) {
   return !userId || userId === userProfile.id ? userProfile : null;
+}
+
+function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
+  return value === 'explain' ||
+    value === 'decompose' ||
+    value === 'challenge' ||
+    value === 'question' ||
+    value === 'connect'
+    ? value
+    : null;
 }
 
 function findAll(text: string, exact: string): number[] {

@@ -15,8 +15,18 @@ import {
   Unplug,
   X,
 } from 'lucide-react';
-import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
+import type {
+  AgentReadingIntent,
+  Annotation,
+  AnnotationType,
+  PublicAgent,
+  UserProfile,
+} from '@yomitomo/shared';
+import {
+  agentReadingIntentLabel,
+  agentReadingIntentOptions,
+  renderMarkdown,
+} from '@yomitomo/shared';
 import {
   annotationPersona as annotationAuthor,
   annotationTypeLabel,
@@ -95,17 +105,71 @@ function moveAnnotationTypeSelection(
 
 export function SelectionMenu({
   action,
+  agents,
+  desktopConnected,
   onAnnotate,
+  onRequestAgentAction,
 }: {
   action: SelectionMenuAction;
+  agents: PublicAgent[];
+  desktopConnected: boolean;
   onAnnotate: () => void;
+  onRequestAgentAction: (intent: AgentReadingIntent, agent: PublicAgent) => void;
 }) {
+  const [selectedIntent, setSelectedIntent] = useState<AgentReadingIntent | null>(null);
+  const selectedIntentOption = agentReadingIntentOptions.find(
+    (option) => option.value === selectedIntent,
+  );
+  const agentActionsDisabled = !desktopConnected || agents.length === 0;
+  const agentActionHint = !desktopConnected
+    ? '桌面端未连接'
+    : agents.length === 0
+      ? '暂无阅读助手'
+      : '';
+
   return (
     <div className="reader-selection-menu" style={{ left: action.x, top: action.y }}>
-      <button type="button" onClick={onAnnotate}>
+      <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
-        批注
+        我的批注
       </button>
+      <div className="reader-selection-agent-actions">
+        <div className="reader-selection-heading">
+          <span>让助手处理</span>
+          {agentActionHint ? <em>{agentActionHint}</em> : null}
+        </div>
+        <div className="reader-selection-action-grid">
+          {agentReadingIntentOptions.map((option) => (
+            <button
+              aria-pressed={selectedIntent === option.value}
+              className={selectedIntent === option.value ? 'is-active' : ''}
+              disabled={agentActionsDisabled}
+              key={option.value}
+              type="button"
+              onClick={() =>
+                setSelectedIntent((current) => (current === option.value ? null : option.value))
+              }
+            >
+              {option.shortLabel}
+            </button>
+          ))}
+        </div>
+        {selectedIntentOption && !agentActionsDisabled ? (
+          <div className="reader-selection-agent-list">
+            <strong>{selectedIntentOption.label}</strong>
+            {agents.map((agent) => (
+              <button
+                key={agent.id}
+                type="button"
+                onClick={() => onRequestAgentAction(selectedIntentOption.value, agent)}
+              >
+                <AvatarBadge avatar={agent.avatar} />
+                <span>{agent.nickname}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -135,6 +199,10 @@ export function HighlightChoiceMenu({
       </header>
       {annotations.map((annotation) => {
         const persona = annotationAuthor(annotation, userProfile, agents);
+        const labels = [
+          annotation.annotationType ? annotationTypeLabel(annotation.annotationType) : '',
+          annotation.readingIntent ? agentReadingIntentLabel(annotation.readingIntent) : '',
+        ].filter(Boolean);
         return (
           <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
             <AvatarBadge avatar={persona.avatar} fallback={persona.fallback} />
@@ -142,9 +210,7 @@ export function HighlightChoiceMenu({
               <strong>{persona.nickname}</strong>
               <em>@{persona.username}</em>
             </span>
-            {annotation.annotationType ? (
-              <b>{annotationTypeLabel(annotation.annotationType)}</b>
-            ) : null}
+            {labels.length > 0 ? <b>{labels.join(' · ')}</b> : null}
           </button>
         );
       })}
@@ -210,9 +276,10 @@ export function AgentAnnotateMenu({
   agents: PublicAgent[];
   annotatingAgents: string[];
   onCancel: () => void;
-  onStartAgent: (agent: PublicAgent) => void;
+  onStartAgent: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
 }) {
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [agentIntents, setAgentIntents] = useState<Record<string, AgentReadingIntent>>({});
   const selectedAgents = agents.filter(
     (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
   );
@@ -231,41 +298,77 @@ export function AgentAnnotateMenu({
   }
 
   function startSelectedAgents() {
-    for (const agent of selectedAgents) onStartAgent(agent);
+    for (const agent of selectedAgents) onStartAgent(agent, readingIntentForAgent(agent.id));
     setSelectedAgentIds([]);
+  }
+
+  function readingIntentForAgent(agentId: string): AgentReadingIntent {
+    return agentIntents[agentId] || agentReadingIntentOptions[0]!.value;
+  }
+
+  function setAgentReadingIntent(agentId: string, intent: AgentReadingIntent) {
+    setAgentIntents((current) => ({ ...current, [agentId]: intent }));
   }
 
   return (
     <div className="reader-agent-annotate-menu">
       <header>
         <strong>助手精读</strong>
-        <span>先选择阅读助手，再开始主动批注</span>
+        <span>给每个助手选择动作，再开始主动批注</span>
       </header>
       {agents.map((agent) => {
         const running = annotatingAgents.includes(agent.id);
         const selected = selectedAgentIds.includes(agent.id);
+        const readingIntent = readingIntentForAgent(agent.id);
         return (
-          <button
-            aria-pressed={selected}
-            className={[running ? 'is-running' : '', selected ? 'is-selected' : '']
+          <div
+            className={[
+              'reader-agent-option',
+              running ? 'is-running' : '',
+              selected ? 'is-selected' : '',
+            ]
               .filter(Boolean)
               .join(' ')}
-            disabled={running}
             key={agent.id}
-            type="button"
-            onClick={() => toggleAgent(agent)}
           >
-            <div className="reader-agent-avatar">
-              <i style={{ background: agent.annotationColor }} />
-              <AvatarBadge avatar={agent.avatar} />
+            <button
+              aria-pressed={selected}
+              className="reader-agent-select"
+              disabled={running}
+              type="button"
+              onClick={() => toggleAgent(agent)}
+            >
+              <div className="reader-agent-avatar">
+                <i style={{ background: agent.annotationColor }} />
+                <AvatarBadge avatar={agent.avatar} />
+              </div>
+              <span>
+                <strong>{agent.nickname}</strong>
+                <em>@{agent.username}</em>
+                <small>{agent.personalityName || '自定义个性'}</small>
+              </span>
+              <b>{running ? '阅读中' : selected ? '已选' : '选择'}</b>
+            </button>
+            <div
+              className="reader-agent-row-intents"
+              role="radiogroup"
+              aria-label={`${agent.nickname} 精读动作`}
+            >
+              {agentReadingIntentOptions.map((option) => (
+                <button
+                  aria-checked={readingIntent === option.value}
+                  className={readingIntent === option.value ? 'is-active' : ''}
+                  disabled={running}
+                  key={option.value}
+                  role="radio"
+                  type="button"
+                  onClick={() => setAgentReadingIntent(agent.id, option.value)}
+                >
+                  {option.shortLabel}
+                </button>
+              ))}
             </div>
-            <span>
-              <strong>{agent.nickname}</strong>
-              <em>@{agent.username}</em>
-              <small>{agent.personalityName || '自定义个性'}</small>
-            </span>
-            <b>{running ? '阅读中' : selected ? '已选' : '选择'}</b>
-          </button>
+          </div>
         );
       })}
       <div className="reader-agent-annotate-actions">
@@ -693,6 +796,9 @@ export function AnnotationCard({
                       <div className="reader-comment-author">
                         <strong>{commentAuthor.nickname}</strong>
                         <em>@{commentAuthor.username}</em>
+                        {comment.readingIntent ? (
+                          <span>{agentReadingIntentLabel(comment.readingIntent)}</span>
+                        ) : null}
                       </div>
                       <MarkdownContent content={comment.content} pending={comment.pending} />
                     </div>

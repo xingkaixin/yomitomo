@@ -1,6 +1,12 @@
 import React from 'react';
 import { Bot, List, MessageSquare, Settings2, X } from 'lucide-react';
-import type { Annotation, AnnotationType, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type {
+  AgentReadingIntent,
+  Annotation,
+  AnnotationType,
+  PublicAgent,
+  UserProfile,
+} from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
 import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs';
 import type { ExtractedArticle } from './article-extraction';
@@ -84,7 +90,12 @@ type ReaderAppViewProps = {
   onCloseFloatingPanels: () => void;
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
-  onRequestAgentAnnotations: (agent: PublicAgent) => void;
+  onRequestAgentAnnotations: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
+  onRequestSelectionAgentAction: (
+    action: SelectionAction,
+    readingIntent: AgentReadingIntent,
+    agent: PublicAgent,
+  ) => void;
   onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -148,6 +159,7 @@ export function ReaderAppView({
   onCloseResponsivePanels,
   onOpenComposer,
   onRequestAgentAnnotations,
+  onRequestSelectionAgentAction,
   onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
@@ -379,7 +391,12 @@ export function ReaderAppView({
             {selectionAction && !composer ? (
               <SelectionMenu
                 action={selectionAction}
+                agents={agents}
+                desktopConnected={desktopConnected}
                 onAnnotate={() => onOpenComposer(selectionAction)}
+                onRequestAgentAction={(readingIntent, agent) =>
+                  onRequestSelectionAgentAction(selectionAction, readingIntent, agent)
+                }
               />
             ) : null}
             {highlightChoice && highlightChoiceAnnotations.length > 1 ? (

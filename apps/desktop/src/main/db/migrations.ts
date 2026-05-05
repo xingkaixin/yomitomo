@@ -189,4 +189,11 @@ ALTER TABLE providers ADD COLUMN model_names TEXT;
 ALTER TABLE providers ADD COLUMN model_input_mode TEXT NOT NULL DEFAULT 'list';
 `,
   },
+  {
+    id: '0012_reading_intent',
+    sql: `
+ALTER TABLE annotations ADD COLUMN reading_intent TEXT;
+ALTER TABLE comments ADD COLUMN reading_intent TEXT;
+`,
+  },
 ];
