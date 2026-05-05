@@ -31,11 +31,15 @@ export const readerConversationStyles = `
 .reader-question-panel>header strong{font-size:13px;font-weight:900}
 .reader-question-panel>header span{color:var(--reader-muted);font-size:11px;font-weight:760}
 .reader-question-list{display:grid;gap:8px}
-.reader-question-list article{display:grid;gap:8px;border-radius:13px;background:#fffdf7;box-shadow:inset 0 0 0 1px rgba(37,29,22,.08);padding:9px}
+.reader-question-list article{display:grid;gap:8px;border:1px solid rgba(37,29,22,.08);border-radius:13px;background:#fffdf7;padding:9px 9px 9px 11px}
 .reader-question-list article.is-answered,.reader-question-list article.is-parked{opacity:.72}
 .reader-question-open{display:grid;gap:4px;border:0;background:transparent;color:var(--reader-ink);cursor:pointer;font:inherit;padding:0;text-align:left}
 .reader-question-meta{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.reader-question-meta strong{font-size:12px;font-weight:850}
+.reader-question-persona{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:8px;min-width:0}
+.reader-question-persona .reader-avatar-badge{display:grid;width:28px;height:28px;place-items:center;overflow:hidden;border-radius:999px;background:var(--reader-green);color:white;font-size:11px;font-weight:800}
+.reader-question-persona .reader-avatar-badge.is-image{background:transparent;color:inherit}
+.reader-question-persona>span{display:grid;gap:1px;min-width:0}
+.reader-question-persona strong{overflow:hidden;font-size:12px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
 .reader-question-meta i{display:inline-flex;border-radius:999px;background:rgba(37,29,22,.08);color:var(--reader-muted);font-size:10px;font-style:normal;font-weight:850;line-height:1;padding:4px 7px}
 .reader-question-open>span:not(.reader-question-meta){font-size:13px;font-weight:760;line-height:1.42;overflow-wrap:anywhere}
 .reader-question-open em{display:block;overflow:hidden;color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700;text-overflow:ellipsis;white-space:nowrap}

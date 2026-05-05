@@ -25,7 +25,7 @@ export default defineConfig({
     description: 'Yomitomo reader mode with persistent highlights and threaded annotations.',
     version: packageJson.version,
     permissions: ['storage', 'scripting'],
-    host_permissions: ['<all_urls>', 'ws://127.0.0.1/*'],
+    host_permissions: ['<all_urls>', 'http://127.0.0.1/*', 'ws://127.0.0.1/*'],
     icons,
     action: {
       default_title: 'Yomitomo',

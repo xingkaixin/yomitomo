@@ -8,6 +8,8 @@ import {
 import { desktopMessageFromData } from '../src/background-bridge';
 
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
+const DESKTOP_HEALTH_URL = 'http://127.0.0.1:43891/health';
+const DESKTOP_HEALTH_TIMEOUT_MS = 800;
 
 export default defineBackground(() => {
   browser.runtime.onConnect.addListener((port) => {
@@ -26,8 +28,13 @@ export default defineBackground(() => {
       socket = null;
     }
 
-    function connect(token: string) {
+    async function connect(token: string) {
       closeSocket();
+      if (!(await isDesktopAvailable())) {
+        post({ type: 'desktop:close' });
+        return;
+      }
+      if (!portAlive) return;
 
       const nextSocket = new WebSocket(DESKTOP_WS_URL);
       socket = nextSocket;
@@ -53,7 +60,7 @@ export default defineBackground(() => {
 
     port.onMessage.addListener((message: DesktopBridgePortMessage) => {
       if (message.type === 'desktop:connect') {
-        connect(message.token);
+        void connect(message.token);
         return;
       }
 
@@ -71,3 +78,19 @@ export default defineBackground(() => {
     });
   });
 });
+
+async function isDesktopAvailable() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DESKTOP_HEALTH_TIMEOUT_MS);
+  try {
+    const response = await fetch(DESKTOP_HEALTH_URL, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}

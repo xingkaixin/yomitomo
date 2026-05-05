@@ -299,7 +299,7 @@ export function QuestionPanel({
               id: annotation.id,
               annotationId: annotation.id,
               status: questionStatusOrOpen(annotation.questionStatus),
-              label: annotationAuthorPersona.nickname,
+              persona: annotationAuthorPersona,
               text: annotation.anchor.exact,
               quote: annotation.anchor.exact,
               setStatus: (status: QuestionStatus) =>
@@ -313,7 +313,7 @@ export function QuestionPanel({
         id: comment.id,
         annotationId: annotation.id,
         status: questionStatusOrOpen(comment.questionStatus),
-        label: commentAuthorPersona.nickname,
+        persona: commentAuthorPersona,
         text: comment.content,
         quote: annotation.anchor.exact,
         setStatus: (status: QuestionStatus) =>
@@ -336,14 +336,26 @@ export function QuestionPanel({
       </header>
       <div className="reader-question-list">
         {questions.map((question) => (
-          <article className={`is-${question.status}`} key={question.id}>
+          <article
+            className={`is-${question.status}`}
+            key={question.id}
+            style={questionCardStyle(question.persona.color)}
+          >
             <button
               className="reader-question-open"
               type="button"
               onClick={() => onFocus(question.annotationId)}
             >
               <span className="reader-question-meta">
-                <strong>{question.label}</strong>
+                <span className="reader-question-persona">
+                  <AvatarBadge
+                    avatar={question.persona.avatar}
+                    fallback={question.persona.fallback}
+                  />
+                  <span>
+                    <strong>{question.persona.nickname}</strong>
+                  </span>
+                </span>
                 <i>{questionStatusLabel(question.status)}</i>
               </span>
               <span>{question.text}</span>
@@ -1017,6 +1029,14 @@ function noteStyle(color: string, active: boolean): React.CSSProperties {
     boxShadow: active
       ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px rgba(55,42,24,.08)`
       : undefined,
+  };
+}
+
+function questionCardStyle(color: string): React.CSSProperties {
+  const accent = color || '#f4c95d';
+  return {
+    borderColor: alphaColor(accent, 0.42),
+    boxShadow: `inset 3px 0 0 ${alphaColor(accent, 0.58)}, 0 8px 22px rgba(55,42,24,.06)`,
   };
 }
 
