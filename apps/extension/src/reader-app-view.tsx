@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot, List, MessageSquare, Settings2, X } from 'lucide-react';
 import type {
+  AgentReadingPlanItem,
   AgentReadingIntent,
   Annotation,
   AnnotationType,
@@ -27,6 +28,7 @@ import {
   type ActiveConnection,
   type HighlightChoiceAction,
   type ReaderSettings,
+  type ReaderReadingSection,
   type VirtualCursorState,
 } from './reader-components';
 
@@ -70,6 +72,7 @@ type ReaderAppViewProps = {
   pairingId: string;
   pairingTokenDraft: string;
   readerSettings: ReaderSettings;
+  readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
   shortcutModifier: string;
@@ -93,7 +96,7 @@ type ReaderAppViewProps = {
   onCloseFloatingPanels: () => void;
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
-  onRequestAgentAnnotations: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
+  onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
   onRequestSelectionAgentAction: (
     action: SelectionAction,
     readingIntent: AgentReadingIntent,
@@ -145,6 +148,7 @@ export function ReaderAppView({
   pairingId,
   pairingTokenDraft,
   readerSettings,
+  readingSections,
   selectionAction,
   settingsOpen,
   shortcutModifier,
@@ -168,7 +172,7 @@ export function ReaderAppView({
   onCloseFloatingPanels,
   onCloseResponsivePanels,
   onOpenComposer,
-  onRequestAgentAnnotations,
+  onStartAgentReadingPlan,
   onRequestSelectionAgentAction,
   onSavePairingToken,
   onScrollToHeading,
@@ -293,11 +297,18 @@ export function ReaderAppView({
 
       {agentAnnotateOpen ? (
         <div className="reader-agent-annotate-popover" data-reader-floating-panel>
+          <button
+            className="reader-agent-annotate-scrim"
+            type="button"
+            aria-label="取消编排"
+            onClick={onCancelAgentAnnotateMenu}
+          />
           <AgentAnnotateMenu
             agents={agents}
             annotatingAgents={annotatingAgents}
+            readingSections={readingSections}
             onCancel={onCancelAgentAnnotateMenu}
-            onStartAgent={onRequestAgentAnnotations}
+            onStartAgentPlan={onStartAgentReadingPlan}
           />
         </div>
       ) : null}

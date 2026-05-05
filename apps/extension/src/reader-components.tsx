@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import type {
+  AgentReadingPlanItem,
   AgentReadingIntent,
   Annotation,
   AnnotationType,
@@ -386,136 +387,254 @@ export function QuestionPanel({
 export function AgentAnnotateMenu({
   agents,
   annotatingAgents,
+  readingSections,
   onCancel,
-  onStartAgent,
+  onStartAgentPlan,
 }: {
   agents: PublicAgent[];
   annotatingAgents: string[];
+  readingSections: ReaderReadingSection[];
   onCancel: () => void;
-  onStartAgent: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
+  onStartAgentPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
 }) {
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
-  const [agentIntents, setAgentIntents] = useState<Record<string, AgentReadingIntent>>({});
-  const [choosingAgentId, setChoosingAgentId] = useState<string | null>(null);
-  const selectedAgents = agents.filter(
-    (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
+  const availableAgents = useMemo(
+    () => agents.filter((agent) => !annotatingAgents.includes(agent.id)),
+    [agents, annotatingAgents],
   );
+  const [visibleAgentIds, setVisibleAgentIds] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<
+    Record<string, Record<string, AgentReadingIntent>>
+  >({});
+  const [addingAgents, setAddingAgents] = useState(false);
 
   useEffect(() => {
-    setSelectedAgentIds((ids) =>
-      ids.filter((id) => agents.some((agent) => agent.id === id) && !annotatingAgents.includes(id)),
+    setVisibleAgentIds((ids) => {
+      const next = ids.filter((id) => availableAgents.some((agent) => agent.id === id));
+      return next.length > 0 ? next : availableAgents.map((agent) => agent.id);
+    });
+    setAssignments((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([agentId]) =>
+          availableAgents.some((agent) => agent.id === agentId),
+        ),
+      ),
     );
-  }, [agents, annotatingAgents]);
+  }, [availableAgents]);
 
-  function toggleAgent(agent: PublicAgent) {
-    if (annotatingAgents.includes(agent.id)) return;
-    if (selectedAgentIds.includes(agent.id)) {
-      setSelectedAgentIds((ids) => ids.filter((id) => id !== agent.id));
-      setAgentIntents((current) => {
-        const next = { ...current };
-        delete next[agent.id];
-        return next;
+  const visibleAgents = availableAgents.filter((agent) => visibleAgentIds.includes(agent.id));
+  const hiddenAgents = availableAgents.filter((agent) => !visibleAgentIds.includes(agent.id));
+  const actionCount = Object.values(assignments).reduce(
+    (count, agentAssignments) => count + Object.keys(agentAssignments).length,
+    0,
+  );
+  const assignedAgentCount = visibleAgents.filter(
+    (agent) => Object.keys(assignments[agent.id] || {}).length > 0,
+  ).length;
+  const canStart = actionCount > 0 && assignedAgentCount > 0;
+  const gridTemplateColumns = `220px repeat(${Math.max(1, readingSections.length)}, 88px)`;
+
+  function setAssignment(agentId: string, sectionId: string, readingIntent: AgentReadingIntent) {
+    setAssignments((current) => ({
+      ...current,
+      [agentId]: {
+        ...current[agentId],
+        [sectionId]: readingIntent,
+      },
+    }));
+  }
+
+  function clearAssignment(agentId: string, sectionId: string) {
+    setAssignments((current) => {
+      const agentAssignments = { ...current[agentId] };
+      delete agentAssignments[sectionId];
+      return { ...current, [agentId]: agentAssignments };
+    });
+  }
+
+  function removeAgent(agentId: string) {
+    setVisibleAgentIds((ids) => ids.filter((id) => id !== agentId));
+    setAssignments((current) => {
+      const next = { ...current };
+      delete next[agentId];
+      return next;
+    });
+  }
+
+  function addAgent(agentId: string) {
+    setVisibleAgentIds((ids) => (ids.includes(agentId) ? ids : [...ids, agentId]));
+    setAddingAgents(false);
+  }
+
+  function startReadingPlan() {
+    if (!canStart) return;
+
+    for (const agent of visibleAgents) {
+      const agentAssignments = assignments[agent.id] || {};
+      const readingPlan = readingSections.flatMap((section) => {
+        const readingIntent = agentAssignments[section.id];
+        return readingIntent
+          ? [
+              {
+                sectionId: section.id,
+                sectionTitle: section.title,
+                sectionStart: section.start,
+                sectionEnd: section.end,
+                readingIntent,
+              },
+            ]
+          : [];
       });
-      setChoosingAgentId((id) => (id === agent.id ? null : id));
-      return;
+      if (readingPlan.length > 0) onStartAgentPlan(agent, readingPlan);
     }
-    setChoosingAgentId((id) => (id === agent.id ? null : agent.id));
+
+    onCancel();
   }
 
-  function startSelectedAgents() {
-    for (const agent of selectedAgents) onStartAgent(agent, readingIntentForAgent(agent.id));
-    setSelectedAgentIds([]);
-  }
-
-  function readingIntentForAgent(agentId: string): AgentReadingIntent {
-    return agentIntents[agentId] || agentReadingIntentOptions[0]!.value;
-  }
-
-  function setAgentReadingIntent(agentId: string, intent: AgentReadingIntent) {
-    setAgentIntents((current) => ({ ...current, [agentId]: intent }));
-    setSelectedAgentIds((ids) => (ids.includes(agentId) ? ids : [...ids, agentId]));
-    setChoosingAgentId(null);
+  function onCellDrop(event: React.DragEvent<HTMLDivElement>, agentId: string, sectionId: string) {
+    event.preventDefault();
+    const readingIntent = event.dataTransfer.getData('text/plain');
+    if (!isAgentReadingIntent(readingIntent)) return;
+    setAssignment(agentId, sectionId, readingIntent);
   }
 
   return (
     <div className="reader-agent-annotate-menu">
-      <header>
-        <strong>助手精读</strong>
-        <span>给每个助手选择动作，再开始主动批注</span>
+      <header className="reader-plan-header">
+        <div>
+          <strong>助手精读编排</strong>
+          <span>像剧本一样安排每位助手的动作，动作位置代表他们在文章中介入的章节</span>
+        </div>
+        <p>
+          <b>{assignedAgentCount}</b> 助手 · <b>{actionCount}</b> 动作
+        </p>
       </header>
-      {agents.map((agent) => {
-        const running = annotatingAgents.includes(agent.id);
-        const selected = selectedAgentIds.includes(agent.id);
-        const readingIntent = agentIntents[agent.id] || null;
-        return (
-          <div
-            className={[
-              'reader-agent-option',
-              running ? 'is-running' : '',
-              selected ? 'is-selected' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            key={agent.id}
+
+      <div className="reader-plan-action-bar" aria-label="可使用的动作">
+        <span>动作</span>
+        {agentReadingIntentOptions.map((option) => (
+          <button
+            className="reader-plan-action"
+            data-description={option.description}
+            draggable
+            key={option.value}
+            title={option.description}
+            type="button"
+            onDragStart={(event) => onActionDragStart(event, option.value)}
           >
-            <button
-              aria-pressed={selected}
-              className="reader-agent-select"
-              disabled={running}
-              type="button"
-              onClick={() => toggleAgent(agent)}
-            >
-              <div className="reader-agent-avatar">
-                <i style={{ background: agent.annotationColor }} />
+            {option.shortLabel}
+          </button>
+        ))}
+      </div>
+
+      <div className="reader-plan-grid-wrap">
+        <div className="reader-plan-grid" style={{ gridTemplateColumns }}>
+          <div className="reader-plan-corner" />
+          {readingSections.map((section, index) => (
+            <div className="reader-plan-section" key={section.id}>
+              <span>§{index + 1}</span>
+              <strong>{section.title}</strong>
+            </div>
+          ))}
+          {visibleAgents.map((agent) => (
+            <React.Fragment key={agent.id}>
+              <div className="reader-plan-agent">
+                <span
+                  className="reader-plan-agent-color"
+                  style={{ backgroundColor: agent.annotationColor }}
+                />
                 <AvatarBadge avatar={agent.avatar} />
-              </div>
-              <span>
                 <strong>{agent.nickname}</strong>
-                <em>@{agent.username}</em>
-                <small>{agent.personalityName || '自定义个性'}</small>
-              </span>
-              <b>
-                {running
-                  ? '阅读中'
-                  : selected && readingIntent
-                    ? agentReadingIntentLabel(readingIntent)
-                    : '选择'}
-              </b>
-            </button>
-            {choosingAgentId === agent.id && !running ? (
-              <div
-                className="reader-agent-action-picker"
-                role="radiogroup"
-                aria-label={`${agent.nickname} 精读动作`}
-              >
-                {agentReadingIntentOptions.map((option) => (
-                  <button
-                    aria-checked={readingIntent === option.value}
-                    className={readingIntent === option.value ? 'is-active' : ''}
-                    key={option.value}
-                    role="radio"
-                    type="button"
-                    onClick={() => setAgentReadingIntent(agent.id, option.value)}
-                  >
-                    <strong>{option.shortLabel}</strong>
-                    <span>{option.description}</span>
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  aria-label={`移除 ${agent.nickname}`}
+                  onClick={() => removeAgent(agent.id)}
+                >
+                  <X size={14} />
+                </button>
               </div>
-            ) : null}
-          </div>
-        );
-      })}
-      <div className="reader-agent-annotate-actions">
-        <button type="button" onClick={onCancel}>
-          收起
-        </button>
-        <button disabled={selectedAgents.length === 0} type="button" onClick={startSelectedAgents}>
-          开始精读
-        </button>
+              {readingSections.map((section) => {
+                const readingIntent = assignments[agent.id]?.[section.id] || null;
+                const option = readingIntent
+                  ? agentReadingIntentOptions.find((item) => item.value === readingIntent)
+                  : null;
+                return (
+                  <div
+                    className={readingIntent ? 'reader-plan-cell is-filled' : 'reader-plan-cell'}
+                    key={`${agent.id}-${section.id}`}
+                    aria-label={`${agent.nickname} ${section.title} 动作槽`}
+                    style={{ '--agent-color': agent.annotationColor } as React.CSSProperties}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => onCellDrop(event, agent.id, section.id)}
+                  >
+                    {option ? (
+                      <button
+                        className="reader-plan-cell-action"
+                        type="button"
+                        title={option.description}
+                        onClick={() => clearAssignment(agent.id, section.id)}
+                      >
+                        <strong>{option.shortLabel}</strong>
+                      </button>
+                    ) : (
+                      <span>—</span>
+                    )}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      <div className="reader-plan-footer">
+        <div className="reader-plan-add">
+          <button
+            type="button"
+            disabled={hiddenAgents.length === 0}
+            onClick={() => setAddingAgents((open) => !open)}
+          >
+            <Plus size={15} />
+            添加助手
+          </button>
+          {addingAgents && hiddenAgents.length > 0 ? (
+            <div className="reader-plan-add-menu">
+              {hiddenAgents.map((agent) => (
+                <button key={agent.id} type="button" onClick={() => addAgent(agent.id)}>
+                  <AvatarBadge avatar={agent.avatar} />
+                  <span>{agent.nickname}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <p className="reader-plan-help">拖拽动作到对应助手和章节。点击已安排的动作即可取消。</p>
+        <div className="reader-agent-annotate-actions">
+          <button type="button" onClick={onCancel}>
+            取消编排
+          </button>
+          <button disabled={!canStart} type="button" onClick={startReadingPlan}>
+            开始精读
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+export type ReaderReadingSection = {
+  id: string;
+  title: string;
+  start: number;
+  end: number;
+};
+
+function isAgentReadingIntent(value: string): value is AgentReadingIntent {
+  return agentReadingIntentOptions.some((option) => option.value === value);
+}
+
+function onActionDragStart(event: React.DragEvent<HTMLButtonElement>, intent: AgentReadingIntent) {
+  event.dataTransfer.effectAllowed = 'copy';
+  event.dataTransfer.setData('text/plain', intent);
 }
 
 export function ReaderSettingsPanel({

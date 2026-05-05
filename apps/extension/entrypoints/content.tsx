@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import {
   type Annotation,
   type AnnotationType,
+  type AgentReadingPlanItem,
   type AgentReadingIntent,
   type ArticleRecord,
   type Comment,
@@ -44,7 +45,7 @@ import {
   scrollReaderSurfaceToRect,
   selectionActionPosition,
 } from '../src/reader-dom';
-import type { ActiveConnection } from '../src/reader-components';
+import type { ActiveConnection, ReaderReadingSection } from '../src/reader-components';
 import { readerConversationStyles, readerStyles } from '../src/reader-styles';
 import {
   buildTocAnnotationStats,
@@ -147,6 +148,68 @@ function closeReader(host: HTMLElement) {
   document.documentElement.style.overflow = previousOverflow;
 }
 
+function buildReaderReadingSections(
+  article: HTMLElement,
+  tocItems: TocItem[],
+  articleTitle: string,
+): ReaderReadingSection[] {
+  const body = article.querySelector('.reader-article-body');
+  const bodyStart = body ? offsetFromArticleStart(article, body, 0) : 0;
+  const bodyTocItems = tocItems.filter(
+    (item) => item.start >= bodyStart && !isArticleTitleTocItem(item, articleTitle, bodyStart),
+  );
+
+  if (bodyTocItems.length > 0) {
+    const targetDepth = Math.min(...bodyTocItems.map((item) => item.depth));
+    const sections = bodyTocItems
+      .filter((item) => item.depth === targetDepth)
+      .map((item) => ({
+        id: `toc-${item.index}`,
+        title: item.text,
+        start: item.start,
+        end: item.end,
+      }));
+    const firstSection = sections[0];
+    const articleText = article.textContent || '';
+    const hasPreface =
+      firstSection &&
+      firstSection.start > bodyStart &&
+      articleText.slice(bodyStart, firstSection.start).trim();
+
+    return hasPreface
+      ? [
+          {
+            id: 'preface',
+            title: '引文',
+            start: bodyStart,
+            end: firstSection.start,
+          },
+          ...sections,
+        ]
+      : sections;
+  }
+
+  return [
+    {
+      id: 'body',
+      title: '正文',
+      start: bodyStart,
+      end: article.textContent?.length || bodyStart,
+    },
+  ];
+}
+
+function isArticleTitleTocItem(item: TocItem, articleTitle: string, bodyStart: number) {
+  return (
+    item.start <= bodyStart + 8 &&
+    normalizeHeadingText(item.text) === normalizeHeadingText(articleTitle)
+  );
+}
+
+function normalizeHeadingText(text: string) {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -162,7 +225,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const pendingAgentRequestsRef = useRef(
     new Map<
       string,
-      { annotationId: string; commentId: string; agentId?: string; annotationCount?: number }
+      {
+        annotationId: string;
+        commentId: string;
+        agentId?: string;
+        annotationCount?: number;
+        readingPlan?: AgentReadingPlanItem[];
+      }
     >(),
   );
   const noteRefs = useRef(new Map<string, HTMLElement>());
@@ -178,6 +247,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
+  const [readingSections, setReadingSections] = useState<ReaderReadingSection[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
@@ -283,7 +353,10 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   useLayoutEffect(() => {
     const article = articleRef.current;
-    if (article) setTocItems(extractTocItems(article));
+    if (!article) return;
+    const nextTocItems = extractTocItems(article);
+    setTocItems(nextTocItems);
+    setReadingSections(buildReaderReadingSections(article, nextTocItems, extracted.title));
   }, [extracted.content]);
 
   useEffect(() => {
@@ -614,8 +687,13 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         markVirtualReadingDone(pending.agentId);
       }
       setAgentAnnotateOpen(false);
-      for (const annotation of message.annotations) enqueueAgentAnnotation(annotation);
-      if (pending?.agentId && message.annotations.length === 0) {
+      const constrainedAnnotations = message.annotations.flatMap((annotation) => {
+        const constrained = constrainAgentPlanAnnotation(annotation, pending?.readingPlan);
+        return constrained ? [constrained] : [];
+      });
+      if (pending) pending.annotationCount = constrainedAnnotations.length;
+      for (const annotation of constrainedAnnotations) enqueueAgentAnnotation(annotation);
+      if (pending?.agentId && constrainedAnnotations.length === 0) {
         finishVirtualReading(pending.agentId, '没有批注');
       } else {
         void processAgentAnnotationQueue();
@@ -626,18 +704,27 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (message.type === 'agent:annotate:start') {
       setAgentAnnotateOpen(false);
       markAgentAnnotating(message.agent.id, true);
-      startVirtualReading(message.agent);
+      const pending = pendingAgentRequestsRef.current.get(message.requestId);
+      startVirtualReading(message.agent, pending?.readingPlan || []);
       return;
     }
 
     if (message.type === 'agent:annotate:item') {
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
+      const annotation = constrainAgentPlanAnnotation(message.annotation, pending?.readingPlan);
+      if (!annotation) {
+        readerLog('agent.annotate.item.skip_outside_plan', {
+          requestId: message.requestId,
+          annotationId: message.annotation.id,
+        });
+        return;
+      }
       if (pending) pending.annotationCount = (pending.annotationCount || 0) + 1;
       readerLog('agent.annotate.item', {
-        annotationId: message.annotation.id,
-        exact: message.annotation.anchor.exact.slice(0, 80),
+        annotationId: annotation.id,
+        exact: annotation.anchor.exact.slice(0, 80),
       });
-      enqueueAgentAnnotation(message.annotation);
+      enqueueAgentAnnotation(annotation);
       void processAgentAnnotationQueue();
       return;
     }
@@ -951,6 +1038,21 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     readingIntent: AgentReadingIntent,
     targetAnchor?: Annotation['anchor'],
   ) {
+    requestAgentAnnotationPayload(agent, { readingIntent, targetAnchor });
+  }
+
+  function requestAgentReadingPlan(agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) {
+    requestAgentAnnotationPayload(agent, { readingPlan });
+  }
+
+  function requestAgentAnnotationPayload(
+    agent: PublicAgent,
+    options: {
+      readingIntent?: AgentReadingIntent;
+      targetAnchor?: Annotation['anchor'];
+      readingPlan?: AgentReadingPlanItem[];
+    },
+  ) {
     if (annotatingAgents.includes(agent.id)) return;
     if (!desktopAuthenticatedRef.current) return;
     const bridge = desktopBridgeRef.current;
@@ -962,6 +1064,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       commentId: '',
       agentId: agent.id,
       annotationCount: 0,
+      readingPlan: options.readingPlan,
     });
     markAgentAnnotating(agent.id, true);
     bridge.send({
@@ -970,8 +1073,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       payload: {
         agentId: agent.id,
         agentUsername: agent.username,
-        readingIntent,
-        targetAnchor,
+        readingIntent: options.readingIntent,
+        targetAnchor: options.targetAnchor,
+        readingPlan: options.readingPlan,
         article: {
           title: extracted.title,
           url: extracted.canonicalUrl,
@@ -979,6 +1083,32 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         },
       },
     });
+  }
+
+  function constrainAgentPlanAnnotation(
+    annotation: Annotation,
+    readingPlan: AgentReadingPlanItem[] | undefined,
+  ) {
+    if (!readingPlan?.length) return annotation;
+
+    const articleText = articleRef.current?.textContent || '';
+    const position = resolveTextAnchor(articleText, annotation.anchor);
+    if (!position) return null;
+
+    const planItem = readingPlan.find(
+      (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
+    );
+    if (!planItem) return null;
+
+    if (annotation.readingIntent === planItem.readingIntent) return annotation;
+    return {
+      ...annotation,
+      readingIntent: planItem.readingIntent,
+      comments: annotation.comments.map((comment) => ({
+        ...comment,
+        readingIntent: comment.readingIntent || planItem.readingIntent,
+      })),
+    };
   }
 
   function requestSelectionAgentAction(
@@ -1146,6 +1276,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       pairingTokenDraft={pairingTokenDraft}
       hasSavedPairing={Boolean(pairingToken.trim())}
       readerSettings={readerSettings}
+      readingSections={readingSections}
       selectionAction={selectionAction}
       settingsOpen={settingsOpen}
       shortcutModifier={shortcutModifier}
@@ -1183,7 +1314,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         });
         setSelectionAction(null);
       }}
-      onRequestAgentAnnotations={requestAgentAnnotations}
+      onStartAgentReadingPlan={requestAgentReadingPlan}
       onRequestSelectionAgentAction={requestSelectionAgentAction}
       onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}

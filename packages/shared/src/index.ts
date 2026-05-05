@@ -580,12 +580,21 @@ export type AgentAnnotatePayload = {
   agentId?: string;
   agentUsername: string;
   readingIntent?: AgentReadingIntent;
+  readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
   article: {
     title: string;
     url: string;
     text: string;
   };
+};
+
+export type AgentReadingPlanItem = {
+  sectionId: string;
+  sectionTitle: string;
+  sectionStart: number;
+  sectionEnd: number;
+  readingIntent: AgentReadingIntent;
 };
 
 export type DesktopClientMessage =
@@ -652,6 +661,7 @@ const MESSAGE_LIMITS = {
   commentChars: 20_000,
   anchorExactChars: 20_000,
   anchorContextChars: 2000,
+  readingPlanItems: 100,
 };
 
 export function parseDesktopClientMessage(value: unknown): DesktopClientMessageParseResult {
@@ -746,11 +756,43 @@ function validateAgentAnnotatePayload(value: unknown) {
   if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
     return 'agent:annotate.readingIntent 无效';
   }
+  if (value.readingPlan !== undefined) {
+    const article = value.article as { text: string };
+    const readingPlanError = validateAgentReadingPlan(value.readingPlan, article.text.length);
+    if (readingPlanError) return `agent:annotate.readingPlan ${readingPlanError}`;
+  }
   if (value.targetAnchor !== undefined) {
     const anchorError = validateTextAnchor(value.targetAnchor);
     if (anchorError) return `agent:annotate.targetAnchor ${anchorError}`;
   }
   return '';
+}
+
+function validateAgentReadingPlan(value: unknown, articleTextLength: number) {
+  if (!Array.isArray(value)) return '必须是数组';
+  if (value.length < 1 || value.length > MESSAGE_LIMITS.readingPlanItems) {
+    return '数量无效';
+  }
+
+  for (const item of value) {
+    if (!isPlainObject(item)) return '条目必须是 object';
+    if (!boundedString(item.sectionId, MESSAGE_LIMITS.idChars)) return 'sectionId 无效';
+    if (!boundedString(item.sectionTitle, MESSAGE_LIMITS.titleChars)) return 'sectionTitle 无效';
+    const sectionStart = item.sectionStart;
+    const sectionEnd = item.sectionEnd;
+    if (!isValidSectionOffset(sectionStart, articleTextLength)) return 'sectionStart 无效';
+    if (!isValidSectionOffset(sectionEnd, articleTextLength)) return 'sectionEnd 无效';
+    if (sectionEnd <= sectionStart) return 'sectionEnd 必须大于 sectionStart';
+    if (!normalizeAgentReadingIntent(item.readingIntent)) return 'readingIntent 无效';
+  }
+
+  return '';
+}
+
+function isValidSectionOffset(value: unknown, articleTextLength: number): value is number {
+  return (
+    typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= articleTextLength
+  );
 }
 
 function validateAgentIdentity(value: Record<string, unknown>) {

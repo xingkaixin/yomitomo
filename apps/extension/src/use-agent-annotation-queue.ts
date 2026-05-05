@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Annotation, PublicAgent } from '@yomitomo/shared';
+import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import { annotationToPublicAgent as annotationToAgent } from '@yomitomo/core';
 import {
@@ -19,6 +19,13 @@ type VirtualReadingSession = {
   paused: boolean;
   done: boolean;
   step: number;
+  sections: VirtualReadingSection[];
+  sectionIndex: number;
+};
+
+type VirtualReadingSection = {
+  start: number;
+  end: number;
 };
 
 type UseAgentAnnotationQueueOptions = {
@@ -31,6 +38,38 @@ type UseAgentAnnotationQueueOptions = {
   setActiveId: (annotationId: string) => void;
   readerLog: (event: string, data?: Record<string, unknown>) => void;
 };
+
+function normalizedReadingSections(readingPlan: AgentReadingPlanItem[]) {
+  return readingPlan
+    .map((item) => ({
+      start: Math.max(0, item.sectionStart),
+      end: Math.max(0, item.sectionEnd),
+    }))
+    .filter((section) => section.end > section.start)
+    .toSorted((left, right) => left.start - right.start);
+}
+
+function currentReadingSection(session: VirtualReadingSession) {
+  return session.sections[session.sectionIndex] || null;
+}
+
+function nextReadingOffset(session: VirtualReadingSession, textLength: number) {
+  if (!session.sections.length) return session.offset + session.step;
+
+  let section = currentReadingSection(session);
+  if (!section) {
+    session.sectionIndex = 0;
+    section = currentReadingSection(session);
+  }
+  if (!section) return session.offset + session.step;
+
+  const nextOffset = session.offset + session.step;
+  if (nextOffset < section.end - 1) return Math.max(section.start, nextOffset);
+
+  session.sectionIndex = (session.sectionIndex + 1) % session.sections.length;
+  const nextSection = currentReadingSection(session);
+  return Math.min(Math.max(nextSection?.start || 0, 0), Math.max(0, textLength - 1));
+}
 
 export function useAgentAnnotationQueue({
   agents,
@@ -123,22 +162,28 @@ export function useAgentAnnotationQueue({
     });
   }
 
-  function startVirtualReading(agent: PublicAgent) {
+  function startVirtualReading(agent: PublicAgent, readingPlan: AgentReadingPlanItem[] = []) {
     const currentSession = virtualReadingSessionsRef.current.get(agent.id);
     if (currentSession) window.clearInterval(currentSession.timerId);
 
     const article = articleRef.current;
     const body = article?.querySelector('.reader-article-body');
     const sessionIndex = virtualReadingSessionsRef.current.size;
+    const sections = normalizedReadingSections(readingPlan);
+    const firstSection = sections[0];
     const interval = 150 + Math.floor(Math.random() * 90);
     const step = 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
     const session: VirtualReadingSession = {
       agent,
       timerId: 0,
-      offset: (article && body ? offsetFromArticleStart(article, body, 0) : 0) + sessionIndex * 18,
+      offset:
+        (firstSection?.start ?? (article && body ? offsetFromArticleStart(article, body, 0) : 0)) +
+        sessionIndex * 18,
       paused: false,
       done: false,
       step,
+      sections,
+      sectionIndex: 0,
     };
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
@@ -155,12 +200,14 @@ export function useAgentAnnotationQueue({
     if (!article || !surface) return;
 
     const text = article.textContent || '';
-    if (session.offset >= text.length - 1) {
+    if (!session.sections.length && session.offset >= text.length - 1) {
       finishVirtualReading(agentId, '读完了');
       return;
     }
 
-    const position = cursorPositionFromOffset(article, surface, session.offset + session.step);
+    const section = currentReadingSection(session);
+    const nextOffset = nextReadingOffset(session, text.length);
+    const position = cursorPositionFromOffset(article, surface, nextOffset, section?.end);
     if (!position) return;
 
     session.offset = position.offset;

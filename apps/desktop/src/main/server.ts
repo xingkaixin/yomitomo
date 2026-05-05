@@ -286,6 +286,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         articleTitle: message.payload.article.title,
         articleChars: message.payload.article.text.length,
         targeted: Boolean(message.payload.targetAnchor),
+        plannedActions: message.payload.readingPlan?.length || 0,
       });
       send(socket, {
         type: 'agent:annotate:start',

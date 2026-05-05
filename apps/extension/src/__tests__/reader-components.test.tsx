@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
@@ -56,6 +56,21 @@ const agent: PublicAgent = {
   personalityName: '追问型导师',
   temperature: 0.35,
 };
+
+const readingSections = [{ id: 'toc-0', title: '引言', start: 0, end: 20 }];
+
+function dragActionToCell(actionLabel: string, cellLabel: string) {
+  const data: Record<string, string> = {};
+  const dataTransfer = {
+    effectAllowed: '',
+    setData: vi.fn((type: string, value: string) => {
+      data[type] = value;
+    }),
+    getData: vi.fn((type: string) => data[type] || ''),
+  };
+  fireEvent.dragStart(screen.getByRole('button', { name: actionLabel }), { dataTransfer });
+  fireEvent.drop(screen.getByLabelText(cellLabel), { dataTransfer });
+}
 
 describe('Composer', () => {
   it('provides an accessible name for the annotation textarea', () => {
@@ -260,78 +275,83 @@ describe('QuestionPanel', () => {
 });
 
 describe('AgentAnnotateMenu', () => {
-  it('selects an agent before starting careful reading', () => {
-    const onStartAgent = vi.fn();
+  it('requires a planned section action before starting careful reading', () => {
+    const onStartAgentPlan = vi.fn();
     render(
       <AgentAnnotateMenu
         agents={[agent]}
         annotatingAgents={[]}
+        readingSections={readingSections}
         onCancel={vi.fn()}
-        onStartAgent={onStartAgent}
+        onStartAgentPlan={onStartAgentPlan}
       />,
     );
 
     expect(screen.getByRole('button', { name: '开始精读' })).toHaveProperty('disabled', true);
-    expect(screen.getByText('追问型导师')).toBeTruthy();
+    expect(screen.getByText('阅读伙伴')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /解释/ }));
+    dragActionToCell('解释', '阅读伙伴 引言 动作槽');
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
-    expect(onStartAgent).toHaveBeenCalledWith(agent, 'explain');
+    expect(onStartAgentPlan).toHaveBeenCalledWith(agent, [
+      {
+        sectionId: 'toc-0',
+        sectionTitle: '引言',
+        sectionStart: 0,
+        sectionEnd: 20,
+        readingIntent: 'explain',
+      },
+    ]);
   });
 
-  it('passes the selected reading intent into careful reading', () => {
-    const onStartAgent = vi.fn();
+  it('passes the dropped reading intent into careful reading', () => {
+    const onStartAgentPlan = vi.fn();
     render(
       <AgentAnnotateMenu
         agents={[agent]}
         annotatingAgents={[]}
+        readingSections={readingSections}
         onCancel={vi.fn()}
-        onStartAgent={onStartAgent}
+        onStartAgentPlan={onStartAgentPlan}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
-    fireEvent.click(screen.getByRole('radio', { name: /挑战/ }));
+    dragActionToCell('挑战', '阅读伙伴 引言 动作槽');
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
-    expect(onStartAgent).toHaveBeenCalledWith(agent, 'challenge');
+    expect(onStartAgentPlan).toHaveBeenCalledWith(agent, [
+      expect.objectContaining({ readingIntent: 'challenge' }),
+    ]);
   });
 
-  it('keeps a separate reading intent for each selected agent', () => {
+  it('keeps a separate reading plan for each agent', () => {
     const secondAgent: PublicAgent = {
       ...agent,
       id: 'agent_2',
       nickname: '拆解助手',
       username: 'decomposer',
     };
-    const onStartAgent = vi.fn();
+    const onStartAgentPlan = vi.fn();
     render(
       <AgentAnnotateMenu
         agents={[agent, secondAgent]}
         annotatingAgents={[]}
+        readingSections={readingSections}
         onCancel={vi.fn()}
-        onStartAgent={onStartAgent}
+        onStartAgentPlan={onStartAgentPlan}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
-    fireEvent.click(
-      within(screen.getByRole('radiogroup', { name: '阅读伙伴 精读动作' })).getByRole('radio', {
-        name: /挑战/,
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: /拆解助手/ }));
-    fireEvent.click(
-      within(screen.getByRole('radiogroup', { name: '拆解助手 精读动作' })).getByRole('radio', {
-        name: /拆解/,
-      }),
-    );
+    dragActionToCell('挑战', '阅读伙伴 引言 动作槽');
+    dragActionToCell('拆解', '拆解助手 引言 动作槽');
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
-    expect(onStartAgent).toHaveBeenNthCalledWith(1, agent, 'challenge');
-    expect(onStartAgent).toHaveBeenNthCalledWith(2, secondAgent, 'decompose');
+    expect(onStartAgentPlan).toHaveBeenNthCalledWith(1, agent, [
+      expect.objectContaining({ readingIntent: 'challenge' }),
+    ]);
+    expect(onStartAgentPlan).toHaveBeenNthCalledWith(2, secondAgent, [
+      expect.objectContaining({ readingIntent: 'decompose' }),
+    ]);
   });
 });
 

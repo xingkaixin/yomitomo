@@ -131,12 +131,14 @@ export function cursorPositionFromOffset(
   article: HTMLElement,
   surface: HTMLElement,
   offset: number,
+  endOffset?: number,
 ) {
   const text = article.textContent || '';
   const surfaceRect = surface.getBoundingClientRect();
   const start = Math.max(0, Math.min(offset, text.length - 1));
+  const end = Math.min(text.length - 1, endOffset ?? text.length - 1, start + 120);
 
-  for (let cursor = start; cursor < Math.min(text.length - 1, start + 120); cursor += 1) {
+  for (let cursor = start; cursor < end; cursor += 1) {
     if (!text[cursor]?.trim()) continue;
 
     const range = rangeFromOffsets(article, cursor, cursor + 1);
