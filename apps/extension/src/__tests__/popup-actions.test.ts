@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { toggleReaderInTab } from '../popup-actions';
+import { getArticlePreviewInTab, toggleReaderInTab } from '../popup-actions';
 
 const { sendMessage, executeScript } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -51,5 +51,25 @@ describe('toggleReaderInTab', () => {
     sendMessage.mockResolvedValueOnce({ ok: false, error: 'extract failed' });
 
     await expect(toggleReaderInTab(123)).rejects.toThrow('extract failed');
+  });
+
+  it('loads article preview through the content script', async () => {
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      article: {
+        title: '文章标题',
+        domain: 'example.com',
+        wordCount: 1200,
+        readingMinutes: 5,
+      },
+    });
+
+    await expect(getArticlePreviewInTab(123)).resolves.toEqual({
+      title: '文章标题',
+      domain: 'example.com',
+      wordCount: 1200,
+      readingMinutes: 5,
+    });
+    expect(sendMessage).toHaveBeenCalledWith(123, { type: 'yomitomo:article-preview' });
   });
 });

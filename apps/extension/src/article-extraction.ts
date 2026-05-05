@@ -13,6 +13,13 @@ export type ExtractedArticle = {
   contentHash: string;
 };
 
+export type ArticlePreview = {
+  title: string;
+  domain: string;
+  wordCount: number;
+  readingMinutes: number;
+};
+
 export async function extractCurrentArticle(): Promise<ExtractedArticle> {
   const canonicalUrl = getCanonicalUrl();
   const defuddleArticle = await extractWithDefuddle(canonicalUrl);
@@ -69,6 +76,16 @@ export function fallbackCurrentArticle(): ExtractedArticle {
     title: document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled',
     content,
     contentHash,
+  };
+}
+
+export function articlePreviewFromExtractedArticle(article: ExtractedArticle): ArticlePreview {
+  const wordCount = countReadableWords(textFromHtml(article.content));
+  return {
+    title: article.title,
+    domain: domainFromUrl(article.canonicalUrl || article.url),
+    wordCount,
+    readingMinutes: Math.max(1, Math.ceil(wordCount / 250)),
   };
 }
 
@@ -147,4 +164,20 @@ function textFromHtml(html: string) {
   const container = document.createElement('div');
   container.innerHTML = html;
   return container.textContent || '';
+}
+
+function countReadableWords(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const cjkCount = normalized.match(/[\u3400-\u9fff]/g)?.length || 0;
+  const latinCount =
+    normalized.replace(/[\u3400-\u9fff]/g, ' ').match(/[a-z0-9]+(?:[-'][a-z0-9]+)*/gi)?.length || 0;
+  return cjkCount + latinCount;
+}
+
+function domainFromUrl(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
 }

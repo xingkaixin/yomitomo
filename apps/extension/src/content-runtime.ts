@@ -1,3 +1,5 @@
+import type { ArticlePreview } from './article-extraction';
+
 const CONTENT_READY_KEY = '__YOMITOMO_CONTENT_READY__';
 
 type YomitomoWindow = Window & {
@@ -5,11 +7,15 @@ type YomitomoWindow = Window & {
 };
 
 export type RuntimeMessage = { type?: string };
-export type RuntimeResponse = { ok: true } | { ok: false; error: string };
+export type RuntimeResponse =
+  | { ok: true }
+  | { ok: true; article: ArticlePreview }
+  | { ok: false; error: string };
 
 export function registerContentToggleListener({
   addListener,
   targetWindow = window,
+  getArticlePreview,
   toggleReader,
   errorMessage,
 }: {
@@ -17,6 +23,7 @@ export function registerContentToggleListener({
     listener: (message: RuntimeMessage) => Promise<RuntimeResponse> | undefined,
   ) => boolean | void;
   targetWindow?: Window;
+  getArticlePreview?: () => Promise<ArticlePreview>;
   toggleReader: () => Promise<void>;
   errorMessage: (error: unknown) => string;
 }) {
@@ -24,6 +31,16 @@ export function registerContentToggleListener({
   if (yomitomoWindow[CONTENT_READY_KEY]) return false;
 
   const registered = addListener((message) => {
+    if (message.type === 'yomitomo:article-preview') {
+      if (!getArticlePreview) return;
+      return getArticlePreview()
+        .then((article) => ({ ok: true, article }) satisfies RuntimeResponse)
+        .catch((error: unknown) => {
+          console.error('[Yomitomo Extension] article preview failed', error);
+          return { ok: false, error: errorMessage(error) } satisfies RuntimeResponse;
+        });
+    }
+
     if (message.type !== 'yomitomo:toggle' && message.type !== 'yomitomo:toggle:v2') return;
 
     return toggleReader()

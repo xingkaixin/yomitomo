@@ -26,6 +26,7 @@ import {
 } from '@yomitomo/core';
 import {
   type ExtractedArticle,
+  articlePreviewFromExtractedArticle,
   extractCurrentArticle,
   fallbackCurrentArticle,
 } from '../src/article-extraction';
@@ -92,6 +93,7 @@ export default defineContentScript({
   main() {
     registerContentToggleListener({
       addListener: addExtensionMessageListener,
+      getArticlePreview,
       toggleReader,
       errorMessage,
     });
@@ -131,6 +133,11 @@ async function toggleReader() {
 
   root = createRoot(mount);
   root.render(<ReaderApp extracted={article} onClose={() => closeReader(host)} />);
+}
+
+async function getArticlePreview() {
+  const article = await extractCurrentArticle();
+  return articlePreviewFromExtractedArticle(article);
 }
 
 function closeReader(host: HTMLElement) {

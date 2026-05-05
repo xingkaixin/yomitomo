@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { extractCurrentArticle, fallbackCurrentArticle } from '../article-extraction';
+import {
+  articlePreviewFromExtractedArticle,
+  extractCurrentArticle,
+  fallbackCurrentArticle,
+} from '../article-extraction';
 
 vi.mock('defuddle', () => ({
   default: class {
@@ -61,5 +65,23 @@ describe('article extraction', () => {
     expect(article.content).toContain('<strong>重点</strong>');
     expect(article.content).not.toContain('custom-card');
     expect(article.contentHash).toMatch(/^[a-z0-9]+$/);
+  });
+
+  it('builds article preview metadata', () => {
+    const preview = articlePreviewFromExtractedArticle({
+      id: 'id',
+      url: 'https://www.example.com/post',
+      canonicalUrl: 'https://www.example.com/post',
+      title: '文章标题',
+      content: '<p>中文正文 mixed words 123</p>',
+      contentHash: 'hash',
+    });
+
+    expect(preview).toEqual({
+      title: '文章标题',
+      domain: 'example.com',
+      wordCount: 7,
+      readingMinutes: 1,
+    });
   });
 });

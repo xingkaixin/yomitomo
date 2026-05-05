@@ -43,6 +43,54 @@ describe('registerContentToggleListener', () => {
     expect(toggleReader).toHaveBeenCalledTimes(2);
   });
 
+  it('returns article preview for popup inspection', async () => {
+    let listener: ((message: { type?: string }) => Promise<unknown> | undefined) | undefined;
+
+    registerContentToggleListener({
+      addListener: (nextListener) => {
+        listener = nextListener;
+      },
+      targetWindow: {} as Window,
+      getArticlePreview: vi.fn().mockResolvedValue({
+        title: '文章标题',
+        domain: 'example.com',
+        wordCount: 1200,
+        readingMinutes: 5,
+      }),
+      toggleReader: vi.fn(),
+      errorMessage: String,
+    });
+
+    await expect(listener?.({ type: 'yomitomo:article-preview' })).resolves.toEqual({
+      ok: true,
+      article: {
+        title: '文章标题',
+        domain: 'example.com',
+        wordCount: 1200,
+        readingMinutes: 5,
+      },
+    });
+  });
+
+  it('surfaces article preview errors', async () => {
+    let listener: ((message: { type?: string }) => Promise<unknown> | undefined) | undefined;
+
+    registerContentToggleListener({
+      addListener: (nextListener) => {
+        listener = nextListener;
+      },
+      targetWindow: {} as Window,
+      getArticlePreview: vi.fn().mockRejectedValue(new Error('preview failed')),
+      toggleReader: vi.fn(),
+      errorMessage: (error) => (error instanceof Error ? error.message : String(error)),
+    });
+
+    await expect(listener?.({ type: 'yomitomo:article-preview' })).resolves.toEqual({
+      ok: false,
+      error: 'preview failed',
+    });
+  });
+
   it('marks the window ready only after listener registration succeeds', () => {
     const listeners: Array<(message: { type?: string }) => unknown> = [];
     const targetWindow = {} as Window;
