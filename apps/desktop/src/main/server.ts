@@ -282,7 +282,9 @@ async function handleMessage(socket: WebSocket, raw: string) {
       logInfo('agent.annotate.start', {
         requestId: message.requestId,
         agent: agent.username,
+        annotationType: message.payload.annotationType,
         readingIntent: message.payload.readingIntent,
+        instructed: Boolean(message.payload.instruction),
         articleTitle: message.payload.article.title,
         articleChars: message.payload.article.text.length,
         targeted: Boolean(message.payload.targetAnchor),

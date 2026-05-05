@@ -195,7 +195,9 @@ describe('desktop client message parser', () => {
         requestId: 'request-1',
         payload: {
           agentUsername: 'reader',
+          annotationType: 'question',
           readingIntent: 'decompose',
+          instruction: '这个判断是否站得住？',
           targetAnchor: record.annotations[0].anchor,
           article: {
             title: 'Article',
@@ -244,6 +246,25 @@ describe('desktop client message parser', () => {
     ).toEqual({
       ok: false,
       error: { requestId: 'request-1', message: 'agent:annotate.readingIntent 无效' },
+    });
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'agent:annotate',
+        requestId: 'request-1',
+        payload: {
+          agentUsername: 'reader',
+          annotationType: 'summary',
+          article: {
+            title: 'Article',
+            url: 'https://example.com/article',
+            text: 'Article text',
+          },
+        },
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'agent:annotate.annotationType 无效' },
     });
   });
 });

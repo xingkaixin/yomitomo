@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AtSign,
   CaseSensitive,
   Check,
   ChevronDown,
@@ -108,73 +109,62 @@ function moveAnnotationTypeSelection(
   onChange(annotationTypeOptions[nextIndex]);
 }
 
+function moveReadingIntentSelection(
+  event: React.KeyboardEvent<HTMLDivElement>,
+  current: AgentReadingIntent,
+  onChange: (nextIntent: AgentReadingIntent) => void,
+) {
+  const currentIndex = agentReadingIntentOptions.findIndex((option) => option.value === current);
+  const lastIndex = agentReadingIntentOptions.length - 1;
+  const nextIndexByKey: Record<string, number> = {
+    ArrowRight: Math.min(currentIndex + 1, lastIndex),
+    ArrowDown: Math.min(currentIndex + 1, lastIndex),
+    ArrowLeft: Math.max(currentIndex - 1, 0),
+    ArrowUp: Math.max(currentIndex - 1, 0),
+    Home: 0,
+    End: lastIndex,
+  };
+  const nextIndex = nextIndexByKey[event.key];
+  if (nextIndex === undefined) return;
+
+  event.preventDefault();
+  onChange(agentReadingIntentOptions[nextIndex]!.value);
+}
+
+function mentionDraftWithAgent(
+  content: string,
+  username: string,
+  mentionQuery: ReturnType<typeof getMentionQuery>,
+) {
+  if (mentionQuery) {
+    const nextContent = replaceMentionQuery(content, mentionQuery, username);
+    return {
+      content: nextContent,
+      caretIndex: mentionQuery.start + username.length + 2,
+    };
+  }
+
+  const prefix = content.trimEnd();
+  const nextContent = `${prefix ? `${prefix} ` : ''}@${username} `;
+  return {
+    content: nextContent,
+    caretIndex: nextContent.length,
+  };
+}
+
 export function SelectionMenu({
   action,
-  agents,
-  desktopConnected,
   onAnnotate,
-  onRequestAgentAction,
 }: {
   action: SelectionMenuAction;
-  agents: PublicAgent[];
-  desktopConnected: boolean;
   onAnnotate: () => void;
-  onRequestAgentAction: (intent: AgentReadingIntent, agent: PublicAgent) => void;
 }) {
-  const [selectedIntent, setSelectedIntent] = useState<AgentReadingIntent | null>(null);
-  const selectedIntentOption = agentReadingIntentOptions.find(
-    (option) => option.value === selectedIntent,
-  );
-  const agentActionsDisabled = !desktopConnected || agents.length === 0;
-  const agentActionHint = !desktopConnected
-    ? '桌面端未连接'
-    : agents.length === 0
-      ? '暂无阅读助手'
-      : '';
-
   return (
     <div className="reader-selection-menu" style={{ left: action.x, top: action.y }}>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
-        我的批注
+        添加批注
       </button>
-      <div className="reader-selection-agent-actions">
-        <div className="reader-selection-heading">
-          <span>让助手处理</span>
-          {agentActionHint ? <em>{agentActionHint}</em> : null}
-        </div>
-        <div className="reader-selection-action-grid">
-          {agentReadingIntentOptions.map((option) => (
-            <button
-              aria-pressed={selectedIntent === option.value}
-              className={selectedIntent === option.value ? 'is-active' : ''}
-              disabled={agentActionsDisabled}
-              key={option.value}
-              type="button"
-              onClick={() =>
-                setSelectedIntent((current) => (current === option.value ? null : option.value))
-              }
-            >
-              <strong>{option.shortLabel}</strong>
-            </button>
-          ))}
-        </div>
-        {selectedIntentOption && !agentActionsDisabled ? (
-          <div className="reader-selection-agent-list">
-            <strong>{selectedIntentOption.label}</strong>
-            {agents.map((agent) => (
-              <button
-                key={agent.id}
-                type="button"
-                onClick={() => onRequestAgentAction(selectedIntentOption.value, agent)}
-              >
-                <AvatarBadge avatar={agent.avatar} />
-                <span>{agent.nickname}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
     </div>
   );
 }
@@ -791,18 +781,101 @@ function SettingStepper({
 }
 
 export function Composer({
+  agents,
   composer,
+  desktopConnected,
   shortcutModifier,
   onCancel,
   onSave,
 }: {
+  agents: PublicAgent[];
   composer: PendingComposer;
+  desktopConnected: boolean;
   shortcutModifier: string;
   onCancel: () => void;
-  onSave: (note: string, annotationType: AnnotationType) => void;
+  onSave: (note: string, annotationType: AnnotationType, readingIntent: AgentReadingIntent) => void;
 }) {
   const [note, setNote] = useState('');
   const [annotationType, setAnnotationType] = useState<AnnotationType>('key_point');
+  const [readingIntent, setReadingIntent] = useState<AgentReadingIntent>('explain');
+  const [caretIndex, setCaretIndex] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionQuery = getMentionQuery(note, caretIndex);
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : agents
+          .filter(
+            (agent) =>
+              agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) ||
+              agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase()),
+          )
+          .slice(0, 5);
+  const mentionedAgents = agents.filter((agent) =>
+    new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=\\s|$)`).test(note),
+  );
+  const canMentionAgents = desktopConnected && agents.length > 0;
+
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionQuery?.query]);
+
+  useEffect(() => {
+    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length) {
+      setSelectedMentionIndex(0);
+    }
+  }, [matchedAgents.length, selectedMentionIndex]);
+
+  function save() {
+    onSave(note, annotationType, readingIntent);
+  }
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    setCaretIndex(element.selectionStart);
+  }
+
+  function insertAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(note, agent.username, mentionQuery);
+    setNote(next.content);
+    setCaretIndex(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelectedMentionIndex((index) => (index - 1 + matchedAgents.length) % matchedAgents.length);
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === 'Tab') {
+      event.preventDefault();
+      insertAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]!);
+      return;
+    }
+
+    if (isSubmitShortcut(event)) {
+      event.preventDefault();
+      save();
+    }
+  }
+
+  function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp') return;
+    updateCaret(event.currentTarget);
+  }
+
   return (
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
       <header className="reader-composer-header">
@@ -811,17 +884,18 @@ export function Composer({
           <div className="reader-shortcut-hint">
             <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
             <Kbd className="reader-kbd">Enter</Kbd>
-            <span>保存</span>
+            <span>发布</span>
           </div>
         </div>
         <div
-          aria-label="批注标签"
+          aria-label="批注类型"
           className="reader-composer-types"
           role="radiogroup"
           onKeyDown={(event) =>
             moveAnnotationTypeSelection(event, annotationType, setAnnotationType)
           }
         >
+          <span className="reader-composer-group-label">批注类型</span>
           {annotationTypeOptions.map((type) => (
             <button
               aria-checked={annotationType === type}
@@ -836,26 +910,99 @@ export function Composer({
             </button>
           ))}
         </div>
+        <div
+          aria-label="批注动作"
+          className="reader-composer-types reader-composer-intents"
+          role="radiogroup"
+          onKeyDown={(event) => moveReadingIntentSelection(event, readingIntent, setReadingIntent)}
+        >
+          <span className="reader-composer-group-label">批注动作</span>
+          {agentReadingIntentOptions.map((option) => (
+            <button
+              aria-checked={readingIntent === option.value}
+              className={readingIntent === option.value ? 'is-active' : ''}
+              key={option.value}
+              role="radio"
+              tabIndex={readingIntent === option.value ? 0 : -1}
+              title={option.description}
+              type="button"
+              onClick={() => setReadingIntent(option.value)}
+            >
+              {option.shortLabel}
+            </button>
+          ))}
+        </div>
       </header>
-      <textarea
-        aria-label="批注内容"
-        autoFocus
-        placeholder="写下你的批注…"
-        value={note}
-        onChange={(event) => setNote(event.target.value)}
-        onKeyDown={(event) => {
-          if (isSubmitShortcut(event)) {
-            event.preventDefault();
-            onSave(note, annotationType);
-          }
-        }}
-      />
+      <div className="reader-composer-editor">
+        <textarea
+          aria-label="批注内容"
+          autoFocus
+          ref={textareaRef}
+          placeholder={canMentionAgents ? '写下批注，或 @ 助手给出指导…' : '写下你的批注…'}
+          value={note}
+          onChange={(event) => {
+            setNote(event.currentTarget.value);
+            updateCaret(event.currentTarget);
+          }}
+          onClick={(event) => updateCaret(event.currentTarget)}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onSelect={(event) => updateCaret(event.currentTarget)}
+        />
+        {matchedAgents.length > 0 ? (
+          <div className="reader-agent-menu">
+            {matchedAgents.map((agent, index) => (
+              <button
+                className={index === selectedMentionIndex ? 'is-active' : ''}
+                key={agent.id}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => insertAgent(agent)}
+              >
+                <AvatarBadge avatar={agent.avatar} />
+                <strong>{agent.nickname}</strong>
+                <em>@{agent.username}</em>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className="reader-composer-actions">
+        <div className="reader-composer-agent-tray">
+          <span aria-hidden="true">
+            <AtSign size={16} />
+          </span>
+          {canMentionAgents
+            ? agents.slice(0, 6).map((agent) => (
+                <button
+                  className={
+                    mentionedAgents.some((item) => item.id === agent.id) ? 'is-active' : ''
+                  }
+                  key={agent.id}
+                  type="button"
+                  aria-label={`插入 @${agent.username}`}
+                  title={`${agent.nickname} @${agent.username}`}
+                  onClick={() => insertAgent(agent)}
+                  onDoubleClick={() =>
+                    setRevealedAgentId((current) => (current === agent.id ? null : agent.id))
+                  }
+                >
+                  <AvatarBadge avatar={agent.avatar} />
+                  {revealedAgentId === agent.id ? (
+                    <b>
+                      {agent.nickname}
+                      <em>@{agent.username}</em>
+                    </b>
+                  ) : null}
+                </button>
+              ))
+            : null}
+        </div>
         <button type="button" onClick={onCancel}>
           取消
         </button>
-        <button type="button" onClick={() => onSave(note, annotationType)}>
-          保存批注
+        <button type="button" onClick={save}>
+          发布
         </button>
       </div>
     </div>
@@ -1126,6 +1273,40 @@ export function AnnotationCard({
   );
 }
 
+export type PendingAgentAnnotation = {
+  id: string;
+  agents: PublicAgent[];
+  annotationType: AnnotationType;
+  readingIntent: AgentReadingIntent;
+};
+
+export function AgentAnnotationSkeletonCard({ pending }: { pending: PendingAgentAnnotation }) {
+  return (
+    <section className="reader-note reader-note-skeleton">
+      <div className="reader-note-skeleton-header">
+        <div className="reader-note-skeleton-agents">
+          {pending.agents.slice(0, 4).map((agent) => (
+            <AvatarBadge
+              avatar={agent.avatar}
+              fallback={agent.nickname.slice(0, 1)}
+              key={agent.id}
+            />
+          ))}
+        </div>
+        <span>
+          {annotationTypeLabel(pending.annotationType)} ·{' '}
+          {agentReadingIntentLabel(pending.readingIntent)}
+        </span>
+      </div>
+      <div className="reader-note-skeleton-lines" aria-label="助手批注生成中">
+        <i />
+        <i />
+        <i />
+      </div>
+    </section>
+  );
+}
+
 function MarkdownContent({ content, pending }: { content: string; pending?: boolean }) {
   const html = useMemo(() => renderMarkdown(content), [content]);
 
@@ -1139,6 +1320,10 @@ function MarkdownContent({ content, pending }: { content: string; pending?: bool
 function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
   const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
   return event.key === 'Enter' && (isMac ? event.metaKey : event.ctrlKey);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function noteStyle(color: string, active: boolean): React.CSSProperties {

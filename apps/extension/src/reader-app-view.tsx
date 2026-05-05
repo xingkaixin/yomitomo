@@ -16,6 +16,7 @@ import type { HighlightBox, TocItem } from './reader-dom';
 import { buildTocAnnotationStats, highlightStyle, isPrimaryTocItem } from './reader-utils';
 import {
   AgentAnnotateMenu,
+  AgentAnnotationSkeletonCard,
   AnnotationCard,
   AnnotationConnection,
   Composer,
@@ -27,6 +28,7 @@ import {
   VirtualCursor,
   type ActiveConnection,
   type HighlightChoiceAction,
+  type PendingAgentAnnotation,
   type ReaderSettings,
   type ReaderReadingSection,
   type VirtualCursorState,
@@ -69,6 +71,7 @@ type ReaderAppViewProps = {
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   pairingStatus: string;
+  pendingAgentAnnotations: PendingAgentAnnotation[];
   pairingId: string;
   pairingTokenDraft: string;
   readerSettings: ReaderSettings;
@@ -87,7 +90,11 @@ type ReaderAppViewProps = {
   onCancelAgentAnnotateMenu: () => void;
   onCancelComposer: () => void;
   onClose: () => void;
-  onCreateAnnotation: (note: string, annotationType: AnnotationType) => void | Promise<void>;
+  onCreateAnnotation: (
+    note: string,
+    annotationType: AnnotationType,
+    readingIntent: AgentReadingIntent,
+  ) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -97,11 +104,6 @@ type ReaderAppViewProps = {
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
-  onRequestSelectionAgentAction: (
-    action: SelectionAction,
-    readingIntent: AgentReadingIntent,
-    agent: PublicAgent,
-  ) => void;
   onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -145,6 +147,7 @@ export function ReaderAppView({
   noteRefs,
   notesRef,
   pairingStatus,
+  pendingAgentAnnotations,
   pairingId,
   pairingTokenDraft,
   readerSettings,
@@ -173,7 +176,6 @@ export function ReaderAppView({
   onCloseResponsivePanels,
   onOpenComposer,
   onStartAgentReadingPlan,
-  onRequestSelectionAgentAction,
   onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
@@ -417,12 +419,7 @@ export function ReaderAppView({
             {selectionAction && !composer ? (
               <SelectionMenu
                 action={selectionAction}
-                agents={agents}
-                desktopConnected={desktopConnected}
                 onAnnotate={() => onOpenComposer(selectionAction)}
-                onRequestAgentAction={(readingIntent, agent) =>
-                  onRequestSelectionAgentAction(selectionAction, readingIntent, agent)
-                }
               />
             ) : null}
             {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
@@ -437,7 +434,9 @@ export function ReaderAppView({
             ) : null}
             {composer ? (
               <Composer
+                agents={agents}
                 composer={composer}
+                desktopConnected={desktopConnected}
                 shortcutModifier={shortcutModifier}
                 onCancel={onCancelComposer}
                 onSave={onCreateAnnotation}
@@ -494,6 +493,11 @@ export function ReaderAppView({
               onFocus={onScrollToHighlight}
             />
           ))}
+          {noteFilter !== 'user'
+            ? pendingAgentAnnotations.map((pending) => (
+                <AgentAnnotationSkeletonCard key={pending.id} pending={pending} />
+              ))
+            : null}
         </aside>
       </main>
 

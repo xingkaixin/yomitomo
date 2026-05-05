@@ -76,7 +76,9 @@ describe('Composer', () => {
   it('provides an accessible name for the annotation textarea', () => {
     render(
       <Composer
+        agents={[]}
         composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        desktopConnected
         shortcutModifier="⌘"
         onCancel={vi.fn()}
         onSave={vi.fn()}
@@ -90,7 +92,9 @@ describe('Composer', () => {
     const onSave = vi.fn();
     render(
       <Composer
+        agents={[]}
         composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        desktopConnected
         shortcutModifier="⌘"
         onCancel={vi.fn()}
         onSave={onSave}
@@ -98,23 +102,26 @@ describe('Composer', () => {
     );
 
     fireEvent.click(screen.getByRole('radio', { name: '延伸问题' }));
+    fireEvent.click(screen.getByRole('radio', { name: '挑战' }));
     fireEvent.change(screen.getByLabelText('批注内容'), { target: { value: '这里需要追问' } });
-    fireEvent.click(screen.getByRole('button', { name: '保存批注' }));
+    fireEvent.click(screen.getByRole('button', { name: '发布' }));
 
-    expect(onSave).toHaveBeenCalledWith('这里需要追问', 'question');
+    expect(onSave).toHaveBeenCalledWith('这里需要追问', 'question', 'challenge');
   });
 
   it('exposes annotation types as a keyboard selectable radio group', () => {
     render(
       <Composer
+        agents={[]}
         composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        desktopConnected
         shortcutModifier="⌘"
         onCancel={vi.fn()}
         onSave={vi.fn()}
       />,
     );
 
-    const group = screen.getByRole('radiogroup', { name: '批注标签' });
+    const group = screen.getByRole('radiogroup', { name: '批注类型' });
     expect(screen.getByRole('radio', { name: '关键判断' }).getAttribute('aria-checked')).toBe(
       'true',
     );
@@ -124,6 +131,24 @@ describe('Composer', () => {
     expect(screen.getByRole('radio', { name: '前提漏洞' }).getAttribute('aria-checked')).toBe(
       'true',
     );
+  });
+
+  it('inserts a selected mention into the annotation draft', () => {
+    render(
+      <Composer
+        agents={[agent]}
+        composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        desktopConnected
+        shortcutModifier="⌘"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('批注内容'), { target: { value: '请 @rea' } });
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+
+    expect(screen.getByLabelText('批注内容')).toHaveProperty('value', '请 @reader ');
   });
 });
 
@@ -356,22 +381,13 @@ describe('AgentAnnotateMenu', () => {
 });
 
 describe('SelectionMenu', () => {
-  it('requests an agent action for the selected text', () => {
-    const onRequestAgentAction = vi.fn();
-    render(
-      <SelectionMenu
-        action={{ x: 0, y: 0 }}
-        agents={[agent]}
-        desktopConnected
-        onAnnotate={vi.fn()}
-        onRequestAgentAction={onRequestAgentAction}
-      />,
-    );
+  it('opens the composer for the selected text', () => {
+    const onAnnotate = vi.fn();
+    render(<SelectionMenu action={{ x: 0, y: 0 }} onAnnotate={onAnnotate} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '解释' }));
-    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加批注' }));
 
-    expect(onRequestAgentAction).toHaveBeenCalledWith('explain', agent);
+    expect(onAnnotate).toHaveBeenCalledTimes(1);
   });
 });
 

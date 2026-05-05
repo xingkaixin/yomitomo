@@ -277,6 +277,16 @@ export function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent 
     : null;
 }
 
+export function normalizeAnnotationType(value: unknown): AnnotationType | null {
+  return value === 'key_point' ||
+    value === 'assumption' ||
+    value === 'concept' ||
+    value === 'question' ||
+    value === 'quote'
+    ? value
+    : null;
+}
+
 export function agentReadingIntentLabel(intent: AgentReadingIntent) {
   return agentReadingIntentOptions.find((option) => option.value === intent)?.label || intent;
 }
@@ -579,7 +589,9 @@ export type AgentMessagePayload = {
 export type AgentAnnotatePayload = {
   agentId?: string;
   agentUsername: string;
+  annotationType?: AnnotationType;
   readingIntent?: AgentReadingIntent;
+  instruction?: string;
   readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
   article: {
@@ -755,6 +767,15 @@ function validateAgentAnnotatePayload(value: unknown) {
   if (articleError) return `agent:annotate.${articleError}`;
   if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
     return 'agent:annotate.readingIntent 无效';
+  }
+  if (value.annotationType !== undefined && !normalizeAnnotationType(value.annotationType)) {
+    return 'agent:annotate.annotationType 无效';
+  }
+  if (
+    value.instruction !== undefined &&
+    !limitedString(value.instruction, MESSAGE_LIMITS.commentChars)
+  ) {
+    return 'agent:annotate.instruction 超出长度限制';
   }
   if (value.readingPlan !== undefined) {
     const article = value.article as { text: string };

@@ -46,6 +46,7 @@ import {
   selectionActionPosition,
 } from '../src/reader-dom';
 import type { ActiveConnection, ReaderReadingSection } from '../src/reader-components';
+import type { PendingAgentAnnotation } from '../src/reader-components';
 import { readerConversationStyles, readerStyles } from '../src/reader-styles';
 import {
   buildTocAnnotationStats,
@@ -210,6 +211,10 @@ function normalizeHeadingText(text: string) {
   return text.trim().replace(/\s+/g, ' ');
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -230,6 +235,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         commentId: string;
         agentId?: string;
         annotationCount?: number;
+        pendingAnnotationId?: string;
         readingPlan?: AgentReadingPlanItem[];
       }
     >(),
@@ -255,6 +261,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [noteFilter, setNoteFilter] = useState<NoteFilter>('all');
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
+  const [pendingAgentAnnotations, setPendingAgentAnnotations] = useState<PendingAgentAnnotation[]>(
+    [],
+  );
   const [pairingLoaded, setPairingLoaded] = useState(false);
   const [pairingToken, setPairingToken] = useState('');
   const [pairingTokenDraft, setPairingTokenDraft] = useState('');
@@ -682,6 +691,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (message.type === 'agent:annotate:result') {
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       pendingAgentRequestsRef.current.delete(message.requestId);
+      removePendingAgentAnnotation(pending?.pendingAnnotationId);
       if (pending?.agentId) {
         markAgentAnnotating(pending.agentId, false);
         markVirtualReadingDone(pending.agentId);
@@ -733,6 +743,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       readerLog('agent.annotate.done', { requestId: message.requestId });
       const pending = pendingAgentRequestsRef.current.get(message.requestId);
       pendingAgentRequestsRef.current.delete(message.requestId);
+      removePendingAgentAnnotation(pending?.pendingAnnotationId);
       if (pending?.agentId) {
         markAgentAnnotating(pending.agentId, false);
         markVirtualReadingDone(pending.agentId);
@@ -780,6 +791,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       if (!pending) return;
 
       pendingAgentRequestsRef.current.delete(message.requestId);
+      removePendingAgentAnnotation(pending.pendingAnnotationId);
       if (pending.agentId) {
         markAgentAnnotating(pending.agentId, false);
         finishVirtualReading(pending.agentId, '批注失败');
@@ -901,13 +913,52 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     selection.removeAllRanges();
   }
 
-  async function createAnnotation(note: string, annotationType: AnnotationType) {
+  async function createAnnotation(
+    note: string,
+    annotationType: AnnotationType,
+    readingIntent: AgentReadingIntent,
+  ) {
     if (!composer) return;
+
+    const mentionedAgents = findMentionedAgents(note, agents);
+    if (mentionedAgents.length > 0) {
+      const instruction = agentInstructionFromNote(note, mentionedAgents);
+      const pendingAnnotations: PendingAgentAnnotation[] = [];
+
+      for (const agent of mentionedAgents) {
+        const pendingAnnotationId = makeId('pending_annotation');
+        const started = requestAgentAnnotations(
+          agent,
+          readingIntent,
+          composer.anchor,
+          annotationType,
+          instruction,
+          pendingAnnotationId,
+        );
+        if (started) {
+          pendingAnnotations.push({
+            id: pendingAnnotationId,
+            agents: [agent],
+            annotationType,
+            readingIntent,
+          });
+        }
+      }
+
+      if (pendingAnnotations.length === 0) return;
+      setPendingAgentAnnotations((items) => [...items, ...pendingAnnotations]);
+      closeComposerSelection();
+      return;
+    }
 
     const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType);
 
     await saveAnnotations([...annotationsRef.current, annotation]);
     setActiveId(annotation.id);
+    closeComposerSelection();
+  }
+
+  function closeComposerSelection() {
     setComposer(null);
     setSelectionAction(null);
     setTemporaryBoxes([]);
@@ -1037,8 +1088,17 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     agent: PublicAgent,
     readingIntent: AgentReadingIntent,
     targetAnchor?: Annotation['anchor'],
+    annotationType?: AnnotationType,
+    instruction?: string,
+    pendingAnnotationId?: string,
   ) {
-    requestAgentAnnotationPayload(agent, { readingIntent, targetAnchor });
+    return requestAgentAnnotationPayload(agent, {
+      annotationType,
+      readingIntent,
+      instruction,
+      targetAnchor,
+      pendingAnnotationId,
+    });
   }
 
   function requestAgentReadingPlan(agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) {
@@ -1048,15 +1108,18 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   function requestAgentAnnotationPayload(
     agent: PublicAgent,
     options: {
+      annotationType?: AnnotationType;
       readingIntent?: AgentReadingIntent;
+      instruction?: string;
       targetAnchor?: Annotation['anchor'];
+      pendingAnnotationId?: string;
       readingPlan?: AgentReadingPlanItem[];
     },
   ) {
-    if (annotatingAgents.includes(agent.id)) return;
-    if (!desktopAuthenticatedRef.current) return;
+    if (annotatingAgents.includes(agent.id)) return false;
+    if (!desktopAuthenticatedRef.current) return false;
     const bridge = desktopBridgeRef.current;
-    if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
+    if (!bridge || bridge.readyState !== WebSocket.OPEN) return false;
 
     const requestId = makeId('request');
     pendingAgentRequestsRef.current.set(requestId, {
@@ -1064,6 +1127,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       commentId: '',
       agentId: agent.id,
       annotationCount: 0,
+      pendingAnnotationId: options.pendingAnnotationId,
       readingPlan: options.readingPlan,
     });
     markAgentAnnotating(agent.id, true);
@@ -1073,7 +1137,9 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       payload: {
         agentId: agent.id,
         agentUsername: agent.username,
+        annotationType: options.annotationType,
         readingIntent: options.readingIntent,
+        instruction: options.instruction,
         targetAnchor: options.targetAnchor,
         readingPlan: options.readingPlan,
         article: {
@@ -1083,6 +1149,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         },
       },
     });
+    return true;
   }
 
   function constrainAgentPlanAnnotation(
@@ -1109,17 +1176,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         readingIntent: comment.readingIntent || planItem.readingIntent,
       })),
     };
-  }
-
-  function requestSelectionAgentAction(
-    action: SelectionAction,
-    readingIntent: AgentReadingIntent,
-    agent: PublicAgent,
-  ) {
-    requestAgentAnnotations(agent, readingIntent, action.anchor);
-    setSelectionAction(null);
-    setTemporaryBoxes([]);
-    if (articleRef.current) getArticleSelection(articleRef.current)?.removeAllRanges();
   }
 
   async function savePairingToken() {
@@ -1166,6 +1222,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         markAgentAnnotating(pending.agentId, false);
         finishVirtualReading(pending.agentId, reason);
       }
+      removePendingAgentAnnotation(pending.pendingAnnotationId);
       if (pending.annotationId && pending.commentId) {
         void updateComment(pending.annotationId, pending.commentId, (comment) => ({
           ...comment,
@@ -1174,6 +1231,22 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         }));
       }
     }
+  }
+
+  function removePendingAgentAnnotation(pendingAnnotationId: string | undefined) {
+    if (!pendingAnnotationId) return;
+    setPendingAgentAnnotations((items) => items.filter((item) => item.id !== pendingAnnotationId));
+  }
+
+  function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {
+    let instruction = note.trim();
+    for (const agent of mentionedAgents) {
+      instruction = instruction.replace(
+        new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=\\s|$)`, 'g'),
+        ' ',
+      );
+    }
+    return instruction.replace(/\s+/g, ' ').trim();
   }
 
   function cancelAgentAnnotateMenu() {
@@ -1272,6 +1345,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       noteRefs={noteRefs}
       notesRef={notesRef}
       pairingStatus={pairingStatus}
+      pendingAgentAnnotations={pendingAgentAnnotations}
       pairingId={pairingId}
       pairingTokenDraft={pairingTokenDraft}
       hasSavedPairing={Boolean(pairingToken.trim())}
@@ -1315,7 +1389,6 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setSelectionAction(null);
       }}
       onStartAgentReadingPlan={requestAgentReadingPlan}
-      onRequestSelectionAgentAction={requestSelectionAgentAction}
       onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}
       onScrollToHighlight={scrollToHighlight}
