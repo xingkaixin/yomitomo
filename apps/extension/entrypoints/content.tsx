@@ -55,6 +55,8 @@ import {
 } from '../src/reader-utils';
 import {
   DESKTOP_BRIDGE_PORT_NAME,
+  DESKTOP_PAIRING_ID_KEY,
+  DESKTOP_PAIRING_TOKEN_KEY,
   type DesktopBridge,
   type DesktopBridgeContentMessage,
   type DesktopBridgePortMessage,
@@ -78,8 +80,6 @@ import { useAgentAnnotationQueue } from '../src/use-agent-annotation-queue';
 import { useArticleRecordSync } from '../src/use-article-record-sync';
 
 const HOST_ID = 'yomitomo-root';
-const DESKTOP_PAIRING_TOKEN_KEY = 'yomitomo.desktopPairingToken';
-const DESKTOP_PAIRING_ID_KEY = 'yomitomo.desktopPairingId';
 let root: Root | null = null;
 let previousOverflow = '';
 

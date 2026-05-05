@@ -3,9 +3,11 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DESKTOP_PAIRING_TOKEN_KEY } from '../desktop-bridge';
 import { Popup } from '../popup-view';
 
-const { tabsQuery, toggleReaderInTab } = vi.hoisted(() => ({
+const { storageGet, tabsQuery, toggleReaderInTab } = vi.hoisted(() => ({
+  storageGet: vi.fn(),
   tabsQuery: vi.fn(),
   toggleReaderInTab: vi.fn(),
 }));
@@ -15,6 +17,11 @@ vi.mock('wxt/browser', () => ({
     tabs: {
       query: tabsQuery,
     },
+    storage: {
+      local: {
+        get: storageGet,
+      },
+    },
   },
 }));
 
@@ -23,6 +30,7 @@ vi.mock('../popup-actions', () => ({
 }));
 
 beforeEach(() => {
+  storageGet.mockResolvedValue({});
   tabsQuery.mockResolvedValue([{ id: 123 }]);
   toggleReaderInTab.mockResolvedValue(undefined);
   vi.spyOn(window, 'close').mockImplementation(() => {});
@@ -39,6 +47,20 @@ describe('Popup', () => {
     render(<Popup />);
 
     expect(screen.getByRole('status').textContent).toBe('准备进入阅读器模式');
+  });
+
+  it('shows the saved pairing marker in the corner', async () => {
+    storageGet.mockResolvedValue({ [DESKTOP_PAIRING_TOKEN_KEY]: 'token' });
+
+    render(<Popup />);
+
+    expect(await screen.findByLabelText('配对状态：已配对')).toBeTruthy();
+  });
+
+  it('shows the unpaired marker when no pairing token is saved', async () => {
+    render(<Popup />);
+
+    expect(await screen.findByLabelText('配对状态：未配对')).toBeTruthy();
   });
 
   it('uses a single ellipsis glyph while opening the reader', async () => {

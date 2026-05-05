@@ -1,6 +1,8 @@
 import type { DesktopClientMessage, DesktopServerMessage } from '@yomitomo/shared';
 
 export const DESKTOP_BRIDGE_PORT_NAME = 'yomitomo-desktop';
+export const DESKTOP_PAIRING_TOKEN_KEY = 'yomitomo.desktopPairingToken';
+export const DESKTOP_PAIRING_ID_KEY = 'yomitomo.desktopPairingId';
 
 export type DesktopBridge = {
   readyState: number;
