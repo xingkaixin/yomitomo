@@ -103,6 +103,16 @@ function broadcastArticleUpdate(article: ArticleRecord) {
   });
 }
 
+export function broadcastArticleDeleted(
+  article: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
+) {
+  wsServer?.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN && socketStates.get(client)?.authenticated) {
+      send(client, { type: 'article:deleted', article });
+    }
+  });
+}
+
 export function disconnectAuthenticatedSockets() {
   wsServer?.clients.forEach((client) => {
     if (socketStates.get(client)?.authenticated) {
@@ -224,8 +234,15 @@ async function handleMessage(socket: WebSocket, raw: string) {
         agentNickname: agent.nickname,
         agentAvatar: agent.avatar,
         agentAnnotationColor: agent.annotationColor,
-        readingIntent: message.payload.readingIntent,
+        readingIntent:
+          message.payload.readingIntent ||
+          message.payload.annotation.readingIntent ||
+          message.payload.userComment.readingIntent,
         pending: true,
+      };
+      const agentMessagePayload = {
+        ...message.payload,
+        readingIntent: comment.readingIntent,
       };
 
       send(socket, {
@@ -235,7 +252,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         comment,
       });
 
-      await runAgentStream(provider, agent, message.payload, (delta) => {
+      await runAgentStream(provider, agent, agentMessagePayload, (delta) => {
         send(socket, {
           type: 'agent:message:delta',
           requestId: message.requestId,
@@ -392,6 +409,7 @@ function articleSyncSignature(article: ArticleRecord) {
       author: annotation.author,
       annotationType: annotation.annotationType,
       readingIntent: annotation.readingIntent,
+      questionStatus: annotation.questionStatus,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -415,6 +433,7 @@ function articleSyncSignature(article: ArticleRecord) {
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
         readingIntent: comment.readingIntent,
+        questionStatus: comment.questionStatus,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,

@@ -5,6 +5,7 @@ import type {
   Annotation,
   AnnotationType,
   PublicAgent,
+  QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
@@ -19,6 +20,7 @@ import {
   Composer,
   EmptyNotes,
   HighlightChoiceMenu,
+  QuestionPanel,
   ReaderSettingsPanel,
   SelectionMenu,
   VirtualCursor,
@@ -56,6 +58,7 @@ type ReaderAppViewProps = {
   composer: PendingComposer | null;
   desktopConnected: boolean;
   extracted: ExtractedArticle;
+  focusRequest: number;
   filteredAnnotations: Annotation[];
   hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
@@ -99,6 +102,12 @@ type ReaderAppViewProps = {
   onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
+  onSetAnnotationQuestionStatus: (annotationId: string, status: QuestionStatus) => void;
+  onSetCommentQuestionStatus: (
+    annotationId: string,
+    commentId: string,
+    status: QuestionStatus,
+  ) => void;
   onSetNoteFilter: (filter: NoteFilter) => void;
   onSetPairingTokenDraft: (token: string) => void;
   onToggleNotes: () => void;
@@ -124,6 +133,7 @@ export function ReaderAppView({
   composer,
   desktopConnected,
   extracted,
+  focusRequest,
   filteredAnnotations,
   hasSavedPairing,
   highlightChoice,
@@ -163,6 +173,8 @@ export function ReaderAppView({
   onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
+  onSetAnnotationQuestionStatus,
+  onSetCommentQuestionStatus,
   onSetNoteFilter,
   onSetPairingTokenDraft,
   onToggleNotes,
@@ -434,6 +446,14 @@ export function ReaderAppView({
               </TabsList>
             </Tabs>
           </div>
+          <QuestionPanel
+            agents={agents}
+            annotations={annotations}
+            userProfile={userProfile}
+            onFocus={onScrollToHighlight}
+            onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
+            onSetCommentQuestionStatus={onSetCommentQuestionStatus}
+          />
           {annotations.length === 0 ? <EmptyNotes /> : null}
           {annotations.length > 0 && filteredAnnotations.length === 0 ? (
             <div className="reader-empty">
@@ -447,6 +467,7 @@ export function ReaderAppView({
               agents={agents}
               annotation={annotation}
               desktopConnected={desktopConnected}
+              focusRequest={focusRequest}
               key={annotation.id}
               noteRef={(element) => {
                 if (element) noteRefs.current.set(annotation.id, element);

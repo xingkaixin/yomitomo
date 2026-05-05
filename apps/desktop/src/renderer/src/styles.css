@@ -2030,7 +2030,6 @@
   border-radius: 8px;
   background: transparent;
   color: hsl(var(--foreground));
-  cursor: pointer;
   padding: 12px;
   text-align: left;
 }
@@ -2039,6 +2038,16 @@
 .library-item.is-active {
   border-color: hsl(77 20% 68% / 0.75);
   background: hsl(79 26% 86% / 0.62);
+}
+
+.library-item-main {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
 }
 
 .library-item h3 {
@@ -2076,6 +2085,63 @@
 .library-item-count {
   font-variant-numeric: tabular-nums;
   font-weight: 800;
+}
+
+.library-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.library-item-delete,
+.library-item-delete-confirm button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 0 9px;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.library-item-delete {
+  background: hsl(var(--muted) / 0.58);
+  color: hsl(var(--muted-foreground));
+}
+
+.library-item-delete:hover {
+  background: hsl(6 54% 92%);
+  color: hsl(5 54% 38%);
+}
+
+.library-item-delete:active,
+.library-item-delete-confirm button:active {
+  transform: scale(0.96);
+}
+
+.library-item-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.library-item-delete-confirm button:first-child {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.library-item-delete-confirm button:last-child {
+  background: hsl(5 54% 38%);
+  color: white;
 }
 
 .library-empty {
@@ -2353,6 +2419,8 @@
 
 .annotation-type {
   display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
@@ -2466,6 +2534,19 @@
   margin-top: 2px;
   color: hsl(var(--muted-foreground));
   font-size: 11px;
+}
+
+.comment-card header span {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: hsl(8 48% 48% / 0.1);
+  color: hsl(8 48% 32%);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+  padding: 4px 7px;
 }
 
 .comment-markdown {
@@ -3498,6 +3579,17 @@
   color: hsl(34 23% 27%);
   font-size: 11px;
   font-weight: 900;
+}
+
+.reading-card-comment span {
+  width: fit-content;
+  border-radius: 999px;
+  background: hsl(4 57% 92% / 0.88);
+  color: hsl(5 57% 38%);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 3px 6px;
 }
 
 .reading-card-comment p {

@@ -10,6 +10,7 @@ import {
   type DesktopClientMessage,
   type DesktopServerMessage,
   type PublicAgent,
+  type QuestionStatus,
   type UserProfile,
   createTextAnchor,
   makeId,
@@ -154,6 +155,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   const [desktopConnected, setDesktopConnected] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [agents, setAgents] = useState<PublicAgent[]>([]);
@@ -178,6 +180,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
   const {
     applyAnnotations,
+    applyDeletedArticleRecord,
     applyDesktopArticleRecord,
     cacheDesktopProfile,
     commitAnnotations,
@@ -579,6 +582,11 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       return;
     }
 
+    if (message.type === 'article:deleted') {
+      await applyDeletedArticleRecord(message.article);
+      return;
+    }
+
     if (message.type === 'agent:message:result') {
       appendComment(message.annotationId, message.comment);
       return;
@@ -828,10 +836,33 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     if (!trimmed) return;
 
     const userComment = createUserComment(userProfile, trimmed);
+    const isFollowUpQuestion = /[?？]/.test(trimmed);
+    const comment = isFollowUpQuestion
+      ? Object.assign({}, userComment, { questionStatus: 'open' as const })
+      : userComment;
+    const currentAnnotations = isFollowUpQuestion
+      ? annotationsRef.current
+      : annotationsRef.current.map((annotation) =>
+          annotation.id !== annotationId
+            ? annotation
+            : Object.assign({}, annotation, {
+                questionStatus:
+                  annotation.questionStatus === 'open' ||
+                  (annotation.annotationType === 'question' && !annotation.questionStatus)
+                    ? 'answered'
+                    : annotation.questionStatus,
+                comments: annotation.comments.map((item) =>
+                  item.questionStatus === 'open' ||
+                  (!item.questionStatus && /[?？]/.test(item.content))
+                    ? Object.assign({}, item, { questionStatus: 'answered' as const })
+                    : item,
+                ),
+              }),
+        );
     const nextAnnotations = appendAnnotationComment(
-      annotationsRef.current,
+      currentAnnotations,
       annotationId,
-      userComment,
+      comment,
       userComment.createdAt,
     );
     const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
@@ -842,8 +873,44 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
 
     const mentionedAgents = findMentionedAgents(trimmed, agents);
     for (const agent of mentionedAgents) {
-      sendAgentMessage(agent, nextAnnotation, userComment);
+      sendAgentMessage(agent, nextAnnotation, comment);
     }
+  }
+
+  async function setAnnotationQuestionStatus(annotationId: string, status: QuestionStatus) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? Object.assign({}, annotation, {
+            questionStatus: status,
+            updatedAt: now,
+          })
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    setActiveId(annotationId);
+  }
+
+  async function setCommentQuestionStatus(
+    annotationId: string,
+    commentId: string,
+    status: QuestionStatus,
+  ) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? Object.assign({}, annotation, {
+            updatedAt: now,
+            comments: annotation.comments.map((comment) =>
+              comment.id === commentId
+                ? Object.assign({}, comment, { questionStatus: status })
+                : comment,
+            ),
+          })
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    setActiveId(annotationId);
   }
 
   function sendAgentMessage(agent: PublicAgent, annotation: Annotation, userComment: Comment) {
@@ -853,6 +920,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       payload: {
         agentId: agent.id,
         agentUsername: agent.username,
+        readingIntent: annotation.readingIntent || userComment.readingIntent,
         article: {
           title: extracted.title,
           url: extracted.canonicalUrl,
@@ -1010,6 +1078,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
     setHighlightChoice(null);
     setNotesOpen(false);
     setActiveId(annotationId);
+    setFocusRequest((value) => value + 1);
     const annotation = annotations.find((item) => item.id === annotationId);
     const article = articleRef.current;
     if (!annotation || !article) return;
@@ -1051,6 +1120,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       composer={composer}
       desktopConnected={desktopConnected}
       extracted={extracted}
+      focusRequest={focusRequest}
       filteredAnnotations={filteredAnnotations}
       highlightChoice={highlightChoice}
       notesOpen={notesOpen}
@@ -1104,6 +1174,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       onSavePairingToken={savePairingToken}
       onScrollToHeading={scrollToHeading}
       onScrollToHighlight={scrollToHighlight}
+      onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
+      onSetCommentQuestionStatus={setCommentQuestionStatus}
       onSetNoteFilter={(filter) => setNoteFilter(filter)}
       onSetPairingTokenDraft={setPairingTokenDraft}
       onToggleNotes={() => setNotesOpen((open) => !open)}

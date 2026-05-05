@@ -20,6 +20,7 @@ import type {
   Annotation,
   AnnotationType,
   PublicAgent,
+  QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -32,6 +33,9 @@ import {
   annotationTypeLabel,
   commentPersona,
   getMentionQuery,
+  isQuestionComment,
+  questionStatusLabel,
+  questionStatusOrOpen,
   replaceMentionQuery,
 } from '@yomitomo/core';
 import { Kbd } from './components/ui/kbd';
@@ -267,6 +271,106 @@ export function EmptyNotes() {
   );
 }
 
+export function QuestionPanel({
+  agents,
+  annotations,
+  userProfile,
+  onFocus,
+  onSetAnnotationQuestionStatus,
+  onSetCommentQuestionStatus,
+}: {
+  agents: PublicAgent[];
+  annotations: Annotation[];
+  userProfile: UserProfile;
+  onFocus: (annotationId: string) => void;
+  onSetAnnotationQuestionStatus: (annotationId: string, status: QuestionStatus) => void;
+  onSetCommentQuestionStatus: (
+    annotationId: string,
+    commentId: string,
+    status: QuestionStatus,
+  ) => void;
+}) {
+  const questions = annotations.flatMap((annotation) => {
+    const annotationAuthorPersona = annotationAuthor(annotation, userProfile, agents);
+    const annotationQuestion =
+      annotation.annotationType === 'question' || annotation.questionStatus
+        ? [
+            {
+              id: annotation.id,
+              annotationId: annotation.id,
+              status: questionStatusOrOpen(annotation.questionStatus),
+              label: annotationAuthorPersona.nickname,
+              text: annotation.anchor.exact,
+              quote: annotation.anchor.exact,
+              setStatus: (status: QuestionStatus) =>
+                onSetAnnotationQuestionStatus(annotation.id, status),
+            },
+          ]
+        : [];
+    const commentQuestions = annotation.comments.filter(isQuestionComment).map((comment) => {
+      const commentAuthorPersona = commentPersona(comment, userProfile, agents);
+      return {
+        id: comment.id,
+        annotationId: annotation.id,
+        status: questionStatusOrOpen(comment.questionStatus),
+        label: commentAuthorPersona.nickname,
+        text: comment.content,
+        quote: annotation.anchor.exact,
+        setStatus: (status: QuestionStatus) =>
+          onSetCommentQuestionStatus(annotation.id, comment.id, status),
+      };
+    });
+    return [...annotationQuestion, ...commentQuestions];
+  });
+  const openQuestions = questions.filter((question) => question.status === 'open');
+
+  if (questions.length === 0) return null;
+
+  return (
+    <section className="reader-question-panel" aria-label="未决问题">
+      <header>
+        <div>
+          <strong>未决问题</strong>
+          <span>{openQuestions.length} 个待推进</span>
+        </div>
+      </header>
+      <div className="reader-question-list">
+        {questions.map((question) => (
+          <article className={`is-${question.status}`} key={question.id}>
+            <button
+              className="reader-question-open"
+              type="button"
+              onClick={() => onFocus(question.annotationId)}
+            >
+              <span className="reader-question-meta">
+                <strong>{question.label}</strong>
+                <i>{questionStatusLabel(question.status)}</i>
+              </span>
+              <span>{question.text}</span>
+              <em>“{question.quote}”</em>
+            </button>
+            <div className="reader-question-actions">
+              <button type="button" onClick={() => onFocus(question.annotationId)}>
+                {question.status === 'answered' ? '查看' : '回答'}
+              </button>
+              {question.status === 'parked' ? (
+                <button type="button" onClick={() => question.setStatus('open')}>
+                  恢复
+                </button>
+              ) : null}
+              {question.status === 'open' ? (
+                <button type="button" onClick={() => question.setStatus('parked')}>
+                  搁置
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function AgentAnnotateMenu({
   agents,
   annotatingAgents,
@@ -280,6 +384,7 @@ export function AgentAnnotateMenu({
 }) {
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
   const [agentIntents, setAgentIntents] = useState<Record<string, AgentReadingIntent>>({});
+  const [choosingAgentId, setChoosingAgentId] = useState<string | null>(null);
   const selectedAgents = agents.filter(
     (agent) => selectedAgentIds.includes(agent.id) && !annotatingAgents.includes(agent.id),
   );
@@ -292,9 +397,17 @@ export function AgentAnnotateMenu({
 
   function toggleAgent(agent: PublicAgent) {
     if (annotatingAgents.includes(agent.id)) return;
-    setSelectedAgentIds((ids) =>
-      ids.includes(agent.id) ? ids.filter((id) => id !== agent.id) : [...ids, agent.id],
-    );
+    if (selectedAgentIds.includes(agent.id)) {
+      setSelectedAgentIds((ids) => ids.filter((id) => id !== agent.id));
+      setAgentIntents((current) => {
+        const next = { ...current };
+        delete next[agent.id];
+        return next;
+      });
+      setChoosingAgentId((id) => (id === agent.id ? null : id));
+      return;
+    }
+    setChoosingAgentId((id) => (id === agent.id ? null : agent.id));
   }
 
   function startSelectedAgents() {
@@ -308,6 +421,8 @@ export function AgentAnnotateMenu({
 
   function setAgentReadingIntent(agentId: string, intent: AgentReadingIntent) {
     setAgentIntents((current) => ({ ...current, [agentId]: intent }));
+    setSelectedAgentIds((ids) => (ids.includes(agentId) ? ids : [...ids, agentId]));
+    setChoosingAgentId(null);
   }
 
   return (
@@ -319,7 +434,7 @@ export function AgentAnnotateMenu({
       {agents.map((agent) => {
         const running = annotatingAgents.includes(agent.id);
         const selected = selectedAgentIds.includes(agent.id);
-        const readingIntent = readingIntentForAgent(agent.id);
+        const readingIntent = agentIntents[agent.id] || null;
         return (
           <div
             className={[
@@ -347,27 +462,35 @@ export function AgentAnnotateMenu({
                 <em>@{agent.username}</em>
                 <small>{agent.personalityName || '自定义个性'}</small>
               </span>
-              <b>{running ? '阅读中' : selected ? '已选' : '选择'}</b>
+              <b>
+                {running
+                  ? '阅读中'
+                  : selected && readingIntent
+                    ? agentReadingIntentLabel(readingIntent)
+                    : '选择'}
+              </b>
             </button>
-            <div
-              className="reader-agent-row-intents"
-              role="radiogroup"
-              aria-label={`${agent.nickname} 精读动作`}
-            >
-              {agentReadingIntentOptions.map((option) => (
-                <button
-                  aria-checked={readingIntent === option.value}
-                  className={readingIntent === option.value ? 'is-active' : ''}
-                  disabled={running}
-                  key={option.value}
-                  role="radio"
-                  type="button"
-                  onClick={() => setAgentReadingIntent(agent.id, option.value)}
-                >
-                  {option.shortLabel}
-                </button>
-              ))}
-            </div>
+            {choosingAgentId === agent.id && !running ? (
+              <div
+                className="reader-agent-action-picker"
+                role="radiogroup"
+                aria-label={`${agent.nickname} 精读动作`}
+              >
+                {agentReadingIntentOptions.map((option) => (
+                  <button
+                    aria-checked={readingIntent === option.value}
+                    className={readingIntent === option.value ? 'is-active' : ''}
+                    key={option.value}
+                    role="radio"
+                    type="button"
+                    onClick={() => setAgentReadingIntent(agent.id, option.value)}
+                  >
+                    <strong>{option.shortLabel}</strong>
+                    <span>{option.description}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}
@@ -613,6 +736,7 @@ export function AnnotationCard({
   agents,
   annotation,
   desktopConnected,
+  focusRequest,
   noteRef,
   shortcutModifier,
   userProfile,
@@ -624,6 +748,7 @@ export function AnnotationCard({
   agents: PublicAgent[];
   annotation: Annotation;
   desktopConnected: boolean;
+  focusRequest: number;
   noteRef: (element: HTMLElement | null) => void;
   shortcutModifier: string;
   userProfile: UserProfile;
@@ -638,6 +763,7 @@ export function AnnotationCard({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
+  const previousActiveRef = useRef(active);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const matchedAgents =
     mentionQuery === null
@@ -659,6 +785,15 @@ export function AnnotationCard({
     if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
       setSelectedMentionIndex(0);
   }, [matchedAgents.length, selectedMentionIndex]);
+
+  useEffect(() => {
+    if (active && !previousActiveRef.current) setExpanded(true);
+    previousActiveRef.current = active;
+  }, [active]);
+
+  useEffect(() => {
+    if (active && focusRequest > 0) setExpanded(true);
+  }, [active, focusRequest]);
 
   useEffect(() => () => stopDeleteTimer(), []);
 
@@ -798,6 +933,9 @@ export function AnnotationCard({
                         <em>@{commentAuthor.username}</em>
                         {comment.readingIntent ? (
                           <span>{agentReadingIntentLabel(comment.readingIntent)}</span>
+                        ) : null}
+                        {comment.questionStatus ? (
+                          <span>{questionStatusLabel(comment.questionStatus)}</span>
                         ) : null}
                       </div>
                       <MarkdownContent content={comment.content} pending={comment.pending} />

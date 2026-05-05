@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type ArticleRecord,
   createTextAnchor,
   isDesktopSocketOriginAllowed,
   parseDesktopClientMessage,
@@ -119,9 +120,7 @@ describe('desktop client message parser', () => {
   });
 
   it('rejects oversized nested annotation and comment payloads', () => {
-    const baseAnnotation = articleRecord().annotations[0] as Record<string, unknown> & {
-      comments: Record<string, unknown>[];
-    };
+    const baseAnnotation = articleRecord().annotations[0];
 
     expect(
       parseDesktopClientMessage({
@@ -163,6 +162,8 @@ describe('desktop client message parser', () => {
 
   it('accepts valid agent messages with empty pending ai comments', () => {
     const record = articleRecord();
+    record.annotations[0].questionStatus = 'open';
+    record.annotations[0].comments[0].questionStatus = 'answered';
     const result = parseDesktopClientMessage({
       type: 'agent:message',
       requestId: 'request-1',
@@ -247,7 +248,7 @@ describe('desktop client message parser', () => {
   });
 });
 
-function articleRecord(overrides: Record<string, unknown> = {}) {
+function articleRecord(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
   const anchor = createTextAnchor('Article text', 0, 7);
   return {
     id: 'article-1',

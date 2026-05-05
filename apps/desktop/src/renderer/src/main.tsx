@@ -165,6 +165,13 @@ function App() {
     setPairingConnectionStatus(await desktop.getPairingConnectionStatus());
   }
 
+  async function deleteArticle(articleId: string) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    setStore(await desktop.deleteArticle(articleId));
+  }
+
   function selectProvider(provider: LlmProvider) {
     setSelectedProviderId(provider.id);
     setProviderDraft(provider);
@@ -398,6 +405,7 @@ function App() {
             <ReadingLibrary
               agents={store.agents}
               articles={store.articles}
+              onDeleteArticle={deleteArticle}
               onRefresh={refreshStore}
             />
           ) : null}

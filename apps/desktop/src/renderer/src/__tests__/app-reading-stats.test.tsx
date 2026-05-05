@@ -68,7 +68,7 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
     readingCard: {
       id: 'card_1',
       articleId: 'article_1',
-      title: '读后卡片',
+      title: '读后笔记',
       contentMarkdown: '## 核心',
       sections: [{ title: '核心', content: '内容' }],
       providerId: 'provider_1',

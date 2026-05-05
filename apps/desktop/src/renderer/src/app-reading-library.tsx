@@ -1,12 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, Quote, RefreshCcw, FileText, X } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Quote,
+  RefreshCcw,
+  FileText,
+  Trash2,
+  X,
+} from 'lucide-react';
 import type {
   Agent,
   Annotation,
   ArticleRecord,
   Comment as AnnotationComment,
 } from '@yomitomo/shared';
-import { renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
+import { agentReadingIntentLabel, renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationTypeLabel,
   annotationStoredColor,
@@ -18,6 +27,7 @@ import {
   isPrimaryTocItem,
   rangeFromOffsets,
   rangeHighlightBoxes,
+  questionStatusLabel,
   sortAnnotations,
   sortArticles,
   type ExtractTocOptions,
@@ -38,10 +48,12 @@ import { ReadingCard } from './app-reading-card-panel';
 export function ReadingLibrary({
   agents,
   articles,
+  onDeleteArticle,
   onRefresh,
 }: {
   agents: Agent[];
   articles: ArticleRecord[];
+  onDeleteArticle: (articleId: string) => Promise<void> | void;
   onRefresh: () => void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'source' | 'annotations' | 'card'>('source');
@@ -80,6 +92,21 @@ export function ReadingLibrary({
     setSelectedAnnotationId(nextAnnotation?.id || null);
   }, [selectedArticle?.id]);
 
+  useEffect(() => {
+    if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
+      setSelectedArticleId(sortedArticles[0]?.id || null);
+    }
+  }, [selectedArticleId, sortedArticles]);
+
+  async function deleteLibraryArticle(articleId: string) {
+    await onDeleteArticle(articleId);
+    if (selectedArticleId === articleId) {
+      const nextArticle = sortedArticles.find((article) => article.id !== articleId) || null;
+      setSelectedArticleId(nextArticle?.id || null);
+      setSelectedAnnotationId(sortAnnotations(nextArticle?.annotations || [])[0]?.id || null);
+    }
+  }
+
   return (
     <div
       className={
@@ -113,6 +140,7 @@ export function ReadingLibrary({
                 active={article.id === selectedArticle?.id}
                 article={article}
                 key={article.id}
+                onDelete={() => void deleteLibraryArticle(article.id)}
                 onSelect={() => {
                   setSelectedArticleId(article.id);
                   setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
@@ -194,7 +222,7 @@ export function ReadingLibrary({
         <ShelfTab
           count={readingCardCount}
           icon={<FileText size={18} />}
-          label="读后卡片"
+          label="读后笔记"
           onClick={() => setActiveShelf('card')}
         />
         <div className="library-shelf-content">
@@ -483,6 +511,10 @@ function SourceHighlightChoiceMenu({
       </header>
       {annotations.map((annotation) => {
         const author = sourceAnnotationAuthor(annotation, agents);
+        const labels = [
+          annotation.annotationType ? annotationTypeLabel(annotation.annotationType) : '',
+          annotation.readingIntent ? agentReadingIntentLabel(annotation.readingIntent) : '',
+        ].filter(Boolean);
         return (
           <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
             <AvatarImage value={author.avatar} className="size-8" fallback={author.fallback} />
@@ -490,8 +522,12 @@ function SourceHighlightChoiceMenu({
               <strong>{author.nickname}</strong>
               <em>@{author.username}</em>
             </span>
-            {annotation.annotationType ? (
-              <b>{annotationTypeLabel(annotation.annotationType)}</b>
+            {labels.length > 0 ? (
+              <span className="source-highlight-choice-tags">
+                {labels.map((label) => (
+                  <b key={label}>{label}</b>
+                ))}
+              </span>
             ) : null}
           </button>
         );
@@ -619,6 +655,12 @@ function AnnotationNotebook({
                       ? annotationTypeLabel(annotation.annotationType)
                       : '批注'}
                   </span>
+                  {annotation.readingIntent ? (
+                    <span>{agentReadingIntentLabel(annotation.readingIntent)}</span>
+                  ) : null}
+                  {annotation.questionStatus ? (
+                    <span>{questionStatusLabel(annotation.questionStatus)}</span>
+                  ) : null}
                 </div>
                 <div className="quote-title">
                   <Quote size={18} />
@@ -672,6 +714,12 @@ function CommentCard({ comment }: { comment: AnnotationComment }) {
         <div className="min-w-0">
           <strong>{author.name}</strong>
           <time>{formatDateTime(comment.createdAt)}</time>
+          {comment.readingIntent ? (
+            <span>{agentReadingIntentLabel(comment.readingIntent)}</span>
+          ) : null}
+          {comment.questionStatus ? (
+            <span>{questionStatusLabel(comment.questionStatus)}</span>
+          ) : null}
         </div>
         <CopyIconButton label="复制评论" value={comment.content} />
       </header>
@@ -692,32 +740,55 @@ function LibraryStat({ label, value }: { label: string; value: number }) {
 function ArticleListItem({
   active,
   article,
+  onDelete,
   onSelect,
 }: {
   active: boolean;
   article: ArticleRecord;
+  onDelete: () => void;
   onSelect: () => void;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const comments = article.annotations.reduce(
     (count, annotation) => count + annotation.comments.length,
     0,
   );
 
   return (
-    <button
-      className={active ? 'library-item is-active' : 'library-item'}
-      type="button"
-      onClick={onSelect}
-    >
-      <div className="min-w-0">
-        <h3>{article.title}</h3>
-        <p>{article.byline || urlHost(article.canonicalUrl || article.url) || '未知作者'}</p>
-        <time>{formatDate(article.updatedAt)}</time>
+    <article className={active ? 'library-item is-active' : 'library-item'}>
+      <button className="library-item-main" type="button" onClick={onSelect}>
+        <div className="min-w-0">
+          <h3>{article.title}</h3>
+          <p>{article.byline || urlHost(article.canonicalUrl || article.url) || '未知作者'}</p>
+          <time>{formatDate(article.updatedAt)}</time>
+        </div>
+      </button>
+      <div className="library-item-footer">
+        <span className="library-item-count">
+          {article.annotations.length} 批注 · {comments} 评
+        </span>
+        {confirmingDelete ? (
+          <span className="library-item-delete-confirm">
+            <button type="button" onClick={() => setConfirmingDelete(false)}>
+              取消
+            </button>
+            <button type="button" onClick={onDelete}>
+              删除
+            </button>
+          </span>
+        ) : (
+          <button
+            className="library-item-delete"
+            type="button"
+            aria-label={`删除文章：${article.title}`}
+            onClick={() => setConfirmingDelete(true)}
+          >
+            <Trash2 size={14} />
+            删除
+          </button>
+        )}
       </div>
-      <span className="library-item-count">
-        {article.annotations.length} 批注 · {comments} 评
-      </span>
-    </button>
+    </article>
   );
 }
 

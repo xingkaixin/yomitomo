@@ -18,6 +18,7 @@ import type {
   LlmProvider,
   ProviderPresetId,
   ProviderType,
+  QuestionStatus,
   ReadingDeliberationRecord,
   ReadingDeliberationSection,
   ReadingCardRecord,
@@ -243,6 +244,11 @@ export async function saveArticle(input: ArticleRecord): Promise<DesktopStore> {
   return readStore();
 }
 
+export async function deleteArticle(id: string): Promise<DesktopStore> {
+  getDatabase().delete(schema.articles).where(eq(schema.articles.id, id)).run();
+  return readStore();
+}
+
 export async function saveArticleReadingCard(
   articleId: string,
   readingCard: ReadingCardRecord,
@@ -333,6 +339,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       agentAvatar: row.agentAvatar || undefined,
       agentAnnotationColor: row.agentAnnotationColor || undefined,
       readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
+      questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
       userId: row.userId || undefined,
       userUsername: row.userUsername || undefined,
       userNickname: row.userNickname || undefined,
@@ -352,6 +359,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       author: row.author as Annotation['author'],
       annotationType: normalizeAnnotationType(row.annotationType) || undefined,
       readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
+      questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
       color: row.color,
       agentId: row.agentId || undefined,
       agentUsername: row.agentUsername || undefined,
@@ -512,6 +520,7 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
       author: annotation.author,
       annotationType: annotation.annotationType,
       readingIntent: annotation.readingIntent,
+      questionStatus: annotation.questionStatus,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -544,6 +553,7 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
         readingIntent: comment.readingIntent,
+        questionStatus: comment.questionStatus,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,
@@ -953,4 +963,8 @@ function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null 
     value === 'connect'
     ? value
     : null;
+}
+
+function normalizeQuestionStatus(value: unknown): QuestionStatus | null {
+  return value === 'open' || value === 'answered' || value === 'parked' ? value : null;
 }

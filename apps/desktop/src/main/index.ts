@@ -12,6 +12,7 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import {
   deleteAgent,
+  deleteArticle,
   deleteProvider,
   readStore,
   saveAgent,
@@ -35,6 +36,7 @@ import { listProviderModels } from './llm-provider-client';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { getPairingInfo, rotatePairingInfo } from './pairing';
 import {
+  broadcastArticleDeleted,
   broadcastStatus,
   disconnectAuthenticatedSockets,
   getDesktopConnectionStatus,
@@ -165,6 +167,20 @@ function registerIpc() {
   ipcMain.handle('provider:list-models', (_event, input: Partial<LlmProvider>) =>
     listProviderModels(input),
   );
+  ipcMain.handle('article:delete', async (_event, id: string) => {
+    const previousStore = await readStore();
+    const article = previousStore.articles.find((item) => item.id === id);
+    const store = await deleteArticle(id);
+    if (article) {
+      broadcastArticleDeleted({
+        id: article.id,
+        url: article.url,
+        canonicalUrl: article.canonicalUrl,
+      });
+    }
+    sendStoreUpdated(store);
+    return store;
+  });
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
     const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
@@ -241,7 +257,7 @@ function registerIpc() {
               summary: `${agent.nickname} 没有完成审稿：${message}`,
               findings: [
                 {
-                  section: '整张卡片',
+                  section: '整篇笔记',
                   severity: 'high',
                   problem: message,
                   evidenceIds: [],

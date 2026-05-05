@@ -64,6 +64,7 @@ const api = {
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
+  deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
   rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
   getPairingConnectionStatus: () =>

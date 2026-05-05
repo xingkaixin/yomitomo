@@ -13,6 +13,7 @@ import type {
 import { agentReadingIntentOptions } from '@yomitomo/shared';
 import {
   annotationDensityInstruction,
+  buildReadingQuestions,
   createAgentAnnotation,
   normalizeAnnotationType,
   parseAnnotationSuggestions,
@@ -285,7 +286,7 @@ function hasIncompleteJson(input: string) {
 
 export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
   const system =
-    '你是 Yomitomo 的读后卡片生成器。你的任务是基于文章全文、读者批注和讨论证据生成一张可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
+    '你是 Yomitomo 的读后笔记生成器。你的任务是基于文章全文、读者批注和讨论证据生成一篇可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
 
   return callProviderText(provider, {
     system,
@@ -315,7 +316,7 @@ export async function reviewReadingCard(
   agent: Agent,
   input: ReviewReadingCardInput,
 ): Promise<ReviewReadingCardResult> {
-  const system = `${agent.soul}\n\n你是 Yomitomo 的读后卡片审核助手。你要审当前读后卡片和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
+  const system = `${agent.soul}\n\n你是 Yomitomo 的读后笔记审核助手。你要审当前读后笔记和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
   const rawResponse = await callProviderText(
     provider,
     {
@@ -423,12 +424,21 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
   const evidence = input.evidenceUnits.map((unit) => ({
     id: unit.index,
     type: unit.annotationType || '批注',
+    questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
+      questionStatus: comment.questionStatus || '',
       content: comment.content,
     })),
+  }));
+  const questions = buildReadingQuestions(input.article).map((question) => ({
+    id: question.id,
+    status: question.status,
+    author: question.authorLabel,
+    text: question.text,
+    quote: question.quote,
   }));
   const deliberation = input.readingDeliberation
     ? {
@@ -448,7 +458,7 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
     ),
   );
 
-  return `请基于全文和证据单元生成一张中文 Markdown 读后卡片。
+  return `请基于全文和证据单元生成一篇中文 Markdown 读后笔记。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -461,6 +471,9 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
+问题状态：
+${JSON.stringify(questions, null, 2)}
+
 阅读审议：
 ${deliberationJson.text}
 
@@ -472,6 +485,7 @@ ${deliberationJson.text}
 - 保留读者自己的关注点，标明“我”或读者昵称。
 - 助手观点和文章观点分开表达。
 - 如果有阅读审议，优先吸收其中的共识、分歧、证据强弱和未决问题。
+- 保留未决问题状态：open 作为待推进问题，answered 作为已收束问题，parked 作为暂不推进问题。
 - 内容要精炼、有层次，适合作为读后笔记保存。
 
 固定结构：
@@ -506,12 +520,21 @@ function buildReadingDeliberationPrompt(
   const evidence = input.evidenceUnits.map((unit) => ({
     id: unit.index,
     type: unit.annotationType || '批注',
+    questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
+      questionStatus: comment.questionStatus || '',
       content: comment.content,
     })),
+  }));
+  const questions = buildReadingQuestions(input.article).map((question) => ({
+    id: question.id,
+    status: question.status,
+    author: question.authorLabel,
+    text: question.text,
+    quote: question.quote,
   }));
   const articleText = budgetArticleText(provider, 'reading-deliberation', input.articleText);
   const evidenceJson = budgetEvidenceJson('reading-deliberation', evidence);
@@ -530,12 +553,16 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
+问题状态：
+${JSON.stringify(questions, null, 2)}
+
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
 - 每个关键判断尽量标注证据编号，例如 [#1]。
 - 区分文章观点、读者关注、助手补充和评论 thread。
 - 聚焦这场阅读讨论形成了什么判断，避免复述全文。
 - 对证据薄弱、归因不清或仍需验证的内容明确指出。
+- 单独汇总问题状态：open 是未决问题，answered 是已回答问题，parked 是搁置问题。
 
 固定结构：
 # ${input.article.title}｜阅读审议
@@ -550,10 +577,10 @@ ${evidenceJson.text}
 列出证据较强的判断和证据较弱的判断，说明依据。
 
 ## 未决问题
-列出仍需要继续追问、回到原文确认或外部验证的问题。
+优先列出 open 问题，并简要说明对应证据；再用短句概括 answered 和 parked 问题。
 
-## 给读后卡片的建议
-说明生成读后卡片时应该保留、压缩或谨慎处理的内容。`;
+## 给读后笔记的建议
+说明生成读后笔记时应该保留、压缩或谨慎处理的内容。`;
 }
 
 function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadingCardInput) {
@@ -571,10 +598,12 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
   const evidence = input.evidenceUnits.map((unit) => ({
     id: unit.index,
     type: unit.annotationType || '批注',
+    questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
+      questionStatus: comment.questionStatus || '',
       content: comment.content,
     })),
   }));
@@ -587,7 +616,7 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
     cardJson.report,
   ]);
 
-  return `请审核这张读后卡片，返回一个 JSON 对象。
+  return `请审核这篇读后笔记，返回一个 JSON 对象。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -600,7 +629,7 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
-读后卡片：
+读后笔记：
 ${cardJson.text}
 
 审核维度：
@@ -650,7 +679,7 @@ function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingC
       summary: '审核助手返回的内容格式异常，已保留原始输出供排查。',
       findings: [
         {
-          section: '整张卡片',
+          section: '整篇笔记',
           severity: 'high',
           problem: '审稿结果 JSON 解析失败，当前这位审核助手的结构化结论无法可靠读取。',
           evidenceIds: [],

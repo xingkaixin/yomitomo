@@ -15,6 +15,7 @@ import {
   buildReadingCardEvidenceUnits,
   buildReadingCardSections,
   buildReadingCardStats,
+  questionStatusLabel,
   type ReadingCardEvidenceUnit,
 } from '@yomitomo/core';
 import { articlePlainText, formatDate, formatDateTime } from './app-utils';
@@ -125,7 +126,7 @@ export function ReadingCard({
       title: 'AI 提炼',
       description:
         aiState === 'generating'
-          ? '正在提炼读后卡片'
+          ? '正在提炼读后笔记'
           : aiState === 'error'
             ? '生成失败，可重试'
             : currentAiCard
@@ -133,7 +134,7 @@ export function ReadingCard({
               : aiCard && deliberation
                 ? '审议已更新，等待重新提炼'
                 : deliberation
-                  ? '基于审议报告生成卡片'
+                  ? '基于审议报告生成笔记'
                   : '完成审议后开始',
       state:
         aiState === 'generating'
@@ -152,7 +153,7 @@ export function ReadingCard({
     {
       id: 'review',
       number: 3,
-      title: '卡片审核',
+      title: '笔记审核',
       description:
         reviewState === 'reviewing'
           ? '审核助手正在检查'
@@ -161,7 +162,7 @@ export function ReadingCard({
             : currentAiCard?.review
               ? `已审核 · ${formatDate(currentAiCard.review.updatedAt)}`
               : currentAiCard && aiCard?.review
-                ? '读后卡片已更新，等待重新审核'
+                ? '读后笔记已更新，等待重新审核'
                 : currentAiCard
                   ? selectedReviewAgentIds.length > 0
                     ? '选择审核助手后审稿'
@@ -177,7 +178,7 @@ export function ReadingCard({
               : currentAiCard
                 ? 'active'
                 : 'waiting',
-      actionLabel: currentAiCard?.review ? '重新审核' : '审核卡片',
+      actionLabel: currentAiCard?.review ? '重新审核' : '审核笔记',
       disabled: !currentAiCard || selectedReviewAgentIds.length === 0 || isWorkflowBusy,
       onAction: reviewAiCard,
     },
@@ -247,7 +248,7 @@ export function ReadingCard({
       setReviewState('done');
       onGenerated();
     } catch (error) {
-      setReviewError(error instanceof Error ? error.message : '读后卡片审稿失败');
+      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
       setReviewState('error');
     }
   }
@@ -262,7 +263,7 @@ export function ReadingCard({
   if (!article) {
     return (
       <aside className="reading-card">
-        <div className="reading-card-empty">选择一篇文章查看读后卡片</div>
+        <div className="reading-card-empty">选择一篇文章查看读后笔记</div>
       </aside>
     );
   }
@@ -271,7 +272,7 @@ export function ReadingCard({
     <aside className="reading-card">
       <div className="reading-card-header">
         <div>
-          <h3>读后卡片</h3>
+          <h3>读后笔记</h3>
           <p>{article.title}</p>
           {stats ? (
             <div className="reading-card-meta">
@@ -282,7 +283,7 @@ export function ReadingCard({
           ) : null}
         </div>
         <div className="reading-card-actions">
-          <CopyIconButton label="复制读后卡片 Markdown" value={card} />
+          <CopyIconButton label="复制读后笔记 Markdown" value={card} />
         </div>
       </div>
       <ReadingCardWorkflow steps={workflowSteps} />
@@ -368,7 +369,7 @@ export function ReadingCard({
 
 function ReadingCardWorkflow({ steps }: { steps: ReadingCardWorkflowStep[] }) {
   return (
-    <section className="reading-card-workflow" aria-label="读后卡片流程进度">
+    <section className="reading-card-workflow" aria-label="读后笔记流程进度">
       {steps.map((step) => (
         <article className={`reading-card-workflow-step is-${step.state}`} key={step.id}>
           <header>
@@ -465,6 +466,7 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
         <div className="reading-card-evidence-heading">
           <div className="reading-card-evidence-chips">
             {unit.annotationType ? <span>{unit.annotationType}</span> : null}
+            {unit.questionStatus ? <span>{questionStatusLabel(unit.questionStatus)}</span> : null}
             <span>{unit.annotationAuthorLabel}</span>
           </div>
           <time>{formatDateTime(unit.createdAt)}</time>
@@ -476,6 +478,9 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
           {unit.comments.map((comment) => (
             <div className="reading-card-comment" key={comment.id}>
               <strong>{comment.authorLabel}</strong>
+              {comment.questionStatus ? (
+                <span>{questionStatusLabel(comment.questionStatus)}</span>
+              ) : null}
               <p>{comment.content}</p>
             </div>
           ))}
@@ -504,7 +509,7 @@ function ReadingCardDeck({
     <div className="reading-card-deck">
       <section className="reading-card-cover">
         <div>
-          <span>AI 读后卡片</span>
+          <span>AI 读后笔记</span>
           <h4>{article.title}</h4>
         </div>
         <dl>
@@ -553,7 +558,7 @@ function ReadingCardReviewPanel({ review }: { review: ReadingCardReviewRecord })
       <header>
         <div>
           <span>审稿结果</span>
-          <h4>读后卡片审核</h4>
+          <h4>读后笔记审核</h4>
         </div>
         <time>{formatDate(review.updatedAt)}</time>
       </header>
@@ -606,7 +611,7 @@ function ReadingCardReviewerCard({ result }: { result: ReadingCardReviewerResult
                 <span className={`is-${finding.severity}`}>
                   {reviewSeverityLabel(finding.severity)}
                 </span>
-                <strong>{finding.section || '整张卡片'}</strong>
+                <strong>{finding.section || '整篇笔记'}</strong>
                 {finding.evidenceIds.length > 0 ? (
                   <em>{finding.evidenceIds.map((id) => `#${id}`).join(' ')}</em>
                 ) : null}

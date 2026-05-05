@@ -4,6 +4,7 @@ import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
   buildReadingCardSections,
+  buildReadingQuestions,
   computeReadingActivityDays,
   computeReadingStats,
   sortAnnotations,
@@ -27,6 +28,7 @@ function annotation(
     },
     author: input.author || 'user',
     annotationType: input.annotationType,
+    questionStatus: input.questionStatus,
     color: '#f4c95d',
     agentNickname: input.agentNickname,
     userNickname: input.userNickname,
@@ -163,7 +165,7 @@ describe('reading core', () => {
       '后续问题',
     ]);
     expect(sections.find((section) => section.title === '后续问题')?.items).toEqual([
-      '我：为什么？（原文：text a3）',
+      '【未决】我：为什么？（原文：text a3）',
     ]);
   });
 
@@ -208,6 +210,34 @@ describe('reading core', () => {
       annotationAuthorLabel: '研究助手',
     });
     expect(units[1].comments.map((comment) => comment.id)).toEqual(['early', 'late']);
+  });
+
+  it('builds trackable reading questions with statuses', () => {
+    const questions = buildReadingQuestions(
+      article('today', '2026-05-03', [
+        annotation('a1', 0, '2026-05-03T08:00:00.000Z', {
+          annotationType: 'question',
+          questionStatus: 'parked',
+          comments: [],
+        }),
+        annotation('a2', 12, '2026-05-03T09:00:00.000Z', {
+          comments: [
+            {
+              id: 'c1',
+              author: 'user',
+              content: '如何验证？',
+              createdAt: '2026-05-03T09:01:00.000Z',
+              questionStatus: 'answered',
+            },
+          ],
+        }),
+      ]),
+    );
+
+    expect(questions).toMatchObject([
+      { id: 'a1', annotationId: 'a1', status: 'parked', text: 'text a1' },
+      { id: 'c1', annotationId: 'a2', commentId: 'c1', status: 'answered' },
+    ]);
   });
 
   it('builds a full markdown card from evidence units', () => {

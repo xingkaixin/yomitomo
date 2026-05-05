@@ -45,6 +45,8 @@ export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'question' | 'connect';
 
+export type QuestionStatus = 'open' | 'answered' | 'parked';
+
 export type AgentKind = 'annotation' | 'review';
 
 export type ProviderModelInputMode = 'list' | 'custom';
@@ -279,6 +281,10 @@ export function agentReadingIntentLabel(intent: AgentReadingIntent) {
   return agentReadingIntentOptions.find((option) => option.value === intent)?.label || intent;
 }
 
+export function normalizeQuestionStatus(value: unknown): QuestionStatus | null {
+  return value === 'open' || value === 'answered' || value === 'parked' ? value : null;
+}
+
 export const customPersonalityId = 'custom';
 
 export const annotationAgentPersonalities: AgentPersonality[] = [
@@ -328,16 +334,16 @@ export const reviewAgentPersonalities: AgentPersonality[] = [
     description: '核对每条判断是否能回到原文、批注或证据编号。',
     icon: 'lens',
     temperature: 0.2,
-    soul: '你是 Yomitomo 的读后卡片证据校验员。你的任务是审查读后卡片中的关键判断是否有充分证据支撑，区分文章观点、读者观点和助手补充，指出证据缺失、归因含混和过度外推。输出要具体、克制、可执行。',
+    soul: '你是 Yomitomo 的读后笔记证据校验员。你的任务是审查读后笔记中的关键判断是否有充分证据支撑，区分文章观点、读者观点和助手补充，指出证据缺失、归因含混和过度外推。输出要具体、克制、可执行。',
   },
   {
     id: 'reader-focus-reviewer',
     kind: 'review',
     name: '读者关注守门员',
-    description: '检查卡片是否保留了读者真实关注和讨论线索。',
+    description: '检查读后笔记是否保留了读者真实关注和讨论线索。',
     icon: 'scales',
     temperature: 0.3,
-    soul: '你是 Yomitomo 的读者关注守门员。你的任务是审查读后卡片是否保留了用户批注、用户评论和讨论 thread 中真正重要的关注点，指出遗漏、错配和被模型声音覆盖的地方。输出要尊重读者视角，并给出具体改写建议。',
+    soul: '你是 Yomitomo 的读者关注守门员。你的任务是审查读后笔记是否保留了用户批注、用户评论和讨论 thread 中真正重要的关注点，指出遗漏、错配和被模型声音覆盖的地方。输出要尊重读者视角，并给出具体改写建议。',
   },
   {
     id: 'insight-editor',
@@ -346,7 +352,7 @@ export const reviewAgentPersonalities: AgentPersonality[] = [
     description: '审查洞见是否清晰、可迁移，并压掉泛泛而谈的表达。',
     icon: 'checklist',
     temperature: 0.35,
-    soul: '你是 Yomitomo 的读后卡片洞察编辑。你的任务是审查卡片里的核心主张、可复用洞见和后续行动是否准确、精炼、有迁移价值，指出空泛表达和可改写句子。输出要像严谨编辑给出的修改意见。',
+    soul: '你是 Yomitomo 的读后笔记洞察编辑。你的任务是审查读后笔记里的核心主张、可复用洞见和后续行动是否准确、精炼、有迁移价值，指出空泛表达和可改写句子。输出要像严谨编辑给出的修改意见。',
   },
 ];
 
@@ -428,6 +434,7 @@ export type Comment = {
   userAvatar?: string;
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
+  questionStatus?: QuestionStatus;
   pending?: boolean;
 };
 
@@ -448,6 +455,7 @@ export type Annotation = {
   userAvatar?: string;
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
+  questionStatus?: QuestionStatus;
   comments: Comment[];
   createdAt: string;
   updatedAt: string;
@@ -599,6 +607,10 @@ export type DesktopServerMessage =
   | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
   | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
   | { type: 'article:updated'; article: ArticleRecord }
+  | {
+      type: 'article:deleted';
+      article: { id: string; url: string; canonicalUrl: string };
+    }
   | { type: 'agent:message:start'; requestId: string; annotationId: string; comment: Comment }
   | {
       type: 'agent:message:delta';
@@ -797,6 +809,9 @@ function validateAnnotation(value: unknown) {
   if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
     return 'readingIntent 无效';
   }
+  if (value.questionStatus !== undefined && !normalizeQuestionStatus(value.questionStatus)) {
+    return 'questionStatus 无效';
+  }
   if (!boundedString(value.color, MESSAGE_LIMITS.idChars)) return 'color 无效';
   if (!Array.isArray(value.comments)) return 'comments 必须是数组';
   if (value.comments.length > MESSAGE_LIMITS.commentsPerAnnotation) {
@@ -817,6 +832,9 @@ function validateComment(value: unknown) {
   if (value.author !== 'user' && value.author !== 'ai') return 'author 无效';
   if (value.readingIntent !== undefined && !normalizeAgentReadingIntent(value.readingIntent)) {
     return 'readingIntent 无效';
+  }
+  if (value.questionStatus !== undefined && !normalizeQuestionStatus(value.questionStatus)) {
+    return 'questionStatus 无效';
   }
   if (!limitedString(value.content, MESSAGE_LIMITS.commentChars)) {
     return 'content 超出长度限制';

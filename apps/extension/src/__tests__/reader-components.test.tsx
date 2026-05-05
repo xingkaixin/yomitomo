@@ -9,6 +9,7 @@ import {
   AnnotationCard,
   Composer,
   HighlightChoiceMenu,
+  QuestionPanel,
   ReaderSettingsPanel,
   SelectionMenu,
 } from '../reader-components';
@@ -119,6 +120,7 @@ describe('AnnotationCard', () => {
         agents={[]}
         annotation={annotation}
         desktopConnected
+        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}
@@ -140,6 +142,7 @@ describe('AnnotationCard', () => {
         agents={[agent]}
         annotation={annotation}
         desktopConnected
+        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}
@@ -164,6 +167,7 @@ describe('AnnotationCard', () => {
         agents={[]}
         annotation={annotation}
         desktopConnected
+        focusRequest={0}
         noteRef={vi.fn()}
         shortcutModifier="⌘"
         userProfile={userProfile}
@@ -213,6 +217,48 @@ describe('HighlightChoiceMenu', () => {
   });
 });
 
+describe('QuestionPanel', () => {
+  it('opens questions and parks comment questions', () => {
+    const onFocus = vi.fn();
+    const onSetAnnotationQuestionStatus = vi.fn();
+    const onSetCommentQuestionStatus = vi.fn();
+    render(
+      <QuestionPanel
+        agents={[agent]}
+        annotations={[
+          {
+            ...annotation,
+            annotationType: 'question',
+            questionStatus: 'open',
+            comments: [
+              {
+                id: 'comment_question',
+                author: 'user',
+                content: '如何验证？',
+                createdAt: '2026-05-04T00:01:00.000Z',
+              },
+            ],
+          },
+        ]}
+        userProfile={userProfile}
+        onFocus={onFocus}
+        onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
+        onSetCommentQuestionStatus={onSetCommentQuestionStatus}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: '回答' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: '搁置' })[1]);
+
+    expect(onFocus).toHaveBeenCalledWith('annotation_1');
+    expect(onSetCommentQuestionStatus).toHaveBeenCalledWith(
+      'annotation_1',
+      'comment_question',
+      'parked',
+    );
+  });
+});
+
 describe('AgentAnnotateMenu', () => {
   it('selects an agent before starting careful reading', () => {
     const onStartAgent = vi.fn();
@@ -229,6 +275,7 @@ describe('AgentAnnotateMenu', () => {
     expect(screen.getByText('追问型导师')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /解释/ }));
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
     expect(onStartAgent).toHaveBeenCalledWith(agent, 'explain');
@@ -245,8 +292,8 @@ describe('AgentAnnotateMenu', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('radio', { name: /挑战/ }));
     fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
+    fireEvent.click(screen.getByRole('radio', { name: /挑战/ }));
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
     expect(onStartAgent).toHaveBeenCalledWith(agent, 'challenge');
@@ -269,18 +316,18 @@ describe('AgentAnnotateMenu', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
     fireEvent.click(
       within(screen.getByRole('radiogroup', { name: '阅读伙伴 精读动作' })).getByRole('radio', {
-        name: '挑战',
+        name: /挑战/,
       }),
     );
+    fireEvent.click(screen.getByRole('button', { name: /拆解助手/ }));
     fireEvent.click(
       within(screen.getByRole('radiogroup', { name: '拆解助手 精读动作' })).getByRole('radio', {
-        name: '拆解',
+        name: /拆解/,
       }),
     );
-    fireEvent.click(screen.getByRole('button', { name: /阅读伙伴/ }));
-    fireEvent.click(screen.getByRole('button', { name: /拆解助手/ }));
     fireEvent.click(screen.getByRole('button', { name: '开始精读' }));
 
     expect(onStartAgent).toHaveBeenNthCalledWith(1, agent, 'challenge');

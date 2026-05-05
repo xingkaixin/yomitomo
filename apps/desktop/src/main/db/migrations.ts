@@ -196,4 +196,11 @@ ALTER TABLE annotations ADD COLUMN reading_intent TEXT;
 ALTER TABLE comments ADD COLUMN reading_intent TEXT;
 `,
   },
+  {
+    id: '0013_question_status',
+    sql: `
+ALTER TABLE annotations ADD COLUMN question_status TEXT;
+ALTER TABLE comments ADD COLUMN question_status TEXT;
+`,
+  },
 ];

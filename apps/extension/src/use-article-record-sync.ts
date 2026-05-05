@@ -268,7 +268,23 @@ export function useArticleRecordSync({
     }
   }
 
-  function matchesExtractedArticle(record: ArticleRecord) {
+  async function applyDeletedArticleRecord(
+    record: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
+  ) {
+    if (!matchesExtractedArticle(record)) return;
+    recordCreatedAtRef.current = null;
+    annotationsRef.current = [];
+    articleRecordRef.current = null;
+    lastSentArticleSignatureRef.current = '';
+    setAnnotations([]);
+    try {
+      await browser.storage.local.remove([storageKey, legacyStorageKey]);
+    } catch (error) {
+      readerLog('storage.delete.error', { message: errorMessage(error) });
+    }
+  }
+
+  function matchesExtractedArticle(record: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>) {
     return (
       record.id === extracted.id ||
       record.canonicalUrl === extracted.canonicalUrl ||
@@ -291,6 +307,7 @@ export function useArticleRecordSync({
 
   return {
     applyAnnotations,
+    applyDeletedArticleRecord,
     applyDesktopArticleRecord,
     cacheDesktopProfile,
     commitAnnotations,
@@ -350,6 +367,7 @@ function articleAnnotationsSignature(record: ArticleRecord) {
       author: annotation.author,
       annotationType: annotation.annotationType,
       readingIntent: annotation.readingIntent,
+      questionStatus: annotation.questionStatus,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -373,6 +391,7 @@ function articleAnnotationsSignature(record: ArticleRecord) {
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
         readingIntent: comment.readingIntent,
+        questionStatus: comment.questionStatus,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,

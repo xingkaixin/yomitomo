@@ -1,4 +1,4 @@
-import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, Comment, QuestionStatus } from '@yomitomo/shared';
 import { annotationTypeLabel } from './annotations';
 
 export type ReadingCardSection = {
@@ -18,6 +18,7 @@ export type ReadingCardComment = {
   authorLabel: string;
   content: string;
   createdAt: string;
+  questionStatus?: QuestionStatus;
 };
 
 export type ReadingCardEvidenceUnit = {
@@ -26,10 +27,22 @@ export type ReadingCardEvidenceUnit = {
   quote: string;
   context: string;
   annotationType: string;
+  questionStatus?: QuestionStatus;
   annotationAuthor: Annotation['author'];
   annotationAuthorLabel: string;
   createdAt: string;
   comments: ReadingCardComment[];
+};
+
+export type ReadingQuestionItem = {
+  id: string;
+  annotationId: string;
+  commentId?: string;
+  status: QuestionStatus;
+  text: string;
+  quote: string;
+  authorLabel: string;
+  createdAt: string;
 };
 
 export type ReadingStats = {
@@ -118,13 +131,16 @@ export function buildReadingCardSections(
   );
   const questions = units.flatMap((unit) => {
     const commentQuestions = unit.comments
-      .filter((comment) => /[?？]/.test(comment.content))
+      .filter((comment) => isQuestionComment(comment))
       .map(
         (comment) =>
-          `${comment.authorLabel}：${lineText(comment.content)}（原文：${compactText(unit.quote, 80)}）`,
+          `【${questionStatusLabel(questionStatusOrOpen(comment.questionStatus))}】${comment.authorLabel}：${lineText(comment.content)}（原文：${compactText(unit.quote, 80)}）`,
       );
     if (unit.annotationType === annotationTypeLabel('question')) {
-      return [`${unit.annotationType}：${compactText(unit.quote, 120)}`, ...commentQuestions];
+      return [
+        `【${questionStatusLabel(questionStatusOrOpen(unit.questionStatus))}】${unit.annotationType}：${compactText(unit.quote, 120)}`,
+        ...commentQuestions,
+      ];
     }
     return commentQuestions;
   });
@@ -163,6 +179,7 @@ export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCa
         .join(' '),
     ),
     annotationType: annotation.annotationType ? annotationTypeLabel(annotation.annotationType) : '',
+    questionStatus: annotation.questionStatus,
     annotationAuthor: annotation.author,
     annotationAuthorLabel: annotationLabel(annotation),
     createdAt: annotation.createdAt,
@@ -174,8 +191,55 @@ export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCa
         authorLabel: commentLabel(comment),
         content: lineText(comment.content),
         createdAt: comment.createdAt,
+        questionStatus: comment.questionStatus,
       })),
   }));
+}
+
+export function buildReadingQuestions(article: ArticleRecord): ReadingQuestionItem[] {
+  return sortAnnotations(article.annotations).flatMap((annotation) => {
+    const questions: ReadingQuestionItem[] = [];
+    if (annotation.annotationType === 'question' || annotation.questionStatus) {
+      questions.push({
+        id: annotation.id,
+        annotationId: annotation.id,
+        status: questionStatusOrOpen(annotation.questionStatus),
+        text: lineText(annotation.anchor.exact),
+        quote: lineText(annotation.anchor.exact),
+        authorLabel: annotationLabel(annotation),
+        createdAt: annotation.createdAt,
+      });
+    }
+    const commentQuestions = annotation.comments
+      .toSorted((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt))
+      .filter(isQuestionComment)
+      .map((comment) => ({
+        id: comment.id,
+        annotationId: annotation.id,
+        commentId: comment.id,
+        status: questionStatusOrOpen(comment.questionStatus),
+        text: lineText(comment.content),
+        quote: lineText(annotation.anchor.exact),
+        authorLabel: commentLabel(comment),
+        createdAt: comment.createdAt,
+      }));
+    questions.push(...commentQuestions);
+    return questions;
+  });
+}
+
+export function questionStatusOrOpen(status: QuestionStatus | undefined): QuestionStatus {
+  return status || 'open';
+}
+
+export function questionStatusLabel(status: QuestionStatus) {
+  if (status === 'answered') return '已回答';
+  if (status === 'parked') return '搁置';
+  return '未决';
+}
+
+export function isQuestionComment(comment: Pick<Comment, 'content' | 'questionStatus'>) {
+  return Boolean(comment.questionStatus || /[?？]/.test(comment.content));
 }
 
 export function buildReadingCardStats(article: ArticleRecord): ReadingCardStats {

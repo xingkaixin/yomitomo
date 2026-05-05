@@ -26,7 +26,7 @@ const chartConfig = {
     color: 'var(--chart-2)',
   },
   cards: {
-    label: '读后卡片',
+    label: '读后笔记',
     color: 'var(--chart-3)',
   },
 } satisfies ChartConfig;
@@ -47,7 +47,7 @@ export function ReadingStatsPanel({
       <PanelHeader
         icon={<BarChart3 size={20} />}
         title="统计"
-        description="基于本地批注、讨论和读后卡片生成阅读概况。"
+        description="基于本地批注、讨论和读后笔记生成阅读概况。"
         action={
           <Button type="button" variant="secondary" onClick={onRefresh}>
             <RefreshCcw size={16} />
@@ -64,7 +64,7 @@ export function ReadingStatsPanel({
         <div className="stats-chart-card">
           <div className="stats-section-heading">
             <h3>近 21 天活动</h3>
-            <p>批注、讨论和读后卡片趋势</p>
+            <p>批注、讨论和读后笔记趋势</p>
           </div>
           <ChartContainer className="h-[240px] w-full" config={chartConfig}>
             <AreaChart accessibilityLayer data={chartData} margin={{ left: 0, right: 8 }}>
@@ -121,10 +121,10 @@ export function ReadingStatsPanel({
           <div className="activity-heatmap" aria-label="近 70 天伴读活动">
             {activityDays.map((day) => (
               <span
-                aria-label={`${day.date}：${day.annotations} 条批注，${day.comments} 条讨论，${day.cards} 张卡片`}
+                aria-label={`${day.date}：${day.annotations} 条批注，${day.comments} 条讨论，${day.cards} 篇笔记`}
                 className={`activity-dot level-${day.level}`}
                 key={day.date}
-                title={`${day.date} · 批注 ${day.annotations} · 讨论 ${day.comments} · 卡片 ${day.cards}`}
+                title={`${day.date} · 批注 ${day.annotations} · 讨论 ${day.comments} · 笔记 ${day.cards}`}
               />
             ))}
           </div>

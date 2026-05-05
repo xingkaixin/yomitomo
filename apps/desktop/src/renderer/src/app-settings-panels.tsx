@@ -329,7 +329,7 @@ export function GeneralSettings({
         <Field
           id="general-default-provider"
           className="col-span-2"
-          description="读后卡片等默认 AI 任务会使用这个供应商。"
+          description="读后笔记等默认 AI 任务会使用这个供应商。"
           label="默认供应商"
         >
           <Select

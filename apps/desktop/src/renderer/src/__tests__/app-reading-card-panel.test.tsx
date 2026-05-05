@@ -85,7 +85,7 @@ function readingCard(overrides: Partial<ReadingCardRecord> = {}): ReadingCardRec
   return {
     id: 'reading_card_1',
     articleId: 'article_1',
-    title: '读后卡片',
+    title: '读后笔记',
     contentMarkdown: '## 核心主张\n关键判断来自 [#1]',
     sections: [{ title: '核心主张', content: '关键判断来自 [#1]' }],
     providerId: 'provider_1',
@@ -143,10 +143,10 @@ describe('ReadingCard', () => {
       />,
     );
 
-    expect(screen.getByRole('region', { name: '读后卡片流程进度' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '读后笔记流程进度' })).toBeTruthy();
     expect(screen.getByText('阅读审议报告')).toBeTruthy();
     expect(screen.getByText('AI 提炼', { selector: 'strong' })).toBeTruthy();
-    expect(screen.getByText('卡片审核')).toBeTruthy();
+    expect(screen.getByText('笔记审核')).toBeTruthy();
   });
 
   it('starts deliberation generation with article evidence units', async () => {
