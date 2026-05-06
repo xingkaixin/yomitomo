@@ -212,4 +212,10 @@ ALTER TABLE articles ADD COLUMN lead_image_url TEXT;
 ALTER TABLE articles ADD COLUMN theme_color TEXT;
 `,
   },
+  {
+    id: '0015_save_article_images',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN save_article_images INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];

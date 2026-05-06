@@ -800,6 +800,111 @@
   line-height: 1.45;
 }
 
+.settings-toggle-card {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 14px;
+  background: hsl(var(--background) / 0.68);
+  cursor: pointer;
+  padding: 12px 14px;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.settings-toggle-card:hover {
+  border-color: hsl(var(--primary) / 0.28);
+  background: hsl(var(--background) / 0.92);
+  box-shadow: 0 10px 26px hsl(31 34% 24% / 0.08);
+}
+
+.settings-toggle-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-toggle-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.settings-toggle-main strong,
+.settings-toggle-main em {
+  display: block;
+}
+
+.settings-toggle-main strong {
+  font-size: 14px;
+  font-weight: 860;
+}
+
+.settings-toggle-main em {
+  margin-top: 2px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.settings-toggle-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--border));
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.settings-toggle-switch::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: hsl(var(--background));
+  box-shadow: 0 2px 7px hsl(31 34% 24% / 0.22);
+  content: '';
+  transition: transform 140ms ease;
+}
+
+.settings-toggle-card input:checked + .settings-toggle-switch {
+  background: hsl(var(--primary));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary));
+}
+
+.settings-toggle-card input:checked + .settings-toggle-switch::after {
+  transform: translateX(18px);
+}
+
+.settings-toggle-card:focus-within {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 2px;
+}
+
 .pairing-connected-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

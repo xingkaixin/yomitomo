@@ -148,6 +148,7 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
 export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   upsertSettings(getDatabase(), {
     defaultProviderId: input.defaultProviderId || undefined,
+    saveArticleImages: Boolean(input.saveArticleImages),
   });
   return readStore();
 }
@@ -194,7 +195,7 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
   database.transaction((tx) => {
     const settings = tx.select().from(schema.appSettings).limit(1).get();
     if (settings?.defaultProviderId === id) {
-      upsertSettings(tx, {});
+      upsertSettings(tx, { saveArticleImages: Boolean(settings.saveArticleImages) });
     }
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
   });
@@ -592,6 +593,7 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
   const row = {
     id: 'default',
     defaultProviderId: settings.defaultProviderId || null,
+    saveArticleImages: Boolean(settings.saveArticleImages),
     updatedAt: new Date().toISOString(),
   };
   database
@@ -679,7 +681,7 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
 function normalizeStore(store: DesktopStore): DesktopStore {
   return {
     user: normalizeUser(store.user),
-    settings: store.settings || {},
+    settings: normalizeSettings(store.settings),
     providers: (store.providers || []).map((provider) =>
       Object.assign({}, provider, {
         type: normalizeProviderType(provider.type) || 'anthropic',
@@ -707,6 +709,14 @@ function normalizeStore(store: DesktopStore): DesktopStore {
 function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined): AppSettings {
   return {
     defaultProviderId: row?.defaultProviderId || undefined,
+    saveArticleImages: Boolean(row?.saveArticleImages),
+  };
+}
+
+function normalizeSettings(settings: AppSettings | undefined): AppSettings {
+  return {
+    defaultProviderId: settings?.defaultProviderId || undefined,
+    saveArticleImages: Boolean(settings?.saveArticleImages),
   };
 }
 

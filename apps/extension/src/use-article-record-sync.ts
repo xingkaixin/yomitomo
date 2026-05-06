@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
+import { hashText, makeId } from '@yomitomo/shared';
 import type { ExtractedArticle } from './article-extraction';
 import type { DesktopBridge } from './desktop-bridge';
 import {
@@ -160,6 +160,22 @@ export function useArticleRecordSync({
     },
     [commitAnnotations],
   );
+
+  useEffect(() => {
+    const current = articleRecordRef.current;
+    if (!current) return;
+
+    const nextRecord = buildCurrentArticleRecord(
+      current.annotations || [],
+      current.createdAt,
+      current.updatedAt,
+    );
+    if (articleRecordSignature(nextRecord) === articleRecordSignature(current)) return;
+
+    applyArticleRecord(nextRecord);
+    sendArticleRecord(nextRecord);
+    void cacheArticleRecord(nextRecord);
+  }, [extracted]);
 
   function buildCurrentArticleRecord(
     nextAnnotations: Annotation[],
@@ -379,6 +395,7 @@ function articleRecordSignature(record: ArticleRecord) {
     siteIconUrl: record.siteIconUrl,
     leadImageUrl: record.leadImageUrl,
     themeColor: record.themeColor,
+    contentHtmlHash: hashText(record.contentHtml || ''),
     contentHash: record.contentHash,
     annotations: record.annotations.map((annotation) => ({
       id: annotation.id,

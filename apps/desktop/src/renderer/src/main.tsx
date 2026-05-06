@@ -104,8 +104,15 @@ function App() {
     [store.user, userDraft],
   );
   const settingsHasChanges = useMemo(
-    () => (settingsDraft.defaultProviderId || '') !== (store.settings.defaultProviderId || ''),
-    [settingsDraft.defaultProviderId, store.settings.defaultProviderId],
+    () =>
+      (settingsDraft.defaultProviderId || '') !== (store.settings.defaultProviderId || '') ||
+      Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
+    [
+      settingsDraft.defaultProviderId,
+      settingsDraft.saveArticleImages,
+      store.settings.defaultProviderId,
+      store.settings.saveArticleImages,
+    ],
   );
   const selectedProvider = useMemo(
     () => store.providers.find((provider) => provider.id === selectedProviderId) || null,

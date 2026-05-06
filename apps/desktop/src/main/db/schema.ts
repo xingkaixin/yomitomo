@@ -12,6 +12,7 @@ export const userProfiles = sqliteTable('user_profiles', {
 export const appSettings = sqliteTable('app_settings', {
   id: text('id').primaryKey(),
   defaultProviderId: text('default_provider_id'),
+  saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
   updatedAt: text('updated_at').notNull(),
 });
 

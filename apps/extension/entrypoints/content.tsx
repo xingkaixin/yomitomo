@@ -5,6 +5,7 @@ import {
   type AnnotationType,
   type AgentReadingPlanItem,
   type AgentReadingIntent,
+  type AppSettings,
   type ArticleRecord,
   type Comment,
   type DesktopClientMessage,
@@ -31,6 +32,7 @@ import {
   extractCurrentArticle,
   fallbackCurrentArticle,
 } from '../src/article-extraction';
+import { inlineArticleImages } from '../src/article-images';
 import {
   type HighlightBox,
   type TocItem,
@@ -214,7 +216,25 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClose: () => void }) {
+function sameArticleImages(left: ExtractedArticle, right: ExtractedArticle) {
+  return (
+    left.siteIconUrl === right.siteIconUrl &&
+    left.leadImageUrl === right.leadImageUrl &&
+    left.content === right.content
+  );
+}
+
+function shouldSaveArticleImages(settings: AppSettings | undefined) {
+  return Boolean(settings?.saveArticleImages);
+}
+
+function ReaderApp({
+  extracted: initialExtracted,
+  onClose,
+}: {
+  extracted: ExtractedArticle;
+  onClose: () => void;
+}) {
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -222,6 +242,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const desktopBridgeRef = useRef<DesktopBridge | null>(null);
   const desktopAuthenticatedRef = useRef(false);
   const desktopInitialSyncRef = useRef(false);
+  const originalExtractedRef = useRef(initialExtracted);
   const pairingFailureRef = useRef('');
   const annotationsRef = useRef<Annotation[]>([]);
   const articleRecordRef = useRef<ArticleRecord | null>(null);
@@ -261,6 +282,8 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const [tocOpen, setTocOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
+  const [extracted, setExtracted] = useState(initialExtracted);
+  const [saveArticleImages, setSaveArticleImages] = useState(false);
   const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
   const [pendingAgentAnnotations, setPendingAgentAnnotations] = useState<PendingAgentAnnotation[]>(
     [],
@@ -336,6 +359,29 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   useEffect(() => {
     annotationsRef.current = annotations;
   }, [annotations]);
+
+  useEffect(() => {
+    if (!saveArticleImages) {
+      setExtracted(originalExtractedRef.current);
+      return;
+    }
+
+    let cancelled = false;
+
+    inlineArticleImages(extracted)
+      .then((nextArticle) => {
+        if (cancelled) return;
+        if (sameArticleImages(nextArticle, extracted)) return;
+        setExtracted(nextArticle);
+      })
+      .catch((error: unknown) => {
+        readerLog('article.images.inline.error', { message: errorMessage(error) });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [saveArticleImages, extracted.id, extracted.contentHash]);
 
   useEffect(() => {
     readExtensionStorage([DESKTOP_PAIRING_TOKEN_KEY, DESKTOP_PAIRING_ID_KEY])
@@ -652,6 +698,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
         setPairingId(message.pairingId);
         await writeExtensionStorage({ [DESKTOP_PAIRING_ID_KEY]: message.pairingId });
       }
+      setSaveArticleImages(shouldSaveArticleImages(message.settings));
       setUserProfile(user);
       setAgents(message.agents);
       await cacheDesktopProfile(user, message.agents);

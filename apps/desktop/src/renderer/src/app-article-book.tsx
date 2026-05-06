@@ -124,6 +124,7 @@ function colorFromArticle(article: ArticleRecord, seed: number) {
 
 function safeHttpUrl(value: string | undefined) {
   if (!value) return undefined;
+  if (value.startsWith('data:image/')) return value;
   try {
     const url = new URL(value);
     if (url.protocol === 'http:' || url.protocol === 'https:') return url.href;

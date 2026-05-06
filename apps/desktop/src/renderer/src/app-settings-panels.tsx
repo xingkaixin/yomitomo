@@ -4,6 +4,7 @@ import {
   Check,
   Eye,
   EyeOff,
+  Image as ImageIcon,
   KeyRound,
   Keyboard,
   ListChecks,
@@ -355,6 +356,36 @@ export function GeneralSettings({
               ))}
             </SelectContent>
           </Select>
+        </Field>
+        <Field
+          id="general-save-images"
+          className="col-span-2"
+          description="保存文章时把正文图片写入本机数据库，桌面端查看原文时直接读取本地数据。"
+          label="保存图片"
+        >
+          <label className="settings-toggle-card" htmlFor="general-save-images">
+            <span className="settings-toggle-main">
+              <span className="settings-toggle-icon">
+                <ImageIcon size={17} />
+              </span>
+              <span>
+                <strong>保存文章图片</strong>
+                <em>开启后新同步的文章会内联图片数据。</em>
+              </span>
+            </span>
+            <input
+              id="general-save-images"
+              type="checkbox"
+              checked={Boolean(settingsDraft.saveArticleImages)}
+              onChange={(event) =>
+                onSettingsChange({
+                  ...settingsDraft,
+                  saveArticleImages: event.target.checked,
+                })
+              }
+            />
+            <span className="settings-toggle-switch" aria-hidden="true" />
+          </label>
         </Field>
         <Field
           className="col-span-2"

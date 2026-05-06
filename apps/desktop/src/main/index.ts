@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
 import type {
   Agent,
+  AppSettings,
   LlmProvider,
   ReadingDeliberationSection,
   ReadingCardReviewRecord,
@@ -141,9 +142,11 @@ function registerIpc() {
     return pairing;
   });
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
-  ipcMain.handle('settings:save', (_event, input: { defaultProviderId?: string }) =>
-    saveSettings(input),
-  );
+  ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
+    const store = await saveSettings(input);
+    broadcastStatus();
+    return store;
+  });
   ipcMain.handle('provider:save', async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
     broadcastStatus();

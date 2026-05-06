@@ -567,6 +567,7 @@ export type ReadingCardRecord = {
 
 export type AppSettings = {
   defaultProviderId?: string;
+  saveArticleImages?: boolean;
 };
 
 export type DesktopStore = {
@@ -628,8 +629,21 @@ export type DesktopClientMessage =
 
 export type DesktopServerMessage =
   | { type: 'auth:result'; ok: boolean; message?: string; pairingId?: string }
-  | { type: 'status'; ok: boolean; user: UserProfile; agents: PublicAgent[]; pairingId: string }
-  | { type: 'agent:list:result'; requestId: string; user: UserProfile; agents: PublicAgent[] }
+  | {
+      type: 'status';
+      ok: boolean;
+      user: UserProfile;
+      settings: AppSettings;
+      agents: PublicAgent[];
+      pairingId: string;
+    }
+  | {
+      type: 'agent:list:result';
+      requestId: string;
+      user: UserProfile;
+      settings: AppSettings;
+      agents: PublicAgent[];
+    }
   | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
   | { type: 'article:updated'; article: ArticleRecord }
   | {
@@ -672,7 +686,8 @@ const MESSAGE_LIMITS = {
   siteNameChars: 256,
   excerptChars: 2000,
   themeColorChars: 64,
-  contentHtmlChars: 2_000_000,
+  imageDataUrlChars: 8_000_000,
+  contentHtmlChars: 12_000_000,
   articleTextChars: 300_000,
   annotations: 1000,
   commentsPerAnnotation: 200,
@@ -858,16 +873,16 @@ function validateArticleRecord(value: unknown) {
   if (
     value.siteIconUrl !== undefined &&
     value.siteIconUrl !== null &&
-    !isHttpUrl(value.siteIconUrl)
+    !isImageSourceUrl(value.siteIconUrl)
   ) {
-    return 'article.siteIconUrl 必须是 http 或 https';
+    return 'article.siteIconUrl 必须是 http、https 或 data:image';
   }
   if (
     value.leadImageUrl !== undefined &&
     value.leadImageUrl !== null &&
-    !isHttpUrl(value.leadImageUrl)
+    !isImageSourceUrl(value.leadImageUrl)
   ) {
-    return 'article.leadImageUrl 必须是 http 或 https';
+    return 'article.leadImageUrl 必须是 http、https 或 data:image';
   }
   if (optionalBoundedString(value.themeColor, MESSAGE_LIMITS.themeColorChars) === false) {
     return 'article.themeColor 超出长度限制';
@@ -974,6 +989,13 @@ function isHttpUrl(value: unknown) {
   } catch {
     return false;
   }
+}
+
+function isImageSourceUrl(value: unknown) {
+  if (isHttpUrl(value)) return true;
+  if (typeof value !== 'string') return false;
+  if (value.length > MESSAGE_LIMITS.imageDataUrlChars) return false;
+  return /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/]+={0,2}$/i.test(value);
 }
 
 export function makeId(prefix: string): string {

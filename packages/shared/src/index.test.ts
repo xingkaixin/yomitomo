@@ -105,7 +105,7 @@ describe('desktop client message parser', () => {
   });
 
   it('rejects payloads above the transport boundary', () => {
-    const record = articleRecord({ contentHtml: 'x'.repeat(2_000_001) });
+    const record = articleRecord({ contentHtml: 'x'.repeat(12_000_001) });
 
     expect(
       parseDesktopClientMessage({
@@ -143,8 +143,22 @@ describe('desktop client message parser', () => {
         payload: articleRecord({ leadImageUrl: 'data:image/png;base64,abc' }),
       }),
     ).toEqual({
+      ok: true,
+      message: expect.objectContaining({ type: 'article:save' }),
+    });
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:save',
+        requestId: 'request-1',
+        payload: articleRecord({ leadImageUrl: 'data:text/html;base64,abc' }),
+      }),
+    ).toEqual({
       ok: false,
-      error: { requestId: 'request-1', message: 'article.leadImageUrl 必须是 http 或 https' },
+      error: {
+        requestId: 'request-1',
+        message: 'article.leadImageUrl 必须是 http、https 或 data:image',
+      },
     });
   });
 

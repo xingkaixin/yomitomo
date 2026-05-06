@@ -10,6 +10,7 @@ import type {
 } from '@yomitomo/shared';
 import {
   agentPersonalityName,
+  hashText,
   isDesktopSocketOriginAllowed,
   makeId,
   parseDesktopClientMessage,
@@ -172,6 +173,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
         type: 'agent:list:result',
         requestId: message.requestId,
         user: toPublicUser(store.user),
+        settings: store.settings,
         agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
       });
       return;
@@ -351,6 +353,7 @@ async function sendStatus(socket: WebSocket) {
     type: 'status',
     ok: true,
     user: toPublicUser(store.user),
+    settings: store.settings,
     agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
     pairingId: pairing.pairingId,
   });
@@ -409,6 +412,7 @@ function articleSyncSignature(article: ArticleRecord) {
     siteIconUrl: article.siteIconUrl,
     leadImageUrl: article.leadImageUrl,
     themeColor: article.themeColor,
+    contentHtmlHash: hashText(article.contentHtml || ''),
     contentHash: article.contentHash,
     annotations: article.annotations.map((annotation) => ({
       id: annotation.id,

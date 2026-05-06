@@ -5,13 +5,23 @@ import {
   type DesktopBridgeContentMessage,
   type DesktopBridgePortMessage,
 } from '../src/desktop-bridge';
-import { desktopMessageFromData } from '../src/background-bridge';
+import {
+  ARTICLE_IMAGE_FETCH_MESSAGE_TYPE,
+  type ArticleImageFetchMessage,
+  articleImageFetchResponse,
+  desktopMessageFromData,
+} from '../src/background-bridge';
 
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
 const DESKTOP_HEALTH_URL = 'http://127.0.0.1:43891/health';
 const DESKTOP_HEALTH_TIMEOUT_MS = 800;
 
 export default defineBackground(() => {
+  browser.runtime.onMessage.addListener((message: unknown) => {
+    if (!isArticleImageFetchMessage(message)) return undefined;
+    return articleImageFetchResponse(message.url);
+  });
+
   browser.runtime.onConnect.addListener((port) => {
     if (port.name !== DESKTOP_BRIDGE_PORT_NAME) return;
 
@@ -78,6 +88,15 @@ export default defineBackground(() => {
     });
   });
 });
+
+function isArticleImageFetchMessage(message: unknown): message is ArticleImageFetchMessage {
+  return (
+    !!message &&
+    typeof message === 'object' &&
+    (message as { type?: unknown }).type === ARTICLE_IMAGE_FETCH_MESSAGE_TYPE &&
+    typeof (message as { url?: unknown }).url === 'string'
+  );
+}
 
 async function isDesktopAvailable() {
   const controller = new AbortController();

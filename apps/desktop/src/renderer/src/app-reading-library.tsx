@@ -831,7 +831,7 @@ function sourceArticleBodyHtml(article: ArticleRecord) {
   container.querySelectorAll<HTMLElement>('*').forEach((element) => {
     Array.from(element.attributes).forEach((attribute) => {
       const name = attribute.name.toLowerCase();
-      const value = attribute.value.trim().toLowerCase();
+      const value = attribute.value.trimStart().slice(0, 32).toLowerCase();
       if (
         name.startsWith('on') ||
         ((name === 'href' || name === 'src') && value.startsWith('javascript:'))

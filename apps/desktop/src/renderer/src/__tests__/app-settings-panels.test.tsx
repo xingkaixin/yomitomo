@@ -315,4 +315,27 @@ describe('GeneralSettings', () => {
 
     expect(screen.getByText('2 个阅读器会话正在连接本机')).toBeTruthy();
   });
+
+  it('updates the save images setting', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <GeneralSettings
+        draft={defaultUser}
+        pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
+        pairingInfo={null}
+        providers={[]}
+        settingsDraft={{ saveArticleImages: false }}
+        canSave={false}
+        onChange={vi.fn()}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        onRotatePairing={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /保存文章图片/ }));
+
+    expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+  });
 });

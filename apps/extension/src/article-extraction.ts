@@ -35,7 +35,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
 
   if (wechatContent) {
     const title = document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled';
-    const content = sanitizeArticleHtml(wechatContent.innerHTML);
+    const content = sanitizeArticleHtml(wechatContent.innerHTML, canonicalUrl);
     const contentHash = articleContentHash(content);
     return {
       id: hashText(canonicalUrl || contentHash),
@@ -54,7 +54,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
     document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled';
   const rawContent =
     parsed?.content || document.querySelector('article')?.innerHTML || document.body.innerHTML;
-  const content = sanitizeArticleHtml(rawContent);
+  const content = sanitizeArticleHtml(rawContent, canonicalUrl);
   const contentHash = articleContentHash(content);
 
   return {
@@ -74,7 +74,10 @@ export function fallbackCurrentArticle(): ExtractedArticle {
   const canonicalUrl = getCanonicalUrl();
   const metadata = extractArticleMetadata(canonicalUrl);
   const rawContent = document.querySelector('article')?.innerHTML || document.body?.innerHTML || '';
-  const content = sanitizeArticleHtml(rawContent || '<p>当前页面没有可读取内容。</p>');
+  const content = sanitizeArticleHtml(
+    rawContent || '<p>当前页面没有可读取内容。</p>',
+    canonicalUrl,
+  );
   const contentHash = articleContentHash(content);
 
   return {
@@ -105,7 +108,7 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
     const result = await new Defuddle(cloned, { url: location.href }).parseAsync();
     if (!result?.content) return null;
 
-    const content = sanitizeArticleHtml(result.content);
+    const content = sanitizeArticleHtml(result.content, canonicalUrl);
     const contentHash = articleContentHash(content);
     const metadata = extractArticleMetadata(canonicalUrl, {
       siteName: result.site,
@@ -211,7 +214,7 @@ function normalizeThemeColor(value: unknown) {
   return raw.toLowerCase();
 }
 
-function sanitizeArticleHtml(html: string) {
+function sanitizeArticleHtml(html: string, baseUrl = location.href) {
   const sanitized = DOMPurify.sanitize(html, {
     ADD_TAGS: [
       'math',
@@ -227,10 +230,10 @@ function sanitizeArticleHtml(html: string) {
     ],
     ADD_ATTR: ['display', 'xmlns', 'encoding'],
   });
-  return normalizeReaderHtml(sanitized);
+  return normalizeReaderHtml(sanitized, baseUrl);
 }
 
-function normalizeReaderHtml(html: string) {
+function normalizeReaderHtml(html: string, baseUrl: string) {
   const container = document.createElement('div');
   container.innerHTML = html;
   container.querySelectorAll('script, style, link').forEach((element) => element.remove());
@@ -238,11 +241,59 @@ function normalizeReaderHtml(html: string) {
     element.removeAttribute('style');
     element.removeAttribute('width');
     element.removeAttribute('height');
+    normalizeReaderElementUrls(element, baseUrl);
     if (element.tagName.includes('-')) {
       element.replaceWith(...Array.from(element.childNodes));
     }
   });
   return container.innerHTML;
+}
+
+function normalizeReaderElementUrls(element: HTMLElement, baseUrl: string) {
+  const tagName = element.tagName.toLowerCase();
+  if (tagName === 'img') {
+    normalizeUrlAttribute(element, 'src', baseUrl);
+    normalizeUrlAttribute(element, 'data-src', baseUrl);
+    normalizeUrlAttribute(element, 'data-original', baseUrl);
+    normalizeUrlAttribute(element, 'data-lazy-src', baseUrl);
+    normalizeUrlAttribute(element, 'data-actualsrc', baseUrl);
+    normalizeSrcsetAttribute(element, 'srcset', baseUrl);
+    normalizeSrcsetAttribute(element, 'data-srcset', baseUrl);
+  }
+  if (tagName === 'source') {
+    normalizeSrcsetAttribute(element, 'srcset', baseUrl);
+  }
+}
+
+function normalizeUrlAttribute(element: HTMLElement, attribute: string, baseUrl: string) {
+  const resolved = resolveImageUrl(element.getAttribute(attribute), baseUrl);
+  if (resolved) element.setAttribute(attribute, resolved);
+}
+
+function normalizeSrcsetAttribute(element: HTMLElement, attribute: string, baseUrl: string) {
+  const value = element.getAttribute(attribute);
+  if (!value) return;
+  if (value.trim().startsWith('data:image/')) return;
+
+  const normalized = value
+    .split(',')
+    .map((candidate) => {
+      const parts = candidate.trim().split(/\s+/).filter(Boolean);
+      const resolved = resolveHttpUrl(parts[0], baseUrl);
+      return resolved ? [resolved, ...parts.slice(1)].join(' ') : '';
+    })
+    .filter(Boolean)
+    .join(', ');
+
+  if (normalized) element.setAttribute(attribute, normalized);
+  else element.removeAttribute(attribute);
+}
+
+function resolveImageUrl(value: unknown, baseUrl: string) {
+  const raw = cleanString(value);
+  if (!raw) return undefined;
+  if (raw.startsWith('data:image/')) return raw;
+  return resolveHttpUrl(raw, baseUrl);
 }
 
 function articleContentHash(html: string) {
