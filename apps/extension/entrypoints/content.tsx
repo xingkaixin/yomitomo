@@ -299,6 +299,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
   const {
     agentTheaterBoxes,
     annotatingAgents,
+    completionBurstKey,
     virtualCursors,
     cleanupVirtualReadingSessions,
     enqueueAgentAnnotation,
@@ -1363,6 +1364,7 @@ function ReaderApp({ extracted, onClose }: { extracted: ExtractedArticle; onClos
       tocAnnotationStats={tocAnnotationStats}
       tocItems={tocItems}
       userProfile={userProfile}
+      completionBurstKey={completionBurstKey}
       virtualCursors={virtualCursors}
       onAddComment={addComment}
       onCancelAgentAnnotateMenu={cancelAgentAnnotateMenu}

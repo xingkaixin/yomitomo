@@ -23,6 +23,7 @@ import {
   HighlightChoiceMenu,
   QuestionPanel,
   ReaderSettingsPanel,
+  ReadingCompletionBurst,
   SelectionMenu,
   VirtualCursor,
   type ActiveConnection,
@@ -67,6 +68,7 @@ type ReaderAppViewProps = {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   commentsCloseKey: number;
   composer: PendingComposer | null;
+  completionBurstKey: number;
   desktopConnected: boolean;
   extracted: ExtractedArticle;
   filteredAnnotations: Annotation[];
@@ -143,6 +145,7 @@ export function ReaderAppView({
   canvasRef,
   commentsCloseKey,
   composer,
+  completionBurstKey,
   desktopConnected,
   extracted,
   filteredAnnotations,
@@ -517,6 +520,8 @@ export function ReaderAppView({
       </main>
 
       {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
+
+      {completionBurstKey > 0 ? <ReadingCompletionBurst key={completionBurstKey} /> : null}
 
       {virtualCursors.map((cursor) =>
         cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,

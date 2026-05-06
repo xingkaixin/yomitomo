@@ -81,6 +81,26 @@ export type HighlightChoiceAction = {
 const DELETE_HOLD_MS = 1600;
 const GOLDEN_RATIO_CONJUGATE = 0.618033988749895;
 const VIRTUAL_CURSOR_PATH = 'M10.1 10.1 L19.3 32 L22.1 22.1 L32 19.3 Z';
+const completionBurstParticles = [
+  { x: -128, y: -42, rotate: -28, delay: 0, color: '#5EC0E8', shape: 'strip' },
+  { x: -94, y: -82, rotate: 36, delay: 18, color: '#54CDA0', shape: 'dot' },
+  { x: -58, y: -112, rotate: -74, delay: 34, color: '#F4C95D', shape: 'spark' },
+  { x: -18, y: -96, rotate: 12, delay: 8, color: '#DBEEEF', shape: 'strip' },
+  { x: 28, y: -116, rotate: 74, delay: 28, color: '#D683B2', shape: 'dot' },
+  { x: 74, y: -88, rotate: -32, delay: 12, color: '#5EC0E8', shape: 'spark' },
+  { x: 118, y: -52, rotate: 18, delay: 42, color: '#F4C95D', shape: 'strip' },
+  { x: 142, y: -8, rotate: -62, delay: 58, color: '#54CDA0', shape: 'dot' },
+  { x: 104, y: 34, rotate: 44, delay: 24, color: '#D683B2', shape: 'strip' },
+  { x: 72, y: 74, rotate: -18, delay: 48, color: '#DBEEEF', shape: 'spark' },
+  { x: 24, y: 92, rotate: 84, delay: 68, color: '#54CDA0', shape: 'dot' },
+  { x: -24, y: 82, rotate: -42, delay: 38, color: '#5EC0E8', shape: 'strip' },
+  { x: -78, y: 58, rotate: 26, delay: 62, color: '#F4C95D', shape: 'spark' },
+  { x: -116, y: 12, rotate: -86, delay: 44, color: '#D683B2', shape: 'dot' },
+  { x: -148, y: -6, rotate: 54, delay: 72, color: '#DBEEEF', shape: 'strip' },
+  { x: 0, y: -142, rotate: 0, delay: 52, color: '#F4C95D', shape: 'spark' },
+  { x: 154, y: -72, rotate: 92, delay: 82, color: '#5EC0E8', shape: 'strip' },
+  { x: -154, y: -76, rotate: -96, delay: 86, color: '#54CDA0', shape: 'strip' },
+] as const;
 const annotationTypeOptions: AnnotationType[] = [
   'key_point',
   'assumption',
@@ -281,6 +301,32 @@ export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
       <div className="reader-virtual-label">
         <AvatarBadge avatar={cursor.agent?.avatar} />
         {cursor.label}
+      </div>
+    </div>
+  );
+}
+
+export function ReadingCompletionBurst() {
+  return (
+    <div className="reader-completion-burst" aria-hidden="true">
+      <div className="reader-completion-burst-center">
+        <span className="reader-completion-burst-ring" />
+        <span className="reader-completion-burst-ring is-wide" />
+        {completionBurstParticles.map((particle, index) => (
+          <span
+            className={`reader-completion-particle is-${particle.shape}`}
+            key={`${particle.x}:${particle.y}:${index}`}
+            style={
+              {
+                '--reader-confetti-color': particle.color,
+                '--reader-confetti-delay': `${particle.delay}ms`,
+                '--reader-confetti-rotate': `${particle.rotate}deg`,
+                '--reader-confetti-x': `${particle.x}px`,
+                '--reader-confetti-y': `${particle.y}px`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
       </div>
     </div>
   );

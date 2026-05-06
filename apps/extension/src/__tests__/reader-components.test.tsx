@@ -11,6 +11,7 @@ import {
   HighlightChoiceMenu,
   QuestionPanel,
   ReaderSettingsPanel,
+  ReadingCompletionBurst,
   SelectionMenu,
   VirtualCursor,
 } from '../reader-components';
@@ -472,6 +473,16 @@ describe('VirtualCursor', () => {
     expect(pointer).toBeTruthy();
     expect(shape?.getAttribute('d')).toBe('M10.1 10.1 L19.3 32 L22.1 22.1 L32 19.3 Z');
     expect(screen.getByText('阅读伙伴 正在阅读')).toBeTruthy();
+  });
+});
+
+describe('ReadingCompletionBurst', () => {
+  it('renders a fixed particle burst without user-facing text', () => {
+    const { container } = render(<ReadingCompletionBurst />);
+    const burst = container.querySelector('.reader-completion-burst');
+
+    expect(burst?.getAttribute('aria-hidden')).toBe('true');
+    expect(container.querySelectorAll('.reader-completion-particle')).toHaveLength(18);
   });
 });
 

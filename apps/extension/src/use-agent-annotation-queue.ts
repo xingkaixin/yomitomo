@@ -18,6 +18,7 @@ type VirtualReadingSession = {
   offset: number;
   paused: boolean;
   done: boolean;
+  isCarefulReading: boolean;
   step: number;
   sections: VirtualReadingSection[];
   sectionIndex: number;
@@ -87,8 +88,11 @@ export function useAgentAnnotationQueue({
   const agentAnimationRunningRef = useRef(false);
   const virtualReadingSessionsRef = useRef(new Map<string, VirtualReadingSession>());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
+  const activeCarefulReadingIdsRef = useRef(new Set<string>());
+  const carefulReadingHadFailureRef = useRef(false);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [annotatingAgents, setAnnotatingAgents] = useState<string[]>([]);
+  const [completionBurstKey, setCompletionBurstKey] = useState(0);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
 
   useEffect(() => {
@@ -170,6 +174,7 @@ export function useAgentAnnotationQueue({
     const body = article?.querySelector('.reader-article-body');
     const sessionIndex = virtualReadingSessionsRef.current.size;
     const sections = normalizedReadingSections(readingPlan);
+    const isCarefulReading = sections.length > 0;
     const firstSection = sections[0];
     const interval = 150 + Math.floor(Math.random() * 90);
     const step = 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
@@ -181,10 +186,12 @@ export function useAgentAnnotationQueue({
         sessionIndex * 18,
       paused: false,
       done: false,
+      isCarefulReading,
       step,
       sections,
       sectionIndex: 0,
     };
+    if (isCarefulReading) activeCarefulReadingIdsRef.current.add(agent.id);
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
     session.timerId = window.setInterval(() => tickVirtualReading(agent.id), interval);
@@ -259,7 +266,21 @@ export function useAgentAnnotationQueue({
       label: `${session?.agent.nickname || current.agent?.nickname || '助手'} ${suffix}`,
       leaving: true,
     });
-    window.setTimeout(() => updateVirtualCursor(agentId, null), 900);
+    window.setTimeout(() => {
+      updateVirtualCursor(agentId, null);
+      if (!session?.isCarefulReading) return;
+
+      activeCarefulReadingIdsRef.current.delete(agentId);
+      if (!session.done) carefulReadingHadFailureRef.current = true;
+      triggerCarefulReadingCompletionIfDone();
+    }, 900);
+  }
+
+  function triggerCarefulReadingCompletionIfDone() {
+    if (activeCarefulReadingIdsRef.current.size > 0) return;
+    const shouldCelebrate = !carefulReadingHadFailureRef.current;
+    carefulReadingHadFailureRef.current = false;
+    if (shouldCelebrate) setCompletionBurstKey((key) => key + 1);
   }
 
   function finishVirtualReadingIfIdle(agentId?: string) {
@@ -439,12 +460,15 @@ export function useAgentAnnotationQueue({
     }
     virtualReadingSessionsRef.current.clear();
     virtualCursorRef.current.clear();
+    activeCarefulReadingIdsRef.current.clear();
+    carefulReadingHadFailureRef.current = false;
     setVirtualCursors([]);
   }
 
   return {
     agentTheaterBoxes,
     annotatingAgents,
+    completionBurstKey,
     virtualCursors,
     cleanupVirtualReadingSessions,
     enqueueAgentAnnotation,
