@@ -1518,40 +1518,6 @@ export function AnnotationCard({
   );
 }
 
-export type PendingAgentAnnotation = {
-  id: string;
-  agents: PublicAgent[];
-  annotationType: AnnotationType;
-  readingIntent: AgentReadingIntent;
-};
-
-export function AgentAnnotationSkeletonCard({ pending }: { pending: PendingAgentAnnotation }) {
-  return (
-    <section className="reader-note reader-note-skeleton">
-      <div className="reader-note-skeleton-header">
-        <div className="reader-note-skeleton-agents">
-          {pending.agents.slice(0, 4).map((agent) => (
-            <AvatarBadge
-              avatar={agent.avatar}
-              fallback={agent.nickname.slice(0, 1)}
-              key={agent.id}
-            />
-          ))}
-        </div>
-        <span>
-          {annotationTypeLabel(pending.annotationType)} ·{' '}
-          {agentReadingIntentLabel(pending.readingIntent)}
-        </span>
-      </div>
-      <div className="reader-note-skeleton-lines" aria-label="助手批注生成中">
-        <i />
-        <i />
-        <i />
-      </div>
-    </section>
-  );
-}
-
 function MarkdownContent({ content, pending }: { content: string; pending?: boolean }) {
   const html = useMemo(() => renderMarkdown(content), [content]);
 

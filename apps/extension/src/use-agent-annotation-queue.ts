@@ -18,11 +18,13 @@ type VirtualReadingSession = {
   offset: number;
   paused: boolean;
   done: boolean;
-  isCarefulReading: boolean;
+  mode: VirtualReadingMode;
   step: number;
   sections: VirtualReadingSection[];
   sectionIndex: number;
 };
+
+type VirtualReadingMode = 'article' | 'careful' | 'target';
 
 type VirtualReadingSection = {
   start: number;
@@ -166,36 +168,52 @@ export function useAgentAnnotationQueue({
     });
   }
 
-  function startVirtualReading(agent: PublicAgent, readingPlan: AgentReadingPlanItem[] = []) {
+  function startVirtualReading(
+    agent: PublicAgent,
+    readingPlan: AgentReadingPlanItem[] = [],
+    mode: VirtualReadingMode = readingPlan.length > 0 ? 'careful' : 'article',
+  ) {
     const currentSession = virtualReadingSessionsRef.current.get(agent.id);
-    if (currentSession) window.clearInterval(currentSession.timerId);
+    if (currentSession) {
+      window.clearInterval(currentSession.timerId);
+      if (currentSession.mode === 'careful') activeCarefulReadingIdsRef.current.delete(agent.id);
+    }
 
     const article = articleRef.current;
     const body = article?.querySelector('.reader-article-body');
     const sessionIndex = virtualReadingSessionsRef.current.size;
     const sections = normalizedReadingSections(readingPlan);
-    const isCarefulReading = sections.length > 0;
     const firstSection = sections[0];
-    const interval = 150 + Math.floor(Math.random() * 90);
-    const step = 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
+    const interval =
+      mode === 'target'
+        ? 190 + Math.floor(Math.random() * 110)
+        : 150 + Math.floor(Math.random() * 90);
+    const step =
+      mode === 'target'
+        ? 3 + Math.floor(Math.random() * 6)
+        : 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
+    const sectionOffset = firstSection
+      ? firstSection.start +
+        Math.floor(Math.random() * Math.max(1, firstSection.end - firstSection.start))
+      : null;
+    const baseOffset =
+      sectionOffset ?? (article && body ? offsetFromArticleStart(article, body, 0) : 0);
     const session: VirtualReadingSession = {
       agent,
       timerId: 0,
-      offset:
-        (firstSection?.start ?? (article && body ? offsetFromArticleStart(article, body, 0) : 0)) +
-        sessionIndex * 18,
+      offset: baseOffset + (mode === 'target' ? 0 : sessionIndex * 18),
       paused: false,
       done: false,
-      isCarefulReading,
+      mode,
       step,
       sections,
       sectionIndex: 0,
     };
-    if (isCarefulReading) activeCarefulReadingIdsRef.current.add(agent.id);
+    if (mode === 'careful') activeCarefulReadingIdsRef.current.add(agent.id);
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
     session.timerId = window.setInterval(() => tickVirtualReading(agent.id), interval);
-    readerLog('virtual.reading.start', { agent: agent.username });
+    readerLog('virtual.reading.start', { agent: agent.username, mode });
   }
 
   function tickVirtualReading(agentId: string) {
@@ -268,7 +286,7 @@ export function useAgentAnnotationQueue({
     });
     window.setTimeout(() => {
       updateVirtualCursor(agentId, null);
-      if (!session?.isCarefulReading) return;
+      if (session?.mode !== 'careful') return;
 
       activeCarefulReadingIdsRef.current.delete(agentId);
       if (!session.done) carefulReadingHadFailureRef.current = true;
@@ -396,19 +414,34 @@ export function useAgentAnnotationQueue({
       await sleep(700);
       await saveAnnotations([...annotationsRef.current, annotation]);
       setActiveId(annotation.id);
+      if (virtualReadingSessionsRef.current.get(cursorId)?.mode === 'target') {
+        finishVirtualReading(cursorId);
+      }
       return;
     }
 
-    updateVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: firstRect.left,
-      y: firstRect.top + firstRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(420);
+    const session = virtualReadingSessionsRef.current.get(cursorId);
+    const cursor = virtualCursorRef.current.get(cursorId);
+    if (session?.mode === 'target' && cursor) {
+      updateVirtualCursor(cursorId, {
+        ...cursor,
+        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
+        offscreen: null,
+        agent: cursorAgent,
+      });
+      await sleep(160);
+    } else {
+      updateVirtualCursor(cursorId, {
+        id: cursorId,
+        visible: true,
+        x: firstRect.left,
+        y: firstRect.top + firstRect.height / 2,
+        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
+        offscreen: null,
+        agent: cursorAgent,
+      });
+      await sleep(420);
+    }
 
     const theaterBoxes = rangeHighlightBoxes(
       range,
@@ -437,16 +470,23 @@ export function useAgentAnnotationQueue({
     await saveAnnotations([...annotationsRef.current, annotation]);
     setActiveId(annotation.id);
     setAgentTheaterBoxes([]);
+    const currentSession = virtualReadingSessionsRef.current.get(cursorId);
+    if (currentSession?.mode === 'target') {
+      finishVirtualReading(cursorId);
+      return;
+    }
+    const hasReadingSession = Boolean(currentSession);
     updateVirtualCursor(cursorId, {
       id: cursorId,
       visible: true,
       x: lastRect.right,
       y: lastRect.top + lastRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 继续阅读`,
+      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} ${hasReadingSession ? '继续阅读' : '批注完成'}`,
       offscreen: null,
       agent: cursorAgent,
     });
     await sleep(360);
+    if (!hasReadingSession) finishVirtualReading(cursorId);
   }
 
   function markVirtualReadingDone(agentId: string) {

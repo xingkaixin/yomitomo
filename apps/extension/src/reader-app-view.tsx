@@ -21,7 +21,6 @@ import type { HighlightBox, TocItem } from './reader-dom';
 import { buildTocAnnotationStats, highlightStyle, isPrimaryTocItem } from './reader-utils';
 import {
   AgentAnnotateMenu,
-  AgentAnnotationSkeletonCard,
   AnnotationCard,
   AnnotationConnection,
   Composer,
@@ -34,7 +33,6 @@ import {
   VirtualCursor,
   type ActiveConnection,
   type HighlightChoiceAction,
-  type PendingAgentAnnotation,
   type ReaderSettings,
   type ReaderReadingSection,
   type VirtualCursorState,
@@ -84,7 +82,6 @@ type ReaderAppViewProps = {
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   pairingStatus: string;
-  pendingAgentAnnotations: PendingAgentAnnotation[];
   pairingId: string;
   pairingTokenDraft: string;
   replyRequest: { annotationId: string; key: number } | null;
@@ -161,7 +158,6 @@ export function ReaderAppView({
   noteRefs,
   notesRef,
   pairingStatus,
-  pendingAgentAnnotations,
   pairingId,
   pairingTokenDraft,
   replyRequest,
@@ -473,15 +469,6 @@ export function ReaderAppView({
                   />
                 ),
               )}
-              {pendingAgentAnnotations.map((pending, index) => (
-                <div
-                  className="reader-pending-rail-item"
-                  key={pending.id}
-                  style={{ top: 88 + index * 118 }}
-                >
-                  <AgentAnnotationSkeletonCard pending={pending} />
-                </div>
-              ))}
             </aside>
             {selectionAction && !composer ? (
               <SelectionMenu
