@@ -473,11 +473,20 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
         </div>
       </header>
       <blockquote>{unit.quote}</blockquote>
-      {unit.comments.length > 0 ? (
+      {unit.annotationBody || unit.comments.length > 0 ? (
         <div className="reading-card-thread">
+          {unit.annotationBody ? (
+            <div className="reading-card-comment">
+              <strong>{unit.annotationBody.authorLabel} · 批注</strong>
+              {unit.annotationBody.questionStatus ? (
+                <span>{questionStatusLabel(unit.annotationBody.questionStatus)}</span>
+              ) : null}
+              <p>{unit.annotationBody.content}</p>
+            </div>
+          ) : null}
           {unit.comments.map((comment) => (
             <div className="reading-card-comment" key={comment.id}>
-              <strong>{comment.authorLabel}</strong>
+              <strong>{comment.authorLabel} · 评论</strong>
               {comment.questionStatus ? (
                 <span>{questionStatusLabel(comment.questionStatus)}</span>
               ) : null}
@@ -764,11 +773,18 @@ function renderReadingCardMarkdown(
         <em>${escapeHtml(meta)}</em>
         <q>${escapeHtml(unit.quote)}</q>
         ${
+          unit.annotationBody
+            ? `<span class="reading-card-ref-comments"><span><b>${escapeHtml(
+                unit.annotationBody.authorLabel,
+              )} · 批注</b>${escapeHtml(unit.annotationBody.content)}</span></span>`
+            : ''
+        }
+        ${
           comments.length > 0
             ? `<span class="reading-card-ref-comments">${comments
                 .map(
                   (comment) =>
-                    `<span><b>${escapeHtml(comment.authorLabel)}</b>${escapeHtml(
+                    `<span><b>${escapeHtml(comment.authorLabel)} · 评论</b>${escapeHtml(
                       comment.content,
                     )}</span>`,
                 )

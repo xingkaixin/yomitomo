@@ -20,6 +20,7 @@ import {
 import {
   annotationColor,
   annotationIdsAtHighlightPoint,
+  annotationThreadComments,
   appendAnnotationComment,
   createUserAnnotation,
   createUserComment,
@@ -346,7 +347,10 @@ function ReaderApp({
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
-      comments: annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+      comments: annotations.reduce(
+        (count, annotation) => count + annotationThreadComments(annotation).length,
+        0,
+      ),
     }),
     [annotations],
   );

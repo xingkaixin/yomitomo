@@ -2129,7 +2129,7 @@
 .library-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -2147,6 +2147,7 @@
 }
 
 .library-item-main {
+  grid-column: 1 / -1;
   display: grid;
   min-height: 108px;
   grid-template-columns: 74px minmax(0, 1fr);
@@ -2198,16 +2199,26 @@
 }
 
 .library-item-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.library-item-count span + span::before {
+  margin-right: 8px;
+  color: hsl(var(--muted-foreground) / 0.56);
+  content: '·';
 }
 
 .library-item-footer {
   display: flex;
+  min-width: 0;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding-left: 86px;
+  padding-left: 2px;
 }
 
 .article-book {
@@ -2379,28 +2390,44 @@
   white-space: nowrap;
 }
 
-.library-item-delete,
-.library-item-delete-confirm button {
+.library-item-delete {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
-  min-height: 28px;
+  min-height: 30px;
   align-items: center;
   justify-content: center;
   gap: 5px;
+  overflow: hidden;
   border: 0;
   border-radius: 999px;
   cursor: pointer;
   font-size: 11px;
   font-weight: 800;
-  padding: 0 9px;
+  padding: 0 10px;
+  touch-action: none;
   transition:
     background-color 0.14s ease,
     color 0.14s ease,
     transform 0.14s ease;
-}
-
-.library-item-delete {
   background: hsl(var(--muted) / 0.58);
   color: hsl(var(--muted-foreground));
+  user-select: none;
+}
+
+.library-item-delete::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: 0;
+  background: hsl(5 54% 38% / 0.12);
+  content: '';
+}
+
+.library-item-delete svg,
+.library-item-delete span {
+  position: relative;
+  z-index: 1;
 }
 
 .library-item-delete:hover {
@@ -2408,25 +2435,18 @@
   color: hsl(5 54% 38%);
 }
 
-.library-item-delete:active,
-.library-item-delete-confirm button:active {
+.library-item-delete:active {
   transform: scale(0.96);
 }
 
-.library-item-delete-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+.library-item-delete.is-holding::before {
+  animation: library-delete-hold var(--delete-hold-ms) linear forwards;
 }
 
-.library-item-delete-confirm button:first-child {
-  background: hsl(var(--muted));
-  color: hsl(var(--muted-foreground));
-}
-
-.library-item-delete-confirm button:last-child {
-  background: hsl(5 54% 38%);
-  color: white;
+@keyframes library-delete-hold {
+  to {
+    width: 100%;
+  }
 }
 
 .library-empty {
@@ -2767,6 +2787,20 @@
   font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
   font-size: 18px;
   line-height: 1.8;
+}
+
+.annotation-primary-comment {
+  margin-top: 14px;
+  color: hsl(31 21% 24%);
+  font-size: 15px;
+  font-weight: 760;
+  line-height: 1.68;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.annotation-primary-comment p {
+  margin: 0;
 }
 
 .annotation-author {

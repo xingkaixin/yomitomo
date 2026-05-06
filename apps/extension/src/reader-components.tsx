@@ -32,6 +32,8 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationPersona as annotationAuthor,
+  annotationPrimaryComment,
+  annotationThreadComments,
   annotationTypeLabel,
   commentPersona,
   getMentionQuery,
@@ -413,21 +415,25 @@ export function QuestionPanel({
             },
           ]
         : [];
-    const commentQuestions = annotation.comments.filter(isQuestionComment).map((comment) => {
-      const commentAuthorPersona = commentPersona(comment, userProfile, agents);
-      return {
-        id: comment.id,
-        annotationId: annotation.id,
-        status: questionStatusOrOpen(comment.questionStatus),
-        persona: commentAuthorPersona,
-        text: comment.content,
-        quote: annotation.anchor.exact,
-        createdAt: comment.createdAt,
-        typeLabel: comment.readingIntent ? agentReadingIntentLabel(comment.readingIntent) : '追问',
-        setStatus: (status: QuestionStatus) =>
-          onSetCommentQuestionStatus(annotation.id, comment.id, status),
-      };
-    });
+    const commentQuestions = annotationThreadComments(annotation)
+      .filter(isQuestionComment)
+      .map((comment) => {
+        const commentAuthorPersona = commentPersona(comment, userProfile, agents);
+        return {
+          id: comment.id,
+          annotationId: annotation.id,
+          status: questionStatusOrOpen(comment.questionStatus),
+          persona: commentAuthorPersona,
+          text: comment.content,
+          quote: annotation.anchor.exact,
+          createdAt: comment.createdAt,
+          typeLabel: comment.readingIntent
+            ? agentReadingIntentLabel(comment.readingIntent)
+            : '追问',
+          setStatus: (status: QuestionStatus) =>
+            onSetCommentQuestionStatus(annotation.id, comment.id, status),
+        };
+      });
     return [...annotationQuestion, ...commentQuestions];
   });
   const statusTabs: Array<{ status: QuestionStatus; label: string }> = [
@@ -1219,8 +1225,8 @@ export function AnnotationCard({
           )
           .slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
-  const primaryComment = annotation.comments[0] || null;
-  const threadComments = primaryComment ? annotation.comments.slice(1) : annotation.comments;
+  const primaryComment = annotationPrimaryComment(annotation);
+  const threadComments = annotationThreadComments(annotation);
   const annotationStyle = {
     ...noteStyle(author.color, active),
     ...style,

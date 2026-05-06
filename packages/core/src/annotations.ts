@@ -101,6 +101,18 @@ export function createUserAnnotation(
   };
 }
 
+export function annotationPrimaryComment(annotation: Annotation): Comment | null {
+  const comment = annotation.comments[0];
+  if (!comment) return null;
+  if (comment.author !== annotation.author) return null;
+  if (comment.createdAt !== annotation.createdAt) return null;
+  return comment;
+}
+
+export function annotationThreadComments(annotation: Annotation): Comment[] {
+  return annotationPrimaryComment(annotation) ? annotation.comments.slice(1) : annotation.comments;
+}
+
 export function createAgentAnnotation(
   agent: Agent,
   articleText: string,

@@ -17,8 +17,10 @@ import type {
 } from '@yomitomo/shared';
 import { agentReadingIntentLabel, renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
+  annotationPrimaryComment,
   annotationTypeLabel,
   annotationStoredColor,
+  annotationThreadComments,
   annotationIdsAtHighlightPoint,
   buildTocAnnotationStats,
   extractTocItems,
@@ -45,6 +47,8 @@ import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton, OpenArticleButton } from './app-ui';
 import { ReadingCard } from './app-reading-card-panel';
 import { ArticleBook } from './app-article-book';
+
+const ARTICLE_DELETE_HOLD_MS = 1400;
 
 export function ReadingLibrary({
   agents,
@@ -79,7 +83,10 @@ export function ReadingLibrary({
       annotations: result.annotations + article.annotations.length,
       comments:
         result.comments +
-        article.annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+        article.annotations.reduce(
+          (count, annotation) => count + annotationThreadComments(annotation).length,
+          0,
+        ),
     }),
     { annotations: 0, comments: 0 },
   );
@@ -280,7 +287,11 @@ function SourceBookcase({
     [tocItems, annotations],
   );
   const commentCount = useMemo(
-    () => annotations.reduce((count, annotation) => count + annotation.comments.length, 0),
+    () =>
+      annotations.reduce(
+        (count, annotation) => count + annotationThreadComments(annotation).length,
+        0,
+      ),
     [annotations],
   );
 
@@ -597,6 +608,12 @@ function AnnotationNotebook({
     ? annotations.findIndex((item) => item.id === annotation.id)
     : -1;
   const annotationAuthor = annotation ? annotationAuthorProfile(annotation) : null;
+  const primaryComment = annotation ? annotationPrimaryComment(annotation) : null;
+  const threadComments = annotation ? annotationThreadComments(annotation) : [];
+  const primaryCommentHtml = useMemo(
+    () => (primaryComment ? renderMarkdown(primaryComment.content) : ''),
+    [primaryComment],
+  );
   const canPage = selectedIndex >= 0 && annotations.length > 1;
 
   function selectByOffset(offset: number) {
@@ -669,6 +686,12 @@ function AnnotationNotebook({
                   <CopyIconButton label="复制原文" value={annotation.anchor.exact} />
                 </div>
                 <blockquote>{annotation.anchor.exact}</blockquote>
+                {primaryComment ? (
+                  <div
+                    className="annotation-primary-comment"
+                    dangerouslySetInnerHTML={{ __html: primaryCommentHtml }}
+                  />
+                ) : null}
                 <div className="annotation-author">
                   <AvatarImage
                     value={annotationAuthor?.avatar || ''}
@@ -683,8 +706,8 @@ function AnnotationNotebook({
               </section>
 
               <section className="comment-thread">
-                {annotation.comments.length > 0 ? (
-                  annotation.comments.map((comment) => (
+                {threadComments.length > 0 ? (
+                  threadComments.map((comment) => (
                     <CommentCard comment={comment} key={comment.id} />
                   ))
                 ) : (
@@ -749,11 +772,37 @@ function ArticleListItem({
   onDelete: () => void;
   onSelect: () => void;
 }) {
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteHolding, setDeleteHolding] = useState(false);
+  const deleteTimerRef = useRef<number | null>(null);
   const comments = article.annotations.reduce(
-    (count, annotation) => count + annotation.comments.length,
+    (count, annotation) => count + annotationThreadComments(annotation).length,
     0,
   );
+
+  useEffect(
+    () => () => {
+      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    },
+    [],
+  );
+
+  function stopDeleteHold() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    setDeleteHolding(false);
+  }
+
+  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    if (deleteTimerRef.current !== null) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDeleteHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      onDelete();
+    }, ARTICLE_DELETE_HOLD_MS);
+  }
 
   return (
     <article className={active ? 'library-item is-active' : 'library-item'} onClick={onSelect}>
@@ -779,43 +828,24 @@ function ArticleListItem({
       </button>
       <div className="library-item-footer">
         <span className="library-item-count">
-          {article.annotations.length} 批注 · {comments} 评
+          <span>{article.annotations.length} 批注</span>
+          <span>{comments} 评论</span>
         </span>
-        {confirmingDelete ? (
-          <span className="library-item-delete-confirm">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                setConfirmingDelete(false);
-              }}
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete();
-              }}
-            >
-              删除
-            </button>
-          </span>
-        ) : (
-          <button
-            className="library-item-delete"
-            type="button"
-            aria-label={`删除文章：${article.title}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              setConfirmingDelete(true);
-            }}
-          >
-            <Trash2 size={14} />
-            删除
-          </button>
-        )}
+        <button
+          className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
+          style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
+          type="button"
+          aria-label={`长按删除文章：${article.title}`}
+          onClick={(event) => event.preventDefault()}
+          onContextMenu={(event) => event.preventDefault()}
+          onPointerCancel={stopDeleteHold}
+          onPointerDown={startDeleteHold}
+          onPointerLeave={stopDeleteHold}
+          onPointerUp={stopDeleteHold}
+        >
+          <Trash2 size={14} />
+          <span>长按删除</span>
+        </button>
       </div>
     </article>
   );

@@ -4,6 +4,7 @@ import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
   buildReadingCardSections,
+  buildReadingCardStats,
   buildReadingQuestions,
   computeReadingActivityDays,
   computeReadingStats,
@@ -37,12 +38,17 @@ function annotation(
         id: `comment-${id}`,
         author: id === 'a2' ? 'ai' : 'user',
         content: id === 'a3' ? '为什么？' : `comment ${id}`,
-        createdAt,
+        createdAt: nextMinute(createdAt),
       },
     ],
     createdAt,
     updatedAt: createdAt,
   };
+}
+
+function nextMinute(value: string) {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? value : new Date(time + 60_000).toISOString();
 }
 
 function article(id: string, updatedAt: string, annotations: Annotation[] = []): ArticleRecord {
@@ -111,6 +117,39 @@ describe('reading core', () => {
     );
 
     expect(stats.today).toEqual({ articles: 0, annotations: 0, comments: 1, aiComments: 1 });
+  });
+
+  it('excludes the annotation body from comment totals', () => {
+    const createdAt = '2026-05-03T08:00:00.000Z';
+    const record = article('today', createdAt, [
+      annotation('a1', 0, createdAt, {
+        comments: [
+          {
+            id: 'body',
+            author: 'user',
+            content: '批注正文',
+            createdAt,
+          },
+        ],
+      }),
+    ]);
+
+    expect(buildReadingCardStats(record)).toEqual({
+      annotations: 1,
+      comments: 0,
+      aiContributions: 0,
+    });
+    expect(buildReadingCardEvidenceUnits(record)[0]).toMatchObject({
+      annotationBody: { content: '批注正文' },
+      comments: [],
+    });
+    expect(computeReadingStats([record], new Date('2026-05-03T12:00:00.000Z')).today).toEqual({
+      articles: 1,
+      annotations: 1,
+      comments: 0,
+      aiComments: 0,
+    });
+    expect(buildReadingCard(record)).toContain('批注：1 条 · 评论：0 条 · 助手参与：0 条');
   });
 
   it('builds daily reading activity levels', () => {

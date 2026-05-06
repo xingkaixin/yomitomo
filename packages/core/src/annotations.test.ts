@@ -4,6 +4,8 @@ import {
   annotationColor,
   annotationDensityInstruction,
   annotationPersona,
+  annotationPrimaryComment,
+  annotationThreadComments,
   annotationToPublicAgent,
   annotationTypeLabel,
   appendAnnotationComment,
@@ -197,6 +199,31 @@ describe('annotation core', () => {
       comments: [{ content: '这里重要', userId: user.id }],
     });
     expect(createUserAnnotation(anchor, user, '   ').comments).toEqual([]);
+  });
+
+  it('separates annotation body comments from discussion comments', () => {
+    const base = createUserAnnotation(
+      {
+        exact: 'first principles',
+        prefix: '',
+        suffix: '',
+        start: 0,
+        end: 16,
+      },
+      user,
+      '批注正文',
+      'concept',
+      '2026-01-02T00:00:00.000Z',
+    );
+    const reply = {
+      ...comment('comment-reply'),
+      createdAt: '2026-01-02T00:01:00.000Z',
+    };
+    const withReply = { ...base, comments: [...base.comments, reply] };
+
+    expect(annotationPrimaryComment(withReply)?.content).toBe('批注正文');
+    expect(annotationThreadComments(withReply)).toEqual([reply]);
+    expect(annotationThreadComments({ ...base, comments: [reply] })).toEqual([reply]);
   });
 
   it('finds mentioned agents by username once', () => {

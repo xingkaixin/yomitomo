@@ -9,7 +9,13 @@ import type {
   QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
-import { annotationTypeLabel, isQuestionComment, questionStatusOrOpen } from '@yomitomo/core';
+import {
+  annotationPrimaryComment,
+  annotationThreadComments,
+  annotationTypeLabel,
+  isQuestionComment,
+  questionStatusOrOpen,
+} from '@yomitomo/core';
 import type { ExtractedArticle } from './article-extraction';
 import type { HighlightBox, TocItem } from './reader-dom';
 import { buildTocAnnotationStats, highlightStyle, isPrimaryTocItem } from './reader-utils';
@@ -628,7 +634,7 @@ function estimateRailGroupHeight(group: Array<{ annotation: Annotation }>) {
 
 function estimateAnnotationCardHeight(annotation: Annotation) {
   const quoteLines = Math.max(1, Math.ceil(annotation.anchor.exact.length / 24));
-  const primaryComment = annotation.comments[0]?.content || '';
+  const primaryComment = annotationPrimaryComment(annotation)?.content || '';
   const commentLines = primaryComment
     ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
     : 0;
@@ -643,7 +649,7 @@ function countQuestions(annotations: Annotation[]) {
           ? 1
           : 0
         : 0;
-    const commentQuestions = annotation.comments.filter(
+    const commentQuestions = annotationThreadComments(annotation).filter(
       (comment) =>
         isQuestionComment(comment) && questionStatusOrOpen(comment.questionStatus) === 'open',
     ).length;

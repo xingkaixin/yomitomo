@@ -466,6 +466,13 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
     questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
+    annotationBody: unit.annotationBody
+      ? {
+          author: unit.annotationBody.authorLabel,
+          questionStatus: unit.annotationBody.questionStatus || '',
+          content: unit.annotationBody.content,
+        }
+      : null,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
       questionStatus: comment.questionStatus || '',
@@ -562,6 +569,13 @@ function buildReadingDeliberationPrompt(
     questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
+    annotationBody: unit.annotationBody
+      ? {
+          author: unit.annotationBody.authorLabel,
+          questionStatus: unit.annotationBody.questionStatus || '',
+          content: unit.annotationBody.content,
+        }
+      : null,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
       questionStatus: comment.questionStatus || '',
@@ -640,6 +654,13 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
     questionStatus: unit.questionStatus || '',
     quote: unit.quote,
     annotationAuthor: unit.annotationAuthorLabel,
+    annotationBody: unit.annotationBody
+      ? {
+          author: unit.annotationBody.authorLabel,
+          questionStatus: unit.annotationBody.questionStatus || '',
+          content: unit.annotationBody.content,
+        }
+      : null,
     comments: unit.comments.map((comment) => ({
       author: comment.authorLabel,
       questionStatus: comment.questionStatus || '',
