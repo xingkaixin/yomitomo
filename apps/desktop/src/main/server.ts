@@ -405,6 +405,10 @@ function articleSyncSignature(article: ArticleRecord) {
     title: article.title,
     byline: article.byline,
     excerpt: article.excerpt,
+    siteName: article.siteName,
+    siteIconUrl: article.siteIconUrl,
+    leadImageUrl: article.leadImageUrl,
+    themeColor: article.themeColor,
     contentHash: article.contentHash,
     annotations: article.annotations.map((annotation) => ({
       id: annotation.id,

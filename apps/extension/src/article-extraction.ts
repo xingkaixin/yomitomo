@@ -9,6 +9,10 @@ export type ExtractedArticle = {
   title: string;
   byline?: string;
   excerpt?: string;
+  siteName?: string;
+  siteIconUrl?: string;
+  leadImageUrl?: string;
+  themeColor?: string;
   content: string;
   contentHash: string;
 };
@@ -24,6 +28,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
   const canonicalUrl = getCanonicalUrl();
   const defuddleArticle = await extractWithDefuddle(canonicalUrl);
   if (defuddleArticle) return defuddleArticle;
+  const metadata = extractArticleMetadata(canonicalUrl);
 
   const wechatContent =
     location.hostname === 'mp.weixin.qq.com' ? document.getElementById('js_content') : null;
@@ -37,6 +42,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
       url: location.href,
       canonicalUrl,
       title,
+      ...metadata,
       content,
       contentHash,
     };
@@ -58,6 +64,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
     title: parsed?.title || fallbackTitle,
     byline: parsed?.byline || undefined,
     excerpt: parsed?.excerpt || undefined,
+    ...metadata,
     content,
     contentHash,
   };
@@ -65,6 +72,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
 
 export function fallbackCurrentArticle(): ExtractedArticle {
   const canonicalUrl = getCanonicalUrl();
+  const metadata = extractArticleMetadata(canonicalUrl);
   const rawContent = document.querySelector('article')?.innerHTML || document.body?.innerHTML || '';
   const content = sanitizeArticleHtml(rawContent || '<p>当前页面没有可读取内容。</p>');
   const contentHash = articleContentHash(content);
@@ -74,6 +82,7 @@ export function fallbackCurrentArticle(): ExtractedArticle {
     url: location.href,
     canonicalUrl,
     title: document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled',
+    ...metadata,
     content,
     contentHash,
   };
@@ -98,6 +107,10 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
 
     const content = sanitizeArticleHtml(result.content);
     const contentHash = articleContentHash(content);
+    const metadata = extractArticleMetadata(canonicalUrl, {
+      siteName: result.site,
+      siteIconUrl: result.favicon,
+    });
     return {
       id: hashText(canonicalUrl || contentHash),
       url: location.href,
@@ -109,6 +122,7 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
         'Untitled',
       byline: result.author || result.site || undefined,
       excerpt: result.description || undefined,
+      ...metadata,
       content,
       contentHash,
     };
@@ -120,6 +134,81 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
 function getCanonicalUrl() {
   const link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   return link?.href || location.href.split('#')[0];
+}
+
+function extractArticleMetadata(
+  baseUrl: string,
+  fallback: { siteName?: string; siteIconUrl?: string } = {},
+): Pick<ExtractedArticle, 'siteName' | 'siteIconUrl' | 'leadImageUrl' | 'themeColor'> {
+  return {
+    siteName:
+      nonEmptyMetaProperty('og:site_name') ||
+      cleanString(fallback.siteName) ||
+      domainFromUrl(baseUrl),
+    siteIconUrl: resolveHttpUrl(fallback.siteIconUrl, baseUrl) || getSiteIconUrl(baseUrl),
+    leadImageUrl: getOpenGraphImageUrl(baseUrl),
+    themeColor: normalizeThemeColor(nonEmptyMetaName('theme-color')),
+  };
+}
+
+function getOpenGraphImageUrl(baseUrl: string) {
+  return resolveHttpUrl(
+    nonEmptyMetaProperty('og:image:secure_url') ||
+      nonEmptyMetaProperty('og:image:url') ||
+      nonEmptyMetaProperty('og:image'),
+    baseUrl,
+  );
+}
+
+function getSiteIconUrl(baseUrl: string) {
+  const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel]')).filter(
+    (link) => {
+      const rel = link.rel.toLowerCase();
+      return (
+        link.getAttribute('href') && (rel.includes('icon') || rel.includes('apple-touch-icon'))
+      );
+    },
+  );
+  const preferred =
+    links.find((link) => link.rel.toLowerCase().includes('apple-touch-icon')) ||
+    links.find((link) => link.rel.toLowerCase() === 'icon') ||
+    links[0];
+  return resolveHttpUrl(preferred?.getAttribute('href'), baseUrl);
+}
+
+function nonEmptyMetaProperty(property: string) {
+  return cleanString(
+    document.querySelector<HTMLMetaElement>(`meta[property="${property}"]`)?.content,
+  );
+}
+
+function nonEmptyMetaName(name: string) {
+  return cleanString(document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content);
+}
+
+function cleanString(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function resolveHttpUrl(value: unknown, baseUrl = location.href) {
+  const raw = cleanString(value);
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw, baseUrl || location.href);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined;
+    return url.href;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeThemeColor(value: unknown) {
+  const raw = cleanString(value);
+  if (!raw) return undefined;
+  if (!/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(raw)) return undefined;
+  return raw.toLowerCase();
 }
 
 function sanitizeArticleHtml(html: string) {

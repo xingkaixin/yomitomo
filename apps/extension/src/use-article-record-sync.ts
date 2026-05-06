@@ -173,6 +173,10 @@ export function useArticleRecordSync({
       title: extracted.title,
       byline: extracted.byline,
       excerpt: extracted.excerpt,
+      siteName: extracted.siteName,
+      siteIconUrl: extracted.siteIconUrl,
+      leadImageUrl: extracted.leadImageUrl,
+      themeColor: extracted.themeColor,
       contentHtml: extracted.content,
       contentHash: extracted.contentHash,
       annotations: nextAnnotations,
@@ -208,7 +212,7 @@ export function useArticleRecordSync({
     const bridge = desktopBridgeRef.current;
     if (!desktopAuthenticatedRef.current) return;
     if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
-    lastSentArticleSignatureRef.current = articleAnnotationsSignature(record);
+    lastSentArticleSignatureRef.current = articleRecordSignature(record);
     bridge.send({ type: 'article:save', requestId: makeId('request'), payload: record });
   }
 
@@ -257,9 +261,8 @@ export function useArticleRecordSync({
     );
     const nextRecord = current ? mergeArticleRecords(current, desktopRecord) : desktopRecord;
     const changedLocally =
-      !current || articleAnnotationsSignature(nextRecord) !== articleAnnotationsSignature(current);
-    const changedDesktop =
-      articleAnnotationsSignature(nextRecord) !== articleAnnotationsSignature(desktopRecord);
+      !current || articleRecordSignature(nextRecord) !== articleRecordSignature(current);
+    const changedDesktop = articleRecordSignature(nextRecord) !== articleRecordSignature(record);
 
     if (changedLocally || isNewerArticleRecord(nextRecord, current)) {
       applyArticleRecord(nextRecord);
@@ -269,7 +272,7 @@ export function useArticleRecordSync({
     if (
       options.backfillLocalChanges &&
       changedDesktop &&
-      articleAnnotationsSignature(nextRecord) !== lastSentArticleSignatureRef.current
+      articleRecordSignature(nextRecord) !== lastSentArticleSignatureRef.current
     ) {
       sendArticleRecord(nextRecord);
     }
@@ -366,9 +369,18 @@ function mergeAnnotation(current: Annotation, desktop: Annotation): Annotation {
   };
 }
 
-function articleAnnotationsSignature(record: ArticleRecord) {
-  return JSON.stringify(
-    record.annotations.map((annotation) => ({
+function articleRecordSignature(record: ArticleRecord) {
+  return JSON.stringify({
+    id: record.id,
+    title: record.title,
+    byline: record.byline,
+    excerpt: record.excerpt,
+    siteName: record.siteName,
+    siteIconUrl: record.siteIconUrl,
+    leadImageUrl: record.leadImageUrl,
+    themeColor: record.themeColor,
+    contentHash: record.contentHash,
+    annotations: record.annotations.map((annotation) => ({
       id: annotation.id,
       anchor: annotation.anchor,
       author: annotation.author,
@@ -407,7 +419,7 @@ function articleAnnotationsSignature(record: ArticleRecord) {
         pending: comment.pending || undefined,
       })),
     })),
-  );
+  });
 }
 
 function maxIsoDate(left: string, right: string) {

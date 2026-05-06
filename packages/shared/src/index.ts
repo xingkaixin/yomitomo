@@ -478,6 +478,10 @@ export type ArticleRecord = {
   title: string;
   byline?: string;
   excerpt?: string;
+  siteName?: string;
+  siteIconUrl?: string;
+  leadImageUrl?: string;
+  themeColor?: string;
   contentHtml?: string;
   contentHash: string;
   annotations: Annotation[];
@@ -665,7 +669,9 @@ const MESSAGE_LIMITS = {
   urlChars: 4096,
   titleChars: 512,
   bylineChars: 512,
+  siteNameChars: 256,
   excerptChars: 2000,
+  themeColorChars: 64,
   contentHtmlChars: 2_000_000,
   articleTextChars: 300_000,
   annotations: 1000,
@@ -845,6 +851,26 @@ function validateArticleRecord(value: unknown) {
   }
   if (optionalBoundedString(value.excerpt, MESSAGE_LIMITS.excerptChars) === false) {
     return 'article.excerpt 超出长度限制';
+  }
+  if (optionalBoundedString(value.siteName, MESSAGE_LIMITS.siteNameChars) === false) {
+    return 'article.siteName 超出长度限制';
+  }
+  if (
+    value.siteIconUrl !== undefined &&
+    value.siteIconUrl !== null &&
+    !isHttpUrl(value.siteIconUrl)
+  ) {
+    return 'article.siteIconUrl 必须是 http 或 https';
+  }
+  if (
+    value.leadImageUrl !== undefined &&
+    value.leadImageUrl !== null &&
+    !isHttpUrl(value.leadImageUrl)
+  ) {
+    return 'article.leadImageUrl 必须是 http 或 https';
+  }
+  if (optionalBoundedString(value.themeColor, MESSAGE_LIMITS.themeColorChars) === false) {
+    return 'article.themeColor 超出长度限制';
   }
   if (optionalBoundedString(value.contentHtml, MESSAGE_LIMITS.contentHtmlChars) === false) {
     return 'article.contentHtml 超出存储容量边界';

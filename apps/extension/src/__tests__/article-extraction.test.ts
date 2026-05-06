@@ -13,6 +13,8 @@ vi.mock('defuddle', () => ({
       return {
         title: 'Defuddle 标题',
         author: 'Defuddle 作者',
+        site: 'Defuddle 站点',
+        favicon: '/favicon.ico',
         description: 'Defuddle 摘要',
         content:
           '<article><p style="color:red">正文</p><script>bad()</script><custom-card><strong>重点</strong></custom-card></article>',
@@ -30,7 +32,13 @@ afterEach(() => {
 describe('article extraction', () => {
   it('normalizes fallback article html and canonical url', () => {
     document.title = '页面标题';
-    document.head.innerHTML = '<link rel="canonical" href="https://example.com/post#canonical" />';
+    document.head.innerHTML = `
+      <link rel="canonical" href="https://example.com/post#canonical" />
+      <meta property="og:site_name" content="示例站点" />
+      <meta property="og:image" content="/images/cover.jpg" />
+      <meta name="theme-color" content="#516d4f" />
+      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    `;
     document.body.innerHTML = `
       <h1>文章标题</h1>
       <article>
@@ -44,6 +52,10 @@ describe('article extraction', () => {
 
     expect(article.title).toBe('文章标题');
     expect(article.canonicalUrl).toBe('https://example.com/post#canonical');
+    expect(article.siteName).toBe('示例站点');
+    expect(article.siteIconUrl).toBe('https://example.com/apple-touch-icon.png');
+    expect(article.leadImageUrl).toBe('https://example.com/images/cover.jpg');
+    expect(article.themeColor).toBe('#516d4f');
     expect(article.content).toContain('<p>安全正文</p>');
     expect(article.content).toContain('<strong>保留文本</strong>');
     expect(article.content).not.toContain('script');
@@ -53,7 +65,10 @@ describe('article extraction', () => {
 
   it('uses a mocked Defuddle result before readability fallback', async () => {
     document.title = '页面标题';
-    document.head.innerHTML = '<link rel="canonical" href="https://example.com/post" />';
+    document.head.innerHTML = `
+      <link rel="canonical" href="https://example.com/post" />
+      <meta property="og:image" content="https://cdn.example.com/cover.jpg" />
+    `;
     document.body.innerHTML = '<main><h1>页面标题</h1><p>页面正文</p></main>';
 
     const article = await extractCurrentArticle();
@@ -61,6 +76,9 @@ describe('article extraction', () => {
     expect(article.title).toBe('Defuddle 标题');
     expect(article.byline).toBe('Defuddle 作者');
     expect(article.excerpt).toBe('Defuddle 摘要');
+    expect(article.siteName).toBe('Defuddle 站点');
+    expect(article.siteIconUrl).toBe('https://example.com/favicon.ico');
+    expect(article.leadImageUrl).toBe('https://cdn.example.com/cover.jpg');
     expect(article.content).toContain('<p>正文</p>');
     expect(article.content).toContain('<strong>重点</strong>');
     expect(article.content).not.toContain('custom-card');

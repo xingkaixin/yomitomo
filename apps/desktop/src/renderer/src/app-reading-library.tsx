@@ -44,6 +44,7 @@ import {
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton, OpenArticleButton } from './app-ui';
 import { ReadingCard } from './app-reading-card-panel';
+import { ArticleBook } from './app-article-book';
 
 export function ReadingLibrary({
   agents,
@@ -755,11 +756,24 @@ function ArticleListItem({
   );
 
   return (
-    <article className={active ? 'library-item is-active' : 'library-item'}>
-      <button className="library-item-main" type="button" onClick={onSelect}>
-        <div className="min-w-0">
+    <article className={active ? 'library-item is-active' : 'library-item'} onClick={onSelect}>
+      <button
+        className="library-item-main"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect();
+        }}
+      >
+        <ArticleBook article={article} />
+        <div className="library-item-copy">
           <h3>{article.title}</h3>
-          <p>{article.byline || urlHost(article.canonicalUrl || article.url) || '未知作者'}</p>
+          <p>
+            {article.byline ||
+              article.siteName ||
+              urlHost(article.canonicalUrl || article.url) ||
+              '未知作者'}
+          </p>
           <time>{formatDate(article.updatedAt)}</time>
         </div>
       </button>
@@ -769,10 +783,22 @@ function ArticleListItem({
         </span>
         {confirmingDelete ? (
           <span className="library-item-delete-confirm">
-            <button type="button" onClick={() => setConfirmingDelete(false)}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setConfirmingDelete(false);
+              }}
+            >
               取消
             </button>
-            <button type="button" onClick={onDelete}>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete();
+              }}
+            >
               删除
             </button>
           </span>
@@ -781,7 +807,10 @@ function ArticleListItem({
             className="library-item-delete"
             type="button"
             aria-label={`删除文章：${article.title}`}
-            onClick={() => setConfirmingDelete(true)}
+            onClick={(event) => {
+              event.stopPropagation();
+              setConfirmingDelete(true);
+            }}
           >
             <Trash2 size={14} />
             删除

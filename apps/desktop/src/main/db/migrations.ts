@@ -203,4 +203,13 @@ ALTER TABLE annotations ADD COLUMN question_status TEXT;
 ALTER TABLE comments ADD COLUMN question_status TEXT;
 `,
   },
+  {
+    id: '0014_article_cover_metadata',
+    sql: `
+ALTER TABLE articles ADD COLUMN site_name TEXT;
+ALTER TABLE articles ADD COLUMN site_icon_url TEXT;
+ALTER TABLE articles ADD COLUMN lead_image_url TEXT;
+ALTER TABLE articles ADD COLUMN theme_color TEXT;
+`,
+  },
 ];

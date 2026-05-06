@@ -119,6 +119,35 @@ describe('desktop client message parser', () => {
     });
   });
 
+  it('validates article cover metadata urls', () => {
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:save',
+        requestId: 'request-1',
+        payload: articleRecord({
+          siteName: 'Example',
+          siteIconUrl: 'https://example.com/favicon.ico',
+          leadImageUrl: 'https://example.com/cover.jpg',
+          themeColor: '#516d4f',
+        }),
+      }),
+    ).toEqual({
+      ok: true,
+      message: expect.objectContaining({ type: 'article:save' }),
+    });
+
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:save',
+        requestId: 'request-1',
+        payload: articleRecord({ leadImageUrl: 'data:image/png;base64,abc' }),
+      }),
+    ).toEqual({
+      ok: false,
+      error: { requestId: 'request-1', message: 'article.leadImageUrl 必须是 http 或 https' },
+    });
+  });
+
   it('rejects oversized nested annotation and comment payloads', () => {
     const baseAnnotation = articleRecord().annotations[0];
 
