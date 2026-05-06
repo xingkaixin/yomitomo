@@ -112,10 +112,15 @@ export const readerConversationStyles = `
 .reader-highlight-choice-menu span strong{overflow:hidden;font-size:13px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
 .reader-highlight-choice-menu span em{overflow:hidden;color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
 .reader-highlight-choice-menu b{border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-size:11px;font-weight:850;line-height:1;padding:6px 8px;white-space:nowrap}
-.reader-virtual-cursor{gap:7px;transition:left .34s ease,top .34s ease}
-.reader-virtual-pointer{width:18px;height:24px;border:0;background:var(--cursor-color,var(--reader-red));clip-path:polygon(0 0,0 21px,5px 16px,9px 24px,13px 22px,9px 15px,18px 15px);filter:drop-shadow(0 5px 8px rgba(40,35,29,.18));transform:rotate(-10deg)}
+.reader-virtual-cursor{gap:3px;transform:translate(-10px,-10px);transition:left .34s cubic-bezier(.22,1,.36,1),top .34s cubic-bezier(.22,1,.36,1)}
+.reader-virtual-pointer{width:48px;height:48px;flex:0 0 auto;overflow:visible;border:0;background:transparent;clip-path:none;filter:drop-shadow(0 5px 8px rgba(40,35,29,.18));transform:none}
+.reader-virtual-bloom{opacity:.95}
+.reader-virtual-pointer-shape{stroke:#fff;stroke-width:2;stroke-linejoin:round}
+.reader-virtual-cursor.is-offscreen .reader-virtual-pointer{opacity:.62}
+.reader-virtual-cursor.is-offscreen .reader-virtual-bloom{opacity:.42}
 .reader-virtual-label{border-color:color-mix(in srgb,var(--cursor-color,var(--reader-red)) 24%,transparent);color:var(--cursor-color,var(--reader-red))}
 .reader-virtual-label .reader-avatar-badge{background:var(--cursor-color,var(--reader-red))}
+@keyframes reader-cursor-leave{to{opacity:0;transform:translate(8px,-34px) scale(.86);filter:blur(2px)}}
 .reader-agent-annotate{height:38px;border-color:rgba(40,35,29,.14);background:rgba(255,253,248,.88);color:var(--reader-ink);padding:0 12px}
 .reader-agent-annotate:hover,.reader-agent-annotate.is-active{background:#f0eadf;color:var(--reader-ink)}
 .reader-notes-actions span{background:var(--reader-ink)}

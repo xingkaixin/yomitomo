@@ -79,6 +79,8 @@ export type HighlightChoiceAction = {
 };
 
 const DELETE_HOLD_MS = 1600;
+const GOLDEN_RATIO_CONJUGATE = 0.618033988749895;
+const VIRTUAL_CURSOR_PATH = 'M10.1 10.1 L19.3 32 L22.1 22.1 L32 19.3 Z';
 const annotationTypeOptions: AnnotationType[] = [
   'key_point',
   'assumption',
@@ -222,7 +224,9 @@ export function AnnotationConnection({ connection }: { connection: ActiveConnect
 }
 
 export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
-  const color = cursor.agent?.annotationColor || '#b7352c';
+  const color = cursor.agent?.annotationColor || cursorColorFromId(cursor.id);
+  const gradientId = cursorSvgId('reader-cursor-fill', cursor.id);
+  const bloomId = cursorSvgId('reader-cursor-bloom', cursor.id);
   return (
     <div
       className={[
@@ -234,13 +238,69 @@ export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
         .join(' ')}
       style={{ left: cursor.x, top: cursor.y, '--cursor-color': color } as React.CSSProperties}
     >
-      <div className="reader-virtual-pointer" />
+      <svg
+        aria-hidden="true"
+        className="reader-virtual-pointer"
+        focusable="false"
+        viewBox="0 0 48 48"
+      >
+        <defs>
+          <radialGradient id={bloomId} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor={color} stopOpacity="0.55" />
+            <stop offset="52%" stopColor={color} stopOpacity="0.15" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </radialGradient>
+          <linearGradient
+            gradientUnits="userSpaceOnUse"
+            id={gradientId}
+            x1="10"
+            x2="32"
+            y1="10"
+            y2="32"
+          >
+            <stop offset="0%" stopColor="#DBEEEF" />
+            <stop offset="53%" stopColor={color} />
+            <stop offset="100%" stopColor="#54CDA0" />
+          </linearGradient>
+        </defs>
+        <ellipse
+          className="reader-virtual-bloom"
+          cx="23"
+          cy="23"
+          fill={`url(#${bloomId})`}
+          rx="22"
+          ry="15"
+          transform="rotate(-45 23 23)"
+        />
+        <path
+          className="reader-virtual-pointer-shape"
+          d={VIRTUAL_CURSOR_PATH}
+          fill={`url(#${gradientId})`}
+        />
+      </svg>
       <div className="reader-virtual-label">
         <AvatarBadge avatar={cursor.agent?.avatar} />
         {cursor.label}
       </div>
     </div>
   );
+}
+
+function cursorSvgId(prefix: string, id: string) {
+  return `${prefix}-${hashString(id).toString(36)}`;
+}
+
+function cursorColorFromId(id: string) {
+  const hue = Math.round(((hashString(id) % 997) * GOLDEN_RATIO_CONJUGATE * 360) % 360);
+  return `hsl(${hue},70%,55%)`;
+}
+
+function hashString(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
+  }
+  return hash >>> 0;
 }
 
 function AvatarBadge({ avatar, fallback = 'AI' }: { avatar?: string; fallback?: string }) {

@@ -12,6 +12,7 @@ import {
   QuestionPanel,
   ReaderSettingsPanel,
   SelectionMenu,
+  VirtualCursor,
 } from '../reader-components';
 
 afterEach(() => {
@@ -444,6 +445,33 @@ describe('SelectionMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加批注' }));
 
     expect(onAnnotate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('VirtualCursor', () => {
+  it('renders the CUA-style pointer shape with agent color', () => {
+    const { container } = render(
+      <VirtualCursor
+        cursor={{
+          id: 'agent_1',
+          visible: true,
+          x: 120,
+          y: 80,
+          label: '阅读伙伴 正在阅读',
+          offscreen: null,
+          agent,
+        }}
+      />,
+    );
+
+    const cursor = container.querySelector<HTMLElement>('.reader-virtual-cursor');
+    const pointer = container.querySelector('.reader-virtual-pointer');
+    const shape = container.querySelector('.reader-virtual-pointer-shape');
+
+    expect(cursor?.style.getPropertyValue('--cursor-color')).toBe(agent.annotationColor);
+    expect(pointer).toBeTruthy();
+    expect(shape?.getAttribute('d')).toBe('M10.1 10.1 L19.3 32 L22.1 22.1 L32 19.3 Z');
+    expect(screen.getByText('阅读伙伴 正在阅读')).toBeTruthy();
   });
 });
 
