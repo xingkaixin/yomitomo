@@ -755,26 +755,11 @@
 }
 
 .agent-list-heading blockquote {
-  position: relative;
-  margin: 0;
-  border-left: 2px solid hsl(8 45% 46% / 0.34);
-  color: hsl(28 21% 23%);
-  font-family: 'Songti SC', 'STSong', Georgia, serif;
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.62;
-  padding: 2px 0 2px 12px;
-}
-
-.agent-list-heading blockquote::before {
-  position: absolute;
-  top: -9px;
-  left: 7px;
-  color: hsl(8 45% 46% / 0.18);
-  content: '“';
-  font-family: Georgia, serif;
-  font-size: 34px;
-  line-height: 1;
+  margin: 1px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 680;
+  line-height: 1.55;
 }
 
 .agent-list-role {
