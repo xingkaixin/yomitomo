@@ -135,9 +135,7 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('你好，我是知微。');
     expect(prompt).toContain('## 角色灵魂');
     expect(prompt).toContain('你就是 林知微（@林知微）');
-    expect(prompt).toContain(
-      '当前讨论里出现 林知微、@林知微 时，按你本人理解。',
-    );
+    expect(prompt).toContain('当前讨论里出现 林知微、@林知微 时，按你本人理解。');
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
     expect(prompt).toContain('角色卡中的自我介绍、核心气质、判断习惯和输出偏好');
   });
@@ -148,9 +146,7 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('- 林知微（@林知微）：当前发言助手');
     expect(prompt).toContain('- 周砚（@周砚）：可被 @ 的伴读助手');
     expect(prompt).toContain('本轮发言者：林知微（@林知微）');
-    expect(prompt).toContain(
-      '读者评论里的 林知微、@林知微 指向你本人。',
-    );
+    expect(prompt).toContain('读者评论里的 林知微、@林知微 指向你本人。');
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
   });
 });

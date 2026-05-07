@@ -1442,6 +1442,7 @@ function ReaderApp({
       }}
       onOpenComposer={(action) => {
         const canvasWidth = canvasRef.current?.clientWidth || 360;
+        setCommentsCloseKey((key) => key + 1);
         setComposer({
           x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
           y: action.y,

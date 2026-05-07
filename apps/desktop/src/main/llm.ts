@@ -398,10 +398,7 @@ function buildPresetRoleLines(personality?: AgentPersonality) {
   ].filter((line): line is string => Boolean(line));
 }
 
-export function buildAgentMessageSystemPrompt(
-  agent: PromptAgent,
-  payload: AgentMessagePayload,
-) {
+export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: AgentMessagePayload) {
   const username = agent.username || payload.agentUsername;
   const nickname = agent.nickname || username;
   const selfNames = [nickname, `@${username}`]
@@ -478,10 +475,7 @@ export function buildAgentPrompt(
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
-function buildAgentSelfInstruction(
-  payload: AgentMessagePayload,
-  currentAgent?: PromptAgent,
-) {
+function buildAgentSelfInstruction(payload: AgentMessagePayload, currentAgent?: PromptAgent) {
   const username = currentAgent?.username || payload.agentUsername;
   const nickname = currentAgent?.nickname || username;
   const selfNames = [nickname, `@${username}`]
@@ -492,10 +486,7 @@ function buildAgentSelfInstruction(
   return `本轮发言者：${nickname}（@${username}）\n身份识别规则：读者评论里的 ${selfNames} 指向你本人。先判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。`;
 }
 
-function buildAgentMessageParticipants(
-  payload: AgentMessagePayload,
-  currentAgent?: PromptAgent,
-) {
+function buildAgentMessageParticipants(payload: AgentMessagePayload, currentAgent?: PromptAgent) {
   const participants = new Map<string, string>();
   const currentUsername = currentAgent?.username || payload.agentUsername;
   const currentNickname = currentAgent?.nickname || currentUsername;

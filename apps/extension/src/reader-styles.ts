@@ -336,6 +336,7 @@ export const readerConversationStyles = `
 .reader-composer-agent-tray .reader-avatar-badge{width:28px;height:28px}
 .reader-composer-agent-tray b{position:absolute;left:50%;bottom:calc(100% + 8px);display:grid;gap:1px;min-width:118px;transform:translateX(-50%);border:1px solid rgba(40,35,29,.12);border-radius:10px;background:#fffdf8;box-shadow:0 12px 28px rgba(40,35,29,.14);color:var(--reader-ink);font-size:11px;font-weight:850;line-height:1.25;padding:7px 8px;text-align:center;white-space:nowrap}
 .reader-composer-agent-tray b em{color:var(--reader-muted);font-size:10px;font-style:normal;font-weight:760}
+.reader-selection-menu,.reader-composer{z-index:120}
 @keyframes reader-composer-pop{from{opacity:0;transform:translateY(-6px) scale(.88);filter:blur(2px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
 .reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal}
