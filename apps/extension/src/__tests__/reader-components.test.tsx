@@ -252,6 +252,36 @@ describe('AnnotationCard', () => {
 
     expect(onAddComment).toHaveBeenCalledWith('annotation_1', '补充评论');
   });
+
+  it('keeps extra comment agents behind a more menu', () => {
+    const agents = [
+      agent,
+      { ...agent, id: 'agent_2', nickname: '根因审读者', username: 'root' },
+      { ...agent, id: 'agent_3', nickname: '概念翻译员', username: 'concept' },
+      { ...agent, id: 'agent_4', nickname: '结构领航员', username: 'structure' },
+    ];
+    render(
+      <AnnotationCard
+        active
+        agents={agents}
+        annotation={annotation}
+        commentsCloseKey={0}
+        desktopConnected
+        noteRef={vi.fn()}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /0 条评论/ }));
+    fireEvent.click(screen.getByRole('button', { name: /更多助手，2 个/ }));
+    fireEvent.click(screen.getByRole('button', { name: /概念翻译员/ }));
+
+    expect(screen.getByLabelText('评论内容')).toHaveProperty('value', '@concept ');
+  });
 });
 
 describe('HighlightChoiceMenu', () => {

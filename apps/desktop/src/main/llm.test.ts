@@ -126,6 +126,9 @@ describe('agent message prompts', () => {
 
     expect(prompt).toContain('你就是 林知微（@林知微）');
     expect(prompt).toContain('回应涉及你先前批注的问题时，用第一人称承接你的判断。');
+    expect(prompt).toContain(
+      '正文里再次提到 林知微、@林知微 时，统一写成“我”“我的判断”“我刚才的判断”。',
+    );
     expect(prompt).toContain('角色卡里的核心气质、判断习惯和语言质感');
   });
 
@@ -134,5 +137,9 @@ describe('agent message prompts', () => {
 
     expect(prompt).toContain('- 林知微（@林知微）：当前发言助手');
     expect(prompt).toContain('- 周砚（@周砚）：可被 @ 的伴读助手');
+    expect(prompt).toContain('本轮发言者：林知微（@林知微）');
+    expect(prompt).toContain(
+      '读者评论里的 林知微、@林知微 都指向你本人。承接自己的批注和判断时，使用“我”“我的判断”“我刚才的判断”。',
+    );
   });
 });

@@ -359,7 +359,7 @@ export function buildAgentMessageSystemPrompt(
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
 
-  return `${agent.soul}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份一致性：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，指代你本人。回应涉及你先前批注的问题时，用第一人称承接你的判断。\n\n角色表达：回复要体现角色卡里的核心气质、判断习惯和语言质感；从你的专业能力切入，给出有辨识度的判断。`;
+  return `${agent.soul}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份一致性：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，指代你本人。回应涉及你先前批注的问题时，用第一人称承接你的判断。正文里再次提到 ${selfNames} 时，统一写成“我”“我的判断”“我刚才的判断”。\n\n角色表达：回复要体现角色卡里的核心气质、判断习惯和语言质感；从你的专业能力切入，给出有辨识度的判断。`;
 }
 
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {
@@ -423,8 +423,23 @@ export function buildAgentPrompt(
   const article = budgetArticleText(provider, 'agent-message', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
   const participants = buildAgentMessageParticipants(payload, agent);
+  const selfInstruction = buildAgentSelfInstruction(payload, agent);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+}
+
+function buildAgentSelfInstruction(
+  payload: AgentMessagePayload,
+  currentAgent?: { username?: string; nickname?: string },
+) {
+  const username = currentAgent?.username || payload.agentUsername;
+  const nickname = currentAgent?.nickname || username;
+  const selfNames = [nickname, `@${username}`]
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .join('、');
+
+  return `本轮发言者：${nickname}（@${username}）\n自我称谓规则：读者评论里的 ${selfNames} 都指向你本人。承接自己的批注和判断时，使用“我”“我的判断”“我刚才的判断”。称呼其他助手时使用对方昵称或 @。`;
 }
 
 function buildAgentMessageParticipants(

@@ -298,7 +298,7 @@ export const readerConversationStyles = `
 .reader-note-comments-panel .reader-comment{grid-template-columns:32px minmax(0,1fr);width:100%;min-width:0}
 .reader-note-comments-panel .reader-markdown-content,.reader-note-comments-panel .reader-markdown-content *{max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .reader-comment-author time{margin-left:auto;color:#9a8f83;font-size:10px;font-weight:760;white-space:nowrap}
-.reader-comment-agent-tray{display:flex;align-items:center;gap:8px;margin-right:auto;min-width:0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:780}
+.reader-comment-agent-tray{position:relative;display:flex;flex:0 1 auto;align-items:center;gap:8px;margin-right:auto;min-width:0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:780}
 .reader-comment-agent-tray button{display:grid;width:30px;height:30px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf8;color:var(--reader-muted);cursor:pointer;padding:0}
 .reader-comment-agent-tray button:hover{background:#f0e3cd;color:var(--reader-ink)}
 .reader-comment-agent-tray button:disabled{cursor:not-allowed;opacity:.45}
@@ -306,8 +306,15 @@ export const readerConversationStyles = `
 .reader-comment-agent-tray .reader-comment-mention-label{display:grid;width:30px;height:30px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf8;color:var(--reader-muted);font-size:15px;font-weight:850}
 .reader-comment-agent-tray .reader-comment-agent-avatar{padding:0}
 .reader-comment-agent-tray .reader-avatar-badge{width:24px;height:24px}
+.reader-comment-agent-more{position:relative}
+.reader-comment-agent-more-menu{position:absolute;left:0;bottom:calc(100% + 8px);z-index:5;display:grid;gap:4px;width:190px;padding:8px;border:1px solid rgba(40,35,29,.12);border-radius:14px;background:#fffdf8;box-shadow:0 16px 42px rgba(40,35,29,.14)}
+.reader-comment-agent-more-menu button{display:grid;width:100%;height:36px;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:8px;border:0;border-radius:10px;background:transparent;color:var(--reader-ink);padding:0 8px;text-align:left}
+.reader-comment-agent-more-menu button:hover{background:#f0eadf}
+.reader-comment-agent-more-menu strong{overflow:hidden;font-size:12px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}
+.reader-comment-agent-more-menu em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:760}
 .reader-note-comments-panel .reader-comment-box textarea{min-height:104px;margin-top:0}
-.reader-note-footer .reader-shortcut-hint{margin-right:0}
+.reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
+.reader-note-footer .reader-add-comment{flex:0 0 auto}
 .reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:hidden;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
 .reader-composer-header{display:grid;gap:12px;padding:14px 14px 12px;border-bottom:1px solid rgba(40,35,29,.1);background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
