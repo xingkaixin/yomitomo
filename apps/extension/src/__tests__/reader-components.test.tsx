@@ -55,6 +55,7 @@ const agent: PublicAgent = {
   avatar: '',
   annotationColor: '#8ab6d6',
   annotationDensity: 'medium',
+  enabled: true,
   personalityName: '追问型导师',
   temperature: 0.35,
 };

@@ -35,6 +35,8 @@ export const providers = sqliteTable('providers', {
 export const agents = sqliteTable('agents', {
   id: text('id').primaryKey(),
   kind: text('kind').notNull(),
+  presetId: text('preset_id'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
   providerId: text('provider_id')
     .notNull()
     .references(() => providers.id, { onDelete: 'cascade' }),

@@ -102,10 +102,12 @@ export function createEmptyAgent(
 
   return {
     kind,
+    presetId: personality?.id,
+    enabled: personality?.defaultEnabled ?? true,
     nickname: kind === 'review' ? '审核助手' : '阅读伙伴',
     username: kind === 'review' ? 'reviewer' : 'yomitomo',
     avatar: defaultAvatar,
-    annotationColor: annotationColors[1],
+    annotationColor: personality?.defaultColor || annotationColors[1],
     annotationDensity: 'medium',
     personalityId: personality?.id,
     temperature: personality?.temperature ?? 0.35,
@@ -175,6 +177,8 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
   return (
     (draft.providerId || '') !== agent.providerId ||
     (draft.kind || 'annotation') !== (agent.kind || 'annotation') ||
+    (draft.presetId || '') !== (agent.presetId || '') ||
+    Boolean(draft.enabled) !== Boolean(agent.enabled) ||
     (draft.nickname || '').trim() !== agent.nickname ||
     (draft.username || '').trim() !== agent.username ||
     (draft.avatar || '').trim() !== agent.avatar ||

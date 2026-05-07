@@ -10,19 +10,15 @@ import {
   PanelLeftOpen,
   User,
 } from 'lucide-react';
-import type { Agent, AgentKind, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type { Agent, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
   agentDraftHasChanges,
   agentPersonalities,
-  createEmptyAgent,
-  customPersonality,
-  customPersonalityId,
   defaultAgentSoul,
   defaultUser,
   emptyProvider,
   emptyStore,
   findAgentPersonalityId,
-  isValidUsername,
   providerDraftHasChanges,
   userDraftHasChanges,
   type AgentDraft,
@@ -36,8 +32,6 @@ import {
   GeneralSettings,
   ProviderSettings,
   SettingsNavButton,
-  avatarForKind,
-  defaultAvatarForKind,
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import type { SaveState } from './app-types';
@@ -45,7 +39,7 @@ import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
-const emptyAgent = createEmptyAgent(defaultAvatarForKind('annotation'));
+const emptyAgent: AgentDraft = { kind: 'annotation', enabled: false };
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -133,7 +127,8 @@ function App() {
   const canSaveAgent =
     providerOptions.length > 0 &&
     agentSaveState !== 'saving' &&
-    (selectedAgentId ? agentHasChanges : true);
+    Boolean(selectedAgentId) &&
+    agentHasChanges;
   const canSaveProvider =
     providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
   const canSaveUser = userSaveState !== 'saving' && (userHasChanges || settingsHasChanges);
@@ -197,19 +192,7 @@ function App() {
     setSelectedAgentId(agent.id);
     setAgentDraft({
       ...agent,
-      avatar: avatarForKind(agent.avatar, agent.kind),
       personalityId: findAgentPersonalityId(agent.soul),
-    });
-    setAgentSaveError('');
-    setAgentSaveState('idle');
-  }
-
-  function createAgent(kind: AgentKind = 'annotation') {
-    const draft = createEmptyAgent(defaultAvatarForKind(kind), kind);
-    setSelectedAgentId(null);
-    setAgentDraft({
-      ...draft,
-      providerId: store.providers[0]?.id || '',
     });
     setAgentSaveError('');
     setAgentSaveState('idle');
@@ -264,7 +247,7 @@ function App() {
     if (!nextStore.agents.some((agent) => agent.id === selectedAgentId)) {
       const nextAgent = nextStore.agents[0];
       if (nextAgent) selectAgent(nextAgent);
-      if (!nextAgent) createAgent();
+      if (!nextAgent) setAgentDraft(emptyAgent);
     }
   }
 
@@ -278,26 +261,22 @@ function App() {
   async function saveAgentDraft() {
     if (!window.yomitomoDesktop || !canSaveAgent) return;
     const personalityId =
-      agentDraft.personalityId || findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
+      agentDraft.presetId ||
+      agentDraft.personalityId ||
+      findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
     const personality = agentPersonalities.find((item) => item.id === personalityId);
-    if (personalityId === customPersonalityId && !agentDraft.soul?.trim()) {
-      setAgentSaveError('自定义个性必须输入内容。');
-      return;
-    }
-    if (!isValidUsername(agentDraft.username || '')) {
-      setAgentSaveError('用户名仅支持英文、数字和下划线。');
-      return;
-    }
     const providerId = agentDraft.providerId || store.providers[0]?.id || '';
     setAgentSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveAgent({
         ...agentDraft,
-        avatar: avatarForKind(agentDraft.avatar, agentDraft.kind),
         providerId,
+        presetId: personality?.id || agentDraft.presetId,
+        kind: personality?.kind || agentDraft.kind,
+        nickname: personality?.name || agentDraft.nickname,
+        username: personality?.id.replace(/-/g, '_') || agentDraft.username,
         soul: personality?.soul || agentDraft.soul,
-        temperature:
-          personality?.temperature ?? agentDraft.temperature ?? customPersonality.temperature,
+        temperature: personality?.temperature ?? agentDraft.temperature,
       });
       const savedAgent = agentDraft.id
         ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
@@ -314,15 +293,6 @@ function App() {
       setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
       setAgentSaveState('idle');
     }
-  }
-
-  async function deleteAgent(id: string) {
-    if (!window.yomitomoDesktop) return;
-    const nextStore = await window.yomitomoDesktop.deleteAgent(id);
-    setStore(nextStore);
-    const nextAgent = nextStore.agents[0];
-    if (nextAgent) selectAgent(nextAgent);
-    if (!nextAgent) createAgent();
   }
 
   return (
@@ -472,8 +442,6 @@ function App() {
                 setAgentSaveError('');
                 setAgentSaveState('idle');
               }}
-              onCreate={createAgent}
-              onDelete={deleteAgent}
               onSave={saveAgentDraft}
               saveState={agentSaveState}
               onSelect={selectAgent}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentForm,
@@ -11,7 +11,7 @@ import {
   readingAgentAvatars,
   reviewAgentAvatars,
 } from '../app-settings-panels';
-import { customPersonalityId, defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
+import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { Agent } from '@yomitomo/shared';
 import type { ProviderOption } from '../app-types';
 
@@ -117,10 +117,11 @@ describe('AgentForm', () => {
   ];
   const draft: AgentDraft = {
     kind: 'annotation',
+    presetId: 'reading-partner',
+    enabled: true,
     nickname: '阅读伙伴',
     username: 'yomitomo',
     providerId: 'provider_1',
-    personalityId: customPersonalityId,
     soul: '自定义提示词',
     annotationDensity: 'medium',
     annotationColor: '#efa927',
@@ -130,34 +131,28 @@ describe('AgentForm', () => {
   it('links visible labels to agent inputs', () => {
     render(<AgentForm draft={draft} error="" providers={providers} onChange={vi.fn()} />);
 
-    expect(screen.getByLabelText('用户名')).toBeTruthy();
-    expect(screen.getByLabelText('自定义系统提示词')).toBeTruthy();
+    expect(screen.getByLabelText('供应商')).toBeTruthy();
+    expect(screen.getByText('工作照提示词')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /已启用/ })).toBeTruthy();
     expect(document.querySelector('.provider-select-logo')).toBeTruthy();
   });
 
-  it('exposes type-specific option sets as keyboard-operable radio groups', () => {
+  it('exposes density and enabled controls', () => {
     const onChange = vi.fn();
     render(<AgentForm draft={draft} error="" providers={providers} onChange={onChange} />);
 
     const densityGroup = screen.getByRole('radiogroup', { name: '批注密度' });
-    const personalityGroup = screen.getByRole('radiogroup', { name: '个性' });
 
-    expect(screen.queryByLabelText('助手类型')).toBeNull();
     expect(screen.getByRole('radio', { name: /标准/ }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByRole('radio', { name: /自定义个性/ }).getAttribute('aria-checked')).toBe(
-      'true',
-    );
 
     fireEvent.keyDown(densityGroup, { key: 'ArrowRight' });
-    fireEvent.keyDown(personalityGroup, { key: 'Home' });
+    fireEvent.click(screen.getAllByRole('button', { name: /已启用/ }).at(-1)!);
 
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ annotationDensity: 'high' }));
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ personalityId: 'reading-partner' }),
-    );
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
-  it('uses type-specific avatar presets without assistant upload', () => {
+  it('uses review-specific labels without avatar editing', () => {
     render(
       <AgentForm
         draft={{ ...draft, kind: 'review', avatar: reviewAgentAvatars[0]?.src }}
@@ -168,10 +163,8 @@ describe('AgentForm', () => {
     );
 
     expect(screen.queryByText('上传')).toBeNull();
-    expect(document.querySelectorAll('.avatar-choice')).toHaveLength(20);
-    expect(document.querySelector('.avatar-choice.is-active img')?.getAttribute('src')).toBe(
-      reviewAgentAvatars[0]?.src,
-    );
+    expect(screen.getByText('标识颜色')).toBeTruthy();
+    expect(document.querySelectorAll('.avatar-choice')).toHaveLength(0);
   });
 });
 
@@ -190,8 +183,8 @@ describe('AgentSettings', () => {
     makeAgent('agent_review', 'review', '审核助手', 'reviewer'),
   ];
 
-  it('creates agents after choosing a type in the dialog', () => {
-    const onCreate = vi.fn();
+  it('toggles configured preset agents', () => {
+    const onChange = vi.fn();
     render(
       <AgentSettings
         agents={agents}
@@ -200,23 +193,16 @@ describe('AgentSettings', () => {
         providers={providers}
         selectedId={agents[0]!.id}
         canSave
-        onChange={vi.fn()}
-        onCreate={onCreate}
-        onDelete={vi.fn()}
+        onChange={onChange}
         onSave={vi.fn()}
         saveState="idle"
         onSelect={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /新增助手/ }));
-    const dialog = screen.getByRole('dialog', { name: '选择助手类型' });
-    fireEvent.click(within(dialog).getByRole('button', { name: /审核助手/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: /已启用/ }).at(-1)!);
 
-    expect(onCreate).toHaveBeenCalledWith('review');
-    expect(screen.getByRole('tab', { name: /审核助手/ }).getAttribute('aria-selected')).toBe(
-      'true',
-    );
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
   it('filters configured agents by type tabs', () => {
@@ -230,8 +216,6 @@ describe('AgentSettings', () => {
         selectedId={agents[0]!.id}
         canSave
         onChange={vi.fn()}
-        onCreate={vi.fn()}
-        onDelete={vi.fn()}
         onSave={vi.fn()}
         saveState="idle"
         onSelect={onSelect}
@@ -251,6 +235,8 @@ function makeAgent(id: string, kind: Agent['kind'], nickname: string, username: 
   return {
     id,
     kind,
+    presetId: kind === 'review' ? 'evidence-archivist' : 'reading-partner',
+    enabled: true,
     providerId: 'provider_1',
     nickname,
     username,

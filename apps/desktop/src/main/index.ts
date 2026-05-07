@@ -235,6 +235,7 @@ function registerIpc() {
     const reviewAgents = store.agents.filter(
       (agent) =>
         agent.kind === 'review' &&
+        agent.enabled &&
         (selectedReviewAgentIds.size === 0 || selectedReviewAgentIds.has(agent.id)),
     );
     if (reviewAgents.length === 0) {

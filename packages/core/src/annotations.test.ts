@@ -37,6 +37,7 @@ const agent: Agent = {
   avatar: '',
   annotationColor: '#8ab6d6',
   annotationDensity: 'medium',
+  enabled: true,
   temperature: 0.35,
   soul: 'test',
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -236,6 +237,7 @@ describe('annotation core', () => {
         avatar: '',
         annotationColor: '#8ab6d6',
         annotationDensity: 'medium',
+        enabled: true,
         personalityName: '克制阅读伙伴',
         temperature: 0.35,
       },
@@ -294,6 +296,7 @@ describe('annotation core', () => {
       avatar: agent.avatar,
       annotationColor: agent.annotationColor,
       annotationDensity: agent.annotationDensity,
+      enabled: agent.enabled,
       personalityName: '克制阅读伙伴',
       temperature: agent.temperature,
     };

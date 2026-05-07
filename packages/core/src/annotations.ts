@@ -474,6 +474,7 @@ export function annotationToPublicAgent(annotation: Annotation): PublicAgent | u
     avatar: annotation.agentAvatar || 'AI',
     annotationColor: annotation.agentAnnotationColor || annotation.color,
     annotationDensity: 'medium',
+    enabled: true,
     personalityName: '自定义个性',
     temperature: 0.35,
   };

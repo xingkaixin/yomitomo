@@ -97,6 +97,7 @@ describe('reader utility state helpers', () => {
       avatar: '',
       annotationColor: '#8ab6d6',
       annotationDensity: 'medium',
+      enabled: true,
       personalityName: '克制阅读伙伴',
       temperature: 0.35,
     };

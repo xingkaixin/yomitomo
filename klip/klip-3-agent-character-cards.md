@@ -32,6 +32,7 @@ Status: Draft
 - 定义一套适合 Yomitomo 的助手活人感设计原则。
 - 给阅读助手和审批助手设计可落地的角色卡结构。
 - 重写阅读助手和审批助手的预置人格方向，使它们从“功能标签”升级为“有工作方式的专业角色”。
+- 将助手产品形态从“用户自定义创建”调整为“预设助手库 + 用户启用选择”。
 - 给出规则使用边界：规则承担输出契约、证据边界和安全上限；人格承担风格、优先级和判断习惯。
 - 给出最小落地路径，优先复用当前 `soul` 字段和现有 prompt 构造。
 
@@ -61,6 +62,46 @@ Status: Draft
 3. **两类助手差异化**：阅读助手像“坐在页边的同读者”，审批助手像“在终审桌前的审稿人”。
 4. **轻量状态感**：在缺少事件流的阶段，用当轮材料建立短暂状态，包括文章标题、选区、批注 thread、阅读动作、问题状态和读后笔记结构。
 5. **少量规则保底**：只保留证据、格式、密度、边界、语气尺度等稳定规则，避免用规则模拟人格。
+6. **预设库优先**：用户在产品里看到完整助手库，选择启用哪些助手；每个助手保留默认颜色，用户可以改颜色和供应商。
+
+## 产品形态调整
+
+结论：本轮取消“新增自定义助手”作为主路径，改为展示所有预设助手。
+
+用户动作变成：
+
+1. 在助手页浏览全部阅读助手和审核助手。
+2. 查看每个助手的名称、角色称号、头像、工作场景、介绍文案和默认工作方式。
+3. 启用或停用助手。
+4. 为已启用或待启用助手配置供应商、批注颜色和阅读助手的批注密度。
+
+运行时约束：
+
+- 浏览器插件端的“助手精读”只展示 `enabled = true` 且 `kind = annotation` 的助手。
+- 读后笔记审核只使用 `enabled = true` 且 `kind = review` 的助手。
+- 用户可以停用某一类全部助手；对应功能入口显示无可用助手状态。
+- 颜色系统保留，默认颜色来自角色设定，用户可改。
+- 昵称、用户名、人格 prompt 由预设库控制，用户界面暂不开放自定义。
+
+## 预设助手数量
+
+建议本轮使用 6 个阅读助手 + 6 个审核助手。
+
+理由：
+
+- 6 个阅读助手可以覆盖陪读、根因审读、追问、沉淀、概念解释、结构导航六种高频阅读任务。
+- 6 个审核助手可以覆盖证据、读者关注、成稿质量、逻辑、风险、行动六种读后笔记审核任务。
+- 12 个总角色已经能形成群像感，选择成本仍可控。
+- 每类 3 男 3 女，便于后续生成头像和工作照时保持视觉多样性。
+
+默认启用建议：
+
+| 类型 | 默认启用 | 默认停用 |
+|---|---|---|
+| 阅读助手 | 林知微、周砚、许问渠、陈砚书 | 沈清源、顾行简 |
+| 审核助手 | 梁证言、叶听澜、唐简 | 何明衡、苏定白、夏归宁 |
+
+默认停用的角色仍展示在助手库中，用户可以随时启用。
 
 ## 角色卡结构
 
@@ -112,7 +153,7 @@ Status: Draft
 
 ## 阅读助手角色卡
 
-### 1. 页边同读者（替代：克制阅读伙伴）
+### 1. 林知微｜页边同读者（替代：克制阅读伙伴）
 
 定位：默认阅读助手，适合大多数文章和普通读者。
 
@@ -149,7 +190,7 @@ Status: Draft
 - 标注方式：优先使用“这段的关键在于…”、“这里值得停一下…”。
 ```
 
-### 2. 根因审读者（替代：第一性原理审阅者）
+### 2. 周砚｜根因审读者（替代：第一性原理审阅者）
 
 定位：用于挑战文章推理和拆解底层假设。
 
@@ -186,7 +227,7 @@ Status: Draft
 - 标注方式：优先使用“这里的前提是…”、“这个结论依赖…”。
 ```
 
-### 3. 追问导师（保留并加深）
+### 3. 许问渠｜追问导师（保留并加深）
 
 定位：把阅读推进成问题链。
 
@@ -223,7 +264,7 @@ Status: Draft
 - 标注方式：优先使用“可以追问…”、“这个问题会影响后文判断…”。
 ```
 
-### 4. 洞见整理员（替代：洞察整理者）
+### 4. 陈砚书｜洞见整理员（替代：洞察整理者）
 
 定位：把原文和批注压缩成可复用素材。
 
@@ -260,11 +301,31 @@ Status: Draft
 - 标注方式：优先使用“可沉淀为…”、“这条可以迁移到…”。
 ```
 
+### 5. 沈清源｜概念翻译员
+
+定位：解释术语、背景和相近概念，让陌生段落变得可读。
+
+文案：沈清源负责把概念讲清楚。遇到术语、缩写、历史背景和作者自造词时，她会先解释本文语境，再补充必要背景。
+
+工作照提示词：`professional portrait of a female concept translator, white index cards, glossary motif, clear and patient reading specialist`
+
+场景照提示词：`clean desk with glossary cards, highlighted terms, small timeline, concept explanation workspace, bright paper texture`
+
+### 6. 顾行简｜结构领航员
+
+定位：识别段落功能和全文骨架，帮读者在长文里保持方向感。
+
+文案：顾行简把片段放回全文结构，判断它是在铺垫、转折、论证还是收束。长文精读时，他能让阅读路线更清楚。
+
+工作照提示词：`professional portrait of a male structure navigator, article map, dark blue navigation marks, composed reading strategist`
+
+场景照提示词：`article structure map on desk, section index cards, paragraph nodes connected by thin lines, dark blue navigation markers`
+
 ## 审批助手角色卡
 
 这里的“审批助手”对应当前 `review` 类助手，主要审核读后笔记和证据之间的关系。
 
-### 1. 证据司书（替代：证据校验员）
+### 1. 梁证言｜证据司书（替代：证据校验员）
 
 定位：负责证据链和归因。
 
@@ -301,7 +362,7 @@ Status: Draft
 - 标注方式：优先使用 section、severity、evidenceIds。
 ```
 
-### 2. 读者权益官（替代：读者关注守门员）
+### 2. 叶听澜｜读者权益官（替代：读者关注守门员）
 
 定位：负责读者关注、评论 thread 和问题状态是否被保留。
 
@@ -338,7 +399,7 @@ Status: Draft
 - 标注方式：优先使用用户批注、评论 thread、问题状态。
 ```
 
-### 3. 终审编辑（替代：洞察编辑）
+### 3. 唐简｜终审编辑（替代：洞察编辑）
 
 定位：负责笔记质量、表达质量和行动价值。
 
@@ -375,6 +436,36 @@ Status: Draft
 - 标注方式：优先使用 suggestedRewrite。
 ```
 
+### 4. 何明衡｜逻辑复核官
+
+定位：检查结论、前提、证据和行动建议之间的推理链。
+
+文案：何明衡专门找逻辑断点。她会把表达问题和推理问题分开，指出哪一步缺少中间桥梁。
+
+工作照提示词：`professional portrait of a female logic auditor, argument chain diagram, gray blue review stamp, rigorous expression`
+
+场景照提示词：`logic review desk with argument chain diagram, claim cards connected by thin lines, gray blue audit stamp`
+
+### 5. 苏定白｜风险审查员
+
+定位：识别过度外推、边界缺失和行动建议风险。
+
+文案：苏定白负责判断笔记是否把启发写成了结论，把个案写成了规律。他适合审查将被用于决策的读后笔记。
+
+工作照提示词：`professional portrait of a male risk examiner, risk level labels, boundary checklist, dark gray review desk, cautious and steady`
+
+场景照提示词：`risk review desk with risk level labels, boundary condition checklist, dark gray document review atmosphere`
+
+### 6. 夏归宁｜行动校准师
+
+定位：把泛泛行动线索校准为具体、可执行、可回访的下一步。
+
+文案：夏归宁看重读完之后做什么。她会检查行动线索是否有对象、方法和验证方式，并给出可直接替换的改写。
+
+工作照提示词：`professional portrait of a female action calibrator, action checklist, calendar grid, teal notes, pragmatic review assistant`
+
+场景照提示词：`action planning review desk with checklist, calendar grid, teal sticky notes, organized next step tasks`
+
 ## 规则使用原则
 
 建议保留规则，但规则只承担边界工作。
@@ -392,42 +483,43 @@ Status: Draft
 
 ## Prompt 注入策略
 
-### Phase 1：直接替换预置 `soul`
+### Phase 1：建立预设助手库
 
-把 `annotationAgentPersonalities` 和 `reviewAgentPersonalities` 的 `soul` 替换为角色卡 Markdown。当前 `buildAgentAnnotateSystemPrompt()` 和 `reviewReadingCard()` 已经把 `agent.soul` 放在 system prompt 开头，因此这一步无需改 prompt 拼装函数。
+新增独立的预设助手模块，每个角色是一段独立常量。预设库输出 `annotationAgentPersonalities` 和 `reviewAgentPersonalities`，并包含名称、角色称号、性别、介绍、默认颜色、默认启用状态、工作照提示词、场景照提示词和 `soul`。
 
 落点：
 
-- `packages/shared/src/index.ts:300`
-- `packages/shared/src/index.ts:339`
+- `packages/shared/src/agent-presets.ts`
+- `packages/shared/src/index.ts`
 - `apps/desktop/src/main/llm.ts:323`
 - `apps/desktop/src/main/llm.ts:363`
 
-### Phase 2：增加角色卡模板常量
+### Phase 2：持久化启用状态
 
-当 `soul` 文本变长后，建议把每个角色卡拆成独立常量，减少 `index.ts` 的阅读压力。
-
-建议文件：
-
-- `packages/shared/src/agent-character-cards.ts`
-- `packages/shared/src/index.ts` 继续导出 `annotationAgentPersonalities` 和 `reviewAgentPersonalities`
-
-### Phase 3：可选结构化类型
-
-当后续要在 UI 中展示角色卡字段时，再引入结构化类型。
+`Agent` 增加：
 
 ```typescript
-export type AgentCharacterCard = {
-  identity: string;
-  temperament: string;
-  capabilities: string[];
-  boundaries: string[];
-  ritual: string[];
-  outputPreference: string[];
+type Agent = {
+  presetId?: string;
+  enabled: boolean;
+  // existing fields...
 };
 ```
 
-当前阶段直接使用 Markdown `soul` 的实现成本更低。
+桌面端启动后基于预设库补齐 agent rows。用户可改的字段保留为：
+
+- `enabled`
+- `providerId`
+- `annotationColor`
+- `annotationDensity`（阅读助手）
+
+### Phase 3：选择器只消费启用助手
+
+扩展端 `agent:list` 和 `status` 只返回启用的阅读助手。读后笔记审核只选择启用的审核助手。
+
+### Phase 4：生成头像和场景照
+
+头像和工作场景图后续按每个 preset 的 `portraitPrompt` 和 `scenePrompt` 生成，再替换 preset 默认头像资源。当前代码先保留字段和展示位置。
 
 ## 视觉与命名建议
 
@@ -435,33 +527,41 @@ export type AgentCharacterCard = {
 
 | 助手 | 建议名称 | 视觉锚点 | 气质 |
 |---|---|---|---|
-| 默认阅读 | 页边同读者 | 书签、叶片、浅绿 | 安静陪读 |
-| 根因审读 | 根因审读者 | 三角尺、石墨灰 | 严格拆解 |
-| 追问 | 追问导师 | 问号、铅笔、靛蓝 | 启发推进 |
-| 洞见 | 洞见整理员 | 羽毛笔、琥珀 | 编辑沉淀 |
-| 证据审核 | 证据司书 | 放大镜、档案章 | 庄重核验 |
-| 读者关注 | 读者权益官 | 天平、批注气泡 | 维护现场 |
-| 终审编辑 | 终审编辑 | 勾选清单、红笔 | 成稿质量 |
+| 默认阅读 | 林知微｜页边同读者 | 书签、叶片、浅绿 | 安静陪读 |
+| 根因审读 | 周砚｜根因审读者 | 三角尺、石墨灰 | 严格拆解 |
+| 追问 | 许问渠｜追问导师 | 问号、铅笔、靛蓝 | 启发推进 |
+| 洞见 | 陈砚书｜洞见整理员 | 羽毛笔、琥珀 | 编辑沉淀 |
+| 概念解释 | 沈清源｜概念翻译员 | 索引卡、概念词典 | 清楚耐心 |
+| 结构导航 | 顾行简｜结构领航员 | 文章地图、导航标记 | 稳定导览 |
+| 证据审核 | 梁证言｜证据司书 | 放大镜、档案章 | 庄重核验 |
+| 读者关注 | 叶听澜｜读者权益官 | 天平、批注气泡 | 维护现场 |
+| 终审编辑 | 唐简｜终审编辑 | 勾选清单、红笔 | 成稿质量 |
+| 逻辑复核 | 何明衡｜逻辑复核官 | 论点卡、逻辑链 | 严谨复核 |
+| 风险审查 | 苏定白｜风险审查员 | 风险贴纸、边界清单 | 谨慎稳重 |
+| 行动校准 | 夏归宁｜行动校准师 | 行动清单、日历格 | 务实落点 |
 
 ## 实施阶段
 
 ### Phase 0：文案定稿
 
-- [ ] 确认七个角色名称是否进入产品文案。
+- [ ] 确认十二个角色名称是否进入产品文案。
 - [ ] 确认“审批助手”在 UI 中继续使用“审核助手”或改名为“审批助手”。当前代码和 UI 使用 `review` / “审核助手”。证据：`apps/desktop/src/renderer/src/app-settings.ts:101`。
-- [ ] 确认默认阅读助手是否从“克制阅读伙伴”改为“页边同读者”。
+- [ ] 确认默认启用名单。
 
 ### Phase 1：最小实现
 
-- [ ] 替换 `packages/shared/src/index.ts` 中七个预置人格的 `name`、`description`、`soul`。
-- [ ] 保持当前 `Agent` 类型、存储结构和 prompt 拼装函数。
+- [ ] 新增 `packages/shared/src/agent-presets.ts`。
+- [ ] `Agent` 增加 `presetId` 和 `enabled`。
+- [ ] 桌面端自动补齐预设助手 rows。
+- [ ] 设置页移除新增自定义助手入口，改为启用/停用预设助手。
 - [ ] 更新相关测试快照或断言。
 - [ ] 运行 `pnpm --filter @yomitomo/shared test`。
 
 ### Phase 2：可维护性整理
 
-- [ ] 将角色卡常量移动到 `packages/shared/src/agent-character-cards.ts`。
-- [ ] `packages/shared/src/index.ts` 保持统一导出。
+- [ ] 扩展端只展示启用的阅读助手。
+- [ ] 读后笔记审核只使用启用的审核助手。
+- [ ] 供应商删除和新增后，预设助手库保持完整。
 - [ ] 运行 `pnpm lint` 和 `pnpm test`。
 
 ### Phase 3：体验验证
@@ -472,17 +572,20 @@ export type AgentCharacterCard = {
 
 ## 验收标准
 
-- [ ] 七个预置助手都有结构化角色卡式 `soul`。
+- [ ] 十二个预置助手都有结构化角色卡式 `soul`。
+- [ ] 用户界面展示预设助手库，移除新增自定义助手入口。
+- [ ] 用户可以启用/停用任意助手。
+- [ ] 用户可以修改每个助手的颜色。
 - [ ] 阅读助手在同一文章上表现出稳定差异：陪读、根因拆解、追问、沉淀。
 - [ ] 审核助手在同一读后笔记上表现出稳定差异：证据、读者关注、成稿质量。
+- [ ] 扩展端“助手精读”只出现启用的阅读助手。
+- [ ] 读后笔记审核面板只出现启用的审核助手。
 - [ ] 主动批注仍满足 `exact` 原文锚定要求。
 - [ ] 审核输出仍满足 `ReadingCardReviewerResult` 结构。
-- [ ] 用户可在设置页继续创建、编辑和选择不同助手人格。
 
 ## 待讨论
 
 - “审批助手”是否作为产品层命名替代“审核助手”。当前代码和 UI 语义更接近“审核读后笔记”。
 - 阅读助手是否需要一个统一的产品主角形象，或保持多助手群像。
-- 角色卡是否需要在设置页显式展示，还是只作为预置人格的隐藏 prompt。
 - “庄严感”的视觉表达是否进入头像、颜色和按钮文案设计。
-
+- 默认启用数量是否收敛为每类 3 个，或首次展示时全部启用。

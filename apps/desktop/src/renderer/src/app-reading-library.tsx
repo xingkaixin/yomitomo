@@ -71,7 +71,10 @@ export function ReadingLibrary({
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
   );
-  const reviewAgents = useMemo(() => agents.filter((agent) => agent.kind === 'review'), [agents]);
+  const reviewAgents = useMemo(
+    () => agents.filter((agent) => agent.kind === 'review' && agent.enabled),
+    [agents],
+  );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
     annotations[0] ||

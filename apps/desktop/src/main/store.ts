@@ -33,6 +33,7 @@ import type {
   ReasoningEffort,
 } from '@yomitomo/shared';
 import { makeId, providerPresets } from '@yomitomo/shared';
+import { agentPersonalities } from '@yomitomo/shared';
 import { migrations } from './db/migrations';
 import * as schema from './db/schema';
 
@@ -213,6 +214,8 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
   const agent: Agent = {
     id: existing?.id || makeId('agent'),
     kind: normalizeAgentKind(input.kind ?? existing?.kind) || 'annotation',
+    presetId: input.presetId || existing?.presetId,
+    enabled: input.enabled ?? existing?.enabled ?? true,
     providerId: input.providerId || existing?.providerId || store.providers[0]?.id || '',
     nickname: input.nickname?.trim() || existing?.nickname || 'Yomitomo',
     username,
@@ -316,10 +319,51 @@ export async function saveArticleReadingCardReview(
   return readStore();
 }
 
+function ensurePresetAgents(
+  database: StoreDatabase,
+  providerRows: Array<typeof schema.providers.$inferSelect>,
+  settings: typeof schema.appSettings.$inferSelect | undefined,
+) {
+  if (providerRows.length === 0) return;
+
+  const defaultProviderId =
+    settings?.defaultProviderId &&
+    providerRows.some((provider) => provider.id === settings.defaultProviderId)
+      ? settings.defaultProviderId
+      : providerRows[0]!.id;
+  const agentRows = database.select().from(schema.agents).all();
+  const rowsByPreset = new Map(
+    agentRows.flatMap((row) => (row.presetId ? [[row.presetId, row] as const] : [])),
+  );
+  const now = new Date().toISOString();
+
+  for (const personality of agentPersonalities) {
+    const existing = rowsByPreset.get(personality.id);
+    const agent: Agent = {
+      id: existing?.id || `agent_${personality.id.replace(/[^A-Za-z0-9_]/g, '_')}`,
+      kind: personality.kind,
+      presetId: personality.id,
+      enabled: existing?.enabled ?? personality.defaultEnabled,
+      providerId: existing?.providerId || defaultProviderId,
+      nickname: personality.name,
+      username: personality.id.replace(/-/g, '_'),
+      avatar: existing?.avatar || personality.name.slice(0, 1),
+      annotationColor: existing?.annotationColor || personality.defaultColor,
+      annotationDensity: normalizeAnnotationDensity(existing?.annotationDensity) || 'medium',
+      temperature: personality.temperature,
+      soul: personality.soul,
+      createdAt: existing?.createdAt || now,
+      updatedAt: existing?.updatedAt || now,
+    };
+    upsertAgent(database, agent);
+  }
+}
+
 function readStoreRows(database: StoreDatabase): DesktopStore {
   const user = database.select().from(schema.userProfiles).limit(1).get();
   const settings = database.select().from(schema.appSettings).limit(1).get();
   const providerRows = database.select().from(schema.providers).all();
+  ensurePresetAgents(database, providerRows, settings);
   const agentRows = database.select().from(schema.agents).all();
   const articleRows = database.select().from(schema.articles).all();
   const annotationRows = database.select().from(schema.annotations).all();
@@ -400,6 +444,8 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     agents: agentRows.map((row) => ({
       id: row.id,
       kind: normalizeAgentKind(row.kind) || 'annotation',
+      presetId: row.presetId || undefined,
+      enabled: Boolean(row.enabled),
       providerId: row.providerId,
       nickname: row.nickname,
       username: row.username,
@@ -649,6 +695,8 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
     .values({
       id: agent.id,
       kind: agent.kind,
+      presetId: agent.presetId,
+      enabled: agent.enabled,
       providerId: agent.providerId,
       nickname: agent.nickname,
       username: agent.username,
@@ -665,6 +713,8 @@ function upsertAgent(database: StoreExecutor, agent: Agent) {
       set: {
         providerId: agent.providerId,
         kind: agent.kind,
+        presetId: agent.presetId,
+        enabled: agent.enabled,
         nickname: agent.nickname,
         username: agent.username,
         avatar: agent.avatar,
@@ -698,6 +748,7 @@ function normalizeStore(store: DesktopStore): DesktopStore {
       Object.assign({}, agent, {
         annotationColor: agent.annotationColor || '#8ab6d6',
         kind: normalizeAgentKind(agent.kind) || 'annotation',
+        enabled: agent.enabled ?? true,
         annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || 'medium',
         temperature: normalizeTemperature(agent.temperature),
       }),

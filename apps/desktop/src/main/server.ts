@@ -174,7 +174,9 @@ async function handleMessage(socket: WebSocket, raw: string) {
         requestId: message.requestId,
         user: toPublicUser(store.user),
         settings: store.settings,
-        agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
+        agents: toPublicAgents(
+          store.agents.filter((agent) => agent.kind === 'annotation' && agent.enabled),
+        ),
       });
       return;
     }
@@ -220,7 +222,11 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === 'agent:message') {
       const store = await readStore();
-      const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
+      const agent = findAgent(
+        store.agents.filter((item) => item.enabled),
+        message.payload.agentId,
+        message.payload.agentUsername,
+      );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
       const provider = store.providers.find((item) => item.id === agent.providerId);
@@ -275,7 +281,11 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     if (message.type === 'agent:annotate') {
       const store = await readStore();
-      const agent = findAgent(store.agents, message.payload.agentId, message.payload.agentUsername);
+      const agent = findAgent(
+        store.agents.filter((item) => item.enabled),
+        message.payload.agentId,
+        message.payload.agentUsername,
+      );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
       const provider = store.providers.find((item) => item.id === agent.providerId);
@@ -354,7 +364,9 @@ async function sendStatus(socket: WebSocket) {
     ok: true,
     user: toPublicUser(store.user),
     settings: store.settings,
-    agents: toPublicAgents(store.agents.filter((agent) => agent.kind === 'annotation')),
+    agents: toPublicAgents(
+      store.agents.filter((agent) => agent.kind === 'annotation' && agent.enabled),
+    ),
     pairingId: pairing.pairingId,
   });
 }
@@ -379,6 +391,8 @@ function toPublicAgents(agents: Agent[]): PublicAgent[] {
   return agents.map((agent) => ({
     id: agent.id,
     kind: agent.kind,
+    enabled: agent.enabled,
+    presetId: agent.presetId,
     nickname: agent.nickname,
     username: agent.username,
     avatar: agent.avatar,

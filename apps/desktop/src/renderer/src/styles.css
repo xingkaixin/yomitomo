@@ -601,6 +601,87 @@
   margin-bottom: 18px;
 }
 
+.agent-profile-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 8px;
+  background: hsl(42 52% 96% / 0.78);
+  padding: 14px;
+}
+
+.agent-profile-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.agent-profile-hero span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.agent-profile-hero h4 {
+  margin: 3px 0 5px;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 920;
+}
+
+.agent-profile-hero p,
+.agent-profile-scenes p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.agent-profile-scenes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.agent-profile-scenes > div {
+  min-width: 0;
+  border: 1px solid hsl(var(--border) / 0.54);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.72);
+  padding: 10px;
+}
+
+.agent-profile-scenes strong {
+  display: block;
+  margin-bottom: 5px;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.agent-enable-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  padding: 0 14px;
+}
+
+.agent-enable-toggle.is-enabled {
+  border-color: hsl(145 31% 45% / 0.36);
+  background: hsl(138 38% 88% / 0.72);
+  color: hsl(145 35% 24%);
+}
+
 .agent-create-overlay {
   position: fixed;
   inset: 0;

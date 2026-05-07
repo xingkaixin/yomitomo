@@ -7,12 +7,9 @@ import {
   Image as ImageIcon,
   KeyRound,
   Keyboard,
-  ListChecks,
   Plus,
   RefreshCw,
   Save,
-  Scale,
-  Search,
   Trash2,
   Unplug,
   Upload,
@@ -22,14 +19,10 @@ import type { Agent, AgentKind, AppSettings, LlmProvider, ProviderType } from '@
 import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
 import {
   agentKindLabel,
-  agentKindOptions,
   agentPersonalities,
   agentPersonalityName,
   annotationColors,
   annotationDensityOptions,
-  customPersonality,
-  customPersonalityId,
-  defaultAgentSoul,
   findAgentPersonalityId,
   personalitiesForKind,
   sanitizeUsernameInput,
@@ -98,7 +91,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-import { Textarea } from './components/ui/textarea';
 import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
 import type { ProviderOption, SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
@@ -557,8 +549,6 @@ export function AgentSettings({
   selectedId,
   canSave,
   onChange,
-  onCreate,
-  onDelete,
   onSave,
   saveState,
   onSelect,
@@ -570,43 +560,33 @@ export function AgentSettings({
   selectedId: string | null;
   canSave: boolean;
   onChange: (draft: AgentDraft) => void;
-  onCreate: (kind: AgentKind) => void;
-  onDelete: (id: string) => void;
   onSave: () => void;
   saveState: SaveState;
   onSelect: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('all');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const filteredAgents =
     filter === 'all' ? agents : agents.filter((agent) => (agent.kind || 'annotation') === filter);
   const emptyKindLabel = filter === 'all' ? '助手' : agentKindLabel(filter);
-
-  function createAgent(kind: AgentKind) {
-    setFilter(kind);
-    setCreateDialogOpen(false);
-    onCreate(kind);
-  }
 
   return (
     <div className="settings-panel">
       <PanelHeader
         icon={<Bot size={20} />}
         title="助手"
-        description="管理助手身份、头像、供应商和个性。"
+        description="选择启用哪些预设助手，并为它们配置供应商、颜色和批注密度。"
       />
       <div className="settings-detail-grid">
         <ConfigList
-          createLabel="新增助手"
           empty={
             <div className="agent-list-empty">
               <Bot size={22} />
               <strong>还没有{emptyKindLabel}</strong>
-              <p>选择类型后创建助手，配置项会按用途展开。</p>
+              <p>配置供应商后会自动生成预设助手库。</p>
             </div>
           }
-          title="已配置助手"
+          title="预设助手"
           controls={
             <AgentFilterTabs
               agents={agents}
@@ -621,10 +601,12 @@ export function AgentSettings({
               }}
             />
           }
-          onCreate={() => setCreateDialogOpen(true)}
         >
           {filteredAgents.map((agent) => {
             const personalityName = agentPersonalityName(agent);
+            const personality = agentPersonalities.find(
+              (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
+            );
             return (
               <button
                 className={
@@ -635,14 +617,14 @@ export function AgentSettings({
                 onClick={() => onSelect(agent)}
               >
                 <AvatarImage
-                  value={avatarForKind(agent.avatar, agent.kind)}
+                  value={agent.avatar}
                   className="size-10"
                   fallback="AI"
                 />
                 <span className="min-w-0">
                   <strong>{agent.nickname}</strong>
                   <span>
-                    {agentKindLabel(agent.kind)} · {personalityName}
+                    {agent.enabled ? '已启用' : '未启用'} · {personality?.roleTitle || personalityName}
                   </span>
                 </span>
               </button>
@@ -652,25 +634,14 @@ export function AgentSettings({
         <section className="detail-pane">
           <div className="detail-pane-header">
             <div>
-              <h3>{draft.id ? '编辑助手' : '新增助手'}</h3>
+              <h3>{draft.nickname || '选择助手'}</h3>
               <p>
                 {providers.length > 0
-                  ? '选择预设个性，或切换到自定义个性。'
-                  : '先配置供应商，再保存助手。'}
+                  ? '启用后会出现在对应阅读或审核工作流里。'
+                  : '先配置供应商，再启用助手。'}
               </p>
             </div>
             <div className="flex gap-2">
-              {draft.id ? (
-                <Button
-                  className="action-button danger-action"
-                  variant="destructive"
-                  size="icon"
-                  type="button"
-                  onClick={() => onDelete(draft.id!)}
-                >
-                  <Trash2 size={15} />
-                </Button>
-              ) : null}
               <Button
                 className={
                   saveState === 'saved'
@@ -689,9 +660,6 @@ export function AgentSettings({
           <AgentForm draft={draft} error={error} providers={providers} onChange={onChange} />
         </section>
       </div>
-      {createDialogOpen ? (
-        <AgentCreateDialog onClose={() => setCreateDialogOpen(false)} onCreate={createAgent} />
-      ) : null}
     </div>
   );
 }
@@ -699,17 +667,15 @@ export function AgentSettings({
 function ConfigList({
   title,
   children,
-  createLabel = '新增',
   controls,
   empty,
   onCreate,
 }: {
   title: string;
   children: React.ReactNode;
-  createLabel?: string;
   controls?: React.ReactNode;
   empty?: React.ReactNode;
-  onCreate: () => void;
+  onCreate?: () => void;
 }) {
   const hasItems = React.Children.count(children) > 0;
 
@@ -717,10 +683,12 @@ function ConfigList({
     <aside className="config-list">
       <div className="config-list-header">
         <div className="config-list-title">{title}</div>
-        <Button className="action-button create-action" size="sm" type="button" onClick={onCreate}>
-          <Plus size={16} />
-          {createLabel}
-        </Button>
+        {onCreate ? (
+          <Button className="action-button create-action" size="sm" type="button" onClick={onCreate}>
+            <Plus size={16} />
+            新增
+          </Button>
+        ) : null}
       </div>
       {controls}
       <div className="config-list-scroll">{hasItems ? children : empty}</div>
@@ -758,58 +726,6 @@ function AgentFilterTabs({
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function AgentCreateDialog({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void;
-  onCreate: (kind: AgentKind) => void;
-}) {
-  return (
-    <div className="agent-create-overlay" role="presentation" onMouseDown={onClose}>
-      <section
-        aria-labelledby="agent-create-title"
-        aria-modal="true"
-        className="agent-create-dialog"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header>
-          <div>
-            <h3 id="agent-create-title">选择助手类型</h3>
-            <p>不同类型会使用不同头像、个性预设和配置项。</p>
-          </div>
-          <Button
-            className="action-button"
-            size="icon"
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <span aria-hidden="true">×</span>
-          </Button>
-        </header>
-        <div className="agent-create-choice-grid">
-          {agentKindOptions.map((option) => (
-            <button
-              className="agent-create-choice"
-              key={option.value}
-              type="button"
-              onClick={() => onCreate(option.value)}
-            >
-              <span className="agent-create-choice-icon">
-                {option.value === 'review' ? <Scale size={18} /> : <Bot size={18} />}
-              </span>
-              <strong>{option.label}</strong>
-              <span>{option.description}</span>
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
@@ -1116,35 +1032,55 @@ export function AgentForm({
   onChange: (draft: AgentDraft) => void;
 }) {
   const agentKind = draft.kind || 'annotation';
-  const availablePersonalities = personalitiesForKind(agentKind);
-  const rawPersonalityId =
-    draft.personalityId || findAgentPersonalityId(draft.soul || defaultAgentSoul);
-  const personalityId = availablePersonalities.some((item) => item.id === rawPersonalityId)
-    ? rawPersonalityId
-    : customPersonalityId;
-  const isCustomPersonality = personalityId === customPersonalityId;
-
-  function changePersonality(nextId: string) {
-    const personality = availablePersonalities.find((item) => item.id === nextId);
-    if (personality) {
-      onChange({
-        ...draft,
-        personalityId: nextId,
-        soul: personality.soul,
-        temperature: personality.temperature,
-      });
-      return;
-    }
-    onChange({
-      ...draft,
-      personalityId: customPersonalityId,
-      soul: '',
-      temperature: draft.temperature ?? customPersonality.temperature,
-    });
-  }
+  const personality =
+    agentPersonalities.find((item) => item.id === draft.presetId) ||
+    agentPersonalities.find((item) => item.soul === draft.soul) ||
+    personalitiesForKind(agentKind)[0];
 
   return (
     <div className="settings-form-grid">
+      <section className="agent-profile-card col-span-2">
+        <div className="agent-profile-hero">
+          <AvatarImage
+            value={draft.avatar || ''}
+            className="size-20"
+            fallback={draft.nickname?.slice(0, 1) || 'AI'}
+          />
+          <div>
+            <span>{agentKindLabel(agentKind)}</span>
+            <h4>{personality?.roleTitle || draft.nickname}</h4>
+            <p>{personality?.introduction || '选择左侧预设助手查看介绍。'}</p>
+          </div>
+        </div>
+        {personality ? (
+          <div className="agent-profile-scenes">
+            <div>
+              <strong>工作照提示词</strong>
+              <p>{personality.portraitPrompt}</p>
+            </div>
+            <div>
+              <strong>工作场景</strong>
+              <p>{personality.sceneDescription}</p>
+            </div>
+          </div>
+        ) : null}
+      </section>
+      <Field
+        className="col-span-2"
+        id="agent-enabled"
+        description="启用后，这位助手会进入对应的阅读或审核选择列表。"
+        label="启用状态"
+      >
+        <button
+          aria-pressed={Boolean(draft.enabled)}
+          className={draft.enabled ? 'agent-enable-toggle is-enabled' : 'agent-enable-toggle'}
+          type="button"
+          onClick={() => onChange({ ...draft, enabled: !draft.enabled })}
+        >
+          {draft.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
+          <span>{draft.enabled ? '已启用' : '未启用'}</span>
+        </button>
+      </Field>
       <Field id="agent-provider" description="当前助手调用的模型供应商。" label="供应商">
         <Select
           disabled={providers.length === 0}
@@ -1170,34 +1106,7 @@ export function AgentForm({
           </SelectContent>
         </Select>
       </Field>
-      <Field id="agent-nickname" description="批注和评论中展示的名称。" label="昵称">
-        <Input
-          id="agent-nickname"
-          name="agent-nickname"
-          autoComplete="off"
-          value={draft.nickname || ''}
-          onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
-        />
-      </Field>
       <Field
-        className="col-span-2"
-        id="agent-username"
-        description="用于 @ 提及，仅支持英文、数字和下划线。"
-        label="用户名"
-      >
-        <Input
-          id="agent-username"
-          name="agent-username"
-          autoComplete="off"
-          spellCheck={false}
-          value={draft.username || ''}
-          onChange={(event) =>
-            onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
-          }
-        />
-      </Field>
-      <Field
-        className="col-span-2"
         id="agent-color"
         description="这些颜色已按阅读器高亮可见性筛选。"
         label={agentKind === 'review' ? '标识颜色' : '批注颜色'}
@@ -1249,112 +1158,7 @@ export function AgentForm({
           </div>
         </Field>
       ) : null}
-      <Field className="col-span-2" label="头像">
-        <AvatarPicker
-          kind={agentKind}
-          value={draft.avatar || ''}
-          onChange={(avatar) => onChange({ ...draft, avatar })}
-        />
-      </Field>
-      <Field className="col-span-2" id="agent-personality" label="个性">
-        <div className="personality-editor">
-          <div
-            aria-labelledby="agent-personality-label"
-            className="personality-grid"
-            role="radiogroup"
-            onKeyDown={(event) =>
-              moveOptionSelection(
-                event,
-                [
-                  ...availablePersonalities.map((personality) => personality.id),
-                  customPersonalityId,
-                ],
-                personalityId,
-                changePersonality,
-              )
-            }
-          >
-            {availablePersonalities.map((personality) => (
-              <button
-                aria-checked={personalityId === personality.id}
-                className={
-                  personalityId === personality.id
-                    ? 'personality-choice is-active'
-                    : 'personality-choice'
-                }
-                key={personality.id}
-                role="radio"
-                tabIndex={personalityId === personality.id ? 0 : -1}
-                type="button"
-                onClick={() => changePersonality(personality.id)}
-              >
-                <PersonalityIcon type={personality.icon} />
-                <strong>{personality.name}</strong>
-                <span>{personality.description}</span>
-                {personalityId === personality.id ? (
-                  <Check className="personality-check" size={16} />
-                ) : null}
-              </button>
-            ))}
-            <button
-              aria-checked={isCustomPersonality}
-              className={
-                isCustomPersonality ? 'personality-choice is-active' : 'personality-choice'
-              }
-              role="radio"
-              tabIndex={isCustomPersonality ? 0 : -1}
-              type="button"
-              onClick={() => changePersonality(customPersonalityId)}
-            >
-              <PersonalityIcon type={customPersonality.icon} />
-              <strong>{customPersonality.name}</strong>
-              <span>{customPersonality.description}</span>
-              {isCustomPersonality ? <Check className="personality-check" size={16} /> : null}
-            </button>
-          </div>
-          {isCustomPersonality ? (
-            <div className="custom-personality-panel">
-              <Field
-                id="agent-custom-soul"
-                description="保存自定义个性时必填。"
-                label="自定义系统提示词"
-              >
-                <Textarea
-                  id="agent-custom-soul"
-                  name="agent-custom-soul"
-                  aria-describedby="agent-custom-soul-description"
-                  autoComplete="off"
-                  value={draft.soul || ''}
-                  onChange={(event) => onChange({ ...draft, soul: event.target.value })}
-                />
-              </Field>
-              <Field
-                id="agent-temperature"
-                description="数值越高，回复越发散；数值越低，回复越稳定。"
-                label="温度"
-              >
-                <div className="temperature-control">
-                  <input
-                    id="agent-temperature"
-                    name="agent-temperature"
-                    aria-describedby="agent-temperature-description"
-                    max="1"
-                    min="0"
-                    step="0.05"
-                    type="range"
-                    value={draft.temperature ?? customPersonality.temperature}
-                    onChange={(event) =>
-                      onChange({ ...draft, temperature: Number(event.target.value) })
-                    }
-                  />
-                  <strong>{(draft.temperature ?? customPersonality.temperature).toFixed(2)}</strong>
-                </div>
-              </Field>
-            </div>
-          ) : null}
-          {error ? <p className="form-error">{error}</p> : null}
-        </div>
-      </Field>
+      {error ? <p className="form-error col-span-2">{error}</p> : null}
     </div>
   );
 }
@@ -1375,80 +1179,6 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (value: str
         </button>
       ))}
     </div>
-  );
-}
-
-function AvatarPicker({
-  kind,
-  value,
-  onChange,
-}: {
-  kind: AgentKind;
-  value: string;
-  onChange: (avatar: string) => void;
-}) {
-  const avatars = agentAvatarsForKind(kind);
-
-  return (
-    <div className="avatar-picker">
-      <div className="avatar-grid">
-        {avatars.map((avatar) => (
-          <button
-            className={value === avatar.src ? 'avatar-choice is-active' : 'avatar-choice'}
-            key={avatar.id}
-            type="button"
-            onClick={() => onChange(avatar.src)}
-          >
-            <img alt="" src={avatar.src} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PersonalityIcon({
-  type,
-}: {
-  type: (typeof agentPersonalities)[number]['icon'] | 'custom';
-}) {
-  return (
-    <span className={`personality-icon is-${type}`}>
-      {type === 'lens' ? <Search size={17} /> : null}
-      {type === 'scales' ? <Scale size={17} /> : null}
-      {type === 'checklist' ? <ListChecks size={17} /> : null}
-      {type === 'leaf' ? (
-        <svg aria-hidden="true" viewBox="0 0 32 32">
-          <path d="M8 18c7-9 13-9 18-9-1 9-6 15-15 15" />
-          <path d="M7 25c5-6 10-9 16-11" />
-        </svg>
-      ) : null}
-      {type === 'pyramid' ? (
-        <svg aria-hidden="true" viewBox="0 0 32 32">
-          <path d="M16 5 5 27h22L16 5Z" />
-          <path d="M11 18h10" />
-          <path d="M9 23h14" />
-        </svg>
-      ) : null}
-      {type === 'question' ? (
-        <svg aria-hidden="true" viewBox="0 0 32 32">
-          <path d="M12 12a5 5 0 1 1 8 4c-2 1.4-4 2.6-4 5" />
-          <path d="M16 26h.01" />
-        </svg>
-      ) : null}
-      {type === 'quill' ? (
-        <svg aria-hidden="true" viewBox="0 0 32 32">
-          <path d="M25 6c-7 1-12 4-15 9-2 3-2 6 0 8 2 2 5 2 8 0 5-3 8-8 9-15" />
-          <path d="M8 25c4-4 8-8 12-12" />
-        </svg>
-      ) : null}
-      {type === 'custom' ? (
-        <svg aria-hidden="true" viewBox="0 0 32 32">
-          <path d="M16 7v18" />
-          <path d="M7 16h18" />
-        </svg>
-      ) : null}
-    </span>
   );
 }
 

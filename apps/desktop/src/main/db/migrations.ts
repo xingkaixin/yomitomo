@@ -218,4 +218,11 @@ ALTER TABLE articles ADD COLUMN theme_color TEXT;
 ALTER TABLE app_settings ADD COLUMN save_article_images INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    id: '0016_agent_presets_enabled',
+    sql: `
+ALTER TABLE agents ADD COLUMN preset_id TEXT;
+ALTER TABLE agents ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
+`,
+  },
 ];
