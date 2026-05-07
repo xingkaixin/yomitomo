@@ -3,6 +3,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ChevronUp,
   RefreshCcw,
   MessageSquare,
@@ -39,11 +40,20 @@ import {
 } from '@yomitomo/core';
 import { commentAuthorProfile, formatDate, formatDateTime, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './components/ui/select';
 import { AvatarImage, CopyIconButton, OpenArticleButton } from './app-ui';
 import { ReadingCard } from './app-reading-card-panel';
 import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
+const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 
 type SourceAnnotationStyle = React.CSSProperties & {
   '--source-note-color'?: string;
@@ -285,6 +295,23 @@ function LibraryHome({
   onOpenArticle: (article: ArticleRecord) => void;
   onRefresh: () => void;
 }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
+  const pageCount = Math.max(1, Math.ceil(sortedArticles.length / pageSize));
+  const pageArticles = sortedArticles.slice((page - 1) * pageSize, page * pageSize);
+  const pageNumbers = useMemo(() => {
+    const visibleCount = Math.min(5, pageCount);
+    const start = Math.min(
+      Math.max(1, page - Math.floor(visibleCount / 2)),
+      pageCount - visibleCount + 1,
+    );
+    return Array.from({ length: visibleCount }, (_, index) => start + index);
+  }, [page, pageCount]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount));
+  }, [pageCount]);
+
   return (
     <section className="library-home">
       <header className="library-home-header">
@@ -299,29 +326,80 @@ function LibraryHome({
           刷新
         </Button>
       </header>
-      <div className="library-home-stats">
-        <LibraryStat label="文章" value={articles.length} />
-        <LibraryStat label="批注" value={stats.annotations} />
-        <LibraryStat label="讨论" value={stats.comments} />
+      <div className="library-home-body">
+        {sortedArticles.length > 0 ? (
+          <div className="library-card-grid">
+            {pageArticles.map((article) => (
+              <ArticleLibraryCard
+                article={article}
+                key={article.id}
+                onDelete={() => void onDeleteArticle(article.id)}
+                onOpen={() => onOpenArticle(article)}
+              />
+            ))}
+          </div>
+        ) : (
+          <section className="library-empty">
+            <BookOpen size={32} />
+            <h3>还没有同步文章</h3>
+            <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+          </section>
+        )}
       </div>
       {sortedArticles.length > 0 ? (
-        <div className="library-card-grid">
-          {sortedArticles.map((article) => (
-            <ArticleLibraryCard
-              article={article}
-              key={article.id}
-              onDelete={() => void onDeleteArticle(article.id)}
-              onOpen={() => onOpenArticle(article)}
-            />
-          ))}
-        </div>
-      ) : (
-        <section className="library-empty">
-          <BookOpen size={32} />
-          <h3>还没有同步文章</h3>
-          <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
-        </section>
-      )}
+        <footer className="library-home-footer">
+          <span>共 {sortedArticles.length} 项</span>
+          <div className="library-pagination" aria-label="阅读库分页">
+            <button
+              type="button"
+              aria-label="上一页"
+              disabled={page === 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            {pageNumbers.map((pageNumber) => (
+              <button
+                className={pageNumber === page ? 'is-active' : undefined}
+                type="button"
+                aria-current={pageNumber === page ? 'page' : undefined}
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
+              >
+                {pageNumber}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-label="下一页"
+              disabled={page === pageCount}
+              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              setPageSize(Number(value));
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="library-page-size-trigger" aria-label="每页显示数量">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="theme-select-content">
+              <SelectGroup>
+                {LIBRARY_PAGE_SIZE_OPTIONS.map((option) => (
+                  <SelectItem value={String(option)} key={option}>
+                    每页 {option} 项
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </footer>
+      ) : null}
     </section>
   );
 }
@@ -405,6 +483,11 @@ function ArticleLibraryCard({
     (count, annotation) => count + annotationThreadComments(annotation).length,
     0,
   );
+  const authorLabel =
+    article.byline ||
+    article.siteName ||
+    urlHost(article.canonicalUrl || article.url) ||
+    '未知作者';
 
   useEffect(
     () => () => {
@@ -432,60 +515,49 @@ function ArticleLibraryCard({
   }
 
   return (
-    <article className="library-card" onClick={onOpen}>
-      <button
-        className="library-card-main"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen();
-        }}
-      >
+    <article className="library-card">
+      <div className="library-card-main">
         <ArticleBook article={article} />
         <div className="library-card-copy">
           <div>
             <h3>{article.title}</h3>
-            <p>
-              {article.byline ||
-                article.siteName ||
-                urlHost(article.canonicalUrl || article.url) ||
-                '未知作者'}{' '}
-              · {formatDate(article.updatedAt)}
-            </p>
-          </div>
-          <div className="library-card-meta">
-            <span>{article.annotations.length} 批注</span>
-            <span>{comments} 评论</span>
-            {article.readingCard ? <span>有读后笔记</span> : null}
+            <p>{authorLabel}</p>
+            <time dateTime={article.updatedAt}>{formatDate(article.updatedAt)}</time>
           </div>
         </div>
-      </button>
+      </div>
       <footer className="library-card-footer">
-        <button className="library-card-open" type="button" onClick={onOpen}>
-          <BookOpen size={15} />
-          查看
-        </button>
-        <button
-          className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
-          style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
-          type="button"
-          aria-label={`长按删除文章：${article.title}`}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-          }}
-          onPointerCancel={stopDeleteHold}
-          onPointerDown={startDeleteHold}
-          onPointerLeave={stopDeleteHold}
-          onPointerUp={stopDeleteHold}
-        >
-          <Trash2 size={14} />
-          <span>长按删除</span>
-        </button>
+        <div className="library-card-meta">
+          <span>{article.annotations.length} 批注</span>
+          <span>{comments} 讨论</span>
+        </div>
+        <div className="library-card-actions">
+          <button
+            className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
+            style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
+            type="button"
+            aria-label={`长按删除文章：${article.title}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onPointerCancel={stopDeleteHold}
+            onPointerDown={startDeleteHold}
+            onPointerLeave={stopDeleteHold}
+            onPointerUp={stopDeleteHold}
+          >
+            <Trash2 size={14} />
+            <span>长按删除</span>
+          </button>
+          <button className="library-card-open" type="button" onClick={onOpen}>
+            <BookOpen size={15} />
+            查看
+          </button>
+        </div>
       </footer>
     </article>
   );
@@ -1271,15 +1343,6 @@ function alphaColor(color: string, alpha: number) {
   const green = Number.parseInt(hex.slice(3, 5), 16);
   const blue = Number.parseInt(hex.slice(5, 7), 16);
   return `rgba(${red},${green},${blue},${alpha})`;
-}
-
-function LibraryStat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="library-stat">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
-  );
 }
 
 function sourceArticleBodyHtml(article: ArticleRecord) {
