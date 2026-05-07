@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
+  Star,
   Trash2,
   Unplug,
   Upload,
@@ -107,7 +108,7 @@ import {
   SelectValue,
 } from './components/ui/select';
 import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
-import type { ProviderOption, SaveState } from './app-types';
+import type { SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 type AvatarOption = { id: string; src: string };
@@ -181,26 +182,6 @@ function writeAgentEnabledFilterPreference(value: boolean) {
   } catch {
     return;
   }
-}
-
-function ProviderOptionContent({ provider }: { provider: ProviderOption }) {
-  const logoSrc = provider.logo ? providerLogoMap[provider.logo] : undefined;
-
-  return (
-    <span className="provider-option-content">
-      {logoSrc ? (
-        <img className="provider-select-logo" src={logoSrc} alt="" />
-      ) : (
-        <span className="provider-select-item-mark" />
-      )}
-      <span className="provider-select-item-copy">
-        <strong>{provider.label}</strong>
-        <span>
-          {provider.type} · {provider.modelName}
-        </span>
-      </span>
-    </span>
-  );
 }
 
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
@@ -298,7 +279,6 @@ export function GeneralSettings({
   draft,
   pairingConnectionStatus,
   pairingInfo,
-  providers,
   settingsDraft,
   canSave,
   onChange,
@@ -310,7 +290,6 @@ export function GeneralSettings({
   draft: UserDraft;
   pairingConnectionStatus: PairingConnectionStatus;
   pairingInfo: PairingInfo | null;
-  providers: ProviderOption[];
   settingsDraft: AppSettings;
   canSave: boolean;
   onChange: (draft: UserDraft) => void;
@@ -400,36 +379,6 @@ export function GeneralSettings({
           />
         </Field>
         <Field
-          id="general-default-provider"
-          className="col-span-2"
-          description="读后笔记等默认 AI 任务会使用这个供应商。"
-          label="默认供应商"
-        >
-          <Select
-            disabled={providers.length === 0}
-            value={settingsDraft.defaultProviderId || ''}
-            onValueChange={(defaultProviderId) =>
-              onSettingsChange({ ...settingsDraft, defaultProviderId })
-            }
-          >
-            <SelectTrigger
-              id="general-default-provider"
-              aria-describedby="general-default-provider-description"
-              aria-labelledby="general-default-provider-label"
-              className="theme-select-trigger provider-select-trigger"
-            >
-              <SelectValue placeholder={providers.length > 0 ? '选择默认供应商' : '先添加供应商'} />
-            </SelectTrigger>
-            <SelectContent className="theme-select-content provider-select-content">
-              {providers.map((provider) => (
-                <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
-                  <ProviderOptionContent provider={provider} />
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field
           id="general-save-images"
           className="col-span-2"
           description="保存文章时把正文图片写入本机数据库，桌面端查看原文时直接读取本地数据。"
@@ -501,6 +450,7 @@ export function GeneralSettings({
 }
 
 export function ProviderSettings({
+  defaultProviderId,
   draft,
   providers,
   selectedId,
@@ -510,10 +460,12 @@ export function ProviderSettings({
   onCreate,
   onDelete,
   onSave,
+  onSetDefault,
   saveState,
   onSelect,
   onTest,
 }: {
+  defaultProviderId?: string;
   draft: ProviderDraft;
   providers: LlmProvider[];
   selectedId: string | null;
@@ -523,11 +475,13 @@ export function ProviderSettings({
   onCreate: () => void;
   onDelete: (id: string) => void;
   onSave: () => void;
+  onSetDefault: (id: string) => void;
   saveState: SaveState;
   onSelect: (provider: LlmProvider) => void;
   onTest: (id: string) => void;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const isDefaultProvider = Boolean(draft.id && draft.id === defaultProviderId);
 
   return (
     <div className="settings-panel">
@@ -549,6 +503,9 @@ export function ProviderSettings({
               type="button"
               onClick={() => onSelect(provider)}
             >
+              {provider.id === defaultProviderId ? (
+                <span className="provider-default-label">默认</span>
+              ) : null}
               <img
                 className="provider-logo"
                 src={
@@ -573,6 +530,22 @@ export function ProviderSettings({
               <p>{draft.id ? '点击左侧其他供应商切换详情。' : '填写完成后保存到供应商列表。'}</p>
             </div>
             <div className="flex gap-2">
+              {draft.id ? (
+                <Button
+                  className={
+                    isDefaultProvider
+                      ? 'action-button provider-default-action is-default'
+                      : 'action-button provider-default-action'
+                  }
+                  disabled={isDefaultProvider}
+                  variant="secondary"
+                  type="button"
+                  onClick={() => onSetDefault(draft.id!)}
+                >
+                  <Star size={15} />
+                  {isDefaultProvider ? '默认供应商' : '设为默认'}
+                </Button>
+              ) : null}
               {draft.id ? (
                 <Button
                   className="action-button test-action"
@@ -934,7 +907,11 @@ export function ProviderForm({
     <div className="settings-form-grid">
       <Field id="provider-preset" className="col-span-2" label="预设服务商">
         <Select value={draft.presetId || ''} onValueChange={applyPreset}>
-          <SelectTrigger id="provider-preset" aria-labelledby="provider-preset-label">
+          <SelectTrigger
+            id="provider-preset"
+            aria-labelledby="provider-preset-label"
+            className="provider-select-trigger"
+          >
             <SelectValue placeholder="选择服务商" />
           </SelectTrigger>
           <SelectContent className="theme-select-content">
@@ -1124,12 +1101,10 @@ function moveOptionSelection<T extends string>(
 export function AgentForm({
   draft,
   error,
-  providers,
   onChange,
 }: {
   draft: AgentDraft;
   error: string;
-  providers: ProviderOption[];
   onChange: (draft: AgentDraft) => void;
 }) {
   const agentKind = draft.kind || 'annotation';
@@ -1181,31 +1156,6 @@ export function AgentForm({
           {draft.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
           <span>{draft.enabled ? '已启用' : '未启用'}</span>
         </button>
-      </Field>
-      <Field id="agent-provider" description="当前助手调用的模型供应商。" label="供应商">
-        <Select
-          disabled={providers.length === 0}
-          value={draft.providerId || providers[0]?.id || ''}
-          onValueChange={(providerId) => onChange({ ...draft, providerId })}
-        >
-          <SelectTrigger
-            id="agent-provider"
-            aria-describedby="agent-provider-description"
-            aria-labelledby="agent-provider-label"
-            className="provider-select-trigger"
-          >
-            <SelectValue placeholder="选择供应商" />
-          </SelectTrigger>
-          <SelectContent className="theme-select-content provider-select-content">
-            <SelectGroup>
-              {providers.map((provider) => (
-                <SelectItem className="provider-select-item" key={provider.id} value={provider.id}>
-                  <ProviderOptionContent provider={provider} />
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
       </Field>
       <Field
         id="agent-color"

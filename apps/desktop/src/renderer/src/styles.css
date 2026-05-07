@@ -524,6 +524,7 @@
 }
 
 .config-list-item {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
@@ -543,8 +544,30 @@
     box-shadow 140ms ease;
 }
 
+.config-list-item .provider-default-label {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  overflow: visible;
+  padding: 4px 7px;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
 .config-list-item.is-plain {
   grid-template-columns: auto 1fr;
+}
+
+.config-list-item:has(.provider-default-label) {
+  padding-right: 64px;
 }
 
 .provider-logo,
@@ -616,6 +639,10 @@
   line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.provider-default-action.is-default {
+  color: hsl(var(--muted-foreground));
 }
 
 .agent-list-empty {

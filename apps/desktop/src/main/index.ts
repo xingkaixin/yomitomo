@@ -186,8 +186,7 @@ function registerIpc() {
   });
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
-    const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
-    if (!provider) throw new Error('请先在通用设置里选择默认供应商');
+    const provider = defaultProvider(store.providers, store.settings);
     const content = await generateReadingCard(provider, input);
     const now = new Date().toISOString();
     const readingCard = {
@@ -209,8 +208,7 @@ function registerIpc() {
     'reading-deliberation:generate',
     async (_event, input: GenerateReadingDeliberationInput) => {
       const store = await readStore();
-      const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
-      if (!provider) throw new Error('请先在通用设置里选择默认供应商');
+      const provider = defaultProvider(store.providers, store.settings);
       const content = await generateReadingDeliberation(provider, input);
       const now = new Date().toISOString();
       const deliberation = {
@@ -244,12 +242,11 @@ function registerIpc() {
       );
     }
 
+    const provider = defaultProvider(store.providers, store.settings);
     const createdAt = new Date().toISOString();
     const reviewerResults: ReadingCardReviewerResult[] = await Promise.all(
       reviewAgents.map(async (agent) => {
         try {
-          const provider = store.providers.find((item) => item.id === agent.providerId);
-          if (!provider) throw new Error(`审核助手 ${agent.nickname} 缺少供应商`);
           const result = await reviewReadingCard(provider, agent, input);
           return createReviewerResult(agent, result, createdAt);
         } catch (error) {
@@ -307,6 +304,12 @@ function sendPairingConnectionStatus(
 
 function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
   mainWindow?.webContents.send('store:updated', store);
+}
+
+function defaultProvider(providers: LlmProvider[], settings: AppSettings): LlmProvider {
+  const provider = providers.find((item) => item.id === settings.defaultProviderId);
+  if (!provider) throw new Error('请先在供应商列表设置默认供应商');
+  return provider;
 }
 
 function createReviewerResult(

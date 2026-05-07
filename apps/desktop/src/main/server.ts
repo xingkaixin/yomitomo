@@ -5,6 +5,7 @@ import type {
   ArticleRecord,
   DesktopServerMessage,
   DesktopStore,
+  LlmProvider,
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
@@ -230,8 +231,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
-      const provider = store.providers.find((item) => item.id === agent.providerId);
-      if (!provider) throw new Error(`Agent ${agent.nickname} 没有关联可用 provider`);
+      const provider = defaultProvider(store);
 
       const comment = {
         id: makeId('comment'),
@@ -289,8 +289,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
-      const provider = store.providers.find((item) => item.id === agent.providerId);
-      if (!provider) throw new Error(`Agent ${agent.nickname} 没有关联可用 provider`);
+      const provider = defaultProvider(store);
 
       logInfo('agent.annotate.start', {
         requestId: message.requestId,
@@ -415,6 +414,12 @@ function findAgent(agents: Agent[], agentId: string | undefined, username: strin
     agents.find((agent) => agent.id === agentId) ||
     agents.find((agent) => agent.username === username)
   );
+}
+
+function defaultProvider(store: DesktopStore): LlmProvider {
+  const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
+  if (!provider) throw new Error('请先在供应商列表设置默认供应商');
+  return provider;
 }
 
 function toPublicUser(user: UserProfile): UserProfile {

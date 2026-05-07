@@ -74,17 +74,6 @@ function App() {
     };
   }, []);
 
-  const providerOptions = useMemo(
-    () =>
-      store.providers.map((provider) => ({
-        id: provider.id,
-        label: provider.name,
-        type: provider.type,
-        modelName: provider.modelName,
-        logo: provider.logo,
-      })),
-    [store.providers],
-  );
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
     [store.user, userDraft],
@@ -200,6 +189,21 @@ function App() {
       }
     } catch (error) {
       setTestState(error instanceof Error ? `保存失败：${error.message}` : '保存失败。');
+      setProviderSaveState('idle');
+    }
+  }
+
+  async function setDefaultProvider(id: string) {
+    if (!window.yomitomoDesktop || store.settings.defaultProviderId === id) return;
+    setProviderSaveState('saving');
+    try {
+      const nextSettings = { ...settingsDraft, defaultProviderId: id };
+      const nextStore = await window.yomitomoDesktop.saveSettings(nextSettings);
+      setStore(nextStore);
+      setSettingsDraft(nextStore.settings);
+      setProviderSaveState('saved');
+      window.setTimeout(() => setProviderSaveState('idle'), 1200);
+    } catch {
       setProviderSaveState('idle');
     }
   }
@@ -338,7 +342,6 @@ function App() {
               draft={userDraft}
               pairingConnectionStatus={pairingConnectionStatus}
               pairingInfo={pairingInfo}
-              providers={providerOptions}
               settingsDraft={settingsDraft}
               canSave={canSaveUser}
               onChange={(draft) => {
@@ -356,6 +359,7 @@ function App() {
           ) : null}
           {activeSetting === 'providers' ? (
             <ProviderSettings
+              defaultProviderId={store.settings.defaultProviderId}
               draft={providerDraft}
               providers={store.providers}
               selectedId={selectedProviderId}
@@ -368,6 +372,7 @@ function App() {
               onCreate={createProvider}
               onDelete={deleteProvider}
               onSave={saveProviderDraft}
+              onSetDefault={setDefaultProvider}
               saveState={providerSaveState}
               onSelect={selectProvider}
               onTest={testProvider}

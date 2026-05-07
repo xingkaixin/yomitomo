@@ -13,7 +13,6 @@ import {
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { Agent } from '@yomitomo/shared';
-import type { ProviderOption } from '../app-types';
 
 const localStorageStore: Record<string, string> = {};
 
@@ -124,15 +123,6 @@ function StatefulProviderForm({ initialDraft }: { initialDraft: typeof emptyProv
 }
 
 describe('AgentForm', () => {
-  const providers: ProviderOption[] = [
-    {
-      id: 'provider_1',
-      label: 'Anthropic',
-      type: 'anthropic',
-      modelName: 'claude-3-5-sonnet-latest',
-      logo: 'anthropic.png',
-    },
-  ];
   const draft: AgentDraft = {
     kind: 'annotation',
     presetId: 'reading-partner',
@@ -147,17 +137,15 @@ describe('AgentForm', () => {
   };
 
   it('links visible labels to agent inputs', () => {
-    render(<AgentForm draft={draft} error="" providers={providers} onChange={vi.fn()} />);
+    render(<AgentForm draft={draft} error="" onChange={vi.fn()} />);
 
-    expect(screen.getByLabelText('供应商')).toBeTruthy();
     expect(screen.getByText('工作照提示词')).toBeTruthy();
     expect(screen.getByRole('button', { name: /已启用/ })).toBeTruthy();
-    expect(document.querySelector('.provider-select-logo')).toBeTruthy();
   });
 
   it('exposes density and enabled controls', () => {
     const onChange = vi.fn();
-    render(<AgentForm draft={draft} error="" providers={providers} onChange={onChange} />);
+    render(<AgentForm draft={draft} error="" onChange={onChange} />);
 
     const densityGroup = screen.getByRole('radiogroup', { name: '批注密度' });
 
@@ -175,7 +163,6 @@ describe('AgentForm', () => {
       <AgentForm
         draft={{ ...draft, kind: 'review', avatar: reviewAgentAvatars[0]?.src }}
         error=""
-        providers={providers}
         onChange={vi.fn()}
       />,
     );
@@ -280,7 +267,6 @@ describe('GeneralSettings', () => {
           pairingId: 'YMT-123456',
           updatedAt: '2026-05-04T00:00:00.000Z',
         }}
-        providers={[]}
         settingsDraft={{}}
         canSave={false}
         onChange={vi.fn()}
@@ -306,7 +292,6 @@ describe('GeneralSettings', () => {
           pairingId: 'YMT-123456',
           updatedAt: '2026-05-04T00:00:00.000Z',
         }}
-        providers={[]}
         settingsDraft={{}}
         canSave={false}
         onChange={vi.fn()}
@@ -327,7 +312,6 @@ describe('GeneralSettings', () => {
         draft={defaultUser}
         pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
         pairingInfo={null}
-        providers={[]}
         settingsDraft={{ saveArticleImages: false }}
         canSave={false}
         onChange={vi.fn()}
