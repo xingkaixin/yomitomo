@@ -2,6 +2,7 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentMessagePayload,
+  AgentPersonality,
   Annotation,
   ArticleRecord,
   Comment,
@@ -10,7 +11,11 @@ import type {
   ReadingCardRecord,
   ReadingCardReviewerResult,
 } from '@yomitomo/shared';
-import { agentReadingIntentOptions, normalizeAgentReadingIntent } from '@yomitomo/shared';
+import {
+  agentPersonalities,
+  agentReadingIntentOptions,
+  normalizeAgentReadingIntent,
+} from '@yomitomo/shared';
 import {
   annotationDensityInstruction,
   buildReadingQuestions,
@@ -69,7 +74,7 @@ export async function testProvider(
 
 export async function runAgentStream(
   provider: LlmProvider,
-  agent: { soul: string; temperature: number; username?: string; nickname?: string },
+  agent: PromptAgent & { temperature: number },
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
@@ -86,6 +91,7 @@ export async function runAgent(
   provider: LlmProvider,
   agent: {
     id: string;
+    presetId?: string;
     username: string;
     nickname: string;
     avatar: string;
@@ -348,8 +354,52 @@ function readingIntentPromptLine(payload: AgentAnnotatePayload | AgentMessagePay
   return option ? `\n\n本轮阅读动作：${option.label}\n动作说明：${option.description}` : '';
 }
 
+type PromptAgent = {
+  presetId?: string;
+  soul: string;
+  username?: string;
+  nickname?: string;
+};
+
+function findAgentPersonality(agent: PromptAgent) {
+  return agentPersonalities.find(
+    (personality) => personality.id === agent.presetId || personality.soul === agent.soul,
+  );
+}
+
+function buildAgentRoleCard(agent: PromptAgent) {
+  const personality = findAgentPersonality(agent);
+  const nickname = agent.nickname || personality?.name || agent.username || '伴读助手';
+  const username = agent.username || nickname;
+  const lines = [
+    '## 角色卡',
+    `- 当前身份：${nickname}（@${username}）`,
+    ...buildPresetRoleLines(personality),
+    '',
+    '## 角色灵魂',
+    agent.soul,
+  ];
+  return lines.filter((line) => line !== null).join('\n');
+}
+
+function buildPresetRoleLines(personality?: AgentPersonality) {
+  if (!personality) return [];
+
+  return [
+    `- 预设身份：${personality.name}，${personality.roleTitle}`,
+    `- 角色类型：${personality.kind}`,
+    `- 性别设定：${personality.gender}`,
+    `- 身份摘要：${personality.description}`,
+    `- 公开介绍：${personality.introduction}`,
+    personality.selfIntroduction ? `- 自我介绍：\n${personality.selfIntroduction}` : null,
+    `- 场景设定：${personality.sceneDescription}`,
+    `- 画像线索：${personality.portraitPrompt}`,
+    `- 阅读场景线索：${personality.scenePrompt}`,
+  ].filter((line): line is string => Boolean(line));
+}
+
 export function buildAgentMessageSystemPrompt(
-  agent: { soul: string; username?: string; nickname?: string },
+  agent: PromptAgent,
   payload: AgentMessagePayload,
 ) {
   const username = agent.username || payload.agentUsername;
@@ -359,7 +409,7 @@ export function buildAgentMessageSystemPrompt(
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
 
-  return `${agent.soul}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份一致性：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，指代你本人。回应涉及你先前批注的问题时，用第一人称承接你的判断。正文里再次提到 ${selfNames} 时，统一写成“我”“我的判断”“我刚才的判断”。\n\n角色表达：回复要体现角色卡里的核心气质、判断习惯和语言质感；从你的专业能力切入，给出有辨识度的判断。`;
+  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
 }
 
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {
@@ -374,7 +424,7 @@ function buildAgentAnnotateSystemPrompt(agent: Agent, payload: AgentAnnotatePayl
   const scope = payload.targetAnchor
     ? `你正在作为网页阅读器里的 @${agent.username} 对读者选中的文本创建批注。批注只围绕目标选区本身展开。`
     : `你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
-  return `${agent.soul}\n\n${scope}${readingIntentSystemPrompt(payload)}`;
+  return `${buildAgentRoleCard(agent)}\n\n${scope}${readingIntentSystemPrompt(payload)}`;
 }
 
 function targetAnchorSuggestion(payload: AgentAnnotatePayload) {
@@ -410,7 +460,7 @@ function readingPlanPrompt(payload: AgentAnnotatePayload) {
 export function buildAgentPrompt(
   provider: LlmProvider,
   payload: AgentMessagePayload,
-  agent?: { username?: string; nickname?: string },
+  agent?: PromptAgent,
 ) {
   const comments = payload.annotation.comments
     .map((comment) => {
@@ -430,7 +480,7 @@ export function buildAgentPrompt(
 
 function buildAgentSelfInstruction(
   payload: AgentMessagePayload,
-  currentAgent?: { username?: string; nickname?: string },
+  currentAgent?: PromptAgent,
 ) {
   const username = currentAgent?.username || payload.agentUsername;
   const nickname = currentAgent?.nickname || username;
@@ -439,12 +489,12 @@ function buildAgentSelfInstruction(
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
 
-  return `本轮发言者：${nickname}（@${username}）\n自我称谓规则：读者评论里的 ${selfNames} 都指向你本人。承接自己的批注和判断时，使用“我”“我的判断”“我刚才的判断”。称呼其他助手时使用对方昵称或 @。`;
+  return `本轮发言者：${nickname}（@${username}）\n身份识别规则：读者评论里的 ${selfNames} 指向你本人。先判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。`;
 }
 
 function buildAgentMessageParticipants(
   payload: AgentMessagePayload,
-  currentAgent?: { username?: string; nickname?: string },
+  currentAgent?: PromptAgent,
 ) {
   const participants = new Map<string, string>();
   const currentUsername = currentAgent?.username || payload.agentUsername;

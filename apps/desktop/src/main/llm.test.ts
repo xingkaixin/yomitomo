@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
+import { readingPartnerSoul } from '@yomitomo/shared';
 import { buildAgentMessageSystemPrompt, buildAgentPrompt, extractJsonObjects } from './llm';
 
 describe('extractJsonObjects', () => {
@@ -120,16 +121,25 @@ describe('agent message prompts', () => {
 
   it('anchors the current agent identity in the system prompt', () => {
     const prompt = buildAgentMessageSystemPrompt(
-      { soul: '角色卡', username: lin.username, nickname: lin.nickname },
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
       payload,
     );
 
+    expect(prompt).toContain('## 角色卡');
+    expect(prompt).toContain('- 身份摘要：安静陪读，帮你把原文、上下文和读者问题稳稳接起来。');
+    expect(prompt).toContain('你好，我是知微。');
+    expect(prompt).toContain('## 角色灵魂');
     expect(prompt).toContain('你就是 林知微（@林知微）');
-    expect(prompt).toContain('回应涉及你先前批注的问题时，用第一人称承接你的判断。');
     expect(prompt).toContain(
-      '正文里再次提到 林知微、@林知微 时，统一写成“我”“我的判断”“我刚才的判断”。',
+      '当前讨论里出现 林知微、@林知微 时，按你本人理解。',
     );
-    expect(prompt).toContain('角色卡里的核心气质、判断习惯和语言质感');
+    expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
+    expect(prompt).toContain('角色卡中的自我介绍、核心气质、判断习惯和输出偏好');
   });
 
   it('includes assistant handles in the discussion context', () => {
@@ -139,7 +149,8 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('- 周砚（@周砚）：可被 @ 的伴读助手');
     expect(prompt).toContain('本轮发言者：林知微（@林知微）');
     expect(prompt).toContain(
-      '读者评论里的 林知微、@林知微 都指向你本人。承接自己的批注和判断时，使用“我”“我的判断”“我刚才的判断”。',
+      '读者评论里的 林知微、@林知微 指向你本人。',
     );
+    expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
   });
 });
