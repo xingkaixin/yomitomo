@@ -143,10 +143,7 @@ export function ReadingLibrary({
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
     if (selectedArticleId === articleId) {
-      setSelectedArticleId(null);
-      setSelectedAnnotationId(null);
-      setSourceFocusAnnotationId(null);
-      setActiveShelf('library');
+      openLibraryShelf();
     }
   }
 
@@ -157,19 +154,36 @@ export function ReadingLibrary({
     setActiveShelf('source');
   }
 
+  function openLibraryShelf() {
+    setSelectedArticleId(null);
+    setSelectedAnnotationId(null);
+    setSourceFocusAnnotationId(null);
+    setActiveShelf('library');
+  }
+
   function openSourceShelf() {
-    const article = selectedArticle || sortedArticles[0] || null;
-    if (!article) return;
-    openArticle(article);
+    if (!selectedArticle) return;
+    setSourceFocusAnnotationId(selectedAnnotation?.id || null);
+    setActiveShelf('source');
   }
 
   function openCardShelf() {
-    const article = selectedArticle || sortedArticles[0] || null;
-    if (!article) return;
-    setSelectedArticleId(article.id);
-    setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
+    if (!selectedArticle) return;
     setSourceFocusAnnotationId(null);
     setActiveShelf('card');
+  }
+
+  if (activeShelf === 'library' || !selectedArticle) {
+    return (
+      <LibraryHome
+        articles={articles}
+        sortedArticles={sortedArticles}
+        stats={stats}
+        onDeleteArticle={deleteLibraryArticle}
+        onOpenArticle={openArticle}
+        onRefresh={onRefresh}
+      />
+    );
   }
 
   return (
@@ -194,7 +208,7 @@ export function ReadingLibrary({
           <LibraryBookcaseRail
             articles={sortedArticles}
             selectedArticleId={selectedArticle?.id || null}
-            onExpand={() => setActiveShelf('library')}
+            onExpand={openLibraryShelf}
             onSelect={openArticle}
           />
         )}
