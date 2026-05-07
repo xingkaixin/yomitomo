@@ -2349,11 +2349,20 @@
   pointer-events: auto;
 }
 
+.source-highlight.is-active::after {
+  position: absolute;
+  inset: 0 -1px;
+  border-radius: 4px;
+  background: var(--highlight-fill, hsl(42 66% 56% / 0.16));
+  content: '';
+}
+
 .source-highlight::before {
   position: absolute;
-  right: 0;
-  bottom: 1px;
-  left: 0;
+  right: min(var(--highlight-edge-size, 0px), 42%);
+  bottom: var(--highlight-offset, -2px);
+  left: min(var(--highlight-edge-size, 0px), 42%);
+  z-index: 1;
   height: var(--highlight-thickness, 4px);
   border-radius: 999px;
   background: var(--highlight-line, #f4c95d);
@@ -2374,14 +2383,18 @@
 }
 
 .source-highlight:focus-visible {
-  box-shadow:
-    0 0 0 2px hsl(48 100% 99%),
-    0 0 0 5px hsl(31 24% 24% / 0.5);
+  outline: 0;
+}
+
+.source-highlight:focus-visible::before {
+  filter: drop-shadow(0 1px 0 hsl(48 100% 99% / 0.72)) drop-shadow(0 0 6px hsl(31 24% 24% / 0.24));
+  opacity: 1;
 }
 
 .source-highlight-dots {
   position: absolute;
-  bottom: -1px;
+  bottom: var(--highlight-dot-offset, -3px);
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -2390,12 +2403,10 @@
 
 .source-highlight-dots.is-start {
   left: 0;
-  transform: translateX(-50%);
 }
 
 .source-highlight-dots.is-end {
   right: 0;
-  transform: translateX(50%);
 }
 
 .source-highlight-dots i {

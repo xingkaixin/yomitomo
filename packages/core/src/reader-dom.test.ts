@@ -6,6 +6,7 @@ import {
   buildHighlightSegments,
   extractTocItems,
   findCurrentTocTarget,
+  highlightSegmentStyle,
   type HighlightBox,
 } from './reader-dom';
 
@@ -78,6 +79,39 @@ describe('reader DOM highlights', () => {
     ]);
 
     expect(segments.find((segment) => segment.left === 40)?.colors).toEqual(['#f4c95d']);
+  });
+
+  it('places the underline below the text rect and uses fill for active state', () => {
+    const segment = buildHighlightSegments([
+      box({ annotationId: 'annotation_1', color: '#f4c95d', height: 30 }),
+    ])[0]!;
+
+    expect(highlightSegmentStyle(segment, true)).toMatchObject({
+      '--highlight-edge-size': '0px',
+      '--highlight-fill': 'rgba(244,201,93,0.16)',
+      '--highlight-offset': '-4px',
+      '--highlight-dot-offset': '-5px',
+      '--highlight-thickness': '4px',
+    });
+    expect(highlightSegmentStyle(segment, false)).toMatchObject({
+      '--highlight-edge-size': '0px',
+      '--highlight-fill': 'rgba(244,201,93,0)',
+      '--highlight-offset': '-4px',
+      '--highlight-dot-offset': '-5px',
+      '--highlight-thickness': '3px',
+    });
+  });
+
+  it('reserves line edges for overlapping contributor dots', () => {
+    const segment = buildHighlightSegments([
+      box({ annotationId: 'annotation_1', contributorId: 'agent_1', color: '#f4c95d' }),
+      box({ annotationId: 'annotation_2', contributorId: 'agent_2', color: '#efa927' }),
+      box({ annotationId: 'annotation_3', contributorId: 'user_1', color: '#9f8bd1' }),
+    ])[0]!;
+
+    expect(highlightSegmentStyle(segment, false)).toMatchObject({
+      '--highlight-edge-size': '22px',
+    });
   });
 });
 

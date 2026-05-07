@@ -311,14 +311,20 @@ export function buildHighlightSegments(boxes: HighlightBox[]): HighlightSegment[
 }
 
 export function highlightSegmentStyle(segment: HighlightSegment, active: boolean) {
+  const underlineOffset = highlightUnderlineOffset(segment.height);
+  const dotWidth = highlightDotWidth(segment.colors.length);
   return {
     top: segment.top,
     left: segment.left,
     width: segment.width,
     height: segment.height,
+    '--highlight-edge-size': dotWidth ? `${dotWidth + 3}px` : '0px',
+    '--highlight-fill': alphaColor(segment.colors[0] || '#f4c95d', active ? 0.16 : 0),
     '--highlight-line': highlightLinePaint(segment.colors),
     '--highlight-opacity': active ? 0.95 : 0.78,
-    '--highlight-thickness': active ? '5px' : '4px',
+    '--highlight-offset': `${underlineOffset}px`,
+    '--highlight-dot-offset': `${underlineOffset - 1}px`,
+    '--highlight-thickness': active ? '4px' : '3px',
   };
 }
 
@@ -410,6 +416,15 @@ function highlightLinePaint(colors: string[]) {
   return `linear-gradient(90deg, ${safeColors
     .map((color, index) => `${color} ${Math.round(index * step)}%`)
     .join(', ')})`;
+}
+
+function highlightUnderlineOffset(height: number) {
+  return -Math.round(Math.min(6, Math.max(2, height * 0.12)));
+}
+
+function highlightDotWidth(count: number) {
+  if (count <= 1) return 0;
+  return count * 5 + (count - 1) * 2;
 }
 
 function getTocEntries(article: HTMLElement, options: ExtractTocOptions): TocEntry[] {
