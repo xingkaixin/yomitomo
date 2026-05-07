@@ -25,6 +25,7 @@
     --chart-1: hsl(83 24% 35%);
     --chart-2: hsl(8 45% 46%);
     --chart-3: hsl(205 30% 38%);
+    --hand-underline-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     --radius: 0.85rem;
     --resize-dur: 300ms;
     --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -755,6 +756,7 @@
 }
 
 .agent-list-heading blockquote {
+  position: relative;
   width: fit-content;
   max-width: 100%;
   margin: 2px 0 0;
@@ -762,11 +764,23 @@
   font-size: 13px;
   font-weight: 680;
   line-height: 1.55;
-  text-decoration-line: underline;
-  text-decoration-style: wavy;
-  text-decoration-color: color-mix(in srgb, var(--agent-accent, hsl(8 45% 46%)) 72%, transparent);
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 0.3em;
+}
+
+.agent-list-heading blockquote::after {
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--agent-accent, hsl(8 45% 46%)) 72%, transparent);
+  content: '';
+  mask-image: var(--hand-underline-mask);
+  mask-repeat: repeat-x;
+  mask-size: 24px 100%;
+  -webkit-mask-image: var(--hand-underline-mask);
+  -webkit-mask-repeat: repeat-x;
+  -webkit-mask-size: 24px 100%;
 }
 
 .agent-list-role {
@@ -2369,10 +2383,10 @@
   content: '';
   filter: drop-shadow(0 1px 0 hsl(48 100% 99% / 0.72));
   opacity: var(--highlight-opacity, 0.78);
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: var(--hand-underline-mask);
   mask-repeat: repeat-x;
   mask-size: 24px 100%;
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  -webkit-mask-image: var(--hand-underline-mask);
   -webkit-mask-repeat: repeat-x;
   -webkit-mask-size: 24px 100%;
 }
@@ -4691,11 +4705,26 @@
 }
 
 .annotation-color-preview-text span {
-  text-decoration-line: underline;
-  text-decoration-color: var(--annotation-color);
-  text-decoration-style: wavy;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 0.28em;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+.annotation-color-preview-text span::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--annotation-color);
+  content: '';
+  mask-image: var(--hand-underline-mask);
+  mask-repeat: repeat-x;
+  mask-size: 24px 100%;
+  -webkit-mask-image: var(--hand-underline-mask);
+  -webkit-mask-repeat: repeat-x;
+  -webkit-mask-size: 24px 100%;
 }
 
 .annotation-color-preview-card {
