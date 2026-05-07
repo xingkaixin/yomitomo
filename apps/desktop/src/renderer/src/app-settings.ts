@@ -105,7 +105,7 @@ export function createEmptyAgent(
     presetId: personality?.id,
     enabled: personality?.defaultEnabled ?? true,
     nickname: kind === 'review' ? '审核助手' : '阅读伙伴',
-    username: kind === 'review' ? 'reviewer' : 'yomitomo',
+    username: personality?.name || (kind === 'review' ? '审核助手' : '阅读伙伴'),
     avatar: defaultAvatar,
     annotationColor: personality?.defaultColor || annotationColors[1],
     annotationDensity: 'medium',

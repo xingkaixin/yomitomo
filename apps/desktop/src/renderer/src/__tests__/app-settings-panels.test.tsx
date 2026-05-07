@@ -169,62 +169,26 @@ describe('AgentForm', () => {
 });
 
 describe('AgentSettings', () => {
-  const providers: ProviderOption[] = [
-    {
-      id: 'provider_1',
-      label: 'Anthropic',
-      type: 'anthropic',
-      modelName: 'claude-3-5-sonnet-latest',
-      logo: 'anthropic.png',
-    },
-  ];
   const agents: Agent[] = [
-    makeAgent('agent_reading', 'annotation', '阅读伙伴', 'yomitomo'),
-    makeAgent('agent_review', 'review', '审核助手', 'reviewer'),
+    makeAgent('agent_reading', 'annotation', '林知微', '林知微'),
+    makeAgent('agent_review', 'review', '梁证言', '梁证言'),
   ];
 
   it('toggles configured preset agents', () => {
-    const onChange = vi.fn();
-    render(
-      <AgentSettings
-        agents={agents}
-        draft={agents[0]!}
-        error=""
-        providers={providers}
-        selectedId={agents[0]!.id}
-        canSave
-        onChange={onChange}
-        onSave={vi.fn()}
-        saveState="idle"
-        onSelect={vi.fn()}
-      />,
-    );
+    const onToggle = vi.fn();
+    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={onToggle} />);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /已启用/ }).at(-1)!);
+    fireEvent.click(screen.getByRole('checkbox', { name: /关闭林知微/ }));
 
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+    expect(onToggle).toHaveBeenCalledWith(agents[0]);
   });
 
   it('filters configured agents by type tabs', () => {
-    const onSelect = vi.fn();
-    render(
-      <AgentSettings
-        agents={agents}
-        draft={agents[0]!}
-        error=""
-        providers={providers}
-        selectedId={agents[0]!.id}
-        canSave
-        onChange={vi.fn()}
-        onSave={vi.fn()}
-        saveState="idle"
-        onSelect={onSelect}
-      />,
-    );
+    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
 
     fireEvent.click(screen.getByRole('tab', { name: /审核助手/ }));
 
-    expect(onSelect).toHaveBeenCalledWith(agents[1]);
+    expect(screen.getByText('梁证言')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /审核助手/ }).getAttribute('aria-selected')).toBe(
       'true',
     );

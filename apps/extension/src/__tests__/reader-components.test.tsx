@@ -153,6 +153,32 @@ describe('Composer', () => {
 
     expect(screen.getByLabelText('批注内容')).toHaveProperty('value', '请 @reader ');
   });
+
+  it('filters mention suggestions by pinyin', () => {
+    const chineseAgent: PublicAgent = {
+      ...agent,
+      id: 'agent_lin',
+      nickname: '林知微',
+      username: '林知微',
+      pinyin: 'lin zhi wei linzhiwei',
+    };
+
+    render(
+      <Composer
+        agents={[chineseAgent]}
+        composer={{ x: 0, y: 0, anchor: annotation.anchor }}
+        desktopConnected
+        shortcutModifier="⌘"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('批注内容'), { target: { value: '请 @lin' } });
+    fireEvent.click(screen.getAllByRole('button', { name: /林知微/ })[0]!);
+
+    expect(screen.getByLabelText('批注内容')).toHaveProperty('value', '请 @林知微 ');
+  });
 });
 
 describe('AnnotationCard', () => {

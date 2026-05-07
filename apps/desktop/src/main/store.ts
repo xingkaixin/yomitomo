@@ -34,6 +34,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId, providerPresets } from '@yomitomo/shared';
 import { agentPersonalities } from '@yomitomo/shared';
+import { presetAgentAvatars } from './agent-avatars';
 import { migrations } from './db/migrations';
 import * as schema from './db/schema';
 
@@ -207,7 +208,7 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
   const store = await readStore();
   const now = new Date().toISOString();
   const existing = input.id ? store.agents.find((agent) => agent.id === input.id) : undefined;
-  const username = normalizeUsername(
+  const username = normalizeAgentUsername(
     input.username || existing?.username || input.nickname || 'agent',
     'agent',
   );
@@ -346,8 +347,9 @@ function ensurePresetAgents(
       enabled: existing?.enabled ?? personality.defaultEnabled,
       providerId: existing?.providerId || defaultProviderId,
       nickname: personality.name,
-      username: personality.id.replace(/-/g, '_'),
-      avatar: existing?.avatar || personality.name.slice(0, 1),
+      username: personality.name,
+      avatar:
+        presetAgentAvatars[personality.id] || existing?.avatar || personality.name.slice(0, 1),
       annotationColor: existing?.annotationColor || personality.defaultColor,
       annotationDensity: normalizeAnnotationDensity(existing?.annotationDensity) || 'medium',
       temperature: personality.temperature,
@@ -959,6 +961,10 @@ function normalizeUsername(value: string, fallback = 'me') {
       .replace(/[^a-zA-Z0-9_]/g, '_')
       .slice(0, 32) || fallback
   );
+}
+
+function normalizeAgentUsername(value: string, fallback = 'agent') {
+  return value.trim().replace(/^@/, '').replace(/\s+/g, '').slice(0, 32) || fallback;
 }
 
 function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {

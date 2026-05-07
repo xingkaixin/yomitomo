@@ -51,6 +51,12 @@ import avatar17Raw from './assets/avatars/lorelei-1777775001230.svg?raw';
 import avatar18Raw from './assets/avatars/lorelei-1777774999602.svg?raw';
 import avatar19Raw from './assets/avatars/lorelei-1777774980195.svg?raw';
 import avatar20Raw from './assets/avatars/lorelei-1777774975114.svg?raw';
+import chenYanshuCover from './assets/agent-profiles/chen-yanshu-cover.webp';
+import guXingjianCover from './assets/agent-profiles/gu-xingjian-cover.webp';
+import linZhiweiCover from './assets/agent-profiles/lin-zhiwei-cover.webp';
+import shenQingyuanCover from './assets/agent-profiles/shen-qingyuan-cover.webp';
+import xuWenquCover from './assets/agent-profiles/xu-wenqu-cover.webp';
+import zhouYanCover from './assets/agent-profiles/zhou-yan-cover.webp';
 import reviewAvatar01Raw from './assets/review-avatars/notionists-1777882430781.svg?raw';
 import reviewAvatar02Raw from './assets/review-avatars/notionists-1777882429343.svg?raw';
 import reviewAvatar03Raw from './assets/review-avatars/notionists-1777882427960.svg?raw';
@@ -96,13 +102,21 @@ import type { ProviderOption, SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 type AvatarOption = { id: string; src: string };
-type AgentFilter = 'all' | AgentKind;
+type AgentFilter = AgentKind;
 
 const agentFilterOptions: Array<{ value: AgentFilter; label: string }> = [
-  { value: 'all', label: '全部助手' },
   { value: 'annotation', label: '阅读助手' },
   { value: 'review', label: '审核助手' },
 ];
+
+const agentCoverMap: Record<string, string> = {
+  'reading-partner': linZhiweiCover,
+  'root-reviewer': zhouYanCover,
+  'question-mentor': xuWenquCover,
+  'insight-editor': chenYanshuCover,
+  'concept-translator': shenQingyuanCover,
+  'structure-navigator': guXingjianCover,
+};
 
 const providerLogoMap: Record<string, string> = {
   'anthropic.png': anthropicLogo,
@@ -543,124 +557,111 @@ export function ProviderSettings({
 
 export function AgentSettings({
   agents,
-  draft,
   error,
-  providers,
-  selectedId,
-  canSave,
-  onChange,
-  onSave,
   saveState,
-  onSelect,
+  onToggle,
 }: {
   agents: Agent[];
-  draft: AgentDraft;
   error: string;
-  providers: ProviderOption[];
-  selectedId: string | null;
-  canSave: boolean;
-  onChange: (draft: AgentDraft) => void;
-  onSave: () => void;
   saveState: SaveState;
-  onSelect: (agent: Agent) => void;
+  onToggle: (agent: Agent) => void;
 }) {
-  const [filter, setFilter] = useState<AgentFilter>('all');
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-  const filteredAgents =
-    filter === 'all' ? agents : agents.filter((agent) => (agent.kind || 'annotation') === filter);
-  const emptyKindLabel = filter === 'all' ? '助手' : agentKindLabel(filter);
+  const [filter, setFilter] = useState<AgentFilter>('annotation');
+  const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
+  const emptyKindLabel = agentKindLabel(filter);
+  const statusText =
+    error ||
+    (saveState === 'saving'
+      ? '正在保存助手状态。'
+      : saveState === 'saved'
+        ? '助手状态已保存。'
+        : '');
 
   return (
     <div className="settings-panel">
       <PanelHeader
         icon={<Bot size={20} />}
         title="助手"
-        description="选择启用哪些预设助手，并为它们配置供应商、颜色和批注密度。"
+        description={statusText || '按阅读助手和审核助手查看角色卡片，控制它们是否进入对应工作流。'}
       />
-      <div className="settings-detail-grid">
-        <ConfigList
-          empty={
+      <section className="agent-library">
+        <AgentFilterTabs agents={agents} value={filter} onChange={setFilter} />
+        <div className="agent-card-list">
+          {filteredAgents.length === 0 ? (
             <div className="agent-list-empty">
               <Bot size={22} />
               <strong>还没有{emptyKindLabel}</strong>
               <p>配置供应商后会自动生成预设助手库。</p>
             </div>
-          }
-          title="预设助手"
-          controls={
-            <AgentFilterTabs
-              agents={agents}
-              value={filter}
-              onChange={(nextFilter) => {
-                setFilter(nextFilter);
-                const nextAgent =
-                  nextFilter === 'all'
-                    ? agents[0]
-                    : agents.find((agent) => (agent.kind || 'annotation') === nextFilter);
-                if (nextAgent && nextAgent.id !== selectedId) onSelect(nextAgent);
-              }}
+          ) : (
+            filteredAgents.map((agent) => (
+              <AgentProfileListCard agent={agent} key={agent.id} onToggle={onToggle} />
+            ))
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AgentProfileListCard({
+  agent,
+  onToggle,
+}: {
+  agent: Agent;
+  onToggle: (agent: Agent) => void;
+}) {
+  const personalityName = agentPersonalityName(agent);
+  const personality = agentPersonalities.find(
+    (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
+  );
+  const cover = personality ? agentCoverMap[personality.id] : undefined;
+  const intro = personality?.selfIntroduction || personality?.introduction || '';
+  const motto = personality?.description || personalityName;
+
+  return (
+    <article className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}>
+      {cover ? (
+        <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
+      ) : (
+        <div className="agent-list-cover is-placeholder">
+          <AvatarImage
+            value={agent.avatar}
+            className="size-16"
+            fallback={agent.nickname.slice(0, 1)}
+          />
+        </div>
+      )}
+      <div className="agent-list-content">
+        <div className="agent-list-heading">
+          <div className="agent-list-title-row">
+            <AvatarImage
+              value={agent.avatar}
+              className="size-10"
+              fallback={agent.nickname.slice(0, 1)}
             />
-          }
-        >
-          {filteredAgents.map((agent) => {
-            const personalityName = agentPersonalityName(agent);
-            const personality = agentPersonalities.find(
-              (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
-            );
-            return (
-              <button
-                className={
-                  agent.id === selectedId ? 'config-list-item is-active' : 'config-list-item'
-                }
-                key={agent.id}
-                type="button"
-                onClick={() => onSelect(agent)}
-              >
-                <AvatarImage
-                  value={agent.avatar}
-                  className="size-10"
-                  fallback="AI"
-                />
-                <span className="min-w-0">
-                  <strong>{agent.nickname}</strong>
-                  <span>
-                    {agent.enabled ? '已启用' : '未启用'} · {personality?.roleTitle || personalityName}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </ConfigList>
-        <section className="detail-pane">
-          <div className="detail-pane-header">
             <div>
-              <h3>{draft.nickname || '选择助手'}</h3>
-              <p>
-                {providers.length > 0
-                  ? '启用后会出现在对应阅读或审核工作流里。'
-                  : '先配置供应商，再启用助手。'}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                className={
-                  saveState === 'saved'
-                    ? 'action-button save-action is-saved'
-                    : 'action-button save-action'
-                }
-                disabled={!canSave}
-                type="button"
-                onClick={onSave}
-              >
-                {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-                {saveLabel}
-              </Button>
+              <h3>{agent.nickname}</h3>
+              {motto ? <p>{motto}</p> : null}
             </div>
           </div>
-          <AgentForm draft={draft} error={error} providers={providers} onChange={onChange} />
-        </section>
+          <span>{personality?.roleTitle || personalityName}</span>
+        </div>
+        {intro ? <p className="agent-list-intro">{intro}</p> : null}
+        <div className="agent-list-footer">
+          <span>{agent.enabled ? '已启用' : '已关闭'}</span>
+          <label className="agent-card-toggle">
+            <input
+              aria-label={`${agent.enabled ? '关闭' : '启用'}${agent.nickname}`}
+              type="checkbox"
+              checked={agent.enabled}
+              onChange={() => onToggle(agent)}
+            />
+            <span className="settings-toggle-switch" aria-hidden="true" />
+          </label>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -684,7 +685,12 @@ function ConfigList({
       <div className="config-list-header">
         <div className="config-list-title">{title}</div>
         {onCreate ? (
-          <Button className="action-button create-action" size="sm" type="button" onClick={onCreate}>
+          <Button
+            className="action-button create-action"
+            size="sm"
+            type="button"
+            onClick={onCreate}
+          >
             <Plus size={16} />
             新增
           </Button>
@@ -708,10 +714,9 @@ function AgentFilterTabs({
   return (
     <div className="agent-filter-tabs" role="tablist" aria-label="助手过滤">
       {agentFilterOptions.map((option) => {
-        const count =
-          option.value === 'all'
-            ? agents.length
-            : agents.filter((agent) => (agent.kind || 'annotation') === option.value).length;
+        const count = agents.filter(
+          (agent) => (agent.kind || 'annotation') === option.value,
+        ).length;
         return (
           <button
             aria-selected={value === option.value}

@@ -12,16 +12,11 @@ import {
 } from 'lucide-react';
 import type { Agent, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
-  agentDraftHasChanges,
-  agentPersonalities,
-  defaultAgentSoul,
   defaultUser,
   emptyProvider,
   emptyStore,
-  findAgentPersonalityId,
   providerDraftHasChanges,
   userDraftHasChanges,
-  type AgentDraft,
   type ProviderDraft,
   type UserDraft,
 } from './app-settings';
@@ -39,7 +34,6 @@ import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
-const emptyAgent: AgentDraft = { kind: 'annotation', enabled: false };
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -47,9 +41,7 @@ function App() {
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
-  const [agentDraft, setAgentDraft] = useState<AgentDraft>(emptyAgent);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [testState, setTestState] = useState('');
   const [agentSaveError, setAgentSaveError] = useState('');
   const [userSaveState, setUserSaveState] = useState<SaveState>('idle');
@@ -116,19 +108,6 @@ function App() {
     () => providerDraftHasChanges(providerDraft, selectedProvider),
     [providerDraft, selectedProvider],
   );
-  const selectedAgent = useMemo(
-    () => store.agents.find((agent) => agent.id === selectedAgentId) || null,
-    [selectedAgentId, store.agents],
-  );
-  const agentHasChanges = useMemo(
-    () => agentDraftHasChanges(agentDraft, selectedAgent),
-    [agentDraft, selectedAgent],
-  );
-  const canSaveAgent =
-    providerOptions.length > 0 &&
-    agentSaveState !== 'saving' &&
-    Boolean(selectedAgentId) &&
-    agentHasChanges;
   const canSaveProvider =
     providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
   const canSaveUser = userSaveState !== 'saving' && (userHasChanges || settingsHasChanges);
@@ -142,7 +121,6 @@ function App() {
     setUserDraft(nextStore.user);
     setSettingsDraft(nextStore.settings);
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
-    if (nextStore.agents[0]) selectAgent(nextStore.agents[0]);
   }
 
   async function refreshPairingInfo() {
@@ -186,16 +164,6 @@ function App() {
     setProviderDraft(emptyProvider);
     setTestState('');
     setProviderSaveState('idle');
-  }
-
-  function selectAgent(agent: Agent) {
-    setSelectedAgentId(agent.id);
-    setAgentDraft({
-      ...agent,
-      personalityId: findAgentPersonalityId(agent.soul),
-    });
-    setAgentSaveError('');
-    setAgentSaveState('idle');
   }
 
   async function saveUserDraft() {
@@ -244,11 +212,6 @@ function App() {
     const nextProvider = nextStore.providers[0];
     if (nextProvider) selectProvider(nextProvider);
     if (!nextProvider) createProvider();
-    if (!nextStore.agents.some((agent) => agent.id === selectedAgentId)) {
-      const nextAgent = nextStore.agents[0];
-      if (nextAgent) selectAgent(nextAgent);
-      if (!nextAgent) setAgentDraft(emptyAgent);
-    }
   }
 
   async function testProvider(id: string) {
@@ -258,37 +221,18 @@ function App() {
     setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
   }
 
-  async function saveAgentDraft() {
-    if (!window.yomitomoDesktop || !canSaveAgent) return;
-    const personalityId =
-      agentDraft.presetId ||
-      agentDraft.personalityId ||
-      findAgentPersonalityId(agentDraft.soul || defaultAgentSoul);
-    const personality = agentPersonalities.find((item) => item.id === personalityId);
-    const providerId = agentDraft.providerId || store.providers[0]?.id || '';
+  async function toggleAgent(agent: Agent) {
+    if (!window.yomitomoDesktop) return;
     setAgentSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveAgent({
-        ...agentDraft,
-        providerId,
-        presetId: personality?.id || agentDraft.presetId,
-        kind: personality?.kind || agentDraft.kind,
-        nickname: personality?.name || agentDraft.nickname,
-        username: personality?.id.replace(/-/g, '_') || agentDraft.username,
-        soul: personality?.soul || agentDraft.soul,
-        temperature: personality?.temperature ?? agentDraft.temperature,
+        ...agent,
+        enabled: !agent.enabled,
       });
-      const savedAgent = agentDraft.id
-        ? nextStore.agents.find((agent) => agent.id === agentDraft.id)
-        : nextStore.agents.at(-1);
       setStore(nextStore);
       setAgentSaveError('');
-      if (savedAgent) {
-        setSelectedAgentId(savedAgent.id);
-        setAgentDraft({ ...savedAgent, personalityId: findAgentPersonalityId(savedAgent.soul) });
-        setAgentSaveState('saved');
-        window.setTimeout(() => setAgentSaveState('idle'), 1200);
-      }
+      setAgentSaveState('saved');
+      window.setTimeout(() => setAgentSaveState('idle'), 800);
     } catch (error) {
       setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
       setAgentSaveState('idle');
@@ -432,19 +376,9 @@ function App() {
           {activeSetting === 'agents' ? (
             <AgentSettings
               agents={store.agents}
-              draft={agentDraft}
               error={agentSaveError}
-              providers={providerOptions}
-              selectedId={selectedAgentId}
-              canSave={canSaveAgent}
-              onChange={(draft) => {
-                setAgentDraft(draft);
-                setAgentSaveError('');
-                setAgentSaveState('idle');
-              }}
-              onSave={saveAgentDraft}
               saveState={agentSaveState}
-              onSelect={selectAgent}
+              onToggle={toggleAgent}
             />
           ) : null}
           {activeSetting === 'about' ? <AboutSettings /> : null}

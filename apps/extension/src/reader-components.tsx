@@ -967,15 +967,11 @@ export function Composer({
   const matchedAgents =
     mentionQuery === null
       ? []
-      : agents
-          .filter(
-            (agent) =>
-              agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) ||
-              agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase()),
-          )
-          .slice(0, 5);
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
   const mentionedAgents = agents.filter((agent) =>
-    new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=\\s|$)`).test(note),
+    new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=[\\s，。,.!?！？、;；:]|$)`, 'u').test(
+      note,
+    ),
   );
   const canMentionAgents = desktopConnected && agents.length > 0;
 
@@ -1217,13 +1213,7 @@ export function AnnotationCard({
   const matchedAgents =
     mentionQuery === null
       ? []
-      : agents
-          .filter(
-            (agent) =>
-              agent.username.toLowerCase().startsWith(mentionQuery.query.toLowerCase()) ||
-              agent.nickname.toLowerCase().includes(mentionQuery.query.toLowerCase()),
-          )
-          .slice(0, 5);
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
   const primaryComment = annotationPrimaryComment(annotation);
   const threadComments = annotationThreadComments(annotation);
@@ -1582,6 +1572,19 @@ function annotationMentionAgents(annotation: Annotation, agents: PublicAgent[]) 
     ? [authorAgent, ...agents.filter((agent) => agent.username !== authorAgent.username)]
     : agents;
   return ordered;
+}
+
+function matchesAgentMentionQuery(agent: PublicAgent, query: string) {
+  const normalizedQuery = normalizeMentionSearch(query);
+  if (!normalizedQuery) return true;
+
+  return [agent.username, agent.nickname, agent.pinyin || ''].some((value) =>
+    normalizeMentionSearch(value).includes(normalizedQuery),
+  );
+}
+
+function normalizeMentionSearch(value: string) {
+  return value.toLowerCase().replace(/\s+/g, '');
 }
 
 function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {

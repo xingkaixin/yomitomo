@@ -1282,10 +1282,13 @@ function ReaderApp({
   function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {
     let instruction = note.trim();
     for (const agent of mentionedAgents) {
-      instruction = instruction.replace(
-        new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=\\s|$)`, 'g'),
-        ' ',
-      );
+      const handles = [agent.username, agent.nickname].filter(Boolean);
+      for (const handle of handles) {
+        instruction = instruction.replace(
+          new RegExp(`(^|\\s)@${escapeRegExp(handle)}(?=[\\s，。,.!?！？、;；:]|$)`, 'gu'),
+          ' ',
+        );
+      }
     }
     return instruction.replace(/\s+/g, ' ').trim();
   }

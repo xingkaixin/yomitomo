@@ -9,6 +9,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import {
+  agentPersonalities,
   agentPersonalityName,
   hashText,
   isDesktopSocketOriginAllowed,
@@ -388,19 +389,25 @@ function notifySocketStatusChange() {
 }
 
 function toPublicAgents(agents: Agent[]): PublicAgent[] {
-  return agents.map((agent) => ({
-    id: agent.id,
-    kind: agent.kind,
-    enabled: agent.enabled,
-    presetId: agent.presetId,
-    nickname: agent.nickname,
-    username: agent.username,
-    avatar: agent.avatar,
-    annotationColor: agent.annotationColor,
-    annotationDensity: agent.annotationDensity,
-    personalityName: agentPersonalityName(agent),
-    temperature: agent.temperature,
-  }));
+  return agents.map((agent) => {
+    const personality = agentPersonalities.find(
+      (item) => item.id === agent.presetId || item.soul === agent.soul,
+    );
+    return {
+      id: agent.id,
+      kind: agent.kind,
+      enabled: agent.enabled,
+      presetId: agent.presetId,
+      nickname: agent.nickname,
+      username: agent.username,
+      avatar: agent.avatar,
+      annotationColor: agent.annotationColor,
+      annotationDensity: agent.annotationDensity,
+      personalityName: agentPersonalityName(agent),
+      pinyin: personality?.pinyin,
+      temperature: agent.temperature,
+    };
+  });
 }
 
 function findAgent(agents: Agent[], agentId: string | undefined, username: string) {

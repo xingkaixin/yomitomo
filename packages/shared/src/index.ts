@@ -57,10 +57,12 @@ export type AgentPersonality = {
   id: string;
   kind: AgentKind;
   name: string;
+  pinyin?: string;
   roleTitle: string;
   gender: 'female' | 'male';
   description: string;
   introduction: string;
+  selfIntroduction?: string;
   sceneDescription: string;
   portraitPrompt: string;
   scenePrompt: string;
@@ -341,6 +343,7 @@ export type Agent = {
 
 export type PublicAgent = Omit<Agent, 'providerId' | 'soul' | 'createdAt' | 'updatedAt'> & {
   personalityName: string;
+  pinyin?: string;
 };
 
 export function findAgentPersonalityId(soul: string) {

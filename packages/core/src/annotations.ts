@@ -370,15 +370,17 @@ export function updateAnnotationComment(
 }
 
 export function findMentionedAgents(content: string, agents: PublicAgent[]) {
-  const byUsername = new Map(agents.map((agent) => [agent.username, agent]));
+  const byUsername = new Map(
+    agents.flatMap((agent) => [[agent.username, agent] as const, [agent.nickname, agent] as const]),
+  );
   const mentionedAgents: PublicAgent[] = [];
   const seen = new Set<string>();
 
-  for (const match of content.matchAll(/@([a-zA-Z0-9_-]+)/g)) {
+  for (const match of content.matchAll(/@([\p{L}\p{N}_-]+)/gu)) {
     const username = match[1];
     const agent = byUsername.get(username);
-    if (!agent || seen.has(username)) continue;
-    seen.add(username);
+    if (!agent || seen.has(agent.id)) continue;
+    seen.add(agent.id);
     mentionedAgents.push(agent);
   }
 
@@ -387,7 +389,7 @@ export function findMentionedAgents(content: string, agents: PublicAgent[]) {
 
 export function getMentionQuery(content: string, caretIndex: number): MentionQuery | null {
   const prefix = content.slice(0, caretIndex);
-  const match = prefix.match(/(^|\s)@([a-zA-Z0-9_-]*)$/);
+  const match = prefix.match(/(^|\s)@([\p{L}\p{N}_-]*)$/u);
   if (!match || match.index === undefined) return null;
   return {
     query: match[2],

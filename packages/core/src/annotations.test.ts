@@ -246,6 +246,25 @@ describe('annotation core', () => {
     expect(findMentionedAgents('@reader @reader @missing', agents)).toEqual(agents);
   });
 
+  it('finds mentioned agents by Chinese display name', () => {
+    const agents: PublicAgent[] = [
+      {
+        id: 'a',
+        kind: 'annotation',
+        nickname: '林知微',
+        username: '林知微',
+        avatar: '',
+        annotationColor: '#8ab6d6',
+        annotationDensity: 'medium',
+        enabled: true,
+        personalityName: '页边同读者',
+        temperature: 0.35,
+      },
+    ];
+
+    expect(findMentionedAgents('请 @林知微 看看', agents)).toEqual(agents);
+  });
+
   it('detects and replaces the mention under caret', () => {
     const query = getMentionQuery('ask @rea', 8);
 
