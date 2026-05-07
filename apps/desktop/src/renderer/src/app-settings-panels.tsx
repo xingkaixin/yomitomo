@@ -685,7 +685,10 @@ function AgentProfileListCard({
   const pronunciation = personality ? agentPronunciationMap[personality.id] : '';
 
   return (
-    <article className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}>
+    <article
+      className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}
+      style={{ '--agent-accent': agent.annotationColor } as React.CSSProperties}
+    >
       <div className="agent-list-body">
         <div className="agent-list-identity">
           {cover ? (

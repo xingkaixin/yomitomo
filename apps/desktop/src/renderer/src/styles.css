@@ -755,11 +755,18 @@
 }
 
 .agent-list-heading blockquote {
-  margin: 1px 0 0;
+  width: fit-content;
+  max-width: 100%;
+  margin: 2px 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 680;
   line-height: 1.55;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: color-mix(in srgb, var(--agent-accent, hsl(8 45% 46%)) 72%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.3em;
 }
 
 .agent-list-role {
