@@ -59,6 +59,12 @@ import linZhiweiCover from './assets/agent-profiles/lin-zhiwei-cover.webp';
 import shenQingyuanCover from './assets/agent-profiles/shen-qingyuan-cover.webp';
 import xuWenquCover from './assets/agent-profiles/xu-wenqu-cover.webp';
 import zhouYanCover from './assets/agent-profiles/zhou-yan-cover.webp';
+import heMinghengCover from './assets/reviewer-profiles/he-mingheng-cover.webp';
+import liangZhengyanCover from './assets/reviewer-profiles/liang-zhengyan-cover.webp';
+import suDingbaiCover from './assets/reviewer-profiles/su-dingbai-cover.webp';
+import tangJianCover from './assets/reviewer-profiles/tang-jian-cover.webp';
+import xiaGuiningCover from './assets/reviewer-profiles/xia-guining-cover.webp';
+import yeTinglanCover from './assets/reviewer-profiles/ye-tinglan-cover.webp';
 import reviewAvatar01Raw from './assets/review-avatars/notionists-1777882430781.svg?raw';
 import reviewAvatar02Raw from './assets/review-avatars/notionists-1777882429343.svg?raw';
 import reviewAvatar03Raw from './assets/review-avatars/notionists-1777882427960.svg?raw';
@@ -135,6 +141,12 @@ const agentCoverMap: Record<string, string> = {
   'insight-editor': chenYanshuCover,
   'concept-translator': shenQingyuanCover,
   'structure-navigator': guXingjianCover,
+  'evidence-archivist': liangZhengyanCover,
+  'reader-advocate': yeTinglanCover,
+  'final-copy-editor': tangJianCover,
+  'logic-auditor': heMinghengCover,
+  'risk-examiner': suDingbaiCover,
+  'action-calibrator': xiaGuiningCover,
 };
 
 const providerLogoMap: Record<string, string> = {
