@@ -29,6 +29,7 @@ import {
   SettingsNavButton,
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
+import { selectDailyQuote } from './app-daily-quote';
 import type { SaveState } from './app-types';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
@@ -53,6 +54,7 @@ function App() {
   const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
     authenticatedSocketCount: 0,
   });
+  const [dailyQuote, setDailyQuote] = useState(() => selectDailyQuote([], { storage: null }));
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
@@ -74,6 +76,10 @@ function App() {
       offStoreUpdated();
     };
   }, []);
+
+  useEffect(() => {
+    setDailyQuote(selectDailyQuote(store.articles));
+  }, [store.articles]);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
@@ -321,11 +327,12 @@ function App() {
           </nav>
 
           <div className="sidebar-note">
-            <div className="sidebar-plant" />
-            <div className="sidebar-paper">
-              <span>持续阅读</span>
-              <span>持续思考</span>
-              <span>持续成长</span>
+            <div className="daily-quote-card">
+              <div className="daily-quote-header">
+                <strong>{dailyQuote.title}</strong>
+                {dailyQuote.meta ? <span>{dailyQuote.meta}</span> : null}
+              </div>
+              <blockquote>“{dailyQuote.text}”</blockquote>
             </div>
           </div>
 
