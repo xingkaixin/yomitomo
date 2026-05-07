@@ -22,10 +22,11 @@ import {
   annotationStoredColor,
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
+  buildHighlightSegments,
   buildTocAnnotationStats,
   extractTocItems,
   findCurrentTocTarget,
-  highlightStyle,
+  highlightSegmentStyle,
   isPrimaryTocItem,
   rangeFromOffsets,
   rangeHighlightBoxes,
@@ -49,6 +50,25 @@ import { ReadingCard } from './app-reading-card-panel';
 import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
+
+function SourceHighlightDots({ colors }: { colors: string[] }) {
+  if (colors.length <= 1) return null;
+
+  return (
+    <>
+      <span className="source-highlight-dots is-start" aria-hidden="true">
+        {colors.map((color, index) => (
+          <i key={`${color}-${index}`} style={{ backgroundColor: color }} />
+        ))}
+      </span>
+      <span className="source-highlight-dots is-end" aria-hidden="true">
+        {colors.map((color, index) => (
+          <i key={`${color}-${index}`} style={{ backgroundColor: color }} />
+        ))}
+      </span>
+    </>
+  );
+}
 
 export function ReadingLibrary({
   agents,
@@ -283,6 +303,7 @@ function SourceBookcase({
     y: number;
     annotationIds: string[];
   } | null>(null);
+  const highlightSegments = useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
@@ -322,6 +343,12 @@ function SourceBookcase({
           return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
             Object.assign(box, {
               annotationId: annotation.id,
+              contributorId:
+                annotation.agentId ||
+                annotation.agentUsername ||
+                annotation.userId ||
+                annotation.userUsername ||
+                annotation.author,
               color: annotationStoredColor(annotation),
             }),
           );
@@ -465,20 +492,22 @@ function SourceBookcase({
               />
             </article>
             <div className="source-highlight-layer">
-              {boxes.map((box) => (
-                <button
-                  aria-label="打开对应批注"
-                  className={
-                    box.annotationId === selectedAnnotationId
-                      ? 'source-highlight is-active'
-                      : 'source-highlight'
-                  }
-                  key={box.id}
-                  style={highlightStyle(box, box.annotationId === selectedAnnotationId)}
-                  type="button"
-                  onClick={(event) => handleHighlightClick(box.annotationId, event)}
-                />
-              ))}
+              {highlightSegments.map((segment) => {
+                const active = segment.annotationIds.includes(selectedAnnotationId || '');
+                const annotationId = segment.annotationIds[0] || '';
+                return (
+                  <button
+                    aria-label="打开对应批注"
+                    className={active ? 'source-highlight is-active' : 'source-highlight'}
+                    key={`source-highlight-${segment.id}`}
+                    style={highlightSegmentStyle(segment, active) as React.CSSProperties}
+                    type="button"
+                    onClick={(event) => handleHighlightClick(annotationId, event)}
+                  >
+                    <SourceHighlightDots colors={segment.colors} />
+                  </button>
+                );
+              })}
             </div>
             {highlightChoice ? (
               <SourceHighlightChoiceMenu

@@ -461,6 +461,12 @@ function ReaderApp({
         nextBoxes.push({
           ...box,
           annotationId: annotation.id,
+          contributorId:
+            annotation.agentId ||
+            annotation.agentUsername ||
+            annotation.userId ||
+            annotation.userUsername ||
+            annotation.author,
           color: annotationColor(annotation, userProfile, agents),
         });
       });

@@ -28,6 +28,7 @@ import {
   findAgentPersonalityId,
   personalitiesForKind,
   sanitizeUsernameInput,
+  userAnnotationColors,
   type AgentDraft,
   type ProviderDraft,
   type UserDraft,
@@ -325,6 +326,14 @@ export function GeneralSettings({
   const pairingDescription = extensionConnected
     ? `${readerSessionCount} 个阅读器会话正在连接本机`
     : '打开浏览器阅读器后会自动连接本机';
+  const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
+    ? draft.annotationColor || userAnnotationColors[0]
+    : userAnnotationColors[0];
+
+  React.useEffect(() => {
+    if (!draft.annotationColor || userAnnotationColors.includes(draft.annotationColor)) return;
+    onChange({ ...draft, annotationColor: userAnnotationColors[0] });
+  }, [draft, onChange]);
 
   return (
     <div className="settings-panel">
@@ -379,8 +388,14 @@ export function GeneralSettings({
           />
         </Field>
         <Field className="col-span-2" label="批注颜色">
+          <AnnotationColorPreview
+            avatar={draft.avatar || ''}
+            color={selectedAnnotationColor}
+            nickname={draft.nickname || '我'}
+          />
           <ColorPicker
-            value={draft.annotationColor || annotationColors[0]}
+            colors={userAnnotationColors}
+            value={selectedAnnotationColor}
             onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
           />
         </Field>
@@ -1198,6 +1213,7 @@ export function AgentForm({
         label={agentKind === 'review' ? '标识颜色' : '批注颜色'}
       >
         <ColorPicker
+          colors={annotationColors}
           value={draft.annotationColor || annotationColors[1]}
           onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
         />
@@ -1249,10 +1265,49 @@ export function AgentForm({
   );
 }
 
-function ColorPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function AnnotationColorPreview({
+  avatar,
+  color,
+  nickname,
+}: {
+  avatar: string;
+  color: string;
+  nickname: string;
+}) {
+  return (
+    <div
+      className="annotation-color-preview"
+      style={{ '--annotation-color': color } as React.CSSProperties}
+    >
+      <div className="annotation-color-preview-text">
+        <p>
+          阅读时看到值得保留的句子，
+          <span>可以用下划线轻轻标出来</span>，旁边会留下你的批注。
+        </p>
+      </div>
+      <div className="annotation-color-preview-card">
+        <AvatarImage value={avatar} className="size-8" fallback={nickname.slice(0, 1) || '我'} />
+        <div>
+          <strong>{nickname}</strong>
+          <p>这里值得留一条自己的判断。</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ColorPicker({
+  colors,
+  value,
+  onChange,
+}: {
+  colors: string[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div className="color-swatches">
-      {annotationColors.map((color) => (
+      {colors.map((color) => (
         <button
           className={value === color ? 'color-swatch is-active' : 'color-swatch'}
           key={color}

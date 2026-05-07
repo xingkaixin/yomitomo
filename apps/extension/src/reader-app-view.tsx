@@ -18,7 +18,12 @@ import {
 } from '@yomitomo/core';
 import type { ExtractedArticle } from './article-extraction';
 import type { HighlightBox, TocItem } from './reader-dom';
-import { buildTocAnnotationStats, highlightStyle, isPrimaryTocItem } from './reader-utils';
+import {
+  buildHighlightSegments,
+  buildTocAnnotationStats,
+  highlightSegmentStyle,
+  isPrimaryTocItem,
+} from './reader-utils';
 import {
   AgentAnnotateMenu,
   AnnotationCard,
@@ -57,6 +62,25 @@ type AnnotationRailItem = {
   stackIndex: number;
   style: React.CSSProperties;
 };
+
+function HighlightDots({ colors }: { colors: string[] }) {
+  if (colors.length <= 1) return null;
+
+  return (
+    <>
+      <span className="reader-highlight-dots is-start" aria-hidden="true">
+        {colors.map((color, index) => (
+          <i key={`${color}-${index}`} style={{ backgroundColor: color }} />
+        ))}
+      </span>
+      <span className="reader-highlight-dots is-end" aria-hidden="true">
+        {colors.map((color, index) => (
+          <i key={`${color}-${index}`} style={{ backgroundColor: color }} />
+        ))}
+      </span>
+    </>
+  );
+}
 
 type ReaderAppViewProps = {
   activeConnection: ActiveConnection | null;
@@ -213,6 +237,15 @@ export function ReaderAppView({
     [activeId, boxes, filteredAnnotations],
   );
   const questionCount = React.useMemo(() => countQuestions(annotations), [annotations]);
+  const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
+  const temporarySegments = React.useMemo(
+    () => buildHighlightSegments(temporaryBoxes),
+    [temporaryBoxes],
+  );
+  const agentTheaterSegments = React.useMemo(
+    () => buildHighlightSegments(agentTheaterBoxes),
+    [agentTheaterBoxes],
+  );
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
@@ -404,33 +437,39 @@ export function ReaderAppView({
               />
             </article>
             <div className="reader-highlight-layer">
-              {boxes.map((box) => (
-                <button
-                  aria-label={highlightLabel(box.annotationId)}
-                  className={
-                    box.annotationId === activeId
-                      ? 'reader-highlight is-active'
-                      : 'reader-highlight'
-                  }
-                  key={box.id}
-                  style={highlightStyle(box, box.annotationId === activeId)}
-                  type="button"
-                  onClick={(event) => onHighlightClick(box.annotationId, event)}
-                />
-              ))}
-              {temporaryBoxes.map((box) => (
+              {highlightSegments.map((segment) => {
+                const active = segment.annotationIds.includes(activeId || '');
+                const annotationId = segment.annotationIds[0] || '';
+                return (
+                  <button
+                    aria-label={highlightLabel(annotationId)}
+                    className={active ? 'reader-highlight is-active' : 'reader-highlight'}
+                    key={`highlight-${segment.id}`}
+                    style={highlightSegmentStyle(segment, active) as React.CSSProperties}
+                    type="button"
+                    onClick={(event) => onHighlightClick(annotationId, event)}
+                  >
+                    <HighlightDots colors={segment.colors} />
+                  </button>
+                );
+              })}
+              {temporarySegments.map((segment) => (
                 <div
                   className="reader-highlight is-temporary"
-                  key={box.id}
-                  style={highlightStyle(box, false)}
-                />
+                  key={`temporary-${segment.id}`}
+                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
+                >
+                  <HighlightDots colors={segment.colors} />
+                </div>
               ))}
-              {agentTheaterBoxes.map((box) => (
+              {agentTheaterSegments.map((segment) => (
                 <div
                   className="reader-highlight is-agent-theater"
-                  key={box.id}
-                  style={highlightStyle(box, false)}
-                />
+                  key={`agent-theater-${segment.id}`}
+                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
+                >
+                  <HighlightDots colors={segment.colors} />
+                </div>
               ))}
             </div>
             <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">

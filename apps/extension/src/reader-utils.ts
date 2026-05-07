@@ -2,6 +2,8 @@ import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomit
 import {
   annotationColor,
   buildTocAnnotationStats as buildCoreTocAnnotationStats,
+  buildHighlightSegments,
+  highlightSegmentStyle,
   highlightStyle,
   isPrimaryTocItem,
   timestamp,
@@ -80,7 +82,7 @@ export function clampNumber(value: number | undefined, min: number, max: number,
   return Math.min(max, Math.max(min, value));
 }
 
-export { highlightStyle, isPrimaryTocItem };
+export { buildHighlightSegments, highlightSegmentStyle, highlightStyle, isPrimaryTocItem };
 
 export function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));

@@ -42,6 +42,8 @@ export const annotationColors = [
   '#c8b88a',
 ];
 
+export const userAnnotationColors = ['#f4c95d', '#efa927'];
+
 export const agentKindOptions: Array<{
   value: AgentKind;
   label: string;
@@ -66,7 +68,7 @@ export const defaultUser: UserProfile = {
   nickname: '我',
   username: 'me',
   avatar: '',
-  annotationColor: annotationColors[0],
+  annotationColor: userAnnotationColors[0],
   updatedAt: '',
 };
 

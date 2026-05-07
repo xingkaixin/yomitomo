@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   annotationIdsAtHighlightPoint,
+  buildHighlightSegments,
   extractTocItems,
   findCurrentTocTarget,
   type HighlightBox,
@@ -12,6 +13,7 @@ function box(input: Partial<HighlightBox> & Pick<HighlightBox, 'annotationId'>):
   return {
     id: input.id || input.annotationId,
     annotationId: input.annotationId,
+    contributorId: input.contributorId,
     color: input.color || '#f4c95d',
     top: input.top ?? 10,
     left: input.left ?? 20,
@@ -42,6 +44,40 @@ describe('reader DOM highlights', () => {
     expect(
       annotationIdsAtHighlightPoint([box({ annotationId: 'annotation_1' })], { x: 18, y: 9 }, 2),
     ).toEqual(['annotation_1']);
+  });
+
+  it('splits overlapping highlights into one painted segment per text span', () => {
+    const segments = buildHighlightSegments([
+      box({ annotationId: 'annotation_1', color: '#f4c95d', left: 20, width: 100 }),
+      box({ annotationId: 'annotation_2', color: '#efa927', left: 60, width: 40 }),
+    ]);
+
+    expect(segments.map((segment) => [segment.left, segment.width, segment.colors])).toEqual([
+      [20, 40, ['#f4c95d']],
+      [60, 40, ['#f4c95d', '#efa927']],
+      [100, 20, ['#f4c95d']],
+    ]);
+  });
+
+  it('counts overlapping dots by contributor', () => {
+    const segments = buildHighlightSegments([
+      box({
+        annotationId: 'annotation_1',
+        contributorId: 'user_1',
+        color: '#f4c95d',
+        left: 20,
+        width: 80,
+      }),
+      box({
+        annotationId: 'annotation_2',
+        contributorId: 'user_1',
+        color: '#f4c95d',
+        left: 40,
+        width: 40,
+      }),
+    ]);
+
+    expect(segments.find((segment) => segment.left === 40)?.colors).toEqual(['#f4c95d']);
   });
 });
 

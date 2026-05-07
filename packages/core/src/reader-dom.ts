@@ -1,7 +1,18 @@
 export type HighlightBox = {
   id: string;
   annotationId: string;
+  contributorId?: string;
   color: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
+export type HighlightSegment = {
+  id: string;
+  annotationIds: string[];
+  colors: string[];
   top: number;
   left: number;
   width: number;
@@ -251,6 +262,66 @@ export function highlightStyle(box: HighlightBox, active: boolean, fallbackColor
   };
 }
 
+export function buildHighlightSegments(boxes: HighlightBox[]): HighlightSegment[] {
+  const lineGroups = groupHighlightBoxesByLine(boxes);
+
+  return lineGroups.flatMap((line, lineIndex) => {
+    const edges = [...new Set(line.flatMap((box) => [box.left, box.left + box.width]))].toSorted(
+      (left, right) => left - right,
+    );
+
+    const segments: HighlightSegment[] = [];
+    for (let index = 0; index < edges.length - 1; index += 1) {
+      const left = edges[index]!;
+      const right = edges[index + 1]!;
+      if (right - left < 1) continue;
+
+      const midpoint = (left + right) / 2;
+      const contributors = line.filter(
+        (box) => midpoint >= box.left && midpoint <= box.left + box.width,
+      );
+      if (contributors.length === 0) continue;
+
+      const annotationIds = uniqueStrings(contributors.map((box) => box.annotationId));
+      const colors = uniqueContributors(contributors).map((box) => box.color || '#f4c95d');
+      const previous = segments.at(-1);
+      if (
+        previous &&
+        previous.left + previous.width === left &&
+        sameStrings(previous.annotationIds, annotationIds) &&
+        sameStrings(previous.colors, colors)
+      ) {
+        previous.width = right - previous.left;
+        continue;
+      }
+
+      segments.push({
+        id: `${lineIndex}_${segments.length}_${annotationIds.join('_')}`,
+        annotationIds,
+        colors,
+        top: Math.min(...contributors.map((box) => box.top)),
+        left,
+        width: right - left,
+        height: Math.max(...contributors.map((box) => box.height)),
+      });
+    }
+
+    return segments;
+  });
+}
+
+export function highlightSegmentStyle(segment: HighlightSegment, active: boolean) {
+  return {
+    top: segment.top,
+    left: segment.left,
+    width: segment.width,
+    height: segment.height,
+    '--highlight-line': highlightLinePaint(segment.colors),
+    '--highlight-opacity': active ? 0.95 : 0.78,
+    '--highlight-thickness': active ? '5px' : '4px',
+  };
+}
+
 export function annotationIdsAtHighlightPoint(
   boxes: HighlightBox[],
   point: HighlightPoint,
@@ -284,6 +355,61 @@ export function alphaColor(color: string, alpha: number) {
   const green = Number.parseInt(hex.slice(3, 5), 16);
   const blue = Number.parseInt(hex.slice(5, 7), 16);
   return `rgba(${red},${green},${blue},${alpha})`;
+}
+
+function groupHighlightBoxesByLine(boxes: HighlightBox[]) {
+  const sorted = [...boxes].toSorted(
+    (left, right) => left.top - right.top || left.left - right.left,
+  );
+  const groups: HighlightBox[][] = [];
+
+  for (const box of sorted) {
+    const group = groups.find((items) => {
+      const top = items.reduce((sum, item) => sum + item.top, 0) / items.length;
+      const height = items.reduce((sum, item) => sum + item.height, 0) / items.length;
+      return Math.abs(box.top - top) <= 3 && Math.abs(box.height - height) <= 4;
+    });
+
+    if (group) {
+      group.push(box);
+    } else {
+      groups.push([box]);
+    }
+  }
+
+  return groups;
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+function uniqueContributors(boxes: HighlightBox[]) {
+  const seen = new Set<string>();
+  return boxes.filter((box) => {
+    const contributorId = box.contributorId || box.annotationId;
+    if (seen.has(contributorId)) return false;
+    seen.add(contributorId);
+    return true;
+  });
+}
+
+function sameStrings(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function highlightLinePaint(colors: string[]) {
+  const safeColors = colors.length > 0 ? colors : ['#f4c95d'];
+  if (safeColors.length === 1) return safeColors[0]!;
+  const step = 100 / Math.max(1, safeColors.length - 1);
+  return `linear-gradient(90deg, ${safeColors
+    .map((color, index) => `${color} ${Math.round(index * step)}%`)
+    .join(', ')})`;
 }
 
 function getTocEntries(article: HTMLElement, options: ExtractTocOptions): TocEntry[] {
