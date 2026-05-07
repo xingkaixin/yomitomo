@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
   Agent,
+  AppSettings,
   ArticleRecord,
   DesktopServerMessage,
   DesktopStore,
@@ -233,7 +234,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
-      const provider = defaultProvider(store);
+      const provider = taskProvider(store, 'readingAssistant');
 
       const comment = {
         id: makeId('comment'),
@@ -292,7 +293,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       );
       if (!agent) throw new Error(`找不到 Agent：@${message.payload.agentUsername}`);
 
-      const provider = defaultProvider(store);
+      const provider = taskProvider(store, 'readingAssistant');
 
       logInfo('agent.annotate.start', {
         requestId: message.requestId,
@@ -419,9 +420,24 @@ function findAgent(agents: Agent[], agentId: string | undefined, username: strin
   );
 }
 
-function defaultProvider(store: DesktopStore): LlmProvider {
-  const provider = store.providers.find((item) => item.id === store.settings.defaultProviderId);
-  if (!provider) throw new Error('请先在供应商列表设置默认供应商');
+type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'readingNote';
+
+const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
+  readingAssistant: 'readingAssistantProviderId',
+  reviewAssistant: 'reviewAssistantProviderId',
+  readingNote: 'readingNoteProviderId',
+};
+
+const providerTaskLabels: Record<ProviderTask, string> = {
+  readingAssistant: '阅读理解助手',
+  reviewAssistant: '深度审阅助手',
+  readingNote: '读后笔记助手',
+};
+
+function taskProvider(store: DesktopStore, task: ProviderTask): LlmProvider {
+  const providerId = store.settings[providerTaskSettings[task]] || store.settings.defaultProviderId;
+  const provider = store.providers.find((item) => item.id === providerId);
+  if (!provider) throw new Error(`请先在任务路由选择${providerTaskLabels[task]}供应商`);
   return provider;
 }
 

@@ -515,6 +515,9 @@ export type ReadingCardRecord = {
 
 export type AppSettings = {
   defaultProviderId?: string;
+  readingAssistantProviderId?: string;
+  reviewAssistantProviderId?: string;
+  readingNoteProviderId?: string;
   saveArticleImages?: boolean;
 };
 

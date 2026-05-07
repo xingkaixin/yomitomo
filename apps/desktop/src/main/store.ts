@@ -150,6 +150,9 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
 export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   upsertSettings(getDatabase(), {
     defaultProviderId: input.defaultProviderId || undefined,
+    readingAssistantProviderId: input.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: input.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(input.saveArticleImages),
   });
   return readStore();
@@ -196,8 +199,27 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
   const database = getDatabase();
   database.transaction((tx) => {
     const settings = tx.select().from(schema.appSettings).limit(1).get();
-    if (settings?.defaultProviderId === id) {
-      upsertSettings(tx, { saveArticleImages: Boolean(settings.saveArticleImages) });
+    if (
+      settings?.defaultProviderId === id ||
+      settings?.readingAssistantProviderId === id ||
+      settings?.reviewAssistantProviderId === id ||
+      settings?.readingNoteProviderId === id
+    ) {
+      upsertSettings(tx, {
+        defaultProviderId:
+          settings.defaultProviderId === id ? undefined : settings.defaultProviderId,
+        readingAssistantProviderId:
+          settings.readingAssistantProviderId === id
+            ? undefined
+            : settings.readingAssistantProviderId,
+        reviewAssistantProviderId:
+          settings.reviewAssistantProviderId === id
+            ? undefined
+            : settings.reviewAssistantProviderId,
+        readingNoteProviderId:
+          settings.readingNoteProviderId === id ? undefined : settings.readingNoteProviderId,
+        saveArticleImages: Boolean(settings.saveArticleImages),
+      });
     }
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
   });
@@ -328,10 +350,13 @@ function ensurePresetAgents(
   if (providerRows.length === 0) return;
 
   const defaultProviderId =
-    settings?.defaultProviderId &&
-    providerRows.some((provider) => provider.id === settings.defaultProviderId)
-      ? settings.defaultProviderId
-      : providerRows[0]!.id;
+    settings?.readingAssistantProviderId &&
+    providerRows.some((provider) => provider.id === settings.readingAssistantProviderId)
+      ? settings.readingAssistantProviderId
+      : settings?.defaultProviderId &&
+          providerRows.some((provider) => provider.id === settings.defaultProviderId)
+        ? settings.defaultProviderId
+        : providerRows[0]!.id;
   const agentRows = database.select().from(schema.agents).all();
   const rowsByPreset = new Map(
     agentRows.flatMap((row) => (row.presetId ? [[row.presetId, row] as const] : [])),
@@ -641,6 +666,9 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
   const row = {
     id: 'default',
     defaultProviderId: settings.defaultProviderId || null,
+    readingAssistantProviderId: settings.readingAssistantProviderId || null,
+    reviewAssistantProviderId: settings.reviewAssistantProviderId || null,
+    readingNoteProviderId: settings.readingNoteProviderId || null,
     saveArticleImages: Boolean(settings.saveArticleImages),
     updatedAt: new Date().toISOString(),
   };
@@ -762,6 +790,9 @@ function normalizeStore(store: DesktopStore): DesktopStore {
 function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined): AppSettings {
   return {
     defaultProviderId: row?.defaultProviderId || undefined,
+    readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: row?.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(row?.saveArticleImages),
   };
 }
@@ -769,6 +800,9 @@ function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined):
 function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
     defaultProviderId: settings?.defaultProviderId || undefined,
+    readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: settings?.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(settings?.saveArticleImages),
   };
 }

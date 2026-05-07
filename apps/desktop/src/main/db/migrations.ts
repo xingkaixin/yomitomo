@@ -225,4 +225,19 @@ ALTER TABLE agents ADD COLUMN preset_id TEXT;
 ALTER TABLE agents ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;
 `,
   },
+  {
+    id: '0017_task_provider_routes',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN reading_assistant_provider_id TEXT;
+ALTER TABLE app_settings ADD COLUMN review_assistant_provider_id TEXT;
+ALTER TABLE app_settings ADD COLUMN reading_note_provider_id TEXT;
+
+UPDATE app_settings
+SET
+  reading_assistant_provider_id = default_provider_id,
+  review_assistant_provider_id = default_provider_id,
+  reading_note_provider_id = default_provider_id
+WHERE default_provider_id IS NOT NULL;
+`,
+  },
 ];

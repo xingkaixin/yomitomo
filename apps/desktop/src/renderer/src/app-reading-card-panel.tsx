@@ -536,7 +536,7 @@ function ReadingCardDeck({
           </div>
         </dl>
         <p>
-          {readingCard.providerName || '默认供应商'} · {readingCard.modelName || '模型未记录'} ·{' '}
+          {readingCard.providerName || '任务供应商'} · {readingCard.modelName || '模型未记录'} ·{' '}
           {formatDate(readingCard.updatedAt)}
         </p>
       </section>

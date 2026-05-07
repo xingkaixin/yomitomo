@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
-  Star,
   Trash2,
   Unplug,
   Upload,
@@ -450,48 +449,68 @@ export function GeneralSettings({
 }
 
 export function ProviderSettings({
-  defaultProviderId,
   draft,
+  settingsDraft,
   providers,
   selectedId,
   testState,
   canSave,
+  canSaveRoutes,
   onChange,
+  onRouteChange,
   onCreate,
   onDelete,
   onSave,
-  onSetDefault,
   saveState,
+  routeSaveState,
+  onRouteSave,
   onSelect,
   onTest,
 }: {
-  defaultProviderId?: string;
   draft: ProviderDraft;
+  settingsDraft: AppSettings;
   providers: LlmProvider[];
   selectedId: string | null;
   testState: string;
   canSave: boolean;
+  canSaveRoutes: boolean;
   onChange: (draft: ProviderDraft) => void;
+  onRouteChange: (draft: AppSettings) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
   onSave: () => void;
-  onSetDefault: (id: string) => void;
   saveState: SaveState;
+  routeSaveState: SaveState;
+  onRouteSave: () => void;
   onSelect: (provider: LlmProvider) => void;
   onTest: (id: string) => void;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-  const isDefaultProvider = Boolean(draft.id && draft.id === defaultProviderId);
+  const usedProviderIds = new Set(
+    [
+      settingsDraft.readingAssistantProviderId,
+      settingsDraft.reviewAssistantProviderId,
+      settingsDraft.readingNoteProviderId,
+    ].filter(Boolean),
+  );
 
   return (
     <div className="settings-panel">
       <PanelHeader
         icon={<KeyRound size={20} />}
         title="供应商"
-        description="管理 API 类型、Base URL、模型和 API Key。"
+        description="不同任务选择合适模型，同时管理你的供应商链接。"
+      />
+      <TaskProviderRoutes
+        canSave={canSaveRoutes}
+        providers={providers}
+        saveState={routeSaveState}
+        settingsDraft={settingsDraft}
+        onChange={onRouteChange}
+        onSave={onRouteSave}
       />
       <div className="settings-detail-grid">
-        <ConfigList createLabel="新增供应商" title="已配置供应商" onCreate={onCreate}>
+        <ConfigList title="已配置供应商" onCreate={onCreate}>
           {providers.map((provider) => (
             <button
               className={
@@ -503,8 +522,8 @@ export function ProviderSettings({
               type="button"
               onClick={() => onSelect(provider)}
             >
-              {provider.id === defaultProviderId ? (
-                <span className="provider-default-label">默认</span>
+              {usedProviderIds.has(provider.id) ? (
+                <span className="provider-used-label">已使用</span>
               ) : null}
               <img
                 className="provider-logo"
@@ -530,22 +549,6 @@ export function ProviderSettings({
               <p>{draft.id ? '点击左侧其他供应商切换详情。' : '填写完成后保存到供应商列表。'}</p>
             </div>
             <div className="flex gap-2">
-              {draft.id ? (
-                <Button
-                  className={
-                    isDefaultProvider
-                      ? 'action-button provider-default-action is-default'
-                      : 'action-button provider-default-action'
-                  }
-                  disabled={isDefaultProvider}
-                  variant="secondary"
-                  type="button"
-                  onClick={() => onSetDefault(draft.id!)}
-                >
-                  <Star size={15} />
-                  {isDefaultProvider ? '默认供应商' : '设为默认'}
-                </Button>
-              ) : null}
               {draft.id ? (
                 <Button
                   className="action-button test-action"
@@ -591,6 +594,131 @@ export function ProviderSettings({
         </section>
       </div>
     </div>
+  );
+}
+
+const taskRouteOptions: Array<{
+  key: keyof Pick<
+    AppSettings,
+    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'readingNoteProviderId'
+  >;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    key: 'readingAssistantProviderId',
+    title: '阅读理解助手',
+    description: '用于阅读器批注、追问和理解型对话。',
+    icon: <BookOpen size={18} />,
+  },
+  {
+    key: 'reviewAssistantProviderId',
+    title: '深度审阅助手',
+    description: '用于审核读后笔记的证据、逻辑和表达质量。',
+    icon: <ShieldCheck size={18} />,
+  },
+  {
+    key: 'readingNoteProviderId',
+    title: '读后笔记助手',
+    description: '用于生成审议报告和读后笔记正文。',
+    icon: <Bot size={18} />,
+  },
+];
+
+function TaskProviderRoutes({
+  providers,
+  settingsDraft,
+  canSave,
+  saveState,
+  onChange,
+  onSave,
+}: {
+  providers: LlmProvider[];
+  settingsDraft: AppSettings;
+  canSave: boolean;
+  saveState: SaveState;
+  onChange: (draft: AppSettings) => void;
+  onSave: () => void;
+}) {
+  const saveLabel =
+    saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存任务路由';
+
+  return (
+    <section className="task-route-panel" aria-labelledby="task-route-title">
+      <div className="task-route-header">
+        <div>
+          <h3 id="task-route-title">任务路由</h3>
+          <p>已配置供应商都可以分配给具体任务。</p>
+        </div>
+        <Button
+          className={
+            saveState === 'saved'
+              ? 'action-button save-action is-saved'
+              : 'action-button save-action'
+          }
+          disabled={!canSave}
+          type="button"
+          onClick={onSave}
+        >
+          {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+          {saveLabel}
+        </Button>
+      </div>
+      <div className="task-route-list">
+        {taskRouteOptions.map((option) => (
+          <div className="task-route-row" key={option.key}>
+            <div className="task-route-copy">
+              <span className="task-route-icon">{option.icon}</span>
+              <div>
+                <strong>{option.title}</strong>
+                <p>{option.description}</p>
+              </div>
+            </div>
+            <Select
+              disabled={providers.length === 0}
+              value={settingsDraft[option.key] || ''}
+              onValueChange={(providerId) =>
+                onChange({ ...settingsDraft, [option.key]: providerId })
+              }
+            >
+              <SelectTrigger
+                aria-label={`${option.title}供应商`}
+                className="task-route-select-trigger"
+              >
+                <SelectValue placeholder="选择供应商" />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content provider-select-content">
+                <SelectGroup>
+                  {providers.map((provider) => (
+                    <SelectItem
+                      className="provider-select-item"
+                      key={provider.id}
+                      value={provider.id}
+                    >
+                      <span className="provider-option-content">
+                        <img
+                          className="provider-select-logo"
+                          src={
+                            providerLogoMap[provider.logo || 'anthropic.png'] ||
+                            providerLogoMap['anthropic.png']
+                          }
+                          alt=""
+                        />
+                        <span className="provider-select-item-copy">
+                          <strong>{provider.name}</strong>
+                          <span>{provider.modelName}</span>
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

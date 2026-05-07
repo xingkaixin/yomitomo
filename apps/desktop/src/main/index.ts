@@ -186,7 +186,7 @@ function registerIpc() {
   });
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
-    const provider = defaultProvider(store.providers, store.settings);
+    const provider = taskProvider(store.providers, store.settings, 'readingNote');
     const content = await generateReadingCard(provider, input);
     const now = new Date().toISOString();
     const readingCard = {
@@ -208,7 +208,7 @@ function registerIpc() {
     'reading-deliberation:generate',
     async (_event, input: GenerateReadingDeliberationInput) => {
       const store = await readStore();
-      const provider = defaultProvider(store.providers, store.settings);
+      const provider = taskProvider(store.providers, store.settings, 'readingNote');
       const content = await generateReadingDeliberation(provider, input);
       const now = new Date().toISOString();
       const deliberation = {
@@ -242,7 +242,7 @@ function registerIpc() {
       );
     }
 
-    const provider = defaultProvider(store.providers, store.settings);
+    const provider = taskProvider(store.providers, store.settings, 'reviewAssistant');
     const createdAt = new Date().toISOString();
     const reviewerResults: ReadingCardReviewerResult[] = await Promise.all(
       reviewAgents.map(async (agent) => {
@@ -306,9 +306,28 @@ function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
   mainWindow?.webContents.send('store:updated', store);
 }
 
-function defaultProvider(providers: LlmProvider[], settings: AppSettings): LlmProvider {
-  const provider = providers.find((item) => item.id === settings.defaultProviderId);
-  if (!provider) throw new Error('请先在供应商列表设置默认供应商');
+type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'readingNote';
+
+const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
+  readingAssistant: 'readingAssistantProviderId',
+  reviewAssistant: 'reviewAssistantProviderId',
+  readingNote: 'readingNoteProviderId',
+};
+
+const providerTaskLabels: Record<ProviderTask, string> = {
+  readingAssistant: '阅读理解助手',
+  reviewAssistant: '深度审阅助手',
+  readingNote: '读后笔记助手',
+};
+
+function taskProvider(
+  providers: LlmProvider[],
+  settings: AppSettings,
+  task: ProviderTask,
+): LlmProvider {
+  const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
+  const provider = providers.find((item) => item.id === providerId);
+  if (!provider) throw new Error(`请先在任务路由选择${providerTaskLabels[task]}供应商`);
   return provider;
 }
 

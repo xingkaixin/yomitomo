@@ -46,6 +46,7 @@ function App() {
   const [agentSaveError, setAgentSaveError] = useState('');
   const [userSaveState, setUserSaveState] = useState<SaveState>('idle');
   const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
+  const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
@@ -79,14 +80,23 @@ function App() {
     [store.user, userDraft],
   );
   const settingsHasChanges = useMemo(
+    () => Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
+    [settingsDraft.saveArticleImages, store.settings.saveArticleImages],
+  );
+  const providerRoutesHaveChanges = useMemo(
     () =>
-      (settingsDraft.defaultProviderId || '') !== (store.settings.defaultProviderId || '') ||
-      Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
+      (settingsDraft.readingAssistantProviderId || '') !==
+        (store.settings.readingAssistantProviderId || '') ||
+      (settingsDraft.reviewAssistantProviderId || '') !==
+        (store.settings.reviewAssistantProviderId || '') ||
+      (settingsDraft.readingNoteProviderId || '') !== (store.settings.readingNoteProviderId || ''),
     [
-      settingsDraft.defaultProviderId,
-      settingsDraft.saveArticleImages,
-      store.settings.defaultProviderId,
-      store.settings.saveArticleImages,
+      settingsDraft.readingAssistantProviderId,
+      settingsDraft.reviewAssistantProviderId,
+      settingsDraft.readingNoteProviderId,
+      store.settings.readingAssistantProviderId,
+      store.settings.reviewAssistantProviderId,
+      store.settings.readingNoteProviderId,
     ],
   );
   const selectedProvider = useMemo(
@@ -99,6 +109,7 @@ function App() {
   );
   const canSaveProvider =
     providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
+  const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = userSaveState !== 'saving' && (userHasChanges || settingsHasChanges);
 
   async function refreshStore() {
@@ -160,7 +171,10 @@ function App() {
     setUserSaveState('saving');
     try {
       let nextStore = await window.yomitomoDesktop.saveUser(userDraft);
-      nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
+      nextStore = await window.yomitomoDesktop.saveSettings({
+        ...store.settings,
+        saveArticleImages: settingsDraft.saveArticleImages,
+      });
       setStore(nextStore);
       setUserDraft(nextStore.user);
       setSettingsDraft(nextStore.settings);
@@ -193,18 +207,17 @@ function App() {
     }
   }
 
-  async function setDefaultProvider(id: string) {
-    if (!window.yomitomoDesktop || store.settings.defaultProviderId === id) return;
-    setProviderSaveState('saving');
+  async function saveProviderRoutes() {
+    if (!window.yomitomoDesktop || !canSaveProviderRoutes) return;
+    setRouteSaveState('saving');
     try {
-      const nextSettings = { ...settingsDraft, defaultProviderId: id };
-      const nextStore = await window.yomitomoDesktop.saveSettings(nextSettings);
+      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
       setStore(nextStore);
       setSettingsDraft(nextStore.settings);
-      setProviderSaveState('saved');
-      window.setTimeout(() => setProviderSaveState('idle'), 1200);
+      setRouteSaveState('saved');
+      window.setTimeout(() => setRouteSaveState('idle'), 1200);
     } catch {
-      setProviderSaveState('idle');
+      setRouteSaveState('idle');
     }
   }
 
@@ -359,21 +372,27 @@ function App() {
           ) : null}
           {activeSetting === 'providers' ? (
             <ProviderSettings
-              defaultProviderId={store.settings.defaultProviderId}
               draft={providerDraft}
+              settingsDraft={settingsDraft}
               providers={store.providers}
               selectedId={selectedProviderId}
               testState={testState}
               canSave={canSaveProvider}
+              canSaveRoutes={canSaveProviderRoutes}
               onChange={(draft) => {
                 setProviderDraft(draft);
                 setProviderSaveState('idle');
               }}
+              onRouteChange={(draft) => {
+                setSettingsDraft(draft);
+                setRouteSaveState('idle');
+              }}
               onCreate={createProvider}
               onDelete={deleteProvider}
               onSave={saveProviderDraft}
-              onSetDefault={setDefaultProvider}
               saveState={providerSaveState}
+              routeSaveState={routeSaveState}
+              onRouteSave={saveProviderRoutes}
               onSelect={selectProvider}
               onTest={testProvider}
             />

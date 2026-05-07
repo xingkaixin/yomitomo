@@ -5,6 +5,7 @@
   "packageManager": "pnpm@11.0.8",
   "scripts": {
     "dev": "turbo dev",
+    "dev:app": "pnpm --filter @yomitomo/desktop dev",
     "build": "turbo build",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",

@@ -8,11 +8,12 @@ import {
   AgentSettings,
   GeneralSettings,
   ProviderForm,
+  ProviderSettings,
   readingAgentAvatars,
   reviewAgentAvatars,
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
-import type { Agent } from '@yomitomo/shared';
+import type { Agent, LlmProvider } from '@yomitomo/shared';
 
 const localStorageStore: Record<string, string> = {};
 
@@ -117,9 +118,68 @@ describe('ProviderForm', () => {
   });
 });
 
+describe('ProviderSettings', () => {
+  it('shows task routes and marks routed providers as used', () => {
+    const providers = [
+      makeProvider('provider_1', 'Anthropic'),
+      makeProvider('provider_2', 'OpenAI'),
+    ];
+
+    render(
+      <ProviderSettings
+        draft={providers[0]}
+        settingsDraft={{
+          readingAssistantProviderId: 'provider_1',
+          reviewAssistantProviderId: 'provider_2',
+          readingNoteProviderId: 'provider_1',
+        }}
+        providers={providers}
+        selectedId="provider_1"
+        testState=""
+        canSave={false}
+        canSaveRoutes={true}
+        onChange={vi.fn()}
+        onRouteChange={vi.fn()}
+        onCreate={vi.fn()}
+        onDelete={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+        routeSaveState="idle"
+        onRouteSave={vi.fn()}
+        onSelect={vi.fn()}
+        onTest={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('不同任务选择合适模型，同时管理你的供应商链接。')).toBeTruthy();
+    expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
+    expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
+    expect(screen.getByLabelText('读后笔记助手供应商')).toBeTruthy();
+    expect(screen.getAllByText('已使用')).toHaveLength(2);
+    expect(screen.queryByText('设为默认')).toBeNull();
+  });
+});
+
 function StatefulProviderForm({ initialDraft }: { initialDraft: typeof emptyProvider }) {
   const [draft, setDraft] = React.useState(initialDraft);
   return <ProviderForm draft={draft} onChange={setDraft} />;
+}
+
+function makeProvider(id: string, name: string): LlmProvider {
+  return {
+    id,
+    name,
+    type: 'anthropic',
+    presetId: 'anthropic',
+    logo: 'anthropic.png',
+    baseUrl: 'https://api.anthropic.com',
+    apiKey: 'sk-test',
+    modelName: 'claude-sonnet-4-5',
+    modelInputMode: 'list',
+    reasoningEffort: 'default',
+    createdAt: '2026-05-04T00:00:00.000Z',
+    updatedAt: '2026-05-04T00:00:00.000Z',
+  };
 }
 
 describe('AgentForm', () => {
