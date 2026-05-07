@@ -289,10 +289,14 @@ export const readerConversationStyles = `
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:rgba(37,29,22,.12);background:rgba(37,29,22,.06);color:#6f6258}
 .reader-note-comments-popover{position:absolute;left:calc(100% + 12px);top:0;width:min(340px,calc(100vw - 32px));z-index:40}
-.reader-note-comments-panel{display:grid;max-height:calc(100vh - 112px);overflow:auto;gap:10px;border:1px solid rgba(40,35,29,.12);border-radius:18px;background:rgba(255,253,248,.98);box-shadow:0 24px 68px rgba(40,35,29,.16);padding:12px}
+.reader-note-comments-popover[data-side="left"]{left:auto;right:calc(100% + 12px)}
+.reader-note-comments-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-height:calc(100vh - 112px);overflow:visible;gap:10px;border:1px solid rgba(40,35,29,.12);border-radius:18px;background:rgba(255,253,248,.98);box-shadow:0 24px 68px rgba(40,35,29,.16);padding:12px}
 .reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-note-comments-panel>header strong{font-size:14px;font-weight:900}
 .reader-note-comments-panel>header span{color:var(--reader-muted);font-size:12px;font-weight:800}
+.reader-note-comments-panel .reader-comments{min-height:0;overflow:auto;margin-right:-4px;padding-right:4px}
+.reader-note-comments-panel .reader-comment{grid-template-columns:32px minmax(0,1fr);width:100%;min-width:0}
+.reader-note-comments-panel .reader-markdown-content,.reader-note-comments-panel .reader-markdown-content *{max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .reader-comment-author time{margin-left:auto;color:#9a8f83;font-size:10px;font-weight:760;white-space:nowrap}
 .reader-comment-agent-tray{display:flex;align-items:center;gap:8px;margin-right:auto;min-width:0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:780}
 .reader-comment-agent-tray button{display:grid;width:30px;height:30px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf8;color:var(--reader-muted);cursor:pointer;padding:0}

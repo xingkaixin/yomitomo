@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AtSign,
   CaseSensitive,
@@ -1205,7 +1205,9 @@ export function AnnotationCard({
   const [expanded, setExpanded] = useState(false);
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
+  const [commentsSide, setCommentsSide] = useState<'left' | 'right'>('right');
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
   const mentionQuery = getMentionQuery(draft, caretIndex);
@@ -1246,6 +1248,36 @@ export function AnnotationCard({
   }, [replyRequestKey]);
 
   useEffect(() => () => stopDeleteTimer(), []);
+
+  const setNoteElement = useCallback(
+    (element: HTMLElement | null) => {
+      sectionRef.current = element;
+      noteRef(element);
+    },
+    [noteRef],
+  );
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    function updateCommentsSide() {
+      const element = sectionRef.current;
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const surfaceRect = element.closest('.reader-surface')?.getBoundingClientRect();
+      const boundaryLeft = surfaceRect?.left ?? 0;
+      const boundaryRight = surfaceRect?.right ?? window.innerWidth;
+      const panelWidth = Math.min(340, window.innerWidth - 32);
+      const gap = 12;
+      const rightSpace = boundaryRight - rect.right - gap;
+      const leftSpace = rect.left - boundaryLeft - gap;
+      setCommentsSide(rightSpace >= panelWidth || rightSpace >= leftSpace ? 'right' : 'left');
+    }
+
+    updateCommentsSide();
+    window.addEventListener('resize', updateCommentsSide);
+    return () => window.removeEventListener('resize', updateCommentsSide);
+  }, [expanded]);
 
   function submit() {
     onAddComment(annotation.id, draft);
@@ -1348,7 +1380,7 @@ export function AnnotationCard({
         .join(' ')}
       data-stack-count={stackCount}
       data-stack-index={stackIndex}
-      ref={noteRef}
+      ref={setNoteElement}
       style={annotationStyle}
       onClick={handleCardClick}
     >
@@ -1405,7 +1437,7 @@ export function AnnotationCard({
         </div>
       </div>
       {expanded ? (
-        <div className="reader-note-comments-popover">
+        <div className="reader-note-comments-popover" data-side={commentsSide}>
           <div className="reader-note-comments-panel">
             <header>
               <strong>评论</strong>
