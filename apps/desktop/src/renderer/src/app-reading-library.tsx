@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Quote,
   RefreshCcw,
   FileText,
+  MessageSquare,
   Trash2,
   X,
 } from 'lucide-react';
@@ -51,6 +54,24 @@ import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
 
+type SourceAnnotationStyle = React.CSSProperties & {
+  '--source-note-color'?: string;
+  '--stack-offset'?: string;
+};
+
+type SourceAnnotationRailItem = {
+  annotation: Annotation;
+  isStackFront: boolean;
+  stackCount: number;
+  stackIndex: number;
+  style: SourceAnnotationStyle;
+};
+
+type SourceActiveConnection = {
+  path: string;
+  color: string;
+};
+
 function SourceHighlightDots({ colors }: { colors: string[] }) {
   if (colors.length <= 1) return null;
 
@@ -84,6 +105,7 @@ export function ReadingLibrary({
   const [activeShelf, setActiveShelf] = useState<'source' | 'annotations' | 'card'>('source');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
   const sortedArticles = useMemo(() => sortArticles(articles), [articles]);
   const selectedArticle =
     sortedArticles.find((article) => article.id === selectedArticleId) || sortedArticles[0] || null;
@@ -205,11 +227,10 @@ export function ReadingLibrary({
               agents={agents}
               annotations={annotations}
               article={selectedArticle}
+              focusAnnotationId={sourceFocusAnnotationId}
               selectedAnnotationId={selectedAnnotation?.id || null}
-              onOpenAnnotation={(annotationId) => {
-                setSelectedAnnotationId(annotationId);
-                setActiveShelf('annotations');
-              }}
+              onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
+              onOpenAnnotation={setSelectedAnnotationId}
             />
           ) : null}
         </div>
@@ -233,7 +254,10 @@ export function ReadingLibrary({
                 annotation={selectedAnnotation}
                 annotations={annotations}
                 article={selectedArticle}
-                onOpenSource={() => setActiveShelf('source')}
+                onOpenSource={() => {
+                  setSourceFocusAnnotationId(selectedAnnotation?.id || null);
+                  setActiveShelf('source');
+                }}
                 onSelect={setSelectedAnnotationId}
               />
             ) : (
@@ -264,7 +288,8 @@ export function ReadingLibrary({
               onGenerated={onRefresh}
               onOpenEvidence={(annotationId) => {
                 setSelectedAnnotationId(annotationId);
-                setActiveShelf('annotations');
+                setSourceFocusAnnotationId(annotationId);
+                setActiveShelf('source');
               }}
             />
           ) : null}
@@ -285,25 +310,36 @@ function SourceBookcase({
   agents,
   annotations,
   article,
+  focusAnnotationId,
   selectedAnnotationId,
+  onFocusedAnnotation,
   onOpenAnnotation,
 }: {
   agents: Agent[];
   annotations: Annotation[];
   article: ArticleRecord | null;
+  focusAnnotationId: string | null;
   selectedAnnotationId: string | null;
+  onFocusedAnnotation: () => void;
   onOpenAnnotation: (annotationId: string) => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
+  const noteRefs = useRef(new Map<string, HTMLElement>());
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [activeConnection, setActiveConnection] = useState<SourceActiveConnection | null>(null);
   const [highlightChoice, setHighlightChoice] = useState<{
     x: number;
     y: number;
     annotationIds: string[];
   } | null>(null);
   const highlightSegments = useMemo(() => buildHighlightSegments(boxes), [boxes]);
+  const annotationRailItems = useMemo(
+    () => buildSourceAnnotationRailItems(annotations, boxes, selectedAnnotationId),
+    [annotations, boxes, selectedAnnotationId],
+  );
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
@@ -374,6 +410,106 @@ function SourceBookcase({
   useEffect(() => {
     setHighlightChoice(null);
   }, [article?.id, annotations]);
+
+  const recalculateActiveConnection = useCallback(() => {
+    if (!selectedAnnotationId) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvasElement = canvasRef.current;
+    const scrollElement = scrollRef.current;
+    const railElement = railRef.current;
+    const noteElement = noteRefs.current.get(selectedAnnotationId);
+    const annotation = annotations.find((item) => item.id === selectedAnnotationId);
+    const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
+    if (
+      !canvasElement ||
+      !scrollElement ||
+      !railElement ||
+      !noteElement ||
+      !annotation ||
+      activeBoxes.length === 0
+    ) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const scrollRect = scrollElement.getBoundingClientRect();
+    const noteRect = noteElement.getBoundingClientRect();
+    const noteY = railElement.offsetTop + noteElement.offsetTop + Math.min(72, noteElement.offsetHeight / 2);
+    const box = activeBoxes.toSorted((left, right) => {
+      const leftY = left.top + left.height / 2;
+      const rightY = right.top + right.height / 2;
+      return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
+    })[0];
+    if (!box) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const startX = box.left + box.width + 6;
+    const startY = box.top + box.height / 2;
+    const endX = railElement.offsetLeft - 8;
+    const endY = noteY;
+    const highlightViewportY = canvasRect.top + startY;
+    const highlightVisible =
+      highlightViewportY >= scrollRect.top - 24 && highlightViewportY <= scrollRect.bottom + 24;
+    const noteVisible =
+      noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
+    if (!highlightVisible || !noteVisible) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const direction = endX >= startX ? 1 : -1;
+    const tension = Math.max(48, Math.abs(endX - startX) * 0.42);
+    const path = `M ${startX} ${startY} C ${startX + tension * direction} ${startY}, ${endX - tension * direction} ${endY}, ${endX} ${endY}`;
+    const color = sourceAnnotationColor(annotation, agents);
+    setActiveConnection((current) =>
+      current?.path === path && current.color === color ? current : { path, color },
+    );
+  }, [agents, annotations, boxes, selectedAnnotationId]);
+
+  useLayoutEffect(() => {
+    recalculateActiveConnection();
+  }, [annotationRailItems, recalculateActiveConnection]);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(recalculateActiveConnection);
+    };
+
+    scrollElement?.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      scrollElement?.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [recalculateActiveConnection]);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    const canvasElement = canvasRef.current;
+    if (!focusAnnotationId || !scrollElement || !canvasElement) return;
+
+    const top = sourceAnnotationScrollTop({
+      annotationId: focusAnnotationId,
+      boxes,
+      canvasOffsetTop: canvasElement.offsetTop,
+      scrollHeight: scrollElement.scrollHeight,
+      viewportHeight: scrollElement.clientHeight,
+    });
+    if (top === null) return;
+
+    scrollElement.scrollTo({ top, behavior: 'smooth' });
+    onFocusedAnnotation();
+  }, [boxes, focusAnnotationId, onFocusedAnnotation]);
 
   function openAnnotation(annotationId: string) {
     setHighlightChoice(null);
@@ -509,6 +645,34 @@ function SourceBookcase({
                 );
               })}
             </div>
+            <aside className="source-annotation-rail" ref={railRef} aria-label="文章批注">
+              {annotations.length === 0 ? (
+                <div className="source-note-empty">
+                  <strong>暂无批注</strong>
+                  <p>浏览器插件同步的批注会显示在原文右侧。</p>
+                </div>
+              ) : null}
+              {annotationRailItems.map(
+                ({ annotation, isStackFront, stackCount, stackIndex, style }) => (
+                  <SourceAnnotationCard
+                    active={annotation.id === selectedAnnotationId}
+                    agents={agents}
+                    annotation={annotation}
+                    isStackFront={isStackFront}
+                    key={annotation.id}
+                    noteRef={(element) => {
+                      if (element) noteRefs.current.set(annotation.id, element);
+                      else noteRefs.current.delete(annotation.id);
+                    }}
+                    stackCount={stackCount}
+                    stackIndex={stackIndex}
+                    style={style}
+                    onFocus={openAnnotation}
+                  />
+                ),
+              )}
+            </aside>
+            {activeConnection ? <SourceAnnotationConnection connection={activeConnection} /> : null}
             {highlightChoice ? (
               <SourceHighlightChoiceMenu
                 agents={agents}
@@ -526,6 +690,283 @@ function SourceBookcase({
       </div>
     </section>
   );
+}
+
+function SourceAnnotationCard({
+  active,
+  agents,
+  annotation,
+  isStackFront,
+  stackCount,
+  stackIndex,
+  style,
+  noteRef,
+  onFocus,
+}: {
+  active: boolean;
+  agents: Agent[];
+  annotation: Annotation;
+  isStackFront: boolean;
+  stackCount: number;
+  stackIndex: number;
+  style: SourceAnnotationStyle;
+  noteRef: (element: HTMLElement | null) => void;
+  onFocus: (annotationId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const author = sourceAnnotationAuthor(annotation, agents);
+  const primaryComment = annotationPrimaryComment(annotation);
+  const threadComments = annotationThreadComments(annotation);
+  const primaryCommentHtml = useMemo(
+    () => (primaryComment ? renderMarkdown(primaryComment.content) : ''),
+    [primaryComment],
+  );
+  const labels = [
+    annotation.annotationType ? annotationTypeLabel(annotation.annotationType) : '',
+    annotation.readingIntent ? agentReadingIntentLabel(annotation.readingIntent) : '',
+    annotation.questionStatus ? questionStatusLabel(annotation.questionStatus) : '',
+  ].filter(Boolean);
+  const className = [
+    'source-note',
+    active ? 'is-active' : '',
+    stackCount > 1 ? 'is-stacked' : '',
+    isStackFront ? 'is-stack-front' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  useEffect(() => {
+    if (!active && expanded) setExpanded(false);
+  }, [active, expanded]);
+
+  function focus() {
+    onFocus(annotation.id);
+  }
+
+  function toggleComments() {
+    if (!active) {
+      focus();
+      return;
+    }
+    setExpanded((open) => !open);
+  }
+
+  return (
+    <section
+      className={className}
+      data-stack-count={stackCount}
+      data-stack-index={stackIndex}
+      ref={noteRef}
+      style={{ ...sourceNoteStyle(author.color, active), ...style }}
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest('button')) return;
+        focus();
+      }}
+    >
+      <div className="source-note-action-row">
+        {labels.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+        <time dateTime={annotation.createdAt}>{formatDateTime(annotation.createdAt)}</time>
+      </div>
+      <button className="source-note-persona" type="button" onClick={focus}>
+        <AvatarImage value={author.avatar} className="size-7" fallback={author.fallback} />
+        <strong>{author.nickname}</strong>
+        <em>@{author.username}</em>
+      </button>
+      <button className="source-note-quote" type="button" onClick={focus}>
+        “{annotation.anchor.exact}”
+      </button>
+      {primaryComment ? (
+        <div
+          className="source-note-primary-comment"
+          dangerouslySetInnerHTML={{ __html: primaryCommentHtml }}
+        />
+      ) : null}
+      <div className="source-note-toolbar">
+        <button type="button" onClick={toggleComments}>
+          <MessageSquare size={14} />
+          {threadComments.length} 条评论
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+        <CopyIconButton label="复制原文" value={annotation.anchor.exact} />
+      </div>
+      {expanded ? (
+        <div className="source-note-comments-popover">
+          <div className="source-note-comments-panel">
+            <header>
+              <strong>评论</strong>
+              <span>{threadComments.length} 条</span>
+            </header>
+            <div className="source-note-comments">
+              {threadComments.length > 0 ? (
+                threadComments.map((comment) => (
+                  <SourceAnnotationComment comment={comment} key={comment.id} />
+                ))
+              ) : (
+                <div className="source-note-comment-empty">这条批注还没有评论</div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function SourceAnnotationComment({ comment }: { comment: AnnotationComment }) {
+  const author = commentAuthorProfile(comment);
+  const html = useMemo(() => renderMarkdown(comment.content), [comment.content]);
+
+  return (
+    <article className="source-note-comment">
+      <AvatarImage value={author.avatar} className="size-8" fallback={author.name.slice(0, 1)} />
+      <div className="min-w-0">
+        <header>
+          <strong>{author.name}</strong>
+          <time dateTime={comment.createdAt}>{formatDateTime(comment.createdAt)}</time>
+        </header>
+        <div className="comment-markdown" dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
+    </article>
+  );
+}
+
+function SourceAnnotationConnection({ connection }: { connection: SourceActiveConnection }) {
+  return (
+    <svg className="source-annotation-connection" aria-hidden="true">
+      <path d={connection.path} style={{ stroke: connection.color }} />
+    </svg>
+  );
+}
+
+export function buildSourceAnnotationRailItems(
+  annotations: Annotation[],
+  boxes: HighlightBox[],
+  activeId: string | null,
+): SourceAnnotationRailItem[] {
+  const boxesByAnnotation = new Map<string, HighlightBox[]>();
+  for (const box of boxes) {
+    const items = boxesByAnnotation.get(box.annotationId) || [];
+    items.push(box);
+    boxesByAnnotation.set(box.annotationId, items);
+  }
+
+  const positioned = annotations
+    .map((annotation, index) => {
+      const annotationBoxes = boxesByAnnotation.get(annotation.id) || [];
+      const top =
+        annotationBoxes.length > 0
+          ? Math.max(0, Math.min(...annotationBoxes.map((box) => box.top)) - 10)
+          : 120 + index * 150;
+      return {
+        annotation,
+        index,
+        start: annotation.anchor.start,
+        end: annotation.anchor.end,
+        top,
+      };
+    })
+    .toSorted((left, right) => left.top - right.top || left.index - right.index);
+
+  const groups: Array<typeof positioned> = [];
+  for (const item of positioned) {
+    const group = groups.find((items) =>
+      items.some((groupItem) => sourceAnchorsOverlap(item, groupItem)),
+    );
+    if (group) group.push(item);
+    else groups.push([item]);
+  }
+
+  const railGroups = groups
+    .map((group) =>
+      group.toSorted((left, right) => left.top - right.top || left.index - right.index),
+    )
+    .map((group) => ({
+      group,
+      desiredTop: group[0]?.top || 0,
+      height: estimateSourceRailGroupHeight(group),
+    }))
+    .toSorted((left, right) => left.desiredTop - right.desiredTop);
+
+  const groupTops = railGroups.map((group) => group.desiredTop);
+  for (let index = 1; index < railGroups.length; index += 1) {
+    const previousBottom = groupTops[index - 1]! + railGroups[index - 1]!.height + 18;
+    groupTops[index] = Math.max(groupTops[index]!, previousBottom);
+  }
+  for (let index = railGroups.length - 2; index >= 0; index -= 1) {
+    const nextTop = groupTops[index + 1]! - railGroups[index]!.height - 18;
+    groupTops[index] = Math.max(0, Math.min(groupTops[index]!, nextTop));
+  }
+
+  return railGroups.flatMap(({ group }, groupIndex) => {
+    const stackCount = group.length;
+    const groupTop = groupTops[groupIndex] || 0;
+    const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
+    const frontIndex = activeIndex >= 0 ? activeIndex : 0;
+    return group.map((item, stackIndex) => {
+      const stackDepth = stackCount > 1 ? (stackIndex - frontIndex + stackCount) % stackCount : 0;
+      const isStackFront = stackDepth === 0;
+      const isActive = item.annotation.id === activeId;
+      return {
+        annotation: item.annotation,
+        isStackFront,
+        stackCount,
+        stackIndex: stackDepth,
+        style: {
+          top: groupTop + stackDepth * 42,
+          zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
+          '--stack-offset': `${Math.min(stackDepth, 4) * 14}px`,
+        },
+      };
+    });
+  });
+}
+
+function sourceAnchorsOverlap(
+  left: { start: number; end: number },
+  right: { start: number; end: number },
+) {
+  return Math.max(left.start, right.start) < Math.min(left.end, right.end);
+}
+
+function estimateSourceRailGroupHeight(group: Array<{ annotation: Annotation }>) {
+  const first = group[0];
+  if (!first) return 176;
+  return estimateSourceAnnotationCardHeight(first.annotation) + Math.max(0, group.length - 1) * 42;
+}
+
+function estimateSourceAnnotationCardHeight(annotation: Annotation) {
+  const quoteLines = Math.max(1, Math.ceil(annotation.anchor.exact.length / 24));
+  const primaryComment = annotationPrimaryComment(annotation)?.content || '';
+  const commentLines = primaryComment
+    ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
+    : 0;
+  return 118 + quoteLines * 18 + commentLines * 24;
+}
+
+export function sourceAnnotationScrollTop({
+  annotationId,
+  boxes,
+  canvasOffsetTop,
+  scrollHeight,
+  viewportHeight,
+}: {
+  annotationId: string;
+  boxes: HighlightBox[];
+  canvasOffsetTop: number;
+  scrollHeight: number;
+  viewportHeight: number;
+}) {
+  const annotationBoxes = boxes.filter((box) => box.annotationId === annotationId);
+  if (annotationBoxes.length === 0 || viewportHeight <= 0) return null;
+
+  const top = Math.min(...annotationBoxes.map((box) => box.top));
+  const bottom = Math.max(...annotationBoxes.map((box) => box.top + box.height));
+  const targetTop = canvasOffsetTop + (top + bottom) / 2 - viewportHeight / 2;
+  const maxTop = Math.max(0, scrollHeight - viewportHeight);
+
+  return Math.max(0, Math.min(maxTop, targetTop));
 }
 
 function SourceHighlightChoiceMenu({
@@ -589,6 +1030,7 @@ function sourceAnnotationAuthor(annotation: Annotation, agents: Agent[]) {
     );
     return {
       avatar: agent?.avatar || annotation.agentAvatar || '',
+      color: sourceAnnotationColor(annotation, agents),
       fallback: 'AI',
       nickname: agent?.nickname || annotation.agentNickname || annotation.agentUsername || 'Agent',
       username: agent?.username || annotation.agentUsername || 'agent',
@@ -597,10 +1039,43 @@ function sourceAnnotationAuthor(annotation: Annotation, agents: Agent[]) {
 
   return {
     avatar: annotation.userAvatar || '',
+    color: sourceAnnotationColor(annotation, agents),
     fallback: '我',
     nickname: annotation.userNickname || annotation.userUsername || '我',
     username: annotation.userUsername || 'me',
   };
+}
+
+function sourceAnnotationColor(annotation: Annotation, agents: Agent[]) {
+  if (annotation.author === 'ai') {
+    const agent = agents.find(
+      (item) =>
+        item.id === annotation.agentId ||
+        (annotation.agentUsername && item.username === annotation.agentUsername),
+    );
+    return agent?.annotationColor || annotation.agentAnnotationColor || annotation.color || '#f4c95d';
+  }
+
+  return annotation.userAnnotationColor || annotation.color || '#f4c95d';
+}
+
+function sourceNoteStyle(color: string, active: boolean): React.CSSProperties {
+  const accent = color || '#f4c95d';
+  return {
+    borderColor: alphaColor(accent, active ? 0.82 : 0.38),
+    boxShadow: active
+      ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px hsl(31 34% 24% / 0.08)`
+      : undefined,
+  };
+}
+
+function alphaColor(color: string, alpha: number) {
+  const hex = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;
+  const red = Number.parseInt(hex.slice(1, 3), 16);
+  const green = Number.parseInt(hex.slice(3, 5), 16);
+  const blue = Number.parseInt(hex.slice(5, 7), 16);
+  return `rgba(${red},${green},${blue},${alpha})`;
 }
 
 function ShelfTab({
