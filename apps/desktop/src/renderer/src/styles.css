@@ -3056,27 +3056,6 @@
   overflow-wrap: anywhere;
 }
 
-.source-article-header {
-  margin-bottom: 34px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid hsl(36 31% 72% / 0.72);
-}
-
-.source-article-header h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.source-article-header p {
-  margin: 12px 0 0;
-  color: hsl(var(--muted-foreground));
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.55;
-}
-
 .source-article-body > *:first-child {
   margin-top: 0;
 }

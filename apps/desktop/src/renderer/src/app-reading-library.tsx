@@ -634,7 +634,11 @@ function SourceBookcase({
       frame = window.requestAnimationFrame(() => {
         const text = articleElement.textContent || '';
         const canvasRect = canvasElement.getBoundingClientRect();
-        const nextTocItems = extractTocItems(articleElement, sourceTocOptions);
+        const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
+        const nextTocItems =
+          extractedTocItems.length > 0
+            ? extractedTocItems
+            : sourceArticleTitleTocItems(articleElement, article);
         const nextBoxes = annotations.flatMap((annotation) => {
           const position = resolveTextAnchor(text, annotation.anchor);
           if (!position) return [];
@@ -815,6 +819,10 @@ function SourceBookcase({
     const articleElement = articleRef.current;
     const scrollElement = scrollRef.current;
     if (!articleElement || !scrollElement) return;
+    if (item.index < 0) {
+      scrollElement.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     const target = findCurrentTocTarget(articleElement, item, sourceTocOptions);
     if (!target) return;
     const targetRect = target.getBoundingClientRect();
@@ -881,12 +889,6 @@ function SourceBookcase({
         <div className="source-scroll" ref={scrollRef}>
           <div className="source-canvas" ref={canvasRef}>
             <article className="source-article" ref={articleRef}>
-              <header className="source-article-header">
-                <h1>{article.title}</h1>
-                {article.byline || article.excerpt ? (
-                  <p>{[article.byline, article.excerpt].filter(Boolean).join(' · ')}</p>
-                ) : null}
-              </header>
               <div
                 className="source-article-body"
                 dangerouslySetInnerHTML={{ __html: contentHtml }}
@@ -1208,6 +1210,15 @@ function estimateSourceAnnotationCardHeight(annotation: Annotation) {
     ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
     : 0;
   return 118 + quoteLines * 18 + commentLines * 24;
+}
+
+function sourceArticleTitleTocItems(
+  articleElement: HTMLElement,
+  article: ArticleRecord,
+): TocItem[] {
+  const textLength = articleElement.textContent?.length || 0;
+  const text = article.title.trim();
+  return text ? [{ index: -1, text, depth: 0, start: 0, end: textLength }] : [];
 }
 
 export function sourceAnnotationScrollTop({
