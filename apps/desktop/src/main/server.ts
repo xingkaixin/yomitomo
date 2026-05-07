@@ -251,6 +251,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
       };
       const agentMessagePayload = {
         ...message.payload,
+        agentRoster: toPublicAgents(store.agents.filter((item) => item.enabled)),
         readingIntent: comment.readingIntent,
       };
 

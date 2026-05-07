@@ -69,12 +69,12 @@ export async function testProvider(
 
 export async function runAgentStream(
   provider: LlmProvider,
-  agent: { soul: string; temperature: number },
+  agent: { soul: string; temperature: number; username?: string; nickname?: string },
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
 ): Promise<void> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${payload.agentUsername} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}`;
-  const user = buildAgentPrompt(provider, payload);
+  const system = buildAgentMessageSystemPrompt(agent, payload);
+  const user = buildAgentPrompt(provider, payload, agent);
   await streamProviderText(
     provider,
     { system, user, maxTokens: 1200, temperature: agent.temperature },
@@ -95,8 +95,8 @@ export async function runAgent(
   },
   payload: AgentMessagePayload,
 ): Promise<Comment> {
-  const system = `${agent.soul}\n\n你正在作为网页阅读器里的 @${agent.username} 参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}`;
-  const user = buildAgentPrompt(provider, payload);
+  const system = buildAgentMessageSystemPrompt(agent, payload);
+  const user = buildAgentPrompt(provider, payload, agent);
   const content = await callProviderText(provider, {
     system,
     user,
@@ -348,6 +348,20 @@ function readingIntentPromptLine(payload: AgentAnnotatePayload | AgentMessagePay
   return option ? `\n\n本轮阅读动作：${option.label}\n动作说明：${option.description}` : '';
 }
 
+export function buildAgentMessageSystemPrompt(
+  agent: { soul: string; username?: string; nickname?: string },
+  payload: AgentMessagePayload,
+) {
+  const username = agent.username || payload.agentUsername;
+  const nickname = agent.nickname || username;
+  const selfNames = [nickname, `@${username}`]
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index)
+    .join('、');
+
+  return `${agent.soul}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份一致性：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，指代你本人。回应涉及你先前批注的问题时，用第一人称承接你的判断。\n\n角色表达：回复要体现角色卡里的核心气质、判断习惯和语言质感；从你的专业能力切入，给出有辨识度的判断。`;
+}
+
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {
   return payload.annotationType ? `\n本轮批注类型：${payload.annotationType}` : '';
 }
@@ -393,7 +407,11 @@ function readingPlanPrompt(payload: AgentAnnotatePayload) {
   return `\n\n本轮助手精读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你可以阅读全文来理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- 每条批注必须使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
 }
 
-function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
+export function buildAgentPrompt(
+  provider: LlmProvider,
+  payload: AgentMessagePayload,
+  agent?: { username?: string; nickname?: string },
+) {
   const comments = payload.annotation.comments
     .map((comment) => {
       const author =
@@ -404,8 +422,55 @@ function buildAgentPrompt(provider: LlmProvider, payload: AgentMessagePayload) {
   const userMention = formatUserMention(payload.userComment);
   const article = budgetArticleText(provider, 'agent-message', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
+  const participants = buildAgentMessageParticipants(payload, agent);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+}
+
+function buildAgentMessageParticipants(
+  payload: AgentMessagePayload,
+  currentAgent?: { username?: string; nickname?: string },
+) {
+  const participants = new Map<string, string>();
+  const currentUsername = currentAgent?.username || payload.agentUsername;
+  const currentNickname = currentAgent?.nickname || currentUsername;
+
+  addParticipant(participants, currentUsername, currentNickname, '当前发言助手');
+  for (const agent of payload.agentRoster || []) {
+    addParticipant(participants, agent.username, agent.nickname, '可被 @ 的伴读助手');
+  }
+  addCommentParticipant(participants, payload.annotation, '原批注作者');
+  for (const comment of payload.annotation.comments) {
+    addCommentParticipant(participants, comment, '评论作者');
+  }
+
+  return Array.from(participants.values()).join('\n') || '- 当前讨论暂无可识别参与者';
+}
+
+function addCommentParticipant(
+  participants: Map<string, string>,
+  item: Annotation | Comment,
+  role: string,
+) {
+  if (item.author === 'ai') {
+    addParticipant(participants, item.agentUsername || '', item.agentNickname || '', role);
+    return;
+  }
+  addParticipant(participants, item.userUsername || '', item.userNickname || '', role);
+}
+
+function addParticipant(
+  participants: Map<string, string>,
+  username: string,
+  nickname: string,
+  role: string,
+) {
+  const display = nickname || username;
+  const handle = username ? `@${username}` : '';
+  if (!display && !handle) return;
+  const key = username || display;
+  if (participants.has(key)) return;
+  participants.set(key, `- ${display}${handle ? `（${handle}）` : ''}：${role}`);
 }
 
 function formatAgentAuthor(comment: Comment) {

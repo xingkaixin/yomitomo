@@ -530,6 +530,7 @@ export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
   readingIntent?: AgentReadingIntent;
+  agentRoster?: PublicAgent[];
   article: {
     title: string;
     url: string;

@@ -212,9 +212,9 @@ export const readerConversationStyles = `
 .reader-composer-types button{border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf7;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:7px 9px}
 .reader-composer-types button:hover,.reader-composer-types button.is-active{border-color:rgba(159,91,80,.18);background:rgba(159,91,80,.07);color:var(--reader-red)}
 .reader-comment-body{min-width:0}
-.reader-comment-author{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
-.reader-comment-author strong{font-size:12px;font-weight:850}
-.reader-comment-author em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700}
+.reader-comment-author{display:flex;min-width:0;flex-wrap:wrap;align-items:baseline;gap:6px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-comment-author strong{min-width:0;font-size:12px;font-weight:850}
+.reader-comment-author em{min-width:0;color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700}
 .reader-comment .reader-comment-author span{display:inline-flex;width:auto;height:auto;border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-size:10px;font-weight:850;line-height:1;padding:3px 6px}
 .reader-markdown{min-width:0;color:#3f352c;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.66;overflow-wrap:anywhere;word-break:break-word}
 .reader-markdown-content>*:first-child{margin-top:0}
@@ -288,8 +288,8 @@ export const readerConversationStyles = `
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:rgba(37,29,22,.12);background:rgba(37,29,22,.06);color:#6f6258}
-.reader-note-comments-popover{position:absolute;left:calc(100% + 12px);top:0;width:340px;z-index:40}
-.reader-note-comments-panel{display:grid;gap:10px;border:1px solid rgba(40,35,29,.12);border-radius:18px;background:rgba(255,253,248,.98);box-shadow:0 24px 68px rgba(40,35,29,.16);padding:12px}
+.reader-note-comments-popover{position:absolute;left:calc(100% + 12px);top:0;width:min(340px,calc(100vw - 32px));z-index:40}
+.reader-note-comments-panel{display:grid;max-height:calc(100vh - 112px);overflow:auto;gap:10px;border:1px solid rgba(40,35,29,.12);border-radius:18px;background:rgba(255,253,248,.98);box-shadow:0 24px 68px rgba(40,35,29,.16);padding:12px}
 .reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-note-comments-panel>header strong{font-size:14px;font-weight:900}
 .reader-note-comments-panel>header span{color:var(--reader-muted);font-size:12px;font-weight:800}
