@@ -3,11 +3,8 @@ import {
   BookOpen,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   ChevronUp,
-  Quote,
   RefreshCcw,
-  FileText,
   MessageSquare,
   Trash2,
   X,
@@ -40,13 +37,7 @@ import {
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
-import {
-  annotationAuthorProfile,
-  commentAuthorProfile,
-  formatDate,
-  formatDateTime,
-  urlHost,
-} from './app-utils';
+import { commentAuthorProfile, formatDate, formatDateTime, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton, OpenArticleButton } from './app-ui';
 import { ReadingCard } from './app-reading-card-panel';
@@ -102,13 +93,13 @@ export function ReadingLibrary({
   onDeleteArticle: (articleId: string) => Promise<void> | void;
   onRefresh: () => void;
 }) {
-  const [activeShelf, setActiveShelf] = useState<'source' | 'annotations' | 'card'>('source');
+  const [activeShelf, setActiveShelf] = useState<'library' | 'source' | 'card'>('library');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
   const sortedArticles = useMemo(() => sortArticles(articles), [articles]);
   const selectedArticle =
-    sortedArticles.find((article) => article.id === selectedArticleId) || sortedArticles[0] || null;
+    sortedArticles.find((article) => article.id === selectedArticleId) || null;
   const annotations = useMemo(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -121,8 +112,6 @@ export function ReadingLibrary({
     annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
     annotations[0] ||
     null;
-  const readingCardCount =
-    selectedArticle?.readingCard?.sections.length || (selectedArticle ? 4 : 0);
   const stats = articles.reduce(
     (result, article) => ({
       annotations: result.annotations + article.annotations.length,
@@ -147,68 +136,69 @@ export function ReadingLibrary({
 
   useEffect(() => {
     if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
-      setSelectedArticleId(sortedArticles[0]?.id || null);
+      setSelectedArticleId(null);
     }
   }, [selectedArticleId, sortedArticles]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
     if (selectedArticleId === articleId) {
-      const nextArticle = sortedArticles.find((article) => article.id !== articleId) || null;
-      setSelectedArticleId(nextArticle?.id || null);
-      setSelectedAnnotationId(sortAnnotations(nextArticle?.annotations || [])[0]?.id || null);
+      setSelectedArticleId(null);
+      setSelectedAnnotationId(null);
+      setSourceFocusAnnotationId(null);
+      setActiveShelf('library');
     }
   }
 
+  function openArticle(article: ArticleRecord) {
+    setSelectedArticleId(article.id);
+    setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
+    setSourceFocusAnnotationId(null);
+    setActiveShelf('source');
+  }
+
+  function openSourceShelf() {
+    const article = selectedArticle || sortedArticles[0] || null;
+    if (!article) return;
+    openArticle(article);
+  }
+
+  function openCardShelf() {
+    const article = selectedArticle || sortedArticles[0] || null;
+    if (!article) return;
+    setSelectedArticleId(article.id);
+    setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
+    setSourceFocusAnnotationId(null);
+    setActiveShelf('card');
+  }
+
   return (
-    <div
-      className={
-        activeShelf === 'source'
-          ? 'library-screen is-source-expanded'
-          : activeShelf === 'card'
-            ? 'library-screen is-card-expanded'
-            : 'library-screen is-annotations-expanded'
-      }
-    >
-      <section className="article-rail">
-        <div className="article-rail-header">
-          <div>
-            <h2>阅读库</h2>
-            <p>插件同步的已批注文章</p>
-          </div>
-          <Button type="button" variant="secondary" onClick={onRefresh}>
-            <RefreshCcw size={16} />
-            刷新
-          </Button>
-        </div>
-        <div className="library-stats">
-          <LibraryStat label="文章" value={articles.length} />
-          <LibraryStat label="批注" value={stats.annotations} />
-          <LibraryStat label="讨论" value={stats.comments} />
-        </div>
-        {sortedArticles.length > 0 ? (
-          <div className="library-list">
-            {sortedArticles.map((article) => (
-              <ArticleListItem
-                active={article.id === selectedArticle?.id}
-                article={article}
-                key={article.id}
-                onDelete={() => void deleteLibraryArticle(article.id)}
-                onSelect={() => {
-                  setSelectedArticleId(article.id);
-                  setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
-                }}
-              />
-            ))}
-          </div>
+    <div className={`library-bookcase-screen is-${activeShelf}-expanded`}>
+      <div
+        className={
+          activeShelf === 'library'
+            ? 'library-shelf is-expanded'
+            : 'library-shelf is-collapsed is-library-bookcase'
+        }
+      >
+        {activeShelf === 'library' ? (
+          <LibraryHome
+            articles={articles}
+            sortedArticles={sortedArticles}
+            stats={stats}
+            onDeleteArticle={deleteLibraryArticle}
+            onOpenArticle={openArticle}
+            onRefresh={onRefresh}
+          />
         ) : (
-          <section className="library-empty">
-            <BookOpen size={32} />
-            <h3>还没有同步文章</h3>
-            <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
-          </section>
+          <LibraryBookcaseRail
+            articles={sortedArticles}
+            selectedArticleId={selectedArticle?.id || null}
+            onExpand={() => setActiveShelf('library')}
+            onSelect={openArticle}
+          />
         )}
-      </section>
+      </div>
 
       <div
         className={
@@ -219,7 +209,7 @@ export function ReadingLibrary({
           count={annotations.length}
           icon={<BookOpen size={18} />}
           label="原文"
-          onClick={() => setActiveShelf('source')}
+          onClick={openSourceShelf}
         />
         <div className="library-shelf-content">
           {activeShelf === 'source' ? (
@@ -238,47 +228,14 @@ export function ReadingLibrary({
 
       <div
         className={
-          activeShelf === 'annotations' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
-        }
-      >
-        <ShelfTab
-          count={annotations.length}
-          icon={<Quote size={18} />}
-          label="批注"
-          onClick={() => setActiveShelf('annotations')}
-        />
-        <div className="library-shelf-content">
-          {activeShelf === 'annotations' ? (
-            selectedArticle ? (
-              <AnnotationNotebook
-                annotation={selectedAnnotation}
-                annotations={annotations}
-                article={selectedArticle}
-                onOpenSource={() => {
-                  setSourceFocusAnnotationId(selectedAnnotation?.id || null);
-                  setActiveShelf('source');
-                }}
-                onSelect={setSelectedAnnotationId}
-              />
-            ) : (
-              <section className="annotation-notebook is-empty">
-                <div className="notebook-empty">选择一篇文章查看批注</div>
-              </section>
-            )
-          ) : null}
-        </div>
-      </div>
-
-      <div
-        className={
           activeShelf === 'card' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
         }
       >
         <ShelfTab
-          count={readingCardCount}
-          icon={<FileText size={18} />}
+          count={selectedArticle?.readingCard?.sections.length || (selectedArticle ? 4 : 0)}
+          icon={<BookOpen size={18} />}
           label="读后笔记"
-          onClick={() => setActiveShelf('card')}
+          onClick={openCardShelf}
         />
         <div className="library-shelf-content">
           {activeShelf === 'card' ? (
@@ -296,6 +253,227 @@ export function ReadingLibrary({
         </div>
       </div>
     </div>
+  );
+}
+
+function LibraryHome({
+  articles,
+  sortedArticles,
+  stats,
+  onDeleteArticle,
+  onOpenArticle,
+  onRefresh,
+}: {
+  articles: ArticleRecord[];
+  sortedArticles: ArticleRecord[];
+  stats: { annotations: number; comments: number };
+  onDeleteArticle: (articleId: string) => Promise<void>;
+  onOpenArticle: (article: ArticleRecord) => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <section className="library-home">
+      <header className="library-home-header">
+        <div>
+          <h2>阅读库</h2>
+          <p>
+            {articles.length} 篇文章 · {stats.annotations} 条批注 · {stats.comments} 条讨论
+          </p>
+        </div>
+        <Button type="button" variant="secondary" onClick={onRefresh}>
+          <RefreshCcw size={16} />
+          刷新
+        </Button>
+      </header>
+      <div className="library-home-stats">
+        <LibraryStat label="文章" value={articles.length} />
+        <LibraryStat label="批注" value={stats.annotations} />
+        <LibraryStat label="讨论" value={stats.comments} />
+      </div>
+      {sortedArticles.length > 0 ? (
+        <div className="library-card-grid">
+          {sortedArticles.map((article) => (
+            <ArticleLibraryCard
+              article={article}
+              key={article.id}
+              onDelete={() => void onDeleteArticle(article.id)}
+              onOpen={() => onOpenArticle(article)}
+            />
+          ))}
+        </div>
+      ) : (
+        <section className="library-empty">
+          <BookOpen size={32} />
+          <h3>还没有同步文章</h3>
+          <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+        </section>
+      )}
+    </section>
+  );
+}
+
+function LibraryBookcaseRail({
+  articles,
+  selectedArticleId,
+  onExpand,
+  onSelect,
+}: {
+  articles: ArticleRecord[];
+  selectedArticleId: string | null;
+  onExpand: () => void;
+  onSelect: (article: ArticleRecord) => void;
+}) {
+  return (
+    <aside className="library-bookcase-rail">
+      <header className="library-bookcase-header">
+        <button className="library-back-button" type="button" onClick={onExpand}>
+          <ChevronLeft size={16} />
+          阅读库
+        </button>
+        <span>{articles.length} 本</span>
+      </header>
+      <div className="library-bookcase-scroll">
+        {articles.map((article) => (
+          <button
+            className={
+              article.id === selectedArticleId
+                ? 'library-bookcase-item is-active'
+                : 'library-bookcase-item'
+            }
+            key={article.id}
+            type="button"
+            onClick={() => onSelect(article)}
+          >
+            <ArticleBook article={article} />
+            <span className="library-bookcase-copy">
+              <strong>{article.title}</strong>
+              <span>{article.annotations.length} 批注</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function ShelfTab({
+  count,
+  icon,
+  label,
+  onClick,
+}: {
+  count: number;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="library-shelf-tab" type="button" onClick={onClick}>
+      <span className="library-shelf-tab-icon">{icon}</span>
+      <span className="library-shelf-tab-label">{label}</span>
+      <span className="library-shelf-tab-count">{count}</span>
+    </button>
+  );
+}
+
+function ArticleLibraryCard({
+  article,
+  onDelete,
+  onOpen,
+}: {
+  article: ArticleRecord;
+  onDelete: () => void;
+  onOpen: () => void;
+}) {
+  const [deleteHolding, setDeleteHolding] = useState(false);
+  const deleteTimerRef = useRef<number | null>(null);
+  const comments = article.annotations.reduce(
+    (count, annotation) => count + annotationThreadComments(annotation).length,
+    0,
+  );
+
+  useEffect(
+    () => () => {
+      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    },
+    [],
+  );
+
+  function stopDeleteHold() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    setDeleteHolding(false);
+  }
+
+  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    if (deleteTimerRef.current !== null) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDeleteHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      onDelete();
+    }, ARTICLE_DELETE_HOLD_MS);
+  }
+
+  return (
+    <article className="library-card" onClick={onOpen}>
+      <button
+        className="library-card-main"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+      >
+        <ArticleBook article={article} />
+        <div className="library-card-copy">
+          <div>
+            <h3>{article.title}</h3>
+            <p>
+              {article.byline ||
+                article.siteName ||
+                urlHost(article.canonicalUrl || article.url) ||
+                '未知作者'}{' '}
+              · {formatDate(article.updatedAt)}
+            </p>
+          </div>
+          <div className="library-card-meta">
+            <span>{article.annotations.length} 批注</span>
+            <span>{comments} 评论</span>
+            {article.readingCard ? <span>有读后笔记</span> : null}
+          </div>
+        </div>
+      </button>
+      <footer className="library-card-footer">
+        <button className="library-card-open" type="button" onClick={onOpen}>
+          <BookOpen size={15} />
+          查看
+        </button>
+        <button
+          className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
+          style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
+          type="button"
+          aria-label={`长按删除文章：${article.title}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onPointerCancel={stopDeleteHold}
+          onPointerDown={startDeleteHold}
+          onPointerLeave={stopDeleteHold}
+          onPointerUp={stopDeleteHold}
+        >
+          <Trash2 size={14} />
+          <span>长按删除</span>
+        </button>
+      </footer>
+    </article>
   );
 }
 
@@ -438,7 +616,8 @@ function SourceBookcase({
     const canvasRect = canvasElement.getBoundingClientRect();
     const scrollRect = scrollElement.getBoundingClientRect();
     const noteRect = noteElement.getBoundingClientRect();
-    const noteY = railElement.offsetTop + noteElement.offsetTop + Math.min(72, noteElement.offsetHeight / 2);
+    const noteY =
+      railElement.offsetTop + noteElement.offsetTop + Math.min(72, noteElement.offsetHeight / 2);
     const box = activeBoxes.toSorted((left, right) => {
       const leftY = left.top + left.height / 2;
       const rightY = right.top + right.height / 2;
@@ -1053,7 +1232,9 @@ function sourceAnnotationColor(annotation: Annotation, agents: Agent[]) {
         item.id === annotation.agentId ||
         (annotation.agentUsername && item.username === annotation.agentUsername),
     );
-    return agent?.annotationColor || annotation.agentAnnotationColor || annotation.color || '#f4c95d';
+    return (
+      agent?.annotationColor || annotation.agentAnnotationColor || annotation.color || '#f4c95d'
+    );
   }
 
   return annotation.userAnnotationColor || annotation.color || '#f4c95d';
@@ -1078,283 +1259,12 @@ function alphaColor(color: string, alpha: number) {
   return `rgba(${red},${green},${blue},${alpha})`;
 }
 
-function ShelfTab({
-  count,
-  icon,
-  label,
-  onClick,
-}: {
-  count: number;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button className="library-shelf-tab" type="button" onClick={onClick}>
-      <span className="library-shelf-tab-icon">{icon}</span>
-      <span className="library-shelf-tab-label">{label}</span>
-      <span className="library-shelf-tab-count">{count}</span>
-    </button>
-  );
-}
-
-function AnnotationNotebook({
-  annotation,
-  annotations,
-  article,
-  onOpenSource,
-  onSelect,
-}: {
-  annotation: Annotation | null;
-  annotations: Annotation[];
-  article: ArticleRecord;
-  onOpenSource: () => void;
-  onSelect: (id: string | null) => void;
-}) {
-  const selectedIndex = annotation
-    ? annotations.findIndex((item) => item.id === annotation.id)
-    : -1;
-  const annotationAuthor = annotation ? annotationAuthorProfile(annotation) : null;
-  const primaryComment = annotation ? annotationPrimaryComment(annotation) : null;
-  const threadComments = annotation ? annotationThreadComments(annotation) : [];
-  const primaryCommentHtml = useMemo(
-    () => (primaryComment ? renderMarkdown(primaryComment.content) : ''),
-    [primaryComment],
-  );
-  const canPage = selectedIndex >= 0 && annotations.length > 1;
-
-  function selectByOffset(offset: number) {
-    if (!canPage) return;
-    const nextIndex = (selectedIndex + offset + annotations.length) % annotations.length;
-    onSelect(annotations[nextIndex]?.id || null);
-  }
-
-  return (
-    <section className="annotation-notebook">
-      <div className="notebook-rings" aria-hidden="true" />
-      <div className="notebook-cover">
-        <header className="notebook-header">
-          <div className="min-w-0">
-            <h2>{article.title}</h2>
-            <p>
-              {article.byline || urlHost(article.canonicalUrl || article.url)} ·{' '}
-              {formatDate(article.updatedAt)}
-            </p>
-          </div>
-          <div className="notebook-header-actions">
-            <button className="open-article-button" type="button" onClick={onOpenSource}>
-              <BookOpen size={16} />
-              <span>查看原文</span>
-            </button>
-            <div className="annotation-pagination">
-              <button
-                aria-label="上一条批注"
-                type="button"
-                disabled={!canPage}
-                onClick={() => selectByOffset(-1)}
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <span>
-                {annotations.length > 0 ? `${selectedIndex + 1} / ${annotations.length}` : '0 / 0'}
-              </span>
-              <button
-                aria-label="下一条批注"
-                type="button"
-                disabled={!canPage}
-                onClick={() => selectByOffset(1)}
-              >
-                <ChevronRight size={17} />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {annotation ? (
-          <>
-            <div className="notebook-scroll">
-              <section className="quote-card">
-                <div className="annotation-type">
-                  <span>
-                    {annotation.annotationType
-                      ? annotationTypeLabel(annotation.annotationType)
-                      : '批注'}
-                  </span>
-                  {annotation.readingIntent ? (
-                    <span>{agentReadingIntentLabel(annotation.readingIntent)}</span>
-                  ) : null}
-                  {annotation.questionStatus ? (
-                    <span>{questionStatusLabel(annotation.questionStatus)}</span>
-                  ) : null}
-                </div>
-                <div className="quote-title">
-                  <Quote size={18} />
-                  <strong>原文</strong>
-                  <CopyIconButton label="复制原文" value={annotation.anchor.exact} />
-                </div>
-                <blockquote>{annotation.anchor.exact}</blockquote>
-                {primaryComment ? (
-                  <div
-                    className="annotation-primary-comment"
-                    dangerouslySetInnerHTML={{ __html: primaryCommentHtml }}
-                  />
-                ) : null}
-                <div className="annotation-author">
-                  <AvatarImage
-                    value={annotationAuthor?.avatar || ''}
-                    className="size-8"
-                    fallback={(annotationAuthor?.name || '批').slice(0, 1)}
-                  />
-                  <div>
-                    <strong>{annotationAuthor?.name}</strong>
-                    <time>{formatDateTime(annotation.createdAt)}</time>
-                  </div>
-                </div>
-              </section>
-
-              <section className="comment-thread">
-                {threadComments.length > 0 ? (
-                  threadComments.map((comment) => (
-                    <CommentCard comment={comment} key={comment.id} />
-                  ))
-                ) : (
-                  <div className="comment-empty">这条批注还没有评论</div>
-                )}
-              </section>
-            </div>
-            <footer className="notebook-footer">
-              <time>批注时间：{formatDateTime(annotation.createdAt)}</time>
-            </footer>
-          </>
-        ) : (
-          <div className="notebook-empty">这篇文章还没有批注</div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CommentCard({ comment }: { comment: AnnotationComment }) {
-  const author = commentAuthorProfile(comment);
-  const html = useMemo(() => renderMarkdown(comment.content), [comment.content]);
-
-  return (
-    <article className="comment-card">
-      <header>
-        <AvatarImage value={author.avatar} className="size-9" fallback={author.name.slice(0, 1)} />
-        <div className="min-w-0">
-          <strong>{author.name}</strong>
-          <time>{formatDateTime(comment.createdAt)}</time>
-          {comment.readingIntent ? (
-            <span>{agentReadingIntentLabel(comment.readingIntent)}</span>
-          ) : null}
-          {comment.questionStatus ? (
-            <span>{questionStatusLabel(comment.questionStatus)}</span>
-          ) : null}
-        </div>
-        <CopyIconButton label="复制评论" value={comment.content} />
-      </header>
-      <div className="comment-markdown" dangerouslySetInnerHTML={{ __html: html }} />
-    </article>
-  );
-}
-
 function LibraryStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="library-stat">
       <strong>{value}</strong>
       <span>{label}</span>
     </div>
-  );
-}
-
-function ArticleListItem({
-  active,
-  article,
-  onDelete,
-  onSelect,
-}: {
-  active: boolean;
-  article: ArticleRecord;
-  onDelete: () => void;
-  onSelect: () => void;
-}) {
-  const [deleteHolding, setDeleteHolding] = useState(false);
-  const deleteTimerRef = useRef<number | null>(null);
-  const comments = article.annotations.reduce(
-    (count, annotation) => count + annotationThreadComments(annotation).length,
-    0,
-  );
-
-  useEffect(
-    () => () => {
-      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    },
-    [],
-  );
-
-  function stopDeleteHold() {
-    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    deleteTimerRef.current = null;
-    setDeleteHolding(false);
-  }
-
-  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    if (deleteTimerRef.current !== null) return;
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDeleteHolding(true);
-    deleteTimerRef.current = window.setTimeout(() => {
-      deleteTimerRef.current = null;
-      onDelete();
-    }, ARTICLE_DELETE_HOLD_MS);
-  }
-
-  return (
-    <article className={active ? 'library-item is-active' : 'library-item'} onClick={onSelect}>
-      <button
-        className="library-item-main"
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onSelect();
-        }}
-      >
-        <ArticleBook article={article} />
-        <div className="library-item-copy">
-          <h3>{article.title}</h3>
-          <p>
-            {article.byline ||
-              article.siteName ||
-              urlHost(article.canonicalUrl || article.url) ||
-              '未知作者'}
-          </p>
-          <time>{formatDate(article.updatedAt)}</time>
-        </div>
-      </button>
-      <div className="library-item-footer">
-        <span className="library-item-count">
-          <span>{article.annotations.length} 批注</span>
-          <span>{comments} 评论</span>
-        </span>
-        <button
-          className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
-          style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
-          type="button"
-          aria-label={`长按删除文章：${article.title}`}
-          onClick={(event) => event.preventDefault()}
-          onContextMenu={(event) => event.preventDefault()}
-          onPointerCancel={stopDeleteHold}
-          onPointerDown={startDeleteHold}
-          onPointerLeave={stopDeleteHold}
-          onPointerUp={stopDeleteHold}
-        >
-          <Trash2 size={14} />
-          <span>长按删除</span>
-        </button>
-      </div>
-    </article>
   );
 }
 
