@@ -15,6 +15,7 @@ import {
 const DESKTOP_WS_URL = 'ws://127.0.0.1:43891';
 const DESKTOP_HEALTH_URL = 'http://127.0.0.1:43891/health';
 const DESKTOP_HEALTH_TIMEOUT_MS = 800;
+const DESKTOP_KEEPALIVE_INTERVAL_MS = 20_000;
 
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message: unknown) => {
@@ -27,6 +28,7 @@ export default defineBackground(() => {
 
     let socket: WebSocket | null = null;
     let portAlive = true;
+    let keepAliveTimer = 0;
 
     function post(message: DesktopBridgeContentMessage) {
       if (!portAlive) return;
@@ -34,8 +36,31 @@ export default defineBackground(() => {
     }
 
     function closeSocket() {
+      clearKeepAlive();
       socket?.close();
       socket = null;
+    }
+
+    function clearKeepAlive() {
+      if (!keepAliveTimer) return;
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = 0;
+    }
+
+    function keepAlive(nextSocket: WebSocket) {
+      clearKeepAlive();
+      keepAliveTimer = setInterval(() => {
+        if (socket !== nextSocket || nextSocket.readyState !== WebSocket.OPEN) {
+          clearKeepAlive();
+          return;
+        }
+
+        try {
+          nextSocket.send(JSON.stringify({ type: 'ping' } satisfies DesktopClientMessage));
+        } catch {
+          clearKeepAlive();
+        }
+      }, DESKTOP_KEEPALIVE_INTERVAL_MS);
     }
 
     async function connect(token: string) {
@@ -52,6 +77,7 @@ export default defineBackground(() => {
       nextSocket.addEventListener('open', () => {
         post({ type: 'desktop:open' });
         nextSocket.send(JSON.stringify({ type: 'auth', token } satisfies DesktopClientMessage));
+        keepAlive(nextSocket);
       });
 
       nextSocket.addEventListener('message', (event) => {
@@ -60,6 +86,7 @@ export default defineBackground(() => {
 
       nextSocket.addEventListener('close', () => {
         if (socket === nextSocket) socket = null;
+        clearKeepAlive();
         post({ type: 'desktop:close' });
       });
 
@@ -75,7 +102,16 @@ export default defineBackground(() => {
       }
 
       if (message.type === 'desktop:send') {
-        if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message.message));
+        if (socket?.readyState !== WebSocket.OPEN) {
+          post({ type: 'desktop:send:failed', message: message.message });
+          return;
+        }
+
+        try {
+          socket.send(JSON.stringify(message.message));
+        } catch {
+          post({ type: 'desktop:send:failed', message: message.message });
+        }
         return;
       }
 

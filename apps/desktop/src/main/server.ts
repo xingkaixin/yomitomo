@@ -147,7 +147,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
     const message = parsed.message;
     requestId = 'requestId' in message ? message.requestId : undefined;
-    logInfo('ws.message', { type: message.type, requestId });
+    if (message.type !== 'ping') logInfo('ws.message', { type: message.type, requestId });
 
     if (message.type === 'auth') {
       await authenticateSocket(socket, message.token);
@@ -168,6 +168,8 @@ async function handleMessage(socket: WebSocket, raw: string) {
       await sendStatus(socket);
       return;
     }
+
+    if (message.type === 'ping') return;
 
     if (message.type === 'agent:list') {
       const store = await readStore();

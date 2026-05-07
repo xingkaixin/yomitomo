@@ -24,6 +24,7 @@ export default defineConfig({
     name: 'Yomitomo',
     description: 'Yomitomo reader mode with persistent highlights and threaded annotations.',
     version: packageJson.version,
+    minimum_chrome_version: '116',
     permissions: ['storage', 'scripting'],
     host_permissions: ['<all_urls>', 'http://127.0.0.1/*', 'ws://127.0.0.1/*'],
     web_accessible_resources: [

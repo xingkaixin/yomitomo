@@ -53,7 +53,7 @@ describe('desktop socket origin policy', () => {
 });
 
 describe('desktop client message parser', () => {
-  it('accepts auth and hello control messages without request ids', () => {
+  it('accepts auth, hello, and ping control messages without request ids', () => {
     expect(parseDesktopClientMessage({ type: 'auth', token: 'pairing-token' })).toEqual({
       ok: true,
       message: { type: 'auth', token: 'pairing-token' },
@@ -62,6 +62,11 @@ describe('desktop client message parser', () => {
     expect(parseDesktopClientMessage({ type: 'hello' })).toEqual({
       ok: true,
       message: { type: 'hello' },
+    });
+
+    expect(parseDesktopClientMessage({ type: 'ping' })).toEqual({
+      ok: true,
+      message: { type: 'ping' },
     });
   });
 

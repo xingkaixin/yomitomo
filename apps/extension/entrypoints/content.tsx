@@ -239,6 +239,8 @@ function sameArticleImages(left: ExtractedArticle, right: ExtractedArticle) {
   );
 }
 
+type AgentMessageRequest = Extract<DesktopClientMessage, { type: 'agent:message' }>;
+
 function shouldSaveArticleImages(settings: AppSettings | undefined) {
   return Boolean(settings?.saveArticleImages);
 }
@@ -275,6 +277,7 @@ function ReaderApp({
       }
     >(),
   );
+  const pendingAgentMessagesRef = useRef(new Map<string, AgentMessageRequest>());
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -607,6 +610,11 @@ function ReaderApp({
           return;
         }
 
+        if (message.type === 'desktop:send:failed') {
+          handleFailedDesktopSend(message.message);
+          return;
+        }
+
         if (message.type === 'desktop:close') handleClose();
       });
 
@@ -688,9 +696,15 @@ function ReaderApp({
 
   function sendDesktopMessage(message: DesktopClientMessage) {
     const bridge = desktopBridgeRef.current;
-    if (!desktopAuthenticatedRef.current) return;
-    if (!bridge || bridge.readyState !== WebSocket.OPEN) return;
-    bridge.send(message);
+    if (!desktopAuthenticatedRef.current) return false;
+    if (!bridge || bridge.readyState !== WebSocket.OPEN) return false;
+    try {
+      bridge.send(message);
+      return true;
+    } catch (error) {
+      readerLog('ws.send.error', { message: errorMessage(error) });
+      return false;
+    }
   }
 
   async function handleDesktopMessage(message: DesktopServerMessage) {
@@ -709,6 +723,7 @@ function ReaderApp({
       }
 
       sendDesktopMessage({ type: 'hello' });
+      flushPendingAgentMessages();
       return;
     }
 
@@ -1115,7 +1130,7 @@ function ReaderApp({
   }
 
   function sendAgentMessage(agent: PublicAgent, annotation: Annotation, userComment: Comment) {
-    sendDesktopMessage({
+    const message: AgentMessageRequest = {
       type: 'agent:message',
       requestId: makeId('request'),
       payload: {
@@ -1130,7 +1145,38 @@ function ReaderApp({
         annotation,
         userComment,
       },
-    });
+    };
+    if (sendDesktopMessage(message)) return true;
+
+    enqueueAgentMessage(message);
+    return false;
+  }
+
+  function enqueueAgentMessage(message: AgentMessageRequest) {
+    const key = `${message.payload.agentId || message.payload.agentUsername}:${message.payload.userComment.id}`;
+    pendingAgentMessagesRef.current.set(key, message);
+  }
+
+  function handleFailedDesktopSend(message: DesktopClientMessage) {
+    if (message.type === 'agent:message') enqueueAgentMessage(message);
+  }
+
+  function flushPendingAgentMessages() {
+    if (!desktopAuthenticatedRef.current) return;
+
+    for (const [key, message] of pendingAgentMessagesRef.current) {
+      if (
+        !annotationsRef.current.some(
+          (annotation) => annotation.id === message.payload.annotation.id,
+        )
+      ) {
+        pendingAgentMessagesRef.current.delete(key);
+        continue;
+      }
+
+      if (!sendDesktopMessage(message)) return;
+      pendingAgentMessagesRef.current.delete(key);
+    }
   }
 
   function requestAgentAnnotations(

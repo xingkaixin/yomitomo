@@ -18,5 +18,6 @@ export type DesktopBridgePortMessage =
 export type DesktopBridgeContentMessage =
   | { type: 'desktop:open' }
   | { type: 'desktop:message'; message: DesktopServerMessage }
+  | { type: 'desktop:send:failed'; message: DesktopClientMessage }
   | { type: 'desktop:close' }
   | { type: 'desktop:error'; message: string };

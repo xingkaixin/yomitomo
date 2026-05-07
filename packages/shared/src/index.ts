@@ -566,6 +566,7 @@ export type AgentReadingPlanItem = {
 export type DesktopClientMessage =
   | { type: 'auth'; token: string }
   | { type: 'hello' }
+  | { type: 'ping' }
   | { type: 'agent:list'; requestId: string }
   | {
       type: 'article:get';
@@ -660,7 +661,7 @@ export function parseDesktopClientMessage(value: unknown): DesktopClientMessageP
     return { ok: true, message: value as { type: 'auth'; token: string } };
   }
 
-  if (type === 'hello') return { ok: true, message: { type: 'hello' } };
+  if (type === 'hello' || type === 'ping') return { ok: true, message: { type } };
 
   if (!requestId) return parseError(undefined, 'requestId 必须是非空字符串');
 
