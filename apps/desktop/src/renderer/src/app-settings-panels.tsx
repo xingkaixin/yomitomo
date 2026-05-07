@@ -111,6 +111,23 @@ const agentFilterOptions: Array<{ value: AgentFilter; label: string; agentLabel:
   { value: 'review', label: '深度审阅', agentLabel: '审阅助手' },
 ];
 
+const agentEnabledFilterStorageKey = 'yomitomo.agentSettings.showEnabledOnly';
+
+const agentPronunciationMap: Record<string, string> = {
+  'reading-partner': 'Lín Zhīwēi',
+  'root-reviewer': 'Zhōu Yàn',
+  'question-mentor': 'Xǔ Wènqú',
+  'insight-editor': 'Chén Yànshū',
+  'concept-translator': 'Shěn Qīngyuán',
+  'structure-navigator': 'Gù Xíngjiǎn',
+  'evidence-archivist': 'Liáng Zhèngyán',
+  'reader-advocate': 'Yè Tīnglán',
+  'final-copy-editor': 'Táng Jiǎn',
+  'logic-auditor': 'Hé Mínghéng',
+  'risk-examiner': 'Sū Dìngbái',
+  'action-calibrator': 'Xià Guīníng',
+};
+
 const agentCoverMap: Record<string, string> = {
   'reading-partner': linZhiweiCover,
   'root-reviewer': zhouYanCover,
@@ -132,6 +149,26 @@ const providerLogoMap: Record<string, string> = {
   'volcengine.png': volcengineLogo,
   'zhipu.png': zhipuLogo,
 };
+
+let agentEnabledFilterMemoryValue = 'false';
+
+function readAgentEnabledFilterPreference() {
+  try {
+    return window.localStorage?.getItem(agentEnabledFilterStorageKey) === 'true';
+  } catch {
+    return agentEnabledFilterMemoryValue === 'true';
+  }
+}
+
+function writeAgentEnabledFilterPreference(value: boolean) {
+  const stringValue = String(value);
+  agentEnabledFilterMemoryValue = stringValue;
+  try {
+    window.localStorage?.setItem(agentEnabledFilterStorageKey, stringValue);
+  } catch {
+    return;
+  }
+}
 
 function ProviderOptionContent({ provider }: { provider: ProviderOption }) {
   const logoSrc = provider.logo ? providerLogoMap[provider.logo] : undefined;
@@ -569,7 +606,7 @@ export function AgentSettings({
   onToggle: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('annotation');
-  const [showEnabledOnly, setShowEnabledOnly] = useState(false);
+  const [showEnabledOnly, setShowEnabledOnly] = useState(readAgentEnabledFilterPreference);
   const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
   const visibleAgents = showEnabledOnly
     ? filteredAgents.filter((agent) => agent.enabled)
@@ -597,7 +634,11 @@ export function AgentSettings({
             aria-label="仅显示已启用"
             type="checkbox"
             checked={showEnabledOnly}
-            onChange={(event) => setShowEnabledOnly(event.target.checked)}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setShowEnabledOnly(checked);
+              writeAgentEnabledFilterPreference(checked);
+            }}
           />
           <span className="settings-toggle-switch" aria-hidden="true" />
         </label>
@@ -640,6 +681,8 @@ function AgentProfileListCard({
   const cover = personality ? agentCoverMap[personality.id] : undefined;
   const intro = personality?.selfIntroduction || personality?.introduction || '';
   const motto = personality?.description || personalityName;
+  const roleTitle = personality?.roleTitle || personalityName;
+  const pronunciation = personality ? agentPronunciationMap[personality.id] : '';
 
   return (
     <article className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}>
@@ -659,9 +702,9 @@ function AgentProfileListCard({
           <div className="agent-list-heading">
             <div className="agent-list-name-row">
               <h3>{agent.nickname}</h3>
-              <span>{personality?.roleTitle || personalityName}</span>
+              {pronunciation ? <span>{pronunciation}</span> : null}
             </div>
-            {motto ? <p>{motto}</p> : null}
+            {motto ? <blockquote>{motto}</blockquote> : null}
           </div>
         </div>
         <div className="agent-list-content">
@@ -669,6 +712,7 @@ function AgentProfileListCard({
         </div>
       </div>
       <div className="agent-list-footer">
+        <span className="agent-list-role">{roleTitle}</span>
         <label className="agent-card-toggle">
           <span>{agent.enabled ? '已启用' : '未启用'}</span>
           <input

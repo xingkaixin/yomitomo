@@ -15,8 +15,26 @@ import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { Agent } from '@yomitomo/shared';
 import type { ProviderOption } from '../app-types';
 
+const localStorageStore: Record<string, string> = {};
+
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    clear: () => {
+      for (const key of Object.keys(localStorageStore)) delete localStorageStore[key];
+    },
+    getItem: (key: string) => localStorageStore[key] ?? null,
+    removeItem: (key: string) => {
+      delete localStorageStore[key];
+    },
+    setItem: (key: string, value: string) => {
+      localStorageStore[key] = value;
+    },
+  },
+});
+
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.clearAllMocks();
 });
 
@@ -208,6 +226,20 @@ describe('AgentSettings', () => {
 
     expect(screen.getByText('林知微')).toBeTruthy();
     expect(screen.queryByText('沈清源')).toBeNull();
+  });
+
+  it('persists the enabled-only filter locally', () => {
+    const { unmount } = render(
+      <AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '仅显示已启用' }));
+    unmount();
+    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
+
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '仅显示已启用' }).checked).toBe(
+      true,
+    );
   });
 });
 
