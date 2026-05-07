@@ -186,21 +186,43 @@ describe('AgentSettings', () => {
   it('filters configured agents by type tabs', () => {
     render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /审核助手/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /深度审阅/ }));
 
     expect(screen.getByText('梁证言')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /审核助手/ }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: /深度审阅/ }).getAttribute('aria-selected')).toBe(
       'true',
     );
   });
+
+  it('can show only enabled agents', () => {
+    render(
+      <AgentSettings
+        agents={[agents[0]!, makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false)]}
+        error=""
+        saveState="idle"
+        onToggle={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '仅显示已启用' }));
+
+    expect(screen.getByText('林知微')).toBeTruthy();
+    expect(screen.queryByText('沈清源')).toBeNull();
+  });
 });
 
-function makeAgent(id: string, kind: Agent['kind'], nickname: string, username: string): Agent {
+function makeAgent(
+  id: string,
+  kind: Agent['kind'],
+  nickname: string,
+  username: string,
+  enabled = true,
+): Agent {
   return {
     id,
     kind,
     presetId: kind === 'review' ? 'evidence-archivist' : 'reading-partner',
-    enabled: true,
+    enabled,
     providerId: 'provider_1',
     nickname,
     username,

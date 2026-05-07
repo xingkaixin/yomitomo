@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  BookOpen,
   Bot,
   Check,
   Eye,
@@ -10,6 +11,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  ShieldCheck,
   Trash2,
   Unplug,
   Upload,
@@ -104,9 +106,9 @@ import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
 
-const agentFilterOptions: Array<{ value: AgentFilter; label: string }> = [
-  { value: 'annotation', label: '阅读助手' },
-  { value: 'review', label: '审核助手' },
+const agentFilterOptions: Array<{ value: AgentFilter; label: string; agentLabel: string }> = [
+  { value: 'annotation', label: '阅读理解', agentLabel: '阅读助手' },
+  { value: 'review', label: '深度审阅', agentLabel: '审阅助手' },
 ];
 
 const agentCoverMap: Record<string, string> = {
@@ -567,8 +569,13 @@ export function AgentSettings({
   onToggle: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('annotation');
+  const [showEnabledOnly, setShowEnabledOnly] = useState(false);
   const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
-  const emptyKindLabel = agentKindLabel(filter);
+  const visibleAgents = showEnabledOnly
+    ? filteredAgents.filter((agent) => agent.enabled)
+    : filteredAgents;
+  const currentMode = agentFilterOptions.find((option) => option.value === filter);
+  const emptyKindLabel = currentMode?.agentLabel || agentKindLabel(filter);
   const statusText =
     error ||
     (saveState === 'saving'
@@ -579,22 +586,37 @@ export function AgentSettings({
 
   return (
     <div className="settings-panel">
-      <PanelHeader
-        icon={<Bot size={20} />}
-        title="助手"
-        description={statusText || '按阅读助手和审核助手查看角色卡片，控制它们是否进入对应工作流。'}
-      />
+      <header className="agent-library-header">
+        <div>
+          <h2>今天陪你思考的人</h2>
+          <p>{statusText || '不同模式，不同视角，组成你专属的思考团队。'}</p>
+        </div>
+        <label className="agent-enabled-filter">
+          <span>仅显示已启用</span>
+          <input
+            aria-label="仅显示已启用"
+            type="checkbox"
+            checked={showEnabledOnly}
+            onChange={(event) => setShowEnabledOnly(event.target.checked)}
+          />
+          <span className="settings-toggle-switch" aria-hidden="true" />
+        </label>
+      </header>
       <section className="agent-library">
         <AgentFilterTabs agents={agents} value={filter} onChange={setFilter} />
         <div className="agent-card-list">
-          {filteredAgents.length === 0 ? (
+          {visibleAgents.length === 0 ? (
             <div className="agent-list-empty">
               <Bot size={22} />
               <strong>还没有{emptyKindLabel}</strong>
-              <p>配置供应商后会自动生成预设助手库。</p>
+              <p>
+                {showEnabledOnly
+                  ? '打开助手启用开关后会出现在这里。'
+                  : '配置供应商后会自动生成预设助手库。'}
+              </p>
             </div>
           ) : (
-            filteredAgents.map((agent) => (
+            visibleAgents.map((agent) => (
               <AgentProfileListCard agent={agent} key={agent.id} onToggle={onToggle} />
             ))
           )}
@@ -621,45 +643,42 @@ function AgentProfileListCard({
 
   return (
     <article className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}>
-      {cover ? (
-        <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
-      ) : (
-        <div className="agent-list-cover is-placeholder">
-          <AvatarImage
-            value={agent.avatar}
-            className="size-16"
-            fallback={agent.nickname.slice(0, 1)}
-          />
-        </div>
-      )}
-      <div className="agent-list-content">
-        <div className="agent-list-heading">
-          <div className="agent-list-title-row">
-            <AvatarImage
-              value={agent.avatar}
-              className="size-10"
-              fallback={agent.nickname.slice(0, 1)}
-            />
-            <div>
-              <h3>{agent.nickname}</h3>
-              {motto ? <p>{motto}</p> : null}
+      <div className="agent-list-body">
+        <div className="agent-list-identity">
+          {cover ? (
+            <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
+          ) : (
+            <div className="agent-list-cover is-placeholder">
+              <AvatarImage
+                value={agent.avatar}
+                className="size-16"
+                fallback={agent.nickname.slice(0, 1)}
+              />
             </div>
+          )}
+          <div className="agent-list-heading">
+            <div className="agent-list-name-row">
+              <h3>{agent.nickname}</h3>
+              <span>{personality?.roleTitle || personalityName}</span>
+            </div>
+            {motto ? <p>{motto}</p> : null}
           </div>
-          <span>{personality?.roleTitle || personalityName}</span>
         </div>
-        {intro ? <p className="agent-list-intro">{intro}</p> : null}
-        <div className="agent-list-footer">
-          <span>{agent.enabled ? '已启用' : '已关闭'}</span>
-          <label className="agent-card-toggle">
-            <input
-              aria-label={`${agent.enabled ? '关闭' : '启用'}${agent.nickname}`}
-              type="checkbox"
-              checked={agent.enabled}
-              onChange={() => onToggle(agent)}
-            />
-            <span className="settings-toggle-switch" aria-hidden="true" />
-          </label>
+        <div className="agent-list-content">
+          {intro ? <p className="agent-list-intro">{intro}</p> : null}
         </div>
+      </div>
+      <div className="agent-list-footer">
+        <label className="agent-card-toggle">
+          <span>{agent.enabled ? '已启用' : '未启用'}</span>
+          <input
+            aria-label={`${agent.enabled ? '关闭' : '启用'}${agent.nickname}`}
+            type="checkbox"
+            checked={agent.enabled}
+            onChange={() => onToggle(agent)}
+          />
+          <span className="settings-toggle-switch" aria-hidden="true" />
+        </label>
       </div>
     </article>
   );
@@ -712,13 +731,15 @@ function AgentFilterTabs({
   onChange: (value: AgentFilter) => void;
 }) {
   return (
-    <div className="agent-filter-tabs" role="tablist" aria-label="助手过滤">
+    <div className="agent-filter-tabs" role="tablist" aria-label="思考模式">
       {agentFilterOptions.map((option) => {
         const count = agents.filter(
           (agent) => (agent.kind || 'annotation') === option.value,
         ).length;
+        const Icon = option.value === 'annotation' ? BookOpen : ShieldCheck;
         return (
           <button
+            aria-label={option.label}
             aria-selected={value === option.value}
             className={value === option.value ? 'agent-filter-tab is-active' : 'agent-filter-tab'}
             key={option.value}
@@ -726,6 +747,7 @@ function AgentFilterTabs({
             type="button"
             onClick={() => onChange(option.value)}
           >
+            <Icon size={18} />
             <span>{option.label}</span>
             <strong>{count}</strong>
           </button>
