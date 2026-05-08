@@ -123,6 +123,7 @@ export type ReaderAppViewProps = {
   onCancelAgentAnnotateMenu: () => void;
   onCancelComposer: () => void;
   onClose: () => void;
+  onClearActiveAnnotation: () => void;
   onCreateAnnotation: (
     note: string,
     annotationType: AnnotationType,
@@ -155,6 +156,27 @@ export type ReaderAppViewProps = {
   onDisconnectDesktop: () => void | Promise<void>;
   onUpdateReaderSettings: (settings: ReaderSettings) => void | Promise<void>;
 };
+
+const activeAnnotationPreserveSelector = [
+  'button',
+  'textarea',
+  'input',
+  'select',
+  'a',
+  '[contenteditable="true"]',
+  '[role="button"]',
+  '[role="link"]',
+  '[data-reader-floating-panel]',
+  '[data-reader-popover-anchor]',
+  '.reader-toolbar',
+  '.reader-toc',
+  '.reader-question-drawer',
+  '.reader-note',
+  '.reader-highlight',
+  '.reader-selection-menu',
+  '.reader-composer',
+  '.reader-highlight-choice-menu',
+].join(',');
 
 export function ReaderAppView({
   activeConnection,
@@ -203,6 +225,7 @@ export function ReaderAppView({
   onCancelAgentAnnotateMenu,
   onCancelComposer,
   onClose,
+  onClearActiveAnnotation,
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
@@ -258,11 +281,21 @@ export function ReaderAppView({
     return index >= 0 ? `打开${type} ${index + 1}` : '打开批注';
   }
 
-  function handleOutsidePanelPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (!settingsOpen && !agentAnnotateOpen) return;
+  function handleReaderPointerDownCapture(event: React.PointerEvent<HTMLDivElement>) {
     if (!(event.target instanceof Element)) return;
-    if (event.target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) return;
-    onCloseFloatingPanels();
+    const target = event.target;
+
+    if (settingsOpen || agentAnnotateOpen) {
+      if (!target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) {
+        onCloseFloatingPanels();
+      }
+    }
+
+    if (!activeId) return;
+    if (target.closest(activeAnnotationPreserveSelector)) return;
+
+    onCloseHighlightChoice();
+    onClearActiveAnnotation();
   }
 
   return (
@@ -282,7 +315,7 @@ export function ReaderAppView({
           '--reader-content-width': `${readerSettings.contentWidth}px`,
         } as React.CSSProperties
       }
-      onPointerDownCapture={handleOutsidePanelPointerDown}
+      onPointerDownCapture={handleReaderPointerDownCapture}
     >
       <header className="reader-toolbar">
         <div className="reader-toolbar-article">

@@ -15,6 +15,8 @@ import {
   SelectionMenu,
   VirtualCursor,
 } from '../reader-components';
+import { ReaderAppView } from '../reader-app-view';
+import { defaultReaderSettings } from '../reader-utils';
 
 afterEach(() => {
   cleanup();
@@ -61,6 +63,79 @@ const agent: PublicAgent = {
 };
 
 const readingSections = [{ id: 'toc-0', title: '引言', start: 0, end: 20 }];
+
+function renderReaderAppView(overrides: Partial<React.ComponentProps<typeof ReaderAppView>> = {}) {
+  const props: React.ComponentProps<typeof ReaderAppView> = {
+    activeConnection: null,
+    activeId: annotation.id,
+    agentAnnotateOpen: false,
+    agentTheaterBoxes: [],
+    agents: [],
+    annotatingAgents: [],
+    annotationTotals: { annotations: 1, comments: 0 },
+    annotations: [annotation],
+    articleRef: React.createRef<HTMLElement>(),
+    boxes: [],
+    canvasRef: React.createRef<HTMLDivElement>(),
+    commentsCloseKey: 0,
+    composer: null,
+    completionBurstKey: 0,
+    desktopConnected: true,
+    extracted: { title: '测试文章', content: '<p>正文</p>' },
+    filteredAnnotations: [annotation],
+    hasSavedPairing: false,
+    highlightChoice: null,
+    notesOpen: false,
+    noteRefs: { current: new Map<string, HTMLElement>() },
+    notesRef: React.createRef<HTMLElement>(),
+    pairingId: '',
+    pairingStatus: '',
+    pairingTokenDraft: '',
+    readerSettings: defaultReaderSettings,
+    readingSections: [],
+    replyRequest: null,
+    selectionAction: null,
+    settingsOpen: false,
+    shortcutModifier: '⌘',
+    surfaceRef: React.createRef<HTMLDivElement>(),
+    temporaryBoxes: [],
+    tocAnnotationStats: new Map(),
+    tocItems: [],
+    tocOpen: false,
+    userProfile,
+    virtualCursors: [],
+    onAddComment: vi.fn(),
+    onAnswerQuestion: vi.fn(),
+    onCancelAgentAnnotateMenu: vi.fn(),
+    onCancelComposer: vi.fn(),
+    onClearActiveAnnotation: vi.fn(),
+    onClose: vi.fn(),
+    onCloseFloatingPanels: vi.fn(),
+    onCloseHighlightChoice: vi.fn(),
+    onCloseResponsivePanels: vi.fn(),
+    onCreateAnnotation: vi.fn(),
+    onDeleteAnnotation: vi.fn(),
+    onDisconnectDesktop: vi.fn(),
+    onFocusAnnotation: vi.fn(),
+    onHighlightClick: vi.fn(),
+    onMouseUp: vi.fn(),
+    onOpenComposer: vi.fn(),
+    onSavePairingToken: vi.fn(),
+    onScrollToHeading: vi.fn(),
+    onScrollToHighlight: vi.fn(),
+    onSetAnnotationQuestionStatus: vi.fn(),
+    onSetCommentQuestionStatus: vi.fn(),
+    onSetPairingTokenDraft: vi.fn(),
+    onStartAgentReadingPlan: vi.fn(),
+    onToggleAgentAnnotate: vi.fn(),
+    onToggleNotes: vi.fn(),
+    onToggleSettings: vi.fn(),
+    onToggleToc: vi.fn(),
+    onUpdateReaderSettings: vi.fn(),
+  };
+
+  return render(<ReaderAppView {...props} {...overrides} />);
+}
 
 function dragActionToCell(actionLabel: string, cellLabel: string) {
   const data: Record<string, string> = {};
@@ -541,6 +616,26 @@ describe('SelectionMenu', () => {
     fireEvent.mouseUp(screen.getByRole('button', { name: '添加批注' }));
 
     expect(onMouseUp).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReaderAppView', () => {
+  it('clears the active annotation from a blank surface pointer down', () => {
+    const onClearActiveAnnotation = vi.fn();
+    const { container } = renderReaderAppView({ onClearActiveAnnotation });
+
+    fireEvent.pointerDown(container.querySelector('.reader-surface')!);
+
+    expect(onClearActiveAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves the active annotation from an annotation card pointer down', () => {
+    const onClearActiveAnnotation = vi.fn();
+    const { container } = renderReaderAppView({ onClearActiveAnnotation });
+
+    fireEvent.pointerDown(container.querySelector('.reader-note')!);
+
+    expect(onClearActiveAnnotation).not.toHaveBeenCalled();
   });
 });
 

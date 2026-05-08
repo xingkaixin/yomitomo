@@ -1498,6 +1498,7 @@ function ReaderApp({
       onAddComment={addComment}
       onCancelAgentAnnotateMenu={cancelAgentAnnotateMenu}
       onCancelComposer={cancelComposer}
+      onClearActiveAnnotation={() => setActiveId(null)}
       onClose={onClose}
       onCreateAnnotation={createAnnotation}
       onDeleteAnnotation={deleteAnnotation}

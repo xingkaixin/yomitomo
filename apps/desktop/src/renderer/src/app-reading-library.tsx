@@ -109,9 +109,7 @@ export function ReadingLibrary({
     [agents],
   );
   const selectedAnnotation =
-    annotations.find((annotation) => annotation.id === selectedAnnotationId) ||
-    annotations[0] ||
-    null;
+    annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
   const stats = articles.reduce(
     (result, article) => ({
       annotations: result.annotations + article.annotations.length,
@@ -521,7 +519,7 @@ function SourceBookcase({
   userProfile: UserProfile;
   onFocusedAnnotation: () => void;
   onClose: () => void;
-  onOpenAnnotation: (annotationId: string) => void;
+  onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -1297,6 +1295,7 @@ function SourceBookcase({
         onAnswerQuestion={answerQuestion}
         onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
+        onClearActiveAnnotation={() => onOpenAnnotation(null)}
         onClose={onClose}
         onCloseFloatingPanels={() => {
           setSettingsOpen(false);
