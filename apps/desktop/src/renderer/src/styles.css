@@ -3825,7 +3825,7 @@
 
 .source-composer {
   display: grid;
-  width: min(720px, calc(100vw - 48px));
+  width: min(580px, calc(100vw - 48px));
   gap: 0;
   overflow: hidden;
   border: 1px solid hsl(36 31% 72% / 0.78);
@@ -3845,7 +3845,7 @@
 }
 
 .source-composer > header {
-  padding: 18px 18px 12px;
+  padding: 14px 16px 8px;
 }
 
 .source-composer > footer,
@@ -3854,12 +3854,12 @@
 }
 
 .source-composer > footer {
-  padding: 12px 18px 18px;
+  padding: 10px 16px 14px;
   background: hsl(39 39% 88% / 0.42);
 }
 
 .source-composer > header strong {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 900;
 }
 
@@ -3891,10 +3891,10 @@
 
 .source-composer-options {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
+  grid-template-columns: 86px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  padding: 8px 18px;
+  gap: 8px;
+  padding: 6px 16px;
 }
 
 .source-composer-options > span {
@@ -3906,21 +3906,21 @@
 .source-composer-options > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .source-composer-options button {
-  min-width: 88px;
-  height: 42px;
+  min-width: 74px;
+  height: 32px;
   border: 1px solid hsl(36 31% 72% / 0.64);
   border-radius: 999px;
   background: hsl(43 58% 93% / 0.72);
   color: hsl(32 22% 21%);
   cursor: pointer;
   font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 880;
+  padding: 0 11px;
 }
 
 .source-composer-options button.is-active {
@@ -3931,25 +3931,25 @@
 
 .source-composer-editor {
   position: relative;
-  margin-top: 8px;
-  border-top: 2px solid hsl(31 16% 28% / 0.32);
-  border-bottom: 2px solid hsl(31 16% 28% / 0.32);
+  margin-top: 4px;
+  border-top: 1px solid hsl(31 16% 28% / 0.24);
+  border-bottom: 1px solid hsl(31 16% 28% / 0.24);
 }
 
 .source-composer-editor textarea {
   width: 100%;
-  min-height: 168px;
+  min-height: 112px;
   resize: vertical;
   border: 0;
   border-radius: 0;
   background: hsl(43 66% 98%);
   color: hsl(32 22% 21%);
   font: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.55;
   outline: 0;
-  padding: 20px 18px;
+  padding: 14px 16px;
 }
 
 .source-composer-editor textarea:focus {
