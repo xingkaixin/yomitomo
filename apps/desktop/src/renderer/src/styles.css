@@ -2692,17 +2692,23 @@
 
 .source-plan-agent {
   display: grid;
-  grid-template-columns: 7px 28px minmax(0, 1fr);
+  grid-template-columns: 7px 32px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   min-height: 50px;
   padding-right: 8px;
 }
 
-.source-plan-agent > span {
+.source-plan-agent-swatch {
   width: 7px;
   height: 32px;
   border-radius: 999px;
+}
+
+.source-plan-agent .avatar-image {
+  width: 28px;
+  height: 28px;
+  justify-self: center;
 }
 
 .source-plan-agent strong {
@@ -3768,6 +3774,11 @@
   gap: 8px;
 }
 
+.source-composer > footer,
+.source-comment-composer > footer {
+  flex-wrap: wrap;
+}
+
 .source-composer > header strong {
   font-size: 14px;
   font-weight: 900;
@@ -3840,6 +3851,8 @@
   display: flex;
   min-width: 0;
   align-items: center;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   gap: 5px;
   color: hsl(var(--muted-foreground));
 }
@@ -3886,6 +3899,7 @@
 .source-composer > footer > button,
 .source-comment-composer > footer > button {
   display: inline-flex;
+  flex: 0 0 auto;
   height: 30px;
   align-items: center;
   gap: 6px;
@@ -3898,6 +3912,7 @@
   font-size: 12px;
   font-weight: 840;
   padding: 0 11px;
+  white-space: nowrap;
 }
 
 .source-composer > footer > button:last-child,

@@ -627,7 +627,7 @@ const sourceTocOptions: ExtractTocOptions = {
 
 function SourceBookcase({
   agents,
-  annotations,
+  annotations: articleAnnotations,
   article,
   focusAnnotationId,
   selectedAnnotationId,
@@ -651,6 +651,9 @@ function SourceBookcase({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const [annotations, setLocalAnnotations] = useState<Annotation[]>(() =>
+    sortAnnotations(articleAnnotations),
+  );
   const latestArticleRef = useRef<ArticleRecord | null>(article);
   const annotationsRef = useRef<Annotation[]>(annotations);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
@@ -726,8 +729,10 @@ function SourceBookcase({
   }, [article]);
 
   useEffect(() => {
-    annotationsRef.current = annotations;
-  }, [annotations]);
+    const nextAnnotations = sortAnnotations(articleAnnotations);
+    setLocalAnnotations(nextAnnotations);
+    annotationsRef.current = nextAnnotations;
+  }, [article?.id, articleAnnotations]);
 
   useEffect(() => cleanupVirtualReadingSessions, []);
 
@@ -906,13 +911,15 @@ function SourceBookcase({
   async function saveAnnotations(nextAnnotations: Annotation[]) {
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return null;
+    const sortedAnnotations = sortAnnotations(nextAnnotations);
     const nextArticle = {
       ...currentArticle,
-      annotations: sortAnnotations(nextAnnotations),
+      annotations: sortedAnnotations,
       updatedAt: new Date().toISOString(),
     };
     latestArticleRef.current = nextArticle;
-    annotationsRef.current = nextArticle.annotations;
+    annotationsRef.current = sortedAnnotations;
+    setLocalAnnotations(sortedAnnotations);
     await onSaveArticle(nextArticle);
     return nextArticle;
   }
@@ -920,14 +927,15 @@ function SourceBookcase({
   function applyAnnotations(nextAnnotations: Annotation[]) {
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return null;
+    const sortedAnnotations = sortAnnotations(nextAnnotations);
     const nextArticle = {
       ...currentArticle,
-      annotations: sortAnnotations(nextAnnotations),
+      annotations: sortedAnnotations,
       updatedAt: new Date().toISOString(),
     };
     latestArticleRef.current = nextArticle;
-    annotationsRef.current = nextArticle.annotations;
-    void onSaveArticle(nextArticle);
+    annotationsRef.current = sortedAnnotations;
+    setLocalAnnotations(sortedAnnotations);
     return nextArticle;
   }
 
@@ -1061,7 +1069,7 @@ function SourceBookcase({
 
     const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
     for (const agent of mentionedAgents) {
-      await requestAgentComment(agent, nextAnnotation, comment);
+      void requestAgentComment(agent, nextAnnotation, comment);
     }
   }
 
@@ -1075,6 +1083,26 @@ function SourceBookcase({
     if (!desktop || !currentArticle) return;
 
     setStatusMessage(`${agent.nickname} 正在回复`);
+    let pendingCommentId = '';
+    let pendingDelta = '';
+    let pendingFrame = 0;
+    const flushDelta = () => {
+      pendingFrame = 0;
+      if (!pendingDelta || !pendingCommentId) return;
+      const delta = pendingDelta;
+      pendingDelta = '';
+      const nextAnnotations = updateAnnotationComment(
+        annotationsRef.current,
+        annotation.id,
+        pendingCommentId,
+        (comment) => Object.assign({}, comment, { content: comment.content + delta }),
+      );
+      if (nextAnnotations) applyAnnotations(nextAnnotations);
+    };
+    const scheduleDeltaFlush = () => {
+      if (pendingFrame) return;
+      pendingFrame = window.requestAnimationFrame(flushDelta);
+    };
     try {
       await desktop.requestAgentCommentStream(
         {
@@ -1087,6 +1115,7 @@ function SourceBookcase({
         },
         (event) => {
           if (event.type === 'start') {
+            pendingCommentId = event.comment.id;
             const nextAnnotations = appendAnnotationComment(
               annotationsRef.current,
               annotation.id,
@@ -1097,25 +1126,21 @@ function SourceBookcase({
             return;
           }
 
-          const currentComment = annotationsRef.current
-            .find((item) => item.id === annotation.id)
-            ?.comments.find(
-              (comment) =>
-                comment.author === 'ai' && comment.agentId === agent.id && comment.pending,
-            );
-          if (!currentComment) return;
-          const nextAnnotations = updateAnnotationComment(
-            annotationsRef.current,
-            annotation.id,
-            currentComment.id,
-            (comment) => Object.assign({}, comment, { content: comment.content + event.delta }),
-          );
-          if (nextAnnotations) applyAnnotations(nextAnnotations);
+          pendingDelta += event.delta;
+          scheduleDeltaFlush();
         },
       );
+      if (pendingFrame) {
+        window.cancelAnimationFrame(pendingFrame);
+        flushDelta();
+      }
       const current = annotationsRef.current.find((item) => item.id === annotation.id);
       const agentComment = current?.comments.find(
-        (comment) => comment.author === 'ai' && comment.agentId === agent.id && comment.pending,
+        (comment) =>
+          comment.author === 'ai' &&
+          comment.agentId === agent.id &&
+          comment.id === pendingCommentId &&
+          comment.pending,
       );
       if (agentComment) {
         const nextAnnotations = updateAnnotationComment(
@@ -1127,6 +1152,7 @@ function SourceBookcase({
         if (nextAnnotations) await saveAnnotations(nextAnnotations);
       }
     } finally {
+      if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
       setStatusMessage('');
     }
   }
@@ -1728,7 +1754,10 @@ function SourceAgentAnnotateMenu({
           {visibleAgents.map((agent) => (
             <React.Fragment key={agent.id}>
               <div className="source-plan-agent">
-                <span style={{ backgroundColor: agent.annotationColor }} />
+                <span
+                  className="source-plan-agent-swatch"
+                  style={{ backgroundColor: agent.annotationColor }}
+                />
                 <AvatarImage
                   value={agent.avatar}
                   className="size-7"
