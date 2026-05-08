@@ -194,16 +194,15 @@ export function useAgentAnnotationQueue({
       mode === 'target'
         ? 3 + Math.floor(Math.random() * 6)
         : 5 + sessionIndex * 2 + Math.floor(Math.random() * 8);
-    const sectionOffset = firstSection
-      ? firstSection.start +
-        Math.floor(Math.random() * Math.max(1, firstSection.end - firstSection.start))
-      : null;
-    const baseOffset =
-      sectionOffset ?? (article && body ? offsetFromArticleStart(article, body, 0) : 0);
+    const baseOffset = firstSection
+      ? firstSection.start
+      : article && body
+        ? offsetFromArticleStart(article, body, 0)
+        : 0;
     const session: VirtualReadingSession = {
       agent,
       timerId: 0,
-      offset: baseOffset + (mode === 'target' ? 0 : sessionIndex * 18),
+      offset: firstSection || mode === 'target' ? baseOffset : baseOffset + sessionIndex * 18,
       paused: false,
       done: false,
       mode,

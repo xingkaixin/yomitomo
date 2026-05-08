@@ -76,11 +76,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-import { AvatarImage, CopyIconButton, OpenArticleButton } from './app-ui';
+import { AvatarImage, OpenArticleButton } from './app-ui';
 import { ReadingCard } from './app-reading-card-panel';
 import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
+const SOURCE_ANNOTATION_DELETE_HOLD_MS = 1600;
 const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 
 type SourceAnnotationStyle = React.CSSProperties & {
@@ -1073,6 +1074,14 @@ function SourceBookcase({
     }
   }
 
+  async function deleteAnnotation(annotationId: string) {
+    const nextAnnotations = annotationsRef.current.filter(
+      (annotation) => annotation.id !== annotationId,
+    );
+    noteRefs.current.delete(annotationId);
+    await saveAnnotations(nextAnnotations);
+  }
+
   async function requestAgentComment(
     agent: PublicAgent,
     annotation: Annotation,
@@ -1434,6 +1443,7 @@ function SourceBookcase({
                     stackIndex={stackIndex}
                     style={style}
                     onAddComment={addComment}
+                    onDelete={deleteAnnotation}
                     onFocus={openAnnotation}
                   />
                 ),
@@ -1541,35 +1551,42 @@ function SourceComposer({
   return (
     <div className="source-composer" style={{ left: composer.x, top: composer.y }}>
       <header>
-        <strong>新批注</strong>
-        <button type="button" aria-label="关闭批注编辑器" onClick={onCancel}>
-          <X size={14} />
-        </button>
+        <strong>批注</strong>
+        <div className="source-composer-title-shortcut">
+          <ShortcutHint />
+          <span>发布</span>
+        </div>
       </header>
       <div className="source-composer-options" aria-label="批注类型">
-        {annotationTypeOptions.map((type) => (
-          <button
-            className={annotationType === type ? 'is-active' : undefined}
-            key={type}
-            type="button"
-            onClick={() => setAnnotationType(type)}
-          >
-            {annotationTypeLabel(type)}
-          </button>
-        ))}
+        <span>批注类型</span>
+        <div>
+          {annotationTypeOptions.map((type) => (
+            <button
+              className={annotationType === type ? 'is-active' : undefined}
+              key={type}
+              type="button"
+              onClick={() => setAnnotationType(type)}
+            >
+              {annotationTypeLabel(type)}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="source-composer-options" aria-label="助手动作">
-        {agentReadingIntentOptions.map((option) => (
-          <button
-            className={readingIntent === option.value ? 'is-active' : undefined}
-            key={option.value}
-            type="button"
-            title={option.description}
-            onClick={() => setReadingIntent(option.value)}
-          >
-            {option.shortLabel}
-          </button>
-        ))}
+        <span>批注动作</span>
+        <div>
+          {agentReadingIntentOptions.map((option) => (
+            <button
+              className={readingIntent === option.value ? 'is-active' : undefined}
+              key={option.value}
+              type="button"
+              title={option.description}
+              onClick={() => setReadingIntent(option.value)}
+            >
+              {option.shortLabel}
+            </button>
+          ))}
+        </div>
       </div>
       <div className="source-composer-editor">
         <textarea
@@ -1612,7 +1629,6 @@ function SourceComposer({
             </button>
           ))}
         </div>
-        <ShortcutHint />
         <button type="button" onClick={onCancel}>
           取消
         </button>
@@ -1815,6 +1831,7 @@ function SourceAnnotationCard({
   style,
   noteRef,
   onAddComment,
+  onDelete,
   onFocus,
 }: {
   active: boolean;
@@ -1827,9 +1844,12 @@ function SourceAnnotationCard({
   style: SourceAnnotationStyle;
   noteRef: (element: HTMLElement | null) => void;
   onAddComment: (annotationId: string, content: string) => void | Promise<void>;
+  onDelete: (annotationId: string) => void | Promise<void>;
   onFocus: (annotationId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [deleteHolding, setDeleteHolding] = useState(false);
+  const deleteTimerRef = useRef<number | null>(null);
   const author = sourceAnnotationAuthor(annotation, agents);
   const primaryComment = annotationPrimaryComment(annotation);
   const threadComments = annotationThreadComments(annotation);
@@ -1855,6 +1875,13 @@ function SourceAnnotationCard({
     if (!active && expanded) setExpanded(false);
   }, [active, expanded]);
 
+  useEffect(
+    () => () => {
+      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    },
+    [],
+  );
+
   function focus() {
     onFocus(annotation.id);
   }
@@ -1865,6 +1892,24 @@ function SourceAnnotationCard({
       return;
     }
     setExpanded((open) => !open);
+  }
+
+  function stopDeleteHold() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    setDeleteHolding(false);
+  }
+
+  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (deleteTimerRef.current !== null) return;
+    setDeleteHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      setDeleteHolding(false);
+      void onDelete(annotation.id);
+    }, SOURCE_ANNOTATION_DELETE_HOLD_MS);
   }
 
   return (
@@ -1905,7 +1950,24 @@ function SourceAnnotationCard({
           {threadComments.length} 条评论
           {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
-        <CopyIconButton label="复制原文" value={annotation.anchor.exact} />
+        <button
+          className={deleteHolding ? 'source-note-delete is-holding' : 'source-note-delete'}
+          style={
+            { '--delete-hold-ms': `${SOURCE_ANNOTATION_DELETE_HOLD_MS}ms` } as React.CSSProperties
+          }
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onPointerCancel={stopDeleteHold}
+          onPointerDown={startDeleteHold}
+          onPointerLeave={stopDeleteHold}
+          onPointerUp={stopDeleteHold}
+        >
+          <Trash2 size={14} />
+          <span>长按删除</span>
+        </button>
       </div>
       {expanded ? (
         <div className="source-note-comments-popover">

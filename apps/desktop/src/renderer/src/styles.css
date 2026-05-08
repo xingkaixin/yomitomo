@@ -3265,22 +3265,70 @@
   padding: 0 10px;
 }
 
-.source-note-toolbar .copy-icon-button {
-  width: 30px;
-  height: 30px;
+.source-note-delete {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-left: auto;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: hsl(8 36% 46% / 0.07);
+  color: hsl(8 36% 34%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 0 10px;
+  touch-action: none;
+  user-select: none;
+}
+
+.source-note-delete::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  width: 0;
+  background: hsl(5 54% 38% / 0.12);
+  content: '';
+}
+
+.source-note-delete svg,
+.source-note-delete span {
+  position: relative;
+  z-index: 1;
+}
+
+.source-note-delete:hover {
+  background: hsl(6 54% 92%);
+  color: hsl(5 54% 38%);
+}
+
+.source-note-delete:active {
+  transform: scale(0.96);
+}
+
+.source-note-delete.is-holding::before {
+  animation: library-delete-hold var(--delete-hold-ms) linear forwards;
 }
 
 .source-note-comments-popover {
-  position: absolute;
-  top: 0;
-  left: calc(100% + 12px);
+  position: fixed;
+  top: 82px;
+  right: 72px;
+  bottom: 32px;
   z-index: 120;
-  width: 340px;
+  width: min(380px, calc(100vw - 120px));
 }
 
 .source-note-comments-panel {
   display: grid;
-  max-height: calc(100vh - 152px);
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   overflow: hidden;
   border: 1px solid hsl(36 31% 72% / 0.74);
@@ -3288,6 +3336,19 @@
   background: hsl(43 62% 96% / 0.98);
   box-shadow: 0 24px 68px hsl(31 34% 24% / 0.18);
   padding: 12px;
+}
+
+@container (max-width: 720px) {
+  .source-note-comments-popover {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .source-note-comments-panel {
+    height: auto;
+    max-height: calc(100vh - 152px);
+  }
 }
 
 .source-note-comments-panel > header {
@@ -3353,6 +3414,8 @@
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.58;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .source-note-comment-empty {
@@ -3755,14 +3818,14 @@
 
 .source-composer {
   display: grid;
-  width: min(360px, calc(100vw - 48px));
-  gap: 10px;
+  width: min(720px, calc(100vw - 48px));
+  gap: 0;
+  overflow: hidden;
   border: 1px solid hsl(36 31% 72% / 0.78);
-  border-radius: 8px;
+  border-radius: 18px;
   background: hsl(42 64% 96% / 0.98);
   box-shadow: 0 22px 58px hsl(31 34% 24% / 0.2);
   color: hsl(32 22% 21%);
-  padding: 12px;
 }
 
 .source-composer > header,
@@ -3774,14 +3837,36 @@
   gap: 8px;
 }
 
+.source-composer > header {
+  padding: 18px 18px 12px;
+}
+
 .source-composer > footer,
 .source-comment-composer > footer {
   flex-wrap: wrap;
 }
 
+.source-composer > footer {
+  padding: 12px 18px 18px;
+  background: hsl(39 39% 88% / 0.42);
+}
+
 .source-composer > header strong {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
+}
+
+.source-composer-title-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.source-composer-title-shortcut .source-shortcut-hint {
+  margin-left: 0;
 }
 
 .source-composer > header button {
@@ -3798,22 +3883,37 @@
 }
 
 .source-composer-options {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+}
+
+.source-composer-options > span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.source-composer-options > div {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
 }
 
 .source-composer-options button {
-  height: 27px;
+  min-width: 88px;
+  height: 42px;
   border: 1px solid hsl(36 31% 72% / 0.64);
   border-radius: 999px;
   background: hsl(43 58% 93% / 0.72);
   color: hsl(32 22% 21%);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
-  font-weight: 840;
-  padding: 0 9px;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 0 14px;
 }
 
 .source-composer-options button.is-active {
@@ -3824,27 +3924,43 @@
 
 .source-composer-editor {
   position: relative;
+  margin-top: 8px;
+  border-top: 2px solid hsl(31 16% 28% / 0.32);
+  border-bottom: 2px solid hsl(31 16% 28% / 0.32);
 }
 
 .source-composer-editor textarea {
   width: 100%;
-  min-height: 86px;
+  min-height: 168px;
   resize: vertical;
-  border: 1px solid hsl(36 31% 72% / 0.74);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: hsl(43 66% 98%);
   color: hsl(32 22% 21%);
   font: inherit;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.55;
   outline: 0;
-  padding: 10px;
+  padding: 20px 18px;
 }
 
 .source-composer-editor textarea:focus {
-  border-color: hsl(8 36% 46% / 0.36);
-  box-shadow: 0 0 0 3px hsl(8 36% 46% / 0.08);
+  box-shadow: inset 0 0 0 3px hsl(8 36% 46% / 0.08);
+}
+
+.source-comment-composer .source-composer-editor {
+  margin-top: 0;
+  border: 0;
+}
+
+.source-comment-composer .source-composer-editor textarea {
+  min-height: 72px;
+  max-height: 160px;
+  border: 1px solid hsl(36 31% 72% / 0.74);
+  border-radius: 8px;
+  font-size: 13px;
+  padding: 10px;
 }
 
 .source-agent-tray {
