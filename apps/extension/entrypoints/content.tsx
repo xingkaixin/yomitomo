@@ -239,10 +239,29 @@ function sameArticleImages(left: ExtractedArticle, right: ExtractedArticle) {
   );
 }
 
+function formatReaderDate(value: string | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 type AgentMessageRequest = Extract<DesktopClientMessage, { type: 'agent:message' }>;
 
 function shouldSaveArticleImages(settings: AppSettings | undefined) {
   return Boolean(settings?.saveArticleImages);
+}
+
+function defaultTocOpen() {
+  return typeof window !== 'undefined' && window.innerWidth > 1320;
+}
+
+function usesOverlayToc() {
+  return typeof window !== 'undefined' && window.innerWidth <= 1320;
 }
 
 function ReaderApp({
@@ -297,7 +316,7 @@ function ReaderApp({
   const [readingSections, setReadingSections] = useState<ReaderReadingSection[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
-  const [tocOpen, setTocOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [notesOpen, setNotesOpen] = useState(false);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
   const [extracted, setExtracted] = useState(initialExtracted);
@@ -358,6 +377,15 @@ function ReaderApp({
     readerLog,
   });
   const shortcutModifier = getShortcutModifier();
+  const readerArticle = useMemo(
+    () => ({
+      title: extracted.title,
+      byline: extracted.byline || extracted.siteName,
+      excerpt: formatReaderDate(extracted.publishedAt),
+      content: extracted.content,
+    }),
+    [extracted],
+  );
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
@@ -1416,7 +1444,7 @@ function ReaderApp({
   }
 
   function scrollToHeading(item: TocItem) {
-    setTocOpen(false);
+    if (usesOverlayToc()) setTocOpen(false);
     const article = articleRef.current;
     const surface = surfaceRef.current;
     if (!article || !surface) return;
@@ -1443,7 +1471,7 @@ function ReaderApp({
       commentsCloseKey={commentsCloseKey}
       composer={composer}
       desktopConnected={desktopConnected}
-      extracted={extracted}
+      extracted={readerArticle}
       filteredAnnotations={filteredAnnotations}
       highlightChoice={highlightChoice}
       notesOpen={notesOpen}

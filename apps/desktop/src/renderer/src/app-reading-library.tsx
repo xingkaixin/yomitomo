@@ -70,6 +70,14 @@ const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 
 type SourceSelectionAction = SelectionAction;
 
+function defaultTocOpen() {
+  return typeof window !== 'undefined' && window.innerWidth > 1320;
+}
+
+function usesOverlayToc() {
+  return typeof window !== 'undefined' && window.innerWidth <= 1320;
+}
+
 export function ReadingLibrary({
   agents,
   articles,
@@ -534,7 +542,7 @@ function SourceBookcase({
   const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [tocOpen, setTocOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
@@ -667,7 +675,7 @@ function SourceBookcase({
 
   useEffect(() => {
     setNotesOpen(false);
-    setTocOpen(false);
+    setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
     setAgentAnnotateOpen(false);
     setReplyRequest(null);
@@ -1205,6 +1213,7 @@ function SourceBookcase({
   }
 
   function scrollToTocItem(item: TocItem) {
+    if (usesOverlayToc()) setTocOpen(false);
     const articleElement = articleRef.current;
     const scrollElement = scrollRef.current;
     if (!articleElement || !scrollElement) return;

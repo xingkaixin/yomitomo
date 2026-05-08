@@ -9,6 +9,7 @@ export type ExtractedArticle = {
   title: string;
   byline?: string;
   excerpt?: string;
+  publishedAt?: string;
   siteName?: string;
   siteIconUrl?: string;
   leadImageUrl?: string;
@@ -42,6 +43,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
       url: location.href,
       canonicalUrl,
       title,
+      byline: extractAuthor(),
       ...metadata,
       content,
       contentHash,
@@ -62,7 +64,7 @@ export async function extractCurrentArticle(): Promise<ExtractedArticle> {
     url: location.href,
     canonicalUrl,
     title: parsed?.title || fallbackTitle,
-    byline: parsed?.byline || undefined,
+    byline: parsed?.byline || extractAuthor(),
     excerpt: parsed?.excerpt || undefined,
     ...metadata,
     content,
@@ -85,6 +87,7 @@ export function fallbackCurrentArticle(): ExtractedArticle {
     url: location.href,
     canonicalUrl,
     title: document.querySelector('h1')?.textContent?.trim() || document.title || 'Untitled',
+    byline: extractAuthor(),
     ...metadata,
     content,
     contentHash,
@@ -123,9 +126,12 @@ async function extractWithDefuddle(canonicalUrl: string): Promise<ExtractedArtic
         document.querySelector('h1')?.textContent?.trim() ||
         document.title ||
         'Untitled',
-      byline: result.author || result.site || undefined,
+      byline: result.author || extractAuthor() || result.site || undefined,
       excerpt: result.description || undefined,
       ...metadata,
+      publishedAt:
+        normalizeDateString(result.publishedAt || result.date || result.published) ||
+        metadata.publishedAt,
       content,
       contentHash,
     };
@@ -142,7 +148,10 @@ function getCanonicalUrl() {
 function extractArticleMetadata(
   baseUrl: string,
   fallback: { siteName?: string; siteIconUrl?: string } = {},
-): Pick<ExtractedArticle, 'siteName' | 'siteIconUrl' | 'leadImageUrl' | 'themeColor'> {
+): Pick<
+  ExtractedArticle,
+  'siteName' | 'siteIconUrl' | 'leadImageUrl' | 'themeColor' | 'publishedAt'
+> {
   return {
     siteName:
       nonEmptyMetaProperty('og:site_name') ||
@@ -151,6 +160,7 @@ function extractArticleMetadata(
     siteIconUrl: resolveHttpUrl(fallback.siteIconUrl, baseUrl) || getSiteIconUrl(baseUrl),
     leadImageUrl: getOpenGraphImageUrl(baseUrl),
     themeColor: normalizeThemeColor(nonEmptyMetaName('theme-color')),
+    publishedAt: extractPublishedAt(),
   };
 }
 
@@ -189,10 +199,49 @@ function nonEmptyMetaName(name: string) {
   return cleanString(document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.content);
 }
 
+function extractPublishedAt() {
+  return normalizeDateString(
+    nonEmptyMetaProperty('article:published_time') ||
+      nonEmptyMetaProperty('og:article:published_time') ||
+      nonEmptyMetaProperty('article:modified_time') ||
+      nonEmptyMetaName('publishdate') ||
+      nonEmptyMetaName('pubdate') ||
+      nonEmptyMetaName('date') ||
+      nonEmptyMetaName('dc.date') ||
+      nonEmptyMetaName('dc.date.issued') ||
+      nonEmptyMetaName('sailthru.date') ||
+      document.querySelector<HTMLTimeElement>('time[datetime]')?.dateTime ||
+      document.getElementById('publish_time')?.textContent,
+  );
+}
+
+function extractAuthor() {
+  return (
+    cleanString(document.getElementById('js_name')?.textContent) ||
+    nonEmptyMetaName('author') ||
+    nonEmptyMetaProperty('article:author') ||
+    nonEmptyMetaName('byl') ||
+    cleanString(document.querySelector<HTMLAnchorElement>('[rel="author"]')?.textContent)
+  );
+}
+
 function cleanString(value: unknown) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed || undefined;
+}
+
+function normalizeDateString(value: unknown) {
+  const raw = cleanString(value);
+  if (!raw) return undefined;
+
+  const cjkDate = raw
+    .replace(/年/g, '-')
+    .replace(/月/g, '-')
+    .replace(/日/g, '')
+    .replace(/\//g, '-');
+  const parsed = Date.parse(raw) || Date.parse(cjkDate);
+  return Number.isNaN(parsed) ? raw : new Date(parsed).toISOString();
 }
 
 function resolveHttpUrl(value: unknown, baseUrl = location.href) {

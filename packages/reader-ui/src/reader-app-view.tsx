@@ -96,7 +96,6 @@ export type ReaderAppViewProps = {
   embedded?: boolean;
   extracted: ReaderArticle;
   filteredAnnotations: Annotation[];
-  brandMarkSrc?: string;
   hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
   notesOpen: boolean;
@@ -177,7 +176,6 @@ export function ReaderAppView({
   embedded = false,
   extracted,
   filteredAnnotations,
-  brandMarkSrc,
   hasSavedPairing,
   highlightChoice,
   notesOpen,
@@ -230,7 +228,6 @@ export function ReaderAppView({
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
-  const logoUrl = brandMarkSrc || defaultBrandMarkSrc();
   const highlightChoiceAnnotations = highlightChoice
     ? highlightChoice.annotationIds
         .map((id) => annotations.find((annotation) => annotation.id === id))
@@ -241,6 +238,7 @@ export function ReaderAppView({
     [activeId, boxes, filteredAnnotations],
   );
   const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
+  const hasToc = tocItems.length > 0;
   const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
@@ -272,7 +270,8 @@ export function ReaderAppView({
       className={[
         'reader-app',
         embedded ? 'is-embedded' : '',
-        tocOpen ? 'is-toc-open' : '',
+        hasToc ? 'has-toc' : '',
+        hasToc && tocOpen ? 'is-toc-open' : '',
         notesOpen ? 'is-notes-open' : '',
       ]
         .filter(Boolean)
@@ -286,53 +285,32 @@ export function ReaderAppView({
       onPointerDownCapture={handleOutsidePanelPointerDown}
     >
       <header className="reader-toolbar">
-        {embedded ? (
-          <div className="reader-toolbar-article">
-            <div className="reader-toolbar-article-copy">
-              <div className="reader-toolbar-article-title">{extracted.title}</div>
-              {extracted.byline || extracted.excerpt ? (
-                <p className="reader-toolbar-article-meta">
-                  {extracted.byline ? <span>{extracted.byline}</span> : null}
-                  {extracted.excerpt ? <span>{extracted.excerpt}</span> : null}
-                </p>
-              ) : null}
-            </div>
-            {toolbarArticleAction ? (
-              <div className="reader-toolbar-article-action">{toolbarArticleAction}</div>
+        <div className="reader-toolbar-article">
+          <div className="reader-toolbar-article-copy">
+            <div className="reader-toolbar-article-title">{extracted.title}</div>
+            {extracted.byline || extracted.excerpt ? (
+              <p className="reader-toolbar-article-meta">
+                {extracted.byline ? <span>{extracted.byline}</span> : null}
+                {extracted.excerpt ? <span>{extracted.excerpt}</span> : null}
+              </p>
             ) : null}
           </div>
-        ) : (
-          <div className="reader-brand">
-            {logoUrl ? (
-              <img className="reader-brand-mark" src={logoUrl} alt="" />
-            ) : (
-              <span className="reader-brand-mark">Y</span>
-            )}
-            <div className="reader-brand-copy">
-              <div className="reader-brand-title">Yomitomo</div>
-              <p>
-                <span
-                  className={
-                    desktopConnected
-                      ? 'reader-connection is-connected'
-                      : 'reader-connection is-disconnected'
-                  }
-                />
-                阅读器模式
-              </p>
-            </div>
-          </div>
-        )}
+          {toolbarArticleAction ? (
+            <div className="reader-toolbar-article-action">{toolbarArticleAction}</div>
+          ) : null}
+        </div>
         <div className="reader-toolbar-actions">
           <button
             className={
-              tocOpen
+              hasToc && tocOpen
                 ? 'reader-icon-button reader-toc-toggle is-active'
                 : 'reader-icon-button reader-toc-toggle'
             }
             type="button"
+            disabled={!hasToc}
             onClick={onToggleToc}
             aria-label="切换目录"
+            aria-pressed={hasToc && tocOpen}
           >
             <List size={18} />
           </button>
@@ -420,7 +398,11 @@ export function ReaderAppView({
       />
 
       <main className="reader-main">
-        <aside className={tocItems.length > 0 ? 'reader-toc' : 'reader-toc is-empty'}>
+        <aside
+          className={hasToc ? 'reader-toc' : 'reader-toc is-empty'}
+          aria-hidden={!hasToc || !tocOpen}
+          aria-label="目录"
+        >
           <div className="reader-toc-title">目录</div>
           {tocItems.map((item) => {
             const stats = isPrimaryTocItem(item) ? tocAnnotationStats.get(item.index) : undefined;
@@ -456,12 +438,6 @@ export function ReaderAppView({
         <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
           <div className="reader-canvas" ref={canvasRef}>
             <article className="reader-article" ref={articleRef}>
-              <header className="reader-article-header">
-                <h1>{extracted.title}</h1>
-                {extracted.byline || extracted.excerpt ? (
-                  <p>{[extracted.byline, extracted.excerpt].filter(Boolean).join(' · ')}</p>
-                ) : null}
-              </header>
               <div
                 className="reader-article-body"
                 dangerouslySetInnerHTML={{ __html: extracted.content }}
@@ -592,13 +568,4 @@ export function ReaderAppView({
       )}
     </div>
   );
-}
-
-function defaultBrandMarkSrc() {
-  const runtime = (
-    globalThis as {
-      chrome?: { runtime?: { getURL?: (path: string) => string } };
-    }
-  ).chrome?.runtime;
-  return runtime?.getURL?.('icon/128.png') || '';
 }
