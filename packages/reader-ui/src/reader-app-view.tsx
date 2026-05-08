@@ -88,6 +88,7 @@ export type ReaderAppViewProps = {
   articleRef: React.RefObject<HTMLElement | null>;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
+  commentSide?: 'auto' | 'left' | 'right';
   commentsCloseKey: number;
   composer: PendingComposer | null;
   completionBurstKey: number;
@@ -113,6 +114,7 @@ export type ReaderAppViewProps = {
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
+  toolbarArticleAction?: React.ReactNode;
   tocOpen: boolean;
   tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
   tocItems: TocItem[];
@@ -167,6 +169,7 @@ export function ReaderAppView({
   articleRef,
   boxes,
   canvasRef,
+  commentSide = 'auto',
   commentsCloseKey,
   composer,
   completionBurstKey,
@@ -192,6 +195,7 @@ export function ReaderAppView({
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
+  toolbarArticleAction,
   tocOpen,
   tocAnnotationStats,
   tocItems,
@@ -282,26 +286,43 @@ export function ReaderAppView({
       onPointerDownCapture={handleOutsidePanelPointerDown}
     >
       <header className="reader-toolbar">
-        <div className="reader-brand">
-          {logoUrl ? (
-            <img className="reader-brand-mark" src={logoUrl} alt="" />
-          ) : (
-            <span className="reader-brand-mark">Y</span>
-          )}
-          <div className="reader-brand-copy">
-            <div className="reader-brand-title">Yomitomo</div>
-            <p>
-              <span
-                className={
-                  desktopConnected
-                    ? 'reader-connection is-connected'
-                    : 'reader-connection is-disconnected'
-                }
-              />
-              阅读器模式
-            </p>
+        {embedded ? (
+          <div className="reader-toolbar-article">
+            <div className="reader-toolbar-article-copy">
+              <div className="reader-toolbar-article-title">{extracted.title}</div>
+              {extracted.byline || extracted.excerpt ? (
+                <p className="reader-toolbar-article-meta">
+                  {extracted.byline ? <span>{extracted.byline}</span> : null}
+                  {extracted.excerpt ? <span>{extracted.excerpt}</span> : null}
+                </p>
+              ) : null}
+            </div>
+            {toolbarArticleAction ? (
+              <div className="reader-toolbar-article-action">{toolbarArticleAction}</div>
+            ) : null}
           </div>
-        </div>
+        ) : (
+          <div className="reader-brand">
+            {logoUrl ? (
+              <img className="reader-brand-mark" src={logoUrl} alt="" />
+            ) : (
+              <span className="reader-brand-mark">Y</span>
+            )}
+            <div className="reader-brand-copy">
+              <div className="reader-brand-title">Yomitomo</div>
+              <p>
+                <span
+                  className={
+                    desktopConnected
+                      ? 'reader-connection is-connected'
+                      : 'reader-connection is-disconnected'
+                  }
+                />
+                阅读器模式
+              </p>
+            </div>
+          </div>
+        )}
         <div className="reader-toolbar-actions">
           <button
             className={
@@ -503,6 +524,7 @@ export function ReaderAppView({
                       if (element) noteRefs.current.set(annotation.id, element);
                       else noteRefs.current.delete(annotation.id);
                     }}
+                    commentSide={commentSide}
                     shortcutModifier={shortcutModifier}
                     stackCount={stackCount}
                     stackIndex={stackIndex}

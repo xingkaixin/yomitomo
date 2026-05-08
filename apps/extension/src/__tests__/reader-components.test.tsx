@@ -282,6 +282,31 @@ describe('AnnotationCard', () => {
 
     expect(screen.getByLabelText('评论内容')).toHaveProperty('value', '@concept ');
   });
+
+  it('uses a configured comment side when comments expand', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation}
+        commentSide="left"
+        commentsCloseKey={0}
+        desktopConnected
+        noteRef={vi.fn()}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /0 条评论/ }));
+
+    expect(
+      container.querySelector('.reader-note-comments-popover')?.getAttribute('data-side'),
+    ).toBe('left');
+  });
 });
 
 describe('HighlightChoiceMenu', () => {
@@ -503,6 +528,19 @@ describe('SelectionMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加批注' }));
 
     expect(onAnnotate).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps mouseup inside the selection menu from reaching the article surface', () => {
+    const onMouseUp = vi.fn();
+    render(
+      <div onMouseUp={onMouseUp}>
+        <SelectionMenu action={{ x: 0, y: 0 }} onAnnotate={vi.fn()} />
+      </div>,
+    );
+
+    fireEvent.mouseUp(screen.getByRole('button', { name: '添加批注' }));
+
+    expect(onMouseUp).not.toHaveBeenCalled();
   });
 });
 

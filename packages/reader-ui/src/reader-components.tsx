@@ -185,7 +185,12 @@ export function SelectionMenu({
   onAnnotate: () => void;
 }) {
   return (
-    <div className="reader-selection-menu" style={{ left: action.x, top: action.y }}>
+    <div
+      className="reader-selection-menu"
+      style={{ left: action.x, top: action.y }}
+      onMouseDown={(event) => event.preventDefault()}
+      onMouseUp={(event) => event.stopPropagation()}
+    >
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
         添加批注
@@ -1175,6 +1180,7 @@ export function AnnotationCard({
   active,
   agents,
   annotation,
+  commentSide = 'auto',
   desktopConnected,
   isStackFront = true,
   noteRef,
@@ -1192,6 +1198,7 @@ export function AnnotationCard({
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
+  commentSide?: 'auto' | 'left' | 'right';
   desktopConnected: boolean;
   isStackFront?: boolean;
   noteRef: (element: HTMLElement | null) => void;
@@ -1210,7 +1217,7 @@ export function AnnotationCard({
   const [expanded, setExpanded] = useState(false);
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
-  const [commentsSide, setCommentsSide] = useState<'left' | 'right'>('right');
+  const [measuredCommentsSide, setMeasuredCommentsSide] = useState<'left' | 'right'>('right');
   const [agentTrayOpen, setAgentTrayOpen] = useState(false);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -1231,6 +1238,7 @@ export function AnnotationCard({
     ...noteStyle(author.color, active),
     ...style,
   };
+  const commentsSide = commentSide === 'auto' ? measuredCommentsSide : commentSide;
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -1268,7 +1276,7 @@ export function AnnotationCard({
   );
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded || commentSide !== 'auto') return;
 
     function updateCommentsSide() {
       const element = sectionRef.current;
@@ -1281,13 +1289,15 @@ export function AnnotationCard({
       const gap = 12;
       const rightSpace = boundaryRight - rect.right - gap;
       const leftSpace = rect.left - boundaryLeft - gap;
-      setCommentsSide(rightSpace >= panelWidth || rightSpace >= leftSpace ? 'right' : 'left');
+      setMeasuredCommentsSide(
+        rightSpace >= panelWidth || rightSpace >= leftSpace ? 'right' : 'left',
+      );
     }
 
     updateCommentsSide();
     window.addEventListener('resize', updateCommentsSide);
     return () => window.removeEventListener('resize', updateCommentsSide);
-  }, [expanded]);
+  }, [commentSide, expanded]);
 
   function submit() {
     onAddComment(annotation.id, draft);

@@ -53,6 +53,7 @@ import {
 } from '@yomitomo/reader-ui';
 import { formatDate, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
+import { OpenArticleButton } from './app-ui';
 import {
   Select,
   SelectContent,
@@ -1252,6 +1253,7 @@ function SourceBookcase({
         articleRef={articleRef}
         boxes={boxes}
         canvasRef={canvasRef}
+        commentSide="right"
         commentsCloseKey={commentsCloseKey}
         composer={composer}
         completionBurstKey={completionBurstKey}
@@ -1276,6 +1278,7 @@ function SourceBookcase({
         showConnectionSettings={false}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}
+        toolbarArticleAction={<OpenArticleButton article={article} iconOnly />}
         tocAnnotationStats={tocStats}
         tocItems={tocItems}
         tocOpen={tocOpen}

@@ -373,5 +373,15 @@ export const readerDesktopEmbeddedStyles = `
 .reader-app.is-embedded .reader-question-drawer{position:absolute}
 .reader-app.is-embedded .reader-annotation-connection{position:absolute;width:100%;height:100%}
 .reader-app.is-embedded .reader-completion-burst{position:absolute}
+.reader-toolbar-article{display:flex;align-items:center;gap:12px;min-width:0;font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-toolbar-article-copy{display:grid;gap:5px;min-width:0}
+.reader-toolbar-article-title{overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
+.reader-toolbar-article-meta{display:flex;align-items:center;gap:8px;min-width:0;margin:0;color:var(--reader-muted);font-size:12px;font-weight:760;line-height:1.25}
+.reader-toolbar-article-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reader-toolbar-article-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:8px;border-radius:999px;background:rgba(40,35,29,.24);vertical-align:2px}
+.reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center}
+.reader-toolbar-article-action .open-article-button.is-icon-only{--annotation-control-size:30px;border-color:rgba(40,35,29,.14);background:rgba(255,253,248,.84);color:var(--reader-ink)}
+.reader-toolbar-article-action .open-article-button.is-icon-only:hover{background:#f0eadf}
 @media(max-width:1320px){.reader-app.is-embedded.is-toc-open .reader-toc{position:absolute}}
+@media(max-width:760px){.reader-toolbar-article-action{display:none}.reader-toolbar-article-title{font-size:13px}.reader-toolbar-article-meta{font-size:11px}}
 `;
