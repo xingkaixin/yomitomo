@@ -1,11 +1,14 @@
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import {
   annotationColor,
+  annotationThreadComments,
   buildTocAnnotationStats as buildCoreTocAnnotationStats,
   buildHighlightSegments,
   highlightSegmentStyle,
   highlightStyle,
+  isQuestionComment,
   isPrimaryTocItem,
+  questionStatusOrOpen,
   timestamp,
   updateAnnotationComment,
 } from '@yomitomo/core';
@@ -71,6 +74,22 @@ export function buildTocAnnotationStats(
   return buildCoreTocAnnotationStats(tocItems, annotations, (annotation) =>
     annotationColor(annotation, userProfile, agents),
   );
+}
+
+export function countOpenQuestions(annotations: Annotation[]) {
+  return annotations.reduce((count, annotation) => {
+    const annotationQuestion =
+      annotation.annotationType === 'question' || annotation.questionStatus
+        ? questionStatusOrOpen(annotation.questionStatus) === 'open'
+          ? 1
+          : 0
+        : 0;
+    const commentQuestions = annotationThreadComments(annotation).filter(
+      (comment) =>
+        isQuestionComment(comment) && questionStatusOrOpen(comment.questionStatus) === 'open',
+    ).length;
+    return count + annotationQuestion + commentQuestions;
+  }, 0);
 }
 
 export function getShortcutModifier() {

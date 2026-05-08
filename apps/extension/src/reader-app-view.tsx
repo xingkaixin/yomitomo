@@ -9,18 +9,13 @@ import type {
   QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
-import {
-  annotationPrimaryComment,
-  annotationThreadComments,
-  annotationTypeLabel,
-  isQuestionComment,
-  questionStatusOrOpen,
-} from '@yomitomo/core';
+import { annotationPrimaryComment, annotationTypeLabel } from '@yomitomo/core';
 import type { ExtractedArticle } from './article-extraction';
 import type { HighlightBox, TocItem } from './reader-dom';
 import {
   buildHighlightSegments,
   buildTocAnnotationStats,
+  countOpenQuestions,
   highlightSegmentStyle,
   isPrimaryTocItem,
 } from './reader-utils';
@@ -236,7 +231,7 @@ export function ReaderAppView({
     () => buildAnnotationRailItems(filteredAnnotations, boxes, activeId),
     [activeId, boxes, filteredAnnotations],
   );
-  const questionCount = React.useMemo(() => countQuestions(annotations), [annotations]);
+  const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
   const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const temporarySegments = React.useMemo(
     () => buildHighlightSegments(temporaryBoxes),
@@ -665,20 +660,4 @@ function estimateAnnotationCardHeight(annotation: Annotation) {
     ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
     : 0;
   return 118 + quoteLines * 18 + commentLines * 24;
-}
-
-function countQuestions(annotations: Annotation[]) {
-  return annotations.reduce((count, annotation) => {
-    const annotationQuestion =
-      annotation.annotationType === 'question' || annotation.questionStatus
-        ? questionStatusOrOpen(annotation.questionStatus) === 'open'
-          ? 1
-          : 0
-        : 0;
-    const commentQuestions = annotationThreadComments(annotation).filter(
-      (comment) =>
-        isQuestionComment(comment) && questionStatusOrOpen(comment.questionStatus) === 'open',
-    ).length;
-    return count + annotationQuestion + commentQuestions;
-  }, 0);
 }

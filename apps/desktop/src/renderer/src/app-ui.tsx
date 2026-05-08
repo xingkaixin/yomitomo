@@ -25,7 +25,13 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
   );
 }
 
-export function OpenArticleButton({ article }: { article: ArticleRecord }) {
+export function OpenArticleButton({
+  article,
+  iconOnly = false,
+}: {
+  article: ArticleRecord;
+  iconOnly?: boolean;
+}) {
   const url = articleExternalUrl(article);
 
   async function open() {
@@ -46,15 +52,15 @@ export function OpenArticleButton({ article }: { article: ArticleRecord }) {
 
   return (
     <button
-      aria-label="在浏览器中打开原始链接"
-      className="open-article-button"
+      aria-label="打开原始链接"
+      className={iconOnly ? 'open-article-button is-icon-only' : 'open-article-button'}
       disabled={!url}
       type="button"
-      title={url || '原文链接不可用'}
+      title={url ? '打开原始链接' : '原文链接不可用'}
       onClick={open}
     >
       <ExternalLink size={16} />
-      <span>打开原始链接</span>
+      {iconOnly ? null : <span>打开原始链接</span>}
     </button>
   );
 }

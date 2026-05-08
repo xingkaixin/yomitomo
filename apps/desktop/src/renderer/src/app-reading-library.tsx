@@ -24,6 +24,7 @@ import type {
   ArticleRecord,
   Comment as AnnotationComment,
   PublicAgent,
+  QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -66,7 +67,12 @@ import {
   type TocItem,
   updateAnnotationComment,
 } from '@yomitomo/core';
-import { useAgentAnnotationQueue, type VirtualCursorState } from '@yomitomo/reader-ui';
+import {
+  countOpenQuestions,
+  QuestionPanel,
+  useAgentAnnotationQueue,
+  type VirtualCursorState,
+} from '@yomitomo/reader-ui';
 import { commentAuthorProfile, formatDate, formatDateTime, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
 import {
@@ -253,30 +259,8 @@ export function ReadingLibrary({
 
   return (
     <div className={`library-bookcase-screen is-${activeShelf}-expanded`}>
-      <div
-        className={
-          activeShelf === 'library'
-            ? 'library-shelf is-expanded'
-            : 'library-shelf is-collapsed is-library-bookcase'
-        }
-      >
-        {activeShelf === 'library' ? (
-          <LibraryHome
-            articles={articles}
-            sortedArticles={sortedArticles}
-            stats={stats}
-            onDeleteArticle={deleteLibraryArticle}
-            onOpenArticle={openArticle}
-            onRefresh={onRefresh}
-          />
-        ) : (
-          <LibraryBookcaseRail
-            articles={sortedArticles}
-            selectedArticleId={selectedArticle?.id || null}
-            onExpand={openLibraryShelf}
-            onSelect={openArticle}
-          />
-        )}
+      <div className="library-shelf is-collapsed is-library-bookcase">
+        <ShelfTab icon={<BookOpen size={18} />} label="阅读库" onClick={openLibraryShelf} />
       </div>
 
       <div
@@ -461,66 +445,26 @@ function LibraryHome({
   );
 }
 
-function LibraryBookcaseRail({
-  articles,
-  selectedArticleId,
-  onExpand,
-  onSelect,
-}: {
-  articles: ArticleRecord[];
-  selectedArticleId: string | null;
-  onExpand: () => void;
-  onSelect: (article: ArticleRecord) => void;
-}) {
-  return (
-    <aside className="library-bookcase-rail">
-      <header className="library-bookcase-header">
-        <button className="library-back-button" type="button" onClick={onExpand}>
-          <ChevronLeft size={16} />
-          阅读库
-        </button>
-        <span>{articles.length} 本</span>
-      </header>
-      <div className="library-bookcase-scroll">
-        {articles.map((article) => (
-          <button
-            className={
-              article.id === selectedArticleId
-                ? 'library-bookcase-item is-active'
-                : 'library-bookcase-item'
-            }
-            key={article.id}
-            type="button"
-            onClick={() => onSelect(article)}
-          >
-            <ArticleBook article={article} />
-            <span className="library-bookcase-copy">
-              <strong>{article.title}</strong>
-              <span>{article.annotations.length} 批注</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
 function ShelfTab({
   count,
   icon,
   label,
   onClick,
 }: {
-  count: number;
+  count?: number;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
 }) {
   return (
-    <button className="library-shelf-tab" type="button" onClick={onClick}>
+    <button
+      className={count === undefined ? 'library-shelf-tab is-title-only' : 'library-shelf-tab'}
+      type="button"
+      onClick={onClick}
+    >
       <span className="library-shelf-tab-icon">{icon}</span>
       <span className="library-shelf-tab-label">{label}</span>
-      <span className="library-shelf-tab-count">{count}</span>
+      {count === undefined ? null : <span className="library-shelf-tab-count">{count}</span>}
     </button>
   );
 }
@@ -669,6 +613,10 @@ function SourceBookcase({
   const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
   const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [questionDrawerOpen, setQuestionDrawerOpen] = useState(false);
+  const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
+    null,
+  );
   const [statusMessage, setStatusMessage] = useState('');
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const highlightSegments = useMemo(() => buildHighlightSegments(boxes), [boxes]);
@@ -698,6 +646,7 @@ function SourceBookcase({
       ),
     [annotations],
   );
+  const openQuestionCount = useMemo(() => countOpenQuestions(annotations), [annotations]);
   const {
     agentTheaterBoxes,
     annotatingAgents: annotatingAgentIds,
@@ -801,6 +750,11 @@ function SourceBookcase({
     setTemporaryBoxes([]);
   }, [article?.id, annotations]);
 
+  useEffect(() => {
+    setQuestionDrawerOpen(false);
+    setReplyRequest(null);
+  }, [article?.id]);
+
   const recalculateActiveConnection = useCallback(() => {
     if (!selectedAnnotationId) {
       setActiveConnection(null);
@@ -884,23 +838,31 @@ function SourceBookcase({
     };
   }, [recalculateActiveConnection]);
 
+  const scrollToAnnotation = useCallback(
+    (annotationId: string) => {
+      const scrollElement = scrollRef.current;
+      const canvasElement = canvasRef.current;
+      if (!scrollElement || !canvasElement) return;
+
+      const top = sourceAnnotationScrollTop({
+        annotationId,
+        boxes,
+        canvasOffsetTop: canvasElement.offsetTop,
+        scrollHeight: scrollElement.scrollHeight,
+        viewportHeight: scrollElement.clientHeight,
+      });
+      if (top === null) return;
+
+      scrollElement.scrollTo({ top, behavior: 'smooth' });
+    },
+    [boxes],
+  );
+
   useEffect(() => {
-    const scrollElement = scrollRef.current;
-    const canvasElement = canvasRef.current;
-    if (!focusAnnotationId || !scrollElement || !canvasElement) return;
-
-    const top = sourceAnnotationScrollTop({
-      annotationId: focusAnnotationId,
-      boxes,
-      canvasOffsetTop: canvasElement.offsetTop,
-      scrollHeight: scrollElement.scrollHeight,
-      viewportHeight: scrollElement.clientHeight,
-    });
-    if (top === null) return;
-
-    scrollElement.scrollTo({ top, behavior: 'smooth' });
+    if (!focusAnnotationId) return;
+    scrollToAnnotation(focusAnnotationId);
     onFocusedAnnotation();
-  }, [boxes, focusAnnotationId, onFocusedAnnotation]);
+  }, [focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
 
   function openAnnotation(annotationId: string) {
     setHighlightChoice(null);
@@ -1073,6 +1035,49 @@ function SourceBookcase({
     for (const agent of mentionedAgents) {
       void requestAgentComment(agent, nextAnnotation, comment);
     }
+  }
+
+  async function setAnnotationQuestionStatus(annotationId: string, status: QuestionStatus) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? { ...annotation, questionStatus: status, updatedAt: now }
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+  }
+
+  async function setCommentQuestionStatus(
+    annotationId: string,
+    commentId: string,
+    status: QuestionStatus,
+  ) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? {
+            ...annotation,
+            updatedAt: now,
+            comments: annotation.comments.map((comment) =>
+              comment.id === commentId ? { ...comment, questionStatus: status } : comment,
+            ),
+          }
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+  }
+
+  function focusQuestionAnnotation(annotationId: string) {
+    setQuestionDrawerOpen(false);
+    openAnnotation(annotationId);
+    scrollToAnnotation(annotationId);
+  }
+
+  function answerQuestion(annotationId: string) {
+    focusQuestionAnnotation(annotationId);
+    setReplyRequest({ annotationId, key: Date.now() });
   }
 
   async function deleteAnnotation(annotationId: string) {
@@ -1308,28 +1313,50 @@ function SourceBookcase({
     );
   }
 
+  const sourceMetaParts = [
+    article.byline || urlHost(article.canonicalUrl || article.url),
+    formatDate(article.updatedAt),
+    statusMessage,
+  ].filter(Boolean);
+
   return (
     <section className="source-bookcase">
       <header className="source-bookcase-header">
         <div className="min-w-0">
           <h2>{article.title}</h2>
-          <p>
-            {article.byline || urlHost(article.canonicalUrl || article.url)} ·{' '}
-            {formatDate(article.updatedAt)}
-            {statusMessage ? ` · ${statusMessage}` : ''}
-          </p>
+          <div className="source-bookcase-subtitle">
+            <span>{sourceMetaParts.join(' · ')}</span>
+            <OpenArticleButton article={article} iconOnly />
+          </div>
         </div>
         <div className="source-bookcase-actions">
+          <button
+            className={
+              questionDrawerOpen ? 'source-question-toggle is-active' : 'source-question-toggle'
+            }
+            type="button"
+            aria-label="切换待回应区"
+            title="待回应"
+            onClick={() => {
+              setAgentAnnotateOpen(false);
+              setQuestionDrawerOpen((open) => !open);
+            }}
+          >
+            <MessageSquare size={16} />
+            <span>{openQuestionCount}</span>
+          </button>
           <button
             className="source-agent-button"
             type="button"
             disabled={annotationAgents.length === 0}
-            onClick={() => setAgentAnnotateOpen((open) => !open)}
+            onClick={() => {
+              setQuestionDrawerOpen(false);
+              setAgentAnnotateOpen((open) => !open);
+            }}
           >
             <Bot size={15} />
-            助手批注
+            助手精读
           </button>
-          <OpenArticleButton article={article} />
         </div>
       </header>
       {agentAnnotateOpen ? (
@@ -1344,6 +1371,31 @@ function SourceBookcase({
           }}
         />
       ) : null}
+      {questionDrawerOpen ? (
+        <button
+          className="source-question-scrim"
+          type="button"
+          aria-label="关闭待回应区"
+          onClick={() => setQuestionDrawerOpen(false)}
+        />
+      ) : null}
+      <aside
+        className={questionDrawerOpen ? 'source-question-drawer is-open' : 'source-question-drawer'}
+      >
+        <QuestionPanel
+          agents={annotationAgents}
+          annotations={annotations}
+          userProfile={userProfile}
+          onAnswer={answerQuestion}
+          onFocus={focusQuestionAnnotation}
+          onSetAnnotationQuestionStatus={(annotationId, status) =>
+            void setAnnotationQuestionStatus(annotationId, status)
+          }
+          onSetCommentQuestionStatus={(annotationId, commentId, status) =>
+            void setCommentQuestionStatus(annotationId, commentId, status)
+          }
+        />
+      </aside>
       <div className={tocItems.length > 0 ? 'source-body-layout' : 'source-body-layout is-no-toc'}>
         <aside className={tocItems.length > 0 ? 'source-toc' : 'source-toc is-empty'}>
           <div className="source-toc-title">目录</div>
@@ -1440,6 +1492,9 @@ function SourceBookcase({
                       if (element) noteRefs.current.set(annotation.id, element);
                       else noteRefs.current.delete(annotation.id);
                     }}
+                    replyRequestKey={
+                      replyRequest?.annotationId === annotation.id ? replyRequest.key : undefined
+                    }
                     stackCount={stackCount}
                     stackIndex={stackIndex}
                     style={style}
@@ -1738,7 +1793,7 @@ function SourceAgentAnnotateMenu({
         <p>
           <b>{assignedAgentCount}</b> 助手 · <b>{actionCount}</b> 动作
         </p>
-        <button type="button" aria-label="关闭助手批注" onClick={onClose}>
+        <button type="button" aria-label="关闭助手精读" onClick={onClose}>
           <X size={14} />
         </button>
       </header>
@@ -1831,6 +1886,7 @@ function SourceAnnotationCard({
   stackIndex,
   style,
   noteRef,
+  replyRequestKey,
   onAddComment,
   onDelete,
   onFocus,
@@ -1844,6 +1900,7 @@ function SourceAnnotationCard({
   stackIndex: number;
   style: SourceAnnotationStyle;
   noteRef: (element: HTMLElement | null) => void;
+  replyRequestKey?: number;
   onAddComment: (annotationId: string, content: string) => void | Promise<void>;
   onDelete: (annotationId: string) => void | Promise<void>;
   onFocus: (annotationId: string) => void;
@@ -1877,6 +1934,11 @@ function SourceAnnotationCard({
   useEffect(() => {
     if (!active && expanded) setExpanded(false);
   }, [active, expanded]);
+
+  useEffect(() => {
+    if (replyRequestKey === undefined) return;
+    setExpanded(true);
+  }, [replyRequestKey]);
 
   useEffect(
     () => () => {
@@ -2011,6 +2073,7 @@ function SourceAnnotationCard({
               )}
             </div>
             <SourceCommentComposer
+              autoFocusKey={replyRequestKey}
               agents={annotationMentionAgents(annotation, annotationAgents)}
               annotationId={annotation.id}
               onSubmit={onAddComment}
@@ -2041,10 +2104,12 @@ function SourceAnnotationComment({ comment }: { comment: AnnotationComment }) {
 }
 
 function SourceCommentComposer({
+  autoFocusKey,
   agents,
   annotationId,
   onSubmit,
 }: {
+  autoFocusKey?: number;
   agents: PublicAgent[];
   annotationId: string;
   onSubmit: (annotationId: string, content: string) => void | Promise<void>;
@@ -2060,6 +2125,11 @@ function SourceCommentComposer({
       : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
   const visibleAgents = agents.slice(0, 2);
   const overflowAgents = agents.slice(2);
+
+  useEffect(() => {
+    if (autoFocusKey === undefined) return;
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [autoFocusKey]);
 
   function updateCaret(element: HTMLTextAreaElement) {
     setCaretIndex(element.selectionStart);
