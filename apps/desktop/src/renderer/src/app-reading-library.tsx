@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import type {
   Agent,
+  AgentReadingPlanItem,
   AgentReadingIntent,
   Annotation,
   AnnotationType,
@@ -62,7 +63,9 @@ import {
   type ExtractTocOptions,
   type HighlightBox,
   type TocItem,
+  updateAnnotationComment,
 } from '@yomitomo/core';
+import { useAgentAnnotationQueue, type VirtualCursorState } from '@yomitomo/reader-ui';
 import { commentAuthorProfile, formatDate, formatDateTime, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
 import {
@@ -102,6 +105,13 @@ type SourceSelectionAction = {
   x: number;
   y: number;
   anchor: Annotation['anchor'];
+};
+
+type SourceReadingSection = {
+  id: string;
+  title: string;
+  start: number;
+  end: number;
 };
 
 const annotationTypeOptions: AnnotationType[] = [
@@ -636,12 +646,13 @@ function SourceBookcase({
   onOpenAnnotation: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const articleRef = useRef<HTMLElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const latestArticleRef = useRef<ArticleRecord | null>(article);
+  const annotationsRef = useRef<Annotation[]>(annotations);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [activeConnection, setActiveConnection] = useState<SourceActiveConnection | null>(null);
@@ -653,20 +664,26 @@ function SourceBookcase({
   const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
   const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
-  const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const highlightSegments = useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const temporarySegments = useMemo(() => buildHighlightSegments(temporaryBoxes), [temporaryBoxes]);
   const annotationRailItems = useMemo(
     () => buildSourceAnnotationRailItems(annotations, boxes, selectedAnnotationId),
     [annotations, boxes, selectedAnnotationId],
   );
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
     () => buildTocAnnotationStats(tocItems, annotations),
     [tocItems, annotations],
+  );
+  const readingSections = useMemo(
+    () =>
+      articleRef.current && article
+        ? buildSourceReadingSections(articleRef.current, tocItems, article.title)
+        : [],
+    [article, tocItems],
   );
   const commentCount = useMemo(
     () =>
@@ -676,10 +693,43 @@ function SourceBookcase({
       ),
     [annotations],
   );
+  const {
+    agentTheaterBoxes,
+    annotatingAgents: annotatingAgentIds,
+    virtualCursors,
+    cleanupVirtualReadingSessions,
+    enqueueAgentAnnotation,
+    finishVirtualReading,
+    finishVirtualReadingIfIdle,
+    markAgentAnnotating,
+    markVirtualReadingDone,
+    processAgentAnnotationQueue,
+    startVirtualReading,
+  } = useAgentAnnotationQueue({
+    agents: annotationAgents,
+    articleRef,
+    canvasRef,
+    surfaceRef: scrollRef,
+    articleBodySelector: '.source-article-body',
+    annotationsRef,
+    saveAnnotations,
+    setActiveId: openAnnotation,
+    readerLog: () => {},
+  });
+  const agentTheaterSegments = useMemo(
+    () => buildHighlightSegments(agentTheaterBoxes),
+    [agentTheaterBoxes],
+  );
 
   useEffect(() => {
     latestArticleRef.current = article;
   }, [article]);
+
+  useEffect(() => {
+    annotationsRef.current = annotations;
+  }, [annotations]);
+
+  useEffect(() => cleanupVirtualReadingSessions, []);
 
   useEffect(() => {
     const articleElement = articleRef.current;
@@ -862,7 +912,22 @@ function SourceBookcase({
       updatedAt: new Date().toISOString(),
     };
     latestArticleRef.current = nextArticle;
+    annotationsRef.current = nextArticle.annotations;
     await onSaveArticle(nextArticle);
+    return nextArticle;
+  }
+
+  function applyAnnotations(nextAnnotations: Annotation[]) {
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return null;
+    const nextArticle = {
+      ...currentArticle,
+      annotations: sortAnnotations(nextAnnotations),
+      updatedAt: new Date().toISOString(),
+    };
+    latestArticleRef.current = nextArticle;
+    annotationsRef.current = nextArticle.annotations;
+    void onSaveArticle(nextArticle);
     return nextArticle;
   }
 
@@ -934,15 +999,15 @@ function SourceBookcase({
     const mentionedAgents = findMentionedAgents(note, annotationAgents);
     if (mentionedAgents.length > 0) {
       const instruction = agentInstructionFromNote(note, mentionedAgents);
+      cancelComposer();
       for (const agent of mentionedAgents) {
-        await requestAgentAnnotations(agent, {
+        void requestAgentAnnotations(agent, {
           annotationType,
           readingIntent,
           instruction,
           targetAnchor: composer.anchor,
         });
       }
-      cancelComposer();
       return;
     }
 
@@ -1011,26 +1076,85 @@ function SourceBookcase({
 
     setStatusMessage(`${agent.nickname} 正在回复`);
     try {
-      const comment = await desktop.requestAgentComment({
-        agentId: agent.id,
-        agentUsername: agent.username,
-        readingIntent: annotation.readingIntent || userComment.readingIntent,
-        article: promptArticle(),
-        annotation,
-        userComment,
-      });
-      const latestArticle = latestArticleRef.current;
-      if (!latestArticle) return;
-      const nextAnnotations = appendAnnotationComment(
-        latestArticle.annotations,
-        annotation.id,
-        comment,
-        comment.createdAt,
+      await desktop.requestAgentCommentStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          readingIntent: annotation.readingIntent || userComment.readingIntent,
+          article: promptArticle(),
+          annotation,
+          userComment,
+        },
+        (event) => {
+          if (event.type === 'start') {
+            const nextAnnotations = appendAnnotationComment(
+              annotationsRef.current,
+              annotation.id,
+              event.comment,
+              event.comment.createdAt,
+            );
+            if (nextAnnotations) applyAnnotations(nextAnnotations);
+            return;
+          }
+
+          const currentComment = annotationsRef.current
+            .find((item) => item.id === annotation.id)
+            ?.comments.find(
+              (comment) =>
+                comment.author === 'ai' && comment.agentId === agent.id && comment.pending,
+            );
+          if (!currentComment) return;
+          const nextAnnotations = updateAnnotationComment(
+            annotationsRef.current,
+            annotation.id,
+            currentComment.id,
+            (comment) => Object.assign({}, comment, { content: comment.content + event.delta }),
+          );
+          if (nextAnnotations) applyAnnotations(nextAnnotations);
+        },
       );
-      if (nextAnnotations) await saveAnnotations(nextAnnotations);
+      const current = annotationsRef.current.find((item) => item.id === annotation.id);
+      const agentComment = current?.comments.find(
+        (comment) => comment.author === 'ai' && comment.agentId === agent.id && comment.pending,
+      );
+      if (agentComment) {
+        const nextAnnotations = updateAnnotationComment(
+          annotationsRef.current,
+          annotation.id,
+          agentComment.id,
+          (comment) => Object.assign({}, comment, { pending: false }),
+        );
+        if (nextAnnotations) await saveAnnotations(nextAnnotations);
+      }
     } finally {
       setStatusMessage('');
     }
+  }
+
+  function constrainAgentPlanAnnotation(
+    annotation: Annotation,
+    readingPlan: AgentReadingPlanItem[] | undefined,
+  ) {
+    if (!readingPlan?.length) return annotation;
+
+    const articleText = currentArticleText();
+    const position = resolveTextAnchor(articleText, annotation.anchor);
+    if (!position) return null;
+
+    const planItem = readingPlan.find(
+      (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
+    );
+    if (!planItem) return null;
+    if (annotation.readingIntent === planItem.readingIntent) return annotation;
+
+    return {
+      ...annotation,
+      readingIntent: planItem.readingIntent,
+      comments: annotation.comments.map((comment) => ({
+        ...comment,
+        readingIntent: comment.readingIntent || planItem.readingIntent,
+      })),
+    };
   }
 
   async function requestAgentAnnotations(
@@ -1040,36 +1164,54 @@ function SourceBookcase({
       readingIntent?: AgentReadingIntent;
       instruction?: string;
       targetAnchor?: Annotation['anchor'];
+      readingPlan?: AgentReadingPlanItem[];
     } = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
     if (!desktop || !currentArticle || annotatingAgentIds.includes(agent.id)) return;
 
-    setAnnotatingAgentIds((ids) => [...ids, agent.id]);
+    markAgentAnnotating(agent.id, true);
     setStatusMessage(`${agent.nickname} 正在批注`);
+    const readingPlan =
+      options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
+    startVirtualReading(
+      agent,
+      readingPlan,
+      options.targetAnchor ? 'target' : readingPlan.length > 0 ? 'careful' : 'article',
+    );
+    let annotationCount = 0;
     try {
-      const result = await desktop.requestAgentAnnotations({
-        agentId: agent.id,
-        agentUsername: agent.username,
-        annotationType: options.annotationType,
-        readingIntent: options.readingIntent,
-        instruction: options.instruction,
-        targetAnchor: options.targetAnchor,
-        article: promptArticle(),
-      });
-      if (result.annotations.length === 0) {
+      await desktop.requestAgentAnnotationsStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          annotationType: options.annotationType,
+          readingIntent: options.readingIntent,
+          instruction: options.instruction,
+          targetAnchor: options.targetAnchor,
+          readingPlan: options.readingPlan,
+          article: promptArticle(),
+        },
+        (event) => {
+          if (event.type !== 'item') return;
+          const annotation = constrainAgentPlanAnnotation(event.annotation, options.readingPlan);
+          if (!annotation) return;
+          annotationCount += 1;
+          enqueueAgentAnnotation(annotation);
+          void processAgentAnnotationQueue();
+        },
+      );
+      markVirtualReadingDone(agent.id);
+      if (annotationCount === 0) {
+        finishVirtualReading(agent.id, '没有批注');
         setStatusMessage(`${agent.nickname} 暂无新批注`);
         window.setTimeout(() => setStatusMessage(''), 1400);
         return;
       }
-
-      const latestArticle = latestArticleRef.current;
-      if (!latestArticle) return;
-      await saveAnnotations([...latestArticle.annotations, ...result.annotations]);
-      openAnnotation(result.annotations[0]!.id);
+      finishVirtualReadingIfIdle(agent.id);
     } finally {
-      setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
+      markAgentAnnotating(agent.id, false);
       setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
     }
   }
@@ -1158,10 +1300,11 @@ function SourceBookcase({
         <SourceAgentAnnotateMenu
           agents={annotationAgents}
           annotatingAgentIds={annotatingAgentIds}
+          readingSections={readingSections}
           onClose={() => setAgentAnnotateOpen(false)}
-          onStart={(agent, readingIntent) => {
+          onStart={(agent, readingPlan) => {
             setAgentAnnotateOpen(false);
-            void requestAgentAnnotations(agent, { readingIntent });
+            void requestAgentAnnotations(agent, { readingPlan });
           }}
         />
       ) : null}
@@ -1208,6 +1351,13 @@ function SourceBookcase({
               />
             </article>
             <div className="source-highlight-layer">
+              {agentTheaterSegments.map((segment) => (
+                <span
+                  className="source-highlight is-agent-theater"
+                  key={`source-agent-theater-${segment.id}`}
+                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
+                />
+              ))}
               {temporarySegments.map((segment) => (
                 <span
                   className="source-highlight is-temporary"
@@ -1295,6 +1445,9 @@ function SourceBookcase({
                 }
               />
             ) : null}
+            {virtualCursors.map((cursor) =>
+              cursor.visible ? <SourceVirtualCursor cursor={cursor} key={cursor.id} /> : null,
+            )}
           </div>
         </div>
       </div>
@@ -1404,6 +1557,11 @@ function SourceComposer({
             updateCaret(event.currentTarget);
           }}
           onClick={(event) => updateCaret(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (!isSubmitShortcut(event)) return;
+            event.preventDefault();
+            submit();
+          }}
           onSelect={(event) => updateCaret(event.currentTarget)}
         />
         {matchedAgents.length > 0 ? (
@@ -1428,6 +1586,7 @@ function SourceComposer({
             </button>
           ))}
         </div>
+        <ShortcutHint />
         <button type="button" onClick={onCancel}>
           取消
         </button>
@@ -1442,61 +1601,176 @@ function SourceComposer({
 function SourceAgentAnnotateMenu({
   agents,
   annotatingAgentIds,
+  readingSections,
   onClose,
   onStart,
 }: {
   agents: PublicAgent[];
   annotatingAgentIds: string[];
+  readingSections: SourceReadingSection[];
   onClose: () => void;
-  onStart: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
+  onStart: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
 }) {
-  const [readingIntent, setReadingIntent] = useState<AgentReadingIntent>('explain');
+  const availableAgents = useMemo(
+    () => agents.filter((agent) => !annotatingAgentIds.includes(agent.id)),
+    [agents, annotatingAgentIds],
+  );
+  const [visibleAgentIds, setVisibleAgentIds] = useState<string[]>([]);
+  const [assignments, setAssignments] = useState<
+    Record<string, Record<string, AgentReadingIntent>>
+  >({});
+
+  useEffect(() => {
+    setVisibleAgentIds((ids) => {
+      const next = ids.filter((id) => availableAgents.some((agent) => agent.id === id));
+      return next.length > 0 ? next : availableAgents.map((agent) => agent.id);
+    });
+  }, [availableAgents]);
+
+  const visibleAgents = availableAgents.filter((agent) => visibleAgentIds.includes(agent.id));
+  const actionCount = Object.values(assignments).reduce(
+    (count, agentAssignments) => count + Object.keys(agentAssignments).length,
+    0,
+  );
+  const assignedAgentCount = visibleAgents.filter(
+    (agent) => Object.keys(assignments[agent.id] || {}).length > 0,
+  ).length;
+  const canStart = actionCount > 0 && assignedAgentCount > 0;
+  const gridTemplateColumns = `190px repeat(${Math.max(1, readingSections.length)}, 84px)`;
+
+  function setAssignment(agentId: string, sectionId: string, readingIntent: AgentReadingIntent) {
+    setAssignments((current) => ({
+      ...current,
+      [agentId]: {
+        ...current[agentId],
+        [sectionId]: readingIntent,
+      },
+    }));
+  }
+
+  function clearAssignment(agentId: string, sectionId: string) {
+    setAssignments((current) => {
+      const agentAssignments = { ...current[agentId] };
+      delete agentAssignments[sectionId];
+      return { ...current, [agentId]: agentAssignments };
+    });
+  }
+
+  function onCellDrop(event: React.DragEvent<HTMLDivElement>, agentId: string, sectionId: string) {
+    event.preventDefault();
+    const readingIntent = event.dataTransfer.getData('text/plain') as AgentReadingIntent;
+    if (!agentReadingIntentOptions.some((option) => option.value === readingIntent)) return;
+    setAssignment(agentId, sectionId, readingIntent);
+  }
+
+  function startReadingPlan() {
+    if (!canStart) return;
+    for (const agent of visibleAgents) {
+      const agentAssignments = assignments[agent.id] || {};
+      const readingPlan = readingSections.flatMap((section) => {
+        const readingIntent = agentAssignments[section.id];
+        return readingIntent
+          ? [
+              {
+                sectionId: section.id,
+                sectionTitle: section.title,
+                sectionStart: section.start,
+                sectionEnd: section.end,
+                readingIntent,
+              },
+            ]
+          : [];
+      });
+      if (readingPlan.length > 0) onStart(agent, readingPlan);
+    }
+  }
 
   return (
     <div className="source-agent-annotate-menu">
       <header>
         <div>
-          <strong>助手批注</strong>
-          <span>选择一个动作，让助手阅读当前文章并生成批注</span>
+          <strong>助手精读编排</strong>
+          <span>拖拽动作到助手和章节，安排他们在指定位置介入</span>
         </div>
+        <p>
+          <b>{assignedAgentCount}</b> 助手 · <b>{actionCount}</b> 动作
+        </p>
         <button type="button" aria-label="关闭助手批注" onClick={onClose}>
           <X size={14} />
         </button>
       </header>
-      <div className="source-composer-options">
+      <div className="source-plan-action-bar">
+        <span>动作</span>
         {agentReadingIntentOptions.map((option) => (
           <button
-            className={readingIntent === option.value ? 'is-active' : undefined}
+            draggable
             key={option.value}
             type="button"
             title={option.description}
-            onClick={() => setReadingIntent(option.value)}
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = 'copy';
+              event.dataTransfer.setData('text/plain', option.value);
+            }}
           >
             {option.shortLabel}
           </button>
         ))}
       </div>
-      <div className="source-agent-list">
-        {agents.map((agent) => (
-          <button
-            disabled={annotatingAgentIds.includes(agent.id)}
-            key={agent.id}
-            type="button"
-            onClick={() => onStart(agent, readingIntent)}
-          >
-            <AvatarImage
-              value={agent.avatar}
-              className="size-8"
-              fallback={agent.nickname.slice(0, 1)}
-            />
-            <span>
-              <strong>{agent.nickname}</strong>
-              <em>@{agent.username}</em>
-            </span>
-            <Bot size={15} />
-          </button>
-        ))}
+      <div className="source-plan-grid-wrap">
+        <div className="source-plan-grid" style={{ gridTemplateColumns }}>
+          <div className="source-plan-corner" />
+          {readingSections.map((section, index) => (
+            <div className="source-plan-section" key={section.id}>
+              <span>§{index + 1}</span>
+              <strong>{section.title}</strong>
+            </div>
+          ))}
+          {visibleAgents.map((agent) => (
+            <React.Fragment key={agent.id}>
+              <div className="source-plan-agent">
+                <span style={{ backgroundColor: agent.annotationColor }} />
+                <AvatarImage
+                  value={agent.avatar}
+                  className="size-7"
+                  fallback={agent.nickname.slice(0, 1)}
+                />
+                <strong>{agent.nickname}</strong>
+              </div>
+              {readingSections.map((section) => {
+                const readingIntent = assignments[agent.id]?.[section.id] || null;
+                const option = readingIntent
+                  ? agentReadingIntentOptions.find((item) => item.value === readingIntent)
+                  : null;
+                return (
+                  <div
+                    className={readingIntent ? 'source-plan-cell is-filled' : 'source-plan-cell'}
+                    key={`${agent.id}-${section.id}`}
+                    style={{ '--agent-color': agent.annotationColor } as React.CSSProperties}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={(event) => onCellDrop(event, agent.id, section.id)}
+                  >
+                    {option ? (
+                      <button type="button" onClick={() => clearAssignment(agent.id, section.id)}>
+                        {option.shortLabel}
+                      </button>
+                    ) : (
+                      <span>-</span>
+                    )}
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
       </div>
+      <footer>
+        <button type="button" onClick={onClose}>
+          取消编排
+        </button>
+        <button type="button" disabled={!canStart} onClick={startReadingPlan}>
+          开始精读
+        </button>
+      </footer>
     </div>
   );
 }
@@ -1703,6 +1977,11 @@ function SourceCommentComposer({
             updateCaret(event.currentTarget);
           }}
           onClick={(event) => updateCaret(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (!isSubmitShortcut(event)) return;
+            event.preventDefault();
+            submit();
+          }}
           onSelect={(event) => updateCaret(event.currentTarget)}
         />
         {matchedAgents.length > 0 ? (
@@ -1727,11 +2006,21 @@ function SourceCommentComposer({
             </button>
           ))}
         </div>
+        <ShortcutHint />
         <button type="button" onClick={submit}>
           <Send size={13} />
           发送
         </button>
       </footer>
+    </div>
+  );
+}
+
+function ShortcutHint() {
+  return (
+    <div className="source-shortcut-hint">
+      <kbd>{shortcutModifier()}</kbd>
+      <kbd>Enter</kbd>
     </div>
   );
 }
@@ -1761,6 +2050,47 @@ function SourceMentionMenu({
           <em>@{agent.username}</em>
         </button>
       ))}
+    </div>
+  );
+}
+
+function SourceVirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
+  const color = cursor.agent?.annotationColor || '#54cda0';
+  return (
+    <div
+      className={[
+        'source-virtual-cursor',
+        cursor.offscreen ? 'is-offscreen' : '',
+        cursor.leaving ? 'is-leaving' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      style={{ left: cursor.x, top: cursor.y, '--cursor-color': color } as React.CSSProperties}
+    >
+      <svg aria-hidden="true" className="source-virtual-pointer" viewBox="0 0 48 48">
+        <ellipse
+          className="source-virtual-bloom"
+          cx="23"
+          cy="23"
+          fill={color}
+          rx="22"
+          ry="15"
+          transform="rotate(-45 23 23)"
+        />
+        <path
+          className="source-virtual-pointer-shape"
+          d="M10.1 10.1 L19.3 32 L22.1 22.1 L32 19.3 Z"
+          fill={color}
+        />
+      </svg>
+      <div className="source-virtual-label">
+        <AvatarImage
+          value={cursor.agent?.avatar || ''}
+          className="size-6"
+          fallback={cursor.agent?.nickname.slice(0, 1) || 'AI'}
+        />
+        {cursor.label}
+      </div>
     </div>
   );
 }
@@ -1981,6 +2311,60 @@ function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
     }));
 }
 
+function buildSourceReadingSections(
+  articleElement: HTMLElement,
+  tocItems: TocItem[],
+  articleTitle: string,
+): SourceReadingSection[] {
+  const body = articleElement.querySelector('.source-article-body');
+  const bodyStart = body ? offsetFromArticleStart(articleElement, body, 0) : 0;
+  const bodyTocItems = tocItems.filter(
+    (item) =>
+      item.start >= bodyStart &&
+      normalizeHeadingText(item.text) !== normalizeHeadingText(articleTitle),
+  );
+  if (bodyTocItems.length > 0) {
+    const targetDepth = Math.min(...bodyTocItems.map((item) => item.depth));
+    return bodyTocItems
+      .filter((item) => item.depth === targetDepth)
+      .map((item) => ({
+        id: `toc-${item.index}`,
+        title: item.text,
+        start: item.start,
+        end: item.end,
+      }));
+  }
+
+  return [
+    {
+      id: 'body',
+      title: '正文',
+      start: bodyStart,
+      end: articleElement.textContent?.length || bodyStart,
+    },
+  ];
+}
+
+function targetAnchorReadingPlan(
+  anchor: Annotation['anchor'] | undefined,
+  readingIntent: AgentReadingIntent | undefined,
+): AgentReadingPlanItem[] {
+  if (!anchor || !readingIntent) return [];
+  return [
+    {
+      sectionId: 'target-selection',
+      sectionTitle: '选区',
+      sectionStart: anchor.start,
+      sectionEnd: anchor.end,
+      readingIntent,
+    },
+  ];
+}
+
+function normalizeHeadingText(text: string) {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
 function annotationMentionAgents(annotation: Annotation, agents: PublicAgent[]) {
   const authorAgent =
     annotation.author === 'ai' && annotation.agentUsername
@@ -2037,6 +2421,15 @@ function matchesAgentMentionQuery(agent: PublicAgent, query: string) {
 
 function normalizeMentionSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, '');
+}
+
+function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+  const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+  return event.key === 'Enter' && (isMac ? event.metaKey : event.ctrlKey);
+}
+
+function shortcutModifier() {
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? '⌘' : 'Ctrl';
 }
 
 function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {

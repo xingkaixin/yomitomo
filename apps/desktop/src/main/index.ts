@@ -34,7 +34,9 @@ import {
   generateReadingDeliberation,
   reviewReadingCard,
   runAgent,
+  runAgentStream,
   runAgentAnnotate,
+  runAgentAnnotateStream,
   type GenerateReadingDeliberationInput,
   testProvider,
   type GenerateReadingCardInput,
@@ -214,6 +216,64 @@ function registerIpc() {
       readingIntent: payload.readingIntent || comment.readingIntent,
     } satisfies Comment;
   });
+  ipcMain.on(
+    'agent:comment:stream',
+    async (
+      event,
+      input: {
+        requestId: string;
+        payload: AgentMessagePayload;
+      },
+    ) => {
+      const channel = `agent:comment:stream:${input.requestId}`;
+      try {
+        const store = await readStore();
+        const agent = findAnnotationAgent(
+          store.agents,
+          input.payload.agentId,
+          input.payload.agentUsername,
+        );
+        if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
+        const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+        const comment: Comment = {
+          id: makeId('comment'),
+          author: 'ai',
+          content: '',
+          createdAt: new Date().toISOString(),
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+          agentAvatar: agent.avatar,
+          agentAnnotationColor: agent.annotationColor,
+          readingIntent: input.payload.readingIntent,
+          pending: true,
+        };
+        event.sender.send(channel, { type: 'start', comment });
+        await runAgentStream(
+          provider,
+          agent,
+          {
+            ...input.payload,
+            agentRoster: publicAnnotationAgents(store.agents),
+            readingIntent: input.payload.readingIntent || comment.readingIntent,
+          },
+          (delta) => {
+            comment.content += delta;
+            event.sender.send(channel, { type: 'delta', delta });
+          },
+        );
+        event.sender.send(channel, {
+          type: 'done',
+          comment: { ...comment, pending: false },
+        });
+      } catch (error) {
+        event.sender.send(channel, {
+          type: 'error',
+          message: error instanceof Error ? error.message : '助手回复失败',
+        });
+      }
+    },
+  );
   ipcMain.handle('agent:annotate', async (_event, payload: AgentAnnotatePayload) => {
     const store = await readStore();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
@@ -222,6 +282,40 @@ function registerIpc() {
     const annotations = await runAgentAnnotate(provider, agent, payload);
     return { annotations };
   });
+  ipcMain.on(
+    'agent:annotate:stream',
+    async (
+      event,
+      input: {
+        requestId: string;
+        payload: AgentAnnotatePayload;
+      },
+    ) => {
+      const channel = `agent:annotate:stream:${input.requestId}`;
+      try {
+        const store = await readStore();
+        const agent = findAnnotationAgent(
+          store.agents,
+          input.payload.agentId,
+          input.payload.agentUsername,
+        );
+        if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
+        const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+        const annotations: ArticleRecord['annotations'] = [];
+        event.sender.send(channel, { type: 'start' });
+        await runAgentAnnotateStream(provider, agent, input.payload, (annotation) => {
+          annotations.push(annotation);
+          event.sender.send(channel, { type: 'item', annotation });
+        });
+        event.sender.send(channel, { type: 'done', annotations });
+      } catch (error) {
+        event.sender.send(channel, {
+          type: 'error',
+          message: error instanceof Error ? error.message : '助手批注失败',
+        });
+      }
+    },
+  );
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
     const provider = taskProvider(store.providers, store.settings, 'readingNote');

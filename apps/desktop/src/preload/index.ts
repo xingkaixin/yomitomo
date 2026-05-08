@@ -72,10 +72,68 @@ const api = {
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,
+  requestAgentCommentStream: (
+    payload: AgentMessagePayload,
+    onEvent: (
+      event: { type: 'start'; comment: Comment } | { type: 'delta'; delta: string },
+    ) => void,
+  ) => {
+    const requestId = makeRequestId();
+    const channel = `agent:comment:stream:${requestId}`;
+    return new Promise<Comment>((resolve, reject) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        message:
+          | { type: 'start'; comment: Comment }
+          | { type: 'delta'; delta: string }
+          | { type: 'done'; comment: Comment }
+          | { type: 'error'; message: string },
+      ) => {
+        if (message.type === 'start' || message.type === 'delta') {
+          onEvent(message);
+          return;
+        }
+        ipcRenderer.removeListener(channel, listener);
+        if (message.type === 'done') resolve(message.comment);
+        else reject(new Error(message.message));
+      };
+      ipcRenderer.on(channel, listener);
+      ipcRenderer.send('agent:comment:stream', { requestId, payload });
+    });
+  },
   requestAgentAnnotations: (payload: AgentAnnotatePayload) =>
     ipcRenderer.invoke('agent:annotate', payload) as Promise<{
       annotations: ArticleRecord['annotations'];
     }>,
+  requestAgentAnnotationsStream: (
+    payload: AgentAnnotatePayload,
+    onEvent: (
+      event: { type: 'start' } | { type: 'item'; annotation: ArticleRecord['annotations'][number] },
+    ) => void,
+  ) => {
+    const requestId = makeRequestId();
+    const channel = `agent:annotate:stream:${requestId}`;
+    return new Promise<ArticleRecord['annotations']>((resolve, reject) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        message:
+          | { type: 'start' }
+          | { type: 'item'; annotation: ArticleRecord['annotations'][number] }
+          | { type: 'done'; annotations: ArticleRecord['annotations'] }
+          | { type: 'error'; message: string },
+      ) => {
+        if (message.type === 'start' || message.type === 'item') {
+          onEvent(message);
+          return;
+        }
+        ipcRenderer.removeListener(channel, listener);
+        if (message.type === 'done') resolve(message.annotations);
+        else reject(new Error(message.message));
+      };
+      ipcRenderer.on(channel, listener);
+      ipcRenderer.send('agent:annotate:stream', { requestId, payload });
+    });
+  },
   getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
   rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
   getPairingConnectionStatus: () =>
@@ -106,3 +164,7 @@ const api = {
 contextBridge.exposeInMainWorld('yomitomoDesktop', api);
 
 export type YomitomoDesktopApi = typeof api;
+
+function makeRequestId() {
+  return `request_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+}
