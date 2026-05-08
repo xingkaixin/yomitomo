@@ -5,7 +5,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./reader-app-view": "./src/reader-app-view.tsx",
     "./reader-components": "./src/reader-components.tsx",
+    "./reader-styles": "./src/reader-styles.ts",
     "./reader-utils": "./src/reader-utils.ts",
     "./use-agent-annotation-queue": "./src/use-agent-annotation-queue.ts"
   },

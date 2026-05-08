@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
-import { buildSourceAnnotationRailItems, sourceAnnotationScrollTop } from '../app-reading-library';
+import { buildAnnotationRailItems, readerAnnotationScrollTop } from '@yomitomo/reader-ui';
 
 function box(input: Partial<HighlightBox> & Pick<HighlightBox, 'annotationId'>): HighlightBox {
   return {
@@ -33,9 +33,9 @@ function annotation(id: string, start: number, end: number): Annotation {
   };
 }
 
-describe('buildSourceAnnotationRailItems', () => {
+describe('buildAnnotationRailItems', () => {
   it('positions annotation cards from measured highlight boxes', () => {
-    const items = buildSourceAnnotationRailItems(
+    const items = buildAnnotationRailItems(
       [annotation('annotation_1', 0, 10), annotation('annotation_2', 20, 30)],
       [
         box({ annotationId: 'annotation_1', top: 220 }),
@@ -51,7 +51,7 @@ describe('buildSourceAnnotationRailItems', () => {
   });
 
   it('brings the active overlapping annotation to the front of the stack', () => {
-    const items = buildSourceAnnotationRailItems(
+    const items = buildAnnotationRailItems(
       [annotation('annotation_1', 0, 20), annotation('annotation_2', 10, 30)],
       [
         box({ annotationId: 'annotation_1', top: 220 }),
@@ -68,10 +68,10 @@ describe('buildSourceAnnotationRailItems', () => {
   });
 });
 
-describe('sourceAnnotationScrollTop', () => {
+describe('readerAnnotationScrollTop', () => {
   it('centers the selected annotation when there is room', () => {
     expect(
-      sourceAnnotationScrollTop({
+      readerAnnotationScrollTop({
         annotationId: 'annotation_1',
         boxes: [box({ annotationId: 'annotation_1', top: 720, height: 40 })],
         canvasOffsetTop: 24,
@@ -83,7 +83,7 @@ describe('sourceAnnotationScrollTop', () => {
 
   it('keeps the top of the article pinned for early annotations', () => {
     expect(
-      sourceAnnotationScrollTop({
+      readerAnnotationScrollTop({
         annotationId: 'annotation_1',
         boxes: [box({ annotationId: 'annotation_1', top: 40, height: 30 })],
         canvasOffsetTop: 24,
@@ -95,7 +95,7 @@ describe('sourceAnnotationScrollTop', () => {
 
   it('keeps the bottom of the article reachable for late annotations', () => {
     expect(
-      sourceAnnotationScrollTop({
+      readerAnnotationScrollTop({
         annotationId: 'annotation_1',
         boxes: [box({ annotationId: 'annotation_1', top: 1470, height: 40 })],
         canvasOffsetTop: 24,
@@ -107,7 +107,7 @@ describe('sourceAnnotationScrollTop', () => {
 
   it('returns null when the annotation has no measured highlight box', () => {
     expect(
-      sourceAnnotationScrollTop({
+      readerAnnotationScrollTop({
         annotationId: 'annotation_2',
         boxes: [box({ annotationId: 'annotation_1', top: 720 })],
         canvasOffsetTop: 24,
