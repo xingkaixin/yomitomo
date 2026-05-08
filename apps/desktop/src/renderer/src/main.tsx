@@ -10,7 +10,13 @@ import {
   PanelLeftOpen,
   User,
 } from 'lucide-react';
-import type { Agent, AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
+import type {
+  Agent,
+  AppSettings,
+  ArticleRecord,
+  DesktopStore,
+  LlmProvider,
+} from '@yomitomo/shared';
 import {
   defaultUser,
   emptyProvider,
@@ -156,6 +162,13 @@ function App() {
     if (!desktop) return;
 
     setStore(await desktop.deleteArticle(articleId));
+  }
+
+  async function saveArticle(article: ArticleRecord) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    setStore(await desktop.saveArticle(article));
   }
 
   function selectProvider(provider: LlmProvider) {
@@ -350,8 +363,10 @@ function App() {
             <ReadingLibrary
               agents={store.agents}
               articles={store.articles}
+              userProfile={store.user}
               onDeleteArticle={deleteArticle}
               onRefresh={refreshStore}
+              onSaveArticle={saveArticle}
             />
           ) : null}
           {activeSetting === 'stats' ? (

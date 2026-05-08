@@ -2,7 +2,11 @@ import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
 import type {
   Agent,
+  AgentAnnotatePayload,
+  AgentMessagePayload,
   AppSettings,
+  ArticleRecord,
+  Comment,
   LlmProvider,
   ReadingDeliberationSection,
   ReadingCardReviewRecord,
@@ -10,7 +14,7 @@ import type {
   ReadingCardSection,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
+import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
   deleteAgent,
   deleteArticle,
@@ -20,6 +24,7 @@ import {
   saveArticleReadingDeliberation,
   saveArticleReadingCard,
   saveArticleReadingCardReview,
+  saveArticle,
   saveProvider,
   saveSettings,
   saveUser,
@@ -28,6 +33,8 @@ import {
   generateReadingCard,
   generateReadingDeliberation,
   reviewReadingCard,
+  runAgent,
+  runAgentAnnotate,
   type GenerateReadingDeliberationInput,
   testProvider,
   type GenerateReadingCardInput,
@@ -38,6 +45,7 @@ import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
 import { getPairingInfo, rotatePairingInfo } from './pairing';
 import {
   broadcastArticleDeleted,
+  broadcastArticleUpdate,
   broadcastStatus,
   disconnectAuthenticatedSockets,
   getDesktopConnectionStatus,
@@ -133,6 +141,13 @@ function registerIpc() {
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
+  ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
+    const store = await saveArticle(input);
+    const article = store.articles.find((item) => item.id === input.id);
+    if (article) broadcastArticleUpdate(article);
+    sendStoreUpdated(store);
+    return store;
+  });
   ipcMain.handle('pairing:get', () => getPairingInfo());
   ipcMain.handle('pairing:connection-status', () => getDesktopConnectionStatus());
   ipcMain.handle('pairing:rotate', async () => {
@@ -183,6 +198,29 @@ function registerIpc() {
     }
     sendStoreUpdated(store);
     return store;
+  });
+  ipcMain.handle('agent:comment', async (_event, payload: AgentMessagePayload) => {
+    const store = await readStore();
+    const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
+    if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
+    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const comment = await runAgent(provider, agent, {
+      ...payload,
+      agentRoster: publicAnnotationAgents(store.agents),
+    });
+    return {
+      ...comment,
+      id: makeId('comment'),
+      readingIntent: payload.readingIntent || comment.readingIntent,
+    } satisfies Comment;
+  });
+  ipcMain.handle('agent:annotate', async (_event, payload: AgentAnnotatePayload) => {
+    const store = await readStore();
+    const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
+    if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
+    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const annotations = await runAgentAnnotate(provider, agent, payload);
+    return { annotations };
   });
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
@@ -329,6 +367,30 @@ function taskProvider(
   const provider = providers.find((item) => item.id === providerId);
   if (!provider) throw new Error(`请先在任务路由选择${providerTaskLabels[task]}供应商`);
   return provider;
+}
+
+function findAnnotationAgent(agents: Agent[], agentId: string | undefined, username: string) {
+  return agents
+    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
+    .find((agent) => agent.id === agentId || agent.username === username);
+}
+
+function publicAnnotationAgents(agents: Agent[]) {
+  return agents
+    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
+    .map((agent) => ({
+      id: agent.id,
+      kind: agent.kind,
+      enabled: agent.enabled,
+      presetId: agent.presetId,
+      nickname: agent.nickname,
+      username: agent.username,
+      avatar: agent.avatar,
+      annotationColor: agent.annotationColor,
+      annotationDensity: agent.annotationDensity,
+      personalityName: agentPersonalityName(agent),
+      temperature: agent.temperature,
+    }));
 }
 
 function createReviewerResult(

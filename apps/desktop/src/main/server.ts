@@ -99,7 +99,7 @@ export function broadcastStatus() {
   });
 }
 
-function broadcastArticleUpdate(article: ArticleRecord) {
+export function broadcastArticleUpdate(article: ArticleRecord) {
   wsServer?.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN && socketStates.get(client)?.authenticated) {
       send(client, { type: 'article:updated', article });

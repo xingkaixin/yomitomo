@@ -1,8 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
   Agent,
+  AgentAnnotatePayload,
+  AgentMessagePayload,
   AppSettings,
   ArticleRecord,
+  Comment,
   DesktopStore,
   LlmProvider,
   ProviderModel,
@@ -64,7 +67,15 @@ const api = {
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
+  saveArticle: (article: ArticleRecord) =>
+    ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
+  requestAgentComment: (payload: AgentMessagePayload) =>
+    ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,
+  requestAgentAnnotations: (payload: AgentAnnotatePayload) =>
+    ipcRenderer.invoke('agent:annotate', payload) as Promise<{
+      annotations: ArticleRecord['annotations'];
+    }>,
   getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
   rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
   getPairingConnectionStatus: () =>

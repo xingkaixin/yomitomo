@@ -1,23 +1,39 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
+  AtSign,
   BookOpen,
+  Bot,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  MessageSquarePlus,
   RefreshCcw,
   MessageSquare,
+  Send,
   Trash2,
   X,
 } from 'lucide-react';
 import type {
   Agent,
+  AgentReadingIntent,
   Annotation,
+  AnnotationType,
   ArticleRecord,
   Comment as AnnotationComment,
+  PublicAgent,
+  UserProfile,
 } from '@yomitomo/shared';
-import { agentReadingIntentLabel, renderMarkdown, resolveTextAnchor } from '@yomitomo/shared';
 import {
+  agentPersonalityName,
+  agentReadingIntentLabel,
+  agentReadingIntentOptions,
+  createTextAnchor,
+  renderMarkdown,
+  resolveTextAnchor,
+} from '@yomitomo/shared';
+import {
+  appendAnnotationComment,
   annotationPrimaryComment,
   annotationTypeLabel,
   annotationStoredColor,
@@ -26,14 +42,23 @@ import {
   buildHighlightSegments,
   buildTocAnnotationStats,
   extractTocItems,
+  findMentionedAgents,
   findCurrentTocTarget,
+  getArticleSelection,
+  getMentionQuery,
   highlightSegmentStyle,
   isPrimaryTocItem,
+  isRangeInsideArticle,
+  offsetFromArticleStart,
   rangeFromOffsets,
   rangeHighlightBoxes,
   questionStatusLabel,
+  replaceMentionQuery,
+  selectionActionPosition,
   sortAnnotations,
   sortArticles,
+  createUserAnnotation,
+  createUserComment,
   type ExtractTocOptions,
   type HighlightBox,
   type TocItem,
@@ -73,6 +98,20 @@ type SourceActiveConnection = {
   color: string;
 };
 
+type SourceSelectionAction = {
+  x: number;
+  y: number;
+  anchor: Annotation['anchor'];
+};
+
+const annotationTypeOptions: AnnotationType[] = [
+  'key_point',
+  'assumption',
+  'concept',
+  'question',
+  'quote',
+];
+
 function SourceHighlightDots({ colors }: { colors: string[] }) {
   if (colors.length <= 1) return null;
 
@@ -95,13 +134,17 @@ function SourceHighlightDots({ colors }: { colors: string[] }) {
 export function ReadingLibrary({
   agents,
   articles,
+  userProfile,
   onDeleteArticle,
   onRefresh,
+  onSaveArticle,
 }: {
   agents: Agent[];
   articles: ArticleRecord[];
+  userProfile: UserProfile;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
   onRefresh: () => void;
+  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source' | 'card'>('library');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
@@ -243,8 +286,10 @@ export function ReadingLibrary({
               article={selectedArticle}
               focusAnnotationId={sourceFocusAnnotationId}
               selectedAnnotationId={selectedAnnotation?.id || null}
+              userProfile={userProfile}
               onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
               onOpenAnnotation={setSelectedAnnotationId}
+              onSaveArticle={onSaveArticle}
             />
           ) : null}
         </div>
@@ -576,34 +621,47 @@ function SourceBookcase({
   article,
   focusAnnotationId,
   selectedAnnotationId,
+  userProfile,
   onFocusedAnnotation,
   onOpenAnnotation,
+  onSaveArticle,
 }: {
   agents: Agent[];
   annotations: Annotation[];
   article: ArticleRecord | null;
   focusAnnotationId: string | null;
   selectedAnnotationId: string | null;
+  userProfile: UserProfile;
   onFocusedAnnotation: () => void;
   onOpenAnnotation: (annotationId: string) => void;
+  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLElement>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const latestArticleRef = useRef<ArticleRecord | null>(article);
   const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [activeConnection, setActiveConnection] = useState<SourceActiveConnection | null>(null);
   const [highlightChoice, setHighlightChoice] = useState<{
     x: number;
     y: number;
     annotationIds: string[];
   } | null>(null);
+  const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
+  const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
+  const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
+  const [statusMessage, setStatusMessage] = useState('');
   const highlightSegments = useMemo(() => buildHighlightSegments(boxes), [boxes]);
+  const temporarySegments = useMemo(() => buildHighlightSegments(temporaryBoxes), [temporaryBoxes]);
   const annotationRailItems = useMemo(
     () => buildSourceAnnotationRailItems(annotations, boxes, selectedAnnotationId),
     [annotations, boxes, selectedAnnotationId],
   );
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const tocStats = useMemo(
@@ -618,6 +676,10 @@ function SourceBookcase({
       ),
     [annotations],
   );
+
+  useEffect(() => {
+    latestArticleRef.current = article;
+  }, [article]);
 
   useEffect(() => {
     const articleElement = articleRef.current;
@@ -677,6 +739,9 @@ function SourceBookcase({
 
   useEffect(() => {
     setHighlightChoice(null);
+    setSelectionAction(null);
+    setComposer(null);
+    setTemporaryBoxes([]);
   }, [article?.id, annotations]);
 
   const recalculateActiveConnection = useCallback(() => {
@@ -782,7 +847,231 @@ function SourceBookcase({
 
   function openAnnotation(annotationId: string) {
     setHighlightChoice(null);
+    setSelectionAction(null);
+    setComposer(null);
+    setTemporaryBoxes([]);
     onOpenAnnotation(annotationId);
+  }
+
+  async function saveAnnotations(nextAnnotations: Annotation[]) {
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return null;
+    const nextArticle = {
+      ...currentArticle,
+      annotations: sortAnnotations(nextAnnotations),
+      updatedAt: new Date().toISOString(),
+    };
+    latestArticleRef.current = nextArticle;
+    await onSaveArticle(nextArticle);
+    return nextArticle;
+  }
+
+  function currentArticleText() {
+    return articleRef.current?.textContent || '';
+  }
+
+  function promptArticle() {
+    const currentArticle = latestArticleRef.current;
+    return {
+      title: currentArticle?.title || '',
+      url: currentArticle?.canonicalUrl || currentArticle?.url || '',
+      text: currentArticleText(),
+    };
+  }
+
+  function handleArticleMouseUp() {
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    if (!articleElement || !canvasElement) return;
+
+    const selection = getArticleSelection(articleElement);
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      setSelectionAction(null);
+      setTemporaryBoxes([]);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!isRangeInsideArticle(range, articleElement)) return;
+    const articleText = currentArticleText();
+    const start = offsetFromArticleStart(articleElement, range.startContainer, range.startOffset);
+    const end = offsetFromArticleStart(articleElement, range.endContainer, range.endOffset);
+    const anchor = createTextAnchor(articleText, start, end);
+    if (!anchor.exact.trim()) return;
+
+    const rects = range.getClientRects();
+    const lastRect = rects[rects.length - 1];
+    if (!lastRect) return;
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const position = selectionActionPosition(lastRect, canvasRect);
+    setSelectionAction({ x: position.x, y: position.y, anchor });
+    setComposer(null);
+    setTemporaryBoxes(
+      rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
+        Object.assign(box, {
+          annotationId: '__selection__',
+          contributorId: userProfile.id,
+          color: userProfile.annotationColor,
+        }),
+      ),
+    );
+    selection.removeAllRanges();
+  }
+
+  function cancelComposer() {
+    setComposer(null);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+  }
+
+  async function createAnnotation(
+    note: string,
+    annotationType: AnnotationType,
+    readingIntent: AgentReadingIntent,
+  ) {
+    if (!composer) return;
+    const mentionedAgents = findMentionedAgents(note, annotationAgents);
+    if (mentionedAgents.length > 0) {
+      const instruction = agentInstructionFromNote(note, mentionedAgents);
+      for (const agent of mentionedAgents) {
+        await requestAgentAnnotations(agent, {
+          annotationType,
+          readingIntent,
+          instruction,
+          targetAnchor: composer.anchor,
+        });
+      }
+      cancelComposer();
+      return;
+    }
+
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return;
+    const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType);
+    await saveAnnotations([...currentArticle.annotations, annotation]);
+    openAnnotation(annotation.id);
+  }
+
+  async function addComment(annotationId: string, content: string) {
+    const trimmed = content.trim();
+    const currentArticle = latestArticleRef.current;
+    if (!trimmed || !currentArticle) return;
+
+    const userComment = createUserComment(userProfile, trimmed);
+    const isFollowUpQuestion = /[?？]/.test(trimmed);
+    const comment = isFollowUpQuestion
+      ? { ...userComment, questionStatus: 'open' as const }
+      : userComment;
+    const currentAnnotations = isFollowUpQuestion
+      ? currentArticle.annotations
+      : currentArticle.annotations.map((annotation) =>
+          annotation.id !== annotationId
+            ? annotation
+            : Object.assign({}, annotation, {
+                questionStatus:
+                  annotation.questionStatus === 'open' ||
+                  (annotation.annotationType === 'question' && !annotation.questionStatus)
+                    ? 'answered'
+                    : annotation.questionStatus,
+                comments: annotation.comments.map((item) =>
+                  item.questionStatus === 'open' ||
+                  (!item.questionStatus && /[?？]/.test(item.content))
+                    ? { ...item, questionStatus: 'answered' as const }
+                    : item,
+                ),
+              }),
+        );
+    const nextAnnotations = appendAnnotationComment(
+      currentAnnotations,
+      annotationId,
+      comment,
+      userComment.createdAt,
+    );
+    const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
+    if (!nextAnnotations || !nextAnnotation) return;
+
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+
+    const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
+    for (const agent of mentionedAgents) {
+      await requestAgentComment(agent, nextAnnotation, comment);
+    }
+  }
+
+  async function requestAgentComment(
+    agent: PublicAgent,
+    annotation: Annotation,
+    userComment: AnnotationComment,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    if (!desktop || !currentArticle) return;
+
+    setStatusMessage(`${agent.nickname} 正在回复`);
+    try {
+      const comment = await desktop.requestAgentComment({
+        agentId: agent.id,
+        agentUsername: agent.username,
+        readingIntent: annotation.readingIntent || userComment.readingIntent,
+        article: promptArticle(),
+        annotation,
+        userComment,
+      });
+      const latestArticle = latestArticleRef.current;
+      if (!latestArticle) return;
+      const nextAnnotations = appendAnnotationComment(
+        latestArticle.annotations,
+        annotation.id,
+        comment,
+        comment.createdAt,
+      );
+      if (nextAnnotations) await saveAnnotations(nextAnnotations);
+    } finally {
+      setStatusMessage('');
+    }
+  }
+
+  async function requestAgentAnnotations(
+    agent: PublicAgent,
+    options: {
+      annotationType?: AnnotationType;
+      readingIntent?: AgentReadingIntent;
+      instruction?: string;
+      targetAnchor?: Annotation['anchor'];
+    } = {},
+  ) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    if (!desktop || !currentArticle || annotatingAgentIds.includes(agent.id)) return;
+
+    setAnnotatingAgentIds((ids) => [...ids, agent.id]);
+    setStatusMessage(`${agent.nickname} 正在批注`);
+    try {
+      const result = await desktop.requestAgentAnnotations({
+        agentId: agent.id,
+        agentUsername: agent.username,
+        annotationType: options.annotationType,
+        readingIntent: options.readingIntent,
+        instruction: options.instruction,
+        targetAnchor: options.targetAnchor,
+        article: promptArticle(),
+      });
+      if (result.annotations.length === 0) {
+        setStatusMessage(`${agent.nickname} 暂无新批注`);
+        window.setTimeout(() => setStatusMessage(''), 1400);
+        return;
+      }
+
+      const latestArticle = latestArticleRef.current;
+      if (!latestArticle) return;
+      await saveAnnotations([...latestArticle.annotations, ...result.annotations]);
+      openAnnotation(result.annotations[0]!.id);
+    } finally {
+      setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
+      setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+    }
   }
 
   function handleHighlightClick(annotationId: string, event: React.MouseEvent<HTMLButtonElement>) {
@@ -849,10 +1138,33 @@ function SourceBookcase({
           <p>
             {article.byline || urlHost(article.canonicalUrl || article.url)} ·{' '}
             {formatDate(article.updatedAt)}
+            {statusMessage ? ` · ${statusMessage}` : ''}
           </p>
         </div>
-        <OpenArticleButton article={article} />
+        <div className="source-bookcase-actions">
+          <button
+            className="source-agent-button"
+            type="button"
+            disabled={annotationAgents.length === 0}
+            onClick={() => setAgentAnnotateOpen((open) => !open)}
+          >
+            <Bot size={15} />
+            助手批注
+          </button>
+          <OpenArticleButton article={article} />
+        </div>
       </header>
+      {agentAnnotateOpen ? (
+        <SourceAgentAnnotateMenu
+          agents={annotationAgents}
+          annotatingAgentIds={annotatingAgentIds}
+          onClose={() => setAgentAnnotateOpen(false)}
+          onStart={(agent, readingIntent) => {
+            setAgentAnnotateOpen(false);
+            void requestAgentAnnotations(agent, { readingIntent });
+          }}
+        />
+      ) : null}
       <div className={tocItems.length > 0 ? 'source-body-layout' : 'source-body-layout is-no-toc'}>
         <aside className={tocItems.length > 0 ? 'source-toc' : 'source-toc is-empty'}>
           <div className="source-toc-title">目录</div>
@@ -892,9 +1204,19 @@ function SourceBookcase({
               <div
                 className="source-article-body"
                 dangerouslySetInnerHTML={{ __html: contentHtml }}
+                onMouseUp={handleArticleMouseUp}
               />
             </article>
             <div className="source-highlight-layer">
+              {temporarySegments.map((segment) => (
+                <span
+                  className="source-highlight is-temporary"
+                  key={`source-temporary-${segment.id}`}
+                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
+                >
+                  <SourceHighlightDots colors={segment.colors} />
+                </span>
+              ))}
               {highlightSegments.map((segment) => {
                 const active = segment.annotationIds.includes(selectedAnnotationId || '');
                 const annotationId = segment.annotationIds[0] || '';
@@ -925,6 +1247,7 @@ function SourceBookcase({
                     active={annotation.id === selectedAnnotationId}
                     agents={agents}
                     annotation={annotation}
+                    annotationAgents={annotationAgents}
                     isStackFront={isStackFront}
                     key={annotation.id}
                     noteRef={(element) => {
@@ -934,6 +1257,7 @@ function SourceBookcase({
                     stackCount={stackCount}
                     stackIndex={stackIndex}
                     style={style}
+                    onAddComment={addComment}
                     onFocus={openAnnotation}
                   />
                 ),
@@ -952,6 +1276,25 @@ function SourceBookcase({
                 onSelect={openAnnotation}
               />
             ) : null}
+            {selectionAction ? (
+              <SourceSelectionMenu
+                action={selectionAction}
+                onAnnotate={() => {
+                  setComposer(selectionAction);
+                  setSelectionAction(null);
+                }}
+              />
+            ) : null}
+            {composer ? (
+              <SourceComposer
+                agents={annotationAgents}
+                composer={composer}
+                onCancel={cancelComposer}
+                onSave={(note, annotationType, readingIntent) =>
+                  void createAnnotation(note, annotationType, readingIntent)
+                }
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -959,25 +1302,228 @@ function SourceBookcase({
   );
 }
 
+function SourceSelectionMenu({
+  action,
+  onAnnotate,
+}: {
+  action: SourceSelectionAction;
+  onAnnotate: () => void;
+}) {
+  return (
+    <div className="source-selection-menu" style={{ left: action.x, top: action.y }}>
+      <button type="button" onClick={onAnnotate}>
+        <MessageSquarePlus size={15} />
+        添加批注
+      </button>
+    </div>
+  );
+}
+
+function SourceComposer({
+  agents,
+  composer,
+  onCancel,
+  onSave,
+}: {
+  agents: PublicAgent[];
+  composer: SourceSelectionAction;
+  onCancel: () => void;
+  onSave: (note: string, annotationType: AnnotationType, readingIntent: AgentReadingIntent) => void;
+}) {
+  const [note, setNote] = useState('');
+  const [annotationType, setAnnotationType] = useState<AnnotationType>('key_point');
+  const [readingIntent, setReadingIntent] = useState<AgentReadingIntent>('explain');
+  const [caretIndex, setCaretIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionQuery = getMentionQuery(note, caretIndex);
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    setCaretIndex(element.selectionStart);
+  }
+
+  function insertAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(note, agent.username, mentionQuery);
+    setNote(next.content);
+    setCaretIndex(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function submit() {
+    onSave(note, annotationType, readingIntent);
+  }
+
+  return (
+    <div className="source-composer" style={{ left: composer.x, top: composer.y }}>
+      <header>
+        <strong>新批注</strong>
+        <button type="button" aria-label="关闭批注编辑器" onClick={onCancel}>
+          <X size={14} />
+        </button>
+      </header>
+      <div className="source-composer-options" aria-label="批注类型">
+        {annotationTypeOptions.map((type) => (
+          <button
+            className={annotationType === type ? 'is-active' : undefined}
+            key={type}
+            type="button"
+            onClick={() => setAnnotationType(type)}
+          >
+            {annotationTypeLabel(type)}
+          </button>
+        ))}
+      </div>
+      <div className="source-composer-options" aria-label="助手动作">
+        {agentReadingIntentOptions.map((option) => (
+          <button
+            className={readingIntent === option.value ? 'is-active' : undefined}
+            key={option.value}
+            type="button"
+            title={option.description}
+            onClick={() => setReadingIntent(option.value)}
+          >
+            {option.shortLabel}
+          </button>
+        ))}
+      </div>
+      <div className="source-composer-editor">
+        <textarea
+          aria-label="批注内容"
+          autoFocus
+          ref={textareaRef}
+          placeholder={agents.length > 0 ? '写批注，或 @ 助手批注这段…' : '写批注…'}
+          value={note}
+          onChange={(event) => {
+            setNote(event.currentTarget.value);
+            updateCaret(event.currentTarget);
+          }}
+          onClick={(event) => updateCaret(event.currentTarget)}
+          onSelect={(event) => updateCaret(event.currentTarget)}
+        />
+        {matchedAgents.length > 0 ? (
+          <SourceMentionMenu agents={matchedAgents} onSelect={insertAgent} />
+        ) : null}
+      </div>
+      <footer>
+        <div className="source-agent-tray">
+          <AtSign size={14} />
+          {agents.slice(0, 5).map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              title={`${agent.nickname} @${agent.username}`}
+              onClick={() => insertAgent(agent)}
+            >
+              <AvatarImage
+                value={agent.avatar}
+                className="size-6"
+                fallback={agent.nickname.slice(0, 1)}
+              />
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={onCancel}>
+          取消
+        </button>
+        <button type="button" onClick={submit}>
+          发布
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function SourceAgentAnnotateMenu({
+  agents,
+  annotatingAgentIds,
+  onClose,
+  onStart,
+}: {
+  agents: PublicAgent[];
+  annotatingAgentIds: string[];
+  onClose: () => void;
+  onStart: (agent: PublicAgent, readingIntent: AgentReadingIntent) => void;
+}) {
+  const [readingIntent, setReadingIntent] = useState<AgentReadingIntent>('explain');
+
+  return (
+    <div className="source-agent-annotate-menu">
+      <header>
+        <div>
+          <strong>助手批注</strong>
+          <span>选择一个动作，让助手阅读当前文章并生成批注</span>
+        </div>
+        <button type="button" aria-label="关闭助手批注" onClick={onClose}>
+          <X size={14} />
+        </button>
+      </header>
+      <div className="source-composer-options">
+        {agentReadingIntentOptions.map((option) => (
+          <button
+            className={readingIntent === option.value ? 'is-active' : undefined}
+            key={option.value}
+            type="button"
+            title={option.description}
+            onClick={() => setReadingIntent(option.value)}
+          >
+            {option.shortLabel}
+          </button>
+        ))}
+      </div>
+      <div className="source-agent-list">
+        {agents.map((agent) => (
+          <button
+            disabled={annotatingAgentIds.includes(agent.id)}
+            key={agent.id}
+            type="button"
+            onClick={() => onStart(agent, readingIntent)}
+          >
+            <AvatarImage
+              value={agent.avatar}
+              className="size-8"
+              fallback={agent.nickname.slice(0, 1)}
+            />
+            <span>
+              <strong>{agent.nickname}</strong>
+              <em>@{agent.username}</em>
+            </span>
+            <Bot size={15} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SourceAnnotationCard({
   active,
   agents,
   annotation,
+  annotationAgents,
   isStackFront,
   stackCount,
   stackIndex,
   style,
   noteRef,
+  onAddComment,
   onFocus,
 }: {
   active: boolean;
   agents: Agent[];
   annotation: Annotation;
+  annotationAgents: PublicAgent[];
   isStackFront: boolean;
   stackCount: number;
   stackIndex: number;
   style: SourceAnnotationStyle;
   noteRef: (element: HTMLElement | null) => void;
+  onAddComment: (annotationId: string, content: string) => void | Promise<void>;
   onFocus: (annotationId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -1074,6 +1620,11 @@ function SourceAnnotationCard({
                 <div className="source-note-comment-empty">这条批注还没有评论</div>
               )}
             </div>
+            <SourceCommentComposer
+              agents={annotationMentionAgents(annotation, annotationAgents)}
+              annotationId={annotation.id}
+              onSubmit={onAddComment}
+            />
           </div>
         </div>
       ) : null}
@@ -1096,6 +1647,121 @@ function SourceAnnotationComment({ comment }: { comment: AnnotationComment }) {
         <div className="comment-markdown" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     </article>
+  );
+}
+
+function SourceCommentComposer({
+  agents,
+  annotationId,
+  onSubmit,
+}: {
+  agents: PublicAgent[];
+  annotationId: string;
+  onSubmit: (annotationId: string, content: string) => void | Promise<void>;
+}) {
+  const [draft, setDraft] = useState('');
+  const [caretIndex, setCaretIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionQuery = getMentionQuery(draft, caretIndex);
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    setCaretIndex(element.selectionStart);
+  }
+
+  function insertAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
+    setDraft(next.content);
+    setCaretIndex(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function submit() {
+    const content = draft.trim();
+    if (!content) return;
+    void onSubmit(annotationId, content);
+    setDraft('');
+    setCaretIndex(0);
+  }
+
+  return (
+    <div className="source-comment-composer">
+      <div className="source-composer-editor">
+        <textarea
+          aria-label="评论内容"
+          ref={textareaRef}
+          placeholder="继续评论，输入 @ 呼叫助手"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.currentTarget.value);
+            updateCaret(event.currentTarget);
+          }}
+          onClick={(event) => updateCaret(event.currentTarget)}
+          onSelect={(event) => updateCaret(event.currentTarget)}
+        />
+        {matchedAgents.length > 0 ? (
+          <SourceMentionMenu agents={matchedAgents} onSelect={insertAgent} />
+        ) : null}
+      </div>
+      <footer>
+        <div className="source-agent-tray">
+          <AtSign size={14} />
+          {agents.slice(0, 4).map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              title={`${agent.nickname} @${agent.username}`}
+              onClick={() => insertAgent(agent)}
+            >
+              <AvatarImage
+                value={agent.avatar}
+                className="size-6"
+                fallback={agent.nickname.slice(0, 1)}
+              />
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={submit}>
+          <Send size={13} />
+          发送
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function SourceMentionMenu({
+  agents,
+  onSelect,
+}: {
+  agents: PublicAgent[];
+  onSelect: (agent: PublicAgent) => void;
+}) {
+  return (
+    <div className="source-mention-menu">
+      {agents.map((agent) => (
+        <button
+          key={agent.id}
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onSelect(agent)}
+        >
+          <AvatarImage
+            value={agent.avatar}
+            className="size-6"
+            fallback={agent.nickname.slice(0, 1)}
+          />
+          <strong>{agent.nickname}</strong>
+          <em>@{agent.username}</em>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -1295,6 +1961,100 @@ function SourceHighlightChoiceMenu({
       })}
     </div>
   );
+}
+
+function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
+  return agents
+    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
+    .map((agent) => ({
+      id: agent.id,
+      kind: agent.kind,
+      enabled: agent.enabled,
+      presetId: agent.presetId,
+      nickname: agent.nickname,
+      username: agent.username,
+      avatar: agent.avatar,
+      annotationColor: agent.annotationColor,
+      annotationDensity: agent.annotationDensity,
+      personalityName: agentPersonalityName(agent),
+      temperature: agent.temperature,
+    }));
+}
+
+function annotationMentionAgents(annotation: Annotation, agents: PublicAgent[]) {
+  const authorAgent =
+    annotation.author === 'ai' && annotation.agentUsername
+      ? agents.find(
+          (agent) => agent.id === annotation.agentId || agent.username === annotation.agentUsername,
+        ) || {
+          id: annotation.agentId || `agent-${annotation.agentUsername}`,
+          kind: 'annotation' as const,
+          enabled: true,
+          nickname: annotation.agentNickname || annotation.agentUsername,
+          username: annotation.agentUsername,
+          avatar: annotation.agentAvatar || annotation.agentUsername.slice(0, 1),
+          annotationColor: annotation.agentAnnotationColor || annotation.color,
+          annotationDensity: 'medium' as const,
+          personalityName: '批注助手',
+          temperature: 0.35,
+        }
+      : null;
+
+  return authorAgent
+    ? [authorAgent, ...agents.filter((agent) => agent.username !== authorAgent.username)]
+    : agents;
+}
+
+function mentionDraftWithAgent(
+  content: string,
+  username: string,
+  mentionQuery: ReturnType<typeof getMentionQuery>,
+) {
+  if (mentionQuery) {
+    const nextContent = replaceMentionQuery(content, mentionQuery, username);
+    return {
+      content: nextContent,
+      caretIndex: mentionQuery.start + username.length + 2,
+    };
+  }
+
+  const prefix = content.trimEnd();
+  const nextContent = `${prefix ? `${prefix} ` : ''}@${username} `;
+  return {
+    content: nextContent,
+    caretIndex: nextContent.length,
+  };
+}
+
+function matchesAgentMentionQuery(agent: PublicAgent, query: string) {
+  const normalizedQuery = normalizeMentionSearch(query);
+  if (!normalizedQuery) return true;
+
+  return [agent.username, agent.nickname, agent.pinyin || ''].some((value) =>
+    normalizeMentionSearch(value).includes(normalizedQuery),
+  );
+}
+
+function normalizeMentionSearch(value: string) {
+  return value.toLowerCase().replace(/\s+/g, '');
+}
+
+function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {
+  let instruction = note.trim();
+  for (const agent of mentionedAgents) {
+    const handles = [agent.username, agent.nickname].filter(Boolean);
+    for (const handle of handles) {
+      instruction = instruction.replace(
+        new RegExp(`(^|\\s)@${escapeRegExp(handle)}(?=[\\s，。,.!?！？、;；:]|$)`, 'gu'),
+        ' ',
+      );
+    }
+  }
+  return instruction.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function sourceAnnotationAuthor(annotation: Annotation, agents: Agent[]) {
