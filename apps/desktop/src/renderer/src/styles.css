@@ -3317,17 +3317,23 @@
 }
 
 .source-note-comments-popover {
-  position: fixed;
-  top: 82px;
-  right: 72px;
-  bottom: 32px;
+  position: absolute;
+  top: 0;
   z-index: 120;
-  width: min(380px, calc(100vw - 120px));
+  width: min(380px, calc(100vw - 32px));
+}
+
+.source-note-comments-popover[data-side='right'] {
+  left: calc(100% + 12px);
+}
+
+.source-note-comments-popover[data-side='left'] {
+  right: calc(100% + 12px);
 }
 
 .source-note-comments-panel {
   display: grid;
-  height: 100%;
+  height: min(620px, calc(100vh - 112px));
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   overflow: hidden;
@@ -3373,8 +3379,9 @@
 
 .source-note-comments {
   display: grid;
+  align-content: start;
   gap: 12px;
-  min-height: 0;
+  min-height: 120px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -4010,6 +4017,99 @@
   background: transparent;
   cursor: pointer;
   padding: 0;
+}
+
+.source-comment-agent-tray {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: hsl(var(--muted-foreground));
+}
+
+.source-comment-mention-label,
+.source-comment-agent-tray button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.64);
+  border-radius: 999px;
+  background: hsl(43 66% 98%);
+  color: hsl(var(--muted-foreground));
+}
+
+.source-comment-mention-label {
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.source-comment-agent-tray button {
+  cursor: pointer;
+  padding: 0;
+}
+
+.source-comment-agent-tray button:hover {
+  background: hsl(36 41% 87%);
+  color: hsl(32 22% 21%);
+}
+
+.source-comment-agent-avatar .avatar-image {
+  width: 24px;
+  height: 24px;
+}
+
+.source-comment-agent-more {
+  position: relative;
+}
+
+.source-comment-agent-more-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  display: grid;
+  width: 190px;
+  gap: 4px;
+  border: 1px solid hsl(36 31% 72% / 0.72);
+  border-radius: 14px;
+  background: hsl(42 64% 96% / 0.98);
+  box-shadow: 0 16px 42px hsl(31 34% 24% / 0.14);
+  padding: 8px;
+}
+
+.source-comment-agent-more-menu button {
+  display: grid;
+  width: 100%;
+  height: 36px;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: hsl(32 22% 21%);
+  font: inherit;
+  padding: 0 8px;
+  text-align: left;
+}
+
+.source-comment-agent-more-menu strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-comment-agent-more-menu em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 760;
 }
 
 .source-composer > footer > button,

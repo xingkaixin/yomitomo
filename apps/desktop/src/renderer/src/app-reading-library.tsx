@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ChevronUp,
   MessageSquarePlus,
+  MoreHorizontal,
   RefreshCcw,
   MessageSquare,
   Send,
@@ -1849,6 +1850,8 @@ function SourceAnnotationCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [deleteHolding, setDeleteHolding] = useState(false);
+  const [commentsSide, setCommentsSide] = useState<'left' | 'right'>('right');
+  const sectionRef = useRef<HTMLElement | null>(null);
   const deleteTimerRef = useRef<number | null>(null);
   const author = sourceAnnotationAuthor(annotation, agents);
   const primaryComment = annotationPrimaryComment(annotation);
@@ -1881,6 +1884,25 @@ function SourceAnnotationCard({
     },
     [],
   );
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    function updateCommentsSide() {
+      const element = sectionRef.current;
+      if (!element) return;
+      const rect = element.getBoundingClientRect();
+      const panelWidth = Math.min(380, window.innerWidth - 32);
+      const gap = 12;
+      const rightSpace = window.innerWidth - rect.right - gap;
+      const leftSpace = rect.left - gap;
+      setCommentsSide(rightSpace >= panelWidth || rightSpace >= leftSpace ? 'right' : 'left');
+    }
+
+    updateCommentsSide();
+    window.addEventListener('resize', updateCommentsSide);
+    return () => window.removeEventListener('resize', updateCommentsSide);
+  }, [expanded]);
 
   function focus() {
     onFocus(annotation.id);
@@ -1917,7 +1939,10 @@ function SourceAnnotationCard({
       className={className}
       data-stack-count={stackCount}
       data-stack-index={stackIndex}
-      ref={noteRef}
+      ref={(element) => {
+        sectionRef.current = element;
+        noteRef(element);
+      }}
       style={{ ...sourceNoteStyle(author.color, active), ...style }}
       onClick={(event) => {
         if (event.target instanceof Element && event.target.closest('button')) return;
@@ -1970,7 +1995,7 @@ function SourceAnnotationCard({
         </button>
       </div>
       {expanded ? (
-        <div className="source-note-comments-popover">
+        <div className="source-note-comments-popover" data-side={commentsSide}>
           <div className="source-note-comments-panel">
             <header>
               <strong>评论</strong>
@@ -2026,12 +2051,15 @@ function SourceCommentComposer({
 }) {
   const [draft, setDraft] = useState('');
   const [caretIndex, setCaretIndex] = useState(0);
+  const [agentTrayOpen, setAgentTrayOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const matchedAgents =
     mentionQuery === null
       ? []
       : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
+  const visibleAgents = agents.slice(0, 2);
+  const overflowAgents = agents.slice(2);
 
   function updateCaret(element: HTMLTextAreaElement) {
     setCaretIndex(element.selectionStart);
@@ -2041,6 +2069,7 @@ function SourceCommentComposer({
     const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
     setDraft(next.content);
     setCaretIndex(next.caretIndex);
+    setAgentTrayOpen(false);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
@@ -2080,12 +2109,16 @@ function SourceCommentComposer({
         ) : null}
       </div>
       <footer>
-        <div className="source-agent-tray">
-          <AtSign size={14} />
-          {agents.slice(0, 4).map((agent) => (
+        <div className="source-comment-agent-tray">
+          <span className="source-comment-mention-label" aria-hidden="true">
+            @
+          </span>
+          {visibleAgents.map((agent) => (
             <button
+              className="source-comment-agent-avatar"
               key={agent.id}
               type="button"
+              aria-label={`插入 @${agent.username}`}
               title={`${agent.nickname} @${agent.username}`}
               onClick={() => insertAgent(agent)}
             >
@@ -2096,6 +2129,35 @@ function SourceCommentComposer({
               />
             </button>
           ))}
+          {overflowAgents.length > 0 ? (
+            <div className="source-comment-agent-more">
+              <button
+                className="source-comment-agent-more-button"
+                type="button"
+                aria-expanded={agentTrayOpen}
+                aria-label={`更多助手，${overflowAgents.length} 个`}
+                title={`更多助手，${overflowAgents.length} 个`}
+                onClick={() => setAgentTrayOpen((open) => !open)}
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              {agentTrayOpen ? (
+                <div className="source-comment-agent-more-menu">
+                  {overflowAgents.map((agent) => (
+                    <button key={agent.id} type="button" onClick={() => insertAgent(agent)}>
+                      <AvatarImage
+                        value={agent.avatar}
+                        className="size-6"
+                        fallback={agent.nickname.slice(0, 1)}
+                      />
+                      <strong>{agent.nickname}</strong>
+                      <em>@{agent.username}</em>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <ShortcutHint />
         <button type="button" onClick={submit}>
