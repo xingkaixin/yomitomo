@@ -13,7 +13,7 @@ export const readerConversationStyles = `
 .reader-notes-toggle{display:grid;position:relative}
 .reader-notes-toggle span{position:absolute;right:-5px;top:-5px;display:grid;min-width:18px;height:18px;place-items:center;border:1px solid rgba(40,35,29,.12);border-radius:999px;background:var(--reader-ink);color:var(--reader-paper);font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:850;line-height:1;padding:0 5px}
 .reader-responsive-scrim{display:none;position:fixed;inset:76px 0 0;z-index:5;border:0;background:rgba(40,35,29,.14);backdrop-filter:blur(2px);padding:0}
-.reader-app.is-notes-open .reader-responsive-scrim{display:block}
+.reader-app.is-notes-open .reader-responsive-scrim{display:block;z-index:130;backdrop-filter:none}
 .reader-highlight{background:rgba(234,216,157,.28);box-shadow:0 0 0 1px rgba(199,164,94,.18)}
 .reader-highlight.is-active{background:rgba(234,216,157,.42)}
 .reader-surface{padding:42px clamp(28px,4vw,56px) 84px;overflow:auto}
@@ -28,7 +28,7 @@ export const readerConversationStyles = `
 .reader-annotation-rail>.reader-note.is-active{transform:translateX(0)}
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front){cursor:pointer}
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar{pointer-events:none}
-.reader-question-drawer{position:fixed;right:0;top:76px;bottom:0;z-index:6;width:min(420px,calc(100vw - 32px));overflow:auto;padding:18px;border-left:1px solid rgba(40,35,29,.12);background:rgba(250,247,240,.98);box-shadow:-22px 0 58px rgba(40,35,29,.16);transform:translateX(calc(100% + 24px));transition:transform .22s cubic-bezier(.22,1,.36,1);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-question-drawer{position:fixed;right:0;top:76px;bottom:0;z-index:140;width:min(420px,calc(100vw - 32px));overflow:auto;padding:18px;border-left:1px solid rgba(40,35,29,.12);background:rgba(250,247,240,.98);box-shadow:-22px 0 58px rgba(40,35,29,.16);transform:translateX(calc(100% + 24px));transition:transform .22s cubic-bezier(.22,1,.36,1);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-app.is-notes-open .reader-question-drawer{transform:translateX(0)}
 .reader-notes{padding:0 16px 32px;scroll-padding-top:80px}
 .reader-notes-header{margin:0 -16px 14px;padding:14px 16px;background:rgba(250,247,240,.98);box-shadow:0 8px 18px rgba(40,35,29,.05)}
