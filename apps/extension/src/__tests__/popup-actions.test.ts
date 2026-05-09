@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getArticlePreviewInTab, toggleReaderInTab } from '../popup-actions';
+import { getArticleInTab, getArticlePreviewInTab, toggleReaderInTab } from '../popup-actions';
 
 const { sendMessage, executeScript } = vi.hoisted(() => ({
   sendMessage: vi.fn(),
@@ -57,6 +57,9 @@ describe('toggleReaderInTab', () => {
     sendMessage.mockResolvedValueOnce({
       ok: true,
       article: {
+        id: 'article-1',
+        url: 'https://example.com/article',
+        canonicalUrl: 'https://example.com/article',
         title: '文章标题',
         domain: 'example.com',
         wordCount: 1200,
@@ -65,11 +68,37 @@ describe('toggleReaderInTab', () => {
     });
 
     await expect(getArticlePreviewInTab(123)).resolves.toEqual({
+      id: 'article-1',
+      url: 'https://example.com/article',
+      canonicalUrl: 'https://example.com/article',
       title: '文章标题',
       domain: 'example.com',
       wordCount: 1200,
       readingMinutes: 5,
     });
     expect(sendMessage).toHaveBeenCalledWith(123, { type: 'yomitomo:article-preview' });
+  });
+
+  it('loads the extracted article through the content script', async () => {
+    sendMessage.mockResolvedValueOnce({
+      ok: true,
+      article: {
+        id: 'article-1',
+        url: 'https://example.com/article',
+        canonicalUrl: 'https://example.com/article',
+        title: '文章标题',
+        content: '<p>正文</p>',
+        contentHash: 'hash-1',
+      },
+    });
+
+    await expect(getArticleInTab(123, { inlineImages: true })).resolves.toMatchObject({
+      id: 'article-1',
+      content: '<p>正文</p>',
+    });
+    expect(sendMessage).toHaveBeenCalledWith(123, {
+      type: 'yomitomo:article',
+      inlineImages: true,
+    });
   });
 });

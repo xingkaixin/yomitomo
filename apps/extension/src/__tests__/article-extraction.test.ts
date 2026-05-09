@@ -99,6 +99,9 @@ describe('article extraction', () => {
     });
 
     expect(preview).toEqual({
+      id: 'id',
+      url: 'https://www.example.com/post',
+      canonicalUrl: 'https://www.example.com/post',
       title: '文章标题',
       domain: 'example.com',
       wordCount: 7,

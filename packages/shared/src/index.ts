@@ -577,6 +577,11 @@ export type DesktopClientMessage =
       payload: { id: string; url: string; canonicalUrl: string };
     }
   | { type: 'article:save'; requestId: string; payload: ArticleRecord }
+  | {
+      type: 'article:open';
+      requestId: string;
+      payload: { id: string; url: string; canonicalUrl: string };
+    }
   | { type: 'agent:message'; requestId: string; payload: AgentMessagePayload }
   | { type: 'agent:annotate'; requestId: string; payload: AgentAnnotatePayload };
 
@@ -598,6 +603,8 @@ export type DesktopServerMessage =
       agents: PublicAgent[];
     }
   | { type: 'article:get:result'; requestId: string; article: ArticleRecord | null }
+  | { type: 'article:save:result'; requestId: string; article: ArticleRecord }
+  | { type: 'article:open:result'; requestId: string; article: ArticleRecord | null }
   | { type: 'article:updated'; article: ArticleRecord }
   | {
       type: 'article:deleted';
@@ -672,15 +679,9 @@ export function parseDesktopClientMessage(value: unknown): DesktopClientMessageP
     return { ok: true, message: value as { type: 'agent:list'; requestId: string } };
   }
 
-  if (type === 'article:get') {
-    if (!isPlainObject(value.payload)) return parseError(requestId, 'article:get.payload 缺失');
-    const payload = value.payload;
-    if (!boundedString(payload.id, MESSAGE_LIMITS.idChars)) {
-      return parseError(requestId, 'article:get.payload.id 必须是非空字符串');
-    }
-    if (!isHttpUrl(payload.url) || !isHttpUrl(payload.canonicalUrl)) {
-      return parseError(requestId, 'article:get URL 必须是 http 或 https');
-    }
+  if (type === 'article:get' || type === 'article:open') {
+    const error = validateArticleIdentityPayload(value.payload, type);
+    if (error) return parseError(requestId, error);
     return { ok: true, message: value as DesktopClientMessage };
   }
 
@@ -717,6 +718,17 @@ export function isDesktopSocketOriginAllowed(origin: string | undefined): boolea
   }
 
   return false;
+}
+
+function validateArticleIdentityPayload(value: unknown, type: 'article:get' | 'article:open') {
+  if (!isPlainObject(value)) return `${type}.payload 缺失`;
+  if (!boundedString(value.id, MESSAGE_LIMITS.idChars)) {
+    return `${type}.payload.id 必须是非空字符串`;
+  }
+  if (!isHttpUrl(value.url) || !isHttpUrl(value.canonicalUrl)) {
+    return `${type} URL 必须是 http 或 https`;
+  }
+  return '';
 }
 
 function validateAgentMessagePayload(value: unknown) {

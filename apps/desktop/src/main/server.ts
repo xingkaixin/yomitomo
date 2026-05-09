@@ -35,6 +35,7 @@ let wsServer: WebSocketServer | null = null;
 const socketStates = new WeakMap<WebSocket, DesktopSocketAuthState>();
 let socketStatusListener: ((status: DesktopConnectionStatus) => void) | null = null;
 let articleUpdateListener: ((store: DesktopStore) => void) | null = null;
+let articleOpenListener: ((article: ArticleRecord) => void) | null = null;
 
 export type DesktopConnectionStatus = {
   authenticatedSocketCount: number;
@@ -54,6 +55,10 @@ export function getDesktopConnectionStatus(): DesktopConnectionStatus {
 
 export function setArticleUpdateListener(listener: (store: DesktopStore) => void) {
   articleUpdateListener = listener;
+}
+
+export function setArticleOpenListener(listener: (article: ArticleRecord) => void) {
+  articleOpenListener = listener;
 }
 
 export async function startLocalServer() {
@@ -193,6 +198,11 @@ async function handleMessage(socket: WebSocket, raw: string) {
         previousArticle &&
         articleSyncSignature(previousArticle) === articleSyncSignature(message.payload)
       ) {
+        send(socket, {
+          type: 'article:save:result',
+          requestId: message.requestId,
+          article: previousArticle,
+        });
         return;
       }
 
@@ -204,24 +214,26 @@ async function handleMessage(socket: WebSocket, raw: string) {
         title: message.payload.title,
         annotations: message.payload.annotations.length,
       });
-      if (article) broadcastArticleUpdate(article);
+      if (article) {
+        send(socket, { type: 'article:save:result', requestId: message.requestId, article });
+        broadcastArticleUpdate(article);
+      }
       articleUpdateListener?.(store);
       return;
     }
 
     if (message.type === 'article:get') {
       const store = await readStore();
-      const article =
-        store.articles.find((item) => item.id === message.payload.id) ||
-        store.articles.find(
-          (item) =>
-            item.canonicalUrl === message.payload.canonicalUrl ||
-            item.url === message.payload.url ||
-            item.url === message.payload.canonicalUrl ||
-            item.canonicalUrl === message.payload.url,
-        ) ||
-        null;
+      const article = findStoreArticle(store, message.payload);
       send(socket, { type: 'article:get:result', requestId: message.requestId, article });
+      return;
+    }
+
+    if (message.type === 'article:open') {
+      const store = await readStore();
+      const article = findStoreArticle(store, message.payload);
+      if (article) articleOpenListener?.(article);
+      send(socket, { type: 'article:open:result', requestId: message.requestId, article });
       return;
     }
 
@@ -449,6 +461,23 @@ function taskProvider(store: DesktopStore, task: ProviderTask): LlmProvider {
 
 function toPublicUser(user: UserProfile): UserProfile {
   return user;
+}
+
+function findStoreArticle(
+  store: DesktopStore,
+  identity: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
+) {
+  return (
+    store.articles.find((item) => item.id === identity.id) ||
+    store.articles.find(
+      (item) =>
+        item.canonicalUrl === identity.canonicalUrl ||
+        item.url === identity.url ||
+        item.url === identity.canonicalUrl ||
+        item.canonicalUrl === identity.url,
+    ) ||
+    null
+  );
 }
 
 function articleSyncSignature(article: ArticleRecord) {

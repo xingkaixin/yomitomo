@@ -97,6 +97,7 @@ export default defineContentScript({
   main() {
     registerContentToggleListener({
       addListener: addExtensionMessageListener,
+      getArticle,
       getArticlePreview,
       toggleReader,
       errorMessage,
@@ -157,6 +158,11 @@ async function toggleReader() {
 async function getArticlePreview() {
   const article = await extractCurrentArticle();
   return articlePreviewFromExtractedArticle(article);
+}
+
+async function getArticle({ inlineImages }: { inlineImages: boolean }) {
+  const article = await extractCurrentArticle();
+  return inlineImages ? inlineArticleImages(article) : article;
 }
 
 function closeReader(host: HTMLElement) {

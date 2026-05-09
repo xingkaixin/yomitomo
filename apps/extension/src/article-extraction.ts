@@ -19,6 +19,9 @@ export type ExtractedArticle = {
 };
 
 export type ArticlePreview = {
+  id: string;
+  url: string;
+  canonicalUrl: string;
   title: string;
   domain: string;
   wordCount: number;
@@ -97,6 +100,9 @@ export function fallbackCurrentArticle(): ExtractedArticle {
 export function articlePreviewFromExtractedArticle(article: ExtractedArticle): ArticlePreview {
   const wordCount = countReadableWords(textFromHtml(article.content));
   return {
+    id: article.id,
+    url: article.url,
+    canonicalUrl: article.canonicalUrl,
     title: article.title,
     domain: domainFromUrl(article.canonicalUrl || article.url),
     wordCount,

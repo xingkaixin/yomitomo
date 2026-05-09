@@ -80,6 +80,33 @@ describe('desktop client message parser', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts a zero-annotation article save message', () => {
+    const result = parseDesktopClientMessage({
+      type: 'article:save',
+      requestId: 'request-1',
+      payload: articleRecord({ annotations: [] }),
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts article identity messages', () => {
+    expect(
+      parseDesktopClientMessage({
+        type: 'article:open',
+        requestId: 'request-1',
+        payload: {
+          id: 'article-1',
+          url: 'https://example.com/article',
+          canonicalUrl: 'https://example.com/article',
+        },
+      }),
+    ).toEqual({
+      ok: true,
+      message: expect.objectContaining({ type: 'article:open' }),
+    });
+  });
+
   it('rejects unknown types and missing request ids', () => {
     expect(parseDesktopClientMessage({ type: 'unknown', requestId: 'request-1' })).toEqual({
       ok: false,

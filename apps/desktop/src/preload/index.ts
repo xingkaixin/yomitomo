@@ -135,8 +135,7 @@ const api = {
     });
   },
   getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
-  getSavedPairingInfo: () =>
-    ipcRenderer.invoke('pairing:saved') as Promise<PairingInfo | null>,
+  getSavedPairingInfo: () => ipcRenderer.invoke('pairing:saved') as Promise<PairingInfo | null>,
   rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
   getPairingConnectionStatus: () =>
     ipcRenderer.invoke('pairing:connection-status') as Promise<PairingConnectionStatus>,

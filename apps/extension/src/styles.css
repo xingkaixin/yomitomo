@@ -30,3 +30,34 @@ h1 {
 p {
   text-wrap: pretty;
 }
+
+.yomitomo-submit-done-icon {
+  animation: yomitomo-submit-pop 420ms cubic-bezier(0.34, 1.36, 0.64, 1) both;
+}
+
+@keyframes yomitomo-submit-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-10deg);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.18) rotate(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yomitomo-send-action {
+    transition: none;
+  }
+
+  .yomitomo-submit-done-icon {
+    animation: none;
+  }
+}

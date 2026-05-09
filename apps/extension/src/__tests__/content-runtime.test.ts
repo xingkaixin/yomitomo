@@ -52,6 +52,9 @@ describe('registerContentToggleListener', () => {
       },
       targetWindow: {} as Window,
       getArticlePreview: vi.fn().mockResolvedValue({
+        id: 'article-1',
+        url: 'https://example.com/article',
+        canonicalUrl: 'https://example.com/article',
         title: '文章标题',
         domain: 'example.com',
         wordCount: 1200,
@@ -64,6 +67,9 @@ describe('registerContentToggleListener', () => {
     await expect(listener?.({ type: 'yomitomo:article-preview' })).resolves.toEqual({
       ok: true,
       article: {
+        id: 'article-1',
+        url: 'https://example.com/article',
+        canonicalUrl: 'https://example.com/article',
         title: '文章标题',
         domain: 'example.com',
         wordCount: 1200,
@@ -89,6 +95,37 @@ describe('registerContentToggleListener', () => {
       ok: false,
       error: 'preview failed',
     });
+  });
+
+  it('returns extracted article content for popup submission', async () => {
+    let listener:
+      | ((message: { type?: string; inlineImages?: boolean }) => Promise<unknown> | undefined)
+      | undefined;
+    const article = {
+      id: 'article-1',
+      url: 'https://example.com/article',
+      canonicalUrl: 'https://example.com/article',
+      title: '文章标题',
+      content: '<p>正文</p>',
+      contentHash: 'hash-1',
+    };
+    const getArticle = vi.fn().mockResolvedValue(article);
+
+    registerContentToggleListener({
+      addListener: (nextListener) => {
+        listener = nextListener;
+      },
+      targetWindow: {} as Window,
+      getArticle,
+      toggleReader: vi.fn(),
+      errorMessage: String,
+    });
+
+    await expect(listener?.({ type: 'yomitomo:article', inlineImages: true })).resolves.toEqual({
+      ok: true,
+      article,
+    });
+    expect(getArticle).toHaveBeenCalledWith({ inlineImages: true });
   });
 
   it('marks the window ready only after listener registration succeeds', () => {

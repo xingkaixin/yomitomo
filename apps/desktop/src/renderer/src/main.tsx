@@ -28,10 +28,7 @@ import {
 } from './app-settings';
 import { ReadingLibrary } from './app-reading-library';
 import { ReadingStatsPanel } from './app-reading-stats';
-import {
-  ExtensionConnectionButton,
-  ExtensionConnectionDialog,
-} from './app-extension-connection';
+import { ExtensionConnectionButton, ExtensionConnectionDialog } from './app-extension-connection';
 import {
   AgentSettings,
   GeneralSettings,
