@@ -2158,7 +2158,6 @@
     gap: 14px;
   }
 
-  .agent-filter-tabs,
   .agent-library-toolbar {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2168,7 +2167,8 @@
   }
 
   .agent-filter-tabs {
-    width: 100%;
+    width: fit-content;
+    max-width: 100%;
   }
 
   .agent-filter-tab {
