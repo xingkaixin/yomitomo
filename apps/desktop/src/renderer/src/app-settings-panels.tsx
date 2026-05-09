@@ -118,8 +118,6 @@ const agentFilterOptions: Array<{ value: AgentFilter; label: string; agentLabel:
   { value: 'review', label: '深度审阅', agentLabel: '审阅助手' },
 ];
 
-const agentEnabledFilterStorageKey = 'yomitomo.agentSettings.showEnabledOnly';
-
 const agentPronunciationMap: Record<string, string> = {
   'reading-partner': 'Lín Zhīwēi',
   'root-reviewer': 'Zhōu Yàn',
@@ -162,26 +160,6 @@ const providerLogoMap: Record<string, string> = {
   'volcengine.png': volcengineLogo,
   'zhipu.png': zhipuLogo,
 };
-
-let agentEnabledFilterMemoryValue = 'false';
-
-function readAgentEnabledFilterPreference() {
-  try {
-    return window.localStorage?.getItem(agentEnabledFilterStorageKey) === 'true';
-  } catch {
-    return agentEnabledFilterMemoryValue === 'true';
-  }
-}
-
-function writeAgentEnabledFilterPreference(value: boolean) {
-  const stringValue = String(value);
-  agentEnabledFilterMemoryValue = stringValue;
-  try {
-    window.localStorage?.setItem(agentEnabledFilterStorageKey, stringValue);
-  } catch {
-    return;
-  }
-}
 
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
   return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
@@ -760,7 +738,6 @@ function TaskProviderRoutes({
 export function AgentSettings({
   agents,
   error,
-  saveState,
   onToggle,
 }: {
   agents: Agent[];
@@ -769,58 +746,36 @@ export function AgentSettings({
   onToggle: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('annotation');
-  const [showEnabledOnly, setShowEnabledOnly] = useState(readAgentEnabledFilterPreference);
   const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
-  const visibleAgents = showEnabledOnly
-    ? filteredAgents.filter((agent) => agent.enabled)
-    : filteredAgents;
   const currentMode = agentFilterOptions.find((option) => option.value === filter);
   const emptyKindLabel = currentMode?.agentLabel || agentKindLabel(filter);
-  const statusText =
-    error ||
-    (saveState === 'saving'
-      ? '正在保存助手状态。'
-      : saveState === 'saved'
-        ? '助手状态已保存。'
-        : '');
 
   return (
     <div className="settings-panel">
       <header className="agent-library-header">
         <div>
           <h2>今天陪你思考的人</h2>
-          <p>{statusText || '不同模式，不同视角，组成你专属的思考团队。'}</p>
+          <p>不同模式，不同视角，组成你专属的思考团队。</p>
         </div>
-        <label className="agent-enabled-filter">
-          <span>仅显示已启用</span>
-          <input
-            aria-label="仅显示已启用"
-            type="checkbox"
-            checked={showEnabledOnly}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              setShowEnabledOnly(checked);
-              writeAgentEnabledFilterPreference(checked);
-            }}
-          />
-          <span className="settings-toggle-switch" aria-hidden="true" />
-        </label>
       </header>
       <section className="agent-library">
-        <AgentFilterTabs agents={agents} value={filter} onChange={setFilter} />
+        <div className="agent-library-toolbar">
+          <AgentFilterTabs agents={agents} value={filter} onChange={setFilter} />
+          {error ? (
+            <div className="agent-error-status" role="alert">
+              {error}
+            </div>
+          ) : null}
+        </div>
         <div className="agent-card-list">
-          {visibleAgents.length === 0 ? (
+          {filteredAgents.length === 0 ? (
             <div className="agent-list-empty">
               <Bot size={22} />
               <strong>还没有{emptyKindLabel}</strong>
-              <p>
-                {showEnabledOnly
-                  ? '打开助手启用开关后会出现在这里。'
-                  : '配置供应商后会自动生成预设助手库。'}
-              </p>
+              <p>配置供应商后会自动生成预设助手库。</p>
             </div>
           ) : (
-            visibleAgents.map((agent) => (
+            filteredAgents.map((agent) => (
               <AgentProfileListCard agent={agent} key={agent.id} onToggle={onToggle} />
             ))
           )}
@@ -854,17 +809,26 @@ function AgentProfileListCard({
     >
       <div className="agent-list-body">
         <div className="agent-list-identity">
-          {cover ? (
-            <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
-          ) : (
-            <div className="agent-list-cover is-placeholder">
-              <AvatarImage
-                value={agent.avatar}
-                className="size-16"
-                fallback={agent.nickname.slice(0, 1)}
-              />
-            </div>
-          )}
+          <div className="agent-list-cover-frame">
+            <span
+              className={
+                agent.enabled ? 'agent-list-status-badge' : 'agent-list-status-badge is-resting'
+              }
+            >
+              {agent.enabled ? '在场' : '休息中'}
+            </span>
+            {cover ? (
+              <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
+            ) : (
+              <div className="agent-list-cover is-placeholder">
+                <AvatarImage
+                  value={agent.avatar}
+                  className="size-16"
+                  fallback={agent.nickname.slice(0, 1)}
+                />
+              </div>
+            )}
+          </div>
           <div className="agent-list-heading">
             <div className="agent-list-name-row">
               <h3>{agent.nickname}</h3>
@@ -880,9 +844,8 @@ function AgentProfileListCard({
       <div className="agent-list-footer">
         <span className="agent-list-role">{roleTitle}</span>
         <label className="agent-card-toggle">
-          <span>{agent.enabled ? '已启用' : '未启用'}</span>
           <input
-            aria-label={`${agent.enabled ? '关闭' : '启用'}${agent.nickname}`}
+            aria-label={agent.enabled ? `让${agent.nickname}先休息` : `请${agent.nickname}加入`}
             type="checkbox"
             checked={agent.enabled}
             onChange={() => onToggle(agent)}

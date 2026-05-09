@@ -244,7 +244,7 @@ describe('AgentSettings', () => {
     const onToggle = vi.fn();
     render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={onToggle} />);
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /关闭林知微/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /让林知微先休息/ }));
 
     expect(onToggle).toHaveBeenCalledWith(agents[0]);
   });
@@ -260,7 +260,15 @@ describe('AgentSettings', () => {
     );
   });
 
-  it('can show only enabled agents', () => {
+  it('keeps the subtitle stable without showing save status', () => {
+    render(<AgentSettings agents={agents} error="" saveState="saving" onToggle={vi.fn()} />);
+
+    expect(screen.getByText('不同模式，不同视角，组成你专属的思考团队。')).toBeTruthy();
+    expect(screen.queryByText('正在保存助手状态。')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('keeps disabled agents visible', () => {
     render(
       <AgentSettings
         agents={[agents[0]!, makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false)]}
@@ -270,24 +278,18 @@ describe('AgentSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: '仅显示已启用' }));
-
     expect(screen.getByText('林知微')).toBeTruthy();
-    expect(screen.queryByText('沈清源')).toBeNull();
+    expect(screen.getByText('沈清源')).toBeTruthy();
+    expect(screen.getByText('在场')).toBeTruthy();
+    expect(screen.getByText('休息中')).toBeTruthy();
+    expect(screen.queryByText('让TA在场')).toBeNull();
+    expect(screen.queryByText('请TA加入')).toBeNull();
   });
 
-  it('persists the enabled-only filter locally', () => {
-    const { unmount } = render(
-      <AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />,
-    );
-
-    fireEvent.click(screen.getByRole('checkbox', { name: '仅显示已启用' }));
-    unmount();
+  it('marks enabled agent work photos with a status badge', () => {
     render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
 
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: '仅显示已启用' }).checked).toBe(
-      true,
-    );
+    expect(screen.getAllByText('在场')).toHaveLength(1);
   });
 });
 

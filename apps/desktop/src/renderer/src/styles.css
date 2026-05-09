@@ -681,39 +681,6 @@
   line-height: 1.55;
 }
 
-.agent-enabled-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  flex: 0 0 auto;
-  color: hsl(var(--foreground));
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 760;
-  padding-top: 8px;
-}
-
-.agent-enabled-filter input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.agent-enabled-filter input:checked + .settings-toggle-switch {
-  background: hsl(var(--primary));
-  box-shadow: inset 0 0 0 1px hsl(var(--primary));
-}
-
-.agent-enabled-filter input:checked + .settings-toggle-switch::after {
-  transform: translateX(18px);
-}
-
-.agent-enabled-filter:focus-within .settings-toggle-switch {
-  box-shadow:
-    inset 0 0 0 1px hsl(var(--primary)),
-    0 0 0 3px hsl(var(--ring) / 0.28);
-}
-
 .config-list-scroll {
   display: grid;
   align-content: start;
@@ -876,6 +843,20 @@
   gap: 22px;
 }
 
+.agent-library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.agent-error-status {
+  min-width: fit-content;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+  font-weight: 780;
+}
+
 .agent-card-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -884,18 +865,46 @@
 
 .agent-list-card {
   display: flex;
+  position: relative;
   min-width: 0;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid hsl(var(--border) / 0.72);
+  border: 1px solid hsl(var(--border) / 0.46);
   border-radius: 8px;
   background:
-    linear-gradient(180deg, hsl(var(--card) / 0.96), hsl(45 41% 94% / 0.9)), hsl(var(--card));
-  box-shadow: 0 18px 48px hsl(31 34% 24% / 0.1);
+    linear-gradient(180deg, hsl(210 18% 94% / 0.92), hsl(40 20% 92% / 0.84)),
+    hsl(var(--card));
+  box-shadow: 0 8px 22px hsl(31 24% 24% / 0.055);
+  filter: saturate(0.82) brightness(0.96);
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.agent-list-card:hover {
+  filter: saturate(0.9) brightness(0.99);
+  box-shadow: 0 12px 30px hsl(31 24% 24% / 0.075);
 }
 
 .agent-list-card.is-enabled {
-  border-color: hsl(83 24% 35% / 0.34);
+  border-color: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 30%, transparent);
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.97), hsl(45 41% 94% / 0.92)),
+    hsl(var(--card));
+  box-shadow:
+    0 22px 54px hsl(31 34% 24% / 0.12),
+    0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 5%, transparent);
+  filter: saturate(1) brightness(1);
+}
+
+.agent-list-card.is-enabled:hover {
+  filter: saturate(1) brightness(1);
+  box-shadow:
+    0 22px 54px hsl(31 34% 24% / 0.12),
+    0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 5%, transparent);
 }
 
 .agent-list-body {
@@ -914,8 +923,31 @@
   min-width: 0;
 }
 
+.agent-list-cover-frame {
+  position: relative;
+  border-radius: 10px;
+}
+
+.agent-list-card.is-enabled .agent-list-cover-frame::before {
+  position: absolute;
+  z-index: 0;
+  inset: -14px -12px 18px;
+  border-radius: 18px;
+  background: radial-gradient(
+    circle at 34% 24%,
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 8%, transparent) 0%,
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 5%, transparent) 38%,
+    transparent 70%
+  );
+  content: '';
+  filter: blur(4px);
+  pointer-events: none;
+}
+
 .agent-list-cover {
   display: block;
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: auto;
   aspect-ratio: 4 / 3;
@@ -923,16 +955,75 @@
   justify-self: center;
   overflow: hidden;
   border-radius: 8px;
+  filter: grayscale(0.18) saturate(0.78) contrast(0.94) brightness(0.98);
   object-fit: cover;
   object-position: center;
-  box-shadow: 0 10px 26px hsl(31 34% 24% / 0.12);
+  outline: 1px solid rgb(0 0 0 / 0.1);
+  outline-offset: -1px;
+  box-shadow: 0 6px 18px hsl(31 22% 24% / 0.08);
+  transition:
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.agent-list-card:hover .agent-list-cover {
+  filter: grayscale(0.1) saturate(0.88) contrast(0.98) brightness(1.01);
+}
+
+.agent-list-card.is-enabled .agent-list-cover,
+.agent-list-card.is-enabled:hover .agent-list-cover {
+  filter: saturate(1.06) contrast(1.04) brightness(1.02);
+  box-shadow: 0 12px 28px hsl(31 34% 24% / 0.14);
 }
 
 .agent-list-cover.is-placeholder {
   display: grid;
+  position: relative;
+  z-index: 1;
   place-items: center;
   background:
     linear-gradient(135deg, hsl(205 30% 38% / 0.16), hsl(83 24% 35% / 0.12)), hsl(var(--background));
+}
+
+.agent-list-status-badge {
+  display: inline-flex;
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 8px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 22%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 10%, hsl(var(--card)) 90%);
+  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.08);
+  color: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 78%, hsl(var(--foreground)) 22%);
+  font-size: 12px;
+  font-weight: 920;
+  line-height: 1;
+  padding: 8px 10px;
+}
+
+.agent-list-status-badge::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--agent-accent, hsl(83 24% 35%));
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 12%, transparent);
+  content: '';
+}
+
+.agent-list-status-badge.is-resting {
+  border-color: hsl(34 9% 70% / 0.52);
+  background: hsl(40 14% 94% / 0.86);
+  color: hsl(31 7% 42%);
+}
+
+.agent-list-status-badge.is-resting::before {
+  background: hsl(32 4% 54%);
+  box-shadow: 0 0 0 3px hsl(32 4% 54% / 0.12);
 }
 
 .agent-list-content {
@@ -967,6 +1058,10 @@
   white-space: nowrap;
 }
 
+.agent-list-card:not(.is-enabled) .agent-list-name-row h3 {
+  color: hsl(30 10% 34%);
+}
+
 .agent-list-name-row span {
   flex: 0 0 auto;
   margin: 0;
@@ -978,6 +1073,10 @@
   line-height: 1;
 }
 
+.agent-list-card:not(.is-enabled) .agent-list-name-row span {
+  color: hsl(31 7% 52%);
+}
+
 .agent-list-heading blockquote {
   position: relative;
   width: fit-content;
@@ -987,6 +1086,10 @@
   font-size: 13px;
   font-weight: 680;
   line-height: 1.55;
+}
+
+.agent-list-card:not(.is-enabled) .agent-list-heading blockquote {
+  color: hsl(31 9% 48%);
 }
 
 .agent-list-heading blockquote::after {
@@ -1018,12 +1121,22 @@
   padding: 7px 10px;
 }
 
+.agent-list-card:not(.is-enabled) .agent-list-role {
+  border-color: hsl(34 10% 72% / 0.58);
+  background: hsl(210 13% 91% / 0.72);
+  color: hsl(31 8% 50%);
+}
+
 .agent-list-intro {
   margin: 0;
   color: hsl(27 22% 20%);
   font-size: 14px;
   line-height: 1.72;
   white-space: pre-line;
+}
+
+.agent-list-card:not(.is-enabled) .agent-list-intro {
+  color: hsl(30 9% 43%);
 }
 
 .agent-list-footer {
@@ -1039,7 +1152,10 @@
 .agent-card-toggle {
   display: inline-flex;
   position: relative;
+  min-width: 44px;
+  min-height: 40px;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   flex: 0 0 auto;
   color: hsl(var(--muted-foreground));
@@ -1065,8 +1181,10 @@
 }
 
 .agent-card-toggle input:checked + .settings-toggle-switch {
-  background: hsl(var(--primary));
-  box-shadow: inset 0 0 0 1px hsl(var(--primary));
+  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 74%, hsl(var(--card)) 26%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 82%, transparent),
+    0 6px 14px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
 }
 
 .agent-card-toggle input:checked + .settings-toggle-switch::after {
@@ -1075,7 +1193,7 @@
 
 .agent-card-toggle input:focus-visible + .settings-toggle-switch {
   box-shadow:
-    inset 0 0 0 1px hsl(var(--primary)),
+    inset 0 0 0 1px color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 82%, transparent),
     0 0 0 3px hsl(var(--ring) / 0.28);
 }
 
@@ -1086,15 +1204,15 @@
     gap: 14px;
   }
 
-  .agent-enabled-filter {
-    width: fit-content;
-    padding-top: 0;
-  }
-
   .agent-filter-tabs,
+  .agent-library-toolbar,
   .agent-card-list,
   .agent-list-body {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-library-toolbar {
+    display: grid;
   }
 
   .agent-filter-tabs {
