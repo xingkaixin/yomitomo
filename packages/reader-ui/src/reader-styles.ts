@@ -297,7 +297,7 @@ export const readerConversationStyles = `
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:rgba(37,29,22,.12);background:rgba(37,29,22,.06);color:#6f6258}
 .reader-note-comments-region{width:100%;margin-top:12px}
-.reader-note-comments-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-height:300px;min-height:0;overflow:hidden;gap:9px;border:1px solid rgba(40,35,29,.1);border-radius:14px;background:rgba(250,246,238,.86);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 22px rgba(55,42,24,.08);padding:10px}
+.reader-note-comments-panel{display:grid;grid-template-rows:auto auto auto auto;min-height:0;overflow:visible;gap:9px;border:1px solid rgba(40,35,29,.1);border-radius:14px;background:rgba(250,246,238,.86);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 22px rgba(55,42,24,.08);padding:10px}
 .reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.14);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-note-comments-panel>header>div{display:flex;align-items:baseline;gap:7px;min-width:0}
 .reader-note-comments-panel>header strong{font-size:13px;font-weight:900}
@@ -305,7 +305,7 @@ export const readerConversationStyles = `
 .reader-note-comments-panel>header button{display:inline-flex;align-items:center;gap:4px;height:26px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:11px;font-weight:850;padding:0 8px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-note-comments-panel>header button:hover{background:#f0e3cd;color:var(--reader-ink)}
 .reader-note-comments-panel>header button:active{transform:scale(.96)}
-.reader-note-comments-panel .reader-comments{min-height:0;overflow:auto;margin:0 -4px 0 0;padding-right:4px}
+.reader-note-comments-panel .reader-comments{max-height:600px;min-height:0;overflow:auto;margin:0 -4px 0 0;padding-right:4px}
 .reader-note-comments-panel .reader-comment{grid-template-columns:32px minmax(0,1fr);width:100%;min-width:0}
 .reader-note-comments-panel .reader-markdown-content,.reader-note-comments-panel .reader-markdown-content *{max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .reader-comment-markdown{position:relative}
