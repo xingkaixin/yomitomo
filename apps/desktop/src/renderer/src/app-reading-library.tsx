@@ -39,6 +39,7 @@ import {
 } from '@yomitomo/core';
 import {
   buildTocAnnotationStats,
+  clampNumber,
   defaultReaderSettings,
   useAgentAnnotationQueue,
   getShortcutModifier,
@@ -50,6 +51,7 @@ import {
   type ActiveConnection,
   type HighlightChoice,
   type ReaderReadingSection,
+  type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
 import { formatDate, urlHost } from './app-utils';
@@ -68,6 +70,7 @@ import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
 const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
+const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 
 type SourceSelectionAction = SelectionAction;
 
@@ -77,6 +80,40 @@ function defaultTocOpen() {
 
 function usesOverlayToc() {
   return typeof window !== 'undefined' && window.innerWidth <= 1320;
+}
+
+function readDesktopReaderSettings(): ReaderSettings {
+  if (typeof window === 'undefined') return defaultReaderSettings;
+
+  try {
+    const raw = window.localStorage.getItem(DESKTOP_READER_SETTINGS_KEY);
+    if (!raw) return defaultReaderSettings;
+    return normalizeDesktopReaderSettings(JSON.parse(raw) as Partial<ReaderSettings>);
+  } catch {
+    return defaultReaderSettings;
+  }
+}
+
+function normalizeDesktopReaderSettings(settings: Partial<ReaderSettings> | undefined) {
+  return {
+    fontSize: clampNumber(settings?.fontSize, 16, 28, defaultReaderSettings.fontSize),
+    contentWidth: clampNumber(
+      settings?.contentWidth,
+      680,
+      1080,
+      defaultReaderSettings.contentWidth,
+    ),
+  };
+}
+
+function writeDesktopReaderSettings(settings: ReaderSettings) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(DESKTOP_READER_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    return;
+  }
 }
 
 export function ReadingLibrary({
@@ -544,7 +581,9 @@ function SourceBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
-  const [readerSettings, setReaderSettings] = useState(defaultReaderSettings);
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
+    readDesktopReaderSettings(),
+  );
   const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
     null,
   );
@@ -1230,6 +1269,12 @@ function SourceBookcase({
     });
   }
 
+  function updateReaderSettings(nextSettings: ReaderSettings) {
+    const normalizedSettings = normalizeDesktopReaderSettings(nextSettings);
+    setReaderSettings(normalizedSettings);
+    writeDesktopReaderSettings(normalizedSettings);
+  }
+
   if (!article) {
     return (
       <section className="source-bookcase is-empty">
@@ -1349,7 +1394,7 @@ function SourceBookcase({
           setSettingsOpen((open) => !open);
         }}
         onToggleToc={() => setTocOpen((open) => !open)}
-        onUpdateReaderSettings={setReaderSettings}
+        onUpdateReaderSettings={updateReaderSettings}
       />
     </section>
   );

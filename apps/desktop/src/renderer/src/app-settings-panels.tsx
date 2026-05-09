@@ -667,7 +667,7 @@ export function ProviderSettings({
   );
 
   return (
-    <div className="settings-panel">
+    <div className="settings-panel settings-model-panel">
       <PanelHeader
         icon={<KeyRound size={20} />}
         title="模型与路由"
@@ -949,7 +949,7 @@ export function AgentSettings({
   }
 
   return (
-    <div className="settings-panel">
+    <div className="settings-panel agent-settings-panel">
       <header className="agent-library-header">
         <div>
           <h2>今天陪你思考的人</h2>

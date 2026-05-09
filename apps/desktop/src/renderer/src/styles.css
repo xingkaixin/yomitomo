@@ -449,6 +449,14 @@
   box-shadow: 0 24px 80px hsl(31 34% 24% / 0.12);
 }
 
+.agent-settings-panel {
+  container: app-content / inline-size;
+}
+
+.settings-model-panel {
+  container: settings-detail / inline-size;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -2135,6 +2143,128 @@
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@container app-content (max-width: 1040px) {
+  .agent-card-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container app-content (max-width: 900px) {
+  .agent-library-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .agent-filter-tabs,
+  .agent-library-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-library-toolbar {
+    display: grid;
+  }
+
+  .agent-filter-tabs {
+    width: 100%;
+  }
+
+  .agent-filter-tab {
+    justify-content: center;
+  }
+}
+
+@container app-content (max-width: 720px) {
+  .agent-list-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-list-cover {
+    aspect-ratio: 4 / 3;
+    min-height: 0;
+  }
+
+  .agent-list-content {
+    align-self: start;
+  }
+
+  .agent-list-line-bubble {
+    top: 44px;
+    right: 10px;
+    max-width: min(182px, calc(100% - 24px));
+  }
+}
+
+@container settings-detail (max-width: 980px) {
+  .settings-detail-grid {
+    min-height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .config-list {
+    max-height: 320px;
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--border) / 0.72);
+    padding-right: 0;
+    padding-bottom: 18px;
+  }
+}
+
+@container settings-detail (max-width: 820px) {
+  .task-route-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .task-route-header .save-action {
+    align-self: flex-start;
+  }
+
+  .task-route-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+  }
+
+  .task-route-copy strong {
+    white-space: normal;
+  }
+
+  .task-route-select-trigger {
+    width: 100%;
+  }
+}
+
+@container settings-detail (max-width: 640px) {
+  .settings-form-grid,
+  .agent-profile-scenes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-form-grid > .col-span-2,
+  .agent-profile-card.col-span-2 {
+    grid-column: auto;
+  }
+
+  .detail-pane-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .detail-pane-header .flex {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .provider-model-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .provider-model-field .action-button {
+    justify-content: center;
+  }
 }
 
 .stats-start-overview {
