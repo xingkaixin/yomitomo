@@ -233,35 +233,30 @@ const settingsSections: Array<{
   title: string;
   description: string;
   icon: React.ReactNode;
-  items: string[];
 }> = [
   {
     key: 'collection',
     title: '采集与保存',
     description: '管理文章采集时的本地保存行为。',
     icon: <ImageIcon size={17} />,
-    items: ['保存原文图片'],
   },
   {
     key: 'models',
     title: '模型与路由',
     description: '分配任务模型，并维护模型供应商。',
     icon: <KeyRound size={17} />,
-    items: ['任务路由', '模型供应商'],
   },
   {
     key: 'data',
     title: '数据管理',
     description: '集中管理导出和清理类操作。',
     icon: <Database size={17} />,
-    items: ['导出数据', '清理数据'],
   },
   {
     key: 'about',
     title: '关于',
     description: '查看版本、链接和开源许可证。',
     icon: <Info size={17} />,
-    items: ['应用版本', '更新记录', '官网 / 文档', '反馈入口', '开源许可证'],
   },
 ];
 
@@ -400,11 +395,6 @@ export function SettingsSectionShell({
                 <span className="settings-section-nav-copy">
                   <strong>{section.title}</strong>
                   <em>{section.description}</em>
-                  <span className="settings-section-nav-subitems">
-                    {section.items.map((item) => (
-                      <span key={item}>{item}</span>
-                    ))}
-                  </span>
                 </span>
                 <ChevronRight size={16} />
               </button>

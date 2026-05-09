@@ -7651,7 +7651,7 @@
   display: grid;
   height: 100%;
   min-height: 0;
-  grid-template-columns: 270px minmax(0, 1fr);
+  grid-template-columns: 340px minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -7778,27 +7778,6 @@
   line-height: 1.42;
 }
 
-.settings-section-nav-subitems {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 2px;
-}
-
-.settings-section-nav-subitems span {
-  max-width: 100%;
-  overflow: hidden;
-  border-radius: 999px;
-  background: hsl(var(--card) / 0.72);
-  color: hsl(var(--muted-foreground));
-  font-size: 11px;
-  font-weight: 780;
-  line-height: 1;
-  padding: 5px 7px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .settings-empty-panel {
   display: grid;
   min-height: 320px;
@@ -7899,17 +7878,6 @@
   text-align: right;
 }
 
-.about-version-note {
-  margin: 2px 0 0;
-  border-radius: 8px;
-  background: hsl(var(--primary) / 0.07);
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 780;
-  line-height: 1.5;
-  padding: 10px 12px;
-}
-
 .about-link-action {
   width: fit-content;
   align-self: flex-start;
@@ -8001,7 +7969,6 @@
 }
 
 .license-package {
-  overflow: hidden;
   border: 1px solid hsl(var(--border) / 0.58);
   border-radius: 8px;
   background: hsl(var(--background) / 0.28);
@@ -8013,14 +7980,16 @@
 
 .license-package-row {
   display: grid;
+  min-height: 56px;
   width: 100%;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto;
-  gap: 10px;
+  grid-template-columns: 28px minmax(180px, 1fr) minmax(78px, 96px) minmax(110px, 150px);
+  column-gap: 12px;
   align-items: center;
   border: 0;
+  border-radius: 8px;
   background: transparent;
   color: hsl(var(--foreground));
-  padding: 12px 14px;
+  padding: 10px 16px;
   text-align: left;
 }
 
@@ -8033,8 +8002,8 @@ button.license-package-row:hover {
   background: hsl(var(--primary) / 0.05);
 }
 
-.license-package.is-source .license-package-row {
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+.license-package-row svg {
+  justify-self: center;
 }
 
 .license-package-row strong,
@@ -8044,6 +8013,7 @@ button.license-package-row:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.35;
 }
 
 .license-package-row strong {
@@ -8052,10 +8022,12 @@ button.license-package-row:hover {
 }
 
 .license-package-row em {
+  justify-self: end;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .license-package-row span {
@@ -8063,6 +8035,7 @@ button.license-package-row:hover {
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 780;
+  text-align: right;
 }
 
 .license-package-detail {
@@ -8131,11 +8104,13 @@ button.license-package-row:hover {
 
   .about-version-row,
   .license-package-row {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .about-version-row em,
+  .license-package-row em,
   .license-package-row span {
+    grid-column: 2;
     justify-self: start;
     text-align: left;
   }

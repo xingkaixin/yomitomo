@@ -38,7 +38,6 @@ export function AboutSettings({
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
   const [licensesOpen, setLicensesOpen] = useState(false);
   const extensionVersion = extensionVersionView(pairingConnectionStatus);
-  const versionStatus = versionStatusText(appInfo.desktopVersion, pairingConnectionStatus);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
@@ -79,7 +78,6 @@ export function AboutSettings({
               detail={extensionVersion.detail}
             />
           </div>
-          <p className="about-version-note">{versionStatus}</p>
         </section>
 
         <AboutActionCard
@@ -221,6 +219,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
             <div className="license-package-row">
               <Package size={16} />
               <strong>Yomitomo</strong>
+              <em>源码</em>
               <span>Apache-2.0</span>
             </div>
           </article>
@@ -282,39 +281,21 @@ function extensionVersionView(status: PairingConnectionStatus | undefined) {
   if (versions.length > 0) {
     return {
       value: versions.map(formatVersion).join(', '),
-      detail: `${status?.authenticatedSocketCount || versions.length} 个阅读器会话正在连接`,
+      detail: '当前配对版本',
     };
   }
 
   if (status?.lastExtensionVersion) {
     return {
       value: formatVersion(status.lastExtensionVersion),
-      detail: '最近连接版本',
+      detail: '当前配对版本',
     };
   }
 
   return {
-    value: '连接扩展后显示',
-    detail: '浏览器阅读器握手时自动上报',
+    value: '还未配对',
+    detail: '在浏览器扩展输入桌面端配对码后显示',
   };
-}
-
-function versionStatusText(
-  desktopVersion: string,
-  pairingConnectionStatus: PairingConnectionStatus | undefined,
-) {
-  const extensionVersions = [
-    ...(pairingConnectionStatus?.extensionVersions || []),
-    pairingConnectionStatus?.lastExtensionVersion || '',
-  ].filter(Boolean);
-
-  if (!desktopVersion || extensionVersions.length === 0) {
-    return '连接扩展后可对照桌面端和扩展版本。';
-  }
-
-  return extensionVersions.every((version) => version === desktopVersion)
-    ? '桌面端与扩展端版本一致。'
-    : '桌面端与扩展端版本存在差异。';
 }
 
 function formatVersion(version: string) {

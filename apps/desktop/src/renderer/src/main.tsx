@@ -332,6 +332,13 @@ function App() {
               onClick={() => setActiveSetting('library')}
             />
             <SettingsNavButton
+              active={activeSetting === 'agents'}
+              collapsed={sidebarCollapsed}
+              icon={<Bot size={18} />}
+              label="助手"
+              onClick={() => setActiveSetting('agents')}
+            />
+            <SettingsNavButton
               active={activeSetting === 'stats'}
               collapsed={sidebarCollapsed}
               icon={<BarChart3 size={18} />}
@@ -344,13 +351,6 @@ function App() {
               icon={<Settings size={18} />}
               label="设置"
               onClick={() => setActiveSetting('settings')}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'agents'}
-              collapsed={sidebarCollapsed}
-              icon={<Bot size={18} />}
-              label="助手"
-              onClick={() => setActiveSetting('agents')}
             />
           </nav>
 

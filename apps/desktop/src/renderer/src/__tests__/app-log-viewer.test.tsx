@@ -38,8 +38,17 @@ describe('AboutSettings', () => {
     );
 
     await waitFor(() => expect(screen.getAllByText('v0.1.0').length).toBeGreaterThan(1));
-    expect(screen.getByText('1 个阅读器会话正在连接')).toBeTruthy();
+    expect(screen.getByText('当前配对版本')).toBeTruthy();
     expect(screen.getByText('开源许可证')).toBeTruthy();
+  });
+
+  it('shows an empty extension state before pairing', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings pairingConnectionStatus={{ authenticatedSocketCount: 0 }} />);
+
+    await screen.findByText('v0.1.0');
+    expect(screen.getByText('还未配对')).toBeTruthy();
   });
 
   it('opens project links through the desktop bridge', async () => {
