@@ -255,7 +255,6 @@ export const readerConversationStyles = `
 .reader-pairing-actions button:first-child{background:var(--reader-ink);color:#fffaf0}
 .reader-pairing-actions button:disabled{cursor:not-allowed;opacity:.48}
 .reader-pairing-status{color:var(--reader-red);font-size:12px;font-weight:760}
-.reader-pairing-status.is-connected{color:#166434}
 .reader-pairing-connected{display:grid;gap:10px}
 .reader-pairing-connected.is-offline .reader-pairing-connected-main>span{background:var(--reader-red)}
 .reader-pairing-connected-actions{display:flex;gap:8px;flex-wrap:wrap}

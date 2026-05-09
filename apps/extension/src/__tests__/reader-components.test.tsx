@@ -693,6 +693,27 @@ describe('ReaderSettingsPanel', () => {
 
     expect(screen.getByText('已保存配对')).toBeTruthy();
     expect(screen.getByText('YMT-123456')).toBeTruthy();
+    expect(screen.getAllByText('桌面端未连通')).toHaveLength(1);
     expect(screen.queryByLabelText('桌面端配对码')).toBeNull();
+  });
+
+  it('shows connected status in the saved pairing subtitle', () => {
+    render(
+      <ReaderSettingsPanel
+        desktopConnected
+        hasSavedPairing
+        pairingId="YMT-123456"
+        pairingStatus="已配对"
+        pairingTokenDraft="token"
+        settings={{ fontSize: 20, contentWidth: 860 }}
+        onChange={vi.fn()}
+        onDisconnectDesktop={vi.fn()}
+        onSavePairingToken={vi.fn()}
+        onSetPairingTokenDraft={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('已连接本机桌面端')).toBeTruthy();
+    expect(screen.queryByText('已配对')).toBeNull();
   });
 });

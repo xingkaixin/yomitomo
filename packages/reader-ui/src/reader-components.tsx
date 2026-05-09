@@ -826,9 +826,6 @@ export function ReaderSettingsPanel({
   const pairingConnectedClass = desktopConnected
     ? 'reader-pairing-connected'
     : 'reader-pairing-connected is-offline';
-  const pairingStatusClass = desktopConnected
-    ? 'reader-pairing-status is-connected'
-    : 'reader-pairing-status';
 
   return (
     <div className="reader-settings-panel" {...panelProps}>
@@ -847,7 +844,6 @@ export function ReaderSettingsPanel({
                 <span>连接标识</span>
                 <strong>{pairingId || '本机桌面端'}</strong>
               </div>
-              <span className={pairingStatusClass}>{pairingStatus}</span>
               <div className="reader-pairing-connected-actions">
                 <button type="button" onClick={() => setPairingEditorOpen(true)}>
                   <KeyRound size={13} />
