@@ -35,6 +35,7 @@ import {
 } from '../src/article-extraction';
 import { inlineArticleImages } from '../src/article-images';
 import {
+  articleTitleTocItems,
   type HighlightBox,
   type TocItem,
   extractTocItems,
@@ -454,10 +455,14 @@ function ReaderApp({
   useLayoutEffect(() => {
     const article = articleRef.current;
     if (!article) return;
-    const nextTocItems = extractTocItems(article);
+    const extractedTocItems = extractTocItems(article);
+    const nextTocItems =
+      extractedTocItems.length > 0
+        ? extractedTocItems
+        : articleTitleTocItems(article, extracted.title);
     setTocItems(nextTocItems);
     setReadingSections(buildReaderReadingSections(article, nextTocItems, extracted.title));
-  }, [extracted.content]);
+  }, [extracted.content, extracted.title]);
 
   useEffect(() => {
     if (!activeId) return;

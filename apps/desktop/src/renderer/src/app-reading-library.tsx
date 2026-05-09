@@ -18,6 +18,7 @@ import {
   annotationColor,
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
+  articleTitleTocItems,
   extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -627,7 +628,7 @@ function SourceBookcase({
         const nextTocItems =
           extractedTocItems.length > 0
             ? extractedTocItems
-            : sourceArticleTitleTocItems(articleElement, article);
+            : articleTitleTocItems(articleElement, article.title);
         const nextBoxes = annotations.flatMap((annotation) => {
           const position = resolveTextAnchor(text, annotation.anchor);
           if (!position) return [];
@@ -1352,15 +1353,6 @@ function SourceBookcase({
       />
     </section>
   );
-}
-
-function sourceArticleTitleTocItems(
-  articleElement: HTMLElement,
-  article: ArticleRecord,
-): TocItem[] {
-  const textLength = articleElement.textContent?.length || 0;
-  const text = article.title.trim();
-  return text ? [{ index: -1, text, depth: 0, start: 0, end: textLength }] : [];
 }
 
 function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {

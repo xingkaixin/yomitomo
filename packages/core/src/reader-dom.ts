@@ -86,11 +86,19 @@ export function extractTocItems(article: HTMLElement, options: ExtractTocOptions
   });
 }
 
+export function articleTitleTocItems(article: HTMLElement, title: string): TocItem[] {
+  const text = title.trim();
+  return text
+    ? [{ index: -1, text, depth: 0, start: 0, end: article.textContent?.length || 0 }]
+    : [];
+}
+
 export function findCurrentTocTarget(
   article: HTMLElement,
   item: TocItem,
   options: ExtractTocOptions = {},
 ) {
+  if (item.index < 0) return article;
   const entries = getTocEntries(article, options);
   const indexed = entries[item.index];
   if (indexed?.text === item.text) return indexed.target;

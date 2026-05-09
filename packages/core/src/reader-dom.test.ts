@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   annotationIdsAtHighlightPoint,
+  articleTitleTocItems,
   buildHighlightSegments,
   extractTocItems,
   findCurrentTocTarget,
@@ -157,5 +158,24 @@ describe('reader DOM toc', () => {
       '一、开场判断',
       '2. Follow up',
     ]);
+  });
+
+  it('builds a title toc item that targets the article root', () => {
+    const article = document.createElement('article');
+    article.innerHTML = '<p>正文第一段</p><p>正文第二段</p>';
+
+    const items = articleTitleTocItems(article, ' 测试文章 ');
+
+    expect(items).toEqual([
+      {
+        index: -1,
+        text: '测试文章',
+        depth: 0,
+        start: 0,
+        end: article.textContent?.length,
+      },
+    ]);
+    expect(findCurrentTocTarget(article, items[0]!)).toBe(article);
+    expect(articleTitleTocItems(article, '   ')).toEqual([]);
   });
 });
