@@ -10016,14 +10016,14 @@ button.license-package-row:hover {
   display: none;
 }
 
-.onboarding-profile-grid label {
+.onboarding-profile-grid > label {
   display: grid;
   align-content: start;
   gap: 8px;
   min-width: 0;
 }
 
-.onboarding-profile-grid label > span {
+.onboarding-profile-grid > label > span {
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 850;
@@ -10188,7 +10188,7 @@ button.license-package-row:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .onboarding-profile-grid label {
+  .onboarding-profile-grid > label {
     grid-column: 1 / -1;
   }
 
