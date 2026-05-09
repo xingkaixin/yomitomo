@@ -113,7 +113,7 @@ function completedArticle(): ArticleRecord {
 }
 
 function renderLibrary(articles: ArticleRecord[]) {
-  render(
+  return render(
     <ReadingLibrary
       agents={[]}
       articles={articles}
@@ -137,12 +137,12 @@ describe('ReadingLibrary home', () => {
       completedArticle(),
     ]);
 
-    expect(screen.getByText('新收录')).toBeTruthy();
-    expect(screen.getByText('进行中')).toBeTruthy();
-    expect(screen.getByText('已读完')).toBeTruthy();
+    expect(screen.getAllByText('新收录').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('进行中').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('已读完').length).toBeGreaterThan(1);
   });
 
-  it('filters unread/read articles and searches source metadata', () => {
+  it('filters by reading status and searches source metadata', () => {
     renderLibrary([
       article({ id: 'article_new', title: '新文章', siteName: 'Acme Daily' }),
       article({
@@ -153,13 +153,17 @@ describe('ReadingLibrary home', () => {
       completedArticle(),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: '已读' }));
+    fireEvent.click(screen.getByRole('button', { name: '已读完' }));
     expect(screen.getAllByText('完成笔记').length).toBeGreaterThan(0);
     expect(screen.queryByText('新文章')).toBeNull();
     expect(screen.queryByText('批注文章')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '未读' }));
+    fireEvent.click(screen.getByRole('button', { name: '新收录' }));
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
+    expect(screen.queryByText('完成笔记')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '进行中' }));
+    expect(screen.getAllByText('批注文章').length).toBeGreaterThan(0);
     expect(screen.queryByText('完成笔记')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '全部' }));
@@ -168,5 +172,18 @@ describe('ReadingLibrary home', () => {
     });
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
     expect(screen.queryByText('批注文章')).toBeNull();
+  });
+
+  it('renders the site icon next to article author', () => {
+    const { container } = renderLibrary([
+      article({
+        siteIconUrl: 'https://favicon.im/nooneshappy.com',
+        title: '站点图标文章',
+      }),
+    ]);
+
+    expect(container.querySelector<HTMLImageElement>('.library-site-icon')?.src).toBe(
+      'https://favicon.im/nooneshappy.com',
+    );
   });
 });

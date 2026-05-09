@@ -85,15 +85,14 @@ const ARTICLE_DELETE_HOLD_MS = 1400;
 const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 
-type LibraryFilter = 'all' | 'unread' | 'read' | 'annotated' | 'discussed';
+type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 
 const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
   { value: 'all', label: '全部' },
-  { value: 'unread', label: '未读' },
-  { value: 'read', label: '已读' },
-  { value: 'annotated', label: '有批注' },
-  { value: 'discussed', label: '有讨论' },
+  { value: 'new', label: '新收录' },
+  { value: 'progress', label: '进行中' },
+  { value: 'done', label: '已读完' },
 ];
 
 const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> = [
@@ -352,16 +351,6 @@ function LibraryHome({
   const pageCount = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
   const pageArticles = filteredArticles.slice((page - 1) * pageSize, page * pageSize);
   const groupedPageArticles = useMemo(() => groupLibraryArticles(pageArticles), [pageArticles]);
-  const recentActivityArticles = useMemo(
-    () =>
-      filteredArticles
-        .filter(articleHasReadingActivity)
-        .toSorted((left, right) =>
-          compareTimestampDesc(articleActivityTime(left), articleActivityTime(right)),
-        )
-        .slice(0, 3),
-    [filteredArticles],
-  );
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -468,9 +457,6 @@ function LibraryHome({
             <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
           </section>
         )}
-        {recentActivityArticles.length > 0 ? (
-          <RecentLibraryActivity articles={recentActivityArticles} onOpenArticle={onOpenArticle} />
-        ) : null}
       </div>
       {sortedArticles.length > 0 ? (
         <footer
@@ -576,6 +562,7 @@ function ArticleLibraryCard({
   );
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
+  const siteIconUrl = articleSiteIconUrl(article);
   const authorLabel =
     article.byline ||
     article.siteName ||
@@ -699,7 +686,20 @@ function ArticleLibraryCard({
               </span>
             </div>
             <h3>{article.title}</h3>
-            <p>{authorLabel}</p>
+            <p className="library-card-author">
+              {siteIconUrl ? (
+                <img
+                  alt=""
+                  className="library-site-icon"
+                  loading="lazy"
+                  src={siteIconUrl}
+                  onError={(event) => {
+                    event.currentTarget.hidden = true;
+                  }}
+                />
+              ) : null}
+              <span>{authorLabel}</span>
+            </p>
             <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
             <div className="library-card-reading-meta">
               最近阅读 {formatLibraryRelativeTime(article.updatedAt)}
@@ -723,37 +723,6 @@ function ArticleLibraryCard({
   );
 }
 
-function RecentLibraryActivity({
-  articles,
-  onOpenArticle,
-}: {
-  articles: ArticleRecord[];
-  onOpenArticle: (article: ArticleRecord) => void;
-}) {
-  return (
-    <section className="library-activity-strip" aria-label="最近活动">
-      <div className="library-activity-heading">
-        <MessageSquareText size={15} />
-        <strong>最近活动</strong>
-      </div>
-      <div className="library-activity-list">
-        {articles.map((article) => {
-          const comments = articleCommentCount(article);
-          return (
-            <button type="button" key={article.id} onClick={() => onOpenArticle(article)}>
-              <span>{article.title}</span>
-              <small>
-                {article.annotations.length} 条批注
-                {comments > 0 ? ` · ${comments} 条讨论` : ''}
-              </small>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 function articleMatchesLibrarySearch(article: ArticleRecord, query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN');
   if (!normalizedQuery) return true;
@@ -774,11 +743,39 @@ function articleMatchesLibrarySearch(article: ArticleRecord, query: string) {
 }
 
 function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilter) {
-  if (filter === 'unread') return article.annotations.length === 0;
-  if (filter === 'read') return articleReadingWorkflowDone(article);
-  if (filter === 'annotated') return article.annotations.length > 0;
-  if (filter === 'discussed') return articleCommentCount(article) > 0;
+  const status = libraryArticleStatus(article);
+  if (filter === 'new') return status.tone === 'new';
+  if (filter === 'progress') return status.tone === 'progress';
+  if (filter === 'done') return status.tone === 'done';
   return true;
+}
+
+function articleSiteIconUrl(article: ArticleRecord) {
+  const iconUrl = safeLibraryImageUrl(article.siteIconUrl);
+  if (iconUrl) return iconUrl;
+
+  const host = articleHost(article);
+  return host ? `https://favicon.im/${encodeURIComponent(host)}` : '';
+}
+
+function articleHost(article: ArticleRecord) {
+  try {
+    const url = new URL(article.canonicalUrl || article.url);
+    return url.hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function safeLibraryImageUrl(value: string | undefined) {
+  if (!value) return '';
+  if (value.startsWith('data:image/')) return value;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 function compareLibraryArticles(left: ArticleRecord, right: ArticleRecord, sort: LibrarySort) {
@@ -844,24 +841,10 @@ function articleReadingWorkflowDone(article: ArticleRecord) {
   );
 }
 
-function articleHasReadingActivity(article: ArticleRecord) {
-  return article.annotations.length > 0 || articleCommentCount(article) > 0;
-}
-
 function articleCommentCount(article: ArticleRecord) {
   return article.annotations.reduce(
     (count, annotation) => count + annotationThreadComments(annotation).length,
     0,
-  );
-}
-
-function articleActivityTime(article: ArticleRecord) {
-  return Math.max(
-    timestampValue(article.updatedAt),
-    ...article.annotations.flatMap((annotation) => [
-      timestampValue(annotation.updatedAt),
-      ...annotationThreadComments(annotation).map((comment) => timestampValue(comment.createdAt)),
-    ]),
   );
 }
 
