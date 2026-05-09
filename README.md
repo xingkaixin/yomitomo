@@ -34,14 +34,16 @@ Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Ele
 ```text
 apps/desktop      Electron 桌面端，包含 main、preload、renderer
 apps/extension    WXT 浏览器扩展，包含 background、content script 和 popup
+packages/ai       LLM provider 调用、模型输入预算和 AI 生成链路
 packages/core     跨端业务核心逻辑
+packages/reader-ui 扩展和桌面端复用的阅读器 React UI
 packages/shared   共享类型、协议、ID、哈希和文本锚定工具
 assets             项目静态资源
 ```
 
 ## 技术栈
 
-- 包管理器：`pnpm@11.0.3`
+- 包管理器：`pnpm@11.0.8`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
@@ -64,7 +66,7 @@ assets             项目静态资源
 
 ```bash
 corepack enable
-corepack prepare pnpm@11.0.3 --activate
+corepack prepare pnpm@11.0.8 --activate
 ```
 
 安装依赖：
@@ -150,6 +152,12 @@ pnpm --filter @yomitomo/core test
 
 pnpm --filter @yomitomo/shared build
 pnpm --filter @yomitomo/shared test
+
+pnpm --filter @yomitomo/ai build
+pnpm --filter @yomitomo/ai test
+
+pnpm --filter @yomitomo/reader-ui build
+pnpm --filter @yomitomo/reader-ui test
 ```
 
 ## 数据与通信
@@ -162,9 +170,11 @@ pnpm --filter @yomitomo/shared test
 
 ## 分层约定
 
-- `packages/shared` 放共享类型、协议类型、provider preset、ID/哈希、文本锚定和 Markdown 渲染工具。
-- `packages/core` 放批注、评论、提及解析、阅读统计、阅读卡片和阅读器 DOM 相关纯逻辑。
-- `apps/extension/src/reader-*` 放扩展阅读器的文章抽取、DOM 范围、高亮绘制、组件和工具逻辑。
+- `packages/shared` 放共享类型、协议类型、provider preset、agent preset、ID/哈希和文本锚定工具。
+- `packages/core` 放批注、评论、阅读统计、阅读卡片和阅读器 DOM 相关纯逻辑。
+- `packages/ai` 放 provider 调用、模型输入预算、AI 批注、阅读审议、读后卡片和审核生成。
+- `packages/reader-ui` 放扩展和桌面端复用的阅读器 React UI、样式、工具和 hooks。
+- `apps/extension/src/reader-*` 放扩展专属的文章抽取、DOM 范围、高亮绘制、组件和工具逻辑。
 - `apps/desktop/src/main` 放 Electron 主进程、本地服务、SQLite store、LLM 调用和日志。
 - `apps/desktop/src/renderer/src/app-*` 放桌面端阅读库、统计、设置、日志和读后卡片 UI。
 
