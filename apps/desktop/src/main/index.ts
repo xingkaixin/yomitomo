@@ -44,7 +44,7 @@ import {
 } from './llm';
 import { listProviderModels } from './llm-provider-client';
 import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
-import { getPairingInfo, rotatePairingInfo } from './pairing';
+import { getPairingInfo, getSavedPairingInfo, rotatePairingInfo } from './pairing';
 import {
   broadcastArticleDeleted,
   broadcastArticleUpdate,
@@ -151,6 +151,7 @@ function registerIpc() {
     return store;
   });
   ipcMain.handle('pairing:get', () => getPairingInfo());
+  ipcMain.handle('pairing:saved', () => getSavedPairingInfo());
   ipcMain.handle('pairing:connection-status', () => getDesktopConnectionStatus());
   ipcMain.handle('pairing:rotate', async () => {
     const pairing = await rotatePairingInfo();

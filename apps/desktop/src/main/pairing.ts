@@ -22,6 +22,10 @@ export async function getPairingInfo(): Promise<PairingInfo> {
   return rotatePairingInfo();
 }
 
+export async function getSavedPairingInfo(): Promise<PairingInfo | null> {
+  return readPairingInfo();
+}
+
 export async function rotatePairingInfo(): Promise<PairingInfo> {
   const next = {
     token: randomBytes(24).toString('base64url'),

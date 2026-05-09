@@ -29,6 +29,10 @@ import {
 import { ReadingLibrary } from './app-reading-library';
 import { ReadingStatsPanel } from './app-reading-stats';
 import {
+  ExtensionConnectionButton,
+  ExtensionConnectionDialog,
+} from './app-extension-connection';
+import {
   AgentSettings,
   GeneralSettings,
   ProviderSettings,
@@ -60,6 +64,7 @@ function App() {
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [extensionConnectionDialogOpen, setExtensionConnectionDialogOpen] = useState(false);
   const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
   const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
     authenticatedSocketCount: 0,
@@ -72,7 +77,7 @@ function App() {
     if (!desktop) return;
 
     refreshStore();
-    refreshPairingInfo();
+    refreshSavedPairingInfo();
     refreshPairingConnectionStatus();
     const offPairingConnectionStatus = desktop.onPairingConnectionStatus(
       setPairingConnectionStatus,
@@ -144,11 +149,11 @@ function App() {
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
   }
 
-  async function refreshPairingInfo() {
+  async function refreshSavedPairingInfo() {
     const desktop = window.yomitomoDesktop;
     if (!desktop) return;
 
-    setPairingInfo(await desktop.getPairingInfo());
+    setPairingInfo(await desktop.getSavedPairingInfo());
   }
 
   async function rotatePairingInfo() {
@@ -389,13 +394,11 @@ function App() {
             </div>
           </div>
 
-          <div className="sidebar-sync">
-            <span />
-            <div>
-              <strong>已同步</strong>
-              <p>刚刚</p>
-            </div>
-          </div>
+          <ExtensionConnectionButton
+            pairingConnectionStatus={pairingConnectionStatus}
+            pairingInfo={pairingInfo}
+            onClick={() => setExtensionConnectionDialogOpen(true)}
+          />
         </aside>
 
         <section className="settings-content">
@@ -414,8 +417,6 @@ function App() {
           ) : null}
           {activeSetting === 'general' ? (
             <GeneralSettings
-              pairingConnectionStatus={pairingConnectionStatus}
-              pairingInfo={pairingInfo}
               settingsDraft={settingsDraft}
               canSave={canSaveGeneralSettings}
               onSettingsChange={(draft) => {
@@ -423,7 +424,6 @@ function App() {
                 setGeneralSaveState('idle');
               }}
               onSave={saveGeneralSettingsDraft}
-              onRotatePairing={rotatePairingInfo}
               saveState={generalSaveState}
             />
           ) : null}
@@ -476,6 +476,14 @@ function App() {
           onClose={() => setProfileDialogOpen(false)}
           onSave={saveProfileDraft}
           saveState={profileSaveState}
+        />
+      ) : null}
+      {extensionConnectionDialogOpen ? (
+        <ExtensionConnectionDialog
+          pairingConnectionStatus={pairingConnectionStatus}
+          pairingInfo={pairingInfo}
+          onClose={() => setExtensionConnectionDialogOpen(false)}
+          onRotatePairing={rotatePairingInfo}
         />
       ) : null}
     </main>

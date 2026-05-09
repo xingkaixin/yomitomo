@@ -21,7 +21,7 @@ import {
 import { readStore, saveArticle } from './store';
 import { runAgentAnnotateStream, runAgentStream } from './llm';
 import { logError, logInfo } from './logger';
-import { getPairingInfo, verifyPairingToken } from './pairing';
+import { getPairingInfo, getSavedPairingInfo, verifyPairingToken } from './pairing';
 import {
   authorizeDesktopClientMessage,
   resolveSocketAuthResult,
@@ -346,7 +346,13 @@ async function handleMessage(socket: WebSocket, raw: string) {
 
 async function authenticateSocket(socket: WebSocket, token: string) {
   const state = socketStates.get(socket);
-  const pairing = await getPairingInfo();
+  const pairing = await getSavedPairingInfo();
+  if (!pairing) {
+    send(socket, { type: 'auth:result', ok: false, message: '请先在桌面端生成配对码' });
+    socket.close(1008, 'pairing required');
+    return;
+  }
+
   const auth = resolveSocketAuthResult(state, verifyPairingToken(token, pairing.token));
   if (!auth.ok) {
     send(socket, { type: 'auth:result', ok: false, message: auth.message });

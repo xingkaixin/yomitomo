@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Settings,
   Trash2,
-  Unplug,
   Upload,
   User,
   X,
@@ -108,9 +107,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-import { AvatarImage, CopyIconButton, Field, PanelHeader } from './app-ui';
+import { AvatarImage, Field, PanelHeader } from './app-ui';
 import type { SaveState } from './app-types';
-import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 
 type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
@@ -277,38 +275,26 @@ export function SettingsNavButton({
 }
 
 export function GeneralSettings({
-  pairingConnectionStatus,
-  pairingInfo,
   settingsDraft,
   canSave,
   onSettingsChange,
   onSave,
-  onRotatePairing,
   saveState,
 }: {
-  pairingConnectionStatus: PairingConnectionStatus;
-  pairingInfo: PairingInfo | null;
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
   onSave: () => void;
-  onRotatePairing: () => void;
   saveState: SaveState;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-  const readerSessionCount = pairingConnectionStatus.authenticatedSocketCount;
-  const extensionConnected = readerSessionCount > 0;
-  const pairingTitle = extensionConnected ? '已连通' : '插件未工作';
-  const pairingDescription = extensionConnected
-    ? `${readerSessionCount} 个阅读器会话正在连接本机`
-    : '打开浏览器阅读器后会自动连接本机';
 
   return (
     <div className="settings-panel">
       <PanelHeader
         icon={<Settings size={20} />}
         title="设置"
-        description="管理桌面端保存策略和浏览器扩展连接。"
+        description="管理桌面端保存策略。"
         action={
           <Button
             className={
@@ -355,42 +341,6 @@ export function GeneralSettings({
             />
             <span className="settings-toggle-switch" aria-hidden="true" />
           </label>
-        </Field>
-        <Field
-          className="col-span-2"
-          description={
-            extensionConnected
-              ? '当前有浏览器阅读器会话连到本机，连接标识会同步显示在扩展端。'
-              : '配对标识保留在本机，阅读器启动后会按已保存的配对信息连接。'
-          }
-          label="扩展连接"
-        >
-          <div
-            className={
-              extensionConnected ? 'pairing-connected-card' : 'pairing-connected-card is-idle'
-            }
-          >
-            <div className="pairing-connected-main">
-              <span className="pairing-connected-icon">
-                {extensionConnected ? <Check size={17} /> : <Unplug size={17} />}
-              </span>
-              <div>
-                <strong>{pairingTitle}</strong>
-                <p>{pairingDescription}</p>
-              </div>
-            </div>
-            <div className="pairing-identity">
-              <span>连接标识</span>
-              <strong>{pairingInfo?.pairingId || 'YMT-......'}</strong>
-            </div>
-            <div className="pairing-actions">
-              <CopyIconButton label="复制配对码" value={pairingInfo?.token || ''} />
-              <Button type="button" variant="secondary" onClick={onRotatePairing}>
-                <KeyRound size={16} />
-                重新配对
-              </Button>
-            </div>
-          </div>
         </Field>
       </div>
     </div>

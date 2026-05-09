@@ -318,67 +318,21 @@ function makeAgent(
 }
 
 describe('GeneralSettings', () => {
-  it('keeps the pairing identity visible when no reader session is active', () => {
-    render(
-      <GeneralSettings
-        pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
-        pairingInfo={{
-          token: 'desktop-token',
-          pairingId: 'YMT-123456',
-          updatedAt: '2026-05-04T00:00:00.000Z',
-        }}
-        settingsDraft={{}}
-        canSave={false}
-        onSettingsChange={vi.fn()}
-        onSave={vi.fn()}
-        onRotatePairing={vi.fn()}
-        saveState="idle"
-      />,
-    );
-
-    expect(screen.getByText('插件未工作')).toBeTruthy();
-    expect(screen.getByText('YMT-123456')).toBeTruthy();
-    expect(screen.queryByDisplayValue('desktop-token')).toBeNull();
-  });
-
-  it('describes active connections as reader sessions', () => {
-    render(
-      <GeneralSettings
-        pairingConnectionStatus={{ authenticatedSocketCount: 2 }}
-        pairingInfo={{
-          token: 'desktop-token',
-          pairingId: 'YMT-123456',
-          updatedAt: '2026-05-04T00:00:00.000Z',
-        }}
-        settingsDraft={{}}
-        canSave={false}
-        onSettingsChange={vi.fn()}
-        onSave={vi.fn()}
-        onRotatePairing={vi.fn()}
-        saveState="idle"
-      />,
-    );
-
-    expect(screen.getByText('2 个阅读器会话正在连接本机')).toBeTruthy();
-  });
-
   it('updates the save images setting', () => {
     const onSettingsChange = vi.fn();
     render(
       <GeneralSettings
-        pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
-        pairingInfo={null}
         settingsDraft={{ saveArticleImages: false }}
         canSave={false}
         onSettingsChange={onSettingsChange}
         onSave={vi.fn()}
-        onRotatePairing={vi.fn()}
         saveState="idle"
       />,
     );
 
     fireEvent.click(screen.getByRole('checkbox', { name: /保存文章图片/ }));
 
+    expect(screen.queryByText('扩展连接')).toBeNull();
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
   });
 });

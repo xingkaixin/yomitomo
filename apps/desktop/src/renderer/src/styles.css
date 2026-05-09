@@ -371,16 +371,44 @@
 
 .sidebar-sync {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 9px;
+  border: 0;
   border-top: 1px solid hsl(var(--border) / 0.62);
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font: inherit;
   padding: 12px 8px 0;
+  text-align: left;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
 }
 
-.sidebar-sync > span {
+.sidebar-sync:hover {
+  color: hsl(var(--primary));
+}
+
+.sidebar-sync:active {
+  transform: scale(0.98);
+}
+
+.sidebar-sync:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 3px;
+}
+
+.sidebar-sync-dot {
   width: 9px;
   height: 9px;
+  flex: 0 0 auto;
   border-radius: 999px;
+  background: hsl(8 42% 38%);
+}
+
+.sidebar-sync.is-connected .sidebar-sync-dot {
   background: hsl(91 31% 45%);
 }
 
@@ -394,6 +422,13 @@
   margin: 2px 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
+  line-height: 1.3;
+}
+
+.sidebar-sync-code {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .settings-content {
@@ -1348,6 +1383,82 @@
   transform: scale(0.96);
 }
 
+.extension-connection-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: end start;
+  background: hsl(24 22% 10% / 0.26);
+  padding: 24px;
+}
+
+.extension-connection-dialog {
+  display: grid;
+  width: min(620px, calc(100vw - 48px));
+  gap: 16px;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 30px 110px hsl(31 34% 18% / 0.28);
+  padding: 18px;
+}
+
+.extension-connection-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.extension-connection-dialog-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.extension-connection-dialog-heading > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 10px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.extension-connection-dialog h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.extension-connection-dialog p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.extension-connection-card {
+  grid-template-columns: minmax(0, 1fr) minmax(134px, auto) auto;
+}
+
+.pairing-connected-card.is-unpaired {
+  background:
+    linear-gradient(180deg, hsl(38 58% 96% / 0.92), hsl(31 44% 92% / 0.88)), hsl(var(--card));
+  box-shadow:
+    inset 0 0 0 1px hsl(28 28% 65% / 0.34),
+    0 12px 28px hsl(31 34% 24% / 0.08);
+}
+
+.pairing-connected-card.is-unpaired .pairing-connected-icon {
+  background: hsl(8 42% 38%);
+}
+
 .user-profile-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1372,6 +1483,18 @@
 }
 
 @media (max-width: 760px) {
+  .extension-connection-dialog-overlay {
+    place-items: end center;
+  }
+
+  .extension-connection-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .extension-connection-card .pairing-actions {
+    justify-content: flex-start;
+  }
+
   .user-profile-form {
     grid-template-columns: minmax(0, 1fr);
   }
