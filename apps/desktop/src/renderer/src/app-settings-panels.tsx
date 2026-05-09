@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BookOpen,
   Bot,
@@ -117,6 +118,7 @@ type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
 export type SettingsSectionKey = 'collection' | 'models' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
+const PROVIDER_EDITOR_COMPACT_WIDTH = 980;
 type AgentLineCue = {
   agentId: string;
   id: string;
@@ -658,6 +660,9 @@ export function ProviderSettings({
   onTest: (id: string) => void;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [compactProviderEditor, setCompactProviderEditor] = useState(false);
+  const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const usedProviderIds = new Set(
     [
       settingsDraft.readingAssistantProviderId,
@@ -666,106 +671,235 @@ export function ProviderSettings({
     ].filter(Boolean),
   );
 
-  return (
-    <div className="settings-panel settings-model-panel">
-      <PanelHeader
-        icon={<KeyRound size={20} />}
-        title="模型与路由"
-        description="为伴读任务分配默认模型，并管理模型服务商配置。"
-      />
-      <TaskProviderRoutes
-        canSave={canSaveRoutes}
-        providers={providers}
-        saveState={routeSaveState}
-        settingsDraft={settingsDraft}
-        onChange={onRouteChange}
-        onSave={onRouteSave}
-      />
-      <div className="settings-detail-grid">
-        <ConfigList title="模型供应商" onCreate={onCreate}>
-          {providers.map((provider) => (
-            <button
-              className={
-                provider.id === selectedId
-                  ? 'config-list-item is-plain is-active'
-                  : 'config-list-item is-plain'
-              }
-              key={provider.id}
-              type="button"
-              onClick={() => onSelect(provider)}
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width || panel.getBoundingClientRect().width;
+      setCompactProviderEditor(width <= PROVIDER_EDITOR_COMPACT_WIDTH);
+    });
+
+    setCompactProviderEditor(panel.getBoundingClientRect().width <= PROVIDER_EDITOR_COMPACT_WIDTH);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (providerEditorOpen && !compactProviderEditor) setProviderEditorOpen(false);
+  }, [compactProviderEditor, providerEditorOpen]);
+
+  useEffect(() => {
+    if (!providerEditorOpen) return;
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setProviderEditorOpen(false);
+    }
+
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [providerEditorOpen]);
+
+  function selectProvider(provider: LlmProvider) {
+    onSelect(provider);
+    if (compactProviderEditor) setProviderEditorOpen(true);
+  }
+
+  function createProvider() {
+    onCreate();
+    if (compactProviderEditor) setProviderEditorOpen(true);
+  }
+
+  function deleteProvider(id: string) {
+    onDelete(id);
+    setProviderEditorOpen(false);
+  }
+
+  const editorDialog =
+    providerEditorOpen && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            className="provider-editor-dialog-overlay"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setProviderEditorOpen(false);
+            }}
+          >
+            <section
+              aria-labelledby="provider-editor-dialog-title"
+              aria-modal="true"
+              className="provider-editor-dialog"
+              role="dialog"
             >
-              {usedProviderIds.has(provider.id) ? (
-                <span className="provider-used-label">已使用</span>
-              ) : null}
-              <img
-                className="provider-logo"
-                src={
-                  providerLogoMap[provider.logo || 'anthropic.png'] ||
-                  providerLogoMap['anthropic.png']
-                }
-                alt=""
-              />
-              <span className="min-w-0">
-                <strong>{provider.name}</strong>
-                <span>
-                  {provider.type} · {provider.modelName}
-                </span>
-              </span>
-            </button>
-          ))}
-        </ConfigList>
-        <section className="detail-pane">
-          <div className="detail-pane-header">
-            <div>
-              <h3>{draft.id ? '编辑供应商' : '新增供应商'}</h3>
-              <p>管理模型服务商、API Key、Base URL 和可用模型。</p>
-            </div>
-            <div className="flex gap-2">
-              {draft.id ? (
-                <Button
-                  className="action-button test-action"
-                  variant="secondary"
-                  type="button"
-                  onClick={() => onTest(draft.id!)}
-                >
-                  测试
-                </Button>
-              ) : null}
-              {draft.id ? (
-                <Button
-                  className="action-button danger-action"
-                  variant="destructive"
-                  size="icon"
-                  type="button"
-                  onClick={() => onDelete(draft.id!)}
-                >
-                  <Trash2 size={15} />
-                </Button>
-              ) : null}
-              <Button
-                className={
-                  saveState === 'saved'
-                    ? 'action-button save-action is-saved'
-                    : 'action-button save-action'
-                }
-                disabled={!canSave}
+              <button
+                aria-label="关闭供应商编辑"
+                className="provider-editor-close"
                 type="button"
-                onClick={onSave}
+                onClick={() => setProviderEditorOpen(false)}
               >
-                {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-                {saveLabel}
-              </Button>
-            </div>
-          </div>
-          <ProviderForm draft={draft} onChange={onChange} />
-          {testState ? (
-            <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">
-              {testState}
-            </p>
-          ) : null}
-        </section>
+                <X size={18} />
+              </button>
+              <ProviderEditorContent
+                draft={draft}
+                saveLabel={saveLabel}
+                saveState={saveState}
+                testState={testState}
+                titleId="provider-editor-dialog-title"
+                canSave={canSave}
+                onChange={onChange}
+                onDelete={deleteProvider}
+                onSave={onSave}
+                onTest={onTest}
+              />
+            </section>
+          </div>,
+          document.body,
+        )
+      : null;
+
+  return (
+    <>
+      <div className="settings-panel settings-model-panel" ref={panelRef}>
+        <PanelHeader
+          icon={<KeyRound size={20} />}
+          title="模型与路由"
+          description="为伴读任务分配默认模型，并管理模型服务商配置。"
+        />
+        <TaskProviderRoutes
+          canSave={canSaveRoutes}
+          providers={providers}
+          saveState={routeSaveState}
+          settingsDraft={settingsDraft}
+          onChange={onRouteChange}
+          onSave={onRouteSave}
+        />
+        <div className="settings-detail-grid">
+          <ConfigList title="模型供应商" onCreate={createProvider}>
+            {providers.map((provider) => (
+              <button
+                className={
+                  provider.id === selectedId
+                    ? 'config-list-item is-plain is-active'
+                    : 'config-list-item is-plain'
+                }
+                key={provider.id}
+                type="button"
+                onClick={() => selectProvider(provider)}
+              >
+                {usedProviderIds.has(provider.id) ? (
+                  <span className="provider-used-label">已使用</span>
+                ) : null}
+                <img
+                  className="provider-logo"
+                  src={
+                    providerLogoMap[provider.logo || 'anthropic.png'] ||
+                    providerLogoMap['anthropic.png']
+                  }
+                  alt=""
+                />
+                <span className="min-w-0">
+                  <strong>{provider.name}</strong>
+                  <span>
+                    {provider.type} · {provider.modelName}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </ConfigList>
+          <section className="detail-pane">
+            <ProviderEditorContent
+              draft={draft}
+              saveLabel={saveLabel}
+              saveState={saveState}
+              testState={testState}
+              canSave={canSave}
+              onChange={onChange}
+              onDelete={onDelete}
+              onSave={onSave}
+              onTest={onTest}
+            />
+          </section>
+        </div>
       </div>
-    </div>
+      {editorDialog}
+    </>
+  );
+}
+
+function ProviderEditorContent({
+  draft,
+  saveLabel,
+  saveState,
+  testState,
+  titleId,
+  canSave,
+  onChange,
+  onDelete,
+  onSave,
+  onTest,
+}: {
+  draft: ProviderDraft;
+  saveLabel: string;
+  saveState: SaveState;
+  testState: string;
+  titleId?: string;
+  canSave: boolean;
+  onChange: (draft: ProviderDraft) => void;
+  onDelete: (id: string) => void;
+  onSave: () => void;
+  onTest: (id: string) => void;
+}) {
+  return (
+    <>
+      <div className="detail-pane-header">
+        <div>
+          <h3 id={titleId}>{draft.id ? '编辑供应商' : '新增供应商'}</h3>
+          <p>管理模型服务商、API Key、Base URL 和可用模型。</p>
+        </div>
+        <div className="flex gap-2">
+          {draft.id ? (
+            <Button
+              className="action-button test-action"
+              variant="secondary"
+              type="button"
+              onClick={() => onTest(draft.id!)}
+            >
+              测试
+            </Button>
+          ) : null}
+          {draft.id ? (
+            <Button
+              className="action-button danger-action"
+              variant="destructive"
+              size="icon"
+              type="button"
+              onClick={() => onDelete(draft.id!)}
+            >
+              <Trash2 size={15} />
+            </Button>
+          ) : null}
+          <Button
+            className={
+              saveState === 'saved'
+                ? 'action-button save-action is-saved'
+                : 'action-button save-action'
+            }
+            disabled={!canSave}
+            type="button"
+            onClick={onSave}
+          >
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
+          </Button>
+        </div>
+      </div>
+      <ProviderForm draft={draft} onChange={onChange} />
+      {testState ? (
+        <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">
+          {testState}
+        </p>
+      ) : null}
+    </>
   );
 }
 
