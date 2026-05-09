@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
   Bot,
@@ -112,6 +112,13 @@ import type { SaveState } from './app-types';
 
 type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
+type AgentPresenceLine = { enter: string; rest: string };
+type AgentLineCue = {
+  agentId: string;
+  id: string;
+  state: 'enter' | 'rest';
+  text: string;
+};
 
 const agentFilterOptions: Array<{ value: AgentFilter; label: string; agentLabel: string }> = [
   { value: 'annotation', label: '阅读理解', agentLabel: '阅读助手' },
@@ -148,6 +155,62 @@ const agentCoverMap: Record<string, string> = {
   'action-calibrator': xiaGuiningCover,
 };
 
+const defaultAgentPresenceLine: AgentPresenceLine = {
+  enter: '我在，陪你慢慢看。',
+  rest: '我先休息一下，有需要再叫我。',
+};
+
+const agentPresenceLineMap: Partial<Record<string, AgentPresenceLine>> = {
+  'reading-partner': {
+    enter: '我在，陪你慢慢看。',
+    rest: '先走了，你继续读。',
+  },
+  'root-reviewer': {
+    enter: '铅笔备好了，开始拆。',
+    rest: '三角尺放下了，回头见。',
+  },
+  'question-mentor': {
+    enter: '来了，看看哪里值得停一下。',
+    rest: '问题先存着，想好了再聊。',
+  },
+  'insight-editor': {
+    enter: '我来收拾，散的交给我。',
+    rest: '卡片收好了，用的时候翻。',
+  },
+  'concept-translator': {
+    enter: '在的，哪里读不顺跟我说。',
+    rest: '撤了，顺了就好。',
+  },
+  'structure-navigator': {
+    enter: '地图打开了，不会让你迷路。',
+    rest: '导航关了，路你已经认得。',
+  },
+  'evidence-archivist': {
+    enter: '把笔记交过来，我逐条对。',
+    rest: '账清了，经得起查。',
+  },
+  'reader-advocate': {
+    enter: '我看看你的困惑有没有被漏掉。',
+    rest: '该留的都在了，撤了。',
+  },
+  'final-copy-editor': {
+    enter: '红笔带了，希望用不上。',
+    rest: '能存了。',
+  },
+  'logic-auditor': {
+    enter: '给我看看你的推理链。',
+    rest: '缝隙标完了，改不改你定。',
+  },
+  'risk-examiner': {
+    enter: '动手之前，先让我问几句。',
+    rest: '边界画完了，出了线别怪我。',
+  },
+  'action-calibrator': {
+    enter: '看看你的"接下来"能不能落地。',
+    rest: '能执行的都改好了，直接用。',
+  },
+};
+
 const providerLogoMap: Record<string, string> = {
   'anthropic.png': anthropicLogo,
   'bailian.png': bailianLogo,
@@ -163,6 +226,12 @@ const providerLogoMap: Record<string, string> = {
 
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
   return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
+}
+
+function agentPresenceLine(agent: Agent, nextEnabled: boolean) {
+  const personalityId = agent.presetId || findAgentPersonalityId(agent.soul);
+  const lines = agentPresenceLineMap[personalityId] || defaultAgentPresenceLine;
+  return nextEnabled ? lines.enter : lines.rest;
 }
 
 export const readingAgentAvatars = makeAvatarOptions('reading-avatar', [
@@ -746,9 +815,31 @@ export function AgentSettings({
   onToggle: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('annotation');
+  const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
   const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
   const currentMode = agentFilterOptions.find((option) => option.value === filter);
   const emptyKindLabel = currentMode?.agentLabel || agentKindLabel(filter);
+
+  useEffect(() => {
+    if (!lineCue) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setLineCue((current) => (current?.id === lineCue.id ? null : current));
+    }, 2600);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [lineCue]);
+
+  function handleAgentToggle(agent: Agent) {
+    const nextEnabled = !agent.enabled;
+    setLineCue({
+      agentId: agent.id,
+      id: `${agent.id}-${nextEnabled ? 'enter' : 'rest'}-${Date.now()}`,
+      state: nextEnabled ? 'enter' : 'rest',
+      text: agentPresenceLine(agent, nextEnabled),
+    });
+    onToggle(agent);
+  }
 
   return (
     <div className="settings-panel">
@@ -776,7 +867,12 @@ export function AgentSettings({
             </div>
           ) : (
             filteredAgents.map((agent) => (
-              <AgentProfileListCard agent={agent} key={agent.id} onToggle={onToggle} />
+              <AgentProfileListCard
+                agent={agent}
+                key={agent.id}
+                lineCue={lineCue?.agentId === agent.id ? lineCue : null}
+                onToggle={handleAgentToggle}
+              />
             ))
           )}
         </div>
@@ -787,9 +883,11 @@ export function AgentSettings({
 
 function AgentProfileListCard({
   agent,
+  lineCue,
   onToggle,
 }: {
   agent: Agent;
+  lineCue: AgentLineCue | null;
   onToggle: (agent: Agent) => void;
 }) {
   const personalityName = agentPersonalityName(agent);
@@ -817,6 +915,18 @@ function AgentProfileListCard({
             >
               {agent.enabled ? '在场' : '休息中'}
             </span>
+            {lineCue ? (
+              <span
+                className={
+                  lineCue.state === 'enter'
+                    ? 'agent-list-line-bubble is-entering'
+                    : 'agent-list-line-bubble is-resting'
+                }
+                key={lineCue.id}
+              >
+                {lineCue.text}
+              </span>
+            ) : null}
             {cover ? (
               <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
             ) : (

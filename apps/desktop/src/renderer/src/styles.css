@@ -1026,6 +1026,55 @@
   box-shadow: 0 0 0 3px hsl(32 4% 54% / 0.12);
 }
 
+.agent-list-line-bubble {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 12px;
+  max-width: min(176px, calc(100% - 112px));
+  border: 1px solid
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.94);
+  box-shadow:
+    0 14px 32px hsl(31 34% 24% / 0.13),
+    0 0 0 1px hsl(var(--card) / 0.58);
+  color: hsl(26 18% 22%);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.48;
+  padding: 10px 12px;
+  pointer-events: none;
+  text-wrap: pretty;
+  transform-origin: 28px 100%;
+  animation: agent-line-bubble 2600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.agent-list-line-bubble::after {
+  position: absolute;
+  bottom: -5px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 18%, transparent);
+  background: inherit;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.agent-list-line-bubble.is-entering {
+  background: color-mix(in srgb, var(--agent-accent, hsl(83 24% 35%)) 8%, hsl(var(--card)) 92%);
+}
+
+.agent-list-line-bubble.is-resting {
+  border-color: hsl(34 18% 67% / 0.48);
+  background: hsl(40 18% 94% / 0.94);
+  color: hsl(29 12% 31%);
+}
+
 .agent-list-content {
   display: grid;
   min-width: 0;
@@ -1230,6 +1279,39 @@
 
   .agent-list-content {
     align-self: start;
+  }
+
+  .agent-list-line-bubble {
+    top: 44px;
+    right: 10px;
+    max-width: min(182px, calc(100% - 24px));
+  }
+}
+
+@keyframes agent-line-bubble {
+  0% {
+    opacity: 0;
+    transform: translateY(7px) scale(0.96);
+    filter: blur(2px);
+  }
+
+  12%,
+  78% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+    filter: blur(1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-list-line-bubble {
+    animation: none;
   }
 }
 

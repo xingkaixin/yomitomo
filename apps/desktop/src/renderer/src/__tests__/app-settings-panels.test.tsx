@@ -247,6 +247,7 @@ describe('AgentSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /让林知微先休息/ }));
 
     expect(onToggle).toHaveBeenCalledWith(agents[0]);
+    expect(screen.getByText('先走了，你继续读。')).toBeTruthy();
   });
 
   it('filters configured agents by type tabs', () => {
