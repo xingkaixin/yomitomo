@@ -884,6 +884,7 @@ ${cardJson.text}
 - verdict 只允许 pass 或 revise；存在高风险事实、归因或证据问题时使用 revise。
 - severity 只允许 high、medium、low。
 - evidenceIds 使用证据单元 id；没有对应证据时返回空数组。
+- 文本字段里引用证据时统一写成 [#1] 这种格式；evidenceIds 仍返回数字数组。
 - findings 最多 6 条，acceptedClaims 最多 4 条，missingAngles 最多 4 条。
 - 只输出 JSON 对象，不要输出 Markdown。`;
 }

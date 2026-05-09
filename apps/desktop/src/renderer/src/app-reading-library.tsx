@@ -1266,7 +1266,7 @@ function SourceBookcase({
     (annotationId: string) => {
       const scrollElement = scrollRef.current;
       const canvasElement = canvasRef.current;
-      if (!scrollElement || !canvasElement) return;
+      if (!scrollElement || !canvasElement) return false;
 
       const top = readerAnnotationScrollTop({
         annotationId,
@@ -1275,18 +1275,22 @@ function SourceBookcase({
         scrollHeight: scrollElement.scrollHeight,
         viewportHeight: scrollElement.clientHeight,
       });
-      if (top === null) return;
+      if (top === null) return false;
 
       scrollElement.scrollTo({ top, behavior: 'smooth' });
+      return true;
     },
     [boxes],
   );
 
   useEffect(() => {
     if (!focusAnnotationId) return;
-    scrollToAnnotation(focusAnnotationId);
-    onFocusedAnnotation();
-  }, [focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
+    if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
+      onFocusedAnnotation();
+      return;
+    }
+    if (scrollToAnnotation(focusAnnotationId)) onFocusedAnnotation();
+  }, [annotations, focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
 
   function openAnnotation(annotationId: string) {
     setHighlightChoice(null);

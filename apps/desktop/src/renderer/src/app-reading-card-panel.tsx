@@ -465,12 +465,7 @@ function ReadingDeliberationPanel({
       : parseReadingCardMarkdownSections(deliberation.contentMarkdown);
 
   function openEvidence(event: React.MouseEvent<HTMLDivElement>) {
-    const target = event.target instanceof Element ? event.target : null;
-    const button = target?.closest<HTMLButtonElement>('[data-reading-card-evidence-index]');
-    if (!button) return;
-    const index = Number(button.dataset.readingCardEvidenceIndex);
-    const unit = evidenceByIndex.get(index);
-    if (unit) onOpenEvidence(unit.id);
+    openReadingCardEvidence(event, evidenceByIndex, onOpenEvidence);
   }
 
   return (
@@ -588,8 +583,10 @@ function ReadingCardDeck({
 
       {readingCard.review ? (
         <ReadingCardReviewPanel
+          evidenceUnits={evidenceUnits}
           retryingReviewerId={retryingReviewerId}
           review={readingCard.review}
+          onOpenEvidence={onOpenEvidence}
           onRetryReviewer={onRetryReviewer}
         />
       ) : null}
@@ -607,14 +604,22 @@ function ReadingCardDeck({
 }
 
 function ReadingCardReviewPanel({
+  evidenceUnits,
   retryingReviewerId,
   review,
+  onOpenEvidence,
   onRetryReviewer,
 }: {
+  evidenceUnits: ReadingCardEvidenceUnit[];
   retryingReviewerId: string | null;
   review: ReadingCardReviewRecord;
+  onOpenEvidence: (annotationId: string) => void;
   onRetryReviewer: (reviewerId: string) => void;
 }) {
+  const evidenceByIndex = useMemo(
+    () => new Map(evidenceUnits.map((unit) => [unit.index, unit])),
+    [evidenceUnits],
+  );
   const issueCount = review.reviewerResults.reduce(
     (count, result) => count + result.findings.length,
     0,
@@ -647,9 +652,11 @@ function ReadingCardReviewPanel({
       <div className="reading-card-reviewers">
         {review.reviewerResults.map((result) => (
           <ReadingCardReviewerCard
+            evidenceByIndex={evidenceByIndex}
             retrying={retryingReviewerId === result.reviewerId}
             result={result}
             key={result.id}
+            onOpenEvidence={onOpenEvidence}
             onRetry={() => onRetryReviewer(result.reviewerId)}
           />
         ))}
@@ -659,15 +666,23 @@ function ReadingCardReviewPanel({
 }
 
 function ReadingCardReviewerCard({
+  evidenceByIndex,
   retrying,
   result,
+  onOpenEvidence,
   onRetry,
 }: {
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>;
   retrying: boolean;
   result: ReadingCardReviewerResult;
+  onOpenEvidence: (annotationId: string) => void;
   onRetry: () => void;
 }) {
   const canRetry = reviewerResultCanRetry(result);
+
+  function openEvidence(event: React.MouseEvent<HTMLElement>) {
+    openReadingCardEvidence(event, evidenceByIndex, onOpenEvidence);
+  }
 
   return (
     <article className="reading-card-reviewer-card">
@@ -701,7 +716,14 @@ function ReadingCardReviewerCard({
           </button>
         ) : null}
       </header>
-      {result.summary ? <p>{result.summary}</p> : null}
+      {result.summary ? (
+        <p
+          onClick={openEvidence}
+          dangerouslySetInnerHTML={{
+            __html: renderReadingCardInlineMarkdown(result.summary, evidenceByIndex),
+          }}
+        />
+      ) : null}
       {result.findings.length > 0 ? (
         <div className="reading-card-review-findings">
           {result.findings.map((finding, index) => (
@@ -712,12 +734,33 @@ function ReadingCardReviewerCard({
                 </span>
                 <strong>{finding.section || '整篇笔记'}</strong>
                 {finding.evidenceIds.length > 0 ? (
-                  <em>{finding.evidenceIds.map((id) => `#${id}`).join(' ')}</em>
+                  <em
+                    onClick={openEvidence}
+                    dangerouslySetInnerHTML={{
+                      __html: renderReadingCardEvidenceReferenceList(
+                        finding.evidenceIds,
+                        evidenceByIndex,
+                      ),
+                    }}
+                  />
                 ) : null}
               </header>
-              <p>{finding.problem}</p>
+              <p
+                onClick={openEvidence}
+                dangerouslySetInnerHTML={{
+                  __html: renderReadingCardInlineMarkdown(finding.problem, evidenceByIndex),
+                }}
+              />
               {finding.suggestedRewrite ? (
-                <blockquote>{finding.suggestedRewrite}</blockquote>
+                <blockquote
+                  onClick={openEvidence}
+                  dangerouslySetInnerHTML={{
+                    __html: renderReadingCardInlineMarkdown(
+                      finding.suggestedRewrite,
+                      evidenceByIndex,
+                    ),
+                  }}
+                />
               ) : null}
             </article>
           ))}
@@ -725,8 +768,18 @@ function ReadingCardReviewerCard({
       ) : (
         <p className="reading-card-review-empty">未发现需要修改的问题。</p>
       )}
-      <ReadingCardReviewList title="保留点" items={result.acceptedClaims} />
-      <ReadingCardReviewList title="缺口" items={result.missingAngles} />
+      <ReadingCardReviewList
+        evidenceByIndex={evidenceByIndex}
+        title="保留点"
+        items={result.acceptedClaims}
+        onOpenEvidence={onOpenEvidence}
+      />
+      <ReadingCardReviewList
+        evidenceByIndex={evidenceByIndex}
+        title="缺口"
+        items={result.missingAngles}
+        onOpenEvidence={onOpenEvidence}
+      />
     </article>
   );
 }
@@ -743,14 +796,35 @@ function reviewerResultCanRetry(result: ReadingCardReviewerResult) {
   );
 }
 
-function ReadingCardReviewList({ title, items }: { title: string; items: string[] }) {
+function ReadingCardReviewList({
+  evidenceByIndex,
+  title,
+  items,
+  onOpenEvidence,
+}: {
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>;
+  title: string;
+  items: string[];
+  onOpenEvidence: (annotationId: string) => void;
+}) {
   if (items.length === 0) return null;
+
+  function openEvidence(event: React.MouseEvent<HTMLElement>) {
+    openReadingCardEvidence(event, evidenceByIndex, onOpenEvidence);
+  }
+
   return (
     <div className="reading-card-review-list">
       <strong>{title}</strong>
       <ul>
         {items.map((item, index) => (
-          <li key={`${title}-${index}`}>{item}</li>
+          <li key={`${title}-${index}`} onClick={openEvidence}>
+            <span
+              dangerouslySetInnerHTML={{
+                __html: renderReadingCardInlineMarkdown(item, evidenceByIndex),
+              }}
+            />
+          </li>
         ))}
       </ul>
     </div>
@@ -778,12 +852,7 @@ function ReadingCardSectionCard({
   );
 
   function openEvidence(event: React.MouseEvent<HTMLDivElement>) {
-    const target = event.target instanceof Element ? event.target : null;
-    const button = target?.closest<HTMLButtonElement>('[data-reading-card-evidence-index]');
-    if (!button) return;
-    const index = Number(button.dataset.readingCardEvidenceIndex);
-    const unit = evidenceByIndex.get(index);
-    if (unit) onOpenEvidence(unit.id);
+    openReadingCardEvidence(event, evidenceByIndex, onOpenEvidence);
   }
 
   return (
@@ -858,17 +927,61 @@ function renderReadingCardMarkdown(
   content: string,
   evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
 ) {
-  return renderMarkdown(content).replace(/\[#(\d+)\]/g, (match, value: string) => {
-    const index = Number(value);
+  return replaceReadingCardEvidenceReferences(renderMarkdown(content), evidenceByIndex);
+}
+
+function renderReadingCardInlineMarkdown(
+  content: string,
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+) {
+  const html = renderReadingCardMarkdown(content, evidenceByIndex);
+  const paragraph = html.match(/^<p>([\s\S]*)<\/p>$/);
+  return paragraph ? paragraph[1] : html;
+}
+
+function replaceReadingCardEvidenceReferences(
+  html: string,
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+) {
+  return html
+    .split(/(<[^>]+>)/g)
+    .map((part) =>
+      part.startsWith('<') ? part : renderReadingCardEvidenceReferences(part, evidenceByIndex),
+    )
+    .join('');
+}
+
+function renderReadingCardEvidenceReferences(
+  text: string,
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+) {
+  return text.replace(/\[#(\d+)\]|#(\d+)/g, (match, bracketValue: string, plainValue: string) => {
+    const index = Number(bracketValue || plainValue);
     const unit = evidenceByIndex.get(index);
-    if (!unit) return match;
-    const meta = [
-      unit.annotationType || '批注',
-      unit.annotationAuthorLabel,
-      formatDateTime(unit.createdAt),
-    ].join(' · ');
-    const comments = unit.comments.slice(0, 2);
-    return `<button class="reading-card-ref" type="button" data-reading-card-evidence-index="${index}" aria-label="打开批注 #${index}">
+    return unit ? renderReadingCardEvidenceReference(unit) : match;
+  });
+}
+
+function renderReadingCardEvidenceReferenceList(
+  evidenceIds: number[],
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+) {
+  return evidenceIds
+    .map((id) => {
+      const unit = evidenceByIndex.get(id);
+      return unit ? renderReadingCardEvidenceReference(unit) : `#${id}`;
+    })
+    .join(' ');
+}
+
+function renderReadingCardEvidenceReference(unit: ReadingCardEvidenceUnit) {
+  const index = unit.index;
+  const meta = [
+    unit.annotationType || '批注',
+    unit.annotationAuthorLabel,
+    formatDateTime(unit.createdAt),
+  ].join(' · ');
+  return `<button class="reading-card-ref" type="button" data-reading-card-evidence-index="${index}" aria-label="打开批注 #${index}">
       <span class="reading-card-ref-label">#${index}</span>
       <span class="reading-card-ref-popover" role="tooltip">
         <strong>批注 #${index}</strong>
@@ -881,21 +994,21 @@ function renderReadingCardMarkdown(
               )} · 批注</b>${escapeHtml(unit.annotationBody.content)}</span></span>`
             : ''
         }
-        ${
-          comments.length > 0
-            ? `<span class="reading-card-ref-comments">${comments
-                .map(
-                  (comment) =>
-                    `<span><b>${escapeHtml(comment.authorLabel)} · 评论</b>${escapeHtml(
-                      comment.content,
-                    )}</span>`,
-                )
-                .join('')}</span>`
-            : ''
-        }
       </span>
     </button>`;
-  });
+}
+
+function openReadingCardEvidence(
+  event: React.MouseEvent<HTMLElement>,
+  evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+  onOpenEvidence: (annotationId: string) => void,
+) {
+  const target = event.target instanceof Element ? event.target : null;
+  const button = target?.closest<HTMLButtonElement>('[data-reading-card-evidence-index]');
+  if (!button) return;
+  const index = Number(button.dataset.readingCardEvidenceIndex);
+  const unit = evidenceByIndex.get(index);
+  if (unit) onOpenEvidence(unit.id);
 }
 
 function escapeHtml(value: string) {

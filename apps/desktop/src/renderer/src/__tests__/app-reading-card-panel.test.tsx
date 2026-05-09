@@ -53,6 +53,14 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
             userNickname: '我',
             userUsername: 'me',
           },
+          {
+            id: 'comment_2',
+            author: 'ai',
+            content: '这是一条线程评论',
+            createdAt: now,
+            agentNickname: '助手',
+            agentUsername: 'assistant',
+          },
         ],
         createdAt: now,
         updatedAt: now,
@@ -125,6 +133,42 @@ function failedReview(): ReadingCardReviewRecord {
         acceptedClaims: [],
         missingAngles: [],
         rawResponse: '模型输出达到 max_tokens=3200',
+        createdAt: now,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function reviewWithReferences(): ReadingCardReviewRecord {
+  return {
+    id: 'review_1',
+    articleId: 'article_1',
+    readingCardId: 'reading_card_1',
+    reviewerResults: [
+      {
+        id: 'result_1',
+        reviewerId: 'agent_1',
+        reviewerNickname: '审核助手',
+        reviewerUsername: 'reviewer',
+        reviewerAvatar: '',
+        reviewerColor: '#8ab6d6',
+        status: 'done',
+        verdict: 'revise',
+        summary: '整体需要回看 #1',
+        findings: [
+          {
+            section: '核心主张',
+            severity: 'medium',
+            problem: '这条判断对应 [#1]，但归因需要更具体。',
+            evidenceIds: [1],
+            suggestedRewrite: '保留 #1 的原始语境。',
+          },
+        ],
+        acceptedClaims: ['关键判断保留 #1'],
+        missingAngles: ['补充 [#1] 的讨论来源'],
+        rawResponse: '',
         createdAt: now,
       },
     ],
@@ -230,8 +274,35 @@ describe('ReadingCard', () => {
 
     const reference = screen.getAllByRole('button', { name: '打开批注 #1' })[0];
     expect(reference.textContent).toContain('#1');
+    expect(reference.querySelector('.reading-card-ref-popover')?.textContent).not.toContain(
+      '这是一条线程评论',
+    );
 
     fireEvent.click(reference);
+
+    expect(onOpenEvidence).toHaveBeenCalledWith('annotation_1');
+  });
+
+  it('formats review references and opens linked annotations', () => {
+    const onOpenEvidence = vi.fn();
+
+    render(
+      <ReadingCard
+        article={article({
+          readingDeliberation: deliberation(),
+          readingCard: readingCard({ review: reviewWithReferences() }),
+        })}
+        reviewAgents={[reviewAgent()]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={onOpenEvidence}
+      />,
+    );
+
+    const references = screen.getAllByRole('button', { name: '打开批注 #1' });
+    expect(references.length).toBeGreaterThanOrEqual(6);
+    expect(screen.queryByText('[#1]')).toBeNull();
+
+    fireEvent.click(references[0]);
 
     expect(onOpenEvidence).toHaveBeenCalledWith('annotation_1');
   });
