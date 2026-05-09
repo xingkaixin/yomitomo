@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Trash2 } from 'lucide-react';
+import {
+  ArrowUpRight,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  MessageSquareText,
+  MoreHorizontal,
+  PencilLine,
+  RefreshCcw,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import type {
   Agent,
   AgentReadingPlanItem,
@@ -54,8 +66,9 @@ import {
   type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
-import { formatDate, urlHost } from './app-utils';
+import { articlePlainText, formatDate, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
 import { OpenArticleButton } from './app-ui';
 import {
   Select,
@@ -71,6 +84,24 @@ import { ArticleBook } from './app-article-book';
 const ARTICLE_DELETE_HOLD_MS = 1400;
 const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
+
+type LibraryFilter = 'all' | 'unread' | 'read' | 'annotated' | 'discussed';
+type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
+
+const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
+  { value: 'all', label: '全部' },
+  { value: 'unread', label: '未读' },
+  { value: 'read', label: '已读' },
+  { value: 'annotated', label: '有批注' },
+  { value: 'discussed', label: '有讨论' },
+];
+
+const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> = [
+  { value: 'recentAdded', label: '最近添加' },
+  { value: 'recentReading', label: '最近阅读' },
+  { value: 'annotations', label: '批注最多' },
+  { value: 'discussions', label: '讨论最多' },
+];
 
 type SourceSelectionAction = SelectionAction;
 
@@ -304,8 +335,33 @@ function LibraryHome({
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
-  const pageCount = Math.max(1, Math.ceil(sortedArticles.length / pageSize));
-  const pageArticles = sortedArticles.slice((page - 1) * pageSize, page * pageSize);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState<LibraryFilter>('all');
+  const [activeSort, setActiveSort] = useState<LibrarySort>('recentReading');
+  const filteredArticles = useMemo(
+    () =>
+      sortedArticles
+        .filter(
+          (article) =>
+            articleMatchesLibrarySearch(article, searchQuery) &&
+            articleMatchesLibraryFilter(article, activeFilter),
+        )
+        .toSorted((left, right) => compareLibraryArticles(left, right, activeSort)),
+    [activeFilter, activeSort, searchQuery, sortedArticles],
+  );
+  const pageCount = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
+  const pageArticles = filteredArticles.slice((page - 1) * pageSize, page * pageSize);
+  const groupedPageArticles = useMemo(() => groupLibraryArticles(pageArticles), [pageArticles]);
+  const recentActivityArticles = useMemo(
+    () =>
+      filteredArticles
+        .filter(articleHasReadingActivity)
+        .toSorted((left, right) =>
+          compareTimestampDesc(articleActivityTime(left), articleActivityTime(right)),
+        )
+        .slice(0, 3),
+    [filteredArticles],
+  );
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -319,32 +375,92 @@ function LibraryHome({
     setPage((current) => Math.min(current, pageCount));
   }, [pageCount]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter, activeSort, pageSize, searchQuery]);
+
   return (
     <section className="library-home">
       <header className="library-home-header">
-        <div>
+        <div className="library-home-heading">
           <h2>阅读库</h2>
           <p>
             {articles.length} 篇文章 · {stats.annotations} 条批注 · {stats.comments} 条讨论
           </p>
         </div>
-        <Button type="button" variant="secondary" onClick={onRefresh}>
-          <RefreshCcw size={16} />
-          刷新
-        </Button>
+        <div className="library-home-actions">
+          <label className="library-search">
+            <Search size={16} />
+            <Input
+              type="search"
+              value={searchQuery}
+              placeholder="搜索文章 / 作者 / 来源"
+              aria-label="搜索文章、作者或来源"
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </label>
+          <Button type="button" variant="secondary" onClick={onRefresh}>
+            <RefreshCcw size={16} />
+            刷新
+          </Button>
+        </div>
       </header>
+      <div className="library-toolbar" aria-label="阅读库工具栏">
+        <div className="library-filter-group" aria-label="阅读状态筛选">
+          {LIBRARY_FILTER_OPTIONS.map((option) => (
+            <button
+              className={activeFilter === option.value ? 'is-active' : undefined}
+              type="button"
+              aria-pressed={activeFilter === option.value}
+              key={option.value}
+              onClick={() => setActiveFilter(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <Select value={activeSort} onValueChange={(value) => setActiveSort(value as LibrarySort)}>
+          <SelectTrigger className="library-sort-trigger" aria-label="阅读库排序">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="theme-select-content">
+            <SelectGroup>
+              {LIBRARY_SORT_OPTIONS.map((option) => (
+                <SelectItem value={option.value} key={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="library-home-body">
-        {sortedArticles.length > 0 ? (
-          <div className="library-card-grid">
-            {pageArticles.map((article) => (
-              <ArticleLibraryCard
-                article={article}
-                key={article.id}
-                onDelete={() => void onDeleteArticle(article.id)}
-                onOpen={() => onOpenArticle(article)}
-              />
+        {filteredArticles.length > 0 ? (
+          <div className="library-card-scroll">
+            {groupedPageArticles.map((group) => (
+              <section className="library-card-group" key={group.label}>
+                <h3 className="library-card-group-title">
+                  {group.label} · {group.articles.length} 篇
+                </h3>
+                <div className="library-card-grid">
+                  {group.articles.map((article) => (
+                    <ArticleLibraryCard
+                      article={article}
+                      key={article.id}
+                      onDelete={() => void onDeleteArticle(article.id)}
+                      onOpen={() => onOpenArticle(article)}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
+        ) : articles.length > 0 ? (
+          <section className="library-empty">
+            <Search size={32} />
+            <h3>暂无匹配文章</h3>
+            <p>调整搜索词、阅读状态或排序后继续浏览。</p>
+          </section>
         ) : (
           <section className="library-empty">
             <BookOpen size={32} />
@@ -352,39 +468,46 @@ function LibraryHome({
             <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
           </section>
         )}
+        {recentActivityArticles.length > 0 ? (
+          <RecentLibraryActivity articles={recentActivityArticles} onOpenArticle={onOpenArticle} />
+        ) : null}
       </div>
       {sortedArticles.length > 0 ? (
-        <footer className="library-home-footer">
-          <span>共 {sortedArticles.length} 项</span>
-          <div className="library-pagination" aria-label="阅读库分页">
-            <button
-              type="button"
-              aria-label="上一页"
-              disabled={page === 1}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            {pageNumbers.map((pageNumber) => (
+        <footer
+          className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
+        >
+          <span>共 {filteredArticles.length} 项</span>
+          {pageCount > 1 ? (
+            <div className="library-pagination" aria-label="阅读库分页">
               <button
-                className={pageNumber === page ? 'is-active' : undefined}
                 type="button"
-                aria-current={pageNumber === page ? 'page' : undefined}
-                key={pageNumber}
-                onClick={() => setPage(pageNumber)}
+                aria-label="上一页"
+                disabled={page === 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
               >
-                {pageNumber}
+                <ChevronLeft size={16} />
               </button>
-            ))}
-            <button
-              type="button"
-              aria-label="下一页"
-              disabled={page === pageCount}
-              onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+              {pageNumbers.map((pageNumber) => (
+                <button
+                  className={pageNumber === page ? 'is-active' : undefined}
+                  type="button"
+                  aria-current={pageNumber === page ? 'page' : undefined}
+                  key={pageNumber}
+                  onClick={() => setPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-label="下一页"
+                disabled={page === pageCount}
+                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          ) : null}
           <Select
             value={String(pageSize)}
             onValueChange={(value) => {
@@ -445,11 +568,14 @@ function ArticleLibraryCard({
   onOpen: () => void;
 }) {
   const [deleteHolding, setDeleteHolding] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
   const comments = article.annotations.reduce(
     (count, annotation) => count + annotationThreadComments(annotation).length,
     0,
   );
+  const status = libraryArticleStatus(article);
+  const readingMinutes = articleReadingMinutes(article);
   const authorLabel =
     article.byline ||
     article.siteName ||
@@ -469,6 +595,13 @@ function ArticleLibraryCard({
     setDeleteHolding(false);
   }
 
+  function openCardWithKeyboard(event: React.KeyboardEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onOpen();
+  }
+
   function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
     event.stopPropagation();
     if (deleteTimerRef.current !== null) return;
@@ -482,52 +615,317 @@ function ArticleLibraryCard({
   }
 
   return (
-    <article className="library-card">
+    <article
+      className="library-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`打开文章：${article.title}`}
+      onClick={onOpen}
+      onKeyDown={openCardWithKeyboard}
+    >
+      <div className="library-card-top-actions">
+        <button
+          className="library-card-open-icon"
+          type="button"
+          aria-label={`打开文章：${article.title}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          <ArrowUpRight size={16} />
+        </button>
+        <div
+          className="library-card-menu"
+          onBlur={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            setMenuOpen(false);
+            stopDeleteHold();
+          }}
+        >
+          <button
+            className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+            type="button"
+            aria-label={`更多操作：${article.title}`}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            onClick={(event) => {
+              event.stopPropagation();
+              setMenuOpen((current) => !current);
+            }}
+          >
+            <MoreHorizontal size={17} />
+          </button>
+          {menuOpen ? (
+            <div
+              className="library-card-menu-popover"
+              role="menu"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
+                style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
+                type="button"
+                role="menuitem"
+                aria-label={`长按删除文章：${article.title}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onPointerCancel={stopDeleteHold}
+                onPointerDown={startDeleteHold}
+                onPointerLeave={stopDeleteHold}
+                onPointerUp={stopDeleteHold}
+              >
+                <Trash2 size={14} />
+                <span>长按删除</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
       <div className="library-card-main">
         <ArticleBook article={article} />
         <div className="library-card-copy">
           <div>
+            <div className="library-card-status-row">
+              <span className={`library-status-badge is-${status.tone}`}>{status.label}</span>
+              <span>
+                <Clock3 size={13} />约 {readingMinutes} 分钟
+              </span>
+            </div>
             <h3>{article.title}</h3>
             <p>{authorLabel}</p>
-            <time dateTime={article.updatedAt}>{formatDate(article.updatedAt)}</time>
+            <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
+            <div className="library-card-reading-meta">
+              最近阅读 {formatLibraryRelativeTime(article.updatedAt)}
+            </div>
           </div>
         </div>
       </div>
       <footer className="library-card-footer">
         <div className="library-card-meta">
-          <span>{article.annotations.length} 批注</span>
-          <span>{comments} 讨论</span>
-        </div>
-        <div className="library-card-actions">
-          <button
-            className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
-            style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
-            type="button"
-            aria-label={`长按删除文章：${article.title}`}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onContextMenu={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onPointerCancel={stopDeleteHold}
-            onPointerDown={startDeleteHold}
-            onPointerLeave={stopDeleteHold}
-            onPointerUp={stopDeleteHold}
-          >
-            <Trash2 size={14} />
-            <span>长按删除</span>
-          </button>
-          <button className="library-card-open" type="button" onClick={onOpen}>
-            <BookOpen size={15} />
-            查看
-          </button>
+          <span>
+            <PencilLine size={13} />
+            {article.annotations.length} 批注
+          </span>
+          <span>
+            <MessageSquareText size={13} />
+            {comments} 讨论
+          </span>
         </div>
       </footer>
     </article>
   );
+}
+
+function RecentLibraryActivity({
+  articles,
+  onOpenArticle,
+}: {
+  articles: ArticleRecord[];
+  onOpenArticle: (article: ArticleRecord) => void;
+}) {
+  return (
+    <section className="library-activity-strip" aria-label="最近活动">
+      <div className="library-activity-heading">
+        <MessageSquareText size={15} />
+        <strong>最近活动</strong>
+      </div>
+      <div className="library-activity-list">
+        {articles.map((article) => {
+          const comments = articleCommentCount(article);
+          return (
+            <button type="button" key={article.id} onClick={() => onOpenArticle(article)}>
+              <span>{article.title}</span>
+              <small>
+                {article.annotations.length} 条批注
+                {comments > 0 ? ` · ${comments} 条讨论` : ''}
+              </small>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function articleMatchesLibrarySearch(article: ArticleRecord, query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN');
+  if (!normalizedQuery) return true;
+
+  return [
+    article.title,
+    article.byline,
+    article.siteName,
+    article.excerpt,
+    urlHost(article.canonicalUrl || article.url),
+    article.canonicalUrl,
+    article.url,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLocaleLowerCase('zh-CN')
+    .includes(normalizedQuery);
+}
+
+function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilter) {
+  if (filter === 'unread') return article.annotations.length === 0;
+  if (filter === 'read') return articleReadingWorkflowDone(article);
+  if (filter === 'annotated') return article.annotations.length > 0;
+  if (filter === 'discussed') return articleCommentCount(article) > 0;
+  return true;
+}
+
+function compareLibraryArticles(left: ArticleRecord, right: ArticleRecord, sort: LibrarySort) {
+  if (sort === 'recentAdded') {
+    return (
+      compareTimestampDesc(left.createdAt, right.createdAt) ||
+      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
+      left.title.localeCompare(right.title, 'zh-CN')
+    );
+  }
+
+  if (sort === 'annotations') {
+    return (
+      right.annotations.length - left.annotations.length ||
+      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
+      left.title.localeCompare(right.title, 'zh-CN')
+    );
+  }
+
+  if (sort === 'discussions') {
+    return (
+      articleCommentCount(right) - articleCommentCount(left) ||
+      compareTimestampDesc(left.updatedAt, right.updatedAt) ||
+      left.title.localeCompare(right.title, 'zh-CN')
+    );
+  }
+
+  return (
+    compareTimestampDesc(left.updatedAt, right.updatedAt) ||
+    compareTimestampDesc(left.createdAt, right.createdAt) ||
+    left.title.localeCompare(right.title, 'zh-CN')
+  );
+}
+
+function groupLibraryArticles(articles: ArticleRecord[]) {
+  const groups = new Map<string, ArticleRecord[]>();
+  for (const article of articles) {
+    const label = formatLibraryDateGroup(article.createdAt);
+    groups.set(label, [...(groups.get(label) || []), article]);
+  }
+  return Array.from(groups, ([label, groupArticles]) => ({ label, articles: groupArticles }));
+}
+
+function libraryArticleStatus(article: ArticleRecord) {
+  if (article.annotations.length === 0) return { label: '新收录', tone: 'new' };
+  if (articleReadingWorkflowDone(article)) return { label: '已读完', tone: 'done' };
+  return { label: '进行中', tone: 'progress' };
+}
+
+function articleReadingWorkflowDone(article: ArticleRecord) {
+  const deliberation = article.readingDeliberation;
+  const card = article.readingCard;
+  const review = card?.review;
+
+  return Boolean(
+    article.annotations.length > 0 &&
+    deliberation &&
+    card &&
+    review &&
+    review.reviewerResults.length > 0 &&
+    timestampValue(card.updatedAt) >= timestampValue(deliberation.updatedAt) &&
+    timestampValue(review.updatedAt) >= timestampValue(card.updatedAt),
+  );
+}
+
+function articleHasReadingActivity(article: ArticleRecord) {
+  return article.annotations.length > 0 || articleCommentCount(article) > 0;
+}
+
+function articleCommentCount(article: ArticleRecord) {
+  return article.annotations.reduce(
+    (count, annotation) => count + annotationThreadComments(annotation).length,
+    0,
+  );
+}
+
+function articleActivityTime(article: ArticleRecord) {
+  return Math.max(
+    timestampValue(article.updatedAt),
+    ...article.annotations.flatMap((annotation) => [
+      timestampValue(annotation.updatedAt),
+      ...annotationThreadComments(annotation).map((comment) => timestampValue(comment.createdAt)),
+    ]),
+  );
+}
+
+function articleReadingMinutes(article: ArticleRecord) {
+  const text =
+    (typeof document === 'undefined' ? article.excerpt : articlePlainText(article)) ||
+    article.title;
+  const cjkCount = text.match(/[\u3400-\u9fff]/g)?.length || 0;
+  const wordCount = text
+    .replace(/[\u3400-\u9fff]/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return Math.max(1, Math.round(cjkCount / 450 + wordCount / 220));
+}
+
+function formatLibraryDateGroup(value: string) {
+  const days = localDayDistance(value);
+  if (days <= 0) return '今天';
+  if (days === 1) return '昨天';
+  if (days < 7) return '本周早些时候';
+  return '更早';
+}
+
+function formatLibraryRelativeTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return formatDate(value);
+
+  const time = new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+  const days = localDayDistance(value);
+  if (days <= 0) return `今天 ${time}`;
+  if (days === 1) return `昨天 ${time}`;
+  if (days < 7) return `${weekdayLabel(date)} ${time}`;
+  return formatDate(value);
+}
+
+function weekdayLabel(date: Date) {
+  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()] || '';
+}
+
+function localDayDistance(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return Number.POSITIVE_INFINITY;
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return Math.floor((todayStart - dateStart) / 86_400_000);
+}
+
+function compareTimestampDesc(
+  left: string | number | undefined,
+  right: string | number | undefined,
+) {
+  return timestampValue(right) - timestampValue(left);
+}
+
+function timestampValue(value: string | number | undefined) {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const time = Date.parse(value);
+  return Number.isNaN(time) ? 0 : time;
 }
 
 const sourceTocOptions: ExtractTocOptions = {
