@@ -130,7 +130,7 @@ export function selectDailyQuote(
     const assistant =
       storedAssistant(assistantCandidates, stored) ||
       pickAssistant(assistantCandidates, undefined, random);
-    if (assistant?.id !== stored.assistantId) {
+    if (assistantCandidates.length > 0 && assistant?.id !== stored.assistantId) {
       writeDailyQuoteState(storage, {
         ...stored,
         assistantId: assistant?.id,

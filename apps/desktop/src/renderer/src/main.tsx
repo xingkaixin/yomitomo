@@ -61,6 +61,7 @@ function App() {
   const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
     authenticatedSocketCount: 0,
   });
+  const [storeLoaded, setStoreLoaded] = useState(false);
   const [dailyQuote, setDailyQuote] = useState(() => selectDailyQuote([], { storage: null }));
 
   useEffect(() => {
@@ -77,6 +78,7 @@ function App() {
       setStore(nextStore);
       setUserDraft(nextStore.user);
       setSettingsDraft(nextStore.settings);
+      setStoreLoaded(true);
     });
     return () => {
       offPairingConnectionStatus();
@@ -85,8 +87,9 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!storeLoaded) return;
     setDailyQuote(selectDailyQuote(store.articles, { agents: store.agents }));
-  }, [store.agents, store.articles]);
+  }, [store.agents, store.articles, storeLoaded]);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
@@ -133,6 +136,7 @@ function App() {
     setStore(nextStore);
     setUserDraft(nextStore.user);
     setSettingsDraft(nextStore.settings);
+    setStoreLoaded(true);
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
   }
 

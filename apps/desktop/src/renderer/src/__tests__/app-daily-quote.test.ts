@@ -121,6 +121,21 @@ describe('daily quote', () => {
     expect(second.assistant).toEqual(first.assistant);
   });
 
+  it('preserves the stored assistant when candidates are temporarily empty', () => {
+    const storage = memoryStorage();
+    const agents = [
+      assistant({ id: 'agent_1', nickname: '知微', avatar: 'avatar_1' }),
+      assistant({ id: 'agent_2', kind: 'review', nickname: '唐简', avatar: 'avatar_2' }),
+    ];
+
+    const first = selectDailyQuote([], { now, random: () => 0, storage, agents });
+    selectDailyQuote([], { now, random: () => 0.9, storage, agents: [] });
+    const afterReload = selectDailyQuote([], { now, random: () => 0.9, storage, agents });
+
+    expect(first.assistant?.id).toBe('agent_1');
+    expect(afterReload.assistant?.id).toBe('agent_1');
+  });
+
   it('avoids repeating yesterday assistant when possible', () => {
     const storage = memoryStorage();
     const agents = [
