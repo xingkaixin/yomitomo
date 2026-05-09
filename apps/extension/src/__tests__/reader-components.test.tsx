@@ -358,13 +358,12 @@ describe('AnnotationCard', () => {
     expect(screen.getByLabelText('评论内容')).toHaveProperty('value', '@concept ');
   });
 
-  it('uses a configured comment side when comments expand', () => {
+  it('renders comments inside the annotation card when expanded', () => {
     const { container } = render(
       <AnnotationCard
         active
         agents={[]}
         annotation={annotation}
-        commentSide="left"
         commentsCloseKey={0}
         desktopConnected
         noteRef={vi.fn()}
@@ -378,9 +377,8 @@ describe('AnnotationCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /0 条评论/ }));
 
-    expect(
-      container.querySelector('.reader-note-comments-popover')?.getAttribute('data-side'),
-    ).toBe('left');
+    const commentsRegion = container.querySelector('.reader-note-comments-region');
+    expect(commentsRegion?.closest('.reader-note')).toBeTruthy();
   });
 });
 

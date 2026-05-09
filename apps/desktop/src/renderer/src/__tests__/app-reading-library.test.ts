@@ -66,6 +66,23 @@ describe('buildAnnotationRailItems', () => {
     expect(second.stackIndex).toBe(0);
     expect(second.isStackFront).toBe(true);
   });
+
+  it('uses measured card height to push later annotation groups', () => {
+    const items = buildAnnotationRailItems(
+      [annotation('annotation_1', 0, 10), annotation('annotation_2', 20, 30)],
+      [
+        box({ annotationId: 'annotation_1', top: 220 }),
+        box({ annotationId: 'annotation_2', top: 250 }),
+      ],
+      'annotation_1',
+      { annotation_1: 340 },
+    );
+
+    expect(items.map((item) => [item.annotation.id, item.style.top])).toEqual([
+      ['annotation_1', 210],
+      ['annotation_2', 568],
+    ]);
+  });
 });
 
 describe('readerAnnotationScrollTop', () => {

@@ -286,8 +286,9 @@ export const readerConversationStyles = `
 .reader-note-tabs [data-slot="tabs-trigger"]:focus-visible{outline:2px solid rgba(37,29,22,.24);outline-offset:2px}
 .reader-note-body{min-width:0}
 .reader-note-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px dashed rgba(40,35,29,.18)}
-.reader-comment-toggle{display:inline-flex;align-items:center;gap:5px;height:26px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:800;padding:0 8px}
+.reader-comment-toggle{display:inline-flex;align-items:center;gap:5px;height:26px;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:800;padding:0 8px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-comment-toggle:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-comment-toggle:active{transform:scale(.96)}
 .reader-comment-toggle:focus-visible{outline:none}
 .reader-note-toolbar .reader-delete-note{height:26px;margin-right:0;padding:0 8px;font-size:11px}
 .reader-annotation-connection{position:fixed;inset:0;z-index:4;width:100vw;height:100vh;overflow:visible;pointer-events:none}
@@ -295,15 +296,24 @@ export const readerConversationStyles = `
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:rgba(37,29,22,.12);background:rgba(37,29,22,.06);color:#6f6258}
-.reader-note-comments-popover{position:absolute;left:calc(100% + 12px);top:0;width:min(340px,calc(100vw - 32px));z-index:40}
-.reader-note-comments-popover[data-side="left"]{left:auto;right:calc(100% + 12px)}
-.reader-note-comments-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-height:calc(100vh - 112px);overflow:visible;gap:10px;border:1px solid rgba(40,35,29,.12);border-radius:18px;background:rgba(255,253,248,.98);box-shadow:0 24px 68px rgba(40,35,29,.16);padding:12px}
-.reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif}
-.reader-note-comments-panel>header strong{font-size:14px;font-weight:900}
-.reader-note-comments-panel>header span{color:var(--reader-muted);font-size:12px;font-weight:800}
-.reader-note-comments-panel .reader-comments{min-height:0;overflow:auto;margin-right:-4px;padding-right:4px}
+.reader-note-comments-region{width:100%;margin-top:12px}
+.reader-note-comments-panel{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-height:300px;min-height:0;overflow:hidden;gap:9px;border:1px solid rgba(40,35,29,.1);border-radius:14px;background:rgba(250,246,238,.86);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 22px rgba(55,42,24,.08);padding:10px}
+.reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.14);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-note-comments-panel>header>div{display:flex;align-items:baseline;gap:7px;min-width:0}
+.reader-note-comments-panel>header strong{font-size:13px;font-weight:900}
+.reader-note-comments-panel>header span{color:var(--reader-muted);font-size:11px;font-weight:800}
+.reader-note-comments-panel>header button{display:inline-flex;align-items:center;gap:4px;height:26px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:11px;font-weight:850;padding:0 8px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-note-comments-panel>header button:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-note-comments-panel>header button:active{transform:scale(.96)}
+.reader-note-comments-panel .reader-comments{min-height:0;overflow:auto;margin:0 -4px 0 0;padding-right:4px}
 .reader-note-comments-panel .reader-comment{grid-template-columns:32px minmax(0,1fr);width:100%;min-width:0}
 .reader-note-comments-panel .reader-markdown-content,.reader-note-comments-panel .reader-markdown-content *{max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.reader-comment-markdown{position:relative}
+.reader-comment-markdown.is-collapsed .reader-markdown-content{max-height:calc(1.66em * 4);overflow:hidden}
+.reader-comment-markdown.is-collapsed::after{content:"";position:absolute;left:0;right:0;bottom:28px;height:34px;background:linear-gradient(to bottom,rgba(250,246,238,0),rgba(250,246,238,.96));pointer-events:none}
+.reader-comment-expand{position:relative;z-index:1;width:fit-content;height:26px;margin-top:4px;border:0;border-radius:999px;background:rgba(37,29,22,.06);color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:0 9px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-comment-expand:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-comment-expand:active{transform:scale(.96)}
 .reader-comment-author time{margin-left:auto;color:#9a8f83;font-size:10px;font-weight:760;white-space:nowrap}
 .reader-comment-agent-tray{position:relative;display:flex;flex:0 1 auto;align-items:center;gap:8px;margin-right:auto;min-width:0;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:780}
 .reader-comment-agent-tray button{display:grid;width:30px;height:30px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffdf8;color:var(--reader-muted);cursor:pointer;padding:0}
@@ -319,7 +329,7 @@ export const readerConversationStyles = `
 .reader-comment-agent-more-menu button:hover{background:#f0eadf}
 .reader-comment-agent-more-menu strong{overflow:hidden;font-size:12px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}
 .reader-comment-agent-more-menu em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:760}
-.reader-note-comments-panel .reader-comment-box textarea{min-height:104px;margin-top:0}
+.reader-note-comments-panel .reader-comment-box textarea{min-height:68px;max-height:96px;margin-top:0}
 .reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
 .reader-note-footer .reader-add-comment{flex:0 0 auto}
 .reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:hidden;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
@@ -360,7 +370,7 @@ export const readerConversationStyles = `
 .reader-highlight:focus-visible::before{opacity:1;filter:drop-shadow(0 1px 0 rgba(255,253,248,.72)) drop-shadow(0 0 6px rgba(37,29,22,.24))}
 @media(prefers-reduced-motion:reduce){.reader-app *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.reader-virtual-cursor{transition:none!important}.reader-virtual-cursor.is-leaving{animation:none!important;opacity:0}.reader-completion-burst{display:none!important}.reader-delete-note.is-holding::before{animation:none!important;width:100%}.reader-spinner{animation:none!important;border-top-color:rgba(23,63,44,.22)}}
 @media(max-width:1320px){.reader-main{grid-template-columns:minmax(0,1fr)}.reader-toc-toggle{display:grid}.reader-toc{display:none}.reader-app.is-toc-open .reader-toc{position:fixed;display:block;left:0;top:76px;bottom:0;z-index:6;width:min(320px,calc(100vw - 32px));border-right:1px solid rgba(40,35,29,.1);background:rgba(250,247,240,.98);box-shadow:18px 0 48px rgba(40,35,29,.14)}.reader-app.is-toc-open .reader-responsive-scrim{display:block}}
-@media(max-width:1100px){.reader-surface{padding:32px 28px 64px}.reader-canvas{width:min(var(--reader-content-width),100%)}.reader-article{width:100%;max-width:100%;font-size:min(var(--reader-font-size),22px)}.reader-annotation-rail{position:relative;left:auto;top:auto;width:100%;display:grid;gap:14px;margin-top:16px}.reader-annotation-rail>.reader-note{position:relative;top:auto!important;left:auto;width:100%}.reader-note-comments-popover{position:static;width:100%;margin-top:12px}.reader-annotation-connection{display:none}}
+@media(max-width:1100px){.reader-surface{padding:32px 28px 64px}.reader-canvas{width:min(var(--reader-content-width),100%)}.reader-article{width:100%;max-width:100%;font-size:min(var(--reader-font-size),22px)}.reader-annotation-rail{position:relative;left:auto;top:auto;width:100%;display:grid;gap:14px;margin-top:16px}.reader-annotation-rail>.reader-note{position:relative;top:auto!important;left:auto;width:100%}.reader-annotation-connection{display:none}}
 @media(max-width:760px){.reader-toolbar{min-height:72px;padding:12px 14px}.reader-brand-mark{width:34px;height:34px;border-radius:9px;font-size:16px}.reader-brand-title{font-size:12px}.reader-brand-copy p{font-size:11px}.reader-toolbar-actions{gap:7px}.reader-agent-annotate{width:38px;padding:0;justify-content:center}.reader-agent-annotate{font-size:0}.reader-agent-annotate svg{width:18px;height:18px}.reader-surface{padding:20px 14px 46px}.reader-article{border-radius:18px;padding:28px 20px;font-size:min(var(--reader-font-size),20px);line-height:1.72}.reader-article-header h1{font-size:28px}.reader-question-drawer{top:72px;width:min(420px,calc(100vw - 16px))}.reader-composer{left:8px!important;width:calc(100vw - 16px)}.reader-composer-types{grid-template-columns:1fr repeat(5,minmax(0,1fr))}.reader-composer-group-label{grid-column:1/-1}.reader-app.is-toc-open .reader-toc{top:72px}.reader-responsive-scrim{inset:72px 0 0}}
 .reader-app.has-toc .reader-main{grid-template-columns:0 minmax(0,1fr);transition:grid-template-columns var(--resize-dur,300ms) var(--resize-ease,cubic-bezier(.22,1,.36,1))}
 .reader-app.has-toc.is-toc-open .reader-main{grid-template-columns:minmax(240px,280px) minmax(0,1fr)}

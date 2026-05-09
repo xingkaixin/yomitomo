@@ -1260,7 +1260,6 @@ function SourceBookcase({
         articleRef={articleRef}
         boxes={boxes}
         canvasRef={canvasRef}
-        commentSide="right"
         commentsCloseKey={commentsCloseKey}
         composer={composer}
         completionBurstKey={completionBurstKey}
@@ -1292,6 +1291,7 @@ function SourceBookcase({
         userProfile={userProfile}
         virtualCursors={virtualCursors}
         onAddComment={addComment}
+        onAnnotationLayoutChange={recalculateActiveConnection}
         onAnswerQuestion={answerQuestion}
         onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}

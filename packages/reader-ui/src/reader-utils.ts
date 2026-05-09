@@ -106,6 +106,7 @@ export function buildAnnotationRailItems(
   annotations: Annotation[],
   boxes: HighlightBox[],
   activeId: string | null,
+  noteHeights: Record<string, number> = {},
 ): AnnotationRailItem[] {
   const boxesByAnnotation = new Map<string, HighlightBox[]>();
   for (const box of boxes) {
@@ -147,7 +148,7 @@ export function buildAnnotationRailItems(
     .map((group) => ({
       group,
       desiredTop: group[0]?.top || 0,
-      height: estimateRailGroupHeight(group),
+      height: estimateRailGroupHeight(group, activeId, noteHeights),
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
@@ -227,10 +228,22 @@ function anchorsOverlap(
   return Math.max(left.start, right.start) < Math.min(left.end, right.end);
 }
 
-function estimateRailGroupHeight(group: Array<{ annotation: Annotation }>) {
-  const first = group[0];
-  if (!first) return 176;
-  return estimateAnnotationCardHeight(first.annotation) + Math.max(0, group.length - 1) * 42;
+function estimateRailGroupHeight(
+  group: Array<{ annotation: Annotation }>,
+  activeId: string | null,
+  noteHeights: Record<string, number>,
+) {
+  if (group.length === 0) return 176;
+
+  const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
+  const frontIndex = activeIndex >= 0 ? activeIndex : 0;
+  return Math.max(
+    ...group.map((item, stackIndex) => {
+      const stackDepth =
+        group.length > 1 ? (stackIndex - frontIndex + group.length) % group.length : 0;
+      return annotationCardHeight(item.annotation, noteHeights) + stackDepth * 42;
+    }),
+  );
 }
 
 function estimateAnnotationCardHeight(annotation: Annotation) {
@@ -240,6 +253,13 @@ function estimateAnnotationCardHeight(annotation: Annotation) {
     ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
     : 0;
   return 118 + quoteLines * 18 + commentLines * 24;
+}
+
+function annotationCardHeight(annotation: Annotation, noteHeights: Record<string, number>) {
+  const measuredHeight = noteHeights[annotation.id];
+  return measuredHeight && measuredHeight > 0
+    ? measuredHeight
+    : estimateAnnotationCardHeight(annotation);
 }
 
 export function sleep(ms: number) {

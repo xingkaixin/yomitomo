@@ -88,7 +88,6 @@ export type ReaderAppViewProps = {
   articleRef: React.RefObject<HTMLElement | null>;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
-  commentSide?: 'auto' | 'left' | 'right';
   commentsCloseKey: number;
   composer: PendingComposer | null;
   completionBurstKey: number;
@@ -132,6 +131,7 @@ export type ReaderAppViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onAnswerQuestion: (annotationId: string) => void;
+  onAnnotationLayoutChange?: () => void;
   onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onCloseHighlightChoice: () => void;
@@ -190,7 +190,6 @@ export function ReaderAppView({
   articleRef,
   boxes,
   canvasRef,
-  commentSide = 'auto',
   commentsCloseKey,
   composer,
   completionBurstKey,
@@ -230,6 +229,7 @@ export function ReaderAppView({
   onDeleteAnnotation,
   onFocusAnnotation,
   onAnswerQuestion,
+  onAnnotationLayoutChange,
   onHighlightClick,
   onMouseUp,
   onCloseHighlightChoice,
@@ -250,6 +250,15 @@ export function ReaderAppView({
   onDisconnectDesktop,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
+  const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
+  const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
+  const noteRefCallbacksRef = React.useRef(
+    new Map<string, (element: HTMLElement | null) => void>(),
+  );
+  const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const registerNoteElementRef = React.useRef<
+    (annotationId: string, element: HTMLElement | null) => void
+  >(() => {});
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
   const highlightChoiceAnnotations = highlightChoice
     ? highlightChoice.annotationIds
@@ -257,8 +266,8 @@ export function ReaderAppView({
         .filter((annotation): annotation is Annotation => Boolean(annotation))
     : [];
   const annotationRailItems = React.useMemo(
-    () => buildAnnotationRailItems(filteredAnnotations, boxes, activeId),
-    [activeId, boxes, filteredAnnotations],
+    () => buildAnnotationRailItems(filteredAnnotations, boxes, activeId, noteHeights),
+    [activeId, boxes, filteredAnnotations, noteHeights],
   );
   const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
   const hasToc = tocItems.length > 0;
@@ -271,6 +280,89 @@ export function ReaderAppView({
     () => buildHighlightSegments(agentTheaterBoxes),
     [agentTheaterBoxes],
   );
+
+  const updateNoteHeight = React.useCallback((annotationId: string, height: number) => {
+    const nextHeight = Math.ceil(height);
+    if (nextHeight <= 0) return;
+    setNoteHeights((current) =>
+      current[annotationId] === nextHeight ? current : { ...current, [annotationId]: nextHeight },
+    );
+  }, []);
+
+  const registerNoteElement = React.useCallback(
+    (annotationId: string, element: HTMLElement | null) => {
+      const existing = noteElementsRef.current.get(annotationId);
+      if (existing && existing !== element) noteResizeObserverRef.current?.unobserve(existing);
+
+      if (!element) {
+        if (existing) noteResizeObserverRef.current?.unobserve(existing);
+        noteElementsRef.current.delete(annotationId);
+        noteRefs.current.delete(annotationId);
+        setNoteHeights((current) => {
+          if (!(annotationId in current)) return current;
+          const next = { ...current };
+          delete next[annotationId];
+          return next;
+        });
+        return;
+      }
+
+      noteElementsRef.current.set(annotationId, element);
+      noteRefs.current.set(annotationId, element);
+      updateNoteHeight(annotationId, element.getBoundingClientRect().height);
+
+      if (typeof ResizeObserver === 'undefined') return;
+      if (!noteResizeObserverRef.current) {
+        noteResizeObserverRef.current = new ResizeObserver((entries) => {
+          setNoteHeights((current) => {
+            let next = current;
+            for (const entry of entries) {
+              const id = entry.target.getAttribute('data-annotation-id');
+              const height = Math.ceil(entry.contentRect.height);
+              if (!id || height <= 0 || current[id] === height) continue;
+              if (next === current) next = { ...current };
+              next[id] = height;
+            }
+            return next;
+          });
+        });
+      }
+      noteResizeObserverRef.current.observe(element);
+    },
+    [noteRefs, updateNoteHeight],
+  );
+
+  registerNoteElementRef.current = registerNoteElement;
+
+  const noteRefForAnnotation = React.useCallback((annotationId: string) => {
+    const existing = noteRefCallbacksRef.current.get(annotationId);
+    if (existing) return existing;
+
+    const callback = (element: HTMLElement | null) => {
+      registerNoteElementRef.current(annotationId, element);
+    };
+    noteRefCallbacksRef.current.set(annotationId, callback);
+    return callback;
+  }, []);
+
+  React.useEffect(() => {
+    const visibleIds = new Set(filteredAnnotations.map((annotation) => annotation.id));
+    for (const annotationId of noteRefCallbacksRef.current.keys()) {
+      if (!visibleIds.has(annotationId)) noteRefCallbacksRef.current.delete(annotationId);
+    }
+    setNoteHeights((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([annotationId]) => visibleIds.has(annotationId)),
+      );
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [filteredAnnotations]);
+
+  React.useEffect(() => () => noteResizeObserverRef.current?.disconnect(), []);
+
+  React.useLayoutEffect(() => {
+    onAnnotationLayoutChange?.();
+  }, [noteHeights, onAnnotationLayoutChange]);
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
@@ -529,11 +621,7 @@ export function ReaderAppView({
                     desktopConnected={desktopConnected}
                     isStackFront={isStackFront}
                     key={annotation.id}
-                    noteRef={(element) => {
-                      if (element) noteRefs.current.set(annotation.id, element);
-                      else noteRefs.current.delete(annotation.id);
-                    }}
-                    commentSide={commentSide}
+                    noteRef={noteRefForAnnotation(annotation.id)}
                     shortcutModifier={shortcutModifier}
                     stackCount={stackCount}
                     stackIndex={stackIndex}

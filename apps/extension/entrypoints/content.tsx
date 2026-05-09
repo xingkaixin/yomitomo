@@ -1496,6 +1496,7 @@ function ReaderApp({
       completionBurstKey={completionBurstKey}
       virtualCursors={virtualCursors}
       onAddComment={addComment}
+      onAnnotationLayoutChange={recalculateActiveConnection}
       onCancelAgentAnnotateMenu={cancelAgentAnnotateMenu}
       onCancelComposer={cancelComposer}
       onClearActiveAnnotation={() => setActiveId(null)}

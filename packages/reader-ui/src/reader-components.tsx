@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   AtSign,
   CaseSensitive,
@@ -1180,7 +1180,6 @@ export function AnnotationCard({
   active,
   agents,
   annotation,
-  commentSide = 'auto',
   desktopConnected,
   isStackFront = true,
   noteRef,
@@ -1198,7 +1197,6 @@ export function AnnotationCard({
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
-  commentSide?: 'auto' | 'left' | 'right';
   desktopConnected: boolean;
   isStackFront?: boolean;
   noteRef: (element: HTMLElement | null) => void;
@@ -1215,14 +1213,15 @@ export function AnnotationCard({
 }) {
   const [draft, setDraft] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [expandedCommentIds, setExpandedCommentIds] = useState<Set<string>>(() => new Set());
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [caretIndex, setCaretIndex] = useState(0);
-  const [measuredCommentsSide, setMeasuredCommentsSide] = useState<'left' | 'right'>('right');
   const [agentTrayOpen, setAgentTrayOpen] = useState(false);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const sectionRef = useRef<HTMLElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
+  const previousCommentIdsRef = useRef<string[]>([]);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const mentionAgents = annotationMentionAgents(annotation, agents);
   const visibleMentionAgents = mentionAgents.slice(0, 2);
@@ -1232,13 +1231,21 @@ export function AnnotationCard({
       ? []
       : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
   const author = annotationAuthor(annotation, userProfile, agents);
-  const primaryComment = annotationPrimaryComment(annotation);
-  const threadComments = annotationThreadComments(annotation);
+  const primaryComment = useMemo(() => annotationPrimaryComment(annotation), [annotation]);
+  const threadComments = useMemo(() => annotationThreadComments(annotation), [annotation]);
+  const threadCommentIds = useMemo(
+    () => threadComments.map((comment) => comment.id),
+    [threadComments],
+  );
+  const threadCommentIdKey = threadCommentIds.join('\u0000');
   const annotationStyle = {
     ...noteStyle(author.color, active),
     ...style,
   };
-  const commentsSide = commentSide === 'auto' ? measuredCommentsSide : commentSide;
+  const commentsPanelId = useMemo(
+    () => `reader-comments-${hashString(annotation.id).toString(36)}`,
+    [annotation.id],
+  );
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -1250,20 +1257,44 @@ export function AnnotationCard({
   }, [matchedAgents.length, selectedMentionIndex]);
 
   useEffect(() => {
-    if (!active && expanded) setExpanded(false);
+    if (!active && expanded) {
+      setExpanded(false);
+      setExpandedCommentIds(new Set());
+    }
   }, [active, expanded]);
 
   useEffect(() => {
     setExpanded(false);
+    setExpandedCommentIds(new Set());
     setAgentTrayOpen(false);
   }, [commentsCloseKey]);
 
   useEffect(() => {
     if (replyRequestKey === undefined) return;
+    previousCommentIdsRef.current = threadCommentIds;
+    setExpandedCommentIds(new Set());
     setExpanded(true);
     setAgentTrayOpen(false);
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, [replyRequestKey]);
+
+  useLayoutEffect(() => {
+    if (!expanded) {
+      previousCommentIdsRef.current = threadCommentIds;
+      return;
+    }
+
+    const previousIds = new Set(previousCommentIdsRef.current);
+    const addedIds = threadCommentIds.filter((commentId) => !previousIds.has(commentId));
+    if (addedIds.length > 0) {
+      setExpandedCommentIds((current) => {
+        const next = new Set(current);
+        for (const commentId of addedIds) next.add(commentId);
+        return next;
+      });
+    }
+    previousCommentIdsRef.current = threadCommentIds;
+  }, [expanded, threadCommentIdKey]);
 
   useEffect(() => () => stopDeleteTimer(), []);
 
@@ -1274,30 +1305,6 @@ export function AnnotationCard({
     },
     [noteRef],
   );
-
-  useEffect(() => {
-    if (!expanded || commentSide !== 'auto') return;
-
-    function updateCommentsSide() {
-      const element = sectionRef.current;
-      if (!element) return;
-      const rect = element.getBoundingClientRect();
-      const surfaceRect = element.closest('.reader-surface')?.getBoundingClientRect();
-      const boundaryLeft = surfaceRect?.left ?? 0;
-      const boundaryRight = surfaceRect?.right ?? window.innerWidth;
-      const panelWidth = Math.min(340, window.innerWidth - 32);
-      const gap = 12;
-      const rightSpace = boundaryRight - rect.right - gap;
-      const leftSpace = rect.left - boundaryLeft - gap;
-      setMeasuredCommentsSide(
-        rightSpace >= panelWidth || rightSpace >= leftSpace ? 'right' : 'left',
-      );
-    }
-
-    updateCommentsSide();
-    window.addEventListener('resize', updateCommentsSide);
-    return () => window.removeEventListener('resize', updateCommentsSide);
-  }, [commentSide, expanded]);
 
   function submit() {
     onAddComment(annotation.id, draft);
@@ -1386,8 +1393,27 @@ export function AnnotationCard({
       onFocus(annotation.id);
       return;
     }
-    setExpanded((open) => !open);
+
+    if (expanded) {
+      setExpanded(false);
+      setExpandedCommentIds(new Set());
+      setAgentTrayOpen(false);
+      return;
+    }
+
+    previousCommentIdsRef.current = threadCommentIds;
+    setExpandedCommentIds(new Set());
+    setExpanded(true);
     setAgentTrayOpen(false);
+  }
+
+  function setCommentExpanded(commentId: string, nextExpanded: boolean) {
+    setExpandedCommentIds((current) => {
+      const next = new Set(current);
+      if (nextExpanded) next.add(commentId);
+      else next.delete(commentId);
+      return next;
+    });
   }
 
   return (
@@ -1402,6 +1428,7 @@ export function AnnotationCard({
         .join(' ')}
       data-stack-count={stackCount}
       data-stack-index={stackIndex}
+      data-annotation-id={annotation.id}
       ref={setNoteElement}
       style={annotationStyle}
       onClick={handleCardClick}
@@ -1436,7 +1463,13 @@ export function AnnotationCard({
           </div>
         ) : null}
         <div className="reader-note-toolbar">
-          <button className="reader-comment-toggle" type="button" onClick={toggleComments}>
+          <button
+            className="reader-comment-toggle"
+            type="button"
+            aria-controls={commentsPanelId}
+            aria-expanded={expanded}
+            onClick={toggleComments}
+          >
             <MessageSquare size={14} />
             {threadComments.length} 条评论
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1459,15 +1492,22 @@ export function AnnotationCard({
         </div>
       </div>
       {expanded ? (
-        <div className="reader-note-comments-popover" data-side={commentsSide}>
+        <div className="reader-note-comments-region" id={commentsPanelId}>
           <div className="reader-note-comments-panel">
             <header>
-              <strong>评论</strong>
-              <span>{threadComments.length} 条</span>
+              <div>
+                <strong>评论</strong>
+                <span>{threadComments.length} 条</span>
+              </div>
+              <button type="button" onClick={toggleComments} aria-label="收起评论">
+                <ChevronUp size={14} />
+                <span>收起</span>
+              </button>
             </header>
             <div className="reader-comments">
               {threadComments.map((comment) => {
                 const commentAuthor = commentPersona(comment, userProfile, agents);
+                const commentExpanded = expandedCommentIds.has(comment.id);
                 return (
                   <div className="reader-comment" key={comment.id}>
                     <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
@@ -1483,7 +1523,14 @@ export function AnnotationCard({
                         ) : null}
                         <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
                       </div>
-                      <MarkdownContent content={comment.content} pending={comment.pending} />
+                      <CommentMarkdownContent
+                        content={comment.content}
+                        expanded={commentExpanded}
+                        pending={comment.pending}
+                        onExpandedChange={(nextExpanded) =>
+                          setCommentExpanded(comment.id, nextExpanded)
+                        }
+                      />
                     </div>
                   </div>
                 );
@@ -1587,6 +1634,68 @@ export function AnnotationCard({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function CommentMarkdownContent({
+  content,
+  expanded,
+  pending,
+  onExpandedChange,
+}: {
+  content: string;
+  expanded: boolean;
+  pending?: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+}) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [collapsible, setCollapsible] = useState(false);
+  const html = useMemo(() => renderMarkdown(content), [content]);
+
+  useLayoutEffect(() => {
+    const element = contentRef.current;
+    if (!element) return;
+    const target = element;
+
+    function measure() {
+      const styles = window.getComputedStyle(target);
+      const lineHeight = Number.parseFloat(styles.lineHeight) || 21;
+      setCollapsible(target.scrollHeight > lineHeight * 4 + 1);
+    }
+
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [content, expanded]);
+
+  return (
+    <div
+      className={[
+        'reader-markdown',
+        'reader-comment-markdown',
+        collapsible && !expanded ? 'is-collapsed' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div
+        className="reader-markdown-content"
+        ref={contentRef}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      {pending ? <i className="reader-spinner" /> : null}
+      {collapsible ? (
+        <button
+          className="reader-comment-expand"
+          type="button"
+          onClick={() => onExpandedChange(!expanded)}
+        >
+          {expanded ? '收起' : '展开'}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
