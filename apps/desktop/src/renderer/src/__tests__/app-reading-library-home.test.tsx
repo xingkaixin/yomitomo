@@ -183,7 +183,19 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(container.querySelector<HTMLImageElement>('.library-site-icon')?.src).toBe(
-      'https://favicon.im/nooneshappy.com',
+      'https://favicon.im/nooneshappy.com?throw-error-on-404=true',
     );
+  });
+
+  it('exposes the full title on hover and keeps an icon placeholder', () => {
+    const { container } = renderLibrary([
+      article({
+        siteIconUrl: '',
+        title: '这是一段会在卡片上被截断的很长标题',
+      }),
+    ]);
+
+    expect(screen.getByTitle('这是一段会在卡片上被截断的很长标题')).toBeTruthy();
+    expect(container.querySelector('.library-site-icon-slot')).toBeTruthy();
   });
 });

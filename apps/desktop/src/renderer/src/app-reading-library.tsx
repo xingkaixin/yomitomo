@@ -555,6 +555,7 @@ function ArticleLibraryCard({
 }) {
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [siteIconFailed, setSiteIconFailed] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
   const comments = article.annotations.reduce(
     (count, annotation) => count + annotationThreadComments(annotation).length,
@@ -575,6 +576,10 @@ function ArticleLibraryCard({
     },
     [],
   );
+
+  useEffect(() => {
+    setSiteIconFailed(false);
+  }, [siteIconUrl]);
 
   function stopDeleteHold() {
     if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
@@ -685,19 +690,19 @@ function ArticleLibraryCard({
                 <Clock3 size={13} />约 {readingMinutes} 分钟
               </span>
             </div>
-            <h3>{article.title}</h3>
+            <h3 title={article.title}>{article.title}</h3>
             <p className="library-card-author">
-              {siteIconUrl ? (
-                <img
-                  alt=""
-                  className="library-site-icon"
-                  loading="lazy"
-                  src={siteIconUrl}
-                  onError={(event) => {
-                    event.currentTarget.hidden = true;
-                  }}
-                />
-              ) : null}
+              <span className="library-site-icon-slot" aria-hidden="true">
+                {siteIconUrl && !siteIconFailed ? (
+                  <img
+                    alt=""
+                    className="library-site-icon"
+                    loading="lazy"
+                    src={siteIconUrl}
+                    onError={() => setSiteIconFailed(true)}
+                  />
+                ) : null}
+              </span>
               <span>{authorLabel}</span>
             </p>
             <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
@@ -752,10 +757,10 @@ function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilt
 
 function articleSiteIconUrl(article: ArticleRecord) {
   const iconUrl = safeLibraryImageUrl(article.siteIconUrl);
-  if (iconUrl) return iconUrl;
+  if (iconUrl) return withFaviconThrowErrorParam(iconUrl);
 
   const host = articleHost(article);
-  return host ? `https://favicon.im/${encodeURIComponent(host)}` : '';
+  return host ? faviconServiceUrl(host) : '';
 }
 
 function articleHost(article: ArticleRecord) {
@@ -775,6 +780,23 @@ function safeLibraryImageUrl(value: string | undefined) {
     return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
   } catch {
     return '';
+  }
+}
+
+function faviconServiceUrl(host: string) {
+  const url = new URL(`https://favicon.im/${encodeURIComponent(host)}`);
+  url.searchParams.set('throw-error-on-404', 'true');
+  return url.href;
+}
+
+function withFaviconThrowErrorParam(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.hostname !== 'favicon.im') return value;
+    url.searchParams.set('throw-error-on-404', 'true');
+    return url.href;
+  } catch {
+    return value;
   }
 }
 

@@ -3459,17 +3459,26 @@
   line-height: 1.45;
 }
 
-.library-card-author span {
+.library-card-author > span:last-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.library-site-icon-slot,
 .library-site-icon {
   width: 18px;
   height: 18px;
+}
+
+.library-site-icon-slot {
+  display: block;
   flex: none;
+}
+
+.library-site-icon {
+  display: block;
   border-radius: 4px;
   background: hsl(45 58% 96% / 0.72);
   object-fit: cover;
