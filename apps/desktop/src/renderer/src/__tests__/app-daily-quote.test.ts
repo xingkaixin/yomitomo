@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Agent, Annotation, ArticleRecord } from '@yomitomo/shared';
 import {
   builtinDailyQuotes,
   collectDailyQuoteCandidates,
@@ -53,6 +53,27 @@ function quoteAnnotation(overrides: Partial<Annotation> = {}): Annotation {
   };
 }
 
+function assistant(overrides: Partial<Agent> = {}): Agent {
+  const createdAt = overrides.createdAt || now.toISOString();
+
+  return {
+    id: overrides.id || 'agent_1',
+    kind: overrides.kind || 'annotation',
+    enabled: overrides.enabled ?? true,
+    providerId: overrides.providerId || 'provider_1',
+    nickname: overrides.nickname || '知微',
+    username: overrides.username || 'lin_zhiwei',
+    avatar: overrides.avatar || 'avatar_1',
+    annotationColor: overrides.annotationColor || '#6fa48f',
+    annotationDensity: overrides.annotationDensity || 'medium',
+    temperature: overrides.temperature ?? 0.35,
+    soul: overrides.soul || '',
+    createdAt,
+    updatedAt: overrides.updatedAt || createdAt,
+    ...overrides,
+  };
+}
+
 describe('daily quote', () => {
   it('keeps the same quote during a day', () => {
     const storage = memoryStorage();
@@ -79,6 +100,44 @@ describe('daily quote', () => {
 
     expect(first.text).toBe(builtinDailyQuotes[0].text);
     expect(second.text).toBe(builtinDailyQuotes[1].text);
+  });
+
+  it('keeps the same assistant avatar during a day', () => {
+    const storage = memoryStorage();
+    const agents = [
+      assistant({ id: 'agent_1', nickname: '知微', avatar: 'avatar_1' }),
+      assistant({ id: 'agent_2', kind: 'review', nickname: '唐简', avatar: 'avatar_2' }),
+    ];
+
+    const first = selectDailyQuote([], { now, random: () => 0, storage, agents });
+    const second = selectDailyQuote([], { now, random: () => 0.9, storage, agents });
+
+    expect(first.assistant).toEqual({
+      id: 'agent_1',
+      kind: 'annotation',
+      name: '知微',
+      avatar: 'avatar_1',
+    });
+    expect(second.assistant).toEqual(first.assistant);
+  });
+
+  it('avoids repeating yesterday assistant when possible', () => {
+    const storage = memoryStorage();
+    const agents = [
+      assistant({ id: 'agent_1', nickname: '知微', avatar: 'avatar_1' }),
+      assistant({ id: 'agent_2', kind: 'review', nickname: '唐简', avatar: 'avatar_2' }),
+    ];
+
+    const first = selectDailyQuote([], { now, random: () => 0, storage, agents });
+    const second = selectDailyQuote([], {
+      now: new Date('2026-05-09T10:00:00.000+08:00'),
+      random: () => 0,
+      storage,
+      agents,
+    });
+
+    expect(first.assistant?.id).toBe('agent_1');
+    expect(second.assistant?.id).toBe('agent_2');
   });
 
   it('uses personal quote annotations after the threshold is reached', () => {

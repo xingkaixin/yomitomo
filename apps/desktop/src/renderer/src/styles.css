@@ -271,17 +271,35 @@
 }
 
 .daily-quote-header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.daily-quote-card .avatar-image.daily-quote-avatar {
+  width: 30px;
+  height: 30px;
+  border-color: hsl(36 31% 72% / 0.9);
+  background: hsl(43 62% 88%);
+  box-shadow:
+    0 1px 0 hsl(45 54% 98% / 0.72) inset,
+    0 4px 8px hsl(31 34% 24% / 0.14);
+}
+
+.daily-quote-title {
   display: grid;
+  min-width: 0;
   gap: 3px;
 }
 
-.daily-quote-header strong {
+.daily-quote-title strong {
   font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.08em;
 }
 
-.daily-quote-header span {
+.daily-quote-title span {
   color: hsl(35 18% 42%);
   font-size: 11px;
   font-weight: 780;

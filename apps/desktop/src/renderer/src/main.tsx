@@ -37,6 +37,7 @@ import {
 import { AboutSettings } from './app-log-viewer';
 import { selectDailyQuote } from './app-daily-quote';
 import type { SaveState } from './app-types';
+import { AvatarImage } from './app-ui';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
@@ -84,8 +85,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setDailyQuote(selectDailyQuote(store.articles));
-  }, [store.articles]);
+    setDailyQuote(selectDailyQuote(store.articles, { agents: store.agents }));
+  }, [store.agents, store.articles]);
 
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
@@ -342,8 +343,17 @@ function App() {
           <div className="sidebar-note">
             <div className="daily-quote-card">
               <div className="daily-quote-header">
-                <strong>{dailyQuote.title}</strong>
-                {dailyQuote.meta ? <span>{dailyQuote.meta}</span> : null}
+                {dailyQuote.assistant ? (
+                  <AvatarImage
+                    value={dailyQuote.assistant.avatar}
+                    className="daily-quote-avatar"
+                    fallback={dailyQuote.assistant.name.slice(0, 1) || '助'}
+                  />
+                ) : null}
+                <div className="daily-quote-title">
+                  <strong>{dailyQuote.title}</strong>
+                  {dailyQuote.meta ? <span>{dailyQuote.meta}</span> : null}
+                </div>
               </div>
               <blockquote>“{dailyQuote.text}”</blockquote>
             </div>

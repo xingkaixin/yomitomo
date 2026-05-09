@@ -1,4 +1,4 @@
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Agent, AgentKind, Annotation, ArticleRecord } from '@yomitomo/shared';
 import { annotationPrimaryComment } from '@yomitomo/core';
 
 type DailyQuoteSource = 'builtin' | 'user' | 'ai';
@@ -15,12 +15,21 @@ export type DailyQuote = {
   title: string;
   meta: string;
   text: string;
+  assistant?: DailyQuoteAssistant;
+};
+
+export type DailyQuoteAssistant = {
+  id: string;
+  kind: AgentKind;
+  name: string;
+  avatar: string;
 };
 
 type DailyQuoteStorageState = {
   date: string;
   currentId: string;
   seenIds: string[];
+  assistantId?: string;
 };
 
 type DailyQuoteStorage = Pick<Storage, 'getItem' | 'setItem'>;
@@ -30,6 +39,7 @@ type SelectDailyQuoteOptions = {
   random?: () => number;
   storage?: DailyQuoteStorage | null;
   personalThreshold?: number;
+  agents?: Agent[];
 };
 
 const dailyQuoteStorageKey = 'yomitomo:daily-quote';
@@ -103,9 +113,11 @@ export function selectDailyQuote(
   options: SelectDailyQuoteOptions = {},
 ): DailyQuote {
   const now = options.now || new Date();
+  const random = options.random || Math.random;
   const storage = options.storage === undefined ? browserStorage() : options.storage;
   const personalThreshold = options.personalThreshold ?? defaultPersonalQuoteThreshold;
   const personalCandidates = collectDailyQuoteCandidates(articles);
+  const assistantCandidates = collectDailyQuoteAssistants(options.agents || []);
   const candidates =
     personalCandidates.length >= personalThreshold
       ? [...personalCandidates, ...builtinDailyQuotes]
@@ -114,7 +126,18 @@ export function selectDailyQuote(
   const stored = readDailyQuoteState(storage);
   const current = candidates.find((candidate) => candidate.id === stored?.currentId);
 
-  if (stored?.date === today && current) return toDailyQuote(current, now);
+  if (stored?.date === today && current) {
+    const assistant =
+      storedAssistant(assistantCandidates, stored) ||
+      pickAssistant(assistantCandidates, undefined, random);
+    if (assistant?.id !== stored.assistantId) {
+      writeDailyQuoteState(storage, {
+        ...stored,
+        assistantId: assistant?.id,
+      });
+    }
+    return toDailyQuote(current, now, assistant);
+  }
 
   const candidateIds = new Set(candidates.map((candidate) => candidate.id));
   const seenIds = new Set((stored?.seenIds || []).filter((id) => candidateIds.has(id)));
@@ -125,21 +148,38 @@ export function selectDailyQuote(
     availableCandidates = candidates;
   }
 
-  const selected = pickCandidate(availableCandidates, options.random || Math.random);
+  const selected = pickCandidate(availableCandidates, random);
+  const assistant =
+    stored?.date === today
+      ? storedAssistant(assistantCandidates, stored) ||
+        pickAssistant(assistantCandidates, undefined, random)
+      : pickAssistant(assistantCandidates, stored?.assistantId, random);
   seenIds.add(selected.id);
   writeDailyQuoteState(storage, {
     date: today,
     currentId: selected.id,
     seenIds: [...seenIds],
+    assistantId: assistant?.id,
   });
 
-  return toDailyQuote(selected, now);
+  return toDailyQuote(selected, now, assistant);
 }
 
 export function collectDailyQuoteCandidates(articles: ArticleRecord[]): DailyQuoteCandidate[] {
   return articles.flatMap((article) =>
     article.annotations.flatMap((annotation) => dailyQuoteCandidate(annotation)),
   );
+}
+
+export function collectDailyQuoteAssistants(agents: Agent[]): DailyQuoteAssistant[] {
+  return agents
+    .filter((agent) => agent.kind === 'annotation' || agent.kind === 'review')
+    .map((agent) => ({
+      id: agent.id,
+      kind: agent.kind,
+      name: agent.nickname || agent.username || '助手',
+      avatar: agent.avatar,
+    }));
 }
 
 export function formatDailyQuoteDate(value: string, now = new Date()) {
@@ -194,11 +234,16 @@ function normalizeDailyQuoteText(value: string) {
   return text;
 }
 
-function toDailyQuote(candidate: DailyQuoteCandidate, now: Date): DailyQuote {
+function toDailyQuote(
+  candidate: DailyQuoteCandidate,
+  now: Date,
+  assistant?: DailyQuoteAssistant,
+): DailyQuote {
   return {
     title: '今日一句',
     meta: quoteMeta(candidate, now),
     text: candidate.text,
+    ...(assistant ? { assistant } : {}),
   };
 }
 
@@ -213,6 +258,29 @@ function quoteMeta(candidate: DailyQuoteCandidate, now: Date) {
 function pickCandidate(candidates: DailyQuoteCandidate[], random: () => number) {
   const index = Math.min(candidates.length - 1, Math.floor(random() * candidates.length));
   return candidates[index];
+}
+
+function pickAssistant(
+  candidates: DailyQuoteAssistant[],
+  previousId: string | undefined,
+  random: () => number,
+) {
+  if (candidates.length === 0) return undefined;
+
+  const available =
+    candidates.length > 1
+      ? candidates.filter((candidate) => candidate.id !== previousId)
+      : candidates;
+  return pickAssistantCandidate(available.length > 0 ? available : candidates, random);
+}
+
+function pickAssistantCandidate(candidates: DailyQuoteAssistant[], random: () => number) {
+  const index = Math.min(candidates.length - 1, Math.floor(random() * candidates.length));
+  return candidates[index];
+}
+
+function storedAssistant(candidates: DailyQuoteAssistant[], stored: DailyQuoteStorageState | null) {
+  return candidates.find((candidate) => candidate.id === stored?.assistantId);
 }
 
 function localDateKey(date: Date) {
@@ -242,6 +310,7 @@ function readDailyQuoteState(storage: DailyQuoteStorage | null): DailyQuoteStora
       date: parsed.date,
       currentId: parsed.currentId,
       seenIds: parsed.seenIds.filter((id): id is string => typeof id === 'string'),
+      assistantId: typeof parsed.assistantId === 'string' ? parsed.assistantId : undefined,
     };
   } catch {
     return null;
