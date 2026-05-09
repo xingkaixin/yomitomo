@@ -7,7 +7,8 @@ export const readerConversationStyles = `
 .reader-toolbar-article-meta{display:flex;align-items:center;gap:8px;min-width:0;margin:0;color:var(--reader-muted);font-size:12px;font-weight:760;line-height:1.25}
 .reader-toolbar-article-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:8px;border-radius:999px;background:rgba(40,35,29,.24);vertical-align:2px}
-.reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center}
+.reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center;gap:8px}
+.reader-toolbar-current-view{display:inline-flex;height:30px;align-items:center;border:1px solid rgba(40,35,29,.12);border-radius:999px;background:rgba(255,253,248,.82);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:850;line-height:1;padding:0 10px;white-space:nowrap}
 .reader-article{padding:clamp(34px,4vw,56px) clamp(28px,4.6vw,64px)}
 .reader-toc-toggle{display:grid;position:relative}
 .reader-notes-toggle{display:grid;position:relative}
@@ -402,7 +403,8 @@ export const readerDesktopEmbeddedStyles = `
 .reader-toolbar-article-meta{display:flex;align-items:center;gap:8px;min-width:0;margin:0;color:var(--reader-muted);font-size:12px;font-weight:760;line-height:1.25}
 .reader-toolbar-article-meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .reader-toolbar-article-meta span+span::before{content:"";display:inline-block;width:4px;height:4px;margin-right:8px;border-radius:999px;background:rgba(40,35,29,.24);vertical-align:2px}
-.reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center}
+.reader-toolbar-article-action{display:flex;flex:0 0 auto;align-items:center;gap:8px}
+.reader-toolbar-current-view{display:inline-flex;height:30px;align-items:center;border:1px solid rgba(40,35,29,.12);border-radius:999px;background:rgba(255,253,248,.82);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:850;line-height:1;padding:0 10px;white-space:nowrap}
 .reader-toolbar-article-action .open-article-button.is-icon-only{--annotation-control-size:30px;border-color:rgba(40,35,29,.14);background:rgba(255,253,248,.84);color:var(--reader-ink)}
 .reader-toolbar-article-action .open-article-button.is-icon-only:hover{background:#f0eadf}
 @media(max-width:1320px){.reader-app.is-embedded.is-toc-open .reader-toc{position:absolute}}

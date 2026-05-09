@@ -395,6 +395,7 @@ function registerIpc() {
           return createReviewerResult(
             agent,
             {
+              status: 'error',
               verdict: 'revise',
               summary: `${agent.nickname} 没有完成审稿：${message}`,
               findings: [
@@ -414,12 +415,16 @@ function registerIpc() {
         }
       }),
     );
+    const previousReview = input.previousReview;
+    const mergedReviewerResults = previousReview
+      ? mergeReviewerResults(previousReview.reviewerResults, reviewerResults)
+      : reviewerResults;
     const review: ReadingCardReviewRecord = {
-      id: makeId('reading_card_review'),
+      id: previousReview?.id || makeId('reading_card_review'),
       articleId: input.article.id,
       readingCardId: input.readingCard.id,
-      reviewerResults,
-      createdAt,
+      reviewerResults: mergedReviewerResults,
+      createdAt: previousReview?.createdAt || createdAt,
       updatedAt: createdAt,
     };
     await saveArticleReadingCardReview(input.article.id, review);
@@ -530,6 +535,7 @@ function createReviewerResult(
     reviewerUsername: agent.username,
     reviewerAvatar: agent.avatar,
     reviewerColor: agent.annotationColor,
+    status: result.status || 'done',
     verdict: result.verdict,
     summary: result.summary,
     findings: result.findings,
@@ -538,6 +544,19 @@ function createReviewerResult(
     rawResponse: result.rawResponse,
     createdAt,
   };
+}
+
+function mergeReviewerResults(
+  previousResults: ReadingCardReviewerResult[],
+  nextResults: ReadingCardReviewerResult[],
+) {
+  const nextByReviewerId = new Map(nextResults.map((result) => [result.reviewerId, result]));
+  const merged = previousResults.map((result) => nextByReviewerId.get(result.reviewerId) || result);
+  const previousReviewerIds = new Set(previousResults.map((result) => result.reviewerId));
+  return [
+    ...merged,
+    ...nextResults.filter((result) => !previousReviewerIds.has(result.reviewerId)),
+  ];
 }
 
 function parseReadingCardSections(markdown: string): ReadingCardSection[] {

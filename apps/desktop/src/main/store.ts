@@ -894,6 +894,7 @@ function normalizeReadingCardReviewerResults(value: unknown): ReadingCardReviewe
         reviewerUsername: stringValue(result.reviewerUsername),
         reviewerAvatar: stringValue(result.reviewerAvatar),
         reviewerColor: stringValue(result.reviewerColor),
+        status: result.status === 'error' ? 'error' : 'done',
         verdict: normalizeReviewVerdict(result.verdict),
         summary: stringValue(result.summary),
         findings: normalizeReviewFindings(result.findings),

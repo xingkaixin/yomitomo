@@ -31,6 +31,7 @@ export type GenerateReadingDeliberationInput = {
 
 export type ReviewReadingCardInput = GenerateReadingCardInput & {
   readingCard: ReadingCardRecord;
+  previousReview?: ReadingCardReviewRecord;
   reviewAgentIds?: string[];
 };
 

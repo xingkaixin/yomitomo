@@ -464,6 +464,8 @@ export type ReadingCardSection = {
 
 export type ReadingCardReviewVerdict = 'pass' | 'revise';
 
+export type ReadingCardReviewStatus = 'done' | 'error';
+
 export type ReadingCardReviewSeverity = 'high' | 'medium' | 'low';
 
 export type ReadingCardReviewFinding = {
@@ -481,6 +483,7 @@ export type ReadingCardReviewerResult = {
   reviewerUsername: string;
   reviewerAvatar: string;
   reviewerColor: string;
+  status?: ReadingCardReviewStatus;
   verdict: ReadingCardReviewVerdict;
   summary: string;
   findings: ReadingCardReviewFinding[];

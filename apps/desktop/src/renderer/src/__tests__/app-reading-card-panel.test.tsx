@@ -8,6 +8,7 @@ import type {
   ArticleRecord,
   ReadingDeliberationRecord,
   ReadingCardRecord,
+  ReadingCardReviewRecord,
 } from '@yomitomo/shared';
 import { ReadingCard } from '../app-reading-card-panel';
 
@@ -97,6 +98,41 @@ function readingCard(overrides: Partial<ReadingCardRecord> = {}): ReadingCardRec
   };
 }
 
+function failedReview(): ReadingCardReviewRecord {
+  return {
+    id: 'review_1',
+    articleId: 'article_1',
+    readingCardId: 'reading_card_1',
+    reviewerResults: [
+      {
+        id: 'result_1',
+        reviewerId: 'agent_1',
+        reviewerNickname: '审核助手',
+        reviewerUsername: 'reviewer',
+        reviewerAvatar: '',
+        reviewerColor: '#8ab6d6',
+        status: 'error',
+        verdict: 'revise',
+        summary: '审核助手 没有完成审稿：模型输出达到 max_tokens=3200',
+        findings: [
+          {
+            section: '整篇笔记',
+            severity: 'high',
+            problem: '模型输出达到 max_tokens=3200，结构化 JSON 可能已被截断',
+            evidenceIds: [],
+          },
+        ],
+        acceptedClaims: [],
+        missingAngles: [],
+        rawResponse: '模型输出达到 max_tokens=3200',
+        createdAt: now,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function reviewAgent(): Agent {
   return {
     id: 'agent_1',
@@ -144,9 +180,9 @@ describe('ReadingCard', () => {
     );
 
     expect(screen.getByRole('region', { name: '读后笔记流程进度' })).toBeTruthy();
-    expect(screen.getByText('阅读审议报告')).toBeTruthy();
+    expect(screen.getByText('阅读评估')).toBeTruthy();
     expect(screen.getByText('AI 提炼', { selector: 'strong' })).toBeTruthy();
-    expect(screen.getByText('笔记审核')).toBeTruthy();
+    expect(screen.getByText('笔记草稿')).toBeTruthy();
   });
 
   it('starts deliberation generation with article evidence units', async () => {
@@ -198,5 +234,48 @@ describe('ReadingCard', () => {
     fireEvent.click(reference);
 
     expect(onOpenEvidence).toHaveBeenCalledWith('annotation_1');
+  });
+
+  it('retries a failed reviewer without discarding the existing review', async () => {
+    const desktop = installDesktopApi();
+    const previousReview = failedReview();
+    desktop.reviewReadingCard.mockResolvedValue({
+      review: {
+        ...previousReview,
+        reviewerResults: [
+          {
+            ...previousReview.reviewerResults[0],
+            status: 'done',
+            verdict: 'pass',
+            summary: '重新审核通过',
+            findings: [],
+            rawResponse: undefined,
+          },
+        ],
+        updatedAt: '2026-05-04T00:02:00.000Z',
+      },
+    });
+
+    render(
+      <ReadingCard
+        article={article({
+          readingDeliberation: deliberation(),
+          readingCard: readingCard({ review: previousReview }),
+        })}
+        reviewAgents={[reviewAgent()]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '重新审核 审核助手' }));
+
+    await waitFor(() => expect(desktop.reviewReadingCard).toHaveBeenCalledTimes(1));
+    expect(desktop.reviewReadingCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        previousReview,
+        reviewAgentIds: ['agent_1'],
+      }),
+    );
   });
 });

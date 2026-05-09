@@ -73,6 +73,19 @@ export function articleExternalUrl(article: ArticleRecord) {
   return validExternalUrl(article.canonicalUrl) || validExternalUrl(article.url);
 }
 
+export function articleIdentityLine(article: ArticleRecord) {
+  const source = article.siteName || urlHost(article.canonicalUrl || article.url);
+  return [source, article.byline, formatDate(article.updatedAt)].filter(Boolean).join(' / ');
+}
+
+export function articleReadingStatsLine(stats: {
+  annotations: number;
+  comments: number;
+  aiContributions: number;
+}) {
+  return `${stats.annotations} 批注 · ${stats.comments} 评论 · ${stats.aiContributions} 助手建议`;
+}
+
 export function articlePlainText(article: ArticleRecord) {
   const html = article.contentHtml || '';
   if (!html) return article.excerpt || '';

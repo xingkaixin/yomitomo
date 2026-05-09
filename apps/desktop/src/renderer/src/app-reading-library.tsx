@@ -31,6 +31,7 @@ import {
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
+  buildReadingCardStats,
   extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -66,7 +67,13 @@ import {
   type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
-import { articlePlainText, formatDate, urlHost } from './app-utils';
+import {
+  articleIdentityLine,
+  articlePlainText,
+  articleReadingStatsLine,
+  formatDate,
+  urlHost,
+} from './app-utils';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { OpenArticleButton } from './app-ui';
@@ -221,7 +228,6 @@ export function ReadingLibrary({
   }
 
   function openLibraryShelf() {
-    setSelectedArticleId(null);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
     setActiveShelf('library');
@@ -239,7 +245,7 @@ export function ReadingLibrary({
     setActiveShelf('card');
   }
 
-  if (activeShelf === 'library' || !selectedArticle) {
+  if (!selectedArticle) {
     return (
       <LibraryHome
         articles={articles}
@@ -254,65 +260,97 @@ export function ReadingLibrary({
 
   return (
     <div className={`library-bookcase-screen is-${activeShelf}-expanded`}>
-      <div className="library-shelf is-collapsed is-library-bookcase">
-        <ShelfTab icon={<BookOpen size={18} />} label="阅读库" onClick={openLibraryShelf} />
-      </div>
-
       <div
         className={
-          activeShelf === 'source' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+          activeShelf === 'library'
+            ? 'library-shelf is-expanded is-library-bookcase'
+            : 'library-shelf is-collapsed is-library-bookcase'
         }
       >
         <ShelfTab
-          count={annotations.length}
-          icon={<BookOpen size={18} />}
-          label="原文"
-          onClick={openSourceShelf}
+          actionLabel="返回阅读库"
+          icon={<ChevronLeft size={18} />}
+          label="阅读库"
+          variant="library"
+          onClick={openLibraryShelf}
         />
         <div className="library-shelf-content">
-          {activeShelf === 'source' ? (
-            <SourceBookcase
-              agents={agents}
-              annotations={annotations}
-              article={selectedArticle}
-              focusAnnotationId={sourceFocusAnnotationId}
-              selectedAnnotationId={selectedAnnotation?.id || null}
-              userProfile={userProfile}
-              onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
-              onClose={openLibraryShelf}
-              onOpenAnnotation={setSelectedAnnotationId}
-              onSaveArticle={onSaveArticle}
+          {activeShelf === 'library' ? (
+            <LibraryHome
+              articles={articles}
+              sortedArticles={sortedArticles}
+              stats={stats}
+              onDeleteArticle={deleteLibraryArticle}
+              onOpenArticle={openArticle}
+              onRefresh={onRefresh}
             />
           ) : null}
         </div>
       </div>
 
-      <div
-        className={
-          activeShelf === 'card' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
-        }
-      >
-        <ShelfTab
-          count={selectedArticle?.readingCard?.sections.length || (selectedArticle ? 4 : 0)}
-          icon={<BookOpen size={18} />}
-          label="读后笔记"
-          onClick={openCardShelf}
-        />
-        <div className="library-shelf-content">
-          {activeShelf === 'card' ? (
-            <ReadingCard
-              article={selectedArticle}
-              reviewAgents={reviewAgents}
-              onGenerated={onRefresh}
-              onOpenEvidence={(annotationId) => {
-                setSelectedAnnotationId(annotationId);
-                setSourceFocusAnnotationId(annotationId);
-                setActiveShelf('source');
-              }}
+      {activeShelf === 'library' ? null : (
+        <>
+          <div
+            className={
+              activeShelf === 'source' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+            }
+          >
+            <ShelfTab
+              actionLabel="返回原文"
+              count={annotations.length}
+              icon={<BookOpen size={18} />}
+              label="原文"
+              variant="view"
+              onClick={openSourceShelf}
             />
-          ) : null}
-        </div>
-      </div>
+            <div className="library-shelf-content">
+              {activeShelf === 'source' ? (
+                <SourceBookcase
+                  agents={agents}
+                  annotations={annotations}
+                  article={selectedArticle}
+                  focusAnnotationId={sourceFocusAnnotationId}
+                  selectedAnnotationId={selectedAnnotation?.id || null}
+                  userProfile={userProfile}
+                  onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
+                  onClose={openLibraryShelf}
+                  onOpenAnnotation={setSelectedAnnotationId}
+                  onSaveArticle={onSaveArticle}
+                />
+              ) : null}
+            </div>
+          </div>
+
+          <div
+            className={
+              activeShelf === 'card' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+            }
+          >
+            <ShelfTab
+              actionLabel="打开读后笔记"
+              count={selectedArticle?.readingCard?.sections.length ?? 0}
+              icon={<PencilLine size={18} />}
+              label="笔记"
+              variant="view"
+              onClick={openCardShelf}
+            />
+            <div className="library-shelf-content">
+              {activeShelf === 'card' ? (
+                <ReadingCard
+                  article={selectedArticle}
+                  reviewAgents={reviewAgents}
+                  onGenerated={onRefresh}
+                  onOpenEvidence={(annotationId) => {
+                    setSelectedAnnotationId(annotationId);
+                    setSourceFocusAnnotationId(annotationId);
+                    setActiveShelf('source');
+                  }}
+                />
+              ) : null}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -521,19 +559,33 @@ function LibraryHome({
 }
 
 function ShelfTab({
+  actionLabel,
   count,
   icon,
   label,
+  variant,
   onClick,
 }: {
+  actionLabel: string;
   count?: number;
   icon: React.ReactNode;
   label: string;
+  variant: 'library' | 'view';
   onClick: () => void;
 }) {
+  const className = [
+    'library-shelf-tab',
+    `is-${variant}-rail`,
+    count === undefined ? 'is-title-only' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <button
-      className={count === undefined ? 'library-shelf-tab is-title-only' : 'library-shelf-tab'}
+      aria-label={actionLabel}
+      className={className}
+      title={actionLabel}
       type="button"
       onClick={onClick}
     >
@@ -858,6 +910,7 @@ function articleReadingWorkflowDone(article: ArticleRecord) {
     card &&
     review &&
     review.reviewerResults.length > 0 &&
+    review.reviewerResults.every((result) => result.status !== 'error') &&
     timestampValue(card.updatedAt) >= timestampValue(deliberation.updatedAt) &&
     timestampValue(review.updatedAt) >= timestampValue(card.updatedAt),
   );
@@ -1014,6 +1067,10 @@ function SourceBookcase({
       ),
     }),
     [annotations],
+  );
+  const stats = useMemo(
+    () => (article ? buildReadingCardStats({ ...article, annotations }) : null),
+    [annotations, article],
   );
   const {
     agentTheaterBoxes,
@@ -1688,8 +1745,10 @@ function SourceBookcase({
 
   const readerArticle = {
     title: article.title,
-    byline: article.byline || urlHost(article.canonicalUrl || article.url),
-    excerpt: [formatDate(article.updatedAt), statusMessage].filter(Boolean).join(' · '),
+    byline: articleIdentityLine(article),
+    excerpt: [stats ? articleReadingStatsLine(stats) : '', statusMessage]
+      .filter(Boolean)
+      .join(' · '),
     content: contentHtml,
   };
   const shortcutModifier = getShortcutModifier();
@@ -1733,7 +1792,12 @@ function SourceBookcase({
         showConnectionSettings={false}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}
-        toolbarArticleAction={<OpenArticleButton article={article} iconOnly />}
+        toolbarArticleAction={
+          <>
+            <span className="reader-toolbar-current-view">当前：原文阅读</span>
+            <OpenArticleButton article={article} iconOnly />
+          </>
+        }
         tocAnnotationStats={tocStats}
         tocItems={tocItems}
         tocOpen={tocOpen}

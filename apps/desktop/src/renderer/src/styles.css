@@ -3031,21 +3031,21 @@
 
 .library-bookcase-screen {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   transition: grid-template-columns var(--resize-dur) var(--resize-ease);
   will-change: grid-template-columns;
 }
 
 .library-bookcase-screen.is-library-expanded {
-  grid-template-columns: minmax(0, 1fr) 58px 58px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .library-bookcase-screen.is-source-expanded {
-  grid-template-columns: 58px minmax(0, 1fr) 58px;
+  grid-template-columns: 44px minmax(0, 1fr) 36px;
 }
 
 .library-bookcase-screen.is-card-expanded {
-  grid-template-columns: 58px 58px minmax(0, 1fr);
+  grid-template-columns: 44px 36px minmax(0, 1fr);
 }
 
 .library-home {
@@ -3827,6 +3827,7 @@
 }
 
 .library-shelf .annotation-notebook,
+.library-shelf .library-home,
 .library-shelf .source-bookcase,
 .library-shelf .reading-card {
   height: 100%;
@@ -3839,15 +3840,20 @@
   display: none;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid hsl(36 31% 72% / 0.78);
+  border: 1px solid hsl(36 31% 72% / 0.58);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, hsl(39 42% 84% / 0.92), hsl(35 30% 73% / 0.92)), hsl(var(--card));
-  color: hsl(32 23% 24%);
+  background: hsl(41 44% 89% / 0.82);
+  box-shadow:
+    0 12px 28px hsl(31 34% 24% / 0.08),
+    inset 0 1px 0 hsl(42 80% 99% / 0.54);
+  color: hsl(32 23% 30%);
   cursor: pointer;
-  padding: 14px 9px;
+  padding: 10px 6px;
   transition:
     background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
     transform 160ms ease;
 }
 
@@ -3857,49 +3863,82 @@
 }
 
 .library-shelf-tab:hover {
-  background:
-    linear-gradient(180deg, hsl(44 52% 89% / 0.98), hsl(38 39% 78% / 0.98)), hsl(var(--card));
+  border-color: hsl(36 31% 65% / 0.78);
+  background: hsl(42 55% 93% / 0.92);
+  box-shadow:
+    0 16px 34px hsl(31 34% 24% / 0.11),
+    inset 0 1px 0 hsl(42 80% 99% / 0.7);
+  color: hsl(31 23% 20%);
 }
 
 .library-shelf-tab:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .library-shelf-tab-icon {
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   place-items: center;
-  border: 1px solid hsl(36 29% 63% / 0.75);
+  border: 1px solid hsl(36 29% 63% / 0.48);
   border-radius: 8px;
-  background: hsl(42 59% 94% / 0.6);
-  color: hsl(33 24% 26%);
+  background: hsl(42 59% 96% / 0.62);
+  color: currentColor;
 }
 
 .library-shelf-tab-label {
   writing-mode: vertical-rl;
-  color: hsl(31 24% 24%);
-  font-size: 14px;
-  font-weight: 900;
+  color: currentColor;
+  font-size: 12px;
+  font-weight: 880;
   letter-spacing: 0;
 }
 
 .library-shelf-tab-count {
   display: grid;
-  min-width: 30px;
-  height: 30px;
+  min-width: 24px;
+  height: 24px;
   place-items: center;
-  border: 1px solid hsl(36 29% 63% / 0.55);
+  border: 1px solid hsl(36 29% 63% / 0.5);
   border-radius: 999px;
-  background: hsl(42 59% 94% / 0.5);
-  font-size: 12px;
-  font-weight: 900;
+  background: hsl(42 59% 96% / 0.6);
+  color: currentColor;
+  font-size: 11px;
+  font-weight: 920;
   font-variant-numeric: tabular-nums;
 }
 
 .library-shelf-tab.is-title-only {
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.library-shelf-tab.is-library-rail {
+  background: hsl(42 42% 91% / 0.7);
+  color: hsl(33 20% 38%);
+}
+
+.library-shelf-tab.is-library-rail .library-shelf-tab-icon {
+  width: 30px;
+  height: 30px;
+  color: hsl(31 23% 26%);
+}
+
+.library-shelf-tab.is-library-rail .library-shelf-tab-label {
+  font-size: 11px;
+  font-weight: 820;
+}
+
+.library-shelf-tab.is-view-rail {
+  inset: 10px 0;
+  background:
+    linear-gradient(180deg, hsl(40 50% 90% / 0.9), hsl(37 36% 82% / 0.88)), hsl(var(--card));
+  color: hsl(31 23% 22%);
+}
+
+.library-shelf-tab.is-view-rail .library-shelf-tab-label {
+  font-size: 13px;
+  font-weight: 920;
 }
 
 .article-rail,
@@ -4386,12 +4425,32 @@
   padding: 5px 8px;
 }
 
+.reading-card-statline {
+  font-variant-numeric: tabular-nums;
+}
+
 .reading-card-actions {
   display: flex;
   flex: none;
   flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.reading-card-current-view {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.58);
+  border-radius: 999px;
+  background: hsl(43 58% 95% / 0.74);
+  color: hsl(34 22% 32%);
+  font-size: 12px;
+  font-weight: 880;
+  line-height: 1;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .reading-card-actions > button {
@@ -4428,41 +4487,61 @@
 }
 
 .reading-card-workflow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  overflow: visible;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid hsl(36 31% 72% / 0.58);
+  border-radius: 8px;
+  background: hsl(43 60% 96% / 0.74);
+  box-shadow:
+    0 8px 18px hsl(31 34% 24% / 0.06),
+    inset 0 1px 0 hsl(42 80% 99% / 0.72);
+  padding: 8px;
 }
 
 .reading-card-workflow-step {
   position: relative;
   display: grid;
+  flex: 1 1 0;
   min-width: 0;
-  min-height: 116px;
-  grid-template-rows: 1fr auto;
-  gap: 12px;
-  border: 1px solid hsl(36 31% 72% / 0.62);
+  min-height: 82px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.5);
   border-radius: 8px;
-  background: hsl(43 60% 95% / 0.68);
-  box-shadow:
-    0 8px 18px hsl(31 34% 24% / 0.06),
-    inset 0 1px 0 hsl(42 80% 99% / 0.72);
+  background: hsl(42 63% 98% / 0.58);
   padding: 12px;
 }
 
 .reading-card-workflow-step + .reading-card-workflow-step::before {
   position: absolute;
-  top: 27px;
-  left: -11px;
-  width: 10px;
-  border-top: 2px solid hsl(36 31% 72% / 0.78);
-  content: '';
+  top: 50%;
+  left: -15px;
+  z-index: 1;
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.64);
+  border-radius: 999px;
+  background: hsl(43 60% 96%);
+  color: hsl(34 22% 42% / 0.7);
+  content: '→';
+  font-size: 12px;
+  font-weight: 900;
+  transform: translateY(-50%);
 }
 
 .reading-card-workflow-step header {
   display: flex;
   min-width: 0;
-  align-items: flex-start;
+  align-items: center;
   gap: 9px;
 }
 
@@ -4499,11 +4578,14 @@
   font-size: 11px;
   font-weight: 760;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reading-card-workflow-step button {
-  width: 100%;
-  min-height: 32px;
+  width: max-content;
+  min-height: 30px;
   border: 1px solid hsl(36 31% 72% / 0.62);
   box-shadow: 0 5px 12px hsl(31 34% 24% / 0.08);
   transition:
@@ -4528,7 +4610,7 @@
 .reading-card-workflow-step.is-active {
   border-color: hsl(var(--primary) / 0.56);
   background:
-    linear-gradient(180deg, hsl(43 66% 98% / 0.9), hsl(var(--primary) / 0.08)), hsl(var(--card));
+    linear-gradient(180deg, hsl(43 66% 98% / 0.86), hsl(var(--primary) / 0.08)), hsl(var(--card));
 }
 
 .reading-card-workflow-step.is-active .reading-card-workflow-index,
@@ -4541,7 +4623,7 @@
 .reading-card-workflow-step.is-done {
   border-color: hsl(136 28% 48% / 0.42);
   background:
-    linear-gradient(180deg, hsl(43 66% 98% / 0.86), hsl(135 38% 89% / 0.58)), hsl(var(--card));
+    linear-gradient(180deg, hsl(43 66% 98% / 0.78), hsl(135 38% 89% / 0.48)), hsl(var(--card));
 }
 
 .reading-card-workflow-step.is-done .reading-card-workflow-index {
@@ -7309,17 +7391,20 @@
 }
 
 .reading-card-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
   min-height: 0;
   overflow: auto;
   margin-top: 14px;
   border: 1px solid hsl(36 31% 72% / 0.72);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, hsl(43 62% 94% / 0.92), hsl(42 54% 90% / 0.92)),
-    repeating-linear-gradient(0deg, transparent 0 25px, hsl(37 29% 74% / 0.38) 26px);
+  background: linear-gradient(180deg, hsl(43 62% 96% / 0.92), hsl(42 54% 93% / 0.92));
   box-shadow: 0 10px 24px hsl(31 34% 24% / 0.1);
-  padding: 18px;
+  padding: 14px;
 }
 
 .reading-card-body h4 {
@@ -7344,6 +7429,73 @@
   color: hsl(31 20% 30%);
   font-size: 12px;
   line-height: 1.65;
+}
+
+.reading-card-output-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.reading-card-draft-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reading-card-draft-section,
+.reading-card-evidence-section {
+  border: 1px solid hsl(36 31% 72% / 0.62);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(42 63% 98% / 0.9), hsl(39 47% 94% / 0.9)), hsl(var(--card));
+  box-shadow:
+    0 10px 22px hsl(31 34% 24% / 0.07),
+    inset 0 1px 0 hsl(42 80% 99% / 0.8);
+  padding: 13px;
+}
+
+.reading-card-evidence-section {
+  flex: 0 0 auto;
+  background: hsl(42 48% 94% / 0.66);
+}
+
+.reading-card-evidence-section > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.reading-card-evidence-section > header span {
+  display: block;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 880;
+}
+
+.reading-card-evidence-section > header h4 {
+  margin: 4px 0 0;
+}
+
+.reading-card-evidence-section > header strong {
+  display: grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(31 23% 20%);
+  color: hsl(43 66% 98%);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  padding: 0 8px;
+}
+
+.reading-card-evidence-section .reading-card-evidence-list {
+  max-height: min(34vh, 340px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .reading-card-ai {
@@ -7652,7 +7804,7 @@
 
 .reading-card-reviewer-card > header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 9px;
 }
@@ -7697,6 +7849,45 @@
   border-color: hsl(8 45% 46% / 0.25);
   background: hsl(21 58% 89% / 0.56);
   color: hsl(8 45% 30%);
+}
+
+.reading-card-reviewer-retry {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid hsl(36 31% 72% / 0.62);
+  border-radius: 999px;
+  background: hsl(43 58% 95% / 0.78);
+  color: hsl(34 22% 30%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 880;
+  line-height: 1;
+  padding: 0 10px;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+  white-space: nowrap;
+}
+
+.reading-card-reviewer-retry:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.46);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+}
+
+.reading-card-reviewer-retry:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.reading-card-reviewer-retry:disabled {
+  cursor: default;
+  opacity: 0.68;
 }
 
 .reading-card-reviewer-card > p,
@@ -8140,6 +8331,20 @@
   color: hsl(31 20% 30%);
   font-size: 12px;
   line-height: 1.58;
+}
+
+@media (max-width: 1120px) {
+  .reading-card-workflow {
+    flex-direction: column;
+  }
+
+  .reading-card-draft-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reading-card-workflow-step + .reading-card-workflow-step::before {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

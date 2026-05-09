@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, ListChecks, LoaderCircle, Scale, Sparkles } from 'lucide-react';
+import { Check, ListChecks, LoaderCircle, RefreshCcw, Scale, Sparkles } from 'lucide-react';
 import type {
   Agent,
   ArticleRecord,
@@ -18,7 +18,13 @@ import {
   questionStatusLabel,
   type ReadingCardEvidenceUnit,
 } from '@yomitomo/core';
-import { articlePlainText, formatDate, formatDateTime } from './app-utils';
+import {
+  articleIdentityLine,
+  articlePlainText,
+  articleReadingStatsLine,
+  formatDate,
+  formatDateTime,
+} from './app-utils';
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton } from './app-ui';
 import type { ReadingCardWorkflowStep } from './app-types';
@@ -44,6 +50,7 @@ export function ReadingCard({
   const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
   const [reviewError, setReviewError] = useState('');
   const [reviewState, setReviewState] = useState<'idle' | 'reviewing' | 'done' | 'error'>('idle');
+  const [retryingReviewerId, setRetryingReviewerId] = useState<string | null>(null);
   const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<string[]>([]);
   const deliberationTime = deliberation ? Date.parse(deliberation.updatedAt) : 0;
   const aiCardTime = aiCard ? Date.parse(aiCard.updatedAt) : 0;
@@ -68,6 +75,7 @@ export function ReadingCard({
     () => (article ? buildReadingCardSections(article, articleText) : []),
     [article, articleText],
   );
+  const draftSections = sections.filter((section) => section.title !== '阅读轨迹');
   const reviewAgentIds = useMemo(() => reviewAgents.map((agent) => agent.id), [reviewAgents]);
   const reviewAgentKey = reviewAgentIds.join('|');
 
@@ -79,6 +87,7 @@ export function ReadingCard({
     setAiError('');
     setAiState(article?.readingCard ? 'done' : 'idle');
     setReviewError('');
+    setRetryingReviewerId(null);
     setReviewState(article?.readingCard?.review ? 'done' : 'idle');
   }, [
     article?.id,
@@ -99,7 +108,7 @@ export function ReadingCard({
     {
       id: 'deliberation',
       number: 1,
-      title: '阅读审议报告',
+      title: '阅读评估',
       description:
         deliberationState === 'generating'
           ? '正在整理证据与分歧'
@@ -153,7 +162,7 @@ export function ReadingCard({
     {
       id: 'review',
       number: 3,
-      title: '笔记审核',
+      title: '笔记草稿',
       description:
         reviewState === 'reviewing'
           ? '审核助手正在检查'
@@ -165,7 +174,7 @@ export function ReadingCard({
                 ? '读后笔记已更新，等待重新审核'
                 : currentAiCard
                   ? selectedReviewAgentIds.length > 0
-                    ? '选择审核助手后审稿'
+                    ? '草稿已生成，可审核'
                     : '请选择审核助手'
                   : '完成 AI 提炼后开始',
       state:
@@ -178,7 +187,7 @@ export function ReadingCard({
               : currentAiCard
                 ? 'active'
                 : 'waiting',
-      actionLabel: currentAiCard?.review ? '重新审核' : '审核笔记',
+      actionLabel: currentAiCard?.review ? '重新审核' : '审核草稿',
       disabled: !currentAiCard || selectedReviewAgentIds.length === 0 || isWorkflowBusy,
       onAction: reviewAiCard,
     },
@@ -253,6 +262,31 @@ export function ReadingCard({
     }
   }
 
+  async function retryReviewAgent(agentId: string) {
+    if (!article || !currentAiCard || reviewState === 'reviewing' || retryingReviewerId) return;
+    setReviewState('reviewing');
+    setRetryingReviewerId(agentId);
+    setReviewError('');
+    try {
+      const result = await window.yomitomoDesktop.reviewReadingCard({
+        article,
+        articleText,
+        evidenceUnits,
+        readingCard: currentAiCard,
+        previousReview: currentAiCard.review,
+        reviewAgentIds: [agentId],
+      });
+      setAiCard({ ...currentAiCard, review: result.review });
+      setReviewState('done');
+      onGenerated();
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
+      setReviewState('error');
+    } finally {
+      setRetryingReviewerId(null);
+    }
+  }
+
   function toggleReviewAgent(agentId: string) {
     setSelectedReviewAgentIds((current) =>
       current.includes(agentId) ? current.filter((id) => id !== agentId) : [...current, agentId],
@@ -272,17 +306,12 @@ export function ReadingCard({
     <aside className="reading-card">
       <div className="reading-card-header">
         <div>
-          <h3>读后笔记</h3>
-          <p>{article.title}</p>
-          {stats ? (
-            <div className="reading-card-meta">
-              <span>批注 {stats.annotations}</span>
-              <span>评论 {stats.comments}</span>
-              <span>助手 {stats.aiContributions}</span>
-            </div>
-          ) : null}
+          <h3>{article.title}</h3>
+          <p>{articleIdentityLine(article)}</p>
+          {stats ? <p className="reading-card-statline">{articleReadingStatsLine(stats)}</p> : null}
         </div>
         <div className="reading-card-actions">
+          <span className="reading-card-current-view">当前：读后笔记</span>
           <CopyIconButton label="复制读后笔记 Markdown" value={card} />
         </div>
       </div>
@@ -320,48 +349,60 @@ export function ReadingCard({
         </div>
       ) : null}
       <div className="reading-card-body">
-        {aiError ? <p className="reading-card-error">{aiError}</p> : null}
-        {deliberationError ? <p className="reading-card-error">{deliberationError}</p> : null}
-        {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
-        {deliberation ? (
-          <ReadingDeliberationPanel
-            deliberation={deliberation}
-            evidenceUnits={evidenceUnits}
-            onOpenEvidence={onOpenEvidence}
-          />
-        ) : null}
-        {currentAiCard ? (
-          <ReadingCardDeck
-            article={article}
-            evidenceUnits={evidenceUnits}
-            readingCard={currentAiCard}
-            stats={stats}
-            onOpenEvidence={onOpenEvidence}
-          />
-        ) : (
-          sections.map((section) => (
-            <section key={section.title}>
-              <h4>{section.title}</h4>
-              {section.title === '阅读轨迹' ? (
-                evidenceUnits.length > 0 ? (
-                  <div className="reading-card-evidence-list">
-                    {evidenceUnits.map((unit) => (
-                      <ReadingCardEvidence unit={unit} key={unit.id} />
+        <div className="reading-card-output-stack">
+          {aiError ? <p className="reading-card-error">{aiError}</p> : null}
+          {deliberationError ? <p className="reading-card-error">{deliberationError}</p> : null}
+          {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
+          {deliberation ? (
+            <ReadingDeliberationPanel
+              deliberation={deliberation}
+              evidenceUnits={evidenceUnits}
+              onOpenEvidence={onOpenEvidence}
+            />
+          ) : null}
+          {currentAiCard ? (
+            <ReadingCardDeck
+              article={article}
+              evidenceUnits={evidenceUnits}
+              readingCard={currentAiCard}
+              retryingReviewerId={retryingReviewerId}
+              stats={stats}
+              onOpenEvidence={onOpenEvidence}
+              onRetryReviewer={retryReviewAgent}
+            />
+          ) : (
+            <div className="reading-card-draft-grid">
+              {draftSections.map((section) => (
+                <section className="reading-card-draft-section" key={section.title}>
+                  <h4>{section.title}</h4>
+                  <ul>
+                    {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
+                      <li key={`${section.title}-${index}`}>{item}</li>
                     ))}
-                  </div>
-                ) : (
-                  <p className="reading-card-placeholder">暂无</p>
-                )
-              ) : (
-                <ul>
-                  {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
-                    <li key={`${section.title}-${index}`}>{item}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))
-        )}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
+        <section className="reading-card-evidence-section">
+          <header>
+            <div>
+              <span>阅读痕迹素材</span>
+              <h4>可回溯原文、批注和讨论</h4>
+            </div>
+            <strong>{evidenceUnits.length}</strong>
+          </header>
+          {evidenceUnits.length > 0 ? (
+            <div className="reading-card-evidence-list">
+              {evidenceUnits.map((unit) => (
+                <ReadingCardEvidence unit={unit} key={unit.id} />
+              ))}
+            </div>
+          ) : (
+            <p className="reading-card-placeholder">暂无</p>
+          )}
+        </section>
       </div>
     </aside>
   );
@@ -503,14 +544,18 @@ function ReadingCardDeck({
   article,
   evidenceUnits,
   readingCard,
+  retryingReviewerId,
   stats,
   onOpenEvidence,
+  onRetryReviewer,
 }: {
   article: ArticleRecord;
   evidenceUnits: ReadingCardEvidenceUnit[];
   readingCard: ReadingCardRecord;
+  retryingReviewerId: string | null;
   stats: ReturnType<typeof buildReadingCardStats> | null;
   onOpenEvidence: (annotationId: string) => void;
+  onRetryReviewer: (reviewerId: string) => void;
 }) {
   const sections = normalizeReadingCardViewSections(readingCard);
 
@@ -518,7 +563,7 @@ function ReadingCardDeck({
     <div className="reading-card-deck">
       <section className="reading-card-cover">
         <div>
-          <span>AI 读后笔记</span>
+          <span>笔记草稿</span>
           <h4>{article.title}</h4>
         </div>
         <dl>
@@ -541,7 +586,13 @@ function ReadingCardDeck({
         </p>
       </section>
 
-      {readingCard.review ? <ReadingCardReviewPanel review={readingCard.review} /> : null}
+      {readingCard.review ? (
+        <ReadingCardReviewPanel
+          retryingReviewerId={retryingReviewerId}
+          review={readingCard.review}
+          onRetryReviewer={onRetryReviewer}
+        />
+      ) : null}
 
       {sections.map((section) => (
         <ReadingCardSectionCard
@@ -555,7 +606,15 @@ function ReadingCardDeck({
   );
 }
 
-function ReadingCardReviewPanel({ review }: { review: ReadingCardReviewRecord }) {
+function ReadingCardReviewPanel({
+  retryingReviewerId,
+  review,
+  onRetryReviewer,
+}: {
+  retryingReviewerId: string | null;
+  review: ReadingCardReviewRecord;
+  onRetryReviewer: (reviewerId: string) => void;
+}) {
   const issueCount = review.reviewerResults.reduce(
     (count, result) => count + result.findings.length,
     0,
@@ -587,14 +646,29 @@ function ReadingCardReviewPanel({ review }: { review: ReadingCardReviewRecord })
       </div>
       <div className="reading-card-reviewers">
         {review.reviewerResults.map((result) => (
-          <ReadingCardReviewerCard result={result} key={result.id} />
+          <ReadingCardReviewerCard
+            retrying={retryingReviewerId === result.reviewerId}
+            result={result}
+            key={result.id}
+            onRetry={() => onRetryReviewer(result.reviewerId)}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function ReadingCardReviewerCard({ result }: { result: ReadingCardReviewerResult }) {
+function ReadingCardReviewerCard({
+  retrying,
+  result,
+  onRetry,
+}: {
+  retrying: boolean;
+  result: ReadingCardReviewerResult;
+  onRetry: () => void;
+}) {
+  const canRetry = reviewerResultCanRetry(result);
+
   return (
     <article className="reading-card-reviewer-card">
       <header>
@@ -610,6 +684,22 @@ function ReadingCardReviewerCard({ result }: { result: ReadingCardReviewerResult
         <mark className={result.verdict === 'pass' ? 'is-pass' : 'is-revise'}>
           {result.verdict === 'pass' ? '通过' : '需修改'}
         </mark>
+        {canRetry ? (
+          <button
+            aria-label={`重新审核 ${result.reviewerNickname}`}
+            className="reading-card-reviewer-retry"
+            type="button"
+            disabled={retrying}
+            onClick={onRetry}
+          >
+            {retrying ? (
+              <LoaderCircle className="reading-card-spin" size={13} />
+            ) : (
+              <RefreshCcw size={13} />
+            )}
+            {retrying ? '审核中' : '重新审核'}
+          </button>
+        ) : null}
       </header>
       {result.summary ? <p>{result.summary}</p> : null}
       {result.findings.length > 0 ? (
@@ -638,6 +728,18 @@ function ReadingCardReviewerCard({ result }: { result: ReadingCardReviewerResult
       <ReadingCardReviewList title="保留点" items={result.acceptedClaims} />
       <ReadingCardReviewList title="缺口" items={result.missingAngles} />
     </article>
+  );
+}
+
+function reviewerResultCanRetry(result: ReadingCardReviewerResult) {
+  if (result.status === 'error') return true;
+  const retryableText = [
+    result.summary,
+    result.rawResponse,
+    ...result.findings.map((finding) => finding.problem),
+  ].join('\n');
+  return /没有完成审稿|JSON 解析失败|格式异常|max_tokens|max_output_tokens|结构化 JSON/.test(
+    retryableText,
   );
 }
 

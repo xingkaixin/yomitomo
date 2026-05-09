@@ -8,6 +8,7 @@ import type {
   Comment,
   LlmProvider,
   ReadingDeliberationRecord,
+  ReadingCardReviewRecord,
   ReadingCardRecord,
   ReadingCardReviewerResult,
 } from '@yomitomo/shared';
@@ -68,12 +69,13 @@ export type GenerateReadingDeliberationInput = {
 
 export type ReviewReadingCardInput = GenerateReadingCardInput & {
   readingCard: ReadingCardRecord;
+  previousReview?: ReadingCardReviewRecord;
   reviewAgentIds?: string[];
 };
 
 export type ReviewReadingCardResult = Pick<
   ReadingCardReviewerResult,
-  'verdict' | 'summary' | 'findings' | 'acceptedClaims' | 'missingAngles' | 'rawResponse'
+  'status' | 'verdict' | 'summary' | 'findings' | 'acceptedClaims' | 'missingAngles' | 'rawResponse'
 >;
 
 export async function testProvider(
@@ -351,7 +353,7 @@ export async function reviewReadingCard(
     {
       system,
       user: buildReviewReadingCardPrompt(provider, input),
-      maxTokens: 3200,
+      maxTokens: 6000,
       temperature: agent.temperature,
     },
     { failOnMaxTokens: true },
@@ -897,6 +899,7 @@ function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingC
       rawTail: rawResponse.slice(-500),
     });
     return {
+      status: 'error',
       verdict: 'revise',
       summary: '审核助手返回的内容格式异常，已保留原始输出供排查。',
       findings: [
