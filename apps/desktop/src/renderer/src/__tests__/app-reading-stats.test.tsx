@@ -17,6 +17,7 @@ vi.mock('recharts', () => ({
   CartesianGrid: () => <g data-testid="chart-grid" />,
   Line: () => <path data-testid="chart-line" />,
   LineChart: MockLineChart,
+  ReferenceArea: () => <rect data-testid="chart-unstarted-area" />,
   ResponsiveContainer: MockResponsiveContainer,
   Tooltip: () => null,
   XAxis: () => <g data-testid="chart-x-axis" />,
@@ -86,9 +87,12 @@ describe('ReadingStatsPanel', () => {
     render(<ReadingStatsPanel articles={[article()]} onRefresh={vi.fn()} />);
 
     expect(screen.getByText('统计')).toBeTruthy();
-    expect(screen.getByText('今日')).toBeTruthy();
-    expect(screen.getByText('本周')).toBeTruthy();
-    expect(screen.getByText('累计')).toBeTruthy();
+    expect(screen.getByText('今日活动')).toBeTruthy();
+    expect(screen.getAllByText(/已记录/).length).toBeGreaterThan(0);
+    expect(screen.getByText('下一目标')).toBeTruthy();
+    expect(screen.getByText(/累计：/)).toBeTruthy();
+    expect(screen.getByText('伴读活动趋势')).toBeTruthy();
+    expect(screen.getByText('伴读洞察')).toBeTruthy();
     expect(screen.getByLabelText('近 70 天伴读活动')).toBeTruthy();
     expect(screen.getByText('70 天伴读地图')).toBeTruthy();
     expect(screen.getAllByLabelText(/伴读旅程尚未开始/)).toHaveLength(69);

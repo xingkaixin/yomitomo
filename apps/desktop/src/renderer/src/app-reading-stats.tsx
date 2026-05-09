@@ -1,6 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart3, RefreshCcw } from 'lucide-react';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis, type CurveProps } from 'recharts';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceArea,
+  XAxis,
+  YAxis,
+  type CurveProps,
+} from 'recharts';
 import type { ArticleRecord } from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
@@ -9,15 +17,14 @@ import {
   type ReadingStatsPeriod,
 } from '@yomitomo/core';
 import { Button } from './components/ui/button';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from './components/ui/chart';
+import { ChartContainer, ChartTooltip, type ChartConfig } from './components/ui/chart';
 import { PanelHeader } from './app-ui';
 
 const chartConfig = {
+  articles: {
+    label: '文章',
+    color: 'var(--chart-3)',
+  },
   annotations: {
     label: '批注',
     color: 'var(--chart-1)',
@@ -25,10 +32,6 @@ const chartConfig = {
   comments: {
     label: '讨论',
     color: 'var(--chart-2)',
-  },
-  cards: {
-    label: '读后笔记',
-    color: 'var(--chart-3)',
   },
 } satisfies ChartConfig;
 
@@ -39,6 +42,28 @@ type ActivityStamp = ReadingActivityDay & {
 };
 
 type ActivityStampStatus = 'unstarted' | 'empty' | 'today' | 'lit';
+
+type ChartActivityDay = Omit<ReadingActivityDay, 'articles' | 'annotations' | 'comments'> & {
+  articles: number | null;
+  annotations: number | null;
+  comments: number | null;
+  recordStatus: 'unstarted' | 'recording';
+};
+
+type ChartMode = 'recorded' | 'window';
+
+type ReadingInsight = {
+  id: string;
+  text: string;
+};
+
+type ChartTooltipPayload = {
+  dataKey?: string | number;
+  name?: string | number;
+  value?: React.ReactNode;
+  color?: string;
+  payload?: ChartActivityDay;
+};
 
 type InkPoint = {
   x: number;
@@ -52,17 +77,38 @@ export function ReadingStatsPanel({
   articles: ArticleRecord[];
   onRefresh: () => void;
 }) {
+  const [chartMode, setChartMode] = useState<ChartMode>('recorded');
   const stats = useMemo(() => computeReadingStats(articles), [articles]);
   const activityDays = useMemo(() => computeReadingActivityDays(articles), [articles]);
-  const chartData = activityDays.slice(-21);
-  const activityStamps = useMemo(
-    () => buildActivityStamps(activityDays, articles),
+  const activityStartDate = useMemo(
+    () => firstActivityDate(articles) || activityDays.at(-1)?.date || localDateKey(new Date()),
     [activityDays, articles],
+  );
+  const fullChartData = useMemo(
+    () => buildChartData(activityDays.slice(-21), activityStartDate),
+    [activityDays, activityStartDate],
+  );
+  const activityStamps = useMemo(
+    () => buildActivityStamps(activityDays, activityStartDate),
+    [activityDays, activityStartDate],
   );
   const hasLitStamp = activityStamps.some((day) => day.status === 'lit');
   const litStampCount = activityStamps.filter((day) => day.status === 'lit').length;
   const currentStreak = activityStamps.at(-1)?.streak || 0;
-  const mapDescription = activityMapDescription(hasLitStamp, litStampCount, currentStreak);
+  const recordedDays = activityStamps.filter((day) => day.status !== 'unstarted').length;
+  const chartRecordedDays = fullChartData.filter((day) => day.recordStatus === 'recording').length;
+  const effectiveChartMode = chartRecordedDays >= 21 ? 'window' : chartMode;
+  const recordedChartData = fullChartData.filter((day) => day.recordStatus === 'recording');
+  const chartData = effectiveChartMode === 'recorded' ? recordedChartData : fullChartData;
+  const chartUnstartedRange =
+    effectiveChartMode === 'window' ? unstartedChartRange(fullChartData) : null;
+  const chartTitle = chartRecordedDays >= 21 ? '近 21 天活动' : '伴读活动趋势';
+  const chartDescription = chartActivityDescription(recordedDays);
+  const weekActiveDays = activityDays.slice(-7).filter((day) => day.score > 0).length;
+  const peakDay = peakActivityDay(activityDays, activityStartDate);
+  const sevenDayProgress = Math.min(7, currentStreak || Math.min(litStampCount, 7));
+  const sevenDayRemaining = Math.max(0, 7 - sevenDayProgress);
+  const insights = buildReadingInsights(activityDays, activityStartDate, stats.total);
 
   return (
     <div className="settings-panel">
@@ -77,19 +123,80 @@ export function ReadingStatsPanel({
           </Button>
         }
       />
-      <div className="stats-periods">
-        <StatsPeriod title="今日" stats={stats.today} />
-        <StatsPeriod title="本周" stats={stats.week} />
-        <StatsPeriod title="累计" stats={stats.total} />
+      <div className="stats-start-overview">
+        <section className="stats-status-card">
+          <span>今日活动</span>
+          <strong>{periodSummary(stats.today)}</strong>
+        </section>
+        <section className="stats-status-card">
+          <span>已记录 {recordedDays} 天</span>
+          <strong>
+            本周活跃 {weekActiveDays} 天，{peakDay ? `高峰在 ${peakDay.label}` : '今天开始记录'}
+          </strong>
+        </section>
+        <section className="stats-status-card">
+          <span>下一目标</span>
+          <strong>{nextGoalText(litStampCount, sevenDayRemaining)}</strong>
+        </section>
       </div>
+      <div className="stats-total-strip">累计：{periodSummary(stats.total)}</div>
       <section className="stats-visual-grid">
         <div className="stats-chart-card">
           <div className="stats-section-heading">
-            <h3>近 21 天活动</h3>
-            <p>批注、讨论和读后笔记趋势</p>
+            <h3>{chartTitle}</h3>
+            <p>{chartDescription}</p>
+          </div>
+          <div className="stats-chart-toolbar">
+            {chartRecordedDays < 21 ? (
+              <div aria-label="趋势范围" className="stats-chart-switch" role="group">
+                <button
+                  aria-pressed={effectiveChartMode === 'recorded'}
+                  onClick={() => setChartMode('recorded')}
+                  type="button"
+                >
+                  已记录 {recordedDays} 天
+                </button>
+                <button
+                  aria-pressed={effectiveChartMode === 'window'}
+                  onClick={() => setChartMode('window')}
+                  type="button"
+                >
+                  近 21 天
+                </button>
+              </div>
+            ) : null}
+            <div className="stats-chart-legend" aria-hidden="true">
+              <span>
+                <i style={{ background: chartConfig.articles.color }} />
+                文章
+              </span>
+              <span>
+                <i style={{ background: chartConfig.annotations.color }} />
+                批注
+              </span>
+              <span>
+                <i style={{ background: chartConfig.comments.color }} />
+                讨论
+              </span>
+            </div>
           </div>
           <ChartContainer className="h-[240px] w-full" config={chartConfig}>
             <LineChart accessibilityLayer data={chartData} margin={{ left: 0, right: 8, top: 8 }}>
+              {chartUnstartedRange ? (
+                <ReferenceArea
+                  className="stats-chart-unstarted-area"
+                  ifOverflow="visible"
+                  label={{
+                    className: 'stats-chart-unstarted-label',
+                    offset: 12,
+                    position: 'insideTopLeft',
+                    value: '尚未开始记录',
+                  }}
+                  stroke="none"
+                  x1={chartUnstartedRange.x1}
+                  x2={chartUnstartedRange.x2}
+                />
+              ) : null}
               <CartesianGrid strokeDasharray="2 8" vertical={false} />
               <XAxis
                 axisLine={false}
@@ -99,7 +206,19 @@ export function ReadingStatsPanel({
                 minTickGap={16}
               />
               <YAxis axisLine={false} tickLine={false} width={24} />
-              <ChartTooltip content={<ChartTooltipContent className="stats-chart-tooltip" />} />
+              <ChartTooltip content={<StatsChartTooltip />} />
+              <Line
+                activeDot={{ r: 5, strokeWidth: 0 }}
+                className="stats-handdrawn-stroke"
+                dataKey="articles"
+                dot={false}
+                shape={renderArticlesLine}
+                stroke="var(--color-articles)"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                type="linear"
+              />
               <Line
                 activeDot={{ r: 5, strokeWidth: 0 }}
                 className="stats-handdrawn-stroke"
@@ -124,28 +243,33 @@ export function ReadingStatsPanel({
                 strokeWidth={3}
                 type="linear"
               />
-              <Line
-                activeDot={{ r: 5, strokeWidth: 0 }}
-                className="stats-handdrawn-stroke"
-                dataKey="cards"
-                dot={false}
-                shape={renderCardsLine}
-                stroke="var(--color-cards)"
-                strokeDasharray="6 8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                type="linear"
-              />
             </LineChart>
           </ChartContainer>
         </div>
         <div className="stats-activity-card">
-          <div className="stats-section-heading">
-            <h3>{hasLitStamp ? '70 天伴读地图' : '从今天开始，收集你的伴读藏书票'}</h3>
-            <p>{mapDescription}</p>
+          <div className="stats-goal-card">
+            <div className="stats-goal-copy">
+              <span>七日章进度</span>
+              <strong>
+                {sevenDayProgress}
+                <small>/7</small>
+              </strong>
+              <p>
+                {sevenDayProgress >= 7 ? '七日章已点亮' : `再读 ${sevenDayRemaining} 天点亮七日章`}
+              </p>
+            </div>
+            <i className="activity-stamp status-lit level-4 is-special" aria-hidden="true" />
           </div>
-          <div className="activity-heatmap" aria-label="近 70 天伴读活动">
+          <div className="stats-goal-steps" aria-hidden="true">
+            {Array.from({ length: 7 }, (_, index) => (
+              <span className={index < sevenDayProgress ? 'is-lit' : ''} key={index} />
+            ))}
+          </div>
+          <div className="stats-map-heading">
+            <h3>{hasLitStamp ? '70 天伴读地图' : '从今天开始，收集你的伴读藏书票'}</h3>
+            <p>{activityMapDescription(hasLitStamp, litStampCount, currentStreak)}</p>
+          </div>
+          <div className="activity-heatmap is-compact" aria-label="近 70 天伴读活动">
             {activityStamps.map((day) => (
               <span
                 aria-label={activityStampLabel(day)}
@@ -172,19 +296,30 @@ export function ReadingStatsPanel({
           </div>
         </div>
       </section>
+      <section className="stats-insights">
+        <div className="stats-section-heading">
+          <h3>伴读洞察</h3>
+          <p>基于本地阅读记录生成</p>
+        </div>
+        <div className="stats-insight-list">
+          {insights.map((insight) => (
+            <p key={insight.id}>{insight.text}</p>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
-function renderAnnotationsLine(props: CurveProps) {
+function renderArticlesLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={11} />;
 }
 
-function renderCommentsLine(props: CurveProps) {
+function renderAnnotationsLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={23} />;
 }
 
-function renderCardsLine(props: CurveProps) {
+function renderCommentsLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={37} />;
 }
 
@@ -229,12 +364,149 @@ function HandDrawnCurve({
   );
 }
 
-function buildActivityStamps(
+function StatsChartTooltip({
+  active,
+  label,
+  payload,
+}: {
+  active?: boolean;
+  label?: React.ReactNode;
+  payload?: ChartTooltipPayload[];
+}) {
+  if (!active) return null;
+
+  const data = payload?.[0]?.payload;
+  if (data?.recordStatus === 'unstarted') {
+    return (
+      <div className="stats-chart-tooltip">
+        <div className="stats-chart-tooltip-label">{label}</div>
+        <div className="stats-chart-tooltip-empty">尚未开始记录</div>
+      </div>
+    );
+  }
+
+  const items = payload?.filter((item) => item.value !== undefined && item.value !== null) || [];
+  if (items.length === 0) return null;
+
+  return (
+    <div className="stats-chart-tooltip">
+      <div className="stats-chart-tooltip-label">{label}</div>
+      <div className="stats-chart-tooltip-items">
+        {items.map((item) => {
+          const key = String(item.dataKey || item.name || '');
+          const itemConfig = chartConfig[key as keyof typeof chartConfig];
+          return (
+            <div className="stats-chart-tooltip-item" key={key}>
+              <span
+                className="stats-chart-tooltip-dot"
+                style={{ background: item.color || itemConfig?.color }}
+              />
+              <span>{itemConfig?.label || item.name}</span>
+              <strong>{item.value}</strong>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function buildChartData(days: ReadingActivityDay[], startDate: string): ChartActivityDay[] {
+  return days.map((day) => {
+    if (day.date < startDate) {
+      return {
+        ...day,
+        articles: null,
+        annotations: null,
+        comments: null,
+        recordStatus: 'unstarted',
+      };
+    }
+
+    return {
+      ...day,
+      recordStatus: 'recording',
+    };
+  });
+}
+
+function unstartedChartRange(days: ChartActivityDay[]) {
+  const unstarted = days.filter((day) => day.recordStatus === 'unstarted');
+  const first = unstarted[0];
+  const last = unstarted.at(-1);
+  if (!first || !last) return null;
+  return { x1: first.label, x2: last.label };
+}
+
+function chartActivityDescription(recordedDays: number) {
+  if (recordedDays >= 21) return '批注、讨论和读后笔记趋势';
+  if (recordedDays <= 6) return `已记录 ${recordedDays} 天，正在形成你的伴读节奏`;
+  return `已记录 ${recordedDays} 天，读完文章后会生成批注、讨论和读后笔记趋势`;
+}
+
+function periodSummary(stats: ReadingStatsPeriod) {
+  return `${stats.articles} 篇文章 · ${stats.comments} 次讨论 · ${stats.annotations} 条批注 · ${stats.aiComments} 次助手参与`;
+}
+
+function nextGoalText(litStampCount: number, remaining: number) {
+  if (remaining <= 0) return '七日章已点亮，继续收集下一枚藏书票';
+  return `已收集 ${litStampCount} 枚藏书票，再读 ${remaining} 天点亮七日章`;
+}
+
+function peakActivityDay(days: ReadingActivityDay[], startDate: string) {
+  const activeDays = days.filter((day) => day.date >= startDate && day.score > 0);
+  return activeDays.reduce<ReadingActivityDay | null>((peak, day) => {
+    if (!peak || dayInteractions(day) > dayInteractions(peak)) return day;
+    return peak;
+  }, null);
+}
+
+function buildReadingInsights(
   days: ReadingActivityDay[],
-  articles: ArticleRecord[],
-): ActivityStamp[] {
+  startDate: string,
+  stats: ReadingStatsPeriod,
+): ReadingInsight[] {
+  const activeDays = days.filter((day) => day.date >= startDate && day.score > 0);
+  const peak = peakActivityDay(days, startDate);
+
+  if (activeDays.length === 0) {
+    return [
+      { id: 'start', text: '今天读完一篇文章后，这里会出现第一条伴读洞察。' },
+      { id: 'trend', text: '批注、讨论和助手参与会一起形成你的阅读趋势。' },
+    ];
+  }
+
+  return [
+    peak
+      ? {
+          id: 'peak',
+          text: `你在 ${peak.label} 最活跃，产生了 ${dayInteractions(peak)} 次互动。`,
+        }
+      : { id: 'peak', text: `已记录 ${activeDays.length} 个活跃日，伴读节奏正在成形。` },
+    stats.annotations >= stats.comments
+      ? {
+          id: 'depth',
+          text: `目前已留下 ${stats.annotations} 条批注，深读痕迹正在累积。`,
+        }
+      : {
+          id: 'discussion',
+          text: `讨论 ${stats.comments} 次，问题推进是当前主要节奏。`,
+        },
+    stats.aiComments > 0
+      ? {
+          id: 'ai',
+          text: `助手参与 ${stats.aiComments} 次，阅读高峰日的协作更集中。`,
+        }
+      : { id: 'ai', text: '完成一次助手讨论后，这里会显示协作趋势。' },
+  ];
+}
+
+function dayInteractions(day: ReadingActivityDay) {
+  return day.articles + day.annotations + day.comments + day.cards + day.aiComments;
+}
+
+function buildActivityStamps(days: ReadingActivityDay[], startDate: string): ActivityStamp[] {
   const today = days.at(-1)?.date || localDateKey(new Date().toISOString());
-  const startDate = firstActivityDate(articles) || today;
   let streak = 0;
   return days.map((day) => {
     streak = day.score > 0 ? streak + 1 : 0;
@@ -297,7 +569,7 @@ function firstActivityDate(articles: ArticleRecord[]) {
   return dates.filter(Boolean).toSorted()[0] || '';
 }
 
-function localDateKey(value: string | undefined) {
+function localDateKey(value: string | Date | undefined) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -358,27 +630,4 @@ function strokeWidthValue(value: CurveProps['strokeWidth']) {
 
 function svgNumber(value: number) {
   return value.toFixed(2);
-}
-
-function StatsPeriod({ stats, title }: { stats: ReadingStatsPeriod; title: string }) {
-  return (
-    <section className="stats-period">
-      <h3>{title}</h3>
-      <div className="stats-grid">
-        <StatsMetric label="文章" value={stats.articles} />
-        <StatsMetric label="批注" value={stats.annotations} />
-        <StatsMetric label="讨论" value={stats.comments} />
-        <StatsMetric label="AI 参与" value={stats.aiComments} />
-      </div>
-    </section>
-  );
-}
-
-function StatsMetric({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="stats-metric">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
-  );
 }
