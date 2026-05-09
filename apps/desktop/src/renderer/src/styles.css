@@ -1331,6 +1331,49 @@
   margin-bottom: 18px;
 }
 
+.provider-test-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.provider-test-status {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: white;
+  animation: provider-test-status-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.provider-test-status.is-success {
+  background: hsl(141 41% 40%);
+  box-shadow: 0 8px 18px hsl(141 41% 30% / 0.2);
+}
+
+.provider-test-status.is-error {
+  background: hsl(var(--destructive));
+  box-shadow: 0 8px 18px hsl(9 65% 36% / 0.2);
+}
+
+@keyframes provider-test-status-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.62);
+  }
+
+  64% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.08);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .provider-editor-dialog-overlay {
   position: fixed;
   z-index: 92;
@@ -8768,11 +8811,14 @@ button.license-package-row:hover {
 
 @media (max-width: 1560px) {
   .settings-hub-layout {
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     overflow: auto;
   }
 
   .settings-section-sidebar {
+    align-self: start;
     overflow: visible;
   }
 

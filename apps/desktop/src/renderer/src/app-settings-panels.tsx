@@ -119,6 +119,7 @@ type AgentFilter = AgentKind;
 export type SettingsSectionKey = 'collection' | 'models' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
 const PROVIDER_EDITOR_COMPACT_WIDTH = 980;
+type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
 type AgentLineCue = {
   agentId: string;
   id: string;
@@ -657,12 +658,13 @@ export function ProviderSettings({
   routeSaveState: SaveState;
   onRouteSave: () => void;
   onSelect: (provider: LlmProvider) => void;
-  onTest: (id: string) => void;
+  onTest: (id: string) => Promise<void> | void;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [compactProviderEditor, setCompactProviderEditor] = useState(false);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
+  const [testStatus, setTestStatus] = useState<ProviderTestStatus>('idle');
   const usedProviderIds = new Set(
     [
       settingsDraft.readingAssistantProviderId,
@@ -690,6 +692,26 @@ export function ProviderSettings({
   }, [compactProviderEditor, providerEditorOpen]);
 
   useEffect(() => {
+    setTestStatus('idle');
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!testState) return;
+    if (testState === '测试中...') {
+      setTestStatus('testing');
+      return;
+    }
+    if (testStatus !== 'testing') return;
+    if (testState.startsWith('连通成功')) {
+      setTestStatus('success');
+      return;
+    }
+    if (testState.startsWith('连通失败')) {
+      setTestStatus('error');
+    }
+  }, [testState, testStatus]);
+
+  useEffect(() => {
     if (!providerEditorOpen) return;
 
     function closeOnEscape(event: KeyboardEvent) {
@@ -713,6 +735,11 @@ export function ProviderSettings({
   function deleteProvider(id: string) {
     onDelete(id);
     setProviderEditorOpen(false);
+  }
+
+  function testProvider(id: string) {
+    setTestStatus('testing');
+    void Promise.resolve(onTest(id)).catch(() => setTestStatus('error'));
   }
 
   const editorDialog =
@@ -743,13 +770,13 @@ export function ProviderSettings({
                 draft={draft}
                 saveLabel={saveLabel}
                 saveState={saveState}
-                testState={testState}
+                testStatus={testStatus}
                 titleId="provider-editor-dialog-title"
                 canSave={canSave}
                 onChange={onChange}
                 onDelete={deleteProvider}
                 onSave={onSave}
-                onTest={onTest}
+                onTest={testProvider}
               />
             </section>
           </div>,
@@ -811,12 +838,12 @@ export function ProviderSettings({
               draft={draft}
               saveLabel={saveLabel}
               saveState={saveState}
-              testState={testState}
+              testStatus={testStatus}
               canSave={canSave}
               onChange={onChange}
               onDelete={onDelete}
               onSave={onSave}
-              onTest={onTest}
+              onTest={testProvider}
             />
           </section>
         </div>
@@ -830,7 +857,7 @@ function ProviderEditorContent({
   draft,
   saveLabel,
   saveState,
-  testState,
+  testStatus,
   titleId,
   canSave,
   onChange,
@@ -841,7 +868,7 @@ function ProviderEditorContent({
   draft: ProviderDraft;
   saveLabel: string;
   saveState: SaveState;
-  testState: string;
+  testStatus: ProviderTestStatus;
   titleId?: string;
   canSave: boolean;
   onChange: (draft: ProviderDraft) => void;
@@ -849,6 +876,18 @@ function ProviderEditorContent({
   onSave: () => void;
   onTest: (id: string) => void;
 }) {
+  const testResultIcon =
+    testStatus === 'success' || testStatus === 'error' ? (
+      <span
+        aria-label={testStatus === 'success' ? '测试成功' : '测试失败'}
+        className={`provider-test-status is-${testStatus}`}
+        key={testStatus}
+        role="status"
+      >
+        {testStatus === 'success' ? <Check size={15} /> : <X size={15} />}
+      </span>
+    ) : null;
+
   return (
     <>
       <div className="detail-pane-header">
@@ -858,14 +897,17 @@ function ProviderEditorContent({
         </div>
         <div className="flex gap-2">
           {draft.id ? (
-            <Button
-              className="action-button test-action"
-              variant="secondary"
-              type="button"
-              onClick={() => onTest(draft.id!)}
-            >
-              测试
-            </Button>
+            <span className="provider-test-control">
+              <Button
+                className="action-button test-action"
+                variant="secondary"
+                type="button"
+                onClick={() => onTest(draft.id!)}
+              >
+                {testStatus === 'testing' ? '测试中' : '测试'}
+              </Button>
+              {testResultIcon}
+            </span>
           ) : null}
           {draft.id ? (
             <Button
@@ -894,11 +936,6 @@ function ProviderEditorContent({
         </div>
       </div>
       <ProviderForm draft={draft} onChange={onChange} />
-      {testState ? (
-        <p className="mt-4 rounded-xl bg-secondary px-4 py-3 text-sm text-secondary-foreground">
-          {testState}
-        </p>
-      ) : null}
     </>
   );
 }
