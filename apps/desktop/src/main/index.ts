@@ -64,7 +64,7 @@ app.setName('Yomitomo');
 app.setPath('userData', join(app.getPath('appData'), '@yomitomo/desktop'));
 
 async function createWindow() {
-  mainWindow = new BrowserWindow({
+  const browserWindow = new BrowserWindow({
     ...windowChromeOptions(),
     width: 1180,
     height: 820,
@@ -79,15 +79,20 @@ async function createWindow() {
       nodeIntegration: false,
     },
   });
+  mainWindow = browserWindow;
+
+  browserWindow.on('closed', () => {
+    if (mainWindow === browserWindow) mainWindow = null;
+  });
 
   if (process.env.ELECTRON_RENDERER_URL) {
-    await mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    await browserWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
+    browserWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
-    await mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    await browserWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  browserWindow.webContents.setWindowOpenHandler(({ url }) => {
     void openExternalUrl(url);
     return { action: 'deny' };
   });
@@ -432,11 +437,24 @@ function registerIpc() {
 function sendPairingConnectionStatus(
   status: DesktopConnectionStatus = getDesktopConnectionStatus(),
 ) {
-  mainWindow?.webContents.send('pairing:connection-status', status);
+  sendToRenderer('pairing:connection-status', status);
 }
 
 function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
-  mainWindow?.webContents.send('store:updated', store);
+  sendToRenderer('store:updated', store);
+}
+
+function sendToRenderer(
+  channel: 'pairing:connection-status',
+  payload: DesktopConnectionStatus,
+): void;
+function sendToRenderer(
+  channel: 'store:updated',
+  payload: Awaited<ReturnType<typeof readStore>>,
+): void;
+function sendToRenderer(channel: string, payload: unknown) {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
+  mainWindow.webContents.send(channel, payload);
 }
 
 type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'readingNote';
