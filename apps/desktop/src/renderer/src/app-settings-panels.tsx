@@ -12,10 +12,12 @@ import {
   RefreshCw,
   Save,
   ShieldCheck,
+  Settings,
   Trash2,
   Unplug,
   Upload,
   User,
+  X,
 } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, ProviderType } from '@yomitomo/shared';
 import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
@@ -275,23 +277,19 @@ export function SettingsNavButton({
 }
 
 export function GeneralSettings({
-  draft,
   pairingConnectionStatus,
   pairingInfo,
   settingsDraft,
   canSave,
-  onChange,
   onSettingsChange,
   onSave,
   onRotatePairing,
   saveState,
 }: {
-  draft: UserDraft;
   pairingConnectionStatus: PairingConnectionStatus;
   pairingInfo: PairingInfo | null;
   settingsDraft: AppSettings;
   canSave: boolean;
-  onChange: (draft: UserDraft) => void;
   onSettingsChange: (draft: AppSettings) => void;
   onSave: () => void;
   onRotatePairing: () => void;
@@ -304,21 +302,13 @@ export function GeneralSettings({
   const pairingDescription = extensionConnected
     ? `${readerSessionCount} 个阅读器会话正在连接本机`
     : '打开浏览器阅读器后会自动连接本机';
-  const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
-    ? draft.annotationColor || userAnnotationColors[0]
-    : userAnnotationColors[0];
-
-  React.useEffect(() => {
-    if (!draft.annotationColor || userAnnotationColors.includes(draft.annotationColor)) return;
-    onChange({ ...draft, annotationColor: userAnnotationColors[0] });
-  }, [draft, onChange]);
 
   return (
     <div className="settings-panel">
       <PanelHeader
-        icon={<User size={20} />}
-        title="通用"
-        description="配置用户头像、昵称和用户名，后续批注会使用这组身份信息。"
+        icon={<Settings size={20} />}
+        title="设置"
+        description="管理桌面端保存策略和浏览器扩展连接。"
         action={
           <Button
             className={
@@ -336,47 +326,6 @@ export function GeneralSettings({
         }
       />
       <div className="settings-form-grid max-w-3xl">
-        <div className="col-span-2 flex items-center gap-4">
-          <AvatarImage value={draft.avatar || ''} className="size-20" fallback="我" />
-          <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
-        </div>
-        <Field id="general-nickname" description="批注和评论中展示的名称。" label="昵称">
-          <Input
-            id="general-nickname"
-            name="nickname"
-            autoComplete="off"
-            value={draft.nickname || ''}
-            onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
-          />
-        </Field>
-        <Field
-          id="general-username"
-          description="用于 @ 提及，仅支持英文、数字和下划线。"
-          label="用户名"
-        >
-          <Input
-            id="general-username"
-            name="username"
-            autoComplete="off"
-            spellCheck={false}
-            value={draft.username || ''}
-            onChange={(event) =>
-              onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
-            }
-          />
-        </Field>
-        <Field className="col-span-2" label="批注颜色">
-          <AnnotationColorPreview
-            avatar={draft.avatar || ''}
-            color={selectedAnnotationColor}
-            nickname={draft.nickname || '我'}
-          />
-          <ColorPicker
-            colors={userAnnotationColors}
-            value={selectedAnnotationColor}
-            onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
-          />
-        </Field>
         <Field
           id="general-save-images"
           className="col-span-2"
@@ -444,6 +393,142 @@ export function GeneralSettings({
           </div>
         </Field>
       </div>
+    </div>
+  );
+}
+
+export function UserProfileSettingsDialog({
+  draft,
+  canSave,
+  onChange,
+  onClose,
+  onSave,
+  saveState,
+}: {
+  draft: UserDraft;
+  canSave: boolean;
+  onChange: (draft: UserDraft) => void;
+  onClose: () => void;
+  onSave: () => void;
+  saveState: SaveState;
+}) {
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
+    ? draft.annotationColor || userAnnotationColors[0]
+    : userAnnotationColors[0];
+
+  React.useEffect(() => {
+    if (!draft.annotationColor || userAnnotationColors.includes(draft.annotationColor)) return;
+    onChange({ ...draft, annotationColor: userAnnotationColors[0] });
+  }, [draft, onChange]);
+
+  React.useEffect(() => {
+    function closeWithEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    window.addEventListener('keydown', closeWithEscape);
+    return () => window.removeEventListener('keydown', closeWithEscape);
+  }, [onClose]);
+
+  return (
+    <div
+      className="user-profile-dialog-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        aria-labelledby="user-profile-dialog-title"
+        aria-modal="true"
+        className="user-profile-dialog"
+        role="dialog"
+      >
+        <header>
+          <div className="user-profile-dialog-heading">
+            <span>
+              <User size={19} />
+            </span>
+            <div>
+              <h2 id="user-profile-dialog-title">个人设置</h2>
+              <p>配置批注和评论中使用的身份信息。</p>
+            </div>
+          </div>
+          <button
+            aria-label="关闭个人设置"
+            className="user-profile-dialog-close"
+            type="button"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="user-profile-form">
+          <div className="user-profile-avatar-row">
+            <AvatarImage
+              value={draft.avatar || ''}
+              className="user-profile-avatar-preview"
+              fallback={draft.nickname?.slice(0, 1) || '我'}
+            />
+            <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
+          </div>
+          <Field id="profile-nickname" description="批注和评论中展示的名称。" label="昵称">
+            <Input
+              id="profile-nickname"
+              name="nickname"
+              autoComplete="off"
+              value={draft.nickname || ''}
+              onChange={(event) => onChange({ ...draft, nickname: event.target.value })}
+            />
+          </Field>
+          <Field
+            id="profile-username"
+            description="用于 @ 提及，仅支持英文、数字和下划线。"
+            label="用户名"
+          >
+            <Input
+              id="profile-username"
+              name="username"
+              autoComplete="off"
+              spellCheck={false}
+              value={draft.username || ''}
+              onChange={(event) =>
+                onChange({ ...draft, username: sanitizeUsernameInput(event.target.value) })
+              }
+            />
+          </Field>
+          <Field className="col-span-2" label="批注颜色">
+            <AnnotationColorPreview
+              avatar={draft.avatar || ''}
+              color={selectedAnnotationColor}
+              nickname={draft.nickname || '我'}
+            />
+            <ColorPicker
+              colors={userAnnotationColors}
+              value={selectedAnnotationColor}
+              onChange={(annotationColor) => onChange({ ...draft, annotationColor })}
+            />
+          </Field>
+        </div>
+
+        <footer>
+          <Button
+            className={
+              saveState === 'saved'
+                ? 'action-button save-action is-saved'
+                : 'action-button save-action'
+            }
+            disabled={!canSave}
+            type="button"
+            onClick={onSave}
+          >
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
+          </Button>
+        </footer>
+      </section>
     </div>
   );
 }

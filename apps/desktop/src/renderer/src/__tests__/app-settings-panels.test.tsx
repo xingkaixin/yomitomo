@@ -9,6 +9,7 @@ import {
   GeneralSettings,
   ProviderForm,
   ProviderSettings,
+  UserProfileSettingsDialog,
   readingAgentAvatars,
   reviewAgentAvatars,
 } from '../app-settings-panels';
@@ -320,7 +321,6 @@ describe('GeneralSettings', () => {
   it('keeps the pairing identity visible when no reader session is active', () => {
     render(
       <GeneralSettings
-        draft={defaultUser}
         pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
         pairingInfo={{
           token: 'desktop-token',
@@ -329,7 +329,6 @@ describe('GeneralSettings', () => {
         }}
         settingsDraft={{}}
         canSave={false}
-        onChange={vi.fn()}
         onSettingsChange={vi.fn()}
         onSave={vi.fn()}
         onRotatePairing={vi.fn()}
@@ -345,7 +344,6 @@ describe('GeneralSettings', () => {
   it('describes active connections as reader sessions', () => {
     render(
       <GeneralSettings
-        draft={defaultUser}
         pairingConnectionStatus={{ authenticatedSocketCount: 2 }}
         pairingInfo={{
           token: 'desktop-token',
@@ -354,7 +352,6 @@ describe('GeneralSettings', () => {
         }}
         settingsDraft={{}}
         canSave={false}
-        onChange={vi.fn()}
         onSettingsChange={vi.fn()}
         onSave={vi.fn()}
         onRotatePairing={vi.fn()}
@@ -369,12 +366,10 @@ describe('GeneralSettings', () => {
     const onSettingsChange = vi.fn();
     render(
       <GeneralSettings
-        draft={defaultUser}
         pairingConnectionStatus={{ authenticatedSocketCount: 0 }}
         pairingInfo={null}
         settingsDraft={{ saveArticleImages: false }}
         canSave={false}
-        onChange={vi.fn()}
         onSettingsChange={onSettingsChange}
         onSave={vi.fn()}
         onRotatePairing={vi.fn()}
@@ -385,5 +380,47 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /保存文章图片/ }));
 
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+  });
+});
+
+describe('UserProfileSettingsDialog', () => {
+  it('edits identity fields and keeps usernames sanitized', () => {
+    const onChange = vi.fn();
+
+    render(
+      <UserProfileSettingsDialog
+        draft={defaultUser}
+        canSave
+        onChange={onChange}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('昵称'), { target: { value: '行开心' } });
+    fireEvent.change(screen.getByLabelText('用户名'), { target: { value: 'xing kaixin!' } });
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ nickname: '行开心' }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ username: 'xingkaixin' }));
+  });
+
+  it('saves profile changes from the dialog footer', () => {
+    const onSave = vi.fn();
+
+    render(
+      <UserProfileSettingsDialog
+        draft={defaultUser}
+        canSave
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /保存/ }));
+
+    expect(onSave).toHaveBeenCalledOnce();
   });
 });

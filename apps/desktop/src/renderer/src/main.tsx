@@ -8,7 +8,7 @@ import {
   KeyRound,
   PanelLeftClose,
   PanelLeftOpen,
-  User,
+  Settings,
 } from 'lucide-react';
 import type {
   Agent,
@@ -33,6 +33,7 @@ import {
   GeneralSettings,
   ProviderSettings,
   SettingsNavButton,
+  UserProfileSettingsDialog,
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import { selectDailyQuote } from './app-daily-quote';
@@ -52,11 +53,13 @@ function App() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [testState, setTestState] = useState('');
   const [agentSaveError, setAgentSaveError] = useState('');
-  const [userSaveState, setUserSaveState] = useState<SaveState>('idle');
+  const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
+  const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
   const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
   const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
   const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
     authenticatedSocketCount: 0,
@@ -126,7 +129,8 @@ function App() {
   const canSaveProvider =
     providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
-  const canSaveUser = userSaveState !== 'saving' && (userHasChanges || settingsHasChanges);
+  const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
+  const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -190,22 +194,31 @@ function App() {
     setProviderSaveState('idle');
   }
 
-  async function saveUserDraft() {
-    if (!window.yomitomoDesktop || !canSaveUser) return;
-    setUserSaveState('saving');
+  async function saveProfileDraft() {
+    if (!window.yomitomoDesktop || !userHasChanges) return;
+    setProfileSaveState('saving');
     try {
-      let nextStore = await window.yomitomoDesktop.saveUser(userDraft);
-      nextStore = await window.yomitomoDesktop.saveSettings({
-        ...store.settings,
-        saveArticleImages: settingsDraft.saveArticleImages,
-      });
+      const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
       setStore(nextStore);
       setUserDraft(nextStore.user);
-      setSettingsDraft(nextStore.settings);
-      setUserSaveState('saved');
-      window.setTimeout(() => setUserSaveState('idle'), 1200);
+      setProfileSaveState('saved');
+      window.setTimeout(() => setProfileSaveState('idle'), 1200);
     } catch {
-      setUserSaveState('idle');
+      setProfileSaveState('idle');
+    }
+  }
+
+  async function saveGeneralSettingsDraft() {
+    if (!window.yomitomoDesktop || !settingsHasChanges) return;
+    setGeneralSaveState('saving');
+    try {
+      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
+      setStore(nextStore);
+      setSettingsDraft(nextStore.settings);
+      setGeneralSaveState('saved');
+      window.setTimeout(() => setGeneralSaveState('idle'), 1200);
+    } catch {
+      setGeneralSaveState('idle');
     }
   }
 
@@ -295,6 +308,19 @@ function App() {
           <h1>Yomitomo</h1>
           <p>伴读 · 你的 AI 阅读伙伴</p>
         </div>
+        <button
+          aria-label="打开个人设置"
+          className="header-profile-button"
+          type="button"
+          onClick={() => setProfileDialogOpen(true)}
+        >
+          <AvatarImage
+            value={store.user.avatar || ''}
+            className="header-profile-avatar"
+            fallback={store.user.nickname?.slice(0, 1) || '我'}
+          />
+          <span>{store.user.nickname || '我'}</span>
+        </button>
       </header>
 
       <section className="app-layout">
@@ -317,8 +343,8 @@ function App() {
             <SettingsNavButton
               active={activeSetting === 'general'}
               collapsed={sidebarCollapsed}
-              icon={<User size={18} />}
-              label="通用"
+              icon={<Settings size={18} />}
+              label="设置"
               onClick={() => setActiveSetting('general')}
             />
             <SettingsNavButton
@@ -388,22 +414,17 @@ function App() {
           ) : null}
           {activeSetting === 'general' ? (
             <GeneralSettings
-              draft={userDraft}
               pairingConnectionStatus={pairingConnectionStatus}
               pairingInfo={pairingInfo}
               settingsDraft={settingsDraft}
-              canSave={canSaveUser}
-              onChange={(draft) => {
-                setUserDraft(draft);
-                setUserSaveState('idle');
-              }}
+              canSave={canSaveGeneralSettings}
               onSettingsChange={(draft) => {
                 setSettingsDraft(draft);
-                setUserSaveState('idle');
+                setGeneralSaveState('idle');
               }}
-              onSave={saveUserDraft}
+              onSave={saveGeneralSettingsDraft}
               onRotatePairing={rotatePairingInfo}
-              saveState={userSaveState}
+              saveState={generalSaveState}
             />
           ) : null}
           {activeSetting === 'providers' ? (
@@ -444,6 +465,19 @@ function App() {
           {activeSetting === 'about' ? <AboutSettings /> : null}
         </section>
       </section>
+      {profileDialogOpen ? (
+        <UserProfileSettingsDialog
+          draft={userDraft}
+          canSave={canSaveUser}
+          onChange={(draft) => {
+            setUserDraft(draft);
+            setProfileSaveState('idle');
+          }}
+          onClose={() => setProfileDialogOpen(false)}
+          onSave={saveProfileDraft}
+          saveState={profileSaveState}
+        />
+      ) : null}
     </main>
   );
 }
