@@ -39,17 +39,28 @@ let articleOpenListener: ((article: ArticleRecord) => void) | null = null;
 
 export type DesktopConnectionStatus = {
   authenticatedSocketCount: number;
+  extensionVersions?: string[];
+  lastExtensionVersion?: string;
 };
+
+let lastExtensionVersion = '';
 
 export function setSocketStatusListener(listener: (status: DesktopConnectionStatus) => void) {
   socketStatusListener = listener;
 }
 
 export function getDesktopConnectionStatus(): DesktopConnectionStatus {
+  const authenticatedStates = Array.from(wsServer?.clients || [])
+    .map((client) => socketStates.get(client))
+    .filter((state): state is DesktopSocketAuthState => Boolean(state?.authenticated));
+  const extensionVersions = Array.from(
+    new Set(authenticatedStates.map((state) => state.extensionVersion).filter(Boolean) as string[]),
+  );
+
   return {
-    authenticatedSocketCount: Array.from(wsServer?.clients || []).filter(
-      (client) => socketStates.get(client)?.authenticated,
-    ).length,
+    authenticatedSocketCount: authenticatedStates.length,
+    extensionVersions,
+    lastExtensionVersion: lastExtensionVersion || undefined,
   };
 }
 
@@ -171,6 +182,7 @@ async function handleMessage(socket: WebSocket, raw: string) {
     }
 
     if (message.type === 'hello') {
+      rememberExtensionVersion(socket, message.extensionVersion);
       await sendStatus(socket);
       return;
     }
@@ -407,6 +419,15 @@ function send(socket: WebSocket, message: DesktopServerMessage) {
 
 function notifySocketStatusChange() {
   socketStatusListener?.(getDesktopConnectionStatus());
+}
+
+function rememberExtensionVersion(socket: WebSocket, extensionVersion: string | undefined) {
+  if (!extensionVersion) return;
+  const state = socketStates.get(socket);
+  if (!state?.authenticated) return;
+  socketStates.set(socket, { ...state, extensionVersion });
+  lastExtensionVersion = extensionVersion;
+  notifySocketStatusChange();
 }
 
 function toPublicAgents(agents: Agent[]): PublicAgent[] {

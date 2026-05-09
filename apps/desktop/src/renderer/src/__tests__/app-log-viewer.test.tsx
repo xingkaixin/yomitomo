@@ -10,11 +10,10 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function installDesktopLogApi(rawLog: string) {
+function installDesktopAboutApi() {
   const desktop = {
-    getLogPath: vi.fn().mockResolvedValue('/tmp/yomitomo.log'),
-    readLog: vi.fn().mockResolvedValue(rawLog),
-    clearLog: vi.fn().mockResolvedValue(undefined),
+    getAppInfo: vi.fn().mockResolvedValue({ desktopVersion: '0.1.0' }),
+    openUrl: vi.fn().mockResolvedValue(undefined),
   };
 
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -25,42 +24,50 @@ function installDesktopLogApi(rawLog: string) {
   return desktop;
 }
 
-describe('AboutSettings log viewer', () => {
-  it('loads logs from the desktop bridge and filters by query', async () => {
-    installDesktopLogApi(
-      [
-        '{"at":"2026-05-04T00:00:00.000Z","level":"info","event":"app.start","data":{"port":43891}}',
-        '{"at":"2026-05-04T00:01:00.000Z","level":"error","event":"llm.fail","data":"timeout"}',
-      ].join('\n'),
+describe('AboutSettings', () => {
+  it('shows desktop and extension versions', async () => {
+    installDesktopAboutApi();
+
+    render(
+      <AboutSettings
+        pairingConnectionStatus={{
+          authenticatedSocketCount: 1,
+          extensionVersions: ['0.1.0'],
+        }}
+      />,
     );
 
-    render(<AboutSettings />);
-
-    expect(await screen.findByText('/tmp/yomitomo.log')).toBeTruthy();
-    expect(screen.getByText('app.start')).toBeTruthy();
-    expect(screen.getByText('llm.fail')).toBeTruthy();
-
-    fireEvent.change(screen.getByPlaceholderText('搜索日志事件、内容或路径'), {
-      target: { value: 'llm' },
-    });
-
-    expect(screen.queryByText('app.start')).toBeNull();
-    expect(screen.getByText('llm.fail')).toBeTruthy();
-    expect(screen.getByText('1 / 2 条')).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText('v0.1.0').length).toBeGreaterThan(1));
+    expect(screen.getByText('1 个阅读器会话正在连接')).toBeTruthy();
+    expect(screen.getByText('开源许可证')).toBeTruthy();
   });
 
-  it('clears loaded logs through the desktop bridge', async () => {
-    const desktop = installDesktopLogApi(
-      '{"at":"2026-05-04T00:00:00.000Z","level":"info","event":"app.start"}',
-    );
+  it('opens project links through the desktop bridge', async () => {
+    const desktop = installDesktopAboutApi();
 
     render(<AboutSettings />);
 
-    await screen.findByText('app.start');
-    fireEvent.click(screen.getByRole('button', { name: '清理' }));
+    fireEvent.click(screen.getByRole('button', { name: /打开文档/ }));
 
-    await waitFor(() => expect(desktop.clearLog).toHaveBeenCalledOnce());
-    expect(screen.getByText('日志已清理')).toBeTruthy();
-    expect(screen.getByText('没有匹配的日志')).toBeTruthy();
+    await waitFor(() =>
+      expect(desktop.openUrl).toHaveBeenCalledWith('https://github.com/xingkaixin/yomitomo#readme'),
+    );
+  });
+
+  it('filters open source packages in the license dialog', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
+    expect(screen.getByRole('dialog', { name: '开源许可证' })).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText('搜索软件包或许可证...'), {
+      target: { value: 'readability' },
+    });
+
+    expect(screen.getByText('@mozilla/readability')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /@mozilla\/readability/ }));
+    expect(screen.getAllByText('Apache-2.0').length).toBeGreaterThan(0);
   });
 });

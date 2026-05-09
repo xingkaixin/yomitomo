@@ -145,6 +145,7 @@ app.on('activate', () => {
 });
 
 function registerIpc() {
+  ipcMain.handle('app:info', () => ({ desktopVersion: app.getVersion() }));
   ipcMain.handle('store:get', () => readStore());
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());

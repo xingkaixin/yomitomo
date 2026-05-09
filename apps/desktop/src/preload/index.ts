@@ -42,9 +42,16 @@ export type PairingInfo = {
 
 export type PairingConnectionStatus = {
   authenticatedSocketCount: number;
+  extensionVersions?: string[];
+  lastExtensionVersion?: string;
+};
+
+export type AppInfo = {
+  desktopVersion: string;
 };
 
 const api = {
+  getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
   getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
   onStoreUpdated: (callback: (store: DesktopStore) => void) => {
     const listener = (_event: IpcRendererEvent, store: DesktopStore) => callback(store);

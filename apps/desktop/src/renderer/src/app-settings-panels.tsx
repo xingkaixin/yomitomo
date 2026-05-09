@@ -3,9 +3,12 @@ import {
   BookOpen,
   Bot,
   Check,
+  ChevronRight,
+  Database,
   Eye,
   EyeOff,
   Image as ImageIcon,
+  Info,
   KeyRound,
   Keyboard,
   Plus,
@@ -112,6 +115,7 @@ import type { SaveState } from './app-types';
 
 type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
+export type SettingsSectionKey = 'collection' | 'models' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
 type AgentLineCue = {
   agentId: string;
@@ -224,6 +228,43 @@ const providerLogoMap: Record<string, string> = {
   'zhipu.png': zhipuLogo,
 };
 
+const settingsSections: Array<{
+  key: SettingsSectionKey;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  items: string[];
+}> = [
+  {
+    key: 'collection',
+    title: '采集与保存',
+    description: '管理文章采集时的本地保存行为。',
+    icon: <ImageIcon size={17} />,
+    items: ['保存原文图片'],
+  },
+  {
+    key: 'models',
+    title: '模型与路由',
+    description: '分配任务模型，并维护模型供应商。',
+    icon: <KeyRound size={17} />,
+    items: ['任务路由', '模型供应商'],
+  },
+  {
+    key: 'data',
+    title: '数据管理',
+    description: '集中管理导出和清理类操作。',
+    icon: <Database size={17} />,
+    items: ['导出数据', '清理数据'],
+  },
+  {
+    key: 'about',
+    title: '关于',
+    description: '查看版本、链接和开源许可证。',
+    icon: <Info size={17} />,
+    items: ['应用版本', '更新记录', '官网 / 文档', '反馈入口', '开源许可证'],
+  },
+];
+
 function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
   return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
 }
@@ -321,6 +362,61 @@ export function SettingsNavButton({
   );
 }
 
+export function SettingsSectionShell({
+  activeSection,
+  children,
+  onSectionChange,
+}: {
+  activeSection: SettingsSectionKey;
+  children: React.ReactNode;
+  onSectionChange: (section: SettingsSectionKey) => void;
+}) {
+  return (
+    <div className="settings-hub-layout">
+      <aside className="settings-section-sidebar">
+        <header className="settings-section-heading">
+          <span>
+            <Settings size={18} />
+          </span>
+          <div>
+            <h2>设置</h2>
+            <p>采集、模型、数据和应用信息集中管理。</p>
+          </div>
+        </header>
+        <nav className="settings-section-nav" aria-label="设置分类">
+          {settingsSections.map((section) => {
+            const active = activeSection === section.key;
+            return (
+              <button
+                aria-current={active ? 'page' : undefined}
+                className={
+                  active ? 'settings-section-nav-item is-active' : 'settings-section-nav-item'
+                }
+                key={section.key}
+                type="button"
+                onClick={() => onSectionChange(section.key)}
+              >
+                <span className="settings-section-nav-icon">{section.icon}</span>
+                <span className="settings-section-nav-copy">
+                  <strong>{section.title}</strong>
+                  <em>{section.description}</em>
+                  <span className="settings-section-nav-subitems">
+                    {section.items.map((item) => (
+                      <span key={item}>{item}</span>
+                    ))}
+                  </span>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+      <section className="settings-section-content">{children}</section>
+    </div>
+  );
+}
+
 export function GeneralSettings({
   settingsDraft,
   canSave,
@@ -340,8 +436,8 @@ export function GeneralSettings({
     <div className="settings-panel">
       <PanelHeader
         icon={<Settings size={20} />}
-        title="设置"
-        description="管理桌面端保存策略。"
+        title="采集与保存"
+        description="控制插件采集文章时的本地保存行为。"
         action={
           <Button
             className={
@@ -362,8 +458,8 @@ export function GeneralSettings({
         <Field
           id="general-save-images"
           className="col-span-2"
-          description="保存文章时把正文图片写入本机数据库，桌面端查看原文时直接读取本地数据。"
-          label="保存图片"
+          description="插件推送文章时，将正文中的图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
+          label="保存原文图片"
         >
           <label className="settings-toggle-card" htmlFor="general-save-images">
             <span className="settings-toggle-main">
@@ -371,8 +467,12 @@ export function GeneralSettings({
                 <ImageIcon size={17} />
               </span>
               <span>
-                <strong>保存文章图片</strong>
-                <em>开启后新同步的文章会内联图片数据。</em>
+                <strong>采集文章时保存正文图片</strong>
+                <em>
+                  {settingsDraft.saveArticleImages
+                    ? '已开启。新采集文章中的图片会随文章一起保存。'
+                    : '已关闭。文章图片将保留原始链接。'}
+                </em>
               </span>
             </span>
             <input
@@ -580,8 +680,8 @@ export function ProviderSettings({
     <div className="settings-panel">
       <PanelHeader
         icon={<KeyRound size={20} />}
-        title="供应商"
-        description="不同任务选择合适模型，同时管理你的供应商链接。"
+        title="模型与路由"
+        description="为伴读任务分配默认模型，并管理模型服务商配置。"
       />
       <TaskProviderRoutes
         canSave={canSaveRoutes}
@@ -592,7 +692,7 @@ export function ProviderSettings({
         onSave={onRouteSave}
       />
       <div className="settings-detail-grid">
-        <ConfigList title="已配置供应商" onCreate={onCreate}>
+        <ConfigList title="模型供应商" onCreate={onCreate}>
           {providers.map((provider) => (
             <button
               className={
@@ -628,7 +728,7 @@ export function ProviderSettings({
           <div className="detail-pane-header">
             <div>
               <h3>{draft.id ? '编辑供应商' : '新增供应商'}</h3>
-              <p>{draft.id ? '点击左侧其他供应商切换详情。' : '填写完成后保存到供应商列表。'}</p>
+              <p>管理模型服务商、API Key、Base URL 和可用模型。</p>
             </div>
             <div className="flex gap-2">
               {draft.id ? (
@@ -731,7 +831,7 @@ function TaskProviderRoutes({
       <div className="task-route-header">
         <div>
           <h3 id="task-route-title">任务路由</h3>
-          <p>已配置供应商都可以分配给具体任务。</p>
+          <p>为不同伴读任务分配默认模型。</p>
         </div>
         <Button
           className={
@@ -801,6 +901,23 @@ function TaskProviderRoutes({
         ))}
       </div>
     </section>
+  );
+}
+
+export function DataManagementSettings() {
+  return (
+    <div className="settings-panel">
+      <PanelHeader
+        icon={<Database size={20} />}
+        title="数据管理"
+        description="导出数据和清理数据会集中放在这里。"
+      />
+      <section className="settings-empty-panel">
+        <Database size={24} />
+        <strong>数据工具规划中</strong>
+        <p>后续会在这里提供导出数据和清理数据入口。</p>
+      </section>
+    </div>
   );
 }
 

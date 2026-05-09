@@ -1,15 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import {
-  BarChart3,
-  BookOpen,
-  Bot,
-  Info,
-  KeyRound,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
-} from 'lucide-react';
+import { BarChart3, BookOpen, Bot, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import type {
   Agent,
   AppSettings,
@@ -31,10 +22,13 @@ import { ReadingStatsPanel } from './app-reading-stats';
 import { ExtensionConnectionButton, ExtensionConnectionDialog } from './app-extension-connection';
 import {
   AgentSettings,
+  DataManagementSettings,
   GeneralSettings,
   ProviderSettings,
+  SettingsSectionShell,
   SettingsNavButton,
   UserProfileSettingsDialog,
+  type SettingsSectionKey,
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import { selectDailyQuote } from './app-daily-quote';
@@ -43,11 +37,13 @@ import { AvatarImage } from './app-ui';
 import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
-type SettingKey = 'library' | 'stats' | 'general' | 'providers' | 'agents' | 'about';
+type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
+  const [activeSettingsSection, setActiveSettingsSection] =
+    useState<SettingsSectionKey>('collection');
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
@@ -343,18 +339,11 @@ function App() {
               onClick={() => setActiveSetting('stats')}
             />
             <SettingsNavButton
-              active={activeSetting === 'general'}
+              active={activeSetting === 'settings'}
               collapsed={sidebarCollapsed}
               icon={<Settings size={18} />}
               label="设置"
-              onClick={() => setActiveSetting('general')}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'providers'}
-              collapsed={sidebarCollapsed}
-              icon={<KeyRound size={18} />}
-              label="供应商"
-              onClick={() => setActiveSetting('providers')}
+              onClick={() => setActiveSetting('settings')}
             />
             <SettingsNavButton
               active={activeSetting === 'agents'}
@@ -362,13 +351,6 @@ function App() {
               icon={<Bot size={18} />}
               label="助手"
               onClick={() => setActiveSetting('agents')}
-            />
-            <SettingsNavButton
-              active={activeSetting === 'about'}
-              collapsed={sidebarCollapsed}
-              icon={<Info size={18} />}
-              label="关于"
-              onClick={() => setActiveSetting('about')}
             />
           </nav>
 
@@ -412,44 +394,55 @@ function App() {
           {activeSetting === 'stats' ? (
             <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
           ) : null}
-          {activeSetting === 'general' ? (
-            <GeneralSettings
-              settingsDraft={settingsDraft}
-              canSave={canSaveGeneralSettings}
-              onSettingsChange={(draft) => {
-                setSettingsDraft(draft);
-                setGeneralSaveState('idle');
-              }}
-              onSave={saveGeneralSettingsDraft}
-              saveState={generalSaveState}
-            />
-          ) : null}
-          {activeSetting === 'providers' ? (
-            <ProviderSettings
-              draft={providerDraft}
-              settingsDraft={settingsDraft}
-              providers={store.providers}
-              selectedId={selectedProviderId}
-              testState={testState}
-              canSave={canSaveProvider}
-              canSaveRoutes={canSaveProviderRoutes}
-              onChange={(draft) => {
-                setProviderDraft(draft);
-                setProviderSaveState('idle');
-              }}
-              onRouteChange={(draft) => {
-                setSettingsDraft(draft);
-                setRouteSaveState('idle');
-              }}
-              onCreate={createProvider}
-              onDelete={deleteProvider}
-              onSave={saveProviderDraft}
-              saveState={providerSaveState}
-              routeSaveState={routeSaveState}
-              onRouteSave={saveProviderRoutes}
-              onSelect={selectProvider}
-              onTest={testProvider}
-            />
+          {activeSetting === 'settings' ? (
+            <SettingsSectionShell
+              activeSection={activeSettingsSection}
+              onSectionChange={setActiveSettingsSection}
+            >
+              {activeSettingsSection === 'collection' ? (
+                <GeneralSettings
+                  settingsDraft={settingsDraft}
+                  canSave={canSaveGeneralSettings}
+                  onSettingsChange={(draft) => {
+                    setSettingsDraft(draft);
+                    setGeneralSaveState('idle');
+                  }}
+                  onSave={saveGeneralSettingsDraft}
+                  saveState={generalSaveState}
+                />
+              ) : null}
+              {activeSettingsSection === 'models' ? (
+                <ProviderSettings
+                  draft={providerDraft}
+                  settingsDraft={settingsDraft}
+                  providers={store.providers}
+                  selectedId={selectedProviderId}
+                  testState={testState}
+                  canSave={canSaveProvider}
+                  canSaveRoutes={canSaveProviderRoutes}
+                  onChange={(draft) => {
+                    setProviderDraft(draft);
+                    setProviderSaveState('idle');
+                  }}
+                  onRouteChange={(draft) => {
+                    setSettingsDraft(draft);
+                    setRouteSaveState('idle');
+                  }}
+                  onCreate={createProvider}
+                  onDelete={deleteProvider}
+                  onSave={saveProviderDraft}
+                  saveState={providerSaveState}
+                  routeSaveState={routeSaveState}
+                  onRouteSave={saveProviderRoutes}
+                  onSelect={selectProvider}
+                  onTest={testProvider}
+                />
+              ) : null}
+              {activeSettingsSection === 'data' ? <DataManagementSettings /> : null}
+              {activeSettingsSection === 'about' ? (
+                <AboutSettings pairingConnectionStatus={pairingConnectionStatus} />
+              ) : null}
+            </SettingsSectionShell>
           ) : null}
           {activeSetting === 'agents' ? (
             <AgentSettings
@@ -459,7 +452,6 @@ function App() {
               onToggle={toggleAgent}
             />
           ) : null}
-          {activeSetting === 'about' ? <AboutSettings /> : null}
         </section>
       </section>
       {profileDialogOpen ? (

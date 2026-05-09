@@ -5,6 +5,7 @@ import type {
   DesktopServerMessage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import { browser } from 'wxt/browser';
 import {
   DESKTOP_BRIDGE_PORT_NAME,
   type DesktopBridgeContentMessage,
@@ -114,7 +115,7 @@ export function connectPopupDesktop(token: string): Promise<PopupDesktopClient> 
         close();
         return;
       }
-      send({ type: 'hello' });
+      send({ type: 'hello', extensionVersion: browser.runtime.getManifest().version });
       return;
     }
 

@@ -568,7 +568,7 @@ export type AgentReadingPlanItem = {
 
 export type DesktopClientMessage =
   | { type: 'auth'; token: string }
-  | { type: 'hello' }
+  | { type: 'hello'; extensionVersion?: string }
   | { type: 'ping' }
   | { type: 'agent:list'; requestId: string }
   | {
@@ -646,6 +646,7 @@ const MESSAGE_LIMITS = {
   siteNameChars: 256,
   excerptChars: 2000,
   themeColorChars: 64,
+  versionChars: 64,
   imageDataUrlChars: 8_000_000,
   contentHtmlChars: 12_000_000,
   articleTextChars: 300_000,
@@ -671,7 +672,21 @@ export function parseDesktopClientMessage(value: unknown): DesktopClientMessageP
     return { ok: true, message: value as { type: 'auth'; token: string } };
   }
 
-  if (type === 'hello' || type === 'ping') return { ok: true, message: { type } };
+  if (type === 'hello') {
+    const extensionVersion = optionalBoundedString(
+      value.extensionVersion,
+      MESSAGE_LIMITS.versionChars,
+    );
+    if (extensionVersion === false) {
+      return parseError(undefined, 'hello.extensionVersion 超出长度限制');
+    }
+    return {
+      ok: true,
+      message: extensionVersion ? { type: 'hello', extensionVersion } : { type: 'hello' },
+    };
+  }
+
+  if (type === 'ping') return { ok: true, message: { type } };
 
   if (!requestId) return parseError(undefined, 'requestId 必须是非空字符串');
 

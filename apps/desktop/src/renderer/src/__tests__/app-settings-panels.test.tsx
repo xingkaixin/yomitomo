@@ -152,7 +152,7 @@ describe('ProviderSettings', () => {
       />,
     );
 
-    expect(screen.getByText('不同任务选择合适模型，同时管理你的供应商链接。')).toBeTruthy();
+    expect(screen.getByText('为伴读任务分配默认模型，并管理模型服务商配置。')).toBeTruthy();
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('读后笔记助手供应商')).toBeTruthy();
@@ -333,7 +333,7 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /保存文章图片/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
     expect(screen.queryByText('扩展连接')).toBeNull();
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });

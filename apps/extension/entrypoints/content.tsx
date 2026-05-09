@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { browser } from 'wxt/browser';
 import {
   type Annotation,
   type AnnotationType,
@@ -768,7 +769,10 @@ function ReaderApp({
         return;
       }
 
-      sendDesktopMessage({ type: 'hello' });
+      sendDesktopMessage({
+        type: 'hello',
+        extensionVersion: browser.runtime.getManifest().version,
+      });
       flushPendingAgentMessages();
       return;
     }
