@@ -7919,7 +7919,7 @@
   gap: 6px;
 }
 
-.reading-card-review-finding header span {
+.reading-card-review-finding header > span {
   border-radius: 999px;
   font-size: 10px;
   font-weight: 950;
@@ -7927,28 +7927,28 @@
   padding: 5px 7px;
 }
 
-.reading-card-review-finding header span.is-high {
+.reading-card-review-finding header > span.is-high {
   background: hsl(8 60% 90% / 0.72);
   color: hsl(8 48% 30%);
 }
 
-.reading-card-review-finding header span.is-medium {
+.reading-card-review-finding header > span.is-medium {
   background: hsl(43 70% 86% / 0.72);
   color: hsl(35 48% 27%);
 }
 
-.reading-card-review-finding header span.is-low {
+.reading-card-review-finding header > span.is-low {
   background: hsl(202 38% 88% / 0.72);
   color: hsl(209 28% 29%);
 }
 
-.reading-card-review-finding header strong {
+.reading-card-review-finding header > strong {
   color: hsl(31 23% 20%);
   font-size: 12px;
   font-weight: 900;
 }
 
-.reading-card-review-finding header em {
+.reading-card-review-finding header > em {
   color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-style: normal;
@@ -8190,19 +8190,19 @@
   quotes: none;
 }
 
-.reading-card-ref-comments {
+.reading-card-ref-body {
   display: grid;
   gap: 5px;
   border-left: 2px solid hsl(37 31% 74% / 0.76);
   padding-left: 8px;
 }
 
-.reading-card-ref-comments span {
+.reading-card-ref-body span {
   display: grid;
   gap: 2px;
 }
 
-.reading-card-ref-comments b {
+.reading-card-ref-body b {
   color: hsl(34 23% 27%);
   font-size: 11px;
   font-weight: 900;

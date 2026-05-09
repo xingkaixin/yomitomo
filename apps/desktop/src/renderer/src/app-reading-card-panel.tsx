@@ -989,7 +989,7 @@ function renderReadingCardEvidenceReference(unit: ReadingCardEvidenceUnit) {
         <q>${escapeHtml(unit.quote)}</q>
         ${
           unit.annotationBody
-            ? `<span class="reading-card-ref-comments"><span><b>${escapeHtml(
+            ? `<span class="reading-card-ref-body"><span><b>${escapeHtml(
                 unit.annotationBody.authorLabel,
               )} · 批注</b>${escapeHtml(unit.annotationBody.content)}</span></span>`
             : ''
