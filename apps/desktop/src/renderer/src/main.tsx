@@ -7,6 +7,7 @@ import type {
   ArticleRecord,
   DesktopStore,
   LlmProvider,
+  UserProfile,
 } from '@yomitomo/shared';
 import {
   defaultUser,
@@ -20,6 +21,7 @@ import {
 import { ReadingLibrary } from './app-reading-library';
 import { ReadingStatsPanel } from './app-reading-stats';
 import { ExtensionConnectionButton, ExtensionConnectionDialog } from './app-extension-connection';
+import { OnboardingFlow } from './app-onboarding';
 import {
   AgentSettings,
   DataManagementSettings,
@@ -63,6 +65,9 @@ function App() {
     authenticatedSocketCount: 0,
   });
   const [storeLoaded, setStoreLoaded] = useState(false);
+  const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
+  const [onboardingForced, setOnboardingForced] = useState(false);
+  const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [dailyQuote, setDailyQuote] = useState(() => selectDailyQuote([], { storage: null }));
 
   useEffect(() => {
@@ -129,6 +134,7 @@ function App() {
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
   const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
+  const showOnboarding = storeLoaded && (onboardingForced || !store.settings.onboardingCompletedAt);
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -140,6 +146,12 @@ function App() {
     setSettingsDraft(nextStore.settings);
     setStoreLoaded(true);
     if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
+  }
+
+  function applyStore(nextStore: DesktopStore) {
+    setStore(nextStore);
+    setUserDraft(nextStore.user);
+    setSettingsDraft(nextStore.settings);
   }
 
   async function refreshSavedPairingInfo() {
@@ -176,6 +188,45 @@ function App() {
     if (!desktop) return;
 
     setStore(await desktop.saveArticle(article));
+  }
+
+  async function saveOnboardingUser(user: Partial<UserProfile>) {
+    const nextStore = await window.yomitomoDesktop.saveUser(user);
+    applyStore(nextStore);
+    return nextStore;
+  }
+
+  async function saveOnboardingProvider(provider: Partial<LlmProvider>) {
+    const nextStore = await window.yomitomoDesktop.saveProvider(provider);
+    applyStore(nextStore);
+    const savedProvider = provider.id
+      ? nextStore.providers.find((item) => item.id === provider.id)
+      : nextStore.providers.at(-1);
+    if (savedProvider) selectProvider(savedProvider);
+    return nextStore;
+  }
+
+  async function saveOnboardingSettings(settings: AppSettings) {
+    const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    applyStore(nextStore);
+    if (settings.onboardingCompletedAt) setOnboardingForced(false);
+    return nextStore;
+  }
+
+  async function saveOnboardingArticle(article: ArticleRecord) {
+    const nextStore = await window.yomitomoDesktop.saveArticle(article);
+    applyStore(nextStore);
+    return nextStore;
+  }
+
+  function openOnboardingArticle(articleId: string) {
+    setActiveSetting('library');
+    setPendingOpenArticleId(articleId);
+  }
+
+  function startOnboarding() {
+    setOnboardingForced(true);
+    setOnboardingFlowKey((key) => key + 1);
   }
 
   function selectProvider(provider: LlmProvider) {
@@ -385,8 +436,10 @@ function App() {
             <ReadingLibrary
               agents={store.agents}
               articles={store.articles}
+              openArticleId={pendingOpenArticleId}
               userProfile={store.user}
               onDeleteArticle={deleteArticle}
+              onArticleOpened={() => setPendingOpenArticleId(null)}
               onRefresh={refreshStore}
               onSaveArticle={saveArticle}
             />
@@ -440,7 +493,10 @@ function App() {
               ) : null}
               {activeSettingsSection === 'data' ? <DataManagementSettings /> : null}
               {activeSettingsSection === 'about' ? (
-                <AboutSettings pairingConnectionStatus={pairingConnectionStatus} />
+                <AboutSettings
+                  pairingConnectionStatus={pairingConnectionStatus}
+                  onStartOnboarding={startOnboarding}
+                />
               ) : null}
             </SettingsSectionShell>
           ) : null}
@@ -473,6 +529,18 @@ function App() {
           pairingInfo={pairingInfo}
           onClose={() => setExtensionConnectionDialogOpen(false)}
           onRotatePairing={rotatePairingInfo}
+        />
+      ) : null}
+      {showOnboarding ? (
+        <OnboardingFlow
+          key={onboardingFlowKey}
+          store={store}
+          onOpenArticle={openOnboardingArticle}
+          onSaveArticle={saveOnboardingArticle}
+          onSaveProvider={saveOnboardingProvider}
+          onSaveSettings={saveOnboardingSettings}
+          onSaveUser={saveOnboardingUser}
+          onTestProvider={window.yomitomoDesktop.testProvider}
         />
       ) : null}
     </main>

@@ -192,7 +192,7 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
 }
 
 export function isValidUsername(value: string) {
-  return /^[A-Za-z0-9_]+$/.test(value.trim());
+  return /^[\p{L}\p{N}_-]+$/u.test(value.trim());
 }
 
 function modelNamesChanged(left: string[] | undefined, right: string[] | undefined) {
@@ -205,5 +205,5 @@ function modelNamesChanged(left: string[] | undefined, right: string[] | undefin
 }
 
 export function sanitizeUsernameInput(value: string) {
-  return value.replace(/[^A-Za-z0-9_]/g, '').slice(0, 32);
+  return value.replace(/[^\p{L}\p{N}_-]/gu, '').slice(0, 32);
 }

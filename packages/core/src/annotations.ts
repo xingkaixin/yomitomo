@@ -421,7 +421,10 @@ export function annotationPersona(
   const user = findUserIdentity(annotation.userId, userProfile);
   return {
     avatar: user?.avatar || annotation.userAvatar || userProfile.avatar,
-    fallback: '我',
+    fallback: (user?.nickname || annotation.userNickname || userProfile.nickname || '我').slice(
+      0,
+      1,
+    ),
     nickname: user?.nickname || annotation.userNickname || userProfile.nickname,
     username: user?.username || annotation.userUsername || userProfile.username,
     color:
@@ -451,7 +454,7 @@ export function commentPersona(
   const user = findUserIdentity(comment.userId, userProfile);
   return {
     avatar: user?.avatar || comment.userAvatar || userProfile.avatar,
-    fallback: '我',
+    fallback: (user?.nickname || comment.userNickname || userProfile.nickname || '我').slice(0, 1),
     nickname: user?.nickname || comment.userNickname || userProfile.nickname,
     username: user?.username || comment.userUsername || userProfile.username,
     color: user?.annotationColor || comment.userAnnotationColor || userProfile.annotationColor,

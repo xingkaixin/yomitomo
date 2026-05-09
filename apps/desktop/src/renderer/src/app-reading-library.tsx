@@ -156,14 +156,18 @@ function writeDesktopReaderSettings(settings: ReaderSettings) {
 export function ReadingLibrary({
   agents,
   articles,
+  openArticleId,
   userProfile,
+  onArticleOpened,
   onDeleteArticle,
   onRefresh,
   onSaveArticle,
 }: {
   agents: Agent[];
   articles: ArticleRecord[];
+  openArticleId?: string | null;
   userProfile: UserProfile;
+  onArticleOpened?: (articleId: string) => void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
   onRefresh: () => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
@@ -212,6 +216,14 @@ export function ReadingLibrary({
       setSelectedArticleId(null);
     }
   }, [selectedArticleId, sortedArticles]);
+
+  useEffect(() => {
+    if (!openArticleId) return;
+    const article = sortedArticles.find((item) => item.id === openArticleId);
+    if (!article) return;
+    openArticle(article);
+    onArticleOpened?.(article.id);
+  }, [openArticleId, onArticleOpened, sortedArticles]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);

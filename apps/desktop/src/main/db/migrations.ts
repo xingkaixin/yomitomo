@@ -240,4 +240,10 @@ SET
 WHERE default_provider_id IS NOT NULL;
 `,
   },
+  {
+    id: '0018_onboarding_completed_at',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN onboarding_completed_at TEXT;
+`,
+  },
 ];

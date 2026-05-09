@@ -137,7 +137,7 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
   const user: UserProfile = {
     id: store.user.id || defaultUser.id,
     nickname: input.nickname?.trim() || store.user.nickname,
-    username: normalizeUsername(input.username || store.user.username || 'me'),
+    username: normalizeUsername(input.username || input.nickname || store.user.username || 'me'),
     avatar: input.avatar || store.user.avatar,
     annotationColor: input.annotationColor?.trim() || store.user.annotationColor,
     updatedAt: new Date().toISOString(),
@@ -154,6 +154,7 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
     reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
     readingNoteProviderId: input.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(input.saveArticleImages),
+    onboardingCompletedAt: input.onboardingCompletedAt || undefined,
   });
   return readStore();
 }
@@ -670,6 +671,7 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     reviewAssistantProviderId: settings.reviewAssistantProviderId || null,
     readingNoteProviderId: settings.readingNoteProviderId || null,
     saveArticleImages: Boolean(settings.saveArticleImages),
+    onboardingCompletedAt: settings.onboardingCompletedAt || null,
     updatedAt: new Date().toISOString(),
   };
   database
@@ -794,6 +796,7 @@ function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined):
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: row?.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(row?.saveArticleImages),
+    onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
   };
 }
 
@@ -804,6 +807,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: settings?.readingNoteProviderId || undefined,
     saveArticleImages: Boolean(settings?.saveArticleImages),
+    onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };
 }
 
@@ -993,7 +997,7 @@ function normalizeUsername(value: string, fallback = 'me') {
     value
       .trim()
       .replace(/^@/, '')
-      .replace(/[^a-zA-Z0-9_]/g, '_')
+      .replace(/[^\p{L}\p{N}_-]/gu, '')
       .slice(0, 32) || fallback
   );
 }

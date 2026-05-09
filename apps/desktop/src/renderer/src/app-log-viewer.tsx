@@ -8,6 +8,7 @@ import {
   Info,
   MessageSquare,
   Package,
+  Play,
   Search,
   Tag,
   X,
@@ -31,8 +32,10 @@ const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 
 export function AboutSettings({
+  onStartOnboarding = () => undefined,
   pairingConnectionStatus,
 }: {
+  onStartOnboarding?: () => void;
   pairingConnectionStatus?: PairingConnectionStatus;
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
@@ -102,6 +105,14 @@ export function AboutSettings({
           onAction={() => openExternal(feedbackUrl)}
         />
         <AboutActionCard
+          icon={<Play size={18} />}
+          title="初次设置流程"
+          description="从第一页重新打开 onboarding，用于检查身份、模型和内置文章流程。"
+          actionLabel="启动 onboarding"
+          actionIcon={<Play size={15} />}
+          onAction={onStartOnboarding}
+        />
+        <AboutActionCard
           icon={<Package size={18} />}
           title="开源许可证"
           description={`Yomitomo 使用 Apache-2.0，生产依赖包含 ${thirdPartyPackages.length} 个开源软件包。`}
@@ -129,12 +140,14 @@ function AboutActionCard({
   title,
   description,
   actionLabel,
+  actionIcon = <ExternalLink size={15} />,
   onAction,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
   actionLabel: string;
+  actionIcon?: React.ReactNode;
   onAction: () => void;
 }) {
   return (
@@ -148,7 +161,7 @@ function AboutActionCard({
       </div>
       <Button className="action-button about-link-action" type="button" onClick={onAction}>
         {actionLabel}
-        <ExternalLink size={15} />
+        {actionIcon}
       </Button>
     </section>
   );

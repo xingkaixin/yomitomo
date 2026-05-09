@@ -16,6 +16,7 @@ export const appSettings = sqliteTable('app_settings', {
   reviewAssistantProviderId: text('review_assistant_provider_id'),
   readingNoteProviderId: text('reading_note_provider_id'),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
+  onboardingCompletedAt: text('onboarding_completed_at'),
   updatedAt: text('updated_at').notNull(),
 });
 

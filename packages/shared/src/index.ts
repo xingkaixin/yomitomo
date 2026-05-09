@@ -522,6 +522,7 @@ export type AppSettings = {
   reviewAssistantProviderId?: string;
   readingNoteProviderId?: string;
   saveArticleImages?: boolean;
+  onboardingCompletedAt?: string;
 };
 
 export type DesktopStore = {

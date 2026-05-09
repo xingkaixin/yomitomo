@@ -575,7 +575,7 @@ export function UserProfileSettingsDialog({
           </Field>
           <Field
             id="profile-username"
-            description="用于 @ 提及，仅支持英文、数字和下划线。"
+            description="用于 @ 提及，支持文字、数字、下划线和短横线。"
             label="用户名"
           >
             <Input
@@ -1321,9 +1321,13 @@ function AgentFilterTabs({
 export function ProviderForm({
   draft,
   onChange,
+  selectContentClassName = 'theme-select-content',
+  showReasoning = true,
 }: {
   draft: ProviderDraft;
   onChange: (draft: ProviderDraft) => void;
+  selectContentClassName?: string;
+  showReasoning?: boolean;
 }) {
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelLoading, setModelLoading] = useState(false);
@@ -1428,7 +1432,7 @@ export function ProviderForm({
           >
             <SelectValue placeholder="选择服务商" />
           </SelectTrigger>
-          <SelectContent className="theme-select-content">
+          <SelectContent className={selectContentClassName}>
             <SelectGroup>
               {providerPresets.map((preset) => (
                 <SelectItem key={preset.id} value={preset.id}>
@@ -1465,7 +1469,7 @@ export function ProviderForm({
           <SelectTrigger id="provider-type" aria-labelledby="provider-type-label">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="theme-select-content">
+          <SelectContent className={selectContentClassName}>
             <SelectGroup>
               <SelectItem value="openai-chat">OpenAI Chat</SelectItem>
               <SelectItem value="openai-responses">OpenAI Responses</SelectItem>
@@ -1504,7 +1508,7 @@ export function ProviderForm({
               <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
                 <SelectValue placeholder="选择模型" />
               </SelectTrigger>
-              <SelectContent className="theme-select-content">
+              <SelectContent className={selectContentClassName}>
                 <SelectGroup>
                   {visibleModels.map((model) => (
                     <SelectItem key={model} value={model}>
@@ -1549,30 +1553,32 @@ export function ProviderForm({
           onChange={(apiKey) => onChange({ ...draft, apiKey })}
         />
       </Field>
-      <Field id="provider-reasoning" className="col-span-2" label="思考强度">
-        <Select
-          value={draft.reasoningEffort || 'default'}
-          onValueChange={(reasoningEffort) =>
-            onChange({
-              ...draft,
-              reasoningEffort: reasoningEffort as LlmProvider['reasoningEffort'],
-            })
-          }
-        >
-          <SelectTrigger id="provider-reasoning" aria-labelledby="provider-reasoning-label">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="theme-select-content">
-            <SelectGroup>
-              {reasoningEffortOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
+      {showReasoning ? (
+        <Field id="provider-reasoning" className="col-span-2" label="思考强度">
+          <Select
+            value={draft.reasoningEffort || 'default'}
+            onValueChange={(reasoningEffort) =>
+              onChange({
+                ...draft,
+                reasoningEffort: reasoningEffort as LlmProvider['reasoningEffort'],
+              })
+            }
+          >
+            <SelectTrigger id="provider-reasoning" aria-labelledby="provider-reasoning-label">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className={selectContentClassName}>
+              <SelectGroup>
+                {reasoningEffortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
     </div>
   );
 }
