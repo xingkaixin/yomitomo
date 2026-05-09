@@ -14,6 +14,7 @@
   "dependencies": {
     "@radix-ui/react-select": "^2.2.6",
     "@vitejs/plugin-react": "^6.0.1",
+    "@yomitomo/ai": "workspace:*",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/reader-ui": "workspace:*",
     "@yomitomo/shared": "workspace:*",

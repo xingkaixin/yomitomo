@@ -18,8 +18,8 @@ import {
   makeId,
   parseDesktopClientMessage,
 } from '@yomitomo/shared';
+import { runAgentAnnotateStream, runAgentStream } from '@yomitomo/ai';
 import { readStore, saveArticle } from './store';
-import { runAgentAnnotateStream, runAgentStream } from './llm';
 import { logError, logInfo } from './logger';
 import { getPairingInfo, getSavedPairingInfo, verifyPairingToken } from './pairing';
 import {

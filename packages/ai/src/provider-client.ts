@@ -1,13 +1,13 @@
 import type { LlmProvider, ProviderModel, ReasoningEffort } from '@yomitomo/shared';
 import { providerPresets } from '@yomitomo/shared';
-import { normalizeAnthropicError } from './llm-budget';
-import { logInfo } from './logger';
+import { normalizeAnthropicError } from './budget';
+import { logAiInfo } from './logger';
 
-type GenerateOptions = {
+export type GenerateOptions = {
   failOnMaxTokens?: boolean;
 };
 
-type TextPayload = {
+export type TextPayload = {
   system: string;
   user: string;
   maxTokens: number;
@@ -478,11 +478,11 @@ function geminiGenerateUrl(provider: LlmProvider, stream: boolean) {
   )}`;
 }
 
-function bearerHeaders(provider: LlmProvider) {
+function bearerHeaders(provider: LlmProvider): Record<string, string> {
   return provider.apiKey ? { Authorization: `Bearer ${provider.apiKey}` } : {};
 }
 
-function jsonBearerHeaders(provider: LlmProvider) {
+function jsonBearerHeaders(provider: LlmProvider): Record<string, string> {
   return { 'content-type': 'application/json', ...bearerHeaders(provider) };
 }
 
@@ -555,7 +555,7 @@ function logProviderRequest(
   payload: TextPayload,
   stream: boolean,
 ) {
-  logInfo('llm.request', {
+  logAiInfo('llm.request', {
     url,
     stream,
     type: provider.type,
@@ -573,7 +573,7 @@ function logProviderResponse(
   textLength: number,
   usage?: Record<string, unknown>,
 ) {
-  logInfo('llm.response', {
+  logAiInfo('llm.response', {
     type: provider.type,
     model: provider.modelName,
     providerName: provider.name,

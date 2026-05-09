@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
-import { buildAgentMessageSystemPrompt, buildAgentPrompt, extractJsonObjects } from './llm';
+import { buildAgentMessageSystemPrompt, buildAgentPrompt, extractJsonObjects } from './index';
 
 describe('extractJsonObjects', () => {
   it('extracts pretty-printed objects from a stream buffer', () => {

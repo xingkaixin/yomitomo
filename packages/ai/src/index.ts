@@ -24,15 +24,34 @@ import {
   parseAnnotationSuggestions,
   type ReadingCardEvidenceUnit,
 } from '@yomitomo/core';
-import { logError, logInfo } from './logger';
+import { logAiError, logAiInfo } from './logger';
 import {
   budgetArticleText,
   budgetDeliberationJson,
   budgetEvidenceJson,
   budgetReadingCardJson,
   formatBudgetNotice,
-} from './llm-budget';
-import { callProviderText, streamProviderText } from './llm-provider-client';
+} from './budget';
+import { callProviderText, streamProviderText } from './provider-client';
+
+export {
+  budgetArticleText,
+  budgetDeliberationJson,
+  budgetEvidenceJson,
+  budgetReadingCardJson,
+  formatBudgetNotice,
+  normalizeAnthropicError,
+  type ModelBudgetReport,
+  type ModelInputTask,
+} from './budget';
+export {
+  callProviderText,
+  listProviderModels,
+  streamProviderText,
+  type GenerateOptions,
+  type TextPayload,
+} from './provider-client';
+export { setAiLogger, type AiLogger } from './logger';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
@@ -194,14 +213,14 @@ export async function runAgentAnnotateStream(
       if (annotation) {
         onAnnotation(annotation);
       } else {
-        logInfo('agent.annotate.skip', {
+        logAiInfo('agent.annotate.skip', {
           agent: agent.username,
           reason: 'exact_not_found',
           exactPreview: exact.slice(0, 120),
         });
       }
     } catch (error) {
-      logError('agent.annotate.ndjson_parse_error', error, {
+      logAiError('agent.annotate.ndjson_parse_error', error, {
         agent: agent.username,
         line: json.slice(0, 500),
       });
@@ -230,7 +249,7 @@ export async function runAgentAnnotateStream(
 
   flushBuffer();
   if (hasIncompleteJson(buffer)) {
-    logInfo('agent.annotate.incomplete_json', {
+    logAiInfo('agent.annotate.incomplete_json', {
       agent: agent.username,
       line: buffer.trim().slice(0, 500),
     });
@@ -361,6 +380,11 @@ type PromptAgent = {
   nickname?: string;
 };
 
+type PromptAgentIdentity = {
+  username?: string;
+  nickname?: string;
+};
+
 function findAgentPersonality(agent: PromptAgent) {
   return agentPersonalities.find(
     (personality) => personality.id === agent.presetId || personality.soul === agent.soul,
@@ -457,7 +481,7 @@ function readingPlanPrompt(payload: AgentAnnotatePayload) {
 export function buildAgentPrompt(
   provider: LlmProvider,
   payload: AgentMessagePayload,
-  agent?: PromptAgent,
+  agent?: PromptAgentIdentity,
 ) {
   const comments = payload.annotation.comments
     .map((comment) => {
@@ -475,7 +499,10 @@ export function buildAgentPrompt(
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
-function buildAgentSelfInstruction(payload: AgentMessagePayload, currentAgent?: PromptAgent) {
+function buildAgentSelfInstruction(
+  payload: AgentMessagePayload,
+  currentAgent?: PromptAgentIdentity,
+) {
   const username = currentAgent?.username || payload.agentUsername;
   const nickname = currentAgent?.nickname || username;
   const selfNames = [nickname, `@${username}`]
@@ -486,7 +513,10 @@ function buildAgentSelfInstruction(payload: AgentMessagePayload, currentAgent?: 
   return `本轮发言者：${nickname}（@${username}）\n身份识别规则：读者评论里的 ${selfNames} 指向你本人。先判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。`;
 }
 
-function buildAgentMessageParticipants(payload: AgentMessagePayload, currentAgent?: PromptAgent) {
+function buildAgentMessageParticipants(
+  payload: AgentMessagePayload,
+  currentAgent?: PromptAgentIdentity,
+) {
   const participants = new Map<string, string>();
   const currentUsername = currentAgent?.username || payload.agentUsername;
   const currentNickname = currentAgent?.nickname || currentUsername;
@@ -861,7 +891,7 @@ function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingC
   try {
     parsed = parseJsonObject(rawResponse);
   } catch (error) {
-    logError('reading_card.review.parse_error', error, {
+    logAiError('reading_card.review.parse_error', error, {
       rawLength: rawResponse.length,
       rawPreview: rawResponse.slice(0, 1200),
       rawTail: rawResponse.slice(-500),

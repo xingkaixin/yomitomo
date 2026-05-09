@@ -1,9 +1,7 @@
 import type { LlmProvider } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('./logger', () => ({ logInfo: vi.fn() }));
-
-import { streamProviderText } from './llm-provider-client';
+import { streamProviderText } from './provider-client';
 
 describe('streamProviderText', () => {
   afterEach(() => {

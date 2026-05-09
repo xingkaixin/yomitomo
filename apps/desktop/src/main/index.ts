@@ -16,6 +16,21 @@ import type {
 } from '@yomitomo/shared';
 import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
+  generateReadingCard,
+  generateReadingDeliberation,
+  listProviderModels,
+  reviewReadingCard,
+  runAgent,
+  runAgentAnnotate,
+  runAgentAnnotateStream,
+  runAgentStream,
+  setAiLogger,
+  testProvider,
+  type GenerateReadingCardInput,
+  type GenerateReadingDeliberationInput,
+  type ReviewReadingCardInput,
+} from '@yomitomo/ai';
+import {
   deleteAgent,
   deleteArticle,
   deleteProvider,
@@ -29,21 +44,7 @@ import {
   saveSettings,
   saveUser,
 } from './store';
-import {
-  generateReadingCard,
-  generateReadingDeliberation,
-  reviewReadingCard,
-  runAgent,
-  runAgentStream,
-  runAgentAnnotate,
-  runAgentAnnotateStream,
-  type GenerateReadingDeliberationInput,
-  testProvider,
-  type GenerateReadingCardInput,
-  type ReviewReadingCardInput,
-} from './llm';
-import { listProviderModels } from './llm-provider-client';
-import { clearLogFile, getLogPath, logInfo, readLogFile } from './logger';
+import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
 import { getPairingInfo, getSavedPairingInfo, rotatePairingInfo } from './pairing';
 import {
   broadcastArticleDeleted,
@@ -62,6 +63,7 @@ const appIconPath = join(__dirname, '../../resources/icon.png');
 
 app.setName('Yomitomo');
 app.setPath('userData', join(app.getPath('appData'), '@yomitomo/desktop'));
+setAiLogger({ info: logInfo, error: logError });
 
 async function createWindow() {
   const browserWindow = new BrowserWindow({

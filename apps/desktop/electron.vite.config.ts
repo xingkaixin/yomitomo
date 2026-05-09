@@ -5,7 +5,7 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(root, 'src/renderer');
-const workspaceDeps = ['@yomitomo/core', '@yomitomo/shared'];
+const workspaceDeps = ['@yomitomo/ai', '@yomitomo/core', '@yomitomo/shared'];
 
 export default defineConfig({
   main: {

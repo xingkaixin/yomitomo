@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LlmProvider } from '@yomitomo/shared';
-import { budgetArticleText, formatBudgetNotice, normalizeAnthropicError } from './llm-budget';
+import { budgetArticleText, formatBudgetNotice, normalizeAnthropicError } from './budget';
 
 describe('llm input budget', () => {
   it('keeps short input unchanged', () => {
