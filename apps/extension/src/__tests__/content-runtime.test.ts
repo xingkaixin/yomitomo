@@ -59,6 +59,7 @@ describe('registerContentToggleListener', () => {
         domain: 'example.com',
         wordCount: 1200,
         readingMinutes: 5,
+        readerActive: false,
       }),
       toggleReader: vi.fn(),
       errorMessage: String,
@@ -74,6 +75,7 @@ describe('registerContentToggleListener', () => {
         domain: 'example.com',
         wordCount: 1200,
         readingMinutes: 5,
+        readerActive: false,
       },
     });
   });

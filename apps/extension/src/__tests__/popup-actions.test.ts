@@ -64,6 +64,7 @@ describe('toggleReaderInTab', () => {
         domain: 'example.com',
         wordCount: 1200,
         readingMinutes: 5,
+        readerActive: false,
       },
     });
 
@@ -75,6 +76,7 @@ describe('toggleReaderInTab', () => {
       domain: 'example.com',
       wordCount: 1200,
       readingMinutes: 5,
+      readerActive: false,
     });
     expect(sendMessage).toHaveBeenCalledWith(123, { type: 'yomitomo:article-preview' });
   });

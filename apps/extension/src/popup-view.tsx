@@ -45,7 +45,10 @@ export function Popup() {
       const tabId = tab.id!;
       try {
         const article = await getArticlePreviewInTab(tabId);
-        if (active) setPageState({ type: 'readable', tabId, article });
+        if (active) {
+          setPageState({ type: 'readable', tabId, article });
+          setStatus(article.readerActive ? '准备退出阅读器模式' : '准备进入阅读器模式');
+        }
       } catch (error) {
         if (active) setPageState({ type: 'unavailable', message: errorMessage(error) });
       }
@@ -97,7 +100,11 @@ export function Popup() {
           return;
         }
 
-        setStatus('可发送到阅读库，也可进入阅读器模式');
+        setStatus(
+          pageState.article.readerActive
+            ? '可发送到阅读库，也可退出阅读器模式'
+            : '可发送到阅读库，也可进入阅读器模式',
+        );
         setSubmitState('available');
       })
       .catch(() => {
@@ -119,7 +126,7 @@ export function Popup() {
     if (pageState.type !== 'readable') return;
 
     try {
-      setStatus('正在打开阅读器…');
+      setStatus(pageState.article.readerActive ? '正在关闭阅读器…' : '正在打开阅读器…');
       await toggleReaderInTab(pageState.tabId);
       setStatus('已发送到当前网页');
       window.close();
@@ -173,6 +180,10 @@ export function Popup() {
   const readerDisabled = pageState.type !== 'readable';
   const articleCard = articleCardContent(pageState);
   const showSubmit = submitState !== 'hidden';
+  const readerActionLabel =
+    pageState.type === 'readable' && pageState.article.readerActive
+      ? '退出阅读器模式'
+      : '进入阅读器模式';
 
   return (
     <main className="relative w-80 bg-background p-4">
@@ -241,7 +252,7 @@ export function Popup() {
         onClick={toggleReader}
       >
         <MessageSquareText className="size-4" />
-        进入阅读器模式
+        {readerActionLabel}
       </Button>
       <p aria-live="polite" className="mt-3 text-xs leading-5 text-muted-foreground" role="status">
         {status}

@@ -60,6 +60,7 @@ beforeEach(() => {
     domain: 'example.com',
     wordCount: 1200,
     readingMinutes: 5,
+    readerActive: false,
   });
   getArticleInTab.mockResolvedValue({
     id: 'article-1',
@@ -122,6 +123,36 @@ describe('Popup', () => {
     expect(screen.getByRole('button', { name: '进入阅读器模式' }).hasAttribute('disabled')).toBe(
       false,
     );
+  });
+
+  it('shows the exit reader action when the reader is already active', async () => {
+    getArticlePreviewInTab.mockResolvedValue({
+      id: 'article-1',
+      url: 'https://example.com/post',
+      canonicalUrl: 'https://example.com/post',
+      title: '文章标题',
+      domain: 'example.com',
+      wordCount: 1200,
+      readingMinutes: 5,
+      readerActive: true,
+    });
+    let resolveToggle: (() => void) | null = null;
+    toggleReaderInTab.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveToggle = resolve;
+      }),
+    );
+
+    render(<Popup />);
+
+    await screen.findByText('文章标题');
+    fireEvent.click(screen.getByRole('button', { name: '退出阅读器模式' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toBe('正在关闭阅读器…');
+    });
+    resolveToggle?.();
+    await waitFor(() => expect(window.close).toHaveBeenCalled());
   });
 
   it('shows the send button only when the paired desktop is connected and missing the article', async () => {

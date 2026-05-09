@@ -26,6 +26,7 @@ export type ArticlePreview = {
   domain: string;
   wordCount: number;
   readingMinutes: number;
+  readerActive: boolean;
 };
 
 export async function extractCurrentArticle(): Promise<ExtractedArticle> {
@@ -107,6 +108,7 @@ export function articlePreviewFromExtractedArticle(article: ExtractedArticle): A
     domain: domainFromUrl(article.canonicalUrl || article.url),
     wordCount,
     readingMinutes: Math.max(1, Math.ceil(wordCount / 250)),
+    readerActive: false,
   };
 }
 

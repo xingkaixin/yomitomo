@@ -157,12 +157,19 @@ async function toggleReader() {
 
 async function getArticlePreview() {
   const article = await extractCurrentArticle();
-  return articlePreviewFromExtractedArticle(article);
+  return {
+    ...articlePreviewFromExtractedArticle(article),
+    readerActive: isReaderActive(),
+  };
 }
 
 async function getArticle({ inlineImages }: { inlineImages: boolean }) {
   const article = await extractCurrentArticle();
   return inlineImages ? inlineArticleImages(article) : article;
+}
+
+function isReaderActive() {
+  return Boolean(document.getElementById(HOST_ID));
 }
 
 function closeReader(host: HTMLElement) {

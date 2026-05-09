@@ -106,6 +106,7 @@ describe('article extraction', () => {
       domain: 'example.com',
       wordCount: 7,
       readingMinutes: 1,
+      readerActive: false,
     });
   });
 });
