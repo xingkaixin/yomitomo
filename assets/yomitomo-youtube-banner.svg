@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1152" viewBox="0 0 2048 1152">
+  <defs>
+    <linearGradient id="paper" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fbf5ea"/>
+      <stop offset="0.46" stop-color="#f7eddd"/>
+      <stop offset="1" stop-color="#eee0ca"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="49%" r="52%">
+      <stop offset="0" stop-color="#fffaf1" stop-opacity="0.98"/>
+      <stop offset="0.58" stop-color="#fff6e8" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#d8c2a5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="redGlow" cx="67%" cy="43%" r="46%">
+      <stop offset="0" stop-color="#d73524" stop-opacity="0.2"/>
+      <stop offset="0.44" stop-color="#d73524" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#d73524" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="paperGrain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.78" numOctaves="3" seed="13"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.055"/>
+      </feComponentTransfer>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#3c271a" flood-opacity="0.16"/>
+    </filter>
+    <filter id="logoShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#5e2a1c" flood-opacity="0.12"/>
+    </filter>
+    <clipPath id="desktopWindow">
+      <rect x="0" y="0" width="780" height="445" rx="26"/>
+    </clipPath>
+    <clipPath id="extensionWindow">
+      <rect x="0" y="0" width="520" height="292" rx="22"/>
+    </clipPath>
+    <clipPath id="logoDisk">
+      <circle cx="1024" cy="489" r="64"/>
+    </clipPath>
+    <mask id="sideFade">
+      <rect width="2048" height="1152" fill="white"/>
+      <rect x="520" y="360" width="1008" height="430" fill="black" opacity="0.16"/>
+    </mask>
+  </defs>
+
+  <rect width="2048" height="1152" fill="url(#paper)"/>
+  <rect width="2048" height="1152" fill="url(#centerGlow)"/>
+  <rect width="2048" height="1152" fill="url(#redGlow)"/>
+  <rect width="2048" height="1152" filter="url(#paperGrain)" opacity="0.9"/>
+
+  <g opacity="0.11" mask="url(#sideFade)">
+    <path d="M120 826 C356 738 636 738 880 828" fill="none" stroke="#171615" stroke-width="12" stroke-linecap="round"/>
+    <path d="M1168 828 C1410 738 1696 742 1924 826" fill="none" stroke="#d53324" stroke-width="12" stroke-linecap="round"/>
+    <path d="M126 888 C370 812 626 812 876 888" fill="none" stroke="#171615" stroke-width="8" stroke-linecap="round"/>
+    <path d="M1172 888 C1424 812 1684 812 1918 888" fill="none" stroke="#d53324" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(-88 676) rotate(-5 390 222)" opacity="0.5" filter="url(#softShadow)">
+    <rect width="780" height="445" rx="26" fill="#fffaf0"/>
+    <g clip-path="url(#desktopWindow)">
+      <image href="yomitomo-desktop-window.png" x="-44" y="-24" width="868" height="495" preserveAspectRatio="xMidYMid slice"/>
+      <rect width="780" height="445" fill="#f4eadb" opacity="0.08"/>
+    </g>
+    <rect width="780" height="445" rx="26" fill="none" stroke="#60432f" stroke-opacity="0.12" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(1440 714) rotate(6 260 146)" opacity="0.58" filter="url(#softShadow)">
+    <rect width="520" height="292" rx="22" fill="#fffaf0"/>
+    <g clip-path="url(#extensionWindow)">
+      <image href="yomitomo-extension.png" x="-72" y="-16" width="664" height="351" preserveAspectRatio="xMidYMid slice"/>
+      <rect width="520" height="292" fill="#f6ebd9" opacity="0.1"/>
+    </g>
+    <rect width="520" height="292" rx="22" fill="none" stroke="#60432f" stroke-opacity="0.13" stroke-width="2"/>
+  </g>
+
+  <g opacity="0.22">
+    <path d="M188 213 H438" stroke="#1c1915" stroke-width="3" stroke-linecap="round"/>
+    <path d="M180 232 H326" stroke="#d53324" stroke-width="3" stroke-linecap="round"/>
+    <path d="M1614 198 H1870" stroke="#d53324" stroke-width="3" stroke-linecap="round"/>
+    <path d="M1726 218 H1868" stroke="#1c1915" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <g opacity="0.08" font-family="Songti SC, Hiragino Mincho ProN, STSong, serif" font-size="164" font-weight="700">
+    <text x="92" y="388" fill="#171615">伴</text>
+    <text x="1808" y="410" fill="#d53324">读</text>
+    <text x="184" y="1030" fill="#d53324">思</text>
+    <text x="1688" y="1052" fill="#171615">考</text>
+  </g>
+
+  <g filter="url(#logoShadow)">
+    <circle cx="1024" cy="489" r="70" fill="#fff8ed" opacity="0.94"/>
+    <circle cx="1024" cy="489" r="70" fill="none" stroke="#d9c6a8" stroke-width="1.5"/>
+    <g clip-path="url(#logoDisk)">
+      <image href="yomitomo-logo.png" x="944" y="409" width="160" height="160" preserveAspectRatio="xMidYMid slice"/>
+    </g>
+  </g>
+
+  <g text-anchor="middle">
+    <text x="1024" y="601"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="88"
+      font-weight="700"
+      letter-spacing="5"
+      fill="#1b1916">Yomitomo</text>
+    <text x="1024" y="661"
+      font-family="Songti SC, Hiragino Mincho ProN, STSong, serif"
+      font-size="32"
+      font-weight="700"
+      letter-spacing="8"
+      fill="#28231e">你的 AI 伴读助手</text>
+    <path d="M970 697 H1078" stroke="#d53324" stroke-width="3" stroke-linecap="round"/>
+    <text x="1024" y="739"
+      font-family="Georgia, 'Times New Roman', serif"
+      font-size="22"
+      letter-spacing="7"
+      fill="#5d5146">READING · DIALOGUE · THINKING</text>
+  </g>
+
+  <g opacity="0.5">
+    <circle cx="919" cy="657" r="5" fill="#d53324"/>
+    <circle cx="1129" cy="657" r="5" fill="#171615"/>
+  </g>
+
+  <g transform="translate(1024 988)" text-anchor="middle" opacity="0.52">
+    <text y="0"
+      font-family="Songti SC, Hiragino Mincho ProN, STSong, serif"
+      font-size="20"
+      font-weight="600"
+      letter-spacing="12"
+      fill="#3c332b">伴读 · 对话 · 思考</text>
+    <path d="M-168 28 H-54 M54 28 H168" stroke="#8a7763" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="0" cy="28" r="3.5" fill="#d53324"/>
+  </g>
+</svg>
