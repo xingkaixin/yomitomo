@@ -11,6 +11,18 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "//#repo:lint": {
+      "outputs": []
+    },
+    "//#repo:lint:fix": {
+      "cache": false
+    },
+    "//#repo:format": {
+      "cache": false
+    },
+    "//#repo:format:check": {
+      "outputs": []
     }
   }
 }

@@ -12,9 +12,14 @@
     "make:app:win-x64": "pnpm --filter @yomitomo/desktop make:win-x64",
     "make:ext": "pnpm --filter @yomitomo/extension make",
     "build": "turbo build",
-    "lint": "oxlint .",
-    "lint:fix": "oxlint . --fix",
-    "format": "oxfmt --write \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
+    "lint": "turbo run repo:lint",
+    "lint:fix": "turbo run repo:lint:fix",
+    "format": "turbo run repo:format",
+    "format:check": "turbo run repo:format:check",
+    "repo:lint": "oxlint .",
+    "repo:lint:fix": "oxlint . --fix",
+    "repo:format": "oxfmt --write \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
+    "repo:format:check": "oxfmt --check \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
     "test": "turbo test"
   },
   "devDependencies": {
