@@ -19,7 +19,6 @@ import {
 } from './app-settings';
 import { ReadingLibrary } from './app-reading-library';
 import { ReadingStatsPanel } from './app-reading-stats';
-import { ExtensionConnectionButton, ExtensionConnectionDialog } from './app-extension-connection';
 import { OnboardingFlow } from './app-onboarding';
 import {
   AgentSettings,
@@ -35,7 +34,6 @@ import { AboutSettings } from './app-log-viewer';
 import { selectDailyQuote } from './app-daily-quote';
 import type { SaveState } from './app-types';
 import { AvatarImage } from './app-ui';
-import type { PairingConnectionStatus, PairingInfo } from '../../preload';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
@@ -58,11 +56,6 @@ function App() {
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [extensionConnectionDialogOpen, setExtensionConnectionDialogOpen] = useState(false);
-  const [pairingInfo, setPairingInfo] = useState<PairingInfo | null>(null);
-  const [pairingConnectionStatus, setPairingConnectionStatus] = useState<PairingConnectionStatus>({
-    authenticatedSocketCount: 0,
-  });
   const [storeLoaded, setStoreLoaded] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
@@ -74,11 +67,6 @@ function App() {
     if (!desktop) return;
 
     refreshStore();
-    refreshSavedPairingInfo();
-    refreshPairingConnectionStatus();
-    const offPairingConnectionStatus = desktop.onPairingConnectionStatus(
-      setPairingConnectionStatus,
-    );
     const offStoreUpdated = desktop.onStoreUpdated((nextStore) => {
       setStore(nextStore);
       setUserDraft(nextStore.user);
@@ -86,7 +74,6 @@ function App() {
       setStoreLoaded(true);
     });
     return () => {
-      offPairingConnectionStatus();
       offStoreUpdated();
     };
   }, []);
@@ -156,28 +143,6 @@ function App() {
     setStore(nextStore);
     setUserDraft(nextStore.user);
     setSettingsDraft(nextStore.settings);
-  }
-
-  async function refreshSavedPairingInfo() {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    setPairingInfo(await desktop.getSavedPairingInfo());
-  }
-
-  async function rotatePairingInfo() {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    setPairingInfo(await desktop.rotatePairingInfo());
-    setPairingConnectionStatus({ authenticatedSocketCount: 0 });
-  }
-
-  async function refreshPairingConnectionStatus() {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    setPairingConnectionStatus(await desktop.getPairingConnectionStatus());
   }
 
   async function deleteArticle(articleId: string) {
@@ -419,12 +384,6 @@ function App() {
             />
             <span>{store.user.nickname || '我'}</span>
           </button>
-
-          <ExtensionConnectionButton
-            pairingConnectionStatus={pairingConnectionStatus}
-            pairingInfo={pairingInfo}
-            onClick={() => setExtensionConnectionDialogOpen(true)}
-          />
         </aside>
 
         <section className="settings-content">
@@ -490,10 +449,7 @@ function App() {
               ) : null}
               {activeSettingsSection === 'data' ? <DataManagementSettings /> : null}
               {activeSettingsSection === 'about' ? (
-                <AboutSettings
-                  pairingConnectionStatus={pairingConnectionStatus}
-                  onStartOnboarding={startOnboarding}
-                />
+                <AboutSettings onStartOnboarding={startOnboarding} />
               ) : null}
             </SettingsSectionShell>
           ) : null}
@@ -518,14 +474,6 @@ function App() {
           onClose={() => setProfileDialogOpen(false)}
           onSave={saveProfileDraft}
           saveState={profileSaveState}
-        />
-      ) : null}
-      {extensionConnectionDialogOpen ? (
-        <ExtensionConnectionDialog
-          pairingConnectionStatus={pairingConnectionStatus}
-          pairingInfo={pairingInfo}
-          onClose={() => setExtensionConnectionDialogOpen(false)}
-          onRotatePairing={rotatePairingInfo}
         />
       ) : null}
     </main>

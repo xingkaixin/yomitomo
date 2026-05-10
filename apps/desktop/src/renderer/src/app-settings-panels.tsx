@@ -324,7 +324,7 @@ export function GeneralSettings({
       <PanelHeader
         icon={<Settings size={20} />}
         title="采集与保存"
-        description="控制插件采集文章时的本地保存行为。"
+        description="控制导入文章时的本地保存行为。"
         action={
           <Button
             className={

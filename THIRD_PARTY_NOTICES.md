@@ -138,12 +138,6 @@ The project source code is licensed under MIT. Third-party packages remain under
 | @types/use-sync-external-store | 0.0.6 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/use-sync-external-store) |
 | @types/yauzl | 2.10.3 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/yauzl) |
 | @vitejs/plugin-react | 6.0.1 | MIT | [link](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#readme) |
-| @webext-core/fake-browser | 1.3.4 | MIT | [link](https://github.com/aklinker1/webext-core/tree/main/packages/fake-browser) |
-| @webext-core/isolated-element | 1.1.5 | MIT | [link](https://github.com/aklinker1/webext-core/tree/main/packages/isolated-element) |
-| @webext-core/match-patterns | 1.0.3 | MIT | [link](https://github.com/aklinker1/webext-core/tree/main/packages/match-patterns) |
-| @wxt-dev/browser | 0.1.40 | MIT | [link](https://github.com/wxt-dev/wxt#readme) |
-| @wxt-dev/module-react | 1.2.2 | MIT | [link](https://github.com/wxt-dev/wxt/blob/main/packages/module-react/README.md) |
-| @wxt-dev/storage | 1.2.8 | MIT | [link](https://wxt.dev/storage.html) |
 | @xmldom/xmldom | 0.8.13 | MIT | [link](https://github.com/xmldom/xmldom) |
 | acorn | 8.16.0 | MIT | [link](https://github.com/acornjs/acorn) |
 | adm-zip | 0.5.17 | MIT | [link](https://github.com/cthackers/adm-zip) |
@@ -184,7 +178,6 @@ The project source code is licensed under MIT. Third-party packages remain under
 | chalk | 5.6.2 | MIT | [link](https://github.com/chalk/chalk#readme) |
 | chokidar | 5.0.0 | MIT | [link](https://github.com/paulmillr/chokidar) |
 | chownr | 1.1.4 | ISC | [link](https://github.com/isaacs/chownr#readme) |
-| chrome-launcher | 1.2.0 | Apache-2.0 | [link](https://github.com/GoogleChrome/chrome-launcher#readme) |
 | ci-info | 4.4.0 | MIT | [link](https://github.com/watson/ci-info) |
 | citty | 0.2.2 | MIT | [link](https://github.com/unjs/citty#readme) |
 | class-variance-authority | 0.7.1 | Apache-2.0 | [link](https://github.com/joe-bell/cva#readme) |
@@ -349,7 +342,6 @@ The project source code is licensed under MIT. Third-party packages remain under
 | ky | 1.14.3 | MIT | [link](https://github.com/sindresorhus/ky#readme) |
 | latest-version | 9.0.0 | MIT | [link](https://github.com/sindresorhus/latest-version#readme) |
 | lie | 3.3.0 | MIT | [link](https://github.com/calvinmetcalf/lie#readme) |
-| lighthouse-logger | 2.0.2 | Apache-2.0 | [link](https://github.com/GoogleChrome/lighthouse#readme) |
 | lightningcss | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | lightningcss-darwin-arm64 | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | lines-and-columns | 2.0.4 | MIT | [link](https://github.com/eventualbuddha/lines-and-columns#readme) |
@@ -427,7 +419,6 @@ The project source code is licensed under MIT. Third-party packages remain under
 | promise-toolbox | 0.21.0 | ISC | [link](https://github.com/JsCommunity/promise-toolbox) |
 | prompts | 2.4.2 | MIT | [link](https://github.com/terkelg/prompts#readme) |
 | proto-list | 1.2.4 | ISC | [link](https://github.com/isaacs/proto-list#readme) |
-| publish-browser-extension | 4.0.5 | MIT | [link](https://github.com/aklinker1/publish-browser-extension#readme) |
 | pump | 3.0.4 | MIT | [link](https://github.com/mafintosh/pump#readme) |
 | pupa | 3.3.0 | MIT | [link](https://github.com/sindresorhus/pupa#readme) |
 | quansync | 0.2.11 | MIT | [link](https://github.com/quansync-dev/quansync#readme) |
@@ -528,7 +519,6 @@ The project source code is licensed under MIT. Third-party packages remain under
 | vite | 8.0.10 | MIT | [link](https://vite.dev) |
 | vite-node | 6.0.0 | MIT | [link](https://github.com/antfu-collective/vite-node#readme) |
 | watchpack | 2.4.4 | MIT | [link](https://github.com/webpack/watchpack) |
-| web-ext-run | 0.2.4 | MPL-2.0 | [link](https://github.com/aklinker1/web-ext-run) |
 | webpack-virtual-modules | 0.6.2 | MIT | [link](https://github.com/sysgears/webpack-virtual-modules#readme) |
 | when | 3.7.7 | MIT | [link](http://cujojs.com) |
 | when-exit | 2.1.5 | MIT | [link](https://github.com/fabiospampinato/when-exit#readme) |
@@ -537,9 +527,7 @@ The project source code is licensed under MIT. Third-party packages remain under
 | winreg | 0.0.12 | BSD | [link](https://github.com/fresc81/node-winreg#readme) |
 | wrap-ansi | 10.0.0, 7.0.0, 9.0.2 | MIT | [link](https://github.com/chalk/wrap-ansi#readme) |
 | wrappy | 1.0.2 | ISC | [link](https://github.com/npm/wrappy) |
-| ws | 8.20.0 | MIT | [link](https://github.com/websockets/ws) |
 | wsl-utils | 0.3.1 | MIT | [link](https://github.com/sindresorhus/wsl-utils#readme) |
-| wxt | 0.20.25 | MIT | [link](https://wxt.dev) |
 | xdg-basedir | 5.1.0 | MIT | [link](https://github.com/sindresorhus/xdg-basedir#readme) |
 | xml2js | 0.6.2 | MIT | [link](https://github.com/Leonidas-from-XIV/node-xml2js) |
 | xmlbuilder | 11.0.1 | MIT | [link](http://github.com/oozcitak/xmlbuilder-js) |
