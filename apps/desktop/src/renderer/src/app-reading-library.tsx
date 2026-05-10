@@ -1556,6 +1556,12 @@ function SourceBookcase({
     setTemporaryBoxes([]);
   }
 
+  async function copySelection(action: SourceSelectionAction) {
+    await navigator.clipboard.writeText(action.anchor.exact);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+  }
+
   async function createAnnotation(
     note: string,
     annotationType: AnnotationType,
@@ -1986,6 +1992,7 @@ function SourceBookcase({
           setTocOpen(false);
           setNotesOpen(false);
         }}
+        onCopySelection={copySelection}
         onCreateAnnotation={createAnnotation}
         onDeleteAnnotation={deleteAnnotation}
         onFocusAnnotation={openAnnotation}

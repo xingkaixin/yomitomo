@@ -19,6 +19,7 @@ import {
   countOpenQuestions,
   highlightSegmentStyle,
   isPrimaryTocItem,
+  selectionActionShortcut,
 } from './reader-utils';
 import {
   AgentAnnotateMenu,
@@ -134,6 +135,7 @@ export type ReaderAppViewProps = {
   onCloseFloatingPanels: () => void;
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
+  onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -224,6 +226,7 @@ export function ReaderAppView({
   onCloseFloatingPanels,
   onCloseResponsivePanels,
   onOpenComposer,
+  onCopySelection,
   onStartAgentReadingPlan,
   onScrollToHeading,
   onScrollToHighlight,
@@ -344,6 +347,35 @@ export function ReaderAppView({
   }, [filteredAnnotations]);
 
   React.useEffect(() => () => noteResizeObserverRef.current?.disconnect(), []);
+
+  React.useEffect(() => {
+    if (!selectionAction || composer) return;
+    const activeSelectionAction = selectionAction;
+
+    function handleSelectionShortcut(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('input,textarea,select,[contenteditable="true"]')
+      ) {
+        return;
+      }
+
+      const shortcut = selectionActionShortcut(event);
+      if (!shortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (shortcut === 'copy') {
+        void onCopySelection(activeSelectionAction);
+        return;
+      }
+      onOpenComposer(activeSelectionAction);
+    }
+
+    window.addEventListener('keydown', handleSelectionShortcut);
+    return () => window.removeEventListener('keydown', handleSelectionShortcut);
+  }, [composer, onCopySelection, onOpenComposer, selectionAction]);
 
   React.useLayoutEffect(() => {
     onAnnotationLayoutChange?.();
@@ -618,6 +650,7 @@ export function ReaderAppView({
               <SelectionMenu
                 action={selectionAction}
                 onAnnotate={() => onOpenComposer(selectionAction)}
+                onCopy={() => onCopySelection(selectionAction)}
               />
             ) : null}
             {highlightChoice && highlightChoiceAnnotations.length > 1 ? (

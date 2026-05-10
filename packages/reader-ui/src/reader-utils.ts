@@ -253,6 +253,40 @@ export function isMessageSendShortcutEvent(
   return !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
 }
 
+export type SelectionActionShortcut = 'annotate' | 'copy';
+
+export type SelectionActionShortcutKeyboardEvent = {
+  key: string;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  repeat?: boolean;
+  isComposing?: boolean;
+  nativeEvent?: {
+    isComposing?: boolean;
+  };
+};
+
+export function selectionActionShortcut(
+  event: SelectionActionShortcutKeyboardEvent,
+): SelectionActionShortcut | null {
+  if (
+    event.repeat ||
+    event.isComposing ||
+    event.nativeEvent?.isComposing ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey
+  ) {
+    return null;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === 'a') return 'annotate';
+  if (key === 'c') return 'copy';
+  return null;
+}
+
 function navigatorPlatform() {
   return typeof navigator === 'undefined' ? '' : navigator.platform;
 }
