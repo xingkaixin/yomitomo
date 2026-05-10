@@ -10,6 +10,7 @@ module.exports = {
   artifactName: 'mac-arm64/${productName}-${version}-mac-${arch}.${ext}',
   mac: {
     category: 'public.app-category.productivity',
+    icon: 'resources/icon.icns',
     identity: '-',
     target: ['dmg', 'zip'],
   },
