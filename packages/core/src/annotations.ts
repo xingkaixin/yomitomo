@@ -27,6 +27,11 @@ export type MentionQuery = {
   end: number;
 };
 
+export type CreateUserAnnotationOptions = {
+  now?: string;
+  readingIntent?: AgentReadingIntent;
+};
+
 export type AnnotationPersona = {
   avatar?: string;
   fallback: string;
@@ -60,13 +65,16 @@ export function normalizeAnnotationType(value: unknown): AnnotationType | null {
 export function createUserComment(
   user: UserProfile,
   content: string,
-  now = new Date().toISOString(),
+  options: CreateUserAnnotationOptions = {},
 ): Comment {
+  const now = options.now || new Date().toISOString();
+
   return {
     id: makeId('comment'),
     author: 'user',
     content: content.trim(),
     createdAt: now,
+    readingIntent: options.readingIntent,
     userId: user.id,
     userUsername: user.username,
     userNickname: user.nickname,
@@ -80,8 +88,9 @@ export function createUserAnnotation(
   user: UserProfile,
   note: string,
   annotationType?: AnnotationType,
-  now = new Date().toISOString(),
+  options: CreateUserAnnotationOptions = {},
 ): Annotation {
+  const now = options.now || new Date().toISOString();
   const trimmed = note.trim();
 
   return {
@@ -89,13 +98,14 @@ export function createUserAnnotation(
     anchor,
     author: 'user',
     annotationType,
+    readingIntent: options.readingIntent,
     color: user.annotationColor,
     userId: user.id,
     userUsername: user.username,
     userNickname: user.nickname,
     userAvatar: user.avatar,
     userAnnotationColor: user.annotationColor,
-    comments: trimmed ? [createUserComment(user, trimmed, now)] : [],
+    comments: trimmed ? [createUserComment(user, trimmed, { ...options, now })] : [],
     createdAt: now,
     updatedAt: now,
   };

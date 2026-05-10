@@ -400,6 +400,10 @@ export function ReaderAppView({
       }
     }
 
+    if (composer && !target.closest('.reader-composer')) {
+      onCancelComposer();
+    }
+
     if (!activeId) return;
     if (target.closest(activeAnnotationPreserveSelector)) return;
 

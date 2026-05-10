@@ -314,21 +314,22 @@ export const readerConversationStyles = `
 .reader-comment-agent-more-menu strong{overflow:hidden;font-size:12px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}
 .reader-comment-agent-more-menu em{color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:760}
 .reader-note-comments-panel .reader-comment-box textarea{min-height:68px;max-height:96px;margin-top:0}
+.reader-composer textarea:focus,.reader-composer textarea:focus-visible,.reader-note-comments-panel .reader-comment-box textarea:focus,.reader-note-comments-panel .reader-comment-box textarea:focus-visible{outline:0;box-shadow:none}
 .reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
-.reader-note-footer .reader-add-comment{flex:0 0 auto}
+.reader-note-footer .reader-add-comment{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:6px}
 .reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:visible;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
-.reader-composer-header{display:grid;gap:12px;padding:14px 14px 12px;border-bottom:1px solid rgba(40,35,29,.1);border-radius:19px 19px 0 0;background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-composer-header{display:grid;gap:8px;padding:12px 14px 10px;border-bottom:1px solid rgba(40,35,29,.1);border-radius:19px 19px 0 0;background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .reader-composer-title-row strong{font-size:14px;font-weight:900;letter-spacing:0}
 .reader-composer-title-row .reader-shortcut-hint{margin-right:0}
-.reader-composer-types{display:grid;grid-template-columns:82px repeat(5,minmax(68px,1fr));align-items:center;gap:8px;margin:0}
-.reader-composer-group-label{color:var(--reader-muted);font-size:11px;font-weight:900;line-height:1;white-space:nowrap}
-.reader-composer-types button{height:34px;overflow:hidden;padding:0 10px;text-overflow:ellipsis;white-space:nowrap;font-size:12px;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+.reader-composer-types{display:grid;grid-template-columns:72px repeat(5,minmax(58px,1fr));align-items:center;gap:6px;margin:0}
+.reader-composer-group-label{color:var(--reader-muted);font-size:10px;font-weight:900;line-height:1;white-space:nowrap}
+.reader-composer-types button{height:28px;overflow:hidden;padding:0 8px;text-overflow:ellipsis;white-space:nowrap;font-size:11px;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
 .reader-composer-types button:active{transform:scale(.96)}
 .reader-composer-editor{position:relative}
 .reader-composer textarea{display:block;min-height:118px;margin:0;border:0;border-radius:0;background:rgba(255,253,247,.74);font-size:14px;padding:14px 15px}
 .reader-composer-actions{margin:0;padding:12px 14px;border-top:1px solid rgba(37,29,22,.1);border-radius:0 0 19px 19px;background:rgba(250,243,230,.9)}
-.reader-composer-actions button{height:36px;padding:0 13px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-composer-actions button{display:inline-flex;height:36px;align-items:center;justify-content:center;gap:6px;padding:0 13px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-composer-actions button:active{transform:scale(.96)}
 .reader-composer-agent-tray{display:flex;min-width:0;align-items:center;gap:6px;margin-right:auto}
 .reader-composer-agent-tray>span{color:var(--reader-muted);font-size:16px;font-weight:900;line-height:1}
@@ -340,6 +341,7 @@ export const readerConversationStyles = `
 .reader-selection-menu,.reader-composer{z-index:120}
 @keyframes reader-composer-pop{from{opacity:0;transform:translateY(-6px) scale(.88);filter:blur(2px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
+.reader-app :where(.reader-composer textarea,.reader-note-comments-panel .reader-comment-box textarea):focus-visible{outline:0;box-shadow:none}
 .reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal}
 .reader-highlight.is-active{background:transparent;box-shadow:none}
 .reader-highlight.is-active::after{content:"";position:absolute;inset:0 -1px;border-radius:4px;background:var(--highlight-fill,rgba(244,201,93,.16))}

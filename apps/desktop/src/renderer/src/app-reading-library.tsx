@@ -1585,7 +1585,9 @@ function SourceBookcase({
 
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
-    const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType);
+    const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType, {
+      readingIntent,
+    });
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
   }

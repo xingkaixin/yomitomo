@@ -866,24 +866,21 @@ function SettingStepper({
   );
 }
 
-function SubmitShortcutHint({
-  actionLabel,
+function SubmitShortcutKeys({
   shortcut,
   shortcutModifier,
 }: {
-  actionLabel?: string;
   shortcut: MessageSendShortcut;
   shortcutModifier: string;
 }) {
   return (
-    <div className="reader-shortcut-hint">
+    <>
       {messageSendShortcutKeys(shortcut, shortcutModifier).map((key) => (
         <Kbd className="reader-kbd" key={key}>
           {key}
         </Kbd>
       ))}
-      {actionLabel ? <span>{actionLabel}</span> : null}
-    </div>
+    </>
   );
 }
 
@@ -931,6 +928,18 @@ export function Composer({
     }
   }, [matchedAgents.length, selectedMentionIndex]);
 
+  useEffect(() => {
+    function handleCancelShortcut(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.key !== 'Escape' || event.isComposing) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onCancel();
+    }
+
+    window.addEventListener('keydown', handleCancelShortcut);
+    return () => window.removeEventListener('keydown', handleCancelShortcut);
+  }, [onCancel]);
+
   function save() {
     onSave(note, annotationType, readingIntent);
   }
@@ -950,6 +959,12 @@ export function Composer({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+      return;
+    }
+
     if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
       event.preventDefault();
       setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
@@ -984,11 +999,6 @@ export function Composer({
       <header className="reader-composer-header">
         <div className="reader-composer-title-row">
           <strong>批注</strong>
-          <SubmitShortcutHint
-            actionLabel="发布"
-            shortcut={messageSendShortcut}
-            shortcutModifier={shortcutModifier}
-          />
         </div>
         <div
           aria-label="批注类型"
@@ -1101,11 +1111,16 @@ export function Composer({
               ))
             : null}
         </div>
-        <button type="button" onClick={onCancel}>
-          取消
+        <button className="reader-composer-cancel" type="button" onClick={onCancel}>
+          <Kbd className="reader-kbd">Esc</Kbd>
+          <span>取消</span>
         </button>
         <button type="button" onClick={save}>
-          发布
+          <SubmitShortcutKeys
+            shortcut={messageSendShortcut}
+            shortcutModifier={shortcutModifier}
+          />
+          <span>发布</span>
         </button>
       </div>
     </div>
@@ -1325,11 +1340,6 @@ export function AnnotationCard({
   }
 
   function toggleComments() {
-    if (!active) {
-      onFocus(annotation.id);
-      return;
-    }
-
     if (expanded) {
       setExpanded(false);
       setExpandedCommentIds(new Set());
@@ -1337,6 +1347,7 @@ export function AnnotationCard({
       return;
     }
 
+    if (!active) onFocus(annotation.id);
     previousCommentIdsRef.current = threadCommentIds;
     setExpandedCommentIds(new Set());
     setExpanded(true);
@@ -1557,17 +1568,17 @@ export function AnnotationCard({
                   </div>
                 ) : null}
               </div>
-              <SubmitShortcutHint
-                shortcut={messageSendShortcut}
-                shortcutModifier={shortcutModifier}
-              />
               <button
                 className="reader-add-comment"
                 type="button"
                 aria-label="添加评论"
                 onClick={submit}
               >
-                发送
+                <SubmitShortcutKeys
+                  shortcut={messageSendShortcut}
+                  shortcutModifier={shortcutModifier}
+                />
+                <span>发送</span>
               </button>
             </div>
           </div>
