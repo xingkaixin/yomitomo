@@ -1963,6 +1963,86 @@
   outline-offset: 2px;
 }
 
+.shortcut-settings-group {
+  display: grid;
+  max-width: 760px;
+  gap: 10px;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.38);
+  padding: 6px;
+}
+
+.shortcut-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.shortcut-setting-copy {
+  min-width: 0;
+}
+
+.shortcut-setting-copy h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.shortcut-setting-copy p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shortcut-choice-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.72);
+  padding: 4px;
+}
+
+.shortcut-choice-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 5px 8px;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.shortcut-choice-button:hover,
+.shortcut-choice-button.is-active {
+  background: hsl(var(--background));
+  box-shadow: 0 6px 16px hsl(31 34% 24% / 0.08);
+}
+
+.shortcut-choice-button:active {
+  transform: scale(0.96);
+}
+
+.shortcut-choice-button:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 2px;
+}
+
 .theme-select-content {
   border-color: hsl(var(--border) / 0.82);
   background:
@@ -9497,6 +9577,14 @@ button.license-package-row:hover {
   .about-version-row,
   .license-package-row {
     grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .shortcut-setting-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shortcut-choice-group {
+    justify-self: start;
   }
 
   .about-version-row em,

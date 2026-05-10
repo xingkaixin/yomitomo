@@ -25,6 +25,7 @@ import {
   DataManagementSettings,
   GeneralSettings,
   ProviderSettings,
+  ShortcutSettings,
   SettingsSectionShell,
   SettingsNavButton,
   UserProfileSettingsDialog,
@@ -51,6 +52,7 @@ function App() {
   const [agentSaveError, setAgentSaveError] = useState('');
   const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
   const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
+  const [shortcutSaveState, setShortcutSaveState] = useState<SaveState>('idle');
   const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
   const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
   const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
@@ -96,6 +98,12 @@ function App() {
     () => Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
     [settingsDraft.saveArticleImages, store.settings.saveArticleImages],
   );
+  const shortcutSettingsHaveChanges = useMemo(
+    () =>
+      (settingsDraft.messageSendShortcut || 'enter') !==
+      (store.settings.messageSendShortcut || 'enter'),
+    [settingsDraft.messageSendShortcut, store.settings.messageSendShortcut],
+  );
   const providerRoutesHaveChanges = useMemo(
     () =>
       (settingsDraft.readingAssistantProviderId || '') !==
@@ -125,6 +133,7 @@ function App() {
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
   const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
+  const canSaveShortcutSettings = shortcutSaveState !== 'saving' && shortcutSettingsHaveChanges;
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
   async function refreshStore() {
@@ -216,6 +225,20 @@ function App() {
       window.setTimeout(() => setGeneralSaveState('idle'), 1200);
     } catch {
       setGeneralSaveState('idle');
+    }
+  }
+
+  async function saveShortcutSettingsDraft() {
+    if (!window.yomitomoDesktop || !shortcutSettingsHaveChanges) return;
+    setShortcutSaveState('saving');
+    try {
+      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
+      setStore(nextStore);
+      setSettingsDraft(nextStore.settings);
+      setShortcutSaveState('saved');
+      window.setTimeout(() => setShortcutSaveState('idle'), 1200);
+    } catch {
+      setShortcutSaveState('idle');
     }
   }
 
@@ -391,6 +414,7 @@ function App() {
             <ReadingLibrary
               agents={store.agents}
               articles={store.articles}
+              messageSendShortcut={store.settings.messageSendShortcut}
               openArticleId={pendingOpenArticleId}
               userProfile={store.user}
               onDeleteArticle={deleteArticle}
@@ -445,6 +469,18 @@ function App() {
                   onRouteSave={saveProviderRoutes}
                   onSelect={selectProvider}
                   onTest={testProvider}
+                />
+              ) : null}
+              {activeSettingsSection === 'shortcuts' ? (
+                <ShortcutSettings
+                  settingsDraft={settingsDraft}
+                  canSave={canSaveShortcutSettings}
+                  onSettingsChange={(draft) => {
+                    setSettingsDraft(draft);
+                    setShortcutSaveState('idle');
+                  }}
+                  onSave={saveShortcutSettingsDraft}
+                  saveState={shortcutSaveState}
                 />
               ) : null}
               {activeSettingsSection === 'data' ? <DataManagementSettings /> : null}

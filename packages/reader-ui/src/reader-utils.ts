@@ -1,5 +1,12 @@
 import type React from 'react';
-import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  MessageSendShortcut,
+  PublicAgent,
+  UserProfile,
+} from '@yomitomo/shared';
+import { defaultMessageSendShortcut, normalizeMessageSendShortcut } from '@yomitomo/shared';
 import {
   annotationColor,
   annotationPrimaryComment,
@@ -210,8 +217,48 @@ export function readerAnnotationScrollTop({
   return Math.max(0, Math.min(maxTop, targetTop));
 }
 
+export type MessageSendShortcutKeyboardEvent = {
+  key: string;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  nativeEvent?: {
+    isComposing?: boolean;
+  };
+};
+
 export function getShortcutModifier() {
-  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? '⌘' : 'Ctrl';
+  return platformUsesMetaKey(navigatorPlatform()) ? '⌘' : 'Ctrl';
+}
+
+export function messageSendShortcutKeys(
+  shortcut: MessageSendShortcut | undefined,
+  modifier = getShortcutModifier(),
+) {
+  return normalizeMessageSendShortcut(shortcut) === 'mod-enter' ? [modifier, 'Enter'] : ['Enter'];
+}
+
+export function isMessageSendShortcutEvent(
+  event: MessageSendShortcutKeyboardEvent,
+  shortcut: MessageSendShortcut | undefined = defaultMessageSendShortcut,
+  platform = navigatorPlatform(),
+) {
+  if (event.nativeEvent?.isComposing || event.key !== 'Enter') return false;
+
+  if (normalizeMessageSendShortcut(shortcut) === 'mod-enter') {
+    return platformUsesMetaKey(platform) ? Boolean(event.metaKey) : Boolean(event.ctrlKey);
+  }
+
+  return !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
+}
+
+function navigatorPlatform() {
+  return typeof navigator === 'undefined' ? '' : navigator.platform;
+}
+
+function platformUsesMetaKey(platform: string) {
+  return /Mac|iPhone|iPad|iPod/i.test(platform);
 }
 
 export function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {

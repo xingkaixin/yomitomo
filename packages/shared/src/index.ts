@@ -53,6 +53,14 @@ export type AgentKind = 'annotation' | 'review';
 
 export type ProviderModelInputMode = 'list' | 'custom';
 
+export type MessageSendShortcut = 'enter' | 'mod-enter';
+
+export const defaultMessageSendShortcut: MessageSendShortcut = 'enter';
+
+export function normalizeMessageSendShortcut(value: unknown): MessageSendShortcut {
+  return value === 'mod-enter' ? 'mod-enter' : defaultMessageSendShortcut;
+}
+
 export type AgentPersonality = {
   id: string;
   kind: AgentKind;
@@ -521,6 +529,7 @@ export type AppSettings = {
   readingAssistantProviderId?: string;
   reviewAssistantProviderId?: string;
   readingNoteProviderId?: string;
+  messageSendShortcut?: MessageSendShortcut;
   saveArticleImages?: boolean;
   onboardingCompletedAt?: string;
 };

@@ -246,4 +246,10 @@ WHERE default_provider_id IS NOT NULL;
 ALTER TABLE app_settings ADD COLUMN onboarding_completed_at TEXT;
 `,
   },
+  {
+    id: '0019_message_send_shortcut',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN message_send_shortcut TEXT NOT NULL DEFAULT 'enter';
+`,
+  },
 ];

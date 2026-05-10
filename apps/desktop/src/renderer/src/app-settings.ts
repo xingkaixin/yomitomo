@@ -4,6 +4,7 @@ import type {
   AgentKind,
   DesktopStore,
   LlmProvider,
+  MessageSendShortcut,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -62,6 +63,10 @@ export const annotationDensityOptions: Array<{
   { value: 'medium', label: '标准', description: '约 4-7 条' },
   { value: 'high', label: '积极', description: '约 7-12 条' },
 ];
+
+export const messageSendShortcutOptions: Array<{
+  value: MessageSendShortcut;
+}> = [{ value: 'enter' }, { value: 'mod-enter' }];
 
 export const defaultUser: UserProfile = {
   id: 'user_local',

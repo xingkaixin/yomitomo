@@ -18,6 +18,7 @@ import type {
   AgentReadingIntent,
   Annotation,
   AnnotationType,
+  MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
   UserProfile,
@@ -40,6 +41,7 @@ import {
   replaceMentionQuery,
 } from '@yomitomo/core';
 import { Kbd } from './components/ui/kbd';
+import { isMessageSendShortcutEvent, messageSendShortcutKeys } from './reader-utils';
 
 export type SelectionMenuAction = {
   x: number;
@@ -855,15 +857,38 @@ function SettingStepper({
   );
 }
 
+function SubmitShortcutHint({
+  actionLabel,
+  shortcut,
+  shortcutModifier,
+}: {
+  actionLabel?: string;
+  shortcut: MessageSendShortcut;
+  shortcutModifier: string;
+}) {
+  return (
+    <div className="reader-shortcut-hint">
+      {messageSendShortcutKeys(shortcut, shortcutModifier).map((key) => (
+        <Kbd className="reader-kbd" key={key}>
+          {key}
+        </Kbd>
+      ))}
+      {actionLabel ? <span>{actionLabel}</span> : null}
+    </div>
+  );
+}
+
 export function Composer({
   agents,
   composer,
+  messageSendShortcut,
   shortcutModifier,
   onCancel,
   onSave,
 }: {
   agents: PublicAgent[];
   composer: PendingComposer;
+  messageSendShortcut: MessageSendShortcut;
   shortcutModifier: string;
   onCancel: () => void;
   onSave: (note: string, annotationType: AnnotationType, readingIntent: AgentReadingIntent) => void;
@@ -934,7 +959,7 @@ export function Composer({
       return;
     }
 
-    if (isSubmitShortcut(event)) {
+    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
       event.preventDefault();
       save();
     }
@@ -950,11 +975,11 @@ export function Composer({
       <header className="reader-composer-header">
         <div className="reader-composer-title-row">
           <strong>批注</strong>
-          <div className="reader-shortcut-hint">
-            <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
-            <Kbd className="reader-kbd">Enter</Kbd>
-            <span>发布</span>
-          </div>
+          <SubmitShortcutHint
+            actionLabel="发布"
+            shortcut={messageSendShortcut}
+            shortcutModifier={shortcutModifier}
+          />
         </div>
         <div
           aria-label="批注类型"
@@ -1083,6 +1108,7 @@ export function AnnotationCard({
   agents,
   annotation,
   isStackFront = true,
+  messageSendShortcut,
   noteRef,
   shortcutModifier,
   stackCount = 1,
@@ -1099,6 +1125,7 @@ export function AnnotationCard({
   agents: PublicAgent[];
   annotation: Annotation;
   isStackFront?: boolean;
+  messageSendShortcut: MessageSendShortcut;
   noteRef: (element: HTMLElement | null) => void;
   shortcutModifier: string;
   stackCount?: number;
@@ -1270,7 +1297,7 @@ export function AnnotationCard({
       return;
     }
 
-    if (isSubmitShortcut(event)) {
+    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
       event.preventDefault();
       submit();
     }
@@ -1521,10 +1548,10 @@ export function AnnotationCard({
                   </div>
                 ) : null}
               </div>
-              <div className="reader-shortcut-hint">
-                <Kbd className="reader-kbd">{shortcutModifier}</Kbd>
-                <Kbd className="reader-kbd">Enter</Kbd>
-              </div>
+              <SubmitShortcutHint
+                shortcut={messageSendShortcut}
+                shortcutModifier={shortcutModifier}
+              />
               <button
                 className="reader-add-comment"
                 type="button"
@@ -1681,11 +1708,6 @@ function matchesAgentMentionQuery(agent: PublicAgent, query: string) {
 
 function normalizeMentionSearch(value: string) {
   return value.toLowerCase().replace(/\s+/g, '');
-}
-
-function isSubmitShortcut(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-  const isMac = /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
-  return event.key === 'Enter' && (isMac ? event.metaKey : event.ctrlKey);
 }
 
 function escapeRegExp(value: string) {

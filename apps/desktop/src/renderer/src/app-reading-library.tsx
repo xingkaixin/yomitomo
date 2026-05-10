@@ -24,6 +24,7 @@ import type {
   AnnotationType,
   ArticleRecord,
   Comment as AnnotationComment,
+  MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
   UserProfile,
@@ -32,6 +33,7 @@ import {
   agentPersonalities,
   agentPersonalityName,
   createTextAnchor,
+  normalizeMessageSendShortcut,
   resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
@@ -170,6 +172,7 @@ function writeDesktopReaderSettings(settings: ReaderSettings) {
 export function ReadingLibrary({
   agents,
   articles,
+  messageSendShortcut,
   openArticleId,
   userProfile,
   onArticleOpened,
@@ -180,6 +183,7 @@ export function ReadingLibrary({
 }: {
   agents: Agent[];
   articles: ArticleRecord[];
+  messageSendShortcut?: MessageSendShortcut;
   openArticleId?: string | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
@@ -340,6 +344,7 @@ export function ReadingLibrary({
                   annotations={annotations}
                   article={selectedArticle}
                   focusAnnotationId={sourceFocusAnnotationId}
+                  messageSendShortcut={messageSendShortcut}
                   selectedAnnotationId={selectedAnnotation?.id || null}
                   userProfile={userProfile}
                   onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
@@ -1158,6 +1163,7 @@ function SourceBookcase({
   annotations: articleAnnotations,
   article,
   focusAnnotationId,
+  messageSendShortcut,
   selectedAnnotationId,
   userProfile,
   onFocusedAnnotation,
@@ -1169,6 +1175,7 @@ function SourceBookcase({
   annotations: Annotation[];
   article: ArticleRecord | null;
   focusAnnotationId: string | null;
+  messageSendShortcut?: MessageSendShortcut;
   selectedAnnotationId: string | null;
   userProfile: UserProfile;
   onFocusedAnnotation: () => void;
@@ -1916,6 +1923,7 @@ function SourceBookcase({
     content: contentHtml,
   };
   const shortcutModifier = getShortcutModifier();
+  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
 
   return (
     <section className="source-bookcase source-reader-shell">
@@ -1947,6 +1955,7 @@ function SourceBookcase({
         replyRequest={replyRequest}
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
+        messageSendShortcut={sendShortcut}
         shortcutModifier={shortcutModifier}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}

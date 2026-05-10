@@ -9,6 +9,7 @@ import {
   GeneralSettings,
   ProviderForm,
   ProviderSettings,
+  ShortcutSettings,
   UserProfileSettingsDialog,
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
@@ -333,6 +334,28 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+  });
+});
+
+describe('ShortcutSettings', () => {
+  it('updates the message send shortcut', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <ShortcutSettings
+        settingsDraft={{ messageSendShortcut: 'enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('radio')[1]!);
+
+    expect(onSettingsChange).toHaveBeenCalledWith({ messageSendShortcut: 'mod-enter' });
+    expect(screen.getAllByText('Enter').some((element) => element.tagName === 'KBD')).toBe(true);
+    expect(screen.getByText('消息发送')).toBeTruthy();
+    expect(screen.queryByText(/macOS/)).toBeNull();
   });
 });
 
