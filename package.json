@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
+    "dev:app:debug": "YOMITOMO_OPEN_DEVTOOLS=1 pnpm --filter @yomitomo/desktop dev",
     "make": "pnpm run make:app && pnpm run make:ext",
     "make:app": "pnpm --filter @yomitomo/desktop make",
     "make:ext": "pnpm --filter @yomitomo/extension make",

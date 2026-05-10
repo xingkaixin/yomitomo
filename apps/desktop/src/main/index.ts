@@ -89,7 +89,9 @@ async function createWindow() {
 
   if (process.env.ELECTRON_RENDERER_URL) {
     await browserWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
-    browserWindow.webContents.openDevTools({ mode: 'detach' });
+    if (process.env.YOMITOMO_OPEN_DEVTOOLS === '1') {
+      browserWindow.webContents.openDevTools({ mode: 'detach' });
+    }
   } else {
     await browserWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }
