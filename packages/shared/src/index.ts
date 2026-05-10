@@ -250,6 +250,7 @@ export { readingPartnerSoul as defaultAgentSoul } from './agent-presets';
 
 export const agentReadingIntentOptions: Array<{
   value: AgentReadingIntent;
+  icon: string;
   label: string;
   shortLabel: string;
   description: string;
@@ -257,6 +258,7 @@ export const agentReadingIntentOptions: Array<{
 }> = [
   {
     value: 'explain',
+    icon: '💬',
     label: '解释',
     shortLabel: '解释',
     description: '解释概念、背景和句子里的隐含信息。',
@@ -265,6 +267,7 @@ export const agentReadingIntentOptions: Array<{
   },
   {
     value: 'decompose',
+    icon: '🪓',
     label: '拆解',
     shortLabel: '拆解',
     description: '拆出结构、因果链、前提和结论。',
@@ -272,6 +275,7 @@ export const agentReadingIntentOptions: Array<{
   },
   {
     value: 'challenge',
+    icon: '⚔️',
     label: '挑战',
     shortLabel: '挑战',
     description: '指出薄弱前提、跳跃和可验证处。',
@@ -279,6 +283,7 @@ export const agentReadingIntentOptions: Array<{
   },
   {
     value: 'question',
+    icon: '❓',
     label: '追问',
     shortLabel: '追问',
     description: '提出能推动继续阅读的问题。',
@@ -286,6 +291,7 @@ export const agentReadingIntentOptions: Array<{
   },
   {
     value: 'connect',
+    icon: '📄',
     label: '联系全文',
     shortLabel: '全文',
     description: '把选段放回全文主题和上下文。',
@@ -316,6 +322,16 @@ export function normalizeAnnotationType(value: unknown): AnnotationType | null {
 
 export function agentReadingIntentLabel(intent: AgentReadingIntent) {
   return agentReadingIntentOptions.find((option) => option.value === intent)?.label || intent;
+}
+
+export function agentReadingIntentIcon(intent: AgentReadingIntent) {
+  return agentReadingIntentOptions.find((option) => option.value === intent)?.icon || '';
+}
+
+export function agentReadingIntentDisplayLabel(intent: AgentReadingIntent) {
+  const icon = agentReadingIntentIcon(intent);
+  const label = agentReadingIntentLabel(intent);
+  return icon ? `${icon} ${label}` : label;
 }
 
 export function normalizeQuestionStatus(value: unknown): QuestionStatus | null {

@@ -4,15 +4,26 @@ import {
   CaseSensitive,
   ChevronDown,
   ChevronUp,
+  CornerDownRight,
   Copy,
+  FileText,
+  Layers2,
+  Lightbulb,
   Maximize2,
+  MessageCircle,
   MessageSquare,
   MessageSquarePlus,
   Minus,
   MoreHorizontal,
   Plus,
+  Puzzle,
+  ShieldAlert,
+  Sparkles,
+  Sprout,
+  TriangleAlert,
   Trash2,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
@@ -25,6 +36,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import {
+  agentReadingIntentDisplayLabel,
   agentReadingIntentLabel,
   agentReadingIntentOptions,
   renderMarkdown,
@@ -110,6 +122,68 @@ const annotationTypeOptions: AnnotationType[] = [
   'question',
   'quote',
 ];
+const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
+  explain: MessageCircle,
+  decompose: Layers2,
+  challenge: ShieldAlert,
+  question: CornerDownRight,
+  connect: FileText,
+};
+const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
+  key_point: Lightbulb,
+  assumption: TriangleAlert,
+  concept: Puzzle,
+  question: Sprout,
+  quote: Sparkles,
+};
+
+function ReadingIntentIcon({ intent, size = 13 }: { intent: AgentReadingIntent; size?: number }) {
+  const Icon = readingIntentIcons[intent];
+  return (
+    <Icon
+      aria-hidden="true"
+      className="reader-reading-intent-icon"
+      focusable="false"
+      size={size}
+      strokeWidth={2.3}
+    />
+  );
+}
+
+function ReadingIntentLabelContent({
+  intent,
+  short = false,
+}: {
+  intent: AgentReadingIntent;
+  short?: boolean;
+}) {
+  const option = agentReadingIntentOptions.find((item) => item.value === intent);
+  const label = short
+    ? option?.shortLabel || agentReadingIntentLabel(intent)
+    : agentReadingIntentLabel(intent);
+  return (
+    <>
+      <ReadingIntentIcon intent={intent} />
+      {label}
+    </>
+  );
+}
+
+function AnnotationTypeLabelContent({ type }: { type: AnnotationType }) {
+  const Icon = annotationTypeIcons[type];
+  return (
+    <>
+      <Icon
+        aria-hidden="true"
+        className="reader-annotation-type-icon"
+        focusable="false"
+        size={13}
+        strokeWidth={2.3}
+      />
+      {annotationTypeLabel(type)}
+    </>
+  );
+}
 
 function moveAnnotationTypeSelection(
   event: React.KeyboardEvent<HTMLDivElement>,
@@ -231,10 +305,7 @@ export function HighlightChoiceMenu({
       </header>
       {annotations.map((annotation) => {
         const persona = annotationAuthor(annotation, userProfile, agents);
-        const labels = [
-          annotation.annotationType ? annotationTypeLabel(annotation.annotationType) : '',
-          annotation.readingIntent ? agentReadingIntentLabel(annotation.readingIntent) : '',
-        ].filter(Boolean);
+        const hasLabels = Boolean(annotation.annotationType || annotation.readingIntent);
         return (
           <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
             <AvatarBadge avatar={persona.avatar} fallback={persona.fallback} />
@@ -242,7 +313,21 @@ export function HighlightChoiceMenu({
               <strong>{persona.nickname}</strong>
               <em>@{persona.username}</em>
             </span>
-            {labels.length > 0 ? <b>{labels.join(' · ')}</b> : null}
+            {hasLabels ? (
+              <b>
+                {annotation.annotationType ? (
+                  <span className="reader-highlight-choice-label">
+                    <AnnotationTypeLabelContent type={annotation.annotationType} />
+                  </span>
+                ) : null}
+                {annotation.annotationType && annotation.readingIntent ? <i>·</i> : null}
+                {annotation.readingIntent ? (
+                  <span className="reader-highlight-choice-label">
+                    {agentReadingIntentDisplayLabel(annotation.readingIntent)}
+                  </span>
+                ) : null}
+              </b>
+            ) : null}
           </button>
         );
       })}
@@ -418,11 +503,13 @@ export function QuestionPanel({
               text: annotation.anchor.exact,
               quote: annotation.anchor.exact,
               createdAt: annotation.createdAt,
-              typeLabel: annotation.readingIntent
-                ? agentReadingIntentLabel(annotation.readingIntent)
-                : annotation.annotationType
-                  ? annotationTypeLabel(annotation.annotationType)
-                  : '问题',
+              typeLabel: annotation.readingIntent ? (
+                agentReadingIntentDisplayLabel(annotation.readingIntent)
+              ) : annotation.annotationType ? (
+                <AnnotationTypeLabelContent type={annotation.annotationType} />
+              ) : (
+                '问题'
+              ),
               setStatus: (status: QuestionStatus) =>
                 onSetAnnotationQuestionStatus(annotation.id, status),
             },
@@ -441,8 +528,8 @@ export function QuestionPanel({
           quote: annotation.anchor.exact,
           createdAt: comment.createdAt,
           typeLabel: comment.readingIntent
-            ? agentReadingIntentLabel(comment.readingIntent)
-            : '追问',
+            ? agentReadingIntentDisplayLabel(comment.readingIntent)
+            : '❓ 追问',
           setStatus: (status: QuestionStatus) =>
             onSetCommentQuestionStatus(annotation.id, comment.id, status),
         };
@@ -685,7 +772,7 @@ export function AgentAnnotateMenu({
             type="button"
             onDragStart={(event) => onActionDragStart(event, option.value)}
           >
-            {option.shortLabel}
+            <ReadingIntentLabelContent intent={option.value} short />
           </button>
         ))}
       </div>
@@ -737,7 +824,9 @@ export function AgentAnnotateMenu({
                         title={option.description}
                         onClick={() => clearAssignment(agent.id, section.id)}
                       >
-                        <strong>{option.shortLabel}</strong>
+                        <strong>
+                          <ReadingIntentLabelContent intent={option.value} short />
+                        </strong>
                       </button>
                     ) : (
                       <span>—</span>
@@ -1019,7 +1108,7 @@ export function Composer({
               type="button"
               onClick={() => setAnnotationType(type)}
             >
-              {annotationTypeLabel(type)}
+              <AnnotationTypeLabelContent type={type} />
             </button>
           ))}
         </div>
@@ -1041,7 +1130,7 @@ export function Composer({
               type="button"
               onClick={() => setReadingIntent(option.value)}
             >
-              {option.shortLabel}
+              <ReadingIntentLabelContent intent={option.value} short />
             </button>
           ))}
         </div>
@@ -1387,12 +1476,12 @@ export function AnnotationCard({
         <div className="reader-note-action-row">
           {annotation.annotationType ? (
             <span className="reader-note-type">
-              {annotationTypeLabel(annotation.annotationType)}
+              <AnnotationTypeLabelContent type={annotation.annotationType} />
             </span>
           ) : null}
           {annotation.readingIntent ? (
             <span className="reader-note-intent">
-              {agentReadingIntentLabel(annotation.readingIntent)}
+              <ReadingIntentLabelContent intent={annotation.readingIntent} />
             </span>
           ) : null}
           <time dateTime={annotation.createdAt}>{formatTime(annotation.createdAt)}</time>
@@ -1466,7 +1555,9 @@ export function AnnotationCard({
                         <strong>{commentAuthor.nickname}</strong>
                         <em>@{commentAuthor.username}</em>
                         {comment.readingIntent ? (
-                          <span>{agentReadingIntentLabel(comment.readingIntent)}</span>
+                          <span>
+                            <ReadingIntentLabelContent intent={comment.readingIntent} />
+                          </span>
                         ) : null}
                         {comment.questionStatus ? (
                           <span>{questionStatusLabel(comment.questionStatus)}</span>

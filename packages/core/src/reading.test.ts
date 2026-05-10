@@ -246,6 +246,7 @@ describe('reading core', () => {
     expect(units[1]).toMatchObject({
       index: 2,
       annotationType: '关键判断',
+      annotationTypeKey: 'key_point',
       annotationAuthorLabel: '研究助手',
     });
     expect(units[1].comments.map((comment) => comment.id)).toEqual(['early', 'late']);

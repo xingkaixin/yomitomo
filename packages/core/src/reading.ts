@@ -1,4 +1,10 @@
-import type { Annotation, ArticleRecord, Comment, QuestionStatus } from '@yomitomo/shared';
+import type {
+  Annotation,
+  AnnotationType,
+  ArticleRecord,
+  Comment,
+  QuestionStatus,
+} from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
   annotationThreadComments,
@@ -31,6 +37,7 @@ export type ReadingCardEvidenceUnit = {
   quote: string;
   context: string;
   annotationType: string;
+  annotationTypeKey?: AnnotationType;
   questionStatus?: QuestionStatus;
   annotationAuthor: Annotation['author'];
   annotationAuthorLabel: string;
@@ -198,6 +205,7 @@ export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCa
       annotationType: annotation.annotationType
         ? annotationTypeLabel(annotation.annotationType)
         : '',
+      annotationTypeKey: annotation.annotationType,
       questionStatus: annotation.questionStatus,
       annotationAuthor: annotation.author,
       annotationAuthorLabel: annotationLabel(annotation),
