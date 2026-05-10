@@ -346,19 +346,6 @@ function App() {
           <h1>Yomitomo</h1>
           <p>伴读 · 你的 AI 阅读伙伴</p>
         </div>
-        <button
-          aria-label="打开个人设置"
-          className="header-profile-button"
-          type="button"
-          onClick={() => setProfileDialogOpen(true)}
-        >
-          <AvatarImage
-            value={store.user.avatar || ''}
-            className="header-profile-avatar"
-            fallback={store.user.nickname?.slice(0, 1) || '我'}
-          />
-          <span>{store.user.nickname || '我'}</span>
-        </button>
       </header>
 
       <section className="app-layout">
@@ -412,6 +399,20 @@ function App() {
               <blockquote>“{dailyQuote.text}”</blockquote>
             </div>
           </div>
+
+          <button
+            aria-label="打开个人设置"
+            className="sidebar-profile-button"
+            type="button"
+            onClick={() => setProfileDialogOpen(true)}
+          >
+            <AvatarImage
+              value={store.user.avatar || ''}
+              className="sidebar-profile-avatar"
+              fallback={store.user.nickname?.slice(0, 1) || '我'}
+            />
+            <span>{store.user.nickname || '我'}</span>
+          </button>
 
           <ExtensionConnectionButton
             pairingConnectionStatus={pairingConnectionStatus}

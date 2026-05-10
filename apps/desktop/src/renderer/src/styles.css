@@ -173,55 +173,6 @@
   white-space: nowrap;
 }
 
-.header-profile-button {
-  display: inline-flex;
-  height: 32px;
-  max-width: 220px;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid hsl(var(--border) / 0.78);
-  border-radius: 999px;
-  background: hsl(var(--card) / 0.72);
-  color: hsl(var(--foreground));
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 820;
-  padding: 0 11px 0 4px;
-  transition:
-    background 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
-  -webkit-app-region: no-drag;
-}
-
-.header-profile-button:hover {
-  background: hsl(var(--card) / 0.96);
-  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.1);
-}
-
-.header-profile-button:active {
-  transform: scale(0.96);
-}
-
-.header-profile-button > span:last-child {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.avatar-image.header-profile-avatar {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  font-size: 11px;
-}
-
-.header-profile-button .avatar-image.header-profile-avatar img {
-  outline: 0;
-}
-
 .app-layout {
   display: grid;
   min-height: 0;
@@ -322,6 +273,7 @@
 
 .app-shell.is-sidebar-collapsed .settings-nav-item span,
 .app-shell.is-sidebar-collapsed .sidebar-note,
+.app-shell.is-sidebar-collapsed .sidebar-profile-button,
 .app-shell.is-sidebar-collapsed .sidebar-sync {
   display: none;
 }
@@ -394,6 +346,59 @@
   font-weight: 650;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.sidebar-profile-button {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-top: 1px solid hsl(var(--border) / 0.62);
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 850;
+  padding: 12px 8px 0;
+  text-align: left;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.sidebar-profile-button:hover {
+  color: hsl(var(--primary));
+}
+
+.sidebar-profile-button:active {
+  transform: scale(0.98);
+}
+
+.sidebar-profile-button:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 3px;
+}
+
+.sidebar-profile-button > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.avatar-image.sidebar-profile-avatar {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 0;
+  font-size: 11px;
+}
+
+.sidebar-profile-button .avatar-image.sidebar-profile-avatar img {
+  outline: 0;
 }
 
 .sidebar-sync {
