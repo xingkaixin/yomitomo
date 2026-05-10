@@ -72,19 +72,19 @@ export const defaultUser: UserProfile = {
   updatedAt: '',
 };
 
-const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'anthropic');
+const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
 export const emptyProvider: ProviderDraft = {
   presetId: defaultProviderPreset?.id,
-  name: defaultProviderPreset?.name || 'Anthropic',
-  type: defaultProviderPreset?.type || 'anthropic',
+  name: defaultProviderPreset?.name || '深度求索',
+  type: defaultProviderPreset?.type || 'openai-chat',
   logo: defaultProviderPreset?.logo,
-  baseUrl: defaultProviderPreset?.baseUrl || 'https://api.anthropic.com',
-  modelName: defaultProviderPreset?.modelName || 'claude-sonnet-4-5',
+  baseUrl: defaultProviderPreset?.baseUrl || 'https://api.deepseek.com',
+  modelName: defaultProviderPreset?.modelName || 'deepseek-chat',
   modelNames: defaultProviderPreset?.modelNames,
   modelInputMode: 'list',
   apiKey: '',
-  reasoningEffort: 'default',
+  reasoningEffort: 'none',
 };
 
 export const emptyStore: DesktopStore = {
@@ -162,7 +162,7 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
     (draft.modelName || '').trim() !== provider.modelName ||
     modelNamesChanged(draft.modelNames, provider.modelNames) ||
     (draft.modelInputMode || 'list') !== (provider.modelInputMode || 'list') ||
-    (draft.reasoningEffort || 'default') !== (provider.reasoningEffort || 'default')
+    (draft.reasoningEffort || 'none') !== (provider.reasoningEffort || 'none')
   );
 }
 

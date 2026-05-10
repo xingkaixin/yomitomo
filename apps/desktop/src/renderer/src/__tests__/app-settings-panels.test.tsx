@@ -177,7 +177,7 @@ function makeProvider(id: string, name: string): LlmProvider {
     apiKey: 'sk-test',
     modelName: 'claude-sonnet-4-5',
     modelInputMode: 'list',
-    reasoningEffort: 'default',
+    reasoningEffort: 'none',
     createdAt: '2026-05-04T00:00:00.000Z',
     updatedAt: '2026-05-04T00:00:00.000Z',
   };

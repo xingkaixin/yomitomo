@@ -3,6 +3,8 @@ import { providerPresets } from '@yomitomo/shared';
 import { normalizeAnthropicError } from './budget';
 import { logAiInfo } from './logger';
 
+const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
+
 export type GenerateOptions = {
   failOnMaxTokens?: boolean;
 };
@@ -56,18 +58,19 @@ export async function streamProviderText(
 }
 
 function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
-  const preset = providerPresets.find((item) => item.id === provider.presetId);
+  const preset =
+    providerPresets.find((item) => item.id === provider.presetId) || defaultProviderPreset;
   const now = new Date(0).toISOString();
   return {
     id: provider.id || 'draft',
     name: provider.name || preset?.name || 'Provider',
-    type: provider.type || preset?.type || 'anthropic',
+    type: provider.type || preset?.type || 'openai-chat',
     presetId: provider.presetId,
     logo: provider.logo || preset?.logo,
-    baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.anthropic.com',
+    baseUrl: provider.baseUrl || preset?.baseUrl || 'https://api.deepseek.com',
     apiKey: provider.apiKey || '',
-    modelName: provider.modelName || preset?.modelName || 'claude-sonnet-4-5',
-    reasoningEffort: provider.reasoningEffort || 'default',
+    modelName: provider.modelName || preset?.modelName || 'deepseek-chat',
+    reasoningEffort: provider.reasoningEffort || 'none',
     createdAt: provider.createdAt || now,
     updatedAt: provider.updatedAt || now,
   };
@@ -381,14 +384,14 @@ function geminiBody(provider: LlmProvider, payload: TextPayload) {
 }
 
 function openAIResponsesReasoningParams(provider: LlmProvider) {
-  const effort = provider.reasoningEffort || 'default';
+  const effort = provider.reasoningEffort || 'none';
   if (effort === 'default') return {};
   const normalized = normalizeOpenAIEffort(effort);
   return normalized ? { reasoning: { effort: normalized } } : {};
 }
 
 function openAICompatibleReasoningParams(provider: LlmProvider, maxTokens: number) {
-  const effort = provider.reasoningEffort || 'default';
+  const effort = provider.reasoningEffort || 'none';
   if (effort === 'default') return {};
   const model = provider.modelName.toLowerCase();
   if (effort === 'none') {
@@ -416,7 +419,7 @@ function anthropicThinking(
   provider: LlmProvider,
   maxTokens: number,
 ): { type: 'enabled' | 'disabled'; budget_tokens?: number } | null {
-  const effort = provider.reasoningEffort || 'default';
+  const effort = provider.reasoningEffort || 'none';
   if (effort === 'default') return null;
   if (effort === 'none') return { type: 'disabled' };
   const budget = thinkingBudget(effort, maxTokens - 1);
@@ -426,7 +429,7 @@ function anthropicThinking(
 }
 
 function geminiThinkingConfig(provider: LlmProvider, maxTokens: number) {
-  const effort = provider.reasoningEffort || 'default';
+  const effort = provider.reasoningEffort || 'none';
   if (effort === 'default') return {};
   if (effort === 'none') {
     return { thinkingConfig: { includeThoughts: false, thinkingBudget: 0 } };
@@ -563,7 +566,7 @@ function logProviderRequest(
     providerName: provider.name,
     maxTokens: payload.maxTokens,
     temperature: payload.temperature,
-    reasoningEffort: provider.reasoningEffort || 'default',
+    reasoningEffort: provider.reasoningEffort || 'none',
     apiKeyPreview: previewSecret(provider.apiKey),
   });
 }

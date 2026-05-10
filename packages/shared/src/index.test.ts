@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  agentPersonalities,
   type ArticleRecord,
   createTextAnchor,
   isDesktopSocketOriginAllowed,
@@ -49,6 +50,12 @@ describe('desktop socket origin policy', () => {
     expect(isDesktopSocketOriginAllowed('https://example.com')).toBe(false);
     expect(isDesktopSocketOriginAllowed('not a url')).toBe(false);
     expect(isDesktopSocketOriginAllowed(undefined)).toBe(false);
+  });
+});
+
+describe('agent presets', () => {
+  it('enables every preset assistant by default', () => {
+    expect(agentPersonalities.every((personality) => personality.defaultEnabled)).toBe(true);
   });
 });
 

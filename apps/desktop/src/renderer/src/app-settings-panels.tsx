@@ -1407,6 +1407,7 @@ export function ProviderForm({
       modelName: preset.modelName,
       modelNames: preset.modelNames,
       modelInputMode: 'list',
+      reasoningEffort: draft.reasoningEffort || 'none',
     });
   }
 
@@ -1556,7 +1557,7 @@ export function ProviderForm({
       {showReasoning ? (
         <Field id="provider-reasoning" className="col-span-2" label="思考强度">
           <Select
-            value={draft.reasoningEffort || 'default'}
+            value={draft.reasoningEffort || 'none'}
             onValueChange={(reasoningEffort) =>
               onChange({
                 ...draft,

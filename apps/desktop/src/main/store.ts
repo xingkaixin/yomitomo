@@ -57,6 +57,8 @@ const defaultStore: DesktopStore = {
   articles: [],
 };
 
+const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
+
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: BetterSQLite3Database<typeof schema> | null = null;
 type StoreDatabase = BetterSQLite3Database<typeof schema>;
@@ -165,20 +167,30 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
   const existing = input.id
     ? store.providers.find((provider) => provider.id === input.id)
     : undefined;
-  const preset = providerPresets.find((item) => item.id === input.presetId);
+  const preset =
+    providerPresets.find((item) => item.id === input.presetId) ||
+    (existing ? undefined : defaultProviderPreset);
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
   const provider: LlmProvider = {
     id: existing?.id || makeId('provider'),
     name: input.name?.trim() || preset?.name || 'Untitled Provider',
-    type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'anthropic',
+    type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'openai-chat',
     presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
     logo: input.logo || existing?.logo || preset?.logo,
     baseUrl:
-      input.baseUrl?.trim() || existing?.baseUrl || preset?.baseUrl || 'https://api.anthropic.com',
+      input.baseUrl?.trim() ||
+      existing?.baseUrl ||
+      preset?.baseUrl ||
+      defaultProviderPreset?.baseUrl ||
+      'https://api.deepseek.com',
     apiKey: input.apiKey?.trim() || existing?.apiKey || '',
     modelName:
-      input.modelName?.trim() || existing?.modelName || preset?.modelName || 'claude-sonnet-4-5',
+      input.modelName?.trim() ||
+      existing?.modelName ||
+      preset?.modelName ||
+      defaultProviderPreset?.modelName ||
+      'deepseek-chat',
     modelNames:
       modelInputMode === 'custom'
         ? undefined
@@ -187,7 +199,7 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
           preset?.modelNames,
     modelInputMode,
     reasoningEffort:
-      normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'default',
+      normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'none',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -457,7 +469,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     providers: providerRows.map((row) => ({
       id: row.id,
       name: row.name,
-      type: normalizeProviderType(row.type) || 'anthropic',
+      type: normalizeProviderType(row.type) || 'openai-chat',
       presetId: normalizePresetId(row.presetId || undefined),
       logo: row.logo || undefined,
       baseUrl: row.baseUrl,
@@ -465,7 +477,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       modelName: row.modelName,
       modelNames: normalizeModelNames(row.modelNames) || undefined,
       modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
-      reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'default',
+      reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'none',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     })),
@@ -766,14 +778,14 @@ function normalizeStore(store: DesktopStore): DesktopStore {
     settings: normalizeSettings(store.settings),
     providers: (store.providers || []).map((provider) =>
       Object.assign({}, provider, {
-        type: normalizeProviderType(provider.type) || 'anthropic',
+        type: normalizeProviderType(provider.type) || 'openai-chat',
         presetId: normalizePresetId(provider.presetId),
         modelNames:
           provider.modelInputMode === 'custom'
             ? undefined
             : normalizeModelNames(provider.modelNames),
         modelInputMode: normalizeProviderModelInputMode(provider.modelInputMode) || 'list',
-        reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'default',
+        reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'none',
       }),
     ),
     agents: (store.agents || []).map((agent) =>

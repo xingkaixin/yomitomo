@@ -211,7 +211,7 @@ export const annotationAgentPersonalities: AgentPersonality[] = [
     icon: 'lens',
     temperature: 0.3,
     defaultColor: '#c8b88a',
-    defaultEnabled: false,
+    defaultEnabled: true,
     soul: conceptTranslatorSoul,
   },
   {
@@ -234,7 +234,7 @@ export const annotationAgentPersonalities: AgentPersonality[] = [
     icon: 'checklist',
     temperature: 0.35,
     defaultColor: '#a374b4',
-    defaultEnabled: false,
+    defaultEnabled: true,
     soul: structureNavigatorSoul,
   },
 ];
@@ -324,7 +324,7 @@ export const reviewAgentPersonalities: AgentPersonality[] = [
     icon: 'pyramid',
     temperature: 0.25,
     defaultColor: '#8d78bd',
-    defaultEnabled: false,
+    defaultEnabled: true,
     soul: logicAuditorSoul,
   },
   {
@@ -346,7 +346,7 @@ export const reviewAgentPersonalities: AgentPersonality[] = [
     icon: 'scales',
     temperature: 0.25,
     defaultColor: '#c8b88a',
-    defaultEnabled: false,
+    defaultEnabled: true,
     soul: riskExaminerSoul,
   },
   {
@@ -368,7 +368,7 @@ export const reviewAgentPersonalities: AgentPersonality[] = [
     icon: 'question',
     temperature: 0.35,
     defaultColor: '#6fa48f',
-    defaultEnabled: false,
+    defaultEnabled: true,
     soul: actionCalibratorSoul,
   },
 ];
