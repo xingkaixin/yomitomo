@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, List, MessageSquare, Settings2, X } from 'lucide-react';
+import { Bot, Funnel, List, MessageSquare, Settings2, X } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   AgentReadingIntent,
@@ -13,18 +13,29 @@ import type {
 import { annotationTypeLabel } from '@yomitomo/core';
 import type { HighlightBox, TocItem } from '@yomitomo/core';
 import {
+  annotationFilterActiveCount,
+  annotationFiltersEqual,
+  buildAnnotationFilterFacets,
   buildAnnotationRailItems,
   buildHighlightSegments,
   buildTocAnnotationStats,
   countOpenQuestions,
+  createEmptyAnnotationFilter,
+  filterAnnotationsByFacets,
   highlightSegmentStyle,
+  isAnnotationFilterActive,
   isPrimaryTocItem,
+  pruneAnnotationFilter,
   selectionActionShortcut,
+  toggleAnnotationFilterValue,
+  type AnnotationFilterGroup,
+  type AnnotationFilterState,
 } from './reader-utils';
 import {
   AgentAnnotateMenu,
   AnnotationCard,
   AnnotationConnection,
+  AnnotationFilterPanel,
   Composer,
   EmptyNotes,
   HighlightChoiceMenu,
@@ -58,6 +69,9 @@ export type ReaderArticle = {
   excerpt?: string;
   content: string;
 };
+
+const annotationFilterPanelId = 'reader-annotation-filter-panel';
+const FILTERED_NOTE_EXIT_MS = 190;
 
 function HighlightDots({ colors }: { colors: string[] }) {
   if (colors.length <= 1) return null;
@@ -129,7 +143,11 @@ export type ReaderAppViewProps = {
   onFocusAnnotation: (annotationId: string) => void;
   onAnswerQuestion: (annotationId: string) => void;
   onAnnotationLayoutChange?: () => void;
-  onHighlightClick: (annotationId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onHighlightClick: (
+    annotationId: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+    annotationIds: string[],
+  ) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
   onCloseHighlightChoice: () => void;
   onCloseFloatingPanels: () => void;
@@ -238,6 +256,14 @@ export function ReaderAppView({
   onToggleSettings,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
+  const [annotationFilterOpen, setAnnotationFilterOpen] = React.useState(false);
+  const [annotationFilter, setAnnotationFilter] = React.useState<AnnotationFilterState>(
+    createEmptyAnnotationFilter,
+  );
+  const [railAnimation, setRailAnimation] = React.useState(() => ({
+    ids: filteredAnnotations.map((annotation) => annotation.id),
+    exitingIds: new Set<string>(),
+  }));
   const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
   const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
   const noteRefCallbacksRef = React.useRef(
@@ -248,16 +274,42 @@ export function ReaderAppView({
     (annotationId: string, element: HTMLElement | null) => void
   >(() => {});
   const activeAnnotation = annotations.find((item) => item.id === activeId) || null;
+  const visibleAnnotations = React.useMemo(
+    () => filterAnnotationsByFacets(filteredAnnotations, annotationFilter),
+    [annotationFilter, filteredAnnotations],
+  );
+  const annotationFilterFacets = React.useMemo(
+    () => buildAnnotationFilterFacets(filteredAnnotations, annotationFilter, userProfile, agents),
+    [agents, annotationFilter, filteredAnnotations, userProfile],
+  );
   const highlightChoiceAnnotations = highlightChoice
     ? highlightChoice.annotationIds
-        .map((id) => annotations.find((annotation) => annotation.id === id))
+        .map((id) => visibleAnnotations.find((annotation) => annotation.id === id))
         .filter((annotation): annotation is Annotation => Boolean(annotation))
     : [];
+  const visibleAnnotationIds = React.useMemo(
+    () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
+    [visibleAnnotations],
+  );
+  const railAnnotationById = React.useMemo(
+    () => new Map(filteredAnnotations.map((annotation) => [annotation.id, annotation])),
+    [filteredAnnotations],
+  );
+  const railAnnotations = React.useMemo(
+    () =>
+      railAnimation.ids
+        .map((id) => railAnnotationById.get(id))
+        .filter((annotation): annotation is Annotation => Boolean(annotation)),
+    [railAnimation.ids, railAnnotationById],
+  );
+  const exitingAnnotationIds = railAnimation.exitingIds;
   const annotationRailItems = React.useMemo(
-    () => buildAnnotationRailItems(filteredAnnotations, boxes, activeId, noteHeights),
-    [activeId, boxes, filteredAnnotations, noteHeights],
+    () => buildAnnotationRailItems(railAnnotations, boxes, activeId, noteHeights),
+    [activeId, boxes, noteHeights, railAnnotations],
   );
   const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
+  const filterActive = isAnnotationFilterActive(annotationFilter);
+  const filterActiveCount = annotationFilterActiveCount(annotationFilter);
   const hasToc = tocItems.length > 0;
   const highlightSegments = React.useMemo(() => buildHighlightSegments(boxes), [boxes]);
   const temporarySegments = React.useMemo(
@@ -334,7 +386,39 @@ export function ReaderAppView({
   }, []);
 
   React.useEffect(() => {
-    const visibleIds = new Set(filteredAnnotations.map((annotation) => annotation.id));
+    const pruned = pruneAnnotationFilter(annotationFilter, filteredAnnotations);
+    if (!annotationFiltersEqual(pruned, annotationFilter)) setAnnotationFilter(pruned);
+    if (filteredAnnotations.length === 0) setAnnotationFilterOpen(false);
+  }, [annotationFilter, filteredAnnotations]);
+
+  React.useEffect(() => {
+    const sourceIds = filteredAnnotations.map((annotation) => annotation.id);
+    const sourceIdSet = new Set(sourceIds);
+    const visibleIds = visibleAnnotations.map((annotation) => annotation.id);
+    const visibleIdSet = new Set(visibleIds);
+
+    setRailAnimation((current) => {
+      const currentIds = current.ids.length > 0 ? current.ids : sourceIds;
+      const exitingIds = currentIds.filter((id) => sourceIdSet.has(id) && !visibleIdSet.has(id));
+      const renderedIds = new Set([...visibleIds, ...exitingIds]);
+      return {
+        ids: sourceIds.filter((id) => renderedIds.has(id)),
+        exitingIds: new Set(exitingIds),
+      };
+    });
+
+    const timeout = window.setTimeout(() => {
+      setRailAnimation({
+        ids: sourceIds.filter((id) => visibleIdSet.has(id)),
+        exitingIds: new Set(),
+      });
+    }, FILTERED_NOTE_EXIT_MS);
+
+    return () => window.clearTimeout(timeout);
+  }, [filteredAnnotations, visibleAnnotations]);
+
+  React.useEffect(() => {
+    const visibleIds = new Set(railAnnotations.map((annotation) => annotation.id));
     for (const annotationId of noteRefCallbacksRef.current.keys()) {
       if (!visibleIds.has(annotationId)) noteRefCallbacksRef.current.delete(annotationId);
     }
@@ -344,7 +428,26 @@ export function ReaderAppView({
       );
       return Object.keys(next).length === Object.keys(current).length ? current : next;
     });
-  }, [filteredAnnotations]);
+  }, [railAnnotations]);
+
+  React.useEffect(() => {
+    if (!activeId || visibleAnnotationIds.has(activeId)) return;
+    onCloseHighlightChoice();
+    onClearActiveAnnotation();
+  }, [activeId, onClearActiveAnnotation, onCloseHighlightChoice, visibleAnnotationIds]);
+
+  React.useEffect(() => {
+    if (!annotationFilterOpen) return;
+
+    function handleFilterPanelKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.key !== 'Escape') return;
+      event.preventDefault();
+      setAnnotationFilterOpen(false);
+    }
+
+    window.addEventListener('keydown', handleFilterPanelKeyDown);
+    return () => window.removeEventListener('keydown', handleFilterPanelKeyDown);
+  }, [annotationFilterOpen]);
 
   React.useEffect(() => () => noteResizeObserverRef.current?.disconnect(), []);
 
@@ -379,7 +482,7 @@ export function ReaderAppView({
 
   React.useLayoutEffect(() => {
     onAnnotationLayoutChange?.();
-  }, [noteHeights, onAnnotationLayoutChange]);
+  }, [annotationRailItems, noteHeights, onAnnotationLayoutChange]);
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
@@ -390,12 +493,36 @@ export function ReaderAppView({
     return index >= 0 ? `打开${type} ${index + 1}` : '打开批注';
   }
 
+  function clearAnnotationFilter() {
+    setAnnotationFilter(createEmptyAnnotationFilter());
+  }
+
+  function toggleAnnotationFilterValueForGroup(group: AnnotationFilterGroup, value: string) {
+    setAnnotationFilter((current) => toggleAnnotationFilterValue(current, group, value));
+  }
+
+  function toggleAnnotationFilter() {
+    onCloseFloatingPanels();
+    setAnnotationFilterOpen((open) => !open);
+  }
+
+  function toggleAgentAnnotate() {
+    setAnnotationFilterOpen(false);
+    onToggleAgentAnnotate();
+  }
+
+  function toggleSettings() {
+    setAnnotationFilterOpen(false);
+    onToggleSettings();
+  }
+
   function handleReaderPointerDownCapture(event: React.PointerEvent<HTMLDivElement>) {
     if (!(event.target instanceof Element)) return;
     const target = event.target;
 
-    if (settingsOpen || agentAnnotateOpen) {
+    if (settingsOpen || agentAnnotateOpen || annotationFilterOpen) {
       if (!target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) {
+        setAnnotationFilterOpen(false);
         onCloseFloatingPanels();
       }
     }
@@ -476,12 +603,32 @@ export function ReaderAppView({
           </button>
           <button
             className={
+              filterActive || annotationFilterOpen
+                ? 'reader-filter-toggle is-active'
+                : 'reader-filter-toggle'
+            }
+            data-reader-popover-anchor
+            type="button"
+            disabled={filteredAnnotations.length === 0}
+            onClick={toggleAnnotationFilter}
+            aria-controls={annotationFilterPanelId}
+            aria-expanded={annotationFilterOpen}
+            aria-label="过滤筛选"
+            aria-pressed={filterActive}
+            title="过滤筛选"
+          >
+            <Funnel size={16} />
+            <span>过滤筛选</span>
+            {filterActive ? <b>{filterActiveCount}</b> : null}
+          </button>
+          <button
+            className={
               agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
             }
             data-reader-popover-anchor
             type="button"
             disabled={agents.length === 0}
-            onClick={onToggleAgentAnnotate}
+            onClick={toggleAgentAnnotate}
           >
             <Bot size={18} />
             {annotatingAgents.length > 0 ? '精读中' : '助手精读'}
@@ -490,7 +637,7 @@ export function ReaderAppView({
             className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
             data-reader-popover-anchor
             type="button"
-            onClick={onToggleSettings}
+            onClick={toggleSettings}
             aria-label="阅读设置"
           >
             <Settings2 size={18} />
@@ -517,6 +664,20 @@ export function ReaderAppView({
             onStartAgentPlan={onStartAgentReadingPlan}
           />
         </div>
+      ) : null}
+
+      {annotationFilterOpen ? (
+        <AnnotationFilterPanel
+          facets={annotationFilterFacets}
+          panelProps={
+            {
+              'data-reader-floating-panel': '',
+              id: annotationFilterPanelId,
+            } as React.HTMLAttributes<HTMLDivElement>
+          }
+          onClear={clearAnnotationFilter}
+          onToggle={toggleAnnotationFilterValueForGroup}
+        />
       ) : null}
 
       {settingsOpen ? (
@@ -582,16 +743,38 @@ export function ReaderAppView({
             </article>
             <div className="reader-highlight-layer">
               {highlightSegments.map((segment) => {
-                const active = segment.annotationIds.includes(activeId || '');
-                const annotationId = segment.annotationIds[0] || '';
+                const dimmed =
+                  filterActive &&
+                  segment.annotationIds.every((id) => !visibleAnnotationIds.has(id));
+                const active = !dimmed && segment.annotationIds.includes(activeId || '');
+                const clickableAnnotationIds = segment.annotationIds.filter((id) =>
+                  visibleAnnotationIds.has(id),
+                );
+                const annotationId = clickableAnnotationIds[0] || segment.annotationIds[0] || '';
+                const segmentStyle = {
+                  ...highlightSegmentStyle(segment, active),
+                  ...(dimmed ? { '--highlight-opacity': 0.42 } : {}),
+                } as React.CSSProperties;
                 return (
                   <button
                     aria-label={highlightLabel(annotationId)}
-                    className={active ? 'reader-highlight is-active' : 'reader-highlight'}
+                    aria-disabled={dimmed || undefined}
+                    className={[
+                      'reader-highlight',
+                      active ? 'is-active' : '',
+                      dimmed ? 'is-filter-dimmed' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     key={`highlight-${segment.id}`}
-                    style={highlightSegmentStyle(segment, active) as React.CSSProperties}
+                    style={segmentStyle}
+                    tabIndex={dimmed ? -1 : undefined}
                     type="button"
-                    onClick={(event) => onHighlightClick(annotationId, event)}
+                    onClick={
+                      dimmed
+                        ? undefined
+                        : (event) => onHighlightClick(annotationId, event, clickableAnnotationIds)
+                    }
                   >
                     <HighlightDots colors={segment.colors} />
                   </button>
@@ -618,7 +801,7 @@ export function ReaderAppView({
             </div>
             <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
               {annotations.length === 0 ? <EmptyNotes /> : null}
-              {annotations.length > 0 && filteredAnnotations.length === 0 ? (
+              {annotations.length > 0 && visibleAnnotations.length === 0 ? (
                 <div className="reader-empty">
                   <strong>没有匹配的批注</strong>
                   <p>当前筛选项下没有批注。</p>
@@ -630,6 +813,7 @@ export function ReaderAppView({
                     active={annotation.id === activeAnnotation?.id}
                     agents={agents}
                     annotation={annotation}
+                    exiting={exitingAnnotationIds.has(annotation.id)}
                     isStackFront={isStackFront}
                     messageSendShortcut={messageSendShortcut}
                     key={annotation.id}

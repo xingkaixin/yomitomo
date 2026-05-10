@@ -42,7 +42,6 @@ import {
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
-  buildReadingCardStats,
   extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -78,13 +77,7 @@ import {
   type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
-import {
-  articleIdentityLine,
-  articlePlainText,
-  articleReadingStatsLine,
-  formatDate,
-  urlHost,
-} from './app-utils';
+import { articleIdentityLine, articlePlainText, formatDate, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { OpenArticleButton } from './app-ui';
@@ -1235,10 +1228,6 @@ function SourceBookcase({
     }),
     [annotations],
   );
-  const stats = useMemo(
-    () => (article ? buildReadingCardStats({ ...article, annotations }) : null),
-    [annotations, article],
-  );
   const {
     agentTheaterBoxes,
     annotatingAgents: annotatingAgentIds,
@@ -1329,7 +1318,7 @@ function SourceBookcase({
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateBoxes);
     };
-  }, [annotations, article, contentHtml]);
+  }, [annotationAgents, annotations, article, contentHtml, userProfile]);
 
   useEffect(() => {
     setHighlightChoice(null);
@@ -1859,7 +1848,11 @@ function SourceBookcase({
     }
   }
 
-  function handleHighlightClick(annotationId: string, event: React.MouseEvent<HTMLButtonElement>) {
+  function handleHighlightClick(
+    annotationId: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+    visibleAnnotationIds: string[],
+  ) {
     const canvasElement = canvasRef.current;
     if (!canvasElement) {
       openAnnotation(annotationId);
@@ -1867,14 +1860,17 @@ function SourceBookcase({
     }
 
     const canvasRect = canvasElement.getBoundingClientRect();
-    const annotationIds = annotationIdsAtHighlightPoint(
-      boxes,
-      {
-        x: event.clientX - canvasRect.left,
-        y: event.clientY - canvasRect.top,
-      },
-      1,
-    );
+    const annotationIds =
+      visibleAnnotationIds.length > 0
+        ? visibleAnnotationIds
+        : annotationIdsAtHighlightPoint(
+            boxes,
+            {
+              x: event.clientX - canvasRect.left,
+              y: event.clientY - canvasRect.top,
+            },
+            1,
+          );
 
     if (annotationIds.length <= 1) {
       openAnnotation(annotationIds[0] || annotationId);
@@ -1925,9 +1921,7 @@ function SourceBookcase({
   const readerArticle = {
     title: article.title,
     byline: articleIdentityLine(article),
-    excerpt: [stats ? articleReadingStatsLine(stats) : '', statusMessage]
-      .filter(Boolean)
-      .join(' · '),
+    excerpt: statusMessage,
     content: contentHtml,
   };
   const shortcutModifier = getShortcutModifier();

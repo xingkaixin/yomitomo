@@ -1,9 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildAnnotationFilterFacets,
+  buildAnnotationRailItems,
+  createEmptyAnnotationFilter,
+  filterAnnotationsByFacets,
+  isAnnotationFilterActive,
   isMessageSendShortcutEvent,
   messageSendShortcutKeys,
   selectionActionShortcut,
+  toggleAnnotationFilterValue,
+  type AnnotationFilterState,
 } from './reader-utils';
+import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { HighlightBox } from '@yomitomo/core';
+
+function box(annotationId: string): HighlightBox {
+  return {
+    id: `${annotationId}_box`,
+    annotationId,
+    color: '#f4c95d',
+    top: 10,
+    left: 20,
+    width: 80,
+    height: 18,
+  };
+}
 
 describe('message send shortcuts', () => {
   it('formats enter and modifier shortcuts', () => {
@@ -49,5 +70,160 @@ describe('selection action shortcuts', () => {
     expect(selectionActionShortcut({ key: 'a', repeat: true })).toBe(null);
     expect(selectionActionShortcut({ key: 'c', isComposing: true })).toBe(null);
     expect(selectionActionShortcut({ key: 'a', nativeEvent: { isComposing: true } })).toBe(null);
+  });
+});
+
+describe('reader annotation filters', () => {
+  const userProfile: UserProfile = {
+    id: 'user-1',
+    nickname: 'Kevin',
+    username: 'kevin',
+    avatar: '',
+    annotationColor: '#f4c95d',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const agents: PublicAgent[] = [
+    {
+      id: 'agent-a',
+      kind: 'annotation',
+      enabled: true,
+      nickname: '甲助手',
+      username: 'agent_a',
+      avatar: 'A',
+      annotationColor: '#54cda0',
+      annotationDensity: 'medium',
+      personalityName: '甲',
+      temperature: 0.3,
+    },
+    {
+      id: 'agent-b',
+      kind: 'annotation',
+      enabled: true,
+      nickname: '乙助手',
+      username: 'agent_b',
+      avatar: 'B',
+      annotationColor: '#5ec0e8',
+      annotationDensity: 'medium',
+      personalityName: '乙',
+      temperature: 0.3,
+    },
+  ];
+
+  function annotation(id: string, overrides: Partial<Annotation> = {}): Annotation {
+    return {
+      id,
+      anchor: {
+        exact: `quote ${id}`,
+        prefix: '',
+        suffix: '',
+        start: 0,
+        end: 8,
+      },
+      author: 'user',
+      annotationType: 'key_point',
+      color: '#f4c95d',
+      userId: userProfile.id,
+      userUsername: userProfile.username,
+      userNickname: userProfile.nickname,
+      comments: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      ...overrides,
+    };
+  }
+
+  it('keeps all annotations for the default filter', () => {
+    const annotations = [annotation('a'), annotation('b', { author: 'ai' })];
+    const filter = createEmptyAnnotationFilter();
+
+    expect(isAnnotationFilterActive(filter)).toBe(false);
+    expect(filterAnnotationsByFacets(annotations, filter)).toEqual(annotations);
+  });
+
+  it('matches groups with and while values inside one group use or', () => {
+    const userKeyPoint = annotation('user-key');
+    const agentKeyPoint = annotation('agent-key', {
+      author: 'ai',
+      agentId: 'agent-a',
+      agentUsername: 'agent_a',
+      annotationType: 'key_point',
+      readingIntent: 'explain',
+    });
+    const agentQuestion = annotation('agent-question', {
+      author: 'ai',
+      agentId: 'agent-a',
+      agentUsername: 'agent_a',
+      annotationType: 'question',
+      readingIntent: 'challenge',
+    });
+    const otherQuestion = annotation('other-question', {
+      author: 'ai',
+      agentId: 'agent-b',
+      agentUsername: 'agent_b',
+      annotationType: 'question',
+      readingIntent: 'challenge',
+    });
+    const annotations = [userKeyPoint, agentKeyPoint, agentQuestion, otherQuestion];
+    const filter: AnnotationFilterState = {
+      personIds: ['agent:agent-a'],
+      typeIds: ['key_point', 'question'],
+      actionIds: ['challenge'],
+    };
+
+    expect(filterAnnotationsByFacets(annotations, filter).map((item) => item.id)).toEqual([
+      'agent-question',
+    ]);
+  });
+
+  it('counts facets from other groups and ignores the current group selection', () => {
+    const annotations = [
+      annotation('user-key', { readingIntent: 'explain' }),
+      annotation('agent-a-question', {
+        author: 'ai',
+        agentId: 'agent-a',
+        agentUsername: 'agent_a',
+        annotationType: 'question',
+        readingIntent: 'challenge',
+      }),
+      annotation('agent-b-question', {
+        author: 'ai',
+        agentId: 'agent-b',
+        agentUsername: 'agent_b',
+        annotationType: 'question',
+        readingIntent: 'explain',
+      }),
+      annotation('agent-b-quote', {
+        author: 'ai',
+        agentId: 'agent-b',
+        agentUsername: 'agent_b',
+        annotationType: 'quote',
+        readingIntent: 'challenge',
+      }),
+    ];
+    const filter = toggleAnnotationFilterValue(
+      { ...createEmptyAnnotationFilter(), typeIds: ['question'] },
+      'person',
+      'agent:agent-a',
+    );
+    const facets = buildAnnotationFilterFacets(annotations, filter, userProfile, agents);
+
+    expect(facets.resultCount).toBe(1);
+    expect(Object.fromEntries(facets.people.map((item) => [item.id, item.count]))).toMatchObject({
+      'agent:agent-a': 1,
+      'agent:agent-b': 1,
+    });
+    expect(Object.fromEntries(facets.types.map((item) => [item.id, item.count]))).toMatchObject({
+      question: 1,
+    });
+  });
+
+  it('keeps every annotation available for rail positioning', () => {
+    const annotations = [annotation('user-note'), annotation('assistant-note', { author: 'ai' })];
+
+    expect(
+      buildAnnotationRailItems(annotations, [box('user-note')], null).map(
+        (item) => item.annotation.id,
+      ),
+    ).toEqual(['user-note', 'assistant-note']);
   });
 });

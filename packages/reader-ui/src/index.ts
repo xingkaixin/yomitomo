@@ -1,6 +1,7 @@
 export * from './reader-app-view';
 export {
   AgentAnnotateMenu,
+  AnnotationFilterPanel,
   AnnotationCard,
   AnnotationConnection,
   Composer,
