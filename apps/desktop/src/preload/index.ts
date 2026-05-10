@@ -47,6 +47,12 @@ export type PairingConnectionStatus = {
   lastExtensionVersion?: string;
 };
 
+export type ArticleImportResult = {
+  status: 'imported' | 'duplicate';
+  article: ArticleRecord;
+  store: DesktopStore;
+};
+
 export type AppInfo = {
   desktopVersion: string;
 };
@@ -78,6 +84,8 @@ const api = {
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   saveArticle: (article: ArticleRecord) =>
     ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,
+  importArticleUrl: (url: string) =>
+    ipcRenderer.invoke('article:import-url', url) as Promise<ArticleImportResult>,
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,

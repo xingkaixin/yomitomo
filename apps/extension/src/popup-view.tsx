@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, LoaderCircle, MessageSquareText, Send } from 'lucide-react';
 import { browser } from 'wxt/browser';
-import type { ArticleRecord } from '@yomitomo/shared';
-import type { ArticlePreview, ExtractedArticle } from './article-extraction';
+import { articleRecordFromExtractedArticle, type ArticlePreview } from './article-extraction';
 import { Button } from './components/ui/button';
 import { DESKTOP_PAIRING_TOKEN_KEY } from './desktop-bridge';
 import { readExtensionStorage } from './extension-runtime';
@@ -298,27 +297,6 @@ function articleIdentity(article: Pick<ArticlePreview, 'id' | 'url' | 'canonical
     id: article.id,
     url: article.url,
     canonicalUrl: article.canonicalUrl,
-  };
-}
-
-function articleRecordFromExtractedArticle(article: ExtractedArticle): ArticleRecord {
-  const now = new Date().toISOString();
-  return {
-    id: article.id,
-    url: article.url,
-    canonicalUrl: article.canonicalUrl,
-    title: article.title,
-    byline: article.byline,
-    excerpt: article.excerpt,
-    siteName: article.siteName,
-    siteIconUrl: article.siteIconUrl,
-    leadImageUrl: article.leadImageUrl,
-    themeColor: article.themeColor,
-    contentHtml: article.content,
-    contentHash: article.contentHash,
-    annotations: [],
-    createdAt: now,
-    updatedAt: now,
   };
 }
 

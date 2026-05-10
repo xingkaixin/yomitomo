@@ -345,7 +345,7 @@ export function GeneralSettings({
         <Field
           id="general-save-images"
           className="col-span-2"
-          description="插件推送文章时，将正文中的图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
+          description="采集文章时，将正文中的图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
           label="保存原文图片"
         >
           <label className="settings-toggle-card" htmlFor="general-save-images">

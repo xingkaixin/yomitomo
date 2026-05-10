@@ -194,6 +194,12 @@ function App() {
     setStore(await desktop.saveArticle(article));
   }
 
+  async function importArticleUrl(url: string) {
+    const result = await window.yomitomoDesktop.importArticleUrl(url);
+    setStore(result.store);
+    return result;
+  }
+
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
     applyStore(nextStore);
@@ -431,6 +437,7 @@ function App() {
               onDeleteArticle={deleteArticle}
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onRefresh={refreshStore}
+              onImportArticleUrl={importArticleUrl}
               onSaveArticle={saveArticle}
             />
           ) : null}

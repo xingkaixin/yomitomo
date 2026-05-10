@@ -5,9 +5,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  ExternalLink,
+  Globe2,
+  LoaderCircle,
   MessageSquareText,
   MoreHorizontal,
   PencilLine,
+  Plus,
   RefreshCcw,
   Search,
   Trash2,
@@ -99,6 +103,11 @@ const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 
 type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
+type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
+type ArticleImportResult = {
+  status: 'imported' | 'duplicate';
+  article: ArticleRecord;
+};
 
 const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
   { value: 'all', label: '全部' },
@@ -165,6 +174,7 @@ export function ReadingLibrary({
   userProfile,
   onArticleOpened,
   onDeleteArticle,
+  onImportArticleUrl,
   onRefresh,
   onSaveArticle,
 }: {
@@ -174,6 +184,7 @@ export function ReadingLibrary({
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
+  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onRefresh: () => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
 }) {
@@ -269,6 +280,7 @@ export function ReadingLibrary({
         sortedArticles={sortedArticles}
         stats={stats}
         onDeleteArticle={deleteLibraryArticle}
+        onImportArticleUrl={onImportArticleUrl}
         onOpenArticle={openArticle}
         onRefresh={onRefresh}
       />
@@ -298,6 +310,7 @@ export function ReadingLibrary({
               sortedArticles={sortedArticles}
               stats={stats}
               onDeleteArticle={deleteLibraryArticle}
+              onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={openArticle}
               onRefresh={onRefresh}
             />
@@ -377,6 +390,7 @@ function LibraryHome({
   sortedArticles,
   stats,
   onDeleteArticle,
+  onImportArticleUrl,
   onOpenArticle,
   onRefresh,
 }: {
@@ -384,9 +398,16 @@ function LibraryHome({
   sortedArticles: ArticleRecord[];
   stats: { annotations: number; comments: number };
   onDeleteArticle: (articleId: string) => Promise<void>;
+  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
   onRefresh: () => void;
 }) {
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importState, setImportState] = useState<ArticleImportState>('idle');
+  const [importMessage, setImportMessage] = useState('');
+  const [importArticle, setImportArticle] = useState<ArticleRecord | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchQuery, setSearchQuery] = useState('');
@@ -423,31 +444,153 @@ function LibraryHome({
     setPage(1);
   }, [activeFilter, activeSort, pageSize, searchQuery]);
 
+  async function submitImport(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const url = importUrl.trim();
+    if (!url) {
+      setImportState('error');
+      setImportMessage('请输入网页地址');
+      setImportArticle(null);
+      return;
+    }
+
+    try {
+      setImportState('submitting');
+      setImportMessage('正在解析网页');
+      setImportArticle(null);
+      const result = await onImportArticleUrl(url);
+      setImportArticle(result.article);
+      if (result.status === 'duplicate') {
+        setImportState('duplicate');
+        setImportMessage('这篇文章已在阅读库');
+        return;
+      }
+
+      setImportState('imported');
+      setImportMessage('已添加到阅读库');
+      setImportUrl('');
+    } catch (error) {
+      setImportState('error');
+      setImportMessage(error instanceof Error ? error.message : '添加网页失败');
+      setImportArticle(null);
+    }
+  }
+
+  function openImportPanel() {
+    setAddMenuOpen(false);
+    setImportOpen(true);
+    setImportState('idle');
+    setImportMessage('');
+    setImportArticle(null);
+  }
+
   return (
     <section className="library-home">
       <header className="library-home-header">
-        <div className="library-home-heading">
-          <h2>阅读库</h2>
-          <p>
-            {articles.length} 篇文章 · {stats.annotations} 条批注 · {stats.comments} 条讨论
-          </p>
+        <div className="library-home-header-main">
+          <div className="library-home-heading">
+            <h2>阅读库</h2>
+            <p>
+              {articles.length} 篇文章 · {stats.annotations} 条批注 · {stats.comments} 条讨论
+            </p>
+          </div>
+          <div className="library-home-actions">
+            <label className="library-search">
+              <Search size={16} />
+              <Input
+                type="search"
+                value={searchQuery}
+                placeholder="搜索文章 / 作者 / 来源"
+                aria-label="搜索文章、作者或来源"
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
+            <div
+              className="library-add-control"
+              onBlur={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setAddMenuOpen(false);
+              }}
+            >
+              <Button
+                aria-expanded={addMenuOpen}
+                aria-haspopup="menu"
+                aria-label="添加文章"
+                className="library-add-trigger"
+                type="button"
+                variant="secondary"
+                onClick={() => setAddMenuOpen((current) => !current)}
+              >
+                <Plus size={16} />
+              </Button>
+              {addMenuOpen ? (
+                <div className="library-add-menu-popover" role="menu">
+                  <button type="button" role="menuitem" onClick={openImportPanel}>
+                    <Globe2 size={15} />
+                    添加网页
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <Button type="button" variant="secondary" onClick={onRefresh}>
+              <RefreshCcw size={16} />
+              刷新
+            </Button>
+          </div>
         </div>
-        <div className="library-home-actions">
-          <label className="library-search">
-            <Search size={16} />
-            <Input
-              type="search"
-              value={searchQuery}
-              placeholder="搜索文章 / 作者 / 来源"
-              aria-label="搜索文章、作者或来源"
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-          </label>
-          <Button type="button" variant="secondary" onClick={onRefresh}>
-            <RefreshCcw size={16} />
-            刷新
-          </Button>
-        </div>
+        {importOpen ? (
+          <form className={`library-import-panel is-${importState}`} onSubmit={submitImport}>
+            <div className="library-import-copy">
+              <strong>添加网页</strong>
+              <span>
+                {importMessage || '输入公开文章地址，Yomitomo 会解析正文和元数据并保存到阅读库。'}
+              </span>
+            </div>
+            <div className="library-import-row">
+              <label className="library-import-url">
+                <Globe2 size={16} />
+                <Input
+                  aria-label="网页地址"
+                  disabled={importState === 'submitting'}
+                  inputMode="url"
+                  placeholder="https://example.com/article"
+                  type="text"
+                  value={importUrl}
+                  onChange={(event) => {
+                    setImportUrl(event.target.value);
+                    if (importState !== 'submitting') {
+                      setImportState('idle');
+                      setImportMessage('');
+                      setImportArticle(null);
+                    }
+                  }}
+                />
+              </label>
+              <Button
+                className="library-import-submit"
+                disabled={importState === 'submitting'}
+                type="submit"
+              >
+                {importState === 'submitting' ? (
+                  <LoaderCircle className="is-spinning" size={16} />
+                ) : (
+                  <Globe2 size={16} />
+                )}
+                {importState === 'submitting' ? '解析中' : '解析添加'}
+              </Button>
+              {importArticle ? (
+                <button
+                  className="library-import-open"
+                  type="button"
+                  onClick={() => onOpenArticle(importArticle)}
+                >
+                  <ExternalLink size={14} />
+                  {importState === 'duplicate' ? '打开已有文章' : '打开文章'}
+                </button>
+              ) : null}
+            </div>
+          </form>
+        ) : null}
       </header>
       <div className="library-toolbar" aria-label="阅读库工具栏">
         <div className="library-filter-group" aria-label="阅读状态筛选">
@@ -509,7 +652,7 @@ function LibraryHome({
           <section className="library-empty">
             <BookOpen size={32} />
             <h3>还没有同步文章</h3>
-            <p>在浏览器插件阅读器里创建批注后，这里会出现对应文章。</p>
+            <p>点击加号添加网页，或通过浏览器阅读器同步文章。</p>
           </section>
         )}
       </div>

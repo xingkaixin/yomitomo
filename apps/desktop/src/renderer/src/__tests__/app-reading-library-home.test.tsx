@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { ReadingLibrary } from '../app-reading-library';
@@ -112,13 +112,21 @@ function completedArticle(): ArticleRecord {
   });
 }
 
-function renderLibrary(articles: ArticleRecord[]) {
+function renderLibrary(
+  articles: ArticleRecord[],
+  options: {
+    onImportArticleUrl?: (
+      url: string,
+    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+  } = {},
+) {
   return render(
     <ReadingLibrary
       agents={[]}
       articles={articles}
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
+      onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
       onRefresh={vi.fn()}
       onSaveArticle={vi.fn()}
     />,
@@ -197,5 +205,27 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.getByTitle('这是一段会在卡片上被截断的很长标题')).toBeTruthy();
     expect(container.querySelector('.library-site-icon-slot')).toBeTruthy();
+  });
+
+  it('imports a webpage and shows duplicate article action', async () => {
+    const duplicate = article({ title: '重复文章' });
+    const onImportArticleUrl = vi.fn().mockResolvedValue({
+      status: 'duplicate',
+      article: duplicate,
+    });
+    renderLibrary([duplicate], { onImportArticleUrl });
+
+    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.change(screen.getByLabelText('网页地址'), {
+      target: { value: 'https://example.com/post' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
+
+    await waitFor(() => {
+      expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post');
+    });
+    expect(await screen.findByText('这篇文章已在阅读库')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开已有文章' })).toBeTruthy();
   });
 });
