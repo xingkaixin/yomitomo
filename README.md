@@ -50,7 +50,7 @@ assets             项目静态资源
 - 浏览器扩展：WXT、Chrome MV3、React 19、Tailwind CSS 4
 - 本地数据库：SQLite、better-sqlite3、Drizzle ORM
 - 测试：Vitest
-- Lint / Format：oxlint、oxfmt
+- Lint / Format：通过 Turbo 运行 oxlint、oxfmt
 
 ## 从源码运行
 
@@ -109,6 +109,29 @@ pnpm --filter @yomitomo/extension build
 apps/extension/dist/chrome-mv3
 ```
 
+### 打包发布产物
+
+从仓库根目录打包默认发布产物：
+
+```bash
+pnpm make
+```
+
+`pnpm make` 会生成 macOS arm64 桌面端安装包和 Chrome MV3 扩展 zip：
+
+- 桌面端：运行 `pnpm make:app:mac-arm`，产物输出到 `dist/app/mac-arm64`，包含 electron-builder 生成的 `dmg` 和 `zip`。
+- 浏览器扩展：运行 `pnpm make:ext`，产物输出到 `dist/ext`。
+
+也可以按目标单独打包：
+
+```bash
+pnpm make:app:mac-arm
+pnpm make:app:win-x64
+pnpm make:ext
+```
+
+`pnpm make:app:win-x64` 会生成 Windows x64 NSIS 安装包，产物输出到 `dist/app/win-x64`。公开分发前需要按发布渠道配置 macOS 签名、公证和 Windows 签名策略。
+
 ### 本地配对和 AI 配置
 
 1. 启动桌面端，在「通用」页复制桌面端配对码。
@@ -131,9 +154,12 @@ pnpm dev
 
 ```bash
 pnpm lint
+pnpm lint:fix
+pnpm format
+pnpm format:check
 pnpm test
 pnpm build
-pnpm format
+pnpm make
 ```
 
 按包运行：
@@ -182,6 +208,7 @@ pnpm --filter @yomitomo/reader-ui test
 
 ```bash
 pnpm lint
+pnpm format:check
 pnpm test
 pnpm build
 ```

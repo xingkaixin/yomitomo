@@ -13,8 +13,8 @@
 - 浏览器扩展：WXT、React 19、Tailwind CSS、Chrome MV3
 - Workspace 包：`@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai`、`@yomitomo/reader-ui`
 - 测试：Vitest
-- Lint：oxlint
-- Format：oxfmt
+- Lint：Turbo root task 调用 oxlint
+- Format：Turbo root task 调用 oxfmt
 
 ## Workspace 结构
 
@@ -38,7 +38,9 @@ pnpm dev
 pnpm build
 pnpm test
 pnpm lint
+pnpm lint:fix
 pnpm format
+pnpm format:check
 ```
 
 按 workspace 运行单包命令：
@@ -67,8 +69,10 @@ pnpm --filter @yomitomo/reader-ui test
 
 ## Lint、Format、Test
 
-- Lint：`pnpm lint`，底层为 `oxlint .`。
-- Format：`pnpm format`，底层为 `oxfmt --write "**/*.{ts,tsx,js,jsx,json,css,html}"`。
+- Lint：`pnpm lint`，底层为 `turbo run repo:lint` -> `oxlint .`。
+- Lint Fix：`pnpm lint:fix`，底层为 `turbo run repo:lint:fix` -> `oxlint . --fix`。
+- Format：`pnpm format`，底层为 `turbo run repo:format` -> `oxfmt --write "**/*.{ts,tsx,js,jsx,json,css,html}"`。
+- Format Check：`pnpm format:check`，底层为 `turbo run repo:format:check` -> `oxfmt --check "**/*.{ts,tsx,js,jsx,json,css,html}"`。
 - Test：`pnpm test`，底层为 `turbo test`。
 - Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core`、`ai`、`reader-ui` 和应用。
 - 包内测试脚本统一使用 `vitest run --passWithNoTests`。
@@ -78,6 +82,7 @@ pnpm --filter @yomitomo/reader-ui test
 
 ```bash
 pnpm lint
+pnpm format:check
 pnpm test
 pnpm build
 ```
