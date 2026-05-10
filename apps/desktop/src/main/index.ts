@@ -72,6 +72,8 @@ async function createWindow() {
     height: 820,
     minWidth: 980,
     minHeight: 700,
+    show: false,
+    backgroundColor: '#1d1510',
     title: 'Yomitomo | 伴读 · 你的 AI 阅读伙伴',
     icon: appIconPath,
     webPreferences: {
@@ -148,6 +150,10 @@ app.on('activate', () => {
 
 function registerIpc() {
   ipcMain.handle('app:info', () => ({ desktopVersion: app.getVersion() }));
+  ipcMain.on('app:renderer-ready', (event) => {
+    const browserWindow = BrowserWindow.fromWebContents(event.sender);
+    if (browserWindow && !browserWindow.isDestroyed()) browserWindow.show();
+  });
   ipcMain.handle('store:get', () => readStore());
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());

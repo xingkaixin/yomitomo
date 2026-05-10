@@ -96,6 +96,11 @@ function App() {
     setDailyQuote(selectDailyQuote(store.articles, { agents: store.agents }));
   }, [store.agents, store.articles, storeLoaded]);
 
+  useEffect(() => {
+    if (!storeLoaded) return;
+    window.yomitomoDesktop.showMainWindow();
+  }, [storeLoaded]);
+
   const userHasChanges = useMemo(
     () => userDraftHasChanges(userDraft, store.user),
     [store.user, userDraft],
@@ -133,7 +138,7 @@ function App() {
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
   const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
-  const showOnboarding = storeLoaded && (onboardingForced || !store.settings.onboardingCompletedAt);
+  const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
   async function refreshStore() {
     const desktop = window.yomitomoDesktop;
@@ -312,6 +317,18 @@ function App() {
       setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
       setAgentSaveState('idle');
     }
+  }
+
+  if (!storeLoaded) return null;
+
+  if (showOnboarding) {
+    return (
+      <OnboardingFlow
+        key={onboardingFlowKey}
+        store={store}
+        onSaveSettings={saveOnboardingSettings}
+      />
+    );
   }
 
   return (
@@ -501,13 +518,6 @@ function App() {
           pairingInfo={pairingInfo}
           onClose={() => setExtensionConnectionDialogOpen(false)}
           onRotatePairing={rotatePairingInfo}
-        />
-      ) : null}
-      {showOnboarding ? (
-        <OnboardingFlow
-          key={onboardingFlowKey}
-          store={store}
-          onSaveSettings={saveOnboardingSettings}
         />
       ) : null}
     </main>
