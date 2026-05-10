@@ -42,7 +42,7 @@ describe('toggleReaderInTab', () => {
 
     expect(executeScript).toHaveBeenCalledWith({
       target: { tabId: 123 },
-      files: ['content-scripts/content.js'],
+      files: ['reader-content.js'],
     });
     expect(sendMessage).toHaveBeenCalledTimes(2);
   });

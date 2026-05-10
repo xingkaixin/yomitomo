@@ -62,7 +62,7 @@ async function sendMessageWithContentScript(
 
     await browser.scripting.executeScript({
       target: { tabId },
-      files: ['content-scripts/content.js'],
+      files: ['reader-content.js'],
     });
     return sendRuntimeMessage(tabId, message);
   });

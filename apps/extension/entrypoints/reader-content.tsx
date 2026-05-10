@@ -93,8 +93,7 @@ function readerLog(event: string, data?: Record<string, unknown>) {
   console.log('[Yomitomo Extension]', event, data || '');
 }
 
-export default defineContentScript({
-  matches: ['<all_urls>'],
+export default defineUnlistedScript({
   main() {
     registerContentToggleListener({
       addListener: addExtensionMessageListener,
