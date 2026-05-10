@@ -7,7 +7,6 @@ import type {
   ArticleRecord,
   DesktopStore,
   LlmProvider,
-  UserProfile,
 } from '@yomitomo/shared';
 import {
   defaultUser,
@@ -190,38 +189,11 @@ function App() {
     setStore(await desktop.saveArticle(article));
   }
 
-  async function saveOnboardingUser(user: Partial<UserProfile>) {
-    const nextStore = await window.yomitomoDesktop.saveUser(user);
-    applyStore(nextStore);
-    return nextStore;
-  }
-
-  async function saveOnboardingProvider(provider: Partial<LlmProvider>) {
-    const nextStore = await window.yomitomoDesktop.saveProvider(provider);
-    applyStore(nextStore);
-    const savedProvider = provider.id
-      ? nextStore.providers.find((item) => item.id === provider.id)
-      : nextStore.providers.at(-1);
-    if (savedProvider) selectProvider(savedProvider);
-    return nextStore;
-  }
-
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
     applyStore(nextStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
-  }
-
-  async function saveOnboardingArticle(article: ArticleRecord) {
-    const nextStore = await window.yomitomoDesktop.saveArticle(article);
-    applyStore(nextStore);
-    return nextStore;
-  }
-
-  function openOnboardingArticle(articleId: string) {
-    setActiveSetting('library');
-    setPendingOpenArticleId(articleId);
   }
 
   function startOnboarding() {
@@ -535,12 +507,7 @@ function App() {
         <OnboardingFlow
           key={onboardingFlowKey}
           store={store}
-          onOpenArticle={openOnboardingArticle}
-          onSaveArticle={saveOnboardingArticle}
-          onSaveProvider={saveOnboardingProvider}
           onSaveSettings={saveOnboardingSettings}
-          onSaveUser={saveOnboardingUser}
-          onTestProvider={window.yomitomoDesktop.testProvider}
         />
       ) : null}
     </main>

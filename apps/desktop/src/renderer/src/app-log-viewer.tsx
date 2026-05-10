@@ -106,8 +106,8 @@ export function AboutSettings({
         />
         <AboutActionCard
           icon={<Play size={18} />}
-          title="初次设置流程"
-          description="从第一页重新打开 onboarding，用于检查身份、模型和内置文章流程。"
+          title="Onboarding"
+          description="重新打开最简 onboarding，检查背景、文案和进入按钮。"
           actionLabel="启动 onboarding"
           actionIcon={<Play size={15} />}
           onAction={onStartOnboarding}
