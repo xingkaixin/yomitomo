@@ -193,11 +193,15 @@ describe('annotation core', () => {
     };
 
     expect(
-      createUserAnnotation(anchor, user, '  这里重要  ', 'concept', '2026-01-02T00:00:00.000Z'),
+      createUserAnnotation(anchor, user, '  这里重要  ', 'concept', {
+        now: '2026-01-02T00:00:00.000Z',
+        readingIntent: 'challenge',
+      }),
     ).toMatchObject({
       author: 'user',
       annotationType: 'concept',
-      comments: [{ content: '这里重要', userId: user.id }],
+      readingIntent: 'challenge',
+      comments: [{ content: '这里重要', readingIntent: 'challenge', userId: user.id }],
     });
     expect(createUserAnnotation(anchor, user, '   ').comments).toEqual([]);
   });
@@ -214,7 +218,7 @@ describe('annotation core', () => {
       user,
       '批注正文',
       'concept',
-      '2026-01-02T00:00:00.000Z',
+      { now: '2026-01-02T00:00:00.000Z' },
     );
     const reply = {
       ...comment('comment-reply'),
