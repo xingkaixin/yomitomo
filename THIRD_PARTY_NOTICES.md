@@ -6,7 +6,7 @@ This file lists third-party production dependencies used by Yomitomo. It is gene
 pnpm licenses list --prod --json
 ```
 
-The project source code is licensed under Apache-2.0. Third-party packages remain under their own licenses.
+The project source code is licensed under MIT. Third-party packages remain under their own licenses.
 
 ## License Summary
 

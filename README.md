@@ -221,7 +221,7 @@ pnpm build
 
 ## 开源许可证
 
-Yomitomo 使用 [Apache-2.0](LICENSE) 许可证发布。
+Yomitomo 使用 [MIT](LICENSE) 许可证发布。
 
 Copyright 2026 Yomitomo contributors.
 
