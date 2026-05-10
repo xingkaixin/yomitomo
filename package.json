@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
+    "make": "pnpm run make:app && pnpm run make:ext",
+    "make:app": "pnpm --filter @yomitomo/desktop make",
+    "make:ext": "pnpm --filter @yomitomo/extension make",
     "build": "turbo build",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "pnpm run rebuild:native && electron-vite dev --watch",
     "build": "pnpm run rebuild:native && electron-vite build",
+    "make": "pnpm run build && electron-builder --config electron-builder.config.cjs --mac --arm64",
     "db:generate": "drizzle-kit generate",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "test": "vitest run --passWithNoTests"
@@ -22,7 +23,6 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
-    "electron": "^41.5.0",
     "electron-vite": "^5.0.0",
     "lucide-react": "^1.14.0",
     "react": "^19.2.0",
@@ -40,6 +40,8 @@
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.10",
+    "electron": "^41.5.0",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",

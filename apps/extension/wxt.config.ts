@@ -10,7 +10,7 @@ const icons = {
 };
 
 export default defineConfig({
-  outDir: 'dist',
+  outDir: process.env.YOMITOMO_EXT_OUT_DIR || 'dist',
   modules: ['@wxt-dev/module-react'],
   vite: () => ({
     optimizeDeps: {
