@@ -11,7 +11,6 @@ import {
   isImageAvatar,
   isSvgAvatar,
   parseLogEntries,
-  svgToDataUrl,
   urlHost,
 } from '../app-utils';
 
@@ -76,7 +75,6 @@ describe('app utils', () => {
     expect(commentAuthorProfile(userComment)).toEqual({ avatar: '/avatar.png', name: 'Kevin' });
     expect(isImageAvatar('/avatar.png')).toBe(true);
     expect(isSvgAvatar('data:image/svg+xml,<svg />')).toBe(true);
-    expect(svgToDataUrl('<svg />')).toContain('%3Csvg%20%2F%3E');
   });
 
   it('formats invalid hosts as the original value', () => {

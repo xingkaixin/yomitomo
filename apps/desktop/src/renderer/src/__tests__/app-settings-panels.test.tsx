@@ -10,8 +10,6 @@ import {
   ProviderForm,
   ProviderSettings,
   UserProfileSettingsDialog,
-  readingAgentAvatars,
-  reviewAgentAvatars,
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
@@ -222,7 +220,7 @@ describe('AgentForm', () => {
   it('uses review-specific labels without avatar editing', () => {
     render(
       <AgentForm
-        draft={{ ...draft, kind: 'review', avatar: reviewAgentAvatars[0]?.src }}
+        draft={{ ...draft, kind: 'review', avatar: 'review-avatar' }}
         error=""
         onChange={vi.fn()}
       />,
@@ -309,8 +307,7 @@ function makeAgent(
     providerId: 'provider_1',
     nickname,
     username,
-    avatar:
-      kind === 'review' ? reviewAgentAvatars[0]?.src || 'AI' : readingAgentAvatars[0]?.src || 'AI',
+    avatar: kind === 'review' ? 'review-avatar' : 'reading-avatar',
     annotationColor: '#efa927',
     annotationDensity: 'medium',
     temperature: 0.35,

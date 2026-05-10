@@ -9,10 +9,6 @@ export type LogEntry = {
   raw: string;
 };
 
-export function svgToDataUrl(raw: string) {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(raw)}`;
-}
-
 export function isImageAvatar(value: string) {
   return (
     value.startsWith('data:image/') ||

@@ -38,27 +38,7 @@ import {
   type ProviderDraft,
   type UserDraft,
 } from './app-settings';
-import { readFileAsDataUrl, svgToDataUrl } from './app-utils';
-import avatar01Raw from './assets/avatars/lorelei-1777775032907.svg?raw';
-import avatar02Raw from './assets/avatars/lorelei-1777775031622.svg?raw';
-import avatar03Raw from './assets/avatars/lorelei-1777775029913.svg?raw';
-import avatar04Raw from './assets/avatars/lorelei-1777775028333.svg?raw';
-import avatar05Raw from './assets/avatars/lorelei-1777775026600.svg?raw';
-import avatar06Raw from './assets/avatars/lorelei-1777775024807.svg?raw';
-import avatar07Raw from './assets/avatars/lorelei-1777775022413.svg?raw';
-import avatar08Raw from './assets/avatars/lorelei-1777775020299.svg?raw';
-import avatar09Raw from './assets/avatars/lorelei-1777775017575.svg?raw';
-import avatar10Raw from './assets/avatars/lorelei-1777775015590.svg?raw';
-import avatar11Raw from './assets/avatars/lorelei-1777775014247.svg?raw';
-import avatar12Raw from './assets/avatars/lorelei-1777775012500.svg?raw';
-import avatar13Raw from './assets/avatars/lorelei-1777775010023.svg?raw';
-import avatar14Raw from './assets/avatars/lorelei-1777775007436.svg?raw';
-import avatar15Raw from './assets/avatars/lorelei-1777775004996.svg?raw';
-import avatar16Raw from './assets/avatars/lorelei-1777775003025.svg?raw';
-import avatar17Raw from './assets/avatars/lorelei-1777775001230.svg?raw';
-import avatar18Raw from './assets/avatars/lorelei-1777774999602.svg?raw';
-import avatar19Raw from './assets/avatars/lorelei-1777774980195.svg?raw';
-import avatar20Raw from './assets/avatars/lorelei-1777774975114.svg?raw';
+import { readFileAsDataUrl } from './app-utils';
 import chenYanshuCover from './assets/agent-profiles/chen-yanshu-cover.webp';
 import guXingjianCover from './assets/agent-profiles/gu-xingjian-cover.webp';
 import linZhiweiCover from './assets/agent-profiles/lin-zhiwei-cover.webp';
@@ -71,26 +51,6 @@ import suDingbaiCover from './assets/reviewer-profiles/su-dingbai-cover.webp';
 import tangJianCover from './assets/reviewer-profiles/tang-jian-cover.webp';
 import xiaGuiningCover from './assets/reviewer-profiles/xia-guining-cover.webp';
 import yeTinglanCover from './assets/reviewer-profiles/ye-tinglan-cover.webp';
-import reviewAvatar01Raw from './assets/review-avatars/notionists-1777882430781.svg?raw';
-import reviewAvatar02Raw from './assets/review-avatars/notionists-1777882429343.svg?raw';
-import reviewAvatar03Raw from './assets/review-avatars/notionists-1777882427960.svg?raw';
-import reviewAvatar04Raw from './assets/review-avatars/notionists-1777882426245.svg?raw';
-import reviewAvatar05Raw from './assets/review-avatars/notionists-1777882424152.svg?raw';
-import reviewAvatar06Raw from './assets/review-avatars/notionists-1777882422463.svg?raw';
-import reviewAvatar07Raw from './assets/review-avatars/notionists-1777882420595.svg?raw';
-import reviewAvatar08Raw from './assets/review-avatars/notionists-1777882418767.svg?raw';
-import reviewAvatar09Raw from './assets/review-avatars/notionists-1777882415900.svg?raw';
-import reviewAvatar10Raw from './assets/review-avatars/notionists-1777882413773.svg?raw';
-import reviewAvatar11Raw from './assets/review-avatars/notionists-1777882411527.svg?raw';
-import reviewAvatar12Raw from './assets/review-avatars/notionists-1777882408840.svg?raw';
-import reviewAvatar13Raw from './assets/review-avatars/notionists-1777882406509.svg?raw';
-import reviewAvatar14Raw from './assets/review-avatars/notionists-1777882404878.svg?raw';
-import reviewAvatar15Raw from './assets/review-avatars/notionists-1777882403212.svg?raw';
-import reviewAvatar16Raw from './assets/review-avatars/notionists-1777882401189.svg?raw';
-import reviewAvatar17Raw from './assets/review-avatars/notionists-1777882399095.svg?raw';
-import reviewAvatar18Raw from './assets/review-avatars/notionists-1777882397541.svg?raw';
-import reviewAvatar19Raw from './assets/review-avatars/notionists-1777882396039.svg?raw';
-import reviewAvatar20Raw from './assets/review-avatars/notionists-1777882394280.svg?raw';
 import anthropicLogo from './assets/providers/anthropic.png';
 import bailianLogo from './assets/providers/bailian.png';
 import deepseekLogo from './assets/providers/deepseek.png';
@@ -114,7 +74,6 @@ import {
 import { AvatarImage, Field, PanelHeader } from './app-ui';
 import type { SaveState } from './app-types';
 
-type AvatarOption = { id: string; src: string };
 type AgentFilter = AgentKind;
 export type SettingsSectionKey = 'collection' | 'models' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
@@ -263,75 +222,10 @@ const settingsSections: Array<{
   },
 ];
 
-function makeAvatarOptions(prefix: string, raws: string[]): AvatarOption[] {
-  return raws.map((raw, index) => ({ id: `${prefix}-${index + 1}`, src: svgToDataUrl(raw) }));
-}
-
 function agentPresenceLine(agent: Agent, nextEnabled: boolean) {
   const personalityId = agent.presetId || findAgentPersonalityId(agent.soul);
   const lines = agentPresenceLineMap[personalityId] || defaultAgentPresenceLine;
   return nextEnabled ? lines.enter : lines.rest;
-}
-
-export const readingAgentAvatars = makeAvatarOptions('reading-avatar', [
-  avatar01Raw,
-  avatar02Raw,
-  avatar03Raw,
-  avatar04Raw,
-  avatar05Raw,
-  avatar06Raw,
-  avatar07Raw,
-  avatar08Raw,
-  avatar09Raw,
-  avatar10Raw,
-  avatar11Raw,
-  avatar12Raw,
-  avatar13Raw,
-  avatar14Raw,
-  avatar15Raw,
-  avatar16Raw,
-  avatar17Raw,
-  avatar18Raw,
-  avatar19Raw,
-  avatar20Raw,
-]);
-
-export const reviewAgentAvatars = makeAvatarOptions('review-avatar', [
-  reviewAvatar01Raw,
-  reviewAvatar02Raw,
-  reviewAvatar03Raw,
-  reviewAvatar04Raw,
-  reviewAvatar05Raw,
-  reviewAvatar06Raw,
-  reviewAvatar07Raw,
-  reviewAvatar08Raw,
-  reviewAvatar09Raw,
-  reviewAvatar10Raw,
-  reviewAvatar11Raw,
-  reviewAvatar12Raw,
-  reviewAvatar13Raw,
-  reviewAvatar14Raw,
-  reviewAvatar15Raw,
-  reviewAvatar16Raw,
-  reviewAvatar17Raw,
-  reviewAvatar18Raw,
-  reviewAvatar19Raw,
-  reviewAvatar20Raw,
-]);
-
-export const agentAvatars = readingAgentAvatars;
-
-export function agentAvatarsForKind(kind: AgentKind | undefined) {
-  return (kind || 'annotation') === 'review' ? reviewAgentAvatars : readingAgentAvatars;
-}
-
-export function defaultAvatarForKind(kind: AgentKind | undefined) {
-  return agentAvatarsForKind(kind)[0]?.src || '';
-}
-
-export function avatarForKind(value: string | undefined, kind: AgentKind | undefined) {
-  const avatars = agentAvatarsForKind(kind);
-  return avatars.some((avatar) => avatar.src === value) ? value || '' : defaultAvatarForKind(kind);
 }
 
 export function SettingsNavButton({
