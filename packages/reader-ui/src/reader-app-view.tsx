@@ -91,24 +91,18 @@ export type ReaderAppViewProps = {
   commentsCloseKey: number;
   composer: PendingComposer | null;
   completionBurstKey: number;
-  desktopConnected: boolean;
   embedded?: boolean;
   extracted: ReaderArticle;
   filteredAnnotations: Annotation[];
-  hasSavedPairing: boolean;
   highlightChoice: HighlightChoice | null;
   notesOpen: boolean;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
-  pairingStatus: string;
-  pairingId: string;
-  pairingTokenDraft: string;
   replyRequest: { annotationId: string; key: number } | null;
   readerSettings: ReaderSettings;
   readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
-  showConnectionSettings?: boolean;
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
@@ -139,7 +133,6 @@ export type ReaderAppViewProps = {
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
-  onSavePairingToken: () => void | Promise<void>;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
   onSetAnnotationQuestionStatus: (annotationId: string, status: QuestionStatus) => void;
@@ -148,12 +141,10 @@ export type ReaderAppViewProps = {
     commentId: string,
     status: QuestionStatus,
   ) => void;
-  onSetPairingTokenDraft: (token: string) => void;
   onToggleNotes: () => void;
   onToggleToc: () => void;
   onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
-  onDisconnectDesktop: () => void | Promise<void>;
   onUpdateReaderSettings: (settings: ReaderSettings) => void | Promise<void>;
 };
 
@@ -193,24 +184,18 @@ export function ReaderAppView({
   commentsCloseKey,
   composer,
   completionBurstKey,
-  desktopConnected,
   embedded = false,
   extracted,
   filteredAnnotations,
-  hasSavedPairing,
   highlightChoice,
   notesOpen,
   noteRefs,
   notesRef,
-  pairingStatus,
-  pairingId,
-  pairingTokenDraft,
   replyRequest,
   readerSettings,
   readingSections,
   selectionAction,
   settingsOpen,
-  showConnectionSettings = true,
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
@@ -237,17 +222,14 @@ export function ReaderAppView({
   onCloseResponsivePanels,
   onOpenComposer,
   onStartAgentReadingPlan,
-  onSavePairingToken,
   onScrollToHeading,
   onScrollToHighlight,
   onSetAnnotationQuestionStatus,
   onSetCommentQuestionStatus,
-  onSetPairingTokenDraft,
   onToggleNotes,
   onToggleToc,
   onToggleAgentAnnotate,
   onToggleSettings,
-  onDisconnectDesktop,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
@@ -459,7 +441,7 @@ export function ReaderAppView({
             }
             data-reader-popover-anchor
             type="button"
-            disabled={!desktopConnected || agents.length === 0}
+            disabled={agents.length === 0}
             onClick={onToggleAgentAnnotate}
           >
             <Bot size={18} />
@@ -501,17 +483,8 @@ export function ReaderAppView({
       {settingsOpen ? (
         <ReaderSettingsPanel
           panelProps={{ 'data-reader-floating-panel': '' } as React.HTMLAttributes<HTMLDivElement>}
-          desktopConnected={desktopConnected}
-          pairingId={pairingId}
-          pairingStatus={pairingStatus}
-          pairingTokenDraft={pairingTokenDraft}
-          hasSavedPairing={hasSavedPairing}
           settings={readerSettings}
           onChange={onUpdateReaderSettings}
-          onDisconnectDesktop={onDisconnectDesktop}
-          onSavePairingToken={onSavePairingToken}
-          onSetPairingTokenDraft={onSetPairingTokenDraft}
-          showConnection={showConnectionSettings}
         />
       ) : null}
 
@@ -618,7 +591,6 @@ export function ReaderAppView({
                     active={annotation.id === activeAnnotation?.id}
                     agents={agents}
                     annotation={annotation}
-                    desktopConnected={desktopConnected}
                     isStackFront={isStackFront}
                     key={annotation.id}
                     noteRef={noteRefForAnnotation(annotation.id)}
@@ -658,7 +630,6 @@ export function ReaderAppView({
               <Composer
                 agents={agents}
                 composer={composer}
-                desktopConnected={desktopConnected}
                 shortcutModifier={shortcutModifier}
                 onCancel={onCancelComposer}
                 onSave={onCreateAnnotation}

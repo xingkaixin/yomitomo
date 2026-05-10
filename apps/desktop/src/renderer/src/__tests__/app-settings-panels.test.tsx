@@ -332,7 +332,6 @@ describe('GeneralSettings', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
-    expect(screen.queryByText('扩展连接')).toBeNull();
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
   });
 });

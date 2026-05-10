@@ -2,19 +2,15 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   AtSign,
   CaseSensitive,
-  Check,
   ChevronDown,
   ChevronUp,
-  KeyRound,
   Maximize2,
   MessageSquare,
   MessageSquarePlus,
   Minus,
   MoreHorizontal,
   Plus,
-  Save,
   Trash2,
-  Unplug,
   X,
 } from 'lucide-react';
 import type {
@@ -796,103 +792,15 @@ function onActionDragStart(event: React.DragEvent<HTMLButtonElement>, intent: Ag
 
 export function ReaderSettingsPanel({
   panelProps,
-  desktopConnected,
-  hasSavedPairing,
-  pairingId,
-  pairingStatus,
-  pairingTokenDraft,
   settings,
-  showConnection = true,
   onChange,
-  onDisconnectDesktop,
-  onSavePairingToken,
-  onSetPairingTokenDraft,
 }: {
   panelProps?: React.HTMLAttributes<HTMLDivElement>;
-  desktopConnected: boolean;
-  hasSavedPairing: boolean;
-  pairingId: string;
-  pairingStatus: string;
-  pairingTokenDraft: string;
   settings: ReaderSettings;
-  showConnection?: boolean;
   onChange: (settings: ReaderSettings) => void;
-  onDisconnectDesktop: () => void | Promise<void>;
-  onSavePairingToken: () => void | Promise<void>;
-  onSetPairingTokenDraft: (token: string) => void;
 }) {
-  const [pairingEditorOpen, setPairingEditorOpen] = useState(false);
-  const showPairingSummary = hasSavedPairing && !pairingEditorOpen;
-  const pairingConnectedClass = desktopConnected
-    ? 'reader-pairing-connected'
-    : 'reader-pairing-connected is-offline';
-
   return (
     <div className="reader-settings-panel" {...panelProps}>
-      {showConnection ? (
-        <div className="reader-pairing-row">
-          {showPairingSummary ? (
-            <div className={pairingConnectedClass}>
-              <div className="reader-pairing-connected-main">
-                <span>{desktopConnected ? <Check size={15} /> : <Unplug size={15} />}</span>
-                <div>
-                  <strong>已保存配对</strong>
-                  <p>{desktopConnected ? '已连接本机桌面端' : '桌面端未连通'}</p>
-                </div>
-              </div>
-              <div className="reader-pairing-identity">
-                <span>连接标识</span>
-                <strong>{pairingId || '本机桌面端'}</strong>
-              </div>
-              <div className="reader-pairing-connected-actions">
-                <button type="button" onClick={() => setPairingEditorOpen(true)}>
-                  <KeyRound size={13} />
-                  更换
-                </button>
-                <button type="button" onClick={onDisconnectDesktop}>
-                  <Unplug size={13} />
-                  断开
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <label htmlFor="reader-pairing-token">
-                <KeyRound size={16} />
-                桌面端配对码
-              </label>
-              <input
-                id="reader-pairing-token"
-                autoComplete="off"
-                spellCheck={false}
-                value={pairingTokenDraft}
-                onChange={(event) => onSetPairingTokenDraft(event.target.value)}
-              />
-              <div className="reader-pairing-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPairingEditorOpen(false);
-                    void onSavePairingToken();
-                  }}
-                >
-                  <Save size={13} />
-                  保存
-                </button>
-                <button
-                  disabled={!pairingTokenDraft && !desktopConnected}
-                  type="button"
-                  onClick={onDisconnectDesktop}
-                >
-                  <Unplug size={13} />
-                  断开
-                </button>
-              </div>
-              <span className="reader-pairing-status">{pairingStatus}</span>
-            </>
-          )}
-        </div>
-      ) : null}
       <SettingStepper
         icon={<CaseSensitive size={17} />}
         label="字号"
@@ -950,14 +858,12 @@ function SettingStepper({
 export function Composer({
   agents,
   composer,
-  desktopConnected,
   shortcutModifier,
   onCancel,
   onSave,
 }: {
   agents: PublicAgent[];
   composer: PendingComposer;
-  desktopConnected: boolean;
   shortcutModifier: string;
   onCancel: () => void;
   onSave: (note: string, annotationType: AnnotationType, readingIntent: AgentReadingIntent) => void;
@@ -979,7 +885,7 @@ export function Composer({
       note,
     ),
   );
-  const canMentionAgents = desktopConnected && agents.length > 0;
+  const canMentionAgents = agents.length > 0;
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -1176,7 +1082,6 @@ export function AnnotationCard({
   active,
   agents,
   annotation,
-  desktopConnected,
   isStackFront = true,
   noteRef,
   shortcutModifier,
@@ -1193,7 +1098,6 @@ export function AnnotationCard({
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
-  desktopConnected: boolean;
   isStackFront?: boolean;
   noteRef: (element: HTMLElement | null) => void;
   shortcutModifier: string;
@@ -1576,21 +1480,19 @@ export function AnnotationCard({
                 <span className="reader-comment-mention-label" aria-hidden="true">
                   @
                 </span>
-                {desktopConnected
-                  ? visibleMentionAgents.map((agent) => (
-                      <button
-                        className="reader-comment-agent-avatar"
-                        key={agent.id}
-                        type="button"
-                        aria-label={`插入 @${agent.username}`}
-                        title={`${agent.nickname} @${agent.username}`}
-                        onClick={() => insertAgent(agent)}
-                      >
-                        <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                      </button>
-                    ))
-                  : null}
-                {desktopConnected && overflowMentionAgents.length > 0 ? (
+                {visibleMentionAgents.map((agent) => (
+                  <button
+                    className="reader-comment-agent-avatar"
+                    key={agent.id}
+                    type="button"
+                    aria-label={`插入 @${agent.username}`}
+                    title={`${agent.nickname} @${agent.username}`}
+                    onClick={() => insertAgent(agent)}
+                  >
+                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                  </button>
+                ))}
+                {overflowMentionAgents.length > 0 ? (
                   <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
                     <button
                       className="reader-comment-agent-more-button"

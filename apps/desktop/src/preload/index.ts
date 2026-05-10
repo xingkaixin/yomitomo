@@ -35,18 +35,6 @@ export type ReviewReadingCardInput = GenerateReadingCardInput & {
   reviewAgentIds?: string[];
 };
 
-export type PairingInfo = {
-  token: string;
-  pairingId: string;
-  updatedAt: string;
-};
-
-export type PairingConnectionStatus = {
-  authenticatedSocketCount: number;
-  extensionVersions?: string[];
-  lastExtensionVersion?: string;
-};
-
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
   article: ArticleRecord;
@@ -150,17 +138,6 @@ const api = {
       ipcRenderer.on(channel, listener);
       ipcRenderer.send('agent:annotate:stream', { requestId, payload });
     });
-  },
-  getPairingInfo: () => ipcRenderer.invoke('pairing:get') as Promise<PairingInfo>,
-  getSavedPairingInfo: () => ipcRenderer.invoke('pairing:saved') as Promise<PairingInfo | null>,
-  rotatePairingInfo: () => ipcRenderer.invoke('pairing:rotate') as Promise<PairingInfo>,
-  getPairingConnectionStatus: () =>
-    ipcRenderer.invoke('pairing:connection-status') as Promise<PairingConnectionStatus>,
-  onPairingConnectionStatus: (callback: (status: PairingConnectionStatus) => void) => {
-    const listener = (_event: IpcRendererEvent, status: PairingConnectionStatus) =>
-      callback(status);
-    ipcRenderer.on('pairing:connection-status', listener);
-    return () => ipcRenderer.removeListener('pairing:connection-status', listener);
   },
   generateReadingCard: (input: GenerateReadingCardInput) =>
     ipcRenderer.invoke('reading-card:generate', input) as Promise<{

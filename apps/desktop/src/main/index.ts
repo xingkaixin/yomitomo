@@ -45,19 +45,7 @@ import {
   saveUser,
 } from './store';
 import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
-import { getPairingInfo, getSavedPairingInfo, rotatePairingInfo } from './pairing';
 import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
-import {
-  broadcastArticleDeleted,
-  broadcastArticleUpdate,
-  broadcastStatus,
-  disconnectAuthenticatedSockets,
-  getDesktopConnectionStatus,
-  setArticleUpdateListener,
-  setSocketStatusListener,
-  startLocalServer,
-  type DesktopConnectionStatus,
-} from './server';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -103,7 +91,6 @@ async function createWindow() {
     void openExternalUrl(url);
     return { action: 'deny' };
   });
-  sendPairingConnectionStatus();
 }
 
 function windowChromeOptions(): BrowserWindowConstructorOptions {
@@ -133,9 +120,6 @@ app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
-  setSocketStatusListener(sendPairingConnectionStatus);
-  setArticleUpdateListener(sendStoreUpdated);
-  await startLocalServer();
   await createWindow();
 });
 
@@ -162,8 +146,6 @@ function registerIpc() {
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
     const store = await saveArticle(input);
-    const article = store.articles.find((item) => item.id === input.id);
-    if (article) broadcastArticleUpdate(article);
     sendStoreUpdated(store);
     return store;
   });
@@ -187,33 +169,20 @@ function registerIpc() {
     });
     const article = store.articles.find((item) => item.id === record.id);
     if (!article) throw new Error('文章保存失败');
-    broadcastArticleUpdate(article);
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
-  });
-  ipcMain.handle('pairing:get', () => getPairingInfo());
-  ipcMain.handle('pairing:saved', () => getSavedPairingInfo());
-  ipcMain.handle('pairing:connection-status', () => getDesktopConnectionStatus());
-  ipcMain.handle('pairing:rotate', async () => {
-    const pairing = await rotatePairingInfo();
-    disconnectAuthenticatedSockets();
-    sendPairingConnectionStatus({ authenticatedSocketCount: 0 });
-    return pairing;
   });
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
     const store = await saveSettings(input);
-    broadcastStatus();
     return store;
   });
   ipcMain.handle('provider:save', async (_event, input: Partial<LlmProvider>) => {
     const store = await saveProvider(input);
-    broadcastStatus();
     return store;
   });
   ipcMain.handle('provider:delete', async (_event, id: string) => {
     const store = await deleteProvider(id);
-    broadcastStatus();
     return store;
   });
   ipcMain.handle('provider:test', async (_event, id: string) => {
@@ -230,16 +199,7 @@ function registerIpc() {
     listProviderModels(input),
   );
   ipcMain.handle('article:delete', async (_event, id: string) => {
-    const previousStore = await readStore();
-    const article = previousStore.articles.find((item) => item.id === id);
     const store = await deleteArticle(id);
-    if (article) {
-      broadcastArticleDeleted({
-        id: article.id,
-        url: article.url,
-        canonicalUrl: article.canonicalUrl,
-      });
-    }
     sendStoreUpdated(store);
     return store;
   });
@@ -465,30 +425,18 @@ function registerIpc() {
   });
   ipcMain.handle('agent:save', async (_event, input: Partial<Agent>) => {
     const store = await saveAgent(input);
-    broadcastStatus();
     return store;
   });
   ipcMain.handle('agent:delete', async (_event, id: string) => {
     const store = await deleteAgent(id);
-    broadcastStatus();
     return store;
   });
-}
-
-function sendPairingConnectionStatus(
-  status: DesktopConnectionStatus = getDesktopConnectionStatus(),
-) {
-  sendToRenderer('pairing:connection-status', status);
 }
 
 function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
   sendToRenderer('store:updated', store);
 }
 
-function sendToRenderer(
-  channel: 'pairing:connection-status',
-  payload: DesktopConnectionStatus,
-): void;
 function sendToRenderer(
   channel: 'store:updated',
   payload: Awaited<ReturnType<typeof readStore>>,

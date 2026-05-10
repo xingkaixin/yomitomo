@@ -17,7 +17,7 @@ import thirdPartyNoticesRaw from '../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { PanelHeader } from './app-ui';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
-import type { AppInfo, PairingConnectionStatus } from '../../preload';
+import type { AppInfo } from '../../preload';
 
 type LicensePackage = {
   name: string;
@@ -33,14 +33,11 @@ const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 
 export function AboutSettings({
   onStartOnboarding = () => undefined,
-  pairingConnectionStatus,
 }: {
   onStartOnboarding?: () => void;
-  pairingConnectionStatus?: PairingConnectionStatus;
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
   const [licensesOpen, setLicensesOpen] = useState(false);
-  const extensionVersion = extensionVersionView(pairingConnectionStatus);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
@@ -70,16 +67,11 @@ export function AboutSettings({
             </span>
             <div>
               <h3 id="about-version-title">应用版本</h3>
-              <p>桌面端和已配对浏览器扩展的版本信息。</p>
+              <p>当前桌面端版本信息。</p>
             </div>
           </div>
           <div className="about-version-list">
             <VersionRow label="桌面端" value={formatVersion(appInfo.desktopVersion)} />
-            <VersionRow
-              label="浏览器扩展"
-              value={extensionVersion.value}
-              detail={extensionVersion.detail}
-            />
           </div>
         </section>
 
@@ -287,28 +279,6 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
       </section>
     </div>
   );
-}
-
-function extensionVersionView(status: PairingConnectionStatus | undefined) {
-  const versions = status?.extensionVersions?.filter(Boolean) || [];
-  if (versions.length > 0) {
-    return {
-      value: versions.map(formatVersion).join(', '),
-      detail: '当前配对版本',
-    };
-  }
-
-  if (status?.lastExtensionVersion) {
-    return {
-      value: formatVersion(status.lastExtensionVersion),
-      detail: '当前配对版本',
-    };
-  }
-
-  return {
-    value: '还未配对',
-    detail: '在浏览器扩展输入桌面端配对码后显示',
-  };
 }
 
 function formatVersion(version: string) {

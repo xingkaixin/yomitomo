@@ -1935,25 +1935,19 @@ function SourceBookcase({
         commentsCloseKey={commentsCloseKey}
         composer={composer}
         completionBurstKey={completionBurstKey}
-        desktopConnected
         embedded
         extracted={readerArticle}
         filteredAnnotations={annotations}
-        hasSavedPairing={false}
         highlightChoice={highlightChoice}
         notesOpen={notesOpen}
         noteRefs={noteRefs}
         notesRef={railRef}
-        pairingId=""
-        pairingStatus=""
-        pairingTokenDraft=""
         readerSettings={readerSettings}
         readingSections={readingSections}
         replyRequest={replyRequest}
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
         shortcutModifier={shortcutModifier}
-        showConnectionSettings={false}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}
         toolbarArticleAction={
@@ -1985,7 +1979,6 @@ function SourceBookcase({
         }}
         onCreateAnnotation={createAnnotation}
         onDeleteAnnotation={deleteAnnotation}
-        onDisconnectDesktop={() => {}}
         onFocusAnnotation={openAnnotation}
         onHighlightClick={handleHighlightClick}
         onMouseUp={handleArticleMouseUp}
@@ -1999,7 +1992,6 @@ function SourceBookcase({
           });
           setSelectionAction(null);
         }}
-        onSavePairingToken={() => {}}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={(annotationId) => {
           openAnnotation(annotationId);
@@ -2007,7 +1999,6 @@ function SourceBookcase({
         }}
         onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
         onSetCommentQuestionStatus={setCommentQuestionStatus}
-        onSetPairingTokenDraft={() => {}}
         onStartAgentReadingPlan={(agent, readingPlan) => {
           setAgentAnnotateOpen(false);
           void requestAgentAnnotations(agent, { readingPlan });

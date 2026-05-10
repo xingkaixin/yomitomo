@@ -4,46 +4,35 @@
 
 # Yomitomo
 
-Yomitomo 是一个本地优先的 AI 伴读工具。它由浏览器扩展和 Electron 桌面端组成：扩展把网页转成稳定阅读视图，桌面端保存阅读数据、管理 LLM provider 和阅读助手，并通过本机 WebSocket 为扩展提供 AI 批注能力。
+Yomitomo 是一个本地优先的 AI 伴读桌面应用。Electron 桌面端负责网页文章导入、阅读库、批注、评论、LLM provider 管理、阅读助手和读后卡片生成。
 
 当前发布形式为源码仓库。项目处于 early alpha 阶段，以 macOS 本地开发和源码运行体验为主。
 
 ## 核心能力
 
-- 网页阅读器：正文抽取、目录、字号、宽度和批注侧栏。
+- 网页文章导入：从 URL 抽取正文、标题、作者、站点信息和图片。
+- 桌面阅读器：目录、字号、宽度、高亮和批注侧栏。
 - 文本批注：高亮、批注类型、讨论线程、评论回复和 `@助手` 触发。
 - 主动精读：选择一个或多个阅读助手，让 AI 围绕文章生成批注。
-- 阅读库：桌面端汇总扩展同步的文章、批注、评论和原文链接。
+- 阅读库：集中管理文章、批注、评论和原文链接。
 - 读后卡片：基于原文、批注和讨论生成阅读审议报告、AI 读后卡片，并交给审核助手检查。
 - 阅读统计：按文章、批注、讨论和读后卡片生成本地阅读趋势。
-- 本地配对：扩展使用桌面端配对码连接 `ws://127.0.0.1:43891`。
-- 零遥测：源码发布版采用本地优先设计，阅读数据和 provider API key 保存在本机。
+- 零遥测：阅读数据和 provider API key 保存在本机。
 
 ## 示例
-
-### 浏览器扩展阅读器
-
-![Yomitomo 浏览器扩展阅读器](assets/yomitomo-extension.png)
 
 ### Electron 桌面端
 
 ![Yomitomo Electron 桌面端](assets/yomitomo-desktop.png)
 
-### 产品演示视频
-
-[![Yomitomo 产品演示视频](https://img.youtube.com/vi/a8TqQJEpqto/hqdefault.jpg)](https://www.youtube.com/watch?v=a8TqQJEpqto)
-
-[观看产品演示视频](https://www.youtube.com/watch?v=a8TqQJEpqto)
-
 ## 项目结构
 
 ```text
-apps/desktop      Electron 桌面端，包含 main、preload、renderer
-apps/extension    WXT 浏览器扩展，包含 background、content script 和 popup
-packages/ai       LLM provider 调用、模型输入预算和 AI 生成链路
-packages/core     跨端业务核心逻辑
-packages/reader-ui 扩展和桌面端复用的阅读器 React UI
-packages/shared   共享类型、协议、ID、哈希和文本锚定工具
+apps/desktop       Electron 桌面端，包含 main、preload、renderer
+packages/ai        LLM provider 调用、模型输入预算和 AI 生成链路
+packages/core      业务核心逻辑，包括批注、评论、阅读统计、阅读卡片和阅读器 DOM 纯逻辑
+packages/reader-ui 桌面阅读器 React UI、样式、工具和 hooks
+packages/shared    共享类型、provider preset、agent preset、ID、哈希和文本锚定工具
 assets             项目静态资源
 ```
 
@@ -53,7 +42,6 @@ assets             项目静态资源
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
-- 浏览器扩展：WXT、Chrome MV3、React 19、Tailwind CSS 4
 - 本地数据库：SQLite、better-sqlite3、Drizzle ORM
 - 测试：Vitest
 - Lint / Format：通过 Turbo 运行 oxlint、oxfmt
@@ -64,7 +52,6 @@ assets             项目静态资源
 
 - Node.js
 - pnpm 11
-- Chrome 或 Chromium 系浏览器
 - macOS 桌面开发环境
 - Xcode Command Line Tools，供 `better-sqlite3` native rebuild 使用
 
@@ -89,31 +76,9 @@ pnpm --filter @yomitomo/desktop dev
 
 桌面端启动后会：
 
-- 在 `127.0.0.1:43891` 运行本地 HTTP / WebSocket 服务。
 - 在 Electron `userData` 目录保存 `yomitomo.sqlite`。
-- 提供用户、provider、助手、配对码、阅读库、统计、读后卡片和日志视图。
-
-### 运行浏览器扩展
-
-```bash
-pnpm --filter @yomitomo/extension dev
-```
-
-WXT 会生成开发扩展产物。打开 `chrome://extensions`，启用开发者模式，加载 `apps/extension/dist/chrome-mv3-dev` 或 WXT 终端输出里的 Chrome MV3 目录。
-
-### 构建后加载扩展
-
-构建 Chrome MV3 扩展：
-
-```bash
-pnpm --filter @yomitomo/extension build
-```
-
-打开 `chrome://extensions`，启用开发者模式，加载：
-
-```text
-apps/extension/dist/chrome-mv3
-```
+- 提供用户、provider、助手、阅读库、统计、读后卡片和日志视图。
+- 支持从阅读库导入网页 URL。
 
 ### 打包发布产物
 
@@ -123,30 +88,25 @@ apps/extension/dist/chrome-mv3
 pnpm make
 ```
 
-`pnpm make` 会生成 macOS arm64 桌面端安装包和 Chrome MV3 扩展 zip：
-
-- 桌面端：运行 `pnpm make:app:mac-arm`，产物输出到 `dist/app/mac-arm64`，包含 electron-builder 生成的 `dmg` 和 `zip`。
-- 浏览器扩展：运行 `pnpm make:ext`，产物输出到 `dist/ext`。
+`pnpm make` 会生成 macOS arm64 桌面端安装包，产物输出到 `dist/app/mac-arm64`，包含 electron-builder 生成的 `dmg` 和 `zip`。
 
 也可以按目标单独打包：
 
 ```bash
 pnpm make:app:mac-arm
 pnpm make:app:win-x64
-pnpm make:ext
 ```
 
 `pnpm make:app:win-x64` 会生成 Windows x64 NSIS 安装包，产物输出到 `dist/app/win-x64`。公开分发前需要按发布渠道配置 macOS 签名、公证和 Windows 签名策略。
 
-### 本地配对和 AI 配置
+### 本地阅读和 AI 配置
 
-1. 启动桌面端，在「通用」页复制桌面端配对码。
+1. 启动桌面端。
 2. 在「供应商」页创建 LLM provider，填写 base URL、API key 和模型名。
 3. 在「助手」页创建批注助手或审核助手，并关联 provider。
-4. 加载浏览器扩展，打开任意文章页后点击扩展图标进入阅读器。
-5. 在阅读器设置中填入配对码，连接本机桌面端。
-6. 选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
-7. 回到桌面端「阅读库」查看已同步文章，并生成阅读审议、读后卡片和审核结果。
+4. 在「阅读库」导入网页 URL。
+5. 打开文章，选中文本创建高亮和批注，或在「助手精读」里选择阅读助手生成 AI 批注。
+6. 生成阅读审议、读后卡片和审核结果。
 
 ### 同时启动 workspace 开发任务
 
@@ -154,7 +114,7 @@ pnpm make:ext
 pnpm dev
 ```
 
-`pnpm dev` 会通过 Turbo 启动各 workspace 的开发任务。日常调试时，分别运行桌面端和扩展更容易观察日志。
+`pnpm dev` 会通过 Turbo 启动各 workspace 的开发任务。
 
 ## 常用命令
 
@@ -175,10 +135,6 @@ pnpm --filter @yomitomo/desktop dev
 pnpm --filter @yomitomo/desktop build
 pnpm --filter @yomitomo/desktop test
 
-pnpm --filter @yomitomo/extension dev
-pnpm --filter @yomitomo/extension build
-pnpm --filter @yomitomo/extension test
-
 pnpm --filter @yomitomo/core build
 pnpm --filter @yomitomo/core test
 
@@ -192,22 +148,19 @@ pnpm --filter @yomitomo/reader-ui build
 pnpm --filter @yomitomo/reader-ui test
 ```
 
-## 数据与通信
+## 数据
 
-- 扩展通过 `browser.storage.local` 保存阅读器设置、配对码缓存和文章缓存。
 - 桌面端通过 SQLite 保存用户、provider、助手、文章、批注、评论、阅读审议和读后卡片。
-- 扩展和桌面端通过 `ws://127.0.0.1:43891` 通信，消息类型定义在 `@yomitomo/shared`。
-- WebSocket 连接需要配对码认证，桌面端支持旋转配对码并断开旧连接。
 - provider API key 保存在本机桌面端数据库中。
+- 从网页 URL 导入文章时，桌面端会读取目标页面内容并生成本地文章记录。
 
 ## 分层约定
 
-- `packages/shared` 放共享类型、协议类型、provider preset、agent preset、ID/哈希和文本锚定工具。
+- `packages/shared` 放共享类型、provider preset、agent preset、ID/哈希和文本锚定工具。
 - `packages/core` 放批注、评论、阅读统计、阅读卡片和阅读器 DOM 相关纯逻辑。
 - `packages/ai` 放 provider 调用、模型输入预算、AI 批注、阅读审议、读后卡片和审核生成。
-- `packages/reader-ui` 放扩展和桌面端复用的阅读器 React UI、样式、工具和 hooks。
-- `apps/extension/src/reader-*` 放扩展专属的文章抽取、DOM 范围、高亮绘制、组件和工具逻辑。
-- `apps/desktop/src/main` 放 Electron 主进程、本地服务、SQLite store、LLM 调用和日志。
+- `packages/reader-ui` 放桌面阅读器 React UI、样式、工具和 hooks。
+- `apps/desktop/src/main` 放 Electron 主进程、SQLite store、LLM 调用、文章导入和日志。
 - `apps/desktop/src/renderer/src/app-*` 放桌面端阅读库、统计、设置、日志和读后卡片 UI。
 
 ## 提交前检查
