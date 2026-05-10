@@ -1116,10 +1116,7 @@ export function Composer({
           <span>取消</span>
         </button>
         <button type="button" onClick={save}>
-          <SubmitShortcutKeys
-            shortcut={messageSendShortcut}
-            shortcutModifier={shortcutModifier}
-          />
+          <SubmitShortcutKeys shortcut={messageSendShortcut} shortcutModifier={shortcutModifier} />
           <span>发布</span>
         </button>
       </div>
