@@ -52,7 +52,12 @@ export const readerConversationStyles = `
 .reader-avatar-badge.is-image{background:transparent;color:inherit}
 .reader-avatar-badge img{width:100%;height:100%;object-fit:cover;border-radius:999px}
 .reader-avatar-badge.is-svg img{object-fit:contain}
+.reader-agent-menu{z-index:12;gap:3px;padding:6px;border-radius:12px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;line-height:1.2}
+.reader-agent-menu button{grid-template-columns:24px minmax(0,1fr) auto;min-height:34px;gap:7px;border-radius:9px;color:var(--reader-ink);font:inherit;padding:5px 6px}
 .reader-agent-menu button.is-active{background:#f0e3cd}
+.reader-agent-menu .reader-avatar-badge{width:24px;height:24px}
+.reader-agent-menu strong{overflow:hidden;font-size:12px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
+.reader-agent-menu em{overflow:hidden;font-size:11px;font-style:normal;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
 .reader-question-panel{display:grid;gap:14px;margin:0 0 14px;font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-question-panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-18px -18px 0;padding:24px 18px 18px;border-bottom:1px solid rgba(40,35,29,.08);background:rgba(255,253,248,.72)}
 .reader-question-panel-header div{display:flex;align-items:baseline;gap:10px;min-width:0}
@@ -332,8 +337,8 @@ export const readerConversationStyles = `
 .reader-note-comments-panel .reader-comment-box textarea{min-height:68px;max-height:96px;margin-top:0}
 .reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
 .reader-note-footer .reader-add-comment{flex:0 0 auto}
-.reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:hidden;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
-.reader-composer-header{display:grid;gap:12px;padding:14px 14px 12px;border-bottom:1px solid rgba(40,35,29,.1);background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:visible;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
+.reader-composer-header{display:grid;gap:12px;padding:14px 14px 12px;border-bottom:1px solid rgba(40,35,29,.1);border-radius:19px 19px 0 0;background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .reader-composer-title-row strong{font-size:14px;font-weight:900;letter-spacing:0}
 .reader-composer-title-row .reader-shortcut-hint{margin-right:0}
@@ -343,7 +348,7 @@ export const readerConversationStyles = `
 .reader-composer-types button:active{transform:scale(.96)}
 .reader-composer-editor{position:relative}
 .reader-composer textarea{display:block;min-height:118px;margin:0;border:0;border-radius:0;background:rgba(255,253,247,.74);font-size:14px;padding:14px 15px}
-.reader-composer-actions{margin:0;padding:12px 14px;border-top:1px solid rgba(37,29,22,.1);background:rgba(250,243,230,.9)}
+.reader-composer-actions{margin:0;padding:12px 14px;border-top:1px solid rgba(37,29,22,.1);border-radius:0 0 19px 19px;background:rgba(250,243,230,.9)}
 .reader-composer-actions button{height:36px;padding:0 13px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-composer-actions button:active{transform:scale(.96)}
 .reader-composer-agent-tray{display:flex;min-width:0;align-items:center;gap:6px;margin-right:auto}
