@@ -32,7 +32,7 @@ import type {
   UserProfile,
   ReasoningEffort,
 } from '@yomitomo/shared';
-import { makeId, providerPresets } from '@yomitomo/shared';
+import { makeId, normalizeMessageSendShortcut, providerPresets } from '@yomitomo/shared';
 import { agentPersonalities } from '@yomitomo/shared';
 import { presetAgentAvatars } from './agent-avatars';
 import { migrations } from './db/migrations';
@@ -155,6 +155,7 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
     readingAssistantProviderId: input.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
     readingNoteProviderId: input.readingNoteProviderId || undefined,
+    messageSendShortcut: normalizeMessageSendShortcut(input.messageSendShortcut),
     saveArticleImages: Boolean(input.saveArticleImages),
     onboardingCompletedAt: input.onboardingCompletedAt || undefined,
   });
@@ -682,6 +683,7 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     readingAssistantProviderId: settings.readingAssistantProviderId || null,
     reviewAssistantProviderId: settings.reviewAssistantProviderId || null,
     readingNoteProviderId: settings.readingNoteProviderId || null,
+    messageSendShortcut: normalizeMessageSendShortcut(settings.messageSendShortcut),
     saveArticleImages: Boolean(settings.saveArticleImages),
     onboardingCompletedAt: settings.onboardingCompletedAt || null,
     updatedAt: new Date().toISOString(),
@@ -807,6 +809,7 @@ function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined):
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: row?.readingNoteProviderId || undefined,
+    messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     saveArticleImages: Boolean(row?.saveArticleImages),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
   };
@@ -818,6 +821,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: settings?.readingNoteProviderId || undefined,
+    messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     saveArticleImages: Boolean(settings?.saveArticleImages),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };

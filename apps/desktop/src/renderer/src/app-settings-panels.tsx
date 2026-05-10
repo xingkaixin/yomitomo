@@ -23,7 +23,12 @@ import {
   X,
 } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, ProviderType } from '@yomitomo/shared';
-import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
+import {
+  normalizeMessageSendShortcut,
+  providerPresets,
+  reasoningEffortOptions,
+} from '@yomitomo/shared';
+import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-utils';
 import {
   agentKindLabel,
   agentPersonalities,
@@ -31,6 +36,7 @@ import {
   annotationColors,
   annotationDensityOptions,
   findAgentPersonalityId,
+  messageSendShortcutOptions,
   personalitiesForKind,
   sanitizeUsernameInput,
   userAnnotationColors,
@@ -63,6 +69,7 @@ import volcengineLogo from './assets/providers/volcengine.png';
 import zhipuLogo from './assets/providers/zhipu.png';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
+import { Kbd } from './components/ui/kbd';
 import {
   Select,
   SelectContent,
@@ -75,7 +82,7 @@ import { AvatarImage, Field, PanelHeader } from './app-ui';
 import type { SaveState } from './app-types';
 
 type AgentFilter = AgentKind;
-export type SettingsSectionKey = 'collection' | 'models' | 'data' | 'about';
+export type SettingsSectionKey = 'collection' | 'models' | 'shortcuts' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
 const PROVIDER_EDITOR_COMPACT_WIDTH = 980;
 type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
@@ -209,6 +216,12 @@ const settingsSections: Array<{
     icon: <KeyRound size={17} />,
   },
   {
+    key: 'shortcuts',
+    title: '快捷键',
+    description: '配置批注、评论等应用快捷键。',
+    icon: <Keyboard size={17} />,
+  },
+  {
     key: 'data',
     title: '数据管理',
     description: '集中管理导出和清理类操作。',
@@ -272,7 +285,7 @@ export function SettingsSectionShell({
           </span>
           <div>
             <h2>设置</h2>
-            <p>采集、模型、数据和应用信息集中管理。</p>
+            <p>采集、模型、快捷键、数据和应用信息集中管理。</p>
           </div>
         </header>
         <nav className="settings-section-nav" aria-label="设置分类">
@@ -377,6 +390,83 @@ export function GeneralSettings({
           </label>
         </Field>
       </div>
+    </div>
+  );
+}
+
+export function ShortcutSettings({
+  settingsDraft,
+  canSave,
+  onSettingsChange,
+  onSave,
+  saveState,
+}: {
+  settingsDraft: AppSettings;
+  canSave: boolean;
+  onSettingsChange: (draft: AppSettings) => void;
+  onSave: () => void;
+  saveState: SaveState;
+}) {
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
+  const shortcutModifier = getShortcutModifier();
+
+  return (
+    <div className="settings-panel">
+      <PanelHeader
+        icon={<Keyboard size={20} />}
+        title="快捷键"
+        description="配置应用内常用操作的键盘触发方式。"
+        action={
+          <Button
+            className={
+              saveState === 'saved'
+                ? 'action-button save-action is-saved'
+                : 'action-button save-action'
+            }
+            disabled={!canSave}
+            type="button"
+            onClick={onSave}
+          >
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
+          </Button>
+        }
+      />
+      <section className="shortcut-settings-group" aria-labelledby="shortcut-message-send-title">
+        <div className="shortcut-setting-row">
+          <div className="shortcut-setting-copy">
+            <h3 id="shortcut-message-send-title">消息发送</h3>
+            <p>用于阅读器里的批注发布和评论发送。</p>
+          </div>
+          <div
+            aria-label="批注和评论发送快捷键"
+            className="shortcut-choice-group"
+            role="radiogroup"
+          >
+            {messageSendShortcutOptions.map((option) => {
+              const active = selectedShortcut === option.value;
+              return (
+                <button
+                  aria-checked={active}
+                  aria-label={messageSendShortcutKeys(option.value, shortcutModifier).join(' ')}
+                  className={active ? 'shortcut-choice-button is-active' : 'shortcut-choice-button'}
+                  key={option.value}
+                  role="radio"
+                  type="button"
+                  onClick={() =>
+                    onSettingsChange({ ...settingsDraft, messageSendShortcut: option.value })
+                  }
+                >
+                  {messageSendShortcutKeys(option.value, shortcutModifier).map((key) => (
+                    <Kbd key={key}>{key}</Kbd>
+                  ))}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

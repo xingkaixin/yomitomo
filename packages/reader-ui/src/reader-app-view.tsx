@@ -5,6 +5,7 @@ import type {
   AgentReadingIntent,
   Annotation,
   AnnotationType,
+  MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
   UserProfile,
@@ -103,6 +104,7 @@ export type ReaderAppViewProps = {
   readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
+  messageSendShortcut: MessageSendShortcut;
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
@@ -196,6 +198,7 @@ export function ReaderAppView({
   readingSections,
   selectionAction,
   settingsOpen,
+  messageSendShortcut,
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
@@ -592,6 +595,7 @@ export function ReaderAppView({
                     agents={agents}
                     annotation={annotation}
                     isStackFront={isStackFront}
+                    messageSendShortcut={messageSendShortcut}
                     key={annotation.id}
                     noteRef={noteRefForAnnotation(annotation.id)}
                     shortcutModifier={shortcutModifier}
@@ -630,6 +634,7 @@ export function ReaderAppView({
               <Composer
                 agents={agents}
                 composer={composer}
+                messageSendShortcut={messageSendShortcut}
                 shortcutModifier={shortcutModifier}
                 onCancel={onCancelComposer}
                 onSave={onCreateAnnotation}
