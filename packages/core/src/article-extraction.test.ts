@@ -5,7 +5,7 @@ import {
   articlePreviewFromExtractedArticle,
   extractCurrentArticle,
   fallbackCurrentArticle,
-} from '../article-extraction';
+} from './article-extraction';
 
 vi.mock('defuddle', () => ({
   default: class {

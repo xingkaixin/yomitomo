@@ -46,6 +46,7 @@ import {
 } from './store';
 import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
 import { getPairingInfo, getSavedPairingInfo, rotatePairingInfo } from './pairing';
+import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
 import {
   broadcastArticleDeleted,
   broadcastArticleUpdate,
@@ -165,6 +166,30 @@ function registerIpc() {
     if (article) broadcastArticleUpdate(article);
     sendStoreUpdated(store);
     return store;
+  });
+  ipcMain.handle('article:import-url', async (_event, input: string) => {
+    const previousStore = await readStore();
+    const record = await articleRecordFromUrl(input, {
+      inlineImages: Boolean(previousStore.settings.saveArticleImages),
+    });
+    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    if (existingArticle && !isArticleImportChallengeRecord(existingArticle)) {
+      return {
+        status: 'duplicate',
+        article: existingArticle,
+        store: previousStore,
+      };
+    }
+
+    const store = await saveArticle({
+      ...record,
+      createdAt: existingArticle?.createdAt || record.createdAt,
+    });
+    const article = store.articles.find((item) => item.id === record.id);
+    if (!article) throw new Error('文章保存失败');
+    broadcastArticleUpdate(article);
+    sendStoreUpdated(store);
+    return { status: 'imported', article, store };
   });
   ipcMain.handle('pairing:get', () => getPairingInfo());
   ipcMain.handle('pairing:saved', () => getSavedPairingInfo());
@@ -471,6 +496,23 @@ function sendToRenderer(
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);
+}
+
+function findArticleByIdentity(
+  articles: ArticleRecord[],
+  identity: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
+) {
+  return (
+    articles.find((item) => item.id === identity.id) ||
+    articles.find(
+      (item) =>
+        item.canonicalUrl === identity.canonicalUrl ||
+        item.url === identity.url ||
+        item.url === identity.canonicalUrl ||
+        item.canonicalUrl === identity.url,
+    ) ||
+    null
+  );
 }
 
 type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'readingNote';

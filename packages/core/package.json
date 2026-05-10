@@ -4,13 +4,18 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./article-extraction": "./src/article-extraction.ts",
+    "./article-images": "./src/article-images.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "defuddle": "^0.18.1",
+    "dompurify": "^3.3.0",
     "@yomitomo/shared": "workspace:*"
   },
   "devDependencies": {
