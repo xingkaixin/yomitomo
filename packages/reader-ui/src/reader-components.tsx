@@ -4,6 +4,7 @@ import {
   CaseSensitive,
   ChevronDown,
   ChevronUp,
+  Copy,
   Maximize2,
   MessageSquare,
   MessageSquarePlus,
@@ -178,9 +179,11 @@ function mentionDraftWithAgent(
 export function SelectionMenu({
   action,
   onAnnotate,
+  onCopy,
 }: {
   action: SelectionMenuAction;
   onAnnotate: () => void;
+  onCopy: () => void;
 }) {
   return (
     <div
@@ -189,9 +192,15 @@ export function SelectionMenu({
       onMouseDown={(event) => event.preventDefault()}
       onMouseUp={(event) => event.stopPropagation()}
     >
+      <button className="reader-selection-primary" type="button" onClick={onCopy}>
+        <Copy size={15} strokeWidth={2.2} />
+        复制
+        <Kbd className="reader-kbd">C</Kbd>
+      </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
         添加批注
+        <Kbd className="reader-kbd">A</Kbd>
       </button>
     </div>
   );

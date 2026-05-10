@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isMessageSendShortcutEvent, messageSendShortcutKeys } from './reader-utils';
+import {
+  isMessageSendShortcutEvent,
+  messageSendShortcutKeys,
+  selectionActionShortcut,
+} from './reader-utils';
 
 describe('message send shortcuts', () => {
   it('formats enter and modifier shortcuts', () => {
@@ -27,5 +31,23 @@ describe('message send shortcuts', () => {
     expect(
       isMessageSendShortcutEvent({ key: 'Enter', ctrlKey: true }, 'mod-enter', 'MacIntel'),
     ).toBe(false);
+  });
+});
+
+describe('selection action shortcuts', () => {
+  it('matches copy and annotate keys', () => {
+    expect(selectionActionShortcut({ key: 'c' })).toBe('copy');
+    expect(selectionActionShortcut({ key: 'C' })).toBe('copy');
+    expect(selectionActionShortcut({ key: 'a' })).toBe('annotate');
+    expect(selectionActionShortcut({ key: 'A' })).toBe('annotate');
+  });
+
+  it('ignores modifier chords and composing input', () => {
+    expect(selectionActionShortcut({ key: 'c', metaKey: true })).toBe(null);
+    expect(selectionActionShortcut({ key: 'a', ctrlKey: true })).toBe(null);
+    expect(selectionActionShortcut({ key: 'c', altKey: true })).toBe(null);
+    expect(selectionActionShortcut({ key: 'a', repeat: true })).toBe(null);
+    expect(selectionActionShortcut({ key: 'c', isComposing: true })).toBe(null);
+    expect(selectionActionShortcut({ key: 'a', nativeEvent: { isComposing: true } })).toBe(null);
   });
 });
