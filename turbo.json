@@ -12,16 +12,16 @@
     "test": {
       "dependsOn": ["^build"]
     },
-    "//#repo:lint": {
+    "lint": {
       "outputs": []
     },
-    "//#repo:lint:fix": {
+    "lint:fix": {
       "cache": false
     },
-    "//#repo:format": {
+    "format": {
       "cache": false
     },
-    "//#repo:format:check": {
+    "format:check": {
       "outputs": []
     }
   }

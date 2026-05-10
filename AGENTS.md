@@ -12,8 +12,8 @@
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS
 - Workspace 包：`@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai`、`@yomitomo/reader-ui`
 - 测试：Vitest
-- Lint：Turbo root task 调用 oxlint
-- Format：Turbo root task 调用 oxfmt
+- Lint：Turbo 调度各 workspace package 的 oxlint
+- Format：Turbo 调度各 workspace package 的 oxfmt
 
 ## Workspace 结构
 
@@ -63,10 +63,10 @@ pnpm --filter @yomitomo/reader-ui test
 
 ## Lint、Format、Test
 
-- Lint：`pnpm lint`，底层为 `turbo run repo:lint` -> `oxlint .`。
-- Lint Fix：`pnpm lint:fix`，底层为 `turbo run repo:lint:fix` -> `oxlint . --fix`。
-- Format：`pnpm format`，底层为 `turbo run repo:format` -> `oxfmt --write "**/*.{ts,tsx,js,jsx,json,css,html}"`。
-- Format Check：`pnpm format:check`，底层为 `turbo run repo:format:check` -> `oxfmt --check "**/*.{ts,tsx,js,jsx,json,css,html}"`。
+- Lint：`pnpm lint`，底层为 `turbo run lint` 调度各包的 `oxlint .`。
+- Lint Fix：`pnpm lint:fix`，底层为 `turbo run lint:fix` 调度各包的 `oxlint . --fix`。
+- Format：`pnpm format`，底层为 `turbo run format` 调度各包的 `oxfmt --write "**/*.{ts,tsx,js,jsx,json,css,html}"`。
+- Format Check：`pnpm format:check`，底层为 `turbo run format:check` 调度各包的 `oxfmt --check "**/*.{ts,tsx,js,jsx,json,css,html}"`。
 - Test：`pnpm test`，底层为 `turbo test`。
 - Build：`pnpm build`，底层为 `turbo build`，会按依赖顺序构建 `shared`、`core`、`ai`、`reader-ui` 和应用。
 - 包内测试脚本统一使用 `vitest run --passWithNoTests`。
