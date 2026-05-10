@@ -22,7 +22,7 @@ export default defineConfig({
   },
   manifest: {
     name: 'Yomitomo',
-    description: 'Yomitomo reader mode with persistent highlights and threaded annotations.',
+    description: '把网页文章变成可高亮、可批注的阅读器。',
     version: packageJson.version,
     minimum_chrome_version: '116',
     permissions: ['storage', 'scripting', 'activeTab'],
