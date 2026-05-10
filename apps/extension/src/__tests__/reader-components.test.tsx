@@ -358,6 +358,38 @@ describe('AnnotationCard', () => {
     expect(screen.getByLabelText('评论内容')).toHaveProperty('value', '@concept ');
   });
 
+  it('closes extra comment agents when focus leaves the more menu', () => {
+    const agents = [
+      agent,
+      { ...agent, id: 'agent_2', nickname: '根因审读者', username: 'root' },
+      { ...agent, id: 'agent_3', nickname: '概念翻译员', username: 'concept' },
+    ];
+    render(
+      <AnnotationCard
+        active
+        agents={agents}
+        annotation={annotation}
+        commentsCloseKey={0}
+        desktopConnected
+        noteRef={vi.fn()}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /0 条评论/ }));
+    const moreButton = screen.getByRole('button', { name: /更多助手，1 个/ });
+    fireEvent.click(moreButton);
+    expect(screen.getByRole('button', { name: /概念翻译员/ })).not.toBeNull();
+
+    fireEvent.blur(moreButton, { relatedTarget: screen.getByLabelText('评论内容') });
+
+    expect(screen.queryByRole('button', { name: /概念翻译员/ })).toBeNull();
+  });
+
   it('renders comments inside the annotation card when expanded', () => {
     const { container } = render(
       <AnnotationCard

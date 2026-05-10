@@ -24,7 +24,12 @@ import type {
   QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
-import { agentPersonalityName, createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
+import {
+  agentPersonalities,
+  agentPersonalityName,
+  createTextAnchor,
+  resolveTextAnchor,
+} from '@yomitomo/shared';
 import {
   appendAnnotationComment,
   annotationColor,
@@ -1886,19 +1891,25 @@ function SourceBookcase({
 function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
   return agents
     .filter((agent) => agent.kind === 'annotation' && agent.enabled)
-    .map((agent) => ({
-      id: agent.id,
-      kind: agent.kind,
-      enabled: agent.enabled,
-      presetId: agent.presetId,
-      nickname: agent.nickname,
-      username: agent.username,
-      avatar: agent.avatar,
-      annotationColor: agent.annotationColor,
-      annotationDensity: agent.annotationDensity,
-      personalityName: agentPersonalityName(agent),
-      temperature: agent.temperature,
-    }));
+    .map((agent) => {
+      const personality = agentPersonalities.find(
+        (item) => item.id === agent.presetId || item.soul === agent.soul,
+      );
+      return {
+        id: agent.id,
+        kind: agent.kind,
+        enabled: agent.enabled,
+        presetId: agent.presetId,
+        nickname: agent.nickname,
+        username: agent.username,
+        avatar: agent.avatar,
+        annotationColor: agent.annotationColor,
+        annotationDensity: agent.annotationDensity,
+        personalityName: agentPersonalityName(agent),
+        pinyin: personality?.pinyin,
+        temperature: agent.temperature,
+      };
+    });
 }
 
 function buildSourceReadingSections(

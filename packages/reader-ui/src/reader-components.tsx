@@ -1412,6 +1412,12 @@ export function AnnotationCard({
     });
   }
 
+  function closeAgentTrayOnBlur(event: React.FocusEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    setAgentTrayOpen(false);
+  }
+
   return (
     <section
       className={[
@@ -1585,7 +1591,7 @@ export function AnnotationCard({
                     ))
                   : null}
                 {desktopConnected && overflowMentionAgents.length > 0 ? (
-                  <div className="reader-comment-agent-more">
+                  <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
                     <button
                       className="reader-comment-agent-more-button"
                       type="button"
