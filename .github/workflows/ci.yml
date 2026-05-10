@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CI: true
+      TZ: Asia/Shanghai
 
     steps:
       - name: Checkout
