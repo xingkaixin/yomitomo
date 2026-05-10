@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { agentPersonalities, createTextAnchor, renderMarkdown, resolveTextAnchor } from './index';
+import {
+  agentPersonalities,
+  agentReadingIntentDisplayLabel,
+  createTextAnchor,
+  renderMarkdown,
+  resolveTextAnchor,
+} from './index';
 
 describe('shared text anchors', () => {
   it('resolves repeated exact text with prefix and suffix context', () => {
@@ -33,5 +39,9 @@ describe('shared markdown rendering', () => {
 describe('agent presets', () => {
   it('enables every preset assistant by default', () => {
     expect(agentPersonalities.every((personality) => personality.defaultEnabled)).toBe(true);
+  });
+
+  it('formats reading intent labels with icons', () => {
+    expect(agentReadingIntentDisplayLabel('challenge')).toBe('⚔️ 挑战');
   });
 });

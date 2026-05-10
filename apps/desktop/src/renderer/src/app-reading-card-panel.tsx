@@ -1,7 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, ListChecks, LoaderCircle, RefreshCcw, Scale, Sparkles } from 'lucide-react';
+import {
+  Check,
+  Lightbulb,
+  ListChecks,
+  LoaderCircle,
+  Puzzle,
+  RefreshCcw,
+  Scale,
+  Sparkles,
+  Sprout,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react';
 import type {
   Agent,
+  AnnotationType,
   ArticleRecord,
   ReadingDeliberationRecord,
   ReadingCardRecord,
@@ -28,6 +41,35 @@ import {
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton } from './app-ui';
 import type { ReadingCardWorkflowStep } from './app-types';
+
+const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
+  key_point: Lightbulb,
+  assumption: TriangleAlert,
+  concept: Puzzle,
+  question: Sprout,
+  quote: Sparkles,
+};
+const annotationTypeIconHtml: Record<AnnotationType, string> = {
+  key_point: lucideIconHtml(
+    '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  ),
+  assumption: lucideIconHtml(
+    '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  ),
+  concept: lucideIconHtml(
+    '<path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"/>',
+  ),
+  question: lucideIconHtml(
+    '<path d="M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3"/><path d="M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4"/><path d="M5 21h14"/>',
+  ),
+  quote: lucideIconHtml(
+    '<path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/>',
+  ),
+};
+
+function lucideIconHtml(content: string) {
+  return `<svg class="reading-card-evidence-chip-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${content}</svg>`;
+}
 
 export function ReadingCard({
   article,
@@ -501,7 +543,7 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
         <span className="reading-card-evidence-index">{unit.index}</span>
         <div className="reading-card-evidence-heading">
           <div className="reading-card-evidence-chips">
-            {unit.annotationType ? <span>{unit.annotationType}</span> : null}
+            {unit.annotationType ? <ReadingCardAnnotationTypeChip unit={unit} /> : null}
             {unit.questionStatus ? <span>{questionStatusLabel(unit.questionStatus)}</span> : null}
             <span>{unit.annotationAuthorLabel}</span>
           </div>
@@ -532,6 +574,24 @@ function ReadingCardEvidence({ unit }: { unit: ReadingCardEvidenceUnit }) {
         </div>
       ) : null}
     </article>
+  );
+}
+
+function ReadingCardAnnotationTypeChip({ unit }: { unit: ReadingCardEvidenceUnit }) {
+  const Icon = unit.annotationTypeKey ? annotationTypeIcons[unit.annotationTypeKey] : null;
+  return (
+    <span>
+      {Icon ? (
+        <Icon
+          aria-hidden="true"
+          className="reading-card-evidence-chip-icon"
+          focusable="false"
+          size={12}
+          strokeWidth={2.4}
+        />
+      ) : null}
+      {unit.annotationType}
+    </span>
   );
 }
 
@@ -976,16 +1036,19 @@ function renderReadingCardEvidenceReferenceList(
 
 function renderReadingCardEvidenceReference(unit: ReadingCardEvidenceUnit) {
   const index = unit.index;
+  const typeMeta = unit.annotationType
+    ? `<span class="reading-card-ref-meta-type">${renderAnnotationTypeIconHtml(unit.annotationTypeKey)}${escapeHtml(unit.annotationType)}</span>`
+    : '批注';
   const meta = [
-    unit.annotationType || '批注',
-    unit.annotationAuthorLabel,
-    formatDateTime(unit.createdAt),
+    typeMeta,
+    escapeHtml(unit.annotationAuthorLabel),
+    escapeHtml(formatDateTime(unit.createdAt)),
   ].join(' · ');
   return `<button class="reading-card-ref" type="button" data-reading-card-evidence-index="${index}" aria-label="打开批注 #${index}">
       <span class="reading-card-ref-label">#${index}</span>
       <span class="reading-card-ref-popover" role="tooltip">
         <strong>批注 #${index}</strong>
-        <em>${escapeHtml(meta)}</em>
+        <em>${meta}</em>
         <q>${escapeHtml(unit.quote)}</q>
         ${
           unit.annotationBody
@@ -996,6 +1059,11 @@ function renderReadingCardEvidenceReference(unit: ReadingCardEvidenceUnit) {
         }
       </span>
     </button>`;
+}
+
+function renderAnnotationTypeIconHtml(type: AnnotationType | undefined) {
+  if (!type) return '';
+  return annotationTypeIconHtml[type];
 }
 
 function openReadingCardEvidence(

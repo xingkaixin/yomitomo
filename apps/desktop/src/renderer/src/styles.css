@@ -8306,10 +8306,19 @@
 }
 
 .reading-card-ref-popover em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: hsl(var(--muted-foreground));
   font-size: 11px;
   font-style: normal;
   font-weight: 760;
+}
+
+.reading-card-ref-meta-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .reading-card-ref-popover q {
@@ -8401,6 +8410,9 @@
 }
 
 .reading-card-evidence-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid hsl(38 31% 72% / 0.78);
   border-radius: 999px;
   background: hsl(42 55% 91% / 0.72);
@@ -8409,6 +8421,10 @@
   font-weight: 900;
   line-height: 1;
   padding: 4px 7px;
+}
+
+.reading-card-evidence-chip-icon {
+  flex: 0 0 auto;
 }
 
 .reading-card-evidence-heading time {
