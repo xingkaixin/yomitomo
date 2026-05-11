@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentForm,
@@ -342,6 +342,7 @@ describe('ShortcutSettings', () => {
     const onSettingsChange = vi.fn();
     render(
       <ShortcutSettings
+        savedSettings={{ messageSendShortcut: 'enter' }}
         settingsDraft={{ messageSendShortcut: 'enter' }}
         canSave={false}
         onSettingsChange={onSettingsChange}
@@ -353,9 +354,33 @@ describe('ShortcutSettings', () => {
     fireEvent.click(screen.getAllByRole('radio')[1]!);
 
     expect(onSettingsChange).toHaveBeenCalledWith({ messageSendShortcut: 'mod-enter' });
-    expect(screen.getAllByText('Enter').some((element) => element.tagName === 'KBD')).toBe(true);
+    expect(screen.getAllByText('⏎').some((element) => element.tagName === 'KBD')).toBe(true);
     expect(screen.getByText('消息发送')).toBeTruthy();
-    expect(screen.queryByText(/macOS/)).toBeNull();
+    expect(screen.getByRole('radio', { name: '⏎ 发送' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /(?:⌘|Ctrl)\+⏎ 发送/ })).toBeTruthy();
+    expect(screen.getAllByText('当前使用')).toHaveLength(1);
+    expect(screen.getByText(/你可以随时切换快捷键，设置立即生效/)).toBeTruthy();
+    expect(screen.queryByText(/Command|Enter|macOS|Windows/)).toBeNull();
+  });
+
+  it('keeps the current badge on the saved shortcut while editing', () => {
+    render(
+      <ShortcutSettings
+        savedSettings={{ messageSendShortcut: 'enter' }}
+        settingsDraft={{ messageSendShortcut: 'mod-enter' }}
+        canSave
+        onSettingsChange={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    const options = screen.getAllByRole('radio');
+
+    expect(options[0]!.getAttribute('aria-checked')).toBe('false');
+    expect(options[1]!.getAttribute('aria-checked')).toBe('true');
+    expect(within(options[0]!).getByText('当前使用')).toBeTruthy();
+    expect(within(options[1]!).queryByText('当前使用')).toBeNull();
   });
 });
 

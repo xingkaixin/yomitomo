@@ -1,5 +1,6 @@
 export const readerConversationStyles = `
 .reader-app{--dropdown-open-dur:250ms;--dropdown-close-dur:150ms;--dropdown-pre-scale:.97;--dropdown-closing-scale:.99;--dropdown-ease:cubic-bezier(.22,1,.36,1)}
+.reader-kbd{display:inline-grid;min-width:18px;height:18px;place-items:center;font-family:ui-sans-serif,system-ui,sans-serif;font-size:9px;font-weight:780;line-height:1;padding:0 5px}.reader-kbd-symbol{font-size:11px;padding:0}.reader-add-comment span,.reader-composer-actions button>span{font-size:10px;font-weight:730}
 .t-dropdown{transform-origin:top left;transform:scale(var(--dropdown-pre-scale));opacity:0;pointer-events:none;transition:transform var(--dropdown-open-dur) var(--dropdown-ease),opacity var(--dropdown-open-dur) var(--dropdown-ease);will-change:transform,opacity}
 .t-dropdown[data-origin="top-right"]{transform-origin:top right}.t-dropdown[data-origin="top-center"]{transform-origin:top center}.t-dropdown[data-origin="bottom-left"]{transform-origin:bottom left}.t-dropdown[data-origin="bottom-center"]{transform-origin:bottom center}.t-dropdown[data-origin="bottom-right"]{transform-origin:bottom right}
 .t-dropdown.is-open{transform:scale(1);opacity:1;pointer-events:auto}.t-dropdown.is-closing{transform:scale(var(--dropdown-closing-scale));opacity:0;pointer-events:none;transition:transform var(--dropdown-close-dur) var(--dropdown-ease),opacity var(--dropdown-close-dur) var(--dropdown-ease)}
@@ -336,7 +337,7 @@ export const readerConversationStyles = `
 .reader-note-comments-panel .reader-comment-box textarea{min-height:68px;max-height:96px;margin-top:0}
 .reader-composer textarea:focus,.reader-composer textarea:focus-visible,.reader-note-comments-panel .reader-comment-box textarea:focus,.reader-note-comments-panel .reader-comment-box textarea:focus-visible{outline:0;box-shadow:none}
 .reader-note-footer .reader-shortcut-hint{flex:0 0 auto;margin-right:0}
-.reader-note-footer .reader-add-comment{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:6px}
+.reader-note-footer .reader-add-comment{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;gap:4px;padding:7px 10px}
 .reader-composer{width:min(520px,calc(100vw - 24px));padding:0;overflow:visible;border-color:rgba(40,35,29,.16);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 22px 64px rgba(40,35,29,.18),0 0 0 1px rgba(255,255,255,.58) inset;transform-origin:24px 18px;animation:reader-composer-pop .22s cubic-bezier(.22,1,.36,1)}
 .reader-composer-header{display:grid;gap:8px;padding:12px 14px 10px;border-bottom:1px solid rgba(40,35,29,.1);border-radius:19px 19px 0 0;background:rgba(255,253,248,.94);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-composer-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -351,7 +352,7 @@ export const readerConversationStyles = `
 .reader-composer-editor{position:relative}
 .reader-composer textarea{display:block;min-height:118px;margin:0;border:0;border-radius:0;background:rgba(255,253,247,.74);font-size:14px;padding:14px 15px}
 .reader-composer-actions{margin:0;padding:12px 14px;border-top:1px solid rgba(37,29,22,.1);border-radius:0 0 19px 19px;background:rgba(250,243,230,.9)}
-.reader-composer-actions button{display:inline-flex;height:36px;align-items:center;justify-content:center;gap:6px;padding:0 13px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-composer-actions button{display:inline-flex;height:32px;align-items:center;justify-content:center;gap:4px;padding:0 10px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-composer-actions button:active{transform:scale(.96)}
 .reader-composer-agent-tray{display:flex;min-width:0;align-items:center;gap:6px;margin-right:auto}
 .reader-composer-agent-tray>span{color:var(--reader-muted);font-size:16px;font-weight:900;line-height:1}

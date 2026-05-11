@@ -22,7 +22,14 @@ import {
   User,
   X,
 } from 'lucide-react';
-import type { Agent, AgentKind, AppSettings, LlmProvider, ProviderType } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentKind,
+  AppSettings,
+  LlmProvider,
+  MessageSendShortcut,
+  ProviderType,
+} from '@yomitomo/shared';
 import {
   normalizeMessageSendShortcut,
   providerPresets,
@@ -112,6 +119,20 @@ const agentPronunciationMap: Record<string, string> = {
   'risk-examiner': 'Sū Dìngbái',
   'action-calibrator': 'Xià Guīníng',
 };
+
+function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: string) {
+  if (shortcut === 'enter') {
+    return {
+      title: '⏎ 发送',
+      description: '按下 ⏎ 即可发送信息，适合习惯及时发送的场景。通过 Shift+⏎ 换行。',
+    };
+  }
+
+  return {
+    title: `${shortcutName} 发送`,
+    description: `按下 ${shortcutName} 发送信息，适合长文本输入，避免误发送。此时通过 ⏎ 会换行。`,
+  };
+}
 
 const agentCoverMap: Record<string, string> = {
   'reading-partner': linZhiweiCover,
@@ -395,12 +416,14 @@ export function GeneralSettings({
 }
 
 export function ShortcutSettings({
+  savedSettings,
   settingsDraft,
   canSave,
   onSettingsChange,
   onSave,
   saveState,
 }: {
+  savedSettings: AppSettings;
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
@@ -409,6 +432,7 @@ export function ShortcutSettings({
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
+  const savedShortcut = normalizeMessageSendShortcut(savedSettings.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
 
   return (
@@ -433,39 +457,57 @@ export function ShortcutSettings({
           </Button>
         }
       />
-      <section className="shortcut-settings-group" aria-labelledby="shortcut-message-send-title">
-        <div className="shortcut-setting-row">
-          <div className="shortcut-setting-copy">
-            <h3 id="shortcut-message-send-title">消息发送</h3>
-            <p>用于阅读器里的批注发布和评论发送。</p>
-          </div>
-          <div
-            aria-label="批注和评论发送快捷键"
-            className="shortcut-choice-group"
-            role="radiogroup"
-          >
-            {messageSendShortcutOptions.map((option) => {
-              const active = selectedShortcut === option.value;
-              return (
-                <button
-                  aria-checked={active}
-                  aria-label={messageSendShortcutKeys(option.value, shortcutModifier).join(' ')}
-                  className={active ? 'shortcut-choice-button is-active' : 'shortcut-choice-button'}
-                  key={option.value}
-                  role="radio"
-                  type="button"
-                  onClick={() =>
-                    onSettingsChange({ ...settingsDraft, messageSendShortcut: option.value })
-                  }
-                >
-                  {messageSendShortcutKeys(option.value, shortcutModifier).map((key) => (
-                    <Kbd key={key}>{key}</Kbd>
+      <section className="shortcut-settings-card" aria-labelledby="shortcut-message-send-title">
+        <header className="shortcut-settings-card-header">
+          <h3 id="shortcut-message-send-title">消息发送</h3>
+          <p>用于阅读器里的批注发布和评论发送。</p>
+        </header>
+        <div aria-label="批注和评论发送快捷键" className="shortcut-option-list" role="radiogroup">
+          {messageSendShortcutOptions.map((option) => {
+            const active = selectedShortcut === option.value;
+            const current = savedShortcut === option.value;
+            const keys = messageSendShortcutKeys(option.value, shortcutModifier);
+            const shortcutName = keys.join('+');
+            const copy = messageSendShortcutCopy(option.value, shortcutName);
+
+            return (
+              <button
+                aria-checked={active}
+                aria-label={copy.title}
+                className={active ? 'shortcut-option-card is-active' : 'shortcut-option-card'}
+                key={option.value}
+                role="radio"
+                type="button"
+                onClick={() =>
+                  onSettingsChange({ ...settingsDraft, messageSendShortcut: option.value })
+                }
+              >
+                <span className="shortcut-radio" aria-hidden="true" />
+                <span className="shortcut-keyset" aria-hidden="true">
+                  {keys.map((key, index) => (
+                    <React.Fragment key={key}>
+                      {index > 0 ? <span className="shortcut-key-plus">+</span> : null}
+                      <Kbd className="shortcut-keycap">{key}</Kbd>
+                    </React.Fragment>
                   ))}
-                </button>
-              );
-            })}
-          </div>
+                </span>
+                <span className="shortcut-option-copy">
+                  <strong>{copy.title}</strong>
+                  <span>{copy.description}</span>
+                </span>
+                <span className="shortcut-current-slot">
+                  {current ? (
+                    <span className="shortcut-current-badge">
+                      <Check size={13} />
+                      当前使用
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
         </div>
+        <p className="shortcut-tips">Tips：你可以随时切换快捷键，设置立即生效。</p>
       </section>
     </div>
   );
