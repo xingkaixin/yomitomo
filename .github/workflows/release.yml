@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            os: macos-latest
+            command: pnpm make:app:mac-arm
+            artifact: yomitomo-macos-arm64
+            artifactPath: |
+              dist/app/mac-arm64/*.dmg
+              dist/app/mac-arm64/*.zip
+              dist/app/mac-arm64/*.blockmap
+              dist/app/mac-arm64/*.yml
+          - name: Windows x64
+            os: windows-latest
+            command: pnpm make:app:win-x64
+            artifact: yomitomo-windows-x64
+            artifactPath: |
+              dist/app/win-x64/*.exe
+              dist/app/win-x64/*.blockmap
+              dist/app/win-x64/*.yml
+
+    env:
+      CI: true
+      TZ: Asia/Shanghai
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.8
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace
+        run: pnpm build
+
+      - name: Make release package
+        run: ${{ matrix.command }}
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifactPath }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Publish release
+        shell: bash
+        run: |
+          mapfile -t assets < <(find release-assets -type f \( \
+            -name '*.dmg' -o \
+            -name '*.zip' -o \
+            -name '*.exe' -o \
+            -name '*.blockmap' -o \
+            -name '*.yml' \
+          \) | sort)
+
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "No release assets found."
+            exit 1
+          fi
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --generate-notes
+          fi
