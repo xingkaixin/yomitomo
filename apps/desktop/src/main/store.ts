@@ -15,6 +15,7 @@ import type {
   ArticleRecord,
   Comment,
   DesktopStore,
+  FocusCoReadingPlan,
   LlmProvider,
   ProviderPresetId,
   ProviderType,
@@ -512,6 +513,9 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         themeColor: row.themeColor || undefined,
         contentHtml: row.contentHtml || undefined,
         contentHash: row.contentHash,
+        focusCoReadingPlan: row.focusCoReadingPlan
+          ? (row.focusCoReadingPlan as FocusCoReadingPlan)
+          : undefined,
         readingDeliberation: rowToReadingDeliberation(row),
         readingCard: rowToReadingCard(row),
         annotations: sortByCreatedAt(annotationsByArticle.get(row.id) || []),
@@ -556,6 +560,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       themeColor: article.themeColor,
       contentHtml: article.contentHtml,
       contentHash: article.contentHash,
+      focusCoReadingPlan: article.focusCoReadingPlan,
       readingDeliberationId: article.readingDeliberation?.id,
       readingDeliberationMarkdown: article.readingDeliberation?.contentMarkdown,
       readingDeliberationSections: article.readingDeliberation?.sections,
@@ -593,6 +598,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
         themeColor: article.themeColor,
         contentHtml: article.contentHtml,
         contentHash: article.contentHash,
+        focusCoReadingPlan: article.focusCoReadingPlan,
         updatedAt: article.updatedAt,
       },
     })

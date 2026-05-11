@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
+import type { Agent, AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
 import {
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
   extractJsonObjects,
   parseAgentMentionInstructions,
+  parseFocusCoReadingRouteResult,
 } from './index';
 
 describe('extractJsonObjects', () => {
@@ -179,5 +180,66 @@ describe('agent message prompts', () => {
         agentUsername: zhou.username,
       },
     ]);
+  });
+
+  it('parses focus co-reading routes against selected agents and sections', () => {
+    const route = parseFocusCoReadingRouteResult(
+      JSON.stringify({
+        sections: [
+          {
+            sectionId: 'intro',
+            summary: '作者铺垫问题背景',
+            tag: '背景',
+            agentIds: [
+              'agent_lin',
+              'missing',
+              'agent_zhou',
+              'agent_qin',
+              'agent_shen',
+              'agent_lin',
+            ],
+          },
+          {
+            sectionId: 'unknown',
+            summary: '跳过',
+            tag: '跳过',
+            agentIds: ['agent_lin'],
+          },
+        ],
+      }),
+      {
+        selectedAgentIds: ['agent_lin', 'agent_zhou', 'agent_qin', 'agent_shen'],
+        article: {
+          title: '代码审查',
+          url: 'https://example.test/article',
+          text: '代码审查是迭代过程。',
+        },
+        sections: [
+          {
+            sectionId: 'intro',
+            sectionTitle: '引文',
+            sectionStart: 0,
+            sectionEnd: 10,
+          },
+        ],
+      },
+      [
+        { id: 'agent_lin' },
+        { id: 'agent_zhou' },
+        { id: 'agent_qin' },
+        { id: 'agent_shen' },
+      ] as Pick<Agent, 'id'>[],
+    );
+
+    expect(route).toEqual({
+      sections: [
+        {
+          sectionId: 'intro',
+          summary: '作者铺垫问题背景',
+          tag: '背景',
+          agentIds: ['agent_lin', 'agent_zhou', 'agent_qin', 'agent_shen'],
+        },
+      ],
+    });
   });
 });

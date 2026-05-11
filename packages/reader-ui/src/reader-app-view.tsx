@@ -3,6 +3,7 @@ import { Bot, Funnel, List, MessageSquare, Settings2, X } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   Annotation,
+  FocusCoReadingPlan,
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
@@ -99,6 +100,7 @@ export type ReaderAppViewProps = {
   annotatingAgents: string[];
   annotationTotals: { annotations: number; comments: number };
   annotations: Annotation[];
+  articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
@@ -108,6 +110,7 @@ export type ReaderAppViewProps = {
   embedded?: boolean;
   extracted: ReaderArticle;
   filteredAnnotations: Annotation[];
+  focusCoReadingPlan?: FocusCoReadingPlan;
   highlightChoice: HighlightChoice | null;
   notesOpen: boolean;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
@@ -148,6 +151,8 @@ export type ReaderAppViewProps = {
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
+  onPlanFocusCoReading: (selectedAgentIds: string[]) => Promise<FocusCoReadingPlan>;
+  onSaveFocusCoReadingPlan: (plan: FocusCoReadingPlan) => void | Promise<void>;
   onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -194,6 +199,7 @@ export function ReaderAppView({
   annotatingAgents,
   annotationTotals,
   annotations,
+  articleId,
   articleRef,
   boxes,
   canvasRef,
@@ -203,6 +209,7 @@ export function ReaderAppView({
   embedded = false,
   extracted,
   filteredAnnotations,
+  focusCoReadingPlan,
   highlightChoice,
   notesOpen,
   noteRefs,
@@ -239,6 +246,8 @@ export function ReaderAppView({
   onCloseResponsivePanels,
   onOpenComposer,
   onCopySelection,
+  onPlanFocusCoReading,
+  onSaveFocusCoReadingPlan,
   onStartAgentReadingPlan,
   onScrollToHeading,
   onScrollToHighlight,
@@ -625,7 +634,7 @@ export function ReaderAppView({
             onClick={toggleAgentAnnotate}
           >
             <Bot size={18} />
-            {annotatingAgents.length > 0 ? '精读中' : '助手精读'}
+            {annotatingAgents.length > 0 ? '共读中' : '聚焦共读'}
           </button>
           <button
             className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
@@ -651,10 +660,16 @@ export function ReaderAppView({
             onClick={onCancelAgentAnnotateMenu}
           />
           <AgentAnnotateMenu
+            articleId={articleId}
             agents={agents}
             annotatingAgents={annotatingAgents}
+            focusCoReadingPlan={focusCoReadingPlan}
+            messageSendShortcut={messageSendShortcut}
             readingSections={readingSections}
+            shortcutModifier={shortcutModifier}
             onCancel={onCancelAgentAnnotateMenu}
+            onPlanFocusCoReading={onPlanFocusCoReading}
+            onSaveFocusCoReadingPlan={onSaveFocusCoReadingPlan}
             onStartAgentPlan={onStartAgentReadingPlan}
           />
         </div>

@@ -457,8 +457,41 @@ export type ArticleRecord = {
   contentHtml?: string;
   contentHash: string;
   annotations: Annotation[];
+  focusCoReadingPlan?: FocusCoReadingPlan;
   readingDeliberation?: ReadingDeliberationRecord;
   readingCard?: ReadingCardRecord;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type FocusCoReadingMessage = {
+  id: string;
+  content: string;
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentIds?: string[];
+  agentUsernames?: string[];
+  agentNicknames?: string[];
+  createdAt: string;
+};
+
+export type FocusCoReadingSectionPlan = {
+  sectionId: string;
+  sectionTitle: string;
+  sectionStart: number;
+  sectionEnd: number;
+  summary?: string;
+  tag?: string;
+  agentIds: string[];
+  messages: FocusCoReadingMessage[];
+};
+
+export type FocusCoReadingPlan = {
+  id: string;
+  articleId: string;
+  selectedAgentIds: string[];
+  sections: FocusCoReadingSectionPlan[];
   createdAt: string;
   updatedAt: string;
 };
@@ -587,6 +620,34 @@ export type AgentAnnotatePayload = {
   };
 };
 
+export type FocusCoReadingRouteSectionInput = {
+  sectionId: string;
+  sectionTitle: string;
+  sectionStart: number;
+  sectionEnd: number;
+};
+
+export type FocusCoReadingRoutePayload = {
+  selectedAgentIds: string[];
+  sections: FocusCoReadingRouteSectionInput[];
+  article: {
+    title: string;
+    url: string;
+    text: string;
+  };
+};
+
+export type FocusCoReadingRouteSection = {
+  sectionId: string;
+  summary?: string;
+  tag?: string;
+  agentIds: string[];
+};
+
+export type FocusCoReadingRouteResult = {
+  sections: FocusCoReadingRouteSection[];
+};
+
 export type AnnotationMetadataPayload = {
   article: {
     title: string;
@@ -607,7 +668,20 @@ export type AgentReadingPlanItem = {
   sectionTitle: string;
   sectionStart: number;
   sectionEnd: number;
-  readingIntent: AgentReadingIntent;
+  readingIntent?: AgentReadingIntent;
+  sectionSummary?: string;
+  sectionTag?: string;
+  messages?: AgentReadingPlanMessage[];
+};
+
+export type AgentReadingPlanMessage = {
+  content: string;
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentIds?: string[];
+  agentUsernames?: string[];
+  agentNicknames?: string[];
 };
 
 export type AgentMentionInstructionPayload = {

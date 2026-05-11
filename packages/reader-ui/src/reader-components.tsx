@@ -16,6 +16,7 @@ import {
   Minus,
   MoreHorizontal,
   Plus,
+  CircleUserRound,
   Puzzle,
   ShieldAlert,
   Sparkles,
@@ -30,6 +31,9 @@ import type {
   AgentReadingIntent,
   Annotation,
   AnnotationType,
+  FocusCoReadingMessage,
+  FocusCoReadingPlan,
+  FocusCoReadingSectionPlan,
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
@@ -38,6 +42,7 @@ import type {
 import {
   agentReadingIntentLabel,
   agentReadingIntentOptions,
+  makeId,
   renderMarkdown,
 } from '@yomitomo/shared';
 import {
@@ -118,6 +123,12 @@ const completionBurstParticles = [
   { x: 0, y: -142, rotate: 0, delay: 52, color: '#F4C95D', shape: 'spark' },
   { x: 154, y: -72, rotate: 92, delay: 82, color: '#5EC0E8', shape: 'strip' },
   { x: -154, y: -76, rotate: -96, delay: 86, color: '#54CDA0', shape: 'strip' },
+] as const;
+const coReadingAnalysisPhases = [
+  '扫描章节边界',
+  '提炼章节主旨',
+  '读取助手角色卡',
+  '生成分配方案',
 ] as const;
 const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
   explain: MessageCircle,
@@ -724,237 +735,646 @@ export function QuestionPanel({
 }
 
 export function AgentAnnotateMenu({
+  articleId,
   agents,
   annotatingAgents,
+  focusCoReadingPlan,
+  messageSendShortcut,
   readingSections,
+  shortcutModifier,
   onCancel,
+  onPlanFocusCoReading,
+  onSaveFocusCoReadingPlan,
   onStartAgentPlan,
 }: {
+  articleId: string;
   agents: PublicAgent[];
   annotatingAgents: string[];
+  focusCoReadingPlan?: FocusCoReadingPlan;
+  messageSendShortcut: MessageSendShortcut;
   readingSections: ReaderReadingSection[];
+  shortcutModifier: string;
   onCancel: () => void;
+  onPlanFocusCoReading: (selectedAgentIds: string[]) => Promise<FocusCoReadingPlan>;
+  onSaveFocusCoReadingPlan: (plan: FocusCoReadingPlan) => void | Promise<void>;
   onStartAgentPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
 }) {
   const availableAgents = useMemo(
     () => agents.filter((agent) => !annotatingAgents.includes(agent.id)),
     [agents, annotatingAgents],
   );
-  const [visibleAgentIds, setVisibleAgentIds] = useState<string[]>([]);
-  const [assignments, setAssignments] = useState<
-    Record<string, Record<string, AgentReadingIntent>>
-  >({});
-  const [addingAgents, setAddingAgents] = useState(false);
+  const [expandedSectionIds, setExpandedSectionIds] = useState<string[]>([]);
+  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>([]);
+  const [draftPlan, setDraftPlan] = useState<FocusCoReadingPlan | undefined>(focusCoReadingPlan);
+  const [sectionPlans, setSectionPlans] = useState<FocusCoReadingSectionPlan[]>([]);
+  const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
+  const [messageCaretIndexes, setMessageCaretIndexes] = useState<Record<string, number>>({});
+  const [selectedFocusMentionIndex, setSelectedFocusMentionIndex] = useState(0);
+  const [planning, setPlanning] = useState(false);
+  const [planningProgress, setPlanningProgress] = useState(0);
+  const [planError, setPlanError] = useState('');
+  const [addingPlanAgents, setAddingPlanAgents] = useState(false);
+  const [addingSectionId, setAddingSectionId] = useState<string | null>(null);
+  const focusMessageTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
 
   useEffect(() => {
-    setVisibleAgentIds((ids) => {
-      const next = ids.filter((id) => availableAgents.some((agent) => agent.id === id));
-      return next.length > 0 ? next : availableAgents.map((agent) => agent.id);
-    });
-    setAssignments((current) =>
-      Object.fromEntries(
-        Object.entries(current).filter(([agentId]) =>
-          availableAgents.some((agent) => agent.id === agentId),
-        ),
-      ),
+    const saved = focusCoReadingPlan?.selectedAgentIds.filter((id) =>
+      availableAgents.some((agent) => agent.id === id),
     );
-  }, [availableAgents]);
+    setSelectedAgentIds(saved && saved.length > 0 ? saved : []);
+  }, [articleId, availableAgents, focusCoReadingPlan?.selectedAgentIds]);
 
-  const visibleAgents = availableAgents.filter((agent) => visibleAgentIds.includes(agent.id));
-  const hiddenAgents = availableAgents.filter((agent) => !visibleAgentIds.includes(agent.id));
-  const actionCount = Object.values(assignments).reduce(
-    (count, agentAssignments) => count + Object.keys(agentAssignments).length,
-    0,
+  useEffect(() => {
+    setExpandedSectionIds((ids) => {
+      const nextIds = ids.filter((id) => readingSections.some((section) => section.id === id));
+      return nextIds.length === ids.length ? ids : nextIds;
+    });
+  }, [readingSections]);
+
+  useEffect(() => {
+    setSectionPlans(
+      normalizeFocusSectionPlans(focusCoReadingPlan?.sections, readingSections, availableAgents),
+    );
+    setDraftPlan(focusCoReadingPlan);
+  }, [availableAgents, focusCoReadingPlan, readingSections]);
+
+  const sectionPlansById = useMemo(
+    () => new Map(sectionPlans.map((section) => [section.sectionId, section])),
+    [sectionPlans],
   );
-  const assignedAgentCount = visibleAgents.filter(
-    (agent) => Object.keys(assignments[agent.id] || {}).length > 0,
-  ).length;
-  const canStart = actionCount > 0 && assignedAgentCount > 0;
-  const gridTemplateColumns = `220px repeat(${Math.max(1, readingSections.length)}, 88px)`;
+  const selectedRouteAgents = availableAgents.filter((agent) =>
+    selectedAgentIds.includes(agent.id),
+  );
+  const addablePlanAgents = availableAgents.filter((agent) => !selectedAgentIds.includes(agent.id));
+  const assignedAgentIds = new Set(sectionPlans.flatMap((section) => section.agentIds));
+  const assignedAgentCount = assignedAgentIds.size;
+  const plannedSectionCount = sectionPlans.filter((section) => section.agentIds.length > 0).length;
+  const canPlan = selectedAgentIds.length > 0 && readingSections.length > 0 && !planning;
+  const canStart = plannedSectionCount > 0 && assignedAgentCount > 0;
+  const planningPhaseIndex = Math.min(
+    coReadingAnalysisPhases.length - 1,
+    Math.floor((planningProgress / 100) * coReadingAnalysisPhases.length),
+  );
 
-  function setAssignment(agentId: string, sectionId: string, readingIntent: AgentReadingIntent) {
-    setAssignments((current) => ({
-      ...current,
-      [agentId]: {
-        ...current[agentId],
-        [sectionId]: readingIntent,
-      },
+  useEffect(() => {
+    if (!planning) return;
+    const interval = window.setInterval(() => {
+      setPlanningProgress((progress) => Math.min(88, progress + 4));
+    }, 420);
+    return () => window.clearInterval(interval);
+  }, [planning]);
+
+  function addPlanAgent(agentId: string) {
+    if (selectedAgentIds.includes(agentId)) return;
+    saveSections(sectionPlans, uniqueIds([...selectedAgentIds, agentId]));
+  }
+
+  function removePlanAgent(agentId: string) {
+    const nextIds = selectedAgentIds.filter((id) => id !== agentId);
+    const nextSections = sectionPlans.map((section) => {
+      const agentIds = section.agentIds.filter((id) => id !== agentId);
+      return {
+        ...section,
+        agentIds,
+        messages: filterFocusMessagesForAgents(section.messages, agentIds),
+      };
+    });
+    saveSections(nextSections, nextIds);
+  }
+
+  async function planCoReading() {
+    if (!canPlan) return;
+    setPlanning(true);
+    setPlanningProgress(6);
+    setPlanError('');
+    try {
+      const plan = await onPlanFocusCoReading(selectedAgentIds);
+      const nextSections = normalizeFocusSectionPlans(
+        plan.sections,
+        readingSections,
+        availableAgents,
+      );
+      setDraftPlan(plan);
+      setSectionPlans(nextSections);
+      setPlanningProgress(100);
+    } catch (error) {
+      setPlanError(error instanceof Error ? error.message : '共读规划失败');
+      setPlanningProgress(100);
+    } finally {
+      window.setTimeout(() => setPlanning(false), 520);
+    }
+  }
+
+  function saveSections(
+    nextSections: FocusCoReadingSectionPlan[],
+    nextSelectedAgentIds = selectedAgentIds,
+  ) {
+    const now = new Date().toISOString();
+    const basePlan = draftPlan || focusCoReadingPlan;
+    const normalizedSections = normalizeFocusSectionPlans(
+      nextSections,
+      readingSections,
+      availableAgents,
+    ).filter(focusSectionHasContent);
+    const plan: FocusCoReadingPlan = {
+      id: basePlan?.id || makeId('focus_co_reading'),
+      articleId,
+      selectedAgentIds: uniqueIds([
+        ...nextSelectedAgentIds,
+        ...normalizedSections.flatMap((section) => section.agentIds),
+      ]),
+      sections: normalizedSections,
+      createdAt: basePlan?.createdAt || now,
+      updatedAt: now,
+    };
+    setDraftPlan(plan);
+    setSelectedAgentIds(plan.selectedAgentIds);
+    setSectionPlans(normalizeFocusSectionPlans(plan.sections, readingSections, availableAgents));
+    void Promise.resolve(onSaveFocusCoReadingPlan(plan)).catch((error) => {
+      setPlanError(error instanceof Error ? error.message : '共读方案保存失败');
+    });
+  }
+
+  function updateSection(
+    sectionId: string,
+    update: (section: FocusCoReadingSectionPlan) => FocusCoReadingSectionPlan,
+  ) {
+    const readerSection = readingSections.find((section) => section.id === sectionId);
+    if (!readerSection) return;
+    const current = sectionPlansById.get(sectionId) || focusSectionFromReaderSection(readerSection);
+    const nextSection = update(current);
+    const nextSectionsById = new Map(sectionPlans.map((section) => [section.sectionId, section]));
+    if (focusSectionHasContent(nextSection)) nextSectionsById.set(sectionId, nextSection);
+    else nextSectionsById.delete(sectionId);
+    const nextSections = readingSections.flatMap((section) => {
+      const plan = nextSectionsById.get(section.id);
+      return plan ? [plan] : [];
+    });
+    saveSections(nextSections);
+  }
+
+  function addSectionAgent(sectionId: string, agentId: string) {
+    updateSection(sectionId, (section) => ({
+      ...section,
+      agentIds: uniqueIds([...section.agentIds, agentId]),
     }));
   }
 
-  function clearAssignment(agentId: string, sectionId: string) {
-    setAssignments((current) => {
-      const agentAssignments = { ...current[agentId] };
-      delete agentAssignments[sectionId];
-      return { ...current, [agentId]: agentAssignments };
+  function toggleSectionExpanded(sectionId: string) {
+    setExpandedSectionIds((ids) =>
+      ids.includes(sectionId) ? ids.filter((id) => id !== sectionId) : [...ids, sectionId],
+    );
+  }
+
+  function removeSectionAgent(sectionId: string, agentId: string) {
+    updateSection(sectionId, (section) => {
+      const agentIds = section.agentIds.filter((id) => id !== agentId);
+      return {
+        ...section,
+        agentIds,
+        messages: filterFocusMessagesForAgents(section.messages, agentIds),
+      };
     });
   }
 
-  function removeAgent(agentId: string) {
-    setVisibleAgentIds((ids) => ids.filter((id) => id !== agentId));
-    setAssignments((current) => {
-      const next = { ...current };
-      delete next[agentId];
-      return next;
+  function addSectionMessage(sectionId: string) {
+    const content = messageDrafts[sectionId]?.trim();
+    if (!content) return;
+    updateSection(sectionId, (section) => ({
+      ...section,
+      messages: [...section.messages, focusMessageFromDraft(content, section, availableAgents)],
+    }));
+    setMessageDrafts((drafts) => ({ ...drafts, [sectionId]: '' }));
+  }
+
+  function updateFocusMessageDraft(sectionId: string, value: string) {
+    setMessageDrafts((drafts) => ({
+      ...drafts,
+      [sectionId]: value,
+    }));
+  }
+
+  function updateFocusMessageCaret(sectionId: string, element: HTMLTextAreaElement) {
+    setMessageCaretIndexes((indexes) => ({
+      ...indexes,
+      [sectionId]: element.selectionStart,
+    }));
+  }
+
+  function getFocusMentionQuery(sectionId: string) {
+    return getMentionQuery(messageDrafts[sectionId] || '', messageCaretIndexes[sectionId] || 0);
+  }
+
+  function matchedFocusMentionAgents(sectionId: string, sectionAgents: PublicAgent[]) {
+    const mentionQuery = getFocusMentionQuery(sectionId);
+    if (!mentionQuery) return [];
+    return sectionAgents
+      .filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query))
+      .slice(0, 5);
+  }
+
+  function setFocusMessageTextarea(sectionId: string, element: HTMLTextAreaElement | null) {
+    if (element) focusMessageTextareaRefs.current.set(sectionId, element);
+    else focusMessageTextareaRefs.current.delete(sectionId);
+  }
+
+  function insertFocusMessageMention(
+    sectionId: string,
+    agent: PublicAgent,
+    mentionQuery = getFocusMentionQuery(sectionId),
+  ) {
+    let nextCaretIndex = 0;
+    setMessageDrafts((drafts) => {
+      const next = mentionDraftWithAgent(drafts[sectionId] || '', agent.nickname, mentionQuery);
+      nextCaretIndex = next.caretIndex;
+      return {
+        ...drafts,
+        [sectionId]: next.content,
+      };
+    });
+    setSelectedFocusMentionIndex(0);
+    requestAnimationFrame(() => {
+      const textarea = focusMessageTextareaRefs.current.get(sectionId);
+      textarea?.focus();
+      textarea?.setSelectionRange(nextCaretIndex, nextCaretIndex);
+      if (textarea) updateFocusMessageCaret(sectionId, textarea);
     });
   }
 
-  function addAgent(agentId: string) {
-    setVisibleAgentIds((ids) => (ids.includes(agentId) ? ids : [...ids, agentId]));
-    setAddingAgents(false);
+  function handleFocusMessageKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    sectionId: string,
+    matchedAgents: PublicAgent[],
+  ) {
+    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSelectedFocusMentionIndex((index) => (index + 1) % matchedAgents.length);
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSelectedFocusMentionIndex(
+        (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+      );
+      return;
+    }
+
+    if (matchedAgents.length > 0 && event.key === 'Tab') {
+      event.preventDefault();
+      insertFocusMessageMention(
+        sectionId,
+        matchedAgents[selectedFocusMentionIndex] || matchedAgents[0],
+      );
+      return;
+    }
+
+    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
+      event.preventDefault();
+      addSectionMessage(sectionId);
+    }
+  }
+
+  function removeSectionMessage(sectionId: string, messageId: string) {
+    updateSection(sectionId, (section) => ({
+      ...section,
+      messages: section.messages.filter((message) => message.id !== messageId),
+    }));
   }
 
   function startReadingPlan() {
     if (!canStart) return;
 
-    for (const agent of visibleAgents) {
-      const agentAssignments = assignments[agent.id] || {};
-      const readingPlan = readingSections.flatMap((section) => {
-        const readingIntent = agentAssignments[section.id];
-        return readingIntent
-          ? [
-              {
-                sectionId: section.id,
-                sectionTitle: section.title,
-                sectionStart: section.start,
-                sectionEnd: section.end,
-                readingIntent,
-              },
-            ]
-          : [];
-      });
+    for (const agent of availableAgents) {
+      const readingPlan = sectionPlans.flatMap((section) =>
+        section.agentIds.includes(agent.id) ? [focusSectionToReadingPlanItem(section, agent)] : [],
+      );
       if (readingPlan.length > 0) onStartAgentPlan(agent, readingPlan);
     }
 
     onCancel();
   }
 
-  function onCellDrop(event: React.DragEvent<HTMLDivElement>, agentId: string, sectionId: string) {
-    event.preventDefault();
-    const readingIntent = event.dataTransfer.getData('text/plain');
-    if (!isAgentReadingIntent(readingIntent)) return;
-    setAssignment(agentId, sectionId, readingIntent);
-  }
-
   return (
     <div className="reader-agent-annotate-menu">
       <header className="reader-plan-header">
         <div>
-          <strong>助手精读编排</strong>
-          <span>像剧本一样安排每位助手的动作，动作位置代表他们在文章中介入的章节</span>
+          <strong>聚焦共读</strong>
+          <span>按章节规划助手参与和读者留言，再一起进入批注流</span>
         </div>
         <p>
-          <b>{assignedAgentCount}</b> 助手 · <b>{actionCount}</b> 动作
+          <b>{assignedAgentCount}</b> 助手 · <b>{plannedSectionCount}</b> 章节
         </p>
       </header>
 
-      <div className="reader-plan-action-bar" aria-label="可使用的动作">
-        <span>动作</span>
-        {agentReadingIntentOptions.map((option) => (
-          <button
-            className="reader-plan-action"
-            data-description={option.description}
-            draggable
-            key={option.value}
-            title={option.description}
-            type="button"
-            onDragStart={(event) => onActionDragStart(event, option.value)}
-          >
-            <ReadingIntentLabelContent intent={option.value} short />
-          </button>
-        ))}
-      </div>
-
-      <div className="reader-plan-grid-wrap">
-        <div className="reader-plan-grid" style={{ gridTemplateColumns }}>
-          <div className="reader-plan-corner" />
-          {readingSections.map((section, index) => (
-            <div className="reader-plan-section" key={section.id}>
-              <span>§{index + 1}</span>
-              <strong>{section.title}</strong>
-            </div>
+      <div className="reader-focus-toolbar">
+        <div className="reader-focus-agent-picker" aria-label="参与规划的助手">
+          {selectedRouteAgents.map((agent) => (
+            <button
+              className="reader-focus-agent-chip"
+              key={agent.id}
+              type="button"
+              onClick={() => removePlanAgent(agent.id)}
+            >
+              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+              <strong>{agent.nickname}</strong>
+              <X size={13} />
+            </button>
           ))}
-          {visibleAgents.map((agent) => (
-            <React.Fragment key={agent.id}>
-              <div className="reader-plan-agent">
-                <span
-                  className="reader-plan-agent-color"
-                  style={{ backgroundColor: agent.annotationColor }}
-                />
-                <AvatarBadge avatar={agent.avatar} />
-                <strong>{agent.nickname}</strong>
-                <button
-                  type="button"
-                  aria-label={`移除 ${agent.nickname}`}
-                  onClick={() => removeAgent(agent.id)}
-                >
-                  <X size={14} />
-                </button>
+          <div className="reader-focus-add-wrap">
+            <button
+              className="reader-focus-add"
+              type="button"
+              aria-expanded={addingPlanAgents}
+              onClick={() => setAddingPlanAgents((open) => !open)}
+            >
+              <CircleUserRound size={16} />
+              <strong>添加助手</strong>
+            </button>
+            {addingPlanAgents ? (
+              <div className="reader-focus-add-menu">
+                {addablePlanAgents.length > 0 ? (
+                  addablePlanAgents.map((agent) => (
+                    <button key={agent.id} type="button" onClick={() => addPlanAgent(agent.id)}>
+                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      <strong>{agent.nickname}</strong>
+                    </button>
+                  ))
+                ) : (
+                  <em>暂无可添加助手</em>
+                )}
               </div>
-              {readingSections.map((section) => {
-                const readingIntent = assignments[agent.id]?.[section.id] || null;
-                const option = readingIntent
-                  ? agentReadingIntentOptions.find((item) => item.value === readingIntent)
-                  : null;
-                return (
-                  <div
-                    className={readingIntent ? 'reader-plan-cell is-filled' : 'reader-plan-cell'}
-                    key={`${agent.id}-${section.id}`}
-                    aria-label={`${agent.nickname} ${section.title} 动作槽`}
-                    style={{ '--agent-color': agent.annotationColor } as React.CSSProperties}
-                    onDragOver={(event) => event.preventDefault()}
-                    onDrop={(event) => onCellDrop(event, agent.id, section.id)}
-                  >
-                    {option ? (
-                      <button
-                        className="reader-plan-cell-action"
-                        type="button"
-                        title={option.description}
-                        onClick={() => clearAssignment(agent.id, section.id)}
-                      >
-                        <strong>
-                          <ReadingIntentLabelContent intent={option.value} short />
-                        </strong>
-                      </button>
+            ) : null}
+          </div>
+        </div>
+        <button
+          className="reader-focus-plan"
+          disabled={!canPlan}
+          type="button"
+          onClick={planCoReading}
+        >
+          <Sparkles size={15} />
+          {planning ? coReadingAnalysisPhases[planningPhaseIndex] : '开始分析文章'}
+        </button>
+      </div>
+      {planning ? (
+        <div className="reader-focus-progress">
+          <div>
+            <strong>{coReadingAnalysisPhases[planningPhaseIndex]}</strong>
+            <span>{Math.round(planningProgress)}%</span>
+          </div>
+          <i>
+            <b style={{ width: `${planningProgress}%` }} />
+          </i>
+        </div>
+      ) : null}
+
+      {readingSections.length > 0 ? (
+        <section className="reader-focus-card-list" aria-label="共读章节">
+          {readingSections.map((section, index) => {
+            const plan = sectionPlansById.get(section.id) || focusSectionFromReaderSection(section);
+            const sectionAgents = availableAgents.filter((agent) =>
+              plan.agentIds.includes(agent.id),
+            );
+            const addableSectionAgents = availableAgents.filter(
+              (agent) => !plan.agentIds.includes(agent.id),
+            );
+            const mentionAgents = matchedFocusMentionAgents(section.id, sectionAgents);
+            const expanded = expandedSectionIds.includes(section.id);
+            return (
+              <article
+                className={`reader-focus-section-card${expanded ? ' is-open' : ''}`}
+                key={section.id}
+              >
+                <button
+                  className="reader-focus-card-summary"
+                  type="button"
+                  aria-expanded={expanded}
+                  onClick={() => toggleSectionExpanded(section.id)}
+                >
+                  <b>§{index + 1}</b>
+                  <div className="reader-focus-card-copy">
+                    <div className="reader-focus-card-title">
+                      <strong>{section.title}</strong>
+                      {plan.tag ? <em>{plan.tag}</em> : null}
+                    </div>
+                    <small>{plan.summary || '展开后可手动安排助手和留言'}</small>
+                  </div>
+                  <div className="reader-focus-card-agents">
+                    {plan.messages.length > 0 ? (
+                      <small className="reader-focus-message-count">
+                        {plan.messages.length} 条留言
+                      </small>
+                    ) : null}
+                    {sectionAgents.length > 0 ? (
+                      sectionAgents.map((agent) => (
+                        <i key={agent.id}>
+                          <AvatarBadge
+                            avatar={agent.avatar}
+                            fallback={agent.nickname.slice(0, 1)}
+                          />
+                          <strong>{agent.nickname}</strong>
+                        </i>
+                      ))
                     ) : (
-                      <span>—</span>
+                      <small>未分配</small>
                     )}
                   </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
+                  {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+
+                {expanded ? (
+                  <div className="reader-focus-card-body">
+                    <div className="reader-focus-card-section">
+                      <strong>已分配助手</strong>
+                      <div className="reader-focus-assigned-list">
+                        {sectionAgents.map((agent) => (
+                          <button
+                            className="reader-focus-assigned-chip"
+                            key={agent.id}
+                            type="button"
+                            onClick={() => removeSectionAgent(section.id, agent.id)}
+                          >
+                            <AvatarBadge
+                              avatar={agent.avatar}
+                              fallback={agent.nickname.slice(0, 1)}
+                            />
+                            <strong>{agent.nickname}</strong>
+                            <X size={13} />
+                          </button>
+                        ))}
+                        <div className="reader-focus-add-wrap">
+                          <button
+                            className="reader-focus-add"
+                            type="button"
+                            aria-expanded={addingSectionId === section.id}
+                            onClick={() =>
+                              setAddingSectionId((openId) =>
+                                openId === section.id ? null : section.id,
+                              )
+                            }
+                          >
+                            <CircleUserRound size={16} />
+                            <strong>添加助手</strong>
+                          </button>
+                          {addingSectionId === section.id ? (
+                            <div className="reader-focus-add-menu">
+                              {addableSectionAgents.length > 0 ? (
+                                addableSectionAgents.map((agent) => (
+                                  <button
+                                    key={agent.id}
+                                    type="button"
+                                    onClick={() => addSectionAgent(section.id, agent.id)}
+                                  >
+                                    <AvatarBadge
+                                      avatar={agent.avatar}
+                                      fallback={agent.nickname.slice(0, 1)}
+                                    />
+                                    <strong>{agent.nickname}</strong>
+                                  </button>
+                                ))
+                              ) : (
+                                <em>暂无可添加助手</em>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {plan.messages.length > 0 ? (
+                      <div className="reader-focus-messages">
+                        {plan.messages.map((message) => {
+                          const targets = focusMessageTargetAgents(message, availableAgents);
+                          return (
+                            <div className="reader-focus-message" key={message.id}>
+                              <MessageSquare size={14} />
+                              <div className="reader-focus-message-body">
+                                <p>{message.content}</p>
+                                <div className="reader-focus-message-targets">
+                                  {targets.length > 0 ? (
+                                    targets.map((target) => (
+                                      <em key={target.id || target.nickname}>@{target.nickname}</em>
+                                    ))
+                                  ) : (
+                                    <em>全局留言</em>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                aria-label="删除留言"
+                                onClick={() => removeSectionMessage(section.id, message.id)}
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    <div className="reader-focus-message-input">
+                      <div className="reader-focus-message-box">
+                        <textarea
+                          ref={(element) => setFocusMessageTextarea(section.id, element)}
+                          disabled={sectionAgents.length === 0}
+                          value={messageDrafts[section.id] || ''}
+                          placeholder={
+                            sectionAgents.length > 0
+                              ? '给助手留言，或 @ 指定助手…'
+                              : '添加助手后可留言'
+                          }
+                          onChange={(event) => {
+                            updateFocusMessageDraft(section.id, event.currentTarget.value);
+                            updateFocusMessageCaret(section.id, event.currentTarget);
+                          }}
+                          onClick={(event) =>
+                            updateFocusMessageCaret(section.id, event.currentTarget)
+                          }
+                          onKeyDown={(event) =>
+                            handleFocusMessageKeyDown(event, section.id, mentionAgents)
+                          }
+                          onKeyUp={(event) =>
+                            updateFocusMessageCaret(section.id, event.currentTarget)
+                          }
+                          onSelect={(event) =>
+                            updateFocusMessageCaret(section.id, event.currentTarget)
+                          }
+                        />
+                        {mentionAgents.length > 0 ? (
+                          <div className="reader-agent-menu reader-focus-agent-menu">
+                            {mentionAgents.map((agent, mentionIndex) => (
+                              <button
+                                className={
+                                  mentionIndex === selectedFocusMentionIndex ? 'is-active' : ''
+                                }
+                                key={agent.id}
+                                type="button"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={() => insertFocusMessageMention(section.id, agent)}
+                              >
+                                <AvatarBadge
+                                  avatar={agent.avatar}
+                                  fallback={agent.nickname.slice(0, 1)}
+                                />
+                                <strong>{agent.nickname}</strong>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="reader-focus-message-footer">
+                        <div className="reader-focus-message-agents">
+                          <small>可 @ 的助手：</small>
+                          {sectionAgents.map((agent) => (
+                            <button
+                              key={agent.id}
+                              type="button"
+                              onClick={() => insertFocusMessageMention(section.id, agent)}
+                            >
+                              <AvatarBadge
+                                avatar={agent.avatar}
+                                fallback={agent.nickname.slice(0, 1)}
+                              />
+                              <strong>{agent.nickname}</strong>
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          disabled={sectionAgents.length === 0}
+                          onClick={() => addSectionMessage(section.id)}
+                        >
+                          <SubmitShortcutKeys
+                            shortcut={messageSendShortcut}
+                            shortcutModifier={shortcutModifier}
+                          />
+                          <MessageSquarePlus size={15} />
+                          留言
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </section>
+      ) : (
+        <div className="reader-focus-empty">当前文章缺少可规划章节</div>
+      )}
 
       <div className="reader-plan-footer">
-        <div className="reader-plan-add">
-          <button
-            type="button"
-            disabled={hiddenAgents.length === 0}
-            onClick={() => setAddingAgents((open) => !open)}
-          >
-            <Plus size={15} />
-            添加助手
-          </button>
-          {addingAgents && hiddenAgents.length > 0 ? (
-            <div className="reader-plan-add-menu">
-              {hiddenAgents.map((agent) => (
-                <button key={agent.id} type="button" onClick={() => addAgent(agent.id)}>
-                  <AvatarBadge avatar={agent.avatar} />
-                  <span>{agent.nickname}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        <p className="reader-plan-help">拖拽动作到对应助手和章节。点击已安排的动作即可取消。</p>
+        <p className="reader-plan-help">
+          {planError || `${selectedAgentIds.length} 位助手已加入规划`}
+        </p>
         <div className="reader-agent-annotate-actions">
           <button type="button" onClick={onCancel}>
-            取消编排
+            取消
           </button>
           <button disabled={!canStart} type="button" onClick={startReadingPlan}>
-            开始精读
+            开始共读
           </button>
         </div>
       </div>
@@ -969,13 +1389,185 @@ export type ReaderReadingSection = {
   end: number;
 };
 
-function isAgentReadingIntent(value: string): value is AgentReadingIntent {
-  return agentReadingIntentOptions.some((option) => option.value === value);
+function normalizeFocusSectionPlans(
+  sections: FocusCoReadingSectionPlan[] | undefined,
+  readingSections: ReaderReadingSection[],
+  agents: PublicAgent[],
+): FocusCoReadingSectionPlan[] {
+  const planBySectionId = new Map((sections || []).map((section) => [section.sectionId, section]));
+  const agentIds = new Set(agents.map((agent) => agent.id));
+  return readingSections.map((readerSection) => {
+    const section = planBySectionId.get(readerSection.id);
+    const sectionAgentIds = uniqueIds(section?.agentIds || []).filter((agentId) =>
+      agentIds.has(agentId),
+    );
+    return {
+      sectionId: readerSection.id,
+      sectionTitle: readerSection.title,
+      sectionStart: readerSection.start,
+      sectionEnd: readerSection.end,
+      summary: section?.summary,
+      tag: section?.tag,
+      agentIds: sectionAgentIds,
+      messages: filterFocusMessagesForAgents(section?.messages || [], sectionAgentIds),
+    };
+  });
 }
 
-function onActionDragStart(event: React.DragEvent<HTMLButtonElement>, intent: AgentReadingIntent) {
-  event.dataTransfer.effectAllowed = 'copy';
-  event.dataTransfer.setData('text/plain', intent);
+function uniqueIds(ids: string[]) {
+  return ids.filter((id, index, list) => Boolean(id) && list.indexOf(id) === index);
+}
+
+function focusSectionFromReaderSection(section: ReaderReadingSection): FocusCoReadingSectionPlan {
+  return {
+    sectionId: section.id,
+    sectionTitle: section.title,
+    sectionStart: section.start,
+    sectionEnd: section.end,
+    agentIds: [],
+    messages: [],
+  };
+}
+
+function focusSectionHasContent(section: FocusCoReadingSectionPlan) {
+  return (
+    section.agentIds.length > 0 ||
+    section.messages.length > 0 ||
+    Boolean(section.summary) ||
+    Boolean(section.tag)
+  );
+}
+
+function filterFocusMessagesForAgents(
+  messages: FocusCoReadingSectionPlan['messages'],
+  agentIds: string[],
+) {
+  if (agentIds.length === 0) return [];
+  const allowed = new Set(agentIds);
+  return messages.flatMap((message) => filterFocusMessageTargetsForAgents(message, allowed));
+}
+
+function focusMessageFromDraft(
+  content: string,
+  section: FocusCoReadingSectionPlan,
+  agents: PublicAgent[],
+): FocusCoReadingSectionPlan['messages'][number] {
+  const assignedAgents = agents.filter((agent) => section.agentIds.includes(agent.id));
+  const targets = mentionedAgentsFromText(content, assignedAgents);
+  const target = targets[0];
+  const agentIds = targets.map((agent) => agent.id);
+  const agentUsernames = targets.map((agent) => agent.username);
+  const agentNicknames = targets.map((agent) => agent.nickname);
+  return {
+    id: makeId('focus_message'),
+    content,
+    agentId: target?.id,
+    agentUsername: target?.username,
+    agentNickname: target?.nickname,
+    agentIds: agentIds.length > 0 ? agentIds : undefined,
+    agentUsernames: agentUsernames.length > 0 ? agentUsernames : undefined,
+    agentNicknames: agentNicknames.length > 0 ? agentNicknames : undefined,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function mentionedAgentsFromText(content: string, agents: PublicAgent[]) {
+  return agents.filter((agent) => {
+    const handles = [agent.username, agent.nickname].filter(Boolean);
+    return handles.some((handle) =>
+      new RegExp(`(^|\\s)@${escapeRegExp(handle)}(?=[\\s，。,.!?！？、;；:]|$)`, 'u').test(content),
+    );
+  });
+}
+
+function focusSectionToReadingPlanItem(
+  section: FocusCoReadingSectionPlan,
+  agent: PublicAgent,
+): AgentReadingPlanItem {
+  return {
+    sectionId: section.sectionId,
+    sectionTitle: section.sectionTitle,
+    sectionStart: section.sectionStart,
+    sectionEnd: section.sectionEnd,
+    sectionSummary: section.summary,
+    sectionTag: section.tag,
+    messages: section.messages
+      .filter((message) => focusMessageAppliesToAgent(message, agent.id))
+      .map((message) => ({
+        content: message.content,
+        agentId: message.agentId,
+        agentUsername: message.agentUsername,
+        agentNickname: message.agentNickname,
+        agentIds: message.agentIds,
+        agentUsernames: message.agentUsernames,
+        agentNicknames: message.agentNicknames,
+      })),
+  };
+}
+
+function focusMessageAgentIds(message: FocusCoReadingMessage) {
+  return uniqueIds([...(message.agentIds || []), ...(message.agentId ? [message.agentId] : [])]);
+}
+
+function filterFocusMessageTargetsForAgents(
+  message: FocusCoReadingMessage,
+  allowed: Set<string>,
+): FocusCoReadingMessage[] {
+  const targetAgentIds = focusMessageAgentIds(message);
+  if (targetAgentIds.length === 0) return [message];
+
+  const targets = targetAgentIds
+    .map((agentId) => {
+      const arrayIndex = message.agentIds?.indexOf(agentId) ?? -1;
+      return {
+        id: agentId,
+        username: arrayIndex >= 0 ? message.agentUsernames?.[arrayIndex] : message.agentUsername,
+        nickname: arrayIndex >= 0 ? message.agentNicknames?.[arrayIndex] : message.agentNickname,
+      };
+    })
+    .filter((target) => allowed.has(target.id));
+  if (targets.length === 0) return [];
+
+  return [
+    {
+      ...message,
+      agentId: targets[0].id,
+      agentUsername: targets[0].username,
+      agentNickname: targets[0].nickname,
+      agentIds: targets.map((target) => target.id),
+      agentUsernames: targets
+        .map((target) => target.username)
+        .filter((value): value is string => Boolean(value)),
+      agentNicknames: targets
+        .map((target) => target.nickname)
+        .filter((value): value is string => Boolean(value)),
+    },
+  ];
+}
+
+function focusMessageAppliesToAgent(message: FocusCoReadingMessage, agentId: string) {
+  const agentIds = focusMessageAgentIds(message);
+  return agentIds.length === 0 || agentIds.includes(agentId);
+}
+
+function focusMessageTargetAgents(message: FocusCoReadingMessage, agents: PublicAgent[]) {
+  const byId = new Map(agents.map((agent) => [agent.id, agent]));
+  const fromIds = focusMessageAgentIds(message)
+    .map((agentId) => byId.get(agentId))
+    .filter((agent): agent is PublicAgent => Boolean(agent));
+  if (fromIds.length > 0) return fromIds;
+  if (message.agentNickname) {
+    return [
+      {
+        id: message.agentId || message.agentUsername || message.agentNickname,
+        nickname: message.agentNickname,
+      },
+    ];
+  }
+  return (message.agentNicknames || []).map((nickname, index) => ({
+    id: message.agentIds?.[index] || message.agentUsernames?.[index] || nickname,
+    nickname,
+  }));
 }
 
 export function ReaderSettingsPanel({
@@ -1313,6 +1905,8 @@ export function AnnotationCard({
   const author = annotationAuthor(annotation, userProfile, agents);
   const primaryComment = useMemo(() => annotationPrimaryComment(annotation), [annotation]);
   const threadComments = useMemo(() => annotationThreadComments(annotation), [annotation]);
+  const canComment = annotation.author === 'ai';
+  const canOpenComments = canComment || threadComments.length > 0;
   const threadCommentIds = useMemo(
     () => threadComments.map((comment) => comment.id),
     [threadComments],
@@ -1387,6 +1981,7 @@ export function AnnotationCard({
   );
 
   function submit() {
+    if (!canComment) return;
     onAddComment(annotation.id, draft);
     setDraft('');
     setCaretIndex(0);
@@ -1546,17 +2141,19 @@ export function AnnotationCard({
           </div>
         ) : null}
         <div className="reader-note-toolbar">
-          <button
-            className="reader-comment-toggle"
-            type="button"
-            aria-controls={commentsPanelId}
-            aria-expanded={expanded}
-            onClick={toggleComments}
-          >
-            <MessageSquare size={14} />
-            {threadComments.length} 条评论
-            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
+          {canOpenComments ? (
+            <button
+              className="reader-comment-toggle"
+              type="button"
+              aria-controls={commentsPanelId}
+              aria-expanded={expanded}
+              onClick={toggleComments}
+            >
+              <MessageSquare size={14} />
+              {threadComments.length} 条留言
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+          ) : null}
           <button
             className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
             style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
@@ -1574,12 +2171,12 @@ export function AnnotationCard({
           </button>
         </div>
       </div>
-      {expanded ? (
+      {expanded && canOpenComments ? (
         <div className="reader-note-comments-region" id={commentsPanelId}>
           <div className="reader-note-comments-panel">
             <header>
               <div>
-                <strong>评论</strong>
+                <strong>留言</strong>
                 <span>{threadComments.length} 条</span>
               </div>
               <button type="button" onClick={toggleComments} aria-label="收起评论">
@@ -1587,132 +2184,147 @@ export function AnnotationCard({
                 <span>收起</span>
               </button>
             </header>
-            <div className="reader-comments">
-              {threadComments.map((comment) => {
-                const commentAuthor = commentPersona(comment, userProfile, agents);
-                const commentExpanded = expandedCommentIds.has(comment.id);
-                return (
-                  <div className="reader-comment" key={comment.id}>
-                    <AvatarBadge avatar={commentAuthor.avatar} fallback={commentAuthor.fallback} />
-                    <div className="reader-comment-body">
-                      <div className="reader-comment-author">
-                        <strong>{commentAuthor.nickname}</strong>
-                        <em>@{commentAuthor.username}</em>
-                        {comment.readingIntent ? (
-                          <span>
-                            <ReadingIntentLabelContent intent={comment.readingIntent} />
-                          </span>
-                        ) : null}
-                        {comment.questionStatus ? (
-                          <span>{questionStatusLabel(comment.questionStatus)}</span>
-                        ) : null}
-                        <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
-                      </div>
-                      <CommentMarkdownContent
-                        content={comment.content}
-                        expanded={commentExpanded}
-                        pending={comment.pending}
-                        onExpandedChange={(nextExpanded) =>
-                          setCommentExpanded(comment.id, nextExpanded)
-                        }
+            {threadComments.length > 0 ? (
+              <div className="reader-comments">
+                {threadComments.map((comment) => {
+                  const commentAuthor = commentPersona(comment, userProfile, agents);
+                  const commentExpanded = expandedCommentIds.has(comment.id);
+                  return (
+                    <div className="reader-comment" key={comment.id}>
+                      <AvatarBadge
+                        avatar={commentAuthor.avatar}
+                        fallback={commentAuthor.fallback}
                       />
+                      <div className="reader-comment-body">
+                        <div className="reader-comment-author">
+                          <strong>{commentAuthor.nickname}</strong>
+                          <em>@{commentAuthor.username}</em>
+                          {comment.readingIntent ? (
+                            <span>
+                              <ReadingIntentLabelContent intent={comment.readingIntent} />
+                            </span>
+                          ) : null}
+                          {comment.questionStatus ? (
+                            <span>{questionStatusLabel(comment.questionStatus)}</span>
+                          ) : null}
+                          <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
+                        </div>
+                        <CommentMarkdownContent
+                          content={comment.content}
+                          expanded={commentExpanded}
+                          pending={comment.pending}
+                          onExpandedChange={(nextExpanded) =>
+                            setCommentExpanded(comment.id, nextExpanded)
+                          }
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="reader-comment-box">
-              <textarea
-                aria-label="评论内容"
-                ref={textareaRef}
-                placeholder="继续评论，输入 @ 呼叫助手"
-                value={draft}
-                onChange={(event) => {
-                  setDraft(event.currentTarget.value);
-                  updateCaret(event.currentTarget);
-                }}
-                onClick={(event) => updateCaret(event.currentTarget)}
-                onKeyDown={handleKeyDown}
-                onKeyUp={handleKeyUp}
-                onSelect={(event) => updateCaret(event.currentTarget)}
-              />
-              {matchedAgents.length > 0 ? (
-                <div className="reader-agent-menu">
-                  {matchedAgents.map((agent, index) => (
-                    <button
-                      className={index === selectedMentionIndex ? 'is-active' : ''}
-                      key={agent.id}
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => selectAgent(agent)}
-                    >
-                      <AvatarBadge avatar={agent.avatar} />
-                      <strong>{agent.nickname}</strong>
-                      <em>@{agent.username}</em>
-                    </button>
-                  ))}
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="reader-comments-empty">还没有留言</div>
+            )}
+            {canComment ? (
+              <>
+                <div className="reader-comment-box">
+                  <textarea
+                    aria-label="留言内容"
+                    ref={textareaRef}
+                    placeholder="给这条助手批注留言，输入 @ 呼叫助手"
+                    value={draft}
+                    onChange={(event) => {
+                      setDraft(event.currentTarget.value);
+                      updateCaret(event.currentTarget);
+                    }}
+                    onClick={(event) => updateCaret(event.currentTarget)}
+                    onKeyDown={handleKeyDown}
+                    onKeyUp={handleKeyUp}
+                    onSelect={(event) => updateCaret(event.currentTarget)}
+                  />
+                  {matchedAgents.length > 0 ? (
+                    <div className="reader-agent-menu">
+                      {matchedAgents.map((agent, index) => (
+                        <button
+                          className={index === selectedMentionIndex ? 'is-active' : ''}
+                          key={agent.id}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectAgent(agent)}
+                        >
+                          <AvatarBadge avatar={agent.avatar} />
+                          <strong>{agent.nickname}</strong>
+                          <em>@{agent.username}</em>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </div>
-            <div className="reader-note-footer">
-              <div className="reader-comment-agent-tray">
-                <span className="reader-comment-mention-label" aria-hidden="true">
-                  @
-                </span>
-                {visibleMentionAgents.map((agent) => (
-                  <button
-                    className="reader-comment-agent-avatar"
-                    key={agent.id}
-                    type="button"
-                    aria-label={`插入 @${agent.username}`}
-                    title={`${agent.nickname} @${agent.username}`}
-                    onClick={() => insertAgent(agent)}
-                  >
-                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                  </button>
-                ))}
-                {overflowMentionAgents.length > 0 ? (
-                  <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
-                    <button
-                      className="reader-comment-agent-more-button"
-                      type="button"
-                      aria-expanded={agentTrayOpen}
-                      aria-label={`更多助手，${overflowMentionAgents.length} 个`}
-                      title={`更多助手，${overflowMentionAgents.length} 个`}
-                      onClick={() => setAgentTrayOpen((open) => !open)}
-                    >
-                      <MoreHorizontal size={16} />
-                    </button>
-                    {agentTrayOpen ? (
-                      <div className="reader-comment-agent-more-menu">
-                        {overflowMentionAgents.map((agent) => (
-                          <button key={agent.id} type="button" onClick={() => insertAgent(agent)}>
-                            <AvatarBadge
-                              avatar={agent.avatar}
-                              fallback={agent.nickname.slice(0, 1)}
-                            />
-                            <strong>{agent.nickname}</strong>
-                            <em>@{agent.username}</em>
-                          </button>
-                        ))}
+                <div className="reader-note-footer">
+                  <div className="reader-comment-agent-tray">
+                    <span className="reader-comment-mention-label" aria-hidden="true">
+                      @
+                    </span>
+                    {visibleMentionAgents.map((agent) => (
+                      <button
+                        className="reader-comment-agent-avatar"
+                        key={agent.id}
+                        type="button"
+                        aria-label={`插入 @${agent.username}`}
+                        title={`${agent.nickname} @${agent.username}`}
+                        onClick={() => insertAgent(agent)}
+                      >
+                        <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      </button>
+                    ))}
+                    {overflowMentionAgents.length > 0 ? (
+                      <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
+                        <button
+                          className="reader-comment-agent-more-button"
+                          type="button"
+                          aria-expanded={agentTrayOpen}
+                          aria-label={`更多助手，${overflowMentionAgents.length} 个`}
+                          title={`更多助手，${overflowMentionAgents.length} 个`}
+                          onClick={() => setAgentTrayOpen((open) => !open)}
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
+                        {agentTrayOpen ? (
+                          <div className="reader-comment-agent-more-menu">
+                            {overflowMentionAgents.map((agent) => (
+                              <button
+                                key={agent.id}
+                                type="button"
+                                onClick={() => insertAgent(agent)}
+                              >
+                                <AvatarBadge
+                                  avatar={agent.avatar}
+                                  fallback={agent.nickname.slice(0, 1)}
+                                />
+                                <strong>{agent.nickname}</strong>
+                                <em>@{agent.username}</em>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
-                ) : null}
-              </div>
-              <button
-                className="reader-add-comment"
-                type="button"
-                aria-label="添加评论"
-                onClick={submit}
-              >
-                <SubmitShortcutKeys
-                  shortcut={messageSendShortcut}
-                  shortcutModifier={shortcutModifier}
-                />
-                <span>发送</span>
-              </button>
-            </div>
+                  <button
+                    className="reader-add-comment"
+                    type="button"
+                    aria-label="添加留言"
+                    onClick={submit}
+                  >
+                    <SubmitShortcutKeys
+                      shortcut={messageSendShortcut}
+                      shortcutModifier={shortcutModifier}
+                    />
+                    <span>发送</span>
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       ) : null}

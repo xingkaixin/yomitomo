@@ -10,6 +10,8 @@ import type {
   AnnotationMetadataPayload,
   ArticleRecord,
   Comment,
+  FocusCoReadingRoutePayload,
+  FocusCoReadingRouteResult,
   LlmProvider,
   ReadingDeliberationRecord,
   ReadingCardReviewRecord,
@@ -123,6 +125,25 @@ export async function planAgentMentionInstructions(
     temperature: 0,
   });
   return parseAgentMentionInstructions(content, payload.agents);
+}
+
+export async function planFocusCoReadingRoute(
+  provider: LlmProvider,
+  payload: FocusCoReadingRoutePayload,
+  agents: Agent[],
+): Promise<FocusCoReadingRouteResult> {
+  const selectedAgents = agents.filter((agent) => payload.selectedAgentIds.includes(agent.id));
+  if (selectedAgents.length === 0) throw new Error('请选择参与共读的助手');
+
+  const content = await callProviderText(provider, {
+    system:
+      '你是 Yomitomo 的聚焦共读任务路由。根据文章章节和助手角色卡，为章节补充摘要、标签，并给出章节级助手分配。只返回 JSON。',
+    user: buildFocusCoReadingRoutePrompt(payload, selectedAgents),
+    maxTokens: 3200,
+    temperature: 0.2,
+  });
+
+  return parseFocusCoReadingRouteResult(content, payload, selectedAgents);
 }
 
 export async function runAgentStream(
@@ -495,19 +516,24 @@ function readingPlanPrompt(payload: AgentAnnotatePayload) {
   if (!payload.readingPlan?.length) return '';
 
   const plan = payload.readingPlan.map((item, index) => {
-    const option = agentReadingIntentOptions.find((entry) => entry.value === item.readingIntent);
+    const option = item.readingIntent
+      ? agentReadingIntentOptions.find((entry) => entry.value === item.readingIntent)
+      : undefined;
     return {
       index: index + 1,
       sectionId: item.sectionId,
       sectionTitle: item.sectionTitle,
-      action: option?.label || item.readingIntent,
-      readingIntent: item.readingIntent,
+      sectionSummary: item.sectionSummary || '',
+      sectionTag: item.sectionTag || '',
+      action: option?.label || '',
+      readingIntent: item.readingIntent || '',
       actionDescription: option?.description || '',
+      readerMessages: item.messages || [],
       sectionText: payload.article.text.slice(item.sectionStart, item.sectionEnd),
     };
   });
 
-  return `\n\n本轮助手精读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你可以阅读全文来理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- 每条批注必须使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
+  return `\n\n本轮聚焦共读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你可以阅读全文来理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
 }
 
 export function buildAgentPrompt(
@@ -618,7 +644,9 @@ function buildAgentAnnotatePrompt(
   if (planPrompt) {
     const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
     const budgetNotice = formatBudgetNotice([article.report]);
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：必须是该章节编排动作的值\n- comment：按该章节动作说明这段为什么值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
+    const readingIntentOutputLine =
+      '- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -643,7 +671,7 @@ function buildAgentAnnotateStreamPrompt(
   if (planPrompt) {
     const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
     const budgetNotice = formatBudgetNotice([article.report]);
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"按该章节动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent 必须等于该章节编排动作的值\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -1099,6 +1127,62 @@ ${JSON.stringify(intents, null, 2)}
 只返回 JSON，例如 [{"agentUsername":"林知微","instruction":"解释这个概念","readingIntent":"explain"}]。`;
 }
 
+function buildFocusCoReadingRoutePrompt(payload: FocusCoReadingRoutePayload, agents: Agent[]) {
+  const routeAgents = agents.map((agent) => ({
+    agentId: agent.id,
+    agentUsername: agent.username,
+    nickname: agent.nickname,
+    roleCard: buildAgentRoleCard(agent),
+  }));
+  const sections = payload.sections.map((section, index) => ({
+    index: index + 1,
+    sectionId: section.sectionId,
+    sectionTitle: section.sectionTitle,
+    text: compactRouteSectionText(
+      payload.article.text.slice(section.sectionStart, section.sectionEnd),
+    ),
+  }));
+
+  return `文章标题：${payload.article.title}
+文章 URL：${payload.article.url}
+
+可分配助手：
+${JSON.stringify(routeAgents, null, 2)}
+
+章节清单：
+${JSON.stringify(sections, null, 2)}
+
+请返回 JSON 对象，字段如下：
+{
+  "sections": [
+    {
+      "sectionId": "来自章节清单的 sectionId",
+      "summary": "一句话说明该章节在说什么",
+      "tag": "2 到 6 个字的内容标签",
+      "agentIds": ["来自可分配助手的 agentId"]
+    }
+  ]
+}
+
+路由规则：
+- agentIds 只使用可分配助手里的 agentId。
+- 每个章节可以返回空数组，也可以分配多位助手，按内容需要决定。
+- 内容密度低、过渡性强、重复说明的章节可以返回空数组。
+- 论证型章节优先给擅长逻辑、前提、因果和反证的助手。
+- 概念型章节优先给擅长解释术语、背景和定义的助手。
+- 结构型章节优先给擅长梳理全文位置和章节功能的助手。
+- 沉淀型章节优先给擅长提炼要点、金句和可迁移洞见的助手。
+- 分配要尊重助手角色卡，避免把所有助手集中到同一章节。
+
+只返回 JSON。`;
+}
+
+function compactRouteSectionText(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= 1200) return normalized;
+  return `${normalized.slice(0, 900)}……${normalized.slice(-240)}`;
+}
+
 function parseAnnotationMetadata(content: string): AnnotationMetadata {
   const parsed = parseJsonObject(content);
   const annotationType = normalizeAnnotationType(parsed.annotationType);
@@ -1143,8 +1227,45 @@ export function parseAgentMentionInstructions(
   );
 }
 
+export function parseFocusCoReadingRouteResult(
+  content: string,
+  payload: FocusCoReadingRoutePayload,
+  agents: Pick<Agent, 'id'>[],
+): FocusCoReadingRouteResult {
+  const parsed = parseJsonObject(content);
+  const sectionRows = Array.isArray(parsed.sections) ? parsed.sections : [];
+  const sectionIds = new Set(payload.sections.map((section) => section.sectionId));
+  const agentIds = new Set(agents.map((agent) => agent.id));
+  const seen = new Set<string>();
+  const sections: FocusCoReadingRouteResult['sections'] = [];
+
+  for (const item of sectionRows) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const sectionId = stringValue(row.sectionId);
+    if (!sectionId || !sectionIds.has(sectionId) || seen.has(sectionId)) continue;
+    seen.add(sectionId);
+    const rawAgentIds = Array.isArray(row.agentIds) ? row.agentIds : [];
+    const assignedAgentIds = uniqueStrings(rawAgentIds.map((value) => stringValue(value))).filter(
+      (agentId) => agentIds.has(agentId),
+    );
+    sections.push({
+      sectionId,
+      summary: stringValue(row.summary) || undefined,
+      tag: stringValue(row.tag) || undefined,
+      agentIds: assignedAgentIds,
+    });
+  }
+
+  return { sections };
+}
+
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function uniqueStrings(values: string[]) {
+  return values.filter((value, index, list) => Boolean(value) && list.indexOf(value) === index);
 }
 
 function stringArray(value: unknown) {
