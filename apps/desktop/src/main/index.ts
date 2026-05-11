@@ -3,7 +3,9 @@ import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOption
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentMentionInstructionPayload,
   AgentMessagePayload,
+  AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
   Comment,
@@ -18,7 +20,9 @@ import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
   generateReadingCard,
   generateReadingDeliberation,
+  inferAnnotationMetadata,
   listProviderModels,
+  planAgentMentionInstructions,
   reviewReadingCard,
   runAgent,
   runAgentAnnotate,
@@ -197,6 +201,19 @@ function registerIpc() {
   });
   ipcMain.handle('provider:list-models', (_event, input: Partial<LlmProvider>) =>
     listProviderModels(input),
+  );
+  ipcMain.handle('annotation:metadata', async (_event, payload: AnnotationMetadataPayload) => {
+    const store = await readStore();
+    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    return inferAnnotationMetadata(provider, payload);
+  });
+  ipcMain.handle(
+    'agent:mention-instructions',
+    async (_event, payload: AgentMentionInstructionPayload) => {
+      const store = await readStore();
+      const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+      return planAgentMentionInstructions(provider, payload);
+    },
   );
   ipcMain.handle('article:delete', async (_event, id: string) => {
     const store = await deleteArticle(id);

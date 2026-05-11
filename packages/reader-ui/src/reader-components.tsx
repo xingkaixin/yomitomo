@@ -120,13 +120,6 @@ const completionBurstParticles = [
   { x: 154, y: -72, rotate: 92, delay: 82, color: '#5EC0E8', shape: 'strip' },
   { x: -154, y: -76, rotate: -96, delay: 86, color: '#54CDA0', shape: 'strip' },
 ] as const;
-const annotationTypeOptions: AnnotationType[] = [
-  'key_point',
-  'assumption',
-  'concept',
-  'question',
-  'quote',
-];
 const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
   explain: MessageCircle,
   decompose: Layers2,
@@ -201,50 +194,6 @@ function AnnotationTypeIcon({ type }: { type: AnnotationType }) {
       strokeWidth={2.3}
     />
   );
-}
-
-function moveAnnotationTypeSelection(
-  event: React.KeyboardEvent<HTMLDivElement>,
-  current: AnnotationType,
-  onChange: (nextType: AnnotationType) => void,
-) {
-  const currentIndex = annotationTypeOptions.indexOf(current);
-  const lastIndex = annotationTypeOptions.length - 1;
-  const nextIndexByKey: Record<string, number> = {
-    ArrowRight: Math.min(currentIndex + 1, lastIndex),
-    ArrowDown: Math.min(currentIndex + 1, lastIndex),
-    ArrowLeft: Math.max(currentIndex - 1, 0),
-    ArrowUp: Math.max(currentIndex - 1, 0),
-    Home: 0,
-    End: lastIndex,
-  };
-  const nextIndex = nextIndexByKey[event.key];
-  if (nextIndex === undefined) return;
-
-  event.preventDefault();
-  onChange(annotationTypeOptions[nextIndex]);
-}
-
-function moveReadingIntentSelection(
-  event: React.KeyboardEvent<HTMLDivElement>,
-  current: AgentReadingIntent,
-  onChange: (nextIntent: AgentReadingIntent) => void,
-) {
-  const currentIndex = agentReadingIntentOptions.findIndex((option) => option.value === current);
-  const lastIndex = agentReadingIntentOptions.length - 1;
-  const nextIndexByKey: Record<string, number> = {
-    ArrowRight: Math.min(currentIndex + 1, lastIndex),
-    ArrowDown: Math.min(currentIndex + 1, lastIndex),
-    ArrowLeft: Math.max(currentIndex - 1, 0),
-    ArrowUp: Math.max(currentIndex - 1, 0),
-    Home: 0,
-    End: lastIndex,
-  };
-  const nextIndex = nextIndexByKey[event.key];
-  if (nextIndex === undefined) return;
-
-  event.preventDefault();
-  onChange(agentReadingIntentOptions[nextIndex]!.value);
 }
 
 function mentionDraftWithAgent(
@@ -1115,11 +1064,9 @@ export function Composer({
   messageSendShortcut: MessageSendShortcut;
   shortcutModifier: string;
   onCancel: () => void;
-  onSave: (note: string, annotationType: AnnotationType, readingIntent: AgentReadingIntent) => void;
+  onSave: (note: string) => void;
 }) {
   const [note, setNote] = useState('');
-  const [annotationType, setAnnotationType] = useState<AnnotationType>('key_point');
-  const [readingIntent, setReadingIntent] = useState<AgentReadingIntent>('explain');
   const [caretIndex, setCaretIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
@@ -1159,7 +1106,7 @@ export function Composer({
   }, [onCancel]);
 
   function save() {
-    onSave(note, annotationType, readingIntent);
+    onSave(note);
   }
 
   function updateCaret(element: HTMLTextAreaElement) {
@@ -1217,51 +1164,6 @@ export function Composer({
       <header className="reader-composer-header">
         <div className="reader-composer-title-row">
           <strong>批注</strong>
-        </div>
-        <div
-          aria-label="批注类型"
-          className="reader-composer-types"
-          role="radiogroup"
-          onKeyDown={(event) =>
-            moveAnnotationTypeSelection(event, annotationType, setAnnotationType)
-          }
-        >
-          <span className="reader-composer-group-label">批注类型</span>
-          {annotationTypeOptions.map((type) => (
-            <button
-              aria-checked={annotationType === type}
-              className={annotationType === type ? 'is-active' : ''}
-              key={type}
-              role="radio"
-              tabIndex={annotationType === type ? 0 : -1}
-              type="button"
-              onClick={() => setAnnotationType(type)}
-            >
-              <AnnotationTypeLabelContent type={type} />
-            </button>
-          ))}
-        </div>
-        <div
-          aria-label="批注动作"
-          className="reader-composer-types reader-composer-intents"
-          role="radiogroup"
-          onKeyDown={(event) => moveReadingIntentSelection(event, readingIntent, setReadingIntent)}
-        >
-          <span className="reader-composer-group-label">批注动作</span>
-          {agentReadingIntentOptions.map((option) => (
-            <button
-              aria-checked={readingIntent === option.value}
-              className={readingIntent === option.value ? 'is-active' : ''}
-              key={option.value}
-              role="radio"
-              tabIndex={readingIntent === option.value ? 0 : -1}
-              title={option.description}
-              type="button"
-              onClick={() => setReadingIntent(option.value)}
-            >
-              <ReadingIntentLabelContent intent={option.value} short />
-            </button>
-          ))}
         </div>
       </header>
       <div className="reader-composer-editor">

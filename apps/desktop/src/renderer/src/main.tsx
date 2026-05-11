@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart3, BookOpen, Bot, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
 import type {
@@ -63,6 +63,12 @@ function App() {
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [dailyQuote, setDailyQuote] = useState(() => selectDailyQuote([], { storage: null }));
+  const storeRef = useRef<DesktopStore>(emptyStore);
+  const articleUpdateQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    storeRef.current = store;
+  }, [store]);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop;
@@ -166,6 +172,29 @@ function App() {
     if (!desktop) return;
 
     setStore(await desktop.saveArticle(article));
+  }
+
+  async function updateArticle(
+    articleId: string,
+    update: (article: ArticleRecord) => ArticleRecord | null,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    const run = async () => {
+      const currentStore = await desktop.getState();
+      storeRef.current = currentStore;
+      const article = currentStore.articles.find((item) => item.id === articleId);
+      if (!article) return;
+      const nextArticle = update(article);
+      if (!nextArticle) return;
+      const nextStore = await desktop.saveArticle(nextArticle);
+      storeRef.current = nextStore;
+      setStore(nextStore);
+    };
+    const nextUpdate = articleUpdateQueueRef.current.then(run, run);
+    articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
+    await nextUpdate;
   }
 
   async function importArticleUrl(url: string) {
@@ -422,6 +451,7 @@ function App() {
               onRefresh={refreshStore}
               onImportArticleUrl={importArticleUrl}
               onSaveArticle={saveArticle}
+              onUpdateArticle={updateArticle}
             />
           ) : null}
           {activeSetting === 'stats' ? (

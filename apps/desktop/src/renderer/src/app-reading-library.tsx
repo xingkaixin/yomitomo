@@ -39,6 +39,7 @@ import {
 import {
   appendAnnotationComment,
   annotationColor,
+  annotationPrimaryComment,
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
@@ -103,6 +104,12 @@ type ArticleImportResult = {
   status: 'imported' | 'duplicate';
   article: ArticleRecord;
 };
+type PromptArticle = {
+  title: string;
+  url: string;
+  text: string;
+};
+type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
 
 const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
   { value: 'all', label: '全部' },
@@ -173,6 +180,7 @@ export function ReadingLibrary({
   onImportArticleUrl,
   onRefresh,
   onSaveArticle,
+  onUpdateArticle,
 }: {
   agents: Agent[];
   articles: ArticleRecord[];
@@ -184,6 +192,7 @@ export function ReadingLibrary({
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onRefresh: () => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source' | 'card'>('library');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
@@ -344,6 +353,7 @@ export function ReadingLibrary({
                   onClose={openLibraryShelf}
                   onOpenAnnotation={setSelectedAnnotationId}
                   onSaveArticle={onSaveArticle}
+                  onUpdateArticle={onUpdateArticle}
                 />
               ) : null}
             </div>
@@ -1151,6 +1161,22 @@ const sourceTocOptions: ExtractTocOptions = {
     '.reader-article-body p, .reader-article-body div, .reader-article-body section',
 };
 
+function promptArticle(currentArticle: ArticleRecord | null, articleText: string): PromptArticle {
+  return {
+    title: currentArticle?.title || '',
+    url: currentArticle?.canonicalUrl || currentArticle?.url || '',
+    text: articleText,
+  };
+}
+
+function articleWithAnnotations(article: ArticleRecord, annotations: Annotation[]) {
+  return {
+    ...article,
+    annotations: sortAnnotations(annotations),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function SourceBookcase({
   agents,
   annotations: articleAnnotations,
@@ -1163,6 +1189,7 @@ function SourceBookcase({
   onClose,
   onOpenAnnotation,
   onSaveArticle,
+  onUpdateArticle,
 }: {
   agents: Agent[];
   annotations: Annotation[];
@@ -1175,6 +1202,7 @@ function SourceBookcase({
   onClose: () => void;
   onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
@@ -1333,6 +1361,7 @@ function SourceBookcase({
     setSettingsOpen(false);
     setAgentAnnotateOpen(false);
     setReplyRequest(null);
+    setStatusMessage('');
   }, [article?.id]);
 
   const recalculateActiveConnection = useCallback(() => {
@@ -1459,12 +1488,8 @@ function SourceBookcase({
   async function saveAnnotations(nextAnnotations: Annotation[]) {
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
-    const sortedAnnotations = sortAnnotations(nextAnnotations);
-    const nextArticle = {
-      ...currentArticle,
-      annotations: sortedAnnotations,
-      updatedAt: new Date().toISOString(),
-    };
+    const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
+    const sortedAnnotations = nextArticle.annotations;
     latestArticleRef.current = nextArticle;
     annotationsRef.current = sortedAnnotations;
     setLocalAnnotations(sortedAnnotations);
@@ -1490,13 +1515,8 @@ function SourceBookcase({
     return articleRef.current?.textContent || '';
   }
 
-  function promptArticle() {
-    const currentArticle = latestArticleRef.current;
-    return {
-      title: currentArticle?.title || '',
-      url: currentArticle?.canonicalUrl || currentArticle?.url || '',
-      text: currentArticleText(),
-    };
+  function isCurrentArticle(articleId: string) {
+    return latestArticleRef.current?.id === articleId;
   }
 
   function handleArticleMouseUp() {
@@ -1551,34 +1571,129 @@ function SourceBookcase({
     setTemporaryBoxes([]);
   }
 
-  async function createAnnotation(
-    note: string,
-    annotationType: AnnotationType,
-    readingIntent: AgentReadingIntent,
-  ) {
+  async function createAnnotation(note: string) {
     if (!composer) return;
+    const currentComposer = composer;
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return;
+    const articleContext = promptArticle(currentArticle, currentArticleText());
+
     const mentionedAgents = findMentionedAgents(note, annotationAgents);
     if (mentionedAgents.length > 0) {
-      const instruction = agentInstructionFromNote(note, mentionedAgents);
       cancelComposer();
-      for (const agent of mentionedAgents) {
-        void requestAgentAnnotations(agent, {
-          annotationType,
-          readingIntent,
-          instruction,
-          targetAnchor: composer.anchor,
+      const instructions = await resolveAgentMentionInstructions(
+        note,
+        mentionedAgents,
+        currentComposer.anchor,
+        currentArticle.id,
+        articleContext,
+      );
+      for (const item of instructions) {
+        void requestAgentAnnotations(item.agent, {
+          readingIntent: item.readingIntent,
+          instruction: item.instruction,
+          targetAnchor: currentComposer.anchor,
+          article: articleContext,
+          articleId: currentArticle.id,
         });
       }
       return;
     }
 
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return;
-    const annotation = createUserAnnotation(composer.anchor, userProfile, note, annotationType, {
-      readingIntent,
-    });
+    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
+    void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
+  }
+
+  async function resolveAgentMentionInstructions(
+    note: string,
+    mentionedAgents: PublicAgent[],
+    anchor: Annotation['anchor'],
+    articleId: string,
+    articleContext: PromptArticle,
+  ) {
+    const commonInstruction = agentInstructionFromNote(note, mentionedAgents) || undefined;
+    const baseInstructions = mentionedAgents.map((agent) => ({
+      agent,
+      instruction: commonInstruction,
+      readingIntent: undefined as AgentReadingIntent | undefined,
+    }));
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return baseInstructions;
+
+    try {
+      if (isCurrentArticle(articleId)) setStatusMessage('正在拆解助手任务');
+      const instructions = await desktop.planAgentMentionInstructions({
+        article: articleContext,
+        targetAnchor: anchor,
+        agents: mentionedAgents,
+        note,
+      });
+      if (isCurrentArticle(articleId)) setStatusMessage('');
+      return mentionedAgents.map((agent) => {
+        const instruction = instructions.find(
+          (item) => item.agentId === agent.id || item.agentUsername === agent.username,
+        );
+        return {
+          agent,
+          instruction: instruction?.instruction || commonInstruction,
+          readingIntent: instruction?.readingIntent,
+        };
+      });
+    } catch (error) {
+      if (isCurrentArticle(articleId)) {
+        setStatusMessage(error instanceof Error ? error.message : '助手任务拆解失败');
+        window.setTimeout(() => setStatusMessage(''), 1800);
+      }
+      return baseInstructions;
+    }
+  }
+
+  async function inferAnnotationMetadataForAnnotation(
+    articleId: string,
+    annotation: Annotation,
+    articleContext: PromptArticle,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+    try {
+      const metadata = await desktop.inferAnnotationMetadata({
+        article: articleContext,
+        anchor: annotation.anchor,
+        note: annotationPrimaryComment(annotation)?.content || '',
+      });
+      await onUpdateArticle(articleId, (targetArticle) => {
+        let found = false;
+        const nextAnnotations = targetArticle.annotations.map((item) => {
+          if (item.id !== annotation.id) return item;
+          found = true;
+          const primaryCommentId = annotationPrimaryComment(item)?.id;
+          return {
+            ...item,
+            annotationType: metadata.annotationType,
+            readingIntent: metadata.readingIntent,
+            comments: item.comments.map((comment) =>
+              comment.id === primaryCommentId
+                ? { ...comment, readingIntent: metadata.readingIntent }
+                : comment,
+            ),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        return found ? articleWithAnnotations(targetArticle, nextAnnotations) : null;
+      });
+    } catch (error) {
+      if (!isCurrentArticle(articleId)) return;
+      setStatusMessage(error instanceof Error ? error.message : '批注标签生成失败');
+      window.setTimeout(() => setStatusMessage(''), 1800);
+    }
+  }
+
+  async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
+    await onUpdateArticle(articleId, (targetArticle) =>
+      articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
+    );
   }
 
   async function addComment(annotationId: string, content: string) {
@@ -1715,7 +1830,7 @@ function SourceBookcase({
           agentId: agent.id,
           agentUsername: agent.username,
           readingIntent: annotation.readingIntent || userComment.readingIntent,
-          article: promptArticle(),
+          article: promptArticle(currentArticle, currentArticleText()),
           annotation,
           userComment,
         },
@@ -1766,10 +1881,10 @@ function SourceBookcase({
   function constrainAgentPlanAnnotation(
     annotation: Annotation,
     readingPlan: AgentReadingPlanItem[] | undefined,
+    articleText = currentArticleText(),
   ) {
     if (!readingPlan?.length) return annotation;
 
-    const articleText = currentArticleText();
     const position = resolveTextAnchor(articleText, annotation.anchor);
     if (!position) return null;
 
@@ -1797,21 +1912,35 @@ function SourceBookcase({
       instruction?: string;
       targetAnchor?: Annotation['anchor'];
       readingPlan?: AgentReadingPlanItem[];
+      article?: PromptArticle;
+      articleId?: string;
     } = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle || annotatingAgentIds.includes(agent.id)) return;
+    const articleId = options.articleId || currentArticle?.id;
+    const articleContext =
+      options.article ||
+      (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
+    if (!desktop || !articleId || !articleContext) return;
+    const articleScopedWrite = Boolean(options.articleId);
+    if (!articleScopedWrite && annotatingAgentIds.includes(agent.id)) return;
+    const visibleArticle = isCurrentArticle(articleId);
+    const showProgress = !articleScopedWrite || visibleArticle;
 
-    markAgentAnnotating(agent.id, true);
-    setStatusMessage(`${agent.nickname} 正在批注`);
+    if (showProgress) {
+      markAgentAnnotating(agent.id, true);
+      setStatusMessage(`${agent.nickname} 正在批注`);
+    }
     const readingPlan =
       options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
-    startVirtualReading(
-      agent,
-      readingPlan,
-      options.targetAnchor ? 'target' : readingPlan.length > 0 ? 'careful' : 'article',
-    );
+    if (showProgress) {
+      startVirtualReading(
+        agent,
+        readingPlan,
+        options.targetAnchor ? 'target' : readingPlan.length > 0 ? 'careful' : 'article',
+      );
+    }
     let annotationCount = 0;
     try {
       await desktop.requestAgentAnnotationsStream(
@@ -1823,28 +1952,41 @@ function SourceBookcase({
           instruction: options.instruction,
           targetAnchor: options.targetAnchor,
           readingPlan: options.readingPlan,
-          article: promptArticle(),
+          article: articleContext,
         },
         (event) => {
           if (event.type !== 'item') return;
-          const annotation = constrainAgentPlanAnnotation(event.annotation, options.readingPlan);
+          const annotation = constrainAgentPlanAnnotation(
+            event.annotation,
+            options.readingPlan,
+            articleScopedWrite ? articleContext.text : currentArticleText(),
+          );
           if (!annotation) return;
           annotationCount += 1;
+          if (articleScopedWrite) {
+            void appendAgentAnnotationToArticle(articleId, annotation);
+            return;
+          }
+          if (!isCurrentArticle(articleId)) return;
           enqueueAgentAnnotation(annotation);
           void processAgentAnnotationQueue();
         },
       );
-      markVirtualReadingDone(agent.id);
+      if (showProgress && isCurrentArticle(articleId)) markVirtualReadingDone(agent.id);
       if (annotationCount === 0) {
-        finishVirtualReading(agent.id, '没有批注');
-        setStatusMessage(`${agent.nickname} 暂无新批注`);
-        window.setTimeout(() => setStatusMessage(''), 1400);
+        if (showProgress && isCurrentArticle(articleId)) {
+          finishVirtualReading(agent.id, '没有批注');
+          setStatusMessage(`${agent.nickname} 暂无新批注`);
+          window.setTimeout(() => setStatusMessage(''), 1400);
+        }
         return;
       }
-      finishVirtualReadingIfIdle(agent.id);
+      if (showProgress && isCurrentArticle(articleId)) finishVirtualReadingIfIdle(agent.id);
     } finally {
-      markAgentAnnotating(agent.id, false);
-      setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+      if (showProgress) {
+        markAgentAnnotating(agent.id, false);
+        setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+      }
     }
   }
 

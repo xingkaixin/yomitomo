@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
-import { buildAgentMessageSystemPrompt, buildAgentPrompt, extractJsonObjects } from './index';
+import {
+  buildAgentMessageSystemPrompt,
+  buildAgentPrompt,
+  extractJsonObjects,
+  parseAgentMentionInstructions,
+} from './index';
 
 describe('extractJsonObjects', () => {
   it('extracts pretty-printed objects from a stream buffer', () => {
@@ -148,5 +153,31 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('本轮发言者：林知微（@林知微）');
     expect(prompt).toContain('读者评论里的 林知微、@林知微 指向你本人。');
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
+  });
+
+  it('parses per-agent mention instructions', () => {
+    const instructions = parseAgentMentionInstructions(
+      JSON.stringify([
+        {
+          agentUsername: '林知微',
+          instruction: '解释这个概念',
+          readingIntent: 'explain',
+        },
+      ]),
+      [lin, zhou],
+    );
+
+    expect(instructions).toEqual([
+      {
+        agentId: lin.id,
+        agentUsername: lin.username,
+        instruction: '解释这个概念',
+        readingIntent: 'explain',
+      },
+      {
+        agentId: zhou.id,
+        agentUsername: zhou.username,
+      },
+    ]);
   });
 });

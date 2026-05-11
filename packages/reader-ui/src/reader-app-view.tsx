@@ -2,9 +2,7 @@ import React from 'react';
 import { Bot, Funnel, List, MessageSquare, Settings2, X } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
-  AgentReadingIntent,
   Annotation,
-  AnnotationType,
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
@@ -134,11 +132,7 @@ export type ReaderAppViewProps = {
   onCancelComposer: () => void;
   onClose: () => void;
   onClearActiveAnnotation: () => void;
-  onCreateAnnotation: (
-    note: string,
-    annotationType: AnnotationType,
-    readingIntent: AgentReadingIntent,
-  ) => void | Promise<void>;
+  onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onAnswerQuestion: (annotationId: string) => void;

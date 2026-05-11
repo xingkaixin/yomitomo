@@ -2,7 +2,11 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentMentionInstruction,
+  AgentMentionInstructionPayload,
   AgentMessagePayload,
+  AnnotationMetadata,
+  AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
   Comment,
@@ -66,6 +70,10 @@ const api = {
     ipcRenderer.invoke('provider:test', id) as Promise<{ ok: boolean; message: string }>,
   listProviderModels: (provider: Partial<LlmProvider>) =>
     ipcRenderer.invoke('provider:list-models', provider) as Promise<ProviderModel[]>,
+  inferAnnotationMetadata: (payload: AnnotationMetadataPayload) =>
+    ipcRenderer.invoke('annotation:metadata', payload) as Promise<AnnotationMetadata>,
+  planAgentMentionInstructions: (payload: AgentMentionInstructionPayload) =>
+    ipcRenderer.invoke('agent:mention-instructions', payload) as Promise<AgentMentionInstruction[]>,
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
