@@ -2222,7 +2222,7 @@
   }
 }
 
-@container settings-detail (max-width: 980px) {
+@container settings-detail (max-width: 900px) {
   .settings-detail-grid {
     min-height: auto;
     grid-template-columns: minmax(0, 1fr);
