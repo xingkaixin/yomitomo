@@ -36,7 +36,6 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import {
-  agentReadingIntentDisplayLabel,
   agentReadingIntentLabel,
   agentReadingIntentOptions,
   renderMarkdown,
@@ -290,7 +289,7 @@ export function HighlightChoiceMenu({
                 {annotation.annotationType && annotation.readingIntent ? <i>·</i> : null}
                 {annotation.readingIntent ? (
                   <span className="reader-highlight-choice-label">
-                    {agentReadingIntentDisplayLabel(annotation.readingIntent)}
+                    <ReadingIntentLabelContent intent={annotation.readingIntent} short />
                   </span>
                 ) : null}
               </b>
@@ -582,11 +581,11 @@ export function QuestionPanel({
               quote: annotation.anchor.exact,
               createdAt: annotation.createdAt,
               typeLabel: annotation.readingIntent ? (
-                agentReadingIntentDisplayLabel(annotation.readingIntent)
+                <ReadingIntentLabelContent intent={annotation.readingIntent} short />
               ) : annotation.annotationType ? (
                 <AnnotationTypeLabelContent type={annotation.annotationType} />
               ) : (
-                '问题'
+                <AnnotationTypeLabelContent type="question" />
               ),
               setStatus: (status: QuestionStatus) =>
                 onSetAnnotationQuestionStatus(annotation.id, status),
@@ -605,9 +604,20 @@ export function QuestionPanel({
           text: comment.content,
           quote: annotation.anchor.exact,
           createdAt: comment.createdAt,
-          typeLabel: comment.readingIntent
-            ? agentReadingIntentDisplayLabel(comment.readingIntent)
-            : '❓ 追问',
+          typeLabel: comment.readingIntent ? (
+            <ReadingIntentLabelContent intent={comment.readingIntent} short />
+          ) : (
+            <>
+              <CornerDownRight
+                aria-hidden="true"
+                className="reader-reading-intent-icon"
+                focusable="false"
+                size={13}
+                strokeWidth={2.3}
+              />
+              追问
+            </>
+          ),
           setStatus: (status: QuestionStatus) =>
             onSetCommentQuestionStatus(annotation.id, comment.id, status),
         };
