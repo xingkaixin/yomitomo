@@ -1905,8 +1905,6 @@ export function AnnotationCard({
   const author = annotationAuthor(annotation, userProfile, agents);
   const primaryComment = useMemo(() => annotationPrimaryComment(annotation), [annotation]);
   const threadComments = useMemo(() => annotationThreadComments(annotation), [annotation]);
-  const canComment = annotation.author === 'ai';
-  const canOpenComments = canComment || threadComments.length > 0;
   const threadCommentIds = useMemo(
     () => threadComments.map((comment) => comment.id),
     [threadComments],
@@ -1981,7 +1979,6 @@ export function AnnotationCard({
   );
 
   function submit() {
-    if (!canComment) return;
     onAddComment(annotation.id, draft);
     setDraft('');
     setCaretIndex(0);
@@ -2141,19 +2138,17 @@ export function AnnotationCard({
           </div>
         ) : null}
         <div className="reader-note-toolbar">
-          {canOpenComments ? (
-            <button
-              className="reader-comment-toggle"
-              type="button"
-              aria-controls={commentsPanelId}
-              aria-expanded={expanded}
-              onClick={toggleComments}
-            >
-              <MessageSquare size={14} />
-              {threadComments.length} 条留言
-              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-          ) : null}
+          <button
+            className="reader-comment-toggle"
+            type="button"
+            aria-controls={commentsPanelId}
+            aria-expanded={expanded}
+            onClick={toggleComments}
+          >
+            <MessageSquare size={14} />
+            {threadComments.length} 条留言
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
           <button
             className={deleteHolding ? 'reader-delete-note is-holding' : 'reader-delete-note'}
             style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
@@ -2171,7 +2166,7 @@ export function AnnotationCard({
           </button>
         </div>
       </div>
-      {expanded && canOpenComments ? (
+      {expanded ? (
         <div className="reader-note-comments-region" id={commentsPanelId}>
           <div className="reader-note-comments-panel">
             <header>
@@ -2225,106 +2220,98 @@ export function AnnotationCard({
             ) : (
               <div className="reader-comments-empty">还没有留言</div>
             )}
-            {canComment ? (
-              <>
-                <div className="reader-comment-box">
-                  <textarea
-                    aria-label="留言内容"
-                    ref={textareaRef}
-                    placeholder="给这条助手批注留言，输入 @ 呼叫助手"
-                    value={draft}
-                    onChange={(event) => {
-                      setDraft(event.currentTarget.value);
-                      updateCaret(event.currentTarget);
-                    }}
-                    onClick={(event) => updateCaret(event.currentTarget)}
-                    onKeyDown={handleKeyDown}
-                    onKeyUp={handleKeyUp}
-                    onSelect={(event) => updateCaret(event.currentTarget)}
-                  />
-                  {matchedAgents.length > 0 ? (
-                    <div className="reader-agent-menu">
-                      {matchedAgents.map((agent, index) => (
-                        <button
-                          className={index === selectedMentionIndex ? 'is-active' : ''}
-                          key={agent.id}
-                          type="button"
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => selectAgent(agent)}
-                        >
-                          <AvatarBadge avatar={agent.avatar} />
-                          <strong>{agent.nickname}</strong>
-                          <em>@{agent.username}</em>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+            <div className="reader-comment-box">
+              <textarea
+                aria-label="留言内容"
+                ref={textareaRef}
+                placeholder="给这条批注留言，输入 @ 呼叫助手"
+                value={draft}
+                onChange={(event) => {
+                  setDraft(event.currentTarget.value);
+                  updateCaret(event.currentTarget);
+                }}
+                onClick={(event) => updateCaret(event.currentTarget)}
+                onKeyDown={handleKeyDown}
+                onKeyUp={handleKeyUp}
+                onSelect={(event) => updateCaret(event.currentTarget)}
+              />
+              {matchedAgents.length > 0 ? (
+                <div className="reader-agent-menu">
+                  {matchedAgents.map((agent, index) => (
+                    <button
+                      className={index === selectedMentionIndex ? 'is-active' : ''}
+                      key={agent.id}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectAgent(agent)}
+                    >
+                      <AvatarBadge avatar={agent.avatar} />
+                      <strong>{agent.nickname}</strong>
+                      <em>@{agent.username}</em>
+                    </button>
+                  ))}
                 </div>
-                <div className="reader-note-footer">
-                  <div className="reader-comment-agent-tray">
-                    <span className="reader-comment-mention-label" aria-hidden="true">
-                      @
-                    </span>
-                    {visibleMentionAgents.map((agent) => (
-                      <button
-                        className="reader-comment-agent-avatar"
-                        key={agent.id}
-                        type="button"
-                        aria-label={`插入 @${agent.username}`}
-                        title={`${agent.nickname} @${agent.username}`}
-                        onClick={() => insertAgent(agent)}
-                      >
-                        <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                      </button>
-                    ))}
-                    {overflowMentionAgents.length > 0 ? (
-                      <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
-                        <button
-                          className="reader-comment-agent-more-button"
-                          type="button"
-                          aria-expanded={agentTrayOpen}
-                          aria-label={`更多助手，${overflowMentionAgents.length} 个`}
-                          title={`更多助手，${overflowMentionAgents.length} 个`}
-                          onClick={() => setAgentTrayOpen((open) => !open)}
-                        >
-                          <MoreHorizontal size={16} />
-                        </button>
-                        {agentTrayOpen ? (
-                          <div className="reader-comment-agent-more-menu">
-                            {overflowMentionAgents.map((agent) => (
-                              <button
-                                key={agent.id}
-                                type="button"
-                                onClick={() => insertAgent(agent)}
-                              >
-                                <AvatarBadge
-                                  avatar={agent.avatar}
-                                  fallback={agent.nickname.slice(0, 1)}
-                                />
-                                <strong>{agent.nickname}</strong>
-                                <em>@{agent.username}</em>
-                              </button>
-                            ))}
-                          </div>
-                        ) : null}
+              ) : null}
+            </div>
+            <div className="reader-note-footer">
+              <div className="reader-comment-agent-tray">
+                <span className="reader-comment-mention-label" aria-hidden="true">
+                  @
+                </span>
+                {visibleMentionAgents.map((agent) => (
+                  <button
+                    className="reader-comment-agent-avatar"
+                    key={agent.id}
+                    type="button"
+                    aria-label={`插入 @${agent.username}`}
+                    title={`${agent.nickname} @${agent.username}`}
+                    onClick={() => insertAgent(agent)}
+                  >
+                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                  </button>
+                ))}
+                {overflowMentionAgents.length > 0 ? (
+                  <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
+                    <button
+                      className="reader-comment-agent-more-button"
+                      type="button"
+                      aria-expanded={agentTrayOpen}
+                      aria-label={`更多助手，${overflowMentionAgents.length} 个`}
+                      title={`更多助手，${overflowMentionAgents.length} 个`}
+                      onClick={() => setAgentTrayOpen((open) => !open)}
+                    >
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {agentTrayOpen ? (
+                      <div className="reader-comment-agent-more-menu">
+                        {overflowMentionAgents.map((agent) => (
+                          <button key={agent.id} type="button" onClick={() => insertAgent(agent)}>
+                            <AvatarBadge
+                              avatar={agent.avatar}
+                              fallback={agent.nickname.slice(0, 1)}
+                            />
+                            <strong>{agent.nickname}</strong>
+                            <em>@{agent.username}</em>
+                          </button>
+                        ))}
                       </div>
                     ) : null}
                   </div>
-                  <button
-                    className="reader-add-comment"
-                    type="button"
-                    aria-label="添加留言"
-                    onClick={submit}
-                  >
-                    <SubmitShortcutKeys
-                      shortcut={messageSendShortcut}
-                      shortcutModifier={shortcutModifier}
-                    />
-                    <span>发送</span>
-                  </button>
-                </div>
-              </>
-            ) : null}
+                ) : null}
+              </div>
+              <button
+                className="reader-add-comment"
+                type="button"
+                aria-label="添加留言"
+                onClick={submit}
+              >
+                <SubmitShortcutKeys
+                  shortcut={messageSendShortcut}
+                  shortcutModifier={shortcutModifier}
+                />
+                <span>发送</span>
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
