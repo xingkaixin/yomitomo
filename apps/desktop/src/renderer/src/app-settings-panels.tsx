@@ -84,7 +84,7 @@ import type { SaveState } from './app-types';
 type AgentFilter = AgentKind;
 export type SettingsSectionKey = 'collection' | 'models' | 'shortcuts' | 'data' | 'about';
 type AgentPresenceLine = { enter: string; rest: string };
-const PROVIDER_EDITOR_COMPACT_WIDTH = 980;
+const PROVIDER_EDITOR_COMPACT_WIDTH = 900;
 type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
 type AgentLineCue = {
   agentId: string;
