@@ -252,4 +252,10 @@ ALTER TABLE app_settings ADD COLUMN onboarding_completed_at TEXT;
 ALTER TABLE app_settings ADD COLUMN message_send_shortcut TEXT NOT NULL DEFAULT 'enter';
 `,
   },
+  {
+    id: '0020_focus_co_reading_plan',
+    sql: `
+ALTER TABLE articles ADD COLUMN focus_co_reading_plan TEXT;
+`,
+  },
 ];

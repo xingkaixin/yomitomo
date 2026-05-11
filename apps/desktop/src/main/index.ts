@@ -9,6 +9,7 @@ import type {
   AppSettings,
   ArticleRecord,
   Comment,
+  FocusCoReadingRoutePayload,
   LlmProvider,
   ReadingDeliberationSection,
   ReadingCardReviewRecord,
@@ -23,6 +24,7 @@ import {
   inferAnnotationMetadata,
   listProviderModels,
   planAgentMentionInstructions,
+  planFocusCoReadingRoute,
   reviewReadingCard,
   runAgent,
   runAgentAnnotate,
@@ -215,6 +217,15 @@ function registerIpc() {
       return planAgentMentionInstructions(provider, payload);
     },
   );
+  ipcMain.handle('focus-co-reading:route', async (_event, payload: FocusCoReadingRoutePayload) => {
+    const store = await readStore();
+    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const selected = new Set(payload.selectedAgentIds);
+    const agents = store.agents.filter(
+      (agent) => agent.kind === 'annotation' && agent.enabled && selected.has(agent.id),
+    );
+    return planFocusCoReadingRoute(provider, payload, agents);
+  });
   ipcMain.handle('article:delete', async (_event, id: string) => {
     const store = await deleteArticle(id);
     sendStoreUpdated(store);

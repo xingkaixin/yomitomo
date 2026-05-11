@@ -24,6 +24,7 @@ import type {
   AnnotationType,
   ArticleRecord,
   Comment as AnnotationComment,
+  FocusCoReadingPlan,
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
@@ -33,6 +34,7 @@ import {
   agentPersonalities,
   agentPersonalityName,
   createTextAnchor,
+  makeId,
   normalizeMessageSendShortcut,
   resolveTextAnchor,
 } from '@yomitomo/shared';
@@ -1700,7 +1702,6 @@ function SourceBookcase({
     const trimmed = content.trim();
     const currentArticle = latestArticleRef.current;
     if (!trimmed || !currentArticle) return;
-
     const userComment = createUserComment(userProfile, trimmed);
     const isFollowUpQuestion = /[?？]/.test(trimmed);
     const comment = isFollowUpQuestion
@@ -1892,6 +1893,7 @@ function SourceBookcase({
       (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
     );
     if (!planItem) return null;
+    if (!planItem.readingIntent) return annotation;
     if (annotation.readingIntent === planItem.readingIntent) return annotation;
 
     return {
@@ -1902,6 +1904,78 @@ function SourceBookcase({
         readingIntent: comment.readingIntent || planItem.readingIntent,
       })),
     };
+  }
+
+  async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
+    await onUpdateArticle(plan.articleId, (targetArticle) => {
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: plan,
+        updatedAt: new Date().toISOString(),
+      };
+      if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
+  async function planFocusCoReading(selectedAgentIds: string[]) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    if (!desktop || !currentArticle) throw new Error('无法规划聚焦共读');
+
+    setStatusMessage('正在规划聚焦共读');
+    try {
+      const route = await desktop.planFocusCoReadingRoute({
+        selectedAgentIds,
+        sections: readingSections.map((section) => ({
+          sectionId: section.id,
+          sectionTitle: section.title,
+          sectionStart: section.start,
+          sectionEnd: section.end,
+        })),
+        article: promptArticle(currentArticle, currentArticleText()),
+      });
+      const now = new Date().toISOString();
+      const routeBySection = new Map(route.sections.map((section) => [section.sectionId, section]));
+      const previousSections = new Map(
+        currentArticle.focusCoReadingPlan?.sections.map((section) => [section.sectionId, section]),
+      );
+      const sections = readingSections.flatMap((section) => {
+        const routed = routeBySection.get(section.id);
+        const previous = previousSections.get(section.id);
+        const agentIds = (routed?.agentIds || []).filter((agentId) =>
+          selectedAgentIds.includes(agentId),
+        );
+        const messages = previous?.messages || [];
+        if (agentIds.length === 0 && messages.length === 0 && !routed?.summary && !routed?.tag) {
+          return [];
+        }
+        return [
+          {
+            sectionId: section.id,
+            sectionTitle: section.title,
+            sectionStart: section.start,
+            sectionEnd: section.end,
+            summary: routed?.summary,
+            tag: routed?.tag,
+            agentIds,
+            messages,
+          },
+        ];
+      });
+      const plan: FocusCoReadingPlan = {
+        id: currentArticle.focusCoReadingPlan?.id || makeId('focus_co_reading'),
+        articleId: currentArticle.id,
+        selectedAgentIds,
+        sections,
+        createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
+        updatedAt: now,
+      };
+      await saveFocusCoReadingPlan(plan);
+      return plan;
+    } finally {
+      setStatusMessage('');
+    }
   }
 
   async function requestAgentAnnotations(
@@ -2081,6 +2155,7 @@ function SourceBookcase({
         annotatingAgents={annotatingAgentIds}
         annotationTotals={annotationTotals}
         annotations={annotations}
+        articleId={article.id}
         articleRef={articleRef}
         boxes={boxes}
         canvasRef={canvasRef}
@@ -2090,6 +2165,7 @@ function SourceBookcase({
         embedded
         extracted={readerArticle}
         filteredAnnotations={annotations}
+        focusCoReadingPlan={article.focusCoReadingPlan}
         highlightChoice={highlightChoice}
         notesOpen={notesOpen}
         noteRefs={noteRefs}
@@ -2146,6 +2222,8 @@ function SourceBookcase({
           });
           setSelectionAction(null);
         }}
+        onPlanFocusCoReading={planFocusCoReading}
+        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={(annotationId) => {
           openAnnotation(annotationId);

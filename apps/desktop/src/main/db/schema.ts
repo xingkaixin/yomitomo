@@ -71,6 +71,7 @@ export const articles = sqliteTable(
     themeColor: text('theme_color'),
     contentHtml: text('content_html'),
     contentHash: text('content_hash').notNull(),
+    focusCoReadingPlan: text('focus_co_reading_plan', { mode: 'json' }),
     readingDeliberationId: text('reading_deliberation_id'),
     readingDeliberationMarkdown: text('reading_deliberation_markdown'),
     readingDeliberationSections: text('reading_deliberation_sections', { mode: 'json' }),
