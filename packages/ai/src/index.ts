@@ -1,9 +1,13 @@
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentMentionInstruction,
+  AgentMentionInstructionPayload,
   AgentMessagePayload,
   AgentPersonality,
   Annotation,
+  AnnotationMetadata,
+  AnnotationMetadataPayload,
   ArticleRecord,
   Comment,
   LlmProvider,
@@ -91,6 +95,34 @@ export async function testProvider(
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
   }
+}
+
+export async function inferAnnotationMetadata(
+  provider: LlmProvider,
+  payload: AnnotationMetadataPayload,
+): Promise<AnnotationMetadata> {
+  const content = await callProviderText(provider, {
+    system:
+      '你是 Yomitomo 阅读器的批注标签器。根据用户选区和批注内容，选择最贴切的批注类型和阅读动作。只返回 JSON。',
+    user: buildAnnotationMetadataPrompt(payload),
+    maxTokens: 240,
+    temperature: 0,
+  });
+  return parseAnnotationMetadata(content);
+}
+
+export async function planAgentMentionInstructions(
+  provider: LlmProvider,
+  payload: AgentMentionInstructionPayload,
+): Promise<AgentMentionInstruction[]> {
+  const content = await callProviderText(provider, {
+    system:
+      '你是 Yomitomo 阅读器的 @ 助手任务拆解器。根据用户文本，把每个被 @ 的助手应该执行的阅读任务拆开。只返回 JSON。',
+    user: buildAgentMentionInstructionPrompt(payload),
+    maxTokens: 900,
+    temperature: 0,
+  });
+  return parseAgentMentionInstructions(content, payload.agents);
 }
 
 export async function runAgentStream(
@@ -205,9 +237,7 @@ export async function runAgentAnnotateStream(
           context: typeof parsed.context === 'string' ? parsed.context : undefined,
           comment: typeof parsed.comment === 'string' ? parsed.comment : '',
           annotationType: payload.annotationType || normalizeAnnotationType(parsed.type),
-          readingIntent:
-            payload.readingIntent ||
-            (payload.readingPlan ? normalizeAgentReadingIntent(parsed.readingIntent) : null),
+          readingIntent: payload.readingIntent || normalizeAgentReadingIntent(parsed.readingIntent),
           ...targetAnchorSuggestion(payload),
         },
         new Date().toISOString(),
@@ -591,7 +621,13 @@ function buildAgentAnnotatePrompt(
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：必须是该章节编排动作的值\n- comment：按该章节动作说明这段为什么值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
   }
   if (payload.targetAnchor) {
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n- comment：按本轮阅读动作和读者指导写给读者的批注评论\n\n只返回 JSON，不要输出 Markdown。`;
+    const readingIntentOutputLine = payload.readingIntent
+      ? '- readingIntent：必须等于本轮阅读动作的值'
+      : '- readingIntent：从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
+    const commentOutputLine = payload.readingIntent
+      ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
+      : '- comment：按读者指导和你的角色判断写给读者的批注评论';
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n${commentOutputLine}\n\n只返回 JSON，不要输出 Markdown。`;
   }
   const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
@@ -610,7 +646,13 @@ function buildAgentAnnotateStreamPrompt(
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"按该章节动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity)}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent 必须等于该章节编排动作的值\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
   }
   if (payload.targetAnchor) {
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","comment":"按本轮阅读动作和读者指导写给读者的批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
+    const readingIntentOutputLine = payload.readingIntent
+      ? '- readingIntent：必须等于本轮阅读动作的值'
+      : '- readingIntent：从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
+    const commentOutputLine = payload.readingIntent
+      ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
+      : '- comment：按读者指导和你的角色判断写给读者的批注评论';
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","readingIntent":"explain","comment":"批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n${readingIntentOutputLine}\n${commentOutputLine}\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
   }
   const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
   const budgetNotice = formatBudgetNotice([article.report]);
@@ -963,6 +1005,142 @@ function parseJsonObject(value: string): Record<string, unknown> {
     }
     throw new Error('审稿结果不是有效 JSON');
   }
+}
+
+function parseJsonArray(value: string): unknown[] {
+  const cleaned = value
+    .trim()
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/, '')
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    const start = cleaned.indexOf('[');
+    const end = cleaned.lastIndexOf(']');
+    if (start >= 0 && end > start) {
+      const parsed = JSON.parse(cleaned.slice(start, end + 1));
+      return Array.isArray(parsed) ? parsed : [];
+    }
+    throw new Error('助手任务拆解结果不是有效 JSON');
+  }
+}
+
+function buildAnnotationMetadataPrompt(payload: AnnotationMetadataPayload) {
+  return `文章标题：${payload.article.title}
+文章 URL：${payload.article.url}
+
+用户选区：
+${payload.anchor.exact}
+
+用户批注：
+${payload.note.trim() || '（用户未填写批注）'}
+
+请返回 JSON 对象，字段如下：
+- annotationType：只允许 key_point、assumption、concept、question、quote
+- readingIntent：只允许 explain、decompose、challenge、question、connect
+
+类型含义：
+- key_point：关键判断或强论点
+- assumption：前提、漏洞、可挑战处
+- concept：概念解释需求
+- question：延伸问题
+- quote：金句或可复用表达
+
+阅读动作含义：
+- explain：解释这段在说什么
+- decompose：拆解结构和因果
+- challenge：挑战前提或漏洞
+- question：提出后续问题
+- connect：连接经验、案例或上下文
+
+只返回 JSON，例如 {"annotationType":"key_point","readingIntent":"explain"}。`;
+}
+
+function buildAgentMentionInstructionPrompt(payload: AgentMentionInstructionPayload) {
+  const agents = payload.agents.map((agent) => ({
+    agentId: agent.id,
+    agentUsername: agent.username,
+    nickname: agent.nickname,
+    personalityName: agent.personalityName,
+  }));
+  const intents = agentReadingIntentOptions.map((option) => ({
+    value: option.value,
+    label: option.label,
+    description: option.description,
+  }));
+
+  return `文章标题：${payload.article.title}
+文章 URL：${payload.article.url}
+
+目标选区：
+${payload.targetAnchor.exact}
+
+用户文本：
+${payload.note.trim() || '（用户只 @ 了助手）'}
+
+被 @ 的助手：
+${JSON.stringify(agents, null, 2)}
+
+可选阅读动作：
+${JSON.stringify(intents, null, 2)}
+
+请返回 JSON 数组，每个元素对应一个被 @ 的助手：
+- agentUsername：必须来自被 @ 的助手列表
+- instruction：只写这个助手需要执行的具体指令，去掉 @ 称呼
+- readingIntent：当用户明确要求解释、拆解、挑战、追问或联系全文时填写对应 value；动作由助手角色自行判断时省略
+
+拆解规则：
+- 单个助手前后的要求归给该助手。
+- 多个助手共享的要求复制给每个助手。
+- 用户给不同助手安排不同要求时分别拆开。
+
+只返回 JSON，例如 [{"agentUsername":"林知微","instruction":"解释这个概念","readingIntent":"explain"}]。`;
+}
+
+function parseAnnotationMetadata(content: string): AnnotationMetadata {
+  const parsed = parseJsonObject(content);
+  const annotationType = normalizeAnnotationType(parsed.annotationType);
+  const readingIntent = normalizeAgentReadingIntent(parsed.readingIntent);
+  if (!annotationType || !readingIntent) throw new Error('批注标签结果无效');
+  return { annotationType, readingIntent };
+}
+
+export function parseAgentMentionInstructions(
+  content: string,
+  agents: AgentMentionInstructionPayload['agents'],
+): AgentMentionInstruction[] {
+  const parsed = parseJsonArray(content);
+  const byHandle = new Map(
+    agents.flatMap((agent) => [[agent.username, agent] as const, [agent.nickname, agent] as const]),
+  );
+  const byAgentId = new Map<string, AgentMentionInstruction>();
+
+  for (const item of parsed) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const handle =
+      stringValue(row.agentUsername) || stringValue(row.username) || stringValue(row.agent);
+    const agent = byHandle.get(handle);
+    if (!agent || byAgentId.has(agent.id)) continue;
+    const instruction = stringValue(row.instruction);
+    const readingIntent = normalizeAgentReadingIntent(row.readingIntent);
+    byAgentId.set(agent.id, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      instruction: instruction || undefined,
+      readingIntent: readingIntent || undefined,
+    });
+  }
+
+  return agents.map(
+    (agent) =>
+      byAgentId.get(agent.id) || {
+        agentId: agent.id,
+        agentUsername: agent.username,
+      },
+  );
 }
 
 function stringValue(value: unknown) {

@@ -587,12 +587,45 @@ export type AgentAnnotatePayload = {
   };
 };
 
+export type AnnotationMetadataPayload = {
+  article: {
+    title: string;
+    url: string;
+    text: string;
+  };
+  anchor: TextAnchor;
+  note: string;
+};
+
+export type AnnotationMetadata = {
+  annotationType: AnnotationType;
+  readingIntent: AgentReadingIntent;
+};
+
 export type AgentReadingPlanItem = {
   sectionId: string;
   sectionTitle: string;
   sectionStart: number;
   sectionEnd: number;
   readingIntent: AgentReadingIntent;
+};
+
+export type AgentMentionInstructionPayload = {
+  note: string;
+  targetAnchor: TextAnchor;
+  agents: PublicAgent[];
+  article: {
+    title: string;
+    url: string;
+    text: string;
+  };
+};
+
+export type AgentMentionInstruction = {
+  agentId?: string;
+  agentUsername: string;
+  instruction?: string;
+  readingIntent?: AgentReadingIntent;
 };
 
 export function makeId(prefix: string): string {
