@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.2.0 - 2026-05-11
+
+### 新功能
+
+- 桌面端阅读库支持通过 URL 导入网页文章，导入时可持久化正文图片，并补齐阅读器正文的基础排版。(#1)
+- 阅读器新增选区复制与快捷键、批注动作/类型图标、右侧批注筛选，让高亮、批注和证据展示更易扫描。(#6, #8, #9)
+- 消息发送快捷键支持在设置中配置，并在阅读器发送、取消、提示文案中保持一致。(#5, #11)
+- 用户批注支持异步推断批注类型和阅读意图，@ 助手消息可拆分为多助手任务规划。(#13)
+- 新增重点共读流程，支持章节卡片、手动分配助手、章节消息和基于文章分析的路由生成。(#14)
+
+### 修复
+
+- 修复用户批注意图和快捷键持久化、快捷键提示归位、批注卡片单击展开，以及 SubmitShortcutKeys 组件排版问题。(#7)
+- 修复 Provider 编辑器在紧凑布局中 select 菜单被 dialog overlay 遮挡的问题。(#10)
+- 修复助手阅读章节遗漏正文开头内容、受页脚浅层标题影响导致章节规划失真的问题。(#12)
+- 修复自动批注标签展示过长和重点共读合入后用户批注评论恢复的问题。(#13, #14)
+- 修复 lint/format 任务按根级单任务运行的问题，改为 workspace package 级调度。(#3)
+
+### 文档
+
+- 更新开发代理文档中的 lint/format 流程，并清理 Chrome extension 相关说明、隐私文本、第三方声明和分发资料。(#2, #3)
+
+### 杂项
+
+- 移除 Chrome extension 工作区、运行时、桌面配对桥接和上架资产，产品线收敛到桌面端应用。(#2)
+- 新增 GitHub Actions CI，在 PR 和 main 推送中运行 lint、format check、test 和 build，并固定检查时区。(#4)
+
+### Changelog Detail
+
+- #14 Add focus co-reading @xingkaixin
+- #13 feat(reader): infer annotation labels @xingkaixin
+- #12 fix(reader): include intro in assistant sections @xingkaixin
+- #11 feat(shortcuts): refine shortcut settings UI @xingkaixin
+- #10 fix(desktop): keep provider selects above dialog @xingkaixin
+- #9 feat(reader): add annotation filtering @xingkaixin
+- #8 feat(reader): add annotation icons @xingkaixin
+- #7 fix(reader): persist annotation intent and shortcuts @xingkaixin
+- #6 feat(reader): add selection shortcuts @xingkaixin
+- #5 feat: configure message send shortcuts @xingkaixin
+- #4 ci: add GitHub Actions checks @xingkaixin
+- #3 fix(tooling): run lint and format per package @xingkaixin
+- #2 refactor: remove Chrome extension support @xingkaixin
+- #1 Add desktop URL article import @xingkaixin
+
 ## 0.1.0 - 2026-05-10
 
 Yomitomo 的首个版本，提供本地优先的 AI 伴读体验。桌面端负责导入文章、保存阅读数据、管理 LLM provider 和阅读助手，并提供阅读、批注、统计和读后卡片工作流。
