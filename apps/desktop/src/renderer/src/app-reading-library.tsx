@@ -67,13 +67,13 @@ import {
   useAgentAnnotationQueue,
   getShortcutModifier,
   ReaderAppView,
+  buildReaderReadingSections,
   readerAnnotationScrollTop,
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
   type ActiveConnection,
   type HighlightChoice,
-  type ReaderReadingSection,
   type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
@@ -1214,7 +1214,7 @@ function SourceBookcase({
   const readingSections = useMemo(
     () =>
       articleRef.current && article
-        ? buildSourceReadingSections(articleRef.current, tocItems, article.title)
+        ? buildReaderReadingSections(articleRef.current, tocItems, article.title)
         : [],
     [article, tocItems],
   );
@@ -2058,40 +2058,6 @@ function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
     });
 }
 
-function buildSourceReadingSections(
-  articleElement: HTMLElement,
-  tocItems: TocItem[],
-  articleTitle: string,
-): ReaderReadingSection[] {
-  const body = articleElement.querySelector('.reader-article-body');
-  const bodyStart = body ? offsetFromArticleStart(articleElement, body, 0) : 0;
-  const bodyTocItems = tocItems.filter(
-    (item) =>
-      item.start >= bodyStart &&
-      normalizeHeadingText(item.text) !== normalizeHeadingText(articleTitle),
-  );
-  if (bodyTocItems.length > 0) {
-    const targetDepth = Math.min(...bodyTocItems.map((item) => item.depth));
-    return bodyTocItems
-      .filter((item) => item.depth === targetDepth)
-      .map((item) => ({
-        id: `toc-${item.index}`,
-        title: item.text,
-        start: item.start,
-        end: item.end,
-      }));
-  }
-
-  return [
-    {
-      id: 'body',
-      title: '正文',
-      start: bodyStart,
-      end: articleElement.textContent?.length || bodyStart,
-    },
-  ];
-}
-
 function targetAnchorReadingPlan(
   anchor: Annotation['anchor'] | undefined,
   readingIntent: AgentReadingIntent | undefined,
@@ -2106,10 +2072,6 @@ function targetAnchorReadingPlan(
       readingIntent,
     },
   ];
-}
-
-function normalizeHeadingText(text: string) {
-  return text.trim().replace(/\s+/g, ' ');
 }
 
 function agentInstructionFromNote(note: string, mentionedAgents: PublicAgent[]) {
