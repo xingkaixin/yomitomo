@@ -391,7 +391,7 @@ export function messageSendShortcutKeys(
   shortcut: MessageSendShortcut | undefined,
   modifier = getShortcutModifier(),
 ) {
-  return normalizeMessageSendShortcut(shortcut) === 'mod-enter' ? [modifier, 'Enter'] : ['Enter'];
+  return normalizeMessageSendShortcut(shortcut) === 'mod-enter' ? [modifier, '⏎'] : ['⏎'];
 }
 
 export function isMessageSendShortcutEvent(

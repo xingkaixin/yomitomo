@@ -28,8 +28,8 @@ function box(annotationId: string): HighlightBox {
 
 describe('message send shortcuts', () => {
   it('formats enter and modifier shortcuts', () => {
-    expect(messageSendShortcutKeys('enter', '⌘')).toEqual(['Enter']);
-    expect(messageSendShortcutKeys('mod-enter', 'Ctrl')).toEqual(['Ctrl', 'Enter']);
+    expect(messageSendShortcutKeys('enter', '⌘')).toEqual(['⏎']);
+    expect(messageSendShortcutKeys('mod-enter', 'Ctrl')).toEqual(['Ctrl', '⏎']);
   });
 
   it('matches plain enter without modifiers', () => {

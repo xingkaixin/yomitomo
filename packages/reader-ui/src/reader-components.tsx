@@ -1094,7 +1094,7 @@ function SubmitShortcutKeys({
   return (
     <>
       {messageSendShortcutKeys(shortcut, shortcutModifier).map((key) => (
-        <Kbd className="reader-kbd" key={key}>
+        <Kbd className={key.length === 1 ? 'reader-kbd reader-kbd-symbol' : 'reader-kbd'} key={key}>
           {key}
         </Kbd>
       ))}

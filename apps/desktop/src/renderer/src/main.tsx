@@ -473,6 +473,7 @@ function App() {
               ) : null}
               {activeSettingsSection === 'shortcuts' ? (
                 <ShortcutSettings
+                  savedSettings={store.settings}
                   settingsDraft={settingsDraft}
                   canSave={canSaveShortcutSettings}
                   onSettingsChange={(draft) => {
