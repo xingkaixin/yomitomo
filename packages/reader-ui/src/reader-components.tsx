@@ -37,12 +37,14 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
+  SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
 import {
   agentReadingIntentLabel,
   agentReadingIntentOptions,
   makeId,
+  normalizeSelectionActionShortcuts,
   renderMarkdown,
 } from '@yomitomo/shared';
 import {
@@ -234,13 +236,17 @@ function mentionDraftWithAgent(
 
 export function SelectionMenu({
   action,
+  shortcuts,
   onAnnotate,
   onCopy,
 }: {
   action: SelectionMenuAction;
+  shortcuts?: Partial<SelectionActionShortcuts>;
   onAnnotate: () => void;
   onCopy: () => void;
 }) {
+  const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
+
   return (
     <div
       className="reader-selection-menu"
@@ -251,12 +257,12 @@ export function SelectionMenu({
       <button className="reader-selection-primary" type="button" onClick={onCopy}>
         <Copy size={15} strokeWidth={2.2} />
         复制
-        <Kbd className="reader-kbd">C</Kbd>
+        <Kbd className="reader-kbd">{shortcutKeys.copy}</Kbd>
       </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
         添加批注
-        <Kbd className="reader-kbd">A</Kbd>
+        <Kbd className="reader-kbd">{shortcutKeys.annotate}</Kbd>
       </button>
     </div>
   );

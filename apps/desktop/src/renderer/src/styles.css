@@ -1976,6 +1976,10 @@
   box-shadow: inset 0 1px 0 hsl(40 100% 98% / 0.64);
 }
 
+.shortcut-settings-card + .shortcut-settings-card {
+  margin-top: 16px;
+}
+
 .shortcut-settings-card-header {
   display: grid;
   gap: 5px;
@@ -2151,6 +2155,151 @@
 .shortcut-current-badge svg {
   flex: 0 0 auto;
   stroke-width: 3;
+}
+
+.selection-shortcut-list {
+  display: grid;
+  gap: 10px;
+}
+
+.selection-shortcut-row {
+  display: grid;
+  min-height: 74px;
+  grid-template-columns: minmax(0, 1fr) 168px 132px 86px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid hsl(var(--border) / 0.74);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.72);
+  padding: 12px 14px;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.selection-shortcut-row:hover,
+.selection-shortcut-row.is-recording {
+  background-color: hsl(var(--background));
+  box-shadow: 0 12px 30px hsl(31 34% 24% / 0.08);
+}
+
+.selection-shortcut-row.has-conflict {
+  border-color: hsl(12 62% 50% / 0.45);
+  background: hsl(12 68% 96% / 0.62);
+}
+
+.selection-shortcut-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.selection-shortcut-copy strong {
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 860;
+  line-height: 1.25;
+}
+
+.selection-shortcut-copy span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.selection-shortcut-key {
+  display: inline-flex;
+  height: 42px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  transition:
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.selection-shortcut-key:hover,
+.selection-shortcut-key.is-recording {
+  color: hsl(var(--foreground) / 0.72);
+}
+
+.selection-shortcut-key:active {
+  transform: scale(0.96);
+}
+
+.selection-shortcut-reset:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 2px;
+}
+
+.selection-shortcut-key:focus-visible {
+  outline: none;
+}
+
+.selection-shortcut-key span {
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.selection-shortcut-status,
+.selection-shortcut-reset-slot {
+  display: flex;
+  align-items: center;
+}
+
+.selection-shortcut-status {
+  justify-content: flex-start;
+}
+
+.selection-shortcut-reset-slot {
+  justify-content: flex-end;
+}
+
+.shortcut-conflict-badge {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  background: hsl(12 72% 50% / 0.12);
+  color: hsl(12 62% 32%);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.2;
+  padding: 5px 9px;
+}
+
+.selection-shortcut-reset {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid hsl(var(--border) / 0.74);
+  border-radius: 999px;
+  background: hsl(var(--background));
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  padding: 0 10px;
+}
+
+.selection-shortcut-reset:hover {
+  border-color: hsl(var(--foreground) / 0.24);
+  color: hsl(var(--foreground));
+}
+
+.shortcut-tips.is-error {
+  background: hsl(12 72% 50% / 0.1);
+  color: hsl(12 62% 32%);
 }
 
 .shortcut-tips {
@@ -9712,6 +9861,16 @@ button.license-package-row:hover {
 
   .shortcut-option-card {
     grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .selection-shortcut-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .selection-shortcut-key,
+  .selection-shortcut-status,
+  .selection-shortcut-reset-slot {
+    justify-content: flex-start;
   }
 
   .shortcut-keyset,

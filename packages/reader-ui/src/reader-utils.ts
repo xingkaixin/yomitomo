@@ -6,13 +6,16 @@ import type {
   ArticleRecord,
   MessageSendShortcut,
   PublicAgent,
+  SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
 import {
   agentReadingIntentLabel,
   agentReadingIntentOptions,
   defaultMessageSendShortcut,
+  defaultSelectionActionShortcuts,
   normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcuts,
 } from '@yomitomo/shared';
 import {
   annotationColor,
@@ -492,6 +495,7 @@ export type SelectionActionShortcutKeyboardEvent = {
 
 export function selectionActionShortcut(
   event: SelectionActionShortcutKeyboardEvent,
+  shortcuts: Partial<SelectionActionShortcuts> = defaultSelectionActionShortcuts,
 ): SelectionActionShortcut | null {
   if (
     event.repeat ||
@@ -504,9 +508,10 @@ export function selectionActionShortcut(
     return null;
   }
 
-  const key = event.key.toLowerCase();
-  if (key === 'a') return 'annotate';
-  if (key === 'c') return 'copy';
+  const key = event.key.toUpperCase();
+  const normalizedShortcuts = normalizeSelectionActionShortcuts(shortcuts);
+  if (key === normalizedShortcuts.annotate) return 'annotate';
+  if (key === normalizedShortcuts.copy) return 'copy';
   return null;
 }
 

@@ -7,6 +7,7 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
+  SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
@@ -135,6 +136,7 @@ export type ReaderAppViewProps = {
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
   messageSendShortcut: MessageSendShortcut;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
@@ -236,6 +238,7 @@ export function ReaderAppView({
   selectionAction,
   settingsOpen,
   messageSendShortcut,
+  selectionActionShortcuts,
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
@@ -483,7 +486,7 @@ export function ReaderAppView({
         return;
       }
 
-      const shortcut = selectionActionShortcut(event);
+      const shortcut = selectionActionShortcut(event, selectionActionShortcuts);
       if (!shortcut) return;
 
       event.preventDefault();
@@ -497,7 +500,7 @@ export function ReaderAppView({
 
     window.addEventListener('keydown', handleSelectionShortcut);
     return () => window.removeEventListener('keydown', handleSelectionShortcut);
-  }, [composer, onCopySelection, onOpenComposer, selectionAction]);
+  }, [composer, onCopySelection, onOpenComposer, selectionAction, selectionActionShortcuts]);
 
   React.useLayoutEffect(() => {
     onAnnotationLayoutChange?.();
@@ -867,6 +870,7 @@ export function ReaderAppView({
               {selectionAction && !composer ? (
                 <SelectionMenu
                   action={selectionAction}
+                  shortcuts={selectionActionShortcuts}
                   onAnnotate={() => onOpenComposer(selectionAction)}
                   onCopy={() => onCopySelection(selectionAction)}
                 />

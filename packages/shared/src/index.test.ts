@@ -3,8 +3,12 @@ import {
   agentPersonalities,
   agentReadingIntentDisplayLabel,
   createTextAnchor,
+  defaultSelectionActionShortcuts,
+  normalizeSelectionActionShortcutDraft,
+  normalizeSelectionActionShortcuts,
   renderMarkdown,
   resolveTextAnchor,
+  selectionActionShortcutsConflict,
 } from './index';
 
 describe('shared text anchors', () => {
@@ -43,5 +47,24 @@ describe('agent presets', () => {
 
   it('formats reading intent labels with icons', () => {
     expect(agentReadingIntentDisplayLabel('challenge')).toBe('⚔️ 挑战');
+  });
+});
+
+describe('selection action shortcuts', () => {
+  it('normalizes single letter shortcuts', () => {
+    expect(normalizeSelectionActionShortcutDraft({ copy: 'x', annotate: ' z ' })).toEqual({
+      copy: 'X',
+      annotate: 'Z',
+    });
+    expect(normalizeSelectionActionShortcutDraft({ copy: '1', annotate: 'Enter' })).toEqual(
+      defaultSelectionActionShortcuts,
+    );
+  });
+
+  it('detects and resets conflicting shortcuts', () => {
+    const shortcuts = normalizeSelectionActionShortcutDraft({ copy: 'b', annotate: 'B' });
+
+    expect(selectionActionShortcutsConflict(shortcuts)).toBe(true);
+    expect(normalizeSelectionActionShortcuts(shortcuts)).toEqual(defaultSelectionActionShortcuts);
   });
 });
