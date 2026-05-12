@@ -279,7 +279,7 @@ export const readerConversationStyles = `
 .reader-agent-annotate-menu .reader-focus-plan{display:inline-flex;width:auto;height:38px;grid-template-columns:none;align-items:center;justify-content:center;gap:7px;border:0;border-radius:999px;background:var(--reader-ink);color:#fffaf0;cursor:pointer;font:inherit;font-size:12px;font-weight:900;padding:0 14px;white-space:nowrap;transition:background .14s ease,box-shadow .14s ease,transform .14s ease}
 .reader-agent-annotate-menu .reader-focus-plan:hover:not(:disabled){background:#3b332b;box-shadow:0 8px 18px rgba(40,35,29,.16)}
 .reader-agent-annotate-menu .reader-focus-plan:active:not(:disabled){transform:scale(.96)}
-.reader-agent-annotate-menu .reader-focus-plan:disabled{cursor:not-allowed;opacity:.48}
+.reader-agent-annotate-menu .reader-focus-plan:disabled{background:#e7dac9;color:#766b5e;cursor:not-allowed;box-shadow:none;opacity:1}
 .reader-focus-progress{display:grid;gap:8px;margin:-4px 0 14px;padding:10px 12px;border:1px solid rgba(40,35,29,.1);border-radius:14px;background:#fffdf8}
 .reader-focus-progress>div{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--reader-muted);font-size:12px;font-weight:850}
 .reader-focus-progress strong{color:var(--reader-ink);font-size:12px}
