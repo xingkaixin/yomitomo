@@ -137,6 +137,56 @@ function usesOverlayToc() {
   return typeof window !== 'undefined' && window.innerWidth <= 1320;
 }
 
+function buildAnnotationConnectionPath(startX: number, startY: number, endX: number, endY: number) {
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const length = Math.hypot(deltaX, deltaY);
+  if (length < 1) {
+    return `M ${formatPathNumber(startX)} ${formatPathNumber(startY)} L ${formatPathNumber(endX)} ${formatPathNumber(endY)}`;
+  }
+
+  const normalX = -deltaY / length;
+  const normalY = deltaX / length;
+  const segmentCount = Math.max(3, Math.min(6, Math.round(length / 74)));
+  const amplitude = Math.min(18, Math.max(7, length * 0.035));
+  const points = Array.from({ length: segmentCount + 1 }, (_, index) => {
+    const progress = index / segmentCount;
+    const endpoint = index === 0 || index === segmentCount;
+    const direction = index % 2 === 0 ? -1 : 1;
+    const offset = endpoint ? 0 : Math.sin(Math.PI * progress) * amplitude * direction;
+    return {
+      x: startX + deltaX * progress + normalX * offset,
+      y: startY + deltaY * progress + normalY * offset,
+    };
+  });
+
+  return smoothPathThroughPoints(points);
+}
+
+function smoothPathThroughPoints(points: Array<{ x: number; y: number }>) {
+  const first = points[0]!;
+  let path = `M ${formatPathNumber(first.x)} ${formatPathNumber(first.y)}`;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previous = points[Math.max(0, index - 1)]!;
+    const current = points[index]!;
+    const next = points[index + 1]!;
+    const afterNext = points[Math.min(points.length - 1, index + 2)]!;
+    const control1X = current.x + (next.x - previous.x) / 6;
+    const control1Y = current.y + (next.y - previous.y) / 6;
+    const control2X = next.x - (afterNext.x - current.x) / 6;
+    const control2Y = next.y - (afterNext.y - current.y) / 6;
+
+    path += ` C ${formatPathNumber(control1X)} ${formatPathNumber(control1Y)}, ${formatPathNumber(control2X)} ${formatPathNumber(control2Y)}, ${formatPathNumber(next.x)} ${formatPathNumber(next.y)}`;
+  }
+
+  return path;
+}
+
+function formatPathNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 function readDesktopReaderSettings(): ReaderSettings {
   if (typeof window === 'undefined') return defaultReaderSettings;
 
@@ -1419,9 +1469,7 @@ function SourceBookcase({
       return;
     }
 
-    const direction = endX >= startX ? 1 : -1;
-    const tension = Math.max(48, Math.abs(endX - startX) * 0.42);
-    const path = `M ${startX} ${startY} C ${startX + tension * direction} ${startY}, ${endX - tension * direction} ${endY}, ${endX} ${endY}`;
+    const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
     const color = annotationColor(annotation, userProfile, annotationAgents);
     setActiveConnection((current) =>
       current?.path === path && current.color === color ? current : { path, color },
