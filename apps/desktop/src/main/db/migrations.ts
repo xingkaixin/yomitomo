@@ -267,4 +267,18 @@ SET selection_action_shortcuts = '{"copy":"C","annotate":"A"}'
 WHERE selection_action_shortcuts IS NULL;
 `,
   },
+  {
+    id: '0022_article_ebook_source',
+    sql: `
+ALTER TABLE articles ADD COLUMN source_type TEXT NOT NULL DEFAULT 'web';
+ALTER TABLE articles ADD COLUMN ebook_metadata TEXT;
+ALTER TABLE articles ADD COLUMN ebook_chapters TEXT;
+`,
+  },
+  {
+    id: '0023_article_reading_progress',
+    sql: `
+ALTER TABLE articles ADD COLUMN reading_progress TEXT;
+`,
+  },
 ];

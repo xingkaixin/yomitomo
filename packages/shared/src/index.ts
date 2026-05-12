@@ -482,10 +482,46 @@ export type Annotation = {
   updatedAt: string;
 };
 
+export type ArticleSourceType = 'web' | 'ebook';
+
+export type EbookFormat = 'epub';
+
+export type EbookMetadata = {
+  format: EbookFormat;
+  fileName: string;
+  fileSize: number;
+  language?: string;
+  publisher?: string;
+  description?: string;
+};
+
+export type EbookChapterRecord = {
+  id: string;
+  title: string;
+  href?: string;
+  html: string;
+  textLength: number;
+};
+
+export type EbookRecord = {
+  metadata: EbookMetadata;
+  chapters: EbookChapterRecord[];
+};
+
+export type ArticleReadingProgress = {
+  pageIndex: number;
+  pageCount: number;
+  chapterIndex?: number;
+  chapterProgress?: number;
+  progress: number;
+  updatedAt: string;
+};
+
 export type ArticleRecord = {
   id: string;
   url: string;
   canonicalUrl: string;
+  sourceType?: ArticleSourceType;
   title: string;
   byline?: string;
   excerpt?: string;
@@ -495,6 +531,8 @@ export type ArticleRecord = {
   themeColor?: string;
   contentHtml?: string;
   contentHash: string;
+  ebook?: EbookRecord;
+  readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
   focusCoReadingPlan?: FocusCoReadingPlan;
   readingDeliberation?: ReadingDeliberationRecord;

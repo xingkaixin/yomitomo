@@ -13,8 +13,12 @@ import type {
   AnnotationType,
   AppSettings,
   ArticleRecord,
+  ArticleReadingProgress,
+  ArticleSourceType,
   Comment,
   DesktopStore,
+  EbookChapterRecord,
+  EbookMetadata,
   FocusCoReadingPlan,
   LlmProvider,
   ProviderPresetId,
@@ -292,6 +296,21 @@ export async function saveArticle(input: ArticleRecord): Promise<DesktopStore> {
   return readStore();
 }
 
+export async function saveArticleReadingProgress(
+  articleId: string,
+  progress: ArticleReadingProgress,
+): Promise<DesktopStore> {
+  getDatabase()
+    .update(schema.articles)
+    .set({
+      readingProgress: normalizeArticleReadingProgress(progress),
+      updatedAt: progress.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return readStore();
+}
+
 export async function deleteArticle(id: string): Promise<DesktopStore> {
   getDatabase().delete(schema.articles).where(eq(schema.articles.id, id)).run();
   return readStore();
@@ -510,6 +529,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         id: row.id,
         url: row.url,
         canonicalUrl: row.canonicalUrl,
+        sourceType: normalizeArticleSourceType(row.sourceType),
         title: row.title,
         byline: row.byline || undefined,
         excerpt: row.excerpt || undefined,
@@ -519,6 +539,8 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
         themeColor: row.themeColor || undefined,
         contentHtml: row.contentHtml || undefined,
         contentHash: row.contentHash,
+        ebook: rowToEbook(row),
+        readingProgress: normalizeArticleReadingProgress(row.readingProgress),
         focusCoReadingPlan: row.focusCoReadingPlan
           ? (row.focusCoReadingPlan as FocusCoReadingPlan)
           : undefined,
@@ -557,6 +579,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       id: article.id,
       url: article.url,
       canonicalUrl: article.canonicalUrl,
+      sourceType: normalizeArticleSourceType(article.sourceType),
       title: article.title,
       byline: article.byline,
       excerpt: article.excerpt,
@@ -566,6 +589,9 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       themeColor: article.themeColor,
       contentHtml: article.contentHtml,
       contentHash: article.contentHash,
+      ebookMetadata: article.ebook?.metadata,
+      ebookChapters: article.ebook?.chapters,
+      readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       focusCoReadingPlan: article.focusCoReadingPlan,
       readingDeliberationId: article.readingDeliberation?.id,
       readingDeliberationMarkdown: article.readingDeliberation?.contentMarkdown,
@@ -595,6 +621,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       set: {
         url: article.url,
         canonicalUrl: article.canonicalUrl,
+        sourceType: normalizeArticleSourceType(article.sourceType),
         title: article.title,
         byline: article.byline,
         excerpt: article.excerpt,
@@ -604,6 +631,9 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
         themeColor: article.themeColor,
         contentHtml: article.contentHtml,
         contentHash: article.contentHash,
+        ebookMetadata: article.ebook?.metadata,
+        ebookChapters: article.ebook?.chapters,
+        readingProgress: normalizeArticleReadingProgress(article.readingProgress),
         focusCoReadingPlan: article.focusCoReadingPlan,
         updatedAt: article.updatedAt,
       },
@@ -847,7 +877,13 @@ function normalizeStore(store: DesktopStore): DesktopStore {
         temperature: normalizeTemperature(agent.temperature),
       }),
     ),
-    articles: store.articles || [],
+    articles: (store.articles || []).map((article) =>
+      Object.assign({}, article, {
+        sourceType: normalizeArticleSourceType(article.sourceType),
+        ebook: normalizeEbookRecord(article.ebook),
+        readingProgress: normalizeArticleReadingProgress(article.readingProgress),
+      }),
+    ),
   };
 }
 
@@ -875,6 +911,81 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     saveArticleImages: Boolean(settings?.saveArticleImages),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };
+}
+
+function rowToEbook(row: typeof schema.articles.$inferSelect): ArticleRecord['ebook'] {
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+  if (sourceType !== 'ebook') return undefined;
+
+  const metadata = normalizeEbookMetadata(row.ebookMetadata);
+  const chapters = normalizeEbookChapters(row.ebookChapters);
+  return metadata && chapters.length > 0 ? { metadata, chapters } : undefined;
+}
+
+function normalizeArticleSourceType(value: unknown): ArticleSourceType {
+  return value === 'ebook' ? 'ebook' : 'web';
+}
+
+function normalizeArticleReadingProgress(value: unknown): ArticleReadingProgress | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const progress = value as Record<string, unknown>;
+  const pageIndex = Number(progress.pageIndex);
+  const pageCount = Number(progress.pageCount);
+  const chapterIndex = Number(progress.chapterIndex);
+  const chapterProgress = Number(progress.chapterProgress);
+  const progressValue = Number(progress.progress);
+  return {
+    pageIndex: Number.isInteger(pageIndex) && pageIndex >= 0 ? pageIndex : 0,
+    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
+    chapterIndex: Number.isInteger(chapterIndex) && chapterIndex >= 0 ? chapterIndex : undefined,
+    chapterProgress: Number.isFinite(chapterProgress)
+      ? Math.max(0, Math.min(1, chapterProgress))
+      : undefined,
+    progress: Number.isFinite(progressValue) ? Math.max(0, Math.min(1, progressValue)) : 0,
+    updatedAt: stringValue(progress.updatedAt) || new Date().toISOString(),
+  };
+}
+
+function normalizeEbookRecord(value: ArticleRecord['ebook'] | undefined): ArticleRecord['ebook'] {
+  const metadata = normalizeEbookMetadata(value?.metadata);
+  const chapters = normalizeEbookChapters(value?.chapters);
+  return metadata && chapters.length > 0 ? { metadata, chapters } : undefined;
+}
+
+function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const metadata = value as Record<string, unknown>;
+  const fileName = stringValue(metadata.fileName);
+  const fileSize = Number(metadata.fileSize);
+  return {
+    format: metadata.format === 'epub' ? 'epub' : 'epub',
+    fileName,
+    fileSize: Number.isFinite(fileSize) && fileSize > 0 ? fileSize : 0,
+    language: stringValue(metadata.language) || undefined,
+    publisher: stringValue(metadata.publisher) || undefined,
+    description: stringValue(metadata.description) || undefined,
+  };
+}
+
+function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') return [];
+    const chapter = item as Record<string, unknown>;
+    const html = stringValue(chapter.html);
+    const title = stringValue(chapter.title);
+    if (!html || !title) return [];
+    const textLength = Number(chapter.textLength);
+    return [
+      {
+        id: stringValue(chapter.id) || `chapter-${index + 1}`,
+        title,
+        href: stringValue(chapter.href) || undefined,
+        html,
+        textLength: Number.isFinite(textLength) && textLength >= 0 ? textLength : 0,
+      },
+    ];
+  });
 }
 
 function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCardRecord | undefined {

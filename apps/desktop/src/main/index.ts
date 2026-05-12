@@ -8,6 +8,7 @@ import type {
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
+  ArticleReadingProgress,
   Comment,
   FocusCoReadingRoutePayload,
   LlmProvider,
@@ -45,6 +46,7 @@ import {
   saveArticleReadingDeliberation,
   saveArticleReadingCard,
   saveArticleReadingCardReview,
+  saveArticleReadingProgress,
   saveArticle,
   saveProvider,
   saveSettings,
@@ -52,6 +54,7 @@ import {
 } from './store';
 import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
 import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
+import { articleRecordFromEpubFile } from './ebook-import';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -155,6 +158,14 @@ function registerIpc() {
     sendStoreUpdated(store);
     return store;
   });
+  ipcMain.handle(
+    'article:reading-progress',
+    async (_event, input: { articleId: string; progress: ArticleReadingProgress }) => {
+      const store = await saveArticleReadingProgress(input.articleId, input.progress);
+      sendStoreUpdated(store);
+      return store;
+    },
+  );
   ipcMain.handle('article:import-url', async (_event, input: string) => {
     const previousStore = await readStore();
     const record = await articleRecordFromUrl(input, {
@@ -178,6 +189,34 @@ function registerIpc() {
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
   });
+  ipcMain.handle(
+    'ebook:import-file',
+    async (
+      _event,
+      input: {
+        fileName: string;
+        mimeType?: string;
+        data: ArrayBuffer;
+      },
+    ) => {
+      const previousStore = await readStore();
+      const record = await articleRecordFromEpubFile(input);
+      const existingArticle = findArticleByIdentity(previousStore.articles, record);
+      if (existingArticle) {
+        return {
+          status: 'duplicate',
+          article: existingArticle,
+          store: previousStore,
+        };
+      }
+
+      const store = await saveArticle(record);
+      const article = store.articles.find((item) => item.id === record.id);
+      if (!article) throw new Error('电子书保存失败');
+      sendStoreUpdated(store);
+      return { status: 'imported', article, store };
+    },
+  );
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
     const store = await saveSettings(input);
