@@ -47,7 +47,11 @@ export function ArticleBook({ article }: { article: ArticleRecord }) {
   const visual = useMemo(() => articleBookVisual(article), [article]);
 
   return (
-    <span aria-hidden="true" className="article-book" style={visual.style}>
+    <span
+      aria-hidden="true"
+      className={visual.nativeCover ? 'article-book is-native-cover' : 'article-book'}
+      style={visual.style}
+    >
       <span className="article-book-ground-shadow" />
       <span className="article-book-scene">
         <span className="article-book-cover">
@@ -86,6 +90,7 @@ function articleBookVisual(article: ArticleRecord) {
   );
   const palette = BOOK_COVER_PALETTES[seed % BOOK_COVER_PALETTES.length];
   const imageUrl = safeHttpUrl(article.leadImageUrl);
+  const nativeCover = article.sourceType === 'ebook' && Boolean(imageUrl);
   const bylineLabel = normalizeLabel(article.byline || '');
   const hasCjkTitle = /[\u3400-\u9fff]/.test(article.title);
   const isLight = palette.mode === 'light';
@@ -117,6 +122,7 @@ function articleBookVisual(article: ArticleRecord) {
   return {
     bylineLabel,
     imageUrl,
+    nativeCover,
     style,
     title: normalizeLabel(article.title),
   };

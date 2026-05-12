@@ -53,7 +53,11 @@ export async function extractArticleFromDocument(
       articleDocument.querySelector('h1')?.textContent?.trim() ||
       articleDocument.title ||
       'Untitled';
-    const content = sanitizeArticleHtml(articleDocument, wechatContent.innerHTML, canonicalUrl);
+    const content = sanitizeArticleContentHtml(
+      articleDocument,
+      wechatContent.innerHTML,
+      canonicalUrl,
+    );
     const contentHash = articleContentHash(articleDocument, content);
     return {
       id: hashText(canonicalUrl || contentHash),
@@ -75,7 +79,7 @@ export async function extractArticleFromDocument(
     parsed?.content ||
     articleDocument.querySelector('article')?.innerHTML ||
     articleDocument.body.innerHTML;
-  const content = sanitizeArticleHtml(articleDocument, rawContent, canonicalUrl);
+  const content = sanitizeArticleContentHtml(articleDocument, rawContent, canonicalUrl);
   const contentHash = articleContentHash(articleDocument, content);
 
   return {
@@ -103,7 +107,7 @@ export function fallbackArticleFromDocument(
   const metadata = extractArticleMetadata(articleDocument, canonicalUrl);
   const rawContent =
     articleDocument.querySelector('article')?.innerHTML || articleDocument.body?.innerHTML || '';
-  const content = sanitizeArticleHtml(
+  const content = sanitizeArticleContentHtml(
     articleDocument,
     rawContent || '<p>当前页面没有可读取内容。</p>',
     canonicalUrl,
@@ -176,7 +180,7 @@ async function extractWithDefuddle(
     const result = await new Defuddle(cloned, { url: pageUrl }).parseAsync();
     if (!result?.content) return null;
 
-    const content = sanitizeArticleHtml(articleDocument, result.content, canonicalUrl);
+    const content = sanitizeArticleContentHtml(articleDocument, result.content, canonicalUrl);
     const contentHash = articleContentHash(articleDocument, content);
     const metadata = extractArticleMetadata(articleDocument, canonicalUrl, {
       siteName: result.site,
@@ -332,7 +336,11 @@ function normalizeThemeColor(value: unknown) {
   return raw.toLowerCase();
 }
 
-function sanitizeArticleHtml(articleDocument: Document, html: string, baseUrl: string) {
+export function sanitizeArticleContentHtml(
+  articleDocument: Document,
+  html: string,
+  baseUrl: string,
+) {
   const purifyWindow = articleDocument.defaultView;
   const purifier = purifyWindow ? DOMPurify(purifyWindow) : DOMPurify;
   const sanitized = purifier.sanitize(html, {

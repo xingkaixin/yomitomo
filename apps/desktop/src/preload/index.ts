@@ -9,6 +9,7 @@ import type {
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
+  ArticleReadingProgress,
   Comment,
   DesktopStore,
   FocusCoReadingRoutePayload,
@@ -45,6 +46,12 @@ export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
   article: ArticleRecord;
   store: DesktopStore;
+};
+
+export type EbookImportFileInput = {
+  fileName: string;
+  mimeType?: string;
+  data: ArrayBuffer;
 };
 
 export type AppInfo = {
@@ -84,8 +91,15 @@ const api = {
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   saveArticle: (article: ArticleRecord) =>
     ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,
+  saveArticleReadingProgress: (articleId: string, progress: ArticleReadingProgress) =>
+    ipcRenderer.invoke('article:reading-progress', {
+      articleId,
+      progress,
+    }) as Promise<DesktopStore>,
   importArticleUrl: (url: string) =>
     ipcRenderer.invoke('article:import-url', url) as Promise<ArticleImportResult>,
+  importEbookFile: (input: EbookImportFileInput) =>
+    ipcRenderer.invoke('ebook:import-file', input) as Promise<ArticleImportResult>,
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,

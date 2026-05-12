@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
+  BookText,
   BookOpen,
   ChevronLeft,
   ChevronRight,
   Clock3,
   ExternalLink,
+  FileUp,
   Globe2,
+  List,
   LoaderCircle,
   MessageSquareText,
   MoreHorizontal,
@@ -14,7 +17,10 @@ import {
   Plus,
   RefreshCcw,
   Search,
+  Settings2,
   Trash2,
+  Upload,
+  X,
 } from 'lucide-react';
 import type {
   Agent,
@@ -22,6 +28,7 @@ import type {
   AgentReadingIntent,
   Annotation,
   AnnotationType,
+  ArticleReadingProgress,
   ArticleRecord,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -77,6 +84,7 @@ import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
+  ReaderSettingsPanel,
   type ActiveConnection,
   type HighlightChoice,
   type ReaderSettings,
@@ -98,6 +106,7 @@ import { ReadingCard } from './app-reading-card-panel';
 import { ArticleBook } from './app-article-book';
 
 const ARTICLE_DELETE_HOLD_MS = 1400;
+const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 
@@ -112,6 +121,11 @@ type PromptArticle = {
   title: string;
   url: string;
   text: string;
+};
+type EbookPage = {
+  id: string;
+  chapterIndex: number;
+  html: string;
 };
 type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
 
@@ -232,9 +246,11 @@ export function ReadingLibrary({
   userProfile,
   onArticleOpened,
   onDeleteArticle,
+  onImportEbookFile,
   onImportArticleUrl,
   onRefresh,
   onSaveArticle,
+  onSaveArticleReadingProgress,
   onUpdateArticle,
 }: {
   agents: Agent[];
@@ -245,9 +261,14 @@ export function ReadingLibrary({
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
+  onImportEbookFile: (file: File) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onRefresh: () => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleReadingProgress: (
+    articleId: string,
+    progress: ArticleReadingProgress,
+  ) => Promise<void> | void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source' | 'card'>('library');
@@ -342,6 +363,7 @@ export function ReadingLibrary({
         sortedArticles={sortedArticles}
         stats={stats}
         onDeleteArticle={deleteLibraryArticle}
+        onImportEbookFile={onImportEbookFile}
         onImportArticleUrl={onImportArticleUrl}
         onOpenArticle={openArticle}
         onRefresh={onRefresh}
@@ -372,6 +394,7 @@ export function ReadingLibrary({
               sortedArticles={sortedArticles}
               stats={stats}
               onDeleteArticle={deleteLibraryArticle}
+              onImportEbookFile={onImportEbookFile}
               onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={openArticle}
               onRefresh={onRefresh}
@@ -410,6 +433,7 @@ export function ReadingLibrary({
                   onClose={openLibraryShelf}
                   onOpenAnnotation={setSelectedAnnotationId}
                   onSaveArticle={onSaveArticle}
+                  onSaveArticleReadingProgress={onSaveArticleReadingProgress}
                   onUpdateArticle={onUpdateArticle}
                 />
               ) : null}
@@ -455,6 +479,7 @@ function LibraryHome({
   sortedArticles,
   stats,
   onDeleteArticle,
+  onImportEbookFile,
   onImportArticleUrl,
   onOpenArticle,
   onRefresh,
@@ -463,6 +488,7 @@ function LibraryHome({
   sortedArticles: ArticleRecord[];
   stats: { annotations: number; comments: number };
   onDeleteArticle: (articleId: string) => Promise<void>;
+  onImportEbookFile: (file: File) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
   onRefresh: () => void;
@@ -473,6 +499,12 @@ function LibraryHome({
   const [importState, setImportState] = useState<ArticleImportState>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [importArticle, setImportArticle] = useState<ArticleRecord | null>(null);
+  const [ebookImportOpen, setEbookImportOpen] = useState(false);
+  const [ebookImportState, setEbookImportState] = useState<ArticleImportState>('idle');
+  const [ebookImportMessage, setEbookImportMessage] = useState('');
+  const [ebookImportArticle, setEbookImportArticle] = useState<ArticleRecord | null>(null);
+  const [ebookDragging, setEbookDragging] = useState(false);
+  const ebookInputRef = useRef<HTMLInputElement | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchQuery, setSearchQuery] = useState('');
@@ -541,12 +573,67 @@ function LibraryHome({
     }
   }
 
+  async function importEbook(file: File | undefined) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.epub')) {
+      setEbookImportState('error');
+      setEbookImportMessage('请选择 EPUB 文件');
+      setEbookImportArticle(null);
+      return;
+    }
+    if (file.size > MAX_EBOOK_IMPORT_BYTES) {
+      setEbookImportState('error');
+      setEbookImportMessage('EPUB 文件不能超过 80MB');
+      setEbookImportArticle(null);
+      return;
+    }
+
+    try {
+      setEbookImportState('submitting');
+      setEbookImportMessage(`正在解析 ${file.name}`);
+      setEbookImportArticle(null);
+      const result = await onImportEbookFile(file);
+      setEbookImportArticle(result.article);
+      if (ebookInputRef.current) ebookInputRef.current.value = '';
+      if (result.status === 'duplicate') {
+        setEbookImportState('duplicate');
+        setEbookImportMessage('这本电子书已在阅读库');
+        return;
+      }
+
+      setEbookImportState('imported');
+      setEbookImportMessage('已添加到阅读库');
+    } catch (error) {
+      setEbookImportState('error');
+      setEbookImportMessage(error instanceof Error ? error.message : '添加电子书失败');
+      setEbookImportArticle(null);
+      if (ebookInputRef.current) ebookInputRef.current.value = '';
+    }
+  }
+
   function openImportPanel() {
     setAddMenuOpen(false);
+    setEbookImportOpen(false);
     setImportOpen(true);
     setImportState('idle');
     setImportMessage('');
     setImportArticle(null);
+  }
+
+  function openEbookImportDialog() {
+    setAddMenuOpen(false);
+    setImportOpen(false);
+    setEbookImportOpen(true);
+    setEbookImportState('idle');
+    setEbookImportMessage('');
+    setEbookImportArticle(null);
+    setEbookDragging(false);
+  }
+
+  function closeEbookImportDialog() {
+    if (ebookImportState === 'submitting') return;
+    setEbookImportOpen(false);
+    setEbookDragging(false);
   }
 
   return (
@@ -556,7 +643,7 @@ function LibraryHome({
           <div className="library-home-heading">
             <h2>阅读库</h2>
             <p>
-              {articles.length} 篇文章 · {stats.annotations} 条批注 · {stats.comments} 条讨论
+              {articles.length} 项内容 · {stats.annotations} 条批注 · {stats.comments} 条讨论
             </p>
           </div>
           <div className="library-home-actions">
@@ -593,6 +680,10 @@ function LibraryHome({
                   <button type="button" role="menuitem" onClick={openImportPanel}>
                     <Globe2 size={15} />
                     添加网页
+                  </button>
+                  <button type="button" role="menuitem" onClick={openEbookImportDialog}>
+                    <BookText size={15} />
+                    ePub 电子书
                   </button>
                 </div>
               ) : null}
@@ -657,6 +748,88 @@ function LibraryHome({
           </form>
         ) : null}
       </header>
+      {ebookImportOpen ? (
+        <div className="library-ebook-modal" role="dialog" aria-modal="true">
+          <button
+            className="library-ebook-modal-scrim"
+            type="button"
+            aria-label="关闭电子书导入"
+            onClick={closeEbookImportDialog}
+          />
+          <section className={`library-ebook-dialog is-${ebookImportState}`}>
+            <header>
+              <div>
+                <strong>添加 ePub 电子书</strong>
+                <span>{ebookImportMessage || '拖入一本 EPUB，或点击选择本地文件。'}</span>
+              </div>
+              <button type="button" aria-label="关闭电子书导入" onClick={closeEbookImportDialog}>
+                <X size={17} />
+              </button>
+            </header>
+            <label
+              className={[
+                'library-ebook-dropzone',
+                ebookDragging ? 'is-dragging' : '',
+                ebookImportState === 'submitting' ? 'is-submitting' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              htmlFor="library-ebook-file"
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setEbookDragging(false);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (ebookImportState !== 'submitting') setEbookDragging(true);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setEbookDragging(false);
+                if (ebookImportState === 'submitting') return;
+                void importEbook(event.dataTransfer.files[0]);
+              }}
+            >
+              <input
+                accept=".epub,application/epub+zip"
+                disabled={ebookImportState === 'submitting'}
+                id="library-ebook-file"
+                ref={ebookInputRef}
+                type="file"
+                onChange={(event) => void importEbook(event.target.files?.[0])}
+              />
+              <span className="library-ebook-dropzone-icon">
+                {ebookImportState === 'submitting' ? (
+                  <LoaderCircle className="is-spinning" size={22} />
+                ) : ebookDragging ? (
+                  <FileUp size={24} />
+                ) : (
+                  <Upload size={24} />
+                )}
+              </span>
+              <span className="library-ebook-dropzone-copy">
+                <strong>{ebookDragging ? '松开开始解析' : '拖入 EPUB，或点击选择'}</strong>
+                <em>单次导入一本书 · EPUB · 最高 80MB</em>
+              </span>
+            </label>
+            <footer>
+              <span>{ebookImportMessage || '解析完成后会提取标题、作者、封面和章节正文。'}</span>
+              {ebookImportArticle ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEbookImportOpen(false);
+                    onOpenArticle(ebookImportArticle);
+                  }}
+                >
+                  <ExternalLink size={14} />
+                  {ebookImportState === 'duplicate' ? '打开已有电子书' : '打开电子书'}
+                </button>
+              ) : null}
+            </footer>
+          </section>
+        </div>
+      ) : null}
       <div className="library-toolbar" aria-label="阅读库工具栏">
         <div className="library-filter-group" aria-label="阅读状态筛选">
           {LIBRARY_FILTER_OPTIONS.map((option) => (
@@ -717,7 +890,7 @@ function LibraryHome({
           <section className="library-empty">
             <BookOpen size={32} />
             <h3>还没有同步文章</h3>
-            <p>点击加号添加网页，或通过浏览器阅读器同步文章。</p>
+            <p>点击加号添加网页或 ePub 电子书，也可以通过浏览器阅读器同步文章。</p>
           </section>
         )}
       </div>
@@ -1000,6 +1173,7 @@ function ArticleLibraryCard({
             {comments} 讨论
           </span>
         </div>
+        <span className="library-source-badge">{isEbookArticle(article) ? 'ePub' : '网页'}</span>
       </footer>
     </article>
   );
@@ -1014,6 +1188,7 @@ function articleMatchesLibrarySearch(article: ArticleRecord, query: string) {
     article.byline,
     article.siteName,
     article.excerpt,
+    article.ebook?.metadata.fileName,
     urlHost(article.canonicalUrl || article.url),
     article.canonicalUrl,
     article.url,
@@ -1218,6 +1393,73 @@ const sourceTocOptions: ExtractTocOptions = {
     '.reader-article-body p, .reader-article-body div, .reader-article-body section',
 };
 
+const sourceReaderTocStyles = `
+@media(min-width:1321px){
+  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
+    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
+  }
+  .source-reader-shell .reader-app.has-toc .reader-surface{
+    padding:18px 14px 64px;
+  }
+  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
+    margin:0;
+  }
+}
+.reader-app.has-toc.is-toc-open .reader-toc{
+  margin:18px 0 18px 18px;
+  padding:14px;
+  border:1px solid rgba(150,123,84,.28);
+  border-radius:8px;
+  background:rgba(255,253,248,.72);
+}
+.reader-toc-title{
+  margin:0 0 10px;
+  color:#746d63;
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.12em;
+  text-transform:none;
+}
+.reader-toc-item{
+  display:grid;
+  width:100%;
+  margin:0;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:#746d63;
+  font-size:12px;
+  font-weight:820;
+  line-height:1.3;
+  padding:9px 8px;
+}
+.reader-toc-item:hover{
+  background:rgba(245,239,226,.9);
+  color:#28231d;
+}
+.reader-toc-item-main{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+}
+.reader-toc-item-main>span:first-child{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.reader-toc-summary{
+  margin-top:12px;
+  border-radius:8px;
+}
+@media(max-width:1320px){
+  .reader-app.has-toc.is-toc-open .reader-toc{
+    margin:0;
+    border-radius:0;
+  }
+}
+`;
+
 function promptArticle(currentArticle: ArticleRecord | null, articleText: string): PromptArticle {
   return {
     title: currentArticle?.title || '',
@@ -1234,7 +1476,49 @@ function articleWithAnnotations(article: ArticleRecord, annotations: Annotation[
   };
 }
 
-function SourceBookcase({
+type SourceBookcaseProps = {
+  agents: Agent[];
+  annotations: Annotation[];
+  article: ArticleRecord | null;
+  focusAnnotationId: string | null;
+  messageSendShortcut?: MessageSendShortcut;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
+  selectedAnnotationId: string | null;
+  userProfile: UserProfile;
+  onFocusedAnnotation: () => void;
+  onClose: () => void;
+  onOpenAnnotation: (annotationId: string | null) => void;
+  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  onSaveArticleReadingProgress: (
+    articleId: string,
+    progress: ArticleReadingProgress,
+  ) => Promise<void> | void;
+  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
+};
+
+function SourceBookcase(props: SourceBookcaseProps) {
+  if (!props.article) {
+    return (
+      <section className="source-bookcase is-empty">
+        <div className="source-empty">选择一篇文章查看原文</div>
+      </section>
+    );
+  }
+
+  if (isEbookArticle(props.article)) {
+    return (
+      <EbookBookcase
+        article={props.article}
+        onClose={props.onClose}
+        onSaveArticleReadingProgress={props.onSaveArticleReadingProgress}
+      />
+    );
+  }
+
+  return <WebSourceBookcase {...props} />;
+}
+
+function WebSourceBookcase({
   agents,
   annotations: articleAnnotations,
   article,
@@ -1248,21 +1532,7 @@ function SourceBookcase({
   onOpenAnnotation,
   onSaveArticle,
   onUpdateArticle,
-}: {
-  agents: Agent[];
-  annotations: Annotation[];
-  article: ArticleRecord | null;
-  focusAnnotationId: string | null;
-  messageSendShortcut?: MessageSendShortcut;
-  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
-  selectedAnnotationId: string | null;
-  userProfile: UserProfile;
-  onFocusedAnnotation: () => void;
-  onClose: () => void;
-  onOpenAnnotation: (annotationId: string | null) => void;
-  onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
-  onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
-}) {
+}: SourceBookcaseProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -2206,7 +2476,9 @@ function SourceBookcase({
 
   return (
     <section className="source-bookcase source-reader-shell">
-      <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}`}</style>
+      <style>
+        {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
+      </style>
       <ReaderAppView
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
@@ -2316,6 +2588,575 @@ function SourceBookcase({
       />
     </section>
   );
+}
+
+function EbookBookcase({
+  article,
+  onClose,
+  onSaveArticleReadingProgress,
+}: {
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
+  onClose: () => void;
+  onSaveArticleReadingProgress: (
+    articleId: string,
+    progress: ArticleReadingProgress,
+  ) => Promise<void> | void;
+}) {
+  const chapters = article.ebook.chapters;
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const pageFrameRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
+  const restoredProgressArticleIdRef = useRef<string | null>(null);
+  const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
+  const pagesRef = useRef<EbookPage[]>([]);
+  const chapterPagesRef = useRef<number[]>([]);
+  const chaptersRef = useRef(chapters);
+  const readingProgressRef = useRef<ArticleReadingProgress | undefined>(article.readingProgress);
+  const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageInput, setPageInput] = useState('1');
+  const [pages, setPages] = useState<EbookPage[]>([]);
+  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
+    readDesktopReaderSettings(),
+  );
+  const pageCount = Math.max(1, pages.length);
+  const chapterPages = useMemo(() => ebookChapterStartPages(chapters, pages), [chapters, pages]);
+  const currentChapterIndex = useMemo(
+    () => pages[Math.min(pageIndex, pages.length - 1)]?.chapterIndex || 0,
+    [pageIndex, pages],
+  );
+  const currentPage = pages[Math.min(pageIndex, pages.length - 1)];
+  pagesRef.current = pages;
+  chapterPagesRef.current = chapterPages;
+  chaptersRef.current = chapters;
+  readingProgressRef.current = article.readingProgress;
+
+  useEffect(() => {
+    onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
+  }, [onSaveArticleReadingProgress]);
+
+  useLayoutEffect(() => {
+    setSettingsOpen(false);
+    setTocOpen(defaultTocOpen());
+    restoredProgressArticleIdRef.current = null;
+  }, [article.id]);
+
+  useEffect(() => {
+    setPageInput(String(pageIndex + 1));
+  }, [pageIndex]);
+
+  useLayoutEffect(() => {
+    const pageFrame = pageFrameRef.current;
+    const measureElement = measureRef.current;
+    if (!pageFrame || !measureElement) return;
+
+    let frame = 0;
+    const repaginate = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const pageMetrics = ebookPageMetrics(pageFrame);
+        if (!pageMetrics) return;
+        const activeChapters = chaptersRef.current;
+        const nextPages = paginateEbookChapters(activeChapters, measureElement, pageMetrics);
+        const nextChapterPages = ebookChapterStartPages(activeChapters, nextPages);
+        setPages(nextPages);
+        setPageIndex((current) => {
+          if (restoredProgressArticleIdRef.current !== article.id) {
+            restoredProgressArticleIdRef.current = article.id;
+            return restoredEbookPageIndex(readingProgressRef.current, activeChapters, nextPages);
+          }
+          return remapEbookPageIndex(
+            current,
+            pagesRef.current,
+            chapterPagesRef.current,
+            nextPages,
+            nextChapterPages,
+          );
+        });
+      });
+    };
+
+    repaginate();
+    const resizeObserver = new ResizeObserver(repaginate);
+    resizeObserver.observe(pageFrame);
+    window.addEventListener('resize', repaginate);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', repaginate);
+    };
+  }, [article.id, readerSettings.contentWidth, readerSettings.fontSize, tocOpen]);
+
+  function saveEbookProgress(nextPageIndex: number) {
+    const activePages = pagesRef.current;
+    if (activePages.length === 0 || restoredProgressArticleIdRef.current !== article.id) return;
+    const now = new Date().toISOString();
+    const activePageCount = activePages.length;
+    const activePageIndex = Math.max(0, Math.min(activePageCount - 1, nextPageIndex));
+    const activeChapterIndex = activePages[activePageIndex]?.chapterIndex || 0;
+    const progress = activePageCount > 1 ? activePageIndex / (activePageCount - 1) : 0;
+    const activeChapterPages = chapterPagesRef.current;
+    const chapterProgress = ebookChapterProgress(
+      activePageIndex,
+      activeChapterIndex,
+      activeChapterPages,
+      activePageCount,
+    );
+    void onSaveArticleReadingProgressRef.current(article.id, {
+      pageIndex: activePageIndex,
+      pageCount: activePageCount,
+      chapterIndex: activeChapterIndex,
+      chapterProgress,
+      progress,
+      updatedAt: now,
+    });
+  }
+
+  function goToPage(nextPageIndex: number) {
+    const clampedPageIndex = Math.max(0, Math.min(pageCount - 1, nextPageIndex));
+    setPageIndex(clampedPageIndex);
+    saveEbookProgress(clampedPageIndex);
+  }
+
+  function submitPageInput(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const nextPage = Number(pageInput);
+    if (!Number.isFinite(nextPage)) {
+      setPageInput(String(pageIndex + 1));
+      return;
+    }
+    goToPage(Math.round(nextPage) - 1);
+  }
+
+  function updateEbookReaderSettings(nextSettings: ReaderSettings) {
+    const normalizedSettings = normalizeDesktopReaderSettings(nextSettings);
+    setReaderSettings(normalizedSettings);
+    writeDesktopReaderSettings(normalizedSettings);
+  }
+
+  function handleReaderKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+      event.preventDefault();
+      goToPage(pageIndex + 1);
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+      event.preventDefault();
+      goToPage(pageIndex - 1);
+    }
+  }
+
+  return (
+    <section className="source-bookcase ebook-reader-shell">
+      <style>{readerStyles}</style>
+      <header className="ebook-reader-toolbar">
+        <div className="ebook-reader-title">
+          <strong>{article.title}</strong>
+          <span>
+            {[article.byline, chapters[currentChapterIndex]?.title].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+        <div className="ebook-reader-actions">
+          <button
+            className={tocOpen ? 'ebook-icon-button is-active' : 'ebook-icon-button'}
+            type="button"
+            aria-label="切换目录"
+            aria-pressed={tocOpen}
+            onClick={() => setTocOpen((open) => !open)}
+          >
+            <List size={17} />
+          </button>
+          <button
+            className={settingsOpen ? 'ebook-icon-button is-active' : 'ebook-icon-button'}
+            type="button"
+            aria-label="阅读设置"
+            aria-pressed={settingsOpen}
+            onClick={() => setSettingsOpen((open) => !open)}
+          >
+            <Settings2 size={17} />
+          </button>
+          <button
+            className="ebook-close-button"
+            type="button"
+            onClick={onClose}
+            aria-label="关闭阅读器"
+          >
+            <X size={17} />
+          </button>
+        </div>
+        {settingsOpen ? (
+          <ReaderSettingsPanel
+            panelProps={
+              {
+                className: 'reader-settings-panel ebook-reader-settings-panel',
+              } as React.HTMLAttributes<HTMLDivElement>
+            }
+            settings={readerSettings}
+            onChange={updateEbookReaderSettings}
+          />
+        ) : null}
+      </header>
+      <div className={tocOpen ? 'ebook-reader-layout is-toc-open' : 'ebook-reader-layout'}>
+        <button
+          className="ebook-responsive-scrim"
+          type="button"
+          aria-label="关闭目录"
+          onClick={() => setTocOpen(false)}
+        />
+        <aside className="ebook-reader-toc" aria-hidden={!tocOpen} aria-label="电子书目录">
+          <div className="ebook-reader-toc-title">目录</div>
+          {chapters.map((chapter, index) => (
+            <button
+              className={currentChapterIndex === index ? 'is-active' : undefined}
+              type="button"
+              key={chapter.id}
+              onClick={() => goToPage(chapterPages[index] || 0)}
+            >
+              <span>{chapter.title}</span>
+              <em>{(chapterPages[index] || 0) + 1}</em>
+            </button>
+          ))}
+        </aside>
+        <main
+          className="ebook-reader-main"
+          style={
+            { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
+          }
+        >
+          <div
+            className="ebook-page-control-row"
+            style={
+              { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
+            }
+          >
+            <div className="ebook-page-control-actions">
+              <button
+                className="ebook-icon-button"
+                type="button"
+                aria-label="上一页"
+                disabled={pageIndex === 0}
+                onClick={() => goToPage(pageIndex - 1)}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <form className="ebook-page-jump" onSubmit={submitPageInput}>
+                <Input
+                  aria-label="跳转页码"
+                  inputMode="numeric"
+                  value={pageInput}
+                  onBlur={() => submitPageInput()}
+                  onChange={(event) => setPageInput(event.target.value)}
+                />
+                <span>/ {pageCount}</span>
+              </form>
+              <button
+                className="ebook-icon-button"
+                type="button"
+                aria-label="下一页"
+                disabled={pageIndex >= pageCount - 1}
+                onClick={() => goToPage(pageIndex + 1)}
+              >
+                <ChevronRight size={17} />
+              </button>
+            </div>
+          </div>
+          <div
+            className="ebook-page-stage"
+            ref={viewportRef}
+            tabIndex={0}
+            onKeyDown={handleReaderKeyDown}
+            style={
+              {
+                '--ebook-font-size': `${readerSettings.fontSize}px`,
+                '--ebook-content-width': `${readerSettings.contentWidth}px`,
+              } as React.CSSProperties
+            }
+          >
+            <div className="ebook-page" ref={pageFrameRef}>
+              <article
+                className="ebook-page-content"
+                dangerouslySetInnerHTML={{
+                  __html: currentPage?.html || '<p>正在分页。</p>',
+                }}
+              />
+            </div>
+            <div className="ebook-pagination-measurer" ref={measureRef} aria-hidden="true" />
+          </div>
+          <div className="ebook-reader-progress" aria-hidden="true">
+            <span style={{ width: `${((pageIndex + 1) / pageCount) * 100}%` }} />
+          </div>
+        </main>
+      </div>
+    </section>
+  );
+}
+
+function ebookChapterStartPages(
+  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
+  pages: EbookPage[],
+) {
+  return chapters.map((_, index) => {
+    const pageIndex = pages.findIndex((page) => page.chapterIndex === index);
+    return pageIndex >= 0 ? pageIndex : 0;
+  });
+}
+
+function restoredEbookPageIndex(
+  progress: ArticleReadingProgress | undefined,
+  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
+  pages: EbookPage[],
+) {
+  const lastPage = Math.max(0, pages.length - 1);
+  if (!progress) return 0;
+  if (progress.chapterIndex !== undefined && progress.chapterIndex < chapters.length) {
+    const chapterPages = ebookChapterStartPages(chapters, pages);
+    const bounds = ebookChapterPageBounds(progress.chapterIndex, chapterPages, pages.length);
+    const chapterProgress = progress.chapterProgress ?? 0;
+    return clampEbookPageIndex(
+      bounds.start + Math.round(chapterProgress * Math.max(0, bounds.end - bounds.start - 1)),
+      lastPage,
+    );
+  }
+  return clampEbookPageIndex(Math.round(progress.progress * lastPage), lastPage);
+}
+
+function remapEbookPageIndex(
+  pageIndex: number,
+  previousPages: EbookPage[],
+  previousChapterPages: number[],
+  nextPages: EbookPage[],
+  nextChapterPages: number[],
+) {
+  const lastPage = Math.max(0, nextPages.length - 1);
+  if (previousPages.length === 0 || pageIndex >= previousPages.length) {
+    return clampEbookPageIndex(pageIndex, lastPage);
+  }
+  const previousPage = previousPages[Math.min(pageIndex, Math.max(0, previousPages.length - 1))];
+  if (previousPage) {
+    const chapterProgress = ebookChapterProgress(
+      pageIndex,
+      previousPage.chapterIndex,
+      previousChapterPages,
+      previousPages.length,
+    );
+    const bounds = ebookChapterPageBounds(
+      previousPage.chapterIndex,
+      nextChapterPages,
+      nextPages.length,
+    );
+    return clampEbookPageIndex(
+      bounds.start + Math.round(chapterProgress * Math.max(0, bounds.end - bounds.start - 1)),
+      lastPage,
+    );
+  }
+  const progress = previousPages.length > 1 ? pageIndex / (previousPages.length - 1) : 0;
+  return clampEbookPageIndex(Math.round(progress * lastPage), lastPage);
+}
+
+function ebookChapterProgress(
+  pageIndex: number,
+  chapterIndex: number,
+  chapterPages: number[],
+  pageCount: number,
+) {
+  const bounds = ebookChapterPageBounds(chapterIndex, chapterPages, pageCount);
+  const chapterLastPage = Math.max(bounds.start, bounds.end - 1);
+  if (chapterLastPage === bounds.start) return 0;
+  return Math.max(0, Math.min(1, (pageIndex - bounds.start) / (chapterLastPage - bounds.start)));
+}
+
+function ebookChapterPageBounds(chapterIndex: number, chapterPages: number[], pageCount: number) {
+  const start = Math.max(0, chapterPages[chapterIndex] || 0);
+  const nextStart = chapterPages.slice(chapterIndex + 1).find((page) => page > start) ?? pageCount;
+  return {
+    start: Math.min(start, Math.max(0, pageCount - 1)),
+    end: Math.max(start + 1, nextStart),
+  };
+}
+
+function clampEbookPageIndex(pageIndex: number, lastPage: number) {
+  return Math.max(0, Math.min(lastPage, pageIndex));
+}
+
+function ebookPageMetrics(pageFrame: HTMLElement) {
+  const style = window.getComputedStyle(pageFrame);
+  const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+  const width = Math.floor(pageFrame.clientWidth - horizontalPadding);
+  const height = Math.floor(pageFrame.clientHeight - verticalPadding);
+  return width > 0 && height > 0 ? { width, height } : null;
+}
+
+function paginateEbookChapters(
+  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
+  measureElement: HTMLElement,
+  metrics: { width: number; height: number },
+): EbookPage[] {
+  const document = measureElement.ownerDocument;
+  const pages: EbookPage[] = [];
+  const page = document.createElement('article');
+  page.className = 'ebook-page-content';
+  measureElement.style.width = `${metrics.width}px`;
+  measureElement.replaceChildren(page);
+
+  let currentChapterIndex = 0;
+
+  const flushPage = () => {
+    if (!hasEbookPageContent(page)) return;
+    pages.push({
+      id: `ebook-page-${pages.length + 1}`,
+      chapterIndex: currentChapterIndex,
+      html: page.innerHTML,
+    });
+    page.replaceChildren();
+  };
+
+  const appendNode = (node: Node) => {
+    const normalizedNode = normalizeEbookPageNode(node, document);
+    if (!normalizedNode) return;
+
+    page.appendChild(normalizedNode);
+    if (!ebookPageOverflows(page, metrics.height)) return;
+
+    page.removeChild(normalizedNode);
+    const parts = splitEbookPageNode(normalizedNode, page, metrics.height);
+    if (parts.length > 0) {
+      for (const part of parts) {
+        page.appendChild(part);
+        flushPage();
+      }
+      return;
+    }
+
+    if (hasEbookPageContent(page)) flushPage();
+
+    page.appendChild(normalizedNode);
+    if (!ebookPageOverflows(page, metrics.height)) return;
+
+    page.removeChild(normalizedNode);
+    const fullPageParts = splitEbookPageNode(normalizedNode, page, metrics.height);
+    if (fullPageParts.length === 0) {
+      page.appendChild(normalizedNode);
+      flushPage();
+      return;
+    }
+
+    for (const part of fullPageParts) {
+      page.appendChild(part);
+      flushPage();
+    }
+  };
+
+  chapters.forEach((chapter, chapterIndex) => {
+    currentChapterIndex = chapterIndex;
+    if (hasEbookPageContent(page)) flushPage();
+
+    const title = document.createElement('h2');
+    title.textContent = chapter.title;
+    appendNode(title);
+
+    const container = document.createElement('div');
+    container.innerHTML = chapter.html;
+    for (const node of Array.from(container.childNodes)) appendNode(node);
+  });
+
+  flushPage();
+  return pages.length > 0 ? pages : [{ id: 'ebook-page-empty', chapterIndex: 0, html: '' }];
+}
+
+function normalizeEbookPageNode(node: Node, document: Document) {
+  if (node.nodeType === 3) {
+    const text = node.textContent?.replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+    const paragraph = document.createElement('p');
+    paragraph.textContent = text;
+    return paragraph;
+  }
+
+  if (node.nodeType !== 1) return null;
+  const element = node as Element;
+  const tagName = element.tagName.toLowerCase();
+  if (tagName === 'script' || tagName === 'style' || tagName === 'link') return null;
+  return element.cloneNode(true);
+}
+
+function splitEbookPageNode(node: Node, page: HTMLElement, pageHeight: number) {
+  if (node.nodeType !== 1) return [];
+  const element = node as HTMLElement;
+  if (element.querySelector('img,svg,table,pre,code')) return [];
+
+  const text = element.textContent?.replace(/\s+/g, ' ').trim();
+  if (!text || text.length < 2) return [];
+
+  const parts: Node[] = [];
+  let rest = text;
+  while (rest.length > 0) {
+    const length = fittedTextLength(element, rest, page, pageHeight);
+    if (length <= 0) break;
+    const cut = ebookTextCutIndex(rest, length);
+    const part = element.cloneNode(false) as HTMLElement;
+    part.textContent = rest.slice(0, cut).trim();
+    parts.push(part);
+    rest = rest.slice(cut).trimStart();
+  }
+  return parts;
+}
+
+function fittedTextLength(
+  source: HTMLElement,
+  text: string,
+  page: HTMLElement,
+  pageHeight: number,
+) {
+  let low = 1;
+  let high = text.length;
+  let best = 0;
+
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const probe = source.cloneNode(false) as HTMLElement;
+    probe.textContent = text.slice(0, middle);
+    page.appendChild(probe);
+    const fits = !ebookPageOverflows(page, pageHeight);
+    page.removeChild(probe);
+
+    if (fits) {
+      best = middle;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+
+  return best;
+}
+
+function ebookTextCutIndex(text: string, maxLength: number) {
+  if (maxLength >= text.length) return text.length;
+  const slice = text.slice(0, maxLength);
+  const breakIndex = Math.max(
+    slice.lastIndexOf('。'),
+    slice.lastIndexOf('！'),
+    slice.lastIndexOf('？'),
+    slice.lastIndexOf('；'),
+    slice.lastIndexOf('，'),
+    slice.lastIndexOf(' '),
+  );
+  return breakIndex > Math.floor(maxLength * 0.62) ? breakIndex + 1 : maxLength;
+}
+
+function ebookPageOverflows(page: HTMLElement, pageHeight: number) {
+  return page.scrollHeight > pageHeight + 1;
+}
+
+function hasEbookPageContent(page: HTMLElement) {
+  return Boolean(page.textContent?.trim() || page.querySelector('img,svg,table,pre,blockquote'));
+}
+
+function isEbookArticle(
+  article: ArticleRecord | null,
+): article is ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> } {
+  return article?.sourceType === 'ebook' && Boolean(article.ebook?.chapters.length);
 }
 
 function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {

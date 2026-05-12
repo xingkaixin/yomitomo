@@ -5,6 +5,7 @@ import type {
   Agent,
   AppSettings,
   ArticleRecord,
+  ArticleReadingProgress,
   DesktopStore,
   LlmProvider,
 } from '@yomitomo/shared';
@@ -224,8 +225,54 @@ function App() {
     await nextUpdate;
   }
 
+  async function saveArticleReadingProgress(articleId: string, progress: ArticleReadingProgress) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    const run = async () => {
+      const optimisticStore = {
+        ...storeRef.current,
+        articles: storeRef.current.articles.map((article) =>
+          article.id === articleId
+            ? { ...article, readingProgress: progress, updatedAt: progress.updatedAt }
+            : article,
+        ),
+      };
+      storeRef.current = optimisticStore;
+      setStore(optimisticStore);
+      const desktopWithProgress = desktop as typeof desktop & {
+        saveArticleReadingProgress?: (
+          articleId: string,
+          progress: ArticleReadingProgress,
+        ) => Promise<DesktopStore>;
+      };
+      const nextStore =
+        typeof desktopWithProgress.saveArticleReadingProgress === 'function'
+          ? await desktopWithProgress.saveArticleReadingProgress(articleId, progress)
+          : await (async () => {
+              const article = optimisticStore.articles.find((item) => item.id === articleId);
+              return article ? desktop.saveArticle(article) : optimisticStore;
+            })();
+      storeRef.current = nextStore;
+      setStore(nextStore);
+    };
+    const nextUpdate = articleUpdateQueueRef.current.then(run, run);
+    articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
+    await nextUpdate;
+  }
+
   async function importArticleUrl(url: string) {
     const result = await window.yomitomoDesktop.importArticleUrl(url);
+    setStore(result.store);
+    return result;
+  }
+
+  async function importEbookFile(file: File) {
+    const result = await window.yomitomoDesktop.importEbookFile({
+      fileName: file.name,
+      mimeType: file.type,
+      data: await file.arrayBuffer(),
+    });
     setStore(result.store);
     return result;
   }
@@ -478,7 +525,9 @@ function App() {
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onRefresh={refreshStore}
               onImportArticleUrl={importArticleUrl}
+              onImportEbookFile={importEbookFile}
               onSaveArticle={saveArticle}
+              onSaveArticleReadingProgress={saveArticleReadingProgress}
               onUpdateArticle={updateArticle}
             />
           ) : null}

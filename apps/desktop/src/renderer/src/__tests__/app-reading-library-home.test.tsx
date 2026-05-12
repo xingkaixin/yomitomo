@@ -118,6 +118,9 @@ function renderLibrary(
     onImportArticleUrl?: (
       url: string,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+    onImportEbookFile?: (
+      file: File,
+    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
   } = {},
 ) {
   return render(
@@ -126,9 +129,12 @@ function renderLibrary(
       articles={articles}
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
+      onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
       onRefresh={vi.fn()}
       onSaveArticle={vi.fn()}
+      onSaveArticleReadingProgress={vi.fn()}
+      onUpdateArticle={vi.fn()}
     />,
   );
 }
@@ -227,5 +233,16 @@ describe('ReadingLibrary home', () => {
     });
     expect(await screen.findByText('这篇文章已在阅读库')).toBeTruthy();
     expect(screen.getByRole('button', { name: '打开已有文章' })).toBeTruthy();
+  });
+
+  it('opens ebook import dialog from the add menu', () => {
+    renderLibrary([]);
+
+    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'ePub 电子书' }));
+
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('添加 ePub 电子书')).toBeTruthy();
+    expect(screen.getByText('拖入 EPUB，或点击选择')).toBeTruthy();
   });
 });

@@ -30,6 +30,7 @@
     "drizzle-orm": "^0.45.2",
     "electron-vite": "^5.0.0",
     "jsdom": "^29.1.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.14.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
