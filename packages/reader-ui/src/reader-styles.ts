@@ -512,7 +512,7 @@ export const readerStyles = `
 `;
 
 export const readerDesktopEmbeddedStyles = `
-.source-reader-shell{padding:0}
+.source-reader-shell{grid-template-rows:minmax(0,1fr);padding:0}
 .reader-app{color-scheme:light;--reader-bg:#f5f1e8;--reader-paper:#fffdf8;--reader-ink:#28231d;--reader-muted:#746d63;--reader-line:#e3dccf;--reader-green:#28231d;--reader-red:#9f5b50;--reader-yellow:#ead89d;--reader-yellow-strong:#c7a45e;font-family:Charter,Georgia,Cambria,"Times New Roman",serif}
 .reader-brand-mark{display:grid;place-items:center;background:var(--reader-ink);color:var(--reader-paper);font-family:ui-sans-serif,system-ui,sans-serif;font-size:18px;font-weight:950;line-height:1}
 .reader-app.is-embedded{position:relative;inset:auto;z-index:0;width:100%;height:100%;min-height:0;overflow:hidden;border-radius:8px}
