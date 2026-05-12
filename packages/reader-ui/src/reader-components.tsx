@@ -850,6 +850,25 @@ export function AgentAnnotateMenu({
   const focusMessageTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
 
   useEffect(() => {
+    if (!addingPlanAgents && !addingSectionId) return;
+
+    function closeAddMenusOnPointerDown(event: PointerEvent) {
+      const clickedAddMenu = event
+        .composedPath()
+        .some(
+          (target) =>
+            target instanceof HTMLElement && target.classList.contains('reader-focus-add-wrap'),
+        );
+      if (clickedAddMenu) return;
+      setAddingPlanAgents(false);
+      setAddingSectionId(null);
+    }
+
+    window.addEventListener('pointerdown', closeAddMenusOnPointerDown, true);
+    return () => window.removeEventListener('pointerdown', closeAddMenusOnPointerDown, true);
+  }, [addingPlanAgents, addingSectionId]);
+
+  useEffect(() => {
     const saved = focusCoReadingPlan?.selectedAgentIds.filter((id) =>
       availableAgents.some((agent) => agent.id === id),
     );
@@ -899,6 +918,30 @@ export function AgentAnnotateMenu({
   function addPlanAgent(agentId: string) {
     if (selectedAgentIds.includes(agentId)) return;
     saveSections(sectionPlans, uniqueIds([...selectedAgentIds, agentId]));
+  }
+
+  function togglePlanAddMenu() {
+    setAddingSectionId(null);
+    setAddingPlanAgents((open) => !open);
+  }
+
+  function toggleSectionAddMenu(sectionId: string) {
+    setAddingPlanAgents(false);
+    setAddingSectionId((openId) => (openId === sectionId ? null : sectionId));
+  }
+
+  function closePlanAddMenuOnBlur(event: React.FocusEvent<HTMLDivElement>) {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+      return;
+    }
+    setAddingPlanAgents(false);
+  }
+
+  function closeSectionAddMenuOnBlur(event: React.FocusEvent<HTMLDivElement>, sectionId: string) {
+    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+      return;
+    }
+    setAddingSectionId((openId) => (openId === sectionId ? null : openId));
   }
 
   function removePlanAgent(agentId: string) {
@@ -1141,24 +1184,12 @@ export function AgentAnnotateMenu({
 
       <div className="reader-focus-toolbar">
         <div className="reader-focus-agent-picker" aria-label="参与规划的助手">
-          {selectedRouteAgents.map((agent) => (
-            <button
-              className="reader-focus-agent-chip"
-              key={agent.id}
-              type="button"
-              onClick={() => removePlanAgent(agent.id)}
-            >
-              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-              <strong>{agent.nickname}</strong>
-              <X size={13} />
-            </button>
-          ))}
-          <div className="reader-focus-add-wrap">
+          <div className="reader-focus-add-wrap" onBlur={closePlanAddMenuOnBlur}>
             <button
               className="reader-focus-add"
               type="button"
               aria-expanded={addingPlanAgents}
-              onClick={() => setAddingPlanAgents((open) => !open)}
+              onClick={togglePlanAddMenu}
             >
               <CircleUserRound size={16} />
               <strong>添加助手</strong>
@@ -1178,6 +1209,18 @@ export function AgentAnnotateMenu({
               </div>
             ) : null}
           </div>
+          {selectedRouteAgents.map((agent) => (
+            <button
+              className="reader-focus-agent-chip"
+              key={agent.id}
+              type="button"
+              onClick={() => removePlanAgent(agent.id)}
+            >
+              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+              <strong>{agent.nickname}</strong>
+              <X size={13} />
+            </button>
+          ))}
         </div>
         <button
           className="reader-focus-plan"
@@ -1260,31 +1303,15 @@ export function AgentAnnotateMenu({
                     <div className="reader-focus-card-section">
                       <strong>已分配助手</strong>
                       <div className="reader-focus-assigned-list">
-                        {sectionAgents.map((agent) => (
-                          <button
-                            className="reader-focus-assigned-chip"
-                            key={agent.id}
-                            type="button"
-                            onClick={() => removeSectionAgent(section.id, agent.id)}
-                          >
-                            <AvatarBadge
-                              avatar={agent.avatar}
-                              fallback={agent.nickname.slice(0, 1)}
-                            />
-                            <strong>{agent.nickname}</strong>
-                            <X size={13} />
-                          </button>
-                        ))}
-                        <div className="reader-focus-add-wrap">
+                        <div
+                          className="reader-focus-add-wrap"
+                          onBlur={(event) => closeSectionAddMenuOnBlur(event, section.id)}
+                        >
                           <button
                             className="reader-focus-add"
                             type="button"
                             aria-expanded={addingSectionId === section.id}
-                            onClick={() =>
-                              setAddingSectionId((openId) =>
-                                openId === section.id ? null : section.id,
-                              )
-                            }
+                            onClick={() => toggleSectionAddMenu(section.id)}
                           >
                             <CircleUserRound size={16} />
                             <strong>添加助手</strong>
@@ -1311,6 +1338,21 @@ export function AgentAnnotateMenu({
                             </div>
                           ) : null}
                         </div>
+                        {sectionAgents.map((agent) => (
+                          <button
+                            className="reader-focus-assigned-chip"
+                            key={agent.id}
+                            type="button"
+                            onClick={() => removeSectionAgent(section.id, agent.id)}
+                          >
+                            <AvatarBadge
+                              avatar={agent.avatar}
+                              fallback={agent.nickname.slice(0, 1)}
+                            />
+                            <strong>{agent.nickname}</strong>
+                            <X size={13} />
+                          </button>
+                        ))}
                       </div>
                     </div>
 
