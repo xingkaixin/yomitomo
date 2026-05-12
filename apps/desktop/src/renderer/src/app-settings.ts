@@ -59,9 +59,9 @@ export const annotationDensityOptions: Array<{
   label: string;
   description: string;
 }> = [
-  { value: 'low', label: '克制', description: '约 2-4 条' },
-  { value: 'medium', label: '标准', description: '约 4-7 条' },
-  { value: 'high', label: '积极', description: '约 7-12 条' },
+  { value: 'low', label: '克制', description: '短文最多 1 条' },
+  { value: 'medium', label: '标准', description: '短文最多 1 条，长文最多 5 条' },
+  { value: 'high', label: '积极', description: '短文最多 2 条' },
 ];
 
 export const messageSendShortcutOptions: Array<{
