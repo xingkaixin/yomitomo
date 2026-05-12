@@ -534,6 +534,10 @@ export function ReaderAppView({
       onCancelComposer();
     }
 
+    if (highlightChoice && !target.closest('.reader-highlight-choice-menu,.reader-highlight')) {
+      onCloseHighlightChoice();
+    }
+
     if (!activeId) return;
     if (target.closest(activeAnnotationPreserveSelector)) return;
 
