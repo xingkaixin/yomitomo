@@ -1,5 +1,6 @@
 export * from './reader-app-view';
 export {
+  AgentReadingDock,
   AgentAnnotateMenu,
   AnnotationFilterPanel,
   AnnotationCard,
@@ -13,6 +14,7 @@ export {
   SelectionMenu,
   VirtualCursor,
   type ActiveConnection,
+  type AgentDockItem,
   type HighlightChoiceAction,
   type ReaderReadingSection,
   type ReaderSettings,

@@ -1309,6 +1309,8 @@ function SourceBookcase({
     [annotations],
   );
   const {
+    agentDockCompleting,
+    agentDockItems,
     agentTheaterBoxes,
     annotatingAgents: annotatingAgentIds,
     completionBurstKey,
@@ -2198,6 +2200,8 @@ function SourceBookcase({
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
         agentAnnotateOpen={agentAnnotateOpen}
+        agentDockCompleting={agentDockCompleting}
+        agentDockItems={agentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
         annotatingAgents={annotatingAgentIds}

@@ -177,6 +177,19 @@ export const readerConversationStyles = `
 .reader-completion-particle.is-spark{width:4px;height:16px;border-radius:999px}
 @keyframes reader-completion-ring{12%{opacity:.7}to{opacity:0;transform:translate(-50%,-50%) scale(1.2)}}
 @keyframes reader-completion-pop{0%{opacity:0;filter:blur(3px);transform:translate(-50%,-50%) scale(.2) rotate(var(--reader-confetti-rotate))}16%{opacity:1;filter:blur(0)}76%{opacity:1;transform:translate(-50%,-50%) translate(var(--reader-confetti-x),var(--reader-confetti-y)) scale(1) rotate(calc(var(--reader-confetti-rotate) + 110deg))}100%{opacity:0;filter:blur(1px);transform:translate(-50%,-50%) translate(var(--reader-confetti-x),calc(var(--reader-confetti-y) + 42px)) scale(.86) rotate(calc(var(--reader-confetti-rotate) + 180deg))}}
+.reader-agent-dock{position:fixed;left:50%;bottom:18px;z-index:135;display:flex;align-items:flex-end;justify-content:center;min-height:58px;max-width:calc(100vw - 36px);padding:8px 10px;border:1px solid rgba(40,35,29,.1);border-radius:19px;background:rgba(255,253,248,.68);box-shadow:0 18px 48px rgba(40,35,29,.16),inset 0 1px 0 rgba(255,255,255,.68);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none;transform:translateX(-50%);transform-origin:bottom center;transition:opacity .18s ease,filter .18s ease}
+.reader-agent-dock.is-completing{animation:reader-agent-dock-leave .78s cubic-bezier(.22,1,.36,1) .82s forwards}
+.reader-agent-dock-list{display:flex;align-items:flex-end;gap:8px;min-width:0}
+.reader-agent-dock-item{position:relative;display:grid;width:44px;height:44px;place-items:center;border-radius:12px;background:transparent;box-shadow:0 8px 18px rgba(40,35,29,.14),0 0 0 1px color-mix(in srgb,var(--agent-color) 18%,transparent);transform:translateY(0);transition:filter .18s ease,opacity .18s ease,transform .18s ease}
+.reader-agent-dock-item .reader-avatar-badge{width:40px;height:40px;border-radius:10px;background:var(--agent-color);box-shadow:0 0 0 1px rgba(255,253,248,.82);font-size:12px}
+.reader-agent-dock-item .reader-avatar-badge img{border-radius:10px}
+.reader-agent-dock-item.is-active{animation:reader-agent-dock-hop .86s cubic-bezier(.34,1.56,.64,1) infinite;animation-delay:var(--reader-dock-delay)}
+.reader-agent-dock-item.is-active::after{content:"";position:absolute;left:50%;bottom:-7px;width:5px;height:5px;border-radius:999px;background:var(--agent-color);box-shadow:0 0 0 4px color-mix(in srgb,var(--agent-color) 14%,transparent);transform:translateX(-50%);opacity:.9}
+.reader-agent-dock-item.is-done{filter:saturate(.9);opacity:.86}
+.reader-agent-dock .reader-completion-burst{position:absolute;inset:auto;left:50%;bottom:32px;z-index:1;width:1px;height:1px;overflow:visible}
+.reader-agent-dock .reader-completion-burst-center{left:0;top:0;transform:scale(.82);transform-origin:center}
+@keyframes reader-agent-dock-hop{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-10px) scale(1.04)}70%{transform:translateY(0) scale(.99)}}
+@keyframes reader-agent-dock-leave{to{opacity:0;filter:blur(8px);transform:translateX(-50%) translateY(12px) scale(.92)}}
 .reader-agent-annotate{height:38px;border-color:rgba(40,35,29,.14);background:rgba(255,253,248,.88);color:var(--reader-ink);padding:0 12px}
 .reader-agent-annotate:hover,.reader-agent-annotate.is-active{background:#f0eadf;color:var(--reader-ink)}
 .reader-notes-actions span{background:var(--reader-ink)}
@@ -511,6 +524,7 @@ export const readerDesktopEmbeddedStyles = `
 .reader-app.is-embedded .reader-question-drawer{position:absolute}
 .reader-app.is-embedded .reader-annotation-connection{position:absolute;width:100%;height:100%}
 .reader-app.is-embedded .reader-completion-burst{position:absolute}
+.reader-app.is-embedded .reader-agent-dock{position:absolute}
 .reader-toolbar-article{display:flex;align-items:center;gap:12px;min-width:0;font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-toolbar-article-copy{display:grid;gap:5px;min-width:0}
 .reader-toolbar-article-title{overflow:hidden;color:var(--reader-ink);font-size:15px;font-weight:920;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
