@@ -131,7 +131,7 @@ export const readerConversationStyles = `
 .reader-selection-agent-list button{display:grid;grid-template-columns:24px minmax(0,1fr);justify-content:initial;width:100%;height:34px;color:var(--reader-ink);padding:0 8px;text-align:left}
 .reader-selection-agent-list button:hover{background:#fffaf0}
 .reader-selection-agent-list .reader-avatar-badge{width:24px;height:24px}
-.reader-highlight-choice-menu{position:absolute;z-index:6;width:240px;display:grid;gap:6px;padding:10px;border:1px solid rgba(40,35,29,.14);border-radius:16px;background:rgba(255,253,248,.97);box-shadow:0 18px 48px rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-highlight-choice-menu{position:absolute;z-index:160;width:240px;display:grid;gap:6px;padding:10px;border:1px solid rgba(40,35,29,.14);border-radius:16px;background:rgba(255,253,248,.97);box-shadow:0 18px 48px rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif}
 .reader-highlight-choice-menu header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 4px}
 .reader-highlight-choice-menu header strong{font-size:13px;font-weight:900}
 .reader-highlight-choice-menu header button{display:grid;width:26px;height:26px;place-items:center;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;padding:0}
