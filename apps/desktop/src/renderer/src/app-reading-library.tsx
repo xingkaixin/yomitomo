@@ -28,6 +28,7 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
+  SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -36,6 +37,7 @@ import {
   createTextAnchor,
   makeId,
   normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcuts,
   resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
@@ -225,6 +227,7 @@ export function ReadingLibrary({
   agents,
   articles,
   messageSendShortcut,
+  selectionActionShortcuts,
   openArticleId,
   userProfile,
   onArticleOpened,
@@ -237,6 +240,7 @@ export function ReadingLibrary({
   agents: Agent[];
   articles: ArticleRecord[];
   messageSendShortcut?: MessageSendShortcut;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleId?: string | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
@@ -399,6 +403,7 @@ export function ReadingLibrary({
                   article={selectedArticle}
                   focusAnnotationId={sourceFocusAnnotationId}
                   messageSendShortcut={messageSendShortcut}
+                  selectionActionShortcuts={selectionActionShortcuts}
                   selectedAnnotationId={selectedAnnotation?.id || null}
                   userProfile={userProfile}
                   onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
@@ -1235,6 +1240,7 @@ function SourceBookcase({
   article,
   focusAnnotationId,
   messageSendShortcut,
+  selectionActionShortcuts,
   selectedAnnotationId,
   userProfile,
   onFocusedAnnotation,
@@ -1248,6 +1254,7 @@ function SourceBookcase({
   article: ArticleRecord | null;
   focusAnnotationId: string | null;
   messageSendShortcut?: MessageSendShortcut;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   selectedAnnotationId: string | null;
   userProfile: UserProfile;
   onFocusedAnnotation: () => void;
@@ -2192,6 +2199,10 @@ function SourceBookcase({
   };
   const shortcutModifier = getShortcutModifier();
   const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
+  const actionShortcuts = useMemo(
+    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
+    [selectionActionShortcuts],
+  );
 
   return (
     <section className="source-bookcase source-reader-shell">
@@ -2228,6 +2239,7 @@ function SourceBookcase({
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
         messageSendShortcut={sendShortcut}
+        selectionActionShortcuts={actionShortcuts}
         shortcutModifier={shortcutModifier}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}

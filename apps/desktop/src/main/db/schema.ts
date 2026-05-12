@@ -16,6 +16,7 @@ export const appSettings = sqliteTable('app_settings', {
   reviewAssistantProviderId: text('review_assistant_provider_id'),
   readingNoteProviderId: text('reading_note_provider_id'),
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
+  selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
   onboardingCompletedAt: text('onboarding_completed_at'),
   updatedAt: text('updated_at').notNull(),

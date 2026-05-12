@@ -358,7 +358,9 @@ describe('ShortcutSettings', () => {
     expect(screen.getByText('消息发送')).toBeTruthy();
     expect(screen.getByRole('radio', { name: '⏎ 发送' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: /(?:⌘|Ctrl)\+⏎ 发送/ })).toBeTruthy();
-    expect(screen.getAllByText('当前使用')).toHaveLength(1);
+    expect(
+      within(screen.getByLabelText('批注和评论发送快捷键')).getAllByText('当前使用'),
+    ).toHaveLength(1);
     expect(screen.getByText(/你可以随时切换快捷键，设置立即生效/)).toBeTruthy();
     expect(screen.queryByText(/Command|Enter|macOS|Windows/)).toBeNull();
   });
@@ -381,6 +383,82 @@ describe('ShortcutSettings', () => {
     expect(options[1]!.getAttribute('aria-checked')).toBe('true');
     expect(within(options[0]!).getByText('当前使用')).toBeTruthy();
     expect(within(options[1]!).queryByText('当前使用')).toBeNull();
+  });
+
+  it('records single-letter reader action shortcuts', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <ShortcutSettings
+        savedSettings={{ messageSendShortcut: 'enter' }}
+        settingsDraft={{ messageSendShortcut: 'enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '设置复制快捷键' }));
+    fireEvent.keyDown(window, { key: 'x' });
+
+    expect(onSettingsChange).toHaveBeenCalledWith({
+      messageSendShortcut: 'enter',
+      selectionActionShortcuts: { copy: 'X', annotate: 'A' },
+    });
+  });
+
+  it('keeps recording until a supported letter is pressed', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <ShortcutSettings
+        savedSettings={{ messageSendShortcut: 'enter' }}
+        settingsDraft={{ messageSendShortcut: 'enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '设置添加批注快捷键' }));
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: 'b' });
+
+    expect(onSettingsChange).toHaveBeenCalledOnce();
+    expect(onSettingsChange).toHaveBeenCalledWith({
+      messageSendShortcut: 'enter',
+      selectionActionShortcuts: { copy: 'C', annotate: 'B' },
+    });
+  });
+
+  it('shows conflicts and resets reader action shortcuts', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <ShortcutSettings
+        savedSettings={{
+          messageSendShortcut: 'enter',
+          selectionActionShortcuts: { copy: 'C', annotate: 'A' },
+        }}
+        settingsDraft={{
+          messageSendShortcut: 'enter',
+          selectionActionShortcuts: { copy: 'B', annotate: 'B' },
+        }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(screen.getAllByRole('alert')).toHaveLength(2);
+    expect(screen.getByText(/重复键位会阻止保存/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '重置复制为默认 C' }));
+
+    expect(onSettingsChange).toHaveBeenCalledWith({
+      messageSendShortcut: 'enter',
+      selectionActionShortcuts: { copy: 'C', annotate: 'B' },
+    });
   });
 });
 

@@ -29,11 +29,16 @@ import type {
   LlmProvider,
   MessageSendShortcut,
   ProviderType,
+  SelectionActionShortcuts,
 } from '@yomitomo/shared';
 import {
+  defaultSelectionActionShortcuts,
   normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcutDraft,
+  normalizeSelectionActionShortcutKey,
   providerPresets,
   reasoningEffortOptions,
+  selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-utils';
 import {
@@ -133,6 +138,17 @@ function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: st
     description: `按下 ${shortcutName} 发送信息，适合长文本输入，避免误发送。此时通过 ⏎ 会换行。`,
   };
 }
+
+type SelectionShortcutAction = keyof SelectionActionShortcuts;
+
+const selectionShortcutRows: Array<{
+  action: SelectionShortcutAction;
+  label: string;
+  description: string;
+}> = [
+  { action: 'copy', label: '复制', description: '阅读区选中文本后的复制操作。' },
+  { action: 'annotate', label: '添加批注', description: '阅读区选中文本后的批注入口。' },
+];
 
 const agentCoverMap: Record<string, string> = {
   'reading-partner': linZhiweiCover,
@@ -430,10 +446,66 @@ export function ShortcutSettings({
   onSave: () => void;
   saveState: SaveState;
 }) {
+  const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
   const savedShortcut = normalizeMessageSendShortcut(savedSettings.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
+  const selectionShortcuts = React.useMemo(
+    () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
+    [settingsDraft.selectionActionShortcuts],
+  );
+  const savedSelectionShortcuts = React.useMemo(
+    () => normalizeSelectionActionShortcutDraft(savedSettings.selectionActionShortcuts),
+    [savedSettings.selectionActionShortcuts],
+  );
+  const hasSelectionShortcutConflict = selectionActionShortcutsConflict(selectionShortcuts);
+
+  useEffect(() => {
+    if (!recordingAction) return;
+
+    function finishRecording() {
+      setRecordingAction(null);
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    }
+
+    function handleShortcutKeyDown(event: KeyboardEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === 'Escape') {
+        finishRecording();
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const key = normalizeSelectionActionShortcutKey(event.key, '');
+      if (!key) return;
+
+      onSettingsChange({
+        ...settingsDraft,
+        selectionActionShortcuts: {
+          ...selectionShortcuts,
+          [recordingAction]: key,
+        },
+      });
+      finishRecording();
+    }
+
+    window.addEventListener('keydown', handleShortcutKeyDown, true);
+    return () => window.removeEventListener('keydown', handleShortcutKeyDown, true);
+  }, [onSettingsChange, recordingAction, selectionShortcuts, settingsDraft]);
+
+  function resetSelectionShortcut(action: SelectionShortcutAction) {
+    onSettingsChange({
+      ...settingsDraft,
+      selectionActionShortcuts: {
+        ...selectionShortcuts,
+        [action]: defaultSelectionActionShortcuts[action],
+      },
+    });
+  }
 
   return (
     <div className="settings-panel">
@@ -508,6 +580,81 @@ export function ShortcutSettings({
           })}
         </div>
         <p className="shortcut-tips">Tips：你可以随时切换快捷键，设置立即生效。</p>
+      </section>
+      <section className="shortcut-settings-card" aria-labelledby="shortcut-selection-title">
+        <header className="shortcut-settings-card-header">
+          <h3 id="shortcut-selection-title">阅读区选区操作</h3>
+          <p>用于选中文本后的复制和添加批注。</p>
+        </header>
+        <div className="selection-shortcut-list">
+          {selectionShortcutRows.map((row) => {
+            const key = selectionShortcuts[row.action];
+            const savedKey = savedSelectionShortcuts[row.action];
+            const defaultKey = defaultSelectionActionShortcuts[row.action];
+            const modified = key !== defaultKey;
+            const current = key === savedKey;
+            const recording = recordingAction === row.action;
+            const conflict = hasSelectionShortcutConflict;
+            const otherRow = selectionShortcutRows.find((item) => item.action !== row.action)!;
+
+            return (
+              <div
+                className={
+                  conflict
+                    ? 'selection-shortcut-row has-conflict'
+                    : recording
+                      ? 'selection-shortcut-row is-recording'
+                      : 'selection-shortcut-row'
+                }
+                key={row.action}
+              >
+                <div className="selection-shortcut-copy">
+                  <strong>{row.label}</strong>
+                  <span>{row.description}</span>
+                </div>
+                <button
+                  className={
+                    recording ? 'selection-shortcut-key is-recording' : 'selection-shortcut-key'
+                  }
+                  type="button"
+                  aria-label={`设置${row.label}快捷键`}
+                  onClick={() => setRecordingAction(row.action)}
+                >
+                  <Kbd className="shortcut-keycap">{recording ? '...' : key}</Kbd>
+                  <span>{recording ? '按字母键' : '点击修改'}</span>
+                </button>
+                <span className="selection-shortcut-status">
+                  {conflict ? (
+                    <span className="shortcut-conflict-badge" role="alert">
+                      与{otherRow.label}共用 {key}
+                    </span>
+                  ) : current ? (
+                    <span className="shortcut-current-badge">
+                      <Check size={13} />
+                      当前使用
+                    </span>
+                  ) : null}
+                </span>
+                <span className="selection-shortcut-reset-slot">
+                  {modified && !recording ? (
+                    <button
+                      className="selection-shortcut-reset"
+                      type="button"
+                      aria-label={`重置${row.label}为默认 ${defaultKey}`}
+                      onClick={() => resetSelectionShortcut(row.action)}
+                    >
+                      <RefreshCw size={13} />
+                      重置
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <p className={hasSelectionShortcutConflict ? 'shortcut-tips is-error' : 'shortcut-tips'}>
+          支持 A-Z 单字母。重复键位会阻止保存。
+        </p>
       </section>
     </div>
   );

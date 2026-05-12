@@ -33,7 +33,12 @@ import type {
   UserProfile,
   ReasoningEffort,
 } from '@yomitomo/shared';
-import { makeId, normalizeMessageSendShortcut, providerPresets } from '@yomitomo/shared';
+import {
+  makeId,
+  normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcuts,
+  providerPresets,
+} from '@yomitomo/shared';
 import { agentPersonalities } from '@yomitomo/shared';
 import { presetAgentAvatars } from './agent-avatars';
 import { migrations } from './db/migrations';
@@ -157,6 +162,7 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
     reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
     readingNoteProviderId: input.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(input.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(input.selectionActionShortcuts),
     saveArticleImages: Boolean(input.saveArticleImages),
     onboardingCompletedAt: input.onboardingCompletedAt || undefined,
   });
@@ -683,15 +689,18 @@ function upsertUser(database: StoreExecutor, user: UserProfile) {
 }
 
 function upsertSettings(database: StoreExecutor, settings: AppSettings) {
+  const existing = database.select().from(schema.appSettings).limit(1).get();
+  const merged = mergeSettingsForUpsert(settings, existing ? rowToSettings(existing) : undefined);
   const row = {
     id: 'default',
-    defaultProviderId: settings.defaultProviderId || null,
-    readingAssistantProviderId: settings.readingAssistantProviderId || null,
-    reviewAssistantProviderId: settings.reviewAssistantProviderId || null,
-    readingNoteProviderId: settings.readingNoteProviderId || null,
-    messageSendShortcut: normalizeMessageSendShortcut(settings.messageSendShortcut),
-    saveArticleImages: Boolean(settings.saveArticleImages),
-    onboardingCompletedAt: settings.onboardingCompletedAt || null,
+    defaultProviderId: merged.defaultProviderId || null,
+    readingAssistantProviderId: merged.readingAssistantProviderId || null,
+    reviewAssistantProviderId: merged.reviewAssistantProviderId || null,
+    readingNoteProviderId: merged.readingNoteProviderId || null,
+    messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
+    saveArticleImages: Boolean(merged.saveArticleImages),
+    onboardingCompletedAt: merged.onboardingCompletedAt || null,
     updatedAt: new Date().toISOString(),
   };
   database
@@ -702,6 +711,39 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
       set: row,
     })
     .run();
+}
+
+export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSettings): AppSettings {
+  return {
+    defaultProviderId: settingsFieldProvided(settings, 'defaultProviderId')
+      ? settings.defaultProviderId || undefined
+      : existing?.defaultProviderId || undefined,
+    readingAssistantProviderId: settingsFieldProvided(settings, 'readingAssistantProviderId')
+      ? settings.readingAssistantProviderId || undefined
+      : existing?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: settingsFieldProvided(settings, 'reviewAssistantProviderId')
+      ? settings.reviewAssistantProviderId || undefined
+      : existing?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: settingsFieldProvided(settings, 'readingNoteProviderId')
+      ? settings.readingNoteProviderId || undefined
+      : existing?.readingNoteProviderId || undefined,
+    messageSendShortcut: settingsFieldProvided(settings, 'messageSendShortcut')
+      ? normalizeMessageSendShortcut(settings.messageSendShortcut)
+      : normalizeMessageSendShortcut(existing?.messageSendShortcut),
+    selectionActionShortcuts: settingsFieldProvided(settings, 'selectionActionShortcuts')
+      ? normalizeSelectionActionShortcuts(settings.selectionActionShortcuts)
+      : normalizeSelectionActionShortcuts(existing?.selectionActionShortcuts),
+    saveArticleImages: settingsFieldProvided(settings, 'saveArticleImages')
+      ? Boolean(settings.saveArticleImages)
+      : Boolean(existing?.saveArticleImages),
+    onboardingCompletedAt: settingsFieldProvided(settings, 'onboardingCompletedAt')
+      ? settings.onboardingCompletedAt || undefined
+      : existing?.onboardingCompletedAt || undefined,
+  };
+}
+
+function settingsFieldProvided(settings: AppSettings, field: keyof AppSettings) {
+  return Object.prototype.hasOwnProperty.call(settings, field);
 }
 
 function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
@@ -816,6 +858,7 @@ function rowToSettings(row: typeof schema.appSettings.$inferSelect | undefined):
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: row?.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
   };
@@ -828,6 +871,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
     readingNoteProviderId: settings?.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };

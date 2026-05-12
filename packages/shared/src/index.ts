@@ -61,6 +61,45 @@ export function normalizeMessageSendShortcut(value: unknown): MessageSendShortcu
   return value === 'mod-enter' ? 'mod-enter' : defaultMessageSendShortcut;
 }
 
+export type SelectionActionShortcuts = {
+  copy: string;
+  annotate: string;
+};
+
+export const defaultSelectionActionShortcuts: SelectionActionShortcuts = {
+  copy: 'C',
+  annotate: 'A',
+};
+
+export function normalizeSelectionActionShortcutKey(value: unknown, fallback: string) {
+  const key = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  return /^[A-Z]$/.test(key) ? key : fallback;
+}
+
+export function normalizeSelectionActionShortcutDraft(value: unknown): SelectionActionShortcuts {
+  const shortcuts =
+    value && typeof value === 'object' ? (value as Partial<SelectionActionShortcuts>) : undefined;
+  return {
+    copy: normalizeSelectionActionShortcutKey(
+      shortcuts?.copy,
+      defaultSelectionActionShortcuts.copy,
+    ),
+    annotate: normalizeSelectionActionShortcutKey(
+      shortcuts?.annotate,
+      defaultSelectionActionShortcuts.annotate,
+    ),
+  };
+}
+
+export function selectionActionShortcutsConflict(shortcuts: SelectionActionShortcuts) {
+  return shortcuts.copy === shortcuts.annotate;
+}
+
+export function normalizeSelectionActionShortcuts(value: unknown): SelectionActionShortcuts {
+  const shortcuts = normalizeSelectionActionShortcutDraft(value);
+  return selectionActionShortcutsConflict(shortcuts) ? defaultSelectionActionShortcuts : shortcuts;
+}
+
 export type AgentPersonality = {
   id: string;
   kind: AgentKind;
@@ -579,6 +618,7 @@ export type AppSettings = {
   reviewAssistantProviderId?: string;
   readingNoteProviderId?: string;
   messageSendShortcut?: MessageSendShortcut;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   saveArticleImages?: boolean;
   onboardingCompletedAt?: string;
 };

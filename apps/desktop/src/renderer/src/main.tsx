@@ -9,6 +9,11 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import {
+  normalizeSelectionActionShortcutDraft,
+  normalizeSelectionActionShortcuts,
+  selectionActionShortcutsConflict,
+} from '@yomitomo/shared';
+import {
   defaultUser,
   emptyProvider,
   emptyStore,
@@ -104,11 +109,32 @@ function App() {
     () => Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
     [settingsDraft.saveArticleImages, store.settings.saveArticleImages],
   );
+  const draftSelectionActionShortcuts = useMemo(
+    () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
+    [settingsDraft.selectionActionShortcuts],
+  );
+  const savedSelectionActionShortcuts = useMemo(
+    () => normalizeSelectionActionShortcuts(store.settings.selectionActionShortcuts),
+    [store.settings.selectionActionShortcuts],
+  );
+  const shortcutSettingsHaveConflict = useMemo(
+    () => selectionActionShortcutsConflict(draftSelectionActionShortcuts),
+    [draftSelectionActionShortcuts],
+  );
   const shortcutSettingsHaveChanges = useMemo(
     () =>
       (settingsDraft.messageSendShortcut || 'enter') !==
-      (store.settings.messageSendShortcut || 'enter'),
-    [settingsDraft.messageSendShortcut, store.settings.messageSendShortcut],
+        (store.settings.messageSendShortcut || 'enter') ||
+      draftSelectionActionShortcuts.copy !== savedSelectionActionShortcuts.copy ||
+      draftSelectionActionShortcuts.annotate !== savedSelectionActionShortcuts.annotate,
+    [
+      draftSelectionActionShortcuts.annotate,
+      draftSelectionActionShortcuts.copy,
+      savedSelectionActionShortcuts.annotate,
+      savedSelectionActionShortcuts.copy,
+      settingsDraft.messageSendShortcut,
+      store.settings.messageSendShortcut,
+    ],
   );
   const providerRoutesHaveChanges = useMemo(
     () =>
@@ -139,7 +165,8 @@ function App() {
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
   const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
-  const canSaveShortcutSettings = shortcutSaveState !== 'saving' && shortcutSettingsHaveChanges;
+  const canSaveShortcutSettings =
+    shortcutSaveState !== 'saving' && shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict;
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
   async function refreshStore() {
@@ -444,6 +471,7 @@ function App() {
               agents={store.agents}
               articles={store.articles}
               messageSendShortcut={store.settings.messageSendShortcut}
+              selectionActionShortcuts={store.settings.selectionActionShortcuts}
               openArticleId={pendingOpenArticleId}
               userProfile={store.user}
               onDeleteArticle={deleteArticle}

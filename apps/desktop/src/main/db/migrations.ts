@@ -258,4 +258,13 @@ ALTER TABLE app_settings ADD COLUMN message_send_shortcut TEXT NOT NULL DEFAULT 
 ALTER TABLE articles ADD COLUMN focus_co_reading_plan TEXT;
 `,
   },
+  {
+    id: '0021_selection_action_shortcuts',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN selection_action_shortcuts TEXT;
+UPDATE app_settings
+SET selection_action_shortcuts = '{"copy":"C","annotate":"A"}'
+WHERE selection_action_shortcuts IS NULL;
+`,
+  },
 ];

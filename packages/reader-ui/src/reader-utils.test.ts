@@ -63,6 +63,14 @@ describe('selection action shortcuts', () => {
     expect(selectionActionShortcut({ key: 'A' })).toBe('annotate');
   });
 
+  it('matches configured copy and annotate keys', () => {
+    const shortcuts = { copy: 'X', annotate: 'B' };
+
+    expect(selectionActionShortcut({ key: 'x' }, shortcuts)).toBe('copy');
+    expect(selectionActionShortcut({ key: 'b' }, shortcuts)).toBe('annotate');
+    expect(selectionActionShortcut({ key: 'c' }, shortcuts)).toBe(null);
+  });
+
   it('ignores modifier chords and composing input', () => {
     expect(selectionActionShortcut({ key: 'c', metaKey: true })).toBe(null);
     expect(selectionActionShortcut({ key: 'a', ctrlKey: true })).toBe(null);

@@ -3,7 +3,7 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentAnnotateMenu, type ReaderReadingSection } from './reader-components';
+import { AgentAnnotateMenu, SelectionMenu, type ReaderReadingSection } from './reader-components';
 import type { FocusCoReadingPlan, PublicAgent } from '@yomitomo/shared';
 
 const now = '2026-05-12T08:00:00.000Z';
@@ -130,5 +130,21 @@ describe('AgentAnnotateMenu add agent menus', () => {
         addControl!.compareDocumentPosition(assignedAgent!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
     ).toBe(true);
+  });
+});
+
+describe('SelectionMenu', () => {
+  it('renders configured action shortcut keys', () => {
+    render(
+      <SelectionMenu
+        action={{ x: 10, y: 20 }}
+        shortcuts={{ copy: 'X', annotate: 'B' }}
+        onAnnotate={vi.fn()}
+        onCopy={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('X')).toBeTruthy();
+    expect(screen.getByText('B')).toBeTruthy();
   });
 });
