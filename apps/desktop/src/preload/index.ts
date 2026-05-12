@@ -100,6 +100,8 @@ const api = {
     ipcRenderer.invoke('article:import-url', url) as Promise<ArticleImportResult>,
   importEbookFile: (input: EbookImportFileInput) =>
     ipcRenderer.invoke('ebook:import-file', input) as Promise<ArticleImportResult>,
+  readEbookFile: (articleId: string) =>
+    ipcRenderer.invoke('ebook:read-file', articleId) as Promise<ArrayBuffer>,
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,

@@ -3460,6 +3460,18 @@
   opacity: 0.86;
 }
 
+.library-ebook-dropzone.is-imported {
+  border-color: hsl(111 33% 48% / 0.58);
+  background:
+    linear-gradient(135deg, hsl(111 36% 90% / 0.72), hsl(44 70% 98% / 0.9)), hsl(43 58% 96%);
+}
+
+.library-ebook-dropzone.is-error {
+  border-color: hsl(5 54% 48% / 0.5);
+  background:
+    linear-gradient(135deg, hsl(5 62% 94% / 0.72), hsl(44 70% 98% / 0.9)), hsl(43 58% 96%);
+}
+
 .library-ebook-dropzone input {
   position: absolute;
   width: 1px;
@@ -3482,8 +3494,24 @@
   box-shadow: 0 10px 24px hsl(31 34% 24% / 0.08);
 }
 
+.library-ebook-dropzone-icon.is-success {
+  border-color: hsl(111 33% 48% / 0.36);
+  background: hsl(111 39% 91%);
+  color: hsl(124 33% 25%);
+}
+
+.library-ebook-dropzone-icon.is-error {
+  border-color: hsl(5 54% 48% / 0.34);
+  background: hsl(5 68% 95%);
+  color: hsl(5 58% 38%);
+}
+
 .library-ebook-dropzone-icon .is-spinning {
   animation: reading-card-spin 900ms linear infinite;
+}
+
+.library-ebook-success-icon {
+  animation: ebook-success-pop 360ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .library-ebook-dropzone-copy {
@@ -3503,6 +3531,47 @@
   font-style: normal;
   font-weight: 760;
   line-height: 1.4;
+}
+
+.library-ebook-progress {
+  display: grid;
+  width: min(280px, 100%);
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.library-ebook-progress-track {
+  display: block;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(36 31% 72% / 0.26);
+}
+
+.library-ebook-progress-track span {
+  display: block;
+  width: var(--ebook-import-progress);
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(31 23% 20%);
+  transition: width 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.library-ebook-progress em {
+  color: hsl(34 18% 42%);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 840;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.library-ebook-dialog.is-imported .library-ebook-progress-track span {
+  background: hsl(124 33% 32%);
+}
+
+.library-ebook-dialog.is-error .library-ebook-progress-track span {
+  background: hsl(5 58% 42%);
 }
 
 .library-ebook-dialog > footer {
@@ -5486,6 +5555,26 @@
   font-variant-numeric: tabular-nums;
 }
 
+.ebook-reader-toc button[data-depth='2'] {
+  padding-left: 20px;
+}
+
+.ebook-reader-toc button[data-depth='3'] {
+  padding-left: 32px;
+}
+
+.ebook-reader-toc button[data-depth='4'] {
+  padding-left: 44px;
+}
+
+.ebook-reader-toc-empty {
+  margin: 10px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.5;
+}
+
 .ebook-reader-main {
   display: grid;
   min-width: 0;
@@ -5505,8 +5594,36 @@
 
 .ebook-page-control-actions {
   display: inline-flex;
+  min-width: 180px;
+  min-height: 34px;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  opacity: 1;
+  filter: blur(0);
+  transition-property: opacity, filter;
+  transition-duration: 180ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.ebook-page-control-actions.is-paginating {
+  pointer-events: none;
+  opacity: 0;
+  filter: blur(4px);
+}
+
+.ebook-location-label {
+  display: inline-flex;
+  min-width: 96px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: hsl(34 18% 42%);
+  font-size: 12px;
+  font-weight: 840;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .ebook-page-control-actions .ebook-icon-button {
@@ -5533,6 +5650,49 @@
 .ebook-page-stage:focus-visible {
   outline: 2px solid hsl(31 23% 20% / 0.36);
   outline-offset: 3px;
+}
+
+.ebook-foliate-frame {
+  width: min(100%, var(--ebook-content-width));
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid hsl(36 31% 72% / 0.5);
+  border-radius: 8px;
+  background: hsl(42 64% 98%);
+  box-shadow:
+    0 20px 58px hsl(31 34% 24% / 0.12),
+    inset 0 1px 0 hsl(42 80% 99% / 0.72);
+}
+
+.ebook-foliate-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ebook-foliate-measurer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  visibility: hidden;
+  width: min(100%, var(--ebook-content-width));
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ebook-reader-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: min(100%, var(--ebook-content-width));
+  place-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.5);
+  border-radius: 8px;
+  background: hsl(42 64% 98% / 0.94);
+  color: hsl(34 18% 42%);
+  font-size: 13px;
+  font-weight: 820;
 }
 
 .ebook-page {
@@ -5618,20 +5778,77 @@
 }
 
 .ebook-reader-progress {
+  position: relative;
+  display: flex;
+  align-items: center;
   justify-self: start;
   width: min(100%, var(--ebook-content-width));
+  height: 24px;
+}
+
+.ebook-progress-slider {
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  background: transparent;
+}
+
+.ebook-progress-slider:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.ebook-progress-slider::-webkit-slider-runnable-track {
   height: 5px;
-  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    hsl(31 23% 20%) 0 var(--ebook-progress-percent),
+    hsl(36 31% 72% / 0.28) var(--ebook-progress-percent) 100%
+  );
+}
+
+.ebook-progress-slider::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  border: 2px solid hsl(42 64% 98%);
+  border-radius: 999px;
+  appearance: none;
+  background: hsl(31 23% 20%);
+  box-shadow:
+    0 2px 8px hsl(31 34% 24% / 0.24),
+    0 0 0 1px hsl(31 23% 20% / 0.16);
+}
+
+.ebook-progress-slider:focus-visible {
+  outline: 2px solid hsl(31 23% 20% / 0.36);
+  outline-offset: 4px;
+}
+
+.ebook-progress-slider::-moz-range-track {
+  height: 5px;
   border-radius: 999px;
   background: hsl(36 31% 72% / 0.28);
 }
 
-.ebook-reader-progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
+.ebook-progress-slider::-moz-range-progress {
+  height: 5px;
+  border-radius: 999px;
   background: hsl(31 23% 20%);
-  transition: width 220ms ease;
+}
+
+.ebook-progress-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 2px solid hsl(42 64% 98%);
+  border-radius: 999px;
+  background: hsl(31 23% 20%);
+  box-shadow:
+    0 2px 8px hsl(31 34% 24% / 0.24),
+    0 0 0 1px hsl(31 23% 20% / 0.16);
 }
 
 @container (max-width: 1320px) {
@@ -7425,6 +7642,20 @@
 @keyframes reading-card-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes ebook-success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.25);
+    filter: blur(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
   }
 }
 
