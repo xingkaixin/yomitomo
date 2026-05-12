@@ -31,6 +31,7 @@ import {
   type AnnotationFilterState,
 } from './reader-utils';
 import {
+  AgentReadingDock,
   AgentAnnotateMenu,
   AnnotationCard,
   AnnotationConnection,
@@ -40,10 +41,10 @@ import {
   HighlightChoiceMenu,
   QuestionPanel,
   ReaderSettingsPanel,
-  ReadingCompletionBurst,
   SelectionMenu,
   VirtualCursor,
   type ActiveConnection,
+  type AgentDockItem,
   type HighlightChoiceAction,
   type ReaderSettings,
   type ReaderReadingSection,
@@ -106,6 +107,8 @@ export type ReaderAppViewProps = {
   activeConnection: ActiveConnection | null;
   activeId: string | null;
   agentAnnotateOpen: boolean;
+  agentDockCompleting: boolean;
+  agentDockItems: AgentDockItem[];
   agentTheaterBoxes: HighlightBox[];
   agents: PublicAgent[];
   annotatingAgents: string[];
@@ -205,6 +208,8 @@ export function ReaderAppView({
   activeConnection,
   activeId,
   agentAnnotateOpen,
+  agentDockCompleting,
+  agentDockItems,
   agentTheaterBoxes,
   agents,
   annotatingAgents,
@@ -907,7 +912,11 @@ export function ReaderAppView({
 
       {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}
 
-      {completionBurstKey > 0 ? <ReadingCompletionBurst key={completionBurstKey} /> : null}
+      <AgentReadingDock
+        completionBurstKey={completionBurstKey}
+        completing={agentDockCompleting}
+        items={agentDockItems}
+      />
 
       {virtualCursors.map((cursor) =>
         cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,

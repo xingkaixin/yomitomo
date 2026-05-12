@@ -96,6 +96,11 @@ export type VirtualCursorState = {
   agent?: PublicAgent;
 };
 
+export type AgentDockItem = {
+  agent: PublicAgent;
+  state: 'active' | 'done';
+};
+
 export type HighlightChoiceAction = {
   x: number;
   y: number;
@@ -429,6 +434,49 @@ export function ReadingCompletionBurst() {
           />
         ))}
       </div>
+    </div>
+  );
+}
+
+export function AgentReadingDock({
+  completionBurstKey,
+  completing,
+  items,
+}: {
+  completionBurstKey: number;
+  completing: boolean;
+  items: AgentDockItem[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      className={['reader-agent-dock', completing ? 'is-completing' : ''].filter(Boolean).join(' ')}
+      aria-label="助手共读状态"
+    >
+      <div className="reader-agent-dock-list">
+        {items.map((item, index) => {
+          const color = item.agent.annotationColor || cursorColorFromId(item.agent.id);
+          return (
+            <div
+              className={`reader-agent-dock-item is-${item.state}`}
+              key={item.agent.id}
+              style={
+                {
+                  '--agent-color': color,
+                  '--reader-dock-delay': `${index * 80}ms`,
+                } as React.CSSProperties
+              }
+              title={`${item.agent.nickname}${item.state === 'active' ? ' 正在共读' : ' 已完成'}`}
+            >
+              <AvatarBadge avatar={item.agent.avatar} fallback={item.agent.nickname.slice(0, 1)} />
+            </div>
+          );
+        })}
+      </div>
+      {completionBurstKey > 0 && completing ? (
+        <ReadingCompletionBurst key={completionBurstKey} />
+      ) : null}
     </div>
   );
 }

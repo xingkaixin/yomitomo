@@ -9,7 +9,7 @@ import {
   rangeHighlightBoxes,
   type HighlightBox,
 } from '@yomitomo/core';
-import type { VirtualCursorState } from './reader-components';
+import type { AgentDockItem, VirtualCursorState } from './reader-components';
 import { agentQueueKey, animateTheaterHighlight, sleep } from './reader-utils';
 
 type VirtualReadingSession = {
@@ -92,8 +92,13 @@ export function useAgentAnnotationQueue({
   const agentAnimationRunningRef = useRef(false);
   const virtualReadingSessionsRef = useRef(new Map<string, VirtualReadingSession>());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
+  const agentDockItemsRef = useRef<AgentDockItem[]>([]);
+  const agentDockClearTimerRef = useRef<number | null>(null);
+  const agentDockCompletingRef = useRef(false);
   const activeCarefulReadingIdsRef = useRef(new Set<string>());
   const carefulReadingHadFailureRef = useRef(false);
+  const [agentDockCompleting, setAgentDockCompleting] = useState(false);
+  const [agentDockItems, setAgentDockItems] = useState<AgentDockItem[]>([]);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [annotatingAgents, setAnnotatingAgents] = useState<string[]>([]);
   const [completionBurstKey, setCompletionBurstKey] = useState(0);
@@ -101,7 +106,63 @@ export function useAgentAnnotationQueue({
 
   useEffect(() => {
     setAnnotatingAgents((ids) => ids.filter((id) => agents.some((agent) => agent.id === id)));
+    updateAgentDockItems((items) =>
+      items.flatMap((item) => {
+        const agent = agents.find((candidate) => candidate.id === item.agent.id);
+        return agent ? [{ ...item, agent }] : [];
+      }),
+    );
   }, [agents]);
+
+  function clearAgentDockTimer() {
+    if (agentDockClearTimerRef.current === null) return;
+    window.clearTimeout(agentDockClearTimerRef.current);
+    agentDockClearTimerRef.current = null;
+  }
+
+  function updateAgentDockItems(update: (items: AgentDockItem[]) => AgentDockItem[]) {
+    const nextItems = update(agentDockItemsRef.current);
+    agentDockItemsRef.current = nextItems;
+    setAgentDockItems(nextItems);
+    return nextItems;
+  }
+
+  function activateAgentDock(agent: PublicAgent) {
+    clearAgentDockTimer();
+    agentDockCompletingRef.current = false;
+    setAgentDockCompleting(false);
+    updateAgentDockItems((items) => {
+      const existingIndex = items.findIndex((item) => item.agent.id === agent.id);
+      if (existingIndex === -1) return [...items, { agent, state: 'active' }];
+      return items.map((item, index) =>
+        index === existingIndex ? { agent, state: 'active' } : item,
+      );
+    });
+  }
+
+  function markAgentDockDone(agentId: string) {
+    updateAgentDockItems((items) =>
+      items.map((item) => (item.agent.id === agentId ? { ...item, state: 'done' } : item)),
+    );
+  }
+
+  function completeAgentDock(celebrate: boolean) {
+    const items = agentDockItemsRef.current;
+    if (items.length === 0 || agentDockCompletingRef.current) return;
+    agentDockCompletingRef.current = true;
+    setAgentDockCompleting(celebrate);
+    if (celebrate) setCompletionBurstKey((key) => key + 1);
+    clearAgentDockTimer();
+    agentDockClearTimerRef.current = window.setTimeout(
+      () => {
+        agentDockCompletingRef.current = false;
+        setAgentDockCompleting(false);
+        updateAgentDockItems(() => []);
+        agentDockClearTimerRef.current = null;
+      },
+      celebrate ? 1900 : 700,
+    );
+  }
 
   function enqueueAgentAnnotation(annotation: Annotation) {
     const key = agentQueueKey(annotation);
@@ -210,7 +271,10 @@ export function useAgentAnnotationQueue({
       sections,
       sectionIndex: 0,
     };
-    if (mode === 'careful') activeCarefulReadingIdsRef.current.add(agent.id);
+    if (mode === 'careful') {
+      activeCarefulReadingIdsRef.current.add(agent.id);
+      activateAgentDock(agent);
+    }
     virtualReadingSessionsRef.current.set(agent.id, session);
     tickVirtualReading(agent.id);
     session.timerId = window.setInterval(() => tickVirtualReading(agent.id), interval);
@@ -258,6 +322,7 @@ export function useAgentAnnotationQueue({
 
   function finishVirtualReading(agentId: string, suffix = '批注完成') {
     const session = virtualReadingSessionsRef.current.get(agentId);
+    if (session?.mode === 'careful') markAgentDockDone(agentId);
     if (session) {
       window.clearInterval(session.timerId);
       virtualReadingSessionsRef.current.delete(agentId);
@@ -299,7 +364,7 @@ export function useAgentAnnotationQueue({
     if (activeCarefulReadingIdsRef.current.size > 0) return;
     const shouldCelebrate = !carefulReadingHadFailureRef.current;
     carefulReadingHadFailureRef.current = false;
-    if (shouldCelebrate) setCompletionBurstKey((key) => key + 1);
+    completeAgentDock(shouldCelebrate);
   }
 
   function finishVirtualReadingIfIdle(agentId?: string) {
@@ -501,12 +566,19 @@ export function useAgentAnnotationQueue({
     }
     virtualReadingSessionsRef.current.clear();
     virtualCursorRef.current.clear();
+    clearAgentDockTimer();
+    agentDockItemsRef.current = [];
+    agentDockCompletingRef.current = false;
     activeCarefulReadingIdsRef.current.clear();
     carefulReadingHadFailureRef.current = false;
+    setAgentDockItems([]);
+    setAgentDockCompleting(false);
     setVirtualCursors([]);
   }
 
   return {
+    agentDockCompleting,
+    agentDockItems,
     agentTheaterBoxes,
     annotatingAgents,
     completionBurstKey,
