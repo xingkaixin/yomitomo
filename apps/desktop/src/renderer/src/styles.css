@@ -3578,22 +3578,14 @@
 }
 
 .library-card-main .article-book {
+  --book-cover-width: 88px;
+  --book-cover-height: 132px;
   width: 126px;
   height: 170px;
 }
 
 .library-card-main .article-book-cover {
-  width: 88px;
-  height: 132px;
   border-radius: 6px;
-}
-
-.library-card-main .article-book-cover strong {
-  font-size: 9.6px;
-}
-
-.library-card-main .article-book-cover em {
-  font-size: 5.2px;
 }
 
 .library-card-copy {
@@ -3867,13 +3859,10 @@
   }
 
   .library-card-main .article-book {
+    --book-cover-width: 78px;
+    --book-cover-height: 118px;
     width: 112px;
     height: 156px;
-  }
-
-  .library-card-main .article-book-cover {
-    width: 78px;
-    height: 118px;
   }
 }
 
@@ -3921,13 +3910,10 @@
   }
 
   .library-card-main .article-book {
+    --book-cover-width: 82px;
+    --book-cover-height: 122px;
     width: 118px;
     height: 158px;
-  }
-
-  .library-card-main .article-book-cover {
-    width: 82px;
-    height: 122px;
   }
 
   .library-home-footer,
@@ -6771,10 +6757,26 @@
 }
 
 .article-book {
-  --book-hue: 92;
-  --book-saturation: 38%;
-  --book-lightness: 48%;
-  --book-accent-hue: 132;
+  --book-cover-width: 50px;
+  --book-cover-height: 76px;
+  --book-from: #1a5c2a;
+  --book-to: #0d3518;
+  --book-text: #ffffff;
+  --book-accent: #2a8c42;
+  --book-line: rgb(255 255 255 / 0.25);
+  --book-line-faint: rgb(255 255 255 / 0.18);
+  --book-spine-gradient: linear-gradient(
+    180deg,
+    rgb(42 140 66 / 0.54) 0%,
+    rgb(42 140 66 / 0.13) 100%
+  );
+  --book-reflection: linear-gradient(180deg, rgb(255 255 255 / 0.06) 0%, transparent 100%);
+  --book-cover-shadow: 8px 8px 24px rgb(0 0 0 / 0.35), 2px 2px 8px rgb(0 0 0 / 0.2);
+  --book-title-scale: 0.09;
+  --book-author-scale: 0.046;
+  --book-title-letter-spacing: 0;
+  --book-author-letter-spacing: 0.06em;
+  --book-cover-font-family: Georgia, Palatino, serif;
   position: relative;
   display: grid;
   width: 74px;
@@ -6805,138 +6807,131 @@
 
 .article-book-cover {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
   overflow: hidden;
-  width: 50px;
-  height: 76px;
+  width: var(--book-cover-width);
+  height: var(--book-cover-height);
   border-radius: 5px;
-  background:
-    radial-gradient(circle at 78% 16%, hsl(0 0% 100% / 0.24) 0 10px, transparent 11px),
-    radial-gradient(circle at 72% 20%, hsl(var(--book-accent-hue) 42% 78% / 0.18), transparent 32%),
-    linear-gradient(
-      135deg,
-      hsl(var(--book-hue) var(--book-saturation) calc(var(--book-lightness) + 16%)),
-      hsl(var(--book-hue) var(--book-saturation) var(--book-lightness)) 58%,
-      hsl(var(--book-hue) var(--book-saturation) calc(var(--book-lightness) - 8%))
-    );
-  box-shadow:
-    inset 6px 0 8px hsl(0 0% 0% / 0.1),
-    inset -1px 0 0 hsl(0 0% 100% / 0.22),
-    inset 0 0 0 1px rgb(0 0 0 / 0.1),
-    0 9px 18px hsl(31 34% 24% / 0.16);
+  background: linear-gradient(160deg, var(--book-from) 0%, var(--book-to) 100%);
+  box-shadow: var(--book-cover-shadow);
+  color: var(--book-text);
+  font-family: var(--book-cover-font-family);
 }
 
-.article-book-cover::before {
+.article-book-cover-spine {
   position: absolute;
-  inset: 8px auto 8px 7px;
-  width: 1px;
-  border-radius: 999px;
-  background: hsl(0 0% 100% / 0.3);
-  box-shadow: 3px 0 7px hsl(0 0% 0% / 0.08);
-  content: '';
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: calc(var(--book-cover-width) * 0.045);
+  background: var(--book-spine-gradient);
 }
 
 .article-book-cover .article-book-cover-image {
   position: absolute;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.26;
+  opacity: 0.2;
   mix-blend-mode: soft-light;
 }
 
-.article-book-cover-pattern {
-  position: absolute;
-  inset: 0;
-  opacity: 0.24;
-}
-
-.article-book[data-pattern='0'] .article-book-cover-pattern {
-  background: repeating-linear-gradient(90deg, transparent 0 8px, hsl(0 0% 100% / 0.34) 8px 9px);
-}
-
-.article-book[data-pattern='1'] .article-book-cover-pattern {
-  background: radial-gradient(circle, hsl(0 0% 100% / 0.42) 0 1px, transparent 1px 8px);
-  background-size: 10px 10px;
-}
-
-.article-book[data-pattern='2'] .article-book-cover-pattern {
-  background: linear-gradient(
-    155deg,
-    transparent 0 36%,
-    hsl(var(--book-accent-hue) 46% 78% / 0.7) 36% 47%,
-    transparent 47%
-  );
-}
-
-.article-book[data-pattern='3'] .article-book-cover-pattern {
-  background:
-    linear-gradient(90deg, transparent 0 52%, hsl(0 0% 100% / 0.28) 52% 56%, transparent 56%),
-    linear-gradient(0deg, transparent 0 36%, hsl(0 0% 100% / 0.26) 36% 39%, transparent 39%);
-}
-
-.article-book[data-pattern='4'] .article-book-cover-pattern {
-  background:
-    radial-gradient(circle at 74% 18%, hsl(0 0% 100% / 0.52) 0 9px, transparent 10px),
-    radial-gradient(
-      circle at 20% 82%,
-      hsl(var(--book-accent-hue) 42% 74% / 0.64) 0 12px,
-      transparent 13px
-    );
-}
-
-.article-book[data-pattern='5'] .article-book-cover-pattern {
-  background: repeating-linear-gradient(-24deg, transparent 0 9px, hsl(0 0% 100% / 0.26) 9px 11px);
-}
-
-.article-book-cover-sheen {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
+.article-book-cover-top-rule,
+.article-book-cover-bottom-rule {
+  position: relative;
+  z-index: 2;
   display: block;
-  background:
-    linear-gradient(106deg, hsl(0 0% 100% / 0.26), transparent 25%),
-    linear-gradient(180deg, hsl(0 0% 100% / 0.14), transparent 44%);
-  pointer-events: none;
+  height: 1px;
+  flex: 0 0 auto;
+  margin-right: calc(var(--book-cover-width) * 0.08);
+  margin-left: calc(var(--book-cover-width) * 0.17);
+}
+
+.article-book-cover-top-rule {
+  margin-top: calc(var(--book-cover-width) * 0.12);
+  background: var(--book-line);
+}
+
+.article-book-cover-bottom-rule {
+  background: var(--book-line-faint);
 }
 
 .article-book-cover-copy {
-  position: absolute;
-  top: 7px;
-  right: 5px;
-  bottom: 17px;
-  left: 6px;
+  position: relative;
   z-index: 2;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
   overflow: hidden;
+  padding: calc(var(--book-cover-width) * 0.07) calc(var(--book-cover-width) * 0.08)
+    calc(var(--book-cover-width) * 0.05) calc(var(--book-cover-width) * 0.17);
 }
 
 .article-book-cover strong {
-  display: grid;
-  gap: 0;
-  color: white;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 6.2px;
+  display: block;
+  max-height: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: max(4.8px, calc(var(--book-cover-width) * var(--book-title-scale)));
   font-weight: 700;
-  line-height: 1.08;
-  text-shadow: 0 1px 2px hsl(0 0% 0% / 0.28);
+  letter-spacing: var(--book-title-letter-spacing);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 8px rgb(0 0 0 / 0.22);
+  word-break: break-word;
+}
+
+.article-book-cover-author {
+  position: relative;
+  z-index: 2;
+  display: block;
+  max-height: calc(var(--book-cover-height) * 0.2);
+  overflow: hidden;
+  padding: calc(var(--book-cover-width) * 0.06) calc(var(--book-cover-width) * 0.08)
+    calc(var(--book-cover-width) * 0.1) calc(var(--book-cover-width) * 0.17);
 }
 
 .article-book-cover em {
-  position: absolute;
-  right: 6px;
-  bottom: 7px;
-  left: 6px;
-  z-index: 2;
-  overflow: hidden;
-  color: hsl(0 0% 100% / 0.78);
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  font-size: 3.8px;
+  display: block;
+  color: color-mix(in srgb, var(--book-text) 68%, transparent);
+  font-size: max(4px, calc(var(--book-cover-width) * var(--book-author-scale)));
   font-style: normal;
-  font-weight: 850;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 400;
+  letter-spacing: var(--book-author-letter-spacing);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.article-book-cover-texture,
+.article-book-cover-reflection {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.article-book-cover-texture {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    color-mix(in srgb, var(--book-text) 1.2%, transparent) 3px,
+    color-mix(in srgb, var(--book-text) 1.2%, transparent) 6px
+  );
+}
+
+.article-book-cover-reflection {
+  bottom: auto;
+  height: 40%;
+  background: var(--book-reflection);
 }
 
 .library-item-delete {
