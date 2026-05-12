@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
 import {
@@ -7,7 +7,12 @@ import {
   extractJsonObjects,
   parseAgentMentionInstructions,
   parseFocusCoReadingRouteResult,
+  runAgentAnnotate,
 } from './index';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('extractJsonObjects', () => {
   it('extracts pretty-printed objects from a stream buffer', () => {
@@ -241,5 +246,63 @@ describe('agent message prompts', () => {
         },
       ],
     });
+  });
+});
+
+describe('agent annotations', () => {
+  const provider: LlmProvider = {
+    id: 'provider_1',
+    name: 'Provider',
+    type: 'openai-chat',
+    baseUrl: 'https://example.test',
+    apiKey: 'key',
+    modelName: 'model',
+    createdAt: '2026-05-07T00:00:00.000Z',
+    updatedAt: '2026-05-07T00:00:00.000Z',
+  };
+  const agent: Agent = {
+    id: 'agent_lin',
+    kind: 'annotation',
+    providerId: 'provider_1',
+    enabled: true,
+    nickname: '林知微',
+    username: '林知微',
+    avatar: '',
+    annotationColor: '#6fa48f',
+    annotationDensity: 'medium',
+    temperature: 0.35,
+    soul: readingPartnerSoul,
+    createdAt: '2026-05-07T00:00:00.000Z',
+    updatedAt: '2026-05-07T00:00:00.000Z',
+  };
+
+  it('caps short article output for a single assistant', async () => {
+    const content = JSON.stringify([
+      { exact: '第一句很短', type: 'key_point', comment: '一' },
+      { exact: '第二句也短', type: 'key_point', comment: '二' },
+      { exact: '第三句继续短', type: 'key_point', comment: '三' },
+    ]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+
+    const annotations = await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      article: {
+        title: '短文',
+        url: 'https://example.test/article',
+        text: '第一句很短。第二句也短。第三句继续短。',
+      },
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    expect(requestBody.messages[1]?.content).toContain('最多 1 条');
+    expect(annotations).toHaveLength(1);
+    expect(annotations[0]?.anchor.exact).toBe('第一句很短');
   });
 });

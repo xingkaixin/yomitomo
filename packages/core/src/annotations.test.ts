@@ -3,6 +3,7 @@ import type { Agent, Annotation, Comment, PublicAgent, UserProfile } from '@yomi
 import {
   annotationColor,
   annotationDensityInstruction,
+  annotationDensityMax,
   annotationPersona,
   annotationPrimaryComment,
   annotationThreadComments,
@@ -350,8 +351,9 @@ describe('annotation core', () => {
 
   it('normalizes public labels and density instructions', () => {
     expect(annotationTypeLabel('assumption')).toBe('前提漏洞');
-    expect(annotationDensityInstruction('low')).toContain('2-4 条');
-    expect(annotationDensityInstruction('medium')).toContain('4-7 条');
-    expect(annotationDensityInstruction('high')).toContain('7-12 条');
+    expect(annotationDensityInstruction('low', '短文')).toContain('最多 1 条');
+    expect(annotationDensityInstruction('medium', '短文')).toContain('最多 1 条');
+    expect(annotationDensityInstruction('high', '短文')).toContain('最多 2 条');
+    expect(annotationDensityMax('medium', '长文'.repeat(1200))).toBe(5);
   });
 });
