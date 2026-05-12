@@ -91,6 +91,17 @@ function HighlightDots({ colors }: { colors: string[] }) {
   );
 }
 
+function ReaderEdgeBlur({ position }: { position: 'top' | 'bottom' }) {
+  return (
+    <div className={`reader-edge-blur is-${position}`} aria-hidden="true">
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
+
 export type ReaderAppViewProps = {
   activeConnection: ActiveConnection | null;
   activeId: string | null;
@@ -746,136 +757,140 @@ export function ReaderAppView({
           </div>
         </aside>
 
-        <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
-          <div className="reader-canvas" ref={canvasRef}>
-            <article className="reader-article" ref={articleRef}>
-              <div
-                className="reader-article-body"
-                dangerouslySetInnerHTML={{ __html: extracted.content }}
-              />
-            </article>
-            <div className="reader-highlight-layer">
-              {highlightSegments.map((segment) => {
-                const dimmed =
-                  filterActive &&
-                  segment.annotationIds.every((id) => !visibleAnnotationIds.has(id));
-                const active = !dimmed && segment.annotationIds.includes(activeId || '');
-                const clickableAnnotationIds = segment.annotationIds.filter((id) =>
-                  visibleAnnotationIds.has(id),
-                );
-                const annotationId = clickableAnnotationIds[0] || segment.annotationIds[0] || '';
-                const segmentStyle = {
-                  ...highlightSegmentStyle(segment, active),
-                  ...(dimmed ? { '--highlight-opacity': 0.42 } : {}),
-                } as React.CSSProperties;
-                return (
-                  <button
-                    aria-label={highlightLabel(annotationId)}
-                    aria-disabled={dimmed || undefined}
-                    className={[
-                      'reader-highlight',
-                      active ? 'is-active' : '',
-                      dimmed ? 'is-filter-dimmed' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    key={`highlight-${segment.id}`}
-                    style={segmentStyle}
-                    tabIndex={dimmed ? -1 : undefined}
-                    type="button"
-                    onClick={
-                      dimmed
-                        ? undefined
-                        : (event) => onHighlightClick(annotationId, event, clickableAnnotationIds)
-                    }
+        <div className="reader-surface-frame">
+          <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
+            <div className="reader-canvas" ref={canvasRef}>
+              <article className="reader-article" ref={articleRef}>
+                <div
+                  className="reader-article-body"
+                  dangerouslySetInnerHTML={{ __html: extracted.content }}
+                />
+              </article>
+              <div className="reader-highlight-layer">
+                {highlightSegments.map((segment) => {
+                  const dimmed =
+                    filterActive &&
+                    segment.annotationIds.every((id) => !visibleAnnotationIds.has(id));
+                  const active = !dimmed && segment.annotationIds.includes(activeId || '');
+                  const clickableAnnotationIds = segment.annotationIds.filter((id) =>
+                    visibleAnnotationIds.has(id),
+                  );
+                  const annotationId = clickableAnnotationIds[0] || segment.annotationIds[0] || '';
+                  const segmentStyle = {
+                    ...highlightSegmentStyle(segment, active),
+                    ...(dimmed ? { '--highlight-opacity': 0.42 } : {}),
+                  } as React.CSSProperties;
+                  return (
+                    <button
+                      aria-label={highlightLabel(annotationId)}
+                      aria-disabled={dimmed || undefined}
+                      className={[
+                        'reader-highlight',
+                        active ? 'is-active' : '',
+                        dimmed ? 'is-filter-dimmed' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      key={`highlight-${segment.id}`}
+                      style={segmentStyle}
+                      tabIndex={dimmed ? -1 : undefined}
+                      type="button"
+                      onClick={
+                        dimmed
+                          ? undefined
+                          : (event) => onHighlightClick(annotationId, event, clickableAnnotationIds)
+                      }
+                    >
+                      <HighlightDots colors={segment.colors} />
+                    </button>
+                  );
+                })}
+                {temporarySegments.map((segment) => (
+                  <div
+                    className="reader-highlight is-temporary"
+                    key={`temporary-${segment.id}`}
+                    style={highlightSegmentStyle(segment, false) as React.CSSProperties}
                   >
                     <HighlightDots colors={segment.colors} />
-                  </button>
-                );
-              })}
-              {temporarySegments.map((segment) => (
-                <div
-                  className="reader-highlight is-temporary"
-                  key={`temporary-${segment.id}`}
-                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
-                >
-                  <HighlightDots colors={segment.colors} />
-                </div>
-              ))}
-              {agentTheaterSegments.map((segment) => (
-                <div
-                  className="reader-highlight is-agent-theater"
-                  key={`agent-theater-${segment.id}`}
-                  style={highlightSegmentStyle(segment, false) as React.CSSProperties}
-                >
-                  <HighlightDots colors={segment.colors} />
-                </div>
-              ))}
-            </div>
-            <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
-              {annotations.length === 0 ? <EmptyNotes /> : null}
-              {annotations.length > 0 && visibleAnnotations.length === 0 ? (
-                <div className="reader-empty">
-                  <strong>没有匹配的批注</strong>
-                  <p>当前筛选项下没有批注。</p>
-                </div>
+                  </div>
+                ))}
+                {agentTheaterSegments.map((segment) => (
+                  <div
+                    className="reader-highlight is-agent-theater"
+                    key={`agent-theater-${segment.id}`}
+                    style={highlightSegmentStyle(segment, false) as React.CSSProperties}
+                  >
+                    <HighlightDots colors={segment.colors} />
+                  </div>
+                ))}
+              </div>
+              <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
+                {annotations.length === 0 ? <EmptyNotes /> : null}
+                {annotations.length > 0 && visibleAnnotations.length === 0 ? (
+                  <div className="reader-empty">
+                    <strong>没有匹配的批注</strong>
+                    <p>当前筛选项下没有批注。</p>
+                  </div>
+                ) : null}
+                {annotationRailItems.map(
+                  ({ annotation, isStackFront, stackCount, stackIndex, style }) => (
+                    <AnnotationCard
+                      active={annotation.id === activeAnnotation?.id}
+                      agents={agents}
+                      annotation={annotation}
+                      exiting={exitingAnnotationIds.has(annotation.id)}
+                      isStackFront={isStackFront}
+                      messageSendShortcut={messageSendShortcut}
+                      key={annotation.id}
+                      noteRef={noteRefForAnnotation(annotation.id)}
+                      shortcutModifier={shortcutModifier}
+                      stackCount={stackCount}
+                      stackIndex={stackIndex}
+                      commentsCloseKey={commentsCloseKey}
+                      replyRequestKey={
+                        replyRequest?.annotationId === annotation.id ? replyRequest.key : undefined
+                      }
+                      style={style}
+                      userProfile={userProfile}
+                      onAddComment={onAddComment}
+                      onDelete={onDeleteAnnotation}
+                      onFocus={onScrollToHighlight}
+                    />
+                  ),
+                )}
+              </aside>
+              {selectionAction && !composer ? (
+                <SelectionMenu
+                  action={selectionAction}
+                  onAnnotate={() => onOpenComposer(selectionAction)}
+                  onCopy={() => onCopySelection(selectionAction)}
+                />
               ) : null}
-              {annotationRailItems.map(
-                ({ annotation, isStackFront, stackCount, stackIndex, style }) => (
-                  <AnnotationCard
-                    active={annotation.id === activeAnnotation?.id}
-                    agents={agents}
-                    annotation={annotation}
-                    exiting={exitingAnnotationIds.has(annotation.id)}
-                    isStackFront={isStackFront}
-                    messageSendShortcut={messageSendShortcut}
-                    key={annotation.id}
-                    noteRef={noteRefForAnnotation(annotation.id)}
-                    shortcutModifier={shortcutModifier}
-                    stackCount={stackCount}
-                    stackIndex={stackIndex}
-                    commentsCloseKey={commentsCloseKey}
-                    replyRequestKey={
-                      replyRequest?.annotationId === annotation.id ? replyRequest.key : undefined
-                    }
-                    style={style}
-                    userProfile={userProfile}
-                    onAddComment={onAddComment}
-                    onDelete={onDeleteAnnotation}
-                    onFocus={onScrollToHighlight}
-                  />
-                ),
-              )}
-            </aside>
-            {selectionAction && !composer ? (
-              <SelectionMenu
-                action={selectionAction}
-                onAnnotate={() => onOpenComposer(selectionAction)}
-                onCopy={() => onCopySelection(selectionAction)}
-              />
-            ) : null}
-            {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
-              <HighlightChoiceMenu
-                action={highlightChoice}
-                agents={agents}
-                annotations={highlightChoiceAnnotations}
-                userProfile={userProfile}
-                onCancel={onCloseHighlightChoice}
-                onSelect={onFocusAnnotation}
-              />
-            ) : null}
-            {composer ? (
-              <Composer
-                agents={agents}
-                composer={composer}
-                messageSendShortcut={messageSendShortcut}
-                shortcutModifier={shortcutModifier}
-                onCancel={onCancelComposer}
-                onSave={onCreateAnnotation}
-              />
-            ) : null}
-          </div>
-        </section>
+              {highlightChoice && highlightChoiceAnnotations.length > 1 ? (
+                <HighlightChoiceMenu
+                  action={highlightChoice}
+                  agents={agents}
+                  annotations={highlightChoiceAnnotations}
+                  userProfile={userProfile}
+                  onCancel={onCloseHighlightChoice}
+                  onSelect={onFocusAnnotation}
+                />
+              ) : null}
+              {composer ? (
+                <Composer
+                  agents={agents}
+                  composer={composer}
+                  messageSendShortcut={messageSendShortcut}
+                  shortcutModifier={shortcutModifier}
+                  onCancel={onCancelComposer}
+                  onSave={onCreateAnnotation}
+                />
+              ) : null}
+            </div>
+          </section>
+          <ReaderEdgeBlur position="top" />
+          <ReaderEdgeBlur position="bottom" />
+        </div>
 
         <aside className="reader-question-drawer">
           <QuestionPanel
