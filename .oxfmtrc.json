@@ -18,6 +18,7 @@
     "**/out/**",
     "**/build/**",
     "**/coverage/**",
+    "**/vendor/foliate-js/**",
     "AGENTS.md",
     "pnpm-workspace.yaml",
     "public/scripts/**"

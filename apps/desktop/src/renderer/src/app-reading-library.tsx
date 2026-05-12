@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   BookText,
   BookOpen,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -117,17 +118,78 @@ type ArticleImportResult = {
   status: 'imported' | 'duplicate';
   article: ArticleRecord;
 };
+type EbookImportProgressCallback = (progress: number) => void;
 type PromptArticle = {
   title: string;
   url: string;
   text: string;
 };
-type EbookPage = {
-  id: string;
-  chapterIndex: number;
-  html: string;
-};
 type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
+
+type FoliateTocSourceItem = {
+  label?: unknown;
+  href?: string;
+  subitems?: FoliateTocSourceItem[];
+};
+
+type FoliateTocItem = {
+  label: string;
+  href: string;
+  depth: number;
+};
+
+type FoliateSectionSource = {
+  linear?: string;
+};
+
+type FoliatePageInfo = {
+  sectionIndex: number;
+  pageIndex: number;
+  pageCount: number;
+};
+
+type FoliateContent = {
+  doc?: Document;
+};
+
+type FoliateRelocateDetail = {
+  fraction?: number;
+  location?: {
+    current?: number;
+    total?: number;
+  };
+  section?: {
+    current?: number;
+  };
+  tocItem?: {
+    label?: unknown;
+    href?: string;
+  };
+};
+
+type FoliateViewElement = HTMLElement & {
+  book?: {
+    toc?: FoliateTocSourceItem[];
+    dir?: string;
+    sections?: FoliateSectionSource[];
+  };
+  renderer?:
+    | (HTMLElement & {
+        getContents?: () => FoliateContent[];
+        setStyles?: (styles: string | string[]) => void;
+      })
+    | null;
+  close?: () => void;
+  getPageInfo?: () => FoliatePageInfo | null;
+  getSectionFractions?: () => number[];
+  goLeft: () => Promise<void>;
+  goRight: () => Promise<void>;
+  goTo: (target: string | number) => Promise<unknown>;
+  goToFraction: (fraction: number) => Promise<void>;
+  next: () => Promise<void>;
+  open: (file: File | Blob | string) => Promise<void>;
+  prev: () => Promise<void>;
+};
 
 const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
   { value: 'all', label: '全部' },
@@ -261,7 +323,10 @@ export function ReadingLibrary({
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
-  onImportEbookFile: (file: File) => Promise<ArticleImportResult>;
+  onImportEbookFile: (
+    file: File,
+    onProgress?: EbookImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onRefresh: () => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
@@ -488,7 +553,10 @@ function LibraryHome({
   sortedArticles: ArticleRecord[];
   stats: { annotations: number; comments: number };
   onDeleteArticle: (articleId: string) => Promise<void>;
-  onImportEbookFile: (file: File) => Promise<ArticleImportResult>;
+  onImportEbookFile: (
+    file: File,
+    onProgress?: EbookImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
   onRefresh: () => void;
@@ -503,8 +571,10 @@ function LibraryHome({
   const [ebookImportState, setEbookImportState] = useState<ArticleImportState>('idle');
   const [ebookImportMessage, setEbookImportMessage] = useState('');
   const [ebookImportArticle, setEbookImportArticle] = useState<ArticleRecord | null>(null);
+  const [ebookImportProgress, setEbookImportProgress] = useState(0);
   const [ebookDragging, setEbookDragging] = useState(false);
   const ebookInputRef = useRef<HTMLInputElement | null>(null);
+  const ebookImportCloseTimerRef = useRef<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchQuery, setSearchQuery] = useState('');
@@ -541,6 +611,26 @@ function LibraryHome({
     setPage(1);
   }, [activeFilter, activeSort, pageSize, searchQuery]);
 
+  useEffect(
+    () => () => {
+      clearEbookImportCloseTimer();
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (ebookImportState !== 'submitting') return;
+
+    const timer = window.setInterval(() => {
+      setEbookImportProgress((current) => {
+        if (current >= 94) return current;
+        return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
+      });
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [ebookImportState]);
+
   async function submitImport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const url = importUrl.trim();
@@ -575,16 +665,19 @@ function LibraryHome({
 
   async function importEbook(file: File | undefined) {
     if (!file) return;
+    clearEbookImportCloseTimer();
     if (!file.name.toLowerCase().endsWith('.epub')) {
       setEbookImportState('error');
       setEbookImportMessage('请选择 EPUB 文件');
       setEbookImportArticle(null);
+      setEbookImportProgress(0);
       return;
     }
     if (file.size > MAX_EBOOK_IMPORT_BYTES) {
       setEbookImportState('error');
       setEbookImportMessage('EPUB 文件不能超过 80MB');
       setEbookImportArticle(null);
+      setEbookImportProgress(0);
       return;
     }
 
@@ -592,23 +685,40 @@ function LibraryHome({
       setEbookImportState('submitting');
       setEbookImportMessage(`正在解析 ${file.name}`);
       setEbookImportArticle(null);
-      const result = await onImportEbookFile(file);
+      setEbookImportProgress(4);
+      const result = await onImportEbookFile(file, (nextProgress) => {
+        setEbookImportProgress(clampNumber(nextProgress, 0, 100, 4));
+      });
       setEbookImportArticle(result.article);
       if (ebookInputRef.current) ebookInputRef.current.value = '';
       if (result.status === 'duplicate') {
         setEbookImportState('duplicate');
         setEbookImportMessage('这本电子书已在阅读库');
+        setEbookImportProgress(100);
         return;
       }
 
+      setEbookImportProgress(100);
       setEbookImportState('imported');
       setEbookImportMessage('已添加到阅读库');
+      ebookImportCloseTimerRef.current = window.setTimeout(() => {
+        ebookImportCloseTimerRef.current = null;
+        setEbookImportOpen(false);
+        setEbookDragging(false);
+      }, 850);
     } catch (error) {
       setEbookImportState('error');
       setEbookImportMessage(error instanceof Error ? error.message : '添加电子书失败');
       setEbookImportArticle(null);
+      setEbookImportProgress(0);
       if (ebookInputRef.current) ebookInputRef.current.value = '';
     }
+  }
+
+  function clearEbookImportCloseTimer() {
+    if (ebookImportCloseTimerRef.current === null) return;
+    window.clearTimeout(ebookImportCloseTimerRef.current);
+    ebookImportCloseTimerRef.current = null;
   }
 
   function openImportPanel() {
@@ -621,20 +731,25 @@ function LibraryHome({
   }
 
   function openEbookImportDialog() {
+    clearEbookImportCloseTimer();
     setAddMenuOpen(false);
     setImportOpen(false);
     setEbookImportOpen(true);
     setEbookImportState('idle');
     setEbookImportMessage('');
     setEbookImportArticle(null);
+    setEbookImportProgress(0);
     setEbookDragging(false);
   }
 
   function closeEbookImportDialog() {
     if (ebookImportState === 'submitting') return;
+    clearEbookImportCloseTimer();
     setEbookImportOpen(false);
     setEbookDragging(false);
   }
+
+  const ebookImportProgressPercent = Math.round(ebookImportProgress);
 
   return (
     <section className="library-home">
@@ -771,6 +886,8 @@ function LibraryHome({
                 'library-ebook-dropzone',
                 ebookDragging ? 'is-dragging' : '',
                 ebookImportState === 'submitting' ? 'is-submitting' : '',
+                ebookImportState === 'imported' ? 'is-imported' : '',
+                ebookImportState === 'error' ? 'is-error' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -798,9 +915,21 @@ function LibraryHome({
                 type="file"
                 onChange={(event) => void importEbook(event.target.files?.[0])}
               />
-              <span className="library-ebook-dropzone-icon">
+              <span
+                className={[
+                  'library-ebook-dropzone-icon',
+                  ebookImportState === 'imported' ? 'is-success' : '',
+                  ebookImportState === 'error' ? 'is-error' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
                 {ebookImportState === 'submitting' ? (
                   <LoaderCircle className="is-spinning" size={22} />
+                ) : ebookImportState === 'imported' ? (
+                  <Check className="library-ebook-success-icon" size={24} />
+                ) : ebookImportState === 'error' ? (
+                  <X size={24} />
                 ) : ebookDragging ? (
                   <FileUp size={24} />
                 ) : (
@@ -808,9 +937,35 @@ function LibraryHome({
                 )}
               </span>
               <span className="library-ebook-dropzone-copy">
-                <strong>{ebookDragging ? '松开开始解析' : '拖入 EPUB，或点击选择'}</strong>
+                <strong>
+                  {ebookImportState === 'imported'
+                    ? '导入完成'
+                    : ebookDragging
+                      ? '松开开始解析'
+                      : '拖入 EPUB，或点击选择'}
+                </strong>
                 <em>单次导入一本书 · EPUB · 最高 80MB</em>
               </span>
+              {ebookImportState === 'idle' ? null : (
+                <span
+                  className="library-ebook-progress"
+                  role="progressbar"
+                  aria-label="电子书导入进度"
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={ebookImportProgressPercent}
+                  style={
+                    {
+                      '--ebook-import-progress': `${ebookImportProgressPercent}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="library-ebook-progress-track">
+                    <span />
+                  </span>
+                  <em>{ebookImportProgressPercent}%</em>
+                </span>
+              )}
             </label>
             <footer>
               <span>{ebookImportMessage || '解析完成后会提取标题、作者、封面和章节正文。'}</span>
@@ -1011,9 +1166,10 @@ function ArticleLibraryCard({
     (count, annotation) => count + annotationThreadComments(annotation).length,
     0,
   );
+  const isEbook = isEbookArticle(article);
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
-  const siteIconUrl = articleSiteIconUrl(article);
+  const siteIconUrl = isEbook ? '' : articleSiteIconUrl(article);
   const authorLabel =
     article.byline ||
     article.siteName ||
@@ -1142,17 +1298,19 @@ function ArticleLibraryCard({
             </div>
             <h3 title={article.title}>{article.title}</h3>
             <p className="library-card-author">
-              <span className="library-site-icon-slot" aria-hidden="true">
-                {siteIconUrl && !siteIconFailed ? (
-                  <img
-                    alt=""
-                    className="library-site-icon"
-                    loading="lazy"
-                    src={siteIconUrl}
-                    onError={() => setSiteIconFailed(true)}
-                  />
-                ) : null}
-              </span>
+              {isEbook ? null : (
+                <span className="library-site-icon-slot" aria-hidden="true">
+                  {siteIconUrl && !siteIconFailed ? (
+                    <img
+                      alt=""
+                      className="library-site-icon"
+                      loading="lazy"
+                      src={siteIconUrl}
+                      onError={() => setSiteIconFailed(true)}
+                    />
+                  ) : null}
+                </span>
+              )}
               <span>{authorLabel}</span>
             </p>
             <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
@@ -2602,35 +2760,28 @@ function EbookBookcase({
     progress: ArticleReadingProgress,
   ) => Promise<void> | void;
 }) {
-  const chapters = article.ebook.chapters;
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const pageFrameRef = useRef<HTMLDivElement | null>(null);
-  const measureRef = useRef<HTMLDivElement | null>(null);
-  const restoredProgressArticleIdRef = useRef<string | null>(null);
+  const viewHostRef = useRef<HTMLDivElement | null>(null);
+  const measureHostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<FoliateViewElement | null>(null);
+  const ebookFileRef = useRef<File | null>(null);
   const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
-  const pagesRef = useRef<EbookPage[]>([]);
-  const chapterPagesRef = useRef<number[]>([]);
-  const chaptersRef = useRef(chapters);
-  const readingProgressRef = useRef<ArticleReadingProgress | undefined>(article.readingProgress);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageInput, setPageInput] = useState('1');
-  const [pages, setPages] = useState<EbookPage[]>([]);
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
-  const pageCount = Math.max(1, pages.length);
-  const chapterPages = useMemo(() => ebookChapterStartPages(chapters, pages), [chapters, pages]);
-  const currentChapterIndex = useMemo(
-    () => pages[Math.min(pageIndex, pages.length - 1)]?.chapterIndex || 0,
-    [pageIndex, pages],
-  );
-  const currentPage = pages[Math.min(pageIndex, pages.length - 1)];
-  pagesRef.current = pages;
-  chapterPagesRef.current = chapterPages;
-  chaptersRef.current = chapters;
-  readingProgressRef.current = article.readingProgress;
+  const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
+  const [tocItems, setTocItems] = useState<FoliateTocItem[]>([]);
+  const [sectionFractions, setSectionFractions] = useState<number[]>([]);
+  const [activeTocHref, setActiveTocHref] = useState('');
+  const [pageInfo, setPageInfo] = useState<FoliatePageInfo | null>(null);
+  const [sectionPageCounts, setSectionPageCounts] = useState<Array<number | null>>([]);
+  const [paginationLayoutKey, setPaginationLayoutKey] = useState('');
+  const [progress, setProgress] = useState(() => article.readingProgress?.progress ?? 0);
+  const [readerState, setReaderState] = useState<{
+    status: 'loading' | 'ready' | 'error';
+    message: string;
+  }>({ status: 'loading', message: '正在打开 EPUB。' });
 
   useEffect(() => {
     onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
@@ -2639,94 +2790,227 @@ function EbookBookcase({
   useLayoutEffect(() => {
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
-    restoredProgressArticleIdRef.current = null;
+    setTocItems([]);
+    setSectionFractions([]);
+    setActiveTocHref('');
+    setPageInfo(null);
+    setSectionPageCounts([]);
+    setPaginationLayoutKey('');
+    setProgress(article.readingProgress?.progress ?? 0);
+    setReaderState({ status: 'loading', message: '正在打开 EPUB。' });
   }, [article.id]);
 
   useEffect(() => {
-    setPageInput(String(pageIndex + 1));
-  }, [pageIndex]);
+    readerSettingsRef.current = readerSettings;
+    configureFoliateView(viewRef.current, readerSettings);
+  }, [readerSettings]);
 
-  useLayoutEffect(() => {
-    const pageFrame = pageFrameRef.current;
-    const measureElement = measureRef.current;
-    if (!pageFrame || !measureElement) return;
+  useEffect(() => {
+    const host = viewHostRef.current;
+    if (!host) return;
 
-    let frame = 0;
-    const repaginate = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const pageMetrics = ebookPageMetrics(pageFrame);
-        if (!pageMetrics) return;
-        const activeChapters = chaptersRef.current;
-        const nextPages = paginateEbookChapters(activeChapters, measureElement, pageMetrics);
-        const nextChapterPages = ebookChapterStartPages(activeChapters, nextPages);
-        setPages(nextPages);
-        setPageIndex((current) => {
-          if (restoredProgressArticleIdRef.current !== article.id) {
-            restoredProgressArticleIdRef.current = article.id;
-            return restoredEbookPageIndex(readingProgressRef.current, activeChapters, nextPages);
-          }
-          return remapEbookPageIndex(
-            current,
-            pagesRef.current,
-            chapterPagesRef.current,
-            nextPages,
-            nextChapterPages,
-          );
-        });
+    let cancelled = false;
+    let view: FoliateViewElement | null = null;
+
+    const handleRelocate = (event: Event) => {
+      const detail = (event as CustomEvent<FoliateRelocateDetail>).detail;
+      const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
+      const pageIndex = Math.max(0, detail.location?.current ?? Math.round(nextProgress * 1000));
+      const pageCount = Math.max(1, detail.location?.total ?? 1000);
+      const nextPageInfo =
+        (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
+
+      setProgress(nextProgress);
+      setActiveTocHref(detail.tocItem?.href ?? '');
+      setPageInfo(nextPageInfo);
+      if (nextPageInfo) {
+        setSectionPageCounts((counts) => updateKnownSectionPageCount(counts, nextPageInfo));
+      }
+      void onSaveArticleReadingProgressRef.current(article.id, {
+        pageIndex,
+        pageCount,
+        chapterIndex: detail.section?.current,
+        progress: nextProgress,
+        updatedAt: new Date().toISOString(),
       });
     };
 
-    repaginate();
-    const resizeObserver = new ResizeObserver(repaginate);
-    resizeObserver.observe(pageFrame);
-    window.addEventListener('resize', repaginate);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', repaginate);
+    const handleExternalLink = (event: Event) => {
+      const customEvent = event as CustomEvent<Record<string, string | undefined>>;
+      const href = customEvent.detail['href_'] || customEvent.detail.href;
+      if (!href) return;
+      event.preventDefault();
+      void window.yomitomoDesktop.openUrl(href);
     };
-  }, [article.id, readerSettings.contentWidth, readerSettings.fontSize, tocOpen]);
 
-  function saveEbookProgress(nextPageIndex: number) {
-    const activePages = pagesRef.current;
-    if (activePages.length === 0 || restoredProgressArticleIdRef.current !== article.id) return;
-    const now = new Date().toISOString();
-    const activePageCount = activePages.length;
-    const activePageIndex = Math.max(0, Math.min(activePageCount - 1, nextPageIndex));
-    const activeChapterIndex = activePages[activePageIndex]?.chapterIndex || 0;
-    const progress = activePageCount > 1 ? activePageIndex / (activePageCount - 1) : 0;
-    const activeChapterPages = chapterPagesRef.current;
-    const chapterProgress = ebookChapterProgress(
-      activePageIndex,
-      activeChapterIndex,
-      activeChapterPages,
-      activePageCount,
-    );
-    void onSaveArticleReadingProgressRef.current(article.id, {
-      pageIndex: activePageIndex,
-      pageCount: activePageCount,
-      chapterIndex: activeChapterIndex,
-      chapterProgress,
-      progress,
-      updatedAt: now,
-    });
-  }
+    async function openEbook() {
+      try {
+        await import('./vendor/foliate-js/view.js');
+        const data = await window.yomitomoDesktop.readEbookFile(article.id);
+        if (cancelled) return;
 
-  function goToPage(nextPageIndex: number) {
-    const clampedPageIndex = Math.max(0, Math.min(pageCount - 1, nextPageIndex));
-    setPageIndex(clampedPageIndex);
-    saveEbookProgress(clampedPageIndex);
-  }
+        const file = new File([data], article.ebook.metadata.fileName || `${article.title}.epub`, {
+          type: 'application/epub+zip',
+        });
+        ebookFileRef.current = file;
+        view = document.createElement('foliate-view') as FoliateViewElement;
+        view.className = 'ebook-foliate-view';
+        view.addEventListener('relocate', handleRelocate);
+        view.addEventListener('external-link', handleExternalLink);
+        host.replaceChildren(view);
+        await view.open(file);
+        if (cancelled) return;
 
-  function submitPageInput(event?: React.FormEvent<HTMLFormElement>) {
-    event?.preventDefault();
-    const nextPage = Number(pageInput);
-    if (!Number.isFinite(nextPage)) {
-      setPageInput(String(pageIndex + 1));
+        viewRef.current = view;
+        configureFoliateView(view, readerSettingsRef.current);
+        setTocItems(flattenFoliateToc(view.book?.toc ?? []));
+        setSectionFractions(view.getSectionFractions?.() ?? []);
+        setReaderState({ status: 'ready', message: '' });
+
+        const restoredProgress = article.readingProgress?.progress;
+        if (typeof restoredProgress === 'number' && restoredProgress > 0) {
+          await view.goToFraction(Math.min(1, restoredProgress));
+        } else {
+          await view.next();
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setReaderState({
+          status: 'error',
+          message: error instanceof Error ? error.message : 'EPUB 打开失败',
+        });
+      }
+    }
+
+    void openEbook();
+
+    return () => {
+      cancelled = true;
+      view?.removeEventListener('relocate', handleRelocate);
+      view?.removeEventListener('external-link', handleExternalLink);
+      closeFoliateView(view);
+      view?.remove();
+      if (viewRef.current === view) viewRef.current = null;
+      if (viewRef.current === null) ebookFileRef.current = null;
+      host.replaceChildren();
+    };
+  }, [article.id, article.ebook.metadata.fileName, article.title]);
+
+  useLayoutEffect(() => {
+    const host = viewHostRef.current;
+    if (!host) return;
+
+    const updateLayoutKey = () => {
+      const rect = host.getBoundingClientRect();
+      setPaginationLayoutKey(`${Math.round(rect.width)}x${Math.round(rect.height)}`);
+    };
+
+    updateLayoutKey();
+    const observer = new ResizeObserver(updateLayoutKey);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [article.id]);
+
+  useEffect(() => {
+    const measureHost = measureHostRef.current;
+    const sourceFile = ebookFileRef.current;
+    const visibleView = viewRef.current;
+    const sections = visibleView?.book?.sections ?? [];
+    const [layoutWidth, layoutHeight] = paginationLayoutKey.split('x').map(Number);
+    if (
+      readerState.status !== 'ready' ||
+      !measureHost ||
+      !sourceFile ||
+      sections.length === 0 ||
+      !layoutWidth ||
+      !layoutHeight
+    ) {
       return;
     }
-    goToPage(Math.round(nextPage) - 1);
+
+    let cancelled = false;
+    let measureView: FoliateViewElement | null = null;
+    const counts: Array<number | null> = sections.map((section) =>
+      section.linear === 'no' ? 0 : null,
+    );
+    const currentPageInfo = visibleView.getPageInfo?.();
+    setPageInfo(currentPageInfo ?? null);
+    setSectionPageCounts(
+      currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts,
+    );
+
+    const timer = window.setTimeout(() => {
+      void measureEbookPages();
+    }, 360);
+
+    async function measureEbookPages() {
+      try {
+        await waitForFoliateIdle();
+        if (cancelled) return;
+
+        await import('./vendor/foliate-js/view.js');
+        measureView = document.createElement('foliate-view') as FoliateViewElement;
+        measureView.className = 'ebook-foliate-view';
+        measureHost.replaceChildren(measureView);
+        await measureView.open(sourceFile);
+        configureFoliateView(measureView, readerSettingsRef.current);
+
+        for (const [index, section] of sections.entries()) {
+          if (cancelled) return;
+          if (section.linear === 'no') continue;
+
+          await waitForFoliateIdle();
+          if (cancelled) return;
+
+          await measureView.goTo(index);
+          const nextPageInfo = await waitForFoliatePageInfo(measureView, index);
+          if (cancelled) return;
+
+          counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
+        }
+
+        if (!cancelled) setSectionPageCounts(counts);
+      } catch (error) {
+        console.warn(error);
+      } finally {
+        closeFoliateView(measureView);
+        measureView?.remove();
+        if (measureHost.firstChild === measureView) measureHost.replaceChildren();
+      }
+    }
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      closeFoliateView(measureView);
+      measureView?.remove();
+      if (measureHost.firstChild === measureView) measureHost.replaceChildren();
+    };
+  }, [
+    article.id,
+    paginationLayoutKey,
+    readerSettings.contentWidth,
+    readerSettings.fontSize,
+    readerState.status,
+  ]);
+
+  function goLeft() {
+    void viewRef.current?.goLeft();
+  }
+
+  function goRight() {
+    void viewRef.current?.goRight();
+  }
+
+  function goToTocItem(item: FoliateTocItem) {
+    if (usesOverlayToc()) setTocOpen(false);
+    void viewRef.current?.goTo(item.href);
+  }
+
+  function goToProgress(event: React.ChangeEvent<HTMLInputElement>) {
+    const nextProgress = clampNumber(Number(event.currentTarget.value), 0, 1, progress);
+    setProgress(nextProgress);
+    void viewRef.current?.goToFraction(nextProgress);
   }
 
   function updateEbookReaderSettings(nextSettings: ReaderSettings) {
@@ -2738,13 +3022,18 @@ function EbookBookcase({
   function handleReaderKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
       event.preventDefault();
-      goToPage(pageIndex + 1);
+      goRight();
     }
     if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
       event.preventDefault();
-      goToPage(pageIndex - 1);
+      goLeft();
     }
   }
+
+  const progressPercent = Math.round(progress * 100);
+  const paginationReady = isEbookPaginationReady(pageInfo, sectionPageCounts);
+  const pageLabel = paginationReady ? formatEbookPageLabel(pageInfo, sectionPageCounts) : '';
+  const progressTickId = `ebook-progress-ticks-${article.id}`;
 
   return (
     <section className="source-bookcase ebook-reader-shell">
@@ -2752,9 +3041,7 @@ function EbookBookcase({
       <header className="ebook-reader-toolbar">
         <div className="ebook-reader-title">
           <strong>{article.title}</strong>
-          <span>
-            {[article.byline, chapters[currentChapterIndex]?.title].filter(Boolean).join(' · ')}
-          </span>
+          <span>{article.byline || article.ebook.metadata.fileName}</span>
         </div>
         <div className="ebook-reader-actions">
           <button
@@ -2805,17 +3092,20 @@ function EbookBookcase({
         />
         <aside className="ebook-reader-toc" aria-hidden={!tocOpen} aria-label="电子书目录">
           <div className="ebook-reader-toc-title">目录</div>
-          {chapters.map((chapter, index) => (
+          {tocItems.map((item) => (
             <button
-              className={currentChapterIndex === index ? 'is-active' : undefined}
+              className={activeTocHref === item.href ? 'is-active' : undefined}
+              data-depth={Math.min(item.depth, 4)}
               type="button"
-              key={chapter.id}
-              onClick={() => goToPage(chapterPages[index] || 0)}
+              key={`${item.depth}-${item.href}-${item.label}`}
+              onClick={() => goToTocItem(item)}
             >
-              <span>{chapter.title}</span>
-              <em>{(chapterPages[index] || 0) + 1}</em>
+              <span>{item.label}</span>
             </button>
           ))}
+          {tocItems.length === 0 ? (
+            <p className="ebook-reader-toc-empty">这本书没有目录。</p>
+          ) : null}
         </aside>
         <main
           className="ebook-reader-main"
@@ -2829,40 +3119,36 @@ function EbookBookcase({
               { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
             }
           >
-            <div className="ebook-page-control-actions">
+            <div
+              className={
+                paginationReady
+                  ? 'ebook-page-control-actions'
+                  : 'ebook-page-control-actions is-paginating'
+              }
+            >
               <button
                 className="ebook-icon-button"
                 type="button"
                 aria-label="上一页"
-                disabled={pageIndex === 0}
-                onClick={() => goToPage(pageIndex - 1)}
+                disabled={readerState.status !== 'ready' || !paginationReady}
+                onClick={goLeft}
               >
                 <ChevronLeft size={17} />
               </button>
-              <form className="ebook-page-jump" onSubmit={submitPageInput}>
-                <Input
-                  aria-label="跳转页码"
-                  inputMode="numeric"
-                  value={pageInput}
-                  onBlur={() => submitPageInput()}
-                  onChange={(event) => setPageInput(event.target.value)}
-                />
-                <span>/ {pageCount}</span>
-              </form>
+              <span className="ebook-location-label">{pageLabel}</span>
               <button
                 className="ebook-icon-button"
                 type="button"
                 aria-label="下一页"
-                disabled={pageIndex >= pageCount - 1}
-                onClick={() => goToPage(pageIndex + 1)}
+                disabled={readerState.status !== 'ready' || !paginationReady}
+                onClick={goRight}
               >
                 <ChevronRight size={17} />
               </button>
             </div>
           </div>
           <div
-            className="ebook-page-stage"
-            ref={viewportRef}
+            className={`ebook-page-stage is-${readerState.status}`}
             tabIndex={0}
             onKeyDown={handleReaderKeyDown}
             style={
@@ -2872,18 +3158,35 @@ function EbookBookcase({
               } as React.CSSProperties
             }
           >
-            <div className="ebook-page" ref={pageFrameRef}>
-              <article
-                className="ebook-page-content"
-                dangerouslySetInnerHTML={{
-                  __html: currentPage?.html || '<p>正在分页。</p>',
-                }}
-              />
-            </div>
-            <div className="ebook-pagination-measurer" ref={measureRef} aria-hidden="true" />
+            <div className="ebook-foliate-frame" ref={viewHostRef} />
+            {readerState.status !== 'ready' ? (
+              <div className="ebook-reader-status" role="status">
+                {readerState.message}
+              </div>
+            ) : null}
+            <div className="ebook-foliate-measurer" ref={measureHostRef} aria-hidden="true" />
           </div>
-          <div className="ebook-reader-progress" aria-hidden="true">
-            <span style={{ width: `${((pageIndex + 1) / pageCount) * 100}%` }} />
+          <div className="ebook-reader-progress">
+            <input
+              aria-label="快速跳转阅读进度"
+              className="ebook-progress-slider"
+              disabled={readerState.status !== 'ready'}
+              list={sectionFractions.length > 0 ? progressTickId : undefined}
+              max="1"
+              min="0"
+              step="any"
+              style={{ '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties}
+              type="range"
+              value={progress}
+              onChange={goToProgress}
+            />
+            {sectionFractions.length > 0 ? (
+              <datalist id={progressTickId}>
+                {sectionFractions.map((fraction, index) => (
+                  <option value={fraction} key={`${index}-${fraction}`} />
+                ))}
+              </datalist>
+            ) : null}
           </div>
         </main>
       </div>
@@ -2891,266 +3194,201 @@ function EbookBookcase({
   );
 }
 
-function ebookChapterStartPages(
-  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
-  pages: EbookPage[],
-) {
-  return chapters.map((_, index) => {
-    const pageIndex = pages.findIndex((page) => page.chapterIndex === index);
-    return pageIndex >= 0 ? pageIndex : 0;
-  });
+function configureFoliateView(view: FoliateViewElement | null, settings: ReaderSettings) {
+  if (!view?.renderer) return;
+  view.renderer.setAttribute('animated', '');
+  view.renderer.setAttribute('flow', 'paginated');
+  view.renderer.setAttribute('gap', '8%');
+  view.renderer.setAttribute('margin', '44px');
+  view.renderer.setAttribute('max-inline-size', `${settings.contentWidth}px`);
+  view.renderer.setAttribute('max-block-size', '1200px');
+  view.renderer.setAttribute('max-column-count', '1');
+  view.renderer.setStyles?.(foliateReaderCss(settings));
 }
 
-function restoredEbookPageIndex(
-  progress: ArticleReadingProgress | undefined,
-  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
-  pages: EbookPage[],
-) {
-  const lastPage = Math.max(0, pages.length - 1);
-  if (!progress) return 0;
-  if (progress.chapterIndex !== undefined && progress.chapterIndex < chapters.length) {
-    const chapterPages = ebookChapterStartPages(chapters, pages);
-    const bounds = ebookChapterPageBounds(progress.chapterIndex, chapterPages, pages.length);
-    const chapterProgress = progress.chapterProgress ?? 0;
-    return clampEbookPageIndex(
-      bounds.start + Math.round(chapterProgress * Math.max(0, bounds.end - bounds.start - 1)),
-      lastPage,
-    );
+function closeFoliateView(view: FoliateViewElement | null) {
+  try {
+    view?.close?.();
+  } catch (error) {
+    console.warn(error);
   }
-  return clampEbookPageIndex(Math.round(progress.progress * lastPage), lastPage);
 }
 
-function remapEbookPageIndex(
-  pageIndex: number,
-  previousPages: EbookPage[],
-  previousChapterPages: number[],
-  nextPages: EbookPage[],
-  nextChapterPages: number[],
-) {
-  const lastPage = Math.max(0, nextPages.length - 1);
-  if (previousPages.length === 0 || pageIndex >= previousPages.length) {
-    return clampEbookPageIndex(pageIndex, lastPage);
-  }
-  const previousPage = previousPages[Math.min(pageIndex, Math.max(0, previousPages.length - 1))];
-  if (previousPage) {
-    const chapterProgress = ebookChapterProgress(
-      pageIndex,
-      previousPage.chapterIndex,
-      previousChapterPages,
-      previousPages.length,
-    );
-    const bounds = ebookChapterPageBounds(
-      previousPage.chapterIndex,
-      nextChapterPages,
-      nextPages.length,
-    );
-    return clampEbookPageIndex(
-      bounds.start + Math.round(chapterProgress * Math.max(0, bounds.end - bounds.start - 1)),
-      lastPage,
-    );
-  }
-  const progress = previousPages.length > 1 ? pageIndex / (previousPages.length - 1) : 0;
-  return clampEbookPageIndex(Math.round(progress * lastPage), lastPage);
-}
+function foliateReaderCss(settings: ReaderSettings) {
+  return `
+    @namespace epub "http://www.idpf.org/2007/ops";
 
-function ebookChapterProgress(
-  pageIndex: number,
-  chapterIndex: number,
-  chapterPages: number[],
-  pageCount: number,
-) {
-  const bounds = ebookChapterPageBounds(chapterIndex, chapterPages, pageCount);
-  const chapterLastPage = Math.max(bounds.start, bounds.end - 1);
-  if (chapterLastPage === bounds.start) return 0;
-  return Math.max(0, Math.min(1, (pageIndex - bounds.start) / (chapterLastPage - bounds.start)));
-}
-
-function ebookChapterPageBounds(chapterIndex: number, chapterPages: number[], pageCount: number) {
-  const start = Math.max(0, chapterPages[chapterIndex] || 0);
-  const nextStart = chapterPages.slice(chapterIndex + 1).find((page) => page > start) ?? pageCount;
-  return {
-    start: Math.min(start, Math.max(0, pageCount - 1)),
-    end: Math.max(start + 1, nextStart),
-  };
-}
-
-function clampEbookPageIndex(pageIndex: number, lastPage: number) {
-  return Math.max(0, Math.min(lastPage, pageIndex));
-}
-
-function ebookPageMetrics(pageFrame: HTMLElement) {
-  const style = window.getComputedStyle(pageFrame);
-  const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-  const verticalPadding = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
-  const width = Math.floor(pageFrame.clientWidth - horizontalPadding);
-  const height = Math.floor(pageFrame.clientHeight - verticalPadding);
-  return width > 0 && height > 0 ? { width, height } : null;
-}
-
-function paginateEbookChapters(
-  chapters: NonNullable<ArticleRecord['ebook']>['chapters'],
-  measureElement: HTMLElement,
-  metrics: { width: number; height: number },
-): EbookPage[] {
-  const document = measureElement.ownerDocument;
-  const pages: EbookPage[] = [];
-  const page = document.createElement('article');
-  page.className = 'ebook-page-content';
-  measureElement.style.width = `${metrics.width}px`;
-  measureElement.replaceChildren(page);
-
-  let currentChapterIndex = 0;
-
-  const flushPage = () => {
-    if (!hasEbookPageContent(page)) return;
-    pages.push({
-      id: `ebook-page-${pages.length + 1}`,
-      chapterIndex: currentChapterIndex,
-      html: page.innerHTML,
-    });
-    page.replaceChildren();
-  };
-
-  const appendNode = (node: Node) => {
-    const normalizedNode = normalizeEbookPageNode(node, document);
-    if (!normalizedNode) return;
-
-    page.appendChild(normalizedNode);
-    if (!ebookPageOverflows(page, metrics.height)) return;
-
-    page.removeChild(normalizedNode);
-    const parts = splitEbookPageNode(normalizedNode, page, metrics.height);
-    if (parts.length > 0) {
-      for (const part of parts) {
-        page.appendChild(part);
-        flushPage();
-      }
-      return;
+    html {
+      color-scheme: light;
+      font-size: ${settings.fontSize}px;
     }
 
-    if (hasEbookPageContent(page)) flushPage();
-
-    page.appendChild(normalizedNode);
-    if (!ebookPageOverflows(page, metrics.height)) return;
-
-    page.removeChild(normalizedNode);
-    const fullPageParts = splitEbookPageNode(normalizedNode, page, metrics.height);
-    if (fullPageParts.length === 0) {
-      page.appendChild(normalizedNode);
-      flushPage();
-      return;
+    body {
+      overflow-wrap: break-word;
     }
 
-    for (const part of fullPageParts) {
-      page.appendChild(part);
-      flushPage();
+    p, li, blockquote, dd {
+      line-height: 1.4;
+      hanging-punctuation: allow-end last;
+      widows: 2;
     }
-  };
 
-  chapters.forEach((chapter, chapterIndex) => {
-    currentChapterIndex = chapterIndex;
-    if (hasEbookPageContent(page)) flushPage();
+    [align="left"] { text-align: left; }
+    [align="right"] { text-align: right; }
+    [align="center"] { text-align: center; }
+    [align="justify"] { text-align: justify; }
 
-    const title = document.createElement('h2');
-    title.textContent = chapter.title;
-    appendNode(title);
-
-    const container = document.createElement('div');
-    container.innerHTML = chapter.html;
-    for (const node of Array.from(container.childNodes)) appendNode(node);
-  });
-
-  flushPage();
-  return pages.length > 0 ? pages : [{ id: 'ebook-page-empty', chapterIndex: 0, html: '' }];
-}
-
-function normalizeEbookPageNode(node: Node, document: Document) {
-  if (node.nodeType === 3) {
-    const text = node.textContent?.replace(/\s+/g, ' ').trim();
-    if (!text) return null;
-    const paragraph = document.createElement('p');
-    paragraph.textContent = text;
-    return paragraph;
-  }
-
-  if (node.nodeType !== 1) return null;
-  const element = node as Element;
-  const tagName = element.tagName.toLowerCase();
-  if (tagName === 'script' || tagName === 'style' || tagName === 'link') return null;
-  return element.cloneNode(true);
-}
-
-function splitEbookPageNode(node: Node, page: HTMLElement, pageHeight: number) {
-  if (node.nodeType !== 1) return [];
-  const element = node as HTMLElement;
-  if (element.querySelector('img,svg,table,pre,code')) return [];
-
-  const text = element.textContent?.replace(/\s+/g, ' ').trim();
-  if (!text || text.length < 2) return [];
-
-  const parts: Node[] = [];
-  let rest = text;
-  while (rest.length > 0) {
-    const length = fittedTextLength(element, rest, page, pageHeight);
-    if (length <= 0) break;
-    const cut = ebookTextCutIndex(rest, length);
-    const part = element.cloneNode(false) as HTMLElement;
-    part.textContent = rest.slice(0, cut).trim();
-    parts.push(part);
-    rest = rest.slice(cut).trimStart();
-  }
-  return parts;
-}
-
-function fittedTextLength(
-  source: HTMLElement,
-  text: string,
-  page: HTMLElement,
-  pageHeight: number,
-) {
-  let low = 1;
-  let high = text.length;
-  let best = 0;
-
-  while (low <= high) {
-    const middle = Math.floor((low + high) / 2);
-    const probe = source.cloneNode(false) as HTMLElement;
-    probe.textContent = text.slice(0, middle);
-    page.appendChild(probe);
-    const fits = !ebookPageOverflows(page, pageHeight);
-    page.removeChild(probe);
-
-    if (fits) {
-      best = middle;
-      low = middle + 1;
-    } else {
-      high = middle - 1;
+    img, svg, video {
+      max-width: 100%;
+      height: auto;
     }
-  }
 
-  return best;
+    pre {
+      white-space: pre-wrap !important;
+    }
+
+    a {
+      color: inherit;
+      text-decoration-color: rgba(40, 35, 29, .36);
+      text-underline-offset: .16em;
+    }
+
+    aside[epub|type~="endnote"],
+    aside[epub|type~="footnote"],
+    aside[epub|type~="note"],
+    aside[epub|type~="rearnote"] {
+      display: none;
+    }
+  `;
 }
 
-function ebookTextCutIndex(text: string, maxLength: number) {
-  if (maxLength >= text.length) return text.length;
-  const slice = text.slice(0, maxLength);
-  const breakIndex = Math.max(
-    slice.lastIndexOf('。'),
-    slice.lastIndexOf('！'),
-    slice.lastIndexOf('？'),
-    slice.lastIndexOf('；'),
-    slice.lastIndexOf('，'),
-    slice.lastIndexOf(' '),
+function updateKnownSectionPageCount(
+  counts: Array<number | null>,
+  pageInfo: FoliatePageInfo,
+): Array<number | null> {
+  if (counts.length <= pageInfo.sectionIndex) return counts;
+  const pageCount = Math.max(1, pageInfo.pageCount);
+  if (counts[pageInfo.sectionIndex] === pageCount) return counts;
+
+  const nextCounts = [...counts];
+  nextCounts[pageInfo.sectionIndex] = pageCount;
+  return nextCounts;
+}
+
+function isEbookPaginationReady(
+  pageInfo: FoliatePageInfo | null,
+  counts: Array<number | null>,
+): pageInfo is FoliatePageInfo {
+  return Boolean(
+    pageInfo && counts.length > pageInfo.sectionIndex && counts.every((count) => count !== null),
   );
-  return breakIndex > Math.floor(maxLength * 0.62) ? breakIndex + 1 : maxLength;
 }
 
-function ebookPageOverflows(page: HTMLElement, pageHeight: number) {
-  return page.scrollHeight > pageHeight + 1;
+function formatEbookPageLabel(pageInfo: FoliatePageInfo, counts: Array<number | null>) {
+  if (counts.length <= pageInfo.sectionIndex) return '';
+
+  const precedingCounts = counts.slice(0, pageInfo.sectionIndex);
+  if (precedingCounts.some((count) => count === null)) return '';
+
+  const currentSectionPageCount = counts[pageInfo.sectionIndex] ?? pageInfo.pageCount;
+  const currentPage =
+    sumKnownPageCounts(precedingCounts) +
+    Math.min(pageInfo.pageIndex, Math.max(0, currentSectionPageCount - 1)) +
+    1;
+  if (counts.some((count) => count === null)) return '';
+
+  return `${currentPage} / ${sumKnownPageCounts(counts)}`;
 }
 
-function hasEbookPageContent(page: HTMLElement) {
-  return Boolean(page.textContent?.trim() || page.querySelector('img,svg,table,pre,blockquote'));
+function sumKnownPageCounts(counts: Array<number | null>) {
+  return counts.reduce((sum, count) => sum + (count ?? 0), 0);
+}
+
+function waitForFoliateIdle() {
+  return new Promise<void>((resolve) => {
+    const idleWindow = window as Window &
+      typeof globalThis & {
+        requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      };
+    if (idleWindow.requestIdleCallback) {
+      idleWindow.requestIdleCallback(() => resolve(), { timeout: 250 });
+      return;
+    }
+
+    window.setTimeout(resolve, 16);
+  });
+}
+
+function waitForAnimationFrame() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
+function waitForTimeout(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+async function waitForFoliatePageInfo(view: FoliateViewElement, sectionIndex?: number) {
+  await waitForFoliateAssets(view);
+
+  let pageInfo: FoliatePageInfo | null = null;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    await waitForAnimationFrame();
+    pageInfo = view.getPageInfo?.() ?? null;
+    if (pageInfo && (sectionIndex === undefined || pageInfo.sectionIndex === sectionIndex)) {
+      return pageInfo;
+    }
+  }
+  return sectionIndex === undefined || pageInfo?.sectionIndex === sectionIndex ? pageInfo : null;
+}
+
+async function waitForFoliateAssets(view: FoliateViewElement) {
+  const doc = view.renderer?.getContents?.()[0]?.doc;
+  if (!doc) return;
+
+  await Promise.race([doc.fonts.ready.then(() => undefined), waitForTimeout(800)]).catch(() => {
+    return undefined;
+  });
+
+  const pendingImages = Array.from(doc.images).filter((image) => !image.complete);
+  if (pendingImages.length === 0) return;
+
+  await Promise.race([
+    Promise.allSettled(pendingImages.map(waitForImage)).then(() => undefined),
+    waitForTimeout(800),
+  ]);
+}
+
+function waitForImage(image: HTMLImageElement) {
+  if (image.complete) return Promise.resolve();
+  return image.decode().catch(() => undefined);
+}
+
+function flattenFoliateToc(items: FoliateTocSourceItem[], depth = 1): FoliateTocItem[] {
+  return items.flatMap((item) => {
+    const label = foliateLabelText(item.label);
+    const current =
+      item.href && label
+        ? [
+            {
+              label,
+              href: item.href,
+              depth,
+            },
+          ]
+        : [];
+    return [...current, ...flattenFoliateToc(item.subitems ?? [], depth + 1)];
+  });
+}
+
+function foliateLabelText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return '';
+  const first = Object.values(value as Record<string, unknown>)[0];
+  return typeof first === 'string' ? first : '';
 }
 
 function isEbookArticle(

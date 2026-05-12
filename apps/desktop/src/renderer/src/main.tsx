@@ -44,6 +44,27 @@ import { AvatarImage } from './app-ui';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
+type ImportProgressCallback = (progress: number) => void;
+
+function readFileArrayBuffer(file: File, onProgress: (progress: number) => void) {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('progress', (event) => {
+      if (!event.lengthComputable) return;
+      onProgress(event.loaded / event.total);
+    });
+    reader.addEventListener('load', () => {
+      if (reader.result instanceof ArrayBuffer) {
+        onProgress(1);
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('读取 EPUB 文件失败'));
+    });
+    reader.addEventListener('error', () => reject(reader.error || new Error('读取 EPUB 文件失败')));
+    reader.readAsArrayBuffer(file);
+  });
+}
 
 function App() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);
@@ -267,12 +288,18 @@ function App() {
     return result;
   }
 
-  async function importEbookFile(file: File) {
+  async function importEbookFile(file: File, onProgress?: ImportProgressCallback) {
+    onProgress?.(4);
+    const data = await readFileArrayBuffer(file, (progress) => {
+      onProgress?.(Math.min(76, Math.round(progress * 76)));
+    });
+    onProgress?.(82);
     const result = await window.yomitomoDesktop.importEbookFile({
       fileName: file.name,
       mimeType: file.type,
-      data: await file.arrayBuffer(),
+      data,
     });
+    onProgress?.(100);
     setStore(result.store);
     return result;
   }

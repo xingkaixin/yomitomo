@@ -20,6 +20,7 @@
     "**/out/**",
     "**/build/**",
     "**/coverage/**",
+    "**/vendor/foliate-js/**",
     "public/scripts/**"
   ]
 }

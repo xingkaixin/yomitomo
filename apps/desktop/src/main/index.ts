@@ -55,6 +55,7 @@ import {
 import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
 import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
 import { articleRecordFromEpubFile } from './ebook-import';
+import { readEbookSourceFile, saveEbookSourceFile } from './ebook-storage';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -203,6 +204,7 @@ function registerIpc() {
       const record = await articleRecordFromEpubFile(input);
       const existingArticle = findArticleByIdentity(previousStore.articles, record);
       if (existingArticle) {
+        await saveEbookSourceFile(existingArticle.id, input.data);
         return {
           status: 'duplicate',
           article: existingArticle,
@@ -210,6 +212,7 @@ function registerIpc() {
         };
       }
 
+      await saveEbookSourceFile(record.id, input.data);
       const store = await saveArticle(record);
       const article = store.articles.find((item) => item.id === record.id);
       if (!article) throw new Error('电子书保存失败');
@@ -217,6 +220,10 @@ function registerIpc() {
       return { status: 'imported', article, store };
     },
   );
+  ipcMain.handle('ebook:read-file', async (_event, articleId: string) => {
+    const file = await readEbookSourceFile(articleId);
+    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+  });
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
     const store = await saveSettings(input);
