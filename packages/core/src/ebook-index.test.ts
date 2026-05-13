@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildEpubBookIndex,
   createEpubTextAnchor,
+  createEpubTextAnchorFromQuote,
   epubIndexText,
   locateEpubOffset,
   locateEpubTextAnchor,
@@ -198,6 +199,62 @@ describe('locateEpubOffset', () => {
     expect(anchor.textEndInBook).toBe(end);
     expect(location?.paragraph?.id).toBe('chapter-1-paragraph-1');
     expect(location?.textEnd).toBe(end);
+  });
+
+  it('creates anchors from rendered selections that collapse paragraph whitespace', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const anchor = createEpubTextAnchorFromQuote(index, text, '目标。 第二段', {
+      chapterId: 'chapter-1',
+      prefix: '第一段',
+      suffix: '目标',
+    });
+
+    expect(anchor).toMatchObject({
+      exact: '目标。\n\n第二段',
+      chapterId: 'chapter-1',
+      paragraphId: 'chapter-1-paragraph-1',
+      textEndInParagraph: undefined,
+    });
+    expect(anchor?.textStartInBook).toBe(text.indexOf('目标。'));
+  });
+
+  it('uses rendered context to disambiguate repeated selection text', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['上文。重复目标。', '中间上下文。重复目标。', '结尾。重复目标。'],
+      },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const anchor = createEpubTextAnchorFromQuote(index, text, '重复目标', {
+      chapterId: 'chapter-1',
+      prefix: '中间上下文。',
+      suffix: '。',
+    });
+
+    expect(anchor?.paragraphId).toBe('chapter-1-paragraph-2');
+    expect(anchor?.textStartInBook).toBe(text.indexOf('重复目标', text.indexOf('中间上下文')));
+  });
+
+  it('does not create a chapter anchor from another chapter boundary', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['目标句子。'] },
+      { id: 'chapter-2', title: '第二章', paragraphs: ['目标句子。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const anchor = createEpubTextAnchorFromQuote(index, text, '目标句子', {
+      chapterId: 'chapter-2',
+    });
+
+    expect(anchor?.chapterId).toBe('chapter-2');
+    expect(anchor?.textStartInBook).toBe(index.chapters[1]?.textStart);
   });
 
   it('uses quoteHash to validate structural offsets after whitespace changes', () => {

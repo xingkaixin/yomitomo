@@ -10,7 +10,6 @@ import {
   ExternalLink,
   FileUp,
   Globe2,
-  List,
   LoaderCircle,
   MessageSquareText,
   MoreHorizontal,
@@ -18,7 +17,6 @@ import {
   Plus,
   RefreshCcw,
   Search,
-  Settings2,
   Trash2,
   Upload,
   X,
@@ -56,6 +54,7 @@ import {
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
   createEpubTextAnchor,
+  createEpubTextAnchorFromQuote,
   extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -86,11 +85,15 @@ import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
-  ReaderSettingsPanel,
+  animateTheaterHighlight,
+  selectionActionShortcut,
+  sleep,
   type ActiveConnection,
   type HighlightChoice,
   type ReaderSettings,
+  type ReaderReadingSection,
   type SelectionAction,
+  type VirtualCursorState,
 } from '@yomitomo/reader-ui';
 import { articleIdentityLine, articlePlainText, formatDate, urlHost } from './app-utils';
 import { Button } from './components/ui/button';
@@ -143,6 +146,7 @@ type FoliateTocItem = {
 };
 
 type FoliateSectionSource = {
+  id?: string;
   linear?: string;
 };
 
@@ -154,6 +158,7 @@ type FoliatePageInfo = {
 
 type FoliateContent = {
   doc?: Document;
+  index?: number;
 };
 
 type FoliateRelocateDetail = {
@@ -180,6 +185,7 @@ type FoliateViewElement = HTMLElement & {
   renderer?:
     | (HTMLElement & {
         getContents?: () => FoliateContent[];
+        scrollToAnchor?: (anchor: Range | Element | number, select?: boolean) => Promise<void>;
         setStyles?: (styles: string | string[]) => void;
       })
     | null;
@@ -1622,6 +1628,80 @@ const sourceReaderTocStyles = `
 }
 `;
 
+const sourceEbookReaderStyles = `
+.source-ebook-reader-shell{
+  grid-template-rows:minmax(0,1fr);
+  padding:0;
+}
+.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
+  grid-template-columns:minmax(180px,260px) minmax(0,1fr);
+}
+.source-ebook-reader-shell .reader-app.has-toc .reader-surface{
+  padding:18px 14px 24px;
+}
+.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
+  margin:0;
+}
+.source-ebook-reader-shell .reader-article{
+  width:min(100%,var(--reader-content-width));
+  max-width:min(var(--reader-content-width),calc(100vw - 120px));
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+.source-ebook-reader-shell .ebook-reader-content{
+  display:grid;
+  grid-template-rows:auto minmax(0,1fr) auto;
+  gap:12px;
+  height:100%;
+  min-height:0;
+  width:min(100%,var(--ebook-content-width));
+}
+.source-ebook-reader-shell .reader-canvas,
+.source-ebook-reader-shell .reader-article{
+  height:100%;
+  min-height:0;
+}
+.source-ebook-reader-shell .reader-article{
+  display:grid;
+}
+.source-ebook-reader-shell .ebook-page-control-row,
+.source-ebook-reader-shell .ebook-reader-progress,
+.source-ebook-reader-shell .ebook-foliate-frame,
+.source-ebook-reader-shell .ebook-reader-status{
+  width:100%;
+}
+.source-ebook-reader-shell .ebook-page-stage{
+  width:100%;
+  min-height:0;
+}
+.source-ebook-reader-shell .reader-edge-blur.is-bottom{
+  display:none;
+}
+.source-ebook-reader-shell .reader-highlight.is-active::after{
+  opacity:.8;
+}
+.source-ebook-reader-shell .reader-highlight.is-active::before{
+  opacity:.88;
+  filter:drop-shadow(0 1px 0 rgba(255,253,248,.72)) drop-shadow(0 0 4px rgba(37,29,22,.14));
+}
+@media(max-width:1320px){
+  .source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
+    margin:0 auto;
+  }
+}
+`;
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!target || !('closest' in target)) return false;
+  const closest = (target as { closest?: (selector: string) => Element | null }).closest;
+  return typeof closest === 'function'
+    ? Boolean(closest.call(target, 'input,textarea,select,[contenteditable="true"]'))
+    : false;
+}
+
 function promptArticle(currentArticle: ArticleRecord | null, articleText: string): PromptArticle {
   return {
     title: currentArticle?.title || '',
@@ -1671,13 +1751,7 @@ function SourceBookcase(props: SourceBookcaseProps) {
   }
 
   if (isEbookArticle(props.article)) {
-    return (
-      <EbookBookcase
-        article={props.article}
-        onClose={props.onClose}
-        onSaveArticleReadingProgress={props.onSaveArticleReadingProgress}
-      />
-    );
+    return <EbookBookcase {...props} article={props.article} />;
   }
 
   return <WebSourceBookcase {...props} />;
@@ -2065,6 +2139,17 @@ function WebSourceBookcase({
     await navigator.clipboard.writeText(action.anchor.exact);
     setSelectionAction(null);
     setTemporaryBoxes([]);
+  }
+
+  function openComposer(action: SourceSelectionAction) {
+    const canvasWidth = canvasRef.current?.clientWidth || 360;
+    setCommentsCloseKey((key) => key + 1);
+    setComposer({
+      x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
+      y: action.y,
+      anchor: action.anchor,
+    });
+    setSelectionAction(null);
   }
 
   async function createAnnotation(note: string) {
@@ -2729,16 +2814,7 @@ function WebSourceBookcase({
         onFocusAnnotation={openAnnotation}
         onHighlightClick={handleHighlightClick}
         onMouseUp={handleArticleMouseUp}
-        onOpenComposer={(action) => {
-          const canvasWidth = canvasRef.current?.clientWidth || 360;
-          setCommentsCloseKey((key) => key + 1);
-          setComposer({
-            x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
-            y: action.y,
-            anchor: action.anchor,
-          });
-          setSelectionAction(null);
-        }}
+        onOpenComposer={openComposer}
         onPlanFocusCoReading={planFocusCoReading}
         onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
@@ -2771,32 +2847,65 @@ function WebSourceBookcase({
   );
 }
 
-function EbookBookcase({
-  article,
-  onClose,
-  onSaveArticleReadingProgress,
-}: {
+type EbookBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
   article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
-  onClose: () => void;
-  onSaveArticleReadingProgress: (
-    articleId: string,
-    progress: ArticleReadingProgress,
-  ) => Promise<void> | void;
-}) {
+};
+
+function EbookBookcase({
+  agents,
+  annotations: articleAnnotations,
+  article,
+  focusAnnotationId,
+  messageSendShortcut,
+  selectionActionShortcuts,
+  selectedAnnotationId,
+  userProfile,
+  onFocusedAnnotation,
+  onClose,
+  onOpenAnnotation,
+  onSaveArticle,
+  onSaveArticleReadingProgress,
+  onUpdateArticle,
+}: EbookBookcaseProps) {
+  const articleRef = useRef<HTMLElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const railRef = useRef<HTMLElement | null>(null);
+  const noteRefs = useRef(new Map<string, HTMLElement>());
   const viewHostRef = useRef<HTMLDivElement | null>(null);
   const measureHostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<FoliateViewElement | null>(null);
   const ebookFileRef = useRef<File | null>(null);
   const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
+  const latestArticleRef = useRef<ArticleRecord | null>(article);
+  const [annotations, setLocalAnnotations] = useState<Annotation[]>(() =>
+    sortAnnotations(articleAnnotations),
+  );
+  const annotationsRef = useRef<Annotation[]>(annotations);
+  const [boxes, setBoxes] = useState<HighlightBox[]>([]);
+  const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
+  const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
+  const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
+  const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
+  const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
+  const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
+  const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
+  const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
+  const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
+    null,
+  );
+  const [statusMessage, setStatusMessage] = useState('');
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
   const [tocItems, setTocItems] = useState<FoliateTocItem[]>([]);
   const [sectionFractions, setSectionFractions] = useState<number[]>([]);
-  const [activeTocHref, setActiveTocHref] = useState('');
   const [pageInfo, setPageInfo] = useState<FoliatePageInfo | null>(null);
   const [sectionPageCounts, setSectionPageCounts] = useState<Array<number | null>>([]);
   const [paginationLayoutKey, setPaginationLayoutKey] = useState('');
@@ -2805,17 +2914,78 @@ function EbookBookcase({
     status: 'loading' | 'ready' | 'error';
     message: string;
   }>({ status: 'loading', message: '正在打开 EPUB。' });
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const ebookText = useMemo(() => ebookArticleText(article), [article]);
+  const readerTocItems = useMemo(
+    () => ebookTocItemsForReader(tocItems, article),
+    [article, tocItems],
+  );
+  const tocStats = useMemo(
+    () => buildTocAnnotationStats(readerTocItems, annotations, userProfile, annotationAgents),
+    [annotationAgents, annotations, readerTocItems, userProfile],
+  );
+  const readingSections = useMemo(
+    () => ebookReaderReadingSections(article, ebookText),
+    [article, ebookText],
+  );
+  const annotationTotals = useMemo(
+    () => ({
+      annotations: annotations.length,
+      comments: annotations.reduce(
+        (count, annotation) => count + annotationThreadComments(annotation).length,
+        0,
+      ),
+    }),
+    [annotations],
+  );
+  const updateEbookBoxesRef = useRef<() => void>(() => {});
+  const updateBoxesFrameRef = useRef(0);
+  const observedFoliateDocsRef = useRef(new WeakSet<Document>());
+  const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
+  const handleFoliateSelectionRef = useRef<(doc: Document) => void>(() => {});
+  const handleFoliatePointerDownRef = useRef<() => void>(() => {});
+  const handleFoliateSelectionShortcutRef = useRef<(event: KeyboardEvent) => void>(() => {});
+  const ebookVirtualCursorRef = useRef(new Map<string, VirtualCursorState>());
+  const ebookVirtualReadingTimersRef = useRef(new Map<string, number>());
+  const ebookAgentAnimationQueueRef = useRef(Promise.resolve());
+  const ebookVirtualReadingStepRef = useRef(new Map<string, number>());
+  const ebookVirtualReadingStepSizeRef = useRef(new Map<string, number>());
 
   useEffect(() => {
     onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
   }, [onSaveArticleReadingProgress]);
 
+  useEffect(() => {
+    latestArticleRef.current = article;
+  }, [article]);
+
+  useEffect(() => {
+    const nextAnnotations = sortAnnotations(articleAnnotations);
+    setLocalAnnotations(nextAnnotations);
+    annotationsRef.current = nextAnnotations;
+  }, [article.id, articleAnnotations]);
+
   useLayoutEffect(() => {
+    noteRefs.current.clear();
+    annotationsRef.current = sortAnnotations(articleAnnotations);
+    setLocalAnnotations(sortAnnotations(articleAnnotations));
+    setBoxes([]);
+    setTemporaryBoxes([]);
+    setActiveConnection(null);
+    setHighlightChoice(null);
+    setSelectionAction(null);
+    setComposer(null);
+    setAgentAnnotateOpen(false);
+    setAnnotatingAgentIds([]);
+    cleanupEbookAgentTheater();
+    setNotesOpen(false);
+    setCommentsCloseKey((key) => key + 1);
+    setReplyRequest(null);
+    setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
     setTocItems([]);
     setSectionFractions([]);
-    setActiveTocHref('');
     setPageInfo(null);
     setSectionPageCounts([]);
     setPaginationLayoutKey('');
@@ -2826,7 +2996,138 @@ function EbookBookcase({
   useEffect(() => {
     readerSettingsRef.current = readerSettings;
     configureFoliateView(viewRef.current, readerSettings);
+    scheduleEbookBoxUpdate();
   }, [readerSettings]);
+
+  const recalculateActiveConnection = useCallback(() => {
+    if (!selectedAnnotationId) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvasElement = canvasRef.current;
+    const scrollElement = surfaceRef.current;
+    const noteElement = noteRefs.current.get(selectedAnnotationId);
+    const annotation = annotations.find((item) => item.id === selectedAnnotationId);
+    const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
+    const readerElement = canvasElement?.closest('.reader-app');
+    if (
+      !canvasElement ||
+      !scrollElement ||
+      !noteElement ||
+      !annotation ||
+      !readerElement ||
+      activeBoxes.length === 0
+    ) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const readerRect = readerElement.getBoundingClientRect();
+    const scrollRect = scrollElement.getBoundingClientRect();
+    const noteRect = noteElement.getBoundingClientRect();
+    const noteY = noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2);
+    const box = activeBoxes.toSorted((left, right) => {
+      const leftY = canvasRect.top - readerRect.top + left.top + left.height / 2;
+      const rightY = canvasRect.top - readerRect.top + right.top + right.height / 2;
+      return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
+    })[0];
+    if (!box) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const startX = canvasRect.left - readerRect.left + box.left + box.width + 6;
+    const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
+    const endX = noteRect.left - readerRect.left - 8;
+    const endY = noteY;
+    const highlightViewportY = readerRect.top + startY;
+    const highlightVisible =
+      highlightViewportY >= scrollRect.top - 24 && highlightViewportY <= scrollRect.bottom + 24;
+    const noteVisible =
+      noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
+    if (!highlightVisible || !noteVisible) {
+      setActiveConnection(null);
+      return;
+    }
+
+    const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
+    const color = annotationColor(annotation, userProfile, annotationAgents);
+    setActiveConnection((current) =>
+      current?.path === path && current.color === color ? current : { path, color },
+    );
+  }, [annotationAgents, annotations, boxes, selectedAnnotationId, userProfile]);
+
+  const updateEbookBoxes = useCallback(() => {
+    const view = viewRef.current;
+    const canvasElement = canvasRef.current;
+    const content = currentFoliateContent(view);
+    const doc = content?.doc;
+    if (!view || !canvasElement || !doc) {
+      setBoxes([]);
+      return;
+    }
+
+    const sectionIndex = content.index ?? pageInfo?.sectionIndex ?? 0;
+    const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const nextBoxes = annotations.flatMap((annotation) => {
+      if (chapter && annotation.anchor.chapterId && annotation.anchor.chapterId !== chapter.id) {
+        return [];
+      }
+      const range = rangeForEbookAnchorInDocument(doc, annotation.anchor);
+      if (!range) return [];
+      return foliateRangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
+        Object.assign(box, {
+          annotationId: annotation.id,
+          contributorId:
+            annotation.agentId ||
+            annotation.agentUsername ||
+            annotation.userId ||
+            annotation.userUsername ||
+            annotation.author,
+          color: annotationColor(annotation, userProfile, annotationAgents),
+        }),
+      );
+    });
+    setBoxes(nextBoxes);
+  }, [annotationAgents, annotations, article, pageInfo?.sectionIndex, userProfile]);
+
+  updateEbookBoxesRef.current = updateEbookBoxes;
+
+  useLayoutEffect(() => {
+    updateEbookBoxes();
+  }, [updateEbookBoxes, readerState.status]);
+
+  useLayoutEffect(() => {
+    recalculateActiveConnection();
+  }, [annotations, boxes, recalculateActiveConnection]);
+
+  useEffect(() => {
+    const scrollElement = surfaceRef.current;
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(recalculateActiveConnection);
+    };
+
+    scrollElement?.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      scrollElement?.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [recalculateActiveConnection]);
+
+  useEffect(
+    () => () => {
+      cleanupFoliateDocumentListeners();
+      cleanupEbookAgentTheater();
+    },
+    [],
+  );
 
   useEffect(() => {
     const host = viewHostRef.current;
@@ -2844,11 +3145,12 @@ function EbookBookcase({
         (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
 
       setProgress(nextProgress);
-      setActiveTocHref(detail.tocItem?.href ?? '');
       setPageInfo(nextPageInfo);
       if (nextPageInfo) {
         setSectionPageCounts((counts) => updateKnownSectionPageCount(counts, nextPageInfo));
       }
+      attachFoliateDocumentListeners(event.currentTarget as FoliateViewElement);
+      scheduleEbookBoxUpdate();
       void onSaveArticleReadingProgressRef.current(article.id, {
         pageIndex,
         pageCount,
@@ -2896,6 +3198,8 @@ function EbookBookcase({
         } else {
           await view.next();
         }
+        attachFoliateDocumentListeners(view);
+        scheduleEbookBoxUpdate();
       } catch (error) {
         if (cancelled) return;
         setReaderState({
@@ -2911,6 +3215,7 @@ function EbookBookcase({
       cancelled = true;
       view?.removeEventListener('relocate', handleRelocate);
       view?.removeEventListener('external-link', handleExternalLink);
+      cleanupFoliateDocumentListeners();
       closeFoliateView(view);
       view?.remove();
       if (viewRef.current === view) viewRef.current = null;
@@ -2926,6 +3231,7 @@ function EbookBookcase({
     const updateLayoutKey = () => {
       const rect = host.getBoundingClientRect();
       setPaginationLayoutKey(`${Math.round(rect.width)}x${Math.round(rect.height)}`);
+      scheduleEbookBoxUpdate();
     };
 
     updateLayoutKey();
@@ -3030,6 +3336,11 @@ function EbookBookcase({
     void viewRef.current?.goTo(item.href);
   }
 
+  function goToReaderTocItem(item: TocItem) {
+    const tocItem = tocItems[item.index];
+    if (tocItem) goToTocItem(tocItem);
+  }
+
   function goToProgress(event: React.ChangeEvent<HTMLInputElement>) {
     const nextProgress = clampNumber(Number(event.currentTarget.value), 0, 1, progress);
     setProgress(nextProgress);
@@ -3053,166 +3364,1185 @@ function EbookBookcase({
     }
   }
 
+  function scheduleEbookBoxUpdate() {
+    window.cancelAnimationFrame(updateBoxesFrameRef.current);
+    updateBoxesFrameRef.current = window.requestAnimationFrame(() => {
+      updateEbookBoxesRef.current();
+      recalculateActiveConnection();
+    });
+  }
+
+  function cleanupFoliateDocumentListeners() {
+    for (const cleanup of foliateDocCleanupsRef.current) cleanup();
+    foliateDocCleanupsRef.current = [];
+    observedFoliateDocsRef.current = new WeakSet<Document>();
+  }
+
+  function attachFoliateDocumentListeners(view: FoliateViewElement | null) {
+    const doc = currentFoliateContent(view)?.doc;
+    if (!doc || observedFoliateDocsRef.current.has(doc)) return;
+    observedFoliateDocsRef.current.add(doc);
+
+    const handleSelection = () => {
+      window.setTimeout(() => {
+        const selection = doc.getSelection();
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+        handleFoliateSelectionRef.current(doc);
+      }, 0);
+    };
+    const handlePointerDown = () => handleFoliatePointerDownRef.current();
+    const handleShortcut = (event: KeyboardEvent) =>
+      handleFoliateSelectionShortcutRef.current(event);
+
+    doc.addEventListener('mouseup', handleSelection);
+    doc.addEventListener('keyup', handleSelection);
+    doc.addEventListener('keydown', handleShortcut);
+    doc.addEventListener('pointerdown', handlePointerDown, true);
+    foliateDocCleanupsRef.current.push(() => {
+      doc.removeEventListener('mouseup', handleSelection);
+      doc.removeEventListener('keyup', handleSelection);
+      doc.removeEventListener('keydown', handleShortcut);
+      doc.removeEventListener('pointerdown', handlePointerDown, true);
+    });
+  }
+
+  handleFoliatePointerDownRef.current = () => {
+    setHighlightChoice(null);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+    if (composer) setComposer(null);
+    if (settingsOpen || agentAnnotateOpen) {
+      setSettingsOpen(false);
+      setAgentAnnotateOpen(false);
+    }
+    if (selectedAnnotationId) onOpenAnnotation(null);
+  };
+
+  handleFoliateSelectionRef.current = (doc: Document) => {
+    const canvasElement = canvasRef.current;
+    const view = viewRef.current;
+    const selection = doc.getSelection();
+    if (
+      !canvasElement ||
+      !view ||
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.isCollapsed
+    ) {
+      setSelectionAction(null);
+      setTemporaryBoxes([]);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!isRangeInsideDocumentBody(doc, range)) return;
+
+    const content = currentFoliateContent(view);
+    const sectionIndex = content?.index ?? pageInfo?.sectionIndex ?? 0;
+    const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
+    const context = selectionContextForRange(doc, range);
+    const anchor =
+      article.ebook.index && chapter
+        ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, range.toString(), {
+            chapterId: chapter.id,
+            prefix: context.prefix,
+            suffix: context.suffix,
+          })
+        : null;
+    if (!anchor?.exact.trim()) {
+      setStatusMessage('无法定位这段选区，请缩短或重新选择');
+      window.setTimeout(() => setStatusMessage(''), 1800);
+      selection.removeAllRanges();
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const lastRect = lastFoliateRangeViewportRect(range, canvasRect);
+    if (!lastRect) return;
+
+    const position = selectionActionPosition(lastRect, canvasRect);
+    setSelectionAction({ x: position.x, y: position.y, anchor });
+    setComposer(null);
+    setTemporaryBoxes(
+      foliateRangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
+        Object.assign(box, {
+          annotationId: '__selection__',
+          contributorId: userProfile.id,
+          color: userProfile.annotationColor,
+        }),
+      ),
+    );
+    selection.removeAllRanges();
+  };
+
+  function cancelComposer() {
+    setComposer(null);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+  }
+
+  async function copySelection(action: SourceSelectionAction) {
+    await navigator.clipboard.writeText(action.anchor.exact);
+    setSelectionAction(null);
+    setTemporaryBoxes([]);
+  }
+
+  function openComposer(action: SourceSelectionAction) {
+    const canvasWidth = canvasRef.current?.clientWidth || 360;
+    setCommentsCloseKey((key) => key + 1);
+    setComposer({
+      x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
+      y: action.y,
+      anchor: action.anchor,
+    });
+    setSelectionAction(null);
+  }
+
+  function ebookCursorAgent(annotation: Annotation) {
+    return annotationAgents.find(
+      (agent) => agent.id === annotation.agentId || agent.username === annotation.agentUsername,
+    );
+  }
+
+  function updateEbookVirtualCursor(cursorId: string, cursor: VirtualCursorState | null) {
+    if (cursor) ebookVirtualCursorRef.current.set(cursorId, cursor);
+    else ebookVirtualCursorRef.current.delete(cursorId);
+    setVirtualCursors(Array.from(ebookVirtualCursorRef.current.values()));
+  }
+
+  function stopEbookVirtualReadingTimer(agentId: string) {
+    const timerId = ebookVirtualReadingTimersRef.current.get(agentId);
+    if (timerId !== undefined) window.clearInterval(timerId);
+    ebookVirtualReadingTimersRef.current.delete(agentId);
+    ebookVirtualReadingStepRef.current.delete(agentId);
+    ebookVirtualReadingStepSizeRef.current.delete(agentId);
+  }
+
+  function cleanupEbookAgentTheater() {
+    for (const timerId of ebookVirtualReadingTimersRef.current.values()) {
+      window.clearInterval(timerId);
+    }
+    ebookVirtualReadingTimersRef.current.clear();
+    ebookVirtualReadingStepRef.current.clear();
+    ebookVirtualReadingStepSizeRef.current.clear();
+    ebookVirtualCursorRef.current.clear();
+    setVirtualCursors([]);
+    setAgentTheaterBoxes([]);
+  }
+
+  function ebookReadingCursorForAnchor(
+    agent: PublicAgent,
+    anchor: Annotation['anchor'] | undefined,
+    step: number,
+  ): VirtualCursorState | null {
+    const canvasElement = canvasRef.current;
+    const doc = currentFoliateContent(viewRef.current)?.doc;
+    if (canvasElement && doc && anchor) {
+      const canvasRect = canvasElement.getBoundingClientRect();
+      const range = rangeForEbookAnchorCursorInDocument(doc, anchor, step);
+      const rect = range ? lastFoliateRangeViewportRect(range, canvasRect) : null;
+      if (rect) {
+        return {
+          id: agent.id,
+          visible: true,
+          x: rect.left + rect.width,
+          y: rect.top + rect.height / 2,
+          label: `${agent.nickname} 正在阅读`,
+          offscreen: null,
+          agent,
+        };
+      }
+    }
+
+    const fallbackRect =
+      viewHostRef.current?.getBoundingClientRect() || canvasRef.current?.getBoundingClientRect();
+    if (!fallbackRect) return null;
+    return {
+      id: agent.id,
+      visible: true,
+      x: fallbackRect.left + Math.min(fallbackRect.width - 40, 72 + step * 12),
+      y: fallbackRect.top + 56,
+      label: `${agent.nickname} 正在阅读`,
+      offscreen: null,
+      agent,
+    };
+  }
+
+  function startEbookVirtualReading(agent: PublicAgent, anchor: Annotation['anchor'] | undefined) {
+    stopEbookVirtualReadingTimer(agent.id);
+    const readerIndex = ebookVirtualReadingTimersRef.current.size;
+    const interval = 170 + Math.floor(Math.random() * 100);
+    const stepSize = 3 + readerIndex * 2 + Math.floor(Math.random() * 5);
+    ebookVirtualReadingStepRef.current.set(agent.id, readerIndex * 11);
+    ebookVirtualReadingStepSizeRef.current.set(agent.id, stepSize);
+    const tick = () => {
+      const step = ebookVirtualReadingStepRef.current.get(agent.id) || 0;
+      ebookVirtualReadingStepRef.current.set(
+        agent.id,
+        step + (ebookVirtualReadingStepSizeRef.current.get(agent.id) || 4),
+      );
+      const cursor = ebookReadingCursorForAnchor(agent, anchor, step);
+      if (cursor) updateEbookVirtualCursor(agent.id, cursor);
+    };
+    tick();
+    ebookVirtualReadingTimersRef.current.set(agent.id, window.setInterval(tick, interval));
+  }
+
+  function finishEbookVirtualReading(agentId: string, suffix = '批注完成') {
+    stopEbookVirtualReadingTimer(agentId);
+    const current = ebookVirtualCursorRef.current.get(agentId);
+    if (!current) return;
+    updateEbookVirtualCursor(agentId, {
+      ...current,
+      x: Math.min(window.innerWidth - 80, current.x + 72),
+      y: Math.max(72, current.y - 42),
+      label: `${current.agent?.nickname || '助手'} ${suffix}`,
+      leaving: true,
+    });
+    window.setTimeout(() => updateEbookVirtualCursor(agentId, null), 900);
+  }
+
+  function enqueueEbookAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
+    const run = async () => {
+      try {
+        await playEbookAgentAnnotation(articleId, annotation);
+      } catch (error) {
+        console.warn(error);
+        await appendAgentAnnotationToArticle(articleId, annotation);
+      }
+    };
+    const next = ebookAgentAnimationQueueRef.current.then(run, run);
+    ebookAgentAnimationQueueRef.current = next.then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
+  async function playEbookAgentAnnotation(articleId: string, annotation: Annotation) {
+    if (!isCurrentArticle(articleId)) {
+      await appendAgentAnnotationToArticle(articleId, annotation);
+      return;
+    }
+
+    const canvasElement = canvasRef.current;
+    const surfaceElement = surfaceRef.current;
+    const doc = currentFoliateContent(viewRef.current)?.doc;
+    const cursorAgent = ebookCursorAgent(annotation);
+    const cursorId =
+      cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
+    const range = doc ? rangeForEbookAnchorInDocument(doc, annotation.anchor) : null;
+    if (!canvasElement || !surfaceElement || !range) {
+      await appendAgentAnnotationToArticle(articleId, annotation);
+      void goToAnnotation(annotation.id);
+      finishEbookVirtualReading(cursorId);
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const rects = mappedFoliateRangeRects(range, canvasRect);
+    const firstRect = rects[0];
+    const lastRect = rects[rects.length - 1];
+    if (!firstRect || !lastRect) {
+      await appendAgentAnnotationToArticle(articleId, annotation);
+      void goToAnnotation(annotation.id);
+      finishEbookVirtualReading(cursorId);
+      return;
+    }
+
+    const surfaceRect = surfaceElement.getBoundingClientRect();
+    const isVisible = firstRect.bottom >= surfaceRect.top && firstRect.top <= surfaceRect.bottom;
+    if (!isVisible) {
+      updateEbookVirtualCursor(cursorId, {
+        id: cursorId,
+        visible: true,
+        x: surfaceRect.left + surfaceRect.width / 2,
+        y: firstRect.top < surfaceRect.top ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
+        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在${firstRect.top < surfaceRect.top ? '上方' : '下方'}批注`,
+        offscreen: firstRect.top < surfaceRect.top ? 'above' : 'below',
+        agent: cursorAgent,
+      });
+      await sleep(700);
+      await appendAgentAnnotationToArticle(articleId, annotation);
+      void goToAnnotation(annotation.id);
+      finishEbookVirtualReading(cursorId);
+      return;
+    }
+
+    stopEbookVirtualReadingTimer(cursorId);
+    updateEbookVirtualCursor(cursorId, {
+      id: cursorId,
+      visible: true,
+      x: firstRect.left,
+      y: firstRect.top + firstRect.height / 2,
+      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
+      offscreen: null,
+      agent: cursorAgent,
+    });
+    await sleep(260);
+
+    const theaterBoxes = foliateRangeHighlightBoxes(
+      range,
+      canvasRect,
+      `theater_${annotation.id}`,
+    ).map((box) =>
+      Object.assign({}, box, { annotationId: annotation.id, color: annotation.color }),
+    );
+    await animateTheaterHighlight(theaterBoxes, annotation.anchor.exact.length, (nextBoxes) => {
+      const cursorBox = nextBoxes[nextBoxes.length - 1];
+      if (cursorBox) {
+        updateEbookVirtualCursor(cursorId, {
+          id: cursorId,
+          visible: true,
+          x: canvasRect.left + cursorBox.left + cursorBox.width,
+          y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
+          label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
+          offscreen: null,
+          agent: cursorAgent,
+        });
+      }
+      setAgentTheaterBoxes(nextBoxes);
+    });
+
+    await appendAgentAnnotationToArticle(articleId, annotation);
+    setAgentTheaterBoxes([]);
+    updateEbookVirtualCursor(cursorId, {
+      id: cursorId,
+      visible: true,
+      x: lastRect.right,
+      y: lastRect.top + lastRect.height / 2,
+      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 批注完成`,
+      offscreen: null,
+      agent: cursorAgent,
+    });
+    await sleep(360);
+    finishEbookVirtualReading(cursorId);
+  }
+
+  async function saveAnnotations(nextAnnotations: Annotation[]) {
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return;
+    const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
+    const sortedAnnotations = nextArticle.annotations;
+    latestArticleRef.current = nextArticle;
+    annotationsRef.current = sortedAnnotations;
+    setLocalAnnotations(sortedAnnotations);
+    await onSaveArticle(nextArticle);
+    scheduleEbookBoxUpdate();
+  }
+
+  function applyAnnotations(nextAnnotations: Annotation[]) {
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return null;
+    const sortedAnnotations = sortAnnotations(nextAnnotations);
+    const nextArticle = {
+      ...currentArticle,
+      annotations: sortedAnnotations,
+      updatedAt: new Date().toISOString(),
+    };
+    latestArticleRef.current = nextArticle;
+    annotationsRef.current = sortedAnnotations;
+    setLocalAnnotations(sortedAnnotations);
+    scheduleEbookBoxUpdate();
+    return nextArticle;
+  }
+
+  function currentArticleText() {
+    return ebookText;
+  }
+
+  function isCurrentArticle(articleId: string) {
+    return latestArticleRef.current?.id === articleId;
+  }
+
+  function openAnnotation(annotationId: string) {
+    setHighlightChoice(null);
+    setSelectionAction(null);
+    setComposer(null);
+    setTemporaryBoxes([]);
+    onOpenAnnotation(annotationId);
+  }
+
+  async function createAnnotation(note: string) {
+    if (!composer) return;
+    const currentComposer = composer;
+    const currentArticle = latestArticleRef.current;
+    if (!currentArticle) return;
+    const articleContext = promptArticle(currentArticle, currentArticleText());
+
+    const mentionedAgents = findMentionedAgents(note, annotationAgents);
+    if (mentionedAgents.length > 0) {
+      cancelComposer();
+      const instructions = await resolveAgentMentionInstructions(
+        note,
+        mentionedAgents,
+        currentComposer.anchor,
+        currentArticle.id,
+        articleContext,
+      );
+      for (const item of instructions) {
+        void requestAgentAnnotations(item.agent, {
+          readingIntent: item.readingIntent,
+          instruction: item.instruction,
+          targetAnchor: currentComposer.anchor,
+          article: articleContext,
+          articleId: currentArticle.id,
+        });
+      }
+      return;
+    }
+
+    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
+    await saveAnnotations([...currentArticle.annotations, annotation]);
+    openAnnotation(annotation.id);
+    void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
+  }
+
+  async function resolveAgentMentionInstructions(
+    note: string,
+    mentionedAgents: PublicAgent[],
+    anchor: Annotation['anchor'],
+    articleId: string,
+    articleContext: PromptArticle,
+  ) {
+    const commonInstruction = agentInstructionFromNote(note, mentionedAgents) || undefined;
+    const baseInstructions = mentionedAgents.map((agent) => ({
+      agent,
+      instruction: commonInstruction,
+      readingIntent: undefined as AgentReadingIntent | undefined,
+    }));
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return baseInstructions;
+
+    try {
+      if (isCurrentArticle(articleId)) setStatusMessage('正在拆解助手任务');
+      const instructions = await desktop.planAgentMentionInstructions({
+        article: articleContext,
+        targetAnchor: anchor,
+        agents: mentionedAgents,
+        note,
+      });
+      if (isCurrentArticle(articleId)) setStatusMessage('');
+      return mentionedAgents.map((agent) => {
+        const instruction = instructions.find(
+          (item) => item.agentId === agent.id || item.agentUsername === agent.username,
+        );
+        return {
+          agent,
+          instruction: instruction?.instruction || commonInstruction,
+          readingIntent: instruction?.readingIntent,
+        };
+      });
+    } catch (error) {
+      if (isCurrentArticle(articleId)) {
+        setStatusMessage(error instanceof Error ? error.message : '助手任务拆解失败');
+        window.setTimeout(() => setStatusMessage(''), 1800);
+      }
+      return baseInstructions;
+    }
+  }
+
+  async function inferAnnotationMetadataForAnnotation(
+    articleId: string,
+    annotation: Annotation,
+    articleContext: PromptArticle,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+    try {
+      const metadata = await desktop.inferAnnotationMetadata({
+        article: articleContext,
+        anchor: annotation.anchor,
+        note: annotationPrimaryComment(annotation)?.content || '',
+      });
+      await onUpdateArticle(articleId, (targetArticle) => {
+        let found = false;
+        const nextAnnotations = targetArticle.annotations.map((item) => {
+          if (item.id !== annotation.id) return item;
+          found = true;
+          const primaryCommentId = annotationPrimaryComment(item)?.id;
+          return {
+            ...item,
+            annotationType: metadata.annotationType,
+            readingIntent: metadata.readingIntent,
+            comments: item.comments.map((comment) =>
+              comment.id === primaryCommentId
+                ? { ...comment, readingIntent: metadata.readingIntent }
+                : comment,
+            ),
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        return found ? articleWithAnnotations(targetArticle, nextAnnotations) : null;
+      });
+    } catch (error) {
+      if (!isCurrentArticle(articleId)) return;
+      setStatusMessage(error instanceof Error ? error.message : '批注标签生成失败');
+      window.setTimeout(() => setStatusMessage(''), 1800);
+    }
+  }
+
+  async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
+    if (isCurrentArticle(articleId)) {
+      const nextAnnotations = [...annotationsRef.current, annotation];
+      applyAnnotations(nextAnnotations);
+      openAnnotation(annotation.id);
+    }
+    await onUpdateArticle(articleId, (targetArticle) =>
+      articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
+    );
+  }
+
+  async function addComment(annotationId: string, content: string) {
+    const trimmed = content.trim();
+    const currentArticle = latestArticleRef.current;
+    if (!trimmed || !currentArticle) return;
+    const userComment = createUserComment(userProfile, trimmed);
+    const isFollowUpQuestion = /[?？]/.test(trimmed);
+    const comment = isFollowUpQuestion
+      ? { ...userComment, questionStatus: 'open' as const }
+      : userComment;
+    const currentAnnotations = isFollowUpQuestion
+      ? currentArticle.annotations
+      : currentArticle.annotations.map((annotation) =>
+          annotation.id !== annotationId
+            ? annotation
+            : Object.assign({}, annotation, {
+                questionStatus:
+                  annotation.questionStatus === 'open' ||
+                  (annotation.annotationType === 'question' && !annotation.questionStatus)
+                    ? 'answered'
+                    : annotation.questionStatus,
+                comments: annotation.comments.map((item) =>
+                  item.questionStatus === 'open' ||
+                  (!item.questionStatus && /[?？]/.test(item.content))
+                    ? { ...item, questionStatus: 'answered' as const }
+                    : item,
+                ),
+              }),
+        );
+    const nextAnnotations = appendAnnotationComment(
+      currentAnnotations,
+      annotationId,
+      comment,
+      userComment.createdAt,
+    );
+    const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
+    if (!nextAnnotations || !nextAnnotation) return;
+
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+
+    const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
+    for (const agent of mentionedAgents) {
+      void requestAgentComment(agent, nextAnnotation, comment);
+    }
+  }
+
+  async function setAnnotationQuestionStatus(annotationId: string, status: QuestionStatus) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? { ...annotation, questionStatus: status, updatedAt: now }
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+  }
+
+  async function setCommentQuestionStatus(
+    annotationId: string,
+    commentId: string,
+    status: QuestionStatus,
+  ) {
+    const now = new Date().toISOString();
+    const nextAnnotations = annotationsRef.current.map((annotation) =>
+      annotation.id === annotationId
+        ? {
+            ...annotation,
+            updatedAt: now,
+            comments: annotation.comments.map((comment) =>
+              comment.id === commentId ? { ...comment, questionStatus: status } : comment,
+            ),
+          }
+        : annotation,
+    );
+    await saveAnnotations(nextAnnotations);
+    openAnnotation(annotationId);
+  }
+
+  function focusQuestionAnnotation(annotationId: string) {
+    setNotesOpen(false);
+    openAnnotation(annotationId);
+    void goToAnnotation(annotationId);
+  }
+
+  function answerQuestion(annotationId: string) {
+    focusQuestionAnnotation(annotationId);
+    setReplyRequest({ annotationId, key: Date.now() });
+  }
+
+  async function deleteAnnotation(annotationId: string) {
+    const nextAnnotations = annotationsRef.current.filter(
+      (annotation) => annotation.id !== annotationId,
+    );
+    noteRefs.current.delete(annotationId);
+    await saveAnnotations(nextAnnotations);
+  }
+
+  async function requestAgentComment(
+    agent: PublicAgent,
+    annotation: Annotation,
+    userComment: AnnotationComment,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    if (!desktop || !currentArticle) return;
+
+    setStatusMessage(`${agent.nickname} 正在回复`);
+    let pendingCommentId = '';
+    let pendingDelta = '';
+    let pendingFrame = 0;
+    const flushDelta = () => {
+      pendingFrame = 0;
+      if (!pendingDelta || !pendingCommentId) return;
+      const delta = pendingDelta;
+      pendingDelta = '';
+      const nextAnnotations = updateAnnotationComment(
+        annotationsRef.current,
+        annotation.id,
+        pendingCommentId,
+        (comment) => Object.assign({}, comment, { content: comment.content + delta }),
+      );
+      if (nextAnnotations) applyAnnotations(nextAnnotations);
+    };
+    const scheduleDeltaFlush = () => {
+      if (pendingFrame) return;
+      pendingFrame = window.requestAnimationFrame(flushDelta);
+    };
+    try {
+      await desktop.requestAgentCommentStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          readingIntent: annotation.readingIntent || userComment.readingIntent,
+          article: promptArticle(currentArticle, currentArticleText()),
+          annotation,
+          userComment,
+        },
+        (event) => {
+          if (event.type === 'start') {
+            pendingCommentId = event.comment.id;
+            const nextAnnotations = appendAnnotationComment(
+              annotationsRef.current,
+              annotation.id,
+              event.comment,
+              event.comment.createdAt,
+            );
+            if (nextAnnotations) applyAnnotations(nextAnnotations);
+            return;
+          }
+
+          pendingDelta += event.delta;
+          scheduleDeltaFlush();
+        },
+      );
+      if (pendingFrame) {
+        window.cancelAnimationFrame(pendingFrame);
+        flushDelta();
+      }
+      const current = annotationsRef.current.find((item) => item.id === annotation.id);
+      const agentComment = current?.comments.find(
+        (comment) =>
+          comment.author === 'ai' &&
+          comment.agentId === agent.id &&
+          comment.id === pendingCommentId &&
+          comment.pending,
+      );
+      if (agentComment) {
+        const nextAnnotations = updateAnnotationComment(
+          annotationsRef.current,
+          annotation.id,
+          agentComment.id,
+          (comment) => Object.assign({}, comment, { pending: false }),
+        );
+        if (nextAnnotations) await saveAnnotations(nextAnnotations);
+      }
+    } finally {
+      if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
+      setStatusMessage('');
+    }
+  }
+
+  function constrainAgentPlanAnnotation(
+    annotation: Annotation,
+    readingPlan: AgentReadingPlanItem[] | undefined,
+    articleText = currentArticleText(),
+  ) {
+    if (!readingPlan?.length) return annotation;
+
+    const position = resolveTextAnchor(articleText, annotation.anchor);
+    if (!position) return null;
+
+    const planItem = readingPlan.find(
+      (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
+    );
+    if (!planItem) return null;
+    if (!planItem.readingIntent) return annotation;
+    if (annotation.readingIntent === planItem.readingIntent) return annotation;
+
+    return {
+      ...annotation,
+      readingIntent: planItem.readingIntent,
+      comments: annotation.comments.map((comment) => ({
+        ...comment,
+        readingIntent: comment.readingIntent || planItem.readingIntent,
+      })),
+    };
+  }
+
+  async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
+    await onUpdateArticle(plan.articleId, (targetArticle) => {
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: plan,
+        updatedAt: new Date().toISOString(),
+      };
+      if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
+  async function planFocusCoReading(selectedAgentIds: string[]) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    if (!desktop || !currentArticle) throw new Error('无法规划聚焦共读');
+
+    setStatusMessage('正在规划聚焦共读');
+    try {
+      const route = await desktop.planFocusCoReadingRoute({
+        selectedAgentIds,
+        sections: readingSections.map((section) => ({
+          sectionId: section.id,
+          sectionTitle: section.title,
+          sectionStart: section.start,
+          sectionEnd: section.end,
+        })),
+        chapterSummaries: currentArticle.focusCoReadingPlan?.sections.flatMap((section) =>
+          section.summary || section.tag
+            ? [
+                {
+                  sectionId: section.sectionId,
+                  summary: section.summary,
+                  tag: section.tag,
+                },
+              ]
+            : [],
+        ),
+        article: promptArticle(currentArticle, currentArticleText()),
+      });
+      const now = new Date().toISOString();
+      const routeBySection = new Map(route.sections.map((section) => [section.sectionId, section]));
+      const previousSections = new Map(
+        currentArticle.focusCoReadingPlan?.sections.map((section) => [section.sectionId, section]),
+      );
+      const sections = readingSections.flatMap((section) => {
+        const routed = routeBySection.get(section.id);
+        const previous = previousSections.get(section.id);
+        const agentIds = (routed?.agentIds || []).filter((agentId) =>
+          selectedAgentIds.includes(agentId),
+        );
+        const messages = previous?.messages || [];
+        if (agentIds.length === 0 && messages.length === 0 && !routed?.summary && !routed?.tag) {
+          return [];
+        }
+        return [
+          {
+            sectionId: section.id,
+            sectionTitle: section.title,
+            sectionStart: section.start,
+            sectionEnd: section.end,
+            summary: routed?.summary,
+            tag: routed?.tag,
+            targetDensity: routed?.targetDensity,
+            needsFurtherPlanning: routed?.needsFurtherPlanning,
+            agentIds,
+            messages,
+          },
+        ];
+      });
+      const plan: FocusCoReadingPlan = {
+        id: currentArticle.focusCoReadingPlan?.id || makeId('focus_co_reading'),
+        articleId: currentArticle.id,
+        selectedAgentIds,
+        sections,
+        createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
+        updatedAt: now,
+      };
+      await saveFocusCoReadingPlan(plan);
+      return plan;
+    } finally {
+      setStatusMessage('');
+    }
+  }
+
+  async function requestAgentAnnotations(
+    agent: PublicAgent,
+    options: {
+      annotationType?: AnnotationType;
+      readingIntent?: AgentReadingIntent;
+      instruction?: string;
+      targetAnchor?: Annotation['anchor'];
+      readingPlan?: AgentReadingPlanItem[];
+      article?: PromptArticle;
+      articleId?: string;
+    } = {},
+  ) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    const articleId = options.articleId || currentArticle?.id;
+    const articleContext =
+      options.article ||
+      (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
+    if (!desktop || !articleId || !articleContext) return;
+    if (!options.articleId && annotatingAgentIds.includes(agent.id)) return;
+
+    setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
+    setStatusMessage(`${agent.nickname} 正在批注`);
+    const readingPlan =
+      options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
+    if (isCurrentArticle(articleId) && options.targetAnchor) {
+      startEbookVirtualReading(agent, options.targetAnchor);
+    }
+    let annotationCount = 0;
+    let requestFailed = false;
+    try {
+      await desktop.requestAgentAnnotationsStream(
+        {
+          agentId: agent.id,
+          agentUsername: agent.username,
+          annotationType: options.annotationType,
+          readingIntent: options.readingIntent,
+          instruction: options.instruction,
+          annotations: options.targetAnchor ? annotationsRef.current : undefined,
+          targetAnchor: options.targetAnchor,
+          readingPlan: options.readingPlan,
+          article: articleContext,
+        },
+        (event) => {
+          if (event.type !== 'item') return;
+          const annotation = constrainAgentPlanAnnotation(
+            event.annotation,
+            readingPlan,
+            articleContext.text,
+          );
+          if (!annotation) return;
+          annotationCount += 1;
+          if (isCurrentArticle(articleId)) {
+            enqueueEbookAgentAnnotationPlayback(articleId, annotation);
+            return;
+          }
+          void appendAgentAnnotationToArticle(articleId, annotation);
+        },
+      );
+      if (annotationCount === 0 && isCurrentArticle(articleId)) {
+        if (options.targetAnchor) finishEbookVirtualReading(agent.id, '没有批注');
+        setStatusMessage(`${agent.nickname} 暂无新批注`);
+        window.setTimeout(() => setStatusMessage(''), 1400);
+      }
+    } catch (error) {
+      requestFailed = true;
+      throw error;
+    } finally {
+      if (requestFailed && options.targetAnchor && isCurrentArticle(articleId)) {
+        finishEbookVirtualReading(agent.id, '批注失败');
+      }
+      setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
+      setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+    }
+  }
+
+  function handleHighlightClick(
+    annotationId: string,
+    event: React.MouseEvent<HTMLButtonElement>,
+    visibleAnnotationIds: string[],
+  ) {
+    const canvasElement = canvasRef.current;
+    if (!canvasElement) {
+      openAnnotation(annotationId);
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+    const annotationIds =
+      visibleAnnotationIds.length > 0
+        ? visibleAnnotationIds
+        : annotationIdsAtHighlightPoint(
+            boxes,
+            {
+              x: event.clientX - canvasRect.left,
+              y: event.clientY - canvasRect.top,
+            },
+            1,
+          );
+
+    if (annotationIds.length <= 1) {
+      openAnnotation(annotationIds[0] || annotationId);
+      return;
+    }
+
+    const x = event.clientX - canvasRect.left + 8;
+    setHighlightChoice({
+      x: Math.max(8, Math.min(Math.max(8, canvasRect.width - 236), x)),
+      y: Math.max(8, event.clientY - canvasRect.top + 8),
+      annotationIds,
+    });
+  }
+
+  async function goToAnnotation(annotationId: string) {
+    const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+    const view = viewRef.current;
+    const index = article.ebook.index;
+    if (!annotation || !view || !index) return false;
+
+    const chapter = annotation.anchor.chapterId
+      ? index.chapters.find((item) => item.id === annotation.anchor.chapterId)
+      : null;
+    const sectionIndex = chapter ? ebookSectionIndexForChapter(article, view, chapter) : -1;
+    if (sectionIndex >= 0) await view.goTo(sectionIndex);
+    else if (typeof annotation.anchor.textStartInBook === 'number' && index.textLength > 0) {
+      await view.goToFraction(annotation.anchor.textStartInBook / index.textLength);
+    }
+
+    await waitForFoliateIdle();
+    await waitForAnimationFrame();
+    const doc = currentFoliateContent(view)?.doc;
+    const range = doc ? rangeForEbookAnchorInDocument(doc, annotation.anchor) : null;
+    if (range) await view.renderer?.scrollToAnchor?.(range);
+    await waitForAnimationFrame();
+    scheduleEbookBoxUpdate();
+    return true;
+  }
+
+  useEffect(() => {
+    if (!focusAnnotationId) return;
+    if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
+      onFocusedAnnotation();
+      return;
+    }
+    void goToAnnotation(focusAnnotationId).then(() => onFocusedAnnotation());
+  }, [annotations, focusAnnotationId, onFocusedAnnotation]);
+
   const progressPercent = Math.round(progress * 100);
   const paginationReady = isEbookPaginationReady(pageInfo, sectionPageCounts);
   const pageLabel = paginationReady ? formatEbookPageLabel(pageInfo, sectionPageCounts) : '';
   const progressTickId = `ebook-progress-ticks-${article.id}`;
+  const readerArticle = {
+    title: article.title,
+    byline: article.byline || article.ebook.metadata.fileName,
+    excerpt: statusMessage,
+    content: '',
+  };
+  const shortcutModifier = getShortcutModifier();
+  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
+  const actionShortcuts = useMemo(
+    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
+    [selectionActionShortcuts],
+  );
+  const pageAnnotations = useMemo(() => {
+    const visibleIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
+    return annotations.filter((annotation) => visibleIds.has(annotation.id));
+  }, [annotations, boxes]);
+  handleFoliateSelectionShortcutRef.current = (event: KeyboardEvent) => {
+    const activeSelectionAction = selectionAction;
+    if (!activeSelectionAction || composer || event.defaultPrevented) return;
+    if (isEditableKeyboardTarget(event.target)) return;
+
+    const shortcut = selectionActionShortcut(event, actionShortcuts);
+    if (!shortcut) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (shortcut === 'copy') {
+      void copySelection(activeSelectionAction);
+      return;
+    }
+    openComposer(activeSelectionAction);
+  };
 
   return (
-    <section className="source-bookcase ebook-reader-shell">
-      <style>{readerStyles}</style>
-      <header className="ebook-reader-toolbar">
-        <div className="ebook-reader-title">
-          <strong>{article.title}</strong>
-          <span>{article.byline || article.ebook.metadata.fileName}</span>
-        </div>
-        <div className="ebook-reader-actions">
-          <button
-            className={tocOpen ? 'ebook-icon-button is-active' : 'ebook-icon-button'}
-            type="button"
-            aria-label="切换目录"
-            aria-pressed={tocOpen}
-            onClick={() => setTocOpen((open) => !open)}
-          >
-            <List size={17} />
-          </button>
-          <button
-            className={settingsOpen ? 'ebook-icon-button is-active' : 'ebook-icon-button'}
-            type="button"
-            aria-label="阅读设置"
-            aria-pressed={settingsOpen}
-            onClick={() => setSettingsOpen((open) => !open)}
-          >
-            <Settings2 size={17} />
-          </button>
-          <button
-            className="ebook-close-button"
-            type="button"
-            onClick={onClose}
-            aria-label="关闭阅读器"
-          >
-            <X size={17} />
-          </button>
-        </div>
-        {settingsOpen ? (
-          <ReaderSettingsPanel
-            panelProps={
-              {
-                className: 'reader-settings-panel ebook-reader-settings-panel',
-              } as React.HTMLAttributes<HTMLDivElement>
-            }
-            settings={readerSettings}
-            onChange={updateEbookReaderSettings}
-          />
-        ) : null}
-      </header>
-      <div className={tocOpen ? 'ebook-reader-layout is-toc-open' : 'ebook-reader-layout'}>
-        <button
-          className="ebook-responsive-scrim"
-          type="button"
-          aria-label="关闭目录"
-          onClick={() => setTocOpen(false)}
-        />
-        <aside className="ebook-reader-toc" aria-hidden={!tocOpen} aria-label="电子书目录">
-          <div className="ebook-reader-toc-title">目录</div>
-          {tocItems.map((item) => (
-            <button
-              className={activeTocHref === item.href ? 'is-active' : undefined}
-              data-depth={Math.min(item.depth, 4)}
-              type="button"
-              key={`${item.depth}-${item.href}-${item.label}`}
-              onClick={() => goToTocItem(item)}
-            >
-              <span>{item.label}</span>
-            </button>
-          ))}
-          {tocItems.length === 0 ? (
-            <p className="ebook-reader-toc-empty">这本书没有目录。</p>
-          ) : null}
-        </aside>
-        <main
-          className="ebook-reader-main"
-          style={
-            { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
-          }
-        >
+    <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
+      <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
+      <ReaderAppView
+        activeConnection={activeConnection}
+        activeId={selectedAnnotationId}
+        agentAnnotateOpen={agentAnnotateOpen}
+        agentDockCompleting={false}
+        agentDockItems={[]}
+        agentTheaterBoxes={agentTheaterBoxes}
+        agents={annotationAgents}
+        annotatingAgents={annotatingAgentIds}
+        annotationTotals={annotationTotals}
+        annotations={pageAnnotations}
+        articleContent={
           <div
-            className="ebook-page-control-row"
+            className="ebook-reader-content"
             style={
               { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
             }
           >
+            <div className="ebook-page-control-row">
+              <div
+                className={
+                  paginationReady
+                    ? 'ebook-page-control-actions'
+                    : 'ebook-page-control-actions is-paginating'
+                }
+              >
+                <button
+                  className="ebook-icon-button"
+                  type="button"
+                  aria-label="上一页"
+                  disabled={readerState.status !== 'ready' || !paginationReady}
+                  onClick={goLeft}
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <span className="ebook-location-label">{pageLabel}</span>
+                <button
+                  className="ebook-icon-button"
+                  type="button"
+                  aria-label="下一页"
+                  disabled={readerState.status !== 'ready' || !paginationReady}
+                  onClick={goRight}
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+            </div>
             <div
-              className={
-                paginationReady
-                  ? 'ebook-page-control-actions'
-                  : 'ebook-page-control-actions is-paginating'
+              className={`ebook-page-stage is-${readerState.status}`}
+              tabIndex={0}
+              onKeyDown={handleReaderKeyDown}
+              style={
+                {
+                  '--ebook-font-size': `${readerSettings.fontSize}px`,
+                  '--ebook-content-width': `${readerSettings.contentWidth}px`,
+                } as React.CSSProperties
               }
             >
-              <button
-                className="ebook-icon-button"
-                type="button"
-                aria-label="上一页"
-                disabled={readerState.status !== 'ready' || !paginationReady}
-                onClick={goLeft}
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <span className="ebook-location-label">{pageLabel}</span>
-              <button
-                className="ebook-icon-button"
-                type="button"
-                aria-label="下一页"
-                disabled={readerState.status !== 'ready' || !paginationReady}
-                onClick={goRight}
-              >
-                <ChevronRight size={17} />
-              </button>
+              <div className="ebook-foliate-frame" ref={viewHostRef} />
+              {readerState.status !== 'ready' ? (
+                <div className="ebook-reader-status" role="status">
+                  {readerState.message}
+                </div>
+              ) : null}
+              <div className="ebook-foliate-measurer" ref={measureHostRef} aria-hidden="true" />
+            </div>
+            <div className="ebook-reader-progress">
+              <input
+                aria-label="快速跳转阅读进度"
+                className="ebook-progress-slider"
+                disabled={readerState.status !== 'ready'}
+                list={sectionFractions.length > 0 ? progressTickId : undefined}
+                max="1"
+                min="0"
+                step="any"
+                style={{ '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties}
+                type="range"
+                value={progress}
+                onChange={goToProgress}
+              />
+              {sectionFractions.length > 0 ? (
+                <datalist id={progressTickId}>
+                  {sectionFractions.map((fraction, index) => (
+                    <option value={fraction} key={`${index}-${fraction}`} />
+                  ))}
+                </datalist>
+              ) : null}
             </div>
           </div>
-          <div
-            className={`ebook-page-stage is-${readerState.status}`}
-            tabIndex={0}
-            onKeyDown={handleReaderKeyDown}
-            style={
-              {
-                '--ebook-font-size': `${readerSettings.fontSize}px`,
-                '--ebook-content-width': `${readerSettings.contentWidth}px`,
-              } as React.CSSProperties
-            }
-          >
-            <div className="ebook-foliate-frame" ref={viewHostRef} />
-            {readerState.status !== 'ready' ? (
-              <div className="ebook-reader-status" role="status">
-                {readerState.message}
-              </div>
-            ) : null}
-            <div className="ebook-foliate-measurer" ref={measureHostRef} aria-hidden="true" />
-          </div>
-          <div className="ebook-reader-progress">
-            <input
-              aria-label="快速跳转阅读进度"
-              className="ebook-progress-slider"
-              disabled={readerState.status !== 'ready'}
-              list={sectionFractions.length > 0 ? progressTickId : undefined}
-              max="1"
-              min="0"
-              step="any"
-              style={{ '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties}
-              type="range"
-              value={progress}
-              onChange={goToProgress}
-            />
-            {sectionFractions.length > 0 ? (
-              <datalist id={progressTickId}>
-                {sectionFractions.map((fraction, index) => (
-                  <option value={fraction} key={`${index}-${fraction}`} />
-                ))}
-              </datalist>
-            ) : null}
-          </div>
-        </main>
-      </div>
+        }
+        articleId={article.id}
+        articleRef={articleRef}
+        boxes={boxes}
+        canvasRef={canvasRef}
+        commentsCloseKey={commentsCloseKey}
+        composer={composer}
+        completionBurstKey={0}
+        embedded
+        extracted={readerArticle}
+        filteredAnnotations={pageAnnotations}
+        focusCoReadingPlan={article.focusCoReadingPlan}
+        highlightChoice={highlightChoice}
+        notesOpen={notesOpen}
+        noteRefs={noteRefs}
+        notesRef={railRef}
+        readerSettings={readerSettings}
+        readingSections={readingSections}
+        replyRequest={replyRequest}
+        selectionAction={selectionAction}
+        settingsOpen={settingsOpen}
+        messageSendShortcut={sendShortcut}
+        selectionActionShortcuts={actionShortcuts}
+        shortcutModifier={shortcutModifier}
+        surfaceRef={surfaceRef}
+        temporaryBoxes={temporaryBoxes}
+        tocAnnotationStats={tocStats}
+        tocItems={readerTocItems}
+        tocOpen={tocOpen}
+        userProfile={userProfile}
+        virtualCursors={virtualCursors}
+        onAddComment={addComment}
+        onAnnotationLayoutChange={recalculateActiveConnection}
+        onAnswerQuestion={answerQuestion}
+        onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
+        onCancelComposer={cancelComposer}
+        onClearActiveAnnotation={() => onOpenAnnotation(null)}
+        onClose={onClose}
+        onCloseFloatingPanels={() => {
+          setSettingsOpen(false);
+          setAgentAnnotateOpen(false);
+        }}
+        onCloseHighlightChoice={() => setHighlightChoice(null)}
+        onCloseResponsivePanels={() => {
+          setTocOpen(false);
+          setNotesOpen(false);
+        }}
+        onCopySelection={copySelection}
+        onCreateAnnotation={createAnnotation}
+        onDeleteAnnotation={deleteAnnotation}
+        onFocusAnnotation={openAnnotation}
+        onHighlightClick={handleHighlightClick}
+        onMouseUp={() => undefined}
+        onOpenComposer={openComposer}
+        onPlanFocusCoReading={planFocusCoReading}
+        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
+        onScrollToHeading={goToReaderTocItem}
+        onScrollToHighlight={(annotationId) => {
+          openAnnotation(annotationId);
+          void goToAnnotation(annotationId);
+        }}
+        onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
+        onSetCommentQuestionStatus={setCommentQuestionStatus}
+        onStartAgentReadingPlan={(agent, readingPlan) => {
+          setAgentAnnotateOpen(false);
+          void requestAgentAnnotations(agent, { readingPlan });
+        }}
+        onToggleAgentAnnotate={() => {
+          setSettingsOpen(false);
+          setAgentAnnotateOpen((open) => !open);
+        }}
+        onToggleNotes={() => {
+          if (!notesOpen) setCommentsCloseKey((key) => key + 1);
+          setNotesOpen((open) => !open);
+        }}
+        onToggleSettings={() => {
+          setAgentAnnotateOpen(false);
+          setSettingsOpen((open) => !open);
+        }}
+        onToggleToc={() => setTocOpen((open) => !open)}
+        onUpdateReaderSettings={updateEbookReaderSettings}
+      />
     </section>
   );
 }
@@ -3412,6 +4742,334 @@ function foliateLabelText(value: unknown): string {
   if (!value || typeof value !== 'object') return '';
   const first = Object.values(value as Record<string, unknown>)[0];
   return typeof first === 'string' ? first : '';
+}
+
+const EBOOK_TEXT_BLOCK_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
+
+type DomTextPosition = {
+  node: Text;
+  offset: number;
+  virtual: boolean;
+};
+
+function ebookArticleText(article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> }) {
+  const chapters = article.ebook.chapters.map((chapter) => ({
+    id: chapter.id,
+    title: chapter.title,
+    href: chapter.href,
+    paragraphs: ebookChapterParagraphs(chapter.html),
+  }));
+  return chapters
+    .map((chapter) => chapter.paragraphs.map(normalizeRenderedText).filter(Boolean).join('\n\n'))
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function ebookChapterParagraphs(html: string) {
+  const container = document.createElement('article');
+  container.innerHTML = html;
+  const blockElements = Array.from(
+    container.querySelectorAll<HTMLElement>(EBOOK_TEXT_BLOCK_SELECTOR),
+  ).filter(
+    (element) =>
+      !Array.from(element.children).some((child) => child.matches(EBOOK_TEXT_BLOCK_SELECTOR)),
+  );
+  const paragraphs = blockElements.flatMap((element) => {
+    const text = normalizeRenderedText(element.textContent || '');
+    return text ? [text] : [];
+  });
+  if (paragraphs.length > 0) return paragraphs;
+  const fallback = normalizeRenderedText(container.textContent || '');
+  return fallback ? [fallback] : [];
+}
+
+function ebookReaderReadingSections(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  text: string,
+): ReaderReadingSection[] {
+  const index = article.ebook.index;
+  if (!index?.chapters.length) {
+    return text ? [{ id: 'ebook', title: article.title, start: 0, end: text.length }] : [];
+  }
+  return index.chapters.map((chapter) => ({
+    id: chapter.id,
+    title: chapter.title || `第 ${chapter.indexInBook + 1} 章`,
+    start: chapter.textStart,
+    end: chapter.textEnd,
+  }));
+}
+
+function ebookTocItemsForReader(
+  tocItems: FoliateTocItem[],
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+): TocItem[] {
+  const textLength = article.ebook.index?.textLength || 0;
+  return tocItems.map((item, index) => {
+    const chapter = ebookChapterForHref(article, item.href) || article.ebook.index?.chapters[index];
+    return {
+      index,
+      text: item.label,
+      depth: item.depth,
+      start: chapter?.textStart ?? 0,
+      end: chapter?.textEnd ?? textLength,
+    };
+  });
+}
+
+function ebookChapterForHref(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  href: string | undefined,
+) {
+  const normalizedHref = normalizeEbookHref(href);
+  if (!normalizedHref) return null;
+  return (
+    article.ebook.index?.chapters.find((chapter) =>
+      ebookHrefMatches(normalizeEbookHref(chapter.href), normalizedHref),
+    ) || null
+  );
+}
+
+function ebookChapterForFoliateSection(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  view: FoliateViewElement | null,
+  sectionIndex: number,
+) {
+  const section = view?.book?.sections?.[sectionIndex];
+  const byHref = ebookChapterForHref(article, section?.id);
+  if (byHref) return byHref;
+  return article.ebook.index?.chapters[sectionIndex] || null;
+}
+
+function ebookSectionIndexForChapter(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  view: FoliateViewElement,
+  chapter: NonNullable<NonNullable<ArticleRecord['ebook']>['index']>['chapters'][number],
+) {
+  const sections = view.book?.sections || [];
+  const chapterHref = normalizeEbookHref(chapter.href);
+  const matchedIndex = sections.findIndex((section) =>
+    ebookHrefMatches(normalizeEbookHref(section.id), chapterHref),
+  );
+  if (matchedIndex >= 0) return matchedIndex;
+  return chapter.indexInBook < sections.length ? chapter.indexInBook : -1;
+}
+
+function normalizeEbookHref(value: string | undefined) {
+  return (value || '').split('#')[0]?.replace(/^\/+/, '') || '';
+}
+
+function ebookHrefMatches(left: string, right: string) {
+  if (!left || !right) return false;
+  return left === right || left.endsWith(`/${right}`) || right.endsWith(`/${left}`);
+}
+
+function currentFoliateContent(view: FoliateViewElement | null) {
+  return view?.renderer?.getContents?.()[0] || null;
+}
+
+function isRangeInsideDocumentBody(doc: Document, range: Range) {
+  const body = doc.body;
+  const start =
+    range.startContainer.nodeType === Node.ELEMENT_NODE
+      ? range.startContainer
+      : range.startContainer.parentNode;
+  const end =
+    range.endContainer.nodeType === Node.ELEMENT_NODE
+      ? range.endContainer
+      : range.endContainer.parentNode;
+  return Boolean(body && start && end && body.contains(start) && body.contains(end));
+}
+
+function selectionContextForRange(doc: Document, range: Range) {
+  const body = doc.body;
+  if (!body) return { prefix: '', suffix: '' };
+
+  const before = doc.createRange();
+  before.selectNodeContents(body);
+  before.setEnd(range.startContainer, range.startOffset);
+
+  const after = doc.createRange();
+  after.selectNodeContents(body);
+  after.setStart(range.endContainer, range.endOffset);
+
+  return {
+    prefix: normalizeRenderedText(before.toString()).slice(-96),
+    suffix: normalizeRenderedText(after.toString()).slice(0, 96),
+  };
+}
+
+function rangeForEbookAnchorInDocument(doc: Document, anchor: Annotation['anchor']) {
+  const match = ebookAnchorMatchInDocument(doc, anchor);
+  return match ? rangeFromNormalizedDomText(doc, match.index.positions, match.match) : null;
+}
+
+function rangeForEbookAnchorCursorInDocument(
+  doc: Document,
+  anchor: Annotation['anchor'],
+  progressOffset: number,
+) {
+  const matched = ebookAnchorMatchInDocument(doc, anchor);
+  if (!matched) return null;
+
+  const length = Math.max(1, matched.match.end - matched.match.start);
+  const cursor = matched.match.start + (Math.max(0, progressOffset) % length);
+  return rangeFromNormalizedDomTextPoint(doc, matched.index.positions, cursor, matched.match.end);
+}
+
+function ebookAnchorMatchInDocument(doc: Document, anchor: Annotation['anchor']) {
+  const body = doc.body;
+  const query = normalizeRenderedText(anchor.exact);
+  if (!body || !query) return null;
+
+  const index = buildNormalizedDomTextIndex(body);
+  let bestMatch: { start: number; end: number } | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  let cursor = index.text.indexOf(query);
+
+  while (cursor >= 0) {
+    const end = cursor + query.length;
+    const score = domAnchorMatchScore(index.text, cursor, end, anchor);
+    if (score > bestScore) {
+      bestMatch = { start: cursor, end };
+      bestScore = score;
+    }
+    cursor = index.text.indexOf(query, cursor + Math.max(1, query.length));
+  }
+
+  return bestMatch ? { index, match: bestMatch } : null;
+}
+
+function buildNormalizedDomTextIndex(root: HTMLElement) {
+  let text = '';
+  const positions: DomTextPosition[] = [];
+  let pendingWhitespace = false;
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    for (let offset = 0; offset < node.data.length; offset += 1) {
+      const char = node.data[offset]!;
+      if (/\s/.test(char)) {
+        pendingWhitespace = text.length > 0;
+        continue;
+      }
+      if (pendingWhitespace && !text.endsWith(' ')) {
+        text += ' ';
+        positions.push({ node, offset, virtual: true });
+      }
+      pendingWhitespace = false;
+      text += char;
+      positions.push({ node, offset, virtual: false });
+    }
+  }
+
+  return { text, positions };
+}
+
+function rangeFromNormalizedDomText(
+  doc: Document,
+  positions: DomTextPosition[],
+  match: { start: number; end: number },
+) {
+  const start = positions[match.start];
+  const end = positions[match.end - 1];
+  if (!start || !end) return null;
+  const range = doc.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset + (end.virtual ? 0 : 1));
+  return range;
+}
+
+function rangeFromNormalizedDomTextPoint(
+  doc: Document,
+  positions: DomTextPosition[],
+  offset: number,
+  limitEnd: number,
+) {
+  let cursor = Math.min(offset, Math.max(0, limitEnd - 1));
+  while (cursor < limitEnd && positions[cursor]?.virtual) cursor += 1;
+  if (!positions[cursor] || cursor >= limitEnd) {
+    cursor = Math.min(Math.max(0, limitEnd - 1), positions.length - 1);
+    while (cursor > 0 && positions[cursor]?.virtual) cursor -= 1;
+  }
+  if (!positions[cursor] || positions[cursor]?.virtual) return null;
+  return rangeFromNormalizedDomText(doc, positions, {
+    start: cursor,
+    end: Math.min(limitEnd, cursor + 1),
+  });
+}
+
+function domAnchorMatchScore(
+  text: string,
+  start: number,
+  end: number,
+  anchor: Annotation['anchor'],
+) {
+  const prefix = normalizeRenderedText(anchor.prefix || '');
+  const suffix = normalizeRenderedText(anchor.suffix || '');
+  const before = text.slice(Math.max(0, start - Math.max(120, prefix.length * 3)), start);
+  const after = text.slice(end, Math.min(text.length, end + Math.max(120, suffix.length * 3)));
+  return commonSuffixLength(before, prefix) + commonPrefixLength(after, suffix);
+}
+
+function foliateRangeHighlightBoxes(range: Range, canvasRect: DOMRect, idPrefix: string) {
+  return mappedFoliateRangeRects(range, canvasRect).map((rect, index) => ({
+    id: `${idPrefix}_${index}`,
+    annotationId: '',
+    color: '#f4c95d',
+    top: rect.top - canvasRect.top,
+    left: rect.left - canvasRect.left,
+    width: rect.width,
+    height: rect.height,
+  }));
+}
+
+function lastFoliateRangeViewportRect(range: Range, canvasRect: DOMRect) {
+  return mappedFoliateRangeRects(range, canvasRect).at(-1) || null;
+}
+
+function mappedFoliateRangeRects(range: Range, canvasRect: DOMRect) {
+  const frame = range.startContainer.ownerDocument?.defaultView?.frameElement;
+  if (!(frame instanceof HTMLIFrameElement)) return [];
+
+  const frameRect = frame.getBoundingClientRect();
+  return Array.from(range.getClientRects()).flatMap((rect) => {
+    const left = frameRect.left + rect.left;
+    const top = frameRect.top + rect.top;
+    const right = left + rect.width;
+    const bottom = top + rect.height;
+    const visibleLeft = Math.max(left, frameRect.left, canvasRect.left);
+    const visibleTop = Math.max(top, frameRect.top, canvasRect.top);
+    const visibleRight = Math.min(right, frameRect.right, canvasRect.right);
+    const visibleBottom = Math.min(bottom, frameRect.bottom, canvasRect.bottom);
+    const width = visibleRight - visibleLeft;
+    const height = visibleBottom - visibleTop;
+    return width >= 2 && height >= 2 ? [new DOMRect(visibleLeft, visibleTop, width, height)] : [];
+  });
+}
+
+function normalizeRenderedText(value: string) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function commonPrefixLength(left: string, right: string) {
+  let length = 0;
+  while (length < left.length && length < right.length && left[length] === right[length]) {
+    length += 1;
+  }
+  return length;
+}
+
+function commonSuffixLength(left: string, right: string) {
+  let length = 0;
+  while (
+    length < left.length &&
+    length < right.length &&
+    left[left.length - 1 - length] === right[right.length - 1 - length]
+  ) {
+    length += 1;
+  }
+  return length;
 }
 
 function isEbookArticle(

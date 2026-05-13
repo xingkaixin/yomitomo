@@ -20,6 +20,7 @@ const userProfile: UserProfile = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function annotation(id: string, createdAt = now): Annotation {
@@ -211,6 +212,24 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.getByTitle('这是一段会在卡片上被截断的很长标题')).toBeTruthy();
     expect(container.querySelector('.library-site-icon-slot')).toBeTruthy();
+  });
+
+  it('opens a webpage article in the source reader', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    renderLibrary([article({ title: '网页文章' })]);
+
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]!);
+
+    expect(screen.getByText('当前：原文阅读')).toBeTruthy();
+    expect(screen.getByText('网页文章')).toBeTruthy();
+    expect(screen.getByText('正文')).toBeTruthy();
   });
 
   it('imports a webpage and shows duplicate article action', async () => {

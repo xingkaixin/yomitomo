@@ -61,10 +61,35 @@ describe('selection annotation context', () => {
     expect(prompt).toContain('第二章开头。');
     expect(prompt).toContain('第二章目标论证。');
     expect(prompt).toContain('第二章后续说明。');
-    expect(prompt).toContain('章节位置：第 2 章《第二章》。');
+    expect(prompt).toContain('当前章节标题：《第二章》。');
     expect(prompt).toContain('"chapterId": "chapter-2"');
     expect(prompt).toContain('"paragraphId": "chapter-2-paragraph-2"');
     expect(prompt).toContain('已有批注会影响这段理解。');
+  });
+
+  it('does not present epub spine order as the book chapter number', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '版权信息', paragraphs: ['版权页。'] },
+      { id: 'chapter-2', title: '前言 关于《以日为鉴》', paragraphs: ['前言。'] },
+      { id: 'chapter-3', title: '第一篇 失业潮下的决策', paragraphs: ['篇章页。'] },
+      { id: 'chapter-4', title: '第一章 保就业，还是保发展？', paragraphs: ['第一章。'] },
+      { id: 'chapter-5', title: '第二章 救老员工，还是大学生？', paragraphs: ['第二章。'] },
+      { id: 'chapter-6', title: '第三章 留在城市还是返乡的选择', paragraphs: ['第三章。'] },
+      { id: 'chapter-7', title: '第二篇 无法与自己和解的一代人', paragraphs: ['篇章页。'] },
+      { id: 'chapter-8', title: '第四章 人生开启于失落经济', paragraphs: ['第四章。'] },
+      { id: 'chapter-9', title: '第五章 学历贬值的一代', paragraphs: ['第五章。'] },
+      {
+        id: 'chapter-10',
+        title: '第六章 日本硕博扩招一代',
+        paragraphs: ['这部聚焦硕士与博士生存困境的著作，讲述了目标论证。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const prompt = promptForTarget(ebookIndex, text, '目标论证');
+
+    expect(prompt).toContain('当前章节标题：《第六章 日本硕博扩招一代》。');
+    expect(prompt).not.toContain('章节位置：第 10 章《第六章 日本硕博扩招一代》。');
   });
 
   it('preserves local context budget for a long selection', () => {

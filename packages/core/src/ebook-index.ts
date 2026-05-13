@@ -45,6 +45,14 @@ export type EpubIndexLocation = {
   paragraphWindow: EpubParagraphIndex[];
 };
 
+export type CreateEpubTextAnchorFromQuoteOptions = {
+  chapterId?: string;
+  segmentId?: string;
+  paragraphId?: string;
+  prefix?: string;
+  suffix?: string;
+};
+
 type ParagraphBuildState = EpubParagraphIndex & {
   text: string;
 };
@@ -206,6 +214,41 @@ export function createEpubTextAnchor(
   };
 }
 
+export function createEpubTextAnchorFromQuote(
+  index: EpubBookIndex,
+  text: string,
+  quote: string,
+  options: CreateEpubTextAnchorFromQuoteOptions = {},
+): TextAnchor | null {
+  const normalizedQuote = normalizeText(quote);
+  if (!normalizedQuote) return null;
+
+  const ranges = anchorSearchRanges(index, text.length, options);
+  let bestMatch: { start: number; end: number } | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  for (const range of ranges) {
+    const normalizedRange = normalizeTextWithMap(text.slice(range.start, range.end));
+    let indexInRange = normalizedRange.text.indexOf(normalizedQuote);
+
+    while (indexInRange >= 0) {
+      const start = range.start + normalizedRange.map[indexInRange]!;
+      const end = range.start + normalizedRange.map[indexInRange + normalizedQuote.length - 1]! + 1;
+      const score = anchorMatchScore(text, start, end, options);
+      if (score > bestScore) {
+        bestMatch = { start, end };
+        bestScore = score;
+      }
+      indexInRange = normalizedRange.text.indexOf(
+        normalizedQuote,
+        indexInRange + Math.max(1, normalizedQuote.length),
+      );
+    }
+  }
+
+  return bestMatch ? createEpubTextAnchor(index, text, bestMatch.start, bestMatch.end) : null;
+}
+
 export function resolveEpubTextAnchor(
   index: EpubBookIndex,
   text: string,
@@ -295,6 +338,47 @@ function resolveAnchorInRange(
     end: Math.max(0, Math.min(anchor.end - rangeStart, rangeText.length)),
   });
   return position ? { start: rangeStart + position.start, end: rangeStart + position.end } : null;
+}
+
+function anchorSearchRanges(
+  index: EpubBookIndex,
+  textLength: number,
+  options: CreateEpubTextAnchorFromQuoteOptions,
+) {
+  const paragraph = options.paragraphId
+    ? index.paragraphs.find((item) => item.id === options.paragraphId)
+    : null;
+  if (paragraph) return [{ start: paragraph.textStart, end: paragraph.textEnd }];
+
+  const segment = options.segmentId
+    ? index.segments.find((item) => item.id === options.segmentId)
+    : null;
+  if (segment) return [{ start: segment.textStart, end: segment.textEnd }];
+
+  const chapter = options.chapterId
+    ? index.chapters.find((item) => item.id === options.chapterId)
+    : null;
+  if (chapter) return [{ start: chapter.textStart, end: chapter.textEnd }];
+
+  return [{ start: 0, end: textLength }];
+}
+
+function anchorMatchScore(
+  text: string,
+  start: number,
+  end: number,
+  options: CreateEpubTextAnchorFromQuoteOptions,
+) {
+  const prefix = normalizeText(options.prefix || '');
+  const suffix = normalizeText(options.suffix || '');
+  const before = normalizeText(
+    text.slice(Math.max(0, start - Math.max(120, prefix.length * 3)), start),
+  );
+  const after = normalizeText(
+    text.slice(end, Math.min(text.length, end + Math.max(120, suffix.length * 3))),
+  );
+
+  return commonSuffixLength(before, prefix) + commonPrefixLength(after, suffix);
 }
 
 function epubPositionAllowed(
@@ -427,6 +511,49 @@ function toParagraphIndex(paragraph: ParagraphBuildState): EpubParagraphIndex {
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function normalizeTextWithMap(value: string) {
+  let text = '';
+  const map: number[] = [];
+  let pendingWhitespace = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index]!;
+    if (/\s/.test(char)) {
+      pendingWhitespace = text.length > 0;
+      continue;
+    }
+    if (pendingWhitespace && !text.endsWith(' ')) {
+      text += ' ';
+      map.push(index);
+    }
+    pendingWhitespace = false;
+    text += char;
+    map.push(index);
+  }
+
+  return { text, map };
+}
+
+function commonPrefixLength(left: string, right: string) {
+  let length = 0;
+  while (length < left.length && length < right.length && left[length] === right[length]) {
+    length += 1;
+  }
+  return length;
+}
+
+function commonSuffixLength(left: string, right: string) {
+  let length = 0;
+  while (
+    length < left.length &&
+    length < right.length &&
+    left[left.length - 1 - length] === right[right.length - 1 - length]
+  ) {
+    length += 1;
+  }
+  return length;
 }
 
 function findRange<T extends { textStart: number; textEnd: number }>(

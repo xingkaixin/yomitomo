@@ -115,6 +115,7 @@ export type ReaderAppViewProps = {
   annotatingAgents: string[];
   annotationTotals: { annotations: number; comments: number };
   annotations: Annotation[];
+  articleContent?: React.ReactNode;
   articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
   boxes: HighlightBox[];
@@ -217,6 +218,7 @@ export function ReaderAppView({
   annotatingAgents,
   annotationTotals,
   annotations,
+  articleContent,
   articleId,
   articleRef,
   boxes,
@@ -769,10 +771,12 @@ export function ReaderAppView({
           <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
             <div className="reader-canvas" ref={canvasRef}>
               <article className="reader-article" ref={articleRef}>
-                <div
-                  className="reader-article-body"
-                  dangerouslySetInnerHTML={{ __html: extracted.content }}
-                />
+                {articleContent ?? (
+                  <div
+                    className="reader-article-body"
+                    dangerouslySetInnerHTML={{ __html: extracted.content }}
+                  />
+                )}
               </article>
               <div className="reader-highlight-layer">
                 {highlightSegments.map((segment) => {
