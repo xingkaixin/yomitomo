@@ -975,6 +975,7 @@ export type AgentAnnotatePayload = {
   annotationType?: AnnotationType;
   readingIntent?: AgentReadingIntent;
   instruction?: string;
+  annotations?: Annotation[];
   readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
   readerProgress?: ReaderProgress;
