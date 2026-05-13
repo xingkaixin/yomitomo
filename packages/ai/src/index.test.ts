@@ -163,6 +163,182 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
   });
 
+  it('uses thread-first context for epub annotation replies', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['已读背景。'] },
+      {
+        id: 'chapter-2',
+        title: '第二章',
+        paragraphs: [
+          '第二章开头。',
+          '选区前文。目标观点需要局部上下文。选区后文。',
+          '第二章未读后续。',
+        ],
+      },
+      { id: 'chapter-3', title: '第三章', paragraphs: ['未来章节不应出现。'] },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const start = text.indexOf('目标观点');
+    const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '目标观点'.length);
+    const userComment = {
+      id: 'comment_latest',
+      author: 'user' as const,
+      userUsername: 'xingkaixin',
+      userNickname: '行开心',
+      content: '@林知微 这和前文矛盾吗？',
+      createdAt: '2026-05-13T00:02:00.000Z',
+    };
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+        annotation: {
+          ...payload.annotation,
+          anchor,
+          comments: [
+            {
+              id: 'comment_original',
+              author: 'ai',
+              agentId: lin.id,
+              agentUsername: lin.username,
+              agentNickname: lin.nickname,
+              content: '原批注：这句话是本段关键。',
+              createdAt: '2026-05-13T00:00:00.000Z',
+            },
+            userComment,
+          ],
+        },
+        userComment,
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('thread-first 上下文');
+    expect(prompt).toContain('"chapterId": "chapter-2"');
+    expect(prompt).toContain('目标观点');
+    expect(prompt).toContain('选区前文。');
+    expect(prompt).toContain('原批注：这句话是本段关键。');
+    expect(prompt).toContain('"source": "latest-user-comment"');
+    expect(prompt).toContain('@林知微 这和前文矛盾吗？');
+    expect(prompt).toContain('回复必须回到 thread-first 上下文中的原文依据');
+    expect(prompt).not.toContain('可用原文范围');
+    expect(prompt).not.toContain('未来章节不应出现。');
+  });
+
+  it('clips long epub thread history before prompting', () => {
+    const chapters = [{ id: 'chapter-1', title: '第一章', paragraphs: ['目标观点。'] }];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const anchor = createEpubTextAnchor(ebookIndex, text, 0, '目标观点'.length);
+    const userComment = {
+      id: 'comment_latest',
+      author: 'user' as const,
+      userUsername: 'xingkaixin',
+      userNickname: '行开心',
+      content: '@林知微 最晚追问',
+      createdAt: '2026-05-13T00:20:00.000Z',
+    };
+    const comments = [
+      {
+        id: 'comment_original',
+        author: 'ai' as const,
+        agentId: lin.id,
+        agentUsername: lin.username,
+        agentNickname: lin.nickname,
+        content: '原始批注需要保留',
+        createdAt: '2026-05-13T00:00:00.000Z',
+      },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        id: `comment_history_${index + 1}`,
+        author: 'user' as const,
+        userUsername: 'xingkaixin',
+        userNickname: '行开心',
+        content: `历史评论 ${index + 1}`,
+        createdAt: `2026-05-13T00:${String(index + 1).padStart(2, '0')}:00.000Z`,
+      })),
+      userComment,
+    ];
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+        annotation: { ...payload.annotation, anchor, comments },
+        userComment,
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('原始批注需要保留');
+    expect(prompt).toContain('历史评论 12');
+    expect(prompt).toContain('@林知微 最晚追问');
+    expect(prompt).not.toContain('历史评论 2');
+  });
+
+  it('falls back to anchor context when epub thread location cannot be resolved', () => {
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters: [] });
+    const userComment = {
+      id: 'comment_latest',
+      author: 'user' as const,
+      userUsername: 'xingkaixin',
+      userNickname: '行开心',
+      content: '@林知微 继续解释一下',
+      createdAt: '2026-05-13T00:02:00.000Z',
+    };
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        article: {
+          title: '旧书',
+          url: 'ebook://legacy',
+          text: '正文已经变化',
+          ebookIndex,
+        },
+        annotation: {
+          ...payload.annotation,
+          anchor: {
+            exact: '失效选区',
+            prefix: '前缀上下文',
+            suffix: '后缀上下文',
+            start: 0,
+            end: 4,
+          },
+          comments: [userComment],
+        },
+        userComment,
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('thread-first 上下文');
+    expect(prompt).toContain('前缀上下文');
+    expect(prompt).toContain('失效选区');
+    expect(prompt).toContain('后缀上下文');
+    expect(prompt).toContain('"source": "anchor-context"');
+  });
+
+  it('keeps the article-text fallback for non-epub annotation replies', () => {
+    const prompt = buildAgentPrompt(provider, payload, lin);
+
+    expect(prompt).toContain('可用原文范围');
+    expect(prompt).toContain('代码审查是迭代过程。');
+    expect(prompt).toContain('当前批注讨论');
+    expect(prompt).not.toContain('thread-first 上下文');
+  });
+
   it('parses per-agent mention instructions', () => {
     const instructions = parseAgentMentionInstructions(
       JSON.stringify([

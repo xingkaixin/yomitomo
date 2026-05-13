@@ -1,21 +1,27 @@
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentMessagePayload,
   Annotation,
   AnnotationSummary,
   BaseReadingContext,
   ChapterMemory,
+  Comment,
   ContextSourceLabel,
   EpubBookIndex,
   EpubParagraphIndex,
+  RelatedPassage,
   SelectionAnnotationContext,
+  SelectionThreadContext,
   SourceLabeledContextBlock,
+  ThreadMessageContext,
   TextAnchor,
 } from '@yomitomo/shared';
 import {
   locateEpubOffset,
   locateEpubTextAnchor,
   selectionAnnotationSpoilerPolicy,
+  selectionThreadSpoilerPolicy,
   type ReadingContextBundle,
   type ReadingContextTextRange,
 } from '@yomitomo/core';
@@ -23,7 +29,10 @@ import { packReadingContext } from './context-packing';
 
 const SELECTION_PARAGRAPH_WINDOW_SIZE = 2;
 const SELECTION_CONTEXT_TOKEN_BUDGET = 9000;
+const THREAD_CONTEXT_TOKEN_BUDGET = 9000;
 const NEARBY_ANNOTATION_LIMIT = 4;
+const THREAD_CONTEXT_RECENT_LIMIT = 8;
+const THREAD_MESSAGE_MAX_LENGTH = 700;
 
 type SelectionLocation = NonNullable<
   ReturnType<typeof locateEpubTextAnchor> | ReturnType<typeof locateEpubOffset>
@@ -87,6 +96,57 @@ export function selectionAnnotationContextPrompt(context: SelectionAnnotationCon
   )}\n\n上下文使用规则：\n- 你可以用 selection-first 上下文理解目标选区的段落、章节位置和附近讨论。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到上下文里的其他句子。\n- 如果附近批注与目标选区无关，忽略它。`;
 }
 
+export function buildSelectionThreadContext(
+  payload: AgentMessagePayload,
+  readingContext?: ReadingContextBundle,
+): SelectionThreadContext | null {
+  const index = payload.article.ebookIndex;
+  const selection = payload.annotation.anchor;
+  if (!index || !selection.exact.trim()) return null;
+
+  const location = selectionLocation(index, payload.article.text, selection);
+  const textRange = selectionTextRange(payload.article.text, selection, location);
+
+  return {
+    ...threadBaseContext(payload, index, location, textRange, readingContext),
+    task: 'selection_thread_reply',
+    originalSelection: selection,
+    localWindow: {
+      anchor: selection,
+      blocks: localWindowBlocks(index, payload.article.text, location, selection, readingContext),
+    },
+    thread: {
+      annotationId: payload.annotation.id,
+      messages: threadMessages(payload, index, location),
+    },
+    retrievedEvidence: relatedPassages(index, readingContext),
+  };
+}
+
+export function selectionThreadContextPrompt(context: SelectionThreadContext) {
+  const packed = packReadingContext(context);
+  if (packed.blocks.length === 0) return '';
+
+  return `\n\nthread-first 上下文：\n${JSON.stringify(
+    {
+      book: {
+        articleId: context.book.articleId,
+        title: context.book.title,
+        url: context.book.url,
+      },
+      location: context.location,
+      blocks: packed.blocks.map((block) => ({
+        id: block.id,
+        source: block.source,
+        truncated: block.truncated,
+        text: block.text,
+      })),
+    },
+    null,
+    2,
+  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
+}
+
 function selectionBaseContext(
   payload: AgentAnnotatePayload,
   agent: Agent,
@@ -128,6 +188,50 @@ function selectionBaseContext(
     },
     evidencePolicy: {
       spoilerPolicy: readingContext?.spoilerPolicy || selectionAnnotationSpoilerPolicy,
+    },
+  };
+}
+
+function threadBaseContext(
+  payload: AgentMessagePayload,
+  index: EpubBookIndex,
+  location: SelectionLocation | null,
+  textRange: ReadingContextTextRange,
+  readingContext: ReadingContextBundle | undefined,
+): BaseReadingContext {
+  return {
+    book: {
+      articleId: index.articleId,
+      title: payload.article.title,
+      url: payload.article.url,
+      sourceType: 'ebook',
+      textLength: index.textLength,
+      ebookIndex: index,
+    },
+    location: {
+      chapterId: location?.chapter.id,
+      segmentId: location?.segment.id,
+      paragraphId: location?.paragraph?.id,
+      textRange,
+      readerProgress: readingContext?.readerProgress || payload.readerProgress,
+    },
+    agent: {
+      agentId: payload.agentId,
+      agentUsername: payload.agentUsername,
+      readingIntent: payload.readingIntent,
+    },
+    budget: {
+      maxTokens: THREAD_CONTEXT_TOKEN_BUDGET,
+      blockTypeOrder: ['selection', 'local_window', 'thread', 'retrieved_evidence'],
+      reserveTokensByType: {
+        local_window: 3600,
+        thread: 2600,
+        retrieved_evidence: 1200,
+      },
+    },
+    evidencePolicy: {
+      spoilerPolicy:
+        readingContext?.spoilerPolicy || payload.spoilerPolicy || selectionThreadSpoilerPolicy,
     },
   };
 }
@@ -311,6 +415,58 @@ function nearbyAnnotationSummaries(
         source: 'nearby-anchor',
       }),
     }));
+}
+
+function threadMessages(
+  payload: AgentMessagePayload,
+  index: EpubBookIndex,
+  location: SelectionLocation | null,
+): ThreadMessageContext[] {
+  const comments = threadContextComments(payload.annotation.comments, payload.userComment);
+  return comments.map((comment) => ({
+    commentId: comment.id,
+    author: comment.author,
+    text: `${commentAuthorLabel(comment)}：${clipText(comment.content, THREAD_MESSAGE_MAX_LENGTH)}`,
+    source: sourceLabel('thread', index.articleId, {
+      chapterId: location?.chapter.id || payload.annotation.anchor.chapterId,
+      segmentId: location?.segment.id || payload.annotation.anchor.segmentId,
+      paragraphId: location?.paragraph?.id || payload.annotation.anchor.paragraphId,
+      source: comment.id === payload.userComment.id ? 'latest-user-comment' : 'thread-comment',
+    }),
+  }));
+}
+
+function threadContextComments(comments: Comment[], userComment: Comment) {
+  const merged = comments.some((comment) => comment.id === userComment.id)
+    ? comments
+    : [...comments, userComment];
+  const nonEmpty = merged.filter((comment) => comment.content.trim());
+  if (nonEmpty.length <= THREAD_CONTEXT_RECENT_LIMIT + 1) return nonEmpty;
+
+  const first = nonEmpty[0];
+  const recent = nonEmpty.slice(-THREAD_CONTEXT_RECENT_LIMIT);
+  return first && !recent.some((comment) => comment.id === first.id) ? [first, ...recent] : recent;
+}
+
+function relatedPassages(
+  index: EpubBookIndex,
+  readingContext: ReadingContextBundle | undefined,
+): RelatedPassage[] {
+  return (readingContext?.relatedPassages || []).flatMap((passage, passageIndex) => {
+    const text = passage.text.trim();
+    if (!text) return [];
+    return [
+      {
+        id: passage.id || `${index.articleId}:related-${passageIndex + 1}`,
+        text,
+        source: sourceLabel('retrieved_evidence', index.articleId, {
+          chapterId: passage.chapterId,
+          segmentId: passage.segmentId,
+          source: 'related-passages',
+        }),
+      },
+    ];
+  });
 }
 
 function annotationSummaryText(annotation: Annotation) {
