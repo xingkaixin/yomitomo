@@ -55,6 +55,7 @@ import {
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
   articleTitleTocItems,
+  createEpubTextAnchor,
   extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -123,6 +124,7 @@ type PromptArticle = {
   title: string;
   url: string;
   text: string;
+  ebookIndex?: NonNullable<ArticleRecord['ebook']>['index'];
 };
 type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
 
@@ -1623,6 +1625,7 @@ function promptArticle(currentArticle: ArticleRecord | null, articleText: string
     title: currentArticle?.title || '',
     url: currentArticle?.canonicalUrl || currentArticle?.url || '',
     text: articleText,
+    ebookIndex: currentArticle?.ebook?.index,
   };
 }
 
@@ -2023,7 +2026,9 @@ function WebSourceBookcase({
     const articleText = currentArticleText();
     const start = offsetFromArticleStart(articleElement, range.startContainer, range.startOffset);
     const end = offsetFromArticleStart(articleElement, range.endContainer, range.endOffset);
-    const anchor = createTextAnchor(articleText, start, end);
+    const anchor = article.ebook?.index
+      ? createEpubTextAnchor(article.ebook.index, articleText, start, end)
+      : createTextAnchor(articleText, start, end);
     if (!anchor.exact.trim()) return;
 
     const rects = range.getClientRects();

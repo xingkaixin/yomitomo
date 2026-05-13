@@ -228,6 +228,7 @@ export async function runAgentAnnotate(
         readingIntent: payload.readingIntent || suggestion.readingIntent,
       },
       now,
+      { ebookIndex: payload.article.ebookIndex },
     );
     if (annotation) annotations.push(annotation);
   }
@@ -271,6 +272,7 @@ export async function runAgentAnnotateStream(
           ...targetAnchorSuggestion(payload),
         },
         new Date().toISOString(),
+        { ebookIndex: payload.article.ebookIndex },
       );
       if (annotation) {
         annotationCount += 1;

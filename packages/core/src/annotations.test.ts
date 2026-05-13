@@ -19,6 +19,7 @@ import {
   replaceMentionQuery,
   updateAnnotationComment,
 } from './annotations';
+import { buildEpubBookIndex, epubIndexText } from './ebook-index';
 
 const user: UserProfile = {
   id: 'user-1',
@@ -134,6 +135,31 @@ describe('annotation core', () => {
     );
 
     expect(result?.anchor.start).toBe(38);
+  });
+
+  it('creates paragraph-aware anchors for EPUB agent annotations', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const result = createAgentAnnotation(
+      agent,
+      text,
+      {
+        exact: '第二段',
+        comment: 'second paragraph',
+      },
+      '2026-01-02T00:00:00.000Z',
+      { ebookIndex: index },
+    );
+
+    expect(result?.anchor).toMatchObject({
+      paragraphId: 'chapter-1-paragraph-2',
+      chapterId: 'chapter-1',
+      segmentId: 'chapter-1-segment-1',
+      textStartInParagraph: 0,
+    });
   });
 
   it('anchors model suggestions when whitespace differs from article text', () => {

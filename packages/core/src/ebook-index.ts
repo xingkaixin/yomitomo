@@ -1,5 +1,7 @@
 import {
+  createTextAnchor,
   resolveTextAnchor,
+  textAnchorQuoteHash,
   type EpubBookIndex,
   type EpubChapterIndex,
   type EpubParagraphIndex,
@@ -27,6 +29,11 @@ export type BuildEpubBookIndexInput = {
 
 export type LocateEpubIndexOptions = {
   paragraphWindowSize?: number;
+  allowedChapterIds?: string[];
+  allowedSegmentIds?: string[];
+  allowedParagraphIds?: string[];
+  allowedTextStart?: number;
+  allowedTextEnd?: number;
 };
 
 export type EpubIndexLocation = {
@@ -160,10 +167,185 @@ export function locateEpubTextAnchor(
   anchor: TextAnchor,
   options: LocateEpubIndexOptions = {},
 ): EpubIndexLocation | null {
-  const position = resolveTextAnchor(text, anchor);
+  const position = resolveEpubTextAnchor(index, text, anchor, options);
   if (!position) return null;
   const location = locateEpubOffset(index, position.start, options);
-  return location ? { ...location, textStart: position.start, textEnd: position.end } : null;
+  if (!location) return null;
+
+  const resolvedLocation = { ...location, textStart: position.start, textEnd: position.end };
+  return epubLocationAllowed(index, resolvedLocation, options) ? resolvedLocation : null;
+}
+
+export function createEpubTextAnchor(
+  index: EpubBookIndex,
+  text: string,
+  start: number,
+  end: number,
+): TextAnchor {
+  const anchor = createTextAnchor(text, start, end);
+  const location = locateEpubOffset(index, anchor.start);
+  const paragraph = location?.paragraph;
+  if (!paragraph) {
+    return {
+      ...anchor,
+      textStartInBook: anchor.start,
+      textEndInBook: anchor.end,
+    };
+  }
+
+  return {
+    ...anchor,
+    chapterId: location.chapter.id,
+    segmentId: location.segment.id,
+    paragraphId: paragraph.id,
+    textStartInParagraph: anchor.start - paragraph.textStart,
+    textEndInParagraph:
+      anchor.end <= paragraph.textEnd ? anchor.end - paragraph.textStart : undefined,
+    textStartInBook: anchor.start,
+    textEndInBook: anchor.end,
+  };
+}
+
+export function resolveEpubTextAnchor(
+  index: EpubBookIndex,
+  text: string,
+  anchor: TextAnchor,
+  options: LocateEpubIndexOptions = {},
+): { start: number; end: number } | null {
+  const structural = resolveEpubStructuralTextAnchor(index, text, anchor);
+  if (structural && epubPositionAllowed(index, structural, options)) return structural;
+
+  const fallback = resolveTextAnchor(text, anchor);
+  return fallback && epubPositionAllowed(index, fallback, options) ? fallback : null;
+}
+
+function resolveEpubStructuralTextAnchor(
+  index: EpubBookIndex,
+  text: string,
+  anchor: TextAnchor,
+): { start: number; end: number } | null {
+  const paragraph = anchor.paragraphId
+    ? index.paragraphs.find((item) => item.id === anchor.paragraphId)
+    : null;
+  if (paragraph && paragraphMatchesAnchor(paragraph, anchor)) {
+    const paragraphOffset = numberValue(anchor.textStartInParagraph);
+    if (paragraphOffset !== null) {
+      const start = paragraph.textStart + paragraphOffset;
+      const end = structuralEndOffset(paragraph, start, anchor);
+      const direct = resolveDirectAnchorSpan(text, start, end, anchor);
+      if (direct) return direct;
+
+      const paragraphMatch = resolveAnchorInRange(
+        text,
+        anchor,
+        paragraph.textStart,
+        paragraph.textEnd,
+      );
+      if (paragraphMatch) return paragraphMatch;
+    }
+  }
+
+  const bookStart = numberValue(anchor.textStartInBook);
+  const bookEnd = numberValue(anchor.textEndInBook);
+  if (bookStart !== null && bookEnd !== null) {
+    const direct = resolveDirectAnchorSpan(text, bookStart, bookEnd, anchor);
+    if (direct) return direct;
+  }
+
+  return null;
+}
+
+function paragraphMatchesAnchor(paragraph: EpubParagraphIndex, anchor: TextAnchor) {
+  if (anchor.chapterId && paragraph.chapterId !== anchor.chapterId) return false;
+  if (anchor.segmentId && paragraph.segmentId !== anchor.segmentId) return false;
+  return true;
+}
+
+function structuralEndOffset(paragraph: EpubParagraphIndex, start: number, anchor: TextAnchor) {
+  const paragraphEnd = numberValue(anchor.textEndInParagraph);
+  if (paragraphEnd !== null) return paragraph.textStart + paragraphEnd;
+
+  const bookEnd = numberValue(anchor.textEndInBook);
+  if (bookEnd !== null) return bookEnd;
+
+  return start + anchor.exact.length;
+}
+
+function resolveDirectAnchorSpan(text: string, start: number, end: number, anchor: TextAnchor) {
+  if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
+  if (start < 0 || end < start || end > text.length) return null;
+
+  const quote = text.slice(start, end);
+  if (quote === anchor.exact) return { start, end };
+  if (normalizeText(quote) === normalizeText(anchor.exact)) return { start, end };
+  if (anchor.quoteHash && textAnchorQuoteHash(quote) === anchor.quoteHash) return { start, end };
+  return null;
+}
+
+function resolveAnchorInRange(
+  text: string,
+  anchor: TextAnchor,
+  rangeStart: number,
+  rangeEnd: number,
+) {
+  const rangeText = text.slice(rangeStart, rangeEnd);
+  const position = resolveTextAnchor(rangeText, {
+    ...anchor,
+    start: Math.max(0, Math.min(anchor.start - rangeStart, rangeText.length)),
+    end: Math.max(0, Math.min(anchor.end - rangeStart, rangeText.length)),
+  });
+  return position ? { start: rangeStart + position.start, end: rangeStart + position.end } : null;
+}
+
+function epubPositionAllowed(
+  index: EpubBookIndex,
+  position: { start: number; end: number },
+  options: LocateEpubIndexOptions,
+) {
+  const location = locateEpubOffset(index, position.start, options);
+  if (!location) return false;
+  return epubLocationAllowed(
+    index,
+    { ...location, textStart: position.start, textEnd: position.end },
+    options,
+  );
+}
+
+function epubLocationAllowed(
+  index: EpubBookIndex,
+  location: EpubIndexLocation,
+  options: LocateEpubIndexOptions,
+) {
+  const allowedTextStart = numberValue(options.allowedTextStart);
+  const allowedTextEnd = numberValue(options.allowedTextEnd);
+
+  if (allowedTextStart !== null && location.textStart < allowedTextStart) {
+    return false;
+  }
+  if (allowedTextEnd !== null && location.textEnd > allowedTextEnd) {
+    return false;
+  }
+
+  return (
+    rangesAllowed(overlappingRanges(index.chapters, location), options.allowedChapterIds) &&
+    rangesAllowed(overlappingRanges(index.segments, location), options.allowedSegmentIds) &&
+    rangesAllowed(overlappingRanges(index.paragraphs, location), options.allowedParagraphIds)
+  );
+}
+
+function overlappingRanges<T extends { textStart: number; textEnd: number }>(
+  ranges: T[],
+  location: Pick<EpubIndexLocation, 'textStart' | 'textEnd'>,
+) {
+  return ranges.filter(
+    (item) => location.textStart < item.textEnd && location.textEnd > item.textStart,
+  );
+}
+
+function rangesAllowed<T extends { id: string }>(ranges: T[], allowedIds: string[] | undefined) {
+  if (!allowedIds?.length) return true;
+  const allowed = new Set(allowedIds);
+  return ranges.length > 0 && ranges.every((item) => allowed.has(item.id));
 }
 
 function buildChapterSegments(input: {
@@ -283,6 +465,10 @@ function positiveInteger(value: number | undefined, fallback: number) {
 function clampInteger(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 function previewStart(text: string) {
