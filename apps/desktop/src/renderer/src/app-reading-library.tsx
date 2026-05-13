@@ -2514,6 +2514,7 @@ function WebSourceBookcase({
           annotationType: options.annotationType,
           readingIntent: options.readingIntent,
           instruction: options.instruction,
+          annotations: options.targetAnchor ? annotationsRef.current : undefined,
           targetAnchor: options.targetAnchor,
           readingPlan: options.readingPlan,
           article: articleContext,

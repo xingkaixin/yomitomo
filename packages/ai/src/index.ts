@@ -46,6 +46,10 @@ import {
   formatBudgetNotice,
 } from './budget';
 import { callProviderText, streamProviderText } from './provider-client';
+import {
+  buildSelectionAnnotationContext,
+  selectionAnnotationContextPrompt,
+} from './selection-context';
 
 export {
   budgetArticleText,
@@ -74,6 +78,7 @@ export {
   type PackReadingContextOptions,
   type TokenEstimator,
 } from './context-packing';
+export { buildSelectionAnnotationContext, selectionAnnotationContextPrompt };
 export { setAiLogger, type AiLogger } from './logger';
 
 export type GenerateReadingCardInput = {
@@ -534,7 +539,7 @@ function instructionPromptLine(payload: AgentAnnotatePayload) {
 
 function buildAgentAnnotateSystemPrompt(agent: Agent, payload: AgentAnnotatePayload) {
   const scope = payload.targetAnchor
-    ? `你正在作为网页阅读器里的 @${agent.username} 对读者选中的文本创建批注。批注只围绕目标选区本身展开。`
+    ? `你正在作为网页阅读器里的 @${agent.username} 对读者选中的文本创建批注。批注以目标选区为锚点，可以参考提供的局部上下文，但只围绕目标选区本身展开。`
     : `你正在作为网页阅读器里的 @${agent.username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
   return `${buildAgentRoleCard(agent)}\n\n${scope}${readingIntentSystemPrompt(payload)}`;
 }
@@ -624,6 +629,15 @@ function readingPlanPrompt(payload: AgentAnnotatePayload, context: ReadingContex
   });
 
   return `\n\n本轮聚焦共读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你只能使用本轮提供的可用原文范围理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
+}
+
+function selectionAnnotationPromptBlock(
+  payload: AgentAnnotatePayload,
+  agent: Agent,
+  context: ReadingContextBundle,
+) {
+  const selectionContext = buildSelectionAnnotationContext(payload, agent, context);
+  return selectionContext ? selectionAnnotationContextPrompt(selectionContext) : '';
 }
 
 export function buildAgentPrompt(
@@ -748,7 +762,7 @@ function buildAgentAnnotatePrompt(
       ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
     const contextPrompt = payload.article.ebookIndex
-      ? `\n\n可用原文范围：\n${context.articleText}${spoilerScopePrompt(context)}`
+      ? `${selectionAnnotationPromptBlock(payload, agent, context)}${spoilerScopePrompt(context)}`
       : '';
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n${commentOutputLine}\n\n只返回 JSON，不要输出 Markdown。`;
   }
@@ -777,7 +791,7 @@ function buildAgentAnnotateStreamPrompt(
       ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
     const contextPrompt = payload.article.ebookIndex
-      ? `\n\n可用原文范围：\n${context.articleText}${spoilerScopePrompt(context)}`
+      ? `${selectionAnnotationPromptBlock(payload, agent, context)}${spoilerScopePrompt(context)}`
       : '';
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","readingIntent":"explain","comment":"批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n${readingIntentOutputLine}\n${commentOutputLine}\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
   }

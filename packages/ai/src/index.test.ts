@@ -329,14 +329,14 @@ describe('agent annotations', () => {
     const text = epubIndexText(chapters);
     const start = text.indexOf('第二章已读论证');
     const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '第二章已读论证'.length);
-    const content = JSON.stringify([{ exact: '第二章已读论证', type: 'key_point', comment: '一' }]);
+    const content = JSON.stringify([{ exact: '第二章开头', type: 'key_point', comment: '一' }]);
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(
         new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
       );
 
-    await runAgentAnnotate(provider, agent, {
+    const annotations = await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
       agentUsername: agent.username,
       targetAnchor: anchor,
@@ -356,6 +356,7 @@ describe('agent annotations', () => {
     expect(prompt).toContain('第二章已读论证');
     expect(prompt).not.toContain('第二章未读反转。');
     expect(prompt).not.toContain('第三章未来剧情。');
+    expect(annotations[0]?.anchor.exact).toBe('第二章已读论证');
   });
 
   it('scopes ebook reading plan annotations to read-so-far evidence', async () => {
