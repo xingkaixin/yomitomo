@@ -123,8 +123,10 @@ type EbookImportProgressCallback = (progress: number) => void;
 type PromptArticle = {
   title: string;
   url: string;
+  byline?: string;
   text: string;
   ebookIndex?: NonNullable<ArticleRecord['ebook']>['index'];
+  ebookMetadata?: NonNullable<ArticleRecord['ebook']>['metadata'];
 };
 type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
 
@@ -1624,8 +1626,10 @@ function promptArticle(currentArticle: ArticleRecord | null, articleText: string
   return {
     title: currentArticle?.title || '',
     url: currentArticle?.canonicalUrl || currentArticle?.url || '',
+    byline: currentArticle?.byline,
     text: articleText,
     ebookIndex: currentArticle?.ebook?.index,
+    ebookMetadata: currentArticle?.ebook?.metadata,
   };
 }
 
@@ -2423,6 +2427,17 @@ function WebSourceBookcase({
           sectionStart: section.start,
           sectionEnd: section.end,
         })),
+        chapterSummaries: currentArticle.focusCoReadingPlan?.sections.flatMap((section) =>
+          section.summary || section.tag
+            ? [
+                {
+                  sectionId: section.sectionId,
+                  summary: section.summary,
+                  tag: section.tag,
+                },
+              ]
+            : [],
+        ),
         article: promptArticle(currentArticle, currentArticleText()),
       });
       const now = new Date().toISOString();
@@ -2448,6 +2463,8 @@ function WebSourceBookcase({
             sectionEnd: section.end,
             summary: routed?.summary,
             tag: routed?.tag,
+            targetDensity: routed?.targetDensity,
+            needsFurtherPlanning: routed?.needsFurtherPlanning,
             agentIds,
             messages,
           },

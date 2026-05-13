@@ -120,9 +120,16 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
         : []),
       ...context.toc.map((chapter) => ({
         id: chapter.chapterId,
-        text: `${chapter.indexInBook + 1}. ${chapter.title} (${chapter.textLength} 字符${
-          chapter.segmentCount === undefined ? '' : `，${chapter.segmentCount} 段`
-        })`,
+        text: [
+          `${chapter.indexInBook + 1}. ${chapter.title || '未命名章节'} (${chapter.textLength} 字符${
+            chapter.segmentCount === undefined ? '' : `，${chapter.segmentCount} 段`
+          })`,
+          chapter.previewStart ? `开头预览：${chapter.previewStart}` : '',
+          chapter.previewEnd ? `结尾预览：${chapter.previewEnd}` : '',
+          chapter.existingSummary ? `已有摘要：${chapter.existingSummary}` : '',
+        ]
+          .filter(Boolean)
+          .join('\n'),
         source: chapter.source,
       })),
       ...context.agents.map((agent) => ({
