@@ -5,11 +5,13 @@ import type {
   Annotation,
   AnnotationType,
   Comment,
+  EpubBookIndex,
   PublicAgent,
   TextAnchor,
   UserProfile,
 } from '@yomitomo/shared';
 import { createTextAnchor, makeId } from '@yomitomo/shared';
+import { createEpubTextAnchor } from './ebook-index';
 
 export type AnnotationSuggestion = {
   exact: string;
@@ -30,6 +32,10 @@ export type MentionQuery = {
 export type CreateUserAnnotationOptions = {
   now?: string;
   readingIntent?: AgentReadingIntent;
+};
+
+export type CreateAgentAnnotationOptions = {
+  ebookIndex?: EpubBookIndex;
 };
 
 export type AnnotationPersona = {
@@ -128,6 +134,7 @@ export function createAgentAnnotation(
   articleText: string,
   suggestion: AnnotationSuggestion,
   now = new Date().toISOString(),
+  options: CreateAgentAnnotationOptions = {},
 ): Annotation | null {
   const match = findAgentAnnotationMatch(articleText, suggestion);
   if (!match) return null;
@@ -135,7 +142,7 @@ export function createAgentAnnotation(
   const comment = suggestion.comment.trim();
   return {
     id: makeId('annotation'),
-    anchor: createTextAnchor(articleText, match.start, match.end),
+    anchor: createAnnotationAnchor(articleText, match.start, match.end, options),
     author: 'ai',
     annotationType: suggestion.annotationType || 'key_point',
     readingIntent: suggestion.readingIntent || undefined,
@@ -164,6 +171,17 @@ export function createAgentAnnotation(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function createAnnotationAnchor(
+  articleText: string,
+  start: number,
+  end: number,
+  options: CreateAgentAnnotationOptions,
+) {
+  return options.ebookIndex
+    ? createEpubTextAnchor(options.ebookIndex, articleText, start, end)
+    : createTextAnchor(articleText, start, end);
 }
 
 function findAgentAnnotationMatch(

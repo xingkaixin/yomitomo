@@ -20,6 +20,19 @@ describe('shared text anchors', () => {
       start: 25,
       end: 31,
     });
+    expect(anchor.quoteHash).toBeTruthy();
+  });
+
+  it('resolves anchors after whitespace normalization changes', () => {
+    const source = 'alpha target quote omega.';
+    const start = source.indexOf('target quote');
+    const anchor = createTextAnchor(source, start, start + 'target quote'.length);
+    const rendered = 'alpha target\n  quote omega.';
+
+    expect(resolveTextAnchor(rendered, { ...anchor, start: 0, end: 4 })).toEqual({
+      start: rendered.indexOf('target'),
+      end: rendered.indexOf(' omega'),
+    });
   });
 });
 
