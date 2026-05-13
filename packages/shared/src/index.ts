@@ -719,6 +719,9 @@ export type ChapterDescriptor = {
   indexInBook: number;
   textLength: number;
   segmentCount?: number;
+  previewStart?: string;
+  previewEnd?: string;
+  existingSummary?: string;
   source: ContextSourceLabel;
 };
 
@@ -843,6 +846,8 @@ export type FocusCoReadingSectionPlan = {
   sectionEnd: number;
   summary?: string;
   tag?: string;
+  targetDensity?: AgentAnnotationDensity;
+  needsFurtherPlanning?: boolean;
   agentIds: string[];
   messages: FocusCoReadingMessage[];
 };
@@ -995,14 +1000,25 @@ export type FocusCoReadingRouteSectionInput = {
   sectionEnd: number;
 };
 
+export type FocusCoReadingRouteChapterSummaryInput = {
+  chapterId?: string;
+  sectionId?: string;
+  summary?: string;
+  tag?: string;
+};
+
 export type FocusCoReadingRoutePayload = {
   selectedAgentIds: string[];
   sections: FocusCoReadingRouteSectionInput[];
+  chapterSummaries?: FocusCoReadingRouteChapterSummaryInput[];
+  readerGoal?: string;
   article: {
     title: string;
     url: string;
+    byline?: string;
     text: string;
     ebookIndex?: EpubBookIndex;
+    ebookMetadata?: EbookMetadata;
   };
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
@@ -1012,6 +1028,8 @@ export type FocusCoReadingRouteSection = {
   sectionId: string;
   summary?: string;
   tag?: string;
+  targetDensity?: AgentAnnotationDensity;
+  needsFurtherPlanning?: boolean;
   agentIds: string[];
 };
 

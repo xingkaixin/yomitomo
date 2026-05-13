@@ -1528,6 +1528,8 @@ function normalizeFocusSectionPlans(
       sectionEnd: readerSection.end,
       summary: section?.summary,
       tag: section?.tag,
+      targetDensity: section?.targetDensity,
+      needsFurtherPlanning: section?.needsFurtherPlanning,
       agentIds: sectionAgentIds,
       messages: filterFocusMessagesForAgents(section?.messages || [], sectionAgentIds),
     };
