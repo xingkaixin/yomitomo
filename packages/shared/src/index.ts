@@ -596,6 +596,210 @@ export type ReaderProgress = {
   readUntilTextOffset?: number;
 };
 
+export type ReadingContextTask =
+  | 'selection_annotation'
+  | 'selection_thread_reply'
+  | 'chapter_route'
+  | 'chapter_segment_annotation';
+
+export type ContextSourceType =
+  | 'article_text'
+  | 'selection'
+  | 'local_window'
+  | 'nearby_annotation'
+  | 'thread'
+  | 'retrieved_evidence'
+  | 'toc'
+  | 'agent_role'
+  | 'reader_goal'
+  | 'segment'
+  | 'chapter_memory'
+  | 'segment_memory'
+  | 'next_preview'
+  | 'chapter_trace'
+  | 'dedup';
+
+export type ContextSourceLabel = {
+  type: ContextSourceType;
+  articleId?: string;
+  chapterId?: string;
+  segmentId?: string;
+  paragraphId?: string;
+  score?: number;
+  source?: string;
+};
+
+export type SourceLabeledContextBlock = {
+  id: string;
+  text: string;
+  source: ContextSourceLabel;
+};
+
+export type BudgetPolicy = {
+  maxTokens: number;
+  blockTypeOrder?: ContextSourceType[];
+  reserveTokensByType?: Partial<Record<ContextSourceType, number>>;
+};
+
+export type EvidencePolicy = {
+  spoilerPolicy: SpoilerPolicy;
+  allowedSourceTypes?: ContextSourceType[];
+};
+
+export type TextRange = {
+  textStart: number;
+  textEnd: number;
+};
+
+export type BookContext = {
+  articleId: string;
+  title: string;
+  url?: string;
+  sourceType?: ArticleSourceType;
+  textLength?: number;
+  ebookIndex?: EpubBookIndex;
+};
+
+export type LocationContext = {
+  chapterId?: string;
+  segmentId?: string;
+  paragraphId?: string;
+  textRange?: TextRange;
+  readerProgress?: ReaderProgress;
+};
+
+export type AgentContext = {
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  readingIntent?: AgentReadingIntent;
+};
+
+export type BaseReadingContext = {
+  book: BookContext;
+  location: LocationContext;
+  agent?: AgentContext;
+  budget: BudgetPolicy;
+  evidencePolicy: EvidencePolicy;
+};
+
+export type ParagraphWindow = {
+  anchor?: TextAnchor;
+  blocks: SourceLabeledContextBlock[];
+};
+
+export type AnnotationSummary = {
+  annotationId: string;
+  anchor?: TextAnchor;
+  text: string;
+  source: ContextSourceLabel;
+};
+
+export type ThreadMessageContext = {
+  commentId: string;
+  author: AnnotationAuthor;
+  text: string;
+  source: ContextSourceLabel;
+};
+
+export type ThreadContext = {
+  annotationId: string;
+  messages: ThreadMessageContext[];
+};
+
+export type RelatedPassage = {
+  id: string;
+  text: string;
+  source: ContextSourceLabel;
+};
+
+export type ChapterDescriptor = {
+  chapterId: string;
+  title: string;
+  indexInBook: number;
+  textLength: number;
+  segmentCount?: number;
+  source: ContextSourceLabel;
+};
+
+export type AgentRoleCard = {
+  agentId: string;
+  agentUsername: string;
+  nickname: string;
+  roleCard: string;
+  source: ContextSourceLabel;
+};
+
+export type ChapterMemory = {
+  chapterId: string;
+  summary: string;
+  source: ContextSourceLabel;
+};
+
+export type SegmentText = {
+  segmentId: string;
+  text: string;
+  textRange?: TextRange;
+  source: ContextSourceLabel;
+};
+
+export type SegmentMemory = {
+  segmentId: string;
+  summary: string;
+  source: ContextSourceLabel;
+};
+
+export type ChapterTrace = {
+  chapterId: string;
+  events: string[];
+  source: ContextSourceLabel;
+};
+
+export type DedupContext = {
+  recentAnchors: TextAnchor[];
+  recentComments?: string[];
+  source: ContextSourceLabel;
+};
+
+export type SelectionAnnotationContext = BaseReadingContext & {
+  task: 'selection_annotation';
+  selection: TextAnchor;
+  localWindow: ParagraphWindow;
+  nearbyAnnotations: AnnotationSummary[];
+  chapterMemory?: ChapterMemory;
+};
+
+export type SelectionThreadContext = BaseReadingContext & {
+  task: 'selection_thread_reply';
+  originalSelection: TextAnchor;
+  thread: ThreadContext;
+  localWindow: ParagraphWindow;
+  retrievedEvidence: RelatedPassage[];
+};
+
+export type ChapterRouteContext = BaseReadingContext & {
+  task: 'chapter_route';
+  toc: ChapterDescriptor[];
+  readerGoal?: string;
+  agents: AgentRoleCard[];
+};
+
+export type SegmentAnnotationContext = BaseReadingContext & {
+  task: 'chapter_segment_annotation';
+  currentSegment: SegmentText;
+  previousMemory?: SegmentMemory;
+  nextPreview?: string;
+  chapterTrace?: ChapterTrace;
+  allowedAnchorRange: TextRange;
+  dedupContext: DedupContext;
+};
+
+export type ReadingTaskContext =
+  | SelectionAnnotationContext
+  | SelectionThreadContext
+  | ChapterRouteContext
+  | SegmentAnnotationContext;
+
 export type ArticleRecord = {
   id: string;
   url: string;

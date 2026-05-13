@@ -64,6 +64,16 @@ export {
   type GenerateOptions,
   type TextPayload,
 } from './provider-client';
+export {
+  collectReadingContextBlocks,
+  packReadingContext,
+  packReadingContextBlocks,
+  type OmittedContextBlock,
+  type PackedContextBlock,
+  type PackedReadingContext,
+  type PackReadingContextOptions,
+  type TokenEstimator,
+} from './context-packing';
 export { setAiLogger, type AiLogger } from './logger';
 
 export type GenerateReadingCardInput = {
