@@ -30,13 +30,20 @@ describe('articleRecordFromEpubFile', () => {
         <manifest>
           <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
           <item id="cover" href="cover.jpeg" media-type="image/jpeg"/>
+          <item id="tocpage" href="tocpage.xhtml" media-type="application/xhtml+xml"/>
           <item id="c1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
           <item id="c2" href="chapter2.xhtml" media-type="application/xhtml+xml"/>
+          <item id="backtoc" href="backtoc.xhtml" media-type="application/xhtml+xml"/>
         </manifest>
         <spine>
+          <itemref idref="tocpage"/>
           <itemref idref="c1"/>
           <itemref idref="c2"/>
+          <itemref idref="backtoc"/>
         </spine>
+        <guide>
+          <reference href="backtoc.xhtml" type="toc" title="Table of Contents"/>
+        </guide>
       </package>`,
     );
     zip.file(
@@ -47,8 +54,31 @@ describe('articleRecordFromEpubFile', () => {
       </ol></nav></body></html>`,
     );
     zip.file('OPS/cover.jpeg', Buffer.from([255, 216, 255, 217]));
-    zip.file('OPS/chapter1.xhtml', '<html><body><p>第一章正文。</p></body></html>');
+    zip.file(
+      'OPS/tocpage.xhtml',
+      `<html><body><p>目录</p><ul>
+        <li><a href="chapter1.xhtml">第一章</a></li>
+        <li><a href="chapter2.xhtml">第二章</a></li>
+        <li><a href="chapter1.xhtml">第一章</a></li>
+        <li><a href="chapter2.xhtml">第二章</a></li>
+        <li><a href="chapter1.xhtml">第一章</a></li>
+      </ul></body></html>`,
+    );
+    zip.file(
+      'OPS/chapter1.xhtml',
+      '<html><body><p>第一章第一段。</p><p>第一章第二段。</p></body></html>',
+    );
     zip.file('OPS/chapter2.xhtml', '<html><body><p>第二章正文。</p></body></html>');
+    zip.file(
+      'OPS/backtoc.xhtml',
+      `<html><body><p>Table of Contents</p>
+        <p><a href="chapter1.xhtml">第一章</a></p>
+        <p><a href="chapter2.xhtml">第二章</a></p>
+        <p><a href="chapter1.xhtml">第一章</a></p>
+        <p><a href="chapter2.xhtml">第二章</a></p>
+        <p><a href="chapter1.xhtml">第一章</a></p>
+      </body></html>`,
+    );
 
     const buffer = await zip.generateAsync({ type: 'nodebuffer' });
     const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
@@ -64,7 +94,26 @@ describe('articleRecordFromEpubFile', () => {
     expect(article.leadImageUrl).toBe('data:image/jpeg;base64,/9j/2Q==');
     expect(article.ebook?.metadata.language).toBe('zh-CN');
     expect(article.ebook?.chapters.map((chapter) => chapter.title)).toEqual(['第一章', '第二章']);
-    expect(article.contentHtml).toContain('第一章正文');
+    expect(article.contentHtml).toContain('第一章第一段');
+    expect(article.contentHtml).not.toContain('Table of Contents');
+    expect(article.ebook?.index?.chapters.map((chapter) => chapter.id)).toEqual([
+      'chapter-1',
+      'chapter-2',
+    ]);
+    expect(article.ebook?.index?.paragraphs.map((paragraph) => paragraph.previewStart)).toEqual([
+      '第一章第一段。',
+      '第一章第二段。',
+      '第二章正文。',
+    ]);
+    expect(article.ebook?.index?.segments[0]).toMatchObject({
+      id: 'chapter-1-segment-1',
+      chapterId: 'chapter-1',
+      indexInChapter: 0,
+      textStart: 0,
+      textLength: '第一章第一段。\n\n第一章第二段。'.length,
+      previewStart: '第一章第一段。',
+      previewEnd: '第一章第二段。',
+    });
   });
 
   it('imports malformed chapter and ncx markup with stray close tags', async () => {

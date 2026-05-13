@@ -19,6 +19,10 @@ import type {
   DesktopStore,
   EbookChapterRecord,
   EbookMetadata,
+  EpubBookIndex,
+  EpubChapterIndex,
+  EpubParagraphIndex,
+  EpubSegmentIndex,
   FocusCoReadingPlan,
   LlmProvider,
   ProviderPresetId,
@@ -591,6 +595,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       contentHash: article.contentHash,
       ebookMetadata: article.ebook?.metadata,
       ebookChapters: article.ebook?.chapters,
+      ebookIndex: article.ebook?.index,
       readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       focusCoReadingPlan: article.focusCoReadingPlan,
       readingDeliberationId: article.readingDeliberation?.id,
@@ -633,6 +638,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
         contentHash: article.contentHash,
         ebookMetadata: article.ebook?.metadata,
         ebookChapters: article.ebook?.chapters,
+        ebookIndex: article.ebook?.index,
         readingProgress: normalizeArticleReadingProgress(article.readingProgress),
         focusCoReadingPlan: article.focusCoReadingPlan,
         updatedAt: article.updatedAt,
@@ -919,7 +925,8 @@ function rowToEbook(row: typeof schema.articles.$inferSelect): ArticleRecord['eb
 
   const metadata = normalizeEbookMetadata(row.ebookMetadata);
   const chapters = normalizeEbookChapters(row.ebookChapters);
-  return metadata && chapters.length > 0 ? { metadata, chapters } : undefined;
+  const index = normalizeEpubBookIndex(row.ebookIndex);
+  return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
 }
 
 function normalizeArticleSourceType(value: unknown): ArticleSourceType {
@@ -949,7 +956,8 @@ function normalizeArticleReadingProgress(value: unknown): ArticleReadingProgress
 function normalizeEbookRecord(value: ArticleRecord['ebook'] | undefined): ArticleRecord['ebook'] {
   const metadata = normalizeEbookMetadata(value?.metadata);
   const chapters = normalizeEbookChapters(value?.chapters);
-  return metadata && chapters.length > 0 ? { metadata, chapters } : undefined;
+  const index = normalizeEpubBookIndex(value?.index);
+  return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
 }
 
 function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
@@ -983,6 +991,99 @@ function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {
         href: stringValue(chapter.href) || undefined,
         html,
         textLength: Number.isFinite(textLength) && textLength >= 0 ? textLength : 0,
+      },
+    ];
+  });
+}
+
+function normalizeEpubBookIndex(value: unknown): EpubBookIndex | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const index = value as Record<string, unknown>;
+  const chapters = normalizeEpubChapterIndexes(index.chapters);
+  const segments = normalizeEpubSegmentIndexes(index.segments);
+  const paragraphs = normalizeEpubParagraphIndexes(index.paragraphs);
+  const textLength = Number(index.textLength);
+  if (chapters.length === 0 || segments.length === 0 || paragraphs.length === 0) return undefined;
+  return {
+    version: 1,
+    articleId: stringValue(index.articleId),
+    textLength: Number.isFinite(textLength) && textLength >= 0 ? textLength : 0,
+    chapters,
+    segments,
+    paragraphs,
+  };
+}
+
+function normalizeEpubChapterIndexes(value: unknown): EpubChapterIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const chapter = item as Record<string, unknown>;
+    const id = stringValue(chapter.id);
+    if (!id) return [];
+    return [
+      {
+        id,
+        title: stringValue(chapter.title),
+        href: stringValue(chapter.href) || undefined,
+        indexInBook: normalizeNonNegativeInteger(chapter.indexInBook),
+        textStart: normalizeNonNegativeInteger(chapter.textStart),
+        textEnd: normalizeNonNegativeInteger(chapter.textEnd),
+        textLength: normalizeNonNegativeInteger(chapter.textLength),
+        previewStart: stringValue(chapter.previewStart),
+        previewEnd: stringValue(chapter.previewEnd),
+        segmentIds: stringArray(chapter.segmentIds),
+        paragraphIds: stringArray(chapter.paragraphIds),
+      },
+    ];
+  });
+}
+
+function normalizeEpubSegmentIndexes(value: unknown): EpubSegmentIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const segment = item as Record<string, unknown>;
+    const id = stringValue(segment.id);
+    const chapterId = stringValue(segment.chapterId);
+    if (!id || !chapterId) return [];
+    return [
+      {
+        id,
+        chapterId,
+        indexInChapter: normalizeNonNegativeInteger(segment.indexInChapter),
+        textStart: normalizeNonNegativeInteger(segment.textStart),
+        textEnd: normalizeNonNegativeInteger(segment.textEnd),
+        textLength: normalizeNonNegativeInteger(segment.textLength),
+        previewStart: stringValue(segment.previewStart),
+        previewEnd: stringValue(segment.previewEnd),
+        paragraphIds: stringArray(segment.paragraphIds),
+      },
+    ];
+  });
+}
+
+function normalizeEpubParagraphIndexes(value: unknown): EpubParagraphIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const paragraph = item as Record<string, unknown>;
+    const id = stringValue(paragraph.id);
+    const chapterId = stringValue(paragraph.chapterId);
+    const segmentId = stringValue(paragraph.segmentId);
+    if (!id || !chapterId || !segmentId) return [];
+    return [
+      {
+        id,
+        chapterId,
+        segmentId,
+        indexInChapter: normalizeNonNegativeInteger(paragraph.indexInChapter),
+        indexInSegment: normalizeNonNegativeInteger(paragraph.indexInSegment),
+        textStart: normalizeNonNegativeInteger(paragraph.textStart),
+        textEnd: normalizeNonNegativeInteger(paragraph.textEnd),
+        textLength: normalizeNonNegativeInteger(paragraph.textLength),
+        previewStart: stringValue(paragraph.previewStart),
+        previewEnd: stringValue(paragraph.previewEnd),
       },
     ];
   });
@@ -1125,6 +1226,11 @@ function numberArray(value: unknown) {
   return Array.isArray(value)
     ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
     : [];
+}
+
+function normalizeNonNegativeInteger(value: unknown) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : 0;
 }
 
 function stringValue(value: unknown) {
