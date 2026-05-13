@@ -75,6 +75,7 @@ export const articles = sqliteTable(
     contentHash: text('content_hash').notNull(),
     ebookMetadata: text('ebook_metadata', { mode: 'json' }),
     ebookChapters: text('ebook_chapters', { mode: 'json' }),
+    ebookIndex: text('ebook_index', { mode: 'json' }),
     readingProgress: text('reading_progress', { mode: 'json' }),
     focusCoReadingPlan: text('focus_co_reading_plan', { mode: 'json' }),
     readingDeliberationId: text('reading_deliberation_id'),

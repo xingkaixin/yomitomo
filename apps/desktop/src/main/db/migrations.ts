@@ -281,4 +281,10 @@ ALTER TABLE articles ADD COLUMN ebook_chapters TEXT;
 ALTER TABLE articles ADD COLUMN reading_progress TEXT;
 `,
   },
+  {
+    id: '0024_article_ebook_index',
+    sql: `
+ALTER TABLE articles ADD COLUMN ebook_index TEXT;
+`,
+  },
 ];

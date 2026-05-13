@@ -2,12 +2,14 @@ import { Buffer } from 'node:buffer';
 import { basename, dirname } from 'node:path/posix';
 import { JSDOM } from 'jsdom';
 import JSZip from 'jszip';
+import { buildEpubBookIndex, epubIndexText, type EpubBookIndexChapterInput } from '@yomitomo/core';
 import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
 import { hashText, type ArticleRecord, type EbookChapterRecord } from '@yomitomo/shared';
 
 const MAX_EPUB_BYTES = 80 * 1024 * 1024;
 const EPUB_MIME = 'application/epub+zip';
 const XHTML_TYPES = new Set(['application/xhtml+xml', 'text/html', 'application/xml', 'text/xml']);
+const CHAPTER_PARAGRAPH_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
 
 export type EbookImportFileInput = {
   fileName: string;
@@ -23,6 +25,12 @@ type ManifestItem = {
   path: string;
 };
 
+type GuideReference = {
+  type: string;
+  href: string;
+  path: string;
+};
+
 type EpubPackage = {
   opfPath: string;
   opfDir: string;
@@ -33,7 +41,12 @@ type EpubPackage = {
   description?: string;
   manifest: ManifestItem[];
   spineIds: string[];
+  guideReferences: GuideReference[];
   coverId?: string;
+};
+
+type ImportedEbookChapter = EbookChapterRecord & {
+  paragraphs: string[];
 };
 
 export async function articleRecordFromEpubFile(
@@ -47,13 +60,21 @@ export async function articleRecordFromEpubFile(
   const zip = await JSZip.loadAsync(Buffer.from(input.data));
   const epub = await readEpubPackage(zip);
   const chapterTitleByPath = await readChapterTitles(zip, epub);
-  const chapters = await readEpubChapters(zip, epub, chapterTitleByPath);
-  if (chapters.length === 0) throw new Error('EPUB 中没有可读取章节');
+  const importedChapters = await readEpubChapters(zip, epub, chapterTitleByPath);
+  if (importedChapters.length === 0) throw new Error('EPUB 中没有可读取章节');
 
   const cover = await readCoverImage(zip, epub);
-  const fullText = chapters.map((chapter) => chapterText(chapter.html)).join('\n\n');
+  const chapters = importedChapters.map(ebookChapterRecord);
+  const indexChapters = importedChapters.map<EpubBookIndexChapterInput>((chapter) => ({
+    id: chapter.id,
+    title: chapter.title,
+    href: chapter.href,
+    paragraphs: chapter.paragraphs,
+  }));
+  const fullText = epubIndexText(indexChapters);
   const contentHash = hashText(fullText.slice(0, 12000));
   const id = hashText(`ebook:${epub.title}:${epub.creator || ''}:${contentHash}`);
+  const index = buildEpubBookIndex({ articleId: id, chapters: indexChapters });
   const now = new Date().toISOString();
 
   return {
@@ -78,6 +99,7 @@ export async function articleRecordFromEpubFile(
         description: epub.description,
       },
       chapters,
+      index,
     },
     annotations: [],
     createdAt: now,
@@ -137,6 +159,13 @@ async function readEpubPackage(zip: JSZip): Promise<EpubPackage> {
         const idref = item.getAttribute('idref');
         return idref ? [idref] : [];
       }),
+      guideReferences: elementsByLocalName(document, 'reference').flatMap((reference) => {
+        const href = reference.getAttribute('href') || '';
+        const type = reference.getAttribute('type') || '';
+        return href && type
+          ? [{ href, type: type.toLowerCase(), path: resolveZipPath(opfDir, href) }]
+          : [];
+      }),
       coverId,
     };
   });
@@ -191,9 +220,9 @@ async function readEpubChapters(
   zip: JSZip,
   epub: EpubPackage,
   chapterTitleByPath: Map<string, string>,
-): Promise<EbookChapterRecord[]> {
+): Promise<ImportedEbookChapter[]> {
   const manifestById = new Map(epub.manifest.map((item) => [item.id, item]));
-  const chapters: EbookChapterRecord[] = [];
+  const chapters: ImportedEbookChapter[] = [];
 
   for (const idref of epub.spineIds) {
     const item = manifestById.get(idref);
@@ -204,6 +233,7 @@ async function readEpubChapters(
     const dom = parseLooseMarkupDom(text);
     try {
       await inlineChapterImages(dom.window.document, zip, item.path, epub.manifest);
+      if (isTocSpineItem(dom.window.document, item, epub)) continue;
       const body = dom.window.document.body || dom.window.document.documentElement;
       const rawHtml = body?.innerHTML || '';
       const html = sanitizeArticleContentHtml(
@@ -211,7 +241,8 @@ async function readEpubChapters(
         rawHtml,
         `https://ebook.local/${item.path}`,
       );
-      const textLength = chapterText(html).length;
+      const paragraphs = chapterParagraphs(html);
+      const textLength = paragraphs.join('\n\n').length;
       if (textLength === 0) continue;
       chapters.push({
         id: `chapter-${chapters.length + 1}`,
@@ -221,6 +252,7 @@ async function readEpubChapters(
           cleanString(dom.window.document.querySelector('h1,h2,h3,title')?.textContent) ||
           `第 ${chapters.length + 1} 章`,
         html,
+        paragraphs,
         textLength,
       });
     } finally {
@@ -233,6 +265,39 @@ async function readEpubChapters(
 
 function parseLooseMarkupDom(text: string) {
   return new JSDOM(text);
+}
+
+function isTocSpineItem(document: Document, item: ManifestItem, epub: EpubPackage) {
+  if (item.properties.includes('nav')) return true;
+  if (
+    epub.guideReferences.some(
+      (reference) => reference.type === 'toc' && reference.path === item.path,
+    )
+  ) {
+    return true;
+  }
+  const bodyText = cleanString(document.body?.textContent);
+  const prefix = bodyText?.slice(0, 32).toLowerCase() || '';
+  if (
+    !bodyText ||
+    !(
+      prefix.startsWith('目录') ||
+      prefix.startsWith('table of contents') ||
+      prefix.startsWith('contents')
+    )
+  ) {
+    return false;
+  }
+  const anchors = Array.from(document.body?.querySelectorAll<HTMLAnchorElement>('a[href]') || []);
+  const internalAnchors = anchors.filter((anchor) => {
+    const href = anchor.getAttribute('href') || '';
+    return href && !/^[a-z][a-z0-9+.-]*:/i.test(href);
+  });
+  const anchorTextLength = internalAnchors.reduce(
+    (length, anchor) => length + (cleanString(anchor.textContent)?.length || 0),
+    0,
+  );
+  return internalAnchors.length >= 5 && anchorTextLength / bodyText.length > 0.5;
 }
 
 async function inlineChapterImages(
@@ -309,10 +374,31 @@ function chaptersToArticleHtml(chapters: EbookChapterRecord[]) {
     .join('\n');
 }
 
-function chapterText(html: string) {
+function ebookChapterRecord(chapter: ImportedEbookChapter): EbookChapterRecord {
+  return {
+    id: chapter.id,
+    title: chapter.title,
+    href: chapter.href,
+    html: chapter.html,
+    textLength: chapter.textLength,
+  };
+}
+
+function chapterParagraphs(html: string) {
   const dom = new JSDOM(`<article>${html}</article>`);
   try {
-    return dom.window.document.body.textContent?.replace(/\s+/g, ' ').trim() || '';
+    const body = dom.window.document.body;
+    const blockElements = Array.from(body.querySelectorAll(CHAPTER_PARAGRAPH_SELECTOR)).filter(
+      (element) =>
+        !Array.from(element.children).some((child) => child.matches(CHAPTER_PARAGRAPH_SELECTOR)),
+    );
+    const paragraphs = blockElements.flatMap((element) => {
+      const text = cleanString(element.textContent);
+      return text ? [text] : [];
+    });
+    if (paragraphs.length > 0) return paragraphs;
+    const text = cleanString(body.textContent);
+    return text ? [text] : [];
   } finally {
     dom.window.close();
   }
