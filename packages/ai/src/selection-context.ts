@@ -232,8 +232,9 @@ function chapterMemory(
   const chapter = location?.chapter;
   if (!chapter) return undefined;
   const segmentCount = chapter.segmentIds.length;
+  const chapterTitle = chapter.title.trim();
   const summary = [
-    `章节位置：第 ${chapter.indexInBook + 1} 章《${chapter.title}》。`,
+    chapterTitle ? `当前章节标题：《${chapterTitle}》。` : `当前阅读单元 ID：${chapter.id}。`,
     `结构：${chapter.textLength} 字符，${segmentCount} 个 segment。`,
     chapter.previewStart ? `章节开头预览：${chapter.previewStart}` : '',
   ]
