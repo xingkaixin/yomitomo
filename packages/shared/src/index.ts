@@ -574,6 +574,28 @@ export type ArticleReadingProgress = {
   updatedAt: string;
 };
 
+export type SpoilerAllowedScope =
+  | 'current-selection'
+  | 'current-segment'
+  | 'current-chapter-so-far'
+  | 'current-chapter'
+  | 'read-so-far'
+  | 'whole-book';
+
+export type SpoilerPolicy = {
+  allowedScope: SpoilerAllowedScope;
+  allowFutureChapterEvidence: boolean;
+  allowFuturePlotEvents: boolean;
+  userOverride?: boolean;
+};
+
+export type ReaderProgress = {
+  currentChapterId: string;
+  currentSegmentId?: string;
+  readChapterIds: string[];
+  readUntilTextOffset?: number;
+};
+
 export type ArticleRecord = {
   id: string;
   url: string;
@@ -731,10 +753,13 @@ export type AgentMessagePayload = {
   agentUsername: string;
   readingIntent?: AgentReadingIntent;
   agentRoster?: PublicAgent[];
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
   article: {
     title: string;
     url: string;
     text: string;
+    ebookIndex?: EpubBookIndex;
   };
   annotation: Annotation;
   userComment: Comment;
@@ -748,6 +773,8 @@ export type AgentAnnotatePayload = {
   instruction?: string;
   readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
   article: {
     title: string;
     url: string;
@@ -770,7 +797,10 @@ export type FocusCoReadingRoutePayload = {
     title: string;
     url: string;
     text: string;
+    ebookIndex?: EpubBookIndex;
   };
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
 };
 
 export type FocusCoReadingRouteSection = {

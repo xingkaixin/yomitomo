@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
+import { buildEpubBookIndex, createEpubTextAnchor, epubIndexText } from '@yomitomo/core';
 import {
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
@@ -304,5 +305,114 @@ describe('agent annotations', () => {
     expect(requestBody.messages[1]?.content).toContain('最多 1 条');
     expect(annotations).toHaveLength(1);
     expect(annotations[0]?.anchor.exact).toBe('第一句很短');
+  });
+
+  it('scopes ebook target annotations to the current chapter read range', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一章已读背景。'],
+      },
+      {
+        id: 'chapter-2',
+        title: '第二章',
+        paragraphs: ['第二章开头。', '第二章已读论证。', '第二章未读反转。'],
+      },
+      {
+        id: 'chapter-3',
+        title: '第三章',
+        paragraphs: ['第三章未来剧情。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const start = text.indexOf('第二章已读论证');
+    const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '第二章已读论证'.length);
+    const content = JSON.stringify([{ exact: '第二章已读论证', type: 'key_point', comment: '一' }]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+
+    await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      targetAnchor: anchor,
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    const prompt = requestBody.messages[1]?.content || '';
+    expect(prompt).toContain('第二章开头。');
+    expect(prompt).toContain('第二章已读论证');
+    expect(prompt).not.toContain('第二章未读反转。');
+    expect(prompt).not.toContain('第三章未来剧情。');
+  });
+
+  it('scopes ebook reading plan annotations to read-so-far evidence', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一章已读背景。'],
+      },
+      {
+        id: 'chapter-2',
+        title: '第二章',
+        paragraphs: ['第二章开头。', '第二章已读论证。', '第二章未读反转。'],
+      },
+      {
+        id: 'chapter-3',
+        title: '第三章',
+        paragraphs: ['第三章未来剧情。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const sectionStart = text.indexOf('第二章开头');
+    const sectionEnd = text.indexOf('第二章未读反转');
+    const content = JSON.stringify([{ exact: '第二章已读论证', type: 'key_point', comment: '一' }]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+
+    await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'chapter-2-segment-1',
+          sectionTitle: '第二章',
+          sectionStart,
+          sectionEnd,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    const prompt = requestBody.messages[1]?.content || '';
+    expect(prompt).toContain('第一章已读背景。');
+    expect(prompt).toContain('第二章已读论证。');
+    expect(prompt).not.toContain('第二章未读反转。');
+    expect(prompt).not.toContain('第三章未来剧情。');
   });
 });

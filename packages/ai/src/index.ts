@@ -26,11 +26,16 @@ import {
 import {
   annotationDensityInstruction,
   annotationDensityMax,
+  buildReadingContextBundle,
   buildReadingQuestions,
   createAgentAnnotation,
   normalizeAnnotationType,
   parseAnnotationSuggestions,
+  readingContextTextForRange,
+  selectionThreadSpoilerPolicy,
+  wholeBookSpoilerPolicy,
   type ReadingCardEvidenceUnit,
+  type ReadingContextBundle,
 } from '@yomitomo/core';
 import { logAiError, logAiInfo } from './logger';
 import {
@@ -205,15 +210,16 @@ export async function runAgentAnnotate(
   payload: AgentAnnotatePayload,
 ): Promise<Annotation[]> {
   const system = buildAgentAnnotateSystemPrompt(agent, payload);
+  const context = buildAgentAnnotateContextBundle(payload);
   const content = await callProviderText(provider, {
     system,
-    user: buildAgentAnnotatePrompt(provider, payload, agent),
+    user: buildAgentAnnotatePrompt(provider, payload, agent, context),
     maxTokens: 4000,
     temperature: agent.temperature,
   });
   const suggestions = parseAnnotationSuggestions(content);
   const now = new Date().toISOString();
-  const maxAnnotations = agentAnnotationOutputLimit(agent, payload);
+  const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
   const annotations: Annotation[] = [];
 
   for (const suggestion of suggestions) {
@@ -243,7 +249,8 @@ export async function runAgentAnnotateStream(
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<void> {
   const system = buildAgentAnnotateSystemPrompt(agent, payload);
-  const maxAnnotations = agentAnnotationOutputLimit(agent, payload);
+  const context = buildAgentAnnotateContextBundle(payload);
+  const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
   let annotationCount = 0;
   const flushJson = (json: string) => {
     if (annotationCount >= maxAnnotations) return;
@@ -302,7 +309,7 @@ export async function runAgentAnnotateStream(
     provider,
     {
       system,
-      user: buildAgentAnnotateStreamPrompt(provider, payload, agent),
+      user: buildAgentAnnotateStreamPrompt(provider, payload, agent, context),
       maxTokens: 4000,
       temperature: agent.temperature,
     },
@@ -321,9 +328,13 @@ export async function runAgentAnnotateStream(
   }
 }
 
-function agentAnnotationOutputLimit(agent: Agent, payload: AgentAnnotatePayload) {
+function agentAnnotationOutputLimit(
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  context?: ReadingContextBundle,
+) {
   if (payload.targetAnchor) return 1;
-  return annotationDensityMax(agent.annotationDensity, annotationBudgetText(payload));
+  return annotationDensityMax(agent.annotationDensity, annotationBudgetText(payload, context));
 }
 
 export function extractJsonObjects(input: string): { objects: string[]; rest: string } {
@@ -529,16 +540,54 @@ function targetAnchorSuggestion(payload: AgentAnnotatePayload) {
     : {};
 }
 
-function annotationBudgetText(payload: AgentAnnotatePayload) {
+function buildAgentMessageContextBundle(payload: AgentMessagePayload) {
+  return buildReadingContextBundle({
+    articleText: payload.article.text,
+    ebookIndex: payload.article.ebookIndex,
+    targetAnchor: payload.annotation.anchor,
+    readerProgress: payload.readerProgress,
+    spoilerPolicy:
+      payload.spoilerPolicy ||
+      (payload.article.ebookIndex ? selectionThreadSpoilerPolicy : wholeBookSpoilerPolicy),
+  });
+}
+
+function buildAgentAnnotateContextBundle(payload: AgentAnnotatePayload) {
+  return buildReadingContextBundle({
+    articleText: payload.article.text,
+    ebookIndex: payload.article.ebookIndex,
+    targetAnchor: payload.targetAnchor,
+    readingPlan: payload.readingPlan,
+    readerProgress: payload.readerProgress,
+    spoilerPolicy:
+      payload.spoilerPolicy || (payload.article.ebookIndex ? undefined : wholeBookSpoilerPolicy),
+  });
+}
+
+function spoilerScopePrompt(context: ReadingContextBundle) {
+  if (context.spoilerPolicy.allowedScope === 'whole-book') return '';
+  return '\n\n防剧透范围：可用证据已经按读者进度裁剪。只使用提供的可用原文、目标选区和讨论内容；不要引用、概括或推断未提供的后文章节、剧情或论证。';
+}
+
+function annotationBudgetText(payload: AgentAnnotatePayload, context?: ReadingContextBundle) {
   if (payload.targetAnchor) return payload.targetAnchor.exact;
-  if (!payload.readingPlan?.length) return payload.article.text;
+  if (!payload.readingPlan?.length) return context?.articleText || payload.article.text;
 
   return payload.readingPlan
-    .map((item) => payload.article.text.slice(item.sectionStart, item.sectionEnd))
+    .map((item) =>
+      context
+        ? readingContextTextForRange(
+            payload.article.text,
+            context.textRanges,
+            item.sectionStart,
+            item.sectionEnd,
+          )
+        : payload.article.text.slice(item.sectionStart, item.sectionEnd),
+    )
     .join('\n');
 }
 
-function readingPlanPrompt(payload: AgentAnnotatePayload) {
+function readingPlanPrompt(payload: AgentAnnotatePayload, context: ReadingContextBundle) {
   if (!payload.readingPlan?.length) return '';
 
   const plan = payload.readingPlan.map((item, index) => {
@@ -555,11 +604,16 @@ function readingPlanPrompt(payload: AgentAnnotatePayload) {
       readingIntent: item.readingIntent || '',
       actionDescription: option?.description || '',
       readerMessages: item.messages || [],
-      sectionText: payload.article.text.slice(item.sectionStart, item.sectionEnd),
+      sectionText: readingContextTextForRange(
+        payload.article.text,
+        context.textRanges,
+        item.sectionStart,
+        item.sectionEnd,
+      ),
     };
   });
 
-  return `\n\n本轮聚焦共读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你可以阅读全文来理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
+  return `\n\n本轮聚焦共读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你只能使用本轮提供的可用原文范围理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
 }
 
 export function buildAgentPrompt(
@@ -575,12 +629,13 @@ export function buildAgentPrompt(
     })
     .join('\n');
   const userMention = formatUserMention(payload.userComment);
-  const article = budgetArticleText(provider, 'agent-message', payload.article.text);
+  const context = buildAgentMessageContextBundle(payload);
+  const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
   const participants = buildAgentMessageParticipants(payload, agent);
   const selfInstruction = buildAgentSelfInstruction(payload, agent);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
 function buildAgentSelfInstruction(
@@ -665,14 +720,15 @@ function buildAgentAnnotatePrompt(
   provider: LlmProvider,
   payload: AgentAnnotatePayload,
   agent: Agent,
+  context: ReadingContextBundle = buildAgentAnnotateContextBundle(payload),
 ) {
-  const planPrompt = readingPlanPrompt(payload);
+  const planPrompt = readingPlanPrompt(payload, context);
   if (planPrompt) {
-    const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+    const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
     const budgetNotice = formatBudgetNotice([article.report]);
     const readingIntentOutputLine =
       '- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -681,23 +737,27 @@ function buildAgentAnnotatePrompt(
     const commentOutputLine = payload.readingIntent
       ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n${commentOutputLine}\n\n只返回 JSON，不要输出 Markdown。`;
+    const contextPrompt = payload.article.ebookIndex
+      ? `\n\n可用原文范围：\n${context.articleText}${spoilerScopePrompt(context)}`
+      : '';
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n${commentOutputLine}\n\n只返回 JSON，不要输出 Markdown。`;
   }
-  const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+  const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：按本轮阅读动作说明这段为什么值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是文章中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n- comment：按本轮阅读动作说明这段为什么值得讨论，作为批注里的第一条评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
 }
 
 function buildAgentAnnotateStreamPrompt(
   provider: LlmProvider,
   payload: AgentAnnotatePayload,
   agent: Agent,
+  context: ReadingContextBundle = buildAgentAnnotateContextBundle(payload),
 ) {
-  const planPrompt = readingPlanPrompt(payload);
+  const planPrompt = readingPlanPrompt(payload, context);
   if (planPrompt) {
-    const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+    const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
     const budgetNotice = formatBudgetNotice([article.report]);
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${planPrompt}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -706,11 +766,14 @@ function buildAgentAnnotateStreamPrompt(
     const commentOutputLine = payload.readingIntent
       ? '- comment：按本轮阅读动作和读者指导写给读者的批注评论'
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","readingIntent":"explain","comment":"批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n${readingIntentOutputLine}\n${commentOutputLine}\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
+    const contextPrompt = payload.article.ebookIndex
+      ? `\n\n可用原文范围：\n${context.articleText}${spoilerScopePrompt(context)}`
+      : '';
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","readingIntent":"explain","comment":"批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n${readingIntentOutputLine}\n${commentOutputLine}\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
   }
-  const article = budgetArticleText(provider, 'agent-annotate', payload.article.text);
+  const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n全文：\n${article.text}${readingIntentPromptLine(payload)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"按本轮阅读动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"按本轮阅读动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
 function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCardInput) {
@@ -1160,14 +1223,10 @@ function buildFocusCoReadingRoutePrompt(payload: FocusCoReadingRoutePayload, age
     nickname: agent.nickname,
     roleCard: buildAgentRoleCard(agent),
   }));
-  const sections = payload.sections.map((section, index) => ({
-    index: index + 1,
-    sectionId: section.sectionId,
-    sectionTitle: section.sectionTitle,
-    text: compactRouteSectionText(
-      payload.article.text.slice(section.sectionStart, section.sectionEnd),
-    ),
-  }));
+  const sections = routeSections(payload);
+  const routeScopeRule = payload.article.ebookIndex
+    ? '\n- EPUB 章节规划只能基于章节标题、顺序、长度和结构描述；不要编造或泄露未提供的后文章节内容。'
+    : '';
 
   return `文章标题：${payload.article.title}
 文章 URL：${payload.article.url}
@@ -1198,9 +1257,40 @@ ${JSON.stringify(sections, null, 2)}
 - 概念型章节优先给擅长解释术语、背景和定义的助手。
 - 结构型章节优先给擅长梳理全文位置和章节功能的助手。
 - 沉淀型章节优先给擅长提炼要点、金句和可迁移洞见的助手。
-- 分配要尊重助手角色卡，避免把所有助手集中到同一章节。
+- 分配要尊重助手角色卡，避免把所有助手集中到同一章节。${routeScopeRule}
 
 只返回 JSON。`;
+}
+
+function routeSections(payload: FocusCoReadingRoutePayload) {
+  if (!payload.article.ebookIndex) {
+    return payload.sections.map((section, index) => ({
+      index: index + 1,
+      sectionId: section.sectionId,
+      sectionTitle: section.sectionTitle,
+      text: compactRouteSectionText(
+        payload.article.text.slice(section.sectionStart, section.sectionEnd),
+      ),
+    }));
+  }
+
+  return payload.sections.map((section, index) => {
+    const chapter =
+      payload.article.ebookIndex?.chapters.find((item) => item.id === section.sectionId) ||
+      payload.article.ebookIndex?.chapters.find(
+        (item) => section.sectionStart < item.textEnd && section.sectionEnd > item.textStart,
+      );
+    return {
+      index: index + 1,
+      sectionId: section.sectionId,
+      sectionTitle: section.sectionTitle,
+      descriptor: {
+        chapterIndex: chapter ? chapter.indexInBook + 1 : index + 1,
+        textLength: chapter?.textLength ?? section.sectionEnd - section.sectionStart,
+        segmentCount: chapter?.segmentIds.length ?? 0,
+      },
+    };
+  });
 }
 
 function compactRouteSectionText(text: string) {
