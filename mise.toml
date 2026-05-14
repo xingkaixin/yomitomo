@@ -1,2 +1,22 @@
 [tools]
 node = "24.15.0"
+
+[tasks."lint"]
+run = "pnpm lint"
+
+[tasks."format:check"]
+run = "pnpm format:check"
+
+[tasks."typecheck"]
+run = "pnpm typecheck"
+
+[tasks."test"]
+run = "pnpm test"
+
+[tasks."check"]
+run = [
+  { task = "lint" },
+  { task = "format:check" },
+  { task = "typecheck" },
+  { task = "test" },
+]
