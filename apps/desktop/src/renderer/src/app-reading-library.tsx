@@ -91,6 +91,7 @@ import {
   selectionActionShortcut,
   sleep,
   type ActiveConnection,
+  type AgentDockItem,
   type HighlightChoice,
   type ReaderSettings,
   type ReaderReadingSection,
@@ -2978,6 +2979,14 @@ function EbookBookcase({
     }),
     [annotations],
   );
+  const ebookAgentDockItems = useMemo<AgentDockItem[]>(
+    () =>
+      annotatingAgentIds.flatMap((agentId) => {
+        const agent = annotationAgents.find((candidate) => candidate.id === agentId);
+        return agent ? [{ agent, state: 'active' as const }] : [];
+      }),
+    [annotatingAgentIds, annotationAgents],
+  );
   const updateEbookBoxesRef = useRef<() => void>(() => {});
   const updateBoxesFrameRef = useRef(0);
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
@@ -3647,10 +3656,14 @@ function EbookBookcase({
     window.setTimeout(() => updateEbookVirtualCursor(agentId, null), 900);
   }
 
-  function enqueueEbookAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
+  function enqueueEbookAgentAnnotationPlayback(
+    articleId: string,
+    annotation: Annotation,
+    options: { revealMissingRange?: boolean } = {},
+  ) {
     const run = async () => {
       try {
-        await playEbookAgentAnnotation(articleId, annotation);
+        await playEbookAgentAnnotation(articleId, annotation, options);
       } catch (error) {
         console.warn(error);
         await appendAgentAnnotationToArticle(articleId, annotation);
@@ -3663,7 +3676,11 @@ function EbookBookcase({
     );
   }
 
-  async function playEbookAgentAnnotation(articleId: string, annotation: Annotation) {
+  async function playEbookAgentAnnotation(
+    articleId: string,
+    annotation: Annotation,
+    options: { revealMissingRange?: boolean } = {},
+  ) {
     if (!isCurrentArticle(articleId)) {
       await appendAgentAnnotationToArticle(articleId, annotation);
       return;
@@ -3678,7 +3695,7 @@ function EbookBookcase({
     const range = doc ? rangeForEbookAnchorInDocument(doc, annotation.anchor) : null;
     if (!canvasElement || !surfaceElement || !range) {
       await appendAgentAnnotationToArticle(articleId, annotation);
-      void goToAnnotation(annotation.id);
+      if (options.revealMissingRange) void goToAnnotation(annotation.id);
       finishEbookVirtualReading(cursorId);
       return;
     }
@@ -3689,7 +3706,7 @@ function EbookBookcase({
     const lastRect = rects[rects.length - 1];
     if (!firstRect || !lastRect) {
       await appendAgentAnnotationToArticle(articleId, annotation);
-      void goToAnnotation(annotation.id);
+      if (options.revealMissingRange) void goToAnnotation(annotation.id);
       finishEbookVirtualReading(cursorId);
       return;
     }
@@ -3708,7 +3725,7 @@ function EbookBookcase({
       });
       await sleep(700);
       await appendAgentAnnotationToArticle(articleId, annotation);
-      void goToAnnotation(annotation.id);
+      if (options.revealMissingRange) void goToAnnotation(annotation.id);
       finishEbookVirtualReading(cursorId);
       return;
     }
@@ -4314,7 +4331,9 @@ function EbookBookcase({
           if (!annotation) return;
           annotationCount += 1;
           if (isCurrentArticle(articleId)) {
-            enqueueEbookAgentAnnotationPlayback(articleId, annotation);
+            enqueueEbookAgentAnnotationPlayback(articleId, annotation, {
+              revealMissingRange: Boolean(options.targetAnchor),
+            });
             return;
           }
           void appendAgentAnnotationToArticle(articleId, annotation);
@@ -4456,7 +4475,7 @@ function EbookBookcase({
         activeId={selectedAnnotationId}
         agentAnnotateOpen={agentAnnotateOpen}
         agentDockCompleting={false}
-        agentDockItems={[]}
+        agentDockItems={ebookAgentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
         annotatingAgents={annotatingAgentIds}

@@ -48,10 +48,12 @@ export function buildSegmentAnnotationTasks(
   if (!index || !payload.readingPlan?.length) return [];
 
   return payload.readingPlan.flatMap((planItem) =>
-    index.segments.flatMap((segment) => {
-      const task = buildSegmentAnnotationTask(payload, agent, planItem, segment);
-      return task ? [task] : [];
-    }),
+    index.segments.flatMap((segment) =>
+      segmentAnnotationRanges(payload, segment, planItem).flatMap((visibleRange) => {
+        const task = buildSegmentAnnotationTask(payload, agent, planItem, segment, visibleRange);
+        return task ? [task] : [];
+      }),
+    ),
   );
 }
 
@@ -60,16 +62,18 @@ export function buildSegmentAnnotationTask(
   agent: Agent,
   planItem: AgentReadingPlanItem,
   segment: EpubSegmentIndex,
+  visibleRange?: TextRange,
 ): SegmentAnnotationTask | null {
   const index = payload.article.ebookIndex;
   if (!index || !rangesOverlap(segment, planItem)) return null;
   const chapter = index.chapters.find((item) => item.id === segment.chapterId);
   if (!chapter) return null;
   const allowedAnchorRange = clippedSegmentRange(segment, planItem);
-  const visibleRange = visibleSegmentRange(allowedAnchorRange);
-  const allowedParagraphIds = paragraphIdsInRange(index, segment, visibleRange);
-  if (visibleRange.textEnd <= visibleRange.textStart || allowedParagraphIds.length === 0)
-    return null;
+  const taskRange =
+    visibleRange || visibleSegmentRanges(payload.article.text, allowedAnchorRange)[0];
+  if (!taskRange) return null;
+  const allowedParagraphIds = paragraphIdsInRange(index, segment, taskRange);
+  if (taskRange.textEnd <= taskRange.textStart || allowedParagraphIds.length === 0) return null;
 
   return {
     planItem,
@@ -82,13 +86,13 @@ export function buildSegmentAnnotationTask(
       planItem,
       chapter,
       segment,
-      visibleRange,
+      visibleRange: taskRange,
       allowedParagraphIds,
     }),
     createOptions: {
       ebookIndex: index,
-      allowedTextStart: visibleRange.textStart,
-      allowedTextEnd: visibleRange.textEnd,
+      allowedTextStart: taskRange.textStart,
+      allowedTextEnd: taskRange.textEnd,
       allowedSegmentIds: [segment.id],
       allowedParagraphIds,
     },
@@ -243,9 +247,10 @@ function buildSegmentAnnotationContext(input: {
       index,
       payload.article.text,
       segment,
+      visibleRange,
       payload.readingMemory,
     ),
-    previousTrace: previousSegmentTrace(index, segment, payload.readingMemory),
+    previousTrace: previousSegmentTrace(index, segment, visibleRange, payload.readingMemory),
     nextPreview: nextSegmentPreview(index, payload.article.text, segment),
     chapterTrace: chapterTrace(index, chapter, planItem, dedupAnnotations, payload.readingMemory),
     allowedAnchorRange: visibleRange,
@@ -319,9 +324,10 @@ function previousSegmentMemory(
   index: EpubBookIndex,
   articleText: string,
   segment: EpubSegmentIndex,
+  visibleRange: TextRange,
   memory: ReadingMemory | undefined,
 ): SegmentMemory | undefined {
-  const summaries = priorSegmentSummaries(index, segment, memory);
+  const summaries = priorSegmentSummaries(index, segment, visibleRange, memory);
   if (summaries.length > 0) {
     const last = summaries[summaries.length - 1];
     return {
@@ -361,6 +367,7 @@ function previousSegmentMemory(
 function previousSegmentTrace(
   index: EpubBookIndex,
   segment: EpubSegmentIndex,
+  visibleRange: TextRange,
   memory: ReadingMemory | undefined,
 ): SegmentTraceMemory | undefined {
   const previousSegmentIds = new Set(priorSegments(index, segment).map((item) => item.id));
@@ -370,7 +377,10 @@ function previousSegmentTrace(
         trace.scope === 'segment' &&
         trace.chapterId === segment.chapterId &&
         trace.segmentId &&
-        previousSegmentIds.has(trace.segmentId),
+        (previousSegmentIds.has(trace.segmentId) ||
+          (trace.segmentId === segment.id &&
+            Boolean(trace.sourceRange) &&
+            trace.sourceRange!.textEnd <= visibleRange.textStart)),
     )
     .toSorted(
       (left, right) => (left.sourceRange?.textStart || 0) - (right.sourceRange?.textStart || 0),
@@ -444,6 +454,7 @@ function chapterTrace(
 function priorSegmentSummaries(
   index: EpubBookIndex,
   segment: EpubSegmentIndex,
+  visibleRange: TextRange,
   memory: ReadingMemory | undefined,
 ) {
   const previousSegmentIds = new Set(priorSegments(index, segment).map((item) => item.id));
@@ -453,7 +464,9 @@ function priorSegmentSummaries(
         summary.scope === 'segment' &&
         summary.chapterId === segment.chapterId &&
         summary.segmentId &&
-        previousSegmentIds.has(summary.segmentId),
+        (previousSegmentIds.has(summary.segmentId) ||
+          (summary.segmentId === segment.id &&
+            summary.sourceRange.textEnd <= visibleRange.textStart)),
     )
     .toSorted((left, right) => left.sourceRange.textStart - right.sourceRange.textStart)
     .slice(-3);
@@ -516,11 +529,41 @@ function clippedSegmentRange(segment: EpubSegmentIndex, planItem: AgentReadingPl
   };
 }
 
-function visibleSegmentRange(range: TextRange): TextRange {
-  return {
-    textStart: range.textStart,
-    textEnd: Math.min(range.textEnd, range.textStart + SEGMENT_TEXT_CHAR_LIMIT),
-  };
+function segmentAnnotationRanges(
+  payload: AgentAnnotatePayload,
+  segment: EpubSegmentIndex,
+  planItem: AgentReadingPlanItem,
+): TextRange[] {
+  if (!rangesOverlap(segment, planItem)) return [];
+  return visibleSegmentRanges(payload.article.text, clippedSegmentRange(segment, planItem));
+}
+
+function visibleSegmentRanges(articleText: string, range: TextRange): TextRange[] {
+  if (range.textEnd <= range.textStart) return [];
+  const ranges: TextRange[] = [];
+  let textStart = range.textStart;
+
+  while (textStart < range.textEnd) {
+    const hardEnd = Math.min(range.textEnd, textStart + SEGMENT_TEXT_CHAR_LIMIT);
+    const textEnd =
+      hardEnd < range.textEnd ? segmentChunkBoundary(articleText, textStart, hardEnd) : hardEnd;
+    if (textEnd <= textStart) break;
+    ranges.push({ textStart, textEnd });
+    textStart = textEnd;
+  }
+
+  return ranges;
+}
+
+function segmentChunkBoundary(articleText: string, textStart: number, hardEnd: number) {
+  const minEnd = textStart + Math.floor(SEGMENT_TEXT_CHAR_LIMIT * 0.72);
+  for (let index = hardEnd - 1; index >= minEnd; index -= 1) {
+    if ('。！？.!?；;'.includes(articleText[index] || '')) return index + 1;
+  }
+  for (let index = hardEnd - 1; index >= minEnd; index -= 1) {
+    if (/\s/.test(articleText[index] || '')) return index + 1;
+  }
+  return hardEnd;
 }
 
 function paragraphIdsInRange(index: EpubBookIndex, segment: EpubSegmentIndex, range: TextRange) {
