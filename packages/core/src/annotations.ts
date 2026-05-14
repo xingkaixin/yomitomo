@@ -1,6 +1,9 @@
 import type {
   Agent,
   AgentAnnotationDensity,
+  AnnotationConfidence,
+  AnnotationEvidenceSource,
+  AnnotationMove,
   AgentReadingIntent,
   Annotation,
   AnnotationType,
@@ -18,6 +21,11 @@ export type AnnotationSuggestion = {
   comment: string;
   annotationType?: AnnotationType | null;
   readingIntent?: AgentReadingIntent | null;
+  moveType?: AnnotationMove | null;
+  whyHere?: string;
+  evidenceUsed?: AnnotationEvidenceSource[];
+  confidence?: AnnotationConfidence | null;
+  shouldShow?: boolean;
   prefix?: string;
   suffix?: string;
   context?: string;
@@ -36,6 +44,10 @@ export type CreateUserAnnotationOptions = {
 
 export type CreateAgentAnnotationOptions = {
   ebookIndex?: EpubBookIndex;
+  allowedTextStart?: number;
+  allowedTextEnd?: number;
+  allowedSegmentIds?: string[];
+  allowedParagraphIds?: string[];
 };
 
 export type AnnotationPersona = {
@@ -136,7 +148,7 @@ export function createAgentAnnotation(
   now = new Date().toISOString(),
   options: CreateAgentAnnotationOptions = {},
 ): Annotation | null {
-  const match = findAgentAnnotationMatch(articleText, suggestion);
+  const match = findAgentAnnotationMatch(articleText, suggestion, options);
   if (!match) return null;
 
   const comment = suggestion.comment.trim();
@@ -146,6 +158,11 @@ export function createAgentAnnotation(
     author: 'ai',
     annotationType: suggestion.annotationType || 'key_point',
     readingIntent: suggestion.readingIntent || undefined,
+    moveType: suggestion.moveType || undefined,
+    whyHere: suggestion.whyHere || undefined,
+    evidenceUsed: suggestion.evidenceUsed?.length ? suggestion.evidenceUsed : undefined,
+    confidence: suggestion.confidence || undefined,
+    shouldShow: typeof suggestion.shouldShow === 'boolean' ? suggestion.shouldShow : undefined,
     color: agent.annotationColor,
     agentId: agent.id,
     agentUsername: agent.username,
@@ -187,12 +204,13 @@ function createAnnotationAnchor(
 function findAgentAnnotationMatch(
   articleText: string,
   suggestion: AnnotationSuggestion,
+  options: CreateAgentAnnotationOptions,
 ): { start: number; end: number } | null {
   const exact = suggestion.exact.trim();
   if (!exact) return null;
 
   for (const candidate of agentAnnotationCandidates(exact)) {
-    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion);
+    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion, options);
     if (match) return match;
   }
 
@@ -203,26 +221,71 @@ function findAgentAnnotationCandidate(
   articleText: string,
   exact: string,
   suggestion: AnnotationSuggestion,
+  options: CreateAgentAnnotationOptions,
 ) {
   const exactMatches = findAll(articleText, exact).map((start) => ({
     start,
     end: start + exact.length,
   }));
-  if (exactMatches.length > 0) {
-    return selectAgentAnnotationMatch(articleText, exactMatches, exact, suggestion);
+  const allowedExactMatches = allowedAgentAnnotationMatches(exactMatches, options);
+  if (allowedExactMatches.length > 0) {
+    return selectAgentAnnotationMatch(articleText, allowedExactMatches, exact, suggestion);
   }
 
-  const normalizedMatches = findWhitespaceInsensitiveMatches(articleText, exact);
+  const normalizedMatches = allowedAgentAnnotationMatches(
+    findWhitespaceInsensitiveMatches(articleText, exact),
+    options,
+  );
   if (normalizedMatches.length > 0) {
     return selectAgentAnnotationMatch(articleText, normalizedMatches, exact, suggestion);
   }
 
-  const compactMatches = findWhitespaceAgnosticMatches(articleText, exact);
+  const compactMatches = allowedAgentAnnotationMatches(
+    findWhitespaceAgnosticMatches(articleText, exact),
+    options,
+  );
   if (compactMatches.length > 0) {
     return selectAgentAnnotationMatch(articleText, compactMatches, exact, suggestion);
   }
 
   return null;
+}
+
+function allowedAgentAnnotationMatches(
+  matches: Array<{ start: number; end: number }>,
+  options: CreateAgentAnnotationOptions,
+) {
+  return matches.filter((match) => agentAnnotationMatchAllowed(match, options));
+}
+
+function agentAnnotationMatchAllowed(
+  match: { start: number; end: number },
+  options: CreateAgentAnnotationOptions,
+) {
+  if (Number.isInteger(options.allowedTextStart) && match.start < options.allowedTextStart!) {
+    return false;
+  }
+  if (Number.isInteger(options.allowedTextEnd) && match.end > options.allowedTextEnd!) {
+    return false;
+  }
+  if (!options.ebookIndex) return true;
+  if (!annotationRangesAllowed(options.ebookIndex.segments, match, options.allowedSegmentIds)) {
+    return false;
+  }
+  return annotationRangesAllowed(options.ebookIndex.paragraphs, match, options.allowedParagraphIds);
+}
+
+function annotationRangesAllowed<T extends { id: string; textStart: number; textEnd: number }>(
+  ranges: T[],
+  match: { start: number; end: number },
+  allowedIds: string[] | undefined,
+) {
+  if (!allowedIds?.length) return true;
+  const allowed = new Set(allowedIds);
+  const overlapping = ranges.filter(
+    (range) => match.start < range.textEnd && match.end > range.textStart,
+  );
+  return overlapping.length > 0 && overlapping.every((range) => allowed.has(range.id));
 }
 
 function selectAgentAnnotationMatch(
@@ -523,17 +586,33 @@ export function parseAnnotationSuggestions(content: string): AnnotationSuggestio
     comment?: unknown;
     type?: unknown;
     readingIntent?: unknown;
+    moveType?: unknown;
+    whyHere?: unknown;
+    evidenceUsed?: unknown;
+    confidence?: unknown;
+    shouldShow?: unknown;
   }>;
   return parsed
-    .map((item) => ({
-      exact: typeof item.exact === 'string' ? item.exact : '',
-      prefix: typeof item.prefix === 'string' ? item.prefix : undefined,
-      suffix: typeof item.suffix === 'string' ? item.suffix : undefined,
-      context: typeof item.context === 'string' ? item.context : undefined,
-      comment: typeof item.comment === 'string' ? item.comment : '',
-      annotationType: normalizeAnnotationType(item.type),
-      readingIntent: normalizeAgentReadingIntent(item.readingIntent),
-    }))
+    .map((item) => {
+      const suggestion: AnnotationSuggestion = {
+        exact: typeof item.exact === 'string' ? item.exact : '',
+        prefix: typeof item.prefix === 'string' ? item.prefix : undefined,
+        suffix: typeof item.suffix === 'string' ? item.suffix : undefined,
+        context: typeof item.context === 'string' ? item.context : undefined,
+        comment: typeof item.comment === 'string' ? item.comment : '',
+        annotationType: normalizeAnnotationType(item.type),
+        readingIntent: normalizeAgentReadingIntent(item.readingIntent),
+      };
+      const moveType = normalizeAnnotationMove(item.moveType);
+      const evidenceUsed = normalizeAnnotationEvidenceUsed(item.evidenceUsed);
+      const confidence = normalizeAnnotationConfidence(item.confidence);
+      if (moveType) suggestion.moveType = moveType;
+      if (typeof item.whyHere === 'string') suggestion.whyHere = item.whyHere;
+      if (evidenceUsed) suggestion.evidenceUsed = evidenceUsed;
+      if (confidence) suggestion.confidence = confidence;
+      if (typeof item.shouldShow === 'boolean') suggestion.shouldShow = item.shouldShow;
+      return suggestion;
+    })
     .filter((item) => item.exact.trim().length > 0);
 }
 
@@ -581,6 +660,42 @@ function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null 
     value === 'connect'
     ? value
     : null;
+}
+
+function normalizeAnnotationMove(value: unknown): AnnotationMove | null {
+  return value === 'explain_concept' ||
+    value === 'surface_assumption' ||
+    value === 'ask_question' ||
+    value === 'connect_previous' ||
+    value === 'challenge_argument' ||
+    value === 'reader_application' ||
+    value === 'style_observation' ||
+    value === 'structure_marker' ||
+    value === 'definition_watch' ||
+    value === 'foreshadowing_watch'
+    ? value
+    : null;
+}
+
+function normalizeAnnotationEvidenceUsed(value: unknown): AnnotationEvidenceSource[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const sources = value
+    .map((item) => normalizeAnnotationEvidenceSource(item))
+    .filter((item): item is AnnotationEvidenceSource => Boolean(item));
+  return sources.length > 0 ? Array.from(new Set(sources)) : undefined;
+}
+
+function normalizeAnnotationEvidenceSource(value: unknown): AnnotationEvidenceSource | null {
+  return value === 'localText' ||
+    value === 'chapterSummary' ||
+    value === 'trace' ||
+    value === 'relatedPassage'
+    ? value
+    : null;
+}
+
+function normalizeAnnotationConfidence(value: unknown): AnnotationConfidence | null {
+  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
 }
 
 function findAll(text: string, exact: string): number[] {

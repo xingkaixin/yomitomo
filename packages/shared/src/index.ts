@@ -43,6 +43,22 @@ export type ProviderModel = {
 
 export type AnnotationType = 'key_point' | 'assumption' | 'concept' | 'question' | 'quote';
 
+export type AnnotationMove =
+  | 'explain_concept'
+  | 'surface_assumption'
+  | 'ask_question'
+  | 'connect_previous'
+  | 'challenge_argument'
+  | 'reader_application'
+  | 'style_observation'
+  | 'structure_marker'
+  | 'definition_watch'
+  | 'foreshadowing_watch';
+
+export type AnnotationEvidenceSource = 'localText' | 'chapterSummary' | 'trace' | 'relatedPassage';
+
+export type AnnotationConfidence = 'low' | 'medium' | 'high';
+
 export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'question' | 'connect';
@@ -359,6 +375,34 @@ export function normalizeAnnotationType(value: unknown): AnnotationType | null {
     : null;
 }
 
+export function normalizeAnnotationMove(value: unknown): AnnotationMove | null {
+  return value === 'explain_concept' ||
+    value === 'surface_assumption' ||
+    value === 'ask_question' ||
+    value === 'connect_previous' ||
+    value === 'challenge_argument' ||
+    value === 'reader_application' ||
+    value === 'style_observation' ||
+    value === 'structure_marker' ||
+    value === 'definition_watch' ||
+    value === 'foreshadowing_watch'
+    ? value
+    : null;
+}
+
+export function normalizeAnnotationEvidenceSource(value: unknown): AnnotationEvidenceSource | null {
+  return value === 'localText' ||
+    value === 'chapterSummary' ||
+    value === 'trace' ||
+    value === 'relatedPassage'
+    ? value
+    : null;
+}
+
+export function normalizeAnnotationConfidence(value: unknown): AnnotationConfidence | null {
+  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
+}
+
 export function agentReadingIntentLabel(intent: AgentReadingIntent) {
   return agentReadingIntentOptions.find((option) => option.value === intent)?.label || intent;
 }
@@ -472,6 +516,11 @@ export type Annotation = {
   anchor: TextAnchor;
   author: AnnotationAuthor;
   annotationType?: AnnotationType;
+  moveType?: AnnotationMove;
+  whyHere?: string;
+  evidenceUsed?: AnnotationEvidenceSource[];
+  confidence?: AnnotationConfidence;
+  shouldShow?: boolean;
   color: string;
   agentId?: string;
   agentUsername?: string;
@@ -1060,6 +1109,7 @@ export type AgentReadingPlanItem = {
   readingIntent?: AgentReadingIntent;
   sectionSummary?: string;
   sectionTag?: string;
+  targetDensity?: AgentAnnotationDensity;
   messages?: AgentReadingPlanMessage[];
 };
 

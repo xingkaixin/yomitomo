@@ -122,6 +122,26 @@ describe('annotation core', () => {
     expect(result?.comments[0]?.content).toBe('second target is the useful one');
   });
 
+  it('anchors agent suggestions inside an allowed text range', () => {
+    const articleText = '外部 target 不应使用。内部 target 才能批注。';
+    const allowedTextStart = articleText.indexOf('内部');
+    const result = createAgentAnnotation(
+      agent,
+      articleText,
+      {
+        exact: 'target',
+        comment: 'inside allowed range',
+      },
+      '2026-01-02T00:00:00.000Z',
+      {
+        allowedTextStart,
+        allowedTextEnd: articleText.length,
+      },
+    );
+
+    expect(result?.anchor.start).toBe(articleText.indexOf('target', allowedTextStart));
+  });
+
   it('anchors repeated agent suggestion text from a context window', () => {
     const result = createAgentAnnotation(
       agent,
@@ -159,6 +179,56 @@ describe('annotation core', () => {
       chapterId: 'chapter-1',
       segmentId: 'chapter-1-segment-1',
       textStartInParagraph: 0,
+    });
+  });
+
+  it('rejects EPUB agent anchors outside allowed core paragraphs', () => {
+    const chapters = [
+      { id: 'chapter-1', title: '第一章', paragraphs: ['第一段目标。', '第二段目标。'] },
+    ];
+    const text = epubIndexText(chapters);
+    const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
+    const result = createAgentAnnotation(
+      agent,
+      text,
+      {
+        exact: '第一段',
+        comment: 'outside core paragraph',
+      },
+      '2026-01-02T00:00:00.000Z',
+      {
+        ebookIndex: index,
+        allowedTextStart: index.paragraphs[1]!.textStart,
+        allowedTextEnd: index.paragraphs[1]!.textEnd,
+        allowedParagraphIds: [index.paragraphs[1]!.id],
+      },
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('stores segment annotation system fields on agent annotations', () => {
+    const result = createAgentAnnotation(
+      agent,
+      '关键句值得讨论。',
+      {
+        exact: '关键句',
+        comment: 'note',
+        moveType: 'surface_assumption',
+        whyHere: '这里暴露了隐含前提。',
+        evidenceUsed: ['localText', 'trace'],
+        confidence: 'high',
+        shouldShow: true,
+      },
+      '2026-01-02T00:00:00.000Z',
+    );
+
+    expect(result).toMatchObject({
+      moveType: 'surface_assumption',
+      whyHere: '这里暴露了隐含前提。',
+      evidenceUsed: ['localText', 'trace'],
+      confidence: 'high',
+      shouldShow: true,
     });
   });
 
@@ -317,6 +387,29 @@ describe('annotation core', () => {
         annotationType: 'quote',
         readingIntent: 'challenge',
         comment: 'note',
+      },
+    ]);
+  });
+
+  it('parses segment annotation metadata fields', () => {
+    expect(
+      parseAnnotationSuggestions(
+        '[{"exact":"target","comment":"note","moveType":"challenge_argument","whyHere":"关键跳跃","evidenceUsed":["localText","trace","unknown"],"confidence":"medium","shouldShow":true}]',
+      ),
+    ).toEqual([
+      {
+        exact: 'target',
+        prefix: undefined,
+        suffix: undefined,
+        context: undefined,
+        annotationType: null,
+        readingIntent: null,
+        comment: 'note',
+        moveType: 'challenge_argument',
+        whyHere: '关键跳跃',
+        evidenceUsed: ['localText', 'trace'],
+        confidence: 'medium',
+        shouldShow: true,
       },
     ]);
   });

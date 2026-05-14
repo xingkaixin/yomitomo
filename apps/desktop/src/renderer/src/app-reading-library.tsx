@@ -2616,16 +2616,17 @@ function WebSourceBookcase({
           annotationType: options.annotationType,
           readingIntent: options.readingIntent,
           instruction: options.instruction,
-          annotations: options.targetAnchor ? annotationsRef.current : undefined,
+          annotations:
+            options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
           targetAnchor: options.targetAnchor,
-          readingPlan: options.readingPlan,
+          readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
           article: articleContext,
         },
         (event) => {
           if (event.type !== 'item') return;
           const annotation = constrainAgentPlanAnnotation(
             event.annotation,
-            options.readingPlan,
+            readingPlan,
             articleScopedWrite ? articleContext.text : currentArticleText(),
           );
           if (!annotation) return;
@@ -4223,9 +4224,10 @@ function EbookBookcase({
           annotationType: options.annotationType,
           readingIntent: options.readingIntent,
           instruction: options.instruction,
-          annotations: options.targetAnchor ? annotationsRef.current : undefined,
+          annotations:
+            options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
           targetAnchor: options.targetAnchor,
-          readingPlan: options.readingPlan,
+          readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
           article: articleContext,
         },
         (event) => {

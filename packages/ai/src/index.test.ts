@@ -818,7 +818,7 @@ describe('agent annotations', () => {
     expect(annotations[0]?.anchor.exact).toBe('第二章已读论证');
   });
 
-  it('scopes ebook reading plan annotations to read-so-far evidence', async () => {
+  it('scopes ebook reading plan annotations to the current segment range', async () => {
     const chapters = [
       {
         id: 'chapter-1',
@@ -870,9 +870,287 @@ describe('agent annotations', () => {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
-    expect(prompt).toContain('第一章已读背景。');
+    expect(prompt).toContain('segment-level 上下文');
     expect(prompt).toContain('第二章已读论证。');
+    expect(prompt).not.toContain('第一章已读背景。');
     expect(prompt).not.toContain('第二章未读反转。');
     expect(prompt).not.toContain('第三章未来剧情。');
+  });
+
+  it('generates ebook reading plan annotations segment by segment', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [
+          '第一段核心观点可以讨论。',
+          '第二段核心判断适合批注。',
+          '第三段边界内容不应进入第一段 prompt。',
+        ],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({
+      articleId: 'book-1',
+      chapters,
+      maxSegmentTextLength: 18,
+      minSegmentTextLength: 1,
+    });
+    const text = epubIndexText(chapters);
+    const segments = ebookIndex.segments.filter((segment) => segment.chapterId === 'chapter-1');
+    let callIndex = 0;
+    const contents = [
+      JSON.stringify([
+        {
+          exact: '第二段核心判断',
+          type: 'key_point',
+          moveType: 'explain_concept',
+          whyHere: '故意越界。',
+          evidenceUsed: ['localText'],
+          confidence: 'high',
+          shouldShow: true,
+          comment: '不应落在第一段。',
+        },
+      ]),
+      JSON.stringify([
+        {
+          exact: '第二段核心判断',
+          type: 'key_point',
+          moveType: 'challenge_argument',
+          whyHere: '这里有可检验判断。',
+          evidenceUsed: ['localText', 'trace'],
+          confidence: 'high',
+          shouldShow: true,
+          comment: '这里的判断需要看证据。',
+        },
+      ]),
+      '[]',
+    ];
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      const content = contents[callIndex] || '[]';
+      callIndex += 1;
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+    });
+
+    const annotations = await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'chapter-1',
+          sectionTitle: '第一章',
+          sectionStart: ebookIndex.chapters[0]!.textStart,
+          sectionEnd: ebookIndex.chapters[0]!.textEnd,
+          sectionSummary: '讨论这一章的判断。',
+          sectionTag: '判断',
+          targetDensity: 'high',
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(segments.length);
+    const firstPrompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[1]
+      ?.content as string;
+    expect(firstPrompt).toContain('segment-level 上下文');
+    expect(firstPrompt).toContain('"segmentId": "chapter-1-segment-1"');
+    expect(firstPrompt).toContain('allowedAnchorRange');
+    expect(firstPrompt).not.toContain('第三段边界内容不应进入第一段 prompt。');
+    expect(annotations).toHaveLength(1);
+    expect(annotations[0]?.anchor.segmentId).toBe('chapter-1-segment-2');
+    expect(annotations[0]).toMatchObject({
+      moveType: 'challenge_argument',
+      whyHere: '这里有可检验判断。',
+      evidenceUsed: ['localText', 'trace'],
+      confidence: 'high',
+      shouldShow: true,
+    });
+  });
+
+  it('does not cross epub chapter boundaries for segment generation', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一章第一段。', '第一章第二段。'],
+      },
+      {
+        id: 'chapter-2',
+        title: '第二章',
+        paragraphs: ['第二章核心内容不应调用。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({
+      articleId: 'book-1',
+      chapters,
+      maxSegmentTextLength: 10,
+      minSegmentTextLength: 1,
+    });
+    const text = epubIndexText(chapters);
+    const chapterOne = ebookIndex.chapters[0]!;
+    const chapterOneSegmentCount = ebookIndex.segments.filter(
+      (segment) => segment.chapterId === chapterOne.id,
+    ).length;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+          status: 200,
+        }),
+      ),
+    );
+
+    await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: chapterOne.id,
+          sectionTitle: chapterOne.title,
+          sectionStart: chapterOne.textStart,
+          sectionEnd: chapterOne.textEnd,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(chapterOneSegmentCount);
+    const prompts = fetchMock.mock.calls.map(
+      (call) => JSON.parse(String(call[1]?.body)).messages[1]?.content as string,
+    );
+    expect(prompts.join('\n')).not.toContain('第二章核心内容不应调用。');
+  });
+
+  it('allows empty segment output and deduplicates repeated move types', async () => {
+    const body = [
+      '第一可批注点需要跳过。',
+      '第二可批注点需要保留。',
+      '第三可批注点与第二点动作重复。',
+      '补足长度。'.repeat(80),
+    ].join('');
+    const chapters = [{ id: 'chapter-1', title: '第一章', paragraphs: [body] }];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const content = JSON.stringify([
+      {
+        exact: '第一可批注点',
+        type: 'key_point',
+        moveType: 'ask_question',
+        whyHere: '不展示。',
+        evidenceUsed: ['localText'],
+        confidence: 'low',
+        shouldShow: false,
+        comment: '跳过。',
+      },
+      {
+        exact: '第二可批注点',
+        type: 'question',
+        moveType: 'ask_question',
+        whyHere: '提出问题。',
+        evidenceUsed: ['localText'],
+        confidence: 'medium',
+        shouldShow: true,
+        comment: '这里可以追问。',
+      },
+      {
+        exact: '第三可批注点',
+        type: 'question',
+        moveType: 'ask_question',
+        whyHere: '动作重复。',
+        evidenceUsed: ['localText'],
+        confidence: 'medium',
+        shouldShow: true,
+        comment: '这里也想追问。',
+      },
+    ]);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+    );
+
+    const annotations = await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'chapter-1',
+          sectionTitle: '第一章',
+          sectionStart: 0,
+          sectionEnd: text.length,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(annotations.map((annotation) => annotation.anchor.exact)).toEqual(['第二可批注点']);
+  });
+
+  it('clips overlong epub segment text and rejects anchors outside the clipped core range', async () => {
+    const tail = '尾部不应可批注';
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [`开头可见。${'中间内容'.repeat(1800)}${tail}`],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const content = JSON.stringify([
+      {
+        exact: tail,
+        type: 'key_point',
+        moveType: 'structure_marker',
+        whyHere: '尾部不可见。',
+        evidenceUsed: ['localText'],
+        confidence: 'high',
+        shouldShow: true,
+        comment: '不应生成。',
+      },
+    ]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+
+    const annotations = await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'chapter-1',
+          sectionTitle: '第一章',
+          sectionStart: 0,
+          sectionEnd: text.length,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    const prompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[1]
+      ?.content as string;
+    expect(prompt).toContain('"truncated": true');
+    expect(prompt).not.toContain(tail);
+    expect(annotations).toEqual([]);
   });
 });
