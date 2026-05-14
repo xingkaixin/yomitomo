@@ -57,6 +57,52 @@ describe('segment annotation context', () => {
     expect(prompt).toContain('人口红利在开头被定义为劳动力供给优势。');
     expect(prompt).toContain('不能从这些块里选 exact');
   });
+
+  it('splits a single overlong segment into bounded ranges', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [`开头。${'长段内容'.repeat(2600)}尾部。`],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const chapter = ebookIndex.chapters[0]!;
+    const tasks = buildSegmentAnnotationTasks(
+      {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        readingPlan: [
+          {
+            sectionId: chapter.id,
+            sectionTitle: chapter.title,
+            sectionStart: chapter.textStart,
+            sectionEnd: chapter.textEnd,
+          },
+        ],
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+      },
+      agent,
+    );
+
+    expect(ebookIndex.segments).toHaveLength(1);
+    expect(tasks.length).toBeGreaterThan(1);
+    expect(tasks[0]?.context.currentSegment.text).toContain('开头。');
+    expect(tasks[tasks.length - 1]?.context.currentSegment.text).toContain('尾部。');
+    expect(tasks[0]?.context.allowedAnchorRange.textStart).toBe(chapter.textStart);
+    expect(tasks[tasks.length - 1]?.context.allowedAnchorRange.textEnd).toBe(chapter.textEnd);
+    for (let index = 1; index < tasks.length; index += 1) {
+      expect(tasks[index]?.context.allowedAnchorRange.textStart).toBe(
+        tasks[index - 1]?.context.allowedAnchorRange.textEnd,
+      );
+    }
+  });
 });
 
 const agent: Agent = {

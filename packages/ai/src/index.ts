@@ -647,6 +647,7 @@ function refreshedSegmentAnnotationTask(
       agent,
       task.planItem,
       task.segment,
+      task.context.allowedAnchorRange,
     ) || task
   );
 }

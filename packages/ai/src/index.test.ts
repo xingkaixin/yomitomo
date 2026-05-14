@@ -1144,8 +1144,8 @@ describe('agent annotations', () => {
     expect(annotations.map((annotation) => annotation.anchor.exact)).toEqual(['第二可批注点']);
   });
 
-  it('clips overlong epub segment text and rejects anchors outside the clipped core range', async () => {
-    const tail = '尾部不应可批注';
+  it('splits overlong epub segment text into bounded annotation calls', async () => {
+    const tail = '尾部也应可批注';
     const chapters = [
       {
         id: 'chapter-1',
@@ -1160,17 +1160,19 @@ describe('agent annotations', () => {
         exact: tail,
         type: 'key_point',
         moveType: 'structure_marker',
-        whyHere: '尾部不可见。',
+        whyHere: '尾部在后续 chunk 中可见。',
         evidenceUsed: ['localText'],
         confidence: 'high',
         shouldShow: true,
-        comment: '不应生成。',
+        comment: '后续 chunk 也应能生成。',
       },
     ]);
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+        ),
       );
 
     const annotations = await runAgentAnnotate(provider, agent, {
@@ -1192,11 +1194,15 @@ describe('agent annotations', () => {
       },
     });
 
-    const prompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[1]
-      ?.content as string;
-    expect(prompt).toContain('"truncated": true');
-    expect(prompt).not.toContain(tail);
-    expect(annotations).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const prompts = fetchMock.mock.calls.map(
+      (call) => JSON.parse(String(call[1]?.body)).messages[1]?.content as string,
+    );
+    expect(prompts[0]).toContain('开头可见。');
+    expect(prompts[0]).not.toContain(tail);
+    expect(prompts[1]).toContain(tail);
+    expect(annotations.map((annotation) => annotation.anchor.exact)).toEqual([tail]);
+    expect(annotations[0]?.anchor.textStartInBook).toBe(text.indexOf(tail));
   });
 
   it('updates reading memory and feeds prior summary and trace into following segments', async () => {
@@ -1306,6 +1312,91 @@ describe('agent annotations', () => {
     expect(annotationPrompts[1]).toContain('segment_trace');
     expect(annotationPrompts[1]).toContain('注意到这个核心判断需要后续证据。');
     expect(annotationPrompts[1]).toContain('summary/trace 不能当作原文事实证据');
+  });
+
+  it('feeds prior chunk memory into later chunks of one overlong segment', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [`第一块核心判断可以讨论。${'中间内容'.repeat(1800)}第二块继续展开。`],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const chapter = ebookIndex.chapters[0]!;
+    const annotationPrompts: string[] = [];
+    const memoryPrompts: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      const body = JSON.parse(String(init?.body)) as { messages?: Array<{ content?: string }> };
+      const prompt = body.messages?.[1]?.content || '';
+      if (prompt.includes('请更新当前 segment 的最小阅读记忆')) {
+        memoryPrompts.push(prompt);
+        const content =
+          memoryPrompts.length === 1
+            ? JSON.stringify({
+                segmentSummary: {
+                  summary: '前半段提出核心判断。',
+                  keyTerms: ['核心判断'],
+                },
+                segmentTrace: {
+                  items: [
+                    {
+                      type: 'agent_observation',
+                      content: '核心判断需要后半段继续验证。',
+                      evidenceExact: '第一块核心判断',
+                      confidence: 'high',
+                    },
+                  ],
+                },
+              })
+            : JSON.stringify({
+                segmentSummary: {
+                  summary: '后半段继续展开。',
+                  keyTerms: ['展开'],
+                },
+                segmentTrace: { items: [] },
+              });
+        return Promise.resolve(
+          new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+        );
+      }
+
+      annotationPrompts.push(prompt);
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+          status: 200,
+        }),
+      );
+    });
+
+    const result = await runAgentAnnotateWithMemory(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: chapter.id,
+          sectionTitle: chapter.title,
+          sectionStart: chapter.textStart,
+          sectionEnd: chapter.textEnd,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(annotationPrompts).toHaveLength(2);
+    expect(annotationPrompts[1]).toContain('reading-memory-summary');
+    expect(annotationPrompts[1]).toContain('前半段提出核心判断。');
+    expect(annotationPrompts[1]).toContain('核心判断需要后半段继续验证。');
+    expect(result.readingMemory?.textSummaries.map((summary) => summary.summary)).toEqual([
+      '前半段提出核心判断。',
+      '后半段继续展开。',
+    ]);
   });
 
   it('keeps annotations when reading memory generation fails', async () => {
