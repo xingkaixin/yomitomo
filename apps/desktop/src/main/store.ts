@@ -7,6 +7,7 @@ import SQLiteDatabase from 'better-sqlite3';
 import type {
   Agent,
   AgentAnnotationDensity,
+  AnnotationEvidenceSource,
   AgentReadingIntent,
   AgentKind,
   Annotation,
@@ -43,6 +44,9 @@ import type {
 } from '@yomitomo/shared';
 import {
   makeId,
+  normalizeAnnotationConfidence,
+  normalizeAnnotationEvidenceSource,
+  normalizeAnnotationMove,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
   providerPresets,
@@ -476,6 +480,11 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       annotationType: normalizeAnnotationType(row.annotationType) || undefined,
       readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
       questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
+      moveType: normalizeAnnotationMove(row.moveType) || undefined,
+      whyHere: row.whyHere || undefined,
+      evidenceUsed: normalizeAnnotationEvidenceUsed(row.evidenceUsed),
+      confidence: normalizeAnnotationConfidence(row.confidence) || undefined,
+      shouldShow: row.shouldShow ?? undefined,
       color: row.color,
       agentId: row.agentId || undefined,
       agentUsername: row.agentUsername || undefined,
@@ -669,6 +678,11 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
       annotationType: annotation.annotationType,
       readingIntent: annotation.readingIntent,
       questionStatus: annotation.questionStatus,
+      moveType: annotation.moveType,
+      whyHere: annotation.whyHere,
+      evidenceUsed: annotation.evidenceUsed,
+      confidence: annotation.confidence,
+      shouldShow: annotation.shouldShow,
       color: annotation.color,
       agentId: annotation.agentId,
       agentUsername: annotation.agentUsername,
@@ -1354,6 +1368,14 @@ function normalizeAnnotationType(value: unknown): AnnotationType | null {
     value === 'quote'
     ? value
     : null;
+}
+
+function normalizeAnnotationEvidenceUsed(value: unknown): AnnotationEvidenceSource[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const sources = value
+    .map((item) => normalizeAnnotationEvidenceSource(item))
+    .filter((item): item is AnnotationEvidenceSource => Boolean(item));
+  return sources.length > 0 ? Array.from(new Set(sources)) : undefined;
 }
 
 function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {

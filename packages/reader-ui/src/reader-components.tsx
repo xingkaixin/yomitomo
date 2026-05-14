@@ -1613,6 +1613,7 @@ function focusSectionToReadingPlanItem(
     sectionEnd: section.sectionEnd,
     sectionSummary: section.summary,
     sectionTag: section.tag,
+    targetDensity: section.targetDensity,
     messages: section.messages
       .filter((message) => focusMessageAppliesToAgent(message, agent.id))
       .map((message) => ({

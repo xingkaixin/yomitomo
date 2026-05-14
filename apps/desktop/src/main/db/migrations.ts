@@ -287,4 +287,14 @@ ALTER TABLE articles ADD COLUMN reading_progress TEXT;
 ALTER TABLE articles ADD COLUMN ebook_index TEXT;
 `,
   },
+  {
+    id: '0025_annotation_generation_fields',
+    sql: `
+ALTER TABLE annotations ADD COLUMN move_type TEXT;
+ALTER TABLE annotations ADD COLUMN why_here TEXT;
+ALTER TABLE annotations ADD COLUMN evidence_used TEXT;
+ALTER TABLE annotations ADD COLUMN confidence TEXT;
+ALTER TABLE annotations ADD COLUMN should_show INTEGER;
+`,
+  },
 ];
