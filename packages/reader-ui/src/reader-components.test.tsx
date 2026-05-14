@@ -3,14 +3,20 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentAnnotateMenu, SelectionMenu, type ReaderReadingSection } from './reader-components';
-import type { FocusCoReadingPlan, PublicAgent } from '@yomitomo/shared';
+import {
+  AgentAnnotateMenu,
+  AnnotationCard,
+  SelectionMenu,
+  type ReaderReadingSection,
+} from './reader-components';
+import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
 
 const now = '2026-05-12T08:00:00.000Z';
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 function agent(id: string, nickname: string): PublicAgent {
@@ -49,6 +55,15 @@ function plan(articleId: string): FocusCoReadingPlan {
   };
 }
 
+const userProfile: UserProfile = {
+  id: 'user-1',
+  nickname: 'Kevin',
+  username: 'kevin',
+  avatar: '',
+  annotationColor: '#f4c95d',
+  updatedAt: now,
+};
+
 function renderAgentAnnotateMenu() {
   const articleId = 'article_1';
   return render(
@@ -65,6 +80,39 @@ function renderAgentAnnotateMenu() {
       onStartAgentPlan={vi.fn()}
     />,
   );
+}
+
+function annotation(overrides: Partial<Annotation> = {}): Annotation {
+  return {
+    id: 'annotation-1',
+    anchor: {
+      exact: '需要批注的原文',
+      prefix: '',
+      suffix: '',
+      start: 0,
+      end: 7,
+    },
+    author: 'user',
+    annotationType: 'key_point',
+    color: userProfile.annotationColor,
+    userId: userProfile.id,
+    userUsername: userProfile.username,
+    userNickname: userProfile.nickname,
+    comments: [
+      {
+        id: 'comment-1',
+        author: 'user',
+        content: '这是一段足够长的批注正文。'.repeat(12),
+        createdAt: now,
+        userId: userProfile.id,
+        userUsername: userProfile.username,
+        userNickname: userProfile.nickname,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
 }
 
 describe('AgentAnnotateMenu add agent menus', () => {
@@ -130,6 +178,35 @@ describe('AgentAnnotateMenu add agent menus', () => {
         addControl!.compareDocumentPosition(assignedAgent!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
     ).toBe(true);
+  });
+});
+
+describe('AnnotationCard', () => {
+  it('lets primary annotation content use the same collapse control as comments', () => {
+    const onPrimaryCommentExpandedChange = vi.fn();
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(160);
+
+    render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '展开' }));
+
+    expect(onPrimaryCommentExpandedChange).toHaveBeenCalledWith('annotation-1', true);
   });
 });
 
