@@ -679,6 +679,12 @@ export type ContextSourceLabel = {
   source?: string;
 };
 
+export type RelatedPassageSource =
+  | 'none'
+  | 'local-window'
+  | 'current-chapter-lexical'
+  | 'chapter-trace';
+
 export type SourceLabeledContextBlock = {
   id: string;
   text: string;
@@ -818,7 +824,29 @@ export type ThreadContext = {
 export type RelatedPassage = {
   id: string;
   text: string;
+  chapterId?: string;
+  segmentId?: string;
+  paragraphId?: string;
+  reason?: string;
+  passageSource?: RelatedPassageSource;
+  score?: number;
+  anchor?: TextAnchor;
   source: ContextSourceLabel;
+};
+
+export type RelatedPassageInput = {
+  id?: string;
+  title?: string;
+  text: string;
+  textStart?: number;
+  textEnd?: number;
+  chapterId?: string;
+  segmentId?: string;
+  paragraphId?: string;
+  source?: RelatedPassageSource;
+  reason?: string;
+  score?: number;
+  anchor?: TextAnchor;
 };
 
 export type ChapterDescriptor = {
@@ -883,6 +911,7 @@ export type SelectionAnnotationContext = BaseReadingContext & {
   selection: TextAnchor;
   localWindow: ParagraphWindow;
   nearbyAnnotations: AnnotationSummary[];
+  retrievedEvidence: RelatedPassage[];
   chapterMemory?: ChapterMemory;
 };
 
@@ -904,6 +933,7 @@ export type ChapterRouteContext = BaseReadingContext & {
 export type SegmentAnnotationContext = BaseReadingContext & {
   task: 'chapter_segment_annotation';
   currentSegment: SegmentText;
+  retrievedEvidence: RelatedPassage[];
   previousMemory?: SegmentMemory;
   previousTrace?: SegmentTraceMemory;
   nextPreview?: string;

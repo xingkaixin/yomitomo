@@ -76,6 +76,28 @@ describe('reading context packing', () => {
     expect(packed.blocks[0]?.source).toEqual(label);
   });
 
+  it('packs lexical related passages under the retrieved evidence budget', () => {
+    const packed = packReadingContextBlocks(
+      [
+        block('selection', '目标文本', source('selection')),
+        block('related-1', '1234567890', source('retrieved_evidence')),
+        block('related-2', 'abcdef', source('retrieved_evidence')),
+      ],
+      {
+        maxTokens: 12,
+        blockTypeOrder: ['selection', 'retrieved_evidence'],
+        reserveTokensByType: { retrieved_evidence: 6 },
+      },
+      { estimateTokens: (text) => text.length },
+    );
+
+    expect(packed.blocks.map((item) => [item.id, item.text])).toEqual([
+      ['selection', '目标文本'],
+      ['related-1', '123456'],
+    ]);
+    expect(packed.omittedBlocks.map((item) => item.block.id)).toEqual(['related-2']);
+  });
+
   it('collects all first-phase task context views', () => {
     const contexts: ReadingTaskContext[] = [
       {
@@ -83,6 +105,13 @@ describe('reading context packing', () => {
         task: 'selection_annotation',
         selection: anchor('关键句'),
         localWindow: { blocks: [block('window', '前后段落', source('local_window'))] },
+        retrievedEvidence: [
+          {
+            id: 'selection-passage-1',
+            text: '同章召回',
+            source: source('retrieved_evidence'),
+          },
+        ],
         nearbyAnnotations: [
           {
             annotationId: 'annotation-1',
@@ -135,6 +164,13 @@ describe('reading context packing', () => {
           text: '当前 segment',
           source: source('segment'),
         },
+        retrievedEvidence: [
+          {
+            id: 'segment-passage-1',
+            text: '前文相似段落',
+            source: source('retrieved_evidence'),
+          },
+        ],
         previousMemory: {
           segmentId: 'segment-0',
           summary: '上一段记忆',
@@ -169,6 +205,7 @@ describe('reading context packing', () => {
     expect(contexts.flatMap(collectReadingContextBlocks).map((item) => item.source.type)).toEqual([
       'selection',
       'local_window',
+      'retrieved_evidence',
       'nearby_annotation',
       'chapter_memory',
       'selection',
@@ -179,6 +216,7 @@ describe('reading context packing', () => {
       'toc',
       'agent_role',
       'segment',
+      'retrieved_evidence',
       'segment_memory',
       'segment_trace',
       'next_preview',
@@ -190,7 +228,7 @@ describe('reading context packing', () => {
         (context) =>
           packReadingContext(context, { estimateTokens: (text) => text.length }).blocks.length,
       ),
-    ).toEqual([4, 4, 3, 6]);
+    ).toEqual([5, 4, 3, 7]);
   });
 });
 
@@ -225,7 +263,13 @@ function baseContext(task: ReadingTaskContext['task']): BaseReadingContext {
 
 function blockOrder(task: ReadingTaskContext['task']): ContextSourceType[] {
   if (task === 'selection_annotation') {
-    return ['selection', 'local_window', 'nearby_annotation', 'chapter_memory'];
+    return [
+      'selection',
+      'local_window',
+      'retrieved_evidence',
+      'nearby_annotation',
+      'chapter_memory',
+    ];
   }
   if (task === 'selection_thread_reply') {
     return ['selection', 'local_window', 'thread', 'retrieved_evidence'];
@@ -233,7 +277,15 @@ function blockOrder(task: ReadingTaskContext['task']): ContextSourceType[] {
   if (task === 'chapter_route') {
     return ['reader_goal', 'toc', 'agent_role'];
   }
-  return ['segment', 'segment_memory', 'segment_trace', 'next_preview', 'chapter_trace', 'dedup'];
+  return [
+    'segment',
+    'retrieved_evidence',
+    'segment_memory',
+    'segment_trace',
+    'next_preview',
+    'chapter_trace',
+    'dedup',
+  ];
 }
 
 function block(id: string, text: string, label: ContextSourceLabel): SourceLabeledContextBlock {

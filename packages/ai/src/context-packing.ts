@@ -81,6 +81,11 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
     return [
       selectionBlock(context, context.selection),
       ...context.localWindow.blocks,
+      ...context.retrievedEvidence.map((passage) => ({
+        id: passage.id,
+        text: passage.text,
+        source: passage.source,
+      })),
       ...context.nearbyAnnotations.map((annotation) => ({
         id: annotation.annotationId,
         text: annotation.text,
@@ -146,6 +151,11 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
       text: context.currentSegment.text,
       source: context.currentSegment.source,
     },
+    ...context.retrievedEvidence.map((passage) => ({
+      id: passage.id,
+      text: passage.text,
+      source: passage.source,
+    })),
     ...(context.previousMemory ? [segmentMemoryBlock(context.previousMemory)] : []),
     ...(context.previousTrace
       ? [
