@@ -34,6 +34,7 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   QuestionStatus,
+  ReadingMemory,
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
@@ -60,6 +61,7 @@ import {
   findCurrentTocTarget,
   getArticleSelection,
   isRangeInsideArticle,
+  mergeReadingMemory,
   offsetFromArticleStart,
   rangeFromOffsets,
   rangeHighlightBoxes,
@@ -2497,6 +2499,31 @@ function WebSourceBookcase({
     });
   }
 
+  async function saveFocusCoReadingReadingMemory(
+    articleId: string,
+    readingMemory: ReadingMemory | undefined,
+  ) {
+    if (!readingMemory) return;
+    await onUpdateArticle(articleId, (targetArticle) => {
+      const plan = targetArticle.focusCoReadingPlan;
+      if (!plan) return null;
+      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
+      if (!mergedMemory) return null;
+      const now = new Date().toISOString();
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: {
+          ...plan,
+          readingMemory: mergedMemory,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      };
+      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
   async function planFocusCoReading(selectedAgentIds: string[]) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -2560,6 +2587,7 @@ function WebSourceBookcase({
         articleId: currentArticle.id,
         selectedAgentIds,
         sections,
+        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
         createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
         updatedAt: now,
       };
@@ -2609,7 +2637,7 @@ function WebSourceBookcase({
     }
     let annotationCount = 0;
     try {
-      await desktop.requestAgentAnnotationsStream(
+      const result = await desktop.requestAgentAnnotationsStream(
         {
           agentId: agent.id,
           agentUsername: agent.username,
@@ -2618,6 +2646,10 @@ function WebSourceBookcase({
           instruction: options.instruction,
           annotations:
             options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
+          readingMemory:
+            !options.targetAnchor && readingPlan.length > 0
+              ? latestArticleRef.current?.focusCoReadingPlan?.readingMemory
+              : undefined,
           targetAnchor: options.targetAnchor,
           readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
           article: articleContext,
@@ -2640,6 +2672,9 @@ function WebSourceBookcase({
           void processAgentAnnotationQueue();
         },
       );
+      if (!options.targetAnchor && readingPlan.length > 0) {
+        await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
+      }
       if (showProgress && isCurrentArticle(articleId)) markVirtualReadingDone(agent.id);
       if (annotationCount === 0) {
         if (showProgress && isCurrentArticle(articleId)) {
@@ -4113,6 +4148,31 @@ function EbookBookcase({
     });
   }
 
+  async function saveFocusCoReadingReadingMemory(
+    articleId: string,
+    readingMemory: ReadingMemory | undefined,
+  ) {
+    if (!readingMemory) return;
+    await onUpdateArticle(articleId, (targetArticle) => {
+      const plan = targetArticle.focusCoReadingPlan;
+      if (!plan) return null;
+      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
+      if (!mergedMemory) return null;
+      const now = new Date().toISOString();
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: {
+          ...plan,
+          readingMemory: mergedMemory,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      };
+      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
   async function planFocusCoReading(selectedAgentIds: string[]) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -4176,6 +4236,7 @@ function EbookBookcase({
         articleId: currentArticle.id,
         selectedAgentIds,
         sections,
+        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
         createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
         updatedAt: now,
       };
@@ -4217,7 +4278,7 @@ function EbookBookcase({
     let annotationCount = 0;
     let requestFailed = false;
     try {
-      await desktop.requestAgentAnnotationsStream(
+      const result = await desktop.requestAgentAnnotationsStream(
         {
           agentId: agent.id,
           agentUsername: agent.username,
@@ -4226,6 +4287,10 @@ function EbookBookcase({
           instruction: options.instruction,
           annotations:
             options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
+          readingMemory:
+            !options.targetAnchor && readingPlan.length > 0
+              ? latestArticleRef.current?.focusCoReadingPlan?.readingMemory
+              : undefined,
           targetAnchor: options.targetAnchor,
           readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
           article: articleContext,
@@ -4246,6 +4311,9 @@ function EbookBookcase({
           void appendAgentAnnotationToArticle(articleId, annotation);
         },
       );
+      if (!options.targetAnchor && readingPlan.length > 0) {
+        await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
+      }
       if (annotationCount === 0 && isCurrentArticle(articleId)) {
         if (options.targetAnchor) finishEbookVirtualReading(agent.id, '没有批注');
         setStatusMessage(`${agent.nickname} 暂无新批注`);

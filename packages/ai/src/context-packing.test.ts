@@ -140,6 +140,11 @@ describe('reading context packing', () => {
           summary: '上一段记忆',
           source: source('segment_memory'),
         },
+        previousTrace: {
+          segmentId: 'segment-0',
+          events: ['上一段关注过定义'],
+          source: source('segment_trace'),
+        },
         nextPreview: '下一段预览',
         chapterTrace: {
           chapterId: 'chapter-1',
@@ -175,6 +180,7 @@ describe('reading context packing', () => {
       'agent_role',
       'segment',
       'segment_memory',
+      'segment_trace',
       'next_preview',
       'chapter_trace',
       'dedup',
@@ -184,7 +190,7 @@ describe('reading context packing', () => {
         (context) =>
           packReadingContext(context, { estimateTokens: (text) => text.length }).blocks.length,
       ),
-    ).toEqual([4, 4, 3, 5]);
+    ).toEqual([4, 4, 3, 6]);
   });
 });
 
@@ -227,7 +233,7 @@ function blockOrder(task: ReadingTaskContext['task']): ContextSourceType[] {
   if (task === 'chapter_route') {
     return ['reader_goal', 'toc', 'agent_role'];
   }
-  return ['segment', 'segment_memory', 'next_preview', 'chapter_trace', 'dedup'];
+  return ['segment', 'segment_memory', 'segment_trace', 'next_preview', 'chapter_trace', 'dedup'];
 }
 
 function block(id: string, text: string, label: ContextSourceLabel): SourceLabeledContextBlock {

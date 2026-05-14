@@ -28,8 +28,8 @@ import {
   planFocusCoReadingRoute,
   reviewReadingCard,
   runAgent,
-  runAgentAnnotate,
   runAgentAnnotateStream,
+  runAgentAnnotateWithMemory,
   runAgentStream,
   setAiLogger,
   testProvider,
@@ -355,8 +355,7 @@ function registerIpc() {
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
     const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
-    const annotations = await runAgentAnnotate(provider, agent, payload);
-    return { annotations };
+    return runAgentAnnotateWithMemory(provider, agent, payload);
   });
   ipcMain.on(
     'agent:annotate:stream',
@@ -379,11 +378,20 @@ function registerIpc() {
         const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
         const annotations: ArticleRecord['annotations'] = [];
         event.sender.send(channel, { type: 'start' });
-        await runAgentAnnotateStream(provider, agent, input.payload, (annotation) => {
-          annotations.push(annotation);
-          event.sender.send(channel, { type: 'item', annotation });
+        const result = await runAgentAnnotateStream(
+          provider,
+          agent,
+          input.payload,
+          (annotation) => {
+            annotations.push(annotation);
+            event.sender.send(channel, { type: 'item', annotation });
+          },
+        );
+        event.sender.send(channel, {
+          type: 'done',
+          annotations,
+          readingMemory: result.readingMemory,
         });
-        event.sender.send(channel, { type: 'done', annotations });
       } catch (error) {
         event.sender.send(channel, {
           type: 'error',
