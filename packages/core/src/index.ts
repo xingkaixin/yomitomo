@@ -4,4 +4,5 @@ export * from './ebook-index';
 export * from './reading';
 export * from './reading-context';
 export * from './reader-annotations';
+export * from './reading-memory';
 export * from './reader-dom';

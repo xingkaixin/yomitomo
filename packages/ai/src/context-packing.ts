@@ -147,6 +147,15 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
       source: context.currentSegment.source,
     },
     ...(context.previousMemory ? [segmentMemoryBlock(context.previousMemory)] : []),
+    ...(context.previousTrace
+      ? [
+          {
+            id: `${context.previousTrace.segmentId}:trace`,
+            text: context.previousTrace.events.join('\n'),
+            source: context.previousTrace.source,
+          },
+        ]
+      : []),
     ...(context.nextPreview
       ? [
           {

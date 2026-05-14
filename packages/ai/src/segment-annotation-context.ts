@@ -7,8 +7,12 @@ import type {
   EpubBookIndex,
   EpubChapterIndex,
   EpubSegmentIndex,
+  ReadingMemory,
+  ReadingTrace,
   SegmentAnnotationContext,
   SegmentMemory,
+  SegmentTraceMemory,
+  TextSummary,
   TextRange,
 } from '@yomitomo/shared';
 import type { CreateAgentAnnotationOptions } from '@yomitomo/core';
@@ -37,44 +41,51 @@ export function buildSegmentAnnotationTasks(
 
   return payload.readingPlan.flatMap((planItem) =>
     index.segments.flatMap((segment) => {
-      if (!rangesOverlap(segment, planItem)) return [];
-      const chapter = index.chapters.find((item) => item.id === segment.chapterId);
-      if (!chapter) return [];
-      const allowedAnchorRange = clippedSegmentRange(segment, planItem);
-      const visibleRange = visibleSegmentRange(allowedAnchorRange);
-      const allowedParagraphIds = paragraphIdsInRange(index, segment, visibleRange);
-      if (visibleRange.textEnd <= visibleRange.textStart || allowedParagraphIds.length === 0)
-        return [];
-
-      const context = buildSegmentAnnotationContext({
-        payload,
-        agent,
-        index,
-        planItem,
-        chapter,
-        segment,
-        visibleRange,
-        allowedParagraphIds,
-      });
-
-      return [
-        {
-          planItem,
-          chapter,
-          segment,
-          context,
-          createOptions: {
-            ebookIndex: index,
-            allowedTextStart: visibleRange.textStart,
-            allowedTextEnd: visibleRange.textEnd,
-            allowedSegmentIds: [segment.id],
-            allowedParagraphIds,
-          },
-          targetDensity: planItem.targetDensity,
-        },
-      ];
+      const task = buildSegmentAnnotationTask(payload, agent, planItem, segment);
+      return task ? [task] : [];
     }),
   );
+}
+
+export function buildSegmentAnnotationTask(
+  payload: AgentAnnotatePayload,
+  agent: Agent,
+  planItem: AgentReadingPlanItem,
+  segment: EpubSegmentIndex,
+): SegmentAnnotationTask | null {
+  const index = payload.article.ebookIndex;
+  if (!index || !rangesOverlap(segment, planItem)) return null;
+  const chapter = index.chapters.find((item) => item.id === segment.chapterId);
+  if (!chapter) return null;
+  const allowedAnchorRange = clippedSegmentRange(segment, planItem);
+  const visibleRange = visibleSegmentRange(allowedAnchorRange);
+  const allowedParagraphIds = paragraphIdsInRange(index, segment, visibleRange);
+  if (visibleRange.textEnd <= visibleRange.textStart || allowedParagraphIds.length === 0)
+    return null;
+
+  return {
+    planItem,
+    chapter,
+    segment,
+    context: buildSegmentAnnotationContext({
+      payload,
+      agent,
+      index,
+      planItem,
+      chapter,
+      segment,
+      visibleRange,
+      allowedParagraphIds,
+    }),
+    createOptions: {
+      ebookIndex: index,
+      allowedTextStart: visibleRange.textStart,
+      allowedTextEnd: visibleRange.textEnd,
+      allowedSegmentIds: [segment.id],
+      allowedParagraphIds,
+    },
+    targetDensity: planItem.targetDensity,
+  };
 }
 
 export function segmentAnnotationContextPrompt(task: SegmentAnnotationTask) {
@@ -120,7 +131,7 @@ export function segmentAnnotationContextPrompt(task: SegmentAnnotationTask) {
     },
     null,
     2,
-  )}\n\nsegment-level 规则：\n- currentSegment 是本次唯一可落锚原文；exact 必须来自 allowedAnchorRange.coreParagraphIds 覆盖的 current segment 文本。\n- segment_memory、next_preview 和 chapter_trace 只用于理解上下文，不能从这些块里选 exact。\n- dedup 块用于避免重复选点、重复 moveType 和相邻批注。\n- 没有足够讨论价值时返回空结果。`;
+  )}\n\nsegment-level 规则：\n- currentSegment 是本次唯一可落锚原文；exact 必须来自 allowedAnchorRange.coreParagraphIds 覆盖的 current segment 文本。\n- segment_memory、segment_trace、next_preview 和 chapter_trace 是辅助阅读记忆，不能从这些块里选 exact。\n- 涉及作者观点、跨章节判断、关键概念出处时，必须由 currentSegment 原文支撑；summary/trace 不能当作原文事实证据。\n- dedup 块用于避免重复选点、重复 moveType 和相邻批注。\n- 没有足够讨论价值时返回空结果。`;
 }
 
 function buildSegmentAnnotationContext(input: {
@@ -168,9 +179,17 @@ function buildSegmentAnnotationContext(input: {
     },
     budget: {
       maxTokens: SEGMENT_CONTEXT_TOKEN_BUDGET,
-      blockTypeOrder: ['segment', 'segment_memory', 'next_preview', 'chapter_trace', 'dedup'],
+      blockTypeOrder: [
+        'segment',
+        'segment_memory',
+        'segment_trace',
+        'next_preview',
+        'chapter_trace',
+        'dedup',
+      ],
       reserveTokensByType: {
         segment_memory: 800,
+        segment_trace: 700,
         next_preview: 500,
         chapter_trace: 1400,
         dedup: 1200,
@@ -182,7 +201,14 @@ function buildSegmentAnnotationContext(input: {
         allowFutureChapterEvidence: false,
         allowFuturePlotEvents: false,
       },
-      allowedSourceTypes: ['segment', 'segment_memory', 'next_preview', 'chapter_trace', 'dedup'],
+      allowedSourceTypes: [
+        'segment',
+        'segment_memory',
+        'segment_trace',
+        'next_preview',
+        'chapter_trace',
+        'dedup',
+      ],
     },
     currentSegment: {
       segmentId: segment.id,
@@ -196,9 +222,15 @@ function buildSegmentAnnotationContext(input: {
         source: 'epub-index',
       },
     },
-    previousMemory: previousSegmentMemory(index, payload.article.text, segment),
+    previousMemory: previousSegmentMemory(
+      index,
+      payload.article.text,
+      segment,
+      payload.readingMemory,
+    ),
+    previousTrace: previousSegmentTrace(index, segment, payload.readingMemory),
     nextPreview: nextSegmentPreview(index, payload.article.text, segment),
-    chapterTrace: chapterTrace(index, chapter, planItem, dedupAnnotations),
+    chapterTrace: chapterTrace(index, chapter, planItem, dedupAnnotations, payload.readingMemory),
     allowedAnchorRange: visibleRange,
     dedupContext: {
       recentAnchors: dedupAnnotations.map((annotation) => annotation.anchor),
@@ -224,7 +256,24 @@ function previousSegmentMemory(
   index: EpubBookIndex,
   articleText: string,
   segment: EpubSegmentIndex,
+  memory: ReadingMemory | undefined,
 ): SegmentMemory | undefined {
+  const summaries = priorSegmentSummaries(index, segment, memory);
+  if (summaries.length > 0) {
+    const last = summaries[summaries.length - 1];
+    return {
+      segmentId: last?.segmentId || segment.id,
+      summary: summaries.map(formatTextSummary).join('\n'),
+      source: {
+        type: 'segment_memory',
+        articleId: index.articleId,
+        chapterId: segment.chapterId,
+        segmentId: last?.segmentId,
+        source: 'reading-memory-summary',
+      },
+    };
+  }
+
   const previous = index.segments.find(
     (item) =>
       item.chapterId === segment.chapterId && item.indexInChapter === segment.indexInChapter - 1,
@@ -246,6 +295,38 @@ function previousSegmentMemory(
   };
 }
 
+function previousSegmentTrace(
+  index: EpubBookIndex,
+  segment: EpubSegmentIndex,
+  memory: ReadingMemory | undefined,
+): SegmentTraceMemory | undefined {
+  const previousSegmentIds = new Set(priorSegments(index, segment).map((item) => item.id));
+  const traces = (memory?.readingTraces || [])
+    .filter(
+      (trace) =>
+        trace.scope === 'segment' &&
+        trace.chapterId === segment.chapterId &&
+        trace.segmentId &&
+        previousSegmentIds.has(trace.segmentId),
+    )
+    .toSorted(
+      (left, right) => (left.sourceRange?.textStart || 0) - (right.sourceRange?.textStart || 0),
+    );
+  const events = traces.flatMap((trace) => trace.items.map(formatTraceItem)).slice(-8);
+  if (events.length === 0) return undefined;
+  return {
+    segmentId: traces[traces.length - 1]?.segmentId || segment.id,
+    events,
+    source: {
+      type: 'segment_trace',
+      articleId: index.articleId,
+      chapterId: segment.chapterId,
+      segmentId: traces[traces.length - 1]?.segmentId,
+      source: 'reading-memory-trace',
+    },
+  };
+}
+
 function nextSegmentPreview(index: EpubBookIndex, articleText: string, segment: EpubSegmentIndex) {
   const next = index.segments.find(
     (item) =>
@@ -263,8 +344,15 @@ function chapterTrace(
   chapter: EpubChapterIndex,
   planItem: AgentReadingPlanItem,
   dedupAnnotations: Annotation[],
+  memory: ReadingMemory | undefined,
 ): ChapterTrace {
+  const memoryEvents =
+    memory?.readingTraces
+      ?.filter((trace) => trace.scope === 'chapter' && trace.chapterId === chapter.id)
+      .flatMap((trace) => trace.items.map(formatTraceItem))
+      .slice(-12) || [];
   const events = [
+    ...memoryEvents,
     `章节：${chapter.title || `第 ${chapter.indexInBook + 1} 章`}`,
     planItem.sectionSummary ? `route summary：${planItem.sectionSummary}` : '',
     planItem.sectionTag ? `route tag：${planItem.sectionTag}` : '',
@@ -282,9 +370,48 @@ function chapterTrace(
       type: 'chapter_trace',
       articleId: index.articleId,
       chapterId: chapter.id,
-      source: 'route-and-nearby-annotations',
+      source:
+        memoryEvents.length > 0
+          ? 'reading-memory-route-and-nearby-annotations'
+          : 'route-and-nearby-annotations',
     },
   };
+}
+
+function priorSegmentSummaries(
+  index: EpubBookIndex,
+  segment: EpubSegmentIndex,
+  memory: ReadingMemory | undefined,
+) {
+  const previousSegmentIds = new Set(priorSegments(index, segment).map((item) => item.id));
+  return (memory?.textSummaries || [])
+    .filter(
+      (summary) =>
+        summary.scope === 'segment' &&
+        summary.chapterId === segment.chapterId &&
+        summary.segmentId &&
+        previousSegmentIds.has(summary.segmentId),
+    )
+    .toSorted((left, right) => left.sourceRange.textStart - right.sourceRange.textStart)
+    .slice(-3);
+}
+
+function priorSegments(index: EpubBookIndex, segment: EpubSegmentIndex) {
+  return index.segments
+    .filter(
+      (item) =>
+        item.chapterId === segment.chapterId && item.indexInChapter < segment.indexInChapter,
+    )
+    .toSorted((left, right) => left.indexInChapter - right.indexInChapter);
+}
+
+function formatTextSummary(summary: TextSummary) {
+  const terms = summary.keyTerms.length > 0 ? `；关键词：${summary.keyTerms.join('、')}` : '';
+  return `${summary.segmentId || 'segment'} summary：${summary.summary}${terms}`;
+}
+
+function formatTraceItem(item: ReadingTrace['items'][number]) {
+  return `${item.type} / ${item.confidence}：${item.content}`;
 }
 
 function nearbyDedupAnnotations(

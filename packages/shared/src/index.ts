@@ -664,6 +664,7 @@ export type ContextSourceType =
   | 'segment'
   | 'chapter_memory'
   | 'segment_memory'
+  | 'segment_trace'
   | 'next_preview'
   | 'chapter_trace'
   | 'dedup';
@@ -699,6 +700,64 @@ export type TextRange = {
   textStart: number;
   textEnd: number;
 };
+
+export type TextSummaryScope = 'segment' | 'chapter' | 'book';
+
+export type TextSummary = {
+  scope: TextSummaryScope;
+  sourceRange: TextRange;
+  chapterId?: string;
+  segmentId?: string;
+  summary: string;
+  keyTerms: string[];
+  updatedAt: string;
+};
+
+export type TraceItemType =
+  | 'claim'
+  | 'question'
+  | 'agent_observation'
+  | 'reader_interest'
+  | 'cross_reference_candidate'
+  | 'unresolved_issue';
+
+export type TraceItem = {
+  type: TraceItemType;
+  content: string;
+  evidenceAnchors: TextAnchor[];
+  agentId?: string;
+  confidence: AnnotationConfidence;
+  createdFromTask: string;
+};
+
+export type ReadingTraceScope = 'segment' | 'chapter' | 'agent' | 'reader';
+
+export type ReadingTrace = {
+  scope: ReadingTraceScope;
+  sourceRange?: TextRange;
+  chapterId?: string;
+  segmentId?: string;
+  agentId?: string;
+  items: TraceItem[];
+  updatedAt: string;
+};
+
+export type ReadingMemory = {
+  textSummaries: TextSummary[];
+  readingTraces: ReadingTrace[];
+  updatedAt: string;
+};
+
+export function normalizeTraceItemType(value: unknown): TraceItemType | null {
+  return value === 'claim' ||
+    value === 'question' ||
+    value === 'agent_observation' ||
+    value === 'reader_interest' ||
+    value === 'cross_reference_candidate' ||
+    value === 'unresolved_issue'
+    ? value
+    : null;
+}
 
 export type BookContext = {
   articleId: string;
@@ -807,6 +866,12 @@ export type ChapterTrace = {
   source: ContextSourceLabel;
 };
 
+export type SegmentTraceMemory = {
+  segmentId: string;
+  events: string[];
+  source: ContextSourceLabel;
+};
+
 export type DedupContext = {
   recentAnchors: TextAnchor[];
   recentComments?: string[];
@@ -840,6 +905,7 @@ export type SegmentAnnotationContext = BaseReadingContext & {
   task: 'chapter_segment_annotation';
   currentSegment: SegmentText;
   previousMemory?: SegmentMemory;
+  previousTrace?: SegmentTraceMemory;
   nextPreview?: string;
   chapterTrace?: ChapterTrace;
   allowedAnchorRange: TextRange;
@@ -906,6 +972,7 @@ export type FocusCoReadingPlan = {
   articleId: string;
   selectedAgentIds: string[];
   sections: FocusCoReadingSectionPlan[];
+  readingMemory?: ReadingMemory;
   createdAt: string;
   updatedAt: string;
 };
@@ -1030,6 +1097,7 @@ export type AgentAnnotatePayload = {
   readingIntent?: AgentReadingIntent;
   instruction?: string;
   annotations?: Annotation[];
+  readingMemory?: ReadingMemory;
   readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
   readerProgress?: ReaderProgress;
@@ -1040,6 +1108,11 @@ export type AgentAnnotatePayload = {
     text: string;
     ebookIndex?: EpubBookIndex;
   };
+};
+
+export type AgentAnnotateResult = {
+  annotations: Annotation[];
+  readingMemory?: ReadingMemory;
 };
 
 export type FocusCoReadingRouteSectionInput = {

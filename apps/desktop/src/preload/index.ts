@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentAnnotateResult,
   AgentMentionInstruction,
   AgentMentionInstructionPayload,
   AgentMessagePayload,
@@ -135,9 +136,7 @@ const api = {
     });
   },
   requestAgentAnnotations: (payload: AgentAnnotatePayload) =>
-    ipcRenderer.invoke('agent:annotate', payload) as Promise<{
-      annotations: ArticleRecord['annotations'];
-    }>,
+    ipcRenderer.invoke('agent:annotate', payload) as Promise<AgentAnnotateResult>,
   requestAgentAnnotationsStream: (
     payload: AgentAnnotatePayload,
     onEvent: (
@@ -146,13 +145,17 @@ const api = {
   ) => {
     const requestId = makeRequestId();
     const channel = `agent:annotate:stream:${requestId}`;
-    return new Promise<ArticleRecord['annotations']>((resolve, reject) => {
+    return new Promise<AgentAnnotateResult>((resolve, reject) => {
       const listener = (
         _event: IpcRendererEvent,
         message:
           | { type: 'start' }
           | { type: 'item'; annotation: ArticleRecord['annotations'][number] }
-          | { type: 'done'; annotations: ArticleRecord['annotations'] }
+          | {
+              type: 'done';
+              annotations: ArticleRecord['annotations'];
+              readingMemory?: AgentAnnotateResult['readingMemory'];
+            }
           | { type: 'error'; message: string },
       ) => {
         if (message.type === 'start' || message.type === 'item') {
@@ -160,7 +163,8 @@ const api = {
           return;
         }
         ipcRenderer.removeListener(channel, listener);
-        if (message.type === 'done') resolve(message.annotations);
+        if (message.type === 'done')
+          resolve({ annotations: message.annotations, readingMemory: message.readingMemory });
         else reject(new Error(message.message));
       };
       ipcRenderer.on(channel, listener);

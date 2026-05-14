@@ -1005,6 +1005,7 @@ export function AgentAnnotateMenu({
         ...normalizedSections.flatMap((section) => section.agentIds),
       ]),
       sections: normalizedSections,
+      readingMemory: basePlan?.readingMemory,
       createdAt: basePlan?.createdAt || now,
       updatedAt: now,
     };
