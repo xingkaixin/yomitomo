@@ -123,29 +123,10 @@ pnpm lint
 pnpm lint:fix
 pnpm format
 pnpm format:check
+pnpm typecheck
 pnpm test
 pnpm build
 pnpm make
-```
-
-按包运行：
-
-```bash
-pnpm --filter @yomitomo/desktop dev
-pnpm --filter @yomitomo/desktop build
-pnpm --filter @yomitomo/desktop test
-
-pnpm --filter @yomitomo/core build
-pnpm --filter @yomitomo/core test
-
-pnpm --filter @yomitomo/shared build
-pnpm --filter @yomitomo/shared test
-
-pnpm --filter @yomitomo/ai build
-pnpm --filter @yomitomo/ai test
-
-pnpm --filter @yomitomo/reader-ui build
-pnpm --filter @yomitomo/reader-ui test
 ```
 
 ## 数据
@@ -168,6 +149,7 @@ pnpm --filter @yomitomo/reader-ui test
 ```bash
 pnpm lint
 pnpm format:check
+pnpm typecheck
 pnpm test
 pnpm build
 ```
