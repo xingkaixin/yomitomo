@@ -240,17 +240,19 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
     ) {
       upsertSettings(tx, {
         defaultProviderId:
-          settings.defaultProviderId === id ? undefined : settings.defaultProviderId,
+          settings.defaultProviderId === id ? undefined : (settings.defaultProviderId ?? undefined),
         readingAssistantProviderId:
           settings.readingAssistantProviderId === id
             ? undefined
-            : settings.readingAssistantProviderId,
+            : (settings.readingAssistantProviderId ?? undefined),
         reviewAssistantProviderId:
           settings.reviewAssistantProviderId === id
             ? undefined
-            : settings.reviewAssistantProviderId,
+            : (settings.reviewAssistantProviderId ?? undefined),
         readingNoteProviderId:
-          settings.readingNoteProviderId === id ? undefined : settings.readingNoteProviderId,
+          settings.readingNoteProviderId === id
+            ? undefined
+            : (settings.readingNoteProviderId ?? undefined),
         saveArticleImages: Boolean(settings.saveArticleImages),
       });
     }

@@ -217,7 +217,7 @@ describe('daily quote', () => {
         quoteAnnotation({ id: 'key_1', annotationType: 'key_point' }),
         quoteAnnotation({
           id: 'long_1',
-          anchor: { exact: '长'.repeat(80), prefix: '', suffix: '' },
+          anchor: { exact: '长'.repeat(80), prefix: '', suffix: '', start: 0, end: 80 },
         }),
       ]),
     ]);

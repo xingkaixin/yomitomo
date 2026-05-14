@@ -1743,6 +1743,10 @@ type SourceBookcaseProps = {
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 };
 
+type WebSourceBookcaseProps = Omit<SourceBookcaseProps, 'article'> & {
+  article: ArticleRecord;
+};
+
 function SourceBookcase(props: SourceBookcaseProps) {
   if (!props.article) {
     return (
@@ -1756,7 +1760,7 @@ function SourceBookcase(props: SourceBookcaseProps) {
     return <EbookBookcase {...props} article={props.article} />;
   }
 
-  return <WebSourceBookcase {...props} />;
+  return <WebSourceBookcase {...props} article={props.article} />;
 }
 
 function WebSourceBookcase({
@@ -1773,7 +1777,7 @@ function WebSourceBookcase({
   onOpenAnnotation,
   onSaveArticle,
   onUpdateArticle,
-}: SourceBookcaseProps) {
+}: WebSourceBookcaseProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -3168,6 +3172,7 @@ function EbookBookcase({
   useEffect(() => {
     const host = viewHostRef.current;
     if (!host) return;
+    const hostElement = host;
 
     let cancelled = false;
     let view: FoliateViewElement | null = null;
@@ -3218,7 +3223,7 @@ function EbookBookcase({
         view.className = 'ebook-foliate-view';
         view.addEventListener('relocate', handleRelocate);
         view.addEventListener('external-link', handleExternalLink);
-        host.replaceChildren(view);
+        hostElement.replaceChildren(view);
         await view.open(file);
         if (cancelled) return;
 
@@ -3256,7 +3261,7 @@ function EbookBookcase({
       view?.remove();
       if (viewRef.current === view) viewRef.current = null;
       if (viewRef.current === null) ebookFileRef.current = null;
-      host.replaceChildren();
+      hostElement.replaceChildren();
     };
   }, [article.id, article.ebook.metadata.fileName, article.title]);
 
@@ -3286,19 +3291,23 @@ function EbookBookcase({
       readerState.status !== 'ready' ||
       !measureHost ||
       !sourceFile ||
+      !visibleView ||
       sections.length === 0 ||
       !layoutWidth ||
       !layoutHeight
     ) {
       return;
     }
+    const measureHostElement = measureHost;
+    const sourceEbookFile = sourceFile;
+    const visibleEbookView = visibleView;
 
     let cancelled = false;
     let measureView: FoliateViewElement | null = null;
     const counts: Array<number | null> = sections.map((section) =>
       section.linear === 'no' ? 0 : null,
     );
-    const currentPageInfo = visibleView.getPageInfo?.();
+    const currentPageInfo = visibleEbookView.getPageInfo?.();
     setPageInfo(currentPageInfo ?? null);
     setSectionPageCounts(
       currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts,
@@ -3316,8 +3325,8 @@ function EbookBookcase({
         await import('./vendor/foliate-js/view.js');
         measureView = document.createElement('foliate-view') as FoliateViewElement;
         measureView.className = 'ebook-foliate-view';
-        measureHost.replaceChildren(measureView);
-        await measureView.open(sourceFile);
+        measureHostElement.replaceChildren(measureView);
+        await measureView.open(sourceEbookFile);
         configureFoliateView(measureView, readerSettingsRef.current);
 
         for (const [index, section] of sections.entries()) {
@@ -3340,7 +3349,7 @@ function EbookBookcase({
       } finally {
         closeFoliateView(measureView);
         measureView?.remove();
-        if (measureHost.firstChild === measureView) measureHost.replaceChildren();
+        if (measureHostElement.firstChild === measureView) measureHostElement.replaceChildren();
       }
     }
 
@@ -4724,7 +4733,7 @@ function formatEbookPageLabel(pageInfo: FoliatePageInfo, counts: Array<number | 
 }
 
 function sumKnownPageCounts(counts: Array<number | null>) {
-  return counts.reduce((sum, count) => sum + (count ?? 0), 0);
+  return counts.reduce<number>((sum, count) => sum + (count ?? 0), 0);
 }
 
 function waitForFoliateIdle() {

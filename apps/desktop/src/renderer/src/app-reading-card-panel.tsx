@@ -99,9 +99,10 @@ export function ReadingCard({
   const reviewTime = aiCard?.review ? Date.parse(aiCard.review.updatedAt) : 0;
   const aiCardIsCurrent = Boolean(aiCard && deliberation && aiCardTime >= deliberationTime);
   const reviewIsCurrent = Boolean(aiCard?.review && aiCardIsCurrent && reviewTime >= aiCardTime);
-  const currentAiCard = aiCardIsCurrent
-    ? { ...aiCard, review: reviewIsCurrent ? aiCard?.review : undefined }
-    : null;
+  const currentAiCard: ReadingCardRecord | null =
+    aiCard && aiCardIsCurrent
+      ? { ...aiCard, review: reviewIsCurrent ? aiCard.review : undefined }
+      : null;
   const isWorkflowBusy =
     deliberationState === 'generating' || aiState === 'generating' || reviewState === 'reviewing';
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);

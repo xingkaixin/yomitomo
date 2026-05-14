@@ -7,13 +7,21 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "outputLogs": "new-only"
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "outputLogs": "new-only"
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "outputLogs": "new-only"
     },
     "lint": {
-      "outputs": []
+      "outputs": [],
+      "outputLogs": "new-only"
     },
     "lint:fix": {
       "cache": false
@@ -22,7 +30,8 @@
       "cache": false
     },
     "format:check": {
-      "outputs": []
+      "outputs": [],
+      "outputLogs": "new-only"
     }
   }
 }

@@ -11,6 +11,7 @@
     "make:app:mac-arm": "pnpm --filter @yomitomo/desktop make:mac-arm",
     "make:app:win-x64": "pnpm --filter @yomitomo/desktop make:win-x64",
     "build": "turbo build",
+    "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "turbo run format",
