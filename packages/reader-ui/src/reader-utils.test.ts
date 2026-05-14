@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  annotationNavigationForInsertionIndex,
+  annotationNavigationForReferenceIndex,
   buildAnnotationFilterFacets,
   buildAnnotationRailItems,
   createEmptyAnnotationFilter,
@@ -233,5 +235,39 @@ describe('reader annotation filters', () => {
         (item) => item.annotation.id,
       ),
     ).toEqual(['user-note', 'assistant-note']);
+  });
+
+  it('resolves navigation around an explicit reference annotation', () => {
+    const annotations = [annotation('first'), annotation('second'), annotation('third')];
+
+    expect(annotationNavigationForReferenceIndex(annotations, 1)).toEqual({
+      previousId: 'first',
+      nextId: 'third',
+    });
+    expect(annotationNavigationForReferenceIndex(annotations, 0)).toEqual({
+      previousId: null,
+      nextId: 'second',
+    });
+    expect(annotationNavigationForReferenceIndex(annotations, 2)).toEqual({
+      previousId: 'second',
+      nextId: null,
+    });
+  });
+
+  it('resolves navigation around a viewport insertion point', () => {
+    const annotations = [annotation('first'), annotation('second'), annotation('third')];
+
+    expect(annotationNavigationForInsertionIndex(annotations, 0)).toEqual({
+      previousId: null,
+      nextId: 'first',
+    });
+    expect(annotationNavigationForInsertionIndex(annotations, 2)).toEqual({
+      previousId: 'second',
+      nextId: 'third',
+    });
+    expect(annotationNavigationForInsertionIndex(annotations, 3)).toEqual({
+      previousId: 'third',
+      nextId: null,
+    });
   });
 });
