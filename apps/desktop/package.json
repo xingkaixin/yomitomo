@@ -11,6 +11,7 @@
     "make:win-x64": "pnpm run build && electron-builder --config electron-builder.config.cjs --config.directories.output=../../dist/app/win-x64 --win --x64",
     "db:generate": "drizzle-kit generate",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
     "format": "oxfmt --write \"**/*.{ts,tsx,js,jsx,json,css,html}\"",

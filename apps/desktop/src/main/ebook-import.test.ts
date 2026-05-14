@@ -3,6 +3,12 @@ import { Buffer } from 'node:buffer';
 import JSZip from 'jszip';
 import { articleRecordFromEpubFile } from './ebook-import';
 
+function arrayBufferFromBuffer(buffer: Buffer) {
+  const data = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(data).set(buffer);
+  return data;
+}
+
 describe('articleRecordFromEpubFile', () => {
   it('extracts epub metadata and chapters into an article record', async () => {
     const zip = new JSZip();
@@ -81,7 +87,7 @@ describe('articleRecordFromEpubFile', () => {
     );
 
     const buffer = await zip.generateAsync({ type: 'nodebuffer' });
-    const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    const data = arrayBufferFromBuffer(buffer);
     const article = await articleRecordFromEpubFile({
       fileName: 'book.epub',
       mimeType: 'application/epub+zip',
@@ -154,7 +160,7 @@ describe('articleRecordFromEpubFile', () => {
     );
 
     const buffer = await zip.generateAsync({ type: 'nodebuffer' });
-    const data = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    const data = arrayBufferFromBuffer(buffer);
     const article = await articleRecordFromEpubFile({
       fileName: 'loose.epub',
       mimeType: 'application/epub+zip',

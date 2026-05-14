@@ -463,6 +463,7 @@ export function ShortcutSettings({
 
   useEffect(() => {
     if (!recordingAction) return;
+    const action = recordingAction;
 
     function finishRecording() {
       setRecordingAction(null);
@@ -487,7 +488,7 @@ export function ShortcutSettings({
         ...settingsDraft,
         selectionActionShortcuts: {
           ...selectionShortcuts,
-          [recordingAction]: key,
+          [action]: key,
         },
       });
       finishRecording();

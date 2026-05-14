@@ -181,6 +181,7 @@ function reviewAgent(): Agent {
   return {
     id: 'agent_1',
     kind: 'review',
+    enabled: true,
     providerId: 'provider_1',
     nickname: '审核助手',
     username: 'reviewer',
