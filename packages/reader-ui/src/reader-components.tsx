@@ -1978,6 +1978,7 @@ export function AnnotationCard({
   isStackFront = true,
   messageSendShortcut,
   noteRef,
+  primaryCommentExpanded,
   shortcutModifier,
   stackCount = 1,
   stackIndex = 0,
@@ -1988,6 +1989,7 @@ export function AnnotationCard({
   onAddComment,
   onDelete,
   onFocus,
+  onPrimaryCommentExpandedChange,
 }: {
   active: boolean;
   agents: PublicAgent[];
@@ -1996,6 +1998,7 @@ export function AnnotationCard({
   isStackFront?: boolean;
   messageSendShortcut: MessageSendShortcut;
   noteRef: (element: HTMLElement | null) => void;
+  primaryCommentExpanded: boolean;
   shortcutModifier: string;
   stackCount?: number;
   stackIndex?: number;
@@ -2006,6 +2009,7 @@ export function AnnotationCard({
   onAddComment: (annotationId: string, content: string) => void;
   onDelete: (annotationId: string) => void;
   onFocus: (annotationId: string) => void;
+  onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
 }) {
   const [draft, setDraft] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -2258,7 +2262,14 @@ export function AnnotationCard({
         </button>
         {primaryComment ? (
           <div className="reader-note-primary-comment">
-            <MarkdownContent content={primaryComment.content} pending={primaryComment.pending} />
+            <CollapsibleMarkdownContent
+              content={primaryComment.content}
+              expanded={primaryCommentExpanded}
+              pending={primaryComment.pending}
+              onExpandedChange={(nextExpanded) =>
+                onPrimaryCommentExpandedChange(annotation.id, nextExpanded)
+              }
+            />
           </div>
         ) : null}
         <div className="reader-note-toolbar">
@@ -2328,7 +2339,7 @@ export function AnnotationCard({
                           ) : null}
                           <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
                         </div>
-                        <CommentMarkdownContent
+                        <CollapsibleMarkdownContent
                           content={comment.content}
                           expanded={commentExpanded}
                           pending={comment.pending}
@@ -2443,7 +2454,7 @@ export function AnnotationCard({
   );
 }
 
-function CommentMarkdownContent({
+function CollapsibleMarkdownContent({
   content,
   expanded,
   pending,
@@ -2501,17 +2512,6 @@ function CommentMarkdownContent({
           {expanded ? '收起' : '展开'}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-function MarkdownContent({ content, pending }: { content: string; pending?: boolean }) {
-  const html = useMemo(() => renderMarkdown(content), [content]);
-
-  return (
-    <div className="reader-markdown">
-      <div className="reader-markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
-      {pending ? <i className="reader-spinner" /> : null}
     </div>
   );
 }

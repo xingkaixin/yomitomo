@@ -317,10 +317,17 @@ export function ReaderAppView({
   }));
   const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
   const [navigationVersion, setNavigationVersion] = React.useState(0);
+  const [expandedPrimaryCommentIds, setExpandedPrimaryCommentIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
   const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
   );
+  const annotationIdsSnapshotRef = React.useRef({
+    articleId,
+    ids: new Set(annotations.map((annotation) => annotation.id)),
+  });
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const registerNoteElementRef = React.useRef<
     (annotationId: string, element: HTMLElement | null) => void
@@ -393,6 +400,16 @@ export function ReaderAppView({
     );
   }, []);
 
+  const setPrimaryCommentExpanded = React.useCallback((annotationId: string, expanded: boolean) => {
+    setExpandedPrimaryCommentIds((current) => {
+      if (current.has(annotationId) === expanded) return current;
+      const next = new Set(current);
+      if (expanded) next.add(annotationId);
+      else next.delete(annotationId);
+      return next;
+    });
+  }, []);
+
   const registerNoteElement = React.useCallback(
     (annotationId: string, element: HTMLElement | null) => {
       const existing = noteElementsRef.current.get(annotationId);
@@ -454,6 +471,43 @@ export function ReaderAppView({
     if (!annotationFiltersEqual(pruned, annotationFilter)) setAnnotationFilter(pruned);
     if (filteredAnnotations.length === 0) setAnnotationFilterOpen(false);
   }, [annotationFilter, filteredAnnotations]);
+
+  React.useLayoutEffect(() => {
+    const annotationIds = annotations.map((annotation) => annotation.id);
+    const annotationIdSet = new Set(annotationIds);
+    const previous = annotationIdsSnapshotRef.current;
+
+    if (previous.articleId !== articleId) {
+      annotationIdsSnapshotRef.current = { articleId, ids: annotationIdSet };
+      setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
+      return;
+    }
+
+    const addedIds = annotationIds.filter((id) => !previous.ids.has(id));
+    annotationIdsSnapshotRef.current = { articleId, ids: annotationIdSet };
+
+    setExpandedPrimaryCommentIds((current) => {
+      let changed = false;
+      const next = new Set<string>();
+
+      for (const id of current) {
+        if (annotationIdSet.has(id)) next.add(id);
+        else changed = true;
+      }
+
+      for (const id of addedIds) {
+        if (next.has(id)) continue;
+        next.add(id);
+        changed = true;
+      }
+
+      return changed ? next : current;
+    });
+  }, [annotations, articleId]);
+
+  React.useEffect(() => {
+    setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
+  }, [commentsCloseKey]);
 
   React.useEffect(() => {
     const sourceIds = annotations.map((annotation) => annotation.id);
@@ -944,6 +998,7 @@ export function ReaderAppView({
                       messageSendShortcut={messageSendShortcut}
                       key={annotation.id}
                       noteRef={noteRefForAnnotation(annotation.id)}
+                      primaryCommentExpanded={expandedPrimaryCommentIds.has(annotation.id)}
                       shortcutModifier={shortcutModifier}
                       stackCount={stackCount}
                       stackIndex={stackIndex}
@@ -956,6 +1011,7 @@ export function ReaderAppView({
                       onAddComment={onAddComment}
                       onDelete={onDeleteAnnotation}
                       onFocus={onScrollToHighlight}
+                      onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
                     />
                   ),
                 )}

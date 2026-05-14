@@ -672,7 +672,7 @@ function estimateAnnotationCardHeight(annotation: Annotation) {
   const quoteLines = Math.max(1, Math.ceil(annotation.anchor.exact.length / 24));
   const primaryComment = annotationPrimaryComment(annotation)?.content || '';
   const commentLines = primaryComment
-    ? Math.min(5, Math.max(1, Math.ceil(primaryComment.length / 28)))
+    ? Math.min(4, Math.max(1, Math.ceil(primaryComment.length / 28)))
     : 0;
   return 118 + quoteLines * 18 + commentLines * 24;
 }

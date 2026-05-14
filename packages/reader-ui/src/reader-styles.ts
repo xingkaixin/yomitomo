@@ -425,6 +425,7 @@ export const readerConversationStyles = `
 .reader-comment-markdown{position:relative}
 .reader-comment-markdown.is-collapsed .reader-markdown-content{max-height:calc(1.66em * 4);overflow:hidden}
 .reader-comment-markdown.is-collapsed::after{content:"";position:absolute;left:0;right:0;bottom:28px;height:34px;background:linear-gradient(to bottom,rgba(250,246,238,0),rgba(250,246,238,.96));pointer-events:none}
+.reader-note-primary-comment .reader-comment-markdown.is-collapsed::after{background:linear-gradient(to bottom,rgba(255,253,248,0),rgba(255,253,248,.96))}
 .reader-comment-expand{position:relative;z-index:1;width:fit-content;height:26px;margin-top:4px;border:0;border-radius:999px;background:rgba(37,29,22,.06);color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:0 9px;transition:background .14s ease,color .14s ease,transform .14s ease}
 .reader-comment-expand:hover{background:#f0e3cd;color:var(--reader-ink)}
 .reader-comment-expand:active{transform:scale(.96)}
