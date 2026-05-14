@@ -82,6 +82,8 @@ import {
   useAgentAnnotationQueue,
   getShortcutModifier,
   ReaderAppView,
+  annotationNavigationForInsertionIndex,
+  annotationNavigationForReferenceIndex,
   buildReaderReadingSections,
   readerAnnotationScrollTop,
   readerConversationStyles,
@@ -92,6 +94,7 @@ import {
   sleep,
   type ActiveConnection,
   type AgentDockItem,
+  type AnnotationNavigationDirection,
   type HighlightChoice,
   type ReaderSettings,
   type ReaderReadingSection,
@@ -384,8 +387,7 @@ export function ReadingLibrary({
       setSelectedAnnotationId(null);
       return;
     }
-    const nextAnnotation = sortAnnotations(selectedArticle.annotations)[0] || null;
-    setSelectedAnnotationId(nextAnnotation?.id || null);
+    setSelectedAnnotationId(null);
   }, [selectedArticle?.id]);
 
   useEffect(() => {
@@ -411,7 +413,7 @@ export function ReadingLibrary({
 
   function openArticle(article: ArticleRecord) {
     setSelectedArticleId(article.id);
-    setSelectedAnnotationId(sortAnnotations(article.annotations)[0]?.id || null);
+    setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
     setActiveShelf('source');
   }
@@ -1724,6 +1726,180 @@ function articleWithAnnotations(article: ArticleRecord, annotations: Annotation[
   };
 }
 
+function navigationForActiveAnnotation(annotations: Annotation[], activeId: string | null) {
+  if (!activeId) return null;
+  const activeIndex = annotations.findIndex((annotation) => annotation.id === activeId);
+  return activeIndex >= 0 ? annotationNavigationForReferenceIndex(annotations, activeIndex) : null;
+}
+
+function webAnnotationNavigationState({
+  activeId,
+  annotations,
+  boxes,
+  canvasElement,
+  scrollElement,
+}: {
+  activeId: string | null;
+  annotations: Annotation[];
+  boxes: HighlightBox[];
+  canvasElement: HTMLElement | null;
+  scrollElement: HTMLElement | null;
+}) {
+  const activeNavigation = navigationForActiveAnnotation(annotations, activeId);
+  if (activeNavigation) return activeNavigation;
+  if (annotations.length === 0) return { previousId: null, nextId: null };
+  if (!canvasElement || !scrollElement)
+    return annotationNavigationForInsertionIndex(annotations, 0);
+
+  const positions = annotationViewportPositions(annotations, boxes, canvasElement.offsetTop);
+  if (positions.length === 0) return annotationNavigationForInsertionIndex(annotations, 0);
+
+  const viewportTop = scrollElement.scrollTop;
+  const viewportBottom = viewportTop + scrollElement.clientHeight;
+  const visible = positions
+    .filter((position) => position.bottom >= viewportTop && position.top <= viewportBottom)
+    .toSorted((left, right) => left.top - right.top || left.index - right.index)[0];
+
+  if (visible) return annotationNavigationForReferenceIndex(annotations, visible.index);
+
+  return annotationNavigationForViewportRange(annotations, positions, viewportTop, viewportBottom);
+}
+
+function ebookAnnotationNavigationState({
+  activeId,
+  annotations,
+  boxes,
+  pageInfo,
+  article,
+  view,
+}: {
+  activeId: string | null;
+  annotations: Annotation[];
+  boxes: HighlightBox[];
+  pageInfo: FoliatePageInfo | null;
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
+  view: FoliateViewElement | null;
+}) {
+  if (annotations.length === 0) return { previousId: null, nextId: null };
+
+  const pageAnnotationIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
+  if (activeId && pageAnnotationIds.has(activeId)) {
+    const activeNavigation = navigationForActiveAnnotation(annotations, activeId);
+    if (activeNavigation) return activeNavigation;
+  }
+
+  const positions = annotationViewportPositions(annotations, boxes, 0);
+  const firstPageAnnotation = positions[0];
+  if (firstPageAnnotation) {
+    return annotationNavigationForReferenceIndex(annotations, firstPageAnnotation.index);
+  }
+
+  const pageRange = ebookPageTextRange(article, view, pageInfo);
+  if (!pageRange) return annotationNavigationForInsertionIndex(annotations, 0);
+
+  return annotationNavigationForTextRange(annotations, pageRange.start, pageRange.end);
+}
+
+function annotationViewportPositions(
+  annotations: Annotation[],
+  boxes: HighlightBox[],
+  canvasOffsetTop: number,
+) {
+  const indexById = new Map(annotations.map((annotation, index) => [annotation.id, index]));
+  const positions = new Map<
+    string,
+    { annotationId: string; index: number; top: number; bottom: number }
+  >();
+
+  for (const box of boxes) {
+    const index = indexById.get(box.annotationId);
+    if (index === undefined) continue;
+
+    const top = canvasOffsetTop + box.top;
+    const bottom = top + box.height;
+    const current = positions.get(box.annotationId);
+    positions.set(box.annotationId, {
+      annotationId: box.annotationId,
+      index,
+      top: current ? Math.min(current.top, top) : top,
+      bottom: current ? Math.max(current.bottom, bottom) : bottom,
+    });
+  }
+
+  return Array.from(positions.values()).toSorted(
+    (left, right) => left.top - right.top || left.index - right.index,
+  );
+}
+
+function annotationNavigationForViewportRange(
+  annotations: Annotation[],
+  positions: Array<{ index: number; top: number; bottom: number }>,
+  viewportTop: number,
+  viewportBottom: number,
+) {
+  const previous = positions.findLast((position) => position.bottom < viewportTop);
+  const next = positions.find((position) => position.top > viewportBottom);
+
+  return {
+    previousId: previous ? (annotations[previous.index]?.id ?? null) : null,
+    nextId: next ? (annotations[next.index]?.id ?? null) : null,
+  };
+}
+
+function annotationNavigationForTextRange(
+  annotations: Annotation[],
+  rangeStart: number,
+  rangeEnd: number,
+) {
+  let previousId: string | null = null;
+  let nextId: string | null = null;
+
+  for (const annotation of annotations) {
+    const start = annotationTextStart(annotation);
+    const end = annotationTextEnd(annotation);
+    if (end <= rangeStart) previousId = annotation.id;
+    if (nextId === null && start >= rangeEnd) nextId = annotation.id;
+  }
+
+  return { previousId, nextId };
+}
+
+function annotationTextStart(annotation: Annotation) {
+  return (
+    finiteNumber(annotation.anchor.textStartInBook) ?? finiteNumber(annotation.anchor.start) ?? 0
+  );
+}
+
+function annotationTextEnd(annotation: Annotation) {
+  return (
+    finiteNumber(annotation.anchor.textEndInBook) ??
+    finiteNumber(annotation.anchor.end) ??
+    annotationTextStart(annotation)
+  );
+}
+
+function finiteNumber(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function ebookPageTextRange(
+  article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
+  view: FoliateViewElement | null,
+  pageInfo: FoliatePageInfo | null,
+) {
+  if (!pageInfo) return null;
+  const chapter = ebookChapterForFoliateSection(article, view, pageInfo.sectionIndex);
+  if (!chapter) return null;
+
+  const pageCount = Math.max(1, pageInfo.pageCount);
+  const startRatio = Math.max(0, Math.min(1, pageInfo.pageIndex / pageCount));
+  const endRatio = Math.max(startRatio, Math.min(1, (pageInfo.pageIndex + 1) / pageCount));
+  return {
+    start: chapter.textStart + Math.floor(chapter.textLength * startRatio),
+    end: chapter.textStart + Math.ceil(chapter.textLength * endRatio),
+  };
+}
+
 type SourceBookcaseProps = {
   agents: Agent[];
   annotations: Annotation[];
@@ -2041,6 +2217,36 @@ function WebSourceBookcase({
       return true;
     },
     [boxes],
+  );
+
+  const resolveAnnotationNavigation = useCallback(
+    ({
+      activeId,
+      annotations: navigationAnnotations,
+    }: {
+      activeId: string | null;
+      annotations: Annotation[];
+    }) =>
+      webAnnotationNavigationState({
+        activeId,
+        annotations: navigationAnnotations,
+        boxes,
+        canvasElement: canvasRef.current,
+        scrollElement: scrollRef.current,
+      }),
+    [boxes],
+  );
+
+  const navigateAnnotation = useCallback(
+    (annotationId: string, _direction: AnnotationNavigationDirection) => {
+      setHighlightChoice(null);
+      setSelectionAction(null);
+      setComposer(null);
+      setTemporaryBoxes([]);
+      onOpenAnnotation(annotationId);
+      scrollToAnnotation(annotationId);
+    },
+    [onOpenAnnotation, scrollToAnnotation],
   );
 
   useEffect(() => {
@@ -2853,6 +3059,8 @@ function WebSourceBookcase({
         onCreateAnnotation={createAnnotation}
         onDeleteAnnotation={deleteAnnotation}
         onFocusAnnotation={openAnnotation}
+        onNavigateAnnotation={navigateAnnotation}
+        onResolveAnnotationNavigation={resolveAnnotationNavigation}
         onHighlightClick={handleHighlightClick}
         onMouseUp={handleArticleMouseUp}
         onOpenComposer={openComposer}
@@ -4421,6 +4629,30 @@ function EbookBookcase({
     return true;
   }
 
+  const resolveAnnotationNavigation = useCallback(
+    ({
+      activeId,
+      annotations: navigationAnnotations,
+    }: {
+      activeId: string | null;
+      annotations: Annotation[];
+    }) =>
+      ebookAnnotationNavigationState({
+        activeId,
+        annotations: navigationAnnotations,
+        boxes,
+        pageInfo,
+        article,
+        view: viewRef.current,
+      }),
+    [article, boxes, pageInfo],
+  );
+
+  function navigateAnnotation(annotationId: string) {
+    openAnnotation(annotationId);
+    void goToAnnotation(annotationId);
+  }
+
   useEffect(() => {
     if (!focusAnnotationId) return;
     if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
@@ -4569,7 +4801,7 @@ function EbookBookcase({
         completionBurstKey={0}
         embedded
         extracted={readerArticle}
-        filteredAnnotations={pageAnnotations}
+        filteredAnnotations={annotations}
         focusCoReadingPlan={article.focusCoReadingPlan}
         highlightChoice={highlightChoice}
         notesOpen={notesOpen}
@@ -4610,6 +4842,8 @@ function EbookBookcase({
         onCreateAnnotation={createAnnotation}
         onDeleteAnnotation={deleteAnnotation}
         onFocusAnnotation={openAnnotation}
+        onNavigateAnnotation={navigateAnnotation}
+        onResolveAnnotationNavigation={resolveAnnotationNavigation}
         onHighlightClick={handleHighlightClick}
         onMouseUp={() => undefined}
         onOpenComposer={openComposer}

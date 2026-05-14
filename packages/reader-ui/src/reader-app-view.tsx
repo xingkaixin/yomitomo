@@ -1,5 +1,14 @@
 import React from 'react';
-import { Bot, Funnel, List, MessageSquare, Settings2, X } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  Funnel,
+  List,
+  MessageSquare,
+  Settings2,
+  X,
+} from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -69,6 +78,18 @@ export type ReaderArticle = {
   byline?: string;
   excerpt?: string;
   content: string;
+};
+
+export type AnnotationNavigationDirection = 'previous' | 'next';
+
+export type AnnotationNavigationRequest = {
+  activeId: string | null;
+  annotations: Annotation[];
+};
+
+export type AnnotationNavigationState = {
+  previousId: string | null;
+  nextId: string | null;
 };
 
 const annotationFilterPanelId = 'reader-annotation-filter-panel';
@@ -157,6 +178,10 @@ export type ReaderAppViewProps = {
   onFocusAnnotation: (annotationId: string) => void;
   onAnswerQuestion: (annotationId: string) => void;
   onAnnotationLayoutChange?: () => void;
+  onResolveAnnotationNavigation?: (
+    request: AnnotationNavigationRequest,
+  ) => AnnotationNavigationState;
+  onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
   onHighlightClick: (
     annotationId: string,
     event: React.MouseEvent<HTMLButtonElement>,
@@ -260,6 +285,8 @@ export function ReaderAppView({
   onFocusAnnotation,
   onAnswerQuestion,
   onAnnotationLayoutChange,
+  onResolveAnnotationNavigation,
+  onNavigateAnnotation,
   onHighlightClick,
   onMouseUp,
   onCloseHighlightChoice,
@@ -285,10 +312,11 @@ export function ReaderAppView({
     createEmptyAnnotationFilter,
   );
   const [railAnimation, setRailAnimation] = React.useState(() => ({
-    ids: filteredAnnotations.map((annotation) => annotation.id),
+    ids: annotations.map((annotation) => annotation.id),
     exitingIds: new Set<string>(),
   }));
   const [noteHeights, setNoteHeights] = React.useState<Record<string, number>>({});
+  const [navigationVersion, setNavigationVersion] = React.useState(0);
   const noteElementsRef = React.useRef(new Map<string, HTMLElement>());
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
@@ -315,9 +343,13 @@ export function ReaderAppView({
     () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
     [visibleAnnotations],
   );
+  const visibleRailAnnotations = React.useMemo(
+    () => annotations.filter((annotation) => visibleAnnotationIds.has(annotation.id)),
+    [annotations, visibleAnnotationIds],
+  );
   const railAnnotationById = React.useMemo(
-    () => new Map(filteredAnnotations.map((annotation) => [annotation.id, annotation])),
-    [filteredAnnotations],
+    () => new Map(annotations.map((annotation) => [annotation.id, annotation])),
+    [annotations],
   );
   const railAnnotations = React.useMemo(
     () =>
@@ -330,6 +362,14 @@ export function ReaderAppView({
   const annotationRailItems = React.useMemo(
     () => buildAnnotationRailItems(railAnnotations, boxes, activeId, noteHeights),
     [activeId, boxes, noteHeights, railAnnotations],
+  );
+  const annotationNavigation = React.useMemo(
+    () =>
+      onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ?? {
+        previousId: null,
+        nextId: null,
+      },
+    [activeId, navigationVersion, onResolveAnnotationNavigation, visibleAnnotations],
   );
   const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
   const filterActive = isAnnotationFilterActive(annotationFilter);
@@ -416,9 +456,9 @@ export function ReaderAppView({
   }, [annotationFilter, filteredAnnotations]);
 
   React.useEffect(() => {
-    const sourceIds = filteredAnnotations.map((annotation) => annotation.id);
+    const sourceIds = annotations.map((annotation) => annotation.id);
     const sourceIdSet = new Set(sourceIds);
-    const visibleIds = visibleAnnotations.map((annotation) => annotation.id);
+    const visibleIds = visibleRailAnnotations.map((annotation) => annotation.id);
     const visibleIdSet = new Set(visibleIds);
 
     setRailAnimation((current) => {
@@ -439,7 +479,7 @@ export function ReaderAppView({
     }, FILTERED_NOTE_EXIT_MS);
 
     return () => window.clearTimeout(timeout);
-  }, [filteredAnnotations, visibleAnnotations]);
+  }, [annotations, visibleRailAnnotations]);
 
   React.useEffect(() => {
     const visibleIds = new Set(railAnnotations.map((annotation) => annotation.id));
@@ -474,6 +514,24 @@ export function ReaderAppView({
   }, [annotationFilterOpen]);
 
   React.useEffect(() => () => noteResizeObserverRef.current?.disconnect(), []);
+
+  React.useEffect(() => {
+    if (!onResolveAnnotationNavigation) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
+
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => setNavigationVersion((version) => version + 1));
+    };
+
+    surface.addEventListener('scroll', schedule, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      surface.removeEventListener('scroll', schedule);
+    };
+  }, [onResolveAnnotationNavigation, surfaceRef]);
 
   React.useEffect(() => {
     if (!selectionAction || composer) return;
@@ -538,6 +596,13 @@ export function ReaderAppView({
   function toggleSettings() {
     setAnnotationFilterOpen(false);
     onToggleSettings();
+  }
+
+  function navigateAnnotation(direction: AnnotationNavigationDirection) {
+    const annotationId =
+      direction === 'previous' ? annotationNavigation.previousId : annotationNavigation.nextId;
+    if (!annotationId) return;
+    onNavigateAnnotation?.(annotationId, direction);
   }
 
   function handleReaderPointerDownCapture(event: React.PointerEvent<HTMLDivElement>) {
@@ -629,6 +694,30 @@ export function ReaderAppView({
             <MessageSquare size={18} />
             <span>{questionCount}</span>
           </button>
+          {onResolveAnnotationNavigation && onNavigateAnnotation ? (
+            <div className="reader-annotation-nav" aria-label="批注快捷选择">
+              <button
+                aria-label="上一个批注"
+                className="reader-icon-button"
+                disabled={!annotationNavigation.previousId}
+                title="上一个批注"
+                type="button"
+                onClick={() => navigateAnnotation('previous')}
+              >
+                <ChevronUp size={17} />
+              </button>
+              <button
+                aria-label="下一个批注"
+                className="reader-icon-button"
+                disabled={!annotationNavigation.nextId}
+                title="下一个批注"
+                type="button"
+                onClick={() => navigateAnnotation('next')}
+              >
+                <ChevronDown size={17} />
+              </button>
+            </div>
+          ) : null}
           <button
             className={
               filterActive || annotationFilterOpen
@@ -838,10 +927,10 @@ export function ReaderAppView({
               </div>
               <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
                 {annotations.length === 0 ? <EmptyNotes /> : null}
-                {annotations.length > 0 && visibleAnnotations.length === 0 ? (
+                {annotations.length > 0 && visibleRailAnnotations.length === 0 ? (
                   <div className="reader-empty">
                     <strong>没有匹配的批注</strong>
-                    <p>当前筛选项下没有批注。</p>
+                    <p>当前视图没有匹配的批注。</p>
                   </div>
                 ) : null}
                 {annotationRailItems.map(
