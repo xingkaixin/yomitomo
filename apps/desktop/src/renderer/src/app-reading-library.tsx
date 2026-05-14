@@ -80,6 +80,7 @@ import {
   clampNumber,
   defaultReaderSettings,
   useAgentAnnotationQueue,
+  useAgentReadingDock,
   getShortcutModifier,
   ReaderAppView,
   annotationNavigationForInsertionIndex,
@@ -93,7 +94,6 @@ import {
   selectionActionShortcut,
   sleep,
   type ActiveConnection,
-  type AgentDockItem,
   type AnnotationNavigationDirection,
   type HighlightChoice,
   type ReaderSettings,
@@ -3187,14 +3187,15 @@ function EbookBookcase({
     }),
     [annotations],
   );
-  const ebookAgentDockItems = useMemo<AgentDockItem[]>(
-    () =>
-      annotatingAgentIds.flatMap((agentId) => {
-        const agent = annotationAgents.find((candidate) => candidate.id === agentId);
-        return agent ? [{ agent, state: 'active' as const }] : [];
-      }),
-    [annotatingAgentIds, annotationAgents],
-  );
+  const {
+    agentDockCompleting: ebookAgentDockCompleting,
+    agentDockItems: ebookAgentDockItems,
+    completionBurstKey: ebookCompletionBurstKey,
+    activateAgentDock: activateEbookAgentDock,
+    markAgentDockDone: markEbookAgentDockDone,
+    completeAgentDock: completeEbookAgentDock,
+    clearAgentDock: clearEbookAgentDock,
+  } = useAgentReadingDock(annotationAgents);
   const updateEbookBoxesRef = useRef<() => void>(() => {});
   const updateBoxesFrameRef = useRef(0);
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
@@ -3207,6 +3208,8 @@ function EbookBookcase({
   const ebookAgentAnimationQueueRef = useRef(Promise.resolve());
   const ebookVirtualReadingStepRef = useRef(new Map<string, number>());
   const ebookVirtualReadingStepSizeRef = useRef(new Map<string, number>());
+  const activeEbookDockAgentIdsRef = useRef(new Set<string>());
+  const ebookDockHadFailureRef = useRef(false);
 
   useEffect(() => {
     onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
@@ -3780,6 +3783,23 @@ function EbookBookcase({
     ebookVirtualReadingStepSizeRef.current.delete(agentId);
   }
 
+  function startEbookAgentDock(agent: PublicAgent) {
+    activeEbookDockAgentIdsRef.current.add(agent.id);
+    activateEbookAgentDock(agent);
+  }
+
+  function finishEbookAgentDock(agentId: string, succeeded: boolean) {
+    if (!activeEbookDockAgentIdsRef.current.has(agentId)) return;
+    markEbookAgentDockDone(agentId);
+    activeEbookDockAgentIdsRef.current.delete(agentId);
+    if (!succeeded) ebookDockHadFailureRef.current = true;
+    if (activeEbookDockAgentIdsRef.current.size > 0) return;
+
+    const shouldCelebrate = !ebookDockHadFailureRef.current;
+    ebookDockHadFailureRef.current = false;
+    completeEbookAgentDock(shouldCelebrate);
+  }
+
   function cleanupEbookAgentTheater() {
     for (const timerId of ebookVirtualReadingTimersRef.current.values()) {
       window.clearInterval(timerId);
@@ -3788,6 +3808,9 @@ function EbookBookcase({
     ebookVirtualReadingStepRef.current.clear();
     ebookVirtualReadingStepSizeRef.current.clear();
     ebookVirtualCursorRef.current.clear();
+    activeEbookDockAgentIdsRef.current.clear();
+    ebookDockHadFailureRef.current = false;
+    clearEbookAgentDock();
     setVirtualCursors([]);
     setAgentTheaterBoxes([]);
   }
@@ -4506,7 +4529,9 @@ function EbookBookcase({
     setStatusMessage(`${agent.nickname} 正在批注`);
     const readingPlan =
       options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
-    if (isCurrentArticle(articleId) && options.targetAnchor) {
+    const visibleArticle = isCurrentArticle(articleId);
+    if (visibleArticle) startEbookAgentDock(agent);
+    if (visibleArticle && options.targetAnchor) {
       startEbookVirtualReading(agent, options.targetAnchor);
     }
     let annotationCount = 0;
@@ -4555,6 +4580,11 @@ function EbookBookcase({
         setStatusMessage(`${agent.nickname} 暂无新批注`);
         window.setTimeout(() => setStatusMessage(''), 1400);
       }
+      if (visibleArticle) {
+        await ebookAgentAnimationQueueRef.current;
+        await sleep(900);
+        finishEbookAgentDock(agent.id, true);
+      }
     } catch (error) {
       requestFailed = true;
       throw error;
@@ -4562,6 +4592,7 @@ function EbookBookcase({
       if (requestFailed && options.targetAnchor && isCurrentArticle(articleId)) {
         finishEbookVirtualReading(agent.id, '批注失败');
       }
+      if (requestFailed && visibleArticle) finishEbookAgentDock(agent.id, false);
       setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
       setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
     }
@@ -4706,7 +4737,7 @@ function EbookBookcase({
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
         agentAnnotateOpen={agentAnnotateOpen}
-        agentDockCompleting={false}
+        agentDockCompleting={ebookAgentDockCompleting}
         agentDockItems={ebookAgentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
@@ -4798,7 +4829,7 @@ function EbookBookcase({
         canvasRef={canvasRef}
         commentsCloseKey={commentsCloseKey}
         composer={composer}
-        completionBurstKey={0}
+        completionBurstKey={ebookCompletionBurstKey}
         embedded
         extracted={readerArticle}
         filteredAnnotations={annotations}

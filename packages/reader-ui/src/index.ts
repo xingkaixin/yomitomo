@@ -24,3 +24,4 @@ export {
 export * from './reader-styles';
 export * from './reader-utils';
 export * from './use-agent-annotation-queue';
+export * from './use-agent-reading-dock';
