@@ -104,6 +104,36 @@ export {
   selectionAnnotationContextPrompt,
   selectionThreadContextPrompt,
 };
+export {
+  aggregateEpubEvaluation,
+  epubEvaluationBookTypes,
+  epubEvaluationChapterLengths,
+  epubEvaluationControlGroups,
+  epubEvaluationFailureLabels,
+  epubEvaluationTaskTypes,
+  epubPhaseOneCriteria,
+  evaluateEpubPhaseOne,
+  evaluateEpubRun,
+  type EpubEvaluationBookType,
+  type EpubEvaluationCase,
+  type EpubEvaluationCaseResult,
+  type EpubEvaluationChapterLength,
+  type EpubEvaluationControlGroup,
+  type EpubEvaluationControlSummary,
+  type EpubEvaluationExpectation,
+  type EpubEvaluationFailureLabel,
+  type EpubEvaluationManualScores,
+  type EpubEvaluationMetrics,
+  type EpubEvaluationReport,
+  type EpubEvaluationRun,
+  type EpubEvaluationSegmentOutput,
+  type EpubEvaluationTaskInput,
+  type EpubEvaluationTaskType,
+  type EpubEvaluationUsage,
+  type EpubPhaseOneCheck,
+  type EpubPhaseOneCriteria,
+} from './evaluation';
+export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures';
 export { setAiLogger, type AiLogger } from './logger';
 
 export type GenerateReadingCardInput = {
