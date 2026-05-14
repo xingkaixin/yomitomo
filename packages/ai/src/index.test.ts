@@ -233,6 +233,50 @@ describe('agent message prompts', () => {
     expect(prompt).not.toContain('未来章节不应出现。');
   });
 
+  it('adds current-chapter lexical passages to epub thread context', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: [
+          '人口红利在本章开头被定义为劳动力供给优势。',
+          '过渡段落。',
+          '另一个局部段落。',
+          '目标观点讨论选择压力。',
+        ],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const start = text.indexOf('目标观点');
+    const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '目标观点'.length);
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+        annotation: {
+          ...payload.annotation,
+          anchor,
+          comments: [],
+        },
+        userComment: {
+          ...payload.userComment,
+          content: '@林知微 这里的人口红利前面怎么说的？',
+        },
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('"source": "current-chapter-lexical"');
+    expect(prompt).toContain('人口红利在本章开头被定义为劳动力供给优势。');
+  });
+
   it('clips long epub thread history before prompting', () => {
     const chapters = [{ id: 'chapter-1', title: '第一章', paragraphs: ['目标观点。'] }];
     const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });

@@ -1,6 +1,7 @@
 export * from './annotations';
 export * from './article-images';
 export * from './ebook-index';
+export * from './lexical-related-passages';
 export * from './reading';
 export * from './reading-context';
 export * from './reader-annotations';

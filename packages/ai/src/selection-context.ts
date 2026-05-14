@@ -10,7 +10,6 @@ import type {
   ContextSourceLabel,
   EpubBookIndex,
   EpubParagraphIndex,
-  RelatedPassage,
   SelectionAnnotationContext,
   SelectionThreadContext,
   SourceLabeledContextBlock,
@@ -26,6 +25,7 @@ import {
   type ReadingContextTextRange,
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
+import { relatedPassagesFromReadingContext } from './related-passages';
 
 const SELECTION_PARAGRAPH_WINDOW_SIZE = 2;
 const SELECTION_CONTEXT_TOKEN_BUDGET = 9000;
@@ -68,6 +68,7 @@ export function buildSelectionAnnotationContext(
       textRange,
       readingContext,
     ),
+    retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
     chapterMemory: chapterMemory(index, location),
   };
 }
@@ -93,7 +94,7 @@ export function selectionAnnotationContextPrompt(context: SelectionAnnotationCon
     },
     null,
     2,
-  )}\n\n上下文使用规则：\n- 你可以用 selection-first 上下文理解目标选区的段落、章节位置和附近讨论。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到上下文里的其他句子。\n- 如果附近批注与目标选区无关，忽略它。`;
+  )}\n\n上下文使用规则：\n- 你可以用 selection-first 上下文理解目标选区的段落、章节位置和附近讨论。\n- retrieved_evidence 是同章 lexical 召回，只能辅助理解目标选区，不能作为新锚点来源。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到上下文里的其他句子。\n- 如果附近批注与目标选区无关，忽略它。`;
 }
 
 export function buildSelectionThreadContext(
@@ -119,7 +120,7 @@ export function buildSelectionThreadContext(
       annotationId: payload.annotation.id,
       messages: threadMessages(payload, index, location),
     },
-    retrievedEvidence: relatedPassages(index, readingContext),
+    retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
   };
 }
 
@@ -144,7 +145,7 @@ export function selectionThreadContextPrompt(context: SelectionThreadContext) {
     },
     null,
     2,
-  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
+  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- retrieved_evidence 是同章 lexical 召回，用于补足章节内回指和相似术语。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
 }
 
 function selectionBaseContext(
@@ -179,9 +180,16 @@ function selectionBaseContext(
     },
     budget: {
       maxTokens: SELECTION_CONTEXT_TOKEN_BUDGET,
-      blockTypeOrder: ['selection', 'local_window', 'chapter_memory', 'nearby_annotation'],
+      blockTypeOrder: [
+        'selection',
+        'local_window',
+        'retrieved_evidence',
+        'chapter_memory',
+        'nearby_annotation',
+      ],
       reserveTokensByType: {
         local_window: 3600,
+        retrieved_evidence: 1200,
         chapter_memory: 800,
         nearby_annotation: 1200,
       },
@@ -446,27 +454,6 @@ function threadContextComments(comments: Comment[], userComment: Comment) {
   const first = nonEmpty[0];
   const recent = nonEmpty.slice(-THREAD_CONTEXT_RECENT_LIMIT);
   return first && !recent.some((comment) => comment.id === first.id) ? [first, ...recent] : recent;
-}
-
-function relatedPassages(
-  index: EpubBookIndex,
-  readingContext: ReadingContextBundle | undefined,
-): RelatedPassage[] {
-  return (readingContext?.relatedPassages || []).flatMap((passage, passageIndex) => {
-    const text = passage.text.trim();
-    if (!text) return [];
-    return [
-      {
-        id: passage.id || `${index.articleId}:related-${passageIndex + 1}`,
-        text,
-        source: sourceLabel('retrieved_evidence', index.articleId, {
-          chapterId: passage.chapterId,
-          segmentId: passage.segmentId,
-          source: 'related-passages',
-        }),
-      },
-    ];
-  });
 }
 
 function annotationSummaryText(annotation: Annotation) {

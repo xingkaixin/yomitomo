@@ -33,6 +33,7 @@ import {
 import {
   annotationDensityInstruction,
   annotationDensityMax,
+  buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
   buildReadingQuestions,
   createAgentAnnotation,
@@ -652,7 +653,7 @@ function buildAgentSegmentAnnotatePrompt(
     readingIntent: task.planItem.readingIntent || payload.readingIntent,
   };
   const density = task.targetDensity || agent.annotationDensity;
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- prefix：exact 前方 10-40 个字，来自 currentSegment 原文\n- suffix：exact 后方 10-40 个字，来自 currentSegment 原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType：只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- whyHere：说明为什么这一个位置值得批注，避免泛泛摘要\n- evidenceUsed：数组，只能包含 localText、chapterSummary、trace、relatedPassage\n- confidence：low、medium 或 high\n- shouldShow：布尔值，只有确信值得展示才为 true\n- comment：写给读者的批注评论，要体现 moveType，不要写“这段说明了”式摘要\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n选择标准：优先选择会改变理解、暴露前提、连接前文、提出好问题或标记结构的位置；没有价值返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 retrieved_evidence、segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- prefix：exact 前方 10-40 个字，来自 currentSegment 原文\n- suffix：exact 后方 10-40 个字，来自 currentSegment 原文\n- type：只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType：只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- whyHere：说明为什么这一个位置值得批注，避免泛泛摘要\n- evidenceUsed：数组，只能包含 localText、chapterSummary、trace、relatedPassage\n- confidence：low、medium 或 high\n- shouldShow：布尔值，只有确信值得展示才为 true\n- comment：写给读者的批注评论，要体现 moveType，不要写“这段说明了”式摘要\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n选择标准：优先选择会改变理解、暴露前提、连接前文、提出好问题或标记结构的位置；没有价值返回空数组。\n\n只返回 JSON，不要输出 Markdown。`;
 }
 
 function buildAgentSegmentAnnotateStreamPrompt(
@@ -665,7 +666,7 @@ function buildAgentSegmentAnnotateStreamPrompt(
     readingIntent: task.planItem.readingIntent || payload.readingIntent,
   };
   const density = task.targetDensity || agent.annotationDensity;
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"currentSegment 中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","moveType":"explain_concept","whyHere":"为什么选这里","evidenceUsed":["localText"],"confidence":"high","shouldShow":true,"comment":"写给读者的批注评论"}\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n要求：\n- exact 必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- type 只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType 只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- evidenceUsed 只能包含 localText、chapterSummary、trace、relatedPassage\n- 每发现一条值得批注的内容，就立刻输出一行 JSON；没有价值可以不输出任何行\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${segmentAnnotationContextPrompt(task)}${readingIntentPromptLine(promptPayload)}${instructionPromptLine(payload)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"currentSegment 中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","moveType":"explain_concept","whyHere":"为什么选这里","evidenceUsed":["localText"],"confidence":"high","shouldShow":true,"comment":"写给读者的批注评论"}\n\n批注密度：${annotationDensityInstruction(density, task.context.currentSegment.text)}\n\n要求：\n- exact 必须来自 currentSegment 的 allowedAnchorRange.coreParagraphIds，逐字一致，不能来自 retrieved_evidence、segment_memory、segment_trace、next_preview、chapter_trace 或 dedup\n- type 只允许 key_point、assumption、concept、question、quote\n- readingIntent：章节 readingIntent 有值时必须等于该值；否则从 explain、decompose、challenge、question、connect 中选择\n- moveType 只允许 explain_concept、surface_assumption、ask_question、connect_previous、challenge_argument、reader_application、style_observation、structure_marker、definition_watch、foreshadowing_watch\n- evidenceUsed 只能包含 localText、chapterSummary、trace、relatedPassage\n- 每发现一条值得批注的内容，就立刻输出一行 JSON；没有价值可以不输出任何行\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
 }
 
 function segmentAnnotationOutputLimit(agent: Agent, task: SegmentAnnotationTask) {
@@ -964,26 +965,71 @@ function targetAnchorSuggestion(payload: AgentAnnotatePayload) {
 }
 
 function buildAgentMessageContextBundle(payload: AgentMessagePayload) {
+  const spoilerPolicy =
+    payload.spoilerPolicy ||
+    (payload.article.ebookIndex ? selectionThreadSpoilerPolicy : wholeBookSpoilerPolicy);
   return buildReadingContextBundle({
     articleText: payload.article.text,
     ebookIndex: payload.article.ebookIndex,
     targetAnchor: payload.annotation.anchor,
     readerProgress: payload.readerProgress,
-    spoilerPolicy:
-      payload.spoilerPolicy ||
-      (payload.article.ebookIndex ? selectionThreadSpoilerPolicy : wholeBookSpoilerPolicy),
+    spoilerPolicy,
+    relatedPassages: agentMessageRelatedPassages(payload, spoilerPolicy),
   });
 }
 
 function buildAgentAnnotateContextBundle(payload: AgentAnnotatePayload) {
+  const spoilerPolicy =
+    payload.spoilerPolicy || (payload.article.ebookIndex ? undefined : wholeBookSpoilerPolicy);
   return buildReadingContextBundle({
     articleText: payload.article.text,
     ebookIndex: payload.article.ebookIndex,
     targetAnchor: payload.targetAnchor,
     readingPlan: payload.readingPlan,
     readerProgress: payload.readerProgress,
-    spoilerPolicy:
-      payload.spoilerPolicy || (payload.article.ebookIndex ? undefined : wholeBookSpoilerPolicy),
+    spoilerPolicy,
+    relatedPassages: agentAnnotateRelatedPassages(payload, spoilerPolicy),
+  });
+}
+
+function agentMessageRelatedPassages(
+  payload: AgentMessagePayload,
+  spoilerPolicy: ReadingContextBundle['spoilerPolicy'],
+) {
+  const index = payload.article.ebookIndex;
+  if (!index) return [];
+  return buildCurrentChapterLexicalRelatedPassages({
+    articleText: payload.article.text,
+    ebookIndex: index,
+    query: [payload.annotation.anchor.exact, payload.userComment.content],
+    targetAnchor: payload.annotation.anchor,
+    readerProgress: payload.readerProgress,
+    spoilerPolicy,
+    excludeParagraphIds: [payload.annotation.anchor.paragraphId].filter((id): id is string =>
+      Boolean(id),
+    ),
+    maxPassages: 4,
+    neighborParagraphs: 1,
+  });
+}
+
+function agentAnnotateRelatedPassages(
+  payload: AgentAnnotatePayload,
+  spoilerPolicy: ReadingContextBundle['spoilerPolicy'] | undefined,
+) {
+  const index = payload.article.ebookIndex;
+  const targetAnchor = payload.targetAnchor;
+  if (!index || !targetAnchor) return [];
+  return buildCurrentChapterLexicalRelatedPassages({
+    articleText: payload.article.text,
+    ebookIndex: index,
+    query: [targetAnchor.exact, payload.instruction || ''],
+    targetAnchor,
+    readerProgress: payload.readerProgress,
+    spoilerPolicy,
+    excludeParagraphIds: [targetAnchor.paragraphId].filter((id): id is string => Boolean(id)),
+    maxPassages: 3,
+    neighborParagraphs: 1,
   });
 }
 

@@ -8,6 +8,7 @@ import type {
   EpubChapterIndex,
   EpubSegmentIndex,
   ReadingMemory,
+  ReaderProgress,
   ReadingTrace,
   SegmentAnnotationContext,
   SegmentMemory,
@@ -15,8 +16,15 @@ import type {
   TextSummary,
   TextRange,
 } from '@yomitomo/shared';
-import type { CreateAgentAnnotationOptions } from '@yomitomo/core';
+import {
+  buildCurrentChapterLexicalRelatedPassages,
+  buildReadingContextBundle,
+  segmentAnnotationSpoilerPolicy,
+  type CreateAgentAnnotationOptions,
+  type ReadingContextPassageInput,
+} from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
+import { relatedPassagesFromReadingContext } from './related-passages';
 
 const SEGMENT_CONTEXT_TOKEN_BUDGET = 9000;
 const SEGMENT_TEXT_CHAR_LIMIT = 6500;
@@ -131,7 +139,7 @@ export function segmentAnnotationContextPrompt(task: SegmentAnnotationTask) {
     },
     null,
     2,
-  )}\n\nsegment-level 规则：\n- currentSegment 是本次唯一可落锚原文；exact 必须来自 allowedAnchorRange.coreParagraphIds 覆盖的 current segment 文本。\n- segment_memory、segment_trace、next_preview 和 chapter_trace 是辅助阅读记忆，不能从这些块里选 exact。\n- 涉及作者观点、跨章节判断、关键概念出处时，必须由 currentSegment 原文支撑；summary/trace 不能当作原文事实证据。\n- dedup 块用于避免重复选点、重复 moveType 和相邻批注。\n- 没有足够讨论价值时返回空结果。`;
+  )}\n\nsegment-level 规则：\n- currentSegment 是本次唯一可落锚原文；exact 必须来自 allowedAnchorRange.coreParagraphIds 覆盖的 current segment 文本。\n- retrieved_evidence、segment_memory、segment_trace、next_preview 和 chapter_trace 是辅助阅读记忆，不能从这些块里选 exact。\n- 涉及作者观点、跨章节判断、关键概念出处时，必须由 currentSegment 原文支撑；summary/trace 不能当作原文事实证据，relatedPassage 也只能作为辅助检索线索。\n- dedup 块用于避免重复选点、重复 moveType 和相邻批注。\n- 没有足够讨论价值时返回空结果。`;
 }
 
 function buildSegmentAnnotationContext(input: {
@@ -147,6 +155,22 @@ function buildSegmentAnnotationContext(input: {
   const { payload, agent, index, planItem, chapter, segment, visibleRange, allowedParagraphIds } =
     input;
   const dedupAnnotations = nearbyDedupAnnotations(payload.annotations || [], chapter, visibleRange);
+  const readerProgress = segmentReaderProgress(index, chapter, segment, visibleRange);
+  const readingContext = buildReadingContextBundle({
+    articleText: payload.article.text,
+    ebookIndex: index,
+    readerProgress,
+    spoilerPolicy: payload.spoilerPolicy || segmentAnnotationSpoilerPolicy,
+    relatedPassages: segmentRelatedPassages(
+      payload,
+      index,
+      planItem,
+      chapter,
+      segment,
+      visibleRange,
+      readerProgress,
+    ),
+  });
 
   return {
     task: 'chapter_segment_annotation',
@@ -162,14 +186,7 @@ function buildSegmentAnnotationContext(input: {
       chapterId: chapter.id,
       segmentId: segment.id,
       textRange: visibleRange,
-      readerProgress: {
-        currentChapterId: chapter.id,
-        currentSegmentId: segment.id,
-        readChapterIds: index.chapters
-          .filter((item) => item.indexInBook < chapter.indexInBook)
-          .map((item) => item.id),
-        readUntilTextOffset: visibleRange.textEnd,
-      },
+      readerProgress,
     },
     agent: {
       agentId: agent.id,
@@ -181,6 +198,7 @@ function buildSegmentAnnotationContext(input: {
       maxTokens: SEGMENT_CONTEXT_TOKEN_BUDGET,
       blockTypeOrder: [
         'segment',
+        'retrieved_evidence',
         'segment_memory',
         'segment_trace',
         'next_preview',
@@ -188,6 +206,7 @@ function buildSegmentAnnotationContext(input: {
         'dedup',
       ],
       reserveTokensByType: {
+        retrieved_evidence: 1200,
         segment_memory: 800,
         segment_trace: 700,
         next_preview: 500,
@@ -196,13 +215,10 @@ function buildSegmentAnnotationContext(input: {
       },
     },
     evidencePolicy: {
-      spoilerPolicy: payload.spoilerPolicy || {
-        allowedScope: 'read-so-far',
-        allowFutureChapterEvidence: false,
-        allowFuturePlotEvents: false,
-      },
+      spoilerPolicy: readingContext.spoilerPolicy,
       allowedSourceTypes: [
         'segment',
+        'retrieved_evidence',
         'segment_memory',
         'segment_trace',
         'next_preview',
@@ -222,6 +238,7 @@ function buildSegmentAnnotationContext(input: {
         source: 'epub-index',
       },
     },
+    retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
     previousMemory: previousSegmentMemory(
       index,
       payload.article.text,
@@ -249,6 +266,52 @@ function buildSegmentAnnotationContext(input: {
         source: 'nearby-annotations',
       },
     },
+  };
+}
+
+function segmentRelatedPassages(
+  payload: AgentAnnotatePayload,
+  index: EpubBookIndex,
+  planItem: AgentReadingPlanItem,
+  chapter: EpubChapterIndex,
+  segment: EpubSegmentIndex,
+  visibleRange: TextRange,
+  readerProgress: ReaderProgress,
+): ReadingContextPassageInput[] {
+  const query = [
+    payload.article.text.slice(visibleRange.textStart, visibleRange.textEnd),
+    planItem.sectionSummary || '',
+    planItem.sectionTag || '',
+    ...(planItem.messages || []).map((message) => message.content),
+  ];
+  const passages = buildCurrentChapterLexicalRelatedPassages({
+    articleText: payload.article.text,
+    ebookIndex: index,
+    query,
+    chapterId: chapter.id,
+    segmentId: segment.id,
+    readerProgress,
+    spoilerPolicy: payload.spoilerPolicy || segmentAnnotationSpoilerPolicy,
+    excludeParagraphIds: segment.paragraphIds,
+    maxPassages: 3,
+    neighborParagraphs: 1,
+  });
+  return passages;
+}
+
+function segmentReaderProgress(
+  index: EpubBookIndex,
+  chapter: EpubChapterIndex,
+  segment: EpubSegmentIndex,
+  visibleRange: TextRange,
+): ReaderProgress {
+  return {
+    currentChapterId: chapter.id,
+    currentSegmentId: segment.id,
+    readChapterIds: index.chapters
+      .filter((item) => item.indexInBook < chapter.indexInBook)
+      .map((item) => item.id),
+    readUntilTextOffset: visibleRange.textEnd,
   };
 }
 

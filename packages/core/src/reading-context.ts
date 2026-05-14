@@ -4,6 +4,7 @@ import type {
   EpubChapterIndex,
   EpubSegmentIndex,
   ReaderProgress,
+  RelatedPassageInput,
   SpoilerPolicy,
   TextAnchor,
 } from '@yomitomo/shared';
@@ -39,15 +40,7 @@ export type ReadingContextTextRange = {
   textEnd: number;
 };
 
-export type ReadingContextPassageInput = {
-  id?: string;
-  title?: string;
-  text: string;
-  textStart?: number;
-  textEnd?: number;
-  chapterId?: string;
-  segmentId?: string;
-};
+export type ReadingContextPassageInput = RelatedPassageInput;
 
 export type ReadingContextChapterSummaryInput = {
   chapterId: string;
@@ -326,6 +319,10 @@ function passageRange(
   const textEnd = integerValue(passage.textEnd);
   if (textStart !== null && textEnd !== null && textEnd > textStart) return { textStart, textEnd };
 
+  if (passage.paragraphId) {
+    const paragraph = index.paragraphs.find((item) => item.id === passage.paragraphId);
+    if (paragraph) return { textStart: paragraph.textStart, textEnd: paragraph.textEnd };
+  }
   if (passage.segmentId) {
     const segment = index.segments.find((item) => item.id === passage.segmentId);
     if (segment) return { textStart: segment.textStart, textEnd: segment.textEnd };
@@ -342,6 +339,10 @@ function passageAllowedByIds(
   allowedRanges: ReadingContextTextRange[],
   passage: ReadingContextPassageInput,
 ) {
+  if (passage.paragraphId) {
+    const paragraph = index.paragraphs.find((item) => item.id === passage.paragraphId);
+    return paragraph ? rangeFullyCovered(paragraph, allowedRanges) : false;
+  }
   if (passage.segmentId) {
     const segment = index.segments.find((item) => item.id === passage.segmentId);
     return segment ? rangeFullyCovered(segment, allowedRanges) : false;
