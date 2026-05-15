@@ -297,4 +297,10 @@ ALTER TABLE annotations ADD COLUMN confidence TEXT;
 ALTER TABLE annotations ADD COLUMN should_show INTEGER;
 `,
   },
+  {
+    id: '0026_provider_api_key_ref',
+    sql: `
+ALTER TABLE providers ADD COLUMN api_key_ref TEXT;
+`,
+  },
 ];

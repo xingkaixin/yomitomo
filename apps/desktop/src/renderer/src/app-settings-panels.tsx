@@ -1516,7 +1516,7 @@ export function ProviderForm({
   async function fetchModels() {
     const fallbackModels = selectedPreset?.modelNames || [];
     if (!window.yomitomoDesktop) return;
-    if (!draft.apiKey?.trim()) {
+    if (!draft.apiKey?.trim() && !draft.hasApiKey) {
       setModelError('');
       setModelNotice(
         fallbackModels.length > 0
@@ -1724,8 +1724,10 @@ export function ProviderForm({
       <Field id="provider-api-key" className="col-span-2" label="API Key">
         <SecretInput
           id="provider-api-key"
+          hasStoredValue={Boolean(draft.hasApiKey)}
           value={draft.apiKey || ''}
-          onChange={(apiKey) => onChange({ ...draft, apiKey })}
+          onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
+          onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
         />
       </Field>
       {showReasoning ? (
@@ -1969,36 +1971,49 @@ function ColorPicker({
 }
 
 function SecretInput({
+  hasStoredValue,
   id,
   value,
   onChange,
+  onRemove,
 }: {
+  hasStoredValue?: boolean;
   id: string;
   value: string;
   onChange: (value: string) => void;
+  onRemove: () => void;
 }) {
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="relative">
-      <Input
-        id={id}
-        className="pr-12"
-        name={id}
-        autoComplete="off"
-        spellCheck={false}
-        type={visible ? 'text' : 'password'}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <button
-        className="secret-toggle"
-        type="button"
-        aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
-        onClick={() => setVisible((next) => !next)}
-      >
-        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-      </button>
+    <div className="secret-input">
+      <div className="relative">
+        <Input
+          id={id}
+          className="pr-12"
+          name={id}
+          autoComplete="off"
+          placeholder={hasStoredValue ? '已安全保存，输入新 Key 会覆盖' : undefined}
+          spellCheck={false}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <button
+          className="secret-toggle"
+          type="button"
+          aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
+          onClick={() => setVisible((next) => !next)}
+        >
+          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+      {hasStoredValue && !value ? (
+        <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
+          <Trash2 size={14} />
+          移除已保存的 Key
+        </Button>
+      ) : null}
     </div>
   );
 }

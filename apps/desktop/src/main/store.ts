@@ -55,6 +55,12 @@ import { agentPersonalities } from '@yomitomo/shared';
 import { presetAgentAvatars } from './agent-avatars';
 import { migrations } from './db/migrations';
 import * as schema from './db/schema';
+import {
+  deleteProviderApiKey,
+  providerApiKeyRef,
+  readProviderApiKey,
+  saveProviderApiKey,
+} from './provider-secrets';
 
 const DB_FILE_NAME = 'yomitomo.sqlite';
 
@@ -79,6 +85,7 @@ const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'de
 
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: BetterSQLite3Database<typeof schema> | null = null;
+let providerSecretsMigrated = false;
 type StoreDatabase = BetterSQLite3Database<typeof schema>;
 type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (tx: infer T) => unknown
   ? T
@@ -131,6 +138,45 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
   }
 }
 
+async function migrateProviderApiKeys(database: StoreDatabase) {
+  if (providerSecretsMigrated) return;
+
+  const providerRows = database.select().from(schema.providers).all();
+  let migrated = false;
+  for (const provider of providerRows) {
+    const apiKey = provider.apiKey.trim();
+    if (!apiKey) continue;
+
+    let apiKeyRef: string;
+    try {
+      apiKeyRef = await saveProviderApiKey(provider.id, apiKey);
+    } catch {
+      continue;
+    }
+    database
+      .update(schema.providers)
+      .set({ apiKey: '', apiKeyRef })
+      .where(eq(schema.providers.id, provider.id))
+      .run();
+    migrated = true;
+  }
+
+  if (migrated) {
+    try {
+      purgeLegacyProviderApiKeysFromSqliteFiles();
+    } catch {
+      // SQLite cleanup failure should not block state reads.
+    }
+  }
+  providerSecretsMigrated = true;
+}
+
+function purgeLegacyProviderApiKeysFromSqliteFiles() {
+  if (!sqlite) return;
+  sqlite.pragma('wal_checkpoint(TRUNCATE)');
+  sqlite.exec('VACUUM');
+}
+
 function seedDefaultStore(database: StoreDatabase) {
   const hasUser = database
     .select({ id: schema.userProfiles.id })
@@ -143,13 +189,48 @@ function seedDefaultStore(database: StoreDatabase) {
 }
 
 export async function readStore(): Promise<DesktopStore> {
-  return readStoreRows(getDatabase());
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  return readStoreRows(database);
 }
 
 export async function writeStore(store: DesktopStore): Promise<DesktopStore> {
   const normalized = normalizeStore(store);
-  writeStoreRows(getDatabase(), normalized);
-  return normalized;
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  writeStoreRows(database, normalized);
+  return readStore();
+}
+
+export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmProvider> {
+  const apiKey =
+    provider.apiKey?.trim() ||
+    (await readProviderApiKey(provider.id)) ||
+    readLegacyProviderApiKey(provider.id);
+  if (!apiKey) throw new Error(`请先为供应商「${provider.name}」配置 API Key`);
+  return { ...provider, apiKey };
+}
+
+export async function hydrateProviderInputApiKey(
+  provider: Partial<LlmProvider>,
+): Promise<Partial<LlmProvider>> {
+  const apiKey =
+    provider.apiKey?.trim() ||
+    (provider.id
+      ? (await readProviderApiKey(provider.id)) || readLegacyProviderApiKey(provider.id)
+      : '');
+  return { ...provider, apiKey };
+}
+
+function readLegacyProviderApiKey(providerId: string) {
+  return (
+    getDatabase()
+      .select({ apiKey: schema.providers.apiKey })
+      .from(schema.providers)
+      .where(eq(schema.providers.id, providerId))
+      .get()
+      ?.apiKey.trim() || ''
+  );
 }
 
 export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStore> {
@@ -181,7 +262,11 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   return readStore();
 }
 
-export async function saveProvider(input: Partial<LlmProvider>): Promise<DesktopStore> {
+type SaveProviderInput = Partial<LlmProvider> & {
+  removeApiKey?: boolean;
+};
+
+export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {
   const store = await readStore();
   const now = new Date().toISOString();
   const existing = input.id
@@ -192,8 +277,25 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     (existing ? undefined : defaultProviderPreset);
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
+  const id = existing?.id || makeId('provider');
+  const existingRow = input.id
+    ? getDatabase().select().from(schema.providers).where(eq(schema.providers.id, input.id)).get()
+    : undefined;
+  const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
+  const legacyApiKey = existingRow?.apiKey.trim() || '';
+  const inputApiKey = input.apiKey?.trim();
+  const apiKeyRef = inputApiKey
+    ? await saveProviderApiKey(id, inputApiKey)
+    : input.removeApiKey
+      ? existingApiKeyRef
+        ? await removeProviderApiKey(id, existingApiKeyRef)
+        : undefined
+      : existingApiKeyRef
+        ? existingApiKeyRef
+        : undefined;
+  const storedApiKey = inputApiKey || input.removeApiKey || apiKeyRef ? '' : legacyApiKey;
   const provider: LlmProvider = {
-    id: existing?.id || makeId('provider'),
+    id,
     name: input.name?.trim() || preset?.name || 'Untitled Provider',
     type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'openai-chat',
     presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
@@ -204,7 +306,8 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
       preset?.baseUrl ||
       defaultProviderPreset?.baseUrl ||
       'https://api.deepseek.com',
-    apiKey: input.apiKey?.trim() || existing?.apiKey || '',
+    apiKey: '',
+    hasApiKey: Boolean(apiKeyRef || storedApiKey),
     modelName:
       input.modelName?.trim() ||
       existing?.modelName ||
@@ -224,11 +327,17 @@ export async function saveProvider(input: Partial<LlmProvider>): Promise<Desktop
     updatedAt: now,
   };
 
-  upsertProvider(getDatabase(), provider);
+  upsertProvider(getDatabase(), provider, apiKeyRef, storedApiKey);
   return readStore();
 }
 
+async function removeProviderApiKey(providerId: string, apiKeyRef?: string) {
+  await deleteProviderApiKey(providerId, apiKeyRef);
+  return undefined;
+}
+
 export async function deleteProvider(id: string): Promise<DesktopStore> {
+  await deleteProviderApiKey(id);
   const database = getDatabase();
   database.transaction((tx) => {
     const settings = tx.select().from(schema.appSettings).limit(1).get();
@@ -515,7 +624,8 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
       presetId: normalizePresetId(row.presetId || undefined),
       logo: row.logo || undefined,
       baseUrl: row.baseUrl,
-      apiKey: row.apiKey,
+      apiKey: '',
+      hasApiKey: Boolean(row.apiKeyRef || row.apiKey),
       modelName: row.modelName,
       modelNames: normalizeModelNames(row.modelNames) || undefined,
       modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
@@ -581,7 +691,8 @@ function writeStoreRows(database: StoreDatabase, store: DesktopStore) {
 
     upsertUser(tx, store.user);
     upsertSettings(tx, store.settings);
-    for (const provider of store.providers) upsertProvider(tx, provider);
+    for (const provider of store.providers)
+      upsertProvider(tx, provider, provider.hasApiKey ? providerApiKeyRef(provider.id) : undefined);
     for (const agent of store.agents) upsertAgent(tx, agent);
     for (const article of store.articles) writeArticleRows(tx, article);
   });
@@ -798,7 +909,12 @@ function settingsFieldProvided(settings: AppSettings, field: keyof AppSettings) 
   return Object.prototype.hasOwnProperty.call(settings, field);
 }
 
-function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
+function upsertProvider(
+  database: StoreExecutor,
+  provider: LlmProvider,
+  apiKeyRef?: string,
+  apiKey = '',
+) {
   database
     .insert(schema.providers)
     .values({
@@ -808,7 +924,8 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
       presetId: provider.presetId,
       logo: provider.logo,
       baseUrl: provider.baseUrl,
-      apiKey: provider.apiKey,
+      apiKey,
+      apiKeyRef: apiKeyRef || null,
       modelName: provider.modelName,
       modelNames: provider.modelNames,
       modelInputMode: provider.modelInputMode,
@@ -824,7 +941,8 @@ function upsertProvider(database: StoreExecutor, provider: LlmProvider) {
         presetId: provider.presetId,
         logo: provider.logo,
         baseUrl: provider.baseUrl,
-        apiKey: provider.apiKey,
+        apiKey,
+        apiKeyRef: apiKeyRef || null,
         modelName: provider.modelName,
         modelNames: provider.modelNames,
         modelInputMode: provider.modelInputMode,

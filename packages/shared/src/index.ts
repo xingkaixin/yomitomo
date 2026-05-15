@@ -152,6 +152,7 @@ export type LlmProvider = {
   logo?: string;
   baseUrl: string;
   apiKey: string;
+  hasApiKey?: boolean;
   modelName: string;
   modelNames?: string[];
   modelInputMode?: ProviderModelInputMode;

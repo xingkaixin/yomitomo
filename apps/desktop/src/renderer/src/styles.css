@@ -9905,6 +9905,15 @@
   transform: translateY(-50%) scale(0.96);
 }
 
+.secret-input {
+  display: grid;
+  gap: 8px;
+}
+
+.secret-remove {
+  justify-self: start;
+}
+
 .avatar-picker {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

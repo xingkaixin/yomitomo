@@ -22,6 +22,14 @@ describe('provider defaults', () => {
       providerDraftHasChanges({ ...currentProvider, reasoningEffort: 'none' }, currentProvider),
     ).toBe(false);
   });
+
+  it('treats a typed api key as a provider change', () => {
+    expect(providerDraftHasChanges({ ...provider(), apiKey: 'new-key' }, provider())).toBe(true);
+  });
+
+  it('treats api key removal as a provider change', () => {
+    expect(providerDraftHasChanges({ ...provider(), removeApiKey: true }, provider())).toBe(true);
+  });
 });
 
 function provider(): LlmProvider {
@@ -30,7 +38,8 @@ function provider(): LlmProvider {
     name: 'Provider',
     type: 'openai-chat',
     baseUrl: 'https://example.test',
-    apiKey: 'key',
+    apiKey: '',
+    hasApiKey: true,
     modelName: 'model',
     createdAt: '2026-05-10T00:00:00.000Z',
     updatedAt: '2026-05-10T00:00:00.000Z',

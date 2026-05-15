@@ -116,6 +116,59 @@ describe('ProviderForm', () => {
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
   });
+
+  it('can fetch models with a stored api key without revealing it', async () => {
+    const listProviderModels = vi.fn().mockResolvedValue([{ id: 'claude-sonnet-4-5' }]);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        listProviderModels,
+      },
+    });
+
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          id: 'provider_1',
+          apiKey: '',
+          hasApiKey: true,
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const apiKeyInput = screen.getByLabelText('API Key') as HTMLInputElement;
+    expect(apiKeyInput.value).toBe('');
+    expect(apiKeyInput.placeholder).toBe('已安全保存，输入新 Key 会覆盖');
+
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+
+    expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
+    expect(listProviderModels).toHaveBeenCalledWith(expect.objectContaining({ hasApiKey: true }));
+  });
+
+  it('marks a stored api key for removal', () => {
+    const onChange = vi.fn();
+
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          id: 'provider_1',
+          apiKey: '',
+          hasApiKey: true,
+        }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '移除已保存的 Key' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ apiKey: '', hasApiKey: false, removeApiKey: true }),
+    );
+  });
 });
 
 describe('ProviderSettings', () => {
@@ -173,7 +226,8 @@ function makeProvider(id: string, name: string): LlmProvider {
     presetId: 'anthropic',
     logo: 'anthropic.png',
     baseUrl: 'https://api.anthropic.com',
-    apiKey: 'sk-test',
+    apiKey: '',
+    hasApiKey: true,
     modelName: 'claude-sonnet-4-5',
     modelInputMode: 'list',
     reasoningEffort: 'none',
