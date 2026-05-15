@@ -2,7 +2,13 @@ import { Buffer } from 'node:buffer';
 import { basename, dirname } from 'node:path/posix';
 import { JSDOM } from 'jsdom';
 import JSZip from 'jszip';
-import { buildEpubBookIndex, epubIndexText, type EpubBookIndexChapterInput } from '@yomitomo/core';
+import {
+  buildEpubBookIndex,
+  epubIndexText,
+  performanceElapsedMs,
+  performanceStart,
+  type EpubBookIndexChapterInput,
+} from '@yomitomo/core';
 import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
 import { hashText, type ArticleRecord, type EbookChapterRecord } from '@yomitomo/shared';
 
@@ -15,6 +21,10 @@ export type EbookImportFileInput = {
   fileName: string;
   mimeType?: string;
   data: ArrayBuffer;
+};
+
+export type EbookImportOptions = {
+  performanceLogger?: (event: string, data?: Record<string, unknown>) => void;
 };
 
 type ManifestItem = {
@@ -49,21 +59,77 @@ type ImportedEbookChapter = EbookChapterRecord & {
   paragraphs: string[];
 };
 
+type InlineChapterImagesMetrics = {
+  imageElementCount: number;
+  inlinedImageCount: number;
+  inlinedImageDataChars: number;
+};
+
 export async function articleRecordFromEpubFile(
   input: EbookImportFileInput,
+  options: EbookImportOptions = {},
 ): Promise<ArticleRecord> {
+  const importStartedAt = performanceStart();
   const fileName = input.fileName.trim() || 'Untitled.epub';
   const fileSize = input.data.byteLength;
   if (!isEpubFile(fileName, input.mimeType)) throw new Error('请选择 EPUB 文件');
   if (fileSize > MAX_EPUB_BYTES) throw new Error('EPUB 文件不能超过 80MB');
 
+  const zipStartedAt = performanceStart();
   const zip = await JSZip.loadAsync(Buffer.from(input.data));
+  logEpubImportTiming(options.performanceLogger, 'zip', zipStartedAt, {
+    fileName,
+    fileSize,
+    zipEntryCount: Object.keys(zip.files).length,
+  });
+
+  const packageStartedAt = performanceStart();
   const epub = await readEpubPackage(zip);
+  logEpubImportTiming(options.performanceLogger, 'package', packageStartedAt, {
+    fileName,
+    fileSize,
+    manifestItemCount: epub.manifest.length,
+    spineItemCount: epub.spineIds.length,
+    titleChars: epub.title.length,
+  });
+
+  const titlesStartedAt = performanceStart();
   const chapterTitleByPath = await readChapterTitles(zip, epub);
-  const importedChapters = await readEpubChapters(zip, epub, chapterTitleByPath);
+  logEpubImportTiming(options.performanceLogger, 'chapter_titles', titlesStartedAt, {
+    fileName,
+    fileSize,
+    titleCount: chapterTitleByPath.size,
+  });
+
+  const chaptersStartedAt = performanceStart();
+  const importedChapters = await readEpubChapters(
+    zip,
+    epub,
+    chapterTitleByPath,
+    options.performanceLogger,
+  );
+  logEpubImportTiming(options.performanceLogger, 'chapters', chaptersStartedAt, {
+    fileName,
+    fileSize,
+    chapterCount: importedChapters.length,
+    paragraphCount: importedChapters.reduce(
+      (count, chapter) => count + chapter.paragraphs.length,
+      0,
+    ),
+    textChars: importedChapters.reduce((count, chapter) => count + chapter.textLength, 0),
+  });
   if (importedChapters.length === 0) throw new Error('EPUB 中没有可读取章节');
 
+  const coverStartedAt = performanceStart();
   const cover = await readCoverImage(zip, epub);
+  logEpubImportTiming(options.performanceLogger, 'cover', coverStartedAt, {
+    fileName,
+    fileSize,
+    hasCover: Boolean(cover),
+    coverDataChars: cover?.length || 0,
+  });
+
+  const indexStartedAt = performanceStart();
   const chapters = importedChapters.map(ebookChapterRecord);
   const indexChapters = importedChapters.map<EpubBookIndexChapterInput>((chapter) => ({
     id: chapter.id,
@@ -75,7 +141,29 @@ export async function articleRecordFromEpubFile(
   const contentHash = hashText(fullText.slice(0, 12000));
   const id = hashText(`ebook:${epub.title}:${epub.creator || ''}:${contentHash}`);
   const index = buildEpubBookIndex({ articleId: id, chapters: indexChapters });
+  const contentHtml = chaptersToArticleHtml(chapters);
+  logEpubImportTiming(options.performanceLogger, 'index', indexStartedAt, {
+    fileName,
+    fileSize,
+    chapterCount: chapters.length,
+    paragraphCount: index.paragraphs.length,
+    segmentCount: index.segments.length,
+    textChars: fullText.length,
+    contentHtmlChars: contentHtml.length,
+  });
+
   const now = new Date().toISOString();
+  logEpubImportTiming(options.performanceLogger, 'total', importStartedAt, {
+    fileName,
+    fileSize,
+    chapterCount: chapters.length,
+    paragraphCount: index.paragraphs.length,
+    segmentCount: index.segments.length,
+    textChars: fullText.length,
+    zipEntryCount: Object.keys(zip.files).length,
+    manifestItemCount: epub.manifest.length,
+    spineItemCount: epub.spineIds.length,
+  });
 
   return {
     id,
@@ -87,7 +175,7 @@ export async function articleRecordFromEpubFile(
     excerpt: epub.description,
     siteName: '电子书',
     leadImageUrl: cover,
-    contentHtml: chaptersToArticleHtml(chapters),
+    contentHtml,
     contentHash,
     ebook: {
       metadata: {
@@ -109,6 +197,18 @@ export async function articleRecordFromEpubFile(
 
 function isEpubFile(fileName: string, mimeType: string | undefined) {
   return fileName.toLowerCase().endsWith('.epub') || mimeType === EPUB_MIME;
+}
+
+function logEpubImportTiming(
+  logger: EbookImportOptions['performanceLogger'],
+  phase: string,
+  startedAt: number,
+  data: Record<string, unknown> = {},
+) {
+  logger?.(`performance.epub_import.${phase}`, {
+    elapsedMs: performanceElapsedMs(startedAt),
+    ...data,
+  });
 }
 
 async function readEpubPackage(zip: JSZip): Promise<EpubPackage> {
@@ -220,30 +320,82 @@ async function readEpubChapters(
   zip: JSZip,
   epub: EpubPackage,
   chapterTitleByPath: Map<string, string>,
+  performanceLogger: EbookImportOptions['performanceLogger'],
 ): Promise<ImportedEbookChapter[]> {
   const manifestById = new Map(epub.manifest.map((item) => [item.id, item]));
   const chapters: ImportedEbookChapter[] = [];
 
-  for (const idref of epub.spineIds) {
+  for (let spineIndex = 0; spineIndex < epub.spineIds.length; spineIndex += 1) {
+    const chapterStartedAt = performanceStart();
+    const idref = epub.spineIds[spineIndex];
     const item = manifestById.get(idref);
     if (!item || !XHTML_TYPES.has(item.mediaType)) continue;
     const text = await zipText(zip, item.path);
     if (!text) continue;
 
+    const parseStartedAt = performanceStart();
     const dom = parseLooseMarkupDom(text);
+    const parseMs = performanceElapsedMs(parseStartedAt);
     try {
-      await inlineChapterImages(dom.window.document, zip, item.path, epub.manifest);
-      if (isTocSpineItem(dom.window.document, item, epub)) continue;
+      const imagesStartedAt = performanceStart();
+      const imageMetrics = await inlineChapterImages(
+        dom.window.document,
+        zip,
+        item.path,
+        epub.manifest,
+      );
+      const inlineImagesMs = performanceElapsedMs(imagesStartedAt);
+
+      const tocStartedAt = performanceStart();
+      const isToc = isTocSpineItem(dom.window.document, item, epub);
+      const tocCheckMs = performanceElapsedMs(tocStartedAt);
+      if (isToc) {
+        logEpubImportTiming(performanceLogger, 'chapter', chapterStartedAt, {
+          result: 'skipped_toc',
+          spineIndex,
+          path: item.path,
+          href: item.href,
+          sourceChars: text.length,
+          parseMs,
+          inlineImagesMs,
+          tocCheckMs,
+          ...imageMetrics,
+        });
+        continue;
+      }
       const body = dom.window.document.body || dom.window.document.documentElement;
       const rawHtml = body?.innerHTML || '';
+      const sanitizeStartedAt = performanceStart();
       const html = sanitizeArticleContentHtml(
         dom.window.document,
         rawHtml,
         `https://ebook.local/${item.path}`,
       );
+      const sanitizeMs = performanceElapsedMs(sanitizeStartedAt);
+
+      const paragraphsStartedAt = performanceStart();
       const paragraphs = chapterParagraphs(html);
+      const paragraphsMs = performanceElapsedMs(paragraphsStartedAt);
       const textLength = paragraphs.join('\n\n').length;
-      if (textLength === 0) continue;
+      if (textLength === 0) {
+        logEpubImportTiming(performanceLogger, 'chapter', chapterStartedAt, {
+          result: 'skipped_empty_text',
+          spineIndex,
+          path: item.path,
+          href: item.href,
+          sourceChars: text.length,
+          rawHtmlChars: rawHtml.length,
+          sanitizedHtmlChars: html.length,
+          paragraphCount: paragraphs.length,
+          parseMs,
+          inlineImagesMs,
+          tocCheckMs,
+          sanitizeMs,
+          paragraphsMs,
+          ...imageMetrics,
+        });
+        continue;
+      }
       chapters.push({
         id: `chapter-${chapters.length + 1}`,
         href: item.href,
@@ -254,6 +406,24 @@ async function readEpubChapters(
         html,
         paragraphs,
         textLength,
+      });
+      logEpubImportTiming(performanceLogger, 'chapter', chapterStartedAt, {
+        result: 'imported',
+        spineIndex,
+        chapterId: `chapter-${chapters.length}`,
+        path: item.path,
+        href: item.href,
+        sourceChars: text.length,
+        rawHtmlChars: rawHtml.length,
+        sanitizedHtmlChars: html.length,
+        paragraphCount: paragraphs.length,
+        textChars: textLength,
+        parseMs,
+        inlineImagesMs,
+        tocCheckMs,
+        sanitizeMs,
+        paragraphsMs,
+        ...imageMetrics,
       });
     } finally {
       dom.window.close();
@@ -306,20 +476,34 @@ async function inlineChapterImages(
   chapterPath: string,
   manifest: ManifestItem[],
 ) {
+  const metrics: InlineChapterImagesMetrics = {
+    imageElementCount: 0,
+    inlinedImageCount: 0,
+    inlinedImageDataChars: 0,
+  };
   const mediaTypeByPath = new Map(manifest.map((item) => [item.path, item.mediaType]));
   const baseDir = dirname(chapterPath) === '.' ? '' : dirname(chapterPath);
 
-  for (const image of Array.from(document.querySelectorAll<HTMLImageElement>('img[src]'))) {
+  const htmlImages = Array.from(document.querySelectorAll<HTMLImageElement>('img[src]'));
+  metrics.imageElementCount += htmlImages.length;
+  for (const image of htmlImages) {
     const src = image.getAttribute('src');
     const dataUrl = src
       ? await imageDataUrl(zip, resolveZipPath(baseDir, src), mediaTypeByPath)
       : '';
-    if (dataUrl) image.setAttribute('src', dataUrl);
-    else image.removeAttribute('src');
+    if (dataUrl) {
+      image.setAttribute('src', dataUrl);
+      metrics.inlinedImageCount += 1;
+      metrics.inlinedImageDataChars += dataUrl.length;
+    } else {
+      image.removeAttribute('src');
+    }
     image.removeAttribute('srcset');
   }
 
-  for (const image of Array.from(document.querySelectorAll('image'))) {
+  const svgImages = Array.from(document.querySelectorAll('image'));
+  metrics.imageElementCount += svgImages.length;
+  for (const image of svgImages) {
     const href = image.getAttribute('href') || image.getAttribute('xlink:href');
     const dataUrl = href
       ? await imageDataUrl(zip, resolveZipPath(baseDir, href), mediaTypeByPath)
@@ -327,7 +511,11 @@ async function inlineChapterImages(
     if (!dataUrl) continue;
     image.setAttribute('href', dataUrl);
     image.removeAttribute('xlink:href');
+    metrics.inlinedImageCount += 1;
+    metrics.inlinedImageDataChars += dataUrl.length;
   }
+
+  return metrics;
 }
 
 async function imageDataUrl(zip: JSZip, imagePath: string, mediaTypeByPath: Map<string, string>) {

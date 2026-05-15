@@ -309,7 +309,7 @@ export async function runAgentAnnotate(
         readingIntent: payload.readingIntent || suggestion.readingIntent,
       },
       now,
-      { ebookIndex: payload.article.ebookIndex },
+      { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
     );
     if (annotation) annotations.push(annotation);
   }
@@ -382,7 +382,7 @@ export async function runAgentAnnotateStream(
           ...targetAnchorSuggestion(payload),
         },
         new Date().toISOString(),
-        { ebookIndex: payload.article.ebookIndex },
+        { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
       );
       if (annotation) {
         annotationCount += 1;
@@ -670,7 +670,7 @@ function createSegmentAnnotation(
         task.planItem.readingIntent || payload.readingIntent || suggestion.readingIntent,
     },
     now,
-    task.createOptions,
+    { ...task.createOptions, performanceLogger: logAiInfo },
   );
 }
 
@@ -1041,6 +1041,7 @@ function agentMessageRelatedPassages(
     ),
     maxPassages: 4,
     neighborParagraphs: 1,
+    performanceLogger: logAiInfo,
   });
 }
 
@@ -1061,6 +1062,7 @@ function agentAnnotateRelatedPassages(
     excludeParagraphIds: [targetAnchor.paragraphId].filter((id): id is string => Boolean(id)),
     maxPassages: 3,
     neighborParagraphs: 1,
+    performanceLogger: logAiInfo,
   });
 }
 

@@ -59,6 +59,11 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
+export type PerformanceTimingInput = {
+  event: string;
+  data?: Record<string, unknown>;
+};
+
 const api = {
   getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
   showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
@@ -89,6 +94,8 @@ const api = {
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
+  recordPerformanceTiming: (input: PerformanceTimingInput) =>
+    ipcRenderer.invoke('performance:timing', input) as Promise<void>,
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   saveArticle: (article: ArticleRecord) =>
     ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,

@@ -14,6 +14,11 @@ import {
   type ReadingContextPassageInput,
   type ReadingContextTextRange,
 } from './reading-context';
+import {
+  performanceElapsedMs,
+  performanceStart,
+  type PerformanceTimingLogger,
+} from './performance';
 
 const DEFAULT_RELATED_PASSAGE_LIMIT = 4;
 const DEFAULT_NEIGHBOR_PARAGRAPHS = 1;
@@ -38,6 +43,7 @@ export type BuildCurrentChapterLexicalRelatedPassagesInput = {
   excludeParagraphIds?: string[];
   maxPassages?: number;
   neighborParagraphs?: number;
+  performanceLogger?: PerformanceTimingLogger;
 };
 
 type ParagraphDocument = {
@@ -56,12 +62,22 @@ type ScoredParagraph = ParagraphDocument & {
 export function buildCurrentChapterLexicalRelatedPassages(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
 ): ReadingContextPassageInput[] {
+  const startedAt = performanceStart();
   const queries = queryTexts(input.query);
   const queryTerms = termCounts(queries.flatMap(tokenizeLexicalText));
-  if (queryTerms.size === 0) return [];
+  const logTiming = (data: Record<string, unknown>) =>
+    logLexicalRelatedPassagesTiming(input, startedAt, queries, queryTerms, data);
+
+  if (queryTerms.size === 0) {
+    logTiming({ result: 'empty_query' });
+    return [];
+  }
 
   const chapter = currentChapter(input);
-  if (!chapter) return [];
+  if (!chapter) {
+    logTiming({ result: 'missing_chapter' });
+    return [];
+  }
 
   const allowedRanges = buildReadingContextBundle({
     articleText: input.articleText,
@@ -71,7 +87,10 @@ export function buildCurrentChapterLexicalRelatedPassages(
     readerProgress: input.readerProgress,
     spoilerPolicy: input.spoilerPolicy,
   }).textRanges;
-  if (allowedRanges.length === 0) return [];
+  if (allowedRanges.length === 0) {
+    logTiming({ result: 'empty_allowed_ranges', chapterId: chapter.id });
+    return [];
+  }
 
   const chapterIds = candidateChapterIds(input, chapter);
   const excluded = new Set(input.excludeParagraphIds || []);
@@ -83,7 +102,15 @@ export function buildCurrentChapterLexicalRelatedPassages(
     const terms = termCounts(tokenizeLexicalText(text));
     return terms.size > 0 ? [{ paragraph, text, ranges, terms, length: tokenLength(terms) }] : [];
   });
-  if (documents.length === 0) return [];
+  if (documents.length === 0) {
+    logTiming({
+      result: 'empty_documents',
+      chapterId: chapter.id,
+      allowedRangeCount: allowedRanges.length,
+      candidateChapterCount: chapterIds.size,
+    });
+    return [];
+  }
 
   const scored = scoreDocuments(documents, queryTerms, queries).filter(
     (document) => document.score >= MIN_RELATED_PASSAGE_SCORE,
@@ -93,7 +120,40 @@ export function buildCurrentChapterLexicalRelatedPassages(
     return left.paragraph.textStart - right.paragraph.textStart;
   });
 
-  return buildPassages(input, scored, allowedRanges, excluded);
+  const passages = buildPassages(input, scored, allowedRanges, excluded);
+  logTiming({
+    result: 'ok',
+    chapterId: chapter.id,
+    allowedRangeCount: allowedRanges.length,
+    candidateChapterCount: chapterIds.size,
+    candidateParagraphCount: documents.length,
+    scoredParagraphCount: scored.length,
+    returnedPassageCount: passages.length,
+  });
+  return passages;
+}
+
+function logLexicalRelatedPassagesTiming(
+  input: BuildCurrentChapterLexicalRelatedPassagesInput,
+  startedAt: number,
+  queries: string[],
+  queryTerms: Map<string, number>,
+  data: Record<string, unknown>,
+) {
+  input.performanceLogger?.('performance.lexical_related_passages', {
+    elapsedMs: performanceElapsedMs(startedAt),
+    articleChars: input.articleText.length,
+    queryCount: queries.length,
+    queryChars: queries.reduce((total, query) => total + query.length, 0),
+    queryTermCount: queryTerms.size,
+    scope: input.scope || 'current-chapter',
+    totalChapterCount: input.ebookIndex.chapters.length,
+    totalParagraphCount: input.ebookIndex.paragraphs.length,
+    excludedParagraphCount: input.excludeParagraphIds?.length || 0,
+    maxPassages: positiveInteger(input.maxPassages, DEFAULT_RELATED_PASSAGE_LIMIT),
+    neighborParagraphs: nonNegativeInteger(input.neighborParagraphs, DEFAULT_NEIGHBOR_PARAGRAPHS),
+    ...data,
+  });
 }
 
 function queryTexts(query: string | string[]) {
