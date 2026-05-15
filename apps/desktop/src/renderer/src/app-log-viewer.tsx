@@ -3,12 +3,14 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  Download,
   ExternalLink,
   FileText,
   Info,
   MessageSquare,
   Package,
   Play,
+  RefreshCw,
   Search,
   Tag,
   X,
@@ -18,6 +20,7 @@ import { PanelHeader } from './app-ui';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import type { AppInfo } from '../../preload';
+import type { AppUpdateState } from '../../app-update-types';
 
 type LicensePackage = {
   name: string;
@@ -37,6 +40,7 @@ export function AboutSettings({
   onStartOnboarding?: () => void;
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
+  const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
   const [licensesOpen, setLicensesOpen] = useState(false);
 
   useEffect(() => {
@@ -47,10 +51,35 @@ export function AboutSettings({
     desktop.getAppInfo().then((nextInfo) => {
       if (mounted) setAppInfo(nextInfo);
     });
+    if (typeof desktop.getUpdateStatus === 'function') {
+      desktop.getUpdateStatus().then((nextState) => {
+        if (mounted) setUpdateState(nextState);
+      });
+    }
+    const unsubscribe =
+      typeof desktop.onUpdateStatus === 'function'
+        ? desktop.onUpdateStatus((nextState) => {
+            if (mounted) setUpdateState(nextState);
+          })
+        : undefined;
+
     return () => {
       mounted = false;
+      unsubscribe?.();
     };
   }, []);
+
+  async function handleUpdateAction() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    const action = updateAction(updateState);
+    const method = desktop?.[action.method];
+    if (typeof method !== 'function') return;
+    const nextState = await method();
+    setUpdateState(nextState);
+  }
+
+  const updateCopy = updateStateCopy(updateState);
+  const updateButton = updateAction(updateState);
 
   return (
     <div className="settings-panel">
@@ -71,7 +100,31 @@ export function AboutSettings({
             </div>
           </div>
           <div className="about-version-list">
-            <VersionRow label="桌面端" value={formatVersion(appInfo.desktopVersion)} />
+            <VersionRow
+              label="桌面端"
+              value={formatVersion(appInfo.desktopVersion)}
+              action={
+                <Button
+                  className={
+                    updateButton.busy
+                      ? 'action-button about-update-action is-loading'
+                      : 'action-button about-update-action'
+                  }
+                  disabled={updateButton.disabled}
+                  type="button"
+                  onClick={handleUpdateAction}
+                >
+                  {updateButton.icon}
+                  {updateButton.label}
+                </Button>
+              }
+            />
+            <p
+              className="about-update-status"
+              role={updateState?.status === 'error' ? 'alert' : undefined}
+            >
+              {updateCopy}
+            </p>
           </div>
         </section>
 
@@ -117,12 +170,26 @@ export function AboutSettings({
   );
 }
 
-function VersionRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
+function VersionRow({
+  label,
+  value,
+  detail,
+  action,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="about-version-row">
       <span>{label}</span>
       <strong>{value}</strong>
-      {detail ? <em>{detail}</em> : null}
+      {action ? (
+        <div className="about-version-action">{action}</div>
+      ) : detail ? (
+        <em>{detail}</em>
+      ) : null}
     </div>
   );
 }
@@ -284,6 +351,71 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
 
 function formatVersion(version: string) {
   return version ? `v${version}` : '读取中';
+}
+
+function updateAction(state: AppUpdateState | null): {
+  label: string;
+  method: 'checkForUpdates' | 'downloadUpdate' | 'installUpdate';
+  disabled: boolean;
+  busy: boolean;
+  icon: React.ReactNode;
+} {
+  if (!state) {
+    return {
+      label: '检查更新',
+      method: 'checkForUpdates',
+      disabled: true,
+      busy: false,
+      icon: <RefreshCw size={15} />,
+    };
+  }
+
+  if (state.status === 'available') {
+    return {
+      label: '下载更新',
+      method: 'downloadUpdate',
+      disabled: false,
+      busy: false,
+      icon: <Download size={15} />,
+    };
+  }
+
+  if (state.status === 'downloaded') {
+    return {
+      label: '重启安装',
+      method: 'installUpdate',
+      disabled: false,
+      busy: false,
+      icon: <RefreshCw size={15} />,
+    };
+  }
+
+  const busy = state.status === 'checking' || state.status === 'downloading';
+  return {
+    label:
+      state.status === 'downloading' ? `${Math.round(state.progress?.percent || 0)}%` : '检查更新',
+    method: 'checkForUpdates',
+    disabled: busy || state.status === 'unsupported',
+    busy,
+    icon: <RefreshCw size={15} />,
+  };
+}
+
+function updateStateCopy(state: AppUpdateState | null) {
+  if (!state) return '正在读取更新状态。';
+
+  if (state.status === 'checking') return '正在检查 GitHub Releases 上的新版本。';
+  if (state.status === 'available') {
+    return `发现 ${formatVersion(state.availableVersion || '')}，可下载安装。`;
+  }
+  if (state.status === 'not-available') return '当前已是最新版本。';
+  if (state.status === 'downloading') {
+    return `正在下载更新，已完成 ${Math.round(state.progress?.percent || 0)}%。`;
+  }
+  if (state.status === 'downloaded') return '更新已下载，重启应用后完成安装。';
+  if (state.status === 'error') return state.message || '更新失败，请稍后重试。';
+  if (state.status === 'unsupported') return state.message || '当前环境不支持自动更新。';
+  return '可手动检查 GitHub Releases 上的新版本。';
 }
 
 function licensePackageKey(item: LicensePackage) {

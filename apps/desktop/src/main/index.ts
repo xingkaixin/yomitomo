@@ -56,6 +56,14 @@ import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logg
 import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
 import { articleRecordFromEpubFile } from './ebook-import';
 import { readEbookSourceFile, saveEbookSourceFile } from './ebook-storage';
+import {
+  checkForAppUpdates,
+  configureAppUpdater,
+  downloadAppUpdate,
+  getAppUpdateState,
+  installAppUpdate,
+} from './app-updater';
+import type { AppUpdateState } from '../app-update-types';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -130,6 +138,7 @@ app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
+  configureAppUpdater(sendUpdateStatusUpdated);
   await createWindow();
 });
 
@@ -153,6 +162,10 @@ function registerIpc() {
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
+  ipcMain.handle('updates:get-status', () => getAppUpdateState());
+  ipcMain.handle('updates:check', () => checkForAppUpdates());
+  ipcMain.handle('updates:download', () => downloadAppUpdate());
+  ipcMain.handle('updates:install', () => installAppUpdate());
   ipcMain.handle('performance:timing', (_event, input: unknown) => recordPerformanceTiming(input));
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
@@ -520,10 +533,15 @@ function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
   sendToRenderer('store:updated', store);
 }
 
+function sendUpdateStatusUpdated(state: AppUpdateState) {
+  sendToRenderer('updates:status', state);
+}
+
 function sendToRenderer(
   channel: 'store:updated',
   payload: Awaited<ReturnType<typeof readStore>>,
 ): void;
+function sendToRenderer(channel: 'updates:status', payload: AppUpdateState): void;
 function sendToRenderer(channel: string, payload: unknown) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
   mainWindow.webContents.send(channel, payload);
