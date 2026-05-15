@@ -6,6 +6,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
   Clock3,
   ExternalLink,
   FileUp,
@@ -316,6 +317,21 @@ function writeDesktopReaderSettings(settings: ReaderSettings) {
   }
 }
 
+function advanceImportProgress(current: number) {
+  if (current >= 94) return current;
+  return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
+}
+
+function articleImportErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message.trim() : '';
+  if (!message) return '添加网页失败，请稍后重试';
+  if (/网页地址|网页请求|文章保存失败/.test(message)) return message;
+  if (/fetch failed|network|ECONN|ENOTFOUND|ETIMEDOUT|EAI_AGAIN/i.test(message)) {
+    return '无法访问这个网页，请确认链接可打开后再试';
+  }
+  return '添加网页失败，请确认链接内容可公开访问后再试';
+}
+
 export function ReadingLibrary({
   agents,
   articles,
@@ -583,6 +599,7 @@ function LibraryHome({
   const [importState, setImportState] = useState<ArticleImportState>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [importArticle, setImportArticle] = useState<ArticleRecord | null>(null);
+  const [importProgress, setImportProgress] = useState(0);
   const [ebookImportOpen, setEbookImportOpen] = useState(false);
   const [ebookImportState, setEbookImportState] = useState<ArticleImportState>('idle');
   const [ebookImportMessage, setEbookImportMessage] = useState('');
@@ -590,6 +607,7 @@ function LibraryHome({
   const [ebookImportProgress, setEbookImportProgress] = useState(0);
   const [ebookDragging, setEbookDragging] = useState(false);
   const ebookInputRef = useRef<HTMLInputElement | null>(null);
+  const importCloseTimerRef = useRef<number | null>(null);
   const ebookImportCloseTimerRef = useRef<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
@@ -629,19 +647,27 @@ function LibraryHome({
 
   useEffect(
     () => () => {
+      clearImportCloseTimer();
       clearEbookImportCloseTimer();
     },
     [],
   );
 
   useEffect(() => {
+    if (importState !== 'submitting') return;
+
+    const timer = window.setInterval(() => {
+      setImportProgress(advanceImportProgress);
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [importState]);
+
+  useEffect(() => {
     if (ebookImportState !== 'submitting') return;
 
     const timer = window.setInterval(() => {
-      setEbookImportProgress((current) => {
-        if (current >= 94) return current;
-        return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
-      });
+      setEbookImportProgress(advanceImportProgress);
     }, 180);
 
     return () => window.clearInterval(timer);
@@ -649,11 +675,13 @@ function LibraryHome({
 
   async function submitImport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    clearImportCloseTimer();
     const url = importUrl.trim();
     if (!url) {
       setImportState('error');
       setImportMessage('请输入网页地址');
       setImportArticle(null);
+      setImportProgress(0);
       return;
     }
 
@@ -661,21 +689,29 @@ function LibraryHome({
       setImportState('submitting');
       setImportMessage('正在解析网页');
       setImportArticle(null);
+      setImportProgress(8);
       const result = await onImportArticleUrl(url);
       setImportArticle(result.article);
       if (result.status === 'duplicate') {
         setImportState('duplicate');
         setImportMessage('这篇文章已在阅读库');
+        setImportProgress(100);
         return;
       }
 
+      setImportProgress(100);
       setImportState('imported');
       setImportMessage('已添加到阅读库');
       setImportUrl('');
+      importCloseTimerRef.current = window.setTimeout(() => {
+        importCloseTimerRef.current = null;
+        setImportOpen(false);
+      }, 850);
     } catch (error) {
       setImportState('error');
-      setImportMessage(error instanceof Error ? error.message : '添加网页失败');
+      setImportMessage(articleImportErrorMessage(error));
       setImportArticle(null);
+      setImportProgress(0);
     }
   }
 
@@ -737,16 +773,26 @@ function LibraryHome({
     ebookImportCloseTimerRef.current = null;
   }
 
-  function openImportPanel() {
+  function clearImportCloseTimer() {
+    if (importCloseTimerRef.current === null) return;
+    window.clearTimeout(importCloseTimerRef.current);
+    importCloseTimerRef.current = null;
+  }
+
+  function openImportDialog() {
+    clearImportCloseTimer();
+    clearEbookImportCloseTimer();
     setAddMenuOpen(false);
     setEbookImportOpen(false);
     setImportOpen(true);
     setImportState('idle');
     setImportMessage('');
     setImportArticle(null);
+    setImportProgress(0);
   }
 
   function openEbookImportDialog() {
+    clearImportCloseTimer();
     clearEbookImportCloseTimer();
     setAddMenuOpen(false);
     setImportOpen(false);
@@ -765,6 +811,13 @@ function LibraryHome({
     setEbookDragging(false);
   }
 
+  function closeImportDialog() {
+    if (importState === 'submitting') return;
+    clearImportCloseTimer();
+    setImportOpen(false);
+  }
+
+  const importProgressPercent = Math.round(importProgress);
   const ebookImportProgressPercent = Math.round(ebookImportProgress);
 
   return (
@@ -808,7 +861,7 @@ function LibraryHome({
               </Button>
               {addMenuOpen ? (
                 <div className="library-add-menu-popover" role="menu">
-                  <button type="button" role="menuitem" onClick={openImportPanel}>
+                  <button type="button" role="menuitem" onClick={openImportDialog}>
                     <Globe2 size={15} />
                     添加网页
                   </button>
@@ -825,36 +878,93 @@ function LibraryHome({
             </Button>
           </div>
         </div>
-        {importOpen ? (
-          <form className={`library-import-panel is-${importState}`} onSubmit={submitImport}>
-            <div className="library-import-copy">
-              <strong>添加网页</strong>
-              <span>
-                {importMessage || '输入公开文章地址，Yomitomo 会解析正文和元数据并保存到阅读库。'}
+      </header>
+      {importOpen ? (
+        <div
+          className="library-import-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="library-article-import-title"
+        >
+          <button
+            className="library-import-modal-scrim"
+            type="button"
+            aria-label="关闭网页文章导入"
+            onClick={closeImportDialog}
+          />
+          <form
+            className={`library-import-dialog library-article-import-dialog is-${importState}`}
+            onSubmit={submitImport}
+          >
+            <header>
+              <div>
+                <strong id="library-article-import-title">添加网页文章</strong>
+                <span>{importMessage || '输入文章链接，解析完成后会保存到阅读库。'}</span>
+              </div>
+              <button type="button" aria-label="关闭网页文章导入" onClick={closeImportDialog}>
+                <X size={17} />
+              </button>
+            </header>
+            <div
+              className={[
+                'library-article-import-box',
+                importState === 'submitting' ? 'is-submitting' : '',
+                importState === 'imported' ? 'is-imported' : '',
+                importState === 'duplicate' ? 'is-duplicate' : '',
+                importState === 'error' ? 'is-error' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <span
+                className={[
+                  'library-import-status-icon',
+                  importState === 'imported' ? 'is-success' : '',
+                  importState === 'duplicate' ? 'is-duplicate' : '',
+                  importState === 'error' ? 'is-error' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {importState === 'submitting' ? (
+                  <LoaderCircle className="is-spinning" size={22} />
+                ) : importState === 'imported' ? (
+                  <Check className="library-import-success-icon" size={24} />
+                ) : importState === 'duplicate' ? (
+                  <CircleAlert size={24} />
+                ) : importState === 'error' ? (
+                  <X size={24} />
+                ) : (
+                  <Globe2 size={24} />
+                )}
               </span>
-            </div>
-            <div className="library-import-row">
-              <label className="library-import-url">
-                <Globe2 size={16} />
-                <Input
-                  aria-label="网页地址"
-                  disabled={importState === 'submitting'}
-                  inputMode="url"
-                  placeholder="https://example.com/article"
-                  type="text"
-                  value={importUrl}
-                  onChange={(event) => {
-                    setImportUrl(event.target.value);
-                    if (importState !== 'submitting') {
-                      setImportState('idle');
-                      setImportMessage('');
-                      setImportArticle(null);
-                    }
-                  }}
-                />
+              <label className="library-article-import-url">
+                <span>网页地址</span>
+                <span className="library-article-import-input">
+                  <Globe2 size={16} />
+                  <textarea
+                    aria-label="网页地址"
+                    disabled={importState === 'submitting'}
+                    inputMode="url"
+                    placeholder="https://example.com/article"
+                    rows={4}
+                    value={importUrl}
+                    wrap="soft"
+                    onChange={(event) => {
+                      setImportUrl(event.target.value);
+                      if (importState !== 'submitting') {
+                        clearImportCloseTimer();
+                        setImportState('idle');
+                        setImportMessage('');
+                        setImportArticle(null);
+                        setImportProgress(0);
+                      }
+                    }}
+                  />
+                </span>
               </label>
               <Button
-                className="library-import-submit"
+                className="library-article-import-submit"
                 disabled={importState === 'submitting'}
                 type="submit"
               >
@@ -865,32 +975,72 @@ function LibraryHome({
                 )}
                 {importState === 'submitting' ? '解析中' : '解析添加'}
               </Button>
+              {importState === 'idle' ? null : (
+                <span
+                  className="library-import-progress"
+                  role="progressbar"
+                  aria-label="网页文章导入进度"
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={importProgressPercent}
+                  style={
+                    {
+                      '--library-import-progress': `${importProgressPercent}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="library-import-progress-track">
+                    <span />
+                  </span>
+                  <em>{importProgressPercent}%</em>
+                </span>
+              )}
+              {importState === 'duplicate' ? (
+                <span className="library-article-duplicate-callout" role="status">
+                  <CircleAlert size={16} />
+                  <span>
+                    <strong>已在阅读库中找到这篇文章</strong>
+                    <em>无需重复导入，可以直接打开已有文章。</em>
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <footer>
+              <span>{importMessage || 'Yomitomo 会提取标题、来源、正文和可阅读内容。'}</span>
               {importArticle ? (
                 <button
-                  className="library-import-open"
                   type="button"
-                  onClick={() => onOpenArticle(importArticle)}
+                  onClick={() => {
+                    clearImportCloseTimer();
+                    setImportOpen(false);
+                    onOpenArticle(importArticle);
+                  }}
                 >
                   <ExternalLink size={14} />
                   {importState === 'duplicate' ? '打开已有文章' : '打开文章'}
                 </button>
               ) : null}
-            </div>
+            </footer>
           </form>
-        ) : null}
-      </header>
+        </div>
+      ) : null}
       {ebookImportOpen ? (
-        <div className="library-ebook-modal" role="dialog" aria-modal="true">
+        <div
+          className="library-import-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="library-ebook-import-title"
+        >
           <button
-            className="library-ebook-modal-scrim"
+            className="library-import-modal-scrim"
             type="button"
             aria-label="关闭电子书导入"
             onClick={closeEbookImportDialog}
           />
-          <section className={`library-ebook-dialog is-${ebookImportState}`}>
+          <section className={`library-import-dialog is-${ebookImportState}`}>
             <header>
               <div>
-                <strong>添加 ePub 电子书</strong>
+                <strong id="library-ebook-import-title">添加 ePub 电子书</strong>
                 <span>{ebookImportMessage || '拖入一本 EPUB，或点击选择本地文件。'}</span>
               </div>
               <button type="button" aria-label="关闭电子书导入" onClick={closeEbookImportDialog}>
@@ -943,7 +1093,7 @@ function LibraryHome({
                 {ebookImportState === 'submitting' ? (
                   <LoaderCircle className="is-spinning" size={22} />
                 ) : ebookImportState === 'imported' ? (
-                  <Check className="library-ebook-success-icon" size={24} />
+                  <Check className="library-import-success-icon" size={24} />
                 ) : ebookImportState === 'error' ? (
                   <X size={24} />
                 ) : ebookDragging ? (
@@ -964,7 +1114,7 @@ function LibraryHome({
               </span>
               {ebookImportState === 'idle' ? null : (
                 <span
-                  className="library-ebook-progress"
+                  className="library-import-progress"
                   role="progressbar"
                   aria-label="电子书导入进度"
                   aria-valuemax={100}
@@ -972,11 +1122,11 @@ function LibraryHome({
                   aria-valuenow={ebookImportProgressPercent}
                   style={
                     {
-                      '--ebook-import-progress': `${ebookImportProgressPercent}%`,
+                      '--library-import-progress': `${ebookImportProgressPercent}%`,
                     } as React.CSSProperties
                   }
                 >
-                  <span className="library-ebook-progress-track">
+                  <span className="library-import-progress-track">
                     <span />
                   </span>
                   <em>{ebookImportProgressPercent}%</em>
@@ -989,6 +1139,7 @@ function LibraryHome({
                 <button
                   type="button"
                   onClick={() => {
+                    clearEbookImportCloseTimer();
                     setEbookImportOpen(false);
                     onOpenArticle(ebookImportArticle);
                   }}
