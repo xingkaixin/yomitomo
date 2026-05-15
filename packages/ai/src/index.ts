@@ -70,6 +70,17 @@ import {
   type SegmentAnnotationTask,
 } from './segment-annotation-context';
 import { generateSegmentReadingMemoryUpdate } from './reading-memory';
+import {
+  booleanValue,
+  extractJsonObjects,
+  hasIncompleteJson,
+  numberArray,
+  parseJsonArray,
+  parseJsonObject,
+  stringArray,
+  stringValue,
+  uniqueStrings,
+} from './json';
 
 export {
   budgetArticleText,
@@ -135,6 +146,7 @@ export {
 } from './evaluation';
 export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures';
 export { setAiLogger, type AiLogger } from './logger';
+export { extractJsonObjects } from './json';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
@@ -790,63 +802,6 @@ function agentAnnotationOutputLimit(
 ) {
   if (payload.targetAnchor) return 1;
   return annotationDensityMax(agent.annotationDensity, annotationBudgetText(payload, context));
-}
-
-export function extractJsonObjects(input: string): { objects: string[]; rest: string } {
-  const objects: string[] = [];
-  let depth = 0;
-  let start = -1;
-  let restStart = input.length;
-  let inString = false;
-  let escaped = false;
-
-  for (let index = 0; index < input.length; index += 1) {
-    const char = input[index];
-
-    if (start < 0) {
-      if (char === '{') {
-        start = index;
-        depth = 1;
-        inString = false;
-        escaped = false;
-      }
-      continue;
-    }
-
-    if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === '"') {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === '"') {
-      inString = true;
-    } else if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        objects.push(input.slice(start, index + 1).trim());
-        start = -1;
-        restStart = index + 1;
-      }
-    }
-  }
-
-  return { objects, rest: input.slice(start >= 0 ? start : restStart) };
-}
-
-function hasIncompleteJson(input: string) {
-  return input
-    .replace(/^```(?:json)?/m, '')
-    .replace(/```$/m, '')
-    .trim()
-    .startsWith('{');
 }
 
 export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
@@ -1626,46 +1581,6 @@ function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingC
   };
 }
 
-function parseJsonObject(value: string): Record<string, unknown> {
-  const cleaned = value
-    .trim()
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/, '')
-    .trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    const start = cleaned.indexOf('{');
-    const end = cleaned.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      const parsed = JSON.parse(cleaned.slice(start, end + 1));
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    }
-    throw new Error('审稿结果不是有效 JSON');
-  }
-}
-
-function parseJsonArray(value: string): unknown[] {
-  const cleaned = value
-    .trim()
-    .replace(/^```(?:json)?/i, '')
-    .replace(/```$/, '')
-    .trim();
-  try {
-    const parsed = JSON.parse(cleaned);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    const start = cleaned.indexOf('[');
-    const end = cleaned.lastIndexOf(']');
-    if (start >= 0 && end > start) {
-      const parsed = JSON.parse(cleaned.slice(start, end + 1));
-      return Array.isArray(parsed) ? parsed : [];
-    }
-    throw new Error('助手任务拆解结果不是有效 JSON');
-  }
-}
-
 function buildAnnotationMetadataPrompt(payload: AnnotationMetadataPayload) {
   return `文章标题：${payload.article.title}
 文章 URL：${payload.article.url}
@@ -2136,33 +2051,6 @@ export function parseFocusCoReadingRouteResult(
   return { sections };
 }
 
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function uniqueStrings(values: string[]) {
-  return values.filter((value, index, list) => Boolean(value) && list.indexOf(value) === index);
-}
-
 function normalizeRouteTargetDensity(value: unknown): AgentAnnotationDensity | undefined {
   return value === 'low' || value === 'medium' || value === 'high' ? value : undefined;
-}
-
-function booleanValue(value: unknown) {
-  return typeof value === 'boolean' ? value : undefined;
-}
-
-function stringArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.flatMap((item) => {
-        const text = stringValue(item);
-        return text ? [text.slice(0, 500)] : [];
-      })
-    : [];
-}
-
-function numberArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
-    : [];
 }

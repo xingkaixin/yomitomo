@@ -1,0 +1,746 @@
+import type {
+  Agent,
+  AgentAnnotationDensity,
+  AgentKind,
+  AgentReadingIntent,
+  Annotation,
+  AnnotationEvidenceSource,
+  AnnotationType,
+  AppSettings,
+  ArticleReadingProgress,
+  ArticleRecord,
+  ArticleSourceType,
+  Comment,
+  DesktopStore,
+  EbookChapterRecord,
+  EbookMetadata,
+  EpubBookIndex,
+  EpubChapterIndex,
+  EpubParagraphIndex,
+  EpubSegmentIndex,
+  FocusCoReadingPlan,
+  LlmProvider,
+  ProviderPresetId,
+  ProviderType,
+  QuestionStatus,
+  ReadingCardRecord,
+  ReadingCardReviewFinding,
+  ReadingCardReviewRecord,
+  ReadingCardReviewSeverity,
+  ReadingCardReviewVerdict,
+  ReadingCardReviewerResult,
+  ReadingCardSection,
+  ReadingDeliberationRecord,
+  ReadingDeliberationSection,
+  ReasoningEffort,
+  TextAnchor,
+  UserProfile,
+} from '@yomitomo/shared';
+import {
+  normalizeAnnotationConfidence,
+  normalizeAnnotationEvidenceSource,
+  normalizeAnnotationMove,
+  normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcuts,
+  providerPresets,
+} from '@yomitomo/shared';
+import * as schema from './db/schema';
+
+export const defaultUser: UserProfile = {
+  id: 'user_local',
+  nickname: '我',
+  username: 'me',
+  avatar: '',
+  annotationColor: '#f4c95d',
+  updatedAt: new Date(0).toISOString(),
+};
+
+export const defaultStore: DesktopStore = {
+  user: defaultUser,
+  settings: {},
+  providers: [],
+  agents: [],
+  articles: [],
+};
+
+export function rowToComment(row: typeof schema.comments.$inferSelect): Comment {
+  return {
+    id: row.id,
+    author: row.author as Comment['author'],
+    content: row.content,
+    createdAt: row.createdAt,
+    replyTo: row.replyTo || undefined,
+    agentId: row.agentId || undefined,
+    agentUsername: row.agentUsername || undefined,
+    agentNickname: row.agentNickname || undefined,
+    agentAvatar: row.agentAvatar || undefined,
+    agentAnnotationColor: row.agentAnnotationColor || undefined,
+    readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
+    questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
+    userId: row.userId || undefined,
+    userUsername: row.userUsername || undefined,
+    userNickname: row.userNickname || undefined,
+    userAvatar: row.userAvatar || undefined,
+    userAnnotationColor: row.userAnnotationColor || undefined,
+    pending: row.pending || undefined,
+  };
+}
+
+export function rowToAnnotation(
+  row: typeof schema.annotations.$inferSelect,
+  comments: Comment[],
+): Annotation {
+  return {
+    id: row.id,
+    anchor: row.anchor as TextAnchor,
+    author: row.author as Annotation['author'],
+    annotationType: normalizeAnnotationType(row.annotationType) || undefined,
+    readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
+    questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
+    moveType: normalizeAnnotationMove(row.moveType) || undefined,
+    whyHere: row.whyHere || undefined,
+    evidenceUsed: normalizeAnnotationEvidenceUsed(row.evidenceUsed),
+    confidence: normalizeAnnotationConfidence(row.confidence) || undefined,
+    shouldShow: row.shouldShow ?? undefined,
+    color: row.color,
+    agentId: row.agentId || undefined,
+    agentUsername: row.agentUsername || undefined,
+    agentNickname: row.agentNickname || undefined,
+    agentAvatar: row.agentAvatar || undefined,
+    agentAnnotationColor: row.agentAnnotationColor || undefined,
+    userId: row.userId || undefined,
+    userUsername: row.userUsername || undefined,
+    userNickname: row.userNickname || undefined,
+    userAvatar: row.userAvatar || undefined,
+    userAnnotationColor: row.userAnnotationColor || undefined,
+    comments,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmProvider {
+  return {
+    id: row.id,
+    name: row.name,
+    type: normalizeProviderType(row.type) || 'openai-chat',
+    presetId: normalizePresetId(row.presetId || undefined),
+    logo: row.logo || undefined,
+    baseUrl: row.baseUrl,
+    apiKey: '',
+    hasApiKey: Boolean(row.apiKeyRef || row.apiKey),
+    modelName: row.modelName,
+    modelNames: normalizeModelNames(row.modelNames) || undefined,
+    modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
+    reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'none',
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function rowToAgent(row: typeof schema.agents.$inferSelect): Agent {
+  return {
+    id: row.id,
+    kind: normalizeAgentKind(row.kind) || 'annotation',
+    presetId: row.presetId || undefined,
+    enabled: Boolean(row.enabled),
+    providerId: row.providerId,
+    nickname: row.nickname,
+    username: row.username,
+    avatar: row.avatar,
+    annotationColor: row.annotationColor || '#8ab6d6',
+    annotationDensity: normalizeAnnotationDensity(row.annotationDensity) || 'medium',
+    temperature: normalizeTemperature(row.temperature),
+    soul: row.soul,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function rowToArticle(
+  row: typeof schema.articles.$inferSelect,
+  annotations: Annotation[],
+): ArticleRecord {
+  return {
+    id: row.id,
+    url: row.url,
+    canonicalUrl: row.canonicalUrl,
+    sourceType: normalizeArticleSourceType(row.sourceType),
+    title: row.title,
+    byline: row.byline || undefined,
+    excerpt: row.excerpt || undefined,
+    siteName: row.siteName || undefined,
+    siteIconUrl: row.siteIconUrl || undefined,
+    leadImageUrl: row.leadImageUrl || undefined,
+    themeColor: row.themeColor || undefined,
+    contentHtml: row.contentHtml || undefined,
+    contentHash: row.contentHash,
+    ebook: rowToEbook(row),
+    readingProgress: normalizeArticleReadingProgress(row.readingProgress),
+    focusCoReadingPlan: row.focusCoReadingPlan
+      ? (row.focusCoReadingPlan as FocusCoReadingPlan)
+      : undefined,
+    readingDeliberation: rowToReadingDeliberation(row),
+    readingCard: rowToReadingCard(row),
+    annotations,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSettings): AppSettings {
+  return {
+    defaultProviderId: settingsFieldProvided(settings, 'defaultProviderId')
+      ? settings.defaultProviderId || undefined
+      : existing?.defaultProviderId || undefined,
+    readingAssistantProviderId: settingsFieldProvided(settings, 'readingAssistantProviderId')
+      ? settings.readingAssistantProviderId || undefined
+      : existing?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: settingsFieldProvided(settings, 'reviewAssistantProviderId')
+      ? settings.reviewAssistantProviderId || undefined
+      : existing?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: settingsFieldProvided(settings, 'readingNoteProviderId')
+      ? settings.readingNoteProviderId || undefined
+      : existing?.readingNoteProviderId || undefined,
+    messageSendShortcut: settingsFieldProvided(settings, 'messageSendShortcut')
+      ? normalizeMessageSendShortcut(settings.messageSendShortcut)
+      : normalizeMessageSendShortcut(existing?.messageSendShortcut),
+    selectionActionShortcuts: settingsFieldProvided(settings, 'selectionActionShortcuts')
+      ? normalizeSelectionActionShortcuts(settings.selectionActionShortcuts)
+      : normalizeSelectionActionShortcuts(existing?.selectionActionShortcuts),
+    saveArticleImages: settingsFieldProvided(settings, 'saveArticleImages')
+      ? Boolean(settings.saveArticleImages)
+      : Boolean(existing?.saveArticleImages),
+    onboardingCompletedAt: settingsFieldProvided(settings, 'onboardingCompletedAt')
+      ? settings.onboardingCompletedAt || undefined
+      : existing?.onboardingCompletedAt || undefined,
+  };
+}
+
+function settingsFieldProvided(settings: AppSettings, field: keyof AppSettings) {
+  return Object.prototype.hasOwnProperty.call(settings, field);
+}
+
+export function normalizeStore(store: DesktopStore): DesktopStore {
+  return {
+    user: normalizeUser(store.user),
+    settings: normalizeSettings(store.settings),
+    providers: (store.providers || []).map((provider) =>
+      Object.assign({}, provider, {
+        type: normalizeProviderType(provider.type) || 'openai-chat',
+        presetId: normalizePresetId(provider.presetId),
+        modelNames:
+          provider.modelInputMode === 'custom'
+            ? undefined
+            : normalizeModelNames(provider.modelNames),
+        modelInputMode: normalizeProviderModelInputMode(provider.modelInputMode) || 'list',
+        reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'none',
+      }),
+    ),
+    agents: (store.agents || []).map((agent) =>
+      Object.assign({}, agent, {
+        annotationColor: agent.annotationColor || '#8ab6d6',
+        kind: normalizeAgentKind(agent.kind) || 'annotation',
+        enabled: agent.enabled ?? true,
+        annotationDensity: normalizeAnnotationDensity(agent.annotationDensity) || 'medium',
+        temperature: normalizeTemperature(agent.temperature),
+      }),
+    ),
+    articles: (store.articles || []).map((article) =>
+      Object.assign({}, article, {
+        sourceType: normalizeArticleSourceType(article.sourceType),
+        ebook: normalizeEbookRecord(article.ebook),
+        readingProgress: normalizeArticleReadingProgress(article.readingProgress),
+      }),
+    ),
+  };
+}
+
+export function rowToSettings(
+  row: typeof schema.appSettings.$inferSelect | undefined,
+): AppSettings {
+  return {
+    defaultProviderId: row?.defaultProviderId || undefined,
+    readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: row?.readingNoteProviderId || undefined,
+    messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
+    saveArticleImages: Boolean(row?.saveArticleImages),
+    onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
+  };
+}
+
+function normalizeSettings(settings: AppSettings | undefined): AppSettings {
+  return {
+    defaultProviderId: settings?.defaultProviderId || undefined,
+    readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
+    reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
+    readingNoteProviderId: settings?.readingNoteProviderId || undefined,
+    messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
+    selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
+    saveArticleImages: Boolean(settings?.saveArticleImages),
+    onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
+  };
+}
+
+function rowToEbook(row: typeof schema.articles.$inferSelect): ArticleRecord['ebook'] {
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+  if (sourceType !== 'ebook') return undefined;
+
+  const metadata = normalizeEbookMetadata(row.ebookMetadata);
+  const chapters = normalizeEbookChapters(row.ebookChapters);
+  const index = normalizeEpubBookIndex(row.ebookIndex);
+  return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
+}
+
+export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
+  return value === 'ebook' ? 'ebook' : 'web';
+}
+
+export function normalizeArticleReadingProgress(
+  value: unknown,
+): ArticleReadingProgress | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const progress = value as Record<string, unknown>;
+  const pageIndex = Number(progress.pageIndex);
+  const pageCount = Number(progress.pageCount);
+  const chapterIndex = Number(progress.chapterIndex);
+  const chapterProgress = Number(progress.chapterProgress);
+  const progressValue = Number(progress.progress);
+  return {
+    pageIndex: Number.isInteger(pageIndex) && pageIndex >= 0 ? pageIndex : 0,
+    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
+    chapterIndex: Number.isInteger(chapterIndex) && chapterIndex >= 0 ? chapterIndex : undefined,
+    chapterProgress: Number.isFinite(chapterProgress)
+      ? Math.max(0, Math.min(1, chapterProgress))
+      : undefined,
+    progress: Number.isFinite(progressValue) ? Math.max(0, Math.min(1, progressValue)) : 0,
+    updatedAt: stringValue(progress.updatedAt) || new Date().toISOString(),
+  };
+}
+
+function normalizeEbookRecord(value: ArticleRecord['ebook'] | undefined): ArticleRecord['ebook'] {
+  const metadata = normalizeEbookMetadata(value?.metadata);
+  const chapters = normalizeEbookChapters(value?.chapters);
+  const index = normalizeEpubBookIndex(value?.index);
+  return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
+}
+
+function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const metadata = value as Record<string, unknown>;
+  const fileName = stringValue(metadata.fileName);
+  const fileSize = Number(metadata.fileSize);
+  return {
+    format: metadata.format === 'epub' ? 'epub' : 'epub',
+    fileName,
+    fileSize: Number.isFinite(fileSize) && fileSize > 0 ? fileSize : 0,
+    language: stringValue(metadata.language) || undefined,
+    publisher: stringValue(metadata.publisher) || undefined,
+    description: stringValue(metadata.description) || undefined,
+  };
+}
+
+function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') return [];
+    const chapter = item as Record<string, unknown>;
+    const html = stringValue(chapter.html);
+    const title = stringValue(chapter.title);
+    if (!html || !title) return [];
+    const textLength = Number(chapter.textLength);
+    return [
+      {
+        id: stringValue(chapter.id) || `chapter-${index + 1}`,
+        title,
+        href: stringValue(chapter.href) || undefined,
+        html,
+        textLength: Number.isFinite(textLength) && textLength >= 0 ? textLength : 0,
+      },
+    ];
+  });
+}
+
+function normalizeEpubBookIndex(value: unknown): EpubBookIndex | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const index = value as Record<string, unknown>;
+  const chapters = normalizeEpubChapterIndexes(index.chapters);
+  const segments = normalizeEpubSegmentIndexes(index.segments);
+  const paragraphs = normalizeEpubParagraphIndexes(index.paragraphs);
+  const textLength = Number(index.textLength);
+  if (chapters.length === 0 || segments.length === 0 || paragraphs.length === 0) return undefined;
+  return {
+    version: 1,
+    articleId: stringValue(index.articleId),
+    textLength: Number.isFinite(textLength) && textLength >= 0 ? textLength : 0,
+    chapters,
+    segments,
+    paragraphs,
+  };
+}
+
+function normalizeEpubChapterIndexes(value: unknown): EpubChapterIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const chapter = item as Record<string, unknown>;
+    const id = stringValue(chapter.id);
+    if (!id) return [];
+    return [
+      {
+        id,
+        title: stringValue(chapter.title),
+        href: stringValue(chapter.href) || undefined,
+        indexInBook: normalizeNonNegativeInteger(chapter.indexInBook),
+        textStart: normalizeNonNegativeInteger(chapter.textStart),
+        textEnd: normalizeNonNegativeInteger(chapter.textEnd),
+        textLength: normalizeNonNegativeInteger(chapter.textLength),
+        previewStart: stringValue(chapter.previewStart),
+        previewEnd: stringValue(chapter.previewEnd),
+        segmentIds: stringArray(chapter.segmentIds),
+        paragraphIds: stringArray(chapter.paragraphIds),
+      },
+    ];
+  });
+}
+
+function normalizeEpubSegmentIndexes(value: unknown): EpubSegmentIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const segment = item as Record<string, unknown>;
+    const id = stringValue(segment.id);
+    const chapterId = stringValue(segment.chapterId);
+    if (!id || !chapterId) return [];
+    return [
+      {
+        id,
+        chapterId,
+        indexInChapter: normalizeNonNegativeInteger(segment.indexInChapter),
+        textStart: normalizeNonNegativeInteger(segment.textStart),
+        textEnd: normalizeNonNegativeInteger(segment.textEnd),
+        textLength: normalizeNonNegativeInteger(segment.textLength),
+        previewStart: stringValue(segment.previewStart),
+        previewEnd: stringValue(segment.previewEnd),
+        paragraphIds: stringArray(segment.paragraphIds),
+      },
+    ];
+  });
+}
+
+function normalizeEpubParagraphIndexes(value: unknown): EpubParagraphIndex[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const paragraph = item as Record<string, unknown>;
+    const id = stringValue(paragraph.id);
+    const chapterId = stringValue(paragraph.chapterId);
+    const segmentId = stringValue(paragraph.segmentId);
+    if (!id || !chapterId || !segmentId) return [];
+    return [
+      {
+        id,
+        chapterId,
+        segmentId,
+        indexInChapter: normalizeNonNegativeInteger(paragraph.indexInChapter),
+        indexInSegment: normalizeNonNegativeInteger(paragraph.indexInSegment),
+        textStart: normalizeNonNegativeInteger(paragraph.textStart),
+        textEnd: normalizeNonNegativeInteger(paragraph.textEnd),
+        textLength: normalizeNonNegativeInteger(paragraph.textLength),
+        previewStart: stringValue(paragraph.previewStart),
+        previewEnd: stringValue(paragraph.previewEnd),
+      },
+    ];
+  });
+}
+
+function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCardRecord | undefined {
+  if (!row.readingCardMarkdown || !row.readingCardId) return undefined;
+  return {
+    id: row.readingCardId,
+    articleId: row.id,
+    title: row.title,
+    contentMarkdown: row.readingCardMarkdown,
+    sections: normalizeReadingCardSections(row.readingCardSections),
+    review: rowToReadingCardReview(row),
+    providerId: row.readingCardProviderId || '',
+    providerName: row.readingCardProviderName || '',
+    modelName: row.readingCardModelName || '',
+    createdAt: row.readingCardCreatedAt || row.updatedAt,
+    updatedAt: row.readingCardUpdatedAt || row.updatedAt,
+  };
+}
+
+function rowToReadingDeliberation(
+  row: typeof schema.articles.$inferSelect,
+): ReadingDeliberationRecord | undefined {
+  if (!row.readingDeliberationMarkdown || !row.readingDeliberationId) return undefined;
+  return {
+    id: row.readingDeliberationId,
+    articleId: row.id,
+    title: row.title,
+    contentMarkdown: row.readingDeliberationMarkdown,
+    sections: normalizeReadingDeliberationSections(row.readingDeliberationSections),
+    providerId: row.readingDeliberationProviderId || '',
+    providerName: row.readingDeliberationProviderName || '',
+    modelName: row.readingDeliberationModelName || '',
+    createdAt: row.readingDeliberationCreatedAt || row.updatedAt,
+    updatedAt: row.readingDeliberationUpdatedAt || row.updatedAt,
+  };
+}
+
+function rowToReadingCardReview(
+  row: typeof schema.articles.$inferSelect,
+): ReadingCardReviewRecord | undefined {
+  if (!row.readingCardReviewId || !row.readingCardId) return undefined;
+  return {
+    id: row.readingCardReviewId,
+    articleId: row.id,
+    readingCardId: row.readingCardId,
+    reviewerResults: normalizeReadingCardReviewerResults(row.readingCardReviewResults),
+    createdAt: row.readingCardReviewCreatedAt || row.updatedAt,
+    updatedAt: row.readingCardReviewUpdatedAt || row.updatedAt,
+  };
+}
+
+function normalizeReadingCardSections(value: unknown): ReadingCardSection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const section = item as { title?: unknown; content?: unknown };
+    return typeof section.title === 'string' && typeof section.content === 'string'
+      ? [{ title: section.title, content: section.content }]
+      : [];
+  });
+}
+
+function normalizeReadingDeliberationSections(value: unknown): ReadingDeliberationSection[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const section = item as { title?: unknown; content?: unknown };
+    return typeof section.title === 'string' && typeof section.content === 'string'
+      ? [{ title: section.title, content: section.content }]
+      : [];
+  });
+}
+
+function normalizeReadingCardReviewerResults(value: unknown): ReadingCardReviewerResult[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const result = item as Record<string, unknown>;
+    const id = stringValue(result.id);
+    const reviewerId = stringValue(result.reviewerId);
+    if (!id || !reviewerId) return [];
+    return [
+      {
+        id,
+        reviewerId,
+        reviewerNickname: stringValue(result.reviewerNickname),
+        reviewerUsername: stringValue(result.reviewerUsername),
+        reviewerAvatar: stringValue(result.reviewerAvatar),
+        reviewerColor: stringValue(result.reviewerColor),
+        status: result.status === 'error' ? 'error' : 'done',
+        verdict: normalizeReviewVerdict(result.verdict),
+        summary: stringValue(result.summary),
+        findings: normalizeReviewFindings(result.findings),
+        acceptedClaims: stringArray(result.acceptedClaims),
+        missingAngles: stringArray(result.missingAngles),
+        rawResponse: stringValue(result.rawResponse) || undefined,
+        createdAt: stringValue(result.createdAt) || new Date(0).toISOString(),
+      },
+    ];
+  });
+}
+
+function normalizeReviewFindings(value: unknown): ReadingCardReviewFinding[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const finding = item as Record<string, unknown>;
+    const problem = stringValue(finding.problem);
+    if (!problem) return [];
+    return [
+      {
+        section: stringValue(finding.section),
+        severity: normalizeReviewSeverity(finding.severity),
+        problem,
+        evidenceIds: numberArray(finding.evidenceIds),
+        suggestedRewrite: stringValue(finding.suggestedRewrite) || undefined,
+      },
+    ];
+  });
+}
+
+function normalizeReviewVerdict(value: unknown): ReadingCardReviewVerdict {
+  return value === 'pass' ? 'pass' : 'revise';
+}
+
+function normalizeReviewSeverity(value: unknown): ReadingCardReviewSeverity {
+  return value === 'high' || value === 'medium' || value === 'low' ? value : 'medium';
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function numberArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+    : [];
+}
+
+function normalizeNonNegativeInteger(value: unknown) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : 0;
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+export function normalizeUser(user: Partial<UserProfile> | undefined): UserProfile {
+  return {
+    ...defaultUser,
+    ...user,
+    id: user?.id || defaultUser.id,
+    annotationColor: user?.annotationColor || defaultUser.annotationColor,
+  };
+}
+
+export function rowToUser(row: typeof schema.userProfiles.$inferSelect | undefined): UserProfile {
+  if (!row) return defaultUser;
+  return {
+    id: row.id,
+    nickname: row.nickname,
+    username: row.username,
+    avatar: row.avatar,
+    annotationColor: row.annotationColor,
+    updatedAt: row.updatedAt,
+  };
+}
+
+export function userToRow(user: UserProfile): typeof schema.userProfiles.$inferInsert {
+  return {
+    id: user.id,
+    nickname: user.nickname,
+    username: user.username,
+    avatar: user.avatar,
+    annotationColor: user.annotationColor,
+    updatedAt: user.updatedAt,
+  };
+}
+
+export function sortByCreatedAt<T extends { createdAt: string }>(items: T[]) {
+  return [...items].toSorted(
+    (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+  );
+}
+
+export function normalizeUsername(value: string, fallback = 'me') {
+  return (
+    value
+      .trim()
+      .replace(/^@/, '')
+      .replace(/[^\p{L}\p{N}_-]/gu, '')
+      .slice(0, 32) || fallback
+  );
+}
+
+export function normalizeAgentUsername(value: string, fallback = 'agent') {
+  return value.trim().replace(/^@/, '').replace(/\s+/g, '').slice(0, 32) || fallback;
+}
+
+export function normalizeAnnotationDensity(value: unknown): AgentAnnotationDensity | null {
+  return value === 'low' || value === 'medium' || value === 'high' ? value : null;
+}
+
+export function normalizeAgentKind(value: unknown): AgentKind | null {
+  return value === 'annotation' || value === 'review' ? value : null;
+}
+
+export function normalizeProviderType(value: unknown): ProviderType | null {
+  if (value === 'openai') return 'openai-chat';
+  return value === 'openai-chat' ||
+    value === 'openai-responses' ||
+    value === 'anthropic' ||
+    value === 'gemini'
+    ? value
+    : null;
+}
+
+export function normalizeProviderModelInputMode(value: unknown) {
+  return value === 'custom' || value === 'list' ? value : null;
+}
+
+export function normalizePresetId(value: unknown): ProviderPresetId | undefined {
+  return providerPresets.some((preset) => preset.id === value)
+    ? (value as ProviderPresetId)
+    : undefined;
+}
+
+export function normalizeModelNames(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const names = Array.from(
+    new Set(
+      value.filter((item): item is string => typeof item === 'string').map((item) => item.trim()),
+    ),
+  ).filter(Boolean);
+  return names.length > 0 ? names : undefined;
+}
+
+export function normalizeReasoningEffort(value: unknown): ReasoningEffort | undefined {
+  return value === 'default' ||
+    value === 'none' ||
+    value === 'minimal' ||
+    value === 'low' ||
+    value === 'medium' ||
+    value === 'high' ||
+    value === 'xhigh' ||
+    value === 'auto'
+    ? value
+    : undefined;
+}
+
+export function normalizeTemperature(value: unknown) {
+  const temperature = Number(value);
+  if (!Number.isFinite(temperature)) return 0.5;
+  return Math.min(1, Math.max(0, temperature));
+}
+
+function normalizeAnnotationType(value: unknown): AnnotationType | null {
+  return value === 'key_point' ||
+    value === 'assumption' ||
+    value === 'concept' ||
+    value === 'question' ||
+    value === 'quote'
+    ? value
+    : null;
+}
+
+function normalizeAnnotationEvidenceUsed(value: unknown): AnnotationEvidenceSource[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const sources = value
+    .map((item) => normalizeAnnotationEvidenceSource(item))
+    .filter((item): item is AnnotationEvidenceSource => Boolean(item));
+  return sources.length > 0 ? Array.from(new Set(sources)) : undefined;
+}
+
+function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null {
+  return value === 'explain' ||
+    value === 'decompose' ||
+    value === 'challenge' ||
+    value === 'question' ||
+    value === 'connect'
+    ? value
+    : null;
+}
+
+function normalizeQuestionStatus(value: unknown): QuestionStatus | null {
+  return value === 'open' || value === 'answered' || value === 'parked' ? value : null;
+}
