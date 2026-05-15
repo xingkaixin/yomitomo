@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.3.0 - 2026-05-15
+
+### 新功能
+
+- 桌面端新增本地 EPUB 导入与阅读，支持导入对话框、封面和章节元数据保存，并通过 Foliate 阅读器打开电子书。(#26, #27, #47)
+- EPUB 阅读链路新增结构化书籍索引、paragraph-aware 文本锚点和 segment 级批注任务，让批注、高亮和 AI 落点能稳定绑定章节、段落和片段范围。(#28, #29, #34, #36)
+- AI 伴读新增剧透范围控制、阅读上下文打包、选区上下文、thread-first 回复上下文、descriptor 路由和 EPUB 阅读记忆，减少长书场景中的上下文漂移。(#30, #31, #32, #33, #35, #37)
+- EPUB 共读新增同章 lexical related passages、评估矩阵和长片段切分，提升章节路由、证据召回和长段落共读的稳定性。(#39, #40, #41)
+- 阅读器新增助手阅读 dock、滚动边缘模糊、批注导航快捷键、长批注折叠和助手 dock 动画。(#20, #21, #42, #43, #44)
+- 阅读器选区复制和添加批注快捷键支持在设置中自定义，并在网页阅读器和 EPUB 阅读器中复用。(#25)
+
+### 性能
+
+- 新增 EPUB 性能埋点，记录导入、索引、批注生成和阅读器关键步骤耗时。(#45)
+- 减少 EPUB 高亮重算，降低翻页、滚动和批注变化时的重复计算成本。(#46)
+
+### 修复
+
+- 修复嵌入式阅读器高度不足、精读助手控件焦点不稳定，以及短文场景下自动批注过多的问题。(#22, #23, #24)
+- 修复阅读库排序变化后分组不同步的问题。(#48)
+- 修正桌面端第三方许可证声明和生产依赖清单。(#49)
+
+### 工程
+
+- 新增 Turbo `typecheck` 任务，统一调度各 workspace package 的 TypeScript 类型检查。(#38)
+
+### Changelog Detail
+
+- #49 fix(desktop): correct license notices @xingkaixin
+- #48 fix(desktop): sync library groups with sort @xingkaixin
+- #47 feat(desktop): improve article import dialog @xingkaixin
+- #46 Reduce EPUB highlight recalculation @xingkaixin
+- #45 feat: add EPUB performance instrumentation @xingkaixin
+- #44 feat(reader-ui): collapse long annotation bodies @xingkaixin
+- #43 feat(reader): animate annotation agent dock @xingkaixin
+- #42 feat: add annotation navigation shortcuts @xingkaixin
+- #41 fix(epub): chunk long co-reading segments @xingkaixin
+- #40 feat: add EPUB co-reading evaluation matrix @xingkaixin
+- #39 feat(epub): add lexical related passages @xingkaixin
+- #38 feat: add turbo typescheck task @xingkaixin
+- #37 feat: add EPUB reading memory @xingkaixin
+- #36 feat: add EPUB segment annotations @xingkaixin
+- #35 [codex] Add EPUB thread-first context @xingkaixin
+- #34 feat(epub): Add EPUB annotation reader support @xingkaixin
+- #33 feat(ai): route epub co-reading by descriptors @xingkaixin
+- #32 feat(ai): add epub selection context @xingkaixin
+- #31 feat(ai): add reading context packing @xingkaixin
+- #30 feat(epub): add spoiler-scoped reading context @xingkaixin
+- #29 feat: add paragraph-aware text anchors @xingkaixin
+- #28 feat(epub): add structural book index @xingkaixin
+- #27 feat(desktop): add foliate epub reader @xingkaixin
+- #26 feat: add EPUB import and reader @xingkaixin
+- #25 feat: add reader shortcut customization @xingkaixin
+- #24 fix(reader-ui): stabilize focus assistant controls @xingkaixin
+- #23 fix(ai): cap short article annotations @xingkaixin
+- #22 fix(reader): fill embedded reader height @xingkaixin
+- #21 feat(reader): add agent reading dock @xingkaixin
+- #20 feat(reader): add scroll edge blur @xingkaixin
+
 ## 0.2.0 - 2026-05-11
 
 ### 新功能
