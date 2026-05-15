@@ -24,6 +24,7 @@ import {
   type ReadingContextPassageInput,
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
+import { logAiInfo } from './logger';
 import { relatedPassagesFromReadingContext } from './related-passages';
 
 const SEGMENT_CONTEXT_TOKEN_BUDGET = 9000;
@@ -95,6 +96,7 @@ export function buildSegmentAnnotationTask(
       allowedTextEnd: taskRange.textEnd,
       allowedSegmentIds: [segment.id],
       allowedParagraphIds,
+      performanceLogger: logAiInfo,
     },
     targetDensity: planItem.targetDensity,
   };
@@ -300,6 +302,7 @@ function segmentRelatedPassages(
     excludeParagraphIds: segment.paragraphIds,
     maxPassages: 3,
     neighborParagraphs: 1,
+    performanceLogger: logAiInfo,
   });
   return passages;
 }

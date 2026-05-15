@@ -2058,6 +2058,7 @@ function WebSourceBookcase({
     const updateBoxes = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
+        const startedAt = performance.now();
         const text = articleElement.textContent || '';
         const canvasRect = canvasElement.getBoundingClientRect();
         const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
@@ -2065,11 +2066,15 @@ function WebSourceBookcase({
           extractedTocItems.length > 0
             ? extractedTocItems
             : articleTitleTocItems(articleElement, article.title);
+        let resolvedAnchorCount = 0;
+        let rangeCount = 0;
         const nextBoxes = annotations.flatMap((annotation) => {
           const position = resolveTextAnchor(text, annotation.anchor);
           if (!position) return [];
+          resolvedAnchorCount += 1;
           const range = rangeFromOffsets(articleElement, position.start, position.end);
           if (!range) return [];
+          rangeCount += 1;
           return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
             Object.assign(box, {
               annotationId: annotation.id,
@@ -2085,6 +2090,18 @@ function WebSourceBookcase({
         });
         setTocItems(nextTocItems);
         setBoxes(nextBoxes);
+        recordRendererPerformanceTiming('reader_highlight_boxes', {
+          source: 'web',
+          elapsedMs: rendererPerformanceElapsedMs(startedAt),
+          articleId: article.id,
+          annotationCount: annotations.length,
+          resolvedAnchorCount,
+          rangeCount,
+          boxCount: nextBoxes.length,
+          textChars: text.length,
+          tocItemCount: nextTocItems.length,
+          contentHtmlChars: contentHtml.length,
+        });
       });
     };
 
@@ -3329,15 +3346,22 @@ function EbookBookcase({
       return;
     }
 
+    const startedAt = performance.now();
     const sectionIndex = content.index ?? pageInfo?.sectionIndex ?? 0;
     const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
     const canvasRect = canvasElement.getBoundingClientRect();
+    let skippedChapterCount = 0;
+    let resolvedAnchorCount = 0;
+    let rangeCount = 0;
     const nextBoxes = annotations.flatMap((annotation) => {
       if (chapter && annotation.anchor.chapterId && annotation.anchor.chapterId !== chapter.id) {
+        skippedChapterCount += 1;
         return [];
       }
       const range = rangeForEbookAnchorInDocument(doc, annotation.anchor);
       if (!range) return [];
+      resolvedAnchorCount += 1;
+      rangeCount += 1;
       return foliateRangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
         Object.assign(box, {
           annotationId: annotation.id,
@@ -3352,6 +3376,20 @@ function EbookBookcase({
       );
     });
     setBoxes(nextBoxes);
+    recordRendererPerformanceTiming('reader_highlight_boxes', {
+      source: 'ebook-foliate',
+      elapsedMs: rendererPerformanceElapsedMs(startedAt),
+      articleId: article.id,
+      sectionIndex,
+      chapterId: chapter?.id,
+      annotationCount: annotations.length,
+      skippedChapterCount,
+      resolvedAnchorCount,
+      rangeCount,
+      boxCount: nextBoxes.length,
+      chapterTextChars:
+        chapter?.textEnd !== undefined ? chapter.textEnd - chapter.textStart : undefined,
+    });
   }, [annotationAgents, annotations, article, pageInfo?.sectionIndex, userProfile]);
 
   updateEbookBoxesRef.current = updateEbookBoxes;
@@ -5528,4 +5566,12 @@ function escapeHtml(value: string) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function rendererPerformanceElapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}
+
+function recordRendererPerformanceTiming(event: string, data: Record<string, unknown>) {
+  void window.yomitomoDesktop?.recordPerformanceTiming?.({ event, data });
 }

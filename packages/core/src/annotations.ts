@@ -15,6 +15,11 @@ import type {
 } from '@yomitomo/shared';
 import { createTextAnchor, makeId } from '@yomitomo/shared';
 import { createEpubTextAnchor } from './ebook-index';
+import {
+  performanceElapsedMs,
+  performanceStart,
+  type PerformanceTimingLogger,
+} from './performance';
 
 export type AnnotationSuggestion = {
   exact: string;
@@ -48,6 +53,20 @@ export type CreateAgentAnnotationOptions = {
   allowedTextEnd?: number;
   allowedSegmentIds?: string[];
   allowedParagraphIds?: string[];
+  performanceLogger?: PerformanceTimingLogger;
+};
+
+type AgentAnnotationMatchStrategy = 'exact' | 'whitespace_insensitive' | 'whitespace_agnostic';
+
+type AgentAnnotationMatchStats = {
+  candidateCount: number;
+  candidatesTried: number;
+  exactMatchCount: number;
+  allowedExactMatchCount: number;
+  whitespaceInsensitiveMatchCount: number;
+  allowedWhitespaceInsensitiveMatchCount: number;
+  whitespaceAgnosticMatchCount: number;
+  allowedWhitespaceAgnosticMatchCount: number;
 };
 
 export type AnnotationPersona = {
@@ -206,14 +225,45 @@ function findAgentAnnotationMatch(
   suggestion: AnnotationSuggestion,
   options: CreateAgentAnnotationOptions,
 ): { start: number; end: number } | null {
+  const startedAt = performanceStart();
   const exact = suggestion.exact.trim();
-  if (!exact) return null;
-
-  for (const candidate of agentAnnotationCandidates(exact)) {
-    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion, options);
-    if (match) return match;
+  if (!exact) {
+    logAgentAnnotationMatchTiming(articleText, exact, options, startedAt, null, undefined, {
+      candidateCount: 0,
+      candidatesTried: 0,
+      exactMatchCount: 0,
+      allowedExactMatchCount: 0,
+      whitespaceInsensitiveMatchCount: 0,
+      allowedWhitespaceInsensitiveMatchCount: 0,
+      whitespaceAgnosticMatchCount: 0,
+      allowedWhitespaceAgnosticMatchCount: 0,
+    });
+    return null;
   }
 
+  const candidates = agentAnnotationCandidates(exact);
+  const stats: AgentAnnotationMatchStats = {
+    candidateCount: candidates.length,
+    candidatesTried: 0,
+    exactMatchCount: 0,
+    allowedExactMatchCount: 0,
+    whitespaceInsensitiveMatchCount: 0,
+    allowedWhitespaceInsensitiveMatchCount: 0,
+    whitespaceAgnosticMatchCount: 0,
+    allowedWhitespaceAgnosticMatchCount: 0,
+  };
+
+  for (const candidate of candidates) {
+    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion, options, stats);
+    if (match) {
+      logAgentAnnotationMatchTiming(articleText, exact, options, startedAt, match, match.strategy, {
+        ...stats,
+      });
+      return match;
+    }
+  }
+
+  logAgentAnnotationMatchTiming(articleText, exact, options, startedAt, null, undefined, stats);
   return null;
 }
 
@@ -222,33 +272,80 @@ function findAgentAnnotationCandidate(
   exact: string,
   suggestion: AnnotationSuggestion,
   options: CreateAgentAnnotationOptions,
+  stats: AgentAnnotationMatchStats,
 ) {
+  stats.candidatesTried += 1;
   const exactMatches = findAll(articleText, exact).map((start) => ({
     start,
     end: start + exact.length,
   }));
+  stats.exactMatchCount += exactMatches.length;
   const allowedExactMatches = allowedAgentAnnotationMatches(exactMatches, options);
+  stats.allowedExactMatchCount += allowedExactMatches.length;
   if (allowedExactMatches.length > 0) {
-    return selectAgentAnnotationMatch(articleText, allowedExactMatches, exact, suggestion);
+    return {
+      ...selectAgentAnnotationMatch(articleText, allowedExactMatches, exact, suggestion),
+      strategy: 'exact' as const,
+    };
   }
 
-  const normalizedMatches = allowedAgentAnnotationMatches(
-    findWhitespaceInsensitiveMatches(articleText, exact),
-    options,
-  );
+  const allNormalizedMatches = findWhitespaceInsensitiveMatches(articleText, exact);
+  stats.whitespaceInsensitiveMatchCount += allNormalizedMatches.length;
+  const normalizedMatches = allowedAgentAnnotationMatches(allNormalizedMatches, options);
+  stats.allowedWhitespaceInsensitiveMatchCount += normalizedMatches.length;
   if (normalizedMatches.length > 0) {
-    return selectAgentAnnotationMatch(articleText, normalizedMatches, exact, suggestion);
+    return {
+      ...selectAgentAnnotationMatch(articleText, normalizedMatches, exact, suggestion),
+      strategy: 'whitespace_insensitive' as const,
+    };
   }
 
-  const compactMatches = allowedAgentAnnotationMatches(
-    findWhitespaceAgnosticMatches(articleText, exact),
-    options,
-  );
+  const allCompactMatches = findWhitespaceAgnosticMatches(articleText, exact);
+  stats.whitespaceAgnosticMatchCount += allCompactMatches.length;
+  const compactMatches = allowedAgentAnnotationMatches(allCompactMatches, options);
+  stats.allowedWhitespaceAgnosticMatchCount += compactMatches.length;
   if (compactMatches.length > 0) {
-    return selectAgentAnnotationMatch(articleText, compactMatches, exact, suggestion);
+    return {
+      ...selectAgentAnnotationMatch(articleText, compactMatches, exact, suggestion),
+      strategy: 'whitespace_agnostic' as const,
+    };
   }
 
   return null;
+}
+
+function logAgentAnnotationMatchTiming(
+  articleText: string,
+  exact: string,
+  options: CreateAgentAnnotationOptions,
+  startedAt: number,
+  match: { start: number; end: number } | null,
+  strategy: AgentAnnotationMatchStrategy | undefined,
+  stats: AgentAnnotationMatchStats,
+) {
+  options.performanceLogger?.('performance.agent_annotation_match', {
+    elapsedMs: performanceElapsedMs(startedAt),
+    result: match ? 'matched' : 'not_found',
+    strategy,
+    articleChars: articleText.length,
+    exactChars: exact.length,
+    allowedTextChars: allowedAgentAnnotationTextChars(options),
+    hasEbookIndex: Boolean(options.ebookIndex),
+    allowedSegmentCount: options.allowedSegmentIds?.length || 0,
+    allowedParagraphCount: options.allowedParagraphIds?.length || 0,
+    ...stats,
+  });
+}
+
+function allowedAgentAnnotationTextChars(options: CreateAgentAnnotationOptions) {
+  if (
+    Number.isInteger(options.allowedTextStart) &&
+    Number.isInteger(options.allowedTextEnd) &&
+    options.allowedTextEnd! >= options.allowedTextStart!
+  ) {
+    return options.allowedTextEnd! - options.allowedTextStart!;
+  }
+  return undefined;
 }
 
 function allowedAgentAnnotationMatches(

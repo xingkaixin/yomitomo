@@ -153,6 +153,7 @@ function registerIpc() {
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
+  ipcMain.handle('performance:timing', (_event, input: unknown) => recordPerformanceTiming(input));
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
   ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
     const store = await saveArticle(input);
@@ -201,7 +202,7 @@ function registerIpc() {
       },
     ) => {
       const previousStore = await readStore();
-      const record = await articleRecordFromEpubFile(input);
+      const record = await articleRecordFromEpubFile(input, { performanceLogger: logInfo });
       const existingArticle = findArticleByIdentity(previousStore.articles, record);
       if (existingArticle) {
         await saveEbookSourceFile(existingArticle.id, input.data);
@@ -528,6 +529,16 @@ function sendToRenderer(channel: string, payload: unknown) {
   mainWindow.webContents.send(channel, payload);
 }
 
+function recordPerformanceTiming(input: unknown) {
+  if (!isRecord(input)) return;
+  const event = typeof input.event === 'string' ? input.event : '';
+  if (!/^[a-z0-9_.:-]+$/i.test(event)) return;
+  logInfo(
+    `performance.${event.replace(/^performance\./, '')}`,
+    isRecord(input.data) ? input.data : {},
+  );
+}
+
 function findArticleByIdentity(
   articles: ArticleRecord[],
   identity: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
@@ -543,6 +554,10 @@ function findArticleByIdentity(
     ) ||
     null
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'readingNote';
