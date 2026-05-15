@@ -107,7 +107,7 @@ export function AboutSettings({
         <AboutActionCard
           icon={<Package size={18} />}
           title="开源许可证"
-          description={`Yomitomo 使用 Apache-2.0，生产依赖包含 ${thirdPartyPackages.length} 个开源软件包。`}
+          description={`Yomitomo 使用 MIT，第三方组件包含 ${thirdPartyPackages.length} 个开源项目。`}
           actionLabel="查看许可证"
           onAction={() => setLicensesOpen(true)}
         />
@@ -198,7 +198,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
         <header>
           <div>
             <h2 id="license-dialog-title">开源许可证</h2>
-            <p>本应用使用了 {thirdPartyPackages.length} 个开源软件包。</p>
+            <p>本应用使用了 {thirdPartyPackages.length} 个第三方开源组件。</p>
           </div>
           <button
             aria-label="关闭开源许可证"
@@ -225,18 +225,19 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
               <Package size={16} />
               <strong>Yomitomo</strong>
               <em>源码</em>
-              <span>Apache-2.0</span>
+              <span>MIT</span>
             </div>
           </article>
           {visiblePackages.map((item) => {
-            const expanded = expandedPackage === item.name;
+            const packageKey = licensePackageKey(item);
+            const expanded = expandedPackage === packageKey;
             return (
-              <article className="license-package" key={item.name} role="listitem">
+              <article className="license-package" key={packageKey} role="listitem">
                 <button
                   aria-expanded={expanded}
                   className="license-package-row"
                   type="button"
-                  onClick={() => setExpandedPackage(expanded ? '' : item.name)}
+                  onClick={() => setExpandedPackage(expanded ? '' : packageKey)}
                 >
                   {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                   <strong>{item.name}</strong>
@@ -283,6 +284,10 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
 
 function formatVersion(version: string) {
   return version ? `v${version}` : '读取中';
+}
+
+function licensePackageKey(item: LicensePackage) {
+  return [item.name, item.versions, item.license].join('::');
 }
 
 function openExternal(url: string) {
