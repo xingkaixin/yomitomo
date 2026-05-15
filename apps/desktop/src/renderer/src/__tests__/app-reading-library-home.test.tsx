@@ -4,7 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
-import { ReadingLibrary } from '../app-reading-library';
+import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
 
 const now = '2026-05-09T12:00:00.000Z';
 
@@ -56,6 +56,18 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
     createdAt: now,
     updatedAt: now,
     ...overrides,
+  };
+}
+
+function annotationWithComments(id: string, count: number): Annotation {
+  return {
+    ...annotation(id),
+    comments: Array.from({ length: count }, (_, index) => ({
+      id: `${id}_comment_${index + 1}`,
+      author: 'user',
+      content: `讨论 ${index + 1}`,
+      createdAt: `2026-05-09T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
+    })),
   };
 }
 
@@ -140,6 +152,79 @@ function renderLibrary(
     />,
   );
 }
+
+describe('groupLibraryArticles', () => {
+  it('groups recent reading by article update time', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-09T12:00:00.000+08:00'));
+
+    const olderAddedRecentRead = article({
+      id: 'older_added_recent_read',
+      createdAt: '2026-05-05T09:00:00.000+08:00',
+      updatedAt: '2026-05-09T10:00:00.000+08:00',
+    });
+    const todayAddedRead = article({
+      id: 'today_added_read',
+      createdAt: '2026-05-09T08:00:00.000+08:00',
+      updatedAt: '2026-05-09T09:00:00.000+08:00',
+    });
+    const olderAddedStaleRead = article({
+      id: 'older_added_stale_read',
+      createdAt: '2026-05-05T08:00:00.000+08:00',
+      updatedAt: '2026-05-01T09:00:00.000+08:00',
+    });
+
+    expect(
+      groupLibraryArticles(
+        [olderAddedRecentRead, todayAddedRead, olderAddedStaleRead],
+        'recentReading',
+      ).map((group) => ({
+        label: group.label,
+        ids: group.articles.map((item) => item.id),
+      })),
+    ).toEqual([
+      { label: '今天', ids: ['older_added_recent_read', 'today_added_read'] },
+      { label: '更早', ids: ['older_added_stale_read'] },
+    ]);
+  });
+
+  it('groups count-based sorts by their selected count', () => {
+    expect(
+      groupLibraryArticles(
+        [
+          article({ id: 'two_annotations', annotations: [annotation('a1'), annotation('a2')] }),
+          article({ id: 'one_annotation', annotations: [annotation('a3')] }),
+          article({ id: 'also_one_annotation', annotations: [annotation('a4')] }),
+          article({ id: 'no_annotations', annotations: [] }),
+        ],
+        'annotations',
+      ).map((group) => ({
+        label: group.label,
+        ids: group.articles.map((item) => item.id),
+      })),
+    ).toEqual([
+      { label: '2 条批注', ids: ['two_annotations'] },
+      { label: '1 条批注', ids: ['one_annotation', 'also_one_annotation'] },
+      { label: '暂无批注', ids: ['no_annotations'] },
+    ]);
+
+    expect(
+      groupLibraryArticles(
+        [
+          article({ id: 'two_discussions', annotations: [annotationWithComments('d1', 2)] }),
+          article({ id: 'no_discussions', annotations: [annotation('d2')] }),
+        ],
+        'discussions',
+      ).map((group) => ({
+        label: group.label,
+        ids: group.articles.map((item) => item.id),
+      })),
+    ).toEqual([
+      { label: '2 条讨论', ids: ['two_discussions'] },
+      { label: '暂无讨论', ids: ['no_discussions'] },
+    ]);
+  });
+});
 
 describe('ReadingLibrary home', () => {
   it('derives reading status from annotations and completed reading-card rounds', () => {

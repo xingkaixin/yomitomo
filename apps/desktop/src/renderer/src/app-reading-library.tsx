@@ -124,7 +124,7 @@ const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 
 type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
-type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
+export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
 type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -627,7 +627,10 @@ function LibraryHome({
   );
   const pageCount = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
   const pageArticles = filteredArticles.slice((page - 1) * pageSize, page * pageSize);
-  const groupedPageArticles = useMemo(() => groupLibraryArticles(pageArticles), [pageArticles]);
+  const groupedPageArticles = useMemo(
+    () => groupLibraryArticles(pageArticles, activeSort),
+    [activeSort, pageArticles],
+  );
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
     const start = Math.min(
@@ -1609,13 +1612,25 @@ function compareLibraryArticles(left: ArticleRecord, right: ArticleRecord, sort:
   );
 }
 
-function groupLibraryArticles(articles: ArticleRecord[]) {
+export function groupLibraryArticles(articles: ArticleRecord[], sort: LibrarySort) {
   const groups = new Map<string, ArticleRecord[]>();
   for (const article of articles) {
-    const label = formatLibraryDateGroup(article.createdAt);
+    const label = libraryArticleGroupLabel(article, sort);
     groups.set(label, [...(groups.get(label) || []), article]);
   }
   return Array.from(groups, ([label, groupArticles]) => ({ label, articles: groupArticles }));
+}
+
+function libraryArticleGroupLabel(article: ArticleRecord, sort: LibrarySort) {
+  if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
+  if (sort === 'annotations') return formatLibraryCountGroup(article.annotations.length, '批注');
+  if (sort === 'discussions') return formatLibraryCountGroup(articleCommentCount(article), '讨论');
+  return formatLibraryDateGroup(article.updatedAt);
+}
+
+function formatLibraryCountGroup(count: number, unit: '批注' | '讨论') {
+  if (count <= 0) return `暂无${unit}`;
+  return `${count} 条${unit}`;
 }
 
 function libraryArticleStatus(article: ArticleRecord) {
