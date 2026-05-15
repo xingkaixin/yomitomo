@@ -26,7 +26,7 @@ export {
   reviewAgentPersonalities,
 } from '@yomitomo/shared';
 
-export type ProviderDraft = Partial<LlmProvider>;
+export type ProviderDraft = Partial<LlmProvider> & { removeApiKey?: boolean };
 export type AgentDraft = Partial<Agent> & { personalityId?: string };
 export type UserDraft = Partial<UserProfile>;
 
@@ -163,7 +163,8 @@ export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvi
     (draft.presetId || '') !== (provider.presetId || '') ||
     (draft.logo || '') !== (provider.logo || '') ||
     (draft.baseUrl || '').trim() !== provider.baseUrl ||
-    (draft.apiKey || '').trim() !== provider.apiKey ||
+    Boolean((draft.apiKey || '').trim()) ||
+    Boolean(draft.removeApiKey) ||
     (draft.modelName || '').trim() !== provider.modelName ||
     modelNamesChanged(draft.modelNames, provider.modelNames) ||
     (draft.modelInputMode || 'list') !== (provider.modelInputMode || 'list') ||

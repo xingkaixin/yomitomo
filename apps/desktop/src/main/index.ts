@@ -41,6 +41,8 @@ import {
   deleteAgent,
   deleteArticle,
   deleteProvider,
+  hydrateProviderApiKey,
+  hydrateProviderInputApiKey,
   readStore,
   saveAgent,
   saveArticleReadingDeliberation,
@@ -243,10 +245,13 @@ function registerIpc() {
     const store = await saveSettings(input);
     return store;
   });
-  ipcMain.handle('provider:save', async (_event, input: Partial<LlmProvider>) => {
-    const store = await saveProvider(input);
-    return store;
-  });
+  ipcMain.handle(
+    'provider:save',
+    async (_event, input: Partial<LlmProvider> & { removeApiKey?: boolean }) => {
+      const store = await saveProvider(input);
+      return store;
+    },
+  );
   ipcMain.handle('provider:delete', async (_event, id: string) => {
     const store = await deleteProvider(id);
     return store;
@@ -256,30 +261,30 @@ function registerIpc() {
       const store = await readStore();
       const provider = store.providers.find((item) => item.id === id);
       if (!provider) return { ok: false, message: 'Provider 不存在' };
-      return testProvider(provider);
+      return testProvider(await hydrateProviderApiKey(provider));
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
     }
   });
-  ipcMain.handle('provider:list-models', (_event, input: Partial<LlmProvider>) =>
-    listProviderModels(input),
+  ipcMain.handle('provider:list-models', async (_event, input: Partial<LlmProvider>) =>
+    listProviderModels(await hydrateProviderInputApiKey(input)),
   );
   ipcMain.handle('annotation:metadata', async (_event, payload: AnnotationMetadataPayload) => {
     const store = await readStore();
-    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return inferAnnotationMetadata(provider, payload);
   });
   ipcMain.handle(
     'agent:mention-instructions',
     async (_event, payload: AgentMentionInstructionPayload) => {
       const store = await readStore();
-      const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+      const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
       return planAgentMentionInstructions(provider, payload);
     },
   );
   ipcMain.handle('focus-co-reading:route', async (_event, payload: FocusCoReadingRoutePayload) => {
     const store = await readStore();
-    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     const selected = new Set(payload.selectedAgentIds);
     const agents = store.agents.filter(
       (agent) => agent.kind === 'annotation' && agent.enabled && selected.has(agent.id),
@@ -295,7 +300,7 @@ function registerIpc() {
     const store = await readStore();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
-    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     const comment = await runAgent(provider, agent, {
       ...payload,
       agentRoster: publicAnnotationAgents(store.agents),
@@ -324,7 +329,7 @@ function registerIpc() {
           input.payload.agentUsername,
         );
         if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
-        const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+        const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
         const comment: Comment = {
           id: makeId('comment'),
           author: 'ai',
@@ -368,7 +373,7 @@ function registerIpc() {
     const store = await readStore();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
-    const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return runAgentAnnotateWithMemory(provider, agent, payload);
   });
   ipcMain.on(
@@ -389,7 +394,7 @@ function registerIpc() {
           input.payload.agentUsername,
         );
         if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
-        const provider = taskProvider(store.providers, store.settings, 'readingAssistant');
+        const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
         const annotations: ArticleRecord['annotations'] = [];
         event.sender.send(channel, { type: 'start' });
         const result = await runAgentAnnotateStream(
@@ -416,7 +421,7 @@ function registerIpc() {
   );
   ipcMain.handle('reading-card:generate', async (_event, input: GenerateReadingCardInput) => {
     const store = await readStore();
-    const provider = taskProvider(store.providers, store.settings, 'readingNote');
+    const provider = await taskProvider(store.providers, store.settings, 'readingNote');
     const content = await generateReadingCard(provider, input);
     const now = new Date().toISOString();
     const readingCard = {
@@ -438,7 +443,7 @@ function registerIpc() {
     'reading-deliberation:generate',
     async (_event, input: GenerateReadingDeliberationInput) => {
       const store = await readStore();
-      const provider = taskProvider(store.providers, store.settings, 'readingNote');
+      const provider = await taskProvider(store.providers, store.settings, 'readingNote');
       const content = await generateReadingDeliberation(provider, input);
       const now = new Date().toISOString();
       const deliberation = {
@@ -472,7 +477,7 @@ function registerIpc() {
       );
     }
 
-    const provider = taskProvider(store.providers, store.settings, 'reviewAssistant');
+    const provider = await taskProvider(store.providers, store.settings, 'reviewAssistant');
     const createdAt = new Date().toISOString();
     const reviewerResults: ReadingCardReviewerResult[] = await Promise.all(
       reviewAgents.map(async (agent) => {
@@ -592,15 +597,15 @@ const providerTaskLabels: Record<ProviderTask, string> = {
   readingNote: '读后笔记助手',
 };
 
-function taskProvider(
+async function taskProvider(
   providers: LlmProvider[],
   settings: AppSettings,
   task: ProviderTask,
-): LlmProvider {
+): Promise<LlmProvider> {
   const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
   const provider = providers.find((item) => item.id === providerId);
   if (!provider) throw new Error(`请先在任务路由选择${providerTaskLabels[task]}供应商`);
-  return provider;
+  return hydrateProviderApiKey(provider);
 }
 
 function findAnnotationAgent(agents: Agent[], agentId: string | undefined, username: string) {

@@ -78,7 +78,7 @@ const api = {
     ipcRenderer.invoke('user:save', user) as Promise<DesktopStore>,
   saveSettings: (settings: AppSettings) =>
     ipcRenderer.invoke('settings:save', settings) as Promise<DesktopStore>,
-  saveProvider: (provider: Partial<LlmProvider>) =>
+  saveProvider: (provider: Partial<LlmProvider> & { removeApiKey?: boolean }) =>
     ipcRenderer.invoke('provider:save', provider) as Promise<DesktopStore>,
   deleteProvider: (id: string) =>
     ipcRenderer.invoke('provider:delete', id) as Promise<DesktopStore>,

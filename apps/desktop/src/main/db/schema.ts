@@ -30,6 +30,7 @@ export const providers = sqliteTable('providers', {
   logo: text('logo'),
   baseUrl: text('base_url').notNull(),
   apiKey: text('api_key').notNull(),
+  apiKeyRef: text('api_key_ref'),
   modelName: text('model_name').notNull(),
   modelNames: text('model_names', { mode: 'json' }),
   modelInputMode: text('model_input_mode'),

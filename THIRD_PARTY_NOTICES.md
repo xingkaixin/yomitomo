@@ -24,16 +24,17 @@ Vendored components are discovered from:
 | (MPL-2.0 OR Apache-2.0) | 1 |
 | 0BSD | 1 |
 | Apache-2.0 | 7 |
-| BlueOak-1.0.0 | 1 |
+| BlueOak-1.0.0 | 2 |
 | BSD-2-Clause | 9 |
 | BSD-3-Clause | 4 |
 | CC-BY-4.0 | 1 |
 | CC0-1.0 | 1 |
-| ISC | 26 |
-| MIT | 203 |
+| ISC | 27 |
+| MIT | 215 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | MPL-2.0 | 2 |
+| Python-2.0 | 1 |
 
 ## Packages
 
@@ -81,6 +82,8 @@ Vendored components are discovered from:
 | @jridgewell/trace-mapping | 0.3.31 | MIT | [link](https://github.com/jridgewell/sourcemaps/tree/main/packages/trace-mapping) |
 | @mixmark-io/domino | 2.2.0 | BSD-2-Clause | [link](https://github.com/mixmark-io/domino#readme) |
 | @mozilla/readability | 0.6.0 | Apache-2.0 | [link](https://github.com/mozilla/readability) |
+| @napi-rs/keyring | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
+| @napi-rs/keyring-darwin-arm64 | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
 | @oxc-project/types | 0.129.0 | MIT | [link](https://oxc.rs) |
 | @radix-ui/number | 1.1.1 | MIT | [link](https://radix-ui.com/primitives) |
 | @radix-ui/primitive | 1.1.3 | MIT | [link](https://radix-ui.com/primitives) |
@@ -130,6 +133,7 @@ Vendored components are discovered from:
 | @types/use-sync-external-store | 0.0.6 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/use-sync-external-store) |
 | @vitejs/plugin-react | 6.0.1 | MIT | [link](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#readme) |
 | @xmldom/xmldom | 0.8.13 | MIT | [link](https://github.com/xmldom/xmldom) |
+| argparse | 2.0.1 | Python-2.0 | [link](https://github.com/nodeca/argparse#readme) |
 | aria-hidden | 1.2.6 | MIT | [link](https://github.com/theKashey/aria-hidden#readme) |
 | base64-js | 1.5.1 | MIT | [link](https://github.com/beatgammit/base64-js) |
 | baseline-browser-mapping | 2.10.25 | Apache-2.0 | [link](https://github.com/web-platform-dx/baseline-browser-mapping#readme) |
@@ -140,6 +144,7 @@ Vendored components are discovered from:
 | boolbase | 1.0.0 | ISC | [link](https://github.com/fb55/boolbase) |
 | browserslist | 4.28.2 | MIT | [link](https://github.com/browserslist/browserslist#readme) |
 | buffer | 5.7.1 | MIT | [link](https://github.com/feross/buffer) |
+| builder-util-runtime | 9.5.1 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | cac | 6.7.14 | MIT | [link](https://github.com/egoist/cac#readme) |
 | caniuse-lite | 1.0.30001791 | CC-BY-4.0 | [link](https://github.com/browserslist/caniuse-lite#readme) |
 | chownr | 1.1.4 | ISC | [link](https://github.com/isaacs/chownr#readme) |
@@ -180,6 +185,7 @@ Vendored components are discovered from:
 | domutils | 3.2.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.2 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | electron-to-chromium | 1.5.349 | ISC | [link](https://github.com/Kilian/electron-to-chromium#readme) |
+| electron-updater | 6.8.3 | MIT | [link](https://github.com/electron-userland/electron-builder) |
 | electron-vite | 5.0.0 | MIT | [link](https://electron-vite.org) |
 | end-of-stream | 1.4.5 | MIT | [link](https://github.com/mafintosh/end-of-stream) |
 | entities | 4.5.0, 7.0.1, 8.0.0 | BSD-2-Clause | [link](https://github.com/fb55/entities#readme) |
@@ -192,11 +198,13 @@ Vendored components are discovered from:
 | file-uri-to-path | 1.0.0 | MIT | [link](https://github.com/TooTallNate/file-uri-to-path) |
 | foliate-js | vendored 78914ae | MIT | [link](https://github.com/johnfactotum/foliate-js) |
 | fs-constants | 1.0.0 | MIT | [link](https://github.com/mafintosh/fs-constants) |
+| fs-extra | 10.1.0 | MIT | [link](https://github.com/jprichardson/node-fs-extra) |
 | fsevents | 2.3.3 | MIT | [link](https://github.com/fsevents/fsevents) |
 | gensync | 1.0.0-beta.2 | MIT | [link](https://github.com/loganfsmyth/gensync) |
 | get-nonce | 1.0.1 | MIT | [link](https://github.com/theKashey/get-nonce) |
 | get-tsconfig | 4.14.0 | MIT | [link](https://github.com/privatenumber/get-tsconfig#readme) |
 | github-from-package | 0.0.0 | MIT | [link](https://github.com/substack/github-from-package) |
+| graceful-fs | 4.2.11 | ISC | [link](https://github.com/isaacs/node-graceful-fs#readme) |
 | html-encoding-sniffer | 6.0.0 | MIT | [link](https://github.com/jsdom/html-encoding-sniffer#readme) |
 | html-escaper | 3.0.3 | MIT | [link](https://github.com/WebReflection/html-escaper) |
 | htmlparser2 | 10.1.0 | MIT | [link](https://github.com/fb55/htmlparser2#readme) |
@@ -210,14 +218,19 @@ Vendored components are discovered from:
 | isarray | 1.0.0 | MIT | [link](https://github.com/juliangruber/isarray) |
 | jiti | 2.7.0 | MIT | [link](https://github.com/unjs/jiti#readme) |
 | js-tokens | 4.0.0 | MIT | [link](https://github.com/lydell/js-tokens#readme) |
+| js-yaml | 4.1.1 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
 | jsdom | 29.1.1 | MIT | [link](https://github.com/jsdom/jsdom#readme) |
 | jsesc | 3.1.0 | MIT | [link](https://mths.be/jsesc) |
 | json5 | 2.2.3 | MIT | [link](http://json5.org/) |
+| jsonfile | 6.2.1 | MIT | [link](https://github.com/jprichardson/node-jsonfile#readme) |
 | jszip | 3.10.1 | (MIT OR GPL-3.0-or-later) | [link](https://github.com/Stuk/jszip#readme) |
+| lazy-val | 1.0.5 | MIT | [link](https://github.com/develar/lazy-val) |
 | lie | 3.3.0 | MIT | [link](https://github.com/calvinmetcalf/lie#readme) |
 | lightningcss | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | lightningcss-darwin-arm64 | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | linkedom | 0.18.12 | ISC | [link](https://github.com/WebReflection/linkedom#readme) |
+| lodash.escaperegexp | 4.1.2 | MIT | [link](https://lodash.com/) |
+| lodash.isequal | 4.5.0 | MIT | [link](https://lodash.com/) |
 | lru-cache | 11.3.5 | BlueOak-1.0.0 | [link](https://github.com/isaacs/node-lru-cache#readme) |
 | lru-cache | 5.1.1 | ISC | [link](https://github.com/isaacs/node-lru-cache#readme) |
 | lucide-react | 1.14.0 | ISC | [link](https://lucide.dev) |
@@ -260,6 +273,7 @@ Vendored components are discovered from:
 | resolve-pkg-maps | 1.0.0 | MIT | [link](https://github.com/privatenumber/resolve-pkg-maps#readme) |
 | rolldown | 1.0.0 | MIT | [link](https://rolldown.rs/) |
 | safe-buffer | 5.1.2, 5.2.1 | MIT | [link](https://github.com/feross/safe-buffer) |
+| sax | 1.6.0 | BlueOak-1.0.0 | [link](https://github.com/isaacs/sax-js#readme) |
 | saxes | 6.0.0 | ISC | [link](https://github.com/lddubeau/saxes#readme) |
 | scheduler | 0.27.0 | MIT | [link](https://react.dev/) |
 | semver | 6.3.1, 7.7.4 | ISC | [link](https://github.com/npm/node-semver#readme) |
@@ -275,6 +289,7 @@ Vendored components are discovered from:
 | tar-stream | 2.2.0 | MIT | [link](https://github.com/mafintosh/tar-stream) |
 | temml | 0.13.2 | MIT | [link](https://temml.org) |
 | tiny-invariant | 1.3.3 | MIT | [link](https://github.com/alexreardon/tiny-invariant#readme) |
+| tiny-typed-emitter | 2.1.0 | MIT | [link](https://github.com/binier/tiny-typed-emitter#readme) |
 | tinyglobby | 0.2.16 | MIT | [link](https://superchupu.dev/tinyglobby) |
 | tldts | 7.0.30 | MIT | [link](https://github.com/remusao/tldts#readme) |
 | tldts-core | 7.0.30 | MIT | [link](https://github.com/remusao/tldts#readme) |
@@ -287,6 +302,7 @@ Vendored components are discovered from:
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
 | undici | 7.25.0 | MIT | [link](https://undici.nodejs.org) |
 | undici-types | 7.21.0 | MIT | [link](https://undici.nodejs.org) |
+| universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | update-browserslist-db | 1.2.3 | MIT | [link](https://github.com/browserslist/update-db#readme) |
 | use-callback-ref | 1.3.3 | MIT | [link](https://github.com/theKashey/use-callback-ref#readme) |
 | use-sidecar | 1.1.3 | MIT | [link](https://github.com/theKashey/use-sidecar) |
