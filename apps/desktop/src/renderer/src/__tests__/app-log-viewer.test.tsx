@@ -32,6 +32,7 @@ describe('AboutSettings', () => {
 
     expect(await screen.findByText('v0.1.0')).toBeTruthy();
     expect(screen.getByText('开源许可证')).toBeTruthy();
+    expect(screen.getByText(/Yomitomo 使用 MIT/)).toBeTruthy();
   });
 
   it('opens project links through the desktop bridge', async () => {
@@ -61,5 +62,20 @@ describe('AboutSettings', () => {
     expect(screen.getByText('@mozilla/readability')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /@mozilla\/readability/ }));
     expect(screen.getAllByText('Apache-2.0').length).toBeGreaterThan(0);
+  });
+
+  it('includes vendored foliate-js in the license dialog', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
+    fireEvent.change(screen.getByPlaceholderText('搜索软件包或许可证...'), {
+      target: { value: 'foliate' },
+    });
+
+    expect(screen.getByText('foliate-js')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /foliate-js/ }));
+    expect(screen.getAllByText('MIT').length).toBeGreaterThan(0);
   });
 });

@@ -160,8 +160,8 @@ Yomitomo 使用 [MIT](LICENSE) 许可证发布。
 
 Copyright 2026 Yomitomo contributors.
 
-第三方生产依赖的许可证清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。清单可通过以下命令重新生成基础数据：
+第三方生产依赖和 vendored 组件的许可证清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。清单可通过以下命令重新生成：
 
 ```bash
-pnpm licenses list --prod --json
+pnpm licenses:generate
 ```
