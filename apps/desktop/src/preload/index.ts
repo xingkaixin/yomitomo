@@ -23,6 +23,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
+import type { AppUpdateState } from '../app-update-types';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
@@ -96,6 +97,15 @@ const api = {
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
   recordPerformanceTiming: (input: PerformanceTimingInput) =>
     ipcRenderer.invoke('performance:timing', input) as Promise<void>,
+  getUpdateStatus: () => ipcRenderer.invoke('updates:get-status') as Promise<AppUpdateState>,
+  checkForUpdates: () => ipcRenderer.invoke('updates:check') as Promise<AppUpdateState>,
+  downloadUpdate: () => ipcRenderer.invoke('updates:download') as Promise<AppUpdateState>,
+  installUpdate: () => ipcRenderer.invoke('updates:install') as Promise<AppUpdateState>,
+  onUpdateStatus: (callback: (state: AppUpdateState) => void) => {
+    const listener = (_event: IpcRendererEvent, state: AppUpdateState) => callback(state);
+    ipcRenderer.on('updates:status', listener);
+    return () => ipcRenderer.removeListener('updates:status', listener);
+  },
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
   saveArticle: (article: ArticleRecord) =>
     ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,

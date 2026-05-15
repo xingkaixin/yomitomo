@@ -7,6 +7,13 @@ module.exports = {
   },
   files: ['dist/main/**', 'dist/preload/**', 'dist/renderer/**', 'resources/**', 'package.json'],
   asarUnpack: ['node_modules/better-sqlite3/**'],
+  publish: [
+    {
+      provider: 'github',
+      owner: 'xingkaixin',
+      repo: 'yomitomo',
+    },
+  ],
   mac: {
     artifactName: '${productName}-${version}-mac-${arch}.${ext}',
     category: 'public.app-category.productivity',

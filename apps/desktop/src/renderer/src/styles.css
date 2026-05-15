@@ -10581,6 +10581,28 @@
   text-align: right;
 }
 
+.about-version-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.about-update-action {
+  min-width: 104px;
+}
+
+.about-update-action.is-loading svg {
+  animation: reading-card-spin 900ms linear infinite;
+}
+
+.about-update-status {
+  margin: -2px 0 0;
+  border-top: 1px solid hsl(var(--border) / 0.56);
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.45;
+  padding-top: 10px;
+}
+
 .about-link-action {
   width: fit-content;
   align-self: flex-start;
@@ -10838,6 +10860,7 @@ button.license-package-row:hover {
   }
 
   .about-version-row em,
+  .about-version-action,
   .license-package-row em,
   .license-package-row span {
     grid-column: 2;
