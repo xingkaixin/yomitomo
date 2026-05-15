@@ -24,7 +24,7 @@ jobs:
               dist/app/mac-arm64/*.dmg
               dist/app/mac-arm64/*.zip
               dist/app/mac-arm64/*.blockmap
-              dist/app/mac-arm64/*.yml
+              dist/app/mac-arm64/latest*.yml
           - name: Windows x64
             os: windows-latest
             command: pnpm make:app:win-x64
@@ -32,7 +32,7 @@ jobs:
             artifactPath: |
               dist/app/win-x64/*.exe
               dist/app/win-x64/*.blockmap
-              dist/app/win-x64/*.yml
+              dist/app/win-x64/latest*.yml
 
     env:
       CI: true
@@ -90,7 +90,7 @@ jobs:
             -name '*.zip' -o \
             -name '*.exe' -o \
             -name '*.blockmap' -o \
-            -name '*.yml' \
+            -name 'latest*.yml' \
           \) | sort)
 
           if [ "${#assets[@]}" -eq 0 ]; then
