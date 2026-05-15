@@ -1,4 +1,4 @@
-import type { AgentKind, AgentPersonality } from './index';
+import type { AgentKind, AgentPersonality } from './types';
 
 const card = (sections: string[]) => sections.join('\n\n');
 
