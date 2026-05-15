@@ -18,6 +18,7 @@ const userProfile: UserProfile = {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -242,6 +243,9 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('添加网页文章')).toBeTruthy();
+    expect(screen.getByLabelText('网页地址').tagName).toBe('TEXTAREA');
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -250,8 +254,56 @@ describe('ReadingLibrary home', () => {
     await waitFor(() => {
       expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post');
     });
-    expect(await screen.findByText('这篇文章已在阅读库')).toBeTruthy();
+    expect((await screen.findAllByText('这篇文章已在阅读库')).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole('progressbar', { name: '网页文章导入进度' }).getAttribute('aria-valuenow'),
+    ).toBe('100');
+    expect(screen.getByText('已在阅读库中找到这篇文章')).toBeTruthy();
+    expect(screen.getByText('无需重复导入，可以直接打开已有文章。')).toBeTruthy();
     expect(screen.getByRole('button', { name: '打开已有文章' })).toBeTruthy();
+  });
+
+  it('auto closes the webpage import dialog after a successful import', async () => {
+    const imported = article({ id: 'article_imported', title: '新导入文章' });
+    const onImportArticleUrl = vi.fn().mockResolvedValue({
+      status: 'imported',
+      article: imported,
+    });
+    renderLibrary([], { onImportArticleUrl });
+
+    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.change(screen.getByLabelText('网页地址'), {
+      target: { value: 'https://example.com/post' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
+
+    await waitFor(() => {
+      expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post');
+    });
+    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole('progressbar', { name: '网页文章导入进度' }).getAttribute('aria-valuenow'),
+    ).toBe('100');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 1200 });
+  });
+
+  it('shows webpage import errors inside the dialog', async () => {
+    const onImportArticleUrl = vi.fn().mockRejectedValue(new Error('fetch failed'));
+    renderLibrary([], { onImportArticleUrl });
+
+    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.change(screen.getByLabelText('网页地址'), {
+      target: { value: 'https://example.com/post' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
+
+    expect(
+      (await screen.findAllByText('无法访问这个网页，请确认链接可打开后再试')).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
   it('opens ebook import dialog from the add menu', () => {
