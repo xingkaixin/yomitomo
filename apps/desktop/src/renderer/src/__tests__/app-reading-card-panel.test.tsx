@@ -10,7 +10,7 @@ import type {
   ReadingCardRecord,
   ReadingCardReviewRecord,
 } from '@yomitomo/shared';
-import { ReadingCard } from '../app-reading-card-panel';
+import { ReadingCard, ReadingCardReviewAgentStrip } from '../app-reading-card-panel';
 
 afterEach(() => {
   cleanup();
@@ -214,6 +214,37 @@ function installDesktopApi() {
 }
 
 describe('ReadingCard', () => {
+  it('renders the review agent strip empty state', () => {
+    render(
+      <ReadingCardReviewAgentStrip
+        reviewAgents={[]}
+        selectedReviewAgentIds={[]}
+        onToggleReviewAgent={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('请先在助手设置中创建审核助手。')).toBeTruthy();
+  });
+
+  it('toggles a review agent from the strip', () => {
+    const onToggleReviewAgent = vi.fn();
+
+    render(
+      <ReadingCardReviewAgentStrip
+        reviewAgents={[reviewAgent()]}
+        selectedReviewAgentIds={['agent_1']}
+        onToggleReviewAgent={onToggleReviewAgent}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: /审核助手/ });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(button);
+
+    expect(onToggleReviewAgent).toHaveBeenCalledWith('agent_1');
+  });
+
   it('renders the reading card workflow steps', () => {
     render(
       <ReadingCard
@@ -256,6 +287,65 @@ describe('ReadingCard', () => {
             quote: '重要原文',
           }),
         ],
+      }),
+    );
+    expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts AI card generation from the current deliberation', async () => {
+    const desktop = installDesktopApi();
+    const currentDeliberation = deliberation();
+    desktop.generateReadingCard.mockResolvedValue({
+      readingCard: readingCard({ updatedAt: '2026-05-04T00:02:00.000Z' }),
+    });
+    const onGenerated = vi.fn();
+
+    render(
+      <ReadingCard
+        article={article({ readingDeliberation: currentDeliberation })}
+        reviewAgents={[]}
+        onGenerated={onGenerated}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /AI 提炼/ }));
+
+    await waitFor(() => expect(desktop.generateReadingCard).toHaveBeenCalledTimes(1));
+    expect(desktop.generateReadingCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        article: expect.objectContaining({ id: 'article_1' }),
+        readingDeliberation: currentDeliberation,
+      }),
+    );
+    expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts review with selected review agents', async () => {
+    const desktop = installDesktopApi();
+    const currentCard = readingCard();
+    desktop.reviewReadingCard.mockResolvedValue({
+      review: reviewWithReferences(),
+    });
+    const onGenerated = vi.fn();
+
+    render(
+      <ReadingCard
+        article={article({ readingDeliberation: deliberation(), readingCard: currentCard })}
+        reviewAgents={[reviewAgent()]}
+        onGenerated={onGenerated}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /审核草稿/ }));
+
+    await waitFor(() => expect(desktop.reviewReadingCard).toHaveBeenCalledTimes(1));
+    expect(desktop.reviewReadingCard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        article: expect.objectContaining({ id: 'article_1' }),
+        readingCard: currentCard,
+        reviewAgentIds: ['agent_1'],
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);

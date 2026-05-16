@@ -9,5 +9,4 @@ export type ReadingCardWorkflowStep = {
   state: ReadingCardWorkflowStepState;
   actionLabel: string;
   disabled: boolean;
-  onAction: () => void;
 };

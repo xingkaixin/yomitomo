@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Check,
   Lightbulb,
@@ -40,7 +40,8 @@ import {
 } from './app-utils';
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton } from './app-ui';
-import type { ReadingCardWorkflowStep } from './app-types';
+import { useReadingCardWorkflow } from './app-reading-card-workflow';
+import type { ReadingCardWorkflowStep, ReadingCardWorkflowStepId } from './app-types';
 
 const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
   key_point: Lightbulb,
@@ -82,33 +83,7 @@ export function ReadingCard({
   onGenerated: () => void;
   onOpenEvidence: (annotationId: string) => void;
 }) {
-  const [deliberation, setDeliberation] = useState<ReadingDeliberationRecord | null>(null);
-  const [deliberationError, setDeliberationError] = useState('');
-  const [deliberationState, setDeliberationState] = useState<
-    'idle' | 'generating' | 'done' | 'error'
-  >('idle');
-  const [aiCard, setAiCard] = useState<ReadingCardRecord | null>(null);
-  const [aiError, setAiError] = useState('');
-  const [aiState, setAiState] = useState<'idle' | 'generating' | 'done' | 'error'>('idle');
-  const [reviewError, setReviewError] = useState('');
-  const [reviewState, setReviewState] = useState<'idle' | 'reviewing' | 'done' | 'error'>('idle');
-  const [retryingReviewerId, setRetryingReviewerId] = useState<string | null>(null);
-  const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<string[]>([]);
-  const deliberationTime = deliberation ? Date.parse(deliberation.updatedAt) : 0;
-  const aiCardTime = aiCard ? Date.parse(aiCard.updatedAt) : 0;
-  const reviewTime = aiCard?.review ? Date.parse(aiCard.review.updatedAt) : 0;
-  const aiCardIsCurrent = Boolean(aiCard && deliberation && aiCardTime >= deliberationTime);
-  const reviewIsCurrent = Boolean(aiCard?.review && aiCardIsCurrent && reviewTime >= aiCardTime);
-  const currentAiCard: ReadingCardRecord | null =
-    aiCard && aiCardIsCurrent
-      ? { ...aiCard, review: reviewIsCurrent ? aiCard.review : undefined }
-      : null;
-  const isWorkflowBusy =
-    deliberationState === 'generating' || aiState === 'generating' || reviewState === 'reviewing';
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
-  const card = article
-    ? currentAiCard?.contentMarkdown || buildReadingCard(article, articleText)
-    : '';
   const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
   const evidenceUnits = useMemo(
     () => (article ? buildReadingCardEvidenceUnits(article) : []),
@@ -120,222 +95,29 @@ export function ReadingCard({
   );
   const draftSections = sections.filter((section) => section.title !== '阅读轨迹');
   const reviewAgentIds = useMemo(() => reviewAgents.map((agent) => agent.id), [reviewAgents]);
-  const reviewAgentKey = reviewAgentIds.join('|');
-
-  useEffect(() => {
-    setDeliberation(article?.readingDeliberation || null);
-    setDeliberationError('');
-    setDeliberationState(article?.readingDeliberation ? 'done' : 'idle');
-    setAiCard(article?.readingCard || null);
-    setAiError('');
-    setAiState(article?.readingCard ? 'done' : 'idle');
-    setReviewError('');
-    setRetryingReviewerId(null);
-    setReviewState(article?.readingCard?.review ? 'done' : 'idle');
-  }, [
-    article?.id,
-    article?.readingDeliberation?.updatedAt,
-    article?.readingCard?.updatedAt,
-    article?.readingCard?.review?.updatedAt,
-  ]);
-
-  useEffect(() => {
-    setSelectedReviewAgentIds((current) => {
-      const availableIds = new Set(reviewAgentIds);
-      const kept = current.filter((id) => availableIds.has(id));
-      return kept.length > 0 ? kept : reviewAgentIds;
-    });
-  }, [reviewAgentKey]);
-
-  const workflowSteps: ReadingCardWorkflowStep[] = [
-    {
-      id: 'deliberation',
-      number: 1,
-      title: '阅读评估',
-      description:
-        deliberationState === 'generating'
-          ? '正在整理证据与分歧'
-          : deliberationState === 'error'
-            ? '生成失败，可重试'
-            : deliberation
-              ? `已生成 · ${formatDate(deliberation.updatedAt)}`
-              : '从批注和讨论生成报告',
-      state:
-        deliberationState === 'generating'
-          ? 'running'
-          : deliberationState === 'error'
-            ? 'error'
-            : deliberation
-              ? 'done'
-              : 'active',
-      actionLabel: deliberation ? '重新生成' : '生成审议',
-      disabled: isWorkflowBusy,
-      onAction: generateDeliberation,
-    },
-    {
-      id: 'card',
-      number: 2,
-      title: 'AI 提炼',
-      description:
-        aiState === 'generating'
-          ? '正在提炼读后笔记'
-          : aiState === 'error'
-            ? '生成失败，可重试'
-            : currentAiCard
-              ? `已提炼 · ${formatDate(currentAiCard.updatedAt)}`
-              : aiCard && deliberation
-                ? '审议已更新，等待重新提炼'
-                : deliberation
-                  ? '基于审议报告生成笔记'
-                  : '完成审议后开始',
-      state:
-        aiState === 'generating'
-          ? 'running'
-          : aiState === 'error'
-            ? 'error'
-            : currentAiCard
-              ? 'done'
-              : deliberation
-                ? 'active'
-                : 'waiting',
-      actionLabel: currentAiCard ? '重新提炼' : 'AI 提炼',
-      disabled: !deliberation || isWorkflowBusy,
-      onAction: generateAiCard,
-    },
-    {
-      id: 'review',
-      number: 3,
-      title: '笔记草稿',
-      description:
-        reviewState === 'reviewing'
-          ? '审核助手正在检查'
-          : reviewState === 'error'
-            ? '审核失败，可重试'
-            : currentAiCard?.review
-              ? `已审核 · ${formatDate(currentAiCard.review.updatedAt)}`
-              : currentAiCard && aiCard?.review
-                ? '读后笔记已更新，等待重新审核'
-                : currentAiCard
-                  ? selectedReviewAgentIds.length > 0
-                    ? '草稿已生成，可审核'
-                    : '请选择审核助手'
-                  : '完成 AI 提炼后开始',
-      state:
-        reviewState === 'reviewing'
-          ? 'running'
-          : reviewState === 'error'
-            ? 'error'
-            : currentAiCard?.review
-              ? 'done'
-              : currentAiCard
-                ? 'active'
-                : 'waiting',
-      actionLabel: currentAiCard?.review ? '重新审核' : '审核草稿',
-      disabled: !currentAiCard || selectedReviewAgentIds.length === 0 || isWorkflowBusy,
-      onAction: reviewAiCard,
-    },
-  ];
-
-  async function generateAiCard() {
-    if (!article || !deliberation || aiState === 'generating' || isWorkflowBusy) return;
-    setAiState('generating');
-    setAiError('');
-    try {
-      const result = await window.yomitomoDesktop.generateReadingCard({
-        article,
-        articleText,
-        evidenceUnits,
-        readingDeliberation: deliberation || undefined,
-      });
-      setAiCard(result.readingCard);
-      setAiState('done');
-      setReviewError('');
-      setReviewState('idle');
-      onGenerated();
-    } catch (error) {
-      setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
-      setAiState('error');
-    }
-  }
-
-  async function generateDeliberation() {
-    if (!article || isWorkflowBusy) return;
-    setDeliberationState('generating');
-    setDeliberationError('');
-    try {
-      const result = await window.yomitomoDesktop.generateReadingDeliberation({
-        article,
-        articleText,
-        evidenceUnits,
-      });
-      setDeliberation(result.readingDeliberation);
-      setDeliberationState('done');
-      setAiState('idle');
-      setReviewState('idle');
-      setReviewError('');
-      onGenerated();
-    } catch (error) {
-      setDeliberationError(error instanceof Error ? error.message : '阅读审议生成失败');
-      setDeliberationState('error');
-    }
-  }
-
-  async function reviewAiCard() {
-    if (!article || !currentAiCard || reviewState === 'reviewing' || isWorkflowBusy) return;
-    if (selectedReviewAgentIds.length === 0) {
-      setReviewError('请选择审核助手');
-      return;
-    }
-    setReviewState('reviewing');
-    setReviewError('');
-    try {
-      const result = await window.yomitomoDesktop.reviewReadingCard({
-        article,
-        articleText,
-        evidenceUnits,
-        readingCard: currentAiCard,
-        reviewAgentIds: selectedReviewAgentIds,
-      });
-      setAiCard({ ...currentAiCard, review: result.review });
-      setReviewState('done');
-      onGenerated();
-    } catch (error) {
-      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
-      setReviewState('error');
-    }
-  }
-
-  async function retryReviewAgent(agentId: string) {
-    if (!article || !currentAiCard || reviewState === 'reviewing' || retryingReviewerId) return;
-    setReviewState('reviewing');
-    setRetryingReviewerId(agentId);
-    setReviewError('');
-    try {
-      const result = await window.yomitomoDesktop.reviewReadingCard({
-        article,
-        articleText,
-        evidenceUnits,
-        readingCard: currentAiCard,
-        previousReview: currentAiCard.review,
-        reviewAgentIds: [agentId],
-      });
-      setAiCard({ ...currentAiCard, review: result.review });
-      setReviewState('done');
-      onGenerated();
-    } catch (error) {
-      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
-      setReviewState('error');
-    } finally {
-      setRetryingReviewerId(null);
-    }
-  }
-
-  function toggleReviewAgent(agentId: string) {
-    setSelectedReviewAgentIds((current) =>
-      current.includes(agentId) ? current.filter((id) => id !== agentId) : [...current, agentId],
-    );
-    setReviewError('');
-  }
+  const {
+    actions,
+    currentAiCard,
+    deliberation,
+    errors,
+    retryingReviewerId,
+    selectedReviewAgentIds,
+    workflowSteps,
+  } = useReadingCardWorkflow({
+    article,
+    articleText,
+    evidenceUnits,
+    reviewAgentIds,
+    onGenerated,
+  });
+  const workflowActions: Record<ReadingCardWorkflowStepId, () => void> = {
+    deliberation: actions.generateDeliberation,
+    card: actions.generateAiCard,
+    review: actions.reviewAiCard,
+  };
+  const card = article
+    ? currentAiCard?.contentMarkdown || buildReadingCard(article, articleText)
+    : '';
 
   if (!article) {
     return (
@@ -358,44 +140,19 @@ export function ReadingCard({
           <CopyIconButton label="复制读后笔记 Markdown" value={card} />
         </div>
       </div>
-      <ReadingCardWorkflow steps={workflowSteps} />
+      <ReadingCardWorkflow actions={workflowActions} steps={workflowSteps} />
       {currentAiCard ? (
-        <div className="reading-card-review-agent-strip">
-          <span>审核助手</span>
-          {reviewAgents.length > 0 ? (
-            <div>
-              {reviewAgents.map((agent) => {
-                const selected = selectedReviewAgentIds.includes(agent.id);
-                return (
-                  <button
-                    aria-pressed={selected}
-                    className={selected ? 'is-selected' : ''}
-                    key={agent.id}
-                    type="button"
-                    onClick={() => toggleReviewAgent(agent.id)}
-                  >
-                    <i style={{ background: agent.annotationColor }} />
-                    <AvatarImage
-                      value={agent.avatar}
-                      className="size-6"
-                      fallback={agent.nickname.slice(0, 1) || 'AI'}
-                    />
-                    <strong>{agent.nickname}</strong>
-                    {selected ? <Check size={13} /> : null}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p>请先在助手设置中创建审核助手。</p>
-          )}
-        </div>
+        <ReadingCardReviewAgentStrip
+          reviewAgents={reviewAgents}
+          selectedReviewAgentIds={selectedReviewAgentIds}
+          onToggleReviewAgent={actions.toggleReviewAgent}
+        />
       ) : null}
       <div className="reading-card-body">
         <div className="reading-card-output-stack">
-          {aiError ? <p className="reading-card-error">{aiError}</p> : null}
-          {deliberationError ? <p className="reading-card-error">{deliberationError}</p> : null}
-          {reviewError ? <p className="reading-card-error">{reviewError}</p> : null}
+          {errors.ai ? <p className="reading-card-error">{errors.ai}</p> : null}
+          {errors.deliberation ? <p className="reading-card-error">{errors.deliberation}</p> : null}
+          {errors.review ? <p className="reading-card-error">{errors.review}</p> : null}
           {deliberation ? (
             <ReadingDeliberationPanel
               deliberation={deliberation}
@@ -411,7 +168,7 @@ export function ReadingCard({
               retryingReviewerId={retryingReviewerId}
               stats={stats}
               onOpenEvidence={onOpenEvidence}
-              onRetryReviewer={retryReviewAgent}
+              onRetryReviewer={actions.retryReviewAgent}
             />
           ) : (
             <div className="reading-card-draft-grid">
@@ -428,30 +185,19 @@ export function ReadingCard({
             </div>
           )}
         </div>
-        <section className="reading-card-evidence-section">
-          <header>
-            <div>
-              <span>阅读痕迹素材</span>
-              <h4>可回溯原文、批注和讨论</h4>
-            </div>
-            <strong>{evidenceUnits.length}</strong>
-          </header>
-          {evidenceUnits.length > 0 ? (
-            <div className="reading-card-evidence-list">
-              {evidenceUnits.map((unit) => (
-                <ReadingCardEvidence unit={unit} key={unit.id} />
-              ))}
-            </div>
-          ) : (
-            <p className="reading-card-placeholder">暂无</p>
-          )}
-        </section>
+        <ReadingCardEvidencePanel evidenceUnits={evidenceUnits} />
       </div>
     </aside>
   );
 }
 
-function ReadingCardWorkflow({ steps }: { steps: ReadingCardWorkflowStep[] }) {
+function ReadingCardWorkflow({
+  actions,
+  steps,
+}: {
+  actions: Record<ReadingCardWorkflowStepId, () => void>;
+  steps: ReadingCardWorkflowStep[];
+}) {
   return (
     <section className="reading-card-workflow" aria-label="读后笔记流程进度">
       {steps.map((step) => (
@@ -476,7 +222,7 @@ function ReadingCardWorkflow({ steps }: { steps: ReadingCardWorkflowStep[] }) {
             size="sm"
             variant={step.state === 'active' || step.state === 'error' ? 'default' : 'secondary'}
             disabled={step.disabled}
-            onClick={step.onAction}
+            onClick={actions[step.id]}
           >
             {step.id === 'deliberation' ? <ListChecks size={14} /> : null}
             {step.id === 'card' ? <Sparkles size={14} /> : null}
@@ -486,6 +232,49 @@ function ReadingCardWorkflow({ steps }: { steps: ReadingCardWorkflowStep[] }) {
         </article>
       ))}
     </section>
+  );
+}
+
+export function ReadingCardReviewAgentStrip({
+  reviewAgents,
+  selectedReviewAgentIds,
+  onToggleReviewAgent,
+}: {
+  reviewAgents: Agent[];
+  selectedReviewAgentIds: string[];
+  onToggleReviewAgent: (agentId: string) => void;
+}) {
+  return (
+    <div className="reading-card-review-agent-strip">
+      <span>审核助手</span>
+      {reviewAgents.length > 0 ? (
+        <div>
+          {reviewAgents.map((agent) => {
+            const selected = selectedReviewAgentIds.includes(agent.id);
+            return (
+              <button
+                aria-pressed={selected}
+                className={selected ? 'is-selected' : ''}
+                key={agent.id}
+                type="button"
+                onClick={() => onToggleReviewAgent(agent.id)}
+              >
+                <i style={{ background: agent.annotationColor }} />
+                <AvatarImage
+                  value={agent.avatar}
+                  className="size-6"
+                  fallback={agent.nickname.slice(0, 1) || 'AI'}
+                />
+                <strong>{agent.nickname}</strong>
+                {selected ? <Check size={13} /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p>请先在助手设置中创建审核助手。</p>
+      )}
+    </div>
   );
 }
 
@@ -533,6 +322,29 @@ function ReadingDeliberationPanel({
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ReadingCardEvidencePanel({ evidenceUnits }: { evidenceUnits: ReadingCardEvidenceUnit[] }) {
+  return (
+    <section className="reading-card-evidence-section">
+      <header>
+        <div>
+          <span>阅读痕迹素材</span>
+          <h4>可回溯原文、批注和讨论</h4>
+        </div>
+        <strong>{evidenceUnits.length}</strong>
+      </header>
+      {evidenceUnits.length > 0 ? (
+        <div className="reading-card-evidence-list">
+          {evidenceUnits.map((unit) => (
+            <ReadingCardEvidence unit={unit} key={unit.id} />
+          ))}
+        </div>
+      ) : (
+        <p className="reading-card-placeholder">暂无</p>
+      )}
     </section>
   );
 }
