@@ -1,5 +1,8 @@
 import React, { useMemo } from 'react';
 import {
+  ChevronDown,
+  ChevronUp,
+  CircleUserRound,
   CornerDownRight,
   FileText,
   Layers2,
@@ -10,15 +13,19 @@ import {
   Sparkles,
   Sprout,
   TriangleAlert,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import type {
+  Agent,
   AgentReadingIntent,
   AnnotationType,
   ArticleRecord,
   ReadingCardRecord,
   ReadingCardSection as PersistedReadingCardSection,
   ReadingDeliberationRecord,
+  ReadingReceiptState,
+  UserProfile,
 } from '@yomitomo/shared';
 import {
   buildReadingCardStats,
@@ -36,8 +43,13 @@ import {
 } from './app-reading-card-markdown';
 import { ReadingCardReviewPanel } from './app-reading-card-review';
 import { AvatarImage } from './app-ui';
+import type {
+  ReadingReceiptClarificationAgent,
+  ReadingReceiptClarificationOpinion,
+  ReadingReceiptClarificationStreamEvent,
+} from '../../preload';
 
-export type ReadingReceiptBoardDisposition = ReadingReceiptDisposition | 'pending';
+export type ReadingReceiptBoardDisposition = ReadingReceiptDisposition | 'clarify';
 
 type ReadingReceiptDragGeometry = {
   height: number;
@@ -47,6 +59,19 @@ type ReadingReceiptDragGeometry = {
   width: number;
   x: number;
   y: number;
+};
+
+type ReadingReceiptClarificationRound = {
+  id: string;
+  userThought: string;
+  opinions: ReadingReceiptClarificationOpinion[];
+  draftOpinions: ReadingReceiptClarificationDraftOpinion[];
+};
+
+type ReadingReceiptClarificationDraftOpinion = ReadingReceiptClarificationAgent & {
+  rawText: string;
+  reason: string;
+  state: 'pending' | 'streaming';
 };
 
 const annotationTypeIcons: Record<AnnotationType, LucideIcon> = {
@@ -114,17 +139,49 @@ export function ReadingDeliberationPanel({
 }
 
 export function ReadingReceiptTriageBoard({
+  annotationAgents = [],
+  article,
   evidenceUnits,
   receiptDispositionById,
+  sourceUpdatedAt,
+  userProfile,
   onChangeDisposition,
   onOpenEvidence,
+  onPersistReadingReceiptState,
 }: {
+  annotationAgents?: Agent[];
+  article: ArticleRecord;
   evidenceUnits: ReadingCardEvidenceUnit[];
   receiptDispositionById: Record<string, ReadingReceiptBoardDisposition>;
+  sourceUpdatedAt: string;
+  userProfile: UserProfile;
   onChangeDisposition: (evidenceId: string, disposition: ReadingReceiptBoardDisposition) => void;
   onOpenEvidence: (annotationId: string) => void;
+  onPersistReadingReceiptState: (state: ReadingReceiptState) => void;
 }) {
   const [activeEvidenceId, setActiveEvidenceId] = React.useState<string | null>(null);
+  const [clarifyingEvidenceId, setClarifyingEvidenceId] = React.useState<string | null>(null);
+  const [clarificationAgentIdsByEvidenceId, setClarificationAgentIdsByEvidenceId] = React.useState<
+    Record<string, string[]>
+  >({});
+  const [clarificationRoundsByEvidenceId, setClarificationRoundsByEvidenceId] = React.useState<
+    Record<string, ReadingReceiptClarificationRound[]>
+  >({});
+  const [clarificationThoughtByEvidenceId, setClarificationThoughtByEvidenceId] = React.useState<
+    Record<string, string>
+  >({});
+  const [clarificationThoughtOpenByEvidenceId, setClarificationThoughtOpenByEvidenceId] =
+    React.useState<Record<string, boolean>>({});
+  const [expandedClarificationRoundByEvidenceId, setExpandedClarificationRoundByEvidenceId] =
+    React.useState<Record<string, string>>({});
+  const [addingClarificationAgentsForEvidenceId, setAddingClarificationAgentsForEvidenceId] =
+    React.useState<string | null>(null);
+  const [clarificationLoadingEvidenceId, setClarificationLoadingEvidenceId] = React.useState<
+    string | null
+  >(null);
+  const [clarificationErrorByEvidenceId, setClarificationErrorByEvidenceId] = React.useState<
+    Record<string, string>
+  >({});
   const [draggingEvidenceId, setDraggingEvidenceId] = React.useState<string | null>(null);
   const [dropReadyDisposition, setDropReadyDisposition] =
     React.useState<ReadingReceiptBoardDisposition | null>(null);
@@ -136,24 +193,96 @@ export function ReadingReceiptTriageBoard({
   const dragStateRef = React.useRef<(ReadingReceiptDragGeometry & { evidenceId: string }) | null>(
     null,
   );
+  const pendingReceiptStateRef = React.useRef<ReadingReceiptState | null>(null);
   const suppressNextClickRef = React.useRef(false);
+  const [receiptPersistVersion, setReceiptPersistVersion] = React.useState(0);
   const groupedUnits = useMemo(
     () =>
       receiptBoardColumns.map((column) => ({
         ...column,
         units: evidenceUnits.filter(
-          (unit) => (receiptDispositionById[unit.id] || 'pending') === column.value,
+          (unit) => (receiptDispositionById[unit.id] || 'clarify') === column.value,
         ),
       })),
     [evidenceUnits, receiptDispositionById],
   );
-  const pendingCount = groupedUnits.find((column) => column.value === 'pending')?.units.length ?? 0;
+  const clarifyCount = groupedUnits.find((column) => column.value === 'clarify')?.units.length ?? 0;
   const draggingDisposition = draggingEvidenceId
-    ? receiptDispositionById[draggingEvidenceId] || 'pending'
+    ? receiptDispositionById[draggingEvidenceId] || 'clarify'
     : null;
   const draggedUnit = draggingEvidenceId
     ? evidenceUnits.find((unit) => unit.id === draggingEvidenceId) || null
     : null;
+  const evidenceKey = React.useMemo(
+    () => evidenceUnits.map((unit) => unit.id).join('|'),
+    [evidenceUnits],
+  );
+
+  React.useEffect(() => {
+    const persistedState =
+      article.readingReceiptState?.sourceUpdatedAt === sourceUpdatedAt
+        ? article.readingReceiptState
+        : null;
+    setClarificationAgentIdsByEvidenceId(
+      readingReceiptHydratedAgentIds(persistedState, evidenceUnits),
+    );
+    setClarificationRoundsByEvidenceId(readingReceiptHydratedRounds(persistedState, evidenceUnits));
+    setClarificationThoughtByEvidenceId(
+      readingReceiptHydratedThoughts(persistedState, evidenceUnits),
+    );
+    setClarificationThoughtOpenByEvidenceId(
+      readingReceiptHydratedThoughtOpen(persistedState, evidenceUnits),
+    );
+    setExpandedClarificationRoundByEvidenceId(
+      readingReceiptHydratedExpandedRounds(persistedState, evidenceUnits),
+    );
+    pendingReceiptStateRef.current = null;
+  }, [article.id, evidenceKey, evidenceUnits, sourceUpdatedAt]);
+
+  React.useEffect(() => {
+    if (!pendingReceiptStateRef.current) return;
+    const persistHandle = window.setTimeout(() => {
+      const pendingState = pendingReceiptStateRef.current;
+      if (!pendingState) return;
+      pendingReceiptStateRef.current = null;
+      onPersistReadingReceiptState({ ...pendingState, updatedAt: new Date().toISOString() });
+    }, 320);
+    return () => window.clearTimeout(persistHandle);
+  }, [receiptPersistVersion, onPersistReadingReceiptState]);
+
+  React.useEffect(() => {
+    if (!addingClarificationAgentsForEvidenceId) return;
+    function closeMenuOnPointerDown(event: PointerEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.reading-receipt-clarify-add-wrap')) return;
+      setAddingClarificationAgentsForEvidenceId(null);
+    }
+    window.addEventListener('pointerdown', closeMenuOnPointerDown, true);
+    return () => window.removeEventListener('pointerdown', closeMenuOnPointerDown, true);
+  }, [addingClarificationAgentsForEvidenceId]);
+
+  const queueReadingReceiptStatePersistence = React.useCallback(
+    (overrides: Partial<ReadingReceiptStateBuildInput> = {}) => {
+      pendingReceiptStateRef.current = buildPersistedReadingReceiptState({
+        clarificationAgentIdsByEvidenceId,
+        clarificationRoundsByEvidenceId,
+        clarificationThoughtByEvidenceId,
+        evidenceUnits,
+        receiptDispositionById,
+        sourceUpdatedAt,
+        ...overrides,
+      });
+      setReceiptPersistVersion((current) => current + 1);
+    },
+    [
+      clarificationAgentIdsByEvidenceId,
+      clarificationRoundsByEvidenceId,
+      clarificationThoughtByEvidenceId,
+      evidenceUnits,
+      receiptDispositionById,
+      sourceUpdatedAt,
+    ],
+  );
 
   React.useEffect(() => {
     function movePendingDrag(event: PointerEvent) {
@@ -172,6 +301,7 @@ export function ReadingReceiptTriageBoard({
         dragStateRef.current = next;
         setDraggingEvidenceId(pending.evidenceId);
         setActiveEvidenceId(pending.evidenceId);
+        setClarifyingEvidenceId(null);
         setDragState(next);
         setDropReadyDisposition(dropDispositionForDrag(columnElementsRef.current, next));
         return;
@@ -187,8 +317,14 @@ export function ReadingReceiptTriageBoard({
       if (current) {
         const targetDisposition = dropDispositionForDrag(columnElementsRef.current, current);
         if (targetDisposition) {
+          const nextDispositionById = {
+            ...receiptDispositionById,
+            [current.evidenceId]: targetDisposition,
+          };
           onChangeDisposition(current.evidenceId, targetDisposition);
+          queueReadingReceiptStatePersistence({ receiptDispositionById: nextDispositionById });
           setActiveEvidenceId(null);
+          setClarifyingEvidenceId(null);
         } else {
           setActiveEvidenceId(current.evidenceId);
         }
@@ -209,7 +345,7 @@ export function ReadingReceiptTriageBoard({
       window.removeEventListener('pointerup', finishPendingDrag);
       window.removeEventListener('pointercancel', finishPendingDrag);
     };
-  }, [onChangeDisposition]);
+  }, [onChangeDisposition, queueReadingReceiptStatePersistence, receiptDispositionById]);
 
   function setColumnElement(
     disposition: ReadingReceiptBoardDisposition,
@@ -241,6 +377,234 @@ export function ReadingReceiptTriageBoard({
       return;
     }
     setActiveEvidenceId((current) => (current === evidenceId ? null : evidenceId));
+    setClarifyingEvidenceId(null);
+  }
+
+  function toggleClarification(evidenceId: string) {
+    if (clarifyingEvidenceId === evidenceId) {
+      setActiveEvidenceId(null);
+      setClarifyingEvidenceId(null);
+      setAddingClarificationAgentsForEvidenceId(null);
+      return;
+    }
+    setActiveEvidenceId(evidenceId);
+    setClarifyingEvidenceId(evidenceId);
+    setAddingClarificationAgentsForEvidenceId(null);
+  }
+
+  function toggleClarificationAgent(evidenceId: string, agentId: string) {
+    const selected = clarificationAgentIdsByEvidenceId[evidenceId] || [];
+    const next = selected.includes(agentId)
+      ? selected.filter((id) => id !== agentId)
+      : [...selected, agentId];
+    const nextAgentIdsByEvidenceId = {
+      ...clarificationAgentIdsByEvidenceId,
+      [evidenceId]: next,
+    };
+    setClarificationAgentIdsByEvidenceId(nextAgentIdsByEvidenceId);
+    setAddingClarificationAgentsForEvidenceId(null);
+    queueReadingReceiptStatePersistence({
+      clarificationAgentIdsByEvidenceId: nextAgentIdsByEvidenceId,
+    });
+  }
+
+  function changeClarificationThought(evidenceId: string, value: string) {
+    const nextThoughtByEvidenceId = { ...clarificationThoughtByEvidenceId, [evidenceId]: value };
+    setClarificationThoughtByEvidenceId(nextThoughtByEvidenceId);
+    queueReadingReceiptStatePersistence({
+      clarificationThoughtByEvidenceId: nextThoughtByEvidenceId,
+    });
+  }
+
+  function startClarificationThought(evidenceId: string) {
+    setClarificationThoughtOpenByEvidenceId((current) => ({ ...current, [evidenceId]: true }));
+  }
+
+  function toggleClarificationAgentMenu(evidenceId: string) {
+    setAddingClarificationAgentsForEvidenceId((current) =>
+      current === evidenceId ? null : evidenceId,
+    );
+  }
+
+  function closeClarificationAgentMenu(evidenceId: string, event: React.FocusEvent<HTMLElement>) {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setAddingClarificationAgentsForEvidenceId((current) =>
+      current === evidenceId ? null : current,
+    );
+  }
+
+  function toggleClarificationRound(evidenceId: string, roundId: string) {
+    setExpandedClarificationRoundByEvidenceId((current) => ({
+      ...current,
+      [evidenceId]: roundId,
+    }));
+  }
+
+  function updateClarificationRound(
+    evidenceId: string,
+    roundId: string,
+    update: (round: ReadingReceiptClarificationRound) => ReadingReceiptClarificationRound,
+  ) {
+    setClarificationRoundsByEvidenceId((current) => ({
+      ...current,
+      [evidenceId]: (current[evidenceId] || []).map((round) =>
+        round.id === roundId ? update(round) : round,
+      ),
+    }));
+  }
+
+  async function runClarificationRound(evidenceId: string, selectedAgentIds: string[]) {
+    const unit = evidenceUnits.find((item) => item.id === evidenceId);
+    if (!unit) return;
+    if (selectedAgentIds.length === 0) {
+      setClarificationErrorByEvidenceId((current) => ({
+        ...current,
+        [evidenceId]: '请选择至少一位阅读助手参与讨论。',
+      }));
+      return;
+    }
+    const userThought = (clarificationThoughtByEvidenceId[evidenceId] || '').trim();
+    const previousRounds = clarificationRoundsByEvidenceId[evidenceId] || [];
+    if (previousRounds.length > 0 && !userThought) {
+      setClarificationThoughtOpenByEvidenceId((current) => ({ ...current, [evidenceId]: true }));
+      setClarificationErrorByEvidenceId((current) => ({
+        ...current,
+        [evidenceId]: '请先写下你的补充想法，再让助手发表下一轮观点。',
+      }));
+      return;
+    }
+    const roundId = `clarification_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+    const selectedAgentIdSet = new Set(selectedAgentIds);
+    const draftOpinions = annotationAgents
+      .filter((agent) => selectedAgentIdSet.has(agent.id))
+      .map((agent) => ({
+        agentId: agent.id,
+        agentNickname: agent.nickname,
+        agentUsername: agent.username,
+        agentAvatar: agent.avatar,
+        agentColor: agent.annotationColor,
+        rawText: '',
+        reason: '',
+        state: 'pending' as const,
+      }));
+    setClarificationLoadingEvidenceId(evidenceId);
+    setClarificationErrorByEvidenceId((current) => ({ ...current, [evidenceId]: '' }));
+    setExpandedClarificationRoundByEvidenceId((current) => ({ ...current, [evidenceId]: roundId }));
+    setClarificationRoundsByEvidenceId((current) => ({
+      ...current,
+      [evidenceId]: [
+        ...(current[evidenceId] || []),
+        {
+          id: roundId,
+          userThought,
+          opinions: [],
+          draftOpinions,
+        },
+      ],
+    }));
+    try {
+      const result = await window.yomitomoDesktop.generateReadingReceiptClarificationStream(
+        {
+          article,
+          evidenceUnit: unit,
+          selectedAgentIds,
+          previousRounds: previousRounds.map((round) => ({
+            userThought: round.userThought,
+            opinions: round.opinions,
+          })),
+          userThought,
+        },
+        (event) => {
+          applyClarificationStreamEvent(evidenceId, roundId, event);
+        },
+      );
+      const nextRounds = [
+        ...previousRounds,
+        {
+          id: roundId,
+          userThought,
+          opinions: result.opinions,
+          draftOpinions: [],
+        },
+      ];
+      const nextRoundsByEvidenceId = {
+        ...clarificationRoundsByEvidenceId,
+        [evidenceId]: nextRounds,
+      };
+      const nextThoughtByEvidenceId = { ...clarificationThoughtByEvidenceId, [evidenceId]: '' };
+      updateClarificationRound(evidenceId, roundId, (round) => ({
+        ...round,
+        opinions: result.opinions,
+        draftOpinions: [],
+      }));
+      setClarificationThoughtByEvidenceId(nextThoughtByEvidenceId);
+      setClarificationThoughtOpenByEvidenceId((current) => ({ ...current, [evidenceId]: false }));
+      queueReadingReceiptStatePersistence({
+        clarificationRoundsByEvidenceId: nextRoundsByEvidenceId,
+        clarificationThoughtByEvidenceId: nextThoughtByEvidenceId,
+      });
+    } catch (error) {
+      setClarificationErrorByEvidenceId((current) => ({
+        ...current,
+        [evidenceId]: error instanceof Error ? error.message : '澄清讨论失败',
+      }));
+    } finally {
+      setClarificationLoadingEvidenceId(null);
+    }
+  }
+
+  function applyClarificationStreamEvent(
+    evidenceId: string,
+    roundId: string,
+    event: ReadingReceiptClarificationStreamEvent,
+  ) {
+    if (event.type === 'agent_delta') {
+      updateClarificationRound(evidenceId, roundId, (round) => ({
+        ...round,
+        draftOpinions: round.draftOpinions.map((opinion) =>
+          opinion.agentId === event.agentId
+            ? {
+                ...opinion,
+                rawText: opinion.rawText + event.delta,
+                reason: readingReceiptClarificationReasonPreview(opinion.rawText + event.delta),
+                state: 'streaming',
+              }
+            : opinion,
+        ),
+      }));
+      return;
+    }
+    if (event.type === 'agent_start') {
+      updateClarificationRound(evidenceId, roundId, (round) => ({
+        ...round,
+        draftOpinions: upsertClarificationDraftOpinion(round.draftOpinions, event.agent),
+      }));
+      return;
+    }
+    updateClarificationRound(evidenceId, roundId, (round) => ({
+      ...round,
+      opinions: [
+        ...round.opinions.filter((opinion) => opinion.agentId !== event.opinion.agentId),
+        event.opinion,
+      ],
+      draftOpinions: round.draftOpinions.filter(
+        (opinion) => opinion.agentId !== event.opinion.agentId,
+      ),
+    }));
+  }
+
+  function resolveClarification(
+    evidenceId: string,
+    disposition: Exclude<ReadingReceiptBoardDisposition, 'clarify'>,
+  ) {
+    const nextDispositionById = {
+      ...receiptDispositionById,
+      [evidenceId]: disposition,
+    };
+    onChangeDisposition(evidenceId, disposition);
+    queueReadingReceiptStatePersistence({ receiptDispositionById: nextDispositionById });
+    setActiveEvidenceId(null);
+    setClarifyingEvidenceId(null);
   }
 
   return (
@@ -248,11 +612,11 @@ export function ReadingReceiptTriageBoard({
       <header>
         <div>
           <span>收束阅读</span>
-          <h4>把这次阅读留下的批注归类</h4>
-          <p>拖动卡片到纳入、追问或暂放。需要看完整上下文时展开卡片，或回到原文里的批注。</p>
+          <h4>把这次阅读留下的材料边界确认下来</h4>
+          <p>不确定的先留在待澄清。想清楚后拖到纳入或暂放；点开卡片可回到原文。</p>
         </div>
         <strong>
-          {evidenceUnits.length - pendingCount}/{evidenceUnits.length} 已归类
+          {evidenceUnits.length - clarifyCount}/{evidenceUnits.length} 已确认
         </strong>
       </header>
       {evidenceUnits.length > 0 ? (
@@ -308,11 +672,32 @@ export function ReadingReceiptTriageBoard({
                           }
                           key={unit.id}
                           stackIndex={unitIndex}
+                          annotationAgents={annotationAgents}
+                          addingAgentMenuOpen={addingClarificationAgentsForEvidenceId === unit.id}
+                          clarifying={clarifyingEvidenceId === unit.id}
+                          errorMessage={clarificationErrorByEvidenceId[unit.id] || ''}
+                          expandedRoundId={expandedClarificationRoundByEvidenceId[unit.id] || ''}
+                          fixedAgentIds={defaultClarificationAgentIds(unit, annotationAgents)}
+                          loading={clarificationLoadingEvidenceId === unit.id}
+                          rounds={clarificationRoundsByEvidenceId[unit.id] || []}
+                          selectedAgentIds={clarificationAgentIdsByEvidenceId[unit.id] || []}
+                          thought={clarificationThoughtByEvidenceId[unit.id] || ''}
+                          thoughtOpen={Boolean(clarificationThoughtOpenByEvidenceId[unit.id])}
                           unit={unit}
+                          userProfile={userProfile}
+                          onChangeThought={changeClarificationThought}
+                          onCloseAgentMenu={closeClarificationAgentMenu}
                           onDragCancel={cancelPendingDrag}
                           onDragStart={startDragging}
                           onOpenEvidence={onOpenEvidence}
+                          onRunClarificationRound={runClarificationRound}
+                          onResolveClarification={resolveClarification}
+                          onStartThought={startClarificationThought}
                           onToggleActive={toggleActiveEvidence}
+                          onToggleAgentMenu={toggleClarificationAgentMenu}
+                          onToggleClarificationAgent={toggleClarificationAgent}
+                          onToggleClarification={toggleClarification}
+                          onToggleRound={toggleClarificationRound}
                         />
                       ))
                     : null}
@@ -322,7 +707,7 @@ export function ReadingReceiptTriageBoard({
           })}
           {dragState && draggedUnit ? (
             <ReadingReceiptBoardCardPreview
-              disposition={draggingDisposition || 'pending'}
+              disposition={draggingDisposition || 'clarify'}
               state={dragState}
               unit={draggedUnit}
             />
@@ -340,36 +725,80 @@ const receiptBoardColumns: Array<{
   label: string;
   description: string;
 }> = [
-  { value: 'pending', label: '待定', description: '还没有决定后续动作' },
-  { value: 'include', label: '纳入', description: '进入这次回执' },
-  { value: 'question', label: '追问', description: '保留成未收束问题' },
-  { value: 'exclude', label: '暂放', description: '本次先不处理' },
+  { value: 'clarify', label: '待澄清', description: '还没有完成材料判断' },
+  { value: 'include', label: '纳入', description: '确认进入回执材料' },
+  { value: 'exclude', label: '暂放', description: '本次不进入回执' },
 ];
 
 function ReadingReceiptBoardCard({
   active,
+  addingAgentMenuOpen,
+  annotationAgents,
+  clarifying,
   covered,
   disposition,
   dragging,
+  errorMessage,
+  expandedRoundId,
   extractDirection,
+  fixedAgentIds,
+  loading,
+  rounds,
+  selectedAgentIds,
   stackIndex,
+  thought,
+  thoughtOpen,
   unit,
+  userProfile,
+  onChangeThought,
+  onCloseAgentMenu,
   onDragCancel,
   onDragStart,
   onOpenEvidence,
+  onRunClarificationRound,
+  onResolveClarification,
+  onStartThought,
   onToggleActive,
+  onToggleAgentMenu,
+  onToggleClarificationAgent,
+  onToggleClarification,
+  onToggleRound,
 }: {
   active: boolean;
+  addingAgentMenuOpen: boolean;
+  annotationAgents: Agent[];
+  clarifying: boolean;
   covered: boolean;
   disposition: ReadingReceiptBoardDisposition;
   dragging: boolean;
+  errorMessage: string;
+  expandedRoundId: string;
   extractDirection: 'left' | 'right';
+  fixedAgentIds: string[];
+  loading: boolean;
+  rounds: ReadingReceiptClarificationRound[];
+  selectedAgentIds: string[];
   stackIndex: number;
+  thought: string;
+  thoughtOpen: boolean;
   unit: ReadingCardEvidenceUnit;
+  userProfile: UserProfile;
+  onChangeThought: (evidenceId: string, value: string) => void;
+  onCloseAgentMenu: (evidenceId: string, event: React.FocusEvent<HTMLElement>) => void;
   onDragCancel: () => void;
   onDragStart: (evidenceId: string, geometry: ReadingReceiptDragGeometry) => void;
   onOpenEvidence: (annotationId: string) => void;
+  onRunClarificationRound: (evidenceId: string, selectedAgentIds: string[]) => void;
+  onResolveClarification: (
+    evidenceId: string,
+    disposition: Exclude<ReadingReceiptBoardDisposition, 'clarify'>,
+  ) => void;
+  onStartThought: (evidenceId: string) => void;
   onToggleActive: (evidenceId: string) => void;
+  onToggleAgentMenu: (evidenceId: string) => void;
+  onToggleClarificationAgent: (evidenceId: string, agentId: string) => void;
+  onToggleClarification: (evidenceId: string) => void;
+  onToggleRound: (evidenceId: string, roundId: string) => void;
 }) {
   function startDrag(event: React.PointerEvent<HTMLElement>) {
     if (event.button !== 0) return;
@@ -401,6 +830,45 @@ function ReadingReceiptBoardCard({
     onOpenEvidence(unit.id);
   }
 
+  function toggleClarification(event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    onToggleClarification(unit.id);
+  }
+
+  function resolveClarification(
+    nextDisposition: Exclude<ReadingReceiptBoardDisposition, 'clarify'>,
+  ) {
+    onResolveClarification(unit.id, nextDisposition);
+  }
+
+  function toggleClarificationAgent(agentId: string) {
+    onToggleClarificationAgent(unit.id, agentId);
+  }
+
+  function toggleAgentMenu() {
+    onToggleAgentMenu(unit.id);
+  }
+
+  function closeAgentMenu(event: React.FocusEvent<HTMLElement>) {
+    onCloseAgentMenu(unit.id, event);
+  }
+
+  function changeThought(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    onChangeThought(unit.id, event.target.value);
+  }
+
+  function runClarificationRound(nextSelectedAgentIds: string[]) {
+    void onRunClarificationRound(unit.id, nextSelectedAgentIds);
+  }
+
+  function startThought() {
+    onStartThought(unit.id);
+  }
+
+  function toggleRound(roundId: string) {
+    onToggleRound(unit.id, roundId);
+  }
+
   return (
     <article
       aria-label={`批注卡片：${unit.quote}`}
@@ -420,7 +888,37 @@ function ReadingReceiptBoardCard({
       <header className="reading-receipt-board-card-head" onClick={toggleActive}>
         <ReadingReceiptBoardCardHead unit={unit} />
       </header>
-      <ReadingReceiptBoardCardFooter unit={unit} onOpenEvidence={openEvidence} />
+      <ReadingReceiptBoardCardFooter
+        clarifying={clarifying}
+        disposition={disposition}
+        unit={unit}
+        onToggleClarification={toggleClarification}
+        onOpenEvidence={openEvidence}
+      />
+      {disposition === 'clarify' && clarifying ? (
+        <ReadingReceiptClarificationPanel
+          addingAgentMenuOpen={addingAgentMenuOpen}
+          annotationAgents={annotationAgents}
+          errorMessage={errorMessage}
+          expandedRoundId={expandedRoundId}
+          fixedAgentIds={fixedAgentIds}
+          loading={loading}
+          rounds={rounds}
+          selectedAgentIds={selectedAgentIds}
+          thought={thought}
+          thoughtOpen={thoughtOpen}
+          unit={unit}
+          userProfile={userProfile}
+          onChangeThought={changeThought}
+          onCloseAgentMenu={closeAgentMenu}
+          onResolve={resolveClarification}
+          onRunRound={runClarificationRound}
+          onStartThought={startThought}
+          onToggleAgentMenu={toggleAgentMenu}
+          onToggleAgent={toggleClarificationAgent}
+          onToggleRound={toggleRound}
+        />
+      ) : null}
     </article>
   );
 }
@@ -467,10 +965,16 @@ function ReadingReceiptBoardCardHead({ unit }: { unit: ReadingCardEvidenceUnit }
 }
 
 function ReadingReceiptBoardCardFooter({
+  clarifying = false,
+  disposition,
   unit,
+  onToggleClarification,
   onOpenEvidence,
 }: {
+  clarifying?: boolean;
+  disposition?: ReadingReceiptBoardDisposition;
   unit: ReadingCardEvidenceUnit;
+  onToggleClarification?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenEvidence?: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
@@ -481,16 +985,582 @@ function ReadingReceiptBoardCardFooter({
         {unit.questionStatus ? <span>{questionStatusLabel(unit.questionStatus)}</span> : null}
         {unit.comments.length > 0 ? <span>{unit.comments.length} 评论</span> : null}
       </div>
-      <button
-        className="reading-card-evidence-open"
-        type="button"
-        aria-label={`查看批注：${unit.quote}`}
-        onClick={onOpenEvidence}
-      >
-        查看批注
-      </button>
+      <div className="reading-receipt-board-card-actions">
+        {disposition === 'clarify' ? (
+          <button
+            className="reading-receipt-clarify-open"
+            type="button"
+            aria-label={`${clarifying ? '关闭讨论' : '澄清讨论'}：${unit.quote}`}
+            onClick={onToggleClarification}
+          >
+            {clarifying ? '关闭讨论' : '澄清讨论'}
+          </button>
+        ) : null}
+        <button
+          className="reading-card-evidence-open"
+          type="button"
+          aria-label={`查看批注：${unit.quote}`}
+          onClick={onOpenEvidence}
+        >
+          查看批注
+        </button>
+      </div>
     </footer>
   );
+}
+
+function ReadingReceiptClarificationPanel({
+  addingAgentMenuOpen,
+  annotationAgents,
+  errorMessage,
+  expandedRoundId,
+  fixedAgentIds,
+  loading,
+  rounds,
+  selectedAgentIds,
+  thought,
+  thoughtOpen,
+  unit,
+  userProfile,
+  onChangeThought,
+  onCloseAgentMenu,
+  onResolve,
+  onRunRound,
+  onStartThought,
+  onToggleAgentMenu,
+  onToggleAgent,
+  onToggleRound,
+}: {
+  addingAgentMenuOpen: boolean;
+  annotationAgents: Agent[];
+  errorMessage: string;
+  expandedRoundId: string;
+  fixedAgentIds: string[];
+  loading: boolean;
+  rounds: ReadingReceiptClarificationRound[];
+  selectedAgentIds: string[];
+  thought: string;
+  thoughtOpen: boolean;
+  unit: ReadingCardEvidenceUnit;
+  userProfile: UserProfile;
+  onChangeThought: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onCloseAgentMenu: (event: React.FocusEvent<HTMLElement>) => void;
+  onResolve: (disposition: Exclude<ReadingReceiptBoardDisposition, 'clarify'>) => void;
+  onRunRound: (selectedAgentIds: string[]) => void;
+  onStartThought: () => void;
+  onToggleAgentMenu: () => void;
+  onToggleAgent: (agentId: string) => void;
+  onToggleRound: (roundId: string) => void;
+}) {
+  const fixedAgentIdSet = new Set(fixedAgentIds);
+  const selectedDiscussionAgentIds = Array.from(new Set([...fixedAgentIds, ...selectedAgentIds]));
+  const selectedManualAgentIds = selectedAgentIds.filter((id) => !fixedAgentIdSet.has(id));
+  const canRunFirstRound = rounds.length === 0 && selectedDiscussionAgentIds.length > 0 && !loading;
+  const canRunNextRound =
+    rounds.length > 0 &&
+    selectedDiscussionAgentIds.length > 0 &&
+    thought.trim().length > 0 &&
+    !loading;
+  const activeRoundId = expandedRoundId || rounds.at(-1)?.id || '';
+  return (
+    <section
+      aria-label={`澄清讨论面板：${unit.quote}`}
+      className="reading-receipt-clarify-panel"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <header>
+        <span>发表观点</span>
+        <p>成员各自判断这条材料该纳入还是暂放。观点不会自动决策，最后仍由你决定。</p>
+      </header>
+      <ReadingReceiptClarificationMembers
+        addingAgentMenuOpen={addingAgentMenuOpen}
+        agents={annotationAgents}
+        fixedAgentIds={fixedAgentIds}
+        selectedAgentIds={selectedManualAgentIds}
+        userProfile={userProfile}
+        onCloseAgentMenu={onCloseAgentMenu}
+        onToggleAgent={onToggleAgent}
+        onToggleAgentMenu={onToggleAgentMenu}
+      />
+      {rounds.length === 0 ? (
+        <button
+          className="reading-receipt-clarify-run"
+          type="button"
+          disabled={!canRunFirstRound}
+          onClick={() => onRunRound(selectedDiscussionAgentIds)}
+        >
+          {loading ? '发表中...' : '发表观点'}
+        </button>
+      ) : null}
+      {errorMessage ? <p className="reading-receipt-clarify-error">{errorMessage}</p> : null}
+      {rounds.length > 0 ? (
+        <ReadingReceiptClarificationRounds
+          activeRoundId={activeRoundId}
+          rounds={rounds}
+          onToggleRound={onToggleRound}
+        />
+      ) : null}
+      {rounds.length > 0 && !thoughtOpen ? (
+        <button
+          className="reading-receipt-clarify-run is-secondary"
+          type="button"
+          disabled={loading}
+          onClick={onStartThought}
+        >
+          带着我的想法再发表观点
+        </button>
+      ) : null}
+      {rounds.length > 0 && thoughtOpen ? (
+        <div className="reading-receipt-clarify-thought">
+          <label>
+            <span>我的补充</span>
+            <textarea
+              value={thought}
+              rows={3}
+              placeholder="写下你的疑问、倾向或反例，下一轮助手会基于这段想法重新站队。"
+              onChange={onChangeThought}
+            />
+          </label>
+          <button
+            className="reading-receipt-clarify-run"
+            type="button"
+            disabled={!canRunNextRound}
+            onClick={() => onRunRound(selectedDiscussionAgentIds)}
+          >
+            {loading ? '发表中...' : '发表观点'}
+          </button>
+        </div>
+      ) : null}
+      <div className="reading-receipt-clarify-decisions">
+        <button type="button" className="is-include" onClick={() => onResolve('include')}>
+          我决定纳入
+        </button>
+        <button type="button" className="is-exclude" onClick={() => onResolve('exclude')}>
+          我决定暂放
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ReadingReceiptClarificationMembers({
+  addingAgentMenuOpen,
+  agents,
+  fixedAgentIds,
+  selectedAgentIds,
+  userProfile,
+  onCloseAgentMenu,
+  onToggleAgent,
+  onToggleAgentMenu,
+}: {
+  addingAgentMenuOpen: boolean;
+  agents: Agent[];
+  fixedAgentIds: string[];
+  selectedAgentIds: string[];
+  userProfile: UserProfile;
+  onCloseAgentMenu: (event: React.FocusEvent<HTMLElement>) => void;
+  onToggleAgent: (agentId: string) => void;
+  onToggleAgentMenu: () => void;
+}) {
+  const fixedAgentIdSet = new Set(fixedAgentIds);
+  const selectedAgentIdSet = new Set([...fixedAgentIds, ...selectedAgentIds]);
+  const fixedAgents = agents.filter((agent) => fixedAgentIdSet.has(agent.id));
+  const selectedAgents = agents.filter(
+    (agent) => selectedAgentIds.includes(agent.id) && !fixedAgentIdSet.has(agent.id),
+  );
+  const addableAgents = agents.filter((agent) => !selectedAgentIdSet.has(agent.id));
+  return (
+    <div className="reading-receipt-clarify-members" aria-label="讨论成员">
+      <span>讨论成员</span>
+      <div>
+        <span className="reading-receipt-clarify-member-chip is-fixed">
+          <AvatarImage
+            value={userProfile.avatar}
+            fallback={userProfile.nickname.slice(0, 1) || '我'}
+            className="reading-receipt-clarify-avatar"
+          />
+          {userProfile.nickname || '我'}
+        </span>
+        {fixedAgents.map((agent) => (
+          <span className="reading-receipt-clarify-member-chip is-fixed" key={agent.id}>
+            <AvatarImage
+              value={agent.avatar}
+              fallback={agent.nickname.slice(0, 1) || '助'}
+              className="reading-receipt-clarify-avatar"
+            />
+            {agent.nickname}
+          </span>
+        ))}
+        <div className="reading-receipt-clarify-add-wrap" onBlur={onCloseAgentMenu}>
+          <button
+            className="reading-receipt-clarify-add"
+            type="button"
+            aria-expanded={addingAgentMenuOpen}
+            onClick={onToggleAgentMenu}
+          >
+            <CircleUserRound size={15} />
+            添加助手
+          </button>
+          {addingAgentMenuOpen ? (
+            <div className="reading-receipt-clarify-add-menu">
+              {addableAgents.length > 0 ? (
+                addableAgents.map((agent) => (
+                  <button
+                    aria-label={agent.nickname}
+                    key={agent.id}
+                    type="button"
+                    onClick={() => onToggleAgent(agent.id)}
+                  >
+                    <AvatarImage
+                      value={agent.avatar}
+                      fallback={agent.nickname.slice(0, 1) || '助'}
+                      className="reading-receipt-clarify-avatar"
+                    />
+                    <strong>{agent.nickname}</strong>
+                  </button>
+                ))
+              ) : (
+                <em>暂无可添加助手</em>
+              )}
+            </div>
+          ) : null}
+        </div>
+        {selectedAgents.map((agent) => (
+          <button
+            className="reading-receipt-clarify-member-chip"
+            key={agent.id}
+            type="button"
+            onClick={() => onToggleAgent(agent.id)}
+          >
+            <AvatarImage
+              value={agent.avatar}
+              fallback={agent.nickname.slice(0, 1) || '助'}
+              className="reading-receipt-clarify-avatar"
+            />
+            {agent.nickname}
+            <X size={12} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReadingReceiptClarificationRounds({
+  activeRoundId,
+  rounds,
+  onToggleRound,
+}: {
+  activeRoundId: string;
+  rounds: ReadingReceiptClarificationRound[];
+  onToggleRound: (roundId: string) => void;
+}) {
+  return (
+    <div className="reading-receipt-clarify-rounds">
+      {rounds.map((round, index) => (
+        <section
+          className={activeRoundId === round.id ? 'is-expanded' : 'is-collapsed'}
+          key={round.id}
+        >
+          <button type="button" onClick={() => onToggleRound(round.id)}>
+            <strong>第 {index + 1} 轮</strong>
+            <ReadingReceiptClarificationRoundSummary round={round} />
+            {activeRoundId === round.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {activeRoundId === round.id ? (
+            <>
+              {round.userThought ? <q>{round.userThought}</q> : null}
+              <div
+                className={[
+                  'reading-receipt-clarify-stance-grid',
+                  round.draftOpinions.length > 0 ? 'has-drafts' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <ReadingReceiptClarificationStanceColumn
+                  label="纳入"
+                  opinions={round.opinions.filter((opinion) => opinion.stance === 'include')}
+                />
+                {round.draftOpinions.length > 0 ? (
+                  <ReadingReceiptClarificationDraftColumn opinions={round.draftOpinions} />
+                ) : null}
+                <ReadingReceiptClarificationStanceColumn
+                  label="暂放"
+                  opinions={round.opinions.filter((opinion) => opinion.stance === 'exclude')}
+                />
+              </div>
+            </>
+          ) : null}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ReadingReceiptClarificationRoundSummary({
+  round,
+}: {
+  round: ReadingReceiptClarificationRound;
+}) {
+  return (
+    <span className="reading-receipt-clarify-round-summary">
+      <span>
+        纳入
+        {round.opinions
+          .filter((opinion) => opinion.stance === 'include')
+          .map((opinion) => (
+            <AvatarImage
+              key={opinion.agentId}
+              value={opinion.agentAvatar}
+              fallback={opinion.agentNickname.slice(0, 1) || '助'}
+              className="reading-receipt-clarify-avatar"
+            />
+          ))}
+      </span>
+      <span>
+        暂放
+        {round.opinions
+          .filter((opinion) => opinion.stance === 'exclude')
+          .map((opinion) => (
+            <AvatarImage
+              key={opinion.agentId}
+              value={opinion.agentAvatar}
+              fallback={opinion.agentNickname.slice(0, 1) || '助'}
+              className="reading-receipt-clarify-avatar"
+            />
+          ))}
+      </span>
+      {round.draftOpinions.length > 0 ? <span>发表中 {round.draftOpinions.length}</span> : null}
+    </span>
+  );
+}
+
+function ReadingReceiptClarificationStanceColumn({
+  label,
+  opinions,
+}: {
+  label: string;
+  opinions: ReadingReceiptClarificationOpinion[];
+}) {
+  return (
+    <div>
+      <span>{label}</span>
+      {opinions.length > 0 ? (
+        opinions.map((opinion) => (
+          <article key={opinion.agentId}>
+            <header>
+              <AvatarImage
+                value={opinion.agentAvatar}
+                fallback={opinion.agentNickname.slice(0, 1) || '助'}
+                className="reading-receipt-clarify-avatar"
+              />
+              <strong>{opinion.agentNickname}</strong>
+            </header>
+            <p>{opinion.reason}</p>
+          </article>
+        ))
+      ) : (
+        <p>这一轮没人站这边。</p>
+      )}
+    </div>
+  );
+}
+
+function ReadingReceiptClarificationDraftColumn({
+  opinions,
+}: {
+  opinions: ReadingReceiptClarificationDraftOpinion[];
+}) {
+  return (
+    <div className="reading-receipt-clarify-drafts">
+      <span>发表中</span>
+      {opinions.map((opinion) => (
+        <article key={opinion.agentId}>
+          <header>
+            <AvatarImage
+              value={opinion.agentAvatar}
+              fallback={opinion.agentNickname.slice(0, 1) || '助'}
+              className="reading-receipt-clarify-avatar"
+            />
+            <strong>{opinion.agentNickname}</strong>
+          </header>
+          <p>
+            {opinion.reason || (opinion.state === 'pending' ? '等待发表观点。' : '正在组织理由...')}
+          </p>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function upsertClarificationDraftOpinion(
+  draftOpinions: ReadingReceiptClarificationDraftOpinion[],
+  agent: ReadingReceiptClarificationAgent,
+) {
+  if (draftOpinions.some((opinion) => opinion.agentId === agent.agentId)) return draftOpinions;
+  return [
+    ...draftOpinions,
+    {
+      ...agent,
+      rawText: '',
+      reason: '',
+      state: 'pending' as const,
+    },
+  ];
+}
+
+function readingReceiptClarificationReasonPreview(rawText: string) {
+  const reason = rawText.match(/"reason"\s*:\s*"((?:\\.|[^"\\])*)/s)?.[1];
+  if (reason) {
+    return reason.replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\').slice(0, 420);
+  }
+  const text = rawText.replace(/```(?:json)?|```/g, '').trim();
+  if (!text || text.startsWith('{')) return '';
+  return text.slice(0, 420);
+}
+
+function defaultClarificationAgentIds(unit: ReadingCardEvidenceUnit, agents: Agent[]) {
+  const byId = new Map(agents.map((agent) => [agent.id, agent.id]));
+  const byUsername = new Map(agents.map((agent) => [agent.username, agent.id]));
+  const ids = new Set<string>();
+
+  function collect(agentId?: string, agentUsername?: string) {
+    const id = (agentId && byId.get(agentId)) || (agentUsername && byUsername.get(agentUsername));
+    if (id) ids.add(id);
+  }
+
+  if (unit.annotationAuthor === 'ai') {
+    collect(unit.annotationAgentId, unit.annotationAgentUsername);
+  }
+  if (unit.annotationBody?.author === 'ai') {
+    collect(unit.annotationBody.agentId, unit.annotationBody.agentUsername);
+  }
+  for (const comment of unit.comments) {
+    if (comment.author === 'ai') collect(comment.agentId, comment.agentUsername);
+  }
+
+  return Array.from(ids);
+}
+
+type ReadingReceiptStateBuildInput = {
+  clarificationAgentIdsByEvidenceId: Record<string, string[]>;
+  clarificationRoundsByEvidenceId: Record<string, ReadingReceiptClarificationRound[]>;
+  clarificationThoughtByEvidenceId: Record<string, string>;
+  evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDispositionById: Record<string, ReadingReceiptBoardDisposition>;
+  sourceUpdatedAt: string;
+};
+
+function buildPersistedReadingReceiptState(input: ReadingReceiptStateBuildInput) {
+  const clarifications = input.evidenceUnits.flatMap((unit) => {
+    const selectedAgentIds = input.clarificationAgentIdsByEvidenceId[unit.id] || [];
+    const rounds = (input.clarificationRoundsByEvidenceId[unit.id] || [])
+      .map((round) => ({
+        id: round.id,
+        userThought: round.userThought,
+        opinions: round.opinions,
+      }))
+      .filter((round) => round.opinions.length > 0 || round.userThought.trim().length > 0);
+    const thought = input.clarificationThoughtByEvidenceId[unit.id] || '';
+    if (selectedAgentIds.length === 0 && rounds.length === 0 && !thought.trim()) return [];
+    return [
+      {
+        evidenceId: unit.id,
+        selectedAgentIds,
+        rounds,
+        thought: thought.trim() ? thought : undefined,
+      },
+    ];
+  });
+  return {
+    sourceUpdatedAt: input.sourceUpdatedAt,
+    dispositions: input.evidenceUnits.map((unit) => ({
+      evidenceId: unit.id,
+      disposition: normalizePersistedReceiptDisposition(input.receiptDispositionById[unit.id]),
+    })),
+    clarifications,
+    updatedAt: new Date().toISOString(),
+  } satisfies ReadingReceiptState;
+}
+
+function readingReceiptHydratedAgentIds(
+  state: ReadingReceiptState | null,
+  evidenceUnits: ReadingCardEvidenceUnit[],
+) {
+  if (!state) return {};
+  return Object.fromEntries(
+    evidenceUnits.map((unit) => {
+      const clarification = state.clarifications.find((item) => item.evidenceId === unit.id);
+      return [unit.id, clarification?.selectedAgentIds || []];
+    }),
+  );
+}
+
+function readingReceiptHydratedRounds(
+  state: ReadingReceiptState | null,
+  evidenceUnits: ReadingCardEvidenceUnit[],
+): Record<string, ReadingReceiptClarificationRound[]> {
+  if (!state) return {};
+  return Object.fromEntries(
+    evidenceUnits.map((unit) => {
+      const clarification = state.clarifications.find((item) => item.evidenceId === unit.id);
+      return [
+        unit.id,
+        (clarification?.rounds || []).map((round) => ({
+          id: round.id,
+          userThought: round.userThought,
+          opinions: round.opinions,
+          draftOpinions: [],
+        })),
+      ];
+    }),
+  );
+}
+
+function readingReceiptHydratedThoughts(
+  state: ReadingReceiptState | null,
+  evidenceUnits: ReadingCardEvidenceUnit[],
+) {
+  if (!state) return {};
+  return Object.fromEntries(
+    evidenceUnits.map((unit) => {
+      const clarification = state.clarifications.find((item) => item.evidenceId === unit.id);
+      return [unit.id, clarification?.thought || ''];
+    }),
+  );
+}
+
+function readingReceiptHydratedThoughtOpen(
+  state: ReadingReceiptState | null,
+  evidenceUnits: ReadingCardEvidenceUnit[],
+) {
+  if (!state) return {};
+  return Object.fromEntries(
+    evidenceUnits.map((unit) => {
+      const clarification = state.clarifications.find((item) => item.evidenceId === unit.id);
+      return [unit.id, Boolean(clarification?.thought?.trim())];
+    }),
+  );
+}
+
+function readingReceiptHydratedExpandedRounds(
+  state: ReadingReceiptState | null,
+  evidenceUnits: ReadingCardEvidenceUnit[],
+) {
+  if (!state) return {};
+  return Object.fromEntries(
+    evidenceUnits.map((unit) => {
+      const clarification = state.clarifications.find((item) => item.evidenceId === unit.id);
+      return [unit.id, clarification?.rounds.at(-1)?.id || ''];
+    }),
+  );
+}
+
+function normalizePersistedReceiptDisposition(
+  disposition: ReadingReceiptBoardDisposition | undefined,
+) {
+  return disposition === 'include' || disposition === 'exclude' ? disposition : 'clarify';
 }
 
 function dropDispositionForDrag(
@@ -555,11 +1625,11 @@ export function ReadingCardEvidencePanel({
           <h4>每条痕迹如何进入回执</h4>
         </div>
         <strong>
-          {workbench.includeCount + workbench.questionCount}/{evidenceUnits.length}
+          {workbench.includeCount}/{evidenceUnits.length}
         </strong>
       </header>
       <p className="reading-card-evidence-section-note">
-        每条痕迹默认进入本次收束；只有你改成追问或暂放时，回执生成才会改变处理方式。
+        只有纳入的痕迹会进入本次回执；暂放的痕迹会留在阅读现场，但不参与这次生成。
       </p>
       {evidenceUnits.length > 0 ? (
         <div className="reading-card-evidence-list">
@@ -655,7 +1725,6 @@ const receiptDispositionOptions: Array<{
   label: string;
 }> = [
   { value: 'include', label: '纳入' },
-  { value: 'question', label: '追问' },
   { value: 'exclude', label: '暂放' },
 ];
 
@@ -907,8 +1976,8 @@ function ReadingReceiptWorkbenchPanel({
           <dd>{workbench.includeCount}</dd>
         </div>
         <div>
-          <dt>追问</dt>
-          <dd>{workbench.questionCount + openQuestionCount}</dd>
+          <dt>未决问题</dt>
+          <dd>{openQuestionCount}</dd>
         </div>
         <div>
           <dt>暂放</dt>
@@ -1066,10 +2135,9 @@ type ReadingReceiptEvidenceTreatmentKind =
   | 'open'
   | 'answered'
   | 'parked'
-  | 'question'
   | 'exclude'
   | 'unreferenced'
-  | 'pending';
+  | 'clarify';
 
 type ReadingReceiptEvidenceTreatment = {
   kind: ReadingReceiptEvidenceTreatmentKind;
@@ -1081,9 +2149,8 @@ type ReadingReceiptWorkbench = {
   totalCount: number;
   includedCount: number;
   includeCount: number;
-  questionCount: number;
   excludeCount: number;
-  pendingCount: number;
+  clarifyCount: number;
   units: Array<{
     disposition: ReadingReceiptBoardDisposition;
     unit: ReadingCardEvidenceUnit;
@@ -1098,7 +2165,7 @@ function buildReadingReceiptWorkbench(
 ): ReadingReceiptWorkbench {
   const includedIndexes = collectReadingReceiptEvidenceIndexes(readingCard);
   const units = evidenceUnits.map((unit) => {
-    const disposition = dispositionById[unit.id] || 'include';
+    const disposition = dispositionById[unit.id] || 'clarify';
     return {
       disposition,
       unit,
@@ -1110,9 +2177,8 @@ function buildReadingReceiptWorkbench(
     totalCount: evidenceUnits.length,
     includedCount: evidenceUnits.filter((unit) => includedIndexes.has(unit.index)).length,
     includeCount: units.filter((entry) => entry.disposition === 'include').length,
-    questionCount: units.filter((entry) => entry.disposition === 'question').length,
     excludeCount: units.filter((entry) => entry.disposition === 'exclude').length,
-    pendingCount: units.filter((entry) => entry.disposition === 'pending').length,
+    clarifyCount: units.filter((entry) => entry.disposition === 'clarify').length,
     units,
   };
 }
@@ -1141,11 +2207,11 @@ function readingReceiptEvidenceTreatment(
 ): ReadingReceiptEvidenceTreatment {
   const included = includedIndexes.has(unit.index);
 
-  if (disposition === 'pending') {
+  if (disposition === 'clarify') {
     return {
-      kind: 'pending',
-      label: '待归类',
-      hint: '拖到纳入、追问或暂放后，才能进入下一步收束。',
+      kind: 'clarify',
+      label: '待澄清',
+      hint: '还没有完成材料判断；确认后放入纳入或暂放。',
     };
   }
 
@@ -1154,14 +2220,6 @@ function readingReceiptEvidenceTreatment(
       kind: 'exclude',
       label: '暂不放入',
       hint: '本次收束不会使用这条痕迹。',
-    };
-  }
-
-  if (disposition === 'question') {
-    return {
-      kind: 'question',
-      label: '先追问',
-      hint: '本次收束会把它保留为未收束问题。',
     };
   }
 
@@ -1214,9 +2272,9 @@ function readingReceiptEvidenceTreatment(
   }
 
   return {
-    kind: 'pending',
-    label: '将纳入',
-    hint: '默认会参与这次收束；不用处理也可以直接收束。',
+    kind: 'clarify',
+    label: '待澄清',
+    hint: '确认材料边界后，放入纳入或暂放。',
   };
 }
 

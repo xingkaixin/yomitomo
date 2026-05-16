@@ -99,6 +99,7 @@ export const articles = sqliteTable(
     readingCardReviewResults: text('reading_card_review_results', { mode: 'json' }),
     readingCardReviewCreatedAt: text('reading_card_review_created_at'),
     readingCardReviewUpdatedAt: text('reading_card_review_updated_at'),
+    readingReceiptState: text('reading_receipt_state', { mode: 'json' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

@@ -303,4 +303,10 @@ ALTER TABLE annotations ADD COLUMN should_show INTEGER;
 ALTER TABLE providers ADD COLUMN api_key_ref TEXT;
 `,
   },
+  {
+    id: '0027_reading_receipt_state',
+    sql: `
+ALTER TABLE articles ADD COLUMN reading_receipt_state TEXT;
+`,
+  },
 ];

@@ -684,6 +684,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       readingCardReviewResults: article.readingCard?.review?.reviewerResults,
       readingCardReviewCreatedAt: article.readingCard?.review?.createdAt,
       readingCardReviewUpdatedAt: article.readingCard?.review?.updatedAt,
+      readingReceiptState: article.readingReceiptState,
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
     })
@@ -707,6 +708,7 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
         ebookIndex: article.ebook?.index,
         readingProgress: normalizeArticleReadingProgress(article.readingProgress),
         focusCoReadingPlan: article.focusCoReadingPlan,
+        readingReceiptState: article.readingReceiptState,
         updatedAt: article.updatedAt,
       },
     })

@@ -32,6 +32,7 @@ import type {
   ReadingCardSection,
   ReadingDeliberationRecord,
   ReadingDeliberationSection,
+  ReadingReceiptState,
   ReasoningEffort,
   TextAnchor,
   UserProfile,
@@ -182,6 +183,7 @@ export function rowToArticle(
       : undefined,
     readingDeliberation: rowToReadingDeliberation(row),
     readingCard: rowToReadingCard(row),
+    readingReceiptState: normalizeReadingReceiptState(row.readingReceiptState),
     annotations,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -525,6 +527,99 @@ function normalizeReadingDeliberationSections(value: unknown): ReadingDeliberati
       ? [{ title: section.title, content: section.content }]
       : [];
   });
+}
+
+function normalizeReadingReceiptState(value: unknown): ReadingReceiptState | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const state = value as Record<string, unknown>;
+  const sourceUpdatedAt = stringValue(state.sourceUpdatedAt);
+  if (!sourceUpdatedAt) return undefined;
+  return {
+    sourceUpdatedAt,
+    dispositions: normalizeReadingReceiptDispositions(state.dispositions),
+    clarifications: normalizeReadingReceiptClarifications(state.clarifications),
+    updatedAt: stringValue(state.updatedAt) || sourceUpdatedAt,
+  };
+}
+
+function normalizeReadingReceiptDispositions(value: unknown): ReadingReceiptState['dispositions'] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const disposition = item as Record<string, unknown>;
+    const evidenceId = stringValue(disposition.evidenceId);
+    const normalizedDisposition = normalizeReadingReceiptPersistedDisposition(
+      disposition.disposition,
+    );
+    return evidenceId ? [{ evidenceId, disposition: normalizedDisposition }] : [];
+  });
+}
+
+function normalizeReadingReceiptClarifications(
+  value: unknown,
+): ReadingReceiptState['clarifications'] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const clarification = item as Record<string, unknown>;
+    const evidenceId = stringValue(clarification.evidenceId);
+    if (!evidenceId) return [];
+    return [
+      {
+        evidenceId,
+        selectedAgentIds: stringArray(clarification.selectedAgentIds),
+        rounds: normalizeReadingReceiptClarificationRounds(clarification.rounds),
+        thought: stringValue(clarification.thought) || undefined,
+      },
+    ];
+  });
+}
+
+function normalizeReadingReceiptClarificationRounds(
+  value: unknown,
+): ReadingReceiptState['clarifications'][number]['rounds'] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const round = item as Record<string, unknown>;
+    const id = stringValue(round.id);
+    if (!id) return [];
+    return [
+      {
+        id,
+        userThought: stringValue(round.userThought),
+        opinions: normalizeReadingReceiptClarificationOpinions(round.opinions),
+      },
+    ];
+  });
+}
+
+function normalizeReadingReceiptClarificationOpinions(
+  value: unknown,
+): ReadingReceiptState['clarifications'][number]['rounds'][number]['opinions'] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const opinion = item as Record<string, unknown>;
+    const agentId = stringValue(opinion.agentId);
+    const reason = stringValue(opinion.reason);
+    if (!agentId || !reason) return [];
+    return [
+      {
+        agentId,
+        agentNickname: stringValue(opinion.agentNickname),
+        agentUsername: stringValue(opinion.agentUsername),
+        agentAvatar: stringValue(opinion.agentAvatar),
+        agentColor: stringValue(opinion.agentColor),
+        stance: opinion.stance === 'exclude' ? 'exclude' : 'include',
+        reason,
+      },
+    ];
+  });
+}
+
+function normalizeReadingReceiptPersistedDisposition(value: unknown) {
+  return value === 'include' || value === 'exclude' ? value : 'clarify';
 }
 
 function normalizeReadingCardReviewerResults(value: unknown): ReadingCardReviewerResult[] {

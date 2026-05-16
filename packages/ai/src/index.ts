@@ -82,6 +82,14 @@ export {
   type ReviewReadingCardResult,
 } from './reading-card';
 export {
+  generateReadingReceiptClarification,
+  streamReadingReceiptClarificationOpinion,
+  type GenerateReadingReceiptClarificationInput,
+  type ReadingReceiptClarificationOpinion,
+  type ReadingReceiptClarificationRoundInput,
+  type ReadingReceiptClarificationStance,
+} from './reading-receipt-clarification';
+export {
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
   runAgent,

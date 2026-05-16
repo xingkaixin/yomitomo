@@ -72,6 +72,10 @@ export function ReadingLibrary({
     () => agents.filter((agent) => agent.kind === 'review' && agent.enabled),
     [agents],
   );
+  const annotationAgents = useMemo(
+    () => agents.filter((agent) => agent.kind === 'annotation' && agent.enabled),
+    [agents],
+  );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
   const stats = articles.reduce(
@@ -241,14 +245,17 @@ export function ReadingLibrary({
             <div className="library-shelf-content">
               {activeShelf === 'card' ? (
                 <ReadingCard
+                  annotationAgents={annotationAgents}
                   article={selectedArticle}
                   reviewAgents={reviewAgents}
+                  userProfile={userProfile}
                   onGenerated={onRefresh}
                   onOpenEvidence={(annotationId) => {
                     setSelectedAnnotationId(annotationId);
                     setSourceFocusAnnotationId(annotationId);
                     setActiveShelf('source');
                   }}
+                  onUpdateArticle={onUpdateArticle}
                 />
               ) : null}
             </div>

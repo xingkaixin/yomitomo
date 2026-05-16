@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, ListChecks, LoaderCircle, Scale, Sparkles } from 'lucide-react';
-import type { Agent, ArticleRecord } from '@yomitomo/shared';
+import type { Agent, ArticleRecord, ReadingReceiptState, UserProfile } from '@yomitomo/shared';
 import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
@@ -20,17 +20,33 @@ import {
   ReadingReceiptTriageBoard,
   type ReadingReceiptBoardDisposition,
 } from './app-reading-card-display';
+import type { ArticleUpdater } from './app-reading-types';
+
+const fallbackReadingReceiptUser: UserProfile = {
+  id: 'user_local',
+  nickname: '我',
+  username: 'me',
+  avatar: '',
+  annotationColor: '#f4c95d',
+  updatedAt: new Date(0).toISOString(),
+};
 
 export function ReadingCard({
+  annotationAgents = [],
   article,
   reviewAgents,
+  userProfile = fallbackReadingReceiptUser,
   onGenerated,
   onOpenEvidence,
+  onUpdateArticle,
 }: {
+  annotationAgents?: Agent[];
   article: ArticleRecord | null;
   reviewAgents: Agent[];
+  userProfile?: UserProfile;
   onGenerated: () => void;
   onOpenEvidence: (annotationId: string) => void;
+  onUpdateArticle?: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const articleText = useMemo(() => (article ? articlePlainText(article) : ''), [article]);
   const stats = useMemo(() => (article ? buildReadingCardStats(article) : null), [article]);
@@ -50,22 +66,16 @@ export function ReadingCard({
     Record<string, ReadingReceiptBoardDisposition>
   >({});
   useEffect(() => {
-    const initialDisposition: ReadingReceiptBoardDisposition = isReadingDeliberationCurrent(
-      article?.readingDeliberation || null,
-      sourceUpdatedAt,
-    )
-      ? 'include'
-      : 'pending';
     setReceiptDispositionById(
-      Object.fromEntries(evidenceUnits.map((unit) => [unit.id, initialDisposition])),
+      initialReadingReceiptDispositionById(article, evidenceUnits, sourceUpdatedAt),
     );
-  }, [article?.id, article?.readingDeliberation, evidenceKey, evidenceUnits, sourceUpdatedAt]);
+  }, [article?.id, evidenceKey, evidenceUnits, sourceUpdatedAt]);
   const receiptDecisions = useMemo(
     () => buildReadingReceiptDecisions(evidenceUnits, receiptDispositionById),
     [evidenceUnits, receiptDispositionById],
   );
-  const receiptPendingCount = useMemo(
-    () => evidenceUnits.filter((unit) => receiptDispositionById[unit.id] === 'pending').length,
+  const receiptClarifyCount = useMemo(
+    () => evidenceUnits.filter((unit) => receiptDispositionById[unit.id] === 'clarify').length,
     [evidenceUnits, receiptDispositionById],
   );
   const reviewAgentIds = useMemo(() => reviewAgents.map((agent) => agent.id), [reviewAgents]);
@@ -105,6 +115,18 @@ export function ReadingCard({
     setReceiptDispositionById((current) => ({ ...current, [evidenceId]: disposition }));
   }
 
+  const persistReadingReceiptState = useCallback(
+    (state: ReadingReceiptState) => {
+      if (!article || !onUpdateArticle) return;
+      void onUpdateArticle(article.id, (current) => ({
+        ...current,
+        readingReceiptState: state,
+        updatedAt: state.updatedAt,
+      }));
+    },
+    [article, onUpdateArticle],
+  );
+
   if (!article) {
     return (
       <aside className="reading-card">
@@ -128,7 +150,7 @@ export function ReadingCard({
       </div>
       <ReadingCardWorkflow
         actions={workflowActions}
-        receiptPendingCount={receiptPendingCount}
+        receiptClarifyCount={receiptClarifyCount}
         steps={workflowSteps}
       />
       {displayAiCard && aiCardIsCurrent && !showReceiptTriage ? (
@@ -169,10 +191,15 @@ export function ReadingCard({
             />
           ) : (
             <ReadingReceiptTriageBoard
+              annotationAgents={annotationAgents}
+              article={article}
               evidenceUnits={evidenceUnits}
               receiptDispositionById={receiptDispositionById}
+              sourceUpdatedAt={sourceUpdatedAt || article.updatedAt}
+              userProfile={userProfile}
               onChangeDisposition={changeReceiptDisposition}
               onOpenEvidence={onOpenEvidence}
+              onPersistReadingReceiptState={persistReadingReceiptState}
             />
           )}
         </div>
@@ -201,10 +228,48 @@ function buildReadingReceiptDecisions(
   }));
 }
 
+function initialReadingReceiptDispositionById(
+  article: ArticleRecord | null,
+  evidenceUnits: ReturnType<typeof buildReadingCardEvidenceUnits>,
+  sourceUpdatedAt: string | null,
+): Record<string, ReadingReceiptBoardDisposition> {
+  if (!article || !sourceUpdatedAt) return {};
+  const persistedState =
+    article.readingReceiptState?.sourceUpdatedAt === sourceUpdatedAt
+      ? article.readingReceiptState
+      : null;
+  if (persistedState) {
+    const dispositionById = new Map(
+      persistedState.dispositions.map((item) => [item.evidenceId, item.disposition]),
+    );
+    return Object.fromEntries(
+      evidenceUnits.map((unit) => [
+        unit.id,
+        normalizeReadingReceiptBoardDisposition(dispositionById.get(unit.id)),
+      ]),
+    );
+  }
+  const initialDisposition: ReadingReceiptBoardDisposition = isReadingDeliberationCurrent(
+    article.readingDeliberation || null,
+    sourceUpdatedAt,
+  )
+    ? 'include'
+    : 'clarify';
+  return Object.fromEntries(evidenceUnits.map((unit) => [unit.id, initialDisposition]));
+}
+
+function normalizeReadingReceiptBoardDisposition(
+  disposition: string | undefined,
+): ReadingReceiptBoardDisposition {
+  return disposition === 'include' || disposition === 'exclude' || disposition === 'clarify'
+    ? disposition
+    : 'clarify';
+}
+
 function normalizeReadingReceiptDisposition(
   disposition: ReadingReceiptBoardDisposition | undefined,
 ): ReadingReceiptDisposition {
-  return disposition && disposition !== 'pending' ? disposition : 'include';
+  return disposition && disposition !== 'clarify' ? disposition : 'include';
 }
 
 function readingReceiptSourceUpdatedAt(
@@ -220,15 +285,15 @@ function readingReceiptSourceUpdatedAt(
 
 function ReadingCardWorkflow({
   actions,
-  receiptPendingCount,
+  receiptClarifyCount,
   steps,
 }: {
   actions: Record<ReadingCardWorkflowStepId, () => void>;
-  receiptPendingCount: number;
+  receiptClarifyCount: number;
   steps: ReadingCardWorkflowStep[];
 }) {
   const step = currentReadingReceiptStep(steps);
-  const blockedByTriage = receiptPendingCount > 0 && step.id !== 'review';
+  const blockedByTriage = receiptClarifyCount > 0 && step.id !== 'review';
 
   return (
     <section className="reading-card-workflow" aria-label="读后回执收束操作">
@@ -248,7 +313,7 @@ function ReadingCardWorkflow({
             <strong>{readingReceiptStepTitle(step)}</strong>
             <p>
               {blockedByTriage
-                ? `还有 ${receiptPendingCount} 条批注待归类`
+                ? `还有 ${receiptClarifyCount} 条材料待澄清`
                 : readingReceiptStepDescription(step)}
             </p>
           </div>
@@ -263,7 +328,7 @@ function ReadingCardWorkflow({
           {step.id === 'deliberation' ? <ListChecks size={14} /> : null}
           {step.id === 'card' ? <Sparkles size={14} /> : null}
           {step.id === 'review' ? <Scale size={14} /> : null}
-          {blockedByTriage ? `待归类 ${receiptPendingCount}` : readingReceiptStepActionLabel(step)}
+          {blockedByTriage ? `待澄清 ${receiptClarifyCount}` : readingReceiptStepActionLabel(step)}
         </Button>
       </article>
     </section>

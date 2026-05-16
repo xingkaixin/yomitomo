@@ -17,6 +17,7 @@ import type {
   ReadingDeliberationRecord,
   ReadingCardRecord,
   ReadingCardReviewRecord,
+  UserProfile,
 } from '@yomitomo/shared';
 import { ReadingCard, ReadingCardReviewAgentStrip } from '../app-reading-card-panel';
 
@@ -76,6 +77,18 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
       },
     ],
     createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function userProfile(overrides: Partial<UserProfile> = {}): UserProfile {
+  return {
+    id: 'user_1',
+    nickname: 'Kevin',
+    username: 'kevin',
+    avatar: '',
+    annotationColor: '#f4c95d',
     updatedAt: now,
     ...overrides,
   };
@@ -204,12 +217,65 @@ function reviewAgent(): Agent {
   };
 }
 
+function annotationAgent(overrides: Partial<Agent> = {}): Agent {
+  return {
+    id: 'reader_agent_1',
+    kind: 'annotation',
+    enabled: true,
+    providerId: 'provider_1',
+    nickname: '阅读助手',
+    username: 'reader',
+    avatar: '',
+    annotationColor: '#86a77a',
+    annotationDensity: 'medium',
+    temperature: 0.35,
+    soul: 'reader',
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
 function installDesktopApi() {
   const generateReadingDeliberation = vi.fn().mockResolvedValue({
     readingDeliberation: deliberation({ updatedAt: '2026-05-04T00:01:00.000Z' }),
   });
+  const clarificationOpinion = {
+    agentId: 'reader_agent_1',
+    agentNickname: '阅读助手',
+    agentUsername: 'reader',
+    agentAvatar: '',
+    agentColor: '#86a77a',
+    stance: 'include' as const,
+    reason: '这条批注能支撑这次阅读留下的判断，应该纳入。',
+  };
+  const generateReadingReceiptClarification = vi.fn().mockResolvedValue({
+    opinions: [clarificationOpinion],
+  });
+  const generateReadingReceiptClarificationStream = vi.fn(async (_input, onEvent) => {
+    onEvent({
+      type: 'agent_start',
+      agent: {
+        agentId: clarificationOpinion.agentId,
+        agentNickname: clarificationOpinion.agentNickname,
+        agentUsername: clarificationOpinion.agentUsername,
+        agentAvatar: clarificationOpinion.agentAvatar,
+        agentColor: clarificationOpinion.agentColor,
+      },
+    });
+    onEvent({ type: 'agent_delta', agentId: clarificationOpinion.agentId, delta: '{"reason":"' });
+    onEvent({
+      type: 'agent_delta',
+      agentId: clarificationOpinion.agentId,
+      delta: clarificationOpinion.reason,
+    });
+    onEvent({ type: 'agent_done', opinion: clarificationOpinion });
+    return { opinions: [clarificationOpinion] };
+  });
   const desktop = {
     generateReadingDeliberation,
+    generateReadingReceiptClarification,
+    generateReadingReceiptClarificationStream,
     generateReadingCard: vi.fn(),
     reviewReadingCard: vi.fn(),
   };
@@ -269,10 +335,9 @@ function firePointerEvent(
 
 function mockReceiptColumnRects() {
   const leftByColumn = new Map([
-    ['待定', 0],
+    ['待澄清', 0],
     ['纳入', 300],
-    ['追问', 600],
-    ['暂放', 900],
+    ['暂放', 600],
   ]);
   for (const [label, left] of leftByColumn) {
     vi.spyOn(screen.getByLabelText(`${label}列`), 'getBoundingClientRect').mockReturnValue(
@@ -340,10 +405,100 @@ describe('ReadingCard', () => {
     expect(screen.queryByText('整理回执', { selector: 'strong' })).toBeNull();
     expect(screen.queryByText('审阅席', { selector: 'strong' })).toBeNull();
     expect(screen.queryByText('选择稍后检查这份回执的视角')).toBeNull();
-    expect(screen.getByRole('button', { name: /待归类 1/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: /待澄清 1/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByLabelText('待澄清列')).toBeTruthy();
+    expect(screen.queryByLabelText('待定列')).toBeNull();
+    expect(screen.queryByLabelText('追问列')).toBeNull();
     expect(screen.getByLabelText('批注卡片：重要原文')).toBeTruthy();
     expect(screen.getByText('解释')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /澄清讨论：重要原文/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '归入纳入 #1' })).toBeNull();
+  });
+
+  it('runs clarification rounds from a clarifying card and resolves it', async () => {
+    const desktop = installDesktopApi();
+    const onUpdateArticle = vi.fn();
+    render(
+      <ReadingCard
+        annotationAgents={[annotationAgent()]}
+        article={article()}
+        reviewAgents={[]}
+        userProfile={userProfile()}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onUpdateArticle={onUpdateArticle}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /澄清讨论：重要原文/ }));
+
+    expect(screen.getByLabelText('澄清讨论面板：重要原文')).toBeTruthy();
+    expect(screen.getByText('讨论成员')).toBeTruthy();
+    expect(screen.getByText('Kevin')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /关闭讨论：重要原文/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '发表观点' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '添加助手' }));
+    expect(screen.getByRole('button', { name: '阅读助手' })).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('button', { name: '阅读助手' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '添加助手' }));
+    fireEvent.click(screen.getByRole('button', { name: '阅读助手' }));
+    fireEvent.click(screen.getByRole('button', { name: '发表观点' }));
+
+    await waitFor(() =>
+      expect(desktop.generateReadingReceiptClarificationStream).toHaveBeenCalledOnce(),
+    );
+    expect(desktop.generateReadingReceiptClarificationStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedAgentIds: ['reader_agent_1'],
+        userThought: '',
+      }),
+      expect.any(Function),
+    );
+    expect(await screen.findByText('这条批注能支撑这次阅读留下的判断，应该纳入。')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '带着我的想法再发表观点' }));
+    fireEvent.change(screen.getByPlaceholderText(/写下你的疑问/), {
+      target: { value: '我还想确认它是不是只是原文事实。' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发表观点' }));
+
+    await waitFor(() =>
+      expect(desktop.generateReadingReceiptClarificationStream).toHaveBeenCalledTimes(2),
+    );
+    expect(desktop.generateReadingReceiptClarificationStream).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        previousRounds: [
+          expect.objectContaining({
+            opinions: [expect.objectContaining({ stance: 'include' })],
+          }),
+        ],
+        userThought: '我还想确认它是不是只是原文事实。',
+      }),
+      expect.any(Function),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '我决定纳入' }));
+
+    expect(screen.getByText('1/1 已确认')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /收束这次阅读/ }).hasAttribute('disabled')).toBe(
+      false,
+    );
+    await waitFor(() => {
+      const update = onUpdateArticle.mock.calls.at(-1)?.[1];
+      const saved = update?.(article());
+      expect(saved?.readingReceiptState?.dispositions).toEqual([
+        { evidenceId: 'annotation_1', disposition: 'include' },
+      ]);
+      expect(saved?.readingReceiptState?.clarifications[0]?.selectedAgentIds).toEqual([
+        'reader_agent_1',
+      ]);
+      expect(saved?.readingReceiptState?.clarifications[0]?.rounds[0]?.opinions[0]?.reason).toBe(
+        '这条批注能支撑这次阅读留下的判断，应该纳入。',
+      );
+    });
   });
 
   it('drops a card once half of it overlaps the target column', () => {
@@ -364,13 +519,13 @@ describe('ReadingCard', () => {
     firePointerEvent(window, 'pointerMove', 410);
     firePointerEvent(window, 'pointerUp', 410);
 
-    expect(screen.getByText('1/1 已归类')).toBeTruthy();
+    expect(screen.getByText('1/1 已确认')).toBeTruthy();
     expect(screen.getByRole('button', { name: /收束这次阅读/ }).hasAttribute('disabled')).toBe(
       false,
     );
   });
 
-  it('keeps a card pending when less than half overlaps the target column', () => {
+  it('keeps a card clarifying when less than half overlaps the target column', () => {
     render(
       <ReadingCard
         article={article()}
@@ -388,8 +543,8 @@ describe('ReadingCard', () => {
     firePointerEvent(window, 'pointerMove', 450);
     firePointerEvent(window, 'pointerUp', 450);
 
-    expect(screen.getByText('0/1 已归类')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /待归类 1/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('0/1 已确认')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /待澄清 1/ }).hasAttribute('disabled')).toBe(true);
     expect(screen.getByLabelText('批注卡片：重要原文').className).toContain('is-active');
   });
 

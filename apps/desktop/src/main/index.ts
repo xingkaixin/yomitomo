@@ -22,6 +22,7 @@ import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
   generateReadingCard,
   generateReadingDeliberation,
+  generateReadingReceiptClarification,
   inferAnnotationMetadata,
   listProviderModels,
   planAgentMentionInstructions,
@@ -32,9 +33,11 @@ import {
   runAgentAnnotateWithMemory,
   runAgentStream,
   setAiLogger,
+  streamReadingReceiptClarificationOpinion,
   testProvider,
   type GenerateReadingCardInput,
   type GenerateReadingDeliberationInput,
+  type GenerateReadingReceiptClarificationInput,
   type ReviewReadingCardInput,
 } from '@yomitomo/ai';
 import {
@@ -460,6 +463,73 @@ function registerIpc() {
       };
       await saveArticleReadingDeliberation(input.article.id, deliberation);
       return { readingDeliberation: deliberation };
+    },
+  );
+  ipcMain.handle(
+    'reading-clarification:generate',
+    async (
+      _event,
+      input: GenerateReadingReceiptClarificationInput & { selectedAgentIds?: string[] },
+    ) => {
+      const store = await readStore();
+      const selectedAgentIds = new Set(input.selectedAgentIds || []);
+      const agents = store.agents.filter(
+        (agent) => agent.kind === 'annotation' && agent.enabled && selectedAgentIds.has(agent.id),
+      );
+      if (agents.length === 0) throw new Error('请选择至少一位阅读助手参与澄清讨论');
+      const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
+      const opinions = await generateReadingReceiptClarification(provider, agents, input);
+      return { opinions };
+    },
+  );
+  ipcMain.on(
+    'reading-clarification:generate:stream',
+    async (
+      event,
+      input: {
+        requestId: string;
+        payload: GenerateReadingReceiptClarificationInput & { selectedAgentIds?: string[] };
+      },
+    ) => {
+      const channel = `reading-clarification:generate:stream:${input.requestId}`;
+      try {
+        const store = await readStore();
+        const selectedAgentIds = new Set(input.payload.selectedAgentIds || []);
+        const agents = store.agents.filter(
+          (agent) => agent.kind === 'annotation' && agent.enabled && selectedAgentIds.has(agent.id),
+        );
+        if (agents.length === 0) throw new Error('请选择至少一位阅读助手参与澄清讨论');
+        const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
+        const opinions = await Promise.all(
+          agents.map(async (agent) => {
+            event.sender.send(channel, {
+              type: 'agent_start',
+              agent: {
+                agentId: agent.id,
+                agentNickname: agent.nickname,
+                agentUsername: agent.username,
+                agentAvatar: agent.avatar,
+                agentColor: agent.annotationColor,
+              },
+            });
+            const opinion = await streamReadingReceiptClarificationOpinion(
+              provider,
+              agent,
+              input.payload,
+              (delta) =>
+                event.sender.send(channel, { type: 'agent_delta', agentId: agent.id, delta }),
+            );
+            event.sender.send(channel, { type: 'agent_done', opinion });
+            return opinion;
+          }),
+        );
+        event.sender.send(channel, { type: 'done', opinions });
+      } catch (error) {
+        event.sender.send(channel, {
+          type: 'error',
+          message: error instanceof Error ? error.message : '澄清讨论失败',
+        });
+      }
     },
   );
   ipcMain.handle('reading-card:review', async (_event, input: ReviewReadingCardInput) => {

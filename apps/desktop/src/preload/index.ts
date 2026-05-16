@@ -40,6 +40,41 @@ export type GenerateReadingDeliberationInput = {
   receiptDecisions?: ReadingReceiptDecision[];
 };
 
+export type ReadingReceiptClarificationStance = 'include' | 'exclude';
+
+export type ReadingReceiptClarificationOpinion = {
+  agentId: string;
+  agentNickname: string;
+  agentUsername: string;
+  agentAvatar: string;
+  agentColor: string;
+  stance: ReadingReceiptClarificationStance;
+  reason: string;
+};
+
+export type ReadingReceiptClarificationAgent = Omit<
+  ReadingReceiptClarificationOpinion,
+  'stance' | 'reason'
+>;
+
+export type ReadingReceiptClarificationStreamEvent =
+  | { type: 'agent_start'; agent: ReadingReceiptClarificationAgent }
+  | { type: 'agent_delta'; agentId: string; delta: string }
+  | { type: 'agent_done'; opinion: ReadingReceiptClarificationOpinion };
+
+export type ReadingReceiptClarificationRoundInput = {
+  userThought?: string;
+  opinions: ReadingReceiptClarificationOpinion[];
+};
+
+export type GenerateReadingReceiptClarificationInput = {
+  article: ArticleRecord;
+  evidenceUnit: ReadingCardEvidenceUnit;
+  selectedAgentIds: string[];
+  previousRounds?: ReadingReceiptClarificationRoundInput[];
+  userThought?: string;
+};
+
 export type ReviewReadingCardInput = GenerateReadingCardInput & {
   readingCard: ReadingCardRecord;
   previousReview?: ReadingCardReviewRecord;
@@ -198,6 +233,40 @@ const api = {
     ipcRenderer.invoke('reading-deliberation:generate', input) as Promise<{
       readingDeliberation: ReadingDeliberationRecord;
     }>,
+  generateReadingReceiptClarification: (input: GenerateReadingReceiptClarificationInput) =>
+    ipcRenderer.invoke('reading-clarification:generate', input) as Promise<{
+      opinions: ReadingReceiptClarificationOpinion[];
+    }>,
+  generateReadingReceiptClarificationStream: (
+    input: GenerateReadingReceiptClarificationInput,
+    onEvent: (event: ReadingReceiptClarificationStreamEvent) => void,
+  ) => {
+    const requestId = makeRequestId();
+    const channel = `reading-clarification:generate:stream:${requestId}`;
+    return new Promise<{ opinions: ReadingReceiptClarificationOpinion[] }>((resolve, reject) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        message:
+          | ReadingReceiptClarificationStreamEvent
+          | { type: 'done'; opinions: ReadingReceiptClarificationOpinion[] }
+          | { type: 'error'; message: string },
+      ) => {
+        if (
+          message.type === 'agent_start' ||
+          message.type === 'agent_delta' ||
+          message.type === 'agent_done'
+        ) {
+          onEvent(message);
+          return;
+        }
+        ipcRenderer.removeListener(channel, listener);
+        if (message.type === 'done') resolve({ opinions: message.opinions });
+        else reject(new Error(message.message));
+      };
+      ipcRenderer.on(channel, listener);
+      ipcRenderer.send('reading-clarification:generate:stream', { requestId, payload: input });
+    });
+  },
   reviewReadingCard: (input: ReviewReadingCardInput) =>
     ipcRenderer.invoke('reading-card:review', input) as Promise<{
       review: ReadingCardReviewRecord;

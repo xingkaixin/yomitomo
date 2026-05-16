@@ -625,6 +625,7 @@ export type ArticleRecord = {
   focusCoReadingPlan?: FocusCoReadingPlan;
   readingDeliberation?: ReadingDeliberationRecord;
   readingCard?: ReadingCardRecord;
+  readingReceiptState?: ReadingReceiptState;
   createdAt: string;
   updatedAt: string;
 };
@@ -738,6 +739,43 @@ export type ReadingCardRecord = {
   providerName: string;
   modelName: string;
   createdAt: string;
+  updatedAt: string;
+};
+
+export type ReadingReceiptPersistedDisposition = 'clarify' | 'include' | 'exclude';
+
+export type ReadingReceiptDispositionRecord = {
+  evidenceId: string;
+  disposition: ReadingReceiptPersistedDisposition;
+};
+
+export type ReadingReceiptClarificationOpinionRecord = {
+  agentId: string;
+  agentNickname: string;
+  agentUsername: string;
+  agentAvatar: string;
+  agentColor: string;
+  stance: 'include' | 'exclude';
+  reason: string;
+};
+
+export type ReadingReceiptClarificationRoundRecord = {
+  id: string;
+  userThought: string;
+  opinions: ReadingReceiptClarificationOpinionRecord[];
+};
+
+export type ReadingReceiptClarificationState = {
+  evidenceId: string;
+  selectedAgentIds: string[];
+  rounds: ReadingReceiptClarificationRoundRecord[];
+  thought?: string;
+};
+
+export type ReadingReceiptState = {
+  sourceUpdatedAt: string;
+  dispositions: ReadingReceiptDispositionRecord[];
+  clarifications: ReadingReceiptClarificationState[];
   updatedAt: string;
 };
 

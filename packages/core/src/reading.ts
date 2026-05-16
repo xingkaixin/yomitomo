@@ -27,6 +27,8 @@ export type ReadingCardStats = {
 export type ReadingCardComment = {
   id: string;
   author: Comment['author'];
+  agentId?: string;
+  agentUsername?: string;
   authorLabel: string;
   content: string;
   createdAt: string;
@@ -44,6 +46,8 @@ export type ReadingCardEvidenceUnit = {
   readingIntentKey?: AgentReadingIntent;
   questionStatus?: QuestionStatus;
   annotationAuthor: Annotation['author'];
+  annotationAgentId?: string;
+  annotationAgentUsername?: string;
   annotationAuthorLabel: string;
   annotationAuthorAvatar: string;
   createdAt: string;
@@ -52,7 +56,7 @@ export type ReadingCardEvidenceUnit = {
   comments: ReadingCardComment[];
 };
 
-export type ReadingReceiptDisposition = 'include' | 'question' | 'exclude';
+export type ReadingReceiptDisposition = 'include' | 'exclude';
 
 export type ReadingReceiptDecision = {
   evidenceId: string;
@@ -226,6 +230,8 @@ export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCa
       readingIntentKey: annotation.readingIntent,
       questionStatus: annotation.questionStatus,
       annotationAuthor: annotation.author,
+      annotationAgentId: annotation.agentId,
+      annotationAgentUsername: annotation.agentUsername,
       annotationAuthorLabel: annotationLabel(annotation),
       annotationAuthorAvatar: annotationAvatar(annotation),
       createdAt: annotation.createdAt,
@@ -463,6 +469,8 @@ function toReadingCardComment(comment: Comment): ReadingCardComment {
   return {
     id: comment.id,
     author: comment.author,
+    agentId: comment.agentId,
+    agentUsername: comment.agentUsername,
     authorLabel: commentLabel(comment),
     content: lineText(comment.content),
     createdAt: comment.createdAt,
