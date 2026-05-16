@@ -3,13 +3,9 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  AgentAnnotateMenu,
-  AnnotationCard,
-  SelectionMenu,
-  type ReaderReadingSection,
-} from './reader-components';
+import { AgentAnnotateMenu, AnnotationCard, SelectionMenu } from './reader-components';
 import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { ReaderReadingSection } from './reader-types';
 
 const now = '2026-05-12T08:00:00.000Z';
 

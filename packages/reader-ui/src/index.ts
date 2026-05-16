@@ -13,14 +13,16 @@ export {
   ReadingCompletionBurst,
   SelectionMenu,
   VirtualCursor,
-  type ActiveConnection,
-  type AgentDockItem,
-  type HighlightChoiceAction,
-  type ReaderReadingSection,
-  type ReaderSettings,
-  type SelectionMenuAction,
-  type VirtualCursorState,
 } from './reader-components';
+export type {
+  ActiveConnection,
+  AgentDockItem,
+  HighlightChoiceAction,
+  ReaderReadingSection,
+  ReaderSettings,
+  SelectionMenuAction,
+  VirtualCursorState,
+} from './reader-types';
 export * from './reader-styles';
 export * from './reader-utils';
 export * from './use-agent-annotation-queue';

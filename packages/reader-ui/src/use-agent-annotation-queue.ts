@@ -9,7 +9,7 @@ import {
   rangeHighlightBoxes,
   type HighlightBox,
 } from '@yomitomo/core';
-import type { VirtualCursorState } from './reader-components';
+import type { VirtualCursorState } from './reader-types';
 import { useAgentReadingDock } from './use-agent-reading-dock';
 import { agentQueueKey, animateTheaterHighlight, sleep } from './reader-utils';
 
