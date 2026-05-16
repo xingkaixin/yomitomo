@@ -1,13 +1,11 @@
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentReadingPlanItem,
   Annotation,
-  ArticleRecord,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
   PublicAgent,
-  QuestionStatus,
   ReadingMemory,
 } from '@yomitomo/shared';
 import {
@@ -18,46 +16,32 @@ import {
   resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
-  appendAnnotationComment,
-  annotationColor,
   annotationPrimaryComment,
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
-  articleTitleTocItems,
   createEpubTextAnchor,
-  extractTocItems,
   findMentionedAgents,
   findCurrentTocTarget,
   getArticleSelection,
   isRangeInsideArticle,
   mergeReadingMemory,
   offsetFromArticleStart,
-  rangeFromOffsets,
   rangeHighlightBoxes,
   selectionActionPosition,
-  sortAnnotations,
   createUserAnnotation,
-  createUserComment,
-  type ExtractTocOptions,
-  type HighlightBox,
   type TocItem,
-  updateAnnotationComment,
 } from '@yomitomo/core';
 import {
   buildTocAnnotationStats,
   useAgentAnnotationQueue,
   getShortcutModifier,
   ReaderAppView,
-  annotationNavigationForInsertionIndex,
-  annotationNavigationForReferenceIndex,
   buildReaderReadingSections,
   readerAnnotationScrollTop,
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
-  type ActiveConnection,
   type AnnotationNavigationDirection,
-  type HighlightChoice,
   type ReaderSettings,
 } from '@yomitomo/reader-ui';
 import { OpenArticleButton } from './app-ui';
@@ -69,146 +53,28 @@ import {
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
 } from './app-source-agent-request';
+import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { articleIdentityLine } from './app-utils';
 import {
-  annotationViewportPositions,
   articleWithAnnotations,
-  buildAnnotationConnectionPath,
   defaultTocOpen,
-  navigationForActiveAnnotation,
   normalizeDesktopReaderSettings,
   promptArticle,
   publicAnnotationAgents,
   readDesktopReaderSettings,
-  recordRendererPerformanceTiming,
-  rendererPerformanceElapsedMs,
   usesOverlayToc,
   writeDesktopReaderSettings,
-  type SourceSelectionAction,
   type WebSourceBookcaseProps,
 } from './app-source-bookcase-shared';
-
-const sourceTocOptions: ExtractTocOptions = {
-  headingSelector:
-    '.reader-article-body h1, .reader-article-body h2, .reader-article-body h3, .reader-article-body h4',
-  inferredSelector:
-    '.reader-article-body p, .reader-article-body div, .reader-article-body section',
-};
-
-const sourceReaderTocStyles = `
-@media(min-width:1321px){
-  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
-    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
-  }
-  .source-reader-shell .reader-app.has-toc .reader-surface{
-    padding:18px 14px 64px;
-  }
-  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
-    margin:0;
-  }
-}
-.reader-app.has-toc.is-toc-open .reader-toc{
-  margin:18px 0 18px 18px;
-  padding:14px;
-  border:1px solid rgba(150,123,84,.28);
-  border-radius:8px;
-  background:rgba(255,253,248,.72);
-}
-.reader-toc-title{
-  margin:0 0 10px;
-  color:#746d63;
-  font-size:11px;
-  font-weight:900;
-  letter-spacing:.12em;
-  text-transform:none;
-}
-.reader-toc-item{
-  display:grid;
-  width:100%;
-  margin:0;
-  border:0;
-  border-radius:8px;
-  background:transparent;
-  color:#746d63;
-  font-size:12px;
-  font-weight:820;
-  line-height:1.3;
-  padding:9px 8px;
-}
-.reader-toc-item:hover{
-  background:rgba(245,239,226,.9);
-  color:#28231d;
-}
-.reader-toc-item-main{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  align-items:center;
-  gap:8px;
-}
-.reader-toc-item-main>span:first-child{
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.reader-toc-summary{
-  margin-top:12px;
-  border-radius:8px;
-}
-@media(max-width:1320px){
-  .reader-app.has-toc.is-toc-open .reader-toc{
-    margin:0;
-    border-radius:0;
-  }
-}
-`;
-
-function webAnnotationNavigationState({
-  activeId,
-  annotations,
-  boxes,
-  canvasElement,
-  scrollElement,
-}: {
-  activeId: string | null;
-  annotations: Annotation[];
-  boxes: HighlightBox[];
-  canvasElement: HTMLElement | null;
-  scrollElement: HTMLElement | null;
-}) {
-  const activeNavigation = navigationForActiveAnnotation(annotations, activeId);
-  if (activeNavigation) return activeNavigation;
-  if (annotations.length === 0) return { previousId: null, nextId: null };
-  if (!canvasElement || !scrollElement)
-    return annotationNavigationForInsertionIndex(annotations, 0);
-
-  const positions = annotationViewportPositions(annotations, boxes, canvasElement.offsetTop);
-  if (positions.length === 0) return annotationNavigationForInsertionIndex(annotations, 0);
-
-  const viewportTop = scrollElement.scrollTop;
-  const viewportBottom = viewportTop + scrollElement.clientHeight;
-  const visible = positions
-    .filter((position) => position.bottom >= viewportTop && position.top <= viewportBottom)
-    .toSorted((left, right) => left.top - right.top || left.index - right.index)[0];
-
-  if (visible) return annotationNavigationForReferenceIndex(annotations, visible.index);
-
-  return annotationNavigationForViewportRange(annotations, positions, viewportTop, viewportBottom);
-}
-
-function annotationNavigationForViewportRange(
-  annotations: Annotation[],
-  positions: Array<{ index: number; top: number; bottom: number }>,
-  viewportTop: number,
-  viewportBottom: number,
-) {
-  const previous = positions.findLast((position) => position.bottom < viewportTop);
-  const next = positions.find((position) => position.top > viewportBottom);
-
-  return {
-    previousId: previous ? (annotations[previous.index]?.id ?? null) : null,
-    nextId: next ? (annotations[next.index]?.id ?? null) : null,
-  };
-}
+import { useSourceAnnotations } from './use-source-annotations';
+import { useSourceActiveConnection } from './use-source-active-connection';
+import { useSourceSelectionComposer } from './use-source-selection-composer';
+import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
+import {
+  sourceArticleBodyHtml,
+  sourceReaderTocStyles,
+  webAnnotationNavigationState,
+} from './app-source-bookcase-web-utils';
 
 export function WebSourceBookcase({
   agents,
@@ -230,22 +96,52 @@ export function WebSourceBookcase({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const [annotations, setLocalAnnotations] = useState<Annotation[]>(() =>
-    sortAnnotations(articleAnnotations),
-  );
-  const latestArticleRef = useRef<ArticleRecord | null>(article);
-  const annotationsRef = useRef<Annotation[]>(annotations);
-  const [boxes, setBoxes] = useState<HighlightBox[]>([]);
-  const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
-  const [activeConnection, setActiveConnection] = useState<ActiveConnection | null>(null);
-  const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
-  const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
-  const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const {
+    addComment,
+    annotations,
+    annotationsRef,
+    applyAnnotations,
+    deleteAnnotation,
+    latestArticleRef,
+    saveAnnotations,
+    setAnnotationQuestionStatus,
+    setCommentQuestionStatus,
+  } = useSourceAnnotations({
+    annotationAgents,
+    annotations: articleAnnotations,
+    article,
+    onBeforeDeleteAnnotation: (annotationId) => noteRefs.current.delete(annotationId),
+    onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
+      for (const agent of mentionedAgents) {
+        void requestAgentComment(agent, annotation, comment);
+      }
+    },
+    onOpenAnnotation: openAnnotation,
+    onSaveArticle,
+    userProfile,
+  });
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
+  const {
+    temporaryBoxes,
+    highlightChoice,
+    setHighlightChoice,
+    selectionAction,
+    composer,
+    clearSelection,
+    clearAnnotationUiState,
+    openSelectionAction,
+    cancelComposer,
+    copySelection,
+    openComposer,
+  } = useSourceSelectionComposer({
+    canvasRef,
+    onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
+  });
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
@@ -253,9 +149,26 @@ export function WebSourceBookcase({
     null,
   );
   const [statusMessage, setStatusMessage] = useState('');
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
-  const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
+  const { boxes, tocItems } = useWebReaderBoxes({
+    annotationAgents,
+    annotations,
+    article,
+    articleRef,
+    canvasRef,
+    contentHtml,
+    userProfile,
+  });
+  const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
+    annotationAgents,
+    annotations,
+    boxes,
+    canvasRef,
+    noteRefs,
+    selectedAnnotationId,
+    surfaceRef: scrollRef,
+    userProfile,
+  });
   const tocStats = useMemo(
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
@@ -303,97 +216,11 @@ export function WebSourceBookcase({
     setActiveId: openAnnotation,
     readerLog: () => {},
   });
-  useEffect(() => {
-    latestArticleRef.current = article;
-  }, [article]);
-
-  useEffect(() => {
-    const nextAnnotations = sortAnnotations(articleAnnotations);
-    setLocalAnnotations(nextAnnotations);
-    annotationsRef.current = nextAnnotations;
-  }, [article?.id, articleAnnotations]);
-
   useEffect(() => cleanupVirtualReadingSessions, []);
 
   useEffect(() => {
-    const articleElement = articleRef.current;
-    const canvasElement = canvasRef.current;
-    if (!article || !articleElement || !canvasElement) {
-      setBoxes([]);
-      setTocItems([]);
-      return;
-    }
-
-    let frame = 0;
-    const updateBoxes = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const startedAt = performance.now();
-        const text = articleElement.textContent || '';
-        const canvasRect = canvasElement.getBoundingClientRect();
-        const extractedTocItems = extractTocItems(articleElement, sourceTocOptions);
-        const nextTocItems =
-          extractedTocItems.length > 0
-            ? extractedTocItems
-            : articleTitleTocItems(articleElement, article.title);
-        let resolvedAnchorCount = 0;
-        let rangeCount = 0;
-        const nextBoxes = annotations.flatMap((annotation) => {
-          const position = resolveTextAnchor(text, annotation.anchor);
-          if (!position) return [];
-          resolvedAnchorCount += 1;
-          const range = rangeFromOffsets(articleElement, position.start, position.end);
-          if (!range) return [];
-          rangeCount += 1;
-          return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
-            Object.assign(box, {
-              annotationId: annotation.id,
-              contributorId:
-                annotation.agentId ||
-                annotation.agentUsername ||
-                annotation.userId ||
-                annotation.userUsername ||
-                annotation.author,
-              color: annotationColor(annotation, userProfile, annotationAgents),
-            }),
-          );
-        });
-        setTocItems(nextTocItems);
-        setBoxes(nextBoxes);
-        recordRendererPerformanceTiming('reader_highlight_boxes', {
-          source: 'web',
-          elapsedMs: rendererPerformanceElapsedMs(startedAt),
-          articleId: article.id,
-          annotationCount: annotations.length,
-          resolvedAnchorCount,
-          rangeCount,
-          boxCount: nextBoxes.length,
-          textChars: text.length,
-          tocItemCount: nextTocItems.length,
-          contentHtmlChars: contentHtml.length,
-        });
-      });
-    };
-
-    updateBoxes();
-    const resizeObserver = new ResizeObserver(updateBoxes);
-    resizeObserver.observe(articleElement);
-    resizeObserver.observe(canvasElement);
-    window.addEventListener('resize', updateBoxes);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateBoxes);
-    };
-  }, [annotationAgents, annotations, article, contentHtml, userProfile]);
-
-  useEffect(() => {
-    setHighlightChoice(null);
-    setSelectionAction(null);
-    setComposer(null);
-    setTemporaryBoxes([]);
-  }, [article?.id, annotations]);
+    clearAnnotationUiState();
+  }, [article?.id, annotations, clearAnnotationUiState]);
 
   useEffect(() => {
     setNotesOpen(false);
@@ -403,87 +230,6 @@ export function WebSourceBookcase({
     setReplyRequest(null);
     setStatusMessage('');
   }, [article?.id]);
-
-  const recalculateActiveConnection = useCallback(() => {
-    if (!selectedAnnotationId) {
-      setActiveConnection(null);
-      return;
-    }
-
-    const canvasElement = canvasRef.current;
-    const scrollElement = scrollRef.current;
-    const noteElement = noteRefs.current.get(selectedAnnotationId);
-    const annotation = annotations.find((item) => item.id === selectedAnnotationId);
-    const activeBoxes = boxes.filter((box) => box.annotationId === selectedAnnotationId);
-    const readerElement = canvasElement?.closest('.reader-app');
-    if (
-      !canvasElement ||
-      !scrollElement ||
-      !noteElement ||
-      !annotation ||
-      !readerElement ||
-      activeBoxes.length === 0
-    ) {
-      setActiveConnection(null);
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const readerRect = readerElement.getBoundingClientRect();
-    const scrollRect = scrollElement.getBoundingClientRect();
-    const noteRect = noteElement.getBoundingClientRect();
-    const noteY = noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2);
-    const box = activeBoxes.toSorted((left, right) => {
-      const leftY = canvasRect.top - readerRect.top + left.top + left.height / 2;
-      const rightY = canvasRect.top - readerRect.top + right.top + right.height / 2;
-      return Math.abs(leftY - noteY) - Math.abs(rightY - noteY);
-    })[0];
-    if (!box) {
-      setActiveConnection(null);
-      return;
-    }
-
-    const startX = canvasRect.left - readerRect.left + box.left + box.width + 6;
-    const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
-    const endX = noteRect.left - readerRect.left - 8;
-    const endY = noteY;
-    const highlightViewportY = readerRect.top + startY;
-    const highlightVisible =
-      highlightViewportY >= scrollRect.top - 24 && highlightViewportY <= scrollRect.bottom + 24;
-    const noteVisible =
-      noteRect.bottom >= scrollRect.top + 24 && noteRect.top <= scrollRect.bottom - 24;
-    if (!highlightVisible || !noteVisible) {
-      setActiveConnection(null);
-      return;
-    }
-
-    const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
-    const color = annotationColor(annotation, userProfile, annotationAgents);
-    setActiveConnection((current) =>
-      current?.path === path && current.color === color ? current : { path, color },
-    );
-  }, [annotationAgents, annotations, boxes, selectedAnnotationId, userProfile]);
-
-  useLayoutEffect(() => {
-    recalculateActiveConnection();
-  }, [annotations, boxes, recalculateActiveConnection]);
-
-  useEffect(() => {
-    const scrollElement = scrollRef.current;
-    let frame = 0;
-    const schedule = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(recalculateActiveConnection);
-    };
-
-    scrollElement?.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      scrollElement?.removeEventListener('scroll', schedule);
-      window.removeEventListener('resize', schedule);
-    };
-  }, [recalculateActiveConnection]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -526,14 +272,11 @@ export function WebSourceBookcase({
 
   const navigateAnnotation = useCallback(
     (annotationId: string, _direction: AnnotationNavigationDirection) => {
-      setHighlightChoice(null);
-      setSelectionAction(null);
-      setComposer(null);
-      setTemporaryBoxes([]);
+      clearAnnotationUiState();
       onOpenAnnotation(annotationId);
       scrollToAnnotation(annotationId);
     },
-    [onOpenAnnotation, scrollToAnnotation],
+    [clearAnnotationUiState, onOpenAnnotation, scrollToAnnotation],
   );
 
   useEffect(() => {
@@ -546,37 +289,8 @@ export function WebSourceBookcase({
   }, [annotations, focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
 
   function openAnnotation(annotationId: string) {
-    setHighlightChoice(null);
-    setSelectionAction(null);
-    setComposer(null);
-    setTemporaryBoxes([]);
+    clearAnnotationUiState();
     onOpenAnnotation(annotationId);
-  }
-
-  async function saveAnnotations(nextAnnotations: Annotation[]) {
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return;
-    const nextArticle = articleWithAnnotations(currentArticle, nextAnnotations);
-    const sortedAnnotations = nextArticle.annotations;
-    latestArticleRef.current = nextArticle;
-    annotationsRef.current = sortedAnnotations;
-    setLocalAnnotations(sortedAnnotations);
-    await onSaveArticle(nextArticle);
-  }
-
-  function applyAnnotations(nextAnnotations: Annotation[]) {
-    const currentArticle = latestArticleRef.current;
-    if (!currentArticle) return null;
-    const sortedAnnotations = sortAnnotations(nextAnnotations);
-    const nextArticle = {
-      ...currentArticle,
-      annotations: sortedAnnotations,
-      updatedAt: new Date().toISOString(),
-    };
-    latestArticleRef.current = nextArticle;
-    annotationsRef.current = sortedAnnotations;
-    setLocalAnnotations(sortedAnnotations);
-    return nextArticle;
   }
 
   function currentArticleText() {
@@ -594,8 +308,7 @@ export function WebSourceBookcase({
 
     const selection = getArticleSelection(articleElement);
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      setSelectionAction(null);
-      setTemporaryBoxes([]);
+      clearSelection();
       return;
     }
 
@@ -615,9 +328,8 @@ export function WebSourceBookcase({
 
     const canvasRect = canvasElement.getBoundingClientRect();
     const position = selectionActionPosition(lastRect, canvasRect);
-    setSelectionAction({ x: position.x, y: position.y, anchor });
-    setComposer(null);
-    setTemporaryBoxes(
+    openSelectionAction(
+      { x: position.x, y: position.y, anchor },
       rangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
         Object.assign(box, {
           annotationId: '__selection__',
@@ -627,29 +339,6 @@ export function WebSourceBookcase({
       ),
     );
     selection.removeAllRanges();
-  }
-
-  function cancelComposer() {
-    setComposer(null);
-    setSelectionAction(null);
-    setTemporaryBoxes([]);
-  }
-
-  async function copySelection(action: SourceSelectionAction) {
-    await navigator.clipboard.writeText(action.anchor.exact);
-    setSelectionAction(null);
-    setTemporaryBoxes([]);
-  }
-
-  function openComposer(action: SourceSelectionAction) {
-    const canvasWidth = canvasRef.current?.clientWidth || 360;
-    setCommentsCloseKey((key) => key + 1);
-    setComposer({
-      x: Math.min(action.x, Math.max(4, canvasWidth - 364)),
-      y: action.y,
-      anchor: action.anchor,
-    });
-    setSelectionAction(null);
   }
 
   async function createAnnotation(note: string) {
@@ -740,84 +429,6 @@ export function WebSourceBookcase({
     );
   }
 
-  async function addComment(annotationId: string, content: string) {
-    const trimmed = content.trim();
-    const currentArticle = latestArticleRef.current;
-    if (!trimmed || !currentArticle) return;
-    const userComment = createUserComment(userProfile, trimmed);
-    const isFollowUpQuestion = /[?？]/.test(trimmed);
-    const comment = isFollowUpQuestion
-      ? { ...userComment, questionStatus: 'open' as const }
-      : userComment;
-    const currentAnnotations = isFollowUpQuestion
-      ? currentArticle.annotations
-      : currentArticle.annotations.map((annotation) =>
-          annotation.id !== annotationId
-            ? annotation
-            : Object.assign({}, annotation, {
-                questionStatus:
-                  annotation.questionStatus === 'open' ||
-                  (annotation.annotationType === 'question' && !annotation.questionStatus)
-                    ? 'answered'
-                    : annotation.questionStatus,
-                comments: annotation.comments.map((item) =>
-                  item.questionStatus === 'open' ||
-                  (!item.questionStatus && /[?？]/.test(item.content))
-                    ? { ...item, questionStatus: 'answered' as const }
-                    : item,
-                ),
-              }),
-        );
-    const nextAnnotations = appendAnnotationComment(
-      currentAnnotations,
-      annotationId,
-      comment,
-      userComment.createdAt,
-    );
-    const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
-    if (!nextAnnotations || !nextAnnotation) return;
-
-    await saveAnnotations(nextAnnotations);
-    openAnnotation(annotationId);
-
-    const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
-    for (const agent of mentionedAgents) {
-      void requestAgentComment(agent, nextAnnotation, comment);
-    }
-  }
-
-  async function setAnnotationQuestionStatus(annotationId: string, status: QuestionStatus) {
-    const now = new Date().toISOString();
-    const nextAnnotations = annotationsRef.current.map((annotation) =>
-      annotation.id === annotationId
-        ? { ...annotation, questionStatus: status, updatedAt: now }
-        : annotation,
-    );
-    await saveAnnotations(nextAnnotations);
-    openAnnotation(annotationId);
-  }
-
-  async function setCommentQuestionStatus(
-    annotationId: string,
-    commentId: string,
-    status: QuestionStatus,
-  ) {
-    const now = new Date().toISOString();
-    const nextAnnotations = annotationsRef.current.map((annotation) =>
-      annotation.id === annotationId
-        ? {
-            ...annotation,
-            updatedAt: now,
-            comments: annotation.comments.map((comment) =>
-              comment.id === commentId ? { ...comment, questionStatus: status } : comment,
-            ),
-          }
-        : annotation,
-    );
-    await saveAnnotations(nextAnnotations);
-    openAnnotation(annotationId);
-  }
-
   function focusQuestionAnnotation(annotationId: string) {
     setNotesOpen(false);
     openAnnotation(annotationId);
@@ -829,14 +440,6 @@ export function WebSourceBookcase({
     setReplyRequest({ annotationId, key: Date.now() });
   }
 
-  async function deleteAnnotation(annotationId: string) {
-    const nextAnnotations = annotationsRef.current.filter(
-      (annotation) => annotation.id !== annotationId,
-    );
-    noteRefs.current.delete(annotationId);
-    await saveAnnotations(nextAnnotations);
-  }
-
   async function requestAgentComment(
     agent: PublicAgent,
     annotation: Annotation,
@@ -846,79 +449,18 @@ export function WebSourceBookcase({
     const currentArticle = latestArticleRef.current;
     if (!desktop || !currentArticle) return;
 
-    setStatusMessage(`${agent.nickname} 正在回复`);
-    let pendingCommentId = '';
-    let pendingDelta = '';
-    let pendingFrame = 0;
-    const flushDelta = () => {
-      pendingFrame = 0;
-      if (!pendingDelta || !pendingCommentId) return;
-      const delta = pendingDelta;
-      pendingDelta = '';
-      const nextAnnotations = updateAnnotationComment(
-        annotationsRef.current,
-        annotation.id,
-        pendingCommentId,
-        (comment) => Object.assign({}, comment, { content: comment.content + delta }),
-      );
-      if (nextAnnotations) applyAnnotations(nextAnnotations);
-    };
-    const scheduleDeltaFlush = () => {
-      if (pendingFrame) return;
-      pendingFrame = window.requestAnimationFrame(flushDelta);
-    };
-    try {
-      await desktop.requestAgentCommentStream(
-        {
-          agentId: agent.id,
-          agentUsername: agent.username,
-          readingIntent: annotation.readingIntent || userComment.readingIntent,
-          article: promptArticle(currentArticle, currentArticleText()),
-          annotation,
-          userComment,
-        },
-        (event) => {
-          if (event.type === 'start') {
-            pendingCommentId = event.comment.id;
-            const nextAnnotations = appendAnnotationComment(
-              annotationsRef.current,
-              annotation.id,
-              event.comment,
-              event.comment.createdAt,
-            );
-            if (nextAnnotations) applyAnnotations(nextAnnotations);
-            return;
-          }
-
-          pendingDelta += event.delta;
-          scheduleDeltaFlush();
-        },
-      );
-      if (pendingFrame) {
-        window.cancelAnimationFrame(pendingFrame);
-        flushDelta();
-      }
-      const current = annotationsRef.current.find((item) => item.id === annotation.id);
-      const agentComment = current?.comments.find(
-        (comment) =>
-          comment.author === 'ai' &&
-          comment.agentId === agent.id &&
-          comment.id === pendingCommentId &&
-          comment.pending,
-      );
-      if (agentComment) {
-        const nextAnnotations = updateAnnotationComment(
-          annotationsRef.current,
-          annotation.id,
-          agentComment.id,
-          (comment) => Object.assign({}, comment, { pending: false }),
-        );
-        if (nextAnnotations) await saveAnnotations(nextAnnotations);
-      }
-    } finally {
-      if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
-      setStatusMessage('');
-    }
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation,
+      userComment,
+      desktop,
+      currentArticle,
+      articleText: currentArticleText(),
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage,
+    });
   }
 
   function constrainAgentPlanAnnotation(
@@ -1351,35 +893,4 @@ export function WebSourceBookcase({
       />
     </section>
   );
-}
-
-function sourceArticleBodyHtml(article: ArticleRecord) {
-  const container = document.createElement('div');
-  container.innerHTML =
-    article.contentHtml || `<p>${escapeHtml(article.excerpt || '暂无原文内容')}</p>`;
-  container.querySelectorAll('script, style, link, iframe, object, embed').forEach((element) => {
-    element.remove();
-  });
-  container.querySelectorAll<HTMLElement>('*').forEach((element) => {
-    Array.from(element.attributes).forEach((attribute) => {
-      const name = attribute.name.toLowerCase();
-      const value = attribute.value.trimStart().slice(0, 32).toLowerCase();
-      if (
-        name.startsWith('on') ||
-        ((name === 'href' || name === 'src') && value.startsWith('javascript:'))
-      ) {
-        element.removeAttribute(attribute.name);
-      }
-    });
-  });
-  return container.innerHTML;
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
