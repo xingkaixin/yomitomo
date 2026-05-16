@@ -248,19 +248,24 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   return readStore();
 }
 
-type SaveProviderInput = Partial<LlmProvider> & {
+export type SaveProviderInput = Partial<LlmProvider> & {
   removeApiKey?: boolean;
 };
 
-type ProviderApiKeyStorage = {
+export type ProviderApiKeyStorage = {
   apiKeyRef?: string;
   storedApiKey: string;
 };
 
-async function resolveProviderApiKeyStorage(
+type ProviderApiKeyStorageRow = {
+  apiKey: string;
+  apiKeyRef: string | null;
+};
+
+export async function resolveProviderApiKeyStorage(
   providerId: string,
   input: SaveProviderInput,
-  existingRow: typeof schema.providers.$inferSelect | undefined,
+  existingRow: ProviderApiKeyStorageRow | undefined,
 ): Promise<ProviderApiKeyStorage> {
   const existingApiKeyRef = existingRow?.apiKeyRef || undefined;
   const legacyApiKey = existingRow?.apiKey.trim() || '';
@@ -289,25 +294,26 @@ async function resolveProviderApiKeyStorage(
   return { storedApiKey: legacyApiKey };
 }
 
-export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {
-  const store = await readStore();
-  const now = new Date().toISOString();
-  const existing = input.id
-    ? store.providers.find((provider) => provider.id === input.id)
-    : undefined;
+export function buildProviderRecord(
+  input: SaveProviderInput,
+  options: {
+    existing?: LlmProvider;
+    id: string;
+    now: string;
+    apiKeyRef?: string;
+    storedApiKey: string;
+  },
+): LlmProvider {
+  const { existing, id, now, apiKeyRef, storedApiKey } = options;
   const preset =
     providerPresets.find((item) => item.id === input.presetId) ||
     (existing ? undefined : defaultProviderPreset);
   const modelInputMode =
     normalizeProviderModelInputMode(input.modelInputMode ?? existing?.modelInputMode) || 'list';
-  const id = existing?.id || makeId('provider');
-  const existingRow = input.id
-    ? getDatabase().select().from(schema.providers).where(eq(schema.providers.id, input.id)).get()
-    : undefined;
-  const { apiKeyRef, storedApiKey } = await resolveProviderApiKeyStorage(id, input, existingRow);
-  const provider: LlmProvider = {
+
+  return {
     id,
-    name: input.name?.trim() || preset?.name || 'Untitled Provider',
+    name: input.name?.trim() || existing?.name || preset?.name || 'Untitled Provider',
     type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'openai-chat',
     presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
     logo: input.logo || existing?.logo || preset?.logo,
@@ -337,6 +343,26 @@ export async function saveProvider(input: SaveProviderInput): Promise<DesktopSto
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
+}
+
+export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {
+  const store = await readStore();
+  const now = new Date().toISOString();
+  const existing = input.id
+    ? store.providers.find((provider) => provider.id === input.id)
+    : undefined;
+  const id = existing?.id || makeId('provider');
+  const existingRow = input.id
+    ? getDatabase().select().from(schema.providers).where(eq(schema.providers.id, input.id)).get()
+    : undefined;
+  const { apiKeyRef, storedApiKey } = await resolveProviderApiKeyStorage(id, input, existingRow);
+  const provider = buildProviderRecord(input, {
+    id,
+    now,
+    existing,
+    apiKeyRef,
+    storedApiKey,
+  });
 
   upsertProvider(getDatabase(), provider, apiKeyRef, storedApiKey);
   return readStore();
@@ -381,15 +407,17 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
   return readStore();
 }
 
-export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
-  const store = await readStore();
-  const now = new Date().toISOString();
+export function buildAgentRecord(
+  input: Partial<Agent>,
+  store: Pick<DesktopStore, 'agents' | 'providers'>,
+  now: string,
+): Agent {
   const existing = input.id ? store.agents.find((agent) => agent.id === input.id) : undefined;
   const username = normalizeAgentUsername(
     input.username || existing?.username || input.nickname || 'agent',
     'agent',
   );
-  const agent: Agent = {
+  return {
     id: existing?.id || makeId('agent'),
     kind: normalizeAgentKind(input.kind ?? existing?.kind) || 'annotation',
     presetId: input.presetId || existing?.presetId,
@@ -411,7 +439,11 @@ export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
+}
 
+export async function saveAgent(input: Partial<Agent>): Promise<DesktopStore> {
+  const store = await readStore();
+  const agent = buildAgentRecord(input, store, new Date().toISOString());
   upsertAgent(getDatabase(), agent);
   return readStore();
 }
