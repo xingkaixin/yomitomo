@@ -8,11 +8,13 @@ import {
   ebookChapterForFoliateSection,
   ebookHighlightAnnotationsSignature,
   foliateRangeHighlightBoxes,
+  recordEbookPageTurnTrace,
   rangeForEbookAnchorInDocument,
   type DomTextIndexTiming,
   type EbookBoxScheduleSnapshot,
   type EbookBoxScheduleState,
   type EbookBoxUpdateReason,
+  type EbookPageTurnTrace,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
 import {
@@ -27,6 +29,7 @@ type UseEbookReaderBoxesInput = {
   article: EbookBookcaseProps['article'];
   canvasRef: RefObject<HTMLDivElement | null>;
   viewRef: RefObject<FoliateViewElement | null>;
+  pageTurnTraceRef: RefObject<EbookPageTurnTrace | null>;
   pageInfoSectionIndexRef: RefObject<number | undefined>;
   paginationLayoutKeyRef: RefObject<string>;
   readerSettingsRef: RefObject<ReaderSettings>;
@@ -44,6 +47,7 @@ export function useEbookReaderBoxes({
   article,
   canvasRef,
   viewRef,
+  pageTurnTraceRef,
   pageInfoSectionIndexRef,
   paginationLayoutKeyRef,
   readerSettingsRef,
@@ -91,17 +95,55 @@ export function useEbookReaderBoxes({
     };
     lastEbookBoxInputFingerprintRef.current = '';
     lastEbookBoxMetricsRef.current = { boxCount: 0, rangeCount: 0, resolvedAnchorCount: 0 };
+    canvasRef.current?.classList.remove('is-ebook-page-turning');
     setBoxes([]);
-  }, []);
+  }, [canvasRef]);
+
+  const setEbookBoxLayerHidden = useCallback(
+    (hidden: boolean) => {
+      canvasRef.current?.classList.toggle('is-ebook-page-turning', hidden);
+    },
+    [canvasRef],
+  );
+
+  const hideEbookBoxLayer = useCallback(() => {
+    if (updateBoxesFrameRef.current) {
+      window.cancelAnimationFrame(updateBoxesFrameRef.current);
+      updateBoxesFrameRef.current = 0;
+    }
+    ebookBoxScheduleRef.current = {
+      count: 0,
+      cancelledFrameCount: 0,
+      reasons: [],
+      firstScheduledAt: 0,
+    };
+    setEbookBoxLayerHidden(true);
+    recordEbookPageTurnTrace(pageTurnTraceRef.current, 'highlight_layer_hidden', {
+      previousBoxCount: boxes.length,
+    });
+  }, [boxes.length, pageTurnTraceRef, setEbookBoxLayerHidden]);
 
   const updateEbookBoxes = useCallback(
     (reason: EbookBoxUpdateReason, schedule?: EbookBoxScheduleSnapshot) => {
+      const pageTurnTrace = pageTurnTraceRef.current;
+      const finishPageTurnTrace = () => {
+        if (pageTurnTraceRef.current === pageTurnTrace) pageTurnTraceRef.current = null;
+      };
+      recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_start', { reason });
       const view = viewRef.current;
       const canvasElement = canvasRef.current;
       const content = currentFoliateContent(view);
       const doc = content?.doc;
       if (!article.ebook || !view || !canvasElement || !doc) {
         setBoxes([]);
+        setEbookBoxLayerHidden(false);
+        recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_empty', {
+          reason,
+          hasCanvas: Boolean(canvasElement),
+          hasDoc: Boolean(doc),
+          hasView: Boolean(view),
+        });
+        finishPageTurnTrace();
         return;
       }
 
@@ -148,6 +190,14 @@ export function useEbookReaderBoxes({
       });
       if (sameInputAsPrevious) {
         const previousMetrics = lastEbookBoxMetricsRef.current;
+        setEbookBoxLayerHidden(false);
+        recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_skipped_same_input', {
+          boxCount: previousMetrics.boxCount,
+          pageInfoKey,
+          reason,
+          sectionIndex,
+        });
+        finishPageTurnTrace();
         recordRendererPerformanceTiming('reader_highlight_boxes', {
           source: 'ebook-foliate',
           result: 'skipped_same_input',
@@ -218,6 +268,16 @@ export function useEbookReaderBoxes({
         resolvedAnchorCount,
       };
       setBoxes(nextBoxes);
+      setEbookBoxLayerHidden(false);
+      recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_done', {
+        anchorLookupCount,
+        boxCount: nextBoxes.length,
+        pageIndex: currentPageInfo?.pageIndex,
+        reason,
+        resolvedAnchorCount,
+        sectionIndex,
+      });
+      finishPageTurnTrace();
       recordRendererPerformanceTiming('reader_highlight_boxes', {
         source: 'ebook-foliate',
         result: 'updated',
@@ -259,9 +319,11 @@ export function useEbookReaderBoxes({
       article,
       canvasRef,
       pageInfoSectionIndexRef,
+      pageTurnTraceRef,
       paginationLayoutKeyRef,
       readerSettingsRef,
       readerStateStatusRef,
+      setEbookBoxLayerHidden,
       userProfile,
       viewRef,
     ],
@@ -345,6 +407,7 @@ export function useEbookReaderBoxes({
     boxes,
     attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners,
+    hideEbookBoxLayer,
     resetEbookBoxState,
     scheduleEbookBoxUpdate,
   };

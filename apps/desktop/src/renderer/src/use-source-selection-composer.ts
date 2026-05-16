@@ -18,15 +18,15 @@ export function useSourceSelectionComposer({
   const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
 
   const clearSelection = useCallback(() => {
-    setSelectionAction(null);
-    setTemporaryBoxes([]);
+    setSelectionAction((action) => (action ? null : action));
+    setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
   const clearAnnotationUiState = useCallback(() => {
-    setHighlightChoice(null);
-    setSelectionAction(null);
-    setComposer(null);
-    setTemporaryBoxes([]);
+    setHighlightChoice((choice) => (choice ? null : choice));
+    setSelectionAction((action) => (action ? null : action));
+    setComposer((draft) => (draft ? null : draft));
+    setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
   const openSelectionAction = useCallback(
@@ -39,9 +39,9 @@ export function useSourceSelectionComposer({
   );
 
   const cancelComposer = useCallback(() => {
-    setComposer(null);
-    setSelectionAction(null);
-    setTemporaryBoxes([]);
+    setComposer((draft) => (draft ? null : draft));
+    setSelectionAction((action) => (action ? null : action));
+    setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
   const copySelection = useCallback(

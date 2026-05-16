@@ -39,9 +39,11 @@ import {
   formatEbookPageLabel,
   isEbookPaginationReady,
   rangeForEbookAnchorInDocument,
+  recordEbookPageTurnTrace,
   waitForAnimationFrame,
   waitForFoliateIdle,
   type EbookBoxUpdateReason,
+  type EbookPageTurnTrace,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
@@ -97,12 +99,17 @@ export function EbookBookcase({
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
+  const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
+  const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
   const attachFoliateDocumentListenersRef = useRef<(view: FoliateViewElement | null) => void>(
     () => {},
   );
   const cleanupFoliateDocumentListenersRef = useRef<() => void>(() => {});
   const scheduleEbookBoxUpdate = useCallback((reason: EbookBoxUpdateReason) => {
     scheduleEbookBoxUpdateRef.current(reason);
+  }, []);
+  const beforeEbookPageTurn = useCallback((trace: EbookPageTurnTrace) => {
+    beforeEbookPageTurnRef.current(trace);
   }, []);
   const attachFoliateDocumentListenersBridge = useCallback((view: FoliateViewElement | null) => {
     attachFoliateDocumentListenersRef.current(view);
@@ -234,8 +241,10 @@ export function EbookBookcase({
     readerSettings,
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners: attachFoliateDocumentListenersBridge,
+    onBeforePageTurn: beforeEbookPageTurn,
     onCleanupFoliateDocumentListeners: cleanupFoliateDocumentListenersBridge,
     onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
+    pageTurnTraceRef,
   });
   const { handleFoliateSelection, handleFoliateSelectionShortcut } = useEbookSelection({
     article,
@@ -257,6 +266,7 @@ export function EbookBookcase({
     boxes,
     attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners,
+    hideEbookBoxLayer,
     resetEbookBoxState,
     scheduleEbookBoxUpdate: scheduleEbookBoxUpdateImpl,
   } = useEbookReaderBoxes({
@@ -265,6 +275,7 @@ export function EbookBookcase({
     article,
     canvasRef,
     viewRef,
+    pageTurnTraceRef,
     pageInfoSectionIndexRef,
     paginationLayoutKeyRef,
     readerSettingsRef,
@@ -332,6 +343,14 @@ export function EbookBookcase({
     viewHostRef,
     viewRef,
   });
+  beforeEbookPageTurnRef.current = (trace) => {
+    clearAnnotationUiState();
+    hideEbookBoxLayer();
+    recordEbookPageTurnTrace(trace, 'overlay_hide_requested', {
+      boxCount: boxes.length,
+      pageAnnotationCount: pageAnnotations.length,
+    });
+  };
 
   useLayoutEffect(() => {
     noteRefs.current.clear();

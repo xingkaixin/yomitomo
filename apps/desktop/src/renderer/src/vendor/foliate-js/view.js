@@ -218,6 +218,8 @@ export class View extends HTMLElement {
         this.renderer.addEventListener('relocate', e => this.#onRelocate(e.detail))
         this.renderer.addEventListener('create-overlayer', e =>
             e.detail.attach(this.#createOverlayer(e.detail)))
+        this.renderer.addEventListener('page-turn-start', e =>
+            this.#emit('page-turn-start', e.detail))
         this.renderer.open(book)
         this.#root.append(this.renderer)
 
