@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { ArticleReadingProgress } from '@yomitomo/shared';
 import { clampNumber, type ReaderSettings } from '@yomitomo/reader-ui';
 import {
   closeFoliateView,
@@ -34,6 +35,74 @@ type UseEbookFoliateViewInput = {
 };
 
 type PageTurnDirection = 'left' | 'right';
+
+type EbookProgressRestoreTarget =
+  | {
+      kind: 'section-anchor';
+      sectionIndex: number;
+      anchor: number;
+    }
+  | {
+      kind: 'fraction';
+      fraction: number;
+    };
+
+export function ebookReadingProgressPageAnchor(pageInfo: FoliatePageInfo | null) {
+  if (!pageInfo) return undefined;
+  if (pageInfo.pageCount <= 1) return 0;
+  return clampNumber(pageInfo.pageIndex / (pageInfo.pageCount - 1), 0, 1, 0);
+}
+
+export function ebookReadingProgressSnapshot(
+  detail: FoliateRelocateDetail,
+  pageInfo: FoliatePageInfo | null,
+  progress: number,
+): Omit<ArticleReadingProgress, 'updatedAt'> {
+  return {
+    pageIndex: Math.max(
+      0,
+      pageInfo?.pageIndex ?? detail.location?.current ?? Math.round(progress * 1000),
+    ),
+    pageCount: Math.max(1, pageInfo?.pageCount ?? detail.location?.total ?? 1000),
+    chapterIndex: pageInfo?.sectionIndex ?? detail.section?.current,
+    chapterProgress: ebookReadingProgressPageAnchor(pageInfo),
+    progress,
+  };
+}
+
+export function ebookReadingProgressRestoreTarget(
+  progress: ArticleReadingProgress | undefined,
+): EbookProgressRestoreTarget | null {
+  if (!progress) return null;
+  const chapterIndex = progress.chapterIndex;
+  if (
+    typeof chapterIndex === 'number' &&
+    Number.isInteger(chapterIndex) &&
+    typeof progress.chapterProgress === 'number'
+  ) {
+    return {
+      kind: 'section-anchor',
+      sectionIndex: Math.max(0, chapterIndex),
+      anchor: clampNumber(progress.chapterProgress, 0, 1, 0),
+    };
+  }
+
+  if (progress.pageCount > 0 && (progress.pageIndex > 0 || progress.progress > 0)) {
+    return {
+      kind: 'fraction',
+      fraction: clampNumber(progress.pageIndex / progress.pageCount, 0, 1, progress.progress),
+    };
+  }
+
+  if (progress.progress > 0) {
+    return {
+      kind: 'fraction',
+      fraction: clampNumber(progress.progress, 0, 1, 0),
+    };
+  }
+
+  return null;
+}
 
 export function useEbookFoliateView({
   article,
@@ -134,10 +203,9 @@ export function useEbookFoliateView({
     const handleRelocate = (event: Event) => {
       const detail = (event as CustomEvent<FoliateRelocateDetail>).detail;
       const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
-      const pageIndex = Math.max(0, detail.location?.current ?? Math.round(nextProgress * 1000));
-      const pageCount = Math.max(1, detail.location?.total ?? 1000);
       const nextPageInfo =
         (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
+      const progressSnapshot = ebookReadingProgressSnapshot(detail, nextPageInfo, nextProgress);
       recordEbookPageTurnTrace(pageTurnTraceRef.current, 'relocate', {
         pageIndex: nextPageInfo?.pageIndex,
         pageCount: nextPageInfo?.pageCount,
@@ -154,10 +222,7 @@ export function useEbookFoliateView({
       onAttachFoliateDocumentListeners(event.currentTarget as FoliateViewElement);
       onScheduleEbookBoxUpdate('relocate');
       void onSaveArticleReadingProgressRef.current(article.id, {
-        pageIndex,
-        pageCount,
-        chapterIndex: detail.section?.current,
-        progress: nextProgress,
+        ...progressSnapshot,
         updatedAt: new Date().toISOString(),
       });
     };
@@ -215,10 +280,7 @@ export function useEbookFoliateView({
         readerStateStatusRef.current = 'ready';
         setReaderState({ status: 'ready', message: '' });
 
-        const restoredProgress = article.readingProgress?.progress;
-        if (typeof restoredProgress === 'number' && restoredProgress > 0) {
-          await view.goToFraction(Math.min(1, restoredProgress));
-        } else {
+        if (!(await restoreEbookReadingProgress(view, article.readingProgress))) {
           await view.next();
         }
         onAttachFoliateDocumentListeners(view);
@@ -440,4 +502,33 @@ export function useEbookFoliateView({
     goToProgress,
     goToTocItem,
   };
+}
+
+async function restoreEbookReadingProgress(
+  view: FoliateViewElement,
+  progress: ArticleReadingProgress | undefined,
+) {
+  const target = ebookReadingProgressRestoreTarget(progress);
+  if (!target) return false;
+
+  if (target.kind === 'fraction') {
+    await view.goToFraction(target.fraction);
+    return true;
+  }
+
+  if (view.renderer?.goTo) {
+    await view.renderer.goTo({ index: target.sectionIndex, anchor: target.anchor });
+    return true;
+  }
+
+  const fractions = view.getSectionFractions?.() ?? [];
+  const start = fractions[target.sectionIndex];
+  const end = fractions[target.sectionIndex + 1];
+  if (typeof start === 'number' && typeof end === 'number' && end >= start) {
+    await view.goToFraction(clampNumber(start + (end - start) * target.anchor, 0, 1, 0));
+    return true;
+  }
+
+  await view.goTo(target.sectionIndex);
+  return true;
 }

@@ -64,6 +64,7 @@ export type FoliateViewElement = HTMLElement & {
   renderer?:
     | (HTMLElement & {
         getContents?: () => FoliateContent[];
+        goTo?: (target: { index: number; anchor?: number }) => Promise<void>;
         scrollToAnchor?: (anchor: Range | Element | number, select?: boolean) => Promise<void>;
         setStyles?: (styles: string | string[]) => void;
       })

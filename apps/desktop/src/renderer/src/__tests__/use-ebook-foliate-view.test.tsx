@@ -3,7 +3,12 @@
 import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useEbookFoliateView } from '../use-ebook-foliate-view';
+import {
+  ebookReadingProgressPageAnchor,
+  ebookReadingProgressRestoreTarget,
+  ebookReadingProgressSnapshot,
+  useEbookFoliateView,
+} from '../use-ebook-foliate-view';
 import type { EbookArticleRecord } from '../app-source-bookcase-shared';
 import type {
   EbookBoxUpdateReason,
@@ -89,6 +94,75 @@ function FoliateViewProbe({
 }
 
 describe('useEbookFoliateView', () => {
+  it('stores the visible ebook page anchor separately from read-through progress', () => {
+    expect(ebookReadingProgressPageAnchor({ sectionIndex: 2, pageIndex: 13, pageCount: 20 })).toBe(
+      13 / 19,
+    );
+
+    expect(
+      ebookReadingProgressSnapshot(
+        {
+          fraction: 0.42,
+          location: { current: 41, total: 100 },
+          section: { current: 2 },
+        },
+        { sectionIndex: 2, pageIndex: 13, pageCount: 20 },
+        0.42,
+      ),
+    ).toEqual({
+      pageIndex: 13,
+      pageCount: 20,
+      chapterIndex: 2,
+      chapterProgress: 13 / 19,
+      progress: 0.42,
+    });
+  });
+
+  it('restores new ebook progress from section page anchors', () => {
+    expect(
+      ebookReadingProgressRestoreTarget({
+        pageIndex: 13,
+        pageCount: 20,
+        chapterIndex: 2,
+        chapterProgress: 13 / 19,
+        progress: 0.42,
+        updatedAt: now,
+      }),
+    ).toEqual({
+      kind: 'section-anchor',
+      sectionIndex: 2,
+      anchor: 13 / 19,
+    });
+  });
+
+  it('restores legacy ebook progress from the saved start location', () => {
+    expect(
+      ebookReadingProgressRestoreTarget({
+        pageIndex: 41,
+        pageCount: 100,
+        chapterIndex: 2,
+        progress: 0.42,
+        updatedAt: now,
+      }),
+    ).toEqual({
+      kind: 'fraction',
+      fraction: 0.41,
+    });
+
+    expect(
+      ebookReadingProgressRestoreTarget({
+        pageIndex: 0,
+        pageCount: 100,
+        chapterIndex: 0,
+        progress: 0.01,
+        updatedAt: now,
+      }),
+    ).toEqual({
+      kind: 'fraction',
+      fraction: 0,
+    });
+  });
+
   it('queues rapid page turns instead of dropping clicks while foliate is busy', async () => {
     const onBeforePageTurn = vi.fn();
     const onScheduleEbookBoxUpdate = vi.fn((_reason: EbookBoxUpdateReason) => undefined);
