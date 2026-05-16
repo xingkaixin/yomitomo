@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -19,53 +18,33 @@ import {
   annotationPrimaryComment,
   annotationThreadComments,
   annotationIdsAtHighlightPoint,
-  createEpubTextAnchorFromQuote,
   createUserAnnotation,
   findMentionedAgents,
   mergeReadingMemory,
-  selectionActionPosition,
   type TocItem,
 } from '@yomitomo/core';
 import {
   buildTocAnnotationStats,
-  clampNumber,
   getShortcutModifier,
-  ReaderAppView,
-  readerConversationStyles,
-  readerDesktopEmbeddedStyles,
-  readerStyles,
-  selectionActionShortcut,
   sleep,
   type ReaderSettings,
 } from '@yomitomo/reader-ui';
 import {
-  closeFoliateView,
-  configureFoliateView,
   currentFoliateContent,
   ebookArticleText,
-  ebookChapterForFoliateSection,
   ebookHighlightAnnotationsSignature,
   ebookReaderReadingSections,
   ebookSectionIndexForChapter,
   ebookTocItemsForReader,
-  flattenFoliateToc,
-  foliateRangeHighlightBoxes,
   formatEbookPageLabel,
   isEbookPaginationReady,
-  isRangeInsideDocumentBody,
-  lastFoliateRangeViewportRect,
   rangeForEbookAnchorInDocument,
-  selectionContextForRange,
-  updateKnownSectionPageCount,
   waitForAnimationFrame,
   waitForFoliateIdle,
-  waitForFoliatePageInfo,
   type EbookBoxUpdateReason,
-  type FoliatePageInfo,
-  type FoliateRelocateDetail,
-  type FoliateTocItem,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
+import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import type { PromptArticle } from './app-reading-types';
 import {
@@ -89,14 +68,12 @@ import {
 } from './app-source-bookcase-shared';
 import { useSourceAnnotations } from './use-source-annotations';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
+import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
+import { useEbookSelection } from './use-ebook-selection';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
-import {
-  ebookAnnotationNavigationState,
-  isEditableKeyboardTarget,
-  sourceEbookReaderStyles,
-} from './app-source-bookcase-ebook-utils';
+import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 
 export function EbookBookcase({
   agents,
@@ -119,12 +96,20 @@ export function EbookBookcase({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const viewHostRef = useRef<HTMLDivElement | null>(null);
-  const measureHostRef = useRef<HTMLDivElement | null>(null);
-  const viewRef = useRef<FoliateViewElement | null>(null);
-  const ebookFileRef = useRef<File | null>(null);
-  const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
+  const attachFoliateDocumentListenersRef = useRef<(view: FoliateViewElement | null) => void>(
+    () => {},
+  );
+  const cleanupFoliateDocumentListenersRef = useRef<() => void>(() => {});
+  const scheduleEbookBoxUpdate = useCallback((reason: EbookBoxUpdateReason) => {
+    scheduleEbookBoxUpdateRef.current(reason);
+  }, []);
+  const attachFoliateDocumentListenersBridge = useCallback((view: FoliateViewElement | null) => {
+    attachFoliateDocumentListenersRef.current(view);
+  }, []);
+  const cleanupFoliateDocumentListenersBridge = useCallback(() => {
+    cleanupFoliateDocumentListenersRef.current();
+  }, []);
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const {
     addComment,
@@ -211,20 +196,53 @@ export function EbookBookcase({
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
-  const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
-  const [tocItems, setTocItems] = useState<FoliateTocItem[]>([]);
-  const [sectionFractions, setSectionFractions] = useState<number[]>([]);
-  const [pageInfo, setPageInfo] = useState<FoliatePageInfo | null>(null);
-  const pageInfoSectionIndexRef = useRef<number | undefined>(pageInfo?.sectionIndex);
-  const [sectionPageCounts, setSectionPageCounts] = useState<Array<number | null>>([]);
-  const [paginationLayoutKey, setPaginationLayoutKey] = useState('');
-  const paginationLayoutKeyRef = useRef('');
-  const [progress, setProgress] = useState(() => article.readingProgress?.progress ?? 0);
-  const [readerState, setReaderState] = useState<{
-    status: 'loading' | 'ready' | 'error';
-    message: string;
-  }>({ status: 'loading', message: '正在打开 EPUB。' });
-  const readerStateStatusRef = useRef(readerState.status);
+  const ebookText = useMemo(() => ebookArticleText(article), [article]);
+  const actionShortcuts = useMemo(
+    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
+    [selectionActionShortcuts],
+  );
+  const {
+    viewHostRef,
+    measureHostRef,
+    viewRef,
+    pageInfoSectionIndexRef,
+    paginationLayoutKeyRef,
+    readerSettingsRef,
+    readerStateStatusRef,
+    tocItems,
+    sectionFractions,
+    pageInfo,
+    sectionPageCounts,
+    progress,
+    readerState,
+    goLeft,
+    goRight,
+    goToProgress,
+    goToTocItem,
+  } = useEbookFoliateView({
+    article,
+    readerSettings,
+    onSaveArticleReadingProgress,
+    onAttachFoliateDocumentListeners: attachFoliateDocumentListenersBridge,
+    onCleanupFoliateDocumentListeners: cleanupFoliateDocumentListenersBridge,
+    onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
+  });
+  const { handleFoliateSelection, handleFoliateSelectionShortcut } = useEbookSelection({
+    article,
+    canvasRef,
+    viewRef,
+    pageInfo,
+    ebookText,
+    userProfile,
+    actionShortcuts,
+    selectionAction,
+    composer,
+    clearSelection,
+    copySelection,
+    openComposer,
+    openSelectionAction,
+    setStatusMessage,
+  });
   const {
     boxes,
     attachFoliateDocumentListeners,
@@ -247,6 +265,8 @@ export function EbookBookcase({
     onFoliateSelection: handleFoliateSelection,
     onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
   });
+  attachFoliateDocumentListenersRef.current = attachFoliateDocumentListeners;
+  cleanupFoliateDocumentListenersRef.current = cleanupFoliateDocumentListeners;
   scheduleEbookBoxUpdateRef.current = scheduleEbookBoxUpdateImpl;
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
@@ -258,7 +278,6 @@ export function EbookBookcase({
     surfaceRef,
     userProfile,
   });
-  const ebookText = useMemo(() => ebookArticleText(article), [article]);
   const readerTocItems = useMemo(
     () => ebookTocItemsForReader(tocItems, article),
     [article, tocItems],
@@ -304,10 +323,6 @@ export function EbookBookcase({
     viewRef,
   });
 
-  useEffect(() => {
-    onSaveArticleReadingProgressRef.current = onSaveArticleReadingProgress;
-  }, [onSaveArticleReadingProgress]);
-
   useLayoutEffect(() => {
     noteRefs.current.clear();
     replaceAnnotations(articleAnnotations);
@@ -322,16 +337,6 @@ export function EbookBookcase({
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
-    setTocItems([]);
-    setSectionFractions([]);
-    pageInfoSectionIndexRef.current = undefined;
-    setPageInfo(null);
-    setSectionPageCounts([]);
-    paginationLayoutKeyRef.current = '';
-    setPaginationLayoutKey('');
-    setProgress(article.readingProgress?.progress ?? 0);
-    readerStateStatusRef.current = 'loading';
-    setReaderState({ status: 'loading', message: '正在打开 EPUB。' });
   }, [
     article.id,
     articleAnnotations,
@@ -341,251 +346,18 @@ export function EbookBookcase({
     resetEbookBoxState,
   ]);
 
-  useEffect(() => {
-    readerSettingsRef.current = readerSettings;
-    configureFoliateView(viewRef.current, readerSettings);
-    scheduleEbookBoxUpdate('reader_settings');
-  }, [readerSettings]);
-
-  useEffect(() => {
-    readerStateStatusRef.current = readerState.status;
-  }, [readerState.status]);
-
   useEffect(
     () => () => {
-      cleanupFoliateDocumentListeners();
       cleanupEbookAgentTheater();
     },
-    [],
+    [cleanupEbookAgentTheater],
   );
-
-  useEffect(() => {
-    const host = viewHostRef.current;
-    if (!host) return;
-    const hostElement = host;
-
-    let cancelled = false;
-    let view: FoliateViewElement | null = null;
-
-    const handleRelocate = (event: Event) => {
-      const detail = (event as CustomEvent<FoliateRelocateDetail>).detail;
-      const nextProgress = clampNumber(detail.fraction, 0, 1, 0);
-      const pageIndex = Math.max(0, detail.location?.current ?? Math.round(nextProgress * 1000));
-      const pageCount = Math.max(1, detail.location?.total ?? 1000);
-      const nextPageInfo =
-        (event.currentTarget as FoliateViewElement | null)?.getPageInfo?.() ?? null;
-
-      setProgress(nextProgress);
-      pageInfoSectionIndexRef.current = nextPageInfo?.sectionIndex;
-      setPageInfo(nextPageInfo);
-      if (nextPageInfo) {
-        setSectionPageCounts((counts) => updateKnownSectionPageCount(counts, nextPageInfo));
-      }
-      attachFoliateDocumentListeners(event.currentTarget as FoliateViewElement);
-      scheduleEbookBoxUpdate('relocate');
-      void onSaveArticleReadingProgressRef.current(article.id, {
-        pageIndex,
-        pageCount,
-        chapterIndex: detail.section?.current,
-        progress: nextProgress,
-        updatedAt: new Date().toISOString(),
-      });
-    };
-
-    const handleExternalLink = (event: Event) => {
-      const customEvent = event as CustomEvent<Record<string, string | undefined>>;
-      const href = customEvent.detail['href_'] || customEvent.detail.href;
-      if (!href) return;
-      event.preventDefault();
-      void window.yomitomoDesktop.openUrl(href);
-    };
-
-    async function openEbook() {
-      try {
-        await import('./vendor/foliate-js/view.js');
-        const data = await window.yomitomoDesktop.readEbookFile(article.id);
-        if (cancelled) return;
-
-        const file = new File([data], article.ebook.metadata.fileName || `${article.title}.epub`, {
-          type: 'application/epub+zip',
-        });
-        ebookFileRef.current = file;
-        view = document.createElement('foliate-view') as FoliateViewElement;
-        view.className = 'ebook-foliate-view';
-        view.addEventListener('relocate', handleRelocate);
-        view.addEventListener('external-link', handleExternalLink);
-        hostElement.replaceChildren(view);
-        await view.open(file);
-        if (cancelled) return;
-
-        viewRef.current = view;
-        configureFoliateView(view, readerSettingsRef.current);
-        setTocItems(flattenFoliateToc(view.book?.toc ?? []));
-        setSectionFractions(view.getSectionFractions?.() ?? []);
-        readerStateStatusRef.current = 'ready';
-        setReaderState({ status: 'ready', message: '' });
-
-        const restoredProgress = article.readingProgress?.progress;
-        if (typeof restoredProgress === 'number' && restoredProgress > 0) {
-          await view.goToFraction(Math.min(1, restoredProgress));
-        } else {
-          await view.next();
-        }
-        attachFoliateDocumentListeners(view);
-        scheduleEbookBoxUpdate('open_ebook');
-      } catch (error) {
-        if (cancelled) return;
-        readerStateStatusRef.current = 'error';
-        setReaderState({
-          status: 'error',
-          message: error instanceof Error ? error.message : 'EPUB 打开失败',
-        });
-      }
-    }
-
-    void openEbook();
-
-    return () => {
-      cancelled = true;
-      view?.removeEventListener('relocate', handleRelocate);
-      view?.removeEventListener('external-link', handleExternalLink);
-      cleanupFoliateDocumentListeners();
-      closeFoliateView(view);
-      view?.remove();
-      if (viewRef.current === view) viewRef.current = null;
-      if (viewRef.current === null) ebookFileRef.current = null;
-      hostElement.replaceChildren();
-    };
-  }, [article.id, article.ebook.metadata.fileName, article.title]);
-
-  useLayoutEffect(() => {
-    const host = viewHostRef.current;
-    if (!host) return;
-
-    const updateLayoutKey = (reason: EbookBoxUpdateReason) => {
-      const rect = host.getBoundingClientRect();
-      const nextLayoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
-      paginationLayoutKeyRef.current = nextLayoutKey;
-      setPaginationLayoutKey(nextLayoutKey);
-      scheduleEbookBoxUpdate(reason);
-    };
-
-    updateLayoutKey('layout_measure');
-    const observer = new ResizeObserver(() => updateLayoutKey('resize_observer'));
-    observer.observe(host);
-    return () => observer.disconnect();
-  }, [article.id]);
-
-  useEffect(() => {
-    const measureHost = measureHostRef.current;
-    const sourceFile = ebookFileRef.current;
-    const visibleView = viewRef.current;
-    const sections = visibleView?.book?.sections ?? [];
-    const [layoutWidth, layoutHeight] = paginationLayoutKey.split('x').map(Number);
-    if (
-      readerState.status !== 'ready' ||
-      !measureHost ||
-      !sourceFile ||
-      !visibleView ||
-      sections.length === 0 ||
-      !layoutWidth ||
-      !layoutHeight
-    ) {
-      return;
-    }
-    const measureHostElement = measureHost;
-    const sourceEbookFile = sourceFile;
-    const visibleEbookView = visibleView;
-
-    let cancelled = false;
-    let measureView: FoliateViewElement | null = null;
-    const counts: Array<number | null> = sections.map((section) =>
-      section.linear === 'no' ? 0 : null,
-    );
-    const currentPageInfo = visibleEbookView.getPageInfo?.();
-    pageInfoSectionIndexRef.current = currentPageInfo?.sectionIndex;
-    setPageInfo(currentPageInfo ?? null);
-    setSectionPageCounts(
-      currentPageInfo ? updateKnownSectionPageCount(counts, currentPageInfo) : counts,
-    );
-
-    const timer = window.setTimeout(() => {
-      void measureEbookPages();
-    }, 360);
-
-    async function measureEbookPages() {
-      try {
-        await waitForFoliateIdle();
-        if (cancelled) return;
-
-        await import('./vendor/foliate-js/view.js');
-        measureView = document.createElement('foliate-view') as FoliateViewElement;
-        measureView.className = 'ebook-foliate-view';
-        measureHostElement.replaceChildren(measureView);
-        await measureView.open(sourceEbookFile);
-        configureFoliateView(measureView, readerSettingsRef.current);
-
-        for (const [index, section] of sections.entries()) {
-          if (cancelled) return;
-          if (section.linear === 'no') continue;
-
-          await waitForFoliateIdle();
-          if (cancelled) return;
-
-          await measureView.goTo(index);
-          const nextPageInfo = await waitForFoliatePageInfo(measureView, index);
-          if (cancelled) return;
-
-          counts[index] = Math.max(1, nextPageInfo?.pageCount ?? 1);
-        }
-
-        if (!cancelled) setSectionPageCounts(counts);
-      } catch (error) {
-        console.warn(error);
-      } finally {
-        closeFoliateView(measureView);
-        measureView?.remove();
-        if (measureHostElement.firstChild === measureView) measureHostElement.replaceChildren();
-      }
-    }
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      closeFoliateView(measureView);
-      measureView?.remove();
-      if (measureHost.firstChild === measureView) measureHost.replaceChildren();
-    };
-  }, [
-    article.id,
-    paginationLayoutKey,
-    readerSettings.contentWidth,
-    readerSettings.fontSize,
-    readerState.status,
-  ]);
-
-  function goLeft() {
-    void viewRef.current?.goLeft();
-  }
-
-  function goRight() {
-    void viewRef.current?.goRight();
-  }
-
-  function goToTocItem(item: FoliateTocItem) {
-    if (usesOverlayToc()) setTocOpen(false);
-    void viewRef.current?.goTo(item.href);
-  }
 
   function goToReaderTocItem(item: TocItem) {
     const tocItem = tocItems[item.index];
-    if (tocItem) goToTocItem(tocItem);
-  }
-
-  function goToProgress(event: React.ChangeEvent<HTMLInputElement>) {
-    const nextProgress = clampNumber(Number(event.currentTarget.value), 0, 1, progress);
-    setProgress(nextProgress);
-    void viewRef.current?.goToFraction(nextProgress);
+    if (!tocItem) return;
+    if (usesOverlayToc()) setTocOpen(false);
+    goToTocItem(tocItem);
   }
 
   function updateEbookReaderSettings(nextSettings: ReaderSettings) {
@@ -605,10 +377,6 @@ export function EbookBookcase({
     }
   }
 
-  function scheduleEbookBoxUpdate(reason: EbookBoxUpdateReason) {
-    scheduleEbookBoxUpdateRef.current(reason);
-  }
-
   function handleFoliatePointerDown() {
     clearAnnotationUiState();
     if (settingsOpen || agentAnnotateOpen) {
@@ -616,61 +384,6 @@ export function EbookBookcase({
       setAgentAnnotateOpen(false);
     }
     if (selectedAnnotationId) onOpenAnnotation(null);
-  }
-
-  function handleFoliateSelection(doc: Document) {
-    const canvasElement = canvasRef.current;
-    const view = viewRef.current;
-    const selection = doc.getSelection();
-    if (
-      !canvasElement ||
-      !view ||
-      !selection ||
-      selection.rangeCount === 0 ||
-      selection.isCollapsed
-    ) {
-      clearSelection();
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (!isRangeInsideDocumentBody(doc, range)) return;
-
-    const content = currentFoliateContent(view);
-    const sectionIndex = content?.index ?? pageInfo?.sectionIndex ?? 0;
-    const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
-    const context = selectionContextForRange(doc, range);
-    const anchor =
-      article.ebook.index && chapter
-        ? createEpubTextAnchorFromQuote(article.ebook.index, ebookText, range.toString(), {
-            chapterId: chapter.id,
-            prefix: context.prefix,
-            suffix: context.suffix,
-          })
-        : null;
-    if (!anchor?.exact.trim()) {
-      setStatusMessage('无法定位这段选区，请缩短或重新选择');
-      window.setTimeout(() => setStatusMessage(''), 1800);
-      selection.removeAllRanges();
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const lastRect = lastFoliateRangeViewportRect(range, canvasRect);
-    if (!lastRect) return;
-
-    const position = selectionActionPosition(lastRect, canvasRect);
-    openSelectionAction(
-      { x: position.x, y: position.y, anchor },
-      foliateRangeHighlightBoxes(range, canvasRect, 'source-selection').map((box) =>
-        Object.assign(box, {
-          annotationId: '__selection__',
-          contributorId: userProfile.id,
-          color: userProfile.annotationColor,
-        }),
-      ),
-    );
-    selection.removeAllRanges();
   }
 
   function enqueueEbookAgentAnnotationPlayback(
@@ -1221,208 +934,118 @@ export function EbookBookcase({
   };
   const shortcutModifier = getShortcutModifier();
   const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
-  const actionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
-    [selectionActionShortcuts],
-  );
   const pageAnnotations = useMemo(() => {
     const visibleIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
     return annotations.filter((annotation) => visibleIds.has(annotation.id));
   }, [annotations, boxes]);
 
-  function handleFoliateSelectionShortcut(event: KeyboardEvent) {
-    const activeSelectionAction = selectionAction;
-    if (!activeSelectionAction || composer || event.defaultPrevented) return;
-    if (isEditableKeyboardTarget(event.target)) return;
-
-    const shortcut = selectionActionShortcut(event, actionShortcuts);
-    if (!shortcut) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-    if (shortcut === 'copy') {
-      void copySelection(activeSelectionAction);
-      return;
-    }
-    openComposer(activeSelectionAction);
-  }
-
   return (
-    <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
-      <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
-      <ReaderAppView
-        activeConnection={activeConnection}
-        activeId={selectedAnnotationId}
-        agentAnnotateOpen={agentAnnotateOpen}
-        agentDockCompleting={ebookAgentDockCompleting}
-        agentDockItems={ebookAgentDockItems}
-        agentTheaterBoxes={agentTheaterBoxes}
-        agents={annotationAgents}
-        annotatingAgents={annotatingAgentIds}
-        annotationTotals={annotationTotals}
-        annotations={pageAnnotations}
-        articleContent={
-          <div
-            className="ebook-reader-content"
-            style={
-              { '--ebook-content-width': `${readerSettings.contentWidth}px` } as React.CSSProperties
-            }
-          >
-            <div className="ebook-page-control-row">
-              <div
-                className={
-                  paginationReady
-                    ? 'ebook-page-control-actions'
-                    : 'ebook-page-control-actions is-paginating'
-                }
-              >
-                <button
-                  className="ebook-icon-button"
-                  type="button"
-                  aria-label="上一页"
-                  disabled={readerState.status !== 'ready' || !paginationReady}
-                  onClick={goLeft}
-                >
-                  <ChevronLeft size={17} />
-                </button>
-                <span className="ebook-location-label">{pageLabel}</span>
-                <button
-                  className="ebook-icon-button"
-                  type="button"
-                  aria-label="下一页"
-                  disabled={readerState.status !== 'ready' || !paginationReady}
-                  onClick={goRight}
-                >
-                  <ChevronRight size={17} />
-                </button>
-              </div>
-            </div>
-            <div
-              className={`ebook-page-stage is-${readerState.status}`}
-              tabIndex={0}
-              onKeyDown={handleReaderKeyDown}
-              style={
-                {
-                  '--ebook-font-size': `${readerSettings.fontSize}px`,
-                  '--ebook-content-width': `${readerSettings.contentWidth}px`,
-                } as React.CSSProperties
-              }
-            >
-              <div className="ebook-foliate-frame" ref={viewHostRef} />
-              {readerState.status !== 'ready' ? (
-                <div className="ebook-reader-status" role="status">
-                  {readerState.message}
-                </div>
-              ) : null}
-              <div className="ebook-foliate-measurer" ref={measureHostRef} aria-hidden="true" />
-            </div>
-            <div className="ebook-reader-progress">
-              <input
-                aria-label="快速跳转阅读进度"
-                className="ebook-progress-slider"
-                disabled={readerState.status !== 'ready'}
-                list={sectionFractions.length > 0 ? progressTickId : undefined}
-                max="1"
-                min="0"
-                step="any"
-                style={{ '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties}
-                type="range"
-                value={progress}
-                onChange={goToProgress}
-              />
-              {sectionFractions.length > 0 ? (
-                <datalist id={progressTickId}>
-                  {sectionFractions.map((fraction, index) => (
-                    <option value={fraction} key={`${index}-${fraction}`} />
-                  ))}
-                </datalist>
-              ) : null}
-            </div>
-          </div>
-        }
-        articleId={article.id}
-        articleRef={articleRef}
-        boxes={boxes}
-        canvasRef={canvasRef}
-        commentsCloseKey={commentsCloseKey}
-        composer={composer}
-        completionBurstKey={ebookCompletionBurstKey}
-        embedded
-        extracted={readerArticle}
-        filteredAnnotations={annotations}
-        focusCoReadingPlan={article.focusCoReadingPlan}
-        highlightChoice={highlightChoice}
-        notesOpen={notesOpen}
-        noteRefs={noteRefs}
-        notesRef={railRef}
-        readerSettings={readerSettings}
-        readingSections={readingSections}
-        replyRequest={replyRequest}
-        selectionAction={selectionAction}
-        settingsOpen={settingsOpen}
-        messageSendShortcut={sendShortcut}
-        selectionActionShortcuts={actionShortcuts}
-        shortcutModifier={shortcutModifier}
-        surfaceRef={surfaceRef}
-        temporaryBoxes={temporaryBoxes}
-        tocAnnotationStats={tocStats}
-        tocItems={readerTocItems}
-        tocOpen={tocOpen}
-        userProfile={userProfile}
-        virtualCursors={virtualCursors}
-        onAddComment={addComment}
-        onAnnotationLayoutChange={recalculateActiveConnection}
-        onAnswerQuestion={answerQuestion}
-        onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
-        onCancelComposer={cancelComposer}
-        onClearActiveAnnotation={() => onOpenAnnotation(null)}
-        onClose={onClose}
-        onCloseFloatingPanels={() => {
-          setSettingsOpen(false);
-          setAgentAnnotateOpen(false);
-        }}
-        onCloseHighlightChoice={() => setHighlightChoice(null)}
-        onCloseResponsivePanels={() => {
-          setTocOpen(false);
-          setNotesOpen(false);
-        }}
-        onCopySelection={copySelection}
-        onCreateAnnotation={createAnnotation}
-        onDeleteAnnotation={deleteAnnotation}
-        onFocusAnnotation={openAnnotation}
-        onNavigateAnnotation={navigateAnnotation}
-        onResolveAnnotationNavigation={resolveAnnotationNavigation}
-        onHighlightClick={handleHighlightClick}
-        onMouseUp={() => undefined}
-        onOpenComposer={openComposer}
-        onPlanFocusCoReading={planFocusCoReading}
-        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
-        onScrollToHeading={goToReaderTocItem}
-        onScrollToHighlight={(annotationId) => {
-          openAnnotation(annotationId);
-          void goToAnnotation(annotationId);
-        }}
-        onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
-        onSetCommentQuestionStatus={setCommentQuestionStatus}
-        onStartAgentReadingPlan={(agent, readingPlan) => {
-          setAgentAnnotateOpen(false);
-          void requestAgentAnnotations(agent, { readingPlan });
-        }}
-        onToggleAgentAnnotate={() => {
-          setSettingsOpen(false);
-          setAgentAnnotateOpen((open) => !open);
-        }}
-        onToggleNotes={() => {
-          if (!notesOpen) setCommentsCloseKey((key) => key + 1);
-          setNotesOpen((open) => !open);
-        }}
-        onToggleSettings={() => {
-          setAgentAnnotateOpen(false);
-          setSettingsOpen((open) => !open);
-        }}
-        onToggleToc={() => setTocOpen((open) => !open)}
-        onUpdateReaderSettings={updateEbookReaderSettings}
-      />
-    </section>
+    <EbookReaderShell
+      activeConnection={activeConnection}
+      activeId={selectedAnnotationId}
+      agentAnnotateOpen={agentAnnotateOpen}
+      agentDockCompleting={ebookAgentDockCompleting}
+      agentDockItems={ebookAgentDockItems}
+      agentTheaterBoxes={agentTheaterBoxes}
+      agents={annotationAgents}
+      annotatingAgents={annotatingAgentIds}
+      annotationTotals={annotationTotals}
+      annotations={pageAnnotations}
+      articleId={article.id}
+      articleRef={articleRef}
+      boxes={boxes}
+      canvasRef={canvasRef}
+      commentsCloseKey={commentsCloseKey}
+      composer={composer}
+      completionBurstKey={ebookCompletionBurstKey}
+      embedded
+      extracted={readerArticle}
+      filteredAnnotations={annotations}
+      focusCoReadingPlan={article.focusCoReadingPlan}
+      highlightChoice={highlightChoice}
+      measureHostRef={measureHostRef}
+      notesOpen={notesOpen}
+      noteRefs={noteRefs}
+      notesRef={railRef}
+      pageLabel={pageLabel}
+      paginationReady={paginationReady}
+      progress={progress}
+      progressPercent={progressPercent}
+      progressTickId={progressTickId}
+      readerSettings={readerSettings}
+      readerState={readerState}
+      readingSections={readingSections}
+      replyRequest={replyRequest}
+      sectionFractions={sectionFractions}
+      selectionAction={selectionAction}
+      settingsOpen={settingsOpen}
+      messageSendShortcut={sendShortcut}
+      selectionActionShortcuts={actionShortcuts}
+      shortcutModifier={shortcutModifier}
+      surfaceRef={surfaceRef}
+      temporaryBoxes={temporaryBoxes}
+      tocAnnotationStats={tocStats}
+      tocItems={readerTocItems}
+      tocOpen={tocOpen}
+      userProfile={userProfile}
+      viewHostRef={viewHostRef}
+      virtualCursors={virtualCursors}
+      onAddComment={addComment}
+      onAnnotationLayoutChange={recalculateActiveConnection}
+      onAnswerQuestion={answerQuestion}
+      onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
+      onCancelComposer={cancelComposer}
+      onClearActiveAnnotation={() => onOpenAnnotation(null)}
+      onClose={onClose}
+      onCloseFloatingPanels={() => {
+        setSettingsOpen(false);
+        setAgentAnnotateOpen(false);
+      }}
+      onCloseHighlightChoice={() => setHighlightChoice(null)}
+      onCloseResponsivePanels={() => {
+        setTocOpen(false);
+        setNotesOpen(false);
+      }}
+      onCopySelection={copySelection}
+      onCreateAnnotation={createAnnotation}
+      onDeleteAnnotation={deleteAnnotation}
+      onFocusAnnotation={openAnnotation}
+      onGoLeft={goLeft}
+      onGoRight={goRight}
+      onGoToProgress={goToProgress}
+      onHighlightClick={handleHighlightClick}
+      onMouseUp={() => undefined}
+      onNavigateAnnotation={navigateAnnotation}
+      onOpenComposer={openComposer}
+      onPlanFocusCoReading={planFocusCoReading}
+      onReaderKeyDown={handleReaderKeyDown}
+      onResolveAnnotationNavigation={resolveAnnotationNavigation}
+      onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
+      onScrollToHeading={goToReaderTocItem}
+      onScrollToHighlight={(annotationId) => {
+        openAnnotation(annotationId);
+        void goToAnnotation(annotationId);
+      }}
+      onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
+      onSetCommentQuestionStatus={setCommentQuestionStatus}
+      onStartAgentReadingPlan={(agent, readingPlan) => {
+        setAgentAnnotateOpen(false);
+        void requestAgentAnnotations(agent, { readingPlan });
+      }}
+      onToggleAgentAnnotate={() => {
+        setSettingsOpen(false);
+        setAgentAnnotateOpen((open) => !open);
+      }}
+      onToggleNotes={() => {
+        if (!notesOpen) setCommentsCloseKey((key) => key + 1);
+        setNotesOpen((open) => !open);
+      }}
+      onToggleSettings={() => {
+        setAgentAnnotateOpen(false);
+        setSettingsOpen((open) => !open);
+      }}
+      onToggleToc={() => setTocOpen((open) => !open)}
+      onUpdateReaderSettings={updateEbookReaderSettings}
+    />
   );
 }

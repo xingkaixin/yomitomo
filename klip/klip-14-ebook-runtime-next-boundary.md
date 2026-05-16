@@ -1,7 +1,8 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
+ClosedDate: 2026-05-16
 Origin: 2026-05-16 code health review（EPUB runtime 下一步边界）
 ---
 
@@ -57,6 +58,13 @@ Origin: 2026-05-16 code health review（EPUB runtime 下一步边界）
 
 - `app-source-agent-request.ts` 和 `app-source-ebook-agent-playback.ts` 已经是合理边界。
 - 下一步不应再把 Web queue 和 EPUB playback 统一。
+
+## 实施记录
+
+- 新增 `apps/desktop/src/renderer/src/use-ebook-foliate-view.ts`，承接 Foliate view ref、book loading、relocate/page info、分页测量和 Foliate cleanup 编排。
+- 新增 `apps/desktop/src/renderer/src/use-ebook-selection.ts`，承接 iframe selection 读取、EPUB anchor 创建、temporary boxes 和 selection shortcut。
+- 新增 `apps/desktop/src/renderer/src/app-source-ebook-reader-shell.tsx`，承接 `ReaderAppView` props 拼装和 EPUB-only controls。
+- `apps/desktop/src/renderer/src/app-source-bookcase-ebook.tsx` 收敛到约 1051 行；request / playback adapter 保持原状。
 
 ## 风险
 

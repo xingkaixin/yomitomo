@@ -80,14 +80,6 @@ export const sourceEbookReaderStyles = `
 }
 `;
 
-export function isEditableKeyboardTarget(target: EventTarget | null) {
-  if (!target || !('closest' in target)) return false;
-  const closest = (target as { closest?: (selector: string) => Element | null }).closest;
-  return typeof closest === 'function'
-    ? Boolean(closest.call(target, 'input,textarea,select,[contenteditable="true"]'))
-    : false;
-}
-
 export function ebookAnnotationNavigationState({
   activeId,
   annotations,
