@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PublicAgent } from '@yomitomo/shared';
 import type { AgentDockItem } from './reader-types';
 
@@ -10,6 +10,22 @@ export function useAgentReadingDock(agents: PublicAgent[]) {
   const [agentDockItems, setAgentDockItems] = useState<AgentDockItem[]>([]);
   const [completionBurstKey, setCompletionBurstKey] = useState(0);
 
+  const clearAgentDockTimer = useCallback(() => {
+    if (agentDockClearTimerRef.current === null) return;
+    window.clearTimeout(agentDockClearTimerRef.current);
+    agentDockClearTimerRef.current = null;
+  }, []);
+
+  const updateAgentDockItems = useCallback(
+    (update: (items: AgentDockItem[]) => AgentDockItem[]) => {
+      const nextItems = update(agentDockItemsRef.current);
+      agentDockItemsRef.current = nextItems;
+      setAgentDockItems(nextItems);
+      return nextItems;
+    },
+    [],
+  );
+
   useEffect(() => {
     updateAgentDockItems((items) =>
       items.flatMap((item) => {
@@ -17,65 +33,61 @@ export function useAgentReadingDock(agents: PublicAgent[]) {
         return agent ? [{ ...item, agent }] : [];
       }),
     );
-  }, [agents]);
+  }, [agents, updateAgentDockItems]);
 
-  function clearAgentDockTimer() {
-    if (agentDockClearTimerRef.current === null) return;
-    window.clearTimeout(agentDockClearTimerRef.current);
-    agentDockClearTimerRef.current = null;
-  }
+  const activateAgentDock = useCallback(
+    (agent: PublicAgent) => {
+      clearAgentDockTimer();
+      agentDockCompletingRef.current = false;
+      setAgentDockCompleting(false);
+      updateAgentDockItems((items) => {
+        const existingIndex = items.findIndex((item) => item.agent.id === agent.id);
+        if (existingIndex === -1) return [...items, { agent, state: 'active' }];
+        return items.map((item, index) =>
+          index === existingIndex ? { agent, state: 'active' } : item,
+        );
+      });
+    },
+    [clearAgentDockTimer, updateAgentDockItems],
+  );
 
-  function updateAgentDockItems(update: (items: AgentDockItem[]) => AgentDockItem[]) {
-    const nextItems = update(agentDockItemsRef.current);
-    agentDockItemsRef.current = nextItems;
-    setAgentDockItems(nextItems);
-    return nextItems;
-  }
-
-  function activateAgentDock(agent: PublicAgent) {
-    clearAgentDockTimer();
-    agentDockCompletingRef.current = false;
-    setAgentDockCompleting(false);
-    updateAgentDockItems((items) => {
-      const existingIndex = items.findIndex((item) => item.agent.id === agent.id);
-      if (existingIndex === -1) return [...items, { agent, state: 'active' }];
-      return items.map((item, index) =>
-        index === existingIndex ? { agent, state: 'active' } : item,
+  const markAgentDockDone = useCallback(
+    (agentId: string) => {
+      updateAgentDockItems((items) =>
+        items.map((item) => (item.agent.id === agentId ? { ...item, state: 'done' } : item)),
       );
-    });
-  }
+    },
+    [updateAgentDockItems],
+  );
 
-  function markAgentDockDone(agentId: string) {
-    updateAgentDockItems((items) =>
-      items.map((item) => (item.agent.id === agentId ? { ...item, state: 'done' } : item)),
-    );
-  }
+  const completeAgentDock = useCallback(
+    (celebrate: boolean) => {
+      const items = agentDockItemsRef.current;
+      if (items.length === 0 || agentDockCompletingRef.current) return;
+      agentDockCompletingRef.current = true;
+      setAgentDockCompleting(celebrate);
+      if (celebrate) setCompletionBurstKey((key) => key + 1);
+      clearAgentDockTimer();
+      agentDockClearTimerRef.current = window.setTimeout(
+        () => {
+          agentDockCompletingRef.current = false;
+          setAgentDockCompleting(false);
+          updateAgentDockItems(() => []);
+          agentDockClearTimerRef.current = null;
+        },
+        celebrate ? 1900 : 700,
+      );
+    },
+    [clearAgentDockTimer, updateAgentDockItems],
+  );
 
-  function completeAgentDock(celebrate: boolean) {
-    const items = agentDockItemsRef.current;
-    if (items.length === 0 || agentDockCompletingRef.current) return;
-    agentDockCompletingRef.current = true;
-    setAgentDockCompleting(celebrate);
-    if (celebrate) setCompletionBurstKey((key) => key + 1);
-    clearAgentDockTimer();
-    agentDockClearTimerRef.current = window.setTimeout(
-      () => {
-        agentDockCompletingRef.current = false;
-        setAgentDockCompleting(false);
-        updateAgentDockItems(() => []);
-        agentDockClearTimerRef.current = null;
-      },
-      celebrate ? 1900 : 700,
-    );
-  }
-
-  function clearAgentDock() {
+  const clearAgentDock = useCallback(() => {
     clearAgentDockTimer();
     agentDockItemsRef.current = [];
     agentDockCompletingRef.current = false;
     setAgentDockItems([]);
     setAgentDockCompleting(false);
-  }
+  }, [clearAgentDockTimer]);
 
   return {
     agentDockCompleting,
