@@ -66,6 +66,7 @@ describe('deriveReadingCardWorkflow', () => {
       deliberation: null,
       aiCard: null,
       selectedReviewAgentIds: [],
+      sourceUpdatedAt: null,
       status: baseStatus,
     });
 
@@ -83,6 +84,7 @@ describe('deriveReadingCardWorkflow', () => {
       deliberation: null,
       aiCard: null,
       selectedReviewAgentIds: [],
+      sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'generating' },
     });
 
@@ -100,6 +102,7 @@ describe('deriveReadingCardWorkflow', () => {
       deliberation: deliberation(),
       aiCard: null,
       selectedReviewAgentIds: [],
+      sourceUpdatedAt: null,
       status: { ...baseStatus, aiCard: 'error' },
     });
 
@@ -116,6 +119,7 @@ describe('deriveReadingCardWorkflow', () => {
       deliberation: deliberation('2026-05-04T00:03:00.000Z'),
       aiCard: readingCard('2026-05-04T00:01:00.000Z'),
       selectedReviewAgentIds: ['agent_1'],
+      sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'done', aiCard: 'done' },
     });
 
@@ -124,8 +128,28 @@ describe('deriveReadingCardWorkflow', () => {
     expect(result.workflowSteps[1]).toMatchObject({
       id: 'card',
       state: 'active',
-      description: '审议已更新，等待重新提炼',
+      description: '收束已更新，等待重新打磨',
     });
+  });
+
+  it('marks existing outputs stale when reading evidence is newer', () => {
+    const result = deriveReadingCardWorkflow({
+      deliberation: deliberation('2026-05-04T00:02:00.000Z'),
+      aiCard: readingCard('2026-05-04T00:03:00.000Z'),
+      selectedReviewAgentIds: ['agent_1'],
+      sourceUpdatedAt: '2026-05-04T00:04:00.000Z',
+      status: { ...baseStatus, deliberation: 'done', aiCard: 'done' },
+    });
+
+    expect(result.deliberationIsCurrent).toBe(false);
+    expect(result.aiCardIsCurrent).toBe(false);
+    expect(result.currentAiCard).toBeNull();
+    expect(result.displayAiCard?.id).toBe('reading_card_1');
+    expect(result.workflowSteps.map((step) => [step.id, step.state, step.description])).toEqual([
+      ['deliberation', 'active', '有新批注或讨论，等待重新收束'],
+      ['card', 'waiting', '有新痕迹，先重新收束'],
+      ['review', 'waiting', '回执有新痕迹，先重新打磨'],
+    ]);
   });
 
   it('drops a stale review when the AI card is newer', () => {
@@ -133,6 +157,7 @@ describe('deriveReadingCardWorkflow', () => {
       deliberation: deliberation('2026-05-04T00:00:00.000Z'),
       aiCard: readingCard('2026-05-04T00:03:00.000Z', review('2026-05-04T00:02:00.000Z')),
       selectedReviewAgentIds: ['agent_1'],
+      sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'done', aiCard: 'done', review: 'done' },
     });
 

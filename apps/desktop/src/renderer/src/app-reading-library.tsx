@@ -231,10 +231,10 @@ export function ReadingLibrary({
             }
           >
             <ShelfTab
-              actionLabel="打开读后笔记"
+              actionLabel="打开读后回执"
               count={selectedArticle?.readingCard?.sections.length ?? 0}
               icon={<PencilLine size={18} />}
-              label="笔记"
+              label="回执"
               variant="view"
               onClick={openCardShelf}
             />

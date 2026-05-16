@@ -22,13 +22,14 @@ import type {
   ReadingCardReviewRecord,
   UserProfile,
 } from '@yomitomo/shared';
-import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
+import type { ReadingCardEvidenceUnit, ReadingReceiptDecision } from '@yomitomo/core';
 import type { AppUpdateState } from '../app-update-types';
 
 export type GenerateReadingCardInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDecisions?: ReadingReceiptDecision[];
   readingDeliberation?: ReadingDeliberationRecord;
 };
 
@@ -36,6 +37,7 @@ export type GenerateReadingDeliberationInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDecisions?: ReadingReceiptDecision[];
 };
 
 export type ReviewReadingCardInput = GenerateReadingCardInput & {

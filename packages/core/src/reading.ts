@@ -1,10 +1,12 @@
 import type {
   Annotation,
   AnnotationType,
+  AgentReadingIntent,
   ArticleRecord,
   Comment,
   QuestionStatus,
 } from '@yomitomo/shared';
+import { agentReadingIntentLabel } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
   annotationThreadComments,
@@ -38,12 +40,24 @@ export type ReadingCardEvidenceUnit = {
   context: string;
   annotationType: string;
   annotationTypeKey?: AnnotationType;
+  readingIntent: string;
+  readingIntentKey?: AgentReadingIntent;
   questionStatus?: QuestionStatus;
   annotationAuthor: Annotation['author'];
   annotationAuthorLabel: string;
+  annotationAuthorAvatar: string;
   createdAt: string;
+  updatedAt: string;
   annotationBody?: ReadingCardComment;
   comments: ReadingCardComment[];
+};
+
+export type ReadingReceiptDisposition = 'include' | 'question' | 'exclude';
+
+export type ReadingReceiptDecision = {
+  evidenceId: string;
+  evidenceIndex: number;
+  disposition: ReadingReceiptDisposition;
 };
 
 export type ReadingQuestionItem = {
@@ -206,10 +220,16 @@ export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCa
         ? annotationTypeLabel(annotation.annotationType)
         : '',
       annotationTypeKey: annotation.annotationType,
+      readingIntent: annotation.readingIntent
+        ? agentReadingIntentLabel(annotation.readingIntent)
+        : '',
+      readingIntentKey: annotation.readingIntent,
       questionStatus: annotation.questionStatus,
       annotationAuthor: annotation.author,
       annotationAuthorLabel: annotationLabel(annotation),
+      annotationAuthorAvatar: annotationAvatar(annotation),
       createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
       annotationBody: primaryComment ? toReadingCardComment(primaryComment) : undefined,
       comments: annotationThreadComments(annotation)
         .toSorted((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt))
@@ -427,6 +447,11 @@ function annotationLabel(annotation: Annotation) {
   if (annotation.author === 'ai')
     return annotation.agentNickname || annotation.agentUsername || '助手';
   return annotation.userNickname || annotation.userUsername || '我';
+}
+
+function annotationAvatar(annotation: Annotation) {
+  if (annotation.author === 'ai') return annotation.agentAvatar || '';
+  return annotation.userAvatar || '';
 }
 
 function commentLabel(comment: Comment) {

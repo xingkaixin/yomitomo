@@ -1,21 +1,24 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, ListChecks, LoaderCircle, Scale, Sparkles } from 'lucide-react';
 import type { Agent, ArticleRecord } from '@yomitomo/shared';
 import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
-  buildReadingCardSections,
   buildReadingCardStats,
+  type ReadingReceiptDisposition,
+  type ReadingReceiptDecision,
 } from '@yomitomo/core';
 import { articleIdentityLine, articlePlainText, articleReadingStatsLine } from './app-utils';
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton } from './app-ui';
-import { useReadingCardWorkflow } from './app-reading-card-workflow';
+import { isReadingDeliberationCurrent, useReadingCardWorkflow } from './app-reading-card-workflow';
 import type { ReadingCardWorkflowStep, ReadingCardWorkflowStepId } from './app-types';
 import {
   ReadingCardDeck,
   ReadingCardEvidencePanel,
   ReadingDeliberationPanel,
+  ReadingReceiptTriageBoard,
+  type ReadingReceiptBoardDisposition,
 } from './app-reading-card-display';
 
 export function ReadingCard({
@@ -35,15 +38,41 @@ export function ReadingCard({
     () => (article ? buildReadingCardEvidenceUnits(article) : []),
     [article],
   );
-  const sections = useMemo(
-    () => (article ? buildReadingCardSections(article, articleText) : []),
-    [article, articleText],
+  const evidenceKey = useMemo(
+    () => evidenceUnits.map((unit) => unit.id).join('|'),
+    [evidenceUnits],
   );
-  const draftSections = sections.filter((section) => section.title !== '阅读轨迹');
+  const sourceUpdatedAt = useMemo(
+    () => (article ? readingReceiptSourceUpdatedAt(article, evidenceUnits) : null),
+    [article, evidenceUnits],
+  );
+  const [receiptDispositionById, setReceiptDispositionById] = useState<
+    Record<string, ReadingReceiptBoardDisposition>
+  >({});
+  useEffect(() => {
+    const initialDisposition: ReadingReceiptBoardDisposition = isReadingDeliberationCurrent(
+      article?.readingDeliberation || null,
+      sourceUpdatedAt,
+    )
+      ? 'include'
+      : 'pending';
+    setReceiptDispositionById(
+      Object.fromEntries(evidenceUnits.map((unit) => [unit.id, initialDisposition])),
+    );
+  }, [article?.id, article?.readingDeliberation, evidenceKey, evidenceUnits, sourceUpdatedAt]);
+  const receiptDecisions = useMemo(
+    () => buildReadingReceiptDecisions(evidenceUnits, receiptDispositionById),
+    [evidenceUnits, receiptDispositionById],
+  );
+  const receiptPendingCount = useMemo(
+    () => evidenceUnits.filter((unit) => receiptDispositionById[unit.id] === 'pending').length,
+    [evidenceUnits, receiptDispositionById],
+  );
   const reviewAgentIds = useMemo(() => reviewAgents.map((agent) => agent.id), [reviewAgents]);
   const {
     actions,
-    currentAiCard,
+    aiCardIsCurrent,
+    displayAiCard,
     deliberation,
     errors,
     retryingReviewerId,
@@ -53,7 +82,9 @@ export function ReadingCard({
     article,
     articleText,
     evidenceUnits,
+    receiptDecisions,
     reviewAgentIds,
+    sourceUpdatedAt,
     onGenerated,
   });
   const workflowActions: Record<ReadingCardWorkflowStepId, () => void> = {
@@ -62,13 +93,22 @@ export function ReadingCard({
     review: actions.reviewAiCard,
   };
   const card = article
-    ? currentAiCard?.contentMarkdown || buildReadingCard(article, articleText)
+    ? displayAiCard?.contentMarkdown || buildReadingCard(article, articleText)
     : '';
+  const currentWorkflowStep = currentReadingReceiptStep(workflowSteps);
+  const showReceiptTriage = currentWorkflowStep.id === 'deliberation';
+
+  function changeReceiptDisposition(
+    evidenceId: string,
+    disposition: ReadingReceiptBoardDisposition,
+  ) {
+    setReceiptDispositionById((current) => ({ ...current, [evidenceId]: disposition }));
+  }
 
   if (!article) {
     return (
       <aside className="reading-card">
-        <div className="reading-card-empty">选择一篇文章查看读后笔记</div>
+        <div className="reading-card-empty">选择一篇文章查看读后回执</div>
       </aside>
     );
   }
@@ -82,103 +122,206 @@ export function ReadingCard({
           {stats ? <p className="reading-card-statline">{articleReadingStatsLine(stats)}</p> : null}
         </div>
         <div className="reading-card-actions">
-          <span className="reading-card-current-view">当前：读后笔记</span>
-          <CopyIconButton label="复制读后笔记 Markdown" value={card} />
+          <span className="reading-card-current-view">当前：读后回执</span>
+          <CopyIconButton label="复制读后回执 Markdown" value={card} />
         </div>
       </div>
-      <ReadingCardWorkflow actions={workflowActions} steps={workflowSteps} />
-      {currentAiCard ? (
+      <ReadingCardWorkflow
+        actions={workflowActions}
+        receiptPendingCount={receiptPendingCount}
+        steps={workflowSteps}
+      />
+      {displayAiCard && aiCardIsCurrent && !showReceiptTriage ? (
         <ReadingCardReviewAgentStrip
           reviewAgents={reviewAgents}
           selectedReviewAgentIds={selectedReviewAgentIds}
           onToggleReviewAgent={actions.toggleReviewAgent}
         />
       ) : null}
-      <div className="reading-card-body">
+      <div
+        className={
+          displayAiCard && !showReceiptTriage ? 'reading-card-body' : 'reading-card-body is-triage'
+        }
+      >
         <div className="reading-card-output-stack">
           {errors.ai ? <p className="reading-card-error">{errors.ai}</p> : null}
           {errors.deliberation ? <p className="reading-card-error">{errors.deliberation}</p> : null}
           {errors.review ? <p className="reading-card-error">{errors.review}</p> : null}
-          {deliberation ? (
+          {deliberation && !displayAiCard && !showReceiptTriage ? (
             <ReadingDeliberationPanel
               deliberation={deliberation}
               evidenceUnits={evidenceUnits}
               onOpenEvidence={onOpenEvidence}
             />
           ) : null}
-          {currentAiCard ? (
+          {displayAiCard && !showReceiptTriage ? (
             <ReadingCardDeck
               article={article}
+              isCurrent={aiCardIsCurrent}
               evidenceUnits={evidenceUnits}
-              readingCard={currentAiCard}
+              readingCard={displayAiCard}
+              receiptDispositionById={receiptDispositionById}
               retryingReviewerId={retryingReviewerId}
+              sourceUpdatedAt={sourceUpdatedAt}
               stats={stats}
               onOpenEvidence={onOpenEvidence}
               onRetryReviewer={actions.retryReviewAgent}
             />
           ) : (
-            <div className="reading-card-draft-grid">
-              {draftSections.map((section) => (
-                <section className="reading-card-draft-section" key={section.title}>
-                  <h4>{section.title}</h4>
-                  <ul>
-                    {(section.items.length > 0 ? section.items : ['暂无']).map((item, index) => (
-                      <li key={`${section.title}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
+            <ReadingReceiptTriageBoard
+              evidenceUnits={evidenceUnits}
+              receiptDispositionById={receiptDispositionById}
+              onChangeDisposition={changeReceiptDisposition}
+              onOpenEvidence={onOpenEvidence}
+            />
           )}
         </div>
-        <ReadingCardEvidencePanel evidenceUnits={evidenceUnits} />
+        {displayAiCard && !showReceiptTriage ? (
+          <ReadingCardEvidencePanel
+            evidenceUnits={evidenceUnits}
+            readingCard={displayAiCard}
+            receiptDispositionById={receiptDispositionById}
+            onChangeDisposition={changeReceiptDisposition}
+            onOpenEvidence={onOpenEvidence}
+          />
+        ) : null}
       </div>
     </aside>
   );
 }
 
+function buildReadingReceiptDecisions(
+  evidenceUnits: ReturnType<typeof buildReadingCardEvidenceUnits>,
+  dispositionById: Record<string, ReadingReceiptBoardDisposition>,
+): ReadingReceiptDecision[] {
+  return evidenceUnits.map((unit) => ({
+    evidenceId: unit.id,
+    evidenceIndex: unit.index,
+    disposition: normalizeReadingReceiptDisposition(dispositionById[unit.id]),
+  }));
+}
+
+function normalizeReadingReceiptDisposition(
+  disposition: ReadingReceiptBoardDisposition | undefined,
+): ReadingReceiptDisposition {
+  return disposition && disposition !== 'pending' ? disposition : 'include';
+}
+
+function readingReceiptSourceUpdatedAt(
+  article: ArticleRecord,
+  evidenceUnits: ReturnType<typeof buildReadingCardEvidenceUnits>,
+) {
+  const latest = evidenceUnits.reduce(
+    (max, unit) => Math.max(max, Date.parse(unit.updatedAt), Date.parse(unit.createdAt)),
+    Date.parse(article.createdAt),
+  );
+  return new Date(latest).toISOString();
+}
+
 function ReadingCardWorkflow({
   actions,
+  receiptPendingCount,
   steps,
 }: {
   actions: Record<ReadingCardWorkflowStepId, () => void>;
+  receiptPendingCount: number;
   steps: ReadingCardWorkflowStep[];
 }) {
+  const step = currentReadingReceiptStep(steps);
+  const blockedByTriage = receiptPendingCount > 0 && step.id !== 'review';
+
   return (
-    <section className="reading-card-workflow" aria-label="读后笔记流程进度">
-      {steps.map((step) => (
-        <article className={`reading-card-workflow-step is-${step.state}`} key={step.id}>
-          <header>
-            <span className="reading-card-workflow-index" aria-hidden="true">
-              {step.state === 'running' ? (
-                <LoaderCircle className="reading-card-spin" size={15} />
-              ) : step.state === 'done' ? (
-                <Check size={15} />
-              ) : (
-                step.number
-              )}
-            </span>
-            <div>
-              <strong>{step.title}</strong>
-              <p>{step.description}</p>
-            </div>
-          </header>
-          <Button
-            type="button"
-            size="sm"
-            variant={step.state === 'active' || step.state === 'error' ? 'default' : 'secondary'}
-            disabled={step.disabled}
-            onClick={actions[step.id]}
-          >
-            {step.id === 'deliberation' ? <ListChecks size={14} /> : null}
-            {step.id === 'card' ? <Sparkles size={14} /> : null}
-            {step.id === 'review' ? <Scale size={14} /> : null}
-            {step.actionLabel}
-          </Button>
-        </article>
-      ))}
+    <section className="reading-card-workflow" aria-label="读后回执收束操作">
+      <article className={`reading-card-workflow-step is-${step.state}`} key={step.id}>
+        <header>
+          <span className="reading-card-workflow-index" aria-hidden="true">
+            {step.state === 'running' ? (
+              <LoaderCircle className="reading-card-spin" size={15} />
+            ) : step.state === 'done' ? (
+              <Check size={15} />
+            ) : (
+              step.number
+            )}
+          </span>
+          <div>
+            <span>当前节点</span>
+            <strong>{readingReceiptStepTitle(step)}</strong>
+            <p>
+              {blockedByTriage
+                ? `还有 ${receiptPendingCount} 条批注待归类`
+                : readingReceiptStepDescription(step)}
+            </p>
+          </div>
+        </header>
+        <Button
+          type="button"
+          size="sm"
+          variant={step.state === 'active' || step.state === 'error' ? 'default' : 'secondary'}
+          disabled={step.disabled || blockedByTriage}
+          onClick={actions[step.id]}
+        >
+          {step.id === 'deliberation' ? <ListChecks size={14} /> : null}
+          {step.id === 'card' ? <Sparkles size={14} /> : null}
+          {step.id === 'review' ? <Scale size={14} /> : null}
+          {blockedByTriage ? `待归类 ${receiptPendingCount}` : readingReceiptStepActionLabel(step)}
+        </Button>
+      </article>
     </section>
   );
+}
+
+function currentReadingReceiptStep(steps: ReadingCardWorkflowStep[]) {
+  return (
+    steps.find((step) => step.state === 'running') ||
+    steps.find((step) => step.state === 'error') ||
+    steps.find((step) => step.state === 'active') ||
+    steps.toReversed().find((step) => step.state === 'done') ||
+    steps[0]
+  );
+}
+
+function readingReceiptStepTitle(step: ReadingCardWorkflowStep) {
+  if (step.id === 'deliberation') return '收束阅读';
+  if (step.id === 'card') return '整理回执';
+  return '审阅席';
+}
+
+function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
+  if (step.id === 'deliberation') {
+    if (step.state === 'running') return '正在整理停顿、分歧和问题';
+    if (step.state === 'done') return step.description.replace('已生成', '已收束');
+    if (step.state === 'error') return '收束失败，可重试';
+    if (step.description.includes('新批注') || step.description.includes('新讨论')) {
+      return step.description;
+    }
+    return '把批注、讨论和助手痕迹收起来';
+  }
+  if (step.id === 'card') {
+    if (step.state === 'running') return '正在打磨可回看的回执';
+    if (step.state === 'done') return step.description.replace('已提炼', '已整理');
+    if (step.state === 'error') return '整理失败，可重试';
+    if (step.description.includes('新痕迹') || step.description.includes('等待重新')) {
+      return step.description;
+    }
+    if (step.state === 'active') return '生成一句话带走和可保存成稿';
+    return '先收束阅读现场';
+  }
+  if (step.state === 'running') return '审阅助手正在检查证据和表达';
+  if (step.state === 'done') return step.description.replace('已审核', '已检查');
+  if (step.state === 'error') return '检查失败，可重试';
+  if (step.description.includes('新痕迹') || step.description.includes('等待重新')) {
+    return step.description;
+  }
+  if (step.state === 'active') return '检查证据、读者声音和行动边界';
+  return '回执生成后可检查';
+}
+
+function readingReceiptStepActionLabel(step: ReadingCardWorkflowStep) {
+  if (step.id === 'deliberation') {
+    return step.state === 'done' || step.actionLabel.includes('重新') ? '重新收束' : '收束这次阅读';
+  }
+  if (step.id === 'card') return step.state === 'done' ? '重新打磨' : '打磨成回执';
+  return step.state === 'done' ? '重新检查' : '请审阅席检查';
 }
 
 export function ReadingCardReviewAgentStrip({
@@ -192,7 +335,10 @@ export function ReadingCardReviewAgentStrip({
 }) {
   return (
     <div className="reading-card-review-agent-strip">
-      <span>审核助手</span>
+      <header>
+        <span>审阅席</span>
+        <p>选择稍后检查这份回执的视角</p>
+      </header>
       {reviewAgents.length > 0 ? (
         <div>
           {reviewAgents.map((agent) => {
@@ -218,7 +364,7 @@ export function ReadingCardReviewAgentStrip({
           })}
         </div>
       ) : (
-        <p>请先在助手设置中创建审核助手。</p>
+        <p>请先在助手设置中创建审阅助手。</p>
       )}
     </div>
   );

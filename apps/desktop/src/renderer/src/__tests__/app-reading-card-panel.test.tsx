@@ -1,7 +1,15 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Agent,
@@ -41,6 +49,7 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
         },
         author: 'user',
         annotationType: 'key_point',
+        readingIntent: 'explain',
         color: '#f4c95d',
         userNickname: '我',
         userUsername: 'me',
@@ -221,6 +230,68 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function domRect(left: number, width: number, top = 0, height = 120): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function firePointerEvent(
+  element: Element | Window,
+  eventName: 'pointerDown' | 'pointerMove' | 'pointerUp',
+  clientX: number,
+  clientY = 40,
+) {
+  const event =
+    eventName === 'pointerDown'
+      ? createEvent.pointerDown(element, { button: 0 })
+      : eventName === 'pointerMove'
+        ? createEvent.pointerMove(element)
+        : createEvent.pointerUp(element, { button: 0 });
+  Object.defineProperty(event, 'clientX', {
+    configurable: true,
+    value: clientX,
+  });
+  Object.defineProperty(event, 'clientY', {
+    configurable: true,
+    value: clientY,
+  });
+  fireEvent(element, event);
+}
+
+function mockReceiptColumnRects() {
+  const leftByColumn = new Map([
+    ['待定', 0],
+    ['纳入', 300],
+    ['追问', 600],
+    ['暂放', 900],
+  ]);
+  for (const [label, left] of leftByColumn) {
+    vi.spyOn(screen.getByLabelText(`${label}列`), 'getBoundingClientRect').mockReturnValue(
+      domRect(left, 240),
+    );
+  }
+  return leftByColumn;
+}
+
+function dragReceiptCard(quote: string, columnLabel: string) {
+  const card = screen.getByLabelText(`批注卡片：${quote}`);
+  const leftByColumn = mockReceiptColumnRects();
+  vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(domRect(0, 240));
+
+  firePointerEvent(card, 'pointerDown', 220);
+  firePointerEvent(window, 'pointerMove', (leftByColumn.get(columnLabel) || 0) + 220);
+  firePointerEvent(window, 'pointerUp', (leftByColumn.get(columnLabel) || 0) + 220);
+}
+
 describe('ReadingCard', () => {
   it('renders the review agent strip empty state', () => {
     render(
@@ -231,7 +302,7 @@ describe('ReadingCard', () => {
       />,
     );
 
-    expect(screen.getByText('请先在助手设置中创建审核助手。')).toBeTruthy();
+    expect(screen.getByText('请先在助手设置中创建审阅助手。')).toBeTruthy();
   });
 
   it('toggles a review agent from the strip', () => {
@@ -257,16 +328,91 @@ describe('ReadingCard', () => {
     render(
       <ReadingCard
         article={article()}
+        reviewAgents={[reviewAgent()]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('region', { name: '读后回执收束操作' })).toBeTruthy();
+    expect(screen.getByText('当前节点')).toBeTruthy();
+    expect(screen.getAllByText('收束阅读').length).toBeGreaterThan(0);
+    expect(screen.queryByText('整理回执', { selector: 'strong' })).toBeNull();
+    expect(screen.queryByText('审阅席', { selector: 'strong' })).toBeNull();
+    expect(screen.queryByText('选择稍后检查这份回执的视角')).toBeNull();
+    expect(screen.getByRole('button', { name: /待归类 1/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByLabelText('批注卡片：重要原文')).toBeTruthy();
+    expect(screen.getByText('解释')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '归入纳入 #1' })).toBeNull();
+  });
+
+  it('drops a card once half of it overlaps the target column', () => {
+    render(
+      <ReadingCard
+        article={article()}
         reviewAgents={[]}
         onGenerated={vi.fn()}
         onOpenEvidence={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole('region', { name: '读后笔记流程进度' })).toBeTruthy();
-    expect(screen.getByText('阅读评估')).toBeTruthy();
-    expect(screen.getByText('AI 提炼', { selector: 'strong' })).toBeTruthy();
-    expect(screen.getByText('笔记草稿')).toBeTruthy();
+    const card = screen.getByLabelText('批注卡片：重要原文');
+    mockReceiptColumnRects();
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(domRect(0, 240));
+
+    firePointerEvent(card, 'pointerDown', 220);
+    firePointerEvent(window, 'pointerMove', 410);
+    firePointerEvent(window, 'pointerUp', 410);
+
+    expect(screen.getByText('1/1 已归类')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /收束这次阅读/ }).hasAttribute('disabled')).toBe(
+      false,
+    );
+  });
+
+  it('keeps a card pending when less than half overlaps the target column', () => {
+    render(
+      <ReadingCard
+        article={article()}
+        reviewAgents={[]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByLabelText('批注卡片：重要原文');
+    mockReceiptColumnRects();
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(domRect(0, 240));
+
+    firePointerEvent(card, 'pointerDown', 20);
+    firePointerEvent(window, 'pointerMove', 450);
+    firePointerEvent(window, 'pointerUp', 450);
+
+    expect(screen.getByText('0/1 已归类')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /待归类 1/ }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByLabelText('批注卡片：重要原文').className).toContain('is-active');
+  });
+
+  it('temporarily removes the source card while dragging it', () => {
+    render(
+      <ReadingCard
+        article={article()}
+        reviewAgents={[]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByLabelText('批注卡片：重要原文');
+    mockReceiptColumnRects();
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(domRect(0, 240));
+
+    firePointerEvent(card, 'pointerDown', 220);
+    firePointerEvent(window, 'pointerMove', 340);
+
+    expect(screen.queryByLabelText('批注卡片：重要原文')).toBeNull();
+
+    firePointerEvent(window, 'pointerUp', 340);
   });
 
   it('starts deliberation generation with article evidence units', async () => {
@@ -282,7 +428,8 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /生成审议/ }));
+    dragReceiptCard('重要原文', '纳入');
+    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
 
     await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
     expect(desktop.generateReadingDeliberation).toHaveBeenCalledWith(
@@ -295,9 +442,45 @@ describe('ReadingCard', () => {
             quote: '重要原文',
           }),
         ],
+        receiptDecisions: [
+          expect.objectContaining({
+            disposition: 'include',
+            evidenceId: 'annotation_1',
+            evidenceIndex: 1,
+          }),
+        ],
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes receipt disposition changes into deliberation generation', async () => {
+    const desktop = installDesktopApi();
+
+    render(
+      <ReadingCard
+        article={article()}
+        reviewAgents={[]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    dragReceiptCard('重要原文', '暂放');
+    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
+
+    await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
+    expect(desktop.generateReadingDeliberation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        receiptDecisions: [
+          expect.objectContaining({
+            disposition: 'exclude',
+            evidenceId: 'annotation_1',
+            evidenceIndex: 1,
+          }),
+        ],
+      }),
+    );
   });
 
   it('ignores stale deliberation results after switching articles', async () => {
@@ -314,7 +497,8 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /生成审议/ }));
+    dragReceiptCard('重要原文', '纳入');
+    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
 
     await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
     rerender(
@@ -344,7 +528,7 @@ describe('ReadingCard', () => {
       await pendingDeliberation.promise;
     });
 
-    expect(screen.getByText('第二篇文章')).toBeTruthy();
+    expect(screen.getAllByText('第二篇文章').length).toBeGreaterThan(0);
     expect(screen.queryByText('旧文章审议')).toBeNull();
     expect(screen.queryByText('旧结论')).toBeNull();
     expect(onGenerated).not.toHaveBeenCalled();
@@ -367,13 +551,20 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /AI 提炼/ }));
+    fireEvent.click(screen.getByRole('button', { name: /打磨成回执/ }));
 
     await waitFor(() => expect(desktop.generateReadingCard).toHaveBeenCalledTimes(1));
     expect(desktop.generateReadingCard).toHaveBeenCalledWith(
       expect.objectContaining({
         article: expect.objectContaining({ id: 'article_1' }),
         readingDeliberation: currentDeliberation,
+        receiptDecisions: [
+          expect.objectContaining({
+            disposition: 'include',
+            evidenceId: 'annotation_1',
+            evidenceIndex: 1,
+          }),
+        ],
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);
@@ -396,7 +587,7 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /审核草稿/ }));
+    fireEvent.click(screen.getByRole('button', { name: /请审阅席检查/ }));
 
     await waitFor(() => expect(desktop.reviewReadingCard).toHaveBeenCalledTimes(1));
     expect(desktop.reviewReadingCard).toHaveBeenCalledWith(

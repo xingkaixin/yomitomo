@@ -171,7 +171,19 @@ function escapeHtml(value: string) {
 }
 
 export function readingCardSectionIndex(title: string) {
-  const order = ['核心主张', '我关注了什么', '讨论中浮现了什么', '可复用洞见', '后续行动线索'];
+  const order = [
+    '一句话带走',
+    '我停下来的地方',
+    '改变 / 确认 / 怀疑',
+    '改变／确认／怀疑',
+    '还没收束的问题',
+    '可保存成稿',
+    '核心主张',
+    '我关注了什么',
+    '讨论中浮现了什么',
+    '可复用洞见',
+    '后续行动线索',
+  ];
   const index = order.indexOf(title);
   return index >= 0 ? String(index + 1).padStart(2, '0') : '·';
 }

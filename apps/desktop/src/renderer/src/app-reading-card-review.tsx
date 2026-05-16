@@ -37,15 +37,15 @@ export function ReadingCardReviewPanel({
     <section className="reading-card-review-panel">
       <header>
         <div>
-          <span>审稿结果</span>
-          <h4>读后笔记审核</h4>
+          <span>审阅席</span>
+          <h4>审阅助手检查</h4>
         </div>
         <time>{formatDate(review.updatedAt)}</time>
       </header>
       <div className="reading-card-review-summary">
         <div>
           <strong>{review.reviewerResults.length}</strong>
-          <span>审核助手</span>
+          <span>审阅助手</span>
         </div>
         <div>
           <strong>{passCount}</strong>
@@ -53,7 +53,7 @@ export function ReadingCardReviewPanel({
         </div>
         <div>
           <strong>{issueCount}</strong>
-          <span>问题</span>
+          <span>建议</span>
         </div>
       </div>
       <div className="reading-card-reviewers">

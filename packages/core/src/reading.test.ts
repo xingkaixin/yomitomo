@@ -29,6 +29,7 @@ function annotation(
     },
     author: input.author || 'user',
     annotationType: input.annotationType,
+    readingIntent: input.readingIntent,
     questionStatus: input.questionStatus,
     color: '#f4c95d',
     agentNickname: input.agentNickname,
@@ -215,6 +216,7 @@ describe('reading core', () => {
           author: 'ai',
           agentNickname: '研究助手',
           annotationType: 'key_point',
+          readingIntent: 'decompose',
           comments: [
             {
               id: 'late',
@@ -247,6 +249,8 @@ describe('reading core', () => {
       index: 2,
       annotationType: '关键判断',
       annotationTypeKey: 'key_point',
+      readingIntent: '拆解',
+      readingIntentKey: 'decompose',
       annotationAuthorLabel: '研究助手',
     });
     expect(units[1].comments.map((comment) => comment.id)).toEqual(['early', 'late']);

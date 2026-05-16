@@ -7,7 +7,11 @@ import type {
   ReadingCardReviewerResult,
   ReadingDeliberationRecord,
 } from '@yomitomo/shared';
-import { buildReadingQuestions, type ReadingCardEvidenceUnit } from '@yomitomo/core';
+import {
+  buildReadingQuestions,
+  type ReadingCardEvidenceUnit,
+  type ReadingReceiptDecision,
+} from '@yomitomo/core';
 import {
   budgetArticleText,
   budgetDeliberationJson,
@@ -23,6 +27,7 @@ export type GenerateReadingCardInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDecisions?: ReadingReceiptDecision[];
   readingDeliberation?: ReadingDeliberationRecord;
 };
 
@@ -30,6 +35,7 @@ export type GenerateReadingDeliberationInput = {
   article: ArticleRecord;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDecisions?: ReadingReceiptDecision[];
 };
 
 export type ReviewReadingCardInput = GenerateReadingCardInput & {
@@ -45,7 +51,7 @@ export type ReviewReadingCardResult = Pick<
 
 export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
   const system =
-    '你是 Yomitomo 的读后笔记生成器。你的任务是基于文章全文、读者批注和讨论证据生成一篇可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
+    '你是 Yomitomo 的读后回执整理员。你的任务不是复述文章，而是把这次阅读留下的停顿、判断、分歧、问题和可保存内容收成一份可回看的读后回执。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
 
   return callProviderText(provider, {
     system,
@@ -75,7 +81,7 @@ export async function reviewReadingCard(
   agent: Agent,
   input: ReviewReadingCardInput,
 ): Promise<ReviewReadingCardResult> {
-  const system = `${agent.soul}\n\n你是 Yomitomo 的读后笔记审核助手。你要审当前读后笔记和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
+  const system = `${agent.soul}\n\n你是 Yomitomo 的读后回执审阅助手。你要审当前回执和证据之间的关系，重点检查事实归因、证据链、读者声音、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
   const rawResponse = await callProviderText(
     provider,
     {
@@ -96,14 +102,21 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
     byline: input.article.byline || '',
     excerpt: input.article.excerpt || '',
   };
-  const evidence = readingCardPromptEvidence(input.evidenceUnits);
-  const questions = buildReadingQuestions(input.article).map((question) => ({
-    id: question.id,
-    status: question.status,
-    author: question.authorLabel,
-    text: question.text,
-    quote: question.quote,
-  }));
+  const evidenceUnits = receiptIncludedEvidenceUnits(input.evidenceUnits, input.receiptDecisions);
+  const evidence = readingCardPromptEvidence(evidenceUnits);
+  const questions = buildReadingQuestions(input.article)
+    .filter(
+      (question) =>
+        receiptDecisionForEvidence(input.receiptDecisions, question.annotationId) !== 'exclude',
+    )
+    .map((question) => ({
+      id: question.id,
+      status: question.status,
+      author: question.authorLabel,
+      text: question.text,
+      quote: question.quote,
+    }));
+  const receiptDecisions = readingReceiptDecisionPrompt(input.receiptDecisions);
   const deliberation = input.readingDeliberation
     ? {
         id: input.readingDeliberation.id,
@@ -122,7 +135,7 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
     ),
   );
 
-  return `请基于全文和证据单元生成一篇中文 Markdown 读后笔记。
+  return `请基于全文和证据单元生成一份中文 Markdown 读后回执。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -135,6 +148,9 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
+本次收束选择：
+${receiptDecisions}
+
 问题状态：
 ${JSON.stringify(questions, null, 2)}
 
@@ -145,30 +161,40 @@ ${deliberationJson.text}
 - 直接输出 Markdown，不要输出代码块。
 - 不要写“文章快照”。
 - 不要复述全文概要。
+- 这不是文章总结，而是交代这次阅读痕迹被如何处理。
 - 每条关键判断尽量标注证据编号，例如 [#1]。
 - 保留读者自己的关注点，标明“我”或读者昵称。
 - 助手观点和文章观点分开表达。
 - 如果有阅读审议，优先吸收其中的共识、分歧、证据强弱和未决问题。
 - 保留未决问题状态：open 作为待推进问题，answered 作为已收束问题，parked 作为暂不推进问题。
-- 内容要精炼、有层次，适合作为读后笔记保存。
+- 对重要证据单元说明处理结果：纳入回执、继续追问、暂放、证据不足。
+- 尊重“本次收束选择”：include 可以进入回执主判断；question 只能作为待追问/未收束问题；exclude 不要写入回执。
+- 内容要精炼、有层次，适合作为读完这篇文章后的回看入口。
 
 固定结构：
 # ${input.article.title}
 
-## 核心主张
-用 1-2 句话说清文章最重要的判断。
+## 一句话带走
+用 1 句话写出这次阅读最后留下的判断；不是全文摘要，也不是文章标题改写。
 
-## 我关注了什么
-按主题归并读者批注和评论，每条带原文证据编号。
+## 我停下来的地方
+按阅读现场整理读者批注、用户评论、助手批注和讨论 thread。优先写“我在哪里停下、为什么停下、谁推动了理解变化、这条痕迹最后如何处理”。
 
-## 讨论中浮现了什么
-整理共识、分歧、未回答问题。来源来自评论 thread。
+## 改变 / 确认 / 怀疑
+### 改变
+写 1 条这篇文章改变了什么看法；没有证据就写“暂无”。
 
-## 可复用洞见
-提炼 3-5 条可以迁移到其他阅读或决策里的洞见。
+### 确认
+写 1 条这篇文章确认了什么已有判断；没有证据就写“暂无”。
 
-## 后续行动线索
-列出后续阅读、验证假设或可执行动作。`;
+### 怀疑
+写 1 条这篇文章让我仍然怀疑什么；没有证据就写“暂无”。
+
+## 还没收束的问题
+列出 open、answered、parked 问题。用“还想追问 / 已经想通 / 先放一放”表达状态。
+
+## 可保存成稿
+整理一份可以复制到笔记工具的短成稿。只放已经纳入回执的判断，保留必要证据编号，避免冗长。`;
 }
 
 function buildReadingDeliberationPrompt(
@@ -181,14 +207,21 @@ function buildReadingDeliberationPrompt(
     byline: input.article.byline || '',
     excerpt: input.article.excerpt || '',
   };
-  const evidence = readingCardPromptEvidence(input.evidenceUnits);
-  const questions = buildReadingQuestions(input.article).map((question) => ({
-    id: question.id,
-    status: question.status,
-    author: question.authorLabel,
-    text: question.text,
-    quote: question.quote,
-  }));
+  const evidenceUnits = receiptIncludedEvidenceUnits(input.evidenceUnits, input.receiptDecisions);
+  const evidence = readingCardPromptEvidence(evidenceUnits);
+  const questions = buildReadingQuestions(input.article)
+    .filter(
+      (question) =>
+        receiptDecisionForEvidence(input.receiptDecisions, question.annotationId) !== 'exclude',
+    )
+    .map((question) => ({
+      id: question.id,
+      status: question.status,
+      author: question.authorLabel,
+      text: question.text,
+      quote: question.quote,
+    }));
+  const receiptDecisions = readingReceiptDecisionPrompt(input.receiptDecisions);
   const articleText = budgetArticleText(provider, 'reading-deliberation', input.articleText);
   const evidenceJson = budgetEvidenceJson('reading-deliberation', evidence);
   const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report]);
@@ -206,6 +239,9 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
+本次收束选择：
+${receiptDecisions}
+
 问题状态：
 ${JSON.stringify(questions, null, 2)}
 
@@ -216,6 +252,8 @@ ${JSON.stringify(questions, null, 2)}
 - 聚焦这场阅读讨论形成了什么判断，避免复述全文。
 - 对证据薄弱、归因不清或仍需验证的内容明确指出。
 - 单独汇总问题状态：open 是未决问题，answered 是已回答问题，parked 是搁置问题。
+- 明确告诉后续回执生成：哪些痕迹可以直接纳入，哪些需要用户回到批注补一句判断。
+- 尊重“本次收束选择”：include 进入共识/证据强弱；question 进入未决问题；exclude 不进入本次审议。
 
 固定结构：
 # ${input.article.title}｜阅读审议
@@ -232,8 +270,8 @@ ${JSON.stringify(questions, null, 2)}
 ## 未决问题
 优先列出 open 问题，并简要说明对应证据；再用短句概括 answered 和 parked 问题。
 
-## 给读后笔记的建议
-说明生成读后笔记时应该保留、压缩或谨慎处理的内容。`;
+## 给读后回执的建议
+说明生成回执时应该保留、压缩或谨慎处理的内容。`;
 }
 
 function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadingCardInput) {
@@ -258,7 +296,7 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
     cardJson.report,
   ]);
 
-  return `请审核这篇读后笔记，返回一个 JSON 对象。
+  return `请审核这份读后回执，返回一个 JSON 对象。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -271,7 +309,7 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
-读后笔记：
+读后回执：
 ${cardJson.text}
 
 审核维度：
@@ -287,7 +325,7 @@ ${cardJson.text}
   "summary": "整体审核结论，80 字以内",
   "findings": [
     {
-      "section": "核心主张",
+      "section": "一句话带走",
       "severity": "high",
       "problem": "问题描述",
       "evidenceIds": [1, 2],
@@ -305,6 +343,37 @@ ${cardJson.text}
 - 文本字段里引用证据时统一写成 [#1] 这种格式；evidenceIds 仍返回数字数组。
 - findings 最多 6 条，acceptedClaims 最多 4 条，missingAngles 最多 4 条。
 - 只输出 JSON 对象，不要输出 Markdown。`;
+}
+
+function receiptIncludedEvidenceUnits(
+  evidenceUnits: ReadingCardEvidenceUnit[],
+  decisions: ReadingReceiptDecision[] | undefined,
+) {
+  return evidenceUnits.filter(
+    (unit) => receiptDecisionForEvidence(decisions, unit.id) !== 'exclude',
+  );
+}
+
+function receiptDecisionForEvidence(
+  decisions: ReadingReceiptDecision[] | undefined,
+  evidenceId: string,
+) {
+  return (
+    decisions?.find((decision) => decision.evidenceId === evidenceId)?.disposition || 'include'
+  );
+}
+
+function readingReceiptDecisionPrompt(decisions: ReadingReceiptDecision[] | undefined) {
+  if (!decisions?.length) return '未指定，默认全部纳入本次收束。';
+  return JSON.stringify(
+    decisions.map((decision) => ({
+      evidenceId: decision.evidenceId,
+      evidenceIndex: decision.evidenceIndex,
+      disposition: decision.disposition,
+    })),
+    null,
+    2,
+  );
 }
 
 function readingCardPromptEvidence(evidenceUnits: ReadingCardEvidenceUnit[]) {
@@ -342,12 +411,12 @@ function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingC
     return {
       status: 'error',
       verdict: 'revise',
-      summary: '审核助手返回的内容格式异常，已保留原始输出供排查。',
+      summary: '审阅助手返回的内容格式异常，已保留原始输出供排查。',
       findings: [
         {
-          section: '整篇笔记',
+          section: '整份回执',
           severity: 'high',
-          problem: '审稿结果 JSON 解析失败，当前这位审核助手的结构化结论无法可靠读取。',
+          problem: '审阅结果 JSON 解析失败，当前这位审阅助手的结构化结论无法可靠读取。',
           evidenceIds: [],
         },
       ],

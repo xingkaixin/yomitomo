@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArticleRecord, ReadingCardRecord, ReadingDeliberationRecord } from '@yomitomo/shared';
-import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
+import type { ReadingCardEvidenceUnit, ReadingReceiptDecision } from '@yomitomo/core';
 import { formatDate } from './app-utils';
 import type { ReadingCardWorkflowStep } from './app-types';
 
@@ -17,14 +17,17 @@ export type ReadingCardWorkflowDerivationInput = {
   deliberation: ReadingDeliberationRecord | null;
   aiCard: ReadingCardRecord | null;
   selectedReviewAgentIds: string[];
+  sourceUpdatedAt: string | null;
   status: ReadingCardWorkflowStatus;
 };
 
 export type ReadingCardWorkflowDerivation = {
   workflowSteps: ReadingCardWorkflowStep[];
   currentAiCard: ReadingCardRecord | null;
+  displayAiCard: ReadingCardRecord | null;
   isWorkflowBusy: boolean;
   canReview: boolean;
+  deliberationIsCurrent: boolean;
   aiCardIsCurrent: boolean;
   reviewIsCurrent: boolean;
 };
@@ -33,14 +36,16 @@ export function deriveReadingCardWorkflow({
   deliberation,
   aiCard,
   selectedReviewAgentIds,
+  sourceUpdatedAt,
   status,
 }: ReadingCardWorkflowDerivationInput): ReadingCardWorkflowDerivation {
-  const aiCardIsCurrent = isReadingCardCurrent(aiCard, deliberation);
+  const deliberationIsCurrent = isReadingDeliberationCurrent(deliberation, sourceUpdatedAt);
+  const aiCardIsCurrent = isReadingCardCurrent(aiCard, deliberation, sourceUpdatedAt);
   const reviewIsCurrent = isReadingCardReviewCurrent(aiCard, aiCardIsCurrent);
-  const currentAiCard =
-    aiCard && aiCardIsCurrent
-      ? { ...aiCard, review: reviewIsCurrent ? aiCard.review : undefined }
-      : null;
+  const displayAiCard = aiCard
+    ? { ...aiCard, review: reviewIsCurrent ? aiCard.review : undefined }
+    : null;
+  const currentAiCard = aiCard && aiCardIsCurrent ? displayAiCard : null;
   const isWorkflowBusy =
     status.deliberation === 'generating' ||
     status.aiCard === 'generating' ||
@@ -48,24 +53,48 @@ export function deriveReadingCardWorkflow({
 
   return {
     workflowSteps: [
-      deriveDeliberationStep(deliberation, status, isWorkflowBusy),
-      deriveAiCardStep(deliberation, aiCard, currentAiCard, status, isWorkflowBusy),
+      deriveDeliberationStep(deliberation, deliberationIsCurrent, status, isWorkflowBusy),
+      deriveAiCardStep(
+        deliberation,
+        deliberationIsCurrent,
+        aiCard,
+        currentAiCard,
+        status,
+        isWorkflowBusy,
+      ),
       deriveReviewStep(aiCard, currentAiCard, selectedReviewAgentIds, status, isWorkflowBusy),
     ],
+    displayAiCard,
     currentAiCard,
     isWorkflowBusy,
     canReview: Boolean(currentAiCard && selectedReviewAgentIds.length > 0 && !isWorkflowBusy),
+    deliberationIsCurrent,
     aiCardIsCurrent,
     reviewIsCurrent,
   };
 }
 
+export function isReadingDeliberationCurrent(
+  deliberation: ReadingDeliberationRecord | null,
+  sourceUpdatedAt: string | null,
+) {
+  return Boolean(
+    deliberation &&
+    (!sourceUpdatedAt || Date.parse(deliberation.updatedAt) >= Date.parse(sourceUpdatedAt)),
+  );
+}
+
 export function isReadingCardCurrent(
   aiCard: ReadingCardRecord | null,
   deliberation: ReadingDeliberationRecord | null,
+  sourceUpdatedAt: string | null,
 ) {
   return Boolean(
-    aiCard && deliberation && Date.parse(aiCard.updatedAt) >= Date.parse(deliberation.updatedAt),
+    aiCard &&
+    deliberation &&
+    isReadingDeliberationCurrent(deliberation, sourceUpdatedAt) &&
+    Date.parse(aiCard.updatedAt) >= Date.parse(deliberation.updatedAt) &&
+    (!sourceUpdatedAt || Date.parse(aiCard.updatedAt) >= Date.parse(sourceUpdatedAt)),
   );
 }
 
@@ -84,13 +113,17 @@ export function useReadingCardWorkflow({
   article,
   articleText,
   evidenceUnits,
+  receiptDecisions,
   reviewAgentIds,
+  sourceUpdatedAt,
   onGenerated,
 }: {
   article: ArticleRecord | null;
   articleText: string;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  receiptDecisions: ReadingReceiptDecision[];
   reviewAgentIds: string[];
+  sourceUpdatedAt: string | null;
   onGenerated: () => void;
 }) {
   const [deliberation, setDeliberation] = useState<ReadingDeliberationRecord | null>(null);
@@ -146,9 +179,10 @@ export function useReadingCardWorkflow({
         deliberation,
         aiCard,
         selectedReviewAgentIds,
+        sourceUpdatedAt,
         status,
       }),
-    [aiCard, deliberation, selectedReviewAgentIds, status],
+    [aiCard, deliberation, selectedReviewAgentIds, sourceUpdatedAt, status],
   );
 
   async function generateAiCard() {
@@ -163,6 +197,7 @@ export function useReadingCardWorkflow({
         article,
         articleText,
         evidenceUnits,
+        receiptDecisions,
         readingDeliberation: deliberation,
       });
       if (!articleRequestIsCurrent(requestArticleId)) return;
@@ -172,7 +207,7 @@ export function useReadingCardWorkflow({
       onGenerated();
     } catch (error) {
       if (!articleRequestIsCurrent(requestArticleId)) return;
-      setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
+      setAiError(error instanceof Error ? error.message : '回执整理失败');
       setStatus((current) => ({ ...current, aiCard: 'error' }));
     }
   }
@@ -187,6 +222,7 @@ export function useReadingCardWorkflow({
         article,
         articleText,
         evidenceUnits,
+        receiptDecisions,
       });
       if (!articleRequestIsCurrent(requestArticleId)) return;
       setDeliberation(result.readingDeliberation);
@@ -200,7 +236,7 @@ export function useReadingCardWorkflow({
       onGenerated();
     } catch (error) {
       if (!articleRequestIsCurrent(requestArticleId)) return;
-      setDeliberationError(error instanceof Error ? error.message : '阅读审议生成失败');
+      setDeliberationError(error instanceof Error ? error.message : '阅读收束失败');
       setStatus((current) => ({ ...current, deliberation: 'error' }));
     }
   }
@@ -215,7 +251,7 @@ export function useReadingCardWorkflow({
       return;
     }
     if (selectedReviewAgentIds.length === 0) {
-      setReviewError('请选择审核助手');
+      setReviewError('请选择审阅助手');
       return;
     }
     const requestArticleId = article.id;
@@ -235,7 +271,7 @@ export function useReadingCardWorkflow({
       onGenerated();
     } catch (error) {
       if (!articleRequestIsCurrent(requestArticleId)) return;
-      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
+      setReviewError(error instanceof Error ? error.message : '读后回执审阅失败');
       setStatus((current) => ({ ...current, review: 'error' }));
     }
   }
@@ -268,7 +304,7 @@ export function useReadingCardWorkflow({
       onGenerated();
     } catch (error) {
       if (!articleRequestIsCurrent(requestArticleId)) return;
-      setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
+      setReviewError(error instanceof Error ? error.message : '读后回执审阅失败');
       setStatus((current) => ({ ...current, review: 'error' }));
     } finally {
       if (articleRequestIsCurrent(requestArticleId)) setRetryingReviewerId(null);
@@ -285,6 +321,7 @@ export function useReadingCardWorkflow({
   return {
     deliberation,
     currentAiCard: workflow.currentAiCard,
+    displayAiCard: workflow.displayAiCard,
     workflowSteps: workflow.workflowSteps,
     errors: {
       ai: aiError,
@@ -294,6 +331,8 @@ export function useReadingCardWorkflow({
     retryingReviewerId,
     selectedReviewAgentIds,
     canReview: workflow.canReview,
+    deliberationIsCurrent: workflow.deliberationIsCurrent,
+    aiCardIsCurrent: workflow.aiCardIsCurrent,
     actions: {
       generateAiCard,
       generateDeliberation,
@@ -306,6 +345,7 @@ export function useReadingCardWorkflow({
 
 function deriveDeliberationStep(
   deliberation: ReadingDeliberationRecord | null,
+  deliberationIsCurrent: boolean,
   status: ReadingCardWorkflowStatus,
   isWorkflowBusy: boolean,
 ): ReadingCardWorkflowStep {
@@ -332,6 +372,17 @@ function deriveDeliberationStep(
     };
   }
   if (deliberation) {
+    if (!deliberationIsCurrent) {
+      return {
+        id: 'deliberation',
+        number: 1,
+        title: '阅读评估',
+        description: '有新批注或讨论，等待重新收束',
+        state: 'active',
+        actionLabel: '重新生成',
+        disabled: isWorkflowBusy,
+      };
+    }
     return {
       id: 'deliberation',
       number: 1,
@@ -355,6 +406,7 @@ function deriveDeliberationStep(
 
 function deriveAiCardStep(
   deliberation: ReadingDeliberationRecord | null,
+  deliberationIsCurrent: boolean,
   aiCard: ReadingCardRecord | null,
   currentAiCard: ReadingCardRecord | null,
   status: ReadingCardWorkflowStatus,
@@ -372,8 +424,11 @@ function deriveAiCardStep(
   } else if (currentAiCard) {
     description = `已提炼 · ${formatDate(currentAiCard.updatedAt)}`;
     state = 'done';
+  } else if (deliberation && !deliberationIsCurrent) {
+    description = '有新痕迹，先重新收束';
+    state = 'waiting';
   } else if (aiCard && deliberation) {
-    description = '审议已更新，等待重新提炼';
+    description = '收束已更新，等待重新打磨';
     state = 'active';
   } else if (deliberation) {
     description = '基于审议报告生成笔记';
@@ -387,7 +442,7 @@ function deriveAiCardStep(
     description,
     state,
     actionLabel: currentAiCard ? '重新提炼' : 'AI 提炼',
-    disabled: !deliberation || isWorkflowBusy,
+    disabled: !deliberation || !deliberationIsCurrent || isWorkflowBusy,
   };
 }
 
@@ -410,11 +465,14 @@ function deriveReviewStep(
   } else if (currentAiCard?.review) {
     description = `已审核 · ${formatDate(currentAiCard.review.updatedAt)}`;
     state = 'done';
+  } else if (aiCard && !currentAiCard) {
+    description = '回执有新痕迹，先重新打磨';
+    state = 'waiting';
   } else if (currentAiCard && aiCard?.review) {
     description = '读后笔记已更新，等待重新审核';
     state = 'active';
   } else if (currentAiCard) {
-    description = selectedReviewAgentIds.length > 0 ? '草稿已生成，可审核' : '请选择审核助手';
+    description = selectedReviewAgentIds.length > 0 ? '回执已生成，可检查' : '请选择审阅助手';
     state = 'active';
   }
 
