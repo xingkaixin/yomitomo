@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 codebase review（主应用状态聚合拆分）
 ---
 
@@ -56,9 +56,9 @@ Origin: 2026-05-16 codebase review（主应用状态聚合拆分）
   - hook 返回 `store`、`storeLoaded`、`refreshStore`、`applyStore`、`storeRef`。
   - draft 初始化不在这个 hook 内做，避免 store hook 认识 settings panel 细节。
 - 验收标准：
-  - [ ] `main.tsx` 不直接调用 `window.yomitomoDesktop.getState()`。
-  - [ ] `onStoreUpdated` 订阅只存在于 store hook。
-  - [ ] `storeRef.current` 与 `store` 同步有测试或 hook smoke test 覆盖。
+  - [x] `main.tsx` 不直接调用 `window.yomitomoDesktop.getState()`。
+  - [x] `onStoreUpdated` 订阅只存在于 store hook。
+  - [x] `storeRef.current` 与 `store` 同步有测试或 hook smoke test 覆盖。
 
 #### 2. 文章写入队列属于阅读库边界，不属于 app shell
 
@@ -70,13 +70,13 @@ Origin: 2026-05-16 codebase review（主应用状态聚合拆分）
   - `updateArticle` 与 `saveArticleReadingProgress` 都依赖 `articleUpdateQueueRef` 串行化写入。
   - 这条规则对阅读库正确性重要，但目前埋在 `App` 中，后续改 sidebar 或 settings 也必须加载这段心智。
 - 建议方案：
-  - 新增 `app-article-store-actions.ts` 或 `use-app-article-actions.ts`。
-  - hook 接收 `storeRef`、`setStore`、`desktop`，返回 `deleteArticle`、`saveArticle`、`updateArticle`、`saveArticleReadingProgress`、`importArticleUrl`、`importEbookFile`。
+  - 新增 `app-article-store-actions.ts`。
+  - hook 接收 `storeRef`、`applyStore`，返回 `deleteArticle`、`saveArticle`、`updateArticle`、`saveArticleReadingProgress`、`importArticleUrl`、`importEbookFile`。
   - `readFileArrayBuffer` 可随 EPUB import action 移入同一模块。
 - 验收标准：
-  - [ ] 文章写入队列只由阅读库 action hook 持有。
-  - [ ] `ReadingLibrary` 接收的保存/导入 props 名称和行为不变。
-  - [ ] 现有 `app-reading-library` 与 `app-source-bookcase` 测试继续通过。
+  - [x] 文章写入队列只由阅读库 action hook 持有。
+  - [x] `ReadingLibrary` 接收的保存/导入 props 名称和行为不变。
+  - [x] 现有 `app-reading-library` 与 `app-source-bookcase` 测试继续通过。
 
 #### 3. 设置草稿和保存状态可以按设置域拆 hook
 
@@ -89,12 +89,12 @@ Origin: 2026-05-16 codebase review（主应用状态聚合拆分）
   - profile/general/shortcut/provider/routes 保存流程都包含 `saving -> saved -> idle`，但错误状态和副作用散在主组件中。
   - `providerDraft`、`selectedProviderId`、`testState` 与 provider panel 强相关，不应由 app shell 直接维护。
 - 建议方案：
-  - 新增 `use-settings-drafts.ts`，按 user/settings/provider 三块返回 draft、dirty flags、save handlers 和 save states。
+  - 新增 `app-settings-drafts.ts`，由单一 `useSettingsDrafts` 持有共享的 `settingsDraft`，再按 user/settings/provider 三块返回 draft、dirty flags、save handlers 和 save states。
   - 先保持 `ProviderSettings` props 不变，只把生成这些 props 的逻辑移出 `App`。
 - 验收标准：
-  - [ ] `main.tsx` 不直接持有 `profileSaveState`、`providerSaveState`、`routeSaveState` 等保存状态。
-  - [ ] provider 新建、选择、删除、测试路径仍由现有 settings tests 覆盖。
-  - [ ] shortcut 冲突判断仍使用 `selectionActionShortcutsConflict`。
+  - [x] `main.tsx` 不直接持有 `profileSaveState`、`providerSaveState`、`routeSaveState` 等保存状态。
+  - [x] provider 新建、选择、删除、测试路径仍由现有 settings tests 覆盖。
+  - [x] shortcut 冲突判断仍使用 `selectionActionShortcutsConflict`。
 
 ## 建议落地顺序
 
@@ -105,12 +105,12 @@ Origin: 2026-05-16 codebase review（主应用状态聚合拆分）
 
 ## 验收标准
 
-- [ ] `apps/desktop/src/renderer/src/main.tsx` 控制在 350 行以内。
-- [ ] `App` 只负责 shell layout、顶层页面切换和 hook 组装。
-- [ ] `pnpm --filter @yomitomo/desktop test -- app-settings app-reading-library app-source-bookcase` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] `pnpm test`、`pnpm build` 在最终 PR 中通过。
+- [x] `apps/desktop/src/renderer/src/main.tsx` 控制在 350 行以内。
+- [x] `App` 只负责 shell layout、顶层页面切换和 hook 组装。
+- [x] `pnpm --filter @yomitomo/desktop test -- app-settings app-reading-library app-source-bookcase` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/desktop lint` 通过。
+- [x] `pnpm test`、`pnpm build` 在最终 PR 中通过。
 
 ## 关键参考位置
 
