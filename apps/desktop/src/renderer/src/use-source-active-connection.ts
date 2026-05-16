@@ -15,6 +15,25 @@ type UseSourceActiveConnectionInput = {
   userProfile: UserProfile;
 };
 
+function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) {
+  const noteRect = noteElement.getBoundingClientRect();
+  const offsetParent = noteElement.offsetParent;
+  if (!(offsetParent instanceof HTMLElement)) {
+    return {
+      x: noteRect.left - readerRect.left,
+      y: noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2),
+    };
+  }
+
+  const parentRect = offsetParent.getBoundingClientRect();
+  const top = Number.parseFloat(noteElement.style.top);
+  const layoutTop = Number.isFinite(top) ? top : noteElement.offsetTop;
+  return {
+    x: parentRect.left - readerRect.left + noteElement.offsetLeft,
+    y: parentRect.top - readerRect.top + layoutTop + Math.min(72, noteRect.height / 2),
+  };
+}
+
 export function useSourceActiveConnection({
   annotationAgents,
   annotations,
@@ -55,7 +74,8 @@ export function useSourceActiveConnection({
     const readerRect = readerElement.getBoundingClientRect();
     const scrollRect = scrollElement.getBoundingClientRect();
     const noteRect = noteElement.getBoundingClientRect();
-    const noteY = noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2);
+    const noteTarget = connectionTargetForNote(noteElement, readerRect);
+    const noteY = noteTarget.y;
     const box = activeBoxes.toSorted((left, right) => {
       const leftY = canvasRect.top - readerRect.top + left.top + left.height / 2;
       const rightY = canvasRect.top - readerRect.top + right.top + right.height / 2;
@@ -68,7 +88,7 @@ export function useSourceActiveConnection({
 
     const startX = canvasRect.left - readerRect.left + box.left + box.width + 6;
     const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
-    const endX = noteRect.left - readerRect.left - 8;
+    const endX = noteTarget.x - 8;
     const endY = noteY;
     const highlightViewportY = readerRect.top + startY;
     const highlightVisible =
