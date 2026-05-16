@@ -7,13 +7,34 @@ import type {
   EpubChapterIndex,
   FocusCoReadingRoutePayload,
   FocusCoReadingRouteResult,
+  LlmProvider,
 } from '@yomitomo/shared';
 import { packReadingContext } from './context-packing';
 import { booleanValue, parseJsonObject, stringValue, uniqueStrings } from './json';
 import { buildAgentRoleCard } from './agent-role-card';
+import { callProviderText } from './provider-client';
 
 const ROUTE_PREVIEW_LIMIT = 180;
 const ROUTE_PACK_TOKEN_BUDGET = 3600;
+
+export async function planFocusCoReadingRoute(
+  provider: LlmProvider,
+  payload: FocusCoReadingRoutePayload,
+  agents: Agent[],
+): Promise<FocusCoReadingRouteResult> {
+  const selectedAgents = agents.filter((agent) => payload.selectedAgentIds.includes(agent.id));
+  if (selectedAgents.length === 0) throw new Error('请选择参与共读的助手');
+
+  const content = await callProviderText(provider, {
+    system:
+      '你是 Yomitomo 的聚焦共读任务路由。根据文章章节和助手角色卡，为章节补充摘要、标签，并给出章节级助手分配。只返回 JSON。',
+    user: buildFocusCoReadingRoutePrompt(payload, selectedAgents),
+    maxTokens: 3200,
+    temperature: 0.2,
+  });
+
+  return parseFocusCoReadingRouteResult(content, payload, selectedAgents);
+}
 
 export function buildFocusCoReadingRoutePrompt(
   payload: FocusCoReadingRoutePayload,

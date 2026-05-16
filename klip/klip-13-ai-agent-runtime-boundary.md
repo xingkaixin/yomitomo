@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 code health review（AI agent 运行链路拆分）
 ---
 
@@ -58,6 +58,11 @@ Origin: 2026-05-16 code health review（AI agent 运行链路拆分）
 - 保持 `testProvider` 和 public export。
 - 不在 `index.ts` 新增业务流程。
 
+### 5. 共享 prompt helper
+
+- 新增 `agent-runtime-prompts.ts`，只承接 `readingIntent*`、`spoilerScopePrompt`、`instructionPromptLine` 这类跨 message / annotation / segment runner 复用的小 helper。
+- 不在 helper 中放 provider call、stream 解析、dedup 或 reading memory update，避免重新形成运行时聚合文件。
+
 ## 风险
 
 - 流式解析路径有用户可感知行为，必须保留 incomplete JSON 日志和 parse error 日志。
@@ -66,7 +71,15 @@ Origin: 2026-05-16 code health review（AI agent 运行链路拆分）
 
 ## 验收标准
 
-- `packages/ai/src/index.ts` 降到兼容 barrel + 少量入口函数。
-- `buildAgentPrompt`、`buildAgentMessageSystemPrompt`、`parseAgentMentionInstructions` 等现有测试继续通过。
-- `pnpm --filter @yomitomo/ai test -- index` 通过。
-- `pnpm --filter @yomitomo/ai typecheck`、`lint`、`format:check` 通过。
+- [x] `packages/ai/src/index.ts` 降到兼容 barrel + 少量入口函数。
+- [x] `buildAgentPrompt`、`buildAgentMessageSystemPrompt`、`parseAgentMentionInstructions` 等现有测试继续通过。
+- [x] `pnpm --filter @yomitomo/ai test -- index` 通过。
+- [x] `pnpm --filter @yomitomo/ai test` 通过。
+- [x] `pnpm --filter @yomitomo/ai typecheck`、`lint`、`format:check` 通过。
+
+## 实施结果
+
+- `packages/ai/src/index.ts` 收敛到 109 行，只保留 public re-export 和 `testProvider`。
+- 新增 `agent-message.ts`、`agent-annotation.ts`、`segment-annotation-runner.ts`，分别承接 agent message、非 segment annotation 和 segment annotation 运行链路。
+- `planFocusCoReadingRoute` 移入 `focus-route.ts`，`index.ts` 保持兼容导出。
+- 验证通过：AI 包 `typecheck`、`lint`、`format:check`、`test -- index` 和完整 `test`。
