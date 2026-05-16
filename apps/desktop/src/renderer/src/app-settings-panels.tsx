@@ -27,7 +27,8 @@ import { Button } from './components/ui/button';
 import { Kbd } from './components/ui/kbd';
 
 export { AgentForm, AgentSettings } from './app-settings-agent-panel';
-export { ProviderForm, ProviderSettings } from './app-settings-provider-panel';
+export { ProviderForm } from './app-settings-provider-form';
+export { ProviderSettings } from './app-settings-provider-panel';
 export { UserProfileSettingsDialog } from './app-settings-profile-dialog';
 
 export type SettingsSectionKey = 'collection' | 'models' | 'shortcuts' | 'data' | 'about';

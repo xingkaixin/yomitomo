@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 code health review（Provider Settings 价值驱动拆分）
 ---
 
