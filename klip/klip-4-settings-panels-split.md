@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 ---
 
 # klip-4-settings-panels-split
@@ -52,12 +52,13 @@ Status: Draft
   - `ProviderForm` 管 provider 字段和模型列表获取。
   - 四类职责共享一个文件，任何 provider form 改动都会触碰完整设置面板上下文。
 - 建议方案：
-  - 新增 `app-settings-provider-panel.tsx`，移动 `ProviderSettings`、`ProviderEditorContent`、`TaskProviderRoutes`、`ProviderForm` 和 provider logo map。
-  - 抽 `useProviderModelOptions(draft, onChange)`，承接 `fetchModels` 的 loading/error/notice 状态。
+  - 新增 `app-settings-provider-panel.tsx`，移动 `ProviderSettings`、`ProviderEditorContent`、`TaskProviderRoutes`、`ProviderForm`、`ConfigList`、`SecretInput` 和 provider logo map。
+  - 抽 `useProviderModelOptions(draft, onChange)`，承接 `fetchModels` 的 loading/error/notice 状态，并集中处理 `window.yomitomoDesktop.listProviderModels` 访问。
   - `app-settings-panels.tsx` 保留 re-export，降低调用侧改动。
 - 验收标准：
   - [ ] Provider 相关组件不再定义在 `app-settings-panels.tsx`。
   - [ ] `ProviderForm` 文件内没有与 Agent 设置相关的 imports。
+  - [ ] `ProviderForm` 不直接访问 `window.yomitomoDesktop`，只消费模型列表 hook 返回的状态和动作。
   - [ ] 模型获取成功、失败、无 API Key fallback 路径有测试覆盖。
 
 #### 2. Agent 列表与 Agent 表单应按助手域独立
@@ -71,16 +72,37 @@ Status: Draft
   - Agent 表单使用 personality、颜色、密度和状态控制。
   - 这两块都只依赖 `app-settings.ts` 的 agent types/options，不需要与 Provider form 共享文件。
 - 建议方案：
-  - 新增 `app-settings-agent-panel.tsx`，移动 `AgentSettings`、`AgentProfileListCard`、`AgentFilterTabs`、`AgentForm`、颜色预览和头像编辑。
+  - 新增 `app-settings-agent-panel.tsx`，移动 `AgentSettings`、`AgentProfileListCard`、`AgentFilterTabs`、`AgentForm`、`moveOptionSelection`、agent cover map 和 presence line 文案。
   - 如果 assets map 太长，单独放 `app-settings-agent-assets.ts`。
 - 验收标准：
   - [ ] Agent 相关组件不再定义在 `app-settings-panels.tsx`。
-  - [ ] Agent panel 文件只 import agent/profile 相关 assets。
+  - [ ] Agent panel 文件只 import agent cover / reviewer cover 相关 assets，不包含用户资料头像上传逻辑。
   - [ ] `app-settings-panels.test.tsx` 中 Agent 场景继续通过。
 
 ### P2（基础 shell）
 
-#### 3. `app-settings-panels.tsx` 应只保留导航和通用 section shell
+#### 3. 用户资料弹窗和跨域表单 primitive 需要明确归属
+
+- 位置：
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:664`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:1915`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:1946`
+  - `apps/desktop/src/renderer/src/app-settings-panels.tsx:2021`
+- 现象 / 风险：
+  - `UserProfileSettingsDialog` 属于个人资料设置，不属于 Provider、Agent 或通用 shell。
+  - `ProfileAvatarEditor` 和 `AnnotationColorPreview` 只服务用户资料弹窗，应随弹窗移动。
+  - `ColorPicker` 同时被用户资料和 Agent 表单使用，如果随某个业务面板移动，会制造反向依赖。
+  - 如果只拆 Provider / Agent，`app-settings-panels.tsx` 仍会保留个人资料弹窗和多个尾部 helper，600 行验收目标不成立。
+- 建议方案：
+  - 新增 `app-settings-profile-dialog.tsx`，移动 `UserProfileSettingsDialog`、`ProfileAvatarEditor` 和 `AnnotationColorPreview`。
+  - 新增 `app-settings-color-picker.tsx`，移动 `ColorPicker`，供 profile dialog 和 agent panel 引用。
+  - `app-settings-panels.tsx` 继续 re-export `UserProfileSettingsDialog`，保持 `main.tsx` import 不变。
+- 验收标准：
+  - [ ] 用户资料弹窗不再定义在 `app-settings-panels.tsx`。
+  - [ ] `app-settings-agent-panel.tsx` 不 import 用户资料弹窗模块。
+  - [ ] `ColorPicker` 不从 Provider、Agent 或 Profile 任一业务面板反向导出。
+
+#### 4. `app-settings-panels.tsx` 应只保留导航和通用 section shell
 
 - 位置：
   - `apps/desktop/src/renderer/src/app-settings-panels.tsx:281`
@@ -92,7 +114,7 @@ Status: Draft
   - shell 修改与具体设置域修改无法隔离。
 - 建议方案：
   - `app-settings-panels.tsx` 保留 `SettingsNavButton`、`SettingsSectionShell`、`GeneralSettings`、`ShortcutSettings`、`DataManagementSettings` 等较轻面板。
-  - Provider 和 Agent 域通过 re-export 暴露。
+  - Provider、Agent 和 Profile 域通过 re-export 暴露。
 - 验收标准：
   - [ ] `app-settings-panels.tsx` 控制在 600 行以内。
   - [ ] `main.tsx` 的 import 不需要一次性大改。
@@ -101,11 +123,12 @@ Status: Draft
 
 1. 先拆 Provider 域，因为 `ProviderForm` 圈复杂度和异步路径最高。
 2. 再拆 Agent 域，并保留现有测试。
-3. 最后清理 `app-settings-panels.tsx` 的 re-export 和 imports。
+3. 再拆用户资料弹窗，并把 `ColorPicker` 放到独立共享文件。
+4. 最后清理 `app-settings-panels.tsx` 的 re-export 和 imports。
 
 ## 验收标准
 
 - [ ] `pnpm --filter @yomitomo/desktop test -- app-settings-panels` 通过。
 - [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
 - [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] 设置页 Provider、Agent、Shortcut 基本交互手测无行为变化。
+- [ ] 设置页 Provider、Agent、Profile、Shortcut 基本交互手测无行为变化。
