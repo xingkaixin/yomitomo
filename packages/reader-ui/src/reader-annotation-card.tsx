@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, Trash2 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import {
@@ -7,19 +7,16 @@ import {
   annotationPrimaryComment,
   annotationThreadComments,
   commentPersona,
-  getMentionQuery,
   questionStatusLabel,
 } from '@yomitomo/core';
 import {
   AnnotationTypeLabelContent,
   AvatarBadge,
   ReadingIntentLabelContent,
-  SubmitShortcutKeys,
 } from './reader-component-primitives';
+import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatTime } from './reader-date-utils';
-import { matchesAgentMentionQuery, mentionDraftWithAgent } from './reader-mention-utils';
 import { hashString, noteStyle } from './reader-style-utils';
-import { isMessageSendShortcutEvent } from './reader-utils';
 
 const DELETE_HOLD_MS = 1600;
 
@@ -64,25 +61,13 @@ export function AnnotationCard({
   onFocus: (annotationId: string) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
 }) {
-  const [draft, setDraft] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<string>>(() => new Set());
   const [deleteHolding, setDeleteHolding] = useState(false);
-  const [caretIndex, setCaretIndex] = useState(0);
-  const [agentTrayOpen, setAgentTrayOpen] = useState(false);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const sectionRef = useRef<HTMLElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const deleteTimerRef = useRef<number | null>(null);
   const previousCommentIdsRef = useRef<string[]>([]);
-  const mentionQuery = getMentionQuery(draft, caretIndex);
-  const mentionAgents = annotationMentionAgents(annotation, agents);
-  const visibleMentionAgents = mentionAgents.slice(0, 2);
-  const overflowMentionAgents = mentionAgents.slice(2);
-  const matchedAgents =
-    mentionQuery === null
-      ? []
-      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
+  const suggestedMentionAgents = annotationMentionAgents(annotation, agents);
   const author = annotationAuthor(annotation, userProfile, agents);
   const primaryComment = useMemo(() => annotationPrimaryComment(annotation), [annotation]);
   const threadComments = useMemo(() => annotationThreadComments(annotation), [annotation]);
@@ -101,15 +86,6 @@ export function AnnotationCard({
   );
 
   useEffect(() => {
-    setSelectedMentionIndex(0);
-  }, [mentionQuery?.query]);
-
-  useEffect(() => {
-    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
-      setSelectedMentionIndex(0);
-  }, [matchedAgents.length, selectedMentionIndex]);
-
-  useEffect(() => {
     if (!active && expanded) {
       setExpanded(false);
       setExpandedCommentIds(new Set());
@@ -119,7 +95,6 @@ export function AnnotationCard({
   useEffect(() => {
     setExpanded(false);
     setExpandedCommentIds(new Set());
-    setAgentTrayOpen(false);
   }, [commentsCloseKey]);
 
   useEffect(() => {
@@ -127,8 +102,6 @@ export function AnnotationCard({
     previousCommentIdsRef.current = threadCommentIds;
     setExpandedCommentIds(new Set());
     setExpanded(true);
-    setAgentTrayOpen(false);
-    requestAnimationFrame(() => textareaRef.current?.focus());
   }, [replyRequestKey]);
 
   useLayoutEffect(() => {
@@ -159,12 +132,6 @@ export function AnnotationCard({
     [noteRef],
   );
 
-  function submit() {
-    onAddComment(annotation.id, draft);
-    setDraft('');
-    setCaretIndex(0);
-  }
-
   function stopDeleteTimer() {
     if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
     deleteTimerRef.current = null;
@@ -185,55 +152,6 @@ export function AnnotationCard({
     }, DELETE_HOLD_MS);
   }
 
-  function selectAgent(agent: PublicAgent) {
-    insertAgent(agent);
-  }
-
-  function insertAgent(agent: PublicAgent) {
-    const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
-    setDraft(next.content);
-    setCaretIndex(next.caretIndex);
-    setAgentTrayOpen(false);
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
-    });
-  }
-
-  function updateCaret(element: HTMLTextAreaElement) {
-    setCaretIndex(element.selectionStart);
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
-      event.preventDefault();
-      setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
-      return;
-    }
-
-    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
-      event.preventDefault();
-      setSelectedMentionIndex((index) => (index - 1 + matchedAgents.length) % matchedAgents.length);
-      return;
-    }
-
-    if (matchedAgents.length > 0 && event.key === 'Tab') {
-      event.preventDefault();
-      selectAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]);
-      return;
-    }
-
-    if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
-      event.preventDefault();
-      submit();
-    }
-  }
-
-  function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp') return;
-    updateCaret(event.currentTarget);
-  }
-
   function handleCardClick(event: React.MouseEvent<HTMLElement>) {
     if (active) return;
     if (!(event.target instanceof Element)) return;
@@ -245,7 +163,6 @@ export function AnnotationCard({
     if (expanded) {
       setExpanded(false);
       setExpandedCommentIds(new Set());
-      setAgentTrayOpen(false);
       return;
     }
 
@@ -253,7 +170,6 @@ export function AnnotationCard({
     previousCommentIdsRef.current = threadCommentIds;
     setExpandedCommentIds(new Set());
     setExpanded(true);
-    setAgentTrayOpen(false);
   }
 
   function setCommentExpanded(commentId: string, nextExpanded: boolean) {
@@ -263,12 +179,6 @@ export function AnnotationCard({
       else next.delete(commentId);
       return next;
     });
-  }
-
-  function closeAgentTrayOnBlur(event: React.FocusEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-    setAgentTrayOpen(false);
   }
 
   return (
@@ -408,98 +318,14 @@ export function AnnotationCard({
             ) : (
               <div className="reader-comments-empty">还没有留言</div>
             )}
-            <div className="reader-comment-box">
-              <textarea
-                aria-label="留言内容"
-                ref={textareaRef}
-                placeholder="给这条批注留言，输入 @ 呼叫助手"
-                value={draft}
-                onChange={(event) => {
-                  setDraft(event.currentTarget.value);
-                  updateCaret(event.currentTarget);
-                }}
-                onClick={(event) => updateCaret(event.currentTarget)}
-                onKeyDown={handleKeyDown}
-                onKeyUp={handleKeyUp}
-                onSelect={(event) => updateCaret(event.currentTarget)}
-              />
-              {matchedAgents.length > 0 ? (
-                <div className="reader-agent-menu">
-                  {matchedAgents.map((agent, index) => (
-                    <button
-                      className={index === selectedMentionIndex ? 'is-active' : ''}
-                      key={agent.id}
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => selectAgent(agent)}
-                    >
-                      <AvatarBadge avatar={agent.avatar} />
-                      <strong>{agent.nickname}</strong>
-                      <em>@{agent.username}</em>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <div className="reader-note-footer">
-              <div className="reader-comment-agent-tray">
-                <span className="reader-comment-mention-label" aria-hidden="true">
-                  @
-                </span>
-                {visibleMentionAgents.map((agent) => (
-                  <button
-                    className="reader-comment-agent-avatar"
-                    key={agent.id}
-                    type="button"
-                    aria-label={`插入 @${agent.username}`}
-                    title={`${agent.nickname} @${agent.username}`}
-                    onClick={() => insertAgent(agent)}
-                  >
-                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                  </button>
-                ))}
-                {overflowMentionAgents.length > 0 ? (
-                  <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
-                    <button
-                      className="reader-comment-agent-more-button"
-                      type="button"
-                      aria-expanded={agentTrayOpen}
-                      aria-label={`更多助手，${overflowMentionAgents.length} 个`}
-                      title={`更多助手，${overflowMentionAgents.length} 个`}
-                      onClick={() => setAgentTrayOpen((open) => !open)}
-                    >
-                      <MoreHorizontal size={16} />
-                    </button>
-                    {agentTrayOpen ? (
-                      <div className="reader-comment-agent-more-menu">
-                        {overflowMentionAgents.map((agent) => (
-                          <button key={agent.id} type="button" onClick={() => insertAgent(agent)}>
-                            <AvatarBadge
-                              avatar={agent.avatar}
-                              fallback={agent.nickname.slice(0, 1)}
-                            />
-                            <strong>{agent.nickname}</strong>
-                            <em>@{agent.username}</em>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-              <button
-                className="reader-add-comment"
-                type="button"
-                aria-label="添加留言"
-                onClick={submit}
-              >
-                <SubmitShortcutKeys
-                  shortcut={messageSendShortcut}
-                  shortcutModifier={shortcutModifier}
-                />
-                <span>发送</span>
-              </button>
-            </div>
+            <AnnotationCommentComposer
+              agents={agents}
+              focusRequestKey={replyRequestKey}
+              messageSendShortcut={messageSendShortcut}
+              shortcutModifier={shortcutModifier}
+              suggestedAgents={suggestedMentionAgents}
+              onSubmit={(content) => onAddComment(annotation.id, content)}
+            />
           </div>
         </div>
       ) : null}
