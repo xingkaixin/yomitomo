@@ -56,10 +56,10 @@ Status: Complete
   - 抽 `useProviderModelOptions(draft, onChange)`，承接 `fetchModels` 的 loading/error/notice 状态，并集中处理 `window.yomitomoDesktop.listProviderModels` 访问。
   - `app-settings-panels.tsx` 保留 re-export，降低调用侧改动。
 - 验收标准：
-  - [ ] Provider 相关组件不再定义在 `app-settings-panels.tsx`。
-  - [ ] `ProviderForm` 文件内没有与 Agent 设置相关的 imports。
-  - [ ] `ProviderForm` 不直接访问 `window.yomitomoDesktop`，只消费模型列表 hook 返回的状态和动作。
-  - [ ] 模型获取成功、失败、无 API Key fallback 路径有测试覆盖。
+  - [x] Provider 相关组件不再定义在 `app-settings-panels.tsx`。
+  - [x] `ProviderForm` 文件内没有与 Agent 设置相关的 imports。
+  - [x] `ProviderForm` 不直接访问 `window.yomitomoDesktop`，只消费模型列表 hook 返回的状态和动作。
+  - [x] 模型获取成功、失败、无 API Key fallback 路径有测试覆盖。
 
 #### 2. Agent 列表与 Agent 表单应按助手域独立
 
@@ -75,9 +75,9 @@ Status: Complete
   - 新增 `app-settings-agent-panel.tsx`，移动 `AgentSettings`、`AgentProfileListCard`、`AgentFilterTabs`、`AgentForm`、`moveOptionSelection`、agent cover map 和 presence line 文案。
   - 如果 assets map 太长，单独放 `app-settings-agent-assets.ts`。
 - 验收标准：
-  - [ ] Agent 相关组件不再定义在 `app-settings-panels.tsx`。
-  - [ ] Agent panel 文件只 import agent cover / reviewer cover 相关 assets，不包含用户资料头像上传逻辑。
-  - [ ] `app-settings-panels.test.tsx` 中 Agent 场景继续通过。
+  - [x] Agent 相关组件不再定义在 `app-settings-panels.tsx`。
+  - [x] Agent panel 文件只 import agent cover / reviewer cover 相关 assets，不包含用户资料头像上传逻辑。
+  - [x] `app-settings-panels.test.tsx` 中 Agent 场景继续通过。
 
 ### P2（基础 shell）
 
@@ -98,9 +98,9 @@ Status: Complete
   - 新增 `app-settings-color-picker.tsx`，移动 `ColorPicker`，供 profile dialog 和 agent panel 引用。
   - `app-settings-panels.tsx` 继续 re-export `UserProfileSettingsDialog`，保持 `main.tsx` import 不变。
 - 验收标准：
-  - [ ] 用户资料弹窗不再定义在 `app-settings-panels.tsx`。
-  - [ ] `app-settings-agent-panel.tsx` 不 import 用户资料弹窗模块。
-  - [ ] `ColorPicker` 不从 Provider、Agent 或 Profile 任一业务面板反向导出。
+  - [x] 用户资料弹窗不再定义在 `app-settings-panels.tsx`。
+  - [x] `app-settings-agent-panel.tsx` 不 import 用户资料弹窗模块。
+  - [x] `ColorPicker` 不从 Provider、Agent 或 Profile 任一业务面板反向导出。
 
 #### 4. `app-settings-panels.tsx` 应只保留导航和通用 section shell
 
@@ -116,8 +116,8 @@ Status: Complete
   - `app-settings-panels.tsx` 保留 `SettingsNavButton`、`SettingsSectionShell`、`GeneralSettings`、`ShortcutSettings`、`DataManagementSettings` 等较轻面板。
   - Provider、Agent 和 Profile 域通过 re-export 暴露。
 - 验收标准：
-  - [ ] `app-settings-panels.tsx` 控制在 600 行以内。
-  - [ ] `main.tsx` 的 import 不需要一次性大改。
+  - [x] `app-settings-panels.tsx` 控制在 600 行以内。
+  - [x] `main.tsx` 的 import 不需要一次性大改。
 
 ## 建议落地顺序
 
@@ -128,7 +128,7 @@ Status: Complete
 
 ## 验收标准
 
-- [ ] `pnpm --filter @yomitomo/desktop test -- app-settings-panels` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] 设置页 Provider、Agent、Profile、Shortcut 基本交互手测无行为变化。
+- [x] `pnpm --filter @yomitomo/desktop test -- app-settings-panels` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/desktop lint` 通过。
+- [~] 设置页 Provider、Agent、Profile、Shortcut 基本交互由 `app-settings-panels.test.tsx` 覆盖；本 KLIP 未单独记录 Electron 手测。

@@ -56,10 +56,10 @@ Status: Complete
   - hook 不接收完整 `reviewAgents` 对象；review agent 的昵称、头像、颜色属于展示组件输入，workflow 只需要可用 reviewer id 列表。
   - `ReadingCard` 只消费 hook 返回的 `workflowSteps`、`currentAiCard`、`errors`、`actions`、`retryingReviewerId` 和 reviewer selection state。
 - 验收标准：
-  - [ ] freshness 判断只出现在 `app-reading-card-workflow.ts` 及其测试中。
-  - [ ] `deriveReadingCardWorkflow` 的返回值不包含 `onAction` 或其他 React callback。
-  - [ ] `deriveReadingCardWorkflow` 有单元测试覆盖 idle、generating、error、stale card、stale review。
-  - [ ] `ReadingCard` 不再内联派生 `workflowSteps`，也不再直接持有 `deliberationState`、`aiState`、`reviewState` 这组 workflow status state。
+  - [x] freshness 判断只出现在 `app-reading-card-workflow.ts` 及其测试中。
+  - [x] `deriveReadingCardWorkflow` 的返回值不包含 `onAction` 或其他 React callback。
+  - [x] `deriveReadingCardWorkflow` 有单元测试覆盖 idle、generating、error、stale card、stale review。
+  - [x] `ReadingCard` 不再内联派生 `workflowSteps`，也不再直接持有 `deliberationState`、`aiState`、`reviewState` 这组 workflow status state。
 
 #### 2. Review agent 选择与 review 执行耦合在同一组件
 
@@ -75,8 +75,8 @@ Status: Complete
   - 抽 `ReadingCardReviewAgentStrip` 展示组件。
   - hook 暴露 `selectedReviewAgentIds`、`toggleReviewAgent`、`canReview`；组件继续接收完整 `reviewAgents` 用于渲染头像、昵称和颜色。
 - 验收标准：
-  - [ ] 审核助手条可单独组件测试。
-  - [ ] 没有审核助手时仍显示原文案“请先在助手设置中创建审核助手。”
+  - [x] 审核助手条可单独组件测试。
+  - [x] 没有审核助手时仍显示原文案“请先在助手设置中创建审核助手。”
 
 ### P2（展示层分离）
 
@@ -94,9 +94,9 @@ Status: Complete
   - `ReadingCardOutputStack` 暂不作为必须项；只有在抽出 workflow hook 后，props 列表仍然简洁时再拆。若需要传入大量 errors、draft、review retry、stats 和 callbacks，则保留在顶层更简单。
   - 不改变 DOM className，避免 CSS 回归。
 - 验收标准：
-  - [ ] 证据区从 `ReadingCard` return 中移出，DOM className 和空态文案不变。
-  - [ ] 若拆 `ReadingCardOutputStack`，其 props 必须保持在当前真实依赖内，不能为了减少顶层行数引入透传式组件。
-  - [ ] 现有 `app-reading-card-panel.test.tsx` 继续通过。
+  - [x] 证据区从 `ReadingCard` return 中移出，DOM className 和空态文案不变。
+  - [x] 若拆 `ReadingCardOutputStack`，其 props 必须保持在当前真实依赖内，不能为了减少顶层行数引入透传式组件。
+  - [x] 现有 `app-reading-card-panel.test.tsx` 继续通过。
 
 ## 建议落地顺序
 
@@ -107,7 +107,7 @@ Status: Complete
 
 ## 验收标准
 
-- [ ] `pnpm --filter @yomitomo/desktop test -- app-reading-card` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] 重新生成审议、AI 提炼、审核、单个 reviewer retry 的手测路径行为不变。
+- [x] `pnpm --filter @yomitomo/desktop test -- app-reading-card` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/desktop lint` 通过。
+- [~] 重新生成审议、AI 提炼、审核、单个 reviewer retry 路径由 `app-reading-card-panel.test.tsx` 覆盖；本 KLIP 未单独记录 Electron 手测。

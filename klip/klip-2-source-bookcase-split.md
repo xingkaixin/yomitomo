@@ -55,10 +55,10 @@ Status: Complete
   - 新增 `app-source-bookcase-shared.ts`，承载 `SourceBookcaseProps`、`EbookArticleRecord` 等拆分后跨文件使用的类型，以及真正同时被 Web/EPUB 使用的 helper。
   - 保留 `app-source-bookcase.tsx` 为薄入口，只保留空态、Web/EPUB 分流、`SourceBookcase` 与 `isEbookArticle`。
 - 验收标准：
-  - [ ] `app-source-bookcase.tsx` 控制在 150 行以内。
-  - [ ] Web-only 文件不 import `app-ebook-reader-utils.ts`。
-  - [ ] EPUB-only 文件不持有 Web 正文 HTML sanitizer。
-  - [ ] 拆分后的子组件不从入口文件反向 import props 类型，避免入口与实现文件形成循环依赖。
+  - [x] `app-source-bookcase.tsx` 控制在 150 行以内。
+  - [x] Web-only 文件不 import `app-ebook-reader-utils.ts`。
+  - [x] EPUB-only 文件不持有 Web 正文 HTML sanitizer。
+  - [x] 拆分后的子组件不从入口文件反向 import props 类型，避免入口与实现文件形成循环依赖。
 
 #### 2. 共用阅读器辅助逻辑识别不完整
 
@@ -85,11 +85,11 @@ Status: Complete
   - `sourceEbookReaderStyles`、`ebookAnnotationNavigationState`、`ebookPageTextRange`、`annotationNavigationForTextRange`、`annotationTextStart`、`annotationTextEnd`、`timestampValue` 留在 `app-source-bookcase-ebook.tsx`。
   - 对 `agentInstructionFromNote` 和 `targetAnchorReadingPlan` 加单元测试，防止拆分后 @ 提及清理和选区 readingPlan 退化。
 - 验收标准：
-  - [ ] Web/EPUB 都使用的 helper 从组件实现文件移出。
-  - [ ] Web-only helper 不出现在 shared 文件中。
-  - [ ] EPUB-only helper 不出现在 shared 文件中。
-  - [ ] `agentInstructionFromNote("@lin 解释这里", [lin])` 类场景有测试覆盖。
-  - [ ] `targetAnchorReadingPlan(undefined, ...)` 返回空数组的边界有测试覆盖。
+  - [x] Web/EPUB 都使用的 helper 从组件实现文件移出。
+  - [x] Web-only helper 不出现在 shared 文件中。
+  - [x] EPUB-only helper 不出现在 shared 文件中。
+  - [x] `agentInstructionFromNote("@lin 解释这里", [lin])` 类场景有测试覆盖。
+  - [x] `targetAnchorReadingPlan(undefined, ...)` 返回空数组的边界有测试覆盖。
 
 ### P2（测试与回归面）
 
@@ -105,10 +105,10 @@ Status: Complete
   - 新增 `app-source-bookcase.test.tsx`，至少覆盖空态、Web article 进入 WebSourceBookcase、ebook article 进入 EbookBookcase 的分流。
   - EPUB smoke test 可以 mock Foliate view，不在本 KLIP 中要求真实 EPUB 渲染。
 - 验收标准：
-  - [ ] `SourceBookcase` 空态可渲染。
-  - [ ] Web article 渲染 Web 分支，不出现 EPUB loading/status UI。
-  - [ ] ebook article 走 EPUB 分支。
-  - [ ] `app-source-bookcase-web.tsx` 不 import `app-ebook-reader-utils.ts`。
+  - [x] `SourceBookcase` 空态可渲染。
+  - [x] Web article 渲染 Web 分支，不出现 EPUB loading/status UI。
+  - [x] ebook article 走 EPUB 分支。
+  - [x] `app-source-bookcase-web.tsx` 不 import `app-ebook-reader-utils.ts`。
 
 ## 建议落地顺序
 
@@ -118,7 +118,7 @@ Status: Complete
 
 ## 验收标准
 
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop test -- app-source-bookcase` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] `app-source-bookcase.tsx` 只保留空态、入口分流和面向 `app-reading-library.tsx` 的 public exports。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/desktop test -- app-source-bookcase` 通过。
+- [x] `pnpm --filter @yomitomo/desktop lint` 通过。
+- [x] `app-source-bookcase.tsx` 只保留空态、入口分流和面向 `app-reading-library.tsx` 的 public exports。

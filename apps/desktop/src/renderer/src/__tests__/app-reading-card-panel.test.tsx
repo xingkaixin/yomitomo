@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Agent,
@@ -213,6 +213,14 @@ function installDesktopApi() {
   return desktop;
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 describe('ReadingCard', () => {
   it('renders the review agent strip empty state', () => {
     render(
@@ -290,6 +298,56 @@ describe('ReadingCard', () => {
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores stale deliberation results after switching articles', async () => {
+    const desktop = installDesktopApi();
+    const pendingDeliberation = deferred<{ readingDeliberation: ReadingDeliberationRecord }>();
+    desktop.generateReadingDeliberation.mockReturnValueOnce(pendingDeliberation.promise);
+    const onGenerated = vi.fn();
+    const { rerender } = render(
+      <ReadingCard
+        article={article()}
+        reviewAgents={[]}
+        onGenerated={onGenerated}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /生成审议/ }));
+
+    await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
+    rerender(
+      <ReadingCard
+        article={article({
+          id: 'article_2',
+          title: '第二篇文章',
+          contentHtml: '<article><p>另一篇正文。</p></article>',
+          contentHash: 'hash_2',
+          annotations: [],
+        })}
+        reviewAgents={[]}
+        onGenerated={onGenerated}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    await act(async () => {
+      pendingDeliberation.resolve({
+        readingDeliberation: deliberation({
+          title: '旧文章审议',
+          contentMarkdown: '## 旧结论\n不应出现',
+          sections: [{ title: '旧结论', content: '不应出现' }],
+          updatedAt: '2026-05-04T00:02:00.000Z',
+        }),
+      });
+      await pendingDeliberation.promise;
+    });
+
+    expect(screen.getByText('第二篇文章')).toBeTruthy();
+    expect(screen.queryByText('旧文章审议')).toBeNull();
+    expect(screen.queryByText('旧结论')).toBeNull();
+    expect(onGenerated).not.toHaveBeenCalled();
   });
 
   it('starts AI card generation from the current deliberation', async () => {
