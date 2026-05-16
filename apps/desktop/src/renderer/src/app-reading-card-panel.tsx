@@ -173,6 +173,7 @@ export function ReadingCard({
             <ReadingDeliberationPanel
               deliberation={deliberation}
               evidenceUnits={evidenceUnits}
+              userProfile={userProfile}
               onOpenEvidence={onOpenEvidence}
             />
           ) : null}
@@ -194,6 +195,7 @@ export function ReadingCard({
               annotationAgents={annotationAgents}
               article={article}
               evidenceUnits={evidenceUnits}
+              locked={!showReceiptTriage}
               receiptDispositionById={receiptDispositionById}
               sourceUpdatedAt={sourceUpdatedAt || article.updatedAt}
               userProfile={userProfile}
@@ -296,7 +298,7 @@ function ReadingCardWorkflow({
   const blockedByTriage = receiptClarifyCount > 0 && step.id !== 'review';
 
   return (
-    <section className="reading-card-workflow" aria-label="读后回执收束操作">
+    <section className="reading-card-workflow" aria-label="读后回执生成流程">
       <article className={`reading-card-workflow-step is-${step.state}`} key={step.id}>
         <header>
           <span className="reading-card-workflow-index" aria-hidden="true">
@@ -346,20 +348,20 @@ function currentReadingReceiptStep(steps: ReadingCardWorkflowStep[]) {
 }
 
 function readingReceiptStepTitle(step: ReadingCardWorkflowStep) {
-  if (step.id === 'deliberation') return '收束阅读';
+  if (step.id === 'deliberation') return '拣选';
   if (step.id === 'card') return '整理回执';
   return '审阅席';
 }
 
 function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
   if (step.id === 'deliberation') {
-    if (step.state === 'running') return '正在整理停顿、分歧和问题';
-    if (step.state === 'done') return step.description.replace('已生成', '已收束');
-    if (step.state === 'error') return '收束失败，可重试';
+    if (step.state === 'running') return '正在把纳入材料整理成阅读所得';
+    if (step.state === 'done') return step.description;
+    if (step.state === 'error') return '阅读所得生成失败，可重试';
     if (step.description.includes('新批注') || step.description.includes('新讨论')) {
       return step.description;
     }
-    return '把批注、讨论和助手痕迹收起来';
+    return '把要进入阅读所得的材料拣出来';
   }
   if (step.id === 'card') {
     if (step.state === 'running') return '正在打磨可回看的回执';
@@ -369,7 +371,7 @@ function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
       return step.description;
     }
     if (step.state === 'active') return '生成一句话带走和可保存成稿';
-    return '先收束阅读现场';
+    return '先生成阅读所得';
   }
   if (step.state === 'running') return '审阅助手正在检查证据和表达';
   if (step.state === 'done') return step.description.replace('已审核', '已检查');
@@ -383,7 +385,9 @@ function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
 
 function readingReceiptStepActionLabel(step: ReadingCardWorkflowStep) {
   if (step.id === 'deliberation') {
-    return step.state === 'done' || step.actionLabel.includes('重新') ? '重新收束' : '收束这次阅读';
+    return step.state === 'done' || step.actionLabel.includes('重新')
+      ? '重新生成阅读所得'
+      : '生成阅读所得';
   }
   if (step.id === 'card') return step.state === 'done' ? '重新打磨' : '打磨成回执';
   return step.state === 'done' ? '重新检查' : '请审阅席检查';

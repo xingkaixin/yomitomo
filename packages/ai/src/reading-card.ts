@@ -66,7 +66,7 @@ export async function generateReadingDeliberation(
   input: GenerateReadingDeliberationInput,
 ) {
   const system =
-    '你是 Yomitomo 的阅读审议编辑。你的任务是基于文章全文、读者批注、助手批注和评论 thread，整理这场阅读讨论已经形成的判断、分歧、证据强弱和未决问题。保持中立、具体、可追溯，所有判断都要能回到原文或证据单元。';
+    '你是 Yomitomo 的阅读所得整理员。你的任务不是总结文章，而是基于用户已经拣选纳入的批注、助手批注和评论 thread，整理这次阅读真正留给用户的所得。全文只用于校验语境；主要材料必须来自证据单元。保持具体、可追溯、有判断力，所有结论都要能回到原文或证据单元。';
 
   return callProviderText(provider, {
     system,
@@ -148,13 +148,13 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
-本次收束选择：
+本次拣选结果：
 ${receiptDecisions}
 
 问题状态：
 ${JSON.stringify(questions, null, 2)}
 
-阅读审议：
+阅读所得：
 ${deliberationJson.text}
 
 输出要求：
@@ -165,10 +165,10 @@ ${deliberationJson.text}
 - 每条关键判断尽量标注证据编号，例如 [#1]。
 - 保留读者自己的关注点，标明“我”或读者昵称。
 - 助手观点和文章观点分开表达。
-- 如果有阅读审议，优先吸收其中的共识、分歧、证据强弱和未决问题。
-- 保留未决问题状态：open 作为待推进问题，answered 作为已收束问题，parked 作为暂不推进问题。
+- 如果有阅读所得，优先吸收其中的个人收获、材料合成、证据强弱和未决问题。
+- 保留未决问题状态：open 作为待推进问题，answered 作为已想通问题，parked 作为暂不推进问题。
 - 对重要证据单元说明处理结果：纳入回执、暂放、证据不足。
-- 尊重“本次收束选择”：include 可以进入回执主判断；exclude 不要写入回执。
+- 尊重“本次拣选结果”：include 可以进入回执主判断；exclude 不要写入回执。
 - 内容要精炼、有层次，适合作为读完这篇文章后的回看入口。
 
 固定结构：
@@ -190,7 +190,7 @@ ${deliberationJson.text}
 ### 怀疑
 写 1 条这篇文章让我仍然怀疑什么；没有证据就写“暂无”。
 
-## 还没收束的问题
+## 还没想通的问题
 列出 open、answered、parked 问题。用“还想追问 / 已经想通 / 先放一放”表达状态。
 
 ## 可保存成稿
@@ -226,7 +226,7 @@ function buildReadingDeliberationPrompt(
   const evidenceJson = budgetEvidenceJson('reading-deliberation', evidence);
   const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report]);
 
-  return `请生成一份中文 Markdown 阅读审议。
+  return `请生成一份中文 Markdown 阅读所得。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -239,7 +239,7 @@ ${articleText.text}
 证据单元：
 ${evidenceJson.text}
 
-本次收束选择：
+本次拣选结果：
 ${receiptDecisions}
 
 问题状态：
@@ -247,31 +247,39 @@ ${JSON.stringify(questions, null, 2)}
 
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
+- 不要总结全文；全文只用于校验语境，主要材料必须来自证据单元。
 - 每个关键判断尽量标注证据编号，例如 [#1]。
 - 区分文章观点、读者关注、助手补充和评论 thread。
-- 聚焦这场阅读讨论形成了什么判断，避免复述全文。
-- 对证据薄弱、归因不清或仍需验证的内容明确指出。
-- 单独汇总问题状态：open 是未决问题，answered 是已回答问题，parked 是搁置问题。
-- 明确告诉后续回执生成：哪些痕迹可以直接纳入，哪些需要用户回到批注补一句判断。
-- 尊重“本次收束选择”：include 进入共识/证据强弱；exclude 不进入本次审议。
+- 聚焦这些纳入材料让用户得到了什么，避免复述文章主要内容。
+- 对证据薄弱、归因不清或仍需用户补判断的地方明确指出。
+- 单独汇总问题状态：open 是未决问题，answered 是已想通问题，parked 是先放一放的问题。
+- 明确告诉后续回执生成：哪些所得可以直接进入成稿，哪些需要用户回到批注补一句判断。
+- 尊重“本次拣选结果”：include 进入阅读所得；exclude 不进入本次阅读所得。
 
 固定结构：
-# ${input.article.title}｜阅读审议
+# ${input.article.title}｜阅读所得
 
-## 共识
-整理文章、读者和助手之间已经形成的主要共识。
+## 一句话所得
+用 1 句话写出这次阅读真正留下的个人收获。不要写文章摘要，也不要改写标题。
 
-## 分歧与张力
-整理不同批注或评论之间的分歧、冲突、可挑战前提。
+## 材料合成
+把纳入材料合成 2-4 个判断。每个判断都要标注证据编号，并说明这些批注合在一起指向什么。
 
-## 证据强弱
-列出证据较强的判断和证据较弱的判断，说明依据。
+## 对我的影响
+### 确认
+这次阅读确认了什么已有判断；没有证据就写“暂无”。
 
-## 未决问题
-优先列出 open 问题，并简要说明对应证据；再用短句概括 answered 和 parked 问题。
+### 改变
+这次阅读改变了什么看法；没有证据就写“暂无”。
 
-## 给读后回执的建议
-说明生成回执时应该保留、压缩或谨慎处理的内容。`;
+### 仍然怀疑
+这次阅读留下了什么疑问或保留意见；没有证据就写“暂无”。
+
+## 还需要补一句
+列出证据薄弱、只有摘录没有用户判断、或需要用户补充立场的材料。没有就写“暂无”。
+
+## 给回执的整理方向
+说明下一步更适合整理成短卡、思考备忘、可保存成稿、问题清单或行动清单，并说明理由。`;
 }
 
 function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadingCardInput) {
@@ -364,7 +372,7 @@ function receiptDecisionForEvidence(
 }
 
 function readingReceiptDecisionPrompt(decisions: ReadingReceiptDecision[] | undefined) {
-  if (!decisions?.length) return '未指定，默认全部纳入本次收束。';
+  if (!decisions?.length) return '未指定，默认全部纳入本次阅读所得。';
   return JSON.stringify(
     decisions.map((decision) => ({
       evidenceId: decision.evidenceId,

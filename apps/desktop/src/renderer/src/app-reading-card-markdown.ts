@@ -2,6 +2,7 @@ import type React from 'react';
 import type {
   AnnotationType,
   ReadingCardSection as PersistedReadingCardSection,
+  UserProfile,
 } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
@@ -68,15 +69,21 @@ export function splitReadingCardSection(content: string) {
 export function renderReadingCardMarkdown(
   content: string,
   evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
 ) {
-  return replaceReadingCardEvidenceReferences(renderMarkdown(content), evidenceByIndex);
+  return replaceReadingCardEvidenceReferences(
+    renderMarkdown(content),
+    evidenceByIndex,
+    userProfile,
+  );
 }
 
 export function renderReadingCardInlineMarkdown(
   content: string,
   evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
 ) {
-  const html = renderReadingCardMarkdown(content, evidenceByIndex);
+  const html = renderReadingCardMarkdown(content, evidenceByIndex, userProfile);
   const paragraph = html.match(/^<p>([\s\S]*)<\/p>$/);
   return paragraph ? paragraph[1] : html;
 }
@@ -84,11 +91,14 @@ export function renderReadingCardInlineMarkdown(
 function replaceReadingCardEvidenceReferences(
   html: string,
   evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
 ) {
   return html
     .split(/(<[^>]+>)/g)
     .map((part) =>
-      part.startsWith('<') ? part : renderReadingCardEvidenceReferences(part, evidenceByIndex),
+      part.startsWith('<')
+        ? part
+        : renderReadingCardEvidenceReferences(part, evidenceByIndex, userProfile),
     )
     .join('');
 }
@@ -96,11 +106,12 @@ function replaceReadingCardEvidenceReferences(
 function renderReadingCardEvidenceReferences(
   text: string,
   evidenceByIndex: Map<number, ReadingCardEvidenceUnit>,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
 ) {
   return text.replace(/\[#(\d+)\]|#(\d+)/g, (match, bracketValue: string, plainValue: string) => {
     const index = Number(bracketValue || plainValue);
     const unit = evidenceByIndex.get(index);
-    return unit ? renderReadingCardEvidenceReference(unit) : match;
+    return unit ? renderReadingCardEvidenceReference(unit, userProfile) : match;
   });
 }
 
@@ -116,31 +127,64 @@ export function renderReadingCardEvidenceReferenceList(
     .join(' ');
 }
 
-function renderReadingCardEvidenceReference(unit: ReadingCardEvidenceUnit) {
+function renderReadingCardEvidenceReference(
+  unit: ReadingCardEvidenceUnit,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
+) {
   const index = unit.index;
   const typeMeta = unit.annotationType
     ? `<span class="reading-card-ref-meta-type">${renderAnnotationTypeIconHtml(unit.annotationTypeKey)}${escapeHtml(unit.annotationType)}</span>`
-    : '批注';
-  const meta = [
-    typeMeta,
-    escapeHtml(unit.annotationAuthorLabel),
-    escapeHtml(formatDateTime(unit.createdAt)),
-  ].join(' · ');
+    : '';
+  const intentMeta = unit.readingIntent
+    ? `<span class="reading-card-ref-meta-type">${escapeHtml(unit.readingIntent)}</span>`
+    : '';
+  const chips = [typeMeta, intentMeta].filter(Boolean).join('');
+  const authorLabel = readingCardReferenceAuthorLabel(unit, userProfile);
   return `<button class="reading-card-ref" type="button" data-reading-card-evidence-index="${index}" aria-label="打开批注 #${index}">
       <span class="reading-card-ref-label">#${index}</span>
       <span class="reading-card-ref-popover" role="tooltip">
-        <strong>批注 #${index}</strong>
-        <em>${meta}</em>
-        <q>${escapeHtml(unit.quote)}</q>
+        <span class="reading-card-ref-popover-head">
+          <strong>批注 #${index}</strong>
+          ${chips ? `<span class="reading-card-ref-chip-row">${chips}</span>` : ''}
+        </span>
+        <span class="reading-card-ref-author-row">
+          ${renderReadingCardReferenceAvatar(unit, userProfile)}
+          <span>
+            <b>${escapeHtml(authorLabel)}</b>
+            <time>${escapeHtml(formatDateTime(unit.createdAt))}</time>
+          </span>
+        </span>
+        <q class="reading-card-ref-quote">${escapeHtml(unit.quote)}</q>
         ${
           unit.annotationBody
-            ? `<span class="reading-card-ref-body"><span><b>${escapeHtml(
-                unit.annotationBody.authorLabel,
-              )} · 批注</b>${escapeHtml(unit.annotationBody.content)}</span></span>`
+            ? `<span class="reading-card-ref-body"><b>批注</b><span>${escapeHtml(unit.annotationBody.content)}</span></span>`
             : ''
         }
       </span>
     </button>`;
+}
+
+function readingCardReferenceAuthorLabel(
+  unit: ReadingCardEvidenceUnit,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
+) {
+  if (unit.annotationAuthor !== 'user') return unit.annotationAuthorLabel;
+  return userProfile?.nickname || userProfile?.username || unit.annotationAuthorLabel;
+}
+
+function renderReadingCardReferenceAvatar(
+  unit: ReadingCardEvidenceUnit,
+  userProfile?: Pick<UserProfile, 'avatar' | 'nickname' | 'username'>,
+) {
+  const avatar =
+    unit.annotationAuthor === 'user' && userProfile?.avatar
+      ? userProfile.avatar
+      : unit.annotationAuthorAvatar;
+  if (avatar.trim()) {
+    return `<img class="reading-card-ref-avatar" src="${escapeHtml(avatar.trim())}" alt="" />`;
+  }
+  const fallback = readingCardReferenceAuthorLabel(unit, userProfile).slice(0, 1) || '我';
+  return `<span class="reading-card-ref-avatar is-fallback" aria-hidden="true">${escapeHtml(fallback)}</span>`;
 }
 
 function renderAnnotationTypeIconHtml(type: AnnotationType | undefined) {
@@ -176,6 +220,7 @@ export function readingCardSectionIndex(title: string) {
     '我停下来的地方',
     '改变 / 确认 / 怀疑',
     '改变／确认／怀疑',
+    '还没想通的问题',
     '还没收束的问题',
     '可保存成稿',
     '核心主张',

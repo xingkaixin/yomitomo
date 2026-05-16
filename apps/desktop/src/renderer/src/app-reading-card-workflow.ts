@@ -236,7 +236,7 @@ export function useReadingCardWorkflow({
       onGenerated();
     } catch (error) {
       if (!articleRequestIsCurrent(requestArticleId)) return;
-      setDeliberationError(error instanceof Error ? error.message : '阅读收束失败');
+      setDeliberationError(error instanceof Error ? error.message : '阅读所得生成失败');
       setStatus((current) => ({ ...current, deliberation: 'error' }));
     }
   }
@@ -353,10 +353,10 @@ function deriveDeliberationStep(
     return {
       id: 'deliberation',
       number: 1,
-      title: '阅读评估',
-      description: '正在整理证据与分歧',
+      title: '阅读所得',
+      description: '正在生成阅读所得',
       state: 'running',
-      actionLabel: deliberation ? '重新生成' : '生成审议',
+      actionLabel: deliberation ? '重新生成阅读所得' : '生成阅读所得',
       disabled: isWorkflowBusy,
     };
   }
@@ -364,10 +364,10 @@ function deriveDeliberationStep(
     return {
       id: 'deliberation',
       number: 1,
-      title: '阅读评估',
-      description: '生成失败，可重试',
+      title: '阅读所得',
+      description: '生成阅读所得失败，可重试',
       state: 'error',
-      actionLabel: deliberation ? '重新生成' : '生成审议',
+      actionLabel: deliberation ? '重新生成阅读所得' : '生成阅读所得',
       disabled: isWorkflowBusy,
     };
   }
@@ -376,30 +376,30 @@ function deriveDeliberationStep(
       return {
         id: 'deliberation',
         number: 1,
-        title: '阅读评估',
-        description: '有新批注或讨论，等待重新收束',
+        title: '阅读所得',
+        description: '有新批注或讨论，等待重新生成阅读所得',
         state: 'active',
-        actionLabel: '重新生成',
+        actionLabel: '重新生成阅读所得',
         disabled: isWorkflowBusy,
       };
     }
     return {
       id: 'deliberation',
       number: 1,
-      title: '阅读评估',
+      title: '阅读所得',
       description: `已生成 · ${formatDate(deliberation.updatedAt)}`,
       state: 'done',
-      actionLabel: '重新生成',
+      actionLabel: '重新生成阅读所得',
       disabled: isWorkflowBusy,
     };
   }
   return {
     id: 'deliberation',
     number: 1,
-    title: '阅读评估',
-    description: '从批注和讨论生成报告',
+    title: '阅读所得',
+    description: '从纳入材料生成阅读所得',
     state: 'active',
-    actionLabel: '生成审议',
+    actionLabel: '生成阅读所得',
     disabled: isWorkflowBusy,
   };
 }
@@ -412,7 +412,7 @@ function deriveAiCardStep(
   status: ReadingCardWorkflowStatus,
   isWorkflowBusy: boolean,
 ): ReadingCardWorkflowStep {
-  let description = '完成审议后开始';
+  let description = '生成阅读所得后开始';
   let state: ReadingCardWorkflowStep['state'] = 'waiting';
 
   if (status.aiCard === 'generating') {
@@ -425,13 +425,13 @@ function deriveAiCardStep(
     description = `已提炼 · ${formatDate(currentAiCard.updatedAt)}`;
     state = 'done';
   } else if (deliberation && !deliberationIsCurrent) {
-    description = '有新痕迹，先重新收束';
+    description = '有新痕迹，先重新生成阅读所得';
     state = 'waiting';
   } else if (aiCard && deliberation) {
-    description = '收束已更新，等待重新打磨';
+    description = '阅读所得已更新，等待重新打磨';
     state = 'active';
   } else if (deliberation) {
-    description = '基于审议报告生成笔记';
+    description = '基于阅读所得整理回执';
     state = 'active';
   }
 

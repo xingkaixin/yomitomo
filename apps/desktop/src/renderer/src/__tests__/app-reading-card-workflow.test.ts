@@ -19,7 +19,7 @@ function deliberation(updatedAt = '2026-05-04T00:00:00.000Z'): ReadingDeliberati
   return {
     id: 'deliberation_1',
     articleId: 'article_1',
-    title: '审议报告',
+    title: '阅读所得',
     contentMarkdown: '',
     sections: [],
     providerId: 'provider_1',
@@ -92,7 +92,7 @@ describe('deriveReadingCardWorkflow', () => {
     expect(result.workflowSteps[0]).toMatchObject({
       id: 'deliberation',
       state: 'running',
-      description: '正在整理证据与分歧',
+      description: '正在生成阅读所得',
       disabled: true,
     });
   });
@@ -128,7 +128,7 @@ describe('deriveReadingCardWorkflow', () => {
     expect(result.workflowSteps[1]).toMatchObject({
       id: 'card',
       state: 'active',
-      description: '收束已更新，等待重新打磨',
+      description: '阅读所得已更新，等待重新打磨',
     });
   });
 
@@ -146,8 +146,8 @@ describe('deriveReadingCardWorkflow', () => {
     expect(result.currentAiCard).toBeNull();
     expect(result.displayAiCard?.id).toBe('reading_card_1');
     expect(result.workflowSteps.map((step) => [step.id, step.state, step.description])).toEqual([
-      ['deliberation', 'active', '有新批注或讨论，等待重新收束'],
-      ['card', 'waiting', '有新痕迹，先重新收束'],
+      ['deliberation', 'active', '有新批注或讨论，等待重新生成阅读所得'],
+      ['card', 'waiting', '有新痕迹，先重新生成阅读所得'],
       ['review', 'waiting', '回执有新痕迹，先重新打磨'],
     ]);
   });

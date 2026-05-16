@@ -79,9 +79,9 @@ function completedArticle(): ArticleRecord {
     readingDeliberation: {
       id: 'deliberation_1',
       articleId: 'article_done',
-      title: '阅读审议',
-      contentMarkdown: '## 审议',
-      sections: [{ title: '审议', content: '内容' }],
+      title: '阅读所得',
+      contentMarkdown: '## 阅读所得',
+      sections: [{ title: '阅读所得', content: '内容' }],
       providerId: 'provider_1',
       providerName: 'Provider',
       modelName: 'model',

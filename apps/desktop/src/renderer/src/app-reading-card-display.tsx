@@ -93,10 +93,12 @@ const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
 export function ReadingDeliberationPanel({
   deliberation,
   evidenceUnits,
+  userProfile,
   onOpenEvidence,
 }: {
   deliberation: ReadingDeliberationRecord;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  userProfile: UserProfile;
   onOpenEvidence: (annotationId: string) => void;
 }) {
   const evidenceByIndex = useMemo(
@@ -116,32 +118,63 @@ export function ReadingDeliberationPanel({
     <section className="reading-deliberation-panel">
       <header>
         <div>
-          <span>收束草稿</span>
+          <span>阅读所得</span>
           <h4>{deliberation.title}</h4>
         </div>
         <time>{formatDate(deliberation.updatedAt)}</time>
       </header>
       <div className="reading-deliberation-sections" onClick={openEvidence}>
-        {sections.map((section) => (
-          <article key={section.title}>
-            <h5>{section.title}</h5>
-            <div
-              className="reading-card-markdown"
-              dangerouslySetInnerHTML={{
-                __html: renderReadingCardMarkdown(section.content, evidenceByIndex),
-              }}
-            />
-          </article>
-        ))}
+        {sections.map((section) => {
+          const sectionKind = readingDeliberationSectionKind(section.title);
+          return (
+            <article
+              className={`reading-deliberation-section is-${sectionKind}`}
+              key={section.title}
+            >
+              <header>
+                <span>{readingDeliberationSectionLabel(sectionKind)}</span>
+                <h5>{section.title}</h5>
+              </header>
+              <div
+                className="reading-card-markdown"
+                dangerouslySetInnerHTML={{
+                  __html: renderReadingCardMarkdown(section.content, evidenceByIndex, userProfile),
+                }}
+              />
+            </article>
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function readingDeliberationSectionKind(title: string) {
+  if (title === '一句话所得') return 'takeaway';
+  if (title === '材料合成') return 'material';
+  if (title === '对我的影响') return 'impact';
+  if (title === '还需要补一句') return 'missing';
+  if (title === '给回执的整理方向') return 'direction';
+  return 'note';
+}
+
+function readingDeliberationSectionLabel(kind: string) {
+  const labels: Record<string, string> = {
+    takeaway: '所得',
+    material: '合成',
+    impact: '影响',
+    missing: '待补',
+    direction: '方向',
+    note: '材料',
+  };
+  return labels[kind] || labels.note;
 }
 
 export function ReadingReceiptTriageBoard({
   annotationAgents = [],
   article,
   evidenceUnits,
+  locked = false,
   receiptDispositionById,
   sourceUpdatedAt,
   userProfile,
@@ -152,6 +185,7 @@ export function ReadingReceiptTriageBoard({
   annotationAgents?: Agent[];
   article: ArticleRecord;
   evidenceUnits: ReadingCardEvidenceUnit[];
+  locked?: boolean;
   receiptDispositionById: Record<string, ReadingReceiptBoardDisposition>;
   sourceUpdatedAt: string;
   userProfile: UserProfile;
@@ -261,6 +295,17 @@ export function ReadingReceiptTriageBoard({
     return () => window.removeEventListener('pointerdown', closeMenuOnPointerDown, true);
   }, [addingClarificationAgentsForEvidenceId]);
 
+  React.useEffect(() => {
+    if (!locked) return;
+    pendingDragRef.current = null;
+    dragStateRef.current = null;
+    setDragState(null);
+    setDraggingEvidenceId(null);
+    setDropReadyDisposition(null);
+    setClarifyingEvidenceId(null);
+    setAddingClarificationAgentsForEvidenceId(null);
+  }, [locked]);
+
   const queueReadingReceiptStatePersistence = React.useCallback(
     (overrides: Partial<ReadingReceiptStateBuildInput> = {}) => {
       pendingReceiptStateRef.current = buildPersistedReadingReceiptState({
@@ -359,6 +404,7 @@ export function ReadingReceiptTriageBoard({
   }
 
   function startDragging(evidenceId: string, geometry: ReadingReceiptDragGeometry) {
+    if (locked) return;
     pendingDragRef.current = {
       ...geometry,
       evidenceId,
@@ -381,6 +427,7 @@ export function ReadingReceiptTriageBoard({
   }
 
   function toggleClarification(evidenceId: string) {
+    if (locked) return;
     if (clarifyingEvidenceId === evidenceId) {
       setActiveEvidenceId(null);
       setClarifyingEvidenceId(null);
@@ -393,6 +440,7 @@ export function ReadingReceiptTriageBoard({
   }
 
   function toggleClarificationAgent(evidenceId: string, agentId: string) {
+    if (locked) return;
     const selected = clarificationAgentIdsByEvidenceId[evidenceId] || [];
     const next = selected.includes(agentId)
       ? selected.filter((id) => id !== agentId)
@@ -409,6 +457,7 @@ export function ReadingReceiptTriageBoard({
   }
 
   function changeClarificationThought(evidenceId: string, value: string) {
+    if (locked) return;
     const nextThoughtByEvidenceId = { ...clarificationThoughtByEvidenceId, [evidenceId]: value };
     setClarificationThoughtByEvidenceId(nextThoughtByEvidenceId);
     queueReadingReceiptStatePersistence({
@@ -417,10 +466,12 @@ export function ReadingReceiptTriageBoard({
   }
 
   function startClarificationThought(evidenceId: string) {
+    if (locked) return;
     setClarificationThoughtOpenByEvidenceId((current) => ({ ...current, [evidenceId]: true }));
   }
 
   function toggleClarificationAgentMenu(evidenceId: string) {
+    if (locked) return;
     setAddingClarificationAgentsForEvidenceId((current) =>
       current === evidenceId ? null : evidenceId,
     );
@@ -454,6 +505,7 @@ export function ReadingReceiptTriageBoard({
   }
 
   async function runClarificationRound(evidenceId: string, selectedAgentIds: string[]) {
+    if (locked) return;
     const unit = evidenceUnits.find((item) => item.id === evidenceId);
     if (!unit) return;
     if (selectedAgentIds.length === 0) {
@@ -597,6 +649,7 @@ export function ReadingReceiptTriageBoard({
     evidenceId: string,
     disposition: Exclude<ReadingReceiptBoardDisposition, 'clarify'>,
   ) {
+    if (locked) return;
     const nextDispositionById = {
       ...receiptDispositionById,
       [evidenceId]: disposition,
@@ -608,19 +661,31 @@ export function ReadingReceiptTriageBoard({
   }
 
   return (
-    <section className="reading-receipt-triage">
+    <section className={locked ? 'reading-receipt-triage is-locked' : 'reading-receipt-triage'}>
       <header>
         <div>
-          <span>收束阅读</span>
-          <h4>把这次阅读留下的材料边界确认下来</h4>
-          <p>不确定的先留在待澄清。想清楚后拖到纳入或暂放；点开卡片可回到原文。</p>
+          <span>{locked ? '拣选结果' : '拣选'}</span>
+          <h4>{locked ? '已确认的阅读所得材料' : '把要进入阅读所得的材料确认下来'}</h4>
+          <p>
+            {locked
+              ? '上一步的材料边界已锁定。可以查看批注，但不能再拖动或发起澄清讨论。'
+              : '不确定的先留在待澄清。想清楚后拖到纳入或暂放；点开卡片可回到原文。'}
+          </p>
         </div>
         <strong>
           {evidenceUnits.length - clarifyCount}/{evidenceUnits.length} 已确认
         </strong>
       </header>
       {evidenceUnits.length > 0 ? (
-        <div className={dragState ? 'reading-receipt-board is-dragging' : 'reading-receipt-board'}>
+        <div
+          className={[
+            'reading-receipt-board',
+            dragState ? 'is-dragging' : '',
+            locked ? 'is-locked' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {groupedUnits.map((column, columnIndex) => {
             const visibleUnits = dragState
               ? column.units.filter((unit) => unit.id !== draggingEvidenceId)
@@ -671,6 +736,7 @@ export function ReadingReceiptTriageBoard({
                             columnIndex === receiptBoardColumns.length - 1 ? 'left' : 'right'
                           }
                           key={unit.id}
+                          locked={locked}
                           stackIndex={unitIndex}
                           annotationAgents={annotationAgents}
                           addingAgentMenuOpen={addingClarificationAgentsForEvidenceId === unit.id}
@@ -714,7 +780,7 @@ export function ReadingReceiptTriageBoard({
           ) : null}
         </div>
       ) : (
-        <p className="reading-card-placeholder">这篇文章还没有批注，可以直接收束成轻量回执。</p>
+        <p className="reading-card-placeholder">这篇文章还没有批注，可以直接生成轻量阅读所得。</p>
       )}
     </section>
   );
@@ -743,6 +809,7 @@ function ReadingReceiptBoardCard({
   extractDirection,
   fixedAgentIds,
   loading,
+  locked,
   rounds,
   selectedAgentIds,
   stackIndex,
@@ -776,6 +843,7 @@ function ReadingReceiptBoardCard({
   extractDirection: 'left' | 'right';
   fixedAgentIds: string[];
   loading: boolean;
+  locked: boolean;
   rounds: ReadingReceiptClarificationRound[];
   selectedAgentIds: string[];
   stackIndex: number;
@@ -801,6 +869,7 @@ function ReadingReceiptBoardCard({
   onToggleRound: (evidenceId: string, roundId: string) => void;
 }) {
   function startDrag(event: React.PointerEvent<HTMLElement>) {
+    if (locked) return;
     if (event.button !== 0) return;
     if ((event.target as HTMLElement | null)?.closest?.('button')) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -832,6 +901,7 @@ function ReadingReceiptBoardCard({
 
   function toggleClarification(event: React.MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
+    if (locked) return;
     onToggleClarification(unit.id);
   }
 
@@ -877,6 +947,7 @@ function ReadingReceiptBoardCard({
         active ? `is-active is-extract-${extractDirection}` : '',
         covered ? 'is-covered' : '',
         dragging ? 'is-dragging' : '',
+        locked ? 'is-locked' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -891,11 +962,12 @@ function ReadingReceiptBoardCard({
       <ReadingReceiptBoardCardFooter
         clarifying={clarifying}
         disposition={disposition}
+        locked={locked}
         unit={unit}
         onToggleClarification={toggleClarification}
         onOpenEvidence={openEvidence}
       />
-      {disposition === 'clarify' && clarifying ? (
+      {disposition === 'clarify' && clarifying && !locked ? (
         <ReadingReceiptClarificationPanel
           addingAgentMenuOpen={addingAgentMenuOpen}
           annotationAgents={annotationAgents}
@@ -967,12 +1039,14 @@ function ReadingReceiptBoardCardHead({ unit }: { unit: ReadingCardEvidenceUnit }
 function ReadingReceiptBoardCardFooter({
   clarifying = false,
   disposition,
+  locked = false,
   unit,
   onToggleClarification,
   onOpenEvidence,
 }: {
   clarifying?: boolean;
   disposition?: ReadingReceiptBoardDisposition;
+  locked?: boolean;
   unit: ReadingCardEvidenceUnit;
   onToggleClarification?: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenEvidence?: (event: React.MouseEvent<HTMLButtonElement>) => void;
@@ -986,7 +1060,7 @@ function ReadingReceiptBoardCardFooter({
         {unit.comments.length > 0 ? <span>{unit.comments.length} 评论</span> : null}
       </div>
       <div className="reading-receipt-board-card-actions">
-        {disposition === 'clarify' ? (
+        {disposition === 'clarify' && !locked ? (
           <button
             className="reading-receipt-clarify-open"
             type="button"
@@ -1621,7 +1695,7 @@ export function ReadingCardEvidencePanel({
     <section className="reading-card-evidence-section">
       <header>
         <div>
-          <span>收束队列</span>
+          <span>材料去向</span>
           <h4>每条痕迹如何进入回执</h4>
         </div>
         <strong>
@@ -1891,8 +1965,8 @@ export function ReadingCardDeck({
         <ReadingReceiptMarkdownSection
           className="reading-receipt-questions"
           evidenceByIndex={evidenceByIndex}
-          eyebrow="还没收束的问题"
-          fallback="暂无未收束问题。"
+          eyebrow="还没想通的问题"
+          fallback="暂无未决问题。"
           section={receiptSections.questions}
           title="继续想的线索"
           onOpenEvidence={onOpenEvidence}
@@ -1960,7 +2034,7 @@ function ReadingReceiptWorkbenchPanel({
           <p>
             {isCurrent
               ? '下面每条痕迹都会标明它在回执中的去向。'
-              : '这些新批注或评论还没有进入当前回执，需要先重新收束，再重新打磨。'}
+              : '这些新批注或评论还没有进入当前回执，需要先重新生成阅读所得，再重新打磨。'}
           </p>
         </div>
       </header>
@@ -1984,7 +2058,7 @@ function ReadingReceiptWorkbenchPanel({
           <dd>{workbench.excludeCount}</dd>
         </div>
         <div>
-          <dt>最近收束</dt>
+          <dt>最近生成</dt>
           <dd>{formatDate(readingCard.updatedAt)}</dd>
         </div>
       </dl>
@@ -2105,6 +2179,7 @@ function normalizeReadingReceiptSections(sections: PersistedReadingCardSection[]
     '可复用洞见',
   ]);
   const questions = findReadingCardSection(sections, [
+    '还没想通的问题',
     '还没收束的问题',
     '未收束问题',
     '后续问题',
@@ -2219,7 +2294,7 @@ function readingReceiptEvidenceTreatment(
     return {
       kind: 'exclude',
       label: '暂不放入',
-      hint: '本次收束不会使用这条痕迹。',
+      hint: '本次阅读所得不会使用这条痕迹。',
     };
   }
 
@@ -2227,7 +2302,7 @@ function readingReceiptEvidenceTreatment(
     return {
       kind: 'new',
       label: '新内容',
-      hint: '这条痕迹晚于当前回执，重新收束后才会被纳入。',
+      hint: '这条痕迹晚于当前回执，重新生成阅读所得后才会被纳入。',
     };
   }
 
@@ -2235,7 +2310,7 @@ function readingReceiptEvidenceTreatment(
     return {
       kind: 'open',
       label: '待追问',
-      hint: included ? '回执已引用，但问题还没有收束。' : '这条痕迹会进入未收束问题。',
+      hint: included ? '回执已引用，但问题还没有想通。' : '这条痕迹会进入未决问题。',
     };
   }
 
@@ -2267,7 +2342,7 @@ function readingReceiptEvidenceTreatment(
     return {
       kind: 'unreferenced',
       label: '未入回执',
-      hint: '当前回执还没有引用它，可重新收束或暂放。',
+      hint: '当前回执还没有引用它，可重新生成阅读所得或暂放。',
     };
   }
 

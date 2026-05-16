@@ -337,7 +337,7 @@ const taskRouteOptions: Array<{
   {
     key: 'readingNoteProviderId',
     title: '读后笔记助手',
-    description: '用于生成审议报告和读后笔记正文。',
+    description: '用于生成阅读所得和读后回执正文。',
     icon: <Bot size={18} />,
   },
 ];

@@ -100,7 +100,7 @@ function deliberation(
   return {
     id: 'deliberation_1',
     articleId: 'article_1',
-    title: '审议报告',
+    title: '阅读所得',
     contentMarkdown: '## 证据\n来自 [#1]',
     sections: [{ title: '证据', content: '来自 [#1]' }],
     providerId: 'provider_1',
@@ -399,9 +399,9 @@ describe('ReadingCard', () => {
       />,
     );
 
-    expect(screen.getByRole('region', { name: '读后回执收束操作' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '读后回执生成流程' })).toBeTruthy();
     expect(screen.getByText('当前节点')).toBeTruthy();
-    expect(screen.getAllByText('收束阅读').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('拣选').length).toBeGreaterThan(0);
     expect(screen.queryByText('整理回执', { selector: 'strong' })).toBeNull();
     expect(screen.queryByText('审阅席', { selector: 'strong' })).toBeNull();
     expect(screen.queryByText('选择稍后检查这份回执的视角')).toBeNull();
@@ -483,7 +483,7 @@ describe('ReadingCard', () => {
     fireEvent.click(screen.getByRole('button', { name: '我决定纳入' }));
 
     expect(screen.getByText('1/1 已确认')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /收束这次阅读/ }).hasAttribute('disabled')).toBe(
+    expect(screen.getByRole('button', { name: /生成阅读所得/ }).hasAttribute('disabled')).toBe(
       false,
     );
     await waitFor(() => {
@@ -520,7 +520,7 @@ describe('ReadingCard', () => {
     firePointerEvent(window, 'pointerUp', 410);
 
     expect(screen.getByText('1/1 已确认')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /收束这次阅读/ }).hasAttribute('disabled')).toBe(
+    expect(screen.getByRole('button', { name: /生成阅读所得/ }).hasAttribute('disabled')).toBe(
       false,
     );
   });
@@ -570,6 +570,30 @@ describe('ReadingCard', () => {
     firePointerEvent(window, 'pointerUp', 340);
   });
 
+  it('locks the triage board after reading所得 is generated', () => {
+    render(
+      <ReadingCard
+        article={article({ readingDeliberation: deliberation() })}
+        reviewAgents={[]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+      />,
+    );
+
+    const card = screen.getByLabelText('批注卡片：重要原文');
+    mockReceiptColumnRects();
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(domRect(300, 240));
+
+    firePointerEvent(card, 'pointerDown', 520);
+    firePointerEvent(window, 'pointerMove', 120);
+    firePointerEvent(window, 'pointerUp', 120);
+
+    expect(screen.getByText('已确认的阅读所得材料')).toBeTruthy();
+    expect(screen.getByText('1/1 已确认')).toBeTruthy();
+    expect(screen.getByLabelText('批注卡片：重要原文').className).toContain('is-locked');
+    expect(screen.queryByRole('button', { name: /澄清讨论/ })).toBeNull();
+  });
+
   it('starts deliberation generation with article evidence units', async () => {
     const desktop = installDesktopApi();
     const onGenerated = vi.fn();
@@ -584,7 +608,7 @@ describe('ReadingCard', () => {
     );
 
     dragReceiptCard('重要原文', '纳入');
-    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
+    fireEvent.click(screen.getByRole('button', { name: /生成阅读所得/ }));
 
     await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
     expect(desktop.generateReadingDeliberation).toHaveBeenCalledWith(
@@ -622,7 +646,7 @@ describe('ReadingCard', () => {
     );
 
     dragReceiptCard('重要原文', '暂放');
-    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
+    fireEvent.click(screen.getByRole('button', { name: /生成阅读所得/ }));
 
     await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
     expect(desktop.generateReadingDeliberation).toHaveBeenCalledWith(
@@ -653,7 +677,7 @@ describe('ReadingCard', () => {
     );
 
     dragReceiptCard('重要原文', '纳入');
-    fireEvent.click(screen.getByRole('button', { name: /收束这次阅读/ }));
+    fireEvent.click(screen.getByRole('button', { name: /生成阅读所得/ }));
 
     await waitFor(() => expect(desktop.generateReadingDeliberation).toHaveBeenCalledTimes(1));
     rerender(
@@ -674,7 +698,7 @@ describe('ReadingCard', () => {
     await act(async () => {
       pendingDeliberation.resolve({
         readingDeliberation: deliberation({
-          title: '旧文章审议',
+          title: '旧阅读所得',
           contentMarkdown: '## 旧结论\n不应出现',
           sections: [{ title: '旧结论', content: '不应出现' }],
           updatedAt: '2026-05-04T00:02:00.000Z',
@@ -684,7 +708,7 @@ describe('ReadingCard', () => {
     });
 
     expect(screen.getAllByText('第二篇文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('旧文章审议')).toBeNull();
+    expect(screen.queryByText('旧阅读所得')).toBeNull();
     expect(screen.queryByText('旧结论')).toBeNull();
     expect(onGenerated).not.toHaveBeenCalled();
   });
@@ -760,8 +784,12 @@ describe('ReadingCard', () => {
 
     render(
       <ReadingCard
-        article={article({ readingDeliberation: deliberation(), readingCard: readingCard() })}
+        article={article({ readingDeliberation: deliberation() })}
         reviewAgents={[reviewAgent()]}
+        userProfile={userProfile({
+          avatar: 'https://example.com/user-avatar.png',
+          nickname: '行开心',
+        })}
         onGenerated={vi.fn()}
         onOpenEvidence={onOpenEvidence}
       />,
@@ -769,9 +797,15 @@ describe('ReadingCard', () => {
 
     const reference = screen.getAllByRole('button', { name: '打开批注 #1' })[0];
     expect(reference.textContent).toContain('#1');
-    expect(reference.querySelector('.reading-card-ref-popover')?.textContent).not.toContain(
-      '这是一条线程评论',
+    const popover = reference.querySelector('.reading-card-ref-popover');
+    expect(popover?.querySelector('.reading-card-ref-avatar')?.getAttribute('src')).toBe(
+      'https://example.com/user-avatar.png',
     );
+    expect(popover?.textContent).toContain('行开心');
+    expect(popover?.textContent).toContain('关键判断');
+    expect(popover?.textContent).toContain('解释');
+    expect(popover?.textContent).toContain('这段可以作为证据');
+    expect(popover?.textContent).not.toContain('这是一条线程评论');
 
     fireEvent.click(reference);
 
