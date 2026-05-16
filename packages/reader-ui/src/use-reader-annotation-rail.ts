@@ -18,6 +18,18 @@ import {
 
 const FILTERED_NOTE_EXIT_MS = 190;
 
+function stringArraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
+  if (left.size !== right.size) return false;
+  for (const item of left) {
+    if (!right.has(item)) return false;
+  }
+  return true;
+}
+
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   agents: PublicAgent[];
@@ -210,6 +222,12 @@ export function useReaderAnnotationRail({
     const annotationIdSet = new Set(annotationIds);
     const previous = annotationIdsSnapshotRef.current;
 
+    const sameArticleAnnotationIds =
+      previous.articleId === articleId &&
+      previous.ids.size === annotationIdSet.size &&
+      annotationIds.every((id) => previous.ids.has(id));
+    if (sameArticleAnnotationIds) return;
+
     if (previous.articleId !== articleId) {
       annotationIdsSnapshotRef.current = { articleId, ids: annotationIdSet };
       setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
@@ -252,16 +270,30 @@ export function useReaderAnnotationRail({
       const currentIds = current.ids.length > 0 ? current.ids : sourceIds;
       const exitingIds = currentIds.filter((id) => sourceIdSet.has(id) && !visibleIdSet.has(id));
       const renderedIds = new Set([...visibleIds, ...exitingIds]);
+      const nextIds = sourceIds.filter((id) => renderedIds.has(id));
+      const nextExitingIds = new Set(exitingIds);
+      if (
+        stringArraysEqual(current.ids, nextIds) &&
+        stringSetsEqual(current.exitingIds, nextExitingIds)
+      ) {
+        return current;
+      }
       return {
-        ids: sourceIds.filter((id) => renderedIds.has(id)),
-        exitingIds: new Set(exitingIds),
+        ids: nextIds,
+        exitingIds: nextExitingIds,
       };
     });
 
     const timeout = window.setTimeout(() => {
-      setRailAnimation({
-        ids: sourceIds.filter((id) => visibleIdSet.has(id)),
-        exitingIds: new Set(),
+      setRailAnimation((current) => {
+        const nextIds = sourceIds.filter((id) => visibleIdSet.has(id));
+        if (stringArraysEqual(current.ids, nextIds) && current.exitingIds.size === 0) {
+          return current;
+        }
+        return {
+          ids: nextIds,
+          exitingIds: new Set(),
+        };
       });
     }, FILTERED_NOTE_EXIT_MS);
 

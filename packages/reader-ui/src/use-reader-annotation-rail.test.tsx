@@ -35,7 +35,7 @@ const agents: PublicAgent[] = [
 
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -85,6 +85,7 @@ function HookProbe({
   commentsCloseKey = 0,
   filteredAnnotations = annotations,
   noteRefs,
+  onAnnotationLayoutChange,
 }: {
   annotations: Annotation[];
   articleId?: string;
@@ -92,6 +93,7 @@ function HookProbe({
   commentsCloseKey?: number;
   filteredAnnotations?: Annotation[];
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  onAnnotationLayoutChange?: () => void;
 }) {
   const rail = useReaderAnnotationRail({
     activeId: null,
@@ -103,6 +105,7 @@ function HookProbe({
     filteredAnnotations,
     noteRefs,
     userProfile,
+    onAnnotationLayoutChange,
   });
 
   return (
@@ -211,6 +214,29 @@ describe('useReaderAnnotationRail', () => {
     expect(screen.getByTestId('rail').textContent).toBe('user-note');
     expect(screen.getByTestId('exiting').textContent).toBe('');
     expect(Array.from(noteRefs.current.keys())).toEqual(['user-note']);
+  });
+
+  it('does not notify layout again when rail animation state is unchanged', () => {
+    vi.useFakeTimers();
+    const userNote = annotation('user-note');
+    const noteRefs = createNoteRefs();
+    const onAnnotationLayoutChange = vi.fn();
+
+    render(
+      <HookProbe
+        annotations={[userNote]}
+        noteRefs={noteRefs}
+        onAnnotationLayoutChange={onAnnotationLayoutChange}
+      />,
+    );
+
+    expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
   });
 
   it('expands new annotations and clears expansion on article switch', async () => {

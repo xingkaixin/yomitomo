@@ -201,6 +201,16 @@ export function EbookBookcase({
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
   );
+  const articleAnnotationSignature = useMemo(
+    () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
+    [annotationAgents, articleAnnotations, userProfile],
+  );
+  const latestArticleAnnotationsRef = useRef(articleAnnotations);
+  const articleAnnotationSignatureRef = useRef({
+    articleId: article.id,
+    signature: articleAnnotationSignature,
+  });
+  latestArticleAnnotationsRef.current = articleAnnotations;
   const {
     viewHostRef,
     measureHostRef,
@@ -325,7 +335,7 @@ export function EbookBookcase({
 
   useLayoutEffect(() => {
     noteRefs.current.clear();
-    replaceAnnotations(articleAnnotations);
+    replaceAnnotations(latestArticleAnnotationsRef.current);
     resetEbookBoxState();
     clearAnnotationUiState();
     setAgentAnnotateOpen(false);
@@ -339,12 +349,23 @@ export function EbookBookcase({
     setTocOpen(defaultTocOpen());
   }, [
     article.id,
-    articleAnnotations,
     cleanupEbookAgentTheater,
     clearAnnotationUiState,
     replaceAnnotations,
     resetEbookBoxState,
   ]);
+
+  useEffect(() => {
+    const previous = articleAnnotationSignatureRef.current;
+    articleAnnotationSignatureRef.current = {
+      articleId: article.id,
+      signature: articleAnnotationSignature,
+    };
+    if (previous.articleId !== article.id || previous.signature === articleAnnotationSignature) {
+      return;
+    }
+    scheduleEbookBoxUpdate('annotations_applied');
+  }, [article.id, articleAnnotationSignature, scheduleEbookBoxUpdate]);
 
   useEffect(
     () => () => {
