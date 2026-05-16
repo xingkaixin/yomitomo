@@ -1,5 +1,3 @@
-const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
-
 const debounce = (f, wait, immediate) => {
     let timeout
     return (...args) => {
@@ -507,6 +505,7 @@ export class Paginator extends HTMLElement {
         #container {
             grid-column: 2 / 5;
             grid-row: 2;
+            position: relative;
             overflow: hidden;
         }
         :host([flow="scrolled"]) #container {
@@ -665,16 +664,19 @@ export class Paginator extends HTMLElement {
         })
     }
     #createView() {
-        if (this.#view) {
-            this.#view.destroy()
-            this.#container.removeChild(this.#view.element)
-        }
-        this.#view = new View({
+        const staleView = this.#view
+        const view = new View({
             container: this,
             onExpand: () => this.#scrollToAnchor(this.#anchor),
         })
-        this.#container.append(this.#view.element)
-        return this.#view
+        if (staleView) Object.assign(view.element.style, {
+            position: 'absolute',
+            inset: '0',
+            visibility: 'hidden',
+        })
+        this.#view = view
+        this.#container.append(view.element)
+        return { view, staleView }
     }
     #beforeRender({ vertical, rtl, background }) {
         this.#vertical = vertical
@@ -813,10 +815,18 @@ export class Paginator extends HTMLElement {
             Math.max(min, Math.min(max, (start + end) / 2
                 + (isNaN(d) ? 0 : d))) / size)
 
+        this.dispatchEvent(new CustomEvent('page-turn-start', {
+            detail: { direction: page > this.page ? 1 : -1, reason: 'snap' },
+        }))
+        const dir = page <= 0 ? -1 : page >= pages - 1 ? 1 : null
+        const adjacentIndex = dir ? this.#adjacentIndex(dir) : null
+        if (dir && adjacentIndex != null) return this.#goTo({
+            index: adjacentIndex,
+            anchor: dir < 0 ? () => 1 : () => 0,
+        })
         this.#scrollToPage(page, 'snap').then(() => {
-            const dir = page <= 0 ? -1 : page >= pages - 1 ? 1 : null
-            if (dir) return this.#goTo({
-                index: this.#adjacentIndex(dir),
+            if (dir && adjacentIndex != null) return this.#goTo({
+                index: adjacentIndex,
                 anchor: dir < 0 ? () => 1 : () => 0,
             })
         })
@@ -973,8 +983,11 @@ export class Paginator extends HTMLElement {
         const { index, src, anchor, onLoad, select } = await promise
         this.#index = index
         const hasFocus = this.#view?.document?.hasFocus()
+        let staleView
         if (src) {
-            const view = this.#createView()
+            const nextView = this.#createView()
+            const view = nextView.view
+            staleView = nextView.staleView
             const afterLoad = doc => {
                 if (doc.head) {
                     const $styleBefore = doc.createElement('style')
@@ -997,6 +1010,15 @@ export class Paginator extends HTMLElement {
         }
         await this.scrollToAnchor((typeof anchor === 'function'
             ? anchor(this.#view.document) : anchor) ?? 0, select)
+        if (staleView) {
+            Object.assign(this.#view.element.style, {
+                position: 'relative',
+                inset: '',
+                visibility: '',
+            })
+            staleView.destroy()
+            staleView.element.remove()
+        }
         if (hasFocus) this.focusView()
     }
     #canGoToIndex(index) {
@@ -1032,6 +1054,7 @@ export class Paginator extends HTMLElement {
                 Math.max(0, this.start - (distance ?? this.size)), null, true)
             return true
         }
+        if (this.#adjacentIndex(-1) != null && this.page <= 1) return true
         if (this.atStart) return
         const page = this.page - 1
         return this.#scrollToPage(page, 'page', true).then(() => page <= 0)
@@ -1043,6 +1066,7 @@ export class Paginator extends HTMLElement {
                 Math.min(this.viewSize, distance ? this.start + distance : this.end), null, true)
             return true
         }
+        if (this.#adjacentIndex(1) != null && this.page >= this.pages - 2) return true
         if (this.atEnd) return
         const page = this.page + 1
         const pages = this.pages
@@ -1061,13 +1085,16 @@ export class Paginator extends HTMLElement {
     async #turnPage(dir, distance) {
         if (this.#locked) return
         this.#locked = true
+        this.dispatchEvent(new CustomEvent('page-turn-start', {
+            detail: { direction: dir, reason: 'page' },
+        }))
         const prev = dir === -1
         const shouldGo = await (prev ? this.#scrollPrev(distance) : this.#scrollNext(distance))
-        if (shouldGo) await this.#goTo({
-            index: this.#adjacentIndex(dir),
+        const adjacentIndex = this.#adjacentIndex(dir)
+        if (shouldGo && adjacentIndex != null) await this.#goTo({
+            index: adjacentIndex,
             anchor: prev ? () => 1 : () => 0,
         })
-        if (shouldGo || !this.hasAttribute('animated')) await wait(100)
         this.#locked = false
     }
     prev(distance) {

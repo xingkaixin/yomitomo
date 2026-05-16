@@ -33,6 +33,7 @@ export type FoliateContent = {
 
 export type FoliateRelocateDetail = {
   fraction?: number;
+  reason?: string;
   location?: {
     current?: number;
     total?: number;
@@ -44,6 +45,14 @@ export type FoliateRelocateDetail = {
     label?: unknown;
     href?: string;
   };
+};
+
+export type EbookPageTurnTrace = {
+  turnId: string;
+  startedAt: number;
+  source: 'control' | 'foliate';
+  direction: 'left' | 'right' | number;
+  articleId: string;
 };
 
 export type FoliateViewElement = HTMLElement & {
@@ -75,9 +84,29 @@ function rendererPerformanceElapsedMs(startedAt: number) {
   return Number((performance.now() - startedAt).toFixed(2));
 }
 
+export function recordEbookPageTurnTrace(
+  trace: EbookPageTurnTrace | null,
+  phase: string,
+  data: Record<string, unknown> = {},
+) {
+  if (!trace) return;
+  void window.yomitomoDesktop?.recordPerformanceTiming?.({
+    event: 'ebook_page_turn',
+    data: {
+      articleId: trace.articleId,
+      direction: trace.direction,
+      elapsedMs: rendererPerformanceElapsedMs(trace.startedAt),
+      phase,
+      source: trace.source,
+      turnId: trace.turnId,
+      ...data,
+    },
+  });
+}
+
 export function configureFoliateView(view: FoliateViewElement | null, settings: ReaderSettings) {
   if (!view?.renderer) return;
-  view.renderer.setAttribute('animated', '');
+  view.renderer.removeAttribute('animated');
   view.renderer.setAttribute('flow', 'paginated');
   view.renderer.setAttribute('gap', '8%');
   view.renderer.setAttribute('margin', '44px');
@@ -293,6 +322,7 @@ export type EbookBoxUpdateReason =
   | 'layout_effect'
   | 'layout_measure'
   | 'open_ebook'
+  | 'page_turn'
   | 'reader_settings'
   | 'relocate'
   | 'resize_observer';

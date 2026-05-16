@@ -66,6 +66,11 @@ export const sourceEbookReaderStyles = `
 .source-ebook-reader-shell .reader-edge-blur.is-bottom{
   display:none;
 }
+.source-ebook-reader-shell .reader-canvas.is-ebook-page-turning .reader-highlight-layer,
+.source-ebook-reader-shell .reader-canvas.is-ebook-page-turning .reader-annotation-rail{
+  visibility:hidden;
+  pointer-events:none;
+}
 .source-ebook-reader-shell .reader-highlight.is-active::after{
   opacity:.8;
 }

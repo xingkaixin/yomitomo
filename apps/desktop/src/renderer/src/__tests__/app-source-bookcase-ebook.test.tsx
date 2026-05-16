@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
+import type { EbookPageTurnTrace } from '../app-ebook-reader-utils';
 import { EbookBookcase } from '../app-source-bookcase-ebook';
 import type { EbookArticleRecord } from '../app-source-bookcase-shared';
 
@@ -15,8 +16,13 @@ const mocks = vi.hoisted(() => ({
   goRight: vi.fn(),
   goToProgress: vi.fn(),
   goToTocItem: vi.fn(),
+  hideEbookBoxLayer: vi.fn(),
   resetEbookBoxState: vi.fn(),
   scheduleEbookBoxUpdate: vi.fn(),
+  setAgentTheaterBoxes: vi.fn(),
+  foliateViewInput: undefined as
+    | { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }
+    | undefined,
 }));
 
 vi.mock('../app-source-ebook-reader-shell', () => ({
@@ -26,25 +32,28 @@ vi.mock('../app-source-ebook-reader-shell', () => ({
 }));
 
 vi.mock('../use-ebook-foliate-view', () => ({
-  useEbookFoliateView: () => ({
-    viewHostRef: { current: null },
-    measureHostRef: { current: null },
-    viewRef: { current: null },
-    pageInfoSectionIndexRef: { current: undefined },
-    paginationLayoutKeyRef: { current: '' },
-    readerSettingsRef: { current: { fontSize: 18, contentWidth: 720 } },
-    readerStateStatusRef: { current: 'ready' },
-    tocItems: [],
-    sectionFractions: [],
-    pageInfo: null,
-    sectionPageCounts: [],
-    progress: 0,
-    readerState: { status: 'ready', message: '' },
-    goLeft: mocks.goLeft,
-    goRight: mocks.goRight,
-    goToProgress: mocks.goToProgress,
-    goToTocItem: mocks.goToTocItem,
-  }),
+  useEbookFoliateView: (input: { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }) => {
+    mocks.foliateViewInput = input;
+    return {
+      viewHostRef: { current: null },
+      measureHostRef: { current: null },
+      viewRef: { current: null },
+      pageInfoSectionIndexRef: { current: undefined },
+      paginationLayoutKeyRef: { current: '' },
+      readerSettingsRef: { current: { fontSize: 18, contentWidth: 720 } },
+      readerStateStatusRef: { current: 'ready' },
+      tocItems: [],
+      sectionFractions: [],
+      pageInfo: null,
+      sectionPageCounts: [],
+      progress: 0,
+      readerState: { status: 'ready', message: '' },
+      goLeft: mocks.goLeft,
+      goRight: mocks.goRight,
+      goToProgress: mocks.goToProgress,
+      goToTocItem: mocks.goToTocItem,
+    };
+  },
 }));
 
 vi.mock('../use-ebook-reader-boxes', () => ({
@@ -52,6 +61,7 @@ vi.mock('../use-ebook-reader-boxes', () => ({
     boxes: [],
     attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
+    hideEbookBoxLayer: mocks.hideEbookBoxLayer,
     resetEbookBoxState: mocks.resetEbookBoxState,
     scheduleEbookBoxUpdate: mocks.scheduleEbookBoxUpdate,
   }),
@@ -69,7 +79,7 @@ vi.mock('../use-ebook-agent-virtual-reading', () => ({
     cursorAgent: vi.fn(),
     finishAgentDock: vi.fn(),
     finishVirtualReading: vi.fn(),
-    setAgentTheaterBoxes: vi.fn(),
+    setAgentTheaterBoxes: mocks.setAgentTheaterBoxes,
     startAgentDock: vi.fn(),
     startVirtualReading: vi.fn(),
     stopVirtualReadingTimer: vi.fn(),
@@ -91,6 +101,7 @@ const userProfile: UserProfile = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.foliateViewInput = undefined;
 });
 
 function annotation(id: string): Annotation {
@@ -205,5 +216,23 @@ describe('EbookBookcase', () => {
     );
 
     expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears ebook page overlays before a page turn', () => {
+    renderEbookBookcase(ebookArticle(), []);
+
+    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
+    act(() => {
+      mocks.foliateViewInput?.onBeforePageTurn({
+        articleId: 'ebook-1',
+        direction: 'right',
+        source: 'control',
+        startedAt: performance.now(),
+        turnId: 'test-turn',
+      });
+    });
+
+    expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
+    expect(mocks.hideEbookBoxLayer).toHaveBeenCalledTimes(1);
   });
 });
