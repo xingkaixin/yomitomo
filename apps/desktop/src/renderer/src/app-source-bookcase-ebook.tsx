@@ -46,7 +46,6 @@ import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
-  animateTheaterHighlight,
   selectionActionShortcut,
   sleep,
   type ActiveConnection,
@@ -58,7 +57,6 @@ import {
   closeFoliateView,
   configureFoliateView,
   currentFoliateContent,
-  mappedFoliateRangeRects,
   ebookArticleText,
   ebookChapterForFoliateSection,
   ebookHighlightAnnotationsSignature,
@@ -87,6 +85,7 @@ import {
   type FoliateTocItem,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
+import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import type { PromptArticle } from './app-reading-types';
 import {
   buildAgentAnnotationRequestInput,
@@ -1288,103 +1287,22 @@ export function EbookBookcase({
     annotation: Annotation,
     options: { revealMissingRange?: boolean } = {},
   ) {
-    if (!isCurrentArticle(articleId)) {
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      return;
-    }
-
-    const canvasElement = canvasRef.current;
-    const surfaceElement = surfaceRef.current;
-    const doc = currentFoliateContent(viewRef.current)?.doc;
-    const cursorAgent = ebookCursorAgent(annotation);
-    const cursorId =
-      cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
-    const range = doc ? rangeForEbookAnchorInDocument(doc, annotation.anchor) : null;
-    if (!canvasElement || !surfaceElement || !range) {
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      if (options.revealMissingRange) void goToAnnotation(annotation.id);
-      finishEbookVirtualReading(cursorId);
-      return;
-    }
-
-    const canvasRect = canvasElement.getBoundingClientRect();
-    const rects = mappedFoliateRangeRects(range, canvasRect);
-    const firstRect = rects[0];
-    const lastRect = rects[rects.length - 1];
-    if (!firstRect || !lastRect) {
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      if (options.revealMissingRange) void goToAnnotation(annotation.id);
-      finishEbookVirtualReading(cursorId);
-      return;
-    }
-
-    const surfaceRect = surfaceElement.getBoundingClientRect();
-    const isVisible = firstRect.bottom >= surfaceRect.top && firstRect.top <= surfaceRect.bottom;
-    if (!isVisible) {
-      updateEbookVirtualCursor(cursorId, {
-        id: cursorId,
-        visible: true,
-        x: surfaceRect.left + surfaceRect.width / 2,
-        y: firstRect.top < surfaceRect.top ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-        label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在${firstRect.top < surfaceRect.top ? '上方' : '下方'}批注`,
-        offscreen: firstRect.top < surfaceRect.top ? 'above' : 'below',
-        agent: cursorAgent,
-      });
-      await sleep(700);
-      await appendAgentAnnotationToArticle(articleId, annotation);
-      if (options.revealMissingRange) void goToAnnotation(annotation.id);
-      finishEbookVirtualReading(cursorId);
-      return;
-    }
-
-    stopEbookVirtualReadingTimer(cursorId);
-    updateEbookVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: firstRect.left,
-      y: firstRect.top + firstRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
-      offscreen: null,
-      agent: cursorAgent,
+    await playEbookAgentAnnotationPlayback({
+      articleId,
+      annotation,
+      revealMissingRange: options.revealMissingRange,
+      canvasElement: canvasRef.current,
+      surfaceElement: surfaceRef.current,
+      document: currentFoliateContent(viewRef.current)?.doc || null,
+      cursorAgent: ebookCursorAgent(annotation),
+      isCurrentArticle,
+      appendAgentAnnotationToArticle,
+      goToAnnotation,
+      finishEbookVirtualReading,
+      stopEbookVirtualReadingTimer,
+      updateEbookVirtualCursor,
+      setAgentTheaterBoxes,
     });
-    await sleep(260);
-
-    const theaterBoxes = foliateRangeHighlightBoxes(
-      range,
-      canvasRect,
-      `theater_${annotation.id}`,
-    ).map((box) =>
-      Object.assign({}, box, { annotationId: annotation.id, color: annotation.color }),
-    );
-    await animateTheaterHighlight(theaterBoxes, annotation.anchor.exact.length, (nextBoxes) => {
-      const cursorBox = nextBoxes[nextBoxes.length - 1];
-      if (cursorBox) {
-        updateEbookVirtualCursor(cursorId, {
-          id: cursorId,
-          visible: true,
-          x: canvasRect.left + cursorBox.left + cursorBox.width,
-          y: canvasRect.top + cursorBox.top + cursorBox.height / 2,
-          label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 正在批注`,
-          offscreen: null,
-          agent: cursorAgent,
-        });
-      }
-      setAgentTheaterBoxes(nextBoxes);
-    });
-
-    await appendAgentAnnotationToArticle(articleId, annotation);
-    setAgentTheaterBoxes([]);
-    updateEbookVirtualCursor(cursorId, {
-      id: cursorId,
-      visible: true,
-      x: lastRect.right,
-      y: lastRect.top + lastRect.height / 2,
-      label: `${annotation.agentNickname || annotation.agentUsername || '助手'} 批注完成`,
-      offscreen: null,
-      agent: cursorAgent,
-    });
-    await sleep(360);
-    finishEbookVirtualReading(cursorId);
   }
 
   async function saveAnnotations(nextAnnotations: Annotation[]) {
