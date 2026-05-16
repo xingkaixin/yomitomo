@@ -1,10 +1,8 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
-  AgentReadingIntent,
   AgentReadingPlanItem,
   Annotation,
-  AnnotationType,
   ArticleRecord,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -64,9 +62,15 @@ import {
 } from '@yomitomo/reader-ui';
 import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
+import {
+  buildAgentAnnotationRequestInput,
+  resolveSourceAgentMentionInstructions,
+  runSourceAgentAnnotationRequest,
+  type SourceAgentAnnotationPlaybackMode,
+  type SourceAgentAnnotationRequestOptions,
+} from './app-source-agent-request';
 import { articleIdentityLine } from './app-utils';
 import {
-  agentInstructionFromNote,
   annotationViewportPositions,
   articleWithAnnotations,
   buildAnnotationConnectionPath,
@@ -78,7 +82,6 @@ import {
   readDesktopReaderSettings,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-  targetAnchorReadingPlan,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type SourceSelectionAction,
@@ -659,13 +662,20 @@ export function WebSourceBookcase({
     const mentionedAgents = findMentionedAgents(note, annotationAgents);
     if (mentionedAgents.length > 0) {
       cancelComposer();
-      const instructions = await resolveAgentMentionInstructions(
+      const instructions = await resolveSourceAgentMentionInstructions({
+        desktop: window.yomitomoDesktop,
+        article: articleContext,
+        targetAnchor: currentComposer.anchor,
+        agents: mentionedAgents,
         note,
-        mentionedAgents,
-        currentComposer.anchor,
-        currentArticle.id,
-        articleContext,
-      );
+        onStatus: isCurrentArticle(currentArticle.id)
+          ? (message, options) => {
+              setStatusMessage(message);
+              if (options?.clearAfterMs)
+                window.setTimeout(() => setStatusMessage(''), options.clearAfterMs);
+            }
+          : undefined,
+      });
       for (const item of instructions) {
         void requestAgentAnnotations(item.agent, {
           readingIntent: item.readingIntent,
@@ -682,50 +692,6 @@ export function WebSourceBookcase({
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
     void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
-  }
-
-  async function resolveAgentMentionInstructions(
-    note: string,
-    mentionedAgents: PublicAgent[],
-    anchor: Annotation['anchor'],
-    articleId: string,
-    articleContext: PromptArticle,
-  ) {
-    const commonInstruction = agentInstructionFromNote(note, mentionedAgents) || undefined;
-    const baseInstructions = mentionedAgents.map((agent) => ({
-      agent,
-      instruction: commonInstruction,
-      readingIntent: undefined as AgentReadingIntent | undefined,
-    }));
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return baseInstructions;
-
-    try {
-      if (isCurrentArticle(articleId)) setStatusMessage('正在拆解助手任务');
-      const instructions = await desktop.planAgentMentionInstructions({
-        article: articleContext,
-        targetAnchor: anchor,
-        agents: mentionedAgents,
-        note,
-      });
-      if (isCurrentArticle(articleId)) setStatusMessage('');
-      return mentionedAgents.map((agent) => {
-        const instruction = instructions.find(
-          (item) => item.agentId === agent.id || item.agentUsername === agent.username,
-        );
-        return {
-          agent,
-          instruction: instruction?.instruction || commonInstruction,
-          readingIntent: instruction?.readingIntent,
-        };
-      });
-    } catch (error) {
-      if (isCurrentArticle(articleId)) {
-        setStatusMessage(error instanceof Error ? error.message : '助手任务拆解失败');
-        window.setTimeout(() => setStatusMessage(''), 1800);
-      }
-      return baseInstructions;
-    }
   }
 
   async function inferAnnotationMetadataForAnnotation(
@@ -1095,15 +1061,7 @@ export function WebSourceBookcase({
 
   async function requestAgentAnnotations(
     agent: PublicAgent,
-    options: {
-      annotationType?: AnnotationType;
-      readingIntent?: AgentReadingIntent;
-      instruction?: string;
-      targetAnchor?: Annotation['anchor'];
-      readingPlan?: AgentReadingPlanItem[];
-      article?: PromptArticle;
-      articleId?: string;
-    } = {},
+    options: SourceAgentAnnotationRequestOptions = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -1116,76 +1074,91 @@ export function WebSourceBookcase({
     if (!articleScopedWrite && annotatingAgentIds.includes(agent.id)) return;
     const visibleArticle = isCurrentArticle(articleId);
     const showProgress = !articleScopedWrite || visibleArticle;
+    const requestInput = buildAgentAnnotationRequestInput(agent, options, {
+      article: articleContext,
+      annotations: annotationsRef.current,
+      readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
+    });
+    const { readingPlan } = requestInput;
 
-    if (showProgress) {
-      markAgentAnnotating(agent.id, true);
-      setStatusMessage(`${agent.nickname} 正在批注`);
-    }
-    const readingPlan =
-      options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
-    if (showProgress) {
-      startVirtualReading(
-        agent,
-        readingPlan,
-        options.targetAnchor ? 'target' : readingPlan.length > 0 ? 'careful' : 'article',
-      );
-    }
-    let annotationCount = 0;
+    startAgentAnnotationPlayback(agent, readingPlan, requestInput.playbackMode, showProgress);
     try {
-      const result = await desktop.requestAgentAnnotationsStream(
-        {
-          agentId: agent.id,
-          agentUsername: agent.username,
-          annotationType: options.annotationType,
-          readingIntent: options.readingIntent,
-          instruction: options.instruction,
-          annotations:
-            options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
-          readingMemory:
-            !options.targetAnchor && readingPlan.length > 0
-              ? latestArticleRef.current?.focusCoReadingPlan?.readingMemory
-              : undefined,
-          targetAnchor: options.targetAnchor,
-          readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
-          article: articleContext,
-        },
-        (event) => {
-          if (event.type !== 'item') return;
-          const annotation = constrainAgentPlanAnnotation(
-            event.annotation,
+      const { result, annotationCount } = await runSourceAgentAnnotationRequest({
+        desktop,
+        requestInput,
+        onAnnotation: (annotation) =>
+          handleAgentAnnotationStreamItem(
+            articleId,
+            annotation,
             readingPlan,
+            articleScopedWrite,
             articleScopedWrite ? articleContext.text : currentArticleText(),
-          );
-          if (!annotation) return;
-          annotationCount += 1;
-          if (articleScopedWrite) {
-            void appendAgentAnnotationToArticle(articleId, annotation);
-            return;
-          }
-          if (!isCurrentArticle(articleId)) return;
-          enqueueAgentAnnotation(annotation);
-          void processAgentAnnotationQueue();
-        },
-      );
-      if (!options.targetAnchor && readingPlan.length > 0) {
+          ),
+      });
+      if (requestInput.shouldSaveReadingMemory) {
         await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
       }
       if (showProgress && isCurrentArticle(articleId)) markVirtualReadingDone(agent.id);
       if (annotationCount === 0) {
-        if (showProgress && isCurrentArticle(articleId)) {
-          finishVirtualReading(agent.id, '没有批注');
-          setStatusMessage(`${agent.nickname} 暂无新批注`);
-          window.setTimeout(() => setStatusMessage(''), 1400);
-        }
+        finishEmptyAgentAnnotationPlayback(agent, articleId, showProgress);
         return;
       }
       if (showProgress && isCurrentArticle(articleId)) finishVirtualReadingIfIdle(agent.id);
     } finally {
-      if (showProgress) {
-        markAgentAnnotating(agent.id, false);
-        setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
-      }
+      finishAgentAnnotationRequest(agent, showProgress);
     }
+  }
+
+  function startAgentAnnotationPlayback(
+    agent: PublicAgent,
+    readingPlan: AgentReadingPlanItem[],
+    playbackMode: SourceAgentAnnotationPlaybackMode,
+    showProgress: boolean,
+  ) {
+    if (!showProgress) return;
+    markAgentAnnotating(agent.id, true);
+    setStatusMessage(`${agent.nickname} 正在批注`);
+    startVirtualReading(agent, readingPlan, playbackMode);
+  }
+
+  function handleAgentAnnotationStreamItem(
+    articleId: string,
+    annotation: Annotation,
+    readingPlan: AgentReadingPlanItem[],
+    articleScopedWrite: boolean,
+    articleText: string,
+  ) {
+    const constrainedAnnotation = constrainAgentPlanAnnotation(
+      annotation,
+      readingPlan,
+      articleText,
+    );
+    if (!constrainedAnnotation) return false;
+    if (articleScopedWrite) {
+      void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
+      return true;
+    }
+    if (!isCurrentArticle(articleId)) return true;
+    enqueueAgentAnnotation(constrainedAnnotation);
+    void processAgentAnnotationQueue();
+    return true;
+  }
+
+  function finishEmptyAgentAnnotationPlayback(
+    agent: PublicAgent,
+    articleId: string,
+    showProgress: boolean,
+  ) {
+    if (!showProgress || !isCurrentArticle(articleId)) return;
+    finishVirtualReading(agent.id, '没有批注');
+    setStatusMessage(`${agent.nickname} 暂无新批注`);
+    window.setTimeout(() => setStatusMessage(''), 1400);
+  }
+
+  function finishAgentAnnotationRequest(agent: PublicAgent, showProgress: boolean) {
+    if (!showProgress) return;
+    markAgentAnnotating(agent.id, false);
+    setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
   }
 
   function handleHighlightClick(
