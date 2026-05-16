@@ -2,22 +2,13 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
-  AgentMentionInstruction,
-  AgentMentionInstructionPayload,
   AgentMessagePayload,
   Annotation,
-  AnnotationMetadata,
-  AnnotationMetadataPayload,
-  ArticleRecord,
   Comment,
   FocusCoReadingRoutePayload,
   FocusCoReadingRouteResult,
   LlmProvider,
   ReadingMemory,
-  ReadingDeliberationRecord,
-  ReadingCardReviewRecord,
-  ReadingCardRecord,
-  ReadingCardReviewerResult,
 } from '@yomitomo/shared';
 import { agentReadingIntentOptions, normalizeAgentReadingIntent } from '@yomitomo/shared';
 import {
@@ -25,7 +16,6 @@ import {
   annotationDensityMax,
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
-  buildReadingQuestions,
   createAgentAnnotation,
   mergeReadingMemory,
   normalizeAnnotationType,
@@ -34,17 +24,10 @@ import {
   selectionThreadSpoilerPolicy,
   wholeBookSpoilerPolicy,
   type AnnotationSuggestion,
-  type ReadingCardEvidenceUnit,
   type ReadingContextBundle,
 } from '@yomitomo/core';
 import { logAiError, logAiInfo } from './logger';
-import {
-  budgetArticleText,
-  budgetDeliberationJson,
-  budgetEvidenceJson,
-  budgetReadingCardJson,
-  formatBudgetNotice,
-} from './budget';
+import { budgetArticleText, formatBudgetNotice } from './budget';
 import { callProviderText, streamProviderText } from './provider-client';
 import {
   buildSelectionAnnotationContext,
@@ -59,15 +42,7 @@ import {
   type SegmentAnnotationTask,
 } from './segment-annotation-context';
 import { generateSegmentReadingMemoryUpdate } from './reading-memory';
-import {
-  extractJsonObjects,
-  hasIncompleteJson,
-  numberArray,
-  parseJsonArray,
-  parseJsonObject,
-  stringArray,
-  stringValue,
-} from './json';
+import { extractJsonObjects, hasIncompleteJson } from './json';
 import { buildAgentRoleCard, type PromptAgent } from './agent-role-card';
 import { buildFocusCoReadingRoutePrompt, parseFocusCoReadingRouteResult } from './focus-route';
 
@@ -137,30 +112,20 @@ export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures'
 export { setAiLogger, type AiLogger } from './logger';
 export { extractJsonObjects } from './json';
 export { parseFocusCoReadingRouteResult } from './focus-route';
-
-export type GenerateReadingCardInput = {
-  article: ArticleRecord;
-  articleText: string;
-  evidenceUnits: ReadingCardEvidenceUnit[];
-  readingDeliberation?: ReadingDeliberationRecord;
-};
-
-export type GenerateReadingDeliberationInput = {
-  article: ArticleRecord;
-  articleText: string;
-  evidenceUnits: ReadingCardEvidenceUnit[];
-};
-
-export type ReviewReadingCardInput = GenerateReadingCardInput & {
-  readingCard: ReadingCardRecord;
-  previousReview?: ReadingCardReviewRecord;
-  reviewAgentIds?: string[];
-};
-
-export type ReviewReadingCardResult = Pick<
-  ReadingCardReviewerResult,
-  'status' | 'verdict' | 'summary' | 'findings' | 'acceptedClaims' | 'missingAngles' | 'rawResponse'
->;
+export {
+  inferAnnotationMetadata,
+  parseAgentMentionInstructions,
+  planAgentMentionInstructions,
+} from './annotation-metadata';
+export {
+  generateReadingCard,
+  generateReadingDeliberation,
+  reviewReadingCard,
+  type GenerateReadingCardInput,
+  type GenerateReadingDeliberationInput,
+  type ReviewReadingCardInput,
+  type ReviewReadingCardResult,
+} from './reading-card';
 
 export async function testProvider(
   provider: LlmProvider,
@@ -175,34 +140,6 @@ export async function testProvider(
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
   }
-}
-
-export async function inferAnnotationMetadata(
-  provider: LlmProvider,
-  payload: AnnotationMetadataPayload,
-): Promise<AnnotationMetadata> {
-  const content = await callProviderText(provider, {
-    system:
-      '你是 Yomitomo 阅读器的批注标签器。根据用户选区和批注内容，选择最贴切的批注类型和阅读动作。只返回 JSON。',
-    user: buildAnnotationMetadataPrompt(payload),
-    maxTokens: 240,
-    temperature: 0,
-  });
-  return parseAnnotationMetadata(content);
-}
-
-export async function planAgentMentionInstructions(
-  provider: LlmProvider,
-  payload: AgentMentionInstructionPayload,
-): Promise<AgentMentionInstruction[]> {
-  const content = await callProviderText(provider, {
-    system:
-      '你是 Yomitomo 阅读器的 @ 助手任务拆解器。根据用户文本，把每个被 @ 的助手应该执行的阅读任务拆开。只返回 JSON。',
-    user: buildAgentMentionInstructionPrompt(payload),
-    maxTokens: 900,
-    temperature: 0,
-  });
-  return parseAgentMentionInstructions(content, payload.agents);
 }
 
 export async function planFocusCoReadingRoute(
@@ -794,52 +731,6 @@ function agentAnnotationOutputLimit(
   return annotationDensityMax(agent.annotationDensity, annotationBudgetText(payload, context));
 }
 
-export async function generateReadingCard(provider: LlmProvider, input: GenerateReadingCardInput) {
-  const system =
-    '你是 Yomitomo 的读后笔记生成器。你的任务是基于文章全文、读者批注和讨论证据生成一篇可保存的读后笔记。你使用产品级整理策略，保持克制、准确、有判断力；不要套用任何批注助手的人格或口吻。必须区分文章观点、读者关注、助手补充。所有判断都要能回到原文或证据单元。';
-
-  return callProviderText(provider, {
-    system,
-    user: buildReadingCardPrompt(provider, input),
-    maxTokens: 3000,
-    temperature: 0.35,
-  });
-}
-
-export async function generateReadingDeliberation(
-  provider: LlmProvider,
-  input: GenerateReadingDeliberationInput,
-) {
-  const system =
-    '你是 Yomitomo 的阅读审议编辑。你的任务是基于文章全文、读者批注、助手批注和评论 thread，整理这场阅读讨论已经形成的判断、分歧、证据强弱和未决问题。保持中立、具体、可追溯，所有判断都要能回到原文或证据单元。';
-
-  return callProviderText(provider, {
-    system,
-    user: buildReadingDeliberationPrompt(provider, input),
-    maxTokens: 3600,
-    temperature: 0.3,
-  });
-}
-
-export async function reviewReadingCard(
-  provider: LlmProvider,
-  agent: Agent,
-  input: ReviewReadingCardInput,
-): Promise<ReviewReadingCardResult> {
-  const system = `${agent.soul}\n\n你是 Yomitomo 的读后笔记审核助手。你要审当前读后笔记和证据之间的关系，重点检查事实归因、证据链、覆盖度、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
-  const rawResponse = await callProviderText(
-    provider,
-    {
-      system,
-      user: buildReviewReadingCardPrompt(provider, input),
-      maxTokens: 6000,
-      temperature: agent.temperature,
-    },
-    { failOnMaxTokens: true },
-  );
-  return normalizeReadingCardReviewResponse(rawResponse);
-}
-
 function readingIntentOption(payload: AgentAnnotatePayload | AgentMessagePayload) {
   return agentReadingIntentOptions.find((option) => option.value === payload.readingIntent);
 }
@@ -1197,448 +1088,4 @@ function buildAgentAnnotateStreamPrompt(
   const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"文章中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","comment":"按本轮阅读动作说明这段为什么值得讨论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：只挑符合本轮阅读动作且有讨论价值的文本；没有价值可以不输出任何行。\n\n要求：\n- exact 必须是文章中的原文连续片段，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- type 必须从允许值中选择\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
-}
-
-function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCardInput) {
-  const article = {
-    title: input.article.title,
-    url: input.article.canonicalUrl || input.article.url,
-    byline: input.article.byline || '',
-    excerpt: input.article.excerpt || '',
-  };
-  const evidence = input.evidenceUnits.map((unit) => ({
-    id: unit.index,
-    type: unit.annotationType || '批注',
-    questionStatus: unit.questionStatus || '',
-    quote: unit.quote,
-    annotationAuthor: unit.annotationAuthorLabel,
-    annotationBody: unit.annotationBody
-      ? {
-          author: unit.annotationBody.authorLabel,
-          questionStatus: unit.annotationBody.questionStatus || '',
-          content: unit.annotationBody.content,
-        }
-      : null,
-    comments: unit.comments.map((comment) => ({
-      author: comment.authorLabel,
-      questionStatus: comment.questionStatus || '',
-      content: comment.content,
-    })),
-  }));
-  const questions = buildReadingQuestions(input.article).map((question) => ({
-    id: question.id,
-    status: question.status,
-    author: question.authorLabel,
-    text: question.text,
-    quote: question.quote,
-  }));
-  const deliberation = input.readingDeliberation
-    ? {
-        id: input.readingDeliberation.id,
-        markdown: input.readingDeliberation.contentMarkdown,
-        sections: input.readingDeliberation.sections,
-      }
-    : null;
-  const articleText = budgetArticleText(provider, 'reading-card', input.articleText);
-  const evidenceJson = budgetEvidenceJson('reading-card', evidence);
-  const deliberationJson = deliberation
-    ? budgetDeliberationJson('reading-card', deliberation)
-    : { text: '暂无', report: null };
-  const budgetNotice = formatBudgetNotice(
-    [articleText.report, evidenceJson.report, deliberationJson.report].filter(
-      (report) => report !== null,
-    ),
-  );
-
-  return `请基于全文和证据单元生成一篇中文 Markdown 读后笔记。
-
-文章信息：
-${JSON.stringify(article, null, 2)}
-
-${budgetNotice}
-
-全文：
-${articleText.text}
-
-证据单元：
-${evidenceJson.text}
-
-问题状态：
-${JSON.stringify(questions, null, 2)}
-
-阅读审议：
-${deliberationJson.text}
-
-输出要求：
-- 直接输出 Markdown，不要输出代码块。
-- 不要写“文章快照”。
-- 不要复述全文概要。
-- 每条关键判断尽量标注证据编号，例如 [#1]。
-- 保留读者自己的关注点，标明“我”或读者昵称。
-- 助手观点和文章观点分开表达。
-- 如果有阅读审议，优先吸收其中的共识、分歧、证据强弱和未决问题。
-- 保留未决问题状态：open 作为待推进问题，answered 作为已收束问题，parked 作为暂不推进问题。
-- 内容要精炼、有层次，适合作为读后笔记保存。
-
-固定结构：
-# ${input.article.title}
-
-## 核心主张
-用 1-2 句话说清文章最重要的判断。
-
-## 我关注了什么
-按主题归并读者批注和评论，每条带原文证据编号。
-
-## 讨论中浮现了什么
-整理共识、分歧、未回答问题。来源来自评论 thread。
-
-## 可复用洞见
-提炼 3-5 条可以迁移到其他阅读或决策里的洞见。
-
-## 后续行动线索
-列出后续阅读、验证假设或可执行动作。`;
-}
-
-function buildReadingDeliberationPrompt(
-  provider: LlmProvider,
-  input: GenerateReadingDeliberationInput,
-) {
-  const article = {
-    title: input.article.title,
-    url: input.article.canonicalUrl || input.article.url,
-    byline: input.article.byline || '',
-    excerpt: input.article.excerpt || '',
-  };
-  const evidence = input.evidenceUnits.map((unit) => ({
-    id: unit.index,
-    type: unit.annotationType || '批注',
-    questionStatus: unit.questionStatus || '',
-    quote: unit.quote,
-    annotationAuthor: unit.annotationAuthorLabel,
-    annotationBody: unit.annotationBody
-      ? {
-          author: unit.annotationBody.authorLabel,
-          questionStatus: unit.annotationBody.questionStatus || '',
-          content: unit.annotationBody.content,
-        }
-      : null,
-    comments: unit.comments.map((comment) => ({
-      author: comment.authorLabel,
-      questionStatus: comment.questionStatus || '',
-      content: comment.content,
-    })),
-  }));
-  const questions = buildReadingQuestions(input.article).map((question) => ({
-    id: question.id,
-    status: question.status,
-    author: question.authorLabel,
-    text: question.text,
-    quote: question.quote,
-  }));
-  const articleText = budgetArticleText(provider, 'reading-deliberation', input.articleText);
-  const evidenceJson = budgetEvidenceJson('reading-deliberation', evidence);
-  const budgetNotice = formatBudgetNotice([articleText.report, evidenceJson.report]);
-
-  return `请生成一份中文 Markdown 阅读审议。
-
-文章信息：
-${JSON.stringify(article, null, 2)}
-
-${budgetNotice}
-
-全文：
-${articleText.text}
-
-证据单元：
-${evidenceJson.text}
-
-问题状态：
-${JSON.stringify(questions, null, 2)}
-
-输出要求：
-- 直接输出 Markdown，不要输出代码块。
-- 每个关键判断尽量标注证据编号，例如 [#1]。
-- 区分文章观点、读者关注、助手补充和评论 thread。
-- 聚焦这场阅读讨论形成了什么判断，避免复述全文。
-- 对证据薄弱、归因不清或仍需验证的内容明确指出。
-- 单独汇总问题状态：open 是未决问题，answered 是已回答问题，parked 是搁置问题。
-
-固定结构：
-# ${input.article.title}｜阅读审议
-
-## 共识
-整理文章、读者和助手之间已经形成的主要共识。
-
-## 分歧与张力
-整理不同批注或评论之间的分歧、冲突、可挑战前提。
-
-## 证据强弱
-列出证据较强的判断和证据较弱的判断，说明依据。
-
-## 未决问题
-优先列出 open 问题，并简要说明对应证据；再用短句概括 answered 和 parked 问题。
-
-## 给读后笔记的建议
-说明生成读后笔记时应该保留、压缩或谨慎处理的内容。`;
-}
-
-function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadingCardInput) {
-  const article = {
-    title: input.article.title,
-    url: input.article.canonicalUrl || input.article.url,
-    byline: input.article.byline || '',
-    excerpt: input.article.excerpt || '',
-  };
-  const card = {
-    id: input.readingCard.id,
-    sections: input.readingCard.sections,
-    markdown: input.readingCard.contentMarkdown,
-  };
-  const evidence = input.evidenceUnits.map((unit) => ({
-    id: unit.index,
-    type: unit.annotationType || '批注',
-    questionStatus: unit.questionStatus || '',
-    quote: unit.quote,
-    annotationAuthor: unit.annotationAuthorLabel,
-    annotationBody: unit.annotationBody
-      ? {
-          author: unit.annotationBody.authorLabel,
-          questionStatus: unit.annotationBody.questionStatus || '',
-          content: unit.annotationBody.content,
-        }
-      : null,
-    comments: unit.comments.map((comment) => ({
-      author: comment.authorLabel,
-      questionStatus: comment.questionStatus || '',
-      content: comment.content,
-    })),
-  }));
-  const articleText = budgetArticleText(provider, 'reading-card-review', input.articleText);
-  const evidenceJson = budgetEvidenceJson('reading-card-review', evidence);
-  const cardJson = budgetReadingCardJson('reading-card-review', card);
-  const budgetNotice = formatBudgetNotice([
-    articleText.report,
-    evidenceJson.report,
-    cardJson.report,
-  ]);
-
-  return `请审核这篇读后笔记，返回一个 JSON 对象。
-
-文章信息：
-${JSON.stringify(article, null, 2)}
-
-${budgetNotice}
-
-全文：
-${articleText.text}
-
-证据单元：
-${evidenceJson.text}
-
-读后笔记：
-${cardJson.text}
-
-审核维度：
-- 证据链：关键判断是否能对应文章原文或证据单元。
-- 归因：文章观点、读者关注、助手讨论是否表达清楚。
-- 覆盖：高价值批注和评论是否被合理吸收。
-- 压缩质量：是否保留有效判断，去除空泛复述。
-- 行动线索：后续行动是否具体、能执行、和阅读材料有关。
-
-输出 JSON 格式：
-{
-  "verdict": "pass",
-  "summary": "整体审核结论，80 字以内",
-  "findings": [
-    {
-      "section": "核心主张",
-      "severity": "high",
-      "problem": "问题描述",
-      "evidenceIds": [1, 2],
-      "suggestedRewrite": "可选，给出更好的改写"
-    }
-  ],
-  "acceptedClaims": ["保留得好的判断"],
-  "missingAngles": ["建议补充的视角"]
-}
-
-约束：
-- verdict 只允许 pass 或 revise；存在高风险事实、归因或证据问题时使用 revise。
-- severity 只允许 high、medium、low。
-- evidenceIds 使用证据单元 id；没有对应证据时返回空数组。
-- 文本字段里引用证据时统一写成 [#1] 这种格式；evidenceIds 仍返回数字数组。
-- findings 最多 6 条，acceptedClaims 最多 4 条，missingAngles 最多 4 条。
-- 只输出 JSON 对象，不要输出 Markdown。`;
-}
-
-function normalizeReadingCardReviewResponse(rawResponse: string): ReviewReadingCardResult {
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = parseJsonObject(rawResponse);
-  } catch (error) {
-    logAiError('reading_card.review.parse_error', error, {
-      rawLength: rawResponse.length,
-      rawPreview: rawResponse.slice(0, 1200),
-      rawTail: rawResponse.slice(-500),
-    });
-    return {
-      status: 'error',
-      verdict: 'revise',
-      summary: '审核助手返回的内容格式异常，已保留原始输出供排查。',
-      findings: [
-        {
-          section: '整篇笔记',
-          severity: 'high',
-          problem: '审稿结果 JSON 解析失败，当前这位审核助手的结构化结论无法可靠读取。',
-          evidenceIds: [],
-        },
-      ],
-      acceptedClaims: [],
-      missingAngles: [],
-      rawResponse,
-    };
-  }
-  return {
-    verdict: parsed.verdict === 'pass' ? 'pass' : 'revise',
-    summary: stringValue(parsed.summary).slice(0, 300),
-    findings: Array.isArray(parsed.findings)
-      ? parsed.findings.slice(0, 6).flatMap((item) => {
-          if (!item || typeof item !== 'object') return [];
-          const finding = item as Record<string, unknown>;
-          const problem = stringValue(finding.problem).slice(0, 500);
-          if (!problem) return [];
-          return [
-            {
-              section: stringValue(finding.section).slice(0, 80),
-              severity:
-                finding.severity === 'high' || finding.severity === 'low'
-                  ? finding.severity
-                  : 'medium',
-              problem,
-              evidenceIds: numberArray(finding.evidenceIds).slice(0, 8),
-              suggestedRewrite: stringValue(finding.suggestedRewrite).slice(0, 800) || undefined,
-            },
-          ];
-        })
-      : [],
-    acceptedClaims: stringArray(parsed.acceptedClaims).slice(0, 4),
-    missingAngles: stringArray(parsed.missingAngles).slice(0, 4),
-    rawResponse,
-  };
-}
-
-function buildAnnotationMetadataPrompt(payload: AnnotationMetadataPayload) {
-  return `文章标题：${payload.article.title}
-文章 URL：${payload.article.url}
-
-用户选区：
-${payload.anchor.exact}
-
-用户批注：
-${payload.note.trim() || '（用户未填写批注）'}
-
-请返回 JSON 对象，字段如下：
-- annotationType：只允许 key_point、assumption、concept、question、quote
-- readingIntent：只允许 explain、decompose、challenge、question、connect
-
-类型含义：
-- key_point：关键判断或强论点
-- assumption：前提、漏洞、可挑战处
-- concept：概念解释需求
-- question：延伸问题
-- quote：金句或可复用表达
-
-阅读动作含义：
-- explain：解释这段在说什么
-- decompose：拆解结构和因果
-- challenge：挑战前提或漏洞
-- question：提出后续问题
-- connect：连接经验、案例或上下文
-
-只返回 JSON，例如 {"annotationType":"key_point","readingIntent":"explain"}。`;
-}
-
-function buildAgentMentionInstructionPrompt(payload: AgentMentionInstructionPayload) {
-  const agents = payload.agents.map((agent) => ({
-    agentId: agent.id,
-    agentUsername: agent.username,
-    nickname: agent.nickname,
-    personalityName: agent.personalityName,
-  }));
-  const intents = agentReadingIntentOptions.map((option) => ({
-    value: option.value,
-    label: option.label,
-    description: option.description,
-  }));
-
-  return `文章标题：${payload.article.title}
-文章 URL：${payload.article.url}
-
-目标选区：
-${payload.targetAnchor.exact}
-
-用户文本：
-${payload.note.trim() || '（用户只 @ 了助手）'}
-
-被 @ 的助手：
-${JSON.stringify(agents, null, 2)}
-
-可选阅读动作：
-${JSON.stringify(intents, null, 2)}
-
-请返回 JSON 数组，每个元素对应一个被 @ 的助手：
-- agentUsername：必须来自被 @ 的助手列表
-- instruction：只写这个助手需要执行的具体指令，去掉 @ 称呼
-- readingIntent：当用户明确要求解释、拆解、挑战、追问或联系全文时填写对应 value；动作由助手角色自行判断时省略
-
-拆解规则：
-- 单个助手前后的要求归给该助手。
-- 多个助手共享的要求复制给每个助手。
-- 用户给不同助手安排不同要求时分别拆开。
-
-只返回 JSON，例如 [{"agentUsername":"林知微","instruction":"解释这个概念","readingIntent":"explain"}]。`;
-}
-
-function parseAnnotationMetadata(content: string): AnnotationMetadata {
-  const parsed = parseJsonObject(content);
-  const annotationType = normalizeAnnotationType(parsed.annotationType);
-  const readingIntent = normalizeAgentReadingIntent(parsed.readingIntent);
-  if (!annotationType || !readingIntent) throw new Error('批注标签结果无效');
-  return { annotationType, readingIntent };
-}
-
-export function parseAgentMentionInstructions(
-  content: string,
-  agents: AgentMentionInstructionPayload['agents'],
-): AgentMentionInstruction[] {
-  const parsed = parseJsonArray(content);
-  const byHandle = new Map(
-    agents.flatMap((agent) => [[agent.username, agent] as const, [agent.nickname, agent] as const]),
-  );
-  const byAgentId = new Map<string, AgentMentionInstruction>();
-
-  for (const item of parsed) {
-    if (!item || typeof item !== 'object') continue;
-    const row = item as Record<string, unknown>;
-    const handle =
-      stringValue(row.agentUsername) || stringValue(row.username) || stringValue(row.agent);
-    const agent = byHandle.get(handle);
-    if (!agent || byAgentId.has(agent.id)) continue;
-    const instruction = stringValue(row.instruction);
-    const readingIntent = normalizeAgentReadingIntent(row.readingIntent);
-    byAgentId.set(agent.id, {
-      agentId: agent.id,
-      agentUsername: agent.username,
-      instruction: instruction || undefined,
-      readingIntent: readingIntent || undefined,
-    });
-  }
-
-  return agents.map(
-    (agent) =>
-      byAgentId.get(agent.id) || {
-        agentId: agent.id,
-        agentUsername: agent.username,
-      },
-  );
 }
