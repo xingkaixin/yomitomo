@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 codebase review（ReaderAppView 单体组件拆分）
 ---
 
@@ -61,9 +61,9 @@ Origin: 2026-05-16 codebase review（ReaderAppView 单体组件拆分）
   - 移动 `annotationFilter`、`railAnimation`、`noteHeights`、`expandedPrimaryCommentIds`、`noteRefForAnnotation`、`setPrimaryCommentExpanded` 和相关 effects。
   - hook 返回 `annotationFilterFacets`、`annotationRailItems`、`visibleAnnotations`、`visibleAnnotationIds`、`visibleRailAnnotations`、`exitingAnnotationIds`、`noteRefForAnnotation`、`clearAnnotationFilter`、`toggleAnnotationFilterValueForGroup`。
 - 验收标准：
-  - [ ] `ReaderAppView` 不直接持有 `noteHeights`、`railAnimation`、`noteElementsRef`。
-  - [ ] 新 hook 覆盖 article 切换、批注新增、筛选后退出动画和高度清理。
-  - [ ] `AnnotationCard` 渲染路径的 DOM className 不变。
+- [x] `ReaderAppView` 不直接持有 `noteHeights`、`railAnimation`、`noteElementsRef`。
+- [x] 新 hook 覆盖 article 切换、批注新增、筛选后退出动画和高度清理。
+- [x] `AnnotationCard` 渲染路径的 DOM className 不变。
 
 #### 2. Toolbar、floating panels、toc、surface 混在一个 return 中
 
@@ -81,10 +81,10 @@ Origin: 2026-05-16 codebase review（ReaderAppView 单体组件拆分）
   - 新增 `reader-toc-panel.tsx`，承接目录列表和目录批注统计展示。
   - 新增 `reader-surface-view.tsx`，承接正文 article、highlight layer、annotation rail、selection menu、highlight choice 和 composer。
 - 验收标准：
-  - [ ] `ReaderAppView` return 只保留 shell 布局和子组件拼装。
-  - [ ] 子组件只接收真实展示依赖，不通过一个巨大 `viewModel` 透传所有 props。
-  - [ ] `reader-toolbar.tsx` 不 import rail state hook。
-  - [ ] `reader-surface-view.tsx` 不 import `AgentAnnotateMenu` 或 `ReaderSettingsPanel`。
+- [x] `ReaderAppView` return 只保留 shell 布局和子组件拼装。
+- [x] 子组件只接收真实展示依赖，不通过一个巨大 `viewModel` 透传所有 props。
+- [x] `reader-toolbar.tsx` 不 import rail state hook。
+- [x] `reader-surface-view.tsx` 不 import `AgentAnnotateMenu` 或 `ReaderSettingsPanel`。
 
 #### 3. 浮层关闭和 selection shortcut 属于 shell 行为，应该集中命名
 
@@ -99,8 +99,8 @@ Origin: 2026-05-16 codebase review（ReaderAppView 单体组件拆分）
   - 保留在 `ReaderAppView` 或抽为 `useReaderShellInteractions`，但不要混入 surface 展示组件。
   - 若抽 hook，只传入最小 callback 集合，不让 hook 读取 annotation rail 内部状态。
 - 验收标准：
-  - [ ] Escape、点击外部、selection shortcut 交互由现有测试或新增 smoke test 覆盖。
-  - [ ] 外部点击关闭规则仍使用现有 `activeAnnotationPreserveSelector` 语义。
+- [x] Escape、点击外部、selection shortcut 交互由现有测试或新增 smoke test 覆盖。
+- [x] 外部点击关闭规则仍使用现有 `activeAnnotationPreserveSelector` 语义。
 
 ## 建议落地顺序
 
@@ -111,9 +111,9 @@ Origin: 2026-05-16 codebase review（ReaderAppView 单体组件拆分）
 
 ## 验收标准
 
-- [ ] `packages/reader-ui/src/reader-app-view.tsx` 控制在 350 行以内。
-- [ ] `ReaderAppViewProps` 不出现破坏性变更。
-- [ ] `pnpm --filter @yomitomo/reader-ui test -- reader-components reader-utils` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui lint` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `packages/reader-ui/src/reader-app-view.tsx` 控制在 350 行以内。
+- [x] `ReaderAppViewProps` 不出现破坏性变更。
+- [x] `pnpm --filter @yomitomo/reader-ui test -- reader-components reader-utils` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui lint` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
