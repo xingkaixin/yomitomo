@@ -157,19 +157,19 @@ export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {
 export function providerDraftHasChanges(draft: ProviderDraft, provider: LlmProvider | null) {
   if (!provider) return true;
 
-  return (
-    (draft.name || '').trim() !== provider.name ||
-    (draft.type || 'anthropic') !== provider.type ||
-    (draft.presetId || '') !== (provider.presetId || '') ||
-    (draft.logo || '') !== (provider.logo || '') ||
-    (draft.baseUrl || '').trim() !== provider.baseUrl ||
-    Boolean((draft.apiKey || '').trim()) ||
-    Boolean(draft.removeApiKey) ||
-    (draft.modelName || '').trim() !== provider.modelName ||
-    modelNamesChanged(draft.modelNames, provider.modelNames) ||
-    (draft.modelInputMode || 'list') !== (provider.modelInputMode || 'list') ||
-    (draft.reasoningEffort || 'none') !== (provider.reasoningEffort || 'none')
-  );
+  const fieldChanged = [
+    textField(draft.name).trim() !== provider.name,
+    textField(draft.type, 'anthropic') !== provider.type,
+    textField(draft.presetId) !== textField(provider.presetId),
+    textField(draft.logo) !== textField(provider.logo),
+    textField(draft.baseUrl).trim() !== provider.baseUrl,
+    textField(draft.modelName).trim() !== provider.modelName,
+    modelNamesChanged(draft.modelNames, provider.modelNames),
+    textField(draft.modelInputMode, 'list') !== textField(provider.modelInputMode, 'list'),
+    textField(draft.reasoningEffort, 'none') !== textField(provider.reasoningEffort, 'none'),
+  ].some(Boolean);
+
+  return fieldChanged || Boolean(textField(draft.apiKey).trim()) || Boolean(draft.removeApiKey);
 }
 
 export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
@@ -182,19 +182,19 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
   const temperature =
     personality?.temperature ?? draft.temperature ?? customPersonality.temperature;
 
-  return (
-    (draft.providerId || '') !== agent.providerId ||
-    (draft.kind || 'annotation') !== (agent.kind || 'annotation') ||
-    (draft.presetId || '') !== (agent.presetId || '') ||
-    Boolean(draft.enabled) !== Boolean(agent.enabled) ||
-    (draft.nickname || '').trim() !== agent.nickname ||
-    (draft.username || '').trim() !== agent.username ||
-    (draft.avatar || '').trim() !== agent.avatar ||
-    (draft.annotationColor || '') !== agent.annotationColor ||
-    (draft.annotationDensity || 'medium') !== agent.annotationDensity ||
-    Math.abs(Number(temperature) - agent.temperature) > 0.001 ||
-    soul.trim() !== agent.soul
-  );
+  return [
+    textField(draft.providerId) !== agent.providerId,
+    textField(draft.kind, 'annotation') !== textField(agent.kind, 'annotation'),
+    textField(draft.presetId) !== textField(agent.presetId),
+    Boolean(draft.enabled) !== Boolean(agent.enabled),
+    textField(draft.nickname).trim() !== agent.nickname,
+    textField(draft.username).trim() !== agent.username,
+    textField(draft.avatar).trim() !== agent.avatar,
+    textField(draft.annotationColor) !== agent.annotationColor,
+    textField(draft.annotationDensity, 'medium') !== agent.annotationDensity,
+    Math.abs(Number(temperature) - agent.temperature) > 0.001,
+    soul.trim() !== agent.soul,
+  ].some(Boolean);
 }
 
 export function isValidUsername(value: string) {
@@ -208,6 +208,10 @@ function modelNamesChanged(left: string[] | undefined, right: string[] | undefin
     leftNames.length !== rightNames.length ||
     leftNames.some((item, index) => item !== rightNames[index])
   );
+}
+
+function textField(value: string | undefined, fallback = '') {
+  return value || fallback;
 }
 
 export function sanitizeUsernameInput(value: string) {
