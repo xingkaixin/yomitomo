@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArticleRecord, ReadingCardRecord, ReadingDeliberationRecord } from '@yomitomo/shared';
 import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
 import { formatDate } from './app-utils';
@@ -106,6 +106,12 @@ export function useReadingCardWorkflow({
     review: 'idle',
   });
   const reviewAgentKey = reviewAgentIds.join('|');
+  const activeArticleIdRef = useRef<string | null>(article?.id ?? null);
+  activeArticleIdRef.current = article?.id ?? null;
+
+  function articleRequestIsCurrent(articleId: string) {
+    return activeArticleIdRef.current === articleId;
+  }
 
   useEffect(() => {
     setDeliberation(article?.readingDeliberation || null);
@@ -149,6 +155,7 @@ export function useReadingCardWorkflow({
     if (!article || !deliberation || status.aiCard === 'generating' || workflow.isWorkflowBusy) {
       return;
     }
+    const requestArticleId = article.id;
     setStatus((current) => ({ ...current, aiCard: 'generating' }));
     setAiError('');
     try {
@@ -158,11 +165,13 @@ export function useReadingCardWorkflow({
         evidenceUnits,
         readingDeliberation: deliberation,
       });
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setAiCard(result.readingCard);
       setStatus((current) => ({ ...current, aiCard: 'done', review: 'idle' }));
       setReviewError('');
       onGenerated();
     } catch (error) {
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setAiError(error instanceof Error ? error.message : 'AI 提炼失败');
       setStatus((current) => ({ ...current, aiCard: 'error' }));
     }
@@ -170,6 +179,7 @@ export function useReadingCardWorkflow({
 
   async function generateDeliberation() {
     if (!article || workflow.isWorkflowBusy) return;
+    const requestArticleId = article.id;
     setStatus((current) => ({ ...current, deliberation: 'generating' }));
     setDeliberationError('');
     try {
@@ -178,6 +188,7 @@ export function useReadingCardWorkflow({
         articleText,
         evidenceUnits,
       });
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setDeliberation(result.readingDeliberation);
       setStatus((current) => ({
         ...current,
@@ -188,6 +199,7 @@ export function useReadingCardWorkflow({
       setReviewError('');
       onGenerated();
     } catch (error) {
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setDeliberationError(error instanceof Error ? error.message : '阅读审议生成失败');
       setStatus((current) => ({ ...current, deliberation: 'error' }));
     }
@@ -206,6 +218,7 @@ export function useReadingCardWorkflow({
       setReviewError('请选择审核助手');
       return;
     }
+    const requestArticleId = article.id;
     setStatus((current) => ({ ...current, review: 'reviewing' }));
     setReviewError('');
     try {
@@ -216,10 +229,12 @@ export function useReadingCardWorkflow({
         readingCard: workflow.currentAiCard,
         reviewAgentIds: selectedReviewAgentIds,
       });
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setAiCard({ ...workflow.currentAiCard, review: result.review });
       setStatus((current) => ({ ...current, review: 'done' }));
       onGenerated();
     } catch (error) {
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
       setStatus((current) => ({ ...current, review: 'error' }));
     }
@@ -234,6 +249,7 @@ export function useReadingCardWorkflow({
     ) {
       return;
     }
+    const requestArticleId = article.id;
     setStatus((current) => ({ ...current, review: 'reviewing' }));
     setRetryingReviewerId(agentId);
     setReviewError('');
@@ -246,14 +262,16 @@ export function useReadingCardWorkflow({
         previousReview: workflow.currentAiCard.review,
         reviewAgentIds: [agentId],
       });
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setAiCard({ ...workflow.currentAiCard, review: result.review });
       setStatus((current) => ({ ...current, review: 'done' }));
       onGenerated();
     } catch (error) {
+      if (!articleRequestIsCurrent(requestArticleId)) return;
       setReviewError(error instanceof Error ? error.message : '读后笔记审稿失败');
       setStatus((current) => ({ ...current, review: 'error' }));
     } finally {
-      setRetryingReviewerId(null);
+      if (articleRequestIsCurrent(requestArticleId)) setRetryingReviewerId(null);
     }
   }
 

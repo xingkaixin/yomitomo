@@ -61,9 +61,9 @@ Status: Complete
   - 新增 `reader-component-primitives.tsx`，移动 `AvatarBadge`、`ReadingIntentLabelContent`、`AnnotationTypeLabelContent`、`AnnotationTypeIcon`、`SubmitShortcutKeys` 等内部复用展示片段。
   - `reader-components.tsx` 和 `index.ts` 继续 re-export 公共类型与组件，保持外部导入路径不变。
 - 验收标准：
-  - [ ] `reader-utils.ts`、`use-agent-annotation-queue.ts`、`use-agent-reading-dock.ts` 不再从 `./reader-components` 导入公共类型。
-  - [ ] `AgentAnnotateMenu`、`Composer`、`AnnotationCard` 的 mention 查询和插入逻辑都来自同一个 utils 模块。
-  - [ ] 共享 primitive 不从任何大型业务组件文件导出。
+  - [x] `reader-utils.ts`、`use-agent-annotation-queue.ts`、`use-agent-reading-dock.ts` 不再从 `./reader-components` 导入公共类型。
+  - [x] `AgentAnnotateMenu`、`Composer`、`AnnotationCard` 的 mention 查询和插入逻辑都来自同一个 utils 模块。
+  - [x] 共享 primitive 不从任何大型业务组件文件导出。
 
 ### P1（组件职责）
 
@@ -81,9 +81,9 @@ Status: Complete
   - `reader-agent-annotate-menu.tsx` 从 `reader-types.ts`、`reader-mention-utils.ts`、`reader-component-primitives.tsx` 引用共享能力，不从 `AnnotationCard` 或其他业务组件文件引用。
   - 保持 `reader-components.tsx` re-export 或从 `index.ts` 直接导出，避免消费者迁移成本。
 - 验收标准：
-  - [ ] `AgentAnnotateMenu` 不再定义在 `reader-components.tsx`。
-  - [ ] focus plan helpers 有单元测试覆盖 section normalize、message target filter 和 reading plan item 生成。
-  - [ ] 现有 `reader-components.test.tsx` 仍通过。
+  - [x] `AgentAnnotateMenu` 不再定义在 `reader-components.tsx`。
+  - [x] focus plan helpers 有单元测试覆盖 section normalize、message target filter 和 reading plan item 生成。
+  - [x] 现有 `reader-components.test.tsx` 仍通过。
 
 #### 3. `AnnotationCard` 同时处理卡片显示、评论 thread 和 @ mention 输入
 
@@ -98,9 +98,9 @@ Status: Complete
   - `annotationMentionAgents` 可以留在 `reader-annotation-card.tsx`，因为它只服务批注卡片的作者优先排序。
   - `matchesAgentMentionQuery`、`mentionDraftWithAgent` 等跨组件 mention helper 应来自 `reader-mention-utils.ts`，不放入 `reader-annotation-card.tsx`。
 - 验收标准：
-  - [ ] `AnnotationCard` 单文件入口清晰。
-  - [ ] 评论 composer 可以独立测试 @ mention filter 和键盘行为。
-  - [ ] 删除长按逻辑仍有 cleanup，组件卸载不会留下 timer。
+  - [x] `AnnotationCard` 单文件入口清晰。
+  - [x] 评论 composer 可以独立测试 @ mention filter 和键盘行为。
+  - [x] 删除长按逻辑仍有 cleanup，组件卸载不会留下 timer。
 
 ### P2（基础组件出口）
 
@@ -118,10 +118,10 @@ Status: Complete
   - 新增按职责命名的文件：`reader-selection-menu.tsx`、`reader-question-panel.tsx`、`reader-settings-panel.tsx`、`reader-filter-panel.tsx`、`reader-annotation-card.tsx`。
   - 不一次性拆完全部小组件，优先拆 `AgentAnnotateMenu` 和 `AnnotationCard`。
 - 验收标准：
-  - [ ] 最终阶段 `reader-components.tsx` 不再超过 300 行。
-  - [ ] `@yomitomo/reader-ui/reader-components` 的现有导入路径仍可用。
-  - [ ] 拆分后的内部模块不通过 `reader-components.tsx` 彼此引用。
-  - [ ] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
+  - [x] 最终阶段 `reader-components.tsx` 不再超过 300 行。
+  - [x] `@yomitomo/reader-ui/reader-components` 的现有导入路径仍可用。
+  - [x] 拆分后的内部模块不通过 `reader-components.tsx` 彼此引用。
+  - [x] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
 
 ## 建议落地顺序
 
@@ -133,9 +133,9 @@ Status: Complete
 
 ## 验收标准
 
-- [ ] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui test` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui lint` 通过。
-- [ ] 拆分后公共导出路径不破坏 desktop 编译。
-- [ ] Phase 0 后内部非组件模块不再依赖 `./reader-components` 获取类型。
-- [ ] Phase 4 后 `reader-components.tsx` 只保留兼容 re-export。
+- [x] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui test` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui lint` 通过。
+- [x] 拆分后公共导出路径不破坏 desktop 编译。
+- [x] Phase 0 后内部非组件模块不再依赖 `./reader-components` 获取类型。
+- [x] Phase 4 后 `reader-components.tsx` 只保留兼容 re-export。
