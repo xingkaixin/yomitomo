@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 codebase review（SourceBookcase 共读请求流程拆分）
 ---
 
@@ -55,10 +55,10 @@ Origin: 2026-05-16 codebase review（SourceBookcase 共读请求流程拆分）
   - 定义 `SourceAgentAnnotationRequestOptions`、`SourceAgentAnnotationRuntimeContext` 和 `buildAgentAnnotationRequestInput`。
   - `buildAgentAnnotationRequestInput` 只返回 request payload、resolved readingPlan、playback mode、是否需要保存 readingMemory 等纯数据。
 - 验收标准：
-  - [ ] Web/EPUB 不再手写 `annotations: options.targetAnchor || readingPlan.length > 0 ? ...` 这类协议判断。
-  - [ ] target anchor 请求不会传 whole-plan `readingPlan`。
-  - [ ] focus co-reading plan 请求会传 `readingMemory` 并在结果返回后保存。
-  - [ ] 纯函数测试覆盖 target、careful、article 三类请求。
+  - [x] Web/EPUB 不再手写 `annotations: options.targetAnchor || readingPlan.length > 0 ? ...` 这类协议判断。
+  - [x] target anchor 请求不会传 whole-plan `readingPlan`。
+  - [x] focus co-reading plan 请求会传 `readingMemory` 并在结果返回后保存。
+  - [x] 纯函数测试覆盖 target、careful、article 三类请求。
 
 #### 2. mention 指令拆解逻辑在 Web/EPUB 中重复
 
@@ -73,9 +73,9 @@ Origin: 2026-05-16 codebase review（SourceBookcase 共读请求流程拆分）
   - 该函数接收 `desktop`、`article`、`targetAnchor`、`agents`、`note` 和可选 `onStatus`，返回统一的 agent/instruction/readingIntent 列表。
   - Web/EPUB 创建批注路径只负责取消 composer、调用 resolver、触发运行时自己的 request 函数。
 - 验收标准：
-  - [ ] `agentInstructionFromNote` 的现有测试继续通过。
-  - [ ] mention planning 失败时仍回退到通用 instruction，不阻断用户批注流程。
-  - [ ] Web/EPUB 的“正在拆解助手任务”状态行为一致。
+  - [x] `agentInstructionFromNote` 的现有测试继续通过。
+  - [x] mention planning 失败时仍回退到通用 instruction，不阻断用户批注流程。
+  - [x] Web/EPUB 的“正在拆解助手任务”状态行为一致。
 
 #### 3. 播放与持久化差异应该保留为 runtime adapter
 
@@ -91,9 +91,9 @@ Origin: 2026-05-16 codebase review（SourceBookcase 共读请求流程拆分）
   - 在 Web/EPUB 文件中保留 runtime adapter：`startPlayback`、`handleStreamAnnotation`、`finishRequest`。
   - 共享模块只决定“请求什么”和“结果应该保存什么”，不决定“怎么播放”。
 - 验收标准：
-  - [ ] Web-only 文件不 import EPUB reader utils。
-  - [ ] EPUB-only 文件不依赖 Web DOM queue hook。
-  - [ ] `requestAgentAnnotations` 在两个文件中都收敛到 45 行以内。
+  - [x] Web-only 文件不 import EPUB reader utils。
+  - [x] EPUB-only 文件不依赖 Web DOM queue hook。
+  - [x] `requestAgentAnnotations` 在两个文件中都收敛到 45 行以内。
 
 ## 建议落地顺序
 
@@ -104,8 +104,8 @@ Origin: 2026-05-16 codebase review（SourceBookcase 共读请求流程拆分）
 
 ## 验收标准
 
-- [ ] `pnpm --filter @yomitomo/desktop test -- app-source-bookcase` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop lint` 通过。
-- [ ] `app-source-bookcase-web.tsx` 与 `app-source-bookcase-ebook.tsx` 不再重复 request payload 构造规则。
-- [ ] 现有 Web/EPUB 共读入口 `onStartAgentReadingPlan` 行为不变。
+- [x] `pnpm --filter @yomitomo/desktop test -- app-source-bookcase` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/desktop lint` 通过。
+- [x] `app-source-bookcase-web.tsx` 与 `app-source-bookcase-ebook.tsx` 不再重复 request payload 构造规则。
+- [x] 现有 Web/EPUB 共读入口 `onStartAgentReadingPlan` 行为不变。

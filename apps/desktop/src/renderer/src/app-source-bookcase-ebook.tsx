@@ -2,10 +2,8 @@ import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type {
-  AgentReadingIntent,
   AgentReadingPlanItem,
   Annotation,
-  AnnotationType,
   ArticleRecord,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -91,7 +89,13 @@ import {
 } from './app-ebook-reader-utils';
 import type { PromptArticle } from './app-reading-types';
 import {
-  agentInstructionFromNote,
+  buildAgentAnnotationRequestInput,
+  resolveSourceAgentMentionInstructions,
+  runSourceAgentAnnotationRequest,
+  type SourceAgentAnnotationPlaybackMode,
+  type SourceAgentAnnotationRequestOptions,
+} from './app-source-agent-request';
+import {
   annotationViewportPositions,
   articleWithAnnotations,
   buildAnnotationConnectionPath,
@@ -103,7 +107,6 @@ import {
   readDesktopReaderSettings,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-  targetAnchorReadingPlan,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type EbookBookcaseProps,
@@ -1462,13 +1465,20 @@ export function EbookBookcase({
     const mentionedAgents = findMentionedAgents(note, annotationAgents);
     if (mentionedAgents.length > 0) {
       cancelComposer();
-      const instructions = await resolveAgentMentionInstructions(
+      const instructions = await resolveSourceAgentMentionInstructions({
+        desktop: window.yomitomoDesktop,
+        article: articleContext,
+        targetAnchor: currentComposer.anchor,
+        agents: mentionedAgents,
         note,
-        mentionedAgents,
-        currentComposer.anchor,
-        currentArticle.id,
-        articleContext,
-      );
+        onStatus: isCurrentArticle(currentArticle.id)
+          ? (message, options) => {
+              setStatusMessage(message);
+              if (options?.clearAfterMs)
+                window.setTimeout(() => setStatusMessage(''), options.clearAfterMs);
+            }
+          : undefined,
+      });
       for (const item of instructions) {
         void requestAgentAnnotations(item.agent, {
           readingIntent: item.readingIntent,
@@ -1485,50 +1495,6 @@ export function EbookBookcase({
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
     void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
-  }
-
-  async function resolveAgentMentionInstructions(
-    note: string,
-    mentionedAgents: PublicAgent[],
-    anchor: Annotation['anchor'],
-    articleId: string,
-    articleContext: PromptArticle,
-  ) {
-    const commonInstruction = agentInstructionFromNote(note, mentionedAgents) || undefined;
-    const baseInstructions = mentionedAgents.map((agent) => ({
-      agent,
-      instruction: commonInstruction,
-      readingIntent: undefined as AgentReadingIntent | undefined,
-    }));
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return baseInstructions;
-
-    try {
-      if (isCurrentArticle(articleId)) setStatusMessage('正在拆解助手任务');
-      const instructions = await desktop.planAgentMentionInstructions({
-        article: articleContext,
-        targetAnchor: anchor,
-        agents: mentionedAgents,
-        note,
-      });
-      if (isCurrentArticle(articleId)) setStatusMessage('');
-      return mentionedAgents.map((agent) => {
-        const instruction = instructions.find(
-          (item) => item.agentId === agent.id || item.agentUsername === agent.username,
-        );
-        return {
-          agent,
-          instruction: instruction?.instruction || commonInstruction,
-          readingIntent: instruction?.readingIntent,
-        };
-      });
-    } catch (error) {
-      if (isCurrentArticle(articleId)) {
-        setStatusMessage(error instanceof Error ? error.message : '助手任务拆解失败');
-        window.setTimeout(() => setStatusMessage(''), 1800);
-      }
-      return baseInstructions;
-    }
   }
 
   async function inferAnnotationMetadataForAnnotation(
@@ -1903,15 +1869,7 @@ export function EbookBookcase({
 
   async function requestAgentAnnotations(
     agent: PublicAgent,
-    options: {
-      annotationType?: AnnotationType;
-      readingIntent?: AgentReadingIntent;
-      instruction?: string;
-      targetAnchor?: Annotation['anchor'];
-      readingPlan?: AgentReadingPlanItem[];
-      article?: PromptArticle;
-      articleId?: string;
-    } = {},
+    options: SourceAgentAnnotationRequestOptions = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -1921,78 +1879,112 @@ export function EbookBookcase({
       (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
     if (!desktop || !articleId || !articleContext) return;
     if (!options.articleId && annotatingAgentIds.includes(agent.id)) return;
+    const targetAnchor = options.targetAnchor;
+    const requestInput = buildAgentAnnotationRequestInput(agent, options, {
+      article: articleContext,
+      annotations: annotationsRef.current,
+      readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
+    });
+    const { playbackMode, readingPlan } = requestInput;
 
-    setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
-    setStatusMessage(`${agent.nickname} 正在批注`);
-    const readingPlan =
-      options.readingPlan || targetAnchorReadingPlan(options.targetAnchor, options.readingIntent);
-    const visibleArticle = isCurrentArticle(articleId);
-    if (visibleArticle) startEbookAgentDock(agent);
-    if (visibleArticle && options.targetAnchor) {
-      startEbookVirtualReading(agent, options.targetAnchor);
-    }
-    let annotationCount = 0;
-    let requestFailed = false;
+    const visibleArticle = startEbookPlayback(agent, articleId, targetAnchor, playbackMode);
+    let requestFailed = true;
     try {
-      const result = await desktop.requestAgentAnnotationsStream(
-        {
-          agentId: agent.id,
-          agentUsername: agent.username,
-          annotationType: options.annotationType,
-          readingIntent: options.readingIntent,
-          instruction: options.instruction,
-          annotations:
-            options.targetAnchor || readingPlan.length > 0 ? annotationsRef.current : undefined,
-          readingMemory:
-            !options.targetAnchor && readingPlan.length > 0
-              ? latestArticleRef.current?.focusCoReadingPlan?.readingMemory
-              : undefined,
-          targetAnchor: options.targetAnchor,
-          readingPlan: !options.targetAnchor && readingPlan.length > 0 ? readingPlan : undefined,
-          article: articleContext,
-        },
-        (event) => {
-          if (event.type !== 'item') return;
-          const annotation = constrainAgentPlanAnnotation(
-            event.annotation,
+      const { result, annotationCount } = await runSourceAgentAnnotationRequest({
+        desktop,
+        requestInput,
+        onAnnotation: (annotation) =>
+          handleEbookStreamItem(
+            articleId,
+            annotation,
             readingPlan,
             articleContext.text,
-          );
-          if (!annotation) return;
-          annotationCount += 1;
-          if (isCurrentArticle(articleId)) {
-            enqueueEbookAgentAnnotationPlayback(articleId, annotation, {
-              revealMissingRange: Boolean(options.targetAnchor),
-            });
-            return;
-          }
-          void appendAgentAnnotationToArticle(articleId, annotation);
-        },
-      );
-      if (!options.targetAnchor && readingPlan.length > 0) {
+            Boolean(targetAnchor),
+          ),
+      });
+      if (requestInput.shouldSaveReadingMemory) {
         await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
       }
       if (annotationCount === 0 && isCurrentArticle(articleId)) {
-        if (options.targetAnchor) finishEbookVirtualReading(agent.id, '没有批注');
-        setStatusMessage(`${agent.nickname} 暂无新批注`);
-        window.setTimeout(() => setStatusMessage(''), 1400);
+        finishEmptyEbookPlayback(agent, targetAnchor);
       }
-      if (visibleArticle) {
-        await ebookAgentAnimationQueueRef.current;
-        await sleep(900);
-        finishEbookAgentDock(agent.id, true);
-      }
-    } catch (error) {
-      requestFailed = true;
-      throw error;
+      await finishEbookPlayback(agent.id, visibleArticle);
+      requestFailed = false;
     } finally {
-      if (requestFailed && options.targetAnchor && isCurrentArticle(articleId)) {
-        finishEbookVirtualReading(agent.id, '批注失败');
-      }
-      if (requestFailed && visibleArticle) finishEbookAgentDock(agent.id, false);
-      setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
-      setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+      finishEbookRequest(agent, articleId, targetAnchor, {
+        requestFailed,
+        visibleArticle,
+      });
     }
+  }
+
+  function startEbookPlayback(
+    agent: PublicAgent,
+    articleId: string,
+    targetAnchor: Annotation['anchor'] | undefined,
+    playbackMode: SourceAgentAnnotationPlaybackMode,
+  ) {
+    setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
+    setStatusMessage(`${agent.nickname} 正在批注`);
+    const visibleArticle = isCurrentArticle(articleId);
+    if (visibleArticle) startEbookAgentDock(agent);
+    if (visibleArticle && playbackMode === 'target' && targetAnchor) {
+      startEbookVirtualReading(agent, targetAnchor);
+    }
+    return visibleArticle;
+  }
+
+  function handleEbookStreamItem(
+    articleId: string,
+    annotation: Annotation,
+    readingPlan: AgentReadingPlanItem[],
+    articleText: string,
+    revealMissingRange: boolean,
+  ) {
+    const constrainedAnnotation = constrainAgentPlanAnnotation(
+      annotation,
+      readingPlan,
+      articleText,
+    );
+    if (!constrainedAnnotation) return false;
+    if (isCurrentArticle(articleId)) {
+      enqueueEbookAgentAnnotationPlayback(articleId, constrainedAnnotation, {
+        revealMissingRange,
+      });
+      return true;
+    }
+    void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
+    return true;
+  }
+
+  function finishEmptyEbookPlayback(
+    agent: PublicAgent,
+    targetAnchor: Annotation['anchor'] | undefined,
+  ) {
+    if (targetAnchor) finishEbookVirtualReading(agent.id, '没有批注');
+    setStatusMessage(`${agent.nickname} 暂无新批注`);
+    window.setTimeout(() => setStatusMessage(''), 1400);
+  }
+
+  async function finishEbookPlayback(agentId: string, visibleArticle: boolean) {
+    if (!visibleArticle) return;
+    await ebookAgentAnimationQueueRef.current;
+    await sleep(900);
+    finishEbookAgentDock(agentId, true);
+  }
+
+  function finishEbookRequest(
+    agent: PublicAgent,
+    articleId: string,
+    targetAnchor: Annotation['anchor'] | undefined,
+    options: { requestFailed: boolean; visibleArticle: boolean },
+  ) {
+    if (options.requestFailed && targetAnchor && isCurrentArticle(articleId)) {
+      finishEbookVirtualReading(agent.id, '批注失败');
+    }
+    if (options.requestFailed && options.visibleArticle) finishEbookAgentDock(agent.id, false);
+    setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
+    setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
   }
 
   function handleHighlightClick(
