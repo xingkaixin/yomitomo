@@ -1,6 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ListChecks, LoaderCircle, Scale, Sparkles } from 'lucide-react';
-import type { Agent, ArticleRecord, ReadingReceiptState, UserProfile } from '@yomitomo/shared';
+import type {
+  Agent,
+  ArticleRecord,
+  ReadingDeliberationRecord,
+  ReadingReceiptState,
+  UserProfile,
+} from '@yomitomo/shared';
 import {
   buildReadingCard,
   buildReadingCardEvidenceUnits,
@@ -65,6 +71,8 @@ export function ReadingCard({
   const [receiptDispositionById, setReceiptDispositionById] = useState<
     Record<string, ReadingReceiptBoardDisposition>
   >({});
+  const [receiptUserJudgment, setReceiptUserJudgment] = useState('');
+  const persistedReceiptUserJudgmentRef = useRef('');
   useEffect(() => {
     setReceiptDispositionById(
       initialReadingReceiptDispositionById(article, evidenceUnits, sourceUpdatedAt),
@@ -95,11 +103,12 @@ export function ReadingCard({
     receiptDecisions,
     reviewAgentIds,
     sourceUpdatedAt,
+    userJudgment: receiptUserJudgment,
     onGenerated,
   });
   const workflowActions: Record<ReadingCardWorkflowStepId, () => void> = {
     deliberation: actions.generateDeliberation,
-    card: actions.generateAiCard,
+    card: confirmAndGenerateAiCard,
     review: actions.reviewAiCard,
   };
   const card = article
@@ -107,6 +116,19 @@ export function ReadingCard({
     : '';
   const currentWorkflowStep = currentReadingReceiptStep(workflowSteps);
   const showReceiptTriage = currentWorkflowStep.id === 'deliberation';
+  const cardWorkflowStep = workflowSteps.find((step) => step.id === 'card');
+  const canConfirmReadingDeliberation =
+    Boolean(cardWorkflowStep) &&
+    !cardWorkflowStep?.disabled &&
+    receiptUserJudgment.trim().length > 0;
+  const confirmingReadingDeliberation =
+    cardWorkflowStep?.state === 'running' && currentWorkflowStep.id === 'card';
+
+  useEffect(() => {
+    const nextJudgment = currentReceiptUserJudgment(article, deliberation, sourceUpdatedAt);
+    setReceiptUserJudgment(nextJudgment);
+    persistedReceiptUserJudgmentRef.current = nextJudgment;
+  }, [article?.id, deliberation?.updatedAt, sourceUpdatedAt]);
 
   function changeReceiptDisposition(
     evidenceId: string,
@@ -126,6 +148,84 @@ export function ReadingCard({
     },
     [article, onUpdateArticle],
   );
+
+  const persistReceiptConfirmation = useCallback(
+    (userJudgment: string) => {
+      if (!article || !deliberation || !sourceUpdatedAt || !onUpdateArticle) return;
+      const trimmedJudgment = userJudgment.trim();
+      void onUpdateArticle(article.id, (current) => {
+        const now = new Date().toISOString();
+        const currentReceiptState =
+          current.readingReceiptState?.sourceUpdatedAt === sourceUpdatedAt
+            ? current.readingReceiptState
+            : null;
+        const confirmation = trimmedJudgment
+          ? {
+              confirmation: {
+                userJudgment: trimmedJudgment,
+                deliberationUpdatedAt: deliberation.updatedAt,
+                updatedAt: now,
+              },
+            }
+          : {};
+        return {
+          ...current,
+          readingReceiptState: {
+            sourceUpdatedAt,
+            dispositions: evidenceUnits.map((unit) => ({
+              evidenceId: unit.id,
+              disposition: normalizePersistedReceiptDisposition(receiptDispositionById[unit.id]),
+            })),
+            clarifications: currentReceiptState?.clarifications || [],
+            ...confirmation,
+            updatedAt: now,
+          },
+          updatedAt: now,
+        };
+      });
+    },
+    [
+      article,
+      deliberation,
+      evidenceUnits,
+      onUpdateArticle,
+      receiptDispositionById,
+      sourceUpdatedAt,
+    ],
+  );
+
+  useEffect(() => {
+    if (!article || !deliberation || !sourceUpdatedAt) return;
+    if (receiptUserJudgment === persistedReceiptUserJudgmentRef.current) return;
+    const persistHandle = window.setTimeout(() => {
+      persistReceiptConfirmation(receiptUserJudgment);
+      persistedReceiptUserJudgmentRef.current = receiptUserJudgment;
+    }, 360);
+    return () => window.clearTimeout(persistHandle);
+  }, [article, deliberation, persistReceiptConfirmation, receiptUserJudgment, sourceUpdatedAt]);
+
+  function confirmAndGenerateAiCard() {
+    if (!receiptUserJudgment.trim()) return;
+    persistReceiptConfirmation(receiptUserJudgment);
+    actions.generateAiCard();
+  }
+
+  function returnToReceiptTriage() {
+    actions.returnToTriage();
+    setReceiptUserJudgment('');
+    persistedReceiptUserJudgmentRef.current = '';
+    if (!article || !onUpdateArticle) return;
+    void onUpdateArticle(article.id, (current) => {
+      const now = new Date().toISOString();
+      return {
+        ...current,
+        readingDeliberation: undefined,
+        readingCard: undefined,
+        readingReceiptState: removeReadingReceiptConfirmation(current.readingReceiptState, now),
+        updatedAt: now,
+      };
+    });
+  }
 
   if (!article) {
     return (
@@ -171,9 +271,15 @@ export function ReadingCard({
           {errors.review ? <p className="reading-card-error">{errors.review}</p> : null}
           {deliberation && !displayAiCard && !showReceiptTriage ? (
             <ReadingDeliberationPanel
+              canConfirm={canConfirmReadingDeliberation}
+              confirming={confirmingReadingDeliberation}
               deliberation={deliberation}
               evidenceUnits={evidenceUnits}
               userProfile={userProfile}
+              userJudgment={receiptUserJudgment}
+              onBackToTriage={returnToReceiptTriage}
+              onChangeUserJudgment={setReceiptUserJudgment}
+              onConfirm={confirmAndGenerateAiCard}
               onOpenEvidence={onOpenEvidence}
             />
           ) : null}
@@ -260,6 +366,36 @@ function initialReadingReceiptDispositionById(
   return Object.fromEntries(evidenceUnits.map((unit) => [unit.id, initialDisposition]));
 }
 
+function currentReceiptUserJudgment(
+  article: ArticleRecord | null,
+  deliberation: ReadingDeliberationRecord | null,
+  sourceUpdatedAt: string | null,
+) {
+  const confirmation = article?.readingReceiptState?.confirmation;
+  if (
+    !confirmation ||
+    !deliberation ||
+    article?.readingReceiptState?.sourceUpdatedAt !== sourceUpdatedAt ||
+    confirmation.deliberationUpdatedAt !== deliberation.updatedAt
+  ) {
+    return '';
+  }
+  return confirmation.userJudgment;
+}
+
+function removeReadingReceiptConfirmation(
+  state: ReadingReceiptState | undefined,
+  updatedAt: string,
+): ReadingReceiptState | undefined {
+  if (!state) return undefined;
+  return {
+    sourceUpdatedAt: state.sourceUpdatedAt,
+    dispositions: state.dispositions,
+    clarifications: state.clarifications,
+    updatedAt,
+  };
+}
+
 function normalizeReadingReceiptBoardDisposition(
   disposition: string | undefined,
 ): ReadingReceiptBoardDisposition {
@@ -272,6 +408,12 @@ function normalizeReadingReceiptDisposition(
   disposition: ReadingReceiptBoardDisposition | undefined,
 ): ReadingReceiptDisposition {
   return disposition && disposition !== 'clarify' ? disposition : 'include';
+}
+
+function normalizePersistedReceiptDisposition(
+  disposition: ReadingReceiptBoardDisposition | undefined,
+) {
+  return disposition === 'include' || disposition === 'exclude' ? disposition : 'clarify';
 }
 
 function readingReceiptSourceUpdatedAt(
@@ -349,7 +491,7 @@ function currentReadingReceiptStep(steps: ReadingCardWorkflowStep[]) {
 
 function readingReceiptStepTitle(step: ReadingCardWorkflowStep) {
   if (step.id === 'deliberation') return '拣选';
-  if (step.id === 'card') return '整理回执';
+  if (step.id === 'card') return '确认所得';
   return '审阅席';
 }
 
@@ -370,7 +512,7 @@ function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
     if (step.description.includes('新痕迹') || step.description.includes('等待重新')) {
       return step.description;
     }
-    if (step.state === 'active') return '生成一句话带走和可保存成稿';
+    if (step.state === 'active') return step.description;
     return '先生成阅读所得';
   }
   if (step.state === 'running') return '审阅助手正在检查证据和表达';
@@ -389,7 +531,7 @@ function readingReceiptStepActionLabel(step: ReadingCardWorkflowStep) {
       ? '重新生成阅读所得'
       : '生成阅读所得';
   }
-  if (step.id === 'card') return step.state === 'done' ? '重新打磨' : '打磨成回执';
+  if (step.id === 'card') return step.state === 'done' ? '重新打磨' : step.actionLabel;
   return step.state === 'done' ? '重新检查' : '请审阅席检查';
 }
 

@@ -13,6 +13,7 @@ import {
   Sparkles,
   Sprout,
   TriangleAlert,
+  Undo2,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -91,14 +92,26 @@ const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
 };
 
 export function ReadingDeliberationPanel({
+  canConfirm,
+  confirming,
   deliberation,
   evidenceUnits,
   userProfile,
+  userJudgment,
+  onBackToTriage,
+  onChangeUserJudgment,
+  onConfirm,
   onOpenEvidence,
 }: {
+  canConfirm: boolean;
+  confirming: boolean;
   deliberation: ReadingDeliberationRecord;
   evidenceUnits: ReadingCardEvidenceUnit[];
   userProfile: UserProfile;
+  userJudgment: string;
+  onBackToTriage: () => void;
+  onChangeUserJudgment: (value: string) => void;
+  onConfirm: () => void;
   onOpenEvidence: (annotationId: string) => void;
 }) {
   const evidenceByIndex = useMemo(
@@ -145,6 +158,31 @@ export function ReadingDeliberationPanel({
           );
         })}
       </div>
+      <section className="reading-deliberation-confirmation">
+        <header>
+          <div>
+            <span>我的判断</span>
+            <h5>补上这次阅读真正留下的一句话</h5>
+          </div>
+          <strong>{userJudgment.trim().length > 0 ? '可进入下一步' : '必填'}</strong>
+        </header>
+        <textarea
+          value={userJudgment}
+          rows={3}
+          placeholder="我读完后真正留下的是..."
+          onChange={(event) => onChangeUserJudgment(event.target.value)}
+        />
+        <div className="reading-deliberation-confirmation-actions">
+          <button type="button" className="is-secondary" onClick={onBackToTriage}>
+            <Undo2 size={14} />
+            回到拣选
+          </button>
+          <button type="button" disabled={!canConfirm} onClick={onConfirm}>
+            <Sparkles size={14} />
+            {confirming ? '打磨中...' : '确认并打磨成回执'}
+          </button>
+        </div>
+      </section>
     </section>
   );
 }

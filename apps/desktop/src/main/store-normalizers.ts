@@ -534,11 +534,26 @@ function normalizeReadingReceiptState(value: unknown): ReadingReceiptState | und
   const state = value as Record<string, unknown>;
   const sourceUpdatedAt = stringValue(state.sourceUpdatedAt);
   if (!sourceUpdatedAt) return undefined;
+  const confirmation = normalizeReadingReceiptConfirmation(state.confirmation);
   return {
     sourceUpdatedAt,
     dispositions: normalizeReadingReceiptDispositions(state.dispositions),
     clarifications: normalizeReadingReceiptClarifications(state.clarifications),
+    ...(confirmation ? { confirmation } : {}),
     updatedAt: stringValue(state.updatedAt) || sourceUpdatedAt,
+  };
+}
+
+function normalizeReadingReceiptConfirmation(value: unknown): ReadingReceiptState['confirmation'] {
+  if (!value || typeof value !== 'object') return undefined;
+  const confirmation = value as Record<string, unknown>;
+  const userJudgment = stringValue(confirmation.userJudgment).trim();
+  const deliberationUpdatedAt = stringValue(confirmation.deliberationUpdatedAt);
+  if (!userJudgment || !deliberationUpdatedAt) return undefined;
+  return {
+    userJudgment,
+    deliberationUpdatedAt,
+    updatedAt: stringValue(confirmation.updatedAt) || deliberationUpdatedAt,
   };
 }
 

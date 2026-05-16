@@ -10535,6 +10535,144 @@
   color: hsl(31 23% 18%);
 }
 
+.reading-deliberation-confirmation {
+  display: grid;
+  gap: 10px;
+  border: 1px solid hsl(8 45% 46% / 0.24);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(35 64% 97% / 0.96), hsl(43 63% 98% / 0.9)), hsl(var(--card));
+  box-shadow:
+    0 10px 24px hsl(31 34% 24% / 0.08),
+    inset 0 1px 0 hsl(42 80% 99% / 0.82);
+  padding: 12px;
+}
+
+.reading-deliberation-confirmation > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reading-deliberation-confirmation > header span {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  border: 1px solid hsl(8 45% 46% / 0.24);
+  border-radius: 999px;
+  background: hsl(21 58% 89% / 0.5);
+  color: hsl(8 45% 30%);
+  font-size: 10px;
+  font-weight: 920;
+  line-height: 1;
+  padding: 0 7px;
+}
+
+.reading-deliberation-confirmation h5 {
+  margin: 8px 0 0;
+  color: hsl(31 23% 18%);
+  font-size: 14px;
+  font-weight: 940;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.reading-deliberation-confirmation > header strong {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid hsl(36 31% 72% / 0.58);
+  border-radius: 999px;
+  background: hsl(43 63% 98% / 0.78);
+  color: hsl(31 23% 20%);
+  font-size: 11px;
+  font-weight: 920;
+  line-height: 1;
+  padding: 0 9px;
+  white-space: nowrap;
+}
+
+.reading-deliberation-confirmation textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid hsl(36 31% 72% / 0.58);
+  border-radius: 8px;
+  background: hsl(43 66% 99% / 0.82);
+  color: hsl(31 22% 21%);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 10px 11px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.reading-deliberation-confirmation textarea:focus {
+  border-color: hsl(var(--primary) / 0.42);
+  outline: 0;
+  background: hsl(43 66% 99% / 0.96);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+.reading-deliberation-confirmation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reading-deliberation-confirmation-actions button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid hsl(var(--primary) / 0.34);
+  border-radius: 8px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 920;
+  padding: 0 12px;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 140ms ease;
+}
+
+.reading-deliberation-confirmation-actions button:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--primary) / 0.14);
+}
+
+.reading-deliberation-confirmation-actions button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.reading-deliberation-confirmation-actions button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.reading-deliberation-confirmation-actions button.is-secondary {
+  border-color: hsl(36 31% 72% / 0.58);
+  background: hsl(43 63% 98% / 0.74);
+  color: hsl(31 23% 20%);
+}
+
+.reading-deliberation-confirmation-actions button.is-secondary:hover:not(:disabled) {
+  border-color: hsl(36 31% 62% / 0.78);
+  background: hsl(43 66% 98% / 0.92);
+}
+
 @media (min-width: 1180px) {
   .reading-deliberation-sections {
     grid-template-columns: repeat(2, minmax(0, 1fr));

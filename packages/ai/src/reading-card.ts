@@ -29,6 +29,7 @@ export type GenerateReadingCardInput = {
   evidenceUnits: ReadingCardEvidenceUnit[];
   receiptDecisions?: ReadingReceiptDecision[];
   readingDeliberation?: ReadingDeliberationRecord;
+  userJudgment?: string;
 };
 
 export type GenerateReadingDeliberationInput = {
@@ -129,6 +130,7 @@ function buildReadingCardPrompt(provider: LlmProvider, input: GenerateReadingCar
   const deliberationJson = deliberation
     ? budgetDeliberationJson('reading-card', deliberation)
     : { text: '暂无', report: null };
+  const userJudgment = input.userJudgment?.trim() || '用户尚未补充自己的判断。';
   const budgetNotice = formatBudgetNotice(
     [articleText.report, evidenceJson.report, deliberationJson.report].filter(
       (report) => report !== null,
@@ -157,6 +159,9 @@ ${JSON.stringify(questions, null, 2)}
 阅读所得：
 ${deliberationJson.text}
 
+用户补上的一句判断：
+${userJudgment}
+
 输出要求：
 - 直接输出 Markdown，不要输出代码块。
 - 不要写“文章快照”。
@@ -166,6 +171,7 @@ ${deliberationJson.text}
 - 保留读者自己的关注点，标明“我”或读者昵称。
 - 助手观点和文章观点分开表达。
 - 如果有阅读所得，优先吸收其中的个人收获、材料合成、证据强弱和未决问题。
+- “用户补上的一句判断”是最终回执的主轴，必须进入“一句话带走”和“可保存成稿”；不要把它改写成文章摘要。
 - 保留未决问题状态：open 作为待推进问题，answered 作为已想通问题，parked 作为暂不推进问题。
 - 对重要证据单元说明处理结果：纳入回执、暂放、证据不足。
 - 尊重“本次拣选结果”：include 可以进入回执主判断；exclude 不要写入回执。
@@ -175,7 +181,7 @@ ${deliberationJson.text}
 # ${input.article.title}
 
 ## 一句话带走
-用 1 句话写出这次阅读最后留下的判断；不是全文摘要，也不是文章标题改写。
+用 1 句话写出这次阅读最后留下的判断；必须吸收用户补上的一句判断，不要写全文摘要，也不要改写标题。
 
 ## 我停下来的地方
 按阅读现场整理读者批注、用户评论、助手批注和讨论 thread。优先写“我在哪里停下、为什么停下、谁推动了理解变化、这条痕迹最后如何处理”。

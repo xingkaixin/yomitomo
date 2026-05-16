@@ -68,6 +68,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: [],
       sourceUpdatedAt: null,
       status: baseStatus,
+      userJudgment: '',
     });
 
     expect(result.currentAiCard).toBeNull();
@@ -86,6 +87,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: [],
       sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'generating' },
+      userJudgment: '',
     });
 
     expect(result.isWorkflowBusy).toBe(true);
@@ -104,6 +106,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: [],
       sourceUpdatedAt: null,
       status: { ...baseStatus, aiCard: 'error' },
+      userJudgment: '我留下了自己的判断。',
     });
 
     expect(result.workflowSteps[1]).toMatchObject({
@@ -121,6 +124,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: ['agent_1'],
       sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'done', aiCard: 'done' },
+      userJudgment: '我留下了自己的判断。',
     });
 
     expect(result.aiCardIsCurrent).toBe(false);
@@ -139,6 +143,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: ['agent_1'],
       sourceUpdatedAt: '2026-05-04T00:04:00.000Z',
       status: { ...baseStatus, deliberation: 'done', aiCard: 'done' },
+      userJudgment: '我留下了自己的判断。',
     });
 
     expect(result.deliberationIsCurrent).toBe(false);
@@ -159,6 +164,7 @@ describe('deriveReadingCardWorkflow', () => {
       selectedReviewAgentIds: ['agent_1'],
       sourceUpdatedAt: null,
       status: { ...baseStatus, deliberation: 'done', aiCard: 'done', review: 'done' },
+      userJudgment: '我留下了自己的判断。',
     });
 
     expect(result.reviewIsCurrent).toBe(false);

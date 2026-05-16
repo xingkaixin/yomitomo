@@ -730,13 +730,20 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /打磨成回执/ }));
+    expect(screen.getByRole('button', { name: /补一句后打磨/ }).hasAttribute('disabled')).toBe(
+      true,
+    );
+    fireEvent.change(screen.getByPlaceholderText('我读完后真正留下的是...'), {
+      target: { value: 'AI 审自己的代码时，边界比态度更重要。' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /确认并打磨成回执/ }));
 
     await waitFor(() => expect(desktop.generateReadingCard).toHaveBeenCalledTimes(1));
     expect(desktop.generateReadingCard).toHaveBeenCalledWith(
       expect.objectContaining({
         article: expect.objectContaining({ id: 'article_1' }),
         readingDeliberation: currentDeliberation,
+        userJudgment: 'AI 审自己的代码时，边界比态度更重要。',
         receiptDecisions: [
           expect.objectContaining({
             disposition: 'include',
@@ -747,6 +754,48 @@ describe('ReadingCard', () => {
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns from confirmation to triage and discards generated outputs', () => {
+    const onUpdateArticle = vi.fn();
+    const currentDeliberation = deliberation();
+    const currentArticle = article({
+      readingDeliberation: currentDeliberation,
+      readingReceiptState: {
+        sourceUpdatedAt: now,
+        dispositions: [{ evidenceId: 'annotation_1', disposition: 'include' }],
+        clarifications: [],
+        confirmation: {
+          userJudgment: '旧判断',
+          deliberationUpdatedAt: currentDeliberation.updatedAt,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      },
+    });
+
+    render(
+      <ReadingCard
+        article={currentArticle}
+        reviewAgents={[]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onUpdateArticle={onUpdateArticle}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '回到拣选' }));
+
+    expect(screen.getByText('把要进入阅读所得的材料确认下来')).toBeTruthy();
+    expect(screen.getByLabelText('批注卡片：重要原文').className).not.toContain('is-locked');
+    const update = onUpdateArticle.mock.calls.at(-1)?.[1];
+    const saved = update?.(currentArticle);
+    expect(saved?.readingDeliberation).toBeUndefined();
+    expect(saved?.readingCard).toBeUndefined();
+    expect(saved?.readingReceiptState?.dispositions).toEqual([
+      { evidenceId: 'annotation_1', disposition: 'include' },
+    ]);
+    expect(saved?.readingReceiptState?.confirmation).toBeUndefined();
   });
 
   it('starts review with selected review agents', async () => {

@@ -31,6 +31,7 @@ export type GenerateReadingCardInput = {
   evidenceUnits: ReadingCardEvidenceUnit[];
   receiptDecisions?: ReadingReceiptDecision[];
   readingDeliberation?: ReadingDeliberationRecord;
+  userJudgment?: string;
 };
 
 export type GenerateReadingDeliberationInput = {

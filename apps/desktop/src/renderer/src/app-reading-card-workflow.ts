@@ -19,6 +19,7 @@ export type ReadingCardWorkflowDerivationInput = {
   selectedReviewAgentIds: string[];
   sourceUpdatedAt: string | null;
   status: ReadingCardWorkflowStatus;
+  userJudgment: string;
 };
 
 export type ReadingCardWorkflowDerivation = {
@@ -38,6 +39,7 @@ export function deriveReadingCardWorkflow({
   selectedReviewAgentIds,
   sourceUpdatedAt,
   status,
+  userJudgment,
 }: ReadingCardWorkflowDerivationInput): ReadingCardWorkflowDerivation {
   const deliberationIsCurrent = isReadingDeliberationCurrent(deliberation, sourceUpdatedAt);
   const aiCardIsCurrent = isReadingCardCurrent(aiCard, deliberation, sourceUpdatedAt);
@@ -61,6 +63,7 @@ export function deriveReadingCardWorkflow({
         currentAiCard,
         status,
         isWorkflowBusy,
+        userJudgment,
       ),
       deriveReviewStep(aiCard, currentAiCard, selectedReviewAgentIds, status, isWorkflowBusy),
     ],
@@ -116,6 +119,7 @@ export function useReadingCardWorkflow({
   receiptDecisions,
   reviewAgentIds,
   sourceUpdatedAt,
+  userJudgment,
   onGenerated,
 }: {
   article: ArticleRecord | null;
@@ -124,6 +128,7 @@ export function useReadingCardWorkflow({
   receiptDecisions: ReadingReceiptDecision[];
   reviewAgentIds: string[];
   sourceUpdatedAt: string | null;
+  userJudgment: string;
   onGenerated: () => void;
 }) {
   const [deliberation, setDeliberation] = useState<ReadingDeliberationRecord | null>(null);
@@ -181,12 +186,20 @@ export function useReadingCardWorkflow({
         selectedReviewAgentIds,
         sourceUpdatedAt,
         status,
+        userJudgment,
       }),
-    [aiCard, deliberation, selectedReviewAgentIds, sourceUpdatedAt, status],
+    [aiCard, deliberation, selectedReviewAgentIds, sourceUpdatedAt, status, userJudgment],
   );
 
   async function generateAiCard() {
-    if (!article || !deliberation || status.aiCard === 'generating' || workflow.isWorkflowBusy) {
+    const trimmedJudgment = userJudgment.trim();
+    if (
+      !article ||
+      !deliberation ||
+      !trimmedJudgment ||
+      status.aiCard === 'generating' ||
+      workflow.isWorkflowBusy
+    ) {
       return;
     }
     const requestArticleId = article.id;
@@ -199,6 +212,7 @@ export function useReadingCardWorkflow({
         evidenceUnits,
         receiptDecisions,
         readingDeliberation: deliberation,
+        userJudgment: trimmedJudgment,
       });
       if (!articleRequestIsCurrent(requestArticleId)) return;
       setAiCard(result.readingCard);
@@ -318,6 +332,20 @@ export function useReadingCardWorkflow({
     setReviewError('');
   }
 
+  function returnToTriage() {
+    setDeliberation(null);
+    setAiCard(null);
+    setDeliberationError('');
+    setAiError('');
+    setReviewError('');
+    setRetryingReviewerId(null);
+    setStatus({
+      deliberation: 'idle',
+      aiCard: 'idle',
+      review: 'idle',
+    });
+  }
+
   return {
     deliberation,
     currentAiCard: workflow.currentAiCard,
@@ -336,6 +364,7 @@ export function useReadingCardWorkflow({
     actions: {
       generateAiCard,
       generateDeliberation,
+      returnToTriage,
       reviewAiCard,
       retryReviewAgent,
       toggleReviewAgent,
@@ -411,9 +440,11 @@ function deriveAiCardStep(
   currentAiCard: ReadingCardRecord | null,
   status: ReadingCardWorkflowStatus,
   isWorkflowBusy: boolean,
+  userJudgment: string,
 ): ReadingCardWorkflowStep {
   let description = '生成阅读所得后开始';
   let state: ReadingCardWorkflowStep['state'] = 'waiting';
+  const hasUserJudgment = userJudgment.trim().length > 0;
 
   if (status.aiCard === 'generating') {
     description = '正在提炼读后笔记';
@@ -431,18 +462,18 @@ function deriveAiCardStep(
     description = '阅读所得已更新，等待重新打磨';
     state = 'active';
   } else if (deliberation) {
-    description = '基于阅读所得整理回执';
+    description = hasUserJudgment ? '确认后可打磨回执' : '补一句自己的判断后开始';
     state = 'active';
   }
 
   return {
     id: 'card',
     number: 2,
-    title: 'AI 提炼',
+    title: '确认所得',
     description,
     state,
-    actionLabel: currentAiCard ? '重新提炼' : 'AI 提炼',
-    disabled: !deliberation || !deliberationIsCurrent || isWorkflowBusy,
+    actionLabel: hasUserJudgment ? (currentAiCard ? '重新打磨' : '确认并打磨') : '补一句后打磨',
+    disabled: !deliberation || !deliberationIsCurrent || !hasUserJudgment || isWorkflowBusy,
   };
 }
 

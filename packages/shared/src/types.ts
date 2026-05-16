@@ -772,10 +772,17 @@ export type ReadingReceiptClarificationState = {
   thought?: string;
 };
 
+export type ReadingReceiptConfirmationState = {
+  userJudgment: string;
+  deliberationUpdatedAt: string;
+  updatedAt: string;
+};
+
 export type ReadingReceiptState = {
   sourceUpdatedAt: string;
   dispositions: ReadingReceiptDispositionRecord[];
   clarifications: ReadingReceiptClarificationState[];
+  confirmation?: ReadingReceiptConfirmationState;
   updatedAt: string;
 };
 
