@@ -1,37 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  BookOpen,
-  Bot,
-  Check,
-  Eye,
-  EyeOff,
-  Keyboard,
-  KeyRound,
-  Plus,
-  RefreshCw,
-  Save,
-  ShieldCheck,
-  Trash2,
-  X,
-} from 'lucide-react';
-import type { AppSettings, LlmProvider, ProviderType } from '@yomitomo/shared';
-import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
-import { type ProviderDraft } from './app-settings';
-import anthropicLogo from './assets/providers/anthropic.png';
-import bailianLogo from './assets/providers/bailian.png';
-import deepseekLogo from './assets/providers/deepseek.png';
-import googleLogo from './assets/providers/google.png';
-import minimaxLogo from './assets/providers/minimax.png';
-import mimoLogo from './assets/providers/mimo.svg';
-import moonshotLogo from './assets/providers/moonshot.webp';
-import openaiLogo from './assets/providers/openai.png';
-import volcengineLogo from './assets/providers/volcengine.png';
-import zhipuLogo from './assets/providers/zhipu.png';
-import { Field, PanelHeader } from './app-ui';
+import { BookOpen, Bot, Check, KeyRound, Save, ShieldCheck, Trash2, X } from 'lucide-react';
+import type { AppSettings, LlmProvider } from '@yomitomo/shared';
+import type { ProviderDraft } from './app-settings';
+import { PanelHeader } from './app-ui';
+import { providerLogoMap } from './app-settings-provider-assets';
+import { ProviderForm } from './app-settings-provider-form';
+import { ProviderList } from './app-settings-provider-list';
 import type { SaveState } from './app-types';
 import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
 import {
   Select,
   SelectContent,
@@ -43,19 +20,6 @@ import {
 
 const PROVIDER_EDITOR_COMPACT_WIDTH = 900;
 type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
-
-const providerLogoMap: Record<string, string> = {
-  'anthropic.png': anthropicLogo,
-  'bailian.png': bailianLogo,
-  'deepseek.png': deepseekLogo,
-  'google.png': googleLogo,
-  'minimax.png': minimaxLogo,
-  'mimo.svg': mimoLogo,
-  'moonshot.webp': moonshotLogo,
-  'openai.png': openaiLogo,
-  'volcengine.png': volcengineLogo,
-  'zhipu.png': zhipuLogo,
-};
 
 export function ProviderSettings({
   draft,
@@ -104,7 +68,7 @@ export function ProviderSettings({
       settingsDraft.readingAssistantProviderId,
       settingsDraft.reviewAssistantProviderId,
       settingsDraft.readingNoteProviderId,
-    ].filter(Boolean),
+    ].filter((id): id is string => Boolean(id)),
   );
 
   useEffect(() => {
@@ -235,38 +199,13 @@ export function ProviderSettings({
           onSave={onRouteSave}
         />
         <div className="settings-detail-grid">
-          <ConfigList title="模型供应商" onCreate={createProvider}>
-            {providers.map((provider) => (
-              <button
-                className={
-                  provider.id === selectedId
-                    ? 'config-list-item is-plain is-active'
-                    : 'config-list-item is-plain'
-                }
-                key={provider.id}
-                type="button"
-                onClick={() => selectProvider(provider)}
-              >
-                {usedProviderIds.has(provider.id) ? (
-                  <span className="provider-used-label">已使用</span>
-                ) : null}
-                <img
-                  className="provider-logo"
-                  src={
-                    providerLogoMap[provider.logo || 'anthropic.png'] ||
-                    providerLogoMap['anthropic.png']
-                  }
-                  alt=""
-                />
-                <span className="min-w-0">
-                  <strong>{provider.name}</strong>
-                  <span>
-                    {provider.type} · {provider.modelName}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </ConfigList>
+          <ProviderList
+            providers={providers}
+            selectedProviderId={selectedId}
+            usedProviderIds={usedProviderIds}
+            onCreate={createProvider}
+            onSelect={selectProvider}
+          />
           <section className="detail-pane">
             <ProviderEditorContent
               draft={draft}
@@ -496,374 +435,5 @@ function TaskProviderRoutes({
         ))}
       </div>
     </section>
-  );
-}
-
-function ConfigList({
-  title,
-  children,
-  controls,
-  empty,
-  onCreate,
-}: {
-  title: string;
-  children: React.ReactNode;
-  controls?: React.ReactNode;
-  empty?: React.ReactNode;
-  onCreate?: () => void;
-}) {
-  const hasItems = React.Children.count(children) > 0;
-
-  return (
-    <aside className="config-list">
-      <div className="config-list-header">
-        <div className="config-list-title">{title}</div>
-        {onCreate ? (
-          <Button
-            className="action-button create-action"
-            size="sm"
-            type="button"
-            onClick={onCreate}
-          >
-            <Plus size={16} />
-            新增
-          </Button>
-        ) : null}
-      </div>
-      {controls}
-      <div className="config-list-scroll">{hasItems ? children : empty}</div>
-    </aside>
-  );
-}
-
-function useProviderModelOptions(draft: ProviderDraft, onChange: (draft: ProviderDraft) => void) {
-  const [modelOptions, setModelOptions] = useState<string[]>([]);
-  const [modelLoading, setModelLoading] = useState(false);
-  const [modelError, setModelError] = useState('');
-  const [modelNotice, setModelNotice] = useState('');
-  const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
-  const visibleModels =
-    modelOptions.length > 0 ? modelOptions : draft.modelNames || selectedPreset?.modelNames || [];
-
-  function clearModelStatus() {
-    setModelOptions([]);
-    setModelError('');
-    setModelNotice('');
-  }
-
-  async function fetchModels() {
-    const fallbackModels = selectedPreset?.modelNames || [];
-    if (!window.yomitomoDesktop) return;
-    if (!draft.apiKey?.trim() && !draft.hasApiKey) {
-      setModelError('');
-      setModelNotice(
-        fallbackModels.length > 0
-          ? '已显示预设模型；填写 API Key 后可获取实时列表'
-          : '填写 API Key 后可获取模型列表',
-      );
-      if (fallbackModels.length > 0) {
-        onChange({
-          ...draft,
-          modelInputMode: 'list',
-          modelName: fallbackModels.includes(draft.modelName || '')
-            ? draft.modelName
-            : fallbackModels[0],
-          modelNames: fallbackModels,
-        });
-      }
-      return;
-    }
-    setModelLoading(true);
-    setModelError('');
-    setModelNotice('');
-    try {
-      const models = await window.yomitomoDesktop.listProviderModels(draft);
-      const names = models.map((model) => model.id).filter(Boolean);
-      setModelOptions(names);
-      setModelNotice(names.length > 0 ? `已获取 ${names.length} 个模型` : '未获取到模型列表');
-      if (names.length > 0) {
-        onChange({
-          ...draft,
-          modelInputMode: 'list',
-          modelName: names.includes(draft.modelName || '') ? draft.modelName : names[0],
-          modelNames: names,
-        });
-      } else {
-        onChange({
-          ...draft,
-          modelInputMode: 'list',
-          modelNames: [],
-        });
-      }
-    } catch (error) {
-      setModelError(error instanceof Error ? error.message : '获取模型列表失败');
-      setModelNotice(fallbackModels.length > 0 ? '已显示预设模型作为候选' : '');
-    } finally {
-      setModelLoading(false);
-    }
-  }
-
-  return {
-    fetchModels,
-    clearModelStatus,
-    modelError,
-    modelLoading,
-    modelNotice,
-    visibleModels,
-  };
-}
-
-export function ProviderForm({
-  draft,
-  onChange,
-  selectContentClassName = 'theme-select-content',
-  showReasoning = true,
-}: {
-  draft: ProviderDraft;
-  onChange: (draft: ProviderDraft) => void;
-  selectContentClassName?: string;
-  showReasoning?: boolean;
-}) {
-  const modelInputMode = draft.modelInputMode || 'list';
-  const isCustomModel = modelInputMode === 'custom';
-  const { fetchModels, clearModelStatus, modelError, modelLoading, modelNotice, visibleModels } =
-    useProviderModelOptions(draft, onChange);
-
-  function applyPreset(presetId: string) {
-    const preset = providerPresets.find((item) => item.id === presetId);
-    if (!preset) return;
-    clearModelStatus();
-    onChange({
-      ...draft,
-      presetId: preset.id,
-      name: preset.name,
-      type: preset.type,
-      logo: preset.logo,
-      baseUrl: preset.baseUrl,
-      modelName: preset.modelName,
-      modelNames: preset.modelNames,
-      modelInputMode: 'list',
-      reasoningEffort: draft.reasoningEffort || 'none',
-    });
-  }
-
-  function useCustomModel() {
-    clearModelStatus();
-    onChange({
-      ...draft,
-      modelInputMode: 'custom',
-      modelNames: undefined,
-    });
-  }
-
-  return (
-    <div className="settings-form-grid">
-      <Field id="provider-preset" className="col-span-2" label="预设服务商">
-        <Select value={draft.presetId || ''} onValueChange={applyPreset}>
-          <SelectTrigger
-            id="provider-preset"
-            aria-labelledby="provider-preset-label"
-            className="provider-select-trigger"
-          >
-            <SelectValue placeholder="选择服务商" />
-          </SelectTrigger>
-          <SelectContent className={selectContentClassName}>
-            <SelectGroup>
-              {providerPresets.map((preset) => (
-                <SelectItem key={preset.id} value={preset.id}>
-                  <span className="provider-preset-item">
-                    <img
-                      className="provider-preset-logo"
-                      src={providerLogoMap[preset.logo]}
-                      alt=""
-                    />
-                    {preset.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field id="provider-name" label="名称">
-        <Input
-          id="provider-name"
-          name="provider-name"
-          autoComplete="off"
-          value={draft.name || ''}
-          onChange={(event) => onChange({ ...draft, name: event.target.value })}
-        />
-      </Field>
-      <Field id="provider-type" label="API 类型">
-        <Select
-          value={draft.type || 'anthropic'}
-          onValueChange={(value) =>
-            onChange({ ...draft, type: value as ProviderType, presetId: undefined })
-          }
-        >
-          <SelectTrigger id="provider-type" aria-labelledby="provider-type-label">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className={selectContentClassName}>
-            <SelectGroup>
-              <SelectItem value="openai-chat">OpenAI Chat</SelectItem>
-              <SelectItem value="openai-responses">OpenAI Responses</SelectItem>
-              <SelectItem value="anthropic">Anthropic</SelectItem>
-              <SelectItem value="gemini">Gemini</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Field id="provider-base-url" label="Base URL">
-        <Input
-          id="provider-base-url"
-          name="provider-base-url"
-          type="url"
-          autoComplete="off"
-          value={draft.baseUrl || ''}
-          onChange={(event) => onChange({ ...draft, baseUrl: event.target.value })}
-        />
-      </Field>
-      <Field id="provider-model" label="模型">
-        <div className="provider-model-field">
-          {isCustomModel ? (
-            <Input
-              id="provider-model"
-              name="provider-model"
-              autoComplete="off"
-              value={draft.modelName || ''}
-              onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
-            />
-          ) : (
-            <Select
-              disabled={visibleModels.length === 0}
-              value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
-              onValueChange={(modelName) => onChange({ ...draft, modelName })}
-            >
-              <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
-                <SelectValue placeholder="选择模型" />
-              </SelectTrigger>
-              <SelectContent className={selectContentClassName}>
-                <SelectGroup>
-                  {visibleModels.map((model) => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          )}
-          <Button
-            className={
-              isCustomModel
-                ? 'action-button provider-model-mode-button is-active'
-                : 'action-button provider-model-mode-button'
-            }
-            type="button"
-            variant="secondary"
-            onClick={useCustomModel}
-          >
-            <Keyboard size={15} />
-            自定义
-          </Button>
-          <Button
-            className="action-button"
-            type="button"
-            variant="secondary"
-            disabled={modelLoading}
-            onClick={fetchModels}
-          >
-            <RefreshCw size={15} />
-            {modelLoading ? '获取中' : '获取'}
-          </Button>
-        </div>
-        {modelNotice ? <p className="field-inline-note">{modelNotice}</p> : null}
-        {modelError ? <p className="field-inline-error">{modelError}</p> : null}
-      </Field>
-      <Field id="provider-api-key" className="col-span-2" label="API Key">
-        <SecretInput
-          id="provider-api-key"
-          hasStoredValue={Boolean(draft.hasApiKey)}
-          value={draft.apiKey || ''}
-          onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
-          onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
-        />
-      </Field>
-      {showReasoning ? (
-        <Field id="provider-reasoning" className="col-span-2" label="思考强度">
-          <Select
-            value={draft.reasoningEffort || 'none'}
-            onValueChange={(reasoningEffort) =>
-              onChange({
-                ...draft,
-                reasoningEffort: reasoningEffort as LlmProvider['reasoningEffort'],
-              })
-            }
-          >
-            <SelectTrigger id="provider-reasoning" aria-labelledby="provider-reasoning-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className={selectContentClassName}>
-              <SelectGroup>
-                {reasoningEffortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-      ) : null}
-    </div>
-  );
-}
-
-function SecretInput({
-  hasStoredValue,
-  id,
-  value,
-  onChange,
-  onRemove,
-}: {
-  hasStoredValue?: boolean;
-  id: string;
-  value: string;
-  onChange: (value: string) => void;
-  onRemove: () => void;
-}) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="secret-input">
-      <div className="relative">
-        <Input
-          id={id}
-          className="pr-12"
-          name={id}
-          autoComplete="off"
-          placeholder={hasStoredValue ? '已安全保存，输入新 Key 会覆盖' : undefined}
-          spellCheck={false}
-          type={visible ? 'text' : 'password'}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <button
-          className="secret-toggle"
-          type="button"
-          aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
-          onClick={() => setVisible((next) => !next)}
-        >
-          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-        </button>
-      </div>
-      {hasStoredValue && !value ? (
-        <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
-          <Trash2 size={14} />
-          移除已保存的 Key
-        </Button>
-      ) : null}
-    </div>
   );
 }
