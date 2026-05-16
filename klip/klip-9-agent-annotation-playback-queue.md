@@ -1,7 +1,7 @@
 ---
 Author: "Codex"
 Updated: 2026-05-16
-Status: Draft
+Status: Complete
 Origin: 2026-05-16 codebase review（助手批注播放队列拆分）
 ---
 
@@ -57,9 +57,9 @@ Origin: 2026-05-16 codebase review（助手批注播放队列拆分）
   - 新增 `reader-agent-annotation-queue.ts`，实现纯队列模型：`enqueue`、`next`、`markPlayed`、`cleanup`、`count`、`hasPeerWork`。
   - `useAgentAnnotationQueue` 持有这个队列模型的 ref，但调度细节不再散落在 hook 内。
 - 验收标准：
-  - [ ] round-robin 顺序有单元测试。
-  - [ ] 空队列 cleanup 会移除 agent key。
-  - [ ] peer agent 有未播放批注时仍保留等待策略。
+  - [x] round-robin 顺序有单元测试。
+  - [x] 空队列 cleanup 会移除 agent key。
+  - [x] peer agent 没有排队批注但仍在虚拟阅读时，仍保留短暂等待策略。
 
 #### 2. 虚拟阅读 session、光标和 dock 状态混在主 hook 中
 
@@ -76,9 +76,9 @@ Origin: 2026-05-16 codebase review（助手批注播放队列拆分）
   - `normalizedReadingSections`、`currentReadingSection`、`nextReadingOffset` 移到 `reader-agent-virtual-reading.ts` 并导出测试。
   - 主 hook 只调用 `virtualReading.start/pause/resume/finish/cleanup`。
 - 验收标准：
-  - [ ] `useAgentAnnotationQueue` 不直接持有 `virtualReadingSessionsRef`。
-  - [ ] `nextReadingOffset` 覆盖多 section、section wrap、空 section 三类测试。
-  - [ ] cleanup 时仍清理所有 timer、cursor 和 dock 状态。
+  - [x] `useAgentAnnotationQueue` 不直接持有 `virtualReadingSessionsRef`。
+  - [x] `nextReadingOffset` 覆盖多 section、section wrap、空 section 三类测试。
+  - [x] cleanup 时仍清理所有 timer、cursor 和 dock 状态。
 
 #### 3. `playAgentAnnotation` 同时处理定位、动画和持久化 fallback
 
@@ -95,9 +95,9 @@ Origin: 2026-05-16 codebase review（助手批注播放队列拆分）
   - 提供 `playAgentAnnotationPlayback(annotation, dependencies)`，dependencies 显式传入 refs、保存函数、active setter、cursor updater、theater setter、virtual reading adapter 和 logger。
   - 如果 dependencies 过多，则先只抽纯路径判断：`resolveAgentAnnotationPlaybackTarget`，保留动画在 hook 中，避免为了拆分制造透传式巨函数。
 - 验收标准：
-  - [ ] anchor unresolved 时仍会保存批注并记录 `agent.play.anchor_unresolved`。
-  - [ ] offscreen 批注仍会展示虚拟光标后保存并激活批注。
-  - [ ] target mode 完成后仍调用 virtual reading finish。
+  - [x] anchor unresolved 时仍会保存批注并记录 `agent.play.anchor_unresolved`。
+  - [x] offscreen 批注仍会展示虚拟光标后保存并激活批注。
+  - [x] target mode 完成后仍调用 virtual reading finish。
 
 ## 建议落地顺序
 
@@ -108,9 +108,9 @@ Origin: 2026-05-16 codebase review（助手批注播放队列拆分）
 
 ## 验收标准
 
-- [ ] `packages/reader-ui/src/use-agent-annotation-queue.ts` 控制在 260 行以内。
-- [ ] `useAgentAnnotationQueue` public return shape 不变。
-- [ ] `pnpm --filter @yomitomo/reader-ui test -- reader-agent` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
-- [ ] `pnpm --filter @yomitomo/reader-ui lint` 通过。
-- [ ] `pnpm --filter @yomitomo/desktop typecheck` 通过。
+- [x] `packages/reader-ui/src/use-agent-annotation-queue.ts` 控制在 260 行以内。
+- [x] `useAgentAnnotationQueue` public return shape 不变。
+- [x] `pnpm --filter @yomitomo/reader-ui test -- reader-agent` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui typecheck` 通过。
+- [x] `pnpm --filter @yomitomo/reader-ui lint` 通过。
+- [x] `pnpm --filter @yomitomo/desktop typecheck` 通过。
