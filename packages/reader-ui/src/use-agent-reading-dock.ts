@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicAgent } from '@yomitomo/shared';
-import type { AgentDockItem } from './reader-components';
+import type { AgentDockItem } from './reader-types';
 
 export function useAgentReadingDock(agents: PublicAgent[]) {
   const agentDockItemsRef = useRef<AgentDockItem[]>([]);

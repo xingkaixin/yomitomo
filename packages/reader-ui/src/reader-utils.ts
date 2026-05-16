@@ -34,7 +34,7 @@ import {
   timestamp,
   updateAnnotationComment,
 } from '@yomitomo/core';
-import type { ReaderReadingSection, ReaderSettings } from './reader-components';
+import type { ReaderReadingSection, ReaderSettings } from './reader-types';
 import type { HighlightBox, TocItem } from '@yomitomo/core';
 
 export type AnnotationRailItem = {

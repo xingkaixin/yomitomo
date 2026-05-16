@@ -40,26 +40,26 @@ import {
   type AnnotationFilterGroup,
   type AnnotationFilterState,
 } from './reader-utils';
-import {
-  AgentReadingDock,
-  AgentAnnotateMenu,
-  AnnotationCard,
-  AnnotationConnection,
-  AnnotationFilterPanel,
-  Composer,
-  EmptyNotes,
-  HighlightChoiceMenu,
-  QuestionPanel,
-  ReaderSettingsPanel,
-  SelectionMenu,
-  VirtualCursor,
-  type ActiveConnection,
-  type AgentDockItem,
-  type HighlightChoiceAction,
-  type ReaderSettings,
-  type ReaderReadingSection,
-  type VirtualCursorState,
-} from './reader-components';
+import { AgentAnnotateMenu } from './reader-agent-annotate-menu';
+import { AgentReadingDock } from './reader-agent-reading-dock';
+import { AnnotationCard } from './reader-annotation-card';
+import { AnnotationConnection } from './reader-annotation-connection';
+import { AnnotationFilterPanel } from './reader-filter-panel';
+import { Composer } from './reader-composer';
+import { EmptyNotes } from './reader-empty-notes';
+import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
+import { QuestionPanel } from './reader-question-panel';
+import { ReaderSettingsPanel } from './reader-settings-panel';
+import { SelectionMenu } from './reader-selection-menu';
+import { VirtualCursor } from './reader-virtual-cursor';
+import type {
+  ActiveConnection,
+  AgentDockItem,
+  HighlightChoiceAction,
+  ReaderReadingSection,
+  ReaderSettings,
+  VirtualCursorState,
+} from './reader-types';
 
 export type SelectionAction = {
   x: number;
