@@ -34,6 +34,7 @@ Object.defineProperty(window, 'localStorage', {
 
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, 'yomitomoDesktop');
   window.localStorage.clear();
   vi.clearAllMocks();
 });
@@ -146,6 +147,56 @@ describe('ProviderForm', () => {
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
     expect(listProviderModels).toHaveBeenCalledWith(expect.objectContaining({ hasApiKey: true }));
+  });
+
+  it('falls back to preset models before an api key is available', async () => {
+    const onChange = vi.fn();
+    const listProviderModels = vi.fn();
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        listProviderModels,
+      },
+    });
+
+    render(
+      <ProviderForm
+        draft={{ ...emptyProvider, apiKey: '', hasApiKey: false }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+
+    expect(await screen.findByText('已显示预设模型；填写 API Key 后可获取实时列表')).toBeTruthy();
+    expect(listProviderModels).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ modelInputMode: 'list' }));
+  });
+
+  it('shows provider model fetch failures while keeping preset candidates', async () => {
+    const listProviderModels = vi.fn().mockRejectedValue(new Error('Bad credentials'));
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        listProviderModels,
+      },
+    });
+
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          apiKey: 'sk-test',
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /获取/ }));
+
+    expect(await screen.findByText('Bad credentials')).toBeTruthy();
+    expect(screen.getByText('已显示预设模型作为候选')).toBeTruthy();
+    expect(listProviderModels).toHaveBeenCalledOnce();
   });
 
   it('marks a stored api key for removal', () => {
