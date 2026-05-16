@@ -1,28 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BarChart3, BookOpen, Bot, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react';
-import type {
-  Agent,
-  AppSettings,
-  ArticleRecord,
-  ArticleReadingProgress,
-  DesktopStore,
-  LlmProvider,
-} from '@yomitomo/shared';
-import {
-  normalizeSelectionActionShortcutDraft,
-  normalizeSelectionActionShortcuts,
-  selectionActionShortcutsConflict,
-} from '@yomitomo/shared';
-import {
-  defaultUser,
-  emptyProvider,
-  emptyStore,
-  providerDraftHasChanges,
-  userDraftHasChanges,
-  type ProviderDraft,
-  type UserDraft,
-} from './app-settings';
+import type { AppSettings } from '@yomitomo/shared';
+
 import { ReadingLibrary } from './app-reading-library';
 import { ReadingStatsPanel } from './app-reading-stats';
 import { OnboardingFlow } from './app-onboarding';
@@ -39,79 +19,69 @@ import {
 } from './app-settings-panels';
 import { AboutSettings } from './app-log-viewer';
 import { selectDailyQuote } from './app-daily-quote';
-import type { SaveState } from './app-types';
 import { AvatarImage } from './app-ui';
+import { useAppAgentActions } from './app-agent-actions';
+import { useAppArticleStoreActions } from './app-article-store-actions';
+import { useDesktopStoreState } from './app-desktop-store-state';
+import { useSettingsDrafts } from './app-settings-drafts';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
-type ImportProgressCallback = (progress: number) => void;
-
-function readFileArrayBuffer(file: File, onProgress: (progress: number) => void) {
-  return new Promise<ArrayBuffer>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('progress', (event) => {
-      if (!event.lengthComputable) return;
-      onProgress(event.loaded / event.total);
-    });
-    reader.addEventListener('load', () => {
-      if (reader.result instanceof ArrayBuffer) {
-        onProgress(1);
-        resolve(reader.result);
-        return;
-      }
-      reject(new Error('读取 EPUB 文件失败'));
-    });
-    reader.addEventListener('error', () => reject(reader.error || new Error('读取 EPUB 文件失败')));
-    reader.readAsArrayBuffer(file);
-  });
-}
 
 function App() {
-  const [store, setStore] = useState<DesktopStore>(emptyStore);
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
-  const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
-  const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
-  const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
-  const [testState, setTestState] = useState('');
-  const [agentSaveError, setAgentSaveError] = useState('');
-  const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
-  const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
-  const [shortcutSaveState, setShortcutSaveState] = useState<SaveState>('idle');
-  const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
-  const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
-  const [agentSaveState, setAgentSaveState] = useState<SaveState>('idle');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [storeLoaded, setStoreLoaded] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [dailyQuote, setDailyQuote] = useState(() => selectDailyQuote([], { storage: null }));
-  const storeRef = useRef<DesktopStore>(emptyStore);
-  const articleUpdateQueueRef = useRef(Promise.resolve());
 
-  useEffect(() => {
-    storeRef.current = store;
-  }, [store]);
-
-  useEffect(() => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    refreshStore();
-    const offStoreUpdated = desktop.onStoreUpdated((nextStore) => {
-      setStore(nextStore);
-      setUserDraft(nextStore.user);
-      setSettingsDraft(nextStore.settings);
-      setStoreLoaded(true);
-    });
-    return () => {
-      offStoreUpdated();
-    };
-  }, []);
+  const { store, storeLoaded, storeSyncSnapshot, storeRef, refreshStore, applyStore } =
+    useDesktopStoreState();
+  const {
+    deleteArticle,
+    saveArticle,
+    updateArticle,
+    saveArticleReadingProgress,
+    importArticleUrl,
+    importEbookFile,
+  } = useAppArticleStoreActions({ storeRef, applyStore });
+  const {
+    userDraft,
+    settingsDraft,
+    providerDraft,
+    selectedProviderId,
+    testState,
+    profileSaveState,
+    generalSaveState,
+    shortcutSaveState,
+    providerSaveState,
+    routeSaveState,
+    canSaveUser,
+    canSaveGeneralSettings,
+    canSaveShortcutSettings,
+    canSaveProvider,
+    canSaveProviderRoutes,
+    updateUserDraft,
+    updateGeneralSettingsDraft,
+    updateShortcutSettingsDraft,
+    updateProviderDraft,
+    updateProviderRoutesDraft,
+    saveProfileDraft,
+    saveGeneralSettingsDraft,
+    saveShortcutSettingsDraft,
+    selectProvider,
+    createProvider,
+    deleteProvider,
+    saveProviderDraft,
+    saveProviderRoutes,
+    testProvider,
+  } = useSettingsDrafts({ store, storeSyncSnapshot, applyStore });
+  const { agentSaveError, agentSaveState, toggleAgent } = useAppAgentActions({ applyStore });
+  const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
   useEffect(() => {
     if (!storeLoaded) return;
@@ -123,187 +93,6 @@ function App() {
     window.yomitomoDesktop.showMainWindow();
   }, [storeLoaded]);
 
-  const userHasChanges = useMemo(
-    () => userDraftHasChanges(userDraft, store.user),
-    [store.user, userDraft],
-  );
-  const settingsHasChanges = useMemo(
-    () => Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
-    [settingsDraft.saveArticleImages, store.settings.saveArticleImages],
-  );
-  const draftSelectionActionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
-    [settingsDraft.selectionActionShortcuts],
-  );
-  const savedSelectionActionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(store.settings.selectionActionShortcuts),
-    [store.settings.selectionActionShortcuts],
-  );
-  const shortcutSettingsHaveConflict = useMemo(
-    () => selectionActionShortcutsConflict(draftSelectionActionShortcuts),
-    [draftSelectionActionShortcuts],
-  );
-  const shortcutSettingsHaveChanges = useMemo(
-    () =>
-      (settingsDraft.messageSendShortcut || 'enter') !==
-        (store.settings.messageSendShortcut || 'enter') ||
-      draftSelectionActionShortcuts.copy !== savedSelectionActionShortcuts.copy ||
-      draftSelectionActionShortcuts.annotate !== savedSelectionActionShortcuts.annotate,
-    [
-      draftSelectionActionShortcuts.annotate,
-      draftSelectionActionShortcuts.copy,
-      savedSelectionActionShortcuts.annotate,
-      savedSelectionActionShortcuts.copy,
-      settingsDraft.messageSendShortcut,
-      store.settings.messageSendShortcut,
-    ],
-  );
-  const providerRoutesHaveChanges = useMemo(
-    () =>
-      (settingsDraft.readingAssistantProviderId || '') !==
-        (store.settings.readingAssistantProviderId || '') ||
-      (settingsDraft.reviewAssistantProviderId || '') !==
-        (store.settings.reviewAssistantProviderId || '') ||
-      (settingsDraft.readingNoteProviderId || '') !== (store.settings.readingNoteProviderId || ''),
-    [
-      settingsDraft.readingAssistantProviderId,
-      settingsDraft.reviewAssistantProviderId,
-      settingsDraft.readingNoteProviderId,
-      store.settings.readingAssistantProviderId,
-      store.settings.reviewAssistantProviderId,
-      store.settings.readingNoteProviderId,
-    ],
-  );
-  const selectedProvider = useMemo(
-    () => store.providers.find((provider) => provider.id === selectedProviderId) || null,
-    [selectedProviderId, store.providers],
-  );
-  const providerHasChanges = useMemo(
-    () => providerDraftHasChanges(providerDraft, selectedProvider),
-    [providerDraft, selectedProvider],
-  );
-  const canSaveProvider =
-    providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
-  const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
-  const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
-  const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
-  const canSaveShortcutSettings =
-    shortcutSaveState !== 'saving' && shortcutSettingsHaveChanges && !shortcutSettingsHaveConflict;
-  const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
-
-  async function refreshStore() {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    const nextStore = await desktop.getState();
-    setStore(nextStore);
-    setUserDraft(nextStore.user);
-    setSettingsDraft(nextStore.settings);
-    setStoreLoaded(true);
-    if (nextStore.providers[0]) selectProvider(nextStore.providers[0]);
-  }
-
-  function applyStore(nextStore: DesktopStore) {
-    setStore(nextStore);
-    setUserDraft(nextStore.user);
-    setSettingsDraft(nextStore.settings);
-  }
-
-  async function deleteArticle(articleId: string) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    setStore(await desktop.deleteArticle(articleId));
-  }
-
-  async function saveArticle(article: ArticleRecord) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    setStore(await desktop.saveArticle(article));
-  }
-
-  async function updateArticle(
-    articleId: string,
-    update: (article: ArticleRecord) => ArticleRecord | null,
-  ) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    const run = async () => {
-      const currentStore = await desktop.getState();
-      storeRef.current = currentStore;
-      const article = currentStore.articles.find((item) => item.id === articleId);
-      if (!article) return;
-      const nextArticle = update(article);
-      if (!nextArticle) return;
-      const nextStore = await desktop.saveArticle(nextArticle);
-      storeRef.current = nextStore;
-      setStore(nextStore);
-    };
-    const nextUpdate = articleUpdateQueueRef.current.then(run, run);
-    articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
-    await nextUpdate;
-  }
-
-  async function saveArticleReadingProgress(articleId: string, progress: ArticleReadingProgress) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-
-    const run = async () => {
-      const optimisticStore = {
-        ...storeRef.current,
-        articles: storeRef.current.articles.map((article) =>
-          article.id === articleId
-            ? { ...article, readingProgress: progress, updatedAt: progress.updatedAt }
-            : article,
-        ),
-      };
-      storeRef.current = optimisticStore;
-      setStore(optimisticStore);
-      const desktopWithProgress = desktop as typeof desktop & {
-        saveArticleReadingProgress?: (
-          articleId: string,
-          progress: ArticleReadingProgress,
-        ) => Promise<DesktopStore>;
-      };
-      const nextStore =
-        typeof desktopWithProgress.saveArticleReadingProgress === 'function'
-          ? await desktopWithProgress.saveArticleReadingProgress(articleId, progress)
-          : await (async () => {
-              const article = optimisticStore.articles.find((item) => item.id === articleId);
-              return article ? desktop.saveArticle(article) : optimisticStore;
-            })();
-      storeRef.current = nextStore;
-      setStore(nextStore);
-    };
-    const nextUpdate = articleUpdateQueueRef.current.then(run, run);
-    articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
-    await nextUpdate;
-  }
-
-  async function importArticleUrl(url: string) {
-    const result = await window.yomitomoDesktop.importArticleUrl(url);
-    setStore(result.store);
-    return result;
-  }
-
-  async function importEbookFile(file: File, onProgress?: ImportProgressCallback) {
-    onProgress?.(4);
-    const data = await readFileArrayBuffer(file, (progress) => {
-      onProgress?.(Math.min(76, Math.round(progress * 76)));
-    });
-    onProgress?.(82);
-    const result = await window.yomitomoDesktop.importEbookFile({
-      fileName: file.name,
-      mimeType: file.type,
-      data,
-    });
-    onProgress?.(100);
-    setStore(result.store);
-    return result;
-  }
-
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
     applyStore(nextStore);
@@ -314,133 +103,6 @@ function App() {
   function startOnboarding() {
     setOnboardingForced(true);
     setOnboardingFlowKey((key) => key + 1);
-  }
-
-  function selectProvider(provider: LlmProvider) {
-    setSelectedProviderId(provider.id);
-    setProviderDraft(provider);
-    setTestState('');
-    setProviderSaveState('idle');
-  }
-
-  function createProvider() {
-    setSelectedProviderId(null);
-    setProviderDraft(emptyProvider);
-    setTestState('');
-    setProviderSaveState('idle');
-  }
-
-  async function saveProfileDraft() {
-    if (!window.yomitomoDesktop || !userHasChanges) return;
-    setProfileSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
-      setStore(nextStore);
-      setUserDraft(nextStore.user);
-      setProfileSaveState('saved');
-      window.setTimeout(() => setProfileSaveState('idle'), 1200);
-    } catch {
-      setProfileSaveState('idle');
-    }
-  }
-
-  async function saveGeneralSettingsDraft() {
-    if (!window.yomitomoDesktop || !settingsHasChanges) return;
-    setGeneralSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      setStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setGeneralSaveState('saved');
-      window.setTimeout(() => setGeneralSaveState('idle'), 1200);
-    } catch {
-      setGeneralSaveState('idle');
-    }
-  }
-
-  async function saveShortcutSettingsDraft() {
-    if (!window.yomitomoDesktop || !shortcutSettingsHaveChanges) return;
-    setShortcutSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      setStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setShortcutSaveState('saved');
-      window.setTimeout(() => setShortcutSaveState('idle'), 1200);
-    } catch {
-      setShortcutSaveState('idle');
-    }
-  }
-
-  async function saveProviderDraft() {
-    if (!window.yomitomoDesktop || !canSaveProvider) return;
-    setProviderSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
-      const savedProvider = providerDraft.id
-        ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
-        : nextStore.providers.at(-1);
-      setStore(nextStore);
-      setTestState('');
-      if (savedProvider) {
-        setSelectedProviderId(savedProvider.id);
-        setProviderDraft(savedProvider);
-        setProviderSaveState('saved');
-        window.setTimeout(() => setProviderSaveState('idle'), 1200);
-      }
-    } catch (error) {
-      setTestState(error instanceof Error ? `保存失败：${error.message}` : '保存失败。');
-      setProviderSaveState('idle');
-    }
-  }
-
-  async function saveProviderRoutes() {
-    if (!window.yomitomoDesktop || !canSaveProviderRoutes) return;
-    setRouteSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      setStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setRouteSaveState('saved');
-      window.setTimeout(() => setRouteSaveState('idle'), 1200);
-    } catch {
-      setRouteSaveState('idle');
-    }
-  }
-
-  async function deleteProvider(id: string) {
-    if (!window.yomitomoDesktop) return;
-    const nextStore = await window.yomitomoDesktop.deleteProvider(id);
-    setStore(nextStore);
-    setSettingsDraft(nextStore.settings);
-    const nextProvider = nextStore.providers[0];
-    if (nextProvider) selectProvider(nextProvider);
-    if (!nextProvider) createProvider();
-  }
-
-  async function testProvider(id: string) {
-    if (!window.yomitomoDesktop) return;
-    setTestState('测试中...');
-    const result = await window.yomitomoDesktop.testProvider(id);
-    setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
-  }
-
-  async function toggleAgent(agent: Agent) {
-    if (!window.yomitomoDesktop) return;
-    setAgentSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveAgent({
-        ...agent,
-        enabled: !agent.enabled,
-      });
-      setStore(nextStore);
-      setAgentSaveError('');
-      setAgentSaveState('saved');
-      window.setTimeout(() => setAgentSaveState('idle'), 800);
-    } catch (error) {
-      setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
-      setAgentSaveState('idle');
-    }
   }
 
   if (!storeLoaded) return null;
@@ -570,10 +232,7 @@ function App() {
                 <GeneralSettings
                   settingsDraft={settingsDraft}
                   canSave={canSaveGeneralSettings}
-                  onSettingsChange={(draft) => {
-                    setSettingsDraft(draft);
-                    setGeneralSaveState('idle');
-                  }}
+                  onSettingsChange={updateGeneralSettingsDraft}
                   onSave={saveGeneralSettingsDraft}
                   saveState={generalSaveState}
                 />
@@ -587,14 +246,8 @@ function App() {
                   testState={testState}
                   canSave={canSaveProvider}
                   canSaveRoutes={canSaveProviderRoutes}
-                  onChange={(draft) => {
-                    setProviderDraft(draft);
-                    setProviderSaveState('idle');
-                  }}
-                  onRouteChange={(draft) => {
-                    setSettingsDraft(draft);
-                    setRouteSaveState('idle');
-                  }}
+                  onChange={updateProviderDraft}
+                  onRouteChange={updateProviderRoutesDraft}
                   onCreate={createProvider}
                   onDelete={deleteProvider}
                   onSave={saveProviderDraft}
@@ -610,10 +263,7 @@ function App() {
                   savedSettings={store.settings}
                   settingsDraft={settingsDraft}
                   canSave={canSaveShortcutSettings}
-                  onSettingsChange={(draft) => {
-                    setSettingsDraft(draft);
-                    setShortcutSaveState('idle');
-                  }}
+                  onSettingsChange={updateShortcutSettingsDraft}
                   onSave={saveShortcutSettingsDraft}
                   saveState={shortcutSaveState}
                 />
@@ -638,10 +288,7 @@ function App() {
         <UserProfileSettingsDialog
           draft={userDraft}
           canSave={canSaveUser}
-          onChange={(draft) => {
-            setUserDraft(draft);
-            setProfileSaveState('idle');
-          }}
+          onChange={updateUserDraft}
           onClose={() => setProfileDialogOpen(false)}
           onSave={saveProfileDraft}
           saveState={profileSaveState}
