@@ -22,16 +22,6 @@ import type {
   LlmProvider,
   ProviderPresetId,
   ProviderType,
-  QuestionStatus,
-  ReadingCardRecord,
-  ReadingCardReviewFinding,
-  ReadingCardReviewRecord,
-  ReadingCardReviewSeverity,
-  ReadingCardReviewVerdict,
-  ReadingCardReviewerResult,
-  ReadingCardSection,
-  ReadingDeliberationRecord,
-  ReadingDeliberationSection,
   ReasoningEffort,
   TextAnchor,
   UserProfile,
@@ -76,7 +66,6 @@ export function rowToComment(row: typeof schema.comments.$inferSelect): Comment 
     agentAvatar: row.agentAvatar || undefined,
     agentAnnotationColor: row.agentAnnotationColor || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
-    questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
     userId: row.userId || undefined,
     userUsername: row.userUsername || undefined,
     userNickname: row.userNickname || undefined,
@@ -96,7 +85,6 @@ export function rowToAnnotation(
     author: row.author as Annotation['author'],
     annotationType: normalizeAnnotationType(row.annotationType) || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
-    questionStatus: normalizeQuestionStatus(row.questionStatus) || undefined,
     moveType: normalizeAnnotationMove(row.moveType) || undefined,
     whyHere: row.whyHere || undefined,
     evidenceUsed: normalizeAnnotationEvidenceUsed(row.evidenceUsed),
@@ -180,8 +168,6 @@ export function rowToArticle(
     focusCoReadingPlan: row.focusCoReadingPlan
       ? (row.focusCoReadingPlan as FocusCoReadingPlan)
       : undefined,
-    readingDeliberation: rowToReadingDeliberation(row),
-    readingCard: rowToReadingCard(row),
     annotations,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -199,9 +185,6 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     reviewAssistantProviderId: settingsFieldProvided(settings, 'reviewAssistantProviderId')
       ? settings.reviewAssistantProviderId || undefined
       : existing?.reviewAssistantProviderId || undefined,
-    readingNoteProviderId: settingsFieldProvided(settings, 'readingNoteProviderId')
-      ? settings.readingNoteProviderId || undefined
-      : existing?.readingNoteProviderId || undefined,
     messageSendShortcut: settingsFieldProvided(settings, 'messageSendShortcut')
       ? normalizeMessageSendShortcut(settings.messageSendShortcut)
       : normalizeMessageSendShortcut(existing?.messageSendShortcut),
@@ -263,7 +246,6 @@ export function rowToSettings(
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
-    readingNoteProviderId: row?.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
@@ -276,7 +258,6 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
-    readingNoteProviderId: settings?.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
@@ -456,142 +437,9 @@ function normalizeEpubParagraphIndexes(value: unknown): EpubParagraphIndex[] {
   });
 }
 
-function rowToReadingCard(row: typeof schema.articles.$inferSelect): ReadingCardRecord | undefined {
-  if (!row.readingCardMarkdown || !row.readingCardId) return undefined;
-  return {
-    id: row.readingCardId,
-    articleId: row.id,
-    title: row.title,
-    contentMarkdown: row.readingCardMarkdown,
-    sections: normalizeReadingCardSections(row.readingCardSections),
-    review: rowToReadingCardReview(row),
-    providerId: row.readingCardProviderId || '',
-    providerName: row.readingCardProviderName || '',
-    modelName: row.readingCardModelName || '',
-    createdAt: row.readingCardCreatedAt || row.updatedAt,
-    updatedAt: row.readingCardUpdatedAt || row.updatedAt,
-  };
-}
-
-function rowToReadingDeliberation(
-  row: typeof schema.articles.$inferSelect,
-): ReadingDeliberationRecord | undefined {
-  if (!row.readingDeliberationMarkdown || !row.readingDeliberationId) return undefined;
-  return {
-    id: row.readingDeliberationId,
-    articleId: row.id,
-    title: row.title,
-    contentMarkdown: row.readingDeliberationMarkdown,
-    sections: normalizeReadingDeliberationSections(row.readingDeliberationSections),
-    providerId: row.readingDeliberationProviderId || '',
-    providerName: row.readingDeliberationProviderName || '',
-    modelName: row.readingDeliberationModelName || '',
-    createdAt: row.readingDeliberationCreatedAt || row.updatedAt,
-    updatedAt: row.readingDeliberationUpdatedAt || row.updatedAt,
-  };
-}
-
-function rowToReadingCardReview(
-  row: typeof schema.articles.$inferSelect,
-): ReadingCardReviewRecord | undefined {
-  if (!row.readingCardReviewId || !row.readingCardId) return undefined;
-  return {
-    id: row.readingCardReviewId,
-    articleId: row.id,
-    readingCardId: row.readingCardId,
-    reviewerResults: normalizeReadingCardReviewerResults(row.readingCardReviewResults),
-    createdAt: row.readingCardReviewCreatedAt || row.updatedAt,
-    updatedAt: row.readingCardReviewUpdatedAt || row.updatedAt,
-  };
-}
-
-function normalizeReadingCardSections(value: unknown): ReadingCardSection[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const section = item as { title?: unknown; content?: unknown };
-    return typeof section.title === 'string' && typeof section.content === 'string'
-      ? [{ title: section.title, content: section.content }]
-      : [];
-  });
-}
-
-function normalizeReadingDeliberationSections(value: unknown): ReadingDeliberationSection[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const section = item as { title?: unknown; content?: unknown };
-    return typeof section.title === 'string' && typeof section.content === 'string'
-      ? [{ title: section.title, content: section.content }]
-      : [];
-  });
-}
-
-function normalizeReadingCardReviewerResults(value: unknown): ReadingCardReviewerResult[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const result = item as Record<string, unknown>;
-    const id = stringValue(result.id);
-    const reviewerId = stringValue(result.reviewerId);
-    if (!id || !reviewerId) return [];
-    return [
-      {
-        id,
-        reviewerId,
-        reviewerNickname: stringValue(result.reviewerNickname),
-        reviewerUsername: stringValue(result.reviewerUsername),
-        reviewerAvatar: stringValue(result.reviewerAvatar),
-        reviewerColor: stringValue(result.reviewerColor),
-        status: result.status === 'error' ? 'error' : 'done',
-        verdict: normalizeReviewVerdict(result.verdict),
-        summary: stringValue(result.summary),
-        findings: normalizeReviewFindings(result.findings),
-        acceptedClaims: stringArray(result.acceptedClaims),
-        missingAngles: stringArray(result.missingAngles),
-        rawResponse: stringValue(result.rawResponse) || undefined,
-        createdAt: stringValue(result.createdAt) || new Date(0).toISOString(),
-      },
-    ];
-  });
-}
-
-function normalizeReviewFindings(value: unknown): ReadingCardReviewFinding[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
-    const finding = item as Record<string, unknown>;
-    const problem = stringValue(finding.problem);
-    if (!problem) return [];
-    return [
-      {
-        section: stringValue(finding.section),
-        severity: normalizeReviewSeverity(finding.severity),
-        problem,
-        evidenceIds: numberArray(finding.evidenceIds),
-        suggestedRewrite: stringValue(finding.suggestedRewrite) || undefined,
-      },
-    ];
-  });
-}
-
-function normalizeReviewVerdict(value: unknown): ReadingCardReviewVerdict {
-  return value === 'pass' ? 'pass' : 'revise';
-}
-
-function normalizeReviewSeverity(value: unknown): ReadingCardReviewSeverity {
-  return value === 'high' || value === 'medium' || value === 'low' ? value : 'medium';
-}
-
 function stringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
-    : [];
-}
-
-function numberArray(value: unknown) {
-  return Array.isArray(value)
-    ? value.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
     : [];
 }
 
@@ -739,8 +587,4 @@ function normalizeAgentReadingIntent(value: unknown): AgentReadingIntent | null 
     value === 'connect'
     ? value
     : null;
-}
-
-function normalizeQuestionStatus(value: unknown): QuestionStatus | null {
-  return value === 'open' || value === 'answered' || value === 'parked' ? value : null;
 }

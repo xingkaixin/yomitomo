@@ -5,7 +5,6 @@ import type {
   FocusCoReadingPlan,
   MessageSendShortcut,
   PublicAgent,
-  QuestionStatus,
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
@@ -75,10 +74,8 @@ export type ReaderAppViewProps = {
   filteredAnnotations: Annotation[];
   focusCoReadingPlan?: FocusCoReadingPlan;
   highlightChoice: HighlightChoice | null;
-  notesOpen: boolean;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
-  replyRequest: { annotationId: string; key: number } | null;
   readerSettings: ReaderSettings;
   readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
@@ -102,7 +99,6 @@ export type ReaderAppViewProps = {
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
-  onAnswerQuestion: (annotationId: string) => void;
   onAnnotationLayoutChange?: () => void;
   onResolveAnnotationNavigation?: (
     request: AnnotationNavigationRequest,
@@ -124,13 +120,6 @@ export type ReaderAppViewProps = {
   onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
-  onSetAnnotationQuestionStatus: (annotationId: string, status: QuestionStatus) => void;
-  onSetCommentQuestionStatus: (
-    annotationId: string,
-    commentId: string,
-    status: QuestionStatus,
-  ) => void;
-  onToggleNotes: () => void;
   onToggleToc: () => void;
   onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;

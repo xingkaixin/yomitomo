@@ -45,7 +45,6 @@ export type ReaderSurfaceViewProps = {
   messageSendShortcut: MessageSendShortcut;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
   notesRef: React.RefObject<HTMLElement | null>;
-  replyRequest: { annotationId: string; key: number } | null;
   selectionAction: SelectionAction | null;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   shortcutModifier: string;
@@ -123,7 +122,6 @@ export function ReaderSurfaceView({
   messageSendShortcut,
   noteRefForAnnotation,
   notesRef,
-  replyRequest,
   selectionAction,
   selectionActionShortcuts,
   shortcutModifier,
@@ -263,9 +261,6 @@ export function ReaderSurfaceView({
                   stackCount={stackCount}
                   stackIndex={stackIndex}
                   commentsCloseKey={commentsCloseKey}
-                  replyRequestKey={
-                    replyRequest?.annotationId === annotation.id ? replyRequest.key : undefined
-                  }
                   style={style}
                   userProfile={userProfile}
                   onAddComment={onAddComment}

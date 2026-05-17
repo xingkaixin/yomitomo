@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Bot, Check, KeyRound, Save, ShieldCheck, Trash2, X } from 'lucide-react';
+import { BookOpen, Check, KeyRound, Save, ShieldCheck, Trash2, X } from 'lucide-react';
 import type { AppSettings, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { PanelHeader } from './app-ui';
@@ -64,11 +64,9 @@ export function ProviderSettings({
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [testStatus, setTestStatus] = useState<ProviderTestStatus>('idle');
   const usedProviderIds = new Set(
-    [
-      settingsDraft.readingAssistantProviderId,
-      settingsDraft.reviewAssistantProviderId,
-      settingsDraft.readingNoteProviderId,
-    ].filter((id): id is string => Boolean(id)),
+    [settingsDraft.readingAssistantProviderId, settingsDraft.reviewAssistantProviderId].filter(
+      (id): id is string => Boolean(id),
+    ),
   );
 
   useEffect(() => {
@@ -314,10 +312,7 @@ function ProviderEditorContent({
 }
 
 const taskRouteOptions: Array<{
-  key: keyof Pick<
-    AppSettings,
-    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'readingNoteProviderId'
-  >;
+  key: keyof Pick<AppSettings, 'readingAssistantProviderId' | 'reviewAssistantProviderId'>;
   title: string;
   description: string;
   icon: React.ReactNode;
@@ -331,14 +326,8 @@ const taskRouteOptions: Array<{
   {
     key: 'reviewAssistantProviderId',
     title: '深度审阅助手',
-    description: '用于审核读后笔记的证据、逻辑和表达质量。',
+    description: '用于阅读材料的证据、逻辑和表达复核。',
     icon: <ShieldCheck size={18} />,
-  },
-  {
-    key: 'readingNoteProviderId',
-    title: '读后笔记助手',
-    description: '用于生成审议报告和读后笔记正文。',
-    icon: <Bot size={18} />,
   },
 ];
 

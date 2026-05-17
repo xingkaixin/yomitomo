@@ -6,7 +6,6 @@ export { AnnotationFilterPanel } from './reader-filter-panel';
 export { Composer } from './reader-composer';
 export { EmptyNotes } from './reader-empty-notes';
 export { HighlightChoiceMenu } from './reader-highlight-choice-menu';
-export { QuestionPanel } from './reader-question-panel';
 export { ReaderSettingsPanel } from './reader-settings-panel';
 export { SelectionMenu } from './reader-selection-menu';
 export { VirtualCursor } from './reader-virtual-cursor';

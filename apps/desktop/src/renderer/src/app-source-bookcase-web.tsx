@@ -105,8 +105,6 @@ export function WebSourceBookcase({
     deleteAnnotation,
     latestArticleRef,
     saveAnnotations,
-    setAnnotationQuestionStatus,
-    setCommentQuestionStatus,
   } = useSourceAnnotations({
     annotationAgents,
     annotations: articleAnnotations,
@@ -122,7 +120,6 @@ export function WebSourceBookcase({
     userProfile,
   });
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
@@ -144,9 +141,6 @@ export function WebSourceBookcase({
   });
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
-  );
-  const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
-    null,
   );
   const [statusMessage, setStatusMessage] = useState('');
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
@@ -223,11 +217,9 @@ export function WebSourceBookcase({
   }, [article?.id, annotations, clearAnnotationUiState]);
 
   useEffect(() => {
-    setNotesOpen(false);
     setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
     setAgentAnnotateOpen(false);
-    setReplyRequest(null);
     setStatusMessage('');
   }, [article?.id]);
 
@@ -427,17 +419,6 @@ export function WebSourceBookcase({
     await onUpdateArticle(articleId, (targetArticle) =>
       articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
     );
-  }
-
-  function focusQuestionAnnotation(annotationId: string) {
-    setNotesOpen(false);
-    openAnnotation(annotationId);
-    scrollToAnnotation(annotationId);
-  }
-
-  function answerQuestion(annotationId: string) {
-    focusQuestionAnnotation(annotationId);
-    setReplyRequest({ annotationId, key: Date.now() });
   }
 
   async function requestAgentComment(
@@ -814,12 +795,10 @@ export function WebSourceBookcase({
         filteredAnnotations={annotations}
         focusCoReadingPlan={article.focusCoReadingPlan}
         highlightChoice={highlightChoice}
-        notesOpen={notesOpen}
         noteRefs={noteRefs}
         notesRef={railRef}
         readerSettings={readerSettings}
         readingSections={readingSections}
-        replyRequest={replyRequest}
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
         messageSendShortcut={sendShortcut}
@@ -827,12 +806,7 @@ export function WebSourceBookcase({
         shortcutModifier={shortcutModifier}
         surfaceRef={scrollRef}
         temporaryBoxes={temporaryBoxes}
-        toolbarArticleAction={
-          <>
-            <span className="reader-toolbar-current-view">当前：原文阅读</span>
-            <OpenArticleButton article={article} iconOnly />
-          </>
-        }
+        toolbarArticleAction={<OpenArticleButton article={article} iconOnly />}
         tocAnnotationStats={tocStats}
         tocItems={tocItems}
         tocOpen={tocOpen}
@@ -840,7 +814,6 @@ export function WebSourceBookcase({
         virtualCursors={virtualCursors}
         onAddComment={addComment}
         onAnnotationLayoutChange={recalculateActiveConnection}
-        onAnswerQuestion={answerQuestion}
         onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
@@ -852,7 +825,6 @@ export function WebSourceBookcase({
         onCloseHighlightChoice={() => setHighlightChoice(null)}
         onCloseResponsivePanels={() => {
           setTocOpen(false);
-          setNotesOpen(false);
         }}
         onCopySelection={copySelection}
         onCreateAnnotation={createAnnotation}
@@ -870,8 +842,6 @@ export function WebSourceBookcase({
           openAnnotation(annotationId);
           scrollToAnnotation(annotationId);
         }}
-        onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
-        onSetCommentQuestionStatus={setCommentQuestionStatus}
         onStartAgentReadingPlan={(agent, readingPlan) => {
           setAgentAnnotateOpen(false);
           void requestAgentAnnotations(agent, { readingPlan });
@@ -879,10 +849,6 @@ export function WebSourceBookcase({
         onToggleAgentAnnotate={() => {
           setSettingsOpen(false);
           setAgentAnnotateOpen((open) => !open);
-        }}
-        onToggleNotes={() => {
-          if (!notesOpen) setCommentsCloseKey((key) => key + 1);
-          setNotesOpen((open) => !open);
         }}
         onToggleSettings={() => {
           setAgentAnnotateOpen(false);

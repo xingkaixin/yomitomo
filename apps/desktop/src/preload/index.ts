@@ -17,32 +17,9 @@ import type {
   FocusCoReadingRouteResult,
   LlmProvider,
   ProviderModel,
-  ReadingDeliberationRecord,
-  ReadingCardRecord,
-  ReadingCardReviewRecord,
   UserProfile,
 } from '@yomitomo/shared';
-import type { ReadingCardEvidenceUnit } from '@yomitomo/core';
 import type { AppUpdateState } from '../app-update-types';
-
-export type GenerateReadingCardInput = {
-  article: ArticleRecord;
-  articleText: string;
-  evidenceUnits: ReadingCardEvidenceUnit[];
-  readingDeliberation?: ReadingDeliberationRecord;
-};
-
-export type GenerateReadingDeliberationInput = {
-  article: ArticleRecord;
-  articleText: string;
-  evidenceUnits: ReadingCardEvidenceUnit[];
-};
-
-export type ReviewReadingCardInput = GenerateReadingCardInput & {
-  readingCard: ReadingCardRecord;
-  previousReview?: ReadingCardReviewRecord;
-  reviewAgentIds?: string[];
-};
 
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -188,18 +165,6 @@ const api = {
       ipcRenderer.send('agent:annotate:stream', { requestId, payload });
     });
   },
-  generateReadingCard: (input: GenerateReadingCardInput) =>
-    ipcRenderer.invoke('reading-card:generate', input) as Promise<{
-      readingCard: ReadingCardRecord;
-    }>,
-  generateReadingDeliberation: (input: GenerateReadingDeliberationInput) =>
-    ipcRenderer.invoke('reading-deliberation:generate', input) as Promise<{
-      readingDeliberation: ReadingDeliberationRecord;
-    }>,
-  reviewReadingCard: (input: ReviewReadingCardInput) =>
-    ipcRenderer.invoke('reading-card:review', input) as Promise<{
-      review: ReadingCardReviewRecord;
-    }>,
   saveAgent: (agent: Partial<Agent>) =>
     ipcRenderer.invoke('agent:save', agent) as Promise<DesktopStore>,
   deleteAgent: (id: string) => ipcRenderer.invoke('agent:delete', id) as Promise<DesktopStore>,

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronLeft, PencilLine } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -10,7 +10,6 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { annotationThreadComments, sortAnnotations, sortArticles } from '@yomitomo/core';
-import { ReadingCard } from './app-reading-card-panel';
 import { SourceBookcase } from './app-source-bookcase';
 import type { ArticleUpdater, EbookImportProgressCallback } from './app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
@@ -19,6 +18,8 @@ import { groupLibraryArticles, type LibrarySort } from './app-reading-library-ut
 
 export { groupLibraryArticles };
 export type { LibrarySort };
+
+type BookmarkStatus = 'idle' | 'annotated' | 'co-reading';
 
 export function ReadingLibrary({
   agents,
@@ -57,7 +58,7 @@ export function ReadingLibrary({
   ) => Promise<void> | void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
-  const [activeShelf, setActiveShelf] = useState<'library' | 'source' | 'card'>('library');
+  const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
@@ -67,10 +68,6 @@ export function ReadingLibrary({
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
-  );
-  const reviewAgents = useMemo(
-    () => agents.filter((agent) => agent.kind === 'review' && agent.enabled),
-    [agents],
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
@@ -129,18 +126,6 @@ export function ReadingLibrary({
     setActiveShelf('library');
   }
 
-  function openSourceShelf() {
-    if (!selectedArticle) return;
-    setSourceFocusAnnotationId(selectedAnnotation?.id || null);
-    setActiveShelf('source');
-  }
-
-  function openCardShelf() {
-    if (!selectedArticle) return;
-    setSourceFocusAnnotationId(null);
-    setActiveShelf('card');
-  }
-
   if (!selectedArticle) {
     return (
       <LibraryHome
@@ -158,22 +143,9 @@ export function ReadingLibrary({
 
   return (
     <div className={`library-bookcase-screen is-${activeShelf}-expanded`}>
-      <div
-        className={
-          activeShelf === 'library'
-            ? 'library-shelf is-expanded is-library-bookcase'
-            : 'library-shelf is-collapsed is-library-bookcase'
-        }
-      >
-        <ShelfTab
-          actionLabel="返回阅读库"
-          icon={<ChevronLeft size={18} />}
-          label="阅读库"
-          variant="library"
-          onClick={openLibraryShelf}
-        />
-        <div className="library-shelf-content">
-          {activeShelf === 'library' ? (
+      {activeShelf === 'library' ? (
+        <div className="library-shelf is-expanded is-library-bookcase is-drawn-from-bookmark">
+          <div className="library-shelf-content">
             <LibraryHome
               articles={articles}
               sortedArticles={sortedArticles}
@@ -184,73 +156,39 @@ export function ReadingLibrary({
               onOpenArticle={openArticle}
               onRefresh={onRefresh}
             />
-          ) : null}
-        </div>
-      </div>
-
-      {activeShelf === 'library' ? null : (
-        <>
-          <div
-            className={
-              activeShelf === 'source' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
-            }
-          >
-            <ShelfTab
-              actionLabel="返回原文"
-              count={annotations.length}
-              icon={<BookOpen size={18} />}
-              label="原文"
-              variant="view"
-              onClick={openSourceShelf}
-            />
-            <div className="library-shelf-content">
-              {activeShelf === 'source' ? (
-                <SourceBookcase
-                  agents={agents}
-                  annotations={annotations}
-                  article={selectedArticle}
-                  focusAnnotationId={sourceFocusAnnotationId}
-                  messageSendShortcut={messageSendShortcut}
-                  selectionActionShortcuts={selectionActionShortcuts}
-                  selectedAnnotationId={selectedAnnotation?.id || null}
-                  userProfile={userProfile}
-                  onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
-                  onClose={openLibraryShelf}
-                  onOpenAnnotation={setSelectedAnnotationId}
-                  onSaveArticle={onSaveArticle}
-                  onSaveArticleReadingProgress={onSaveArticleReadingProgress}
-                  onUpdateArticle={onUpdateArticle}
-                />
-              ) : null}
-            </div>
           </div>
-
-          <div
-            className={
-              activeShelf === 'card' ? 'library-shelf is-expanded' : 'library-shelf is-collapsed'
+        </div>
+      ) : (
+        <>
+          <LibraryBookmark
+            annotationCount={annotations.length}
+            status={
+              selectedArticle.focusCoReadingPlan
+                ? 'co-reading'
+                : annotations.length > 0
+                  ? 'annotated'
+                  : 'idle'
             }
-          >
-            <ShelfTab
-              actionLabel="打开读后笔记"
-              count={selectedArticle?.readingCard?.sections.length ?? 0}
-              icon={<PencilLine size={18} />}
-              label="笔记"
-              variant="view"
-              onClick={openCardShelf}
-            />
+            onClick={openLibraryShelf}
+          />
+          <div className="library-shelf is-expanded">
             <div className="library-shelf-content">
-              {activeShelf === 'card' ? (
-                <ReadingCard
-                  article={selectedArticle}
-                  reviewAgents={reviewAgents}
-                  onGenerated={onRefresh}
-                  onOpenEvidence={(annotationId) => {
-                    setSelectedAnnotationId(annotationId);
-                    setSourceFocusAnnotationId(annotationId);
-                    setActiveShelf('source');
-                  }}
-                />
-              ) : null}
+              <SourceBookcase
+                agents={agents}
+                annotations={annotations}
+                article={selectedArticle}
+                focusAnnotationId={sourceFocusAnnotationId}
+                messageSendShortcut={messageSendShortcut}
+                selectionActionShortcuts={selectionActionShortcuts}
+                selectedAnnotationId={selectedAnnotation?.id || null}
+                userProfile={userProfile}
+                onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
+                onClose={openLibraryShelf}
+                onOpenAnnotation={setSelectedAnnotationId}
+                onSaveArticle={onSaveArticle}
+                onSaveArticleReadingProgress={onSaveArticleReadingProgress}
+                onUpdateArticle={onUpdateArticle}
+              />
             </div>
           </div>
         </>
@@ -259,40 +197,34 @@ export function ReadingLibrary({
   );
 }
 
-function ShelfTab({
-  actionLabel,
-  count,
-  icon,
-  label,
-  variant,
+function LibraryBookmark({
+  annotationCount,
+  status,
   onClick,
 }: {
-  actionLabel: string;
-  count?: number;
-  icon: React.ReactNode;
-  label: string;
-  variant: 'library' | 'view';
+  annotationCount: number;
+  status: BookmarkStatus;
   onClick: () => void;
 }) {
-  const className = [
-    'library-shelf-tab',
-    `is-${variant}-rail`,
-    count === undefined ? 'is-title-only' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const statusLabel =
+    status === 'co-reading'
+      ? '当前文章有聚焦共读计划'
+      : status === 'annotated'
+        ? `当前文章有 ${annotationCount} 条批注`
+        : '当前文章暂无批注';
+  const label = `返回阅读库，${statusLabel}`;
 
   return (
     <button
-      aria-label={actionLabel}
-      className={className}
-      title={actionLabel}
+      aria-label={label}
+      className="library-bookmark-tab"
+      title={label}
       type="button"
       onClick={onClick}
     >
-      <span className="library-shelf-tab-icon">{icon}</span>
-      <span className="library-shelf-tab-label">{label}</span>
-      {count === undefined ? null : <span className="library-shelf-tab-count">{count}</span>}
+      <ChevronLeft size={14} />
+      <span className="library-bookmark-label">阅读库</span>
+      <i aria-hidden="true" className={`library-bookmark-status is-${status}`} />
     </button>
   );
 }

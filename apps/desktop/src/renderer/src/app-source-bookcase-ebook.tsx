@@ -127,8 +127,6 @@ export function EbookBookcase({
     latestArticleRef,
     replaceAnnotations,
     saveAnnotations,
-    setAnnotationQuestionStatus,
-    setCommentQuestionStatus,
   } = useSourceAnnotations({
     annotationAgents,
     annotations: articleAnnotations,
@@ -176,7 +174,6 @@ export function EbookBookcase({
   });
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
-  const [notesOpen, setNotesOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
@@ -196,9 +193,6 @@ export function EbookBookcase({
     canvasRef,
     onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
   });
-  const [replyRequest, setReplyRequest] = useState<{ annotationId: string; key: number } | null>(
-    null,
-  );
   const [statusMessage, setStatusMessage] = useState('');
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
@@ -360,9 +354,7 @@ export function EbookBookcase({
     setAgentAnnotateOpen(false);
     setAnnotatingAgentIds([]);
     cleanupEbookAgentTheater();
-    setNotesOpen(false);
     setCommentsCloseKey((key) => key + 1);
-    setReplyRequest(null);
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
@@ -573,17 +565,6 @@ export function EbookBookcase({
     await onUpdateArticle(articleId, (targetArticle) =>
       articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
     );
-  }
-
-  function focusQuestionAnnotation(annotationId: string) {
-    setNotesOpen(false);
-    openAnnotation(annotationId);
-    void goToAnnotation(annotationId);
-  }
-
-  function answerQuestion(annotationId: string) {
-    focusQuestionAnnotation(annotationId);
-    setReplyRequest({ annotationId, key: Date.now() });
   }
 
   async function requestAgentComment(
@@ -1004,7 +985,6 @@ export function EbookBookcase({
       focusCoReadingPlan={article.focusCoReadingPlan}
       highlightChoice={highlightChoice}
       measureHostRef={measureHostRef}
-      notesOpen={notesOpen}
       noteRefs={noteRefs}
       notesRef={railRef}
       pageLabel={pageLabel}
@@ -1015,7 +995,6 @@ export function EbookBookcase({
       readerSettings={readerSettings}
       readerState={readerState}
       readingSections={readingSections}
-      replyRequest={replyRequest}
       sectionFractions={sectionFractions}
       selectionAction={selectionAction}
       settingsOpen={settingsOpen}
@@ -1032,7 +1011,6 @@ export function EbookBookcase({
       virtualCursors={virtualCursors}
       onAddComment={addComment}
       onAnnotationLayoutChange={recalculateActiveConnection}
-      onAnswerQuestion={answerQuestion}
       onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
       onCancelComposer={cancelComposer}
       onClearActiveAnnotation={() => onOpenAnnotation(null)}
@@ -1044,7 +1022,6 @@ export function EbookBookcase({
       onCloseHighlightChoice={() => setHighlightChoice(null)}
       onCloseResponsivePanels={() => {
         setTocOpen(false);
-        setNotesOpen(false);
       }}
       onCopySelection={copySelection}
       onCreateAnnotation={createAnnotation}
@@ -1066,8 +1043,6 @@ export function EbookBookcase({
         openAnnotation(annotationId);
         void goToAnnotation(annotationId);
       }}
-      onSetAnnotationQuestionStatus={setAnnotationQuestionStatus}
-      onSetCommentQuestionStatus={setCommentQuestionStatus}
       onStartAgentReadingPlan={(agent, readingPlan) => {
         setAgentAnnotateOpen(false);
         void requestAgentAnnotations(agent, { readingPlan });
@@ -1075,10 +1050,6 @@ export function EbookBookcase({
       onToggleAgentAnnotate={() => {
         setSettingsOpen(false);
         setAgentAnnotateOpen((open) => !open);
-      }}
-      onToggleNotes={() => {
-        if (!notesOpen) setCommentsCloseKey((key) => key + 1);
-        setNotesOpen((open) => !open);
       }}
       onToggleSettings={() => {
         setAgentAnnotateOpen(false);

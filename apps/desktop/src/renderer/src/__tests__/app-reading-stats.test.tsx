@@ -66,18 +66,6 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
     ],
     createdAt: now,
     updatedAt: now,
-    readingCard: {
-      id: 'card_1',
-      articleId: 'article_1',
-      title: '读后笔记',
-      contentMarkdown: '## 核心',
-      sections: [{ title: '核心', content: '内容' }],
-      providerId: 'provider_1',
-      providerName: 'Provider',
-      modelName: 'model',
-      createdAt: now,
-      updatedAt: now,
-    },
     ...overrides,
   };
 }
@@ -118,7 +106,6 @@ describe('ReadingStatsPanel', () => {
         annotations: [],
         createdAt,
         id: `article_${index}`,
-        readingCard: undefined,
         updatedAt: createdAt,
       });
     });

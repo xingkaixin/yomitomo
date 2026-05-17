@@ -16,7 +16,6 @@ const activeAnnotationPreserveSelector = [
   '[data-reader-popover-anchor]',
   '.reader-toolbar',
   '.reader-toc',
-  '.reader-question-drawer',
   '.reader-note',
   '.reader-highlight',
   '.reader-selection-menu',

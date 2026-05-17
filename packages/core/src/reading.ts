@@ -1,61 +1,5 @@
-import type {
-  Annotation,
-  AnnotationType,
-  ArticleRecord,
-  Comment,
-  QuestionStatus,
-} from '@yomitomo/shared';
-import {
-  annotationPrimaryComment,
-  annotationThreadComments,
-  annotationTypeLabel,
-} from './annotations';
-
-export type ReadingCardSection = {
-  title: string;
-  items: string[];
-};
-
-export type ReadingCardStats = {
-  annotations: number;
-  comments: number;
-  aiContributions: number;
-};
-
-export type ReadingCardComment = {
-  id: string;
-  author: Comment['author'];
-  authorLabel: string;
-  content: string;
-  createdAt: string;
-  questionStatus?: QuestionStatus;
-};
-
-export type ReadingCardEvidenceUnit = {
-  id: string;
-  index: number;
-  quote: string;
-  context: string;
-  annotationType: string;
-  annotationTypeKey?: AnnotationType;
-  questionStatus?: QuestionStatus;
-  annotationAuthor: Annotation['author'];
-  annotationAuthorLabel: string;
-  createdAt: string;
-  annotationBody?: ReadingCardComment;
-  comments: ReadingCardComment[];
-};
-
-export type ReadingQuestionItem = {
-  id: string;
-  annotationId: string;
-  commentId?: string;
-  status: QuestionStatus;
-  text: string;
-  quote: string;
-  authorLabel: string;
-  createdAt: string;
-};
+import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import { annotationThreadComments } from './annotations';
 
 export type ReadingStats = {
   today: ReadingStatsPeriod;
@@ -73,7 +17,6 @@ export type ReadingStatsPeriod = {
 export type ReadingActivityDay = ReadingStatsPeriod & {
   date: string;
   label: string;
-  cards: number;
   score: number;
   level: number;
 };
@@ -89,190 +32,6 @@ export function sortAnnotations(annotations: Annotation[]) {
     if (leftStart !== rightStart) return leftStart - rightStart;
     return timestamp(left.createdAt) - timestamp(right.createdAt);
   });
-}
-
-export function buildReadingCard(article: ArticleRecord, articleText = '') {
-  const stats = buildReadingCardStats(article);
-  const units = buildReadingCardEvidenceUnits(article);
-  const sections = buildReadingCardSections(article, articleText);
-  const lines = [
-    `# ${article.title}`,
-    '',
-    `来源：${article.canonicalUrl || article.url}`,
-    ...(article.byline ? [`作者：${article.byline}`] : []),
-    `更新时间：${formatDateTime(article.updatedAt)}`,
-    `批注：${stats.annotations} 条 · 评论：${stats.comments} 条 · 助手参与：${stats.aiContributions} 条`,
-    '',
-  ];
-
-  for (const section of sections) {
-    lines.push(`## ${section.title}`, '');
-    if (section.title === '阅读轨迹') {
-      if (units.length > 0) {
-        for (const unit of units) lines.push(...formatEvidenceUnit(unit), '');
-      } else {
-        lines.push('- 暂无', '');
-      }
-      continue;
-    }
-
-    if (section.items.length > 0) {
-      for (const item of section.items) lines.push(`- ${item}`);
-    } else {
-      lines.push('- 暂无');
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n').trim();
-}
-
-export function buildReadingCardSections(
-  article: ArticleRecord,
-  _articleText = '',
-): ReadingCardSection[] {
-  const units = buildReadingCardEvidenceUnits(article);
-  const userUnits = units.filter(
-    (unit) =>
-      unit.annotationAuthor === 'user' ||
-      unit.annotationBody?.author === 'user' ||
-      unit.comments.some((comment) => comment.author === 'user'),
-  );
-  const aiUnits = units.filter(
-    (unit) =>
-      unit.annotationAuthor === 'ai' ||
-      unit.annotationBody?.author === 'ai' ||
-      unit.comments.some((comment) => comment.author === 'ai'),
-  );
-  const questions = units.flatMap((unit) => {
-    const bodyQuestions =
-      unit.annotationBody && isQuestionComment(unit.annotationBody)
-        ? [
-            `【${questionStatusLabel(questionStatusOrOpen(unit.annotationBody.questionStatus))}】${unit.annotationBody.authorLabel}：${lineText(unit.annotationBody.content)}（原文：${compactText(unit.quote, 80)}）`,
-          ]
-        : [];
-    const commentQuestions = unit.comments
-      .filter((comment) => isQuestionComment(comment))
-      .map(
-        (comment) =>
-          `【${questionStatusLabel(questionStatusOrOpen(comment.questionStatus))}】${comment.authorLabel}：${lineText(comment.content)}（原文：${compactText(unit.quote, 80)}）`,
-      );
-    if (unit.annotationType === annotationTypeLabel('question')) {
-      return [
-        `【${questionStatusLabel(questionStatusOrOpen(unit.questionStatus))}】${unit.annotationType}：${compactText(unit.quote, 120)}`,
-        ...bodyQuestions,
-        ...commentQuestions,
-      ];
-    }
-    return [...bodyQuestions, ...commentQuestions];
-  });
-
-  return [
-    {
-      title: '阅读轨迹',
-      items: units.map(
-        (unit) =>
-          `${unit.index}. ${unit.annotationType ? `【${unit.annotationType}】` : ''}【${unit.annotationAuthorLabel}】“${compactText(unit.quote, 120)}”`,
-      ),
-    },
-    {
-      title: '我的关注',
-      items: userUnits.map((unit) => formatFocusedUnit(unit, 'user')),
-    },
-    {
-      title: '助手补充',
-      items: aiUnits.map((unit) => formatFocusedUnit(unit, 'ai')),
-    },
-    {
-      title: '后续问题',
-      items: questions,
-    },
-  ];
-}
-
-export function buildReadingCardEvidenceUnits(article: ArticleRecord): ReadingCardEvidenceUnit[] {
-  return sortAnnotations(article.annotations).map((annotation, index) => {
-    const primaryComment = annotationPrimaryComment(annotation);
-    return {
-      id: annotation.id,
-      index: index + 1,
-      quote: lineText(annotation.anchor.exact),
-      context: lineText(
-        [annotation.anchor.prefix, annotation.anchor.exact, annotation.anchor.suffix]
-          .filter(Boolean)
-          .join(' '),
-      ),
-      annotationType: annotation.annotationType
-        ? annotationTypeLabel(annotation.annotationType)
-        : '',
-      annotationTypeKey: annotation.annotationType,
-      questionStatus: annotation.questionStatus,
-      annotationAuthor: annotation.author,
-      annotationAuthorLabel: annotationLabel(annotation),
-      createdAt: annotation.createdAt,
-      annotationBody: primaryComment ? toReadingCardComment(primaryComment) : undefined,
-      comments: annotationThreadComments(annotation)
-        .toSorted((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt))
-        .map(toReadingCardComment),
-    };
-  });
-}
-
-export function buildReadingQuestions(article: ArticleRecord): ReadingQuestionItem[] {
-  return sortAnnotations(article.annotations).flatMap((annotation) => {
-    const questions: ReadingQuestionItem[] = [];
-    if (annotation.annotationType === 'question' || annotation.questionStatus) {
-      questions.push({
-        id: annotation.id,
-        annotationId: annotation.id,
-        status: questionStatusOrOpen(annotation.questionStatus),
-        text: lineText(annotation.anchor.exact),
-        quote: lineText(annotation.anchor.exact),
-        authorLabel: annotationLabel(annotation),
-        createdAt: annotation.createdAt,
-      });
-    }
-    const commentQuestions = annotationThreadComments(annotation)
-      .toSorted((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt))
-      .filter(isQuestionComment)
-      .map((comment) => ({
-        id: comment.id,
-        annotationId: annotation.id,
-        commentId: comment.id,
-        status: questionStatusOrOpen(comment.questionStatus),
-        text: lineText(comment.content),
-        quote: lineText(annotation.anchor.exact),
-        authorLabel: commentLabel(comment),
-        createdAt: comment.createdAt,
-      }));
-    questions.push(...commentQuestions);
-    return questions;
-  });
-}
-
-export function questionStatusOrOpen(status: QuestionStatus | undefined): QuestionStatus {
-  return status || 'open';
-}
-
-export function questionStatusLabel(status: QuestionStatus) {
-  if (status === 'answered') return '已回答';
-  if (status === 'parked') return '搁置';
-  return '未决';
-}
-
-export function isQuestionComment(comment: Pick<Comment, 'content' | 'questionStatus'>) {
-  return Boolean(comment.questionStatus || /[?？]/.test(comment.content));
-}
-
-export function buildReadingCardStats(article: ArticleRecord): ReadingCardStats {
-  const comments = article.annotations.flatMap(annotationThreadComments);
-  return {
-    annotations: article.annotations.length,
-    comments: comments.length,
-    aiContributions:
-      article.annotations.filter((annotation) => annotation.author === 'ai').length +
-      comments.filter((comment) => comment.author === 'ai').length,
-  };
 }
 
 export function computeReadingStats(articles: ArticleRecord[], now = new Date()): ReadingStats {
@@ -309,10 +68,6 @@ export function computeReadingActivityDays(
       day.articles += 1;
       day.score += 1;
     });
-    addToDay(article.readingCard?.createdAt || '', (day) => {
-      day.cards += 1;
-      day.score += 2;
-    });
     for (const annotation of article.annotations) {
       addToDay(annotation.createdAt, (day) => {
         day.annotations += 1;
@@ -333,12 +88,6 @@ export function computeReadingActivityDays(
     item.level = activityLevel(item.score, maxScore);
   }
   return items;
-}
-
-export function compactText(value: string, limit: number) {
-  const text = lineText(value);
-  if (text.length <= limit) return text;
-  return `${text.slice(0, limit - 1)}…`;
 }
 
 export function timestamp(value: string) {
@@ -393,7 +142,6 @@ function emptyActivityDay(date: Date): ReadingActivityDay {
     annotations: 0,
     comments: 0,
     aiComments: 0,
-    cards: 0,
     score: 0,
     level: 0,
   };
@@ -408,75 +156,4 @@ function dateKey(date: Date) {
 function activityLevel(score: number, maxScore: number) {
   if (score === 0 || maxScore === 0) return 0;
   return Math.min(4, Math.max(1, Math.ceil((score / maxScore) * 4)));
-}
-
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
-}
-
-function lineText(value: string) {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function annotationLabel(annotation: Annotation) {
-  if (annotation.author === 'ai')
-    return annotation.agentNickname || annotation.agentUsername || '助手';
-  return annotation.userNickname || annotation.userUsername || '我';
-}
-
-function commentLabel(comment: Comment) {
-  if (comment.author === 'ai') return comment.agentNickname || comment.agentUsername || '助手';
-  return comment.userNickname || comment.userUsername || '我';
-}
-
-function toReadingCardComment(comment: Comment): ReadingCardComment {
-  return {
-    id: comment.id,
-    author: comment.author,
-    authorLabel: commentLabel(comment),
-    content: lineText(comment.content),
-    createdAt: comment.createdAt,
-    questionStatus: comment.questionStatus,
-  };
-}
-
-function formatFocusedUnit(unit: ReadingCardEvidenceUnit, author: Comment['author']) {
-  const body =
-    unit.annotationBody?.author === author
-      ? [`${unit.annotationBody.authorLabel}：${unit.annotationBody.content}`]
-      : [];
-  const comments = unit.comments
-    .filter((comment) => comment.author === author)
-    .map((comment) => `${comment.authorLabel}：${comment.content}`);
-  const source =
-    unit.annotationAuthor === author ? [`${unit.annotationAuthorLabel}标记了这段原文`] : [];
-  return [
-    `${unit.annotationType ? `【${unit.annotationType}】` : ''}“${compactText(unit.quote, 100)}”`,
-    ...source,
-    ...body,
-    ...comments,
-  ].join('；');
-}
-
-function formatEvidenceUnit(unit: ReadingCardEvidenceUnit) {
-  const title = `${unit.index}. ${unit.annotationType ? `【${unit.annotationType}】` : ''}【${unit.annotationAuthorLabel}】“${unit.quote}”`;
-  const body = unit.annotationBody
-    ? [
-        `   - 批注：${unit.annotationBody.authorLabel}（${formatDateTime(unit.annotationBody.createdAt)}）：${unit.annotationBody.content}`,
-      ]
-    : [];
-  if (body.length === 0 && unit.comments.length === 0) return [title];
-  return [
-    title,
-    ...body,
-    ...unit.comments.map(
-      (comment) =>
-        `   - 评论：${comment.authorLabel}（${formatDateTime(comment.createdAt)}）：${comment.content}`,
-    ),
-  ];
 }

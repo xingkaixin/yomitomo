@@ -200,16 +200,14 @@ describe('useSourceAnnotations', () => {
     );
   });
 
-  it('adds comments while updating answered question state and mention callbacks', async () => {
+  it('adds comments while preserving mention callbacks', async () => {
     let api: SourceAnnotationsApi | null = null;
     const onCommentSaved = vi.fn();
     const onOpenAnnotation = vi.fn();
     const onSaveArticle = vi.fn();
-    const questionComment = comment({ questionStatus: 'open' });
     const question = annotation('question_1', {
       annotationType: 'question',
-      questionStatus: 'open',
-      comments: [questionComment],
+      comments: [comment()],
     });
 
     render(
@@ -231,8 +229,6 @@ describe('useSourceAnnotations', () => {
 
     const savedArticle = onSaveArticle.mock.calls[0]![0] as ArticleRecord;
     const savedAnnotation = savedArticle.annotations[0]!;
-    expect(savedAnnotation.questionStatus).toBe('answered');
-    expect(savedAnnotation.comments[0]?.questionStatus).toBe('answered');
     expect(savedAnnotation.comments.at(-1)?.content).toBe('回答 @lin');
     expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
     expect(onCommentSaved).toHaveBeenCalledWith(
@@ -244,13 +240,12 @@ describe('useSourceAnnotations', () => {
     );
   });
 
-  it('updates question status and delegates delete cleanup', async () => {
+  it('delegates delete cleanup', async () => {
     let api: SourceAnnotationsApi | null = null;
     const onBeforeDeleteAnnotation = vi.fn();
-    const onOpenAnnotation = vi.fn();
     const onSaveArticle = vi.fn();
     const target = annotation('question_1', {
-      comments: [comment({ id: 'comment_1', questionStatus: 'open' })],
+      comments: [comment({ id: 'comment_1' })],
     });
 
     render(
@@ -260,18 +255,8 @@ describe('useSourceAnnotations', () => {
           api = nextApi;
         }}
         onBeforeDeleteAnnotation={onBeforeDeleteAnnotation}
-        onOpenAnnotation={onOpenAnnotation}
         onSaveArticle={onSaveArticle}
       />,
-    );
-
-    await act(async () => {
-      await api?.setCommentQuestionStatus('question_1', 'comment_1', 'answered');
-    });
-
-    expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
-    expect((onSaveArticle.mock.calls[0]![0] as ArticleRecord).annotations[0]?.comments[0]).toEqual(
-      expect.objectContaining({ questionStatus: 'answered' }),
     );
 
     await act(async () => {

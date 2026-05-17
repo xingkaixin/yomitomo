@@ -100,7 +100,7 @@ ${JSON.stringify(
   "segmentTrace": {
     "items": [
       {
-        "type": "claim | question | agent_observation | reader_interest | cross_reference_candidate | unresolved_issue",
+        "type": "claim | question | agent_observation | reader_interest | cross_reference_candidate",
         "content": "我们读到这里时注意过什么，短句",
         "evidenceExact": "currentSegment 中支撑该关注点的原文短片段，可为空",
         "confidence": "low | medium | high"
@@ -110,7 +110,7 @@ ${JSON.stringify(
   "chapterTrace": {
     "items": [
       {
-        "type": "claim | question | agent_observation | reader_interest | cross_reference_candidate | unresolved_issue",
+        "type": "claim | question | agent_observation | reader_interest | cross_reference_candidate",
         "content": "需要带入后续 segment 的章节级关注点，短句",
         "evidenceExact": "currentSegment 中支撑该关注点的原文短片段，可为空",
         "confidence": "low | medium | high"

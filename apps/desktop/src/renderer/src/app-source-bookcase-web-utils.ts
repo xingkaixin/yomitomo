@@ -18,7 +18,7 @@ export const sourceReaderTocStyles = `
     padding:18px 14px 64px;
   }
   .source-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
-    margin:0;
+    margin:0 auto;
   }
 }
 .reader-app.has-toc.is-toc-open .reader-toc{

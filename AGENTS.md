@@ -19,8 +19,8 @@
 
 - `apps/desktop`：Electron 桌面端，包含 main、preload、renderer。
 - `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑和基础协议类型。
-- `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、阅读卡片和阅读器 DOM 纯逻辑。
-- `packages/ai`：LLM provider 调用、模型输入预算、AI 批注、阅读审议、读后卡片和审核生成。
+- `packages/core`：业务核心逻辑，包括批注、评论、阅读统计和阅读器 DOM 纯逻辑。
+- `packages/ai`：LLM provider 调用、模型输入预算、AI 批注和 EPUB 阅读上下文。
 - `packages/reader-ui`：桌面阅读器 React UI、样式、工具和助手批注队列。
 - `dist/**`：各应用构建产物。
 
