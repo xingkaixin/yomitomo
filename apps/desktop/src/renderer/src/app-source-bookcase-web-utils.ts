@@ -10,15 +10,17 @@ import {
 } from './app-source-bookcase-shared';
 
 export const sourceReaderTocStyles = `
-@media(min-width:1321px){
-  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
-    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
-  }
+@media(min-width:1101px){
   .source-reader-shell .reader-app.has-toc .reader-surface{
     padding:18px 14px 64px;
   }
-  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
-    margin:0 auto;
+  .source-reader-shell .reader-app.has-toc .reader-canvas{
+    margin:0;
+  }
+}
+@media(min-width:1321px){
+  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
+    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
   }
 }
 .reader-app.has-toc.is-toc-open .reader-toc{
