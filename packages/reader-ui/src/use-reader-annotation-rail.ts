@@ -1,20 +1,7 @@
 import React from 'react';
 import type { HighlightBox } from '@yomitomo/core';
-import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import {
-  annotationFilterActiveCount,
-  annotationFiltersEqual,
-  buildAnnotationFilterFacets,
-  buildAnnotationRailItems,
-  createEmptyAnnotationFilter,
-  filterAnnotationsByFacets,
-  isAnnotationFilterActive,
-  pruneAnnotationFilter,
-  toggleAnnotationFilterValue,
-  type AnnotationFilterFacets,
-  type AnnotationFilterGroup,
-  type AnnotationFilterState,
-} from './reader-utils';
+import type { Annotation } from '@yomitomo/shared';
+import { buildAnnotationRailItems } from './reader-utils';
 
 const FILTERED_NOTE_EXIT_MS = 190;
 
@@ -32,28 +19,21 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
 
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
-  agents: PublicAgent[];
   annotations: Annotation[];
   articleId: string;
   boxes: HighlightBox[];
   commentsCloseKey: number;
   filteredAnnotations: Annotation[];
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
-  userProfile: UserProfile;
   onAnnotationLayoutChange?: () => void;
 };
 
 export type ReaderAnnotationRailState = {
-  annotationFilterFacets: AnnotationFilterFacets;
   annotationRailItems: ReturnType<typeof buildAnnotationRailItems>;
-  clearAnnotationFilter: () => void;
   exitingAnnotationIds: Set<string>;
   expandedPrimaryCommentIds: Set<string>;
-  filterActive: boolean;
-  filterActiveCount: number;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
   setPrimaryCommentExpanded: (annotationId: string, expanded: boolean) => void;
-  toggleAnnotationFilterValueForGroup: (group: AnnotationFilterGroup, value: string) => void;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
   visibleRailAnnotations: Annotation[];
@@ -61,19 +41,14 @@ export type ReaderAnnotationRailState = {
 
 export function useReaderAnnotationRail({
   activeId,
-  agents,
   annotations,
   articleId,
   boxes,
   commentsCloseKey,
   filteredAnnotations,
   noteRefs,
-  userProfile,
   onAnnotationLayoutChange,
 }: UseReaderAnnotationRailOptions): ReaderAnnotationRailState {
-  const [annotationFilter, setAnnotationFilter] = React.useState<AnnotationFilterState>(
-    createEmptyAnnotationFilter,
-  );
   const [railAnimation, setRailAnimation] = React.useState(() => ({
     ids: annotations.map((annotation) => annotation.id),
     exitingIds: new Set<string>(),
@@ -95,14 +70,7 @@ export function useReaderAnnotationRail({
     (annotationId: string, element: HTMLElement | null) => void
   >(() => {});
 
-  const visibleAnnotations = React.useMemo(
-    () => filterAnnotationsByFacets(filteredAnnotations, annotationFilter),
-    [annotationFilter, filteredAnnotations],
-  );
-  const annotationFilterFacets = React.useMemo(
-    () => buildAnnotationFilterFacets(filteredAnnotations, annotationFilter, userProfile, agents),
-    [agents, annotationFilter, filteredAnnotations, userProfile],
-  );
+  const visibleAnnotations = filteredAnnotations;
   const visibleAnnotationIds = React.useMemo(
     () => new Set(visibleAnnotations.map((annotation) => annotation.id)),
     [visibleAnnotations],
@@ -200,22 +168,6 @@ export function useReaderAnnotationRail({
     noteRefCallbacksRef.current.set(annotationId, callback);
     return callback;
   }, []);
-
-  const clearAnnotationFilter = React.useCallback(() => {
-    setAnnotationFilter(createEmptyAnnotationFilter());
-  }, []);
-
-  const toggleAnnotationFilterValueForGroup = React.useCallback(
-    (group: AnnotationFilterGroup, value: string) => {
-      setAnnotationFilter((current) => toggleAnnotationFilterValue(current, group, value));
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    const pruned = pruneAnnotationFilter(annotationFilter, filteredAnnotations);
-    if (!annotationFiltersEqual(pruned, annotationFilter)) setAnnotationFilter(pruned);
-  }, [annotationFilter, filteredAnnotations]);
 
   React.useLayoutEffect(() => {
     const annotationIds = annotations.map((annotation) => annotation.id);
@@ -320,16 +272,11 @@ export function useReaderAnnotationRail({
   }, [annotationRailItems, noteHeights, onAnnotationLayoutChange]);
 
   return {
-    annotationFilterFacets,
     annotationRailItems,
-    clearAnnotationFilter,
     exitingAnnotationIds: railAnimation.exitingIds,
     expandedPrimaryCommentIds,
-    filterActive: isAnnotationFilterActive(annotationFilter),
-    filterActiveCount: annotationFilterActiveCount(annotationFilter),
     noteRefForAnnotation,
     setPrimaryCommentExpanded,
-    toggleAnnotationFilterValueForGroup,
     visibleAnnotationIds,
     visibleAnnotations,
     visibleRailAnnotations,

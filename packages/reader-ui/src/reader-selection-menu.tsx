@@ -31,7 +31,7 @@ export function SelectionMenu({
       </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />
-        添加批注
+        记录想法
         <Kbd className="reader-kbd">{shortcutKeys.annotate}</Kbd>
       </button>
     </div>

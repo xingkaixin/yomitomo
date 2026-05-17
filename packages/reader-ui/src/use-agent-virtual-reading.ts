@@ -140,7 +140,7 @@ export function useAgentVirtualReading({
     setVirtualCursors(Array.from(virtualCursorRef.current.values()));
   }
 
-  function finishVirtualReading(agentId: string, suffix = '批注完成') {
+  function finishVirtualReading(agentId: string, suffix = '想法已添加') {
     const session = virtualReadingSessionsRef.current.get(agentId);
     if (session && usesAgentDock(session.mode)) markAgentDockDone(agentId);
     if (session) {

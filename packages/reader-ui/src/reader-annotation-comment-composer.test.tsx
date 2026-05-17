@@ -28,8 +28,8 @@ function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   };
 }
 
-function renderComposer(onSubmit = vi.fn()) {
-  const agents = [
+function testAgents() {
+  return [
     agent(),
     agent({
       id: 'agent_2',
@@ -38,6 +38,11 @@ function renderComposer(onSubmit = vi.fn()) {
       pinyin: 'zhou yan',
     }),
   ];
+}
+
+function renderComposer(onSubmit = vi.fn(), agents = testAgents()) {
+  const scrollIntoView = vi.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
 
   render(
     <AnnotationCommentComposer
@@ -51,6 +56,7 @@ function renderComposer(onSubmit = vi.fn()) {
 
   return {
     onSubmit,
+    scrollIntoView,
     textarea: screen.getByLabelText('留言内容') as HTMLTextAreaElement,
   };
 }
@@ -80,6 +86,28 @@ describe('AnnotationCommentComposer', () => {
     fireEvent.keyDown(textarea, { key: 'Tab' });
 
     expect(textarea.value).toBe('@zhouyan ');
+  });
+
+  it('keeps every matched mention candidate keyboard-selectable', () => {
+    const agents = Array.from({ length: 6 }, (_, index) =>
+      agent({
+        id: `agent_${index + 1}`,
+        nickname: `助手${index + 1}`,
+        username: `agent${index + 1}`,
+      }),
+    );
+    const { scrollIntoView, textarea } = renderComposer(vi.fn(), agents);
+
+    fireEvent.change(textarea, {
+      target: { value: '@', selectionStart: 1, selectionEnd: 1 },
+    });
+    for (let index = 0; index < 5; index += 1) {
+      fireEvent.keyDown(textarea, { key: 'ArrowDown' });
+    }
+    fireEvent.keyDown(textarea, { key: 'Tab' });
+
+    expect(textarea.value).toBe('@agent6 ');
+    expect(scrollIntoView).toHaveBeenCalled();
   });
 
   it('submits with the configured Enter shortcut and clears the draft', () => {

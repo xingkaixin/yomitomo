@@ -32,7 +32,10 @@ vi.mock('./reader-utils', () => ({
   sleep: mocks.sleep,
 }));
 
-import { playAgentAnnotationPlayback } from './reader-agent-annotation-playback';
+import {
+  playAgentAnnotationPlayback,
+  saveAgentAnnotationAsThought,
+} from './reader-agent-annotation-playback';
 
 function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
@@ -109,6 +112,70 @@ beforeEach(() => {
 });
 
 describe('playAgentAnnotationPlayback', () => {
+  it('adds repeated exact text as a top-level thought on the first annotation', async () => {
+    const existing = annotation({
+      id: 'annotation_existing',
+      anchor: { exact: 'same quote', prefix: '', suffix: '', start: 0, end: 10 },
+      comments: [
+        {
+          id: 'comment_existing',
+          author: 'ai',
+          content: 'first thought',
+          createdAt: '2026-05-16T00:00:00.000Z',
+        },
+      ],
+    });
+    const incoming = annotation({
+      id: 'annotation_incoming',
+      anchor: { exact: 'same   quote', prefix: '', suffix: '', start: 20, end: 30 },
+      comments: [
+        {
+          id: 'comment_incoming',
+          author: 'ai',
+          content: 'second thought',
+          createdAt: '2026-05-16T00:01:00.000Z',
+          replyTo: 'stale-thread',
+        },
+      ],
+      updatedAt: '2026-05-16T00:01:00.000Z',
+    });
+    const annotationsRef: React.MutableRefObject<Annotation[]> = { current: [existing] };
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+
+    const activeId = await saveAgentAnnotationAsThought({
+      annotation: incoming,
+      annotationsRef,
+      saveAnnotations,
+    });
+
+    expect(activeId).toBe(existing.id);
+    expect(annotationsRef.current).toHaveLength(1);
+    expect(annotationsRef.current[0]?.comments).toEqual([
+      existing.comments[0],
+      { ...incoming.comments[0], replyTo: undefined },
+    ]);
+    expect(annotationsRef.current[0]?.updatedAt).toBe(incoming.updatedAt);
+  });
+
+  it('does not duplicate an agent annotation that was already saved', async () => {
+    const existing = annotation();
+    const annotationsRef: React.MutableRefObject<Annotation[]> = { current: [existing] };
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+
+    const activeId = await saveAgentAnnotationAsThought({
+      annotation: existing,
+      annotationsRef,
+      saveAnnotations,
+    });
+
+    expect(activeId).toBe(existing.id);
+    expect(annotationsRef.current).toEqual([existing]);
+  });
+
   it('saves the annotation when resolved range has no visible rects', async () => {
     const target = annotation();
     const options = playbackOptions(target);

@@ -267,6 +267,39 @@ describe('useSourceAnnotations', () => {
     expect(screen.getByTestId('annotations').textContent).toBe('');
   });
 
+  it('deletes a comment thread while keeping the annotation', async () => {
+    let api: SourceAnnotationsApi | null = null;
+    const onOpenAnnotation = vi.fn();
+    const onSaveArticle = vi.fn();
+    const target = annotation('question_1', {
+      comments: [
+        comment({ id: 'thought_1', content: '第一条想法' }),
+        comment({ id: 'reply_1', content: '回复', replyTo: 'thought_1' }),
+        comment({ id: 'thought_2', content: '第二条想法' }),
+      ],
+    });
+
+    render(
+      <HookProbe
+        articleRecord={article({ annotations: [target] })}
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+        onOpenAnnotation={onOpenAnnotation}
+        onSaveArticle={onSaveArticle}
+      />,
+    );
+
+    await act(async () => {
+      await api?.deleteComment('question_1', 'thought_1');
+    });
+
+    const savedArticle = onSaveArticle.mock.calls[0]![0] as ArticleRecord;
+    expect(savedArticle.annotations[0]?.comments.map((item) => item.id)).toEqual(['thought_2']);
+    expect(screen.getByTestId('annotations').textContent).toBe('question_1');
+    expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
+  });
+
   it('can ignore stale incoming article annotations after local apply', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
@@ -291,6 +324,40 @@ describe('useSourceAnnotations', () => {
     rerender(
       <HookProbe
         articleRecord={article({ updatedAt: '2026-05-16T10:30:00.000Z', annotations: [] })}
+        ignoreStaleArticleUpdates
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('annotations').textContent).toBe('local');
+  });
+
+  it('does not replace local annotations with equal timestamp incoming article updates', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
+
+    let api: SourceAnnotationsApi | null = null;
+    const initialArticle = article({ updatedAt: '2026-05-16T10:00:00.000Z' });
+    const localAnnotation = annotation('local');
+    const { rerender } = render(
+      <HookProbe
+        articleRecord={initialArticle}
+        ignoreStaleArticleUpdates
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+      />,
+    );
+
+    act(() => {
+      api?.applyAnnotations([localAnnotation]);
+    });
+
+    rerender(
+      <HookProbe
+        articleRecord={article({ updatedAt: '2026-05-16T12:00:00.000Z', annotations: [] })}
         ignoreStaleArticleUpdates
         onApi={(nextApi) => {
           api = nextApi;

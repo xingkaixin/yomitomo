@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import { AgentAnnotationQueue } from './reader-agent-annotation-queue';
-import { playAgentAnnotationPlayback } from './reader-agent-annotation-playback';
+import {
+  playAgentAnnotationPlayback,
+  saveAgentAnnotationAsThought,
+} from './reader-agent-annotation-playback';
 import { useAgentVirtualReading } from './use-agent-virtual-reading';
 import { sleep } from './reader-utils';
 
@@ -100,7 +103,11 @@ export function useAgentAnnotationQueue({
             annotationId: item.annotation.id,
             error: error instanceof Error ? error.message : String(error),
           });
-          await saveAnnotations([...annotationsRef.current, item.annotation]);
+          await saveAgentAnnotationAsThought({
+            annotation: item.annotation,
+            annotationsRef,
+            saveAnnotations,
+          });
         } finally {
           virtualReading.resumeVirtualReading(item.annotation.agentId);
           agentAnnotationQueueRef.current.cleanup(

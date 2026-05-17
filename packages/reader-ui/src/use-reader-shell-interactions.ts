@@ -27,7 +27,6 @@ export type UseReaderShellInteractionsOptions = {
   activeId: string | null;
   agentAnnotateOpen: boolean;
   composer: PendingComposer | null;
-  filteredAnnotationCount: number;
   highlightChoice: HighlightChoice | null;
   selectionAction: SelectionAction | null;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
@@ -44,10 +43,8 @@ export type UseReaderShellInteractionsOptions = {
 };
 
 export type ReaderShellInteractions = {
-  annotationFilterOpen: boolean;
   handleReaderPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
   toggleAgentAnnotate: () => void;
-  toggleAnnotationFilter: () => void;
   toggleSettings: () => void;
 };
 
@@ -55,7 +52,6 @@ export function useReaderShellInteractions({
   activeId,
   agentAnnotateOpen,
   composer,
-  filteredAnnotationCount,
   highlightChoice,
   selectionAction,
   selectionActionShortcuts,
@@ -70,30 +66,11 @@ export function useReaderShellInteractions({
   onToggleAgentAnnotate,
   onToggleSettings,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
-  const [annotationFilterOpen, setAnnotationFilterOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (filteredAnnotationCount === 0) setAnnotationFilterOpen(false);
-  }, [filteredAnnotationCount]);
-
   React.useEffect(() => {
     if (!activeId || visibleAnnotationIds.has(activeId)) return;
     onCloseHighlightChoice();
     onClearActiveAnnotation();
   }, [activeId, onClearActiveAnnotation, onCloseHighlightChoice, visibleAnnotationIds]);
-
-  React.useEffect(() => {
-    if (!annotationFilterOpen) return;
-
-    function handleFilterPanelKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.key !== 'Escape') return;
-      event.preventDefault();
-      setAnnotationFilterOpen(false);
-    }
-
-    window.addEventListener('keydown', handleFilterPanelKeyDown);
-    return () => window.removeEventListener('keydown', handleFilterPanelKeyDown);
-  }, [annotationFilterOpen]);
 
   React.useEffect(() => {
     if (!selectionAction || composer) return;
@@ -124,18 +101,11 @@ export function useReaderShellInteractions({
     return () => window.removeEventListener('keydown', handleSelectionShortcut);
   }, [composer, onCopySelection, onOpenComposer, selectionAction, selectionActionShortcuts]);
 
-  const toggleAnnotationFilter = React.useCallback(() => {
-    onCloseFloatingPanels();
-    setAnnotationFilterOpen((open) => !open);
-  }, [onCloseFloatingPanels]);
-
   const toggleAgentAnnotate = React.useCallback(() => {
-    setAnnotationFilterOpen(false);
     onToggleAgentAnnotate();
   }, [onToggleAgentAnnotate]);
 
   const toggleSettings = React.useCallback(() => {
-    setAnnotationFilterOpen(false);
     onToggleSettings();
   }, [onToggleSettings]);
 
@@ -144,9 +114,8 @@ export function useReaderShellInteractions({
       if (!(event.target instanceof Element)) return;
       const target = event.target;
 
-      if (settingsOpen || agentAnnotateOpen || annotationFilterOpen) {
+      if (settingsOpen || agentAnnotateOpen) {
         if (!target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) {
-          setAnnotationFilterOpen(false);
           onCloseFloatingPanels();
         }
       }
@@ -168,7 +137,6 @@ export function useReaderShellInteractions({
     [
       activeId,
       agentAnnotateOpen,
-      annotationFilterOpen,
       composer,
       highlightChoice,
       onCancelComposer,
@@ -180,10 +148,8 @@ export function useReaderShellInteractions({
   );
 
   return {
-    annotationFilterOpen,
     handleReaderPointerDownCapture,
     toggleAgentAnnotate,
-    toggleAnnotationFilter,
     toggleSettings,
   };
 }

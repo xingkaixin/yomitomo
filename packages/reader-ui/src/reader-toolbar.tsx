@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, ChevronDown, ChevronUp, Funnel, List, Settings2, X } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, List, Settings2, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
@@ -9,13 +9,8 @@ import type {
 export type ReaderToolbarProps = {
   agentAnnotateOpen: boolean;
   annotatingAgentsCount: number;
-  annotationFilterOpen: boolean;
-  annotationFilterPanelId: string;
   annotationNavigation: AnnotationNavigationState;
-  canFilterAnnotations: boolean;
   extracted: ReaderArticle;
-  filterActive: boolean;
-  filterActiveCount: number;
   hasAgents: boolean;
   hasToc: boolean;
   settingsOpen: boolean;
@@ -25,7 +20,6 @@ export type ReaderToolbarProps = {
   onClose: () => void;
   onNavigateAnnotation: (direction: AnnotationNavigationDirection) => void;
   onToggleAgentAnnotate: () => void;
-  onToggleAnnotationFilter: () => void;
   onToggleSettings: () => void;
   onToggleToc: () => void;
 };
@@ -33,13 +27,8 @@ export type ReaderToolbarProps = {
 export function ReaderToolbar({
   agentAnnotateOpen,
   annotatingAgentsCount,
-  annotationFilterOpen,
-  annotationFilterPanelId,
   annotationNavigation,
-  canFilterAnnotations,
   extracted,
-  filterActive,
-  filterActiveCount,
   hasAgents,
   hasToc,
   settingsOpen,
@@ -49,7 +38,6 @@ export function ReaderToolbar({
   onClose,
   onNavigateAnnotation,
   onToggleAgentAnnotate,
-  onToggleAnnotationFilter,
   onToggleSettings,
   onToggleToc,
 }: ReaderToolbarProps) {
@@ -108,26 +96,6 @@ export function ReaderToolbar({
             </button>
           </div>
         ) : null}
-        <button
-          className={
-            filterActive || annotationFilterOpen
-              ? 'reader-filter-toggle is-active'
-              : 'reader-filter-toggle'
-          }
-          data-reader-popover-anchor
-          type="button"
-          disabled={!canFilterAnnotations}
-          onClick={onToggleAnnotationFilter}
-          aria-controls={annotationFilterPanelId}
-          aria-expanded={annotationFilterOpen}
-          aria-label="过滤筛选"
-          aria-pressed={filterActive}
-          title="过滤筛选"
-        >
-          <Funnel size={16} />
-          <span>过滤筛选</span>
-          {filterActive ? <b>{filterActiveCount}</b> : null}
-        </button>
         <button
           className={
             agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'

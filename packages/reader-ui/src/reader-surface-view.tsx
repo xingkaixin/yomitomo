@@ -1,5 +1,4 @@
 import React from 'react';
-import { annotationTypeLabel } from '@yomitomo/core';
 import type { HighlightBox } from '@yomitomo/core';
 import type {
   Annotation,
@@ -40,7 +39,6 @@ export type ReaderSurfaceViewProps = {
   exitingAnnotationIds: Set<string>;
   expandedPrimaryCommentIds: Set<string>;
   extracted: ReaderArticle;
-  filterActive: boolean;
   highlightChoice: HighlightChoice | null;
   messageSendShortcut: MessageSendShortcut;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
@@ -54,12 +52,13 @@ export type ReaderSurfaceViewProps = {
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
   visibleRailAnnotations: Annotation[];
-  onAddComment: (annotationId: string, content: string) => void | Promise<void>;
+  onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
   onCancelComposer: () => void;
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
+  onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onHighlightClick: (
     annotationId: string,
@@ -117,7 +116,6 @@ export function ReaderSurfaceView({
   exitingAnnotationIds,
   expandedPrimaryCommentIds,
   extracted,
-  filterActive,
   highlightChoice,
   messageSendShortcut,
   noteRefForAnnotation,
@@ -137,6 +135,7 @@ export function ReaderSurfaceView({
   onCopySelection,
   onCreateAnnotation,
   onDeleteAnnotation,
+  onDeleteComment,
   onFocusAnnotation,
   onHighlightClick,
   onMouseUp,
@@ -161,11 +160,7 @@ export function ReaderSurfaceView({
 
   function highlightLabel(annotationId: string) {
     const index = annotations.findIndex((annotation) => annotation.id === annotationId);
-    const annotation = annotations[index];
-    const type = annotation?.annotationType
-      ? annotationTypeLabel(annotation.annotationType)
-      : '批注';
-    return index >= 0 ? `打开${type} ${index + 1}` : '打开批注';
+    return index >= 0 ? `打开引文讨论 ${index + 1}` : '打开引文讨论';
   }
 
   return (
@@ -182,37 +177,22 @@ export function ReaderSurfaceView({
           </article>
           <div className="reader-highlight-layer">
             {highlightSegments.map((segment) => {
-              const dimmed =
-                filterActive && segment.annotationIds.every((id) => !visibleAnnotationIds.has(id));
-              const active = !dimmed && segment.annotationIds.includes(activeId || '');
+              const active = segment.annotationIds.includes(activeId || '');
               const clickableAnnotationIds = segment.annotationIds.filter((id) =>
                 visibleAnnotationIds.has(id),
               );
               const annotationId = clickableAnnotationIds[0] || segment.annotationIds[0] || '';
-              const segmentStyle = {
-                ...highlightSegmentStyle(segment, active),
-                ...(dimmed ? { '--highlight-opacity': 0.42 } : {}),
-              } as React.CSSProperties;
+              const segmentStyle = highlightSegmentStyle(segment, active) as React.CSSProperties;
               return (
                 <button
                   aria-label={highlightLabel(annotationId)}
-                  aria-disabled={dimmed || undefined}
-                  className={[
-                    'reader-highlight',
-                    active ? 'is-active' : '',
-                    dimmed ? 'is-filter-dimmed' : '',
-                  ]
+                  className={['reader-highlight', active ? 'is-active' : '']
                     .filter(Boolean)
                     .join(' ')}
                   key={`highlight-${segment.id}`}
                   style={segmentStyle}
-                  tabIndex={dimmed ? -1 : undefined}
                   type="button"
-                  onClick={
-                    dimmed
-                      ? undefined
-                      : (event) => onHighlightClick(annotationId, event, clickableAnnotationIds)
-                  }
+                  onClick={(event) => onHighlightClick(annotationId, event, clickableAnnotationIds)}
                 >
                   <HighlightDots colors={segment.colors} />
                 </button>
@@ -237,12 +217,12 @@ export function ReaderSurfaceView({
               </div>
             ))}
           </div>
-          <aside className="reader-annotation-rail" ref={notesRef} aria-label="文章批注">
+          <aside className="reader-annotation-rail" ref={notesRef} aria-label="引文讨论">
             {annotations.length === 0 ? <EmptyNotes /> : null}
             {annotations.length > 0 && visibleRailAnnotations.length === 0 ? (
               <div className="reader-empty">
-                <strong>没有匹配的批注</strong>
-                <p>当前视图没有匹配的批注。</p>
+                <strong>没有匹配的讨论</strong>
+                <p>当前视图没有匹配的引文讨论。</p>
               </div>
             ) : null}
             {annotationRailItems.map(
@@ -265,6 +245,7 @@ export function ReaderSurfaceView({
                   userProfile={userProfile}
                   onAddComment={onAddComment}
                   onDelete={onDeleteAnnotation}
+                  onDeleteComment={onDeleteComment}
                   onFocus={onScrollToHighlight}
                   onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
                 />

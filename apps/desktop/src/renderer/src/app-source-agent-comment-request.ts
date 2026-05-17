@@ -37,25 +37,42 @@ export async function runSourceAgentCommentRequest({
   let pendingCommentId = '';
   let pendingDelta = '';
   let pendingFrame = 0;
+  let pendingComment: AnnotationComment | null = null;
+  let streamedContent = '';
   const flushDelta = () => {
     pendingFrame = 0;
     if (!pendingDelta || !pendingCommentId) return;
     const delta = pendingDelta;
     pendingDelta = '';
+    streamedContent += delta;
     const nextAnnotations = updateAnnotationComment(
       annotationsRef.current,
       annotation.id,
       pendingCommentId,
       (comment) => Object.assign({}, comment, { content: comment.content + delta }),
     );
-    if (nextAnnotations) applyAnnotations(nextAnnotations);
+    if (nextAnnotations && hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)) {
+      applyAnnotations(nextAnnotations);
+      return;
+    }
+
+    if (!pendingComment || !hasReplyTarget(annotationsRef.current, annotation.id, userComment)) {
+      return;
+    }
+    const restoredAnnotations = appendAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      { ...pendingComment, content: streamedContent, pending: true },
+      pendingComment.createdAt,
+    );
+    if (restoredAnnotations) applyAnnotations(restoredAnnotations);
   };
   const scheduleDeltaFlush = () => {
     if (pendingFrame) return;
     pendingFrame = window.requestAnimationFrame(flushDelta);
   };
   try {
-    await desktop.requestAgentCommentStream(
+    const finalComment = await desktop.requestAgentCommentStream(
       {
         agentId: agent.id,
         agentUsername: agent.username,
@@ -67,11 +84,15 @@ export async function runSourceAgentCommentRequest({
       (event) => {
         if (event.type === 'start') {
           pendingCommentId = event.comment.id;
+          pendingComment = {
+            ...event.comment,
+            replyTo: userComment.replyTo || userComment.id,
+          };
           const nextAnnotations = appendAnnotationComment(
             annotationsRef.current,
             annotation.id,
-            event.comment,
-            event.comment.createdAt,
+            pendingComment,
+            pendingComment.createdAt,
           );
           if (nextAnnotations) applyAnnotations(nextAnnotations);
           return;
@@ -85,25 +106,50 @@ export async function runSourceAgentCommentRequest({
       window.cancelAnimationFrame(pendingFrame);
       flushDelta();
     }
-    const current = annotationsRef.current.find((item) => item.id === annotation.id);
-    const agentComment = current?.comments.find(
-      (comment) =>
-        comment.author === 'ai' &&
-        comment.agentId === agent.id &&
-        comment.id === pendingCommentId &&
-        comment.pending,
+    const completedComment = {
+      ...finalComment,
+      id: finalComment.id || pendingCommentId,
+      replyTo: userComment.replyTo || userComment.id,
+      pending: false,
+    };
+    const nextAnnotations = updateAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      completedComment.id,
+      () => completedComment,
     );
-    if (agentComment) {
-      const nextAnnotations = updateAnnotationComment(
+    if (
+      nextAnnotations &&
+      hasAnnotationComment(nextAnnotations, annotation.id, completedComment.id)
+    ) {
+      await saveAnnotations(nextAnnotations);
+    } else if (hasReplyTarget(annotationsRef.current, annotation.id, userComment)) {
+      const restoredAnnotations = appendAnnotationComment(
         annotationsRef.current,
         annotation.id,
-        agentComment.id,
-        (comment) => Object.assign({}, comment, { pending: false }),
+        completedComment,
+        completedComment.createdAt,
       );
-      if (nextAnnotations) await saveAnnotations(nextAnnotations);
+      if (restoredAnnotations) await saveAnnotations(restoredAnnotations);
     }
   } finally {
     if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
     setStatusMessage('');
   }
+}
+
+function hasAnnotationComment(annotations: Annotation[], annotationId: string, commentId: string) {
+  return annotations.some(
+    (annotation) =>
+      annotation.id === annotationId &&
+      annotation.comments.some((comment) => comment.id === commentId),
+  );
+}
+
+function hasReplyTarget(
+  annotations: Annotation[],
+  annotationId: string,
+  userComment: AnnotationComment,
+) {
+  return hasAnnotationComment(annotations, annotationId, userComment.replyTo || userComment.id);
 }

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
 
@@ -17,21 +17,6 @@ const userProfile: UserProfile = {
   annotationColor: '#f4c95d',
   updatedAt: now,
 };
-
-const agents: PublicAgent[] = [
-  {
-    id: 'agent-a',
-    kind: 'annotation',
-    enabled: true,
-    nickname: '甲助手',
-    username: 'agent_a',
-    avatar: 'A',
-    annotationColor: '#54cda0',
-    annotationDensity: 'medium',
-    personalityName: '甲',
-    temperature: 0.3,
-  },
-];
 
 afterEach(() => {
   cleanup();
@@ -97,14 +82,12 @@ function HookProbe({
 }) {
   const rail = useReaderAnnotationRail({
     activeId: null,
-    agents,
     annotations,
     articleId,
     boxes,
     commentsCloseKey,
     filteredAnnotations,
     noteRefs,
-    userProfile,
     onAnnotationLayoutChange,
   });
 
@@ -118,19 +101,6 @@ function HookProbe({
       </output>
       <output data-testid="exiting">{Array.from(rail.exitingAnnotationIds).join(',')}</output>
       <output data-testid="expanded">{Array.from(rail.expandedPrimaryCommentIds).join(',')}</output>
-      <output data-testid="active-count">{rail.filterActiveCount}</output>
-      <button
-        type="button"
-        onClick={() => rail.toggleAnnotationFilterValueForGroup('person', 'agent:agent-a')}
-      >
-        agent filter
-      </button>
-      <button
-        type="button"
-        onClick={() => rail.toggleAnnotationFilterValueForGroup('person', 'user:user-1')}
-      >
-        user filter
-      </button>
       {rail.annotationRailItems.map((item) => (
         <div
           data-annotation-id={item.annotation.id}
@@ -143,7 +113,7 @@ function HookProbe({
 }
 
 describe('useReaderAnnotationRail', () => {
-  it('prunes filters that no longer exist in the source annotations', async () => {
+  it('uses filtered annotations as the visible annotations', () => {
     const userNote = annotation('user-note');
     const agentNote = annotation('agent-note', {
       author: 'ai',
@@ -153,20 +123,24 @@ describe('useReaderAnnotationRail', () => {
     const noteRefs = createNoteRefs();
 
     const { rerender } = render(
-      <HookProbe annotations={[userNote, agentNote]} noteRefs={noteRefs} />,
+      <HookProbe
+        annotations={[userNote, agentNote]}
+        filteredAnnotations={[agentNote]}
+        noteRefs={noteRefs}
+      />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'agent filter' }));
-
     expect(screen.getByTestId('visible').textContent).toBe('agent-note');
-    expect(screen.getByTestId('active-count').textContent).toBe('1');
 
-    rerender(<HookProbe annotations={[userNote]} noteRefs={noteRefs} />);
+    rerender(
+      <HookProbe
+        annotations={[userNote, agentNote]}
+        filteredAnnotations={[userNote]}
+        noteRefs={noteRefs}
+      />,
+    );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('visible').textContent).toBe('user-note');
-      expect(screen.getByTestId('active-count').textContent).toBe('0');
-    });
+    expect(screen.getByTestId('visible').textContent).toBe('user-note');
   });
 
   it('keeps filtered rail notes exiting before removing them', async () => {
@@ -190,7 +164,7 @@ describe('useReaderAnnotationRail', () => {
     });
     const noteRefs = createNoteRefs();
 
-    render(
+    const { rerender } = render(
       <HookProbe
         annotations={[userNote, agentNote]}
         boxes={[box('user-note', 20), box('agent-note', 80)]}
@@ -201,7 +175,14 @@ describe('useReaderAnnotationRail', () => {
     expect(Array.from(noteRefs.current.keys()).toSorted()).toEqual(['agent-note', 'user-note']);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'user filter' }));
+      rerender(
+        <HookProbe
+          annotations={[userNote, agentNote]}
+          boxes={[box('user-note', 20), box('agent-note', 80)]}
+          filteredAnnotations={[userNote]}
+          noteRefs={noteRefs}
+        />,
+      );
     });
 
     expect(screen.getByTestId('rail').textContent).toBe('user-note,agent-note');

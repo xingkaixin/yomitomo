@@ -9,6 +9,7 @@ import type {
 import {
   appendAnnotationComment,
   createUserComment,
+  deleteAnnotationComment,
   findMentionedAgents,
   sortAnnotations,
 } from '@yomitomo/core';
@@ -127,12 +128,12 @@ export function useSourceAnnotations({
   );
 
   const addComment = useCallback(
-    async (annotationId: string, content: string) => {
+    async (annotationId: string, content: string, replyTo?: string) => {
       const trimmed = content.trim();
       const currentArticle = latestArticleRef.current;
       if (!trimmed || !currentArticle) return;
 
-      const comment = createUserComment(userProfile, trimmed);
+      const comment = createUserComment(userProfile, trimmed, { replyTo });
       const nextAnnotations = appendAnnotationComment(
         currentArticle.annotations,
         annotationId,
@@ -166,11 +167,26 @@ export function useSourceAnnotations({
     [onBeforeDeleteAnnotation, saveAnnotations],
   );
 
+  const deleteComment = useCallback(
+    async (annotationId: string, commentId: string) => {
+      const nextAnnotations = deleteAnnotationComment(
+        annotationsRef.current,
+        annotationId,
+        commentId,
+      );
+      if (!nextAnnotations) return;
+      await saveAnnotations(nextAnnotations);
+      onOpenAnnotation?.(annotationId);
+    },
+    [onOpenAnnotation, saveAnnotations],
+  );
+
   return {
     addComment,
     annotations,
     annotationsRef,
     applyAnnotations,
+    deleteComment,
     deleteAnnotation,
     latestArticleRef,
     replaceAnnotations,
@@ -186,7 +202,7 @@ function acceptIncomingArticle(
   return (
     !ignoreStaleArticleUpdates ||
     currentArticle?.id !== article.id ||
-    timestampValue(article.updatedAt) >= timestampValue(currentArticle.updatedAt)
+    timestampValue(article.updatedAt) > timestampValue(currentArticle.updatedAt)
   );
 }
 

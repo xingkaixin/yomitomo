@@ -44,6 +44,7 @@ export type MentionQuery = {
 
 export type CreateUserAnnotationOptions = {
   now?: string;
+  replyTo?: string;
   readingIntent?: AgentReadingIntent;
 };
 
@@ -111,6 +112,7 @@ export function createUserComment(
     author: 'user',
     content: content.trim(),
     createdAt: now,
+    replyTo: options.replyTo,
     readingIntent: options.readingIntent,
     userId: user.id,
     userUsername: user.username,
@@ -550,6 +552,43 @@ export function updateAnnotationComment(
       comments: annotation.comments.map((comment) =>
         comment.id === commentId ? update(comment) : comment,
       ),
+      updatedAt: now,
+    };
+  });
+
+  return found ? nextAnnotations : null;
+}
+
+export function deleteAnnotationComment(
+  annotations: Annotation[],
+  annotationId: string,
+  commentId: string,
+  now = new Date().toISOString(),
+) {
+  let found = false;
+  const nextAnnotations = annotations.map((annotation) => {
+    if (annotation.id !== annotationId) return annotation;
+
+    const deletedIds = new Set([commentId]);
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const comment of annotation.comments) {
+        if (!comment.replyTo || !deletedIds.has(comment.replyTo) || deletedIds.has(comment.id)) {
+          continue;
+        }
+        deletedIds.add(comment.id);
+        expanded = true;
+      }
+    }
+
+    const comments = annotation.comments.filter((comment) => !deletedIds.has(comment.id));
+    if (comments.length === annotation.comments.length) return annotation;
+
+    found = true;
+    return {
+      ...annotation,
+      comments,
       updatedAt: now,
     };
   });

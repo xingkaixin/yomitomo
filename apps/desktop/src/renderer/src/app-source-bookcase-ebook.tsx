@@ -26,6 +26,7 @@ import {
 import {
   buildTocAnnotationStats,
   getShortcutModifier,
+  mergeAgentAnnotationAsThought,
   sleep,
   type ReaderSettings,
 } from '@yomitomo/reader-ui';
@@ -51,7 +52,6 @@ import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playb
 import type { PromptArticle } from './app-reading-types';
 import {
   buildAgentAnnotationRequestInput,
-  resolveSourceAgentMentionInstructions,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
@@ -124,6 +124,7 @@ export function EbookBookcase({
     annotationsRef,
     applyAnnotations,
     deleteAnnotation,
+    deleteComment,
     latestArticleRef,
     replaceAnnotations,
     saveAnnotations,
@@ -481,39 +482,19 @@ export function EbookBookcase({
     if (!currentArticle) return;
     const articleContext = promptArticle(currentArticle, currentArticleText());
 
-    const mentionedAgents = findMentionedAgents(note, annotationAgents);
-    if (mentionedAgents.length > 0) {
-      cancelComposer();
-      const instructions = await resolveSourceAgentMentionInstructions({
-        desktop: window.yomitomoDesktop,
-        article: articleContext,
-        targetAnchor: currentComposer.anchor,
-        agents: mentionedAgents,
-        note,
-        onStatus: isCurrentArticle(currentArticle.id)
-          ? (message, options) => {
-              setStatusMessage(message);
-              if (options?.clearAfterMs)
-                window.setTimeout(() => setStatusMessage(''), options.clearAfterMs);
-            }
-          : undefined,
-      });
-      for (const item of instructions) {
-        void requestAgentAnnotations(item.agent, {
-          readingIntent: item.readingIntent,
-          instruction: item.instruction,
-          targetAnchor: currentComposer.anchor,
-          article: articleContext,
-          articleId: currentArticle.id,
-        });
-      }
-      return;
-    }
-
+    cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
     void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
+
+    const mentionedAgents = findMentionedAgents(note, annotationAgents);
+    const primaryComment = annotationPrimaryComment(annotation);
+    if (primaryComment) {
+      for (const agent of mentionedAgents) {
+        void requestAgentComment(agent, annotation, primaryComment);
+      }
+    }
   }
 
   async function inferAnnotationMetadataForAnnotation(
@@ -551,20 +532,25 @@ export function EbookBookcase({
       });
     } catch (error) {
       if (!isCurrentArticle(articleId)) return;
-      setStatusMessage(error instanceof Error ? error.message : '批注标签生成失败');
+      setStatusMessage(error instanceof Error ? error.message : '想法标签生成失败');
       window.setTimeout(() => setStatusMessage(''), 1800);
     }
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
+    let activeId = annotation.id;
     if (isCurrentArticle(articleId)) {
-      const nextAnnotations = [...annotationsRef.current, annotation];
-      applyAnnotations(nextAnnotations);
-      openAnnotation(annotation.id);
+      const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
+      activeId = result.activeId;
+      applyAnnotations(result.annotations);
+      openAnnotation(result.activeId);
     }
-    await onUpdateArticle(articleId, (targetArticle) =>
-      articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
-    );
+    await onUpdateArticle(articleId, (targetArticle) => {
+      const result = mergeAgentAnnotationAsThought(targetArticle.annotations, annotation);
+      activeId = result.activeId;
+      return articleWithAnnotations(targetArticle, result.annotations);
+    });
+    return activeId;
   }
 
   async function requestAgentComment(
@@ -786,7 +772,7 @@ export function EbookBookcase({
     playbackMode: SourceAgentAnnotationPlaybackMode,
   ) {
     setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
-    setStatusMessage(`${agent.nickname} 正在批注`);
+    setStatusMessage(`${agent.nickname} 正在添加想法`);
     const visibleArticle = isCurrentArticle(articleId);
     if (visibleArticle) startEbookAgentDock(agent);
     if (visibleArticle && playbackMode === 'target' && targetAnchor) {
@@ -822,8 +808,8 @@ export function EbookBookcase({
     agent: PublicAgent,
     targetAnchor: Annotation['anchor'] | undefined,
   ) {
-    if (targetAnchor) finishEbookVirtualReading(agent.id, '没有批注');
-    setStatusMessage(`${agent.nickname} 暂无新批注`);
+    if (targetAnchor) finishEbookVirtualReading(agent.id, '没有新想法');
+    setStatusMessage(`${agent.nickname} 暂无新想法`);
     window.setTimeout(() => setStatusMessage(''), 1400);
   }
 
@@ -841,11 +827,11 @@ export function EbookBookcase({
     options: { requestFailed: boolean; visibleArticle: boolean },
   ) {
     if (options.requestFailed && targetAnchor && isCurrentArticle(articleId)) {
-      finishEbookVirtualReading(agent.id, '批注失败');
+      finishEbookVirtualReading(agent.id, '想法添加失败');
     }
     if (options.requestFailed && options.visibleArticle) finishEbookAgentDock(agent.id, false);
     setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
-    setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
   }
 
   function handleHighlightClick(
@@ -1026,6 +1012,7 @@ export function EbookBookcase({
       onCopySelection={copySelection}
       onCreateAnnotation={createAnnotation}
       onDeleteAnnotation={deleteAnnotation}
+      onDeleteComment={deleteComment}
       onFocusAnnotation={openAnnotation}
       onGoLeft={goLeft}
       onGoRight={goRight}

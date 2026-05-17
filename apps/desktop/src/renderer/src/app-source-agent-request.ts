@@ -8,7 +8,7 @@ import type {
   ReadingMemory,
 } from '@yomitomo/shared';
 import type { PromptArticle } from './app-reading-types';
-import { agentInstructionFromNote, targetAnchorReadingPlan } from './app-source-bookcase-shared';
+import { targetAnchorReadingPlan } from './app-source-bookcase-shared';
 
 export type SourceAgentAnnotationRequestOptions = {
   annotationType?: AnnotationType;
@@ -35,24 +35,10 @@ export type SourceAgentAnnotationRequestInput = {
   shouldSaveReadingMemory: boolean;
 };
 
-type SourceAgentMentionPlanner = Pick<
-  typeof window.yomitomoDesktop,
-  'planAgentMentionInstructions'
->;
 type SourceAgentAnnotationRequester = Pick<
   typeof window.yomitomoDesktop,
   'requestAgentAnnotationsStream'
 >;
-
-export type SourceAgentMentionStatusOptions = {
-  clearAfterMs?: number;
-};
-
-export type SourceAgentMentionInstruction = {
-  agent: PublicAgent;
-  instruction?: string;
-  readingIntent?: AgentReadingIntent;
-};
 
 export function buildAgentAnnotationRequestInput(
   agent: PublicAgent,
@@ -82,56 +68,6 @@ export function buildAgentAnnotationRequestInput(
     playbackMode: isTargetRequest ? 'target' : hasReadingPlan ? 'careful' : 'article',
     shouldSaveReadingMemory,
   };
-}
-
-export async function resolveSourceAgentMentionInstructions({
-  desktop,
-  article,
-  targetAnchor,
-  agents,
-  note,
-  onStatus,
-}: {
-  desktop: SourceAgentMentionPlanner | undefined;
-  article: PromptArticle;
-  targetAnchor: Annotation['anchor'];
-  agents: PublicAgent[];
-  note: string;
-  onStatus?: (message: string, options?: SourceAgentMentionStatusOptions) => void;
-}): Promise<SourceAgentMentionInstruction[]> {
-  const commonInstruction = agentInstructionFromNote(note, agents) || undefined;
-  const baseInstructions = agents.map((agent) => ({
-    agent,
-    instruction: commonInstruction,
-    readingIntent: undefined,
-  }));
-  if (!desktop) return baseInstructions;
-
-  try {
-    onStatus?.('正在拆解助手任务');
-    const instructions = await desktop.planAgentMentionInstructions({
-      article,
-      targetAnchor,
-      agents,
-      note,
-    });
-    onStatus?.('');
-    return agents.map((agent) => {
-      const instruction = instructions.find(
-        (item) => item.agentId === agent.id || item.agentUsername === agent.username,
-      );
-      return {
-        agent,
-        instruction: instruction?.instruction || commonInstruction,
-        readingIntent: instruction?.readingIntent,
-      };
-    });
-  } catch (error) {
-    onStatus?.(error instanceof Error ? error.message : '助手任务拆解失败', {
-      clearAfterMs: 1800,
-    });
-    return baseInstructions;
-  }
 }
 
 export async function runSourceAgentAnnotationRequest({

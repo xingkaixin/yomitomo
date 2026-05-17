@@ -35,6 +35,7 @@ import {
   buildTocAnnotationStats,
   useAgentAnnotationQueue,
   getShortcutModifier,
+  mergeAgentAnnotationAsThought,
   ReaderAppView,
   buildReaderReadingSections,
   readerAnnotationScrollTop,
@@ -48,7 +49,6 @@ import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
 import {
   buildAgentAnnotationRequestInput,
-  resolveSourceAgentMentionInstructions,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
@@ -103,12 +103,14 @@ export function WebSourceBookcase({
     annotationsRef,
     applyAnnotations,
     deleteAnnotation,
+    deleteComment,
     latestArticleRef,
     saveAnnotations,
   } = useSourceAnnotations({
     annotationAgents,
     annotations: articleAnnotations,
     article,
+    ignoreStaleArticleUpdates: true,
     onBeforeDeleteAnnotation: (annotationId) => noteRefs.current.delete(annotationId),
     onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
       for (const agent of mentionedAgents) {
@@ -340,39 +342,19 @@ export function WebSourceBookcase({
     if (!currentArticle) return;
     const articleContext = promptArticle(currentArticle, currentArticleText());
 
-    const mentionedAgents = findMentionedAgents(note, annotationAgents);
-    if (mentionedAgents.length > 0) {
-      cancelComposer();
-      const instructions = await resolveSourceAgentMentionInstructions({
-        desktop: window.yomitomoDesktop,
-        article: articleContext,
-        targetAnchor: currentComposer.anchor,
-        agents: mentionedAgents,
-        note,
-        onStatus: isCurrentArticle(currentArticle.id)
-          ? (message, options) => {
-              setStatusMessage(message);
-              if (options?.clearAfterMs)
-                window.setTimeout(() => setStatusMessage(''), options.clearAfterMs);
-            }
-          : undefined,
-      });
-      for (const item of instructions) {
-        void requestAgentAnnotations(item.agent, {
-          readingIntent: item.readingIntent,
-          instruction: item.instruction,
-          targetAnchor: currentComposer.anchor,
-          article: articleContext,
-          articleId: currentArticle.id,
-        });
-      }
-      return;
-    }
-
+    cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
     void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
+
+    const mentionedAgents = findMentionedAgents(note, annotationAgents);
+    const primaryComment = annotationPrimaryComment(annotation);
+    if (primaryComment) {
+      for (const agent of mentionedAgents) {
+        void requestAgentComment(agent, annotation, primaryComment);
+      }
+    }
   }
 
   async function inferAnnotationMetadataForAnnotation(
@@ -410,14 +392,17 @@ export function WebSourceBookcase({
       });
     } catch (error) {
       if (!isCurrentArticle(articleId)) return;
-      setStatusMessage(error instanceof Error ? error.message : '批注标签生成失败');
+      setStatusMessage(error instanceof Error ? error.message : '想法标签生成失败');
       window.setTimeout(() => setStatusMessage(''), 1800);
     }
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     await onUpdateArticle(articleId, (targetArticle) =>
-      articleWithAnnotations(targetArticle, [...targetArticle.annotations, annotation]),
+      articleWithAnnotations(
+        targetArticle,
+        mergeAgentAnnotationAsThought(targetArticle.annotations, annotation).annotations,
+      ),
     );
   }
 
@@ -640,7 +625,7 @@ export function WebSourceBookcase({
   ) {
     if (!showProgress) return;
     markAgentAnnotating(agent.id, true);
-    setStatusMessage(`${agent.nickname} 正在批注`);
+    setStatusMessage(`${agent.nickname} 正在添加想法`);
     startVirtualReading(agent, readingPlan, playbackMode);
   }
 
@@ -673,15 +658,15 @@ export function WebSourceBookcase({
     showProgress: boolean,
   ) {
     if (!showProgress || !isCurrentArticle(articleId)) return;
-    finishVirtualReading(agent.id, '没有批注');
-    setStatusMessage(`${agent.nickname} 暂无新批注`);
+    finishVirtualReading(agent.id, '没有新想法');
+    setStatusMessage(`${agent.nickname} 暂无新想法`);
     window.setTimeout(() => setStatusMessage(''), 1400);
   }
 
   function finishAgentAnnotationRequest(agent: PublicAgent, showProgress: boolean) {
     if (!showProgress) return;
     markAgentAnnotating(agent.id, false);
-    setStatusMessage((message) => (message.includes('暂无新批注') ? message : ''));
+    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
   }
 
   function handleHighlightClick(
@@ -829,6 +814,7 @@ export function WebSourceBookcase({
         onCopySelection={copySelection}
         onCreateAnnotation={createAnnotation}
         onDeleteAnnotation={deleteAnnotation}
+        onDeleteComment={deleteComment}
         onFocusAnnotation={openAnnotation}
         onNavigateAnnotation={navigateAnnotation}
         onResolveAnnotationNavigation={resolveAnnotationNavigation}

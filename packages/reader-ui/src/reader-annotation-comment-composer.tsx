@@ -10,15 +10,19 @@ export function AnnotationCommentComposer({
   agents,
   focusRequestKey,
   messageSendShortcut,
+  placeholder = '写下新的想法，或 @ 助手一起看这段',
   shortcutModifier,
   suggestedAgents,
+  submitLabel = '发送',
   onSubmit,
 }: {
   agents: PublicAgent[];
   focusRequestKey?: number;
   messageSendShortcut: MessageSendShortcut;
+  placeholder?: string;
   shortcutModifier: string;
   suggestedAgents: PublicAgent[];
+  submitLabel?: string;
   onSubmit: (content: string) => void;
 }) {
   const [draft, setDraft] = useState('');
@@ -26,13 +30,14 @@ export function AnnotationCommentComposer({
   const [agentTrayOpen, setAgentTrayOpen] = useState(false);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const mentionQuery = getMentionQuery(draft, caretIndex);
   const visibleMentionAgents = suggestedAgents.slice(0, 2);
   const overflowMentionAgents = suggestedAgents.slice(2);
   const matchedAgents =
     mentionQuery === null
       ? []
-      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -42,6 +47,10 @@ export function AnnotationCommentComposer({
     if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
       setSelectedMentionIndex(0);
   }, [matchedAgents.length, selectedMentionIndex]);
+
+  useEffect(() => {
+    mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedMentionIndex]);
 
   useEffect(() => {
     if (focusRequestKey === undefined) return;
@@ -113,7 +122,7 @@ export function AnnotationCommentComposer({
         <textarea
           aria-label="留言内容"
           ref={textareaRef}
-          placeholder="给这条批注留言，输入 @ 呼叫助手"
+          placeholder={placeholder}
           value={draft}
           onChange={(event) => {
             setDraft(event.currentTarget.value);
@@ -130,6 +139,9 @@ export function AnnotationCommentComposer({
               <button
                 className={index === selectedMentionIndex ? 'is-active' : ''}
                 key={agent.id}
+                ref={(element) => {
+                  mentionCandidateRefs.current[index] = element;
+                }}
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => selectAgent(agent)}
@@ -174,7 +186,12 @@ export function AnnotationCommentComposer({
               {agentTrayOpen ? (
                 <div className="reader-comment-agent-more-menu">
                   {overflowMentionAgents.map((agent) => (
-                    <button key={agent.id} type="button" onClick={() => selectAgent(agent)}>
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectAgent(agent)}
+                    >
                       <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
                       <strong>{agent.nickname}</strong>
                       <em>@{agent.username}</em>
@@ -185,9 +202,14 @@ export function AnnotationCommentComposer({
             </div>
           ) : null}
         </div>
-        <button className="reader-add-comment" type="button" aria-label="添加留言" onClick={submit}>
+        <button
+          className="reader-add-comment"
+          type="button"
+          aria-label={submitLabel}
+          onClick={submit}
+        >
           <SubmitShortcutKeys shortcut={messageSendShortcut} shortcutModifier={shortcutModifier} />
-          <span>发送</span>
+          <span>{submitLabel}</span>
         </button>
       </div>
     </>

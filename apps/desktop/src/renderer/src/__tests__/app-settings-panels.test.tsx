@@ -523,7 +523,7 @@ describe('ShortcutSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '设置添加批注快捷键' }));
+    fireEvent.click(screen.getByRole('button', { name: '设置记录想法快捷键' }));
     fireEvent.keyDown(window, { key: '1' });
     fireEvent.keyDown(window, { key: 'b' });
 

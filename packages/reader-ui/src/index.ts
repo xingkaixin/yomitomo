@@ -2,7 +2,6 @@ export * from './reader-app-view';
 export {
   AgentReadingDock,
   AgentAnnotateMenu,
-  AnnotationFilterPanel,
   AnnotationCard,
   AnnotationConnection,
   Composer,
@@ -24,5 +23,6 @@ export type {
 } from './reader-types';
 export * from './reader-styles';
 export * from './reader-utils';
+export { mergeAgentAnnotationAsThought } from './reader-agent-annotation-playback';
 export * from './use-agent-annotation-queue';
 export * from './use-agent-reading-dock';

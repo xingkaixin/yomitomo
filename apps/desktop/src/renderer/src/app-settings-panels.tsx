@@ -55,7 +55,7 @@ const selectionShortcutRows: Array<{
   description: string;
 }> = [
   { action: 'copy', label: '复制', description: '阅读区选中文本后的复制操作。' },
-  { action: 'annotate', label: '添加批注', description: '阅读区选中文本后的批注入口。' },
+  { action: 'annotate', label: '记录想法', description: '阅读区选中文本后的想法入口。' },
 ];
 
 const settingsSections: Array<{
@@ -403,7 +403,7 @@ export function ShortcutSettings({
       <section className="shortcut-settings-card" aria-labelledby="shortcut-selection-title">
         <header className="shortcut-settings-card-header">
           <h3 id="shortcut-selection-title">阅读区选区操作</h3>
-          <p>用于选中文本后的复制和添加批注。</p>
+          <p>用于选中文本后的复制和记录想法。</p>
         </header>
         <div className="selection-shortcut-list">
           {selectionShortcutRows.map((row) => {
