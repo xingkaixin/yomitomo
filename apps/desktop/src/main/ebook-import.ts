@@ -9,10 +9,11 @@ import {
   performanceStart,
   type EpubBookIndexChapterInput,
 } from '@yomitomo/core';
-import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
+import { sanitizeArticleContent } from '@yomitomo/core/article-extraction';
 import { hashText, type ArticleRecord, type EbookChapterRecord } from '@yomitomo/shared';
 
 const MAX_EPUB_BYTES = 80 * 1024 * 1024;
+const INLINE_CHAPTER_IMAGE_CONCURRENCY = 4;
 const EPUB_MIME = 'application/epub+zip';
 const XHTML_TYPES = new Set(['application/xhtml+xml', 'text/html', 'application/xml', 'text/xml']);
 const CHAPTER_PARAGRAPH_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
@@ -323,6 +324,7 @@ async function readEpubChapters(
   performanceLogger: EbookImportOptions['performanceLogger'],
 ): Promise<ImportedEbookChapter[]> {
   const manifestById = new Map(epub.manifest.map((item) => [item.id, item]));
+  const mediaTypeByPath = new Map(epub.manifest.map((item) => [item.path, item.mediaType]));
   const chapters: ImportedEbookChapter[] = [];
 
   for (let spineIndex = 0; spineIndex < epub.spineIds.length; spineIndex += 1) {
@@ -342,7 +344,7 @@ async function readEpubChapters(
         dom.window.document,
         zip,
         item.path,
-        epub.manifest,
+        mediaTypeByPath,
       );
       const inlineImagesMs = performanceElapsedMs(imagesStartedAt);
 
@@ -366,15 +368,16 @@ async function readEpubChapters(
       const body = dom.window.document.body || dom.window.document.documentElement;
       const rawHtml = body?.innerHTML || '';
       const sanitizeStartedAt = performanceStart();
-      const html = sanitizeArticleContentHtml(
+      const sanitizedContent = sanitizeArticleContent(
         dom.window.document,
         rawHtml,
         `https://ebook.local/${item.path}`,
       );
+      const html = sanitizedContent.html;
       const sanitizeMs = performanceElapsedMs(sanitizeStartedAt);
 
       const paragraphsStartedAt = performanceStart();
-      const paragraphs = chapterParagraphs(html);
+      const paragraphs = chapterParagraphs(sanitizedContent.container);
       const paragraphsMs = performanceElapsedMs(paragraphsStartedAt);
       const textLength = paragraphs.join('\n\n').length;
       if (textLength === 0) {
@@ -474,45 +477,60 @@ async function inlineChapterImages(
   document: Document,
   zip: JSZip,
   chapterPath: string,
-  manifest: ManifestItem[],
+  mediaTypeByPath: Map<string, string>,
 ) {
   const metrics: InlineChapterImagesMetrics = {
     imageElementCount: 0,
     inlinedImageCount: 0,
     inlinedImageDataChars: 0,
   };
-  const mediaTypeByPath = new Map(manifest.map((item) => [item.path, item.mediaType]));
   const baseDir = dirname(chapterPath) === '.' ? '' : dirname(chapterPath);
 
   const htmlImages = Array.from(document.querySelectorAll<HTMLImageElement>('img[src]'));
   metrics.imageElementCount += htmlImages.length;
-  for (const image of htmlImages) {
-    const src = image.getAttribute('src');
-    const dataUrl = src
-      ? await imageDataUrl(zip, resolveZipPath(baseDir, src), mediaTypeByPath)
-      : '';
-    if (dataUrl) {
-      image.setAttribute('src', dataUrl);
+  for (let index = 0; index < htmlImages.length; index += INLINE_CHAPTER_IMAGE_CONCURRENCY) {
+    const dataLengths = await Promise.all(
+      htmlImages.slice(index, index + INLINE_CHAPTER_IMAGE_CONCURRENCY).map(async (image) => {
+        const src = image.getAttribute('src');
+        const dataUrl = src
+          ? await imageDataUrl(zip, resolveZipPath(baseDir, src), mediaTypeByPath)
+          : '';
+        if (dataUrl) {
+          image.setAttribute('src', dataUrl);
+        } else {
+          image.removeAttribute('src');
+        }
+        image.removeAttribute('srcset');
+        return dataUrl.length;
+      }),
+    );
+    for (const dataLength of dataLengths) {
+      if (!dataLength) continue;
       metrics.inlinedImageCount += 1;
-      metrics.inlinedImageDataChars += dataUrl.length;
-    } else {
-      image.removeAttribute('src');
+      metrics.inlinedImageDataChars += dataLength;
     }
-    image.removeAttribute('srcset');
   }
 
   const svgImages = Array.from(document.querySelectorAll('image'));
   metrics.imageElementCount += svgImages.length;
-  for (const image of svgImages) {
-    const href = image.getAttribute('href') || image.getAttribute('xlink:href');
-    const dataUrl = href
-      ? await imageDataUrl(zip, resolveZipPath(baseDir, href), mediaTypeByPath)
-      : '';
-    if (!dataUrl) continue;
-    image.setAttribute('href', dataUrl);
-    image.removeAttribute('xlink:href');
-    metrics.inlinedImageCount += 1;
-    metrics.inlinedImageDataChars += dataUrl.length;
+  for (let index = 0; index < svgImages.length; index += INLINE_CHAPTER_IMAGE_CONCURRENCY) {
+    const dataLengths = await Promise.all(
+      svgImages.slice(index, index + INLINE_CHAPTER_IMAGE_CONCURRENCY).map(async (image) => {
+        const href = image.getAttribute('href') || image.getAttribute('xlink:href');
+        const dataUrl = href
+          ? await imageDataUrl(zip, resolveZipPath(baseDir, href), mediaTypeByPath)
+          : '';
+        if (!dataUrl) return 0;
+        image.setAttribute('href', dataUrl);
+        image.removeAttribute('xlink:href');
+        return dataUrl.length;
+      }),
+    );
+    for (const dataLength of dataLengths) {
+      if (!dataLength) continue;
+      metrics.inlinedImageCount += 1;
+      metrics.inlinedImageDataChars += dataLength;
+    }
   }
 
   return metrics;
@@ -572,24 +590,18 @@ function ebookChapterRecord(chapter: ImportedEbookChapter): EbookChapterRecord {
   };
 }
 
-function chapterParagraphs(html: string) {
-  const dom = new JSDOM(`<article>${html}</article>`);
-  try {
-    const body = dom.window.document.body;
-    const blockElements = Array.from(body.querySelectorAll(CHAPTER_PARAGRAPH_SELECTOR)).filter(
-      (element) =>
-        !Array.from(element.children).some((child) => child.matches(CHAPTER_PARAGRAPH_SELECTOR)),
-    );
-    const paragraphs = blockElements.flatMap((element) => {
-      const text = cleanString(element.textContent);
-      return text ? [text] : [];
-    });
-    if (paragraphs.length > 0) return paragraphs;
-    const text = cleanString(body.textContent);
+function chapterParagraphs(root: Element) {
+  const blockElements = Array.from(root.querySelectorAll(CHAPTER_PARAGRAPH_SELECTOR)).filter(
+    (element) =>
+      !Array.from(element.children).some((child) => child.matches(CHAPTER_PARAGRAPH_SELECTOR)),
+  );
+  const paragraphs = blockElements.flatMap((element) => {
+    const text = cleanString(element.textContent);
     return text ? [text] : [];
-  } finally {
-    dom.window.close();
-  }
+  });
+  if (paragraphs.length > 0) return paragraphs;
+  const text = cleanString(root.textContent);
+  return text ? [text] : [];
 }
 
 function readXml<T>(xml: string, reader: (document: Document) => T): T {

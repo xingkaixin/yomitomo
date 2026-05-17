@@ -2,6 +2,7 @@ import type { ExtractedArticle } from './article-extraction';
 
 const MAX_INLINE_IMAGES = 40;
 const MAX_INLINE_IMAGE_DATA_CHARS = 10_000_000;
+const INLINE_IMAGE_CONCURRENCY = 4;
 
 export type ImageFetcher = (url: string) => Promise<string | null>;
 
@@ -31,49 +32,79 @@ async function inlineHtmlImages(
   const container = articleDocument.createElement('div');
   container.innerHTML = html;
 
-  for (const image of Array.from(container.querySelectorAll<HTMLImageElement>('img'))) {
-    const sourceUrl = imageSourceUrl(image, inliner.baseUrl);
-    if (sourceUrl) image.setAttribute('src', sourceUrl);
-    const dataUrl = await inliner.inlineUrl(sourceUrl);
-    if (!dataUrl) continue;
+  const images = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
+  for (let index = 0; index < images.length; index += INLINE_IMAGE_CONCURRENCY) {
+    await Promise.all(
+      images.slice(index, index + INLINE_IMAGE_CONCURRENCY).map(async (image) => {
+        const sourceUrl = imageSourceUrl(image, inliner.baseUrl);
+        if (sourceUrl) image.setAttribute('src', sourceUrl);
+        const dataUrl = await inliner.inlineUrl(sourceUrl);
+        if (!dataUrl) return;
 
-    image.setAttribute('src', dataUrl);
-    removeExternalImageHints(image);
-    image
-      .closest('picture')
-      ?.querySelectorAll('source')
-      .forEach((source) => source.remove());
+        image.setAttribute('src', dataUrl);
+        removeExternalImageHints(image);
+        image
+          .closest('picture')
+          ?.querySelectorAll('source')
+          .forEach((source) => source.remove());
+      }),
+    );
   }
 
   return container.innerHTML;
 }
 
 function imageInliner(baseUrl: string, fetcher: ImageFetcher) {
-  const cache = new Map<string, string | null>();
+  const fetchedByUrl = new Map<string, Promise<string | null>>();
+  const committedByUrl = new Map<string, string | null>();
   let imageCount = 0;
   let dataChars = 0;
+  let commitQueue = Promise.resolve();
 
-  async function inlineUrl(value: string | undefined) {
+  function fetchDataUrl(url: string) {
+    const cached = fetchedByUrl.get(url);
+    if (cached) return cached;
+    const pending = fetcher(url).then((dataUrl) =>
+      dataUrl?.startsWith('data:image/') ? dataUrl : null,
+    );
+    fetchedByUrl.set(url, pending);
+    return pending;
+  }
+
+  function inlineUrl(value: string | undefined) {
     const url = normalizeHttpImageUrl(value, baseUrl);
-    if (!url) return null;
-    if (url.startsWith('data:image/')) return url;
-    if (cache.has(url)) return cache.get(url) || null;
-    if (imageCount >= MAX_INLINE_IMAGES) return null;
+    if (!url) return Promise.resolve(null);
+    if (url.startsWith('data:image/')) return Promise.resolve(url);
+    if (committedByUrl.has(url)) return Promise.resolve(committedByUrl.get(url) || null);
+    if (imageCount >= MAX_INLINE_IMAGES) return Promise.resolve(null);
 
-    const dataUrl = await fetcher(url);
-    if (!dataUrl?.startsWith('data:image/')) {
-      cache.set(url, null);
-      return null;
-    }
-    if (dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS) {
-      cache.set(url, null);
-      return null;
-    }
+    const dataUrlPromise = fetchDataUrl(url);
+    const result = commitQueue.then(async () => {
+      if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
 
-    imageCount += 1;
-    dataChars += dataUrl.length;
-    cache.set(url, dataUrl);
-    return dataUrl;
+      const dataUrl = await dataUrlPromise;
+      if (!dataUrl) {
+        committedByUrl.set(url, null);
+        return null;
+      }
+      if (
+        imageCount >= MAX_INLINE_IMAGES ||
+        dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS
+      ) {
+        committedByUrl.set(url, null);
+        return null;
+      }
+
+      imageCount += 1;
+      dataChars += dataUrl.length;
+      committedByUrl.set(url, dataUrl);
+      return dataUrl;
+    });
+    commitQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 
   return { baseUrl, inlineUrl };
