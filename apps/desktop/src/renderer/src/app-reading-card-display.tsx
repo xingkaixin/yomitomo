@@ -1914,6 +1914,7 @@ export function ReadingCardDeck({
   retryingReviewerId,
   sourceUpdatedAt,
   stats,
+  userJudgment,
   onOpenEvidence,
   onRetryReviewer,
 }: {
@@ -1925,6 +1926,7 @@ export function ReadingCardDeck({
   retryingReviewerId: string | null;
   sourceUpdatedAt: string | null;
   stats: ReturnType<typeof buildReadingCardStats> | null;
+  userJudgment: string;
   onOpenEvidence: (annotationId: string) => void;
   onRetryReviewer: (reviewerId: string) => void;
 }) {
@@ -1967,6 +1969,8 @@ export function ReadingCardDeck({
         </p>
       </section>
 
+      <ReadingReceiptUserJudgmentPanel userJudgment={userJudgment} />
+
       <ReadingReceiptWorkbenchPanel
         isCurrent={isCurrent}
         readingCard={readingCard}
@@ -1974,6 +1978,16 @@ export function ReadingCardDeck({
         workbench={workbench}
         onOpenEvidence={onOpenEvidence}
       />
+
+      {readingCard.review ? (
+        <ReadingCardReviewPanel
+          evidenceUnits={evidenceUnits}
+          retryingReviewerId={retryingReviewerId}
+          review={readingCard.review}
+          onOpenEvidence={onOpenEvidence}
+          onRetryReviewer={onRetryReviewer}
+        />
+      ) : null}
 
       <ReadingReceiptMarkdownSection
         className="reading-receipt-takeaway"
@@ -2011,16 +2025,6 @@ export function ReadingCardDeck({
         />
       </div>
 
-      {readingCard.review ? (
-        <ReadingCardReviewPanel
-          evidenceUnits={evidenceUnits}
-          retryingReviewerId={retryingReviewerId}
-          review={readingCard.review}
-          onOpenEvidence={onOpenEvidence}
-          onRetryReviewer={onRetryReviewer}
-        />
-      ) : null}
-
       <details className="reading-receipt-draft" open>
         <summary>
           <span>可保存成稿</span>
@@ -2038,6 +2042,21 @@ export function ReadingCardDeck({
         </div>
       </details>
     </div>
+  );
+}
+
+function ReadingReceiptUserJudgmentPanel({ userJudgment }: { userJudgment: string }) {
+  const trimmedJudgment = userJudgment.trim();
+  if (!trimmedJudgment) return null;
+
+  return (
+    <section className="reading-receipt-user-judgment">
+      <header>
+        <span>我的补充判断</span>
+        <h4>节点 2 确认的主轴</h4>
+      </header>
+      <p>{trimmedJudgment}</p>
+    </section>
   );
 }
 

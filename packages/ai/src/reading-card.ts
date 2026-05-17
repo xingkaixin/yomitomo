@@ -82,7 +82,7 @@ export async function reviewReadingCard(
   agent: Agent,
   input: ReviewReadingCardInput,
 ): Promise<ReviewReadingCardResult> {
-  const system = `${agent.soul}\n\n你是 Yomitomo 的读后回执审阅助手。你要审当前回执和证据之间的关系，重点检查事实归因、证据链、读者声音、压缩质量和后续行动价值。保持你的审核倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
+  const system = `${agent.soul}\n\n你是 Yomitomo 的读后回执审阅助手。你要审当前回执和证据之间的关系，重点检查事实归因、证据链、读者声音、压缩质量和后续行动价值。保持你的审阅倾向，但输出必须克制、可执行、能回到原文或证据单元。`;
   const rawResponse = await callProviderText(
     provider,
     {
@@ -172,9 +172,11 @@ ${userJudgment}
 - 助手观点和文章观点分开表达。
 - 如果有阅读所得，优先吸收其中的个人收获、材料合成、证据强弱和未决问题。
 - “用户补上的一句判断”是最终回执的主轴，必须进入“一句话带走”和“可保存成稿”；不要把它改写成文章摘要。
+- 用户补充很短或抽象时，要把它落实为可由证据支撑的个人判断；不能只复述这几个字，也不能稀释成全文摘要。
 - 保留未决问题状态：open 作为待推进问题，answered 作为已想通问题，parked 作为暂不推进问题。
-- 对重要证据单元说明处理结果：纳入回执、暂放、证据不足。
+- 对重要证据单元说明处理结果：已纳入、已暂放、已纳入但证据不足或待补判断。
 - 尊重“本次拣选结果”：include 可以进入回执主判断；exclude 不要写入回执。
+- 不要擅自改变材料去向：只有 disposition 为 exclude 的证据才能写成“暂放”；include 证据如果薄弱，只能写“已纳入但待补判断”或“已纳入但证据不足”。
 - 内容要精炼、有层次，适合作为读完这篇文章后的回看入口。
 
 固定结构：
@@ -304,13 +306,25 @@ function buildReviewReadingCardPrompt(provider: LlmProvider, input: ReviewReadin
   const articleText = budgetArticleText(provider, 'reading-card-review', input.articleText);
   const evidenceJson = budgetEvidenceJson('reading-card-review', evidence);
   const cardJson = budgetReadingCardJson('reading-card-review', card);
-  const budgetNotice = formatBudgetNotice([
-    articleText.report,
-    evidenceJson.report,
-    cardJson.report,
-  ]);
+  const deliberation = input.readingDeliberation
+    ? {
+        id: input.readingDeliberation.id,
+        markdown: input.readingDeliberation.contentMarkdown,
+        sections: input.readingDeliberation.sections,
+      }
+    : null;
+  const deliberationJson = deliberation
+    ? budgetDeliberationJson('reading-card-review', deliberation)
+    : { text: '暂无', report: null };
+  const receiptDecisions = readingReceiptDecisionPrompt(input.receiptDecisions);
+  const userJudgment = input.userJudgment?.trim() || '用户尚未补充自己的判断。';
+  const budgetNotice = formatBudgetNotice(
+    [articleText.report, evidenceJson.report, cardJson.report, deliberationJson.report].filter(
+      (report) => report !== null,
+    ),
+  );
 
-  return `请审核这份读后回执，返回一个 JSON 对象。
+  return `请审阅这份读后回执，返回一个 JSON 对象。
 
 文章信息：
 ${JSON.stringify(article, null, 2)}
@@ -326,17 +340,28 @@ ${evidenceJson.text}
 读后回执：
 ${cardJson.text}
 
-审核维度：
+本次拣选结果：
+${receiptDecisions}
+
+阅读所得：
+${deliberationJson.text}
+
+用户补上的一句判断：
+${userJudgment}
+
+审阅维度：
 - 证据链：关键判断是否能对应文章原文或证据单元。
 - 归因：文章观点、读者关注、助手讨论是否表达清楚。
 - 覆盖：高价值批注和评论是否被合理吸收。
 - 压缩质量：是否保留有效判断，去除空泛复述。
 - 行动线索：后续行动是否具体、能执行、和阅读材料有关。
+- 用户主轴：读后回执是否把“用户补上的一句判断”变成主轴，而不是只复述文章或助手观点。
+- 材料去向：是否尊重本次拣选结果，没有把 include 材料误写成暂放，也没有使用 exclude 材料支撑主判断。
 
 输出 JSON 格式：
 {
   "verdict": "pass",
-  "summary": "整体审核结论，80 字以内",
+  "summary": "整体审阅结论，80 字以内",
   "findings": [
     {
       "section": "一句话带走",
@@ -355,6 +380,8 @@ ${cardJson.text}
 - severity 只允许 high、medium、low。
 - evidenceIds 使用证据单元 id；没有对应证据时返回空数组。
 - 文本字段里引用证据时统一写成 [#1] 这种格式；evidenceIds 仍返回数字数组。
+- 如果读后回执没有体现“用户补上的一句判断”，必须在 findings 中指出。
+- 如果读后回执擅自改变材料去向，必须在 findings 中指出。
 - findings 最多 6 条，acceptedClaims 最多 4 条，missingAngles 最多 4 条。
 - 只输出 JSON 对象，不要输出 Markdown。`;
 }

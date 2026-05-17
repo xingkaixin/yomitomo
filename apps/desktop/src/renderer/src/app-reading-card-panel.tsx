@@ -1,8 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ListChecks, LoaderCircle, Scale, Sparkles } from 'lucide-react';
+import {
+  Check,
+  FileText,
+  ListChecks,
+  LoaderCircle,
+  Scale,
+  Sparkles,
+  Undo2,
+  UsersRound,
+} from 'lucide-react';
 import type {
   Agent,
   ArticleRecord,
+  ReadingCardRecord,
   ReadingDeliberationRecord,
   ReadingReceiptState,
   UserProfile,
@@ -14,7 +24,12 @@ import {
   type ReadingReceiptDisposition,
   type ReadingReceiptDecision,
 } from '@yomitomo/core';
-import { articleIdentityLine, articlePlainText, articleReadingStatsLine } from './app-utils';
+import {
+  articleIdentityLine,
+  articlePlainText,
+  articleReadingStatsLine,
+  formatDate,
+} from './app-utils';
 import { Button } from './components/ui/button';
 import { AvatarImage, CopyIconButton } from './app-ui';
 import { isReadingDeliberationCurrent, useReadingCardWorkflow } from './app-reading-card-workflow';
@@ -227,6 +242,19 @@ export function ReadingCard({
     });
   }
 
+  function returnToReceiptConfirmation() {
+    actions.returnToConfirmation();
+    if (!article || !onUpdateArticle) return;
+    void onUpdateArticle(article.id, (current) => {
+      const now = new Date().toISOString();
+      return {
+        ...current,
+        readingCard: undefined,
+        updatedAt: now,
+      };
+    });
+  }
+
   if (!article) {
     return (
       <aside className="reading-card">
@@ -255,8 +283,12 @@ export function ReadingCard({
       />
       {displayAiCard && aiCardIsCurrent && !showReceiptTriage ? (
         <ReadingCardReviewAgentStrip
+          readingCard={displayAiCard}
           reviewAgents={reviewAgents}
+          reviewStep={workflowSteps.find((step) => step.id === 'review')}
           selectedReviewAgentIds={selectedReviewAgentIds}
+          onBackToConfirmation={returnToReceiptConfirmation}
+          onReview={actions.reviewAiCard}
           onToggleReviewAgent={actions.toggleReviewAgent}
         />
       ) : null}
@@ -293,6 +325,7 @@ export function ReadingCard({
               retryingReviewerId={retryingReviewerId}
               sourceUpdatedAt={sourceUpdatedAt}
               stats={stats}
+              userJudgment={receiptUserJudgment}
               onOpenEvidence={onOpenEvidence}
               onRetryReviewer={actions.retryReviewAgent}
             />
@@ -516,7 +549,7 @@ function readingReceiptStepDescription(step: ReadingCardWorkflowStep) {
     return '先生成阅读所得';
   }
   if (step.state === 'running') return '审阅助手正在检查证据和表达';
-  if (step.state === 'done') return step.description.replace('已审核', '已检查');
+  if (step.state === 'done') return step.description.replace('已审阅', '已检查');
   if (step.state === 'error') return '检查失败，可重试';
   if (step.description.includes('新痕迹') || step.description.includes('等待重新')) {
     return step.description;
@@ -532,51 +565,158 @@ function readingReceiptStepActionLabel(step: ReadingCardWorkflowStep) {
       : '生成阅读所得';
   }
   if (step.id === 'card') return step.state === 'done' ? '重新打磨' : step.actionLabel;
-  return step.state === 'done' ? '重新检查' : '请审阅席检查';
+  return step.state === 'done' ? '重新审阅' : '请审阅席检查';
 }
 
 export function ReadingCardReviewAgentStrip({
+  readingCard,
   reviewAgents,
+  reviewStep,
   selectedReviewAgentIds,
+  onReview,
+  onBackToConfirmation,
   onToggleReviewAgent,
 }: {
+  readingCard?: ReadingCardRecord;
   reviewAgents: Agent[];
+  reviewStep?: ReadingCardWorkflowStep;
   selectedReviewAgentIds: string[];
+  onReview?: () => void;
+  onBackToConfirmation?: () => void;
   onToggleReviewAgent: (agentId: string) => void;
 }) {
+  const reviewerResults = readingCard?.review?.reviewerResults || [];
+  const findingCount = reviewerResults.reduce((count, result) => count + result.findings.length, 0);
+  const passCount = reviewerResults.filter((result) => result.verdict === 'pass').length;
+  const reviewState = reviewStep?.state || 'waiting';
+  const canRunReview = Boolean(onReview && reviewStep && !reviewStep.disabled);
+
   return (
-    <div className="reading-card-review-agent-strip">
+    <section className={`reading-card-review-agent-strip is-${reviewState}`}>
       <header>
-        <span>审阅席</span>
-        <p>选择稍后检查这份回执的视角</p>
-      </header>
-      {reviewAgents.length > 0 ? (
         <div>
-          {reviewAgents.map((agent) => {
-            const selected = selectedReviewAgentIds.includes(agent.id);
-            return (
-              <button
-                aria-pressed={selected}
-                className={selected ? 'is-selected' : ''}
-                key={agent.id}
-                type="button"
-                onClick={() => onToggleReviewAgent(agent.id)}
-              >
-                <i style={{ background: agent.annotationColor }} />
-                <AvatarImage
-                  value={agent.avatar}
-                  className="size-6"
-                  fallback={agent.nickname.slice(0, 1) || 'AI'}
-                />
-                <strong>{agent.nickname}</strong>
-                {selected ? <Check size={13} /> : null}
-              </button>
-            );
-          })}
+          <span>审阅工作台</span>
+          <h4>把节点 2 的回执草稿交给审阅席</h4>
+          <p>
+            {readingCard
+              ? '当前草稿会作为待审对象，审阅报告会回到这份回执。'
+              : '先完成回执打磨，再进入审阅。'}
+          </p>
+        </div>
+        {readingCard ? (
+          <strong>{readingCardReviewStateLabel(reviewState, Boolean(readingCard.review))}</strong>
+        ) : null}
+      </header>
+      {readingCard ? (
+        <div className="reading-card-review-draft-brief">
+          <FileText size={16} />
+          <div>
+            <span>待审草稿</span>
+            <strong>{readingCard.title}</strong>
+            <p>
+              {readingCard.sections.length} 个段落 · {readingCard.providerName || '任务供应商'} ·{' '}
+              {formatDate(readingCard.updatedAt)}
+            </p>
+          </div>
+          <dl>
+            <div>
+              <dt>审阅席</dt>
+              <dd>
+                {selectedReviewAgentIds.length}/{reviewAgents.length}
+              </dd>
+            </div>
+            <div>
+              <dt>报告</dt>
+              <dd>{reviewerResults.length}</dd>
+            </div>
+            <div>
+              <dt>建议</dt>
+              <dd>{findingCount}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
+      {reviewAgents.length > 0 ? (
+        <div className="reading-card-review-agent-select">
+          <header>
+            <UsersRound size={15} />
+            <div>
+              <strong>审阅席</strong>
+              <p>{selectedReviewAgentIds.length > 0 ? '已选择审阅视角' : '请选择审阅视角'}</p>
+            </div>
+          </header>
+          <div>
+            {reviewAgents.map((agent) => {
+              const selected = selectedReviewAgentIds.includes(agent.id);
+              return (
+                <button
+                  aria-pressed={selected}
+                  className={selected ? 'is-selected' : ''}
+                  key={agent.id}
+                  type="button"
+                  onClick={() => onToggleReviewAgent(agent.id)}
+                >
+                  <i style={{ background: agent.annotationColor }} />
+                  <AvatarImage
+                    value={agent.avatar}
+                    className="size-6"
+                    fallback={agent.nickname.slice(0, 1) || 'AI'}
+                  />
+                  <strong>{agent.nickname}</strong>
+                  {selected ? <Check size={13} /> : null}
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
         <p>请先在助手设置中创建审阅助手。</p>
       )}
-    </div>
+      {onReview ? (
+        <footer>
+          <div>
+            {onBackToConfirmation ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={reviewState === 'running'}
+                onClick={onBackToConfirmation}
+              >
+                <Undo2 size={14} />
+                回到确认所得
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" disabled={!canRunReview} onClick={onReview}>
+              {reviewState === 'running' ? (
+                <LoaderCircle className="reading-card-spin" size={14} />
+              ) : (
+                <Scale size={14} />
+              )}
+              {readingCardReviewActionLabel(reviewState, Boolean(readingCard?.review))}
+            </Button>
+          </div>
+          <p>
+            {reviewerResults.length > 0
+              ? `${passCount}/${reviewerResults.length} 位通过，${findingCount} 条建议。`
+              : '审阅结果会检查证据、归因、读者声音和行动边界。'}
+          </p>
+        </footer>
+      ) : null}
+    </section>
   );
+}
+
+function readingCardReviewStateLabel(state: ReadingCardWorkflowStep['state'], reviewed: boolean) {
+  if (state === 'running') return '审阅中';
+  if (state === 'error') return '可重试';
+  if (reviewed) return '已有报告';
+  if (state === 'active') return '可审阅';
+  return '等待草稿';
+}
+
+function readingCardReviewActionLabel(state: ReadingCardWorkflowStep['state'], reviewed: boolean) {
+  if (state === 'running') return '审阅中';
+  if (reviewed) return '重新审阅';
+  return '开始审阅';
 }

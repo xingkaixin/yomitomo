@@ -108,7 +108,7 @@ function ReadingCardReviewerCard({
         </mark>
         {canRetry ? (
           <button
-            aria-label={`重新审核 ${result.reviewerNickname}`}
+            aria-label={`重新审阅 ${result.reviewerNickname}`}
             className="reading-card-reviewer-retry"
             type="button"
             disabled={retrying}
@@ -119,7 +119,7 @@ function ReadingCardReviewerCard({
             ) : (
               <RefreshCcw size={13} />
             )}
-            {retrying ? '审核中' : '重新审核'}
+            {retrying ? '审阅中' : '重新审阅'}
           </button>
         ) : null}
       </header>

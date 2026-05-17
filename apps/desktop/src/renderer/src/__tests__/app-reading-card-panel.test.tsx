@@ -798,9 +798,66 @@ describe('ReadingCard', () => {
     expect(saved?.readingReceiptState?.confirmation).toBeUndefined();
   });
 
+  it('returns from review to confirmation and discards the card draft', () => {
+    const onUpdateArticle = vi.fn();
+    const currentDeliberation = deliberation();
+    const currentArticle = article({
+      readingDeliberation: currentDeliberation,
+      readingCard: readingCard({ review: reviewWithReferences() }),
+      readingReceiptState: {
+        sourceUpdatedAt: now,
+        dispositions: [{ evidenceId: 'annotation_1', disposition: 'include' }],
+        clarifications: [],
+        confirmation: {
+          userJudgment: '审核代码的价值',
+          deliberationUpdatedAt: currentDeliberation.updatedAt,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      },
+    });
+
+    render(
+      <ReadingCard
+        article={currentArticle}
+        reviewAgents={[reviewAgent()]}
+        onGenerated={vi.fn()}
+        onOpenEvidence={vi.fn()}
+        onUpdateArticle={onUpdateArticle}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '回到确认所得' }));
+
+    expect(screen.getByText('补上这次阅读真正留下的一句话')).toBeTruthy();
+    expect(screen.getByDisplayValue('审核代码的价值')).toBeTruthy();
+    expect(screen.queryByText('待审草稿')).toBeNull();
+    const update = onUpdateArticle.mock.calls.at(-1)?.[1];
+    const saved = update?.(currentArticle);
+    expect(saved?.readingDeliberation).toEqual(currentDeliberation);
+    expect(saved?.readingCard).toBeUndefined();
+    expect(saved?.readingReceiptState?.confirmation?.userJudgment).toBe('审核代码的价值');
+  });
+
   it('starts review with selected review agents', async () => {
     const desktop = installDesktopApi();
     const currentCard = readingCard();
+    const currentDeliberation = deliberation();
+    const currentArticle = article({
+      readingDeliberation: currentDeliberation,
+      readingCard: currentCard,
+      readingReceiptState: {
+        sourceUpdatedAt: now,
+        dispositions: [{ evidenceId: 'annotation_1', disposition: 'include' }],
+        clarifications: [],
+        confirmation: {
+          userJudgment: '审核代码的价值',
+          deliberationUpdatedAt: currentDeliberation.updatedAt,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      },
+    });
     desktop.reviewReadingCard.mockResolvedValue({
       review: reviewWithReferences(),
     });
@@ -808,21 +865,35 @@ describe('ReadingCard', () => {
 
     render(
       <ReadingCard
-        article={article({ readingDeliberation: deliberation(), readingCard: currentCard })}
+        article={currentArticle}
         reviewAgents={[reviewAgent()]}
         onGenerated={onGenerated}
         onOpenEvidence={vi.fn()}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /请审阅席检查/ }));
+    expect(screen.getByText('待审草稿')).toBeTruthy();
+    expect(screen.getByText('我的补充判断')).toBeTruthy();
+    expect(screen.getByText('审核代码的价值')).toBeTruthy();
+    expect(screen.getByText('把节点 2 的回执草稿交给审阅席')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '开始审阅' }));
 
     await waitFor(() => expect(desktop.reviewReadingCard).toHaveBeenCalledTimes(1));
     expect(desktop.reviewReadingCard).toHaveBeenCalledWith(
       expect.objectContaining({
         article: expect.objectContaining({ id: 'article_1' }),
         readingCard: currentCard,
+        readingDeliberation: currentDeliberation,
+        receiptDecisions: [
+          expect.objectContaining({
+            disposition: 'include',
+            evidenceId: 'annotation_1',
+            evidenceIndex: 1,
+          }),
+        ],
         reviewAgentIds: ['agent_1'],
+        userJudgment: '审核代码的价值',
       }),
     );
     expect(onGenerated).toHaveBeenCalledTimes(1);
@@ -917,7 +988,7 @@ describe('ReadingCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '重新审核 审核助手' }));
+    fireEvent.click(screen.getByRole('button', { name: '重新审阅 审核助手' }));
 
     await waitFor(() => expect(desktop.reviewReadingCard).toHaveBeenCalledTimes(1));
     expect(desktop.reviewReadingCard).toHaveBeenCalledWith(

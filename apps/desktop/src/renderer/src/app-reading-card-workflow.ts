@@ -269,6 +269,7 @@ export function useReadingCardWorkflow({
       return;
     }
     const requestArticleId = article.id;
+    const trimmedJudgment = userJudgment.trim();
     setStatus((current) => ({ ...current, review: 'reviewing' }));
     setReviewError('');
     try {
@@ -277,6 +278,9 @@ export function useReadingCardWorkflow({
         articleText,
         evidenceUnits,
         readingCard: workflow.currentAiCard,
+        receiptDecisions,
+        readingDeliberation: deliberation || undefined,
+        userJudgment: trimmedJudgment || undefined,
         reviewAgentIds: selectedReviewAgentIds,
       });
       if (!articleRequestIsCurrent(requestArticleId)) return;
@@ -300,6 +304,7 @@ export function useReadingCardWorkflow({
       return;
     }
     const requestArticleId = article.id;
+    const trimmedJudgment = userJudgment.trim();
     setStatus((current) => ({ ...current, review: 'reviewing' }));
     setRetryingReviewerId(agentId);
     setReviewError('');
@@ -310,6 +315,9 @@ export function useReadingCardWorkflow({
         evidenceUnits,
         readingCard: workflow.currentAiCard,
         previousReview: workflow.currentAiCard.review,
+        receiptDecisions,
+        readingDeliberation: deliberation || undefined,
+        userJudgment: trimmedJudgment || undefined,
         reviewAgentIds: [agentId],
       });
       if (!articleRequestIsCurrent(requestArticleId)) return;
@@ -346,6 +354,18 @@ export function useReadingCardWorkflow({
     });
   }
 
+  function returnToConfirmation() {
+    setAiCard(null);
+    setAiError('');
+    setReviewError('');
+    setRetryingReviewerId(null);
+    setStatus({
+      deliberation: deliberation ? 'done' : 'idle',
+      aiCard: 'idle',
+      review: 'idle',
+    });
+  }
+
   return {
     deliberation,
     currentAiCard: workflow.currentAiCard,
@@ -364,6 +384,7 @@ export function useReadingCardWorkflow({
     actions: {
       generateAiCard,
       generateDeliberation,
+      returnToConfirmation,
       returnToTriage,
       reviewAiCard,
       retryReviewAgent,
@@ -488,19 +509,19 @@ function deriveReviewStep(
   let state: ReadingCardWorkflowStep['state'] = 'waiting';
 
   if (status.review === 'reviewing') {
-    description = '审核助手正在检查';
+    description = '审阅助手正在检查';
     state = 'running';
   } else if (status.review === 'error') {
-    description = '审核失败，可重试';
+    description = '审阅失败，可重试';
     state = 'error';
   } else if (currentAiCard?.review) {
-    description = `已审核 · ${formatDate(currentAiCard.review.updatedAt)}`;
+    description = `已审阅 · ${formatDate(currentAiCard.review.updatedAt)}`;
     state = 'done';
   } else if (aiCard && !currentAiCard) {
     description = '回执有新痕迹，先重新打磨';
     state = 'waiting';
   } else if (currentAiCard && aiCard?.review) {
-    description = '读后笔记已更新，等待重新审核';
+    description = '读后笔记已更新，等待重新审阅';
     state = 'active';
   } else if (currentAiCard) {
     description = selectedReviewAgentIds.length > 0 ? '回执已生成，可检查' : '请选择审阅助手';
@@ -513,7 +534,7 @@ function deriveReviewStep(
     title: '笔记草稿',
     description,
     state,
-    actionLabel: currentAiCard?.review ? '重新审核' : '审核草稿',
+    actionLabel: currentAiCard?.review ? '重新审阅' : '审阅草稿',
     disabled: !currentAiCard || selectedReviewAgentIds.length === 0 || isWorkflowBusy,
   };
 }

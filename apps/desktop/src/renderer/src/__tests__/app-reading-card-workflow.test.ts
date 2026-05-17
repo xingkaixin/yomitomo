@@ -172,7 +172,7 @@ describe('deriveReadingCardWorkflow', () => {
     expect(result.workflowSteps[2]).toMatchObject({
       id: 'review',
       state: 'active',
-      description: '读后笔记已更新，等待重新审核',
+      description: '读后笔记已更新，等待重新审阅',
       disabled: false,
     });
   });
