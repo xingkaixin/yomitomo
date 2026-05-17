@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Annotation, Comment } from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
@@ -30,6 +31,7 @@ vi.mock('./provider-secrets', () => {
 import {
   buildArticleReadingProgressPatch,
   buildAgentRecord,
+  buildArticleChildRows,
   buildProviderRecord,
   mergeSettingsForUpsert,
   resolveProviderApiKeyStorage,
@@ -251,3 +253,68 @@ describe('desktop store reading progress', () => {
     });
   });
 });
+
+describe('desktop store articles', () => {
+  it('builds child rows for multiple annotations and comments', () => {
+    const rows = buildArticleChildRows({
+      id: 'store-batch-article',
+      annotations: [
+        annotationRecord('store-batch-annotation-1', [
+          commentRecord('store-batch-comment-1', '第一条评论。'),
+          commentRecord('store-batch-comment-2', '第二条评论。'),
+        ]),
+        annotationRecord('store-batch-annotation-2', [
+          commentRecord('store-batch-comment-3', '第三条评论。'),
+        ]),
+      ],
+    });
+
+    expect(rows.annotationRows.map((annotation) => annotation.id)).toEqual([
+      'store-batch-annotation-1',
+      'store-batch-annotation-2',
+    ]);
+    expect(rows.annotationRows.map((annotation) => annotation.articleId)).toEqual([
+      'store-batch-article',
+      'store-batch-article',
+    ]);
+    expect(rows.commentRows.map((comment) => comment.id)).toEqual([
+      'store-batch-comment-1',
+      'store-batch-comment-2',
+      'store-batch-comment-3',
+    ]);
+    expect(rows.commentRows.map((comment) => comment.annotationId)).toEqual([
+      'store-batch-annotation-1',
+      'store-batch-annotation-1',
+      'store-batch-annotation-2',
+    ]);
+  });
+});
+
+function annotationRecord(id: string, comments: Comment[]): Annotation {
+  return {
+    id,
+    anchor: {
+      exact: '正文',
+      prefix: '',
+      suffix: '。',
+      start: 0,
+      end: 2,
+    },
+    author: 'user',
+    color: '#f59e0b',
+    userId: 'user-test',
+    comments,
+    createdAt: '2026-05-17T00:00:00.000Z',
+    updatedAt: '2026-05-17T00:00:00.000Z',
+  };
+}
+
+function commentRecord(id: string, content: string): Comment {
+  return {
+    id,
+    author: 'user',
+    content,
+    createdAt: '2026-05-17T00:00:00.000Z',
+    userId: 'user-test',
+  };
+}

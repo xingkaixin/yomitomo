@@ -64,6 +64,7 @@ import {
 export { mergeSettingsForUpsert } from './store-normalizers';
 
 const DB_FILE_NAME = 'yomitomo.sqlite';
+const INSERT_BATCH_SIZE = 32;
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 
@@ -628,8 +629,18 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
     .run();
 
   database.delete(schema.annotations).where(eq(schema.annotations.articleId, article.id)).run();
-  for (const annotation of article.annotations) {
-    writeAnnotationRows(database, article.id, annotation);
+  const { annotationRows, commentRows } = buildArticleChildRows(article);
+  for (let index = 0; index < annotationRows.length; index += INSERT_BATCH_SIZE) {
+    database
+      .insert(schema.annotations)
+      .values(annotationRows.slice(index, index + INSERT_BATCH_SIZE))
+      .run();
+  }
+  for (let index = 0; index < commentRows.length; index += INSERT_BATCH_SIZE) {
+    database
+      .insert(schema.comments)
+      .values(commentRows.slice(index, index + INSERT_BATCH_SIZE))
+      .run();
   }
 }
 
@@ -639,62 +650,64 @@ function writeArticleRowsInTransaction(database: StoreDatabase, article: Article
   });
 }
 
-function writeAnnotationRows(database: StoreExecutor, articleId: string, annotation: Annotation) {
-  database
-    .insert(schema.annotations)
-    .values({
-      id: annotation.id,
-      articleId,
-      anchor: annotation.anchor,
-      author: annotation.author,
-      annotationType: annotation.annotationType,
-      readingIntent: annotation.readingIntent,
-      moveType: annotation.moveType,
-      whyHere: annotation.whyHere,
-      evidenceUsed: annotation.evidenceUsed,
-      confidence: annotation.confidence,
-      shouldShow: annotation.shouldShow,
-      color: annotation.color,
-      agentId: annotation.agentId,
-      agentUsername: annotation.agentUsername,
-      agentNickname: annotation.agentNickname,
-      agentAvatar: annotation.agentAvatar,
-      agentAnnotationColor: annotation.agentAnnotationColor,
-      userId: annotation.userId,
-      userUsername: annotation.userUsername,
-      userNickname: annotation.userNickname,
-      userAvatar: annotation.userAvatar,
-      userAnnotationColor: annotation.userAnnotationColor,
-      createdAt: annotation.createdAt,
-      updatedAt: annotation.updatedAt,
-    })
-    .run();
+export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+  const annotationRows = article.annotations.map((annotation) =>
+    annotationToRow(article.id, annotation),
+  );
+  const commentRows = article.annotations.flatMap(commentRowsForAnnotation);
+  return { annotationRows, commentRows };
+}
 
-  for (const comment of annotation.comments) {
-    database
-      .insert(schema.comments)
-      .values({
-        id: comment.id,
-        annotationId: annotation.id,
-        author: comment.author,
-        content: comment.content,
-        createdAt: comment.createdAt,
-        replyTo: comment.replyTo,
-        agentId: comment.agentId,
-        agentUsername: comment.agentUsername,
-        agentNickname: comment.agentNickname,
-        agentAvatar: comment.agentAvatar,
-        agentAnnotationColor: comment.agentAnnotationColor,
-        readingIntent: comment.readingIntent,
-        userId: comment.userId,
-        userUsername: comment.userUsername,
-        userNickname: comment.userNickname,
-        userAvatar: comment.userAvatar,
-        userAnnotationColor: comment.userAnnotationColor,
-        pending: comment.pending,
-      })
-      .run();
-  }
+function annotationToRow(articleId: string, annotation: Annotation) {
+  return {
+    id: annotation.id,
+    articleId,
+    anchor: annotation.anchor,
+    author: annotation.author,
+    annotationType: annotation.annotationType,
+    readingIntent: annotation.readingIntent,
+    moveType: annotation.moveType,
+    whyHere: annotation.whyHere,
+    evidenceUsed: annotation.evidenceUsed,
+    confidence: annotation.confidence,
+    shouldShow: annotation.shouldShow,
+    color: annotation.color,
+    agentId: annotation.agentId,
+    agentUsername: annotation.agentUsername,
+    agentNickname: annotation.agentNickname,
+    agentAvatar: annotation.agentAvatar,
+    agentAnnotationColor: annotation.agentAnnotationColor,
+    userId: annotation.userId,
+    userUsername: annotation.userUsername,
+    userNickname: annotation.userNickname,
+    userAvatar: annotation.userAvatar,
+    userAnnotationColor: annotation.userAnnotationColor,
+    createdAt: annotation.createdAt,
+    updatedAt: annotation.updatedAt,
+  };
+}
+
+function commentRowsForAnnotation(annotation: Annotation) {
+  return annotation.comments.map((comment) => ({
+    id: comment.id,
+    annotationId: annotation.id,
+    author: comment.author,
+    content: comment.content,
+    createdAt: comment.createdAt,
+    replyTo: comment.replyTo,
+    agentId: comment.agentId,
+    agentUsername: comment.agentUsername,
+    agentNickname: comment.agentNickname,
+    agentAvatar: comment.agentAvatar,
+    agentAnnotationColor: comment.agentAnnotationColor,
+    readingIntent: comment.readingIntent,
+    userId: comment.userId,
+    userUsername: comment.userUsername,
+    userNickname: comment.userNickname,
+    userAvatar: comment.userAvatar,
+    userAnnotationColor: comment.userAnnotationColor,
+    pending: comment.pending,
+  }));
 }
 
 function upsertUser(database: StoreExecutor, user: UserProfile) {

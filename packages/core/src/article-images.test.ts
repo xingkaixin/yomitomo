@@ -47,6 +47,31 @@ describe('inlineArticleImages', () => {
     expect(article.content).not.toContain('data-src=');
     expect(fetcher).toHaveBeenCalledWith('https://example.com/images/lazy.jpg');
   });
+
+  it('inlines content images with bounded concurrency', async () => {
+    let activeFetches = 0;
+    let maxActiveFetches = 0;
+    const fetcher = vi.fn(async (url: string) => {
+      activeFetches += 1;
+      maxActiveFetches = Math.max(maxActiveFetches, activeFetches);
+      await Promise.resolve();
+      activeFetches -= 1;
+      return `data:image/png;base64,${url.split('/').pop()?.replace('.jpg', '')}`;
+    });
+    const content = Array.from(
+      { length: 5 },
+      (_, index) => `<img src="/images/inline-${index}.jpg">`,
+    ).join('');
+
+    const article = await inlineArticleImages(
+      articleRecord({ content, leadImageUrl: undefined, siteIconUrl: undefined }),
+      { articleDocument: document, fetcher },
+    );
+
+    expect(maxActiveFetches).toBe(4);
+    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(article.content).toContain('src="data:image/png;base64,inline-4"');
+  });
 });
 
 function articleRecord(overrides: Partial<ExtractedArticle> = {}): ExtractedArticle {

@@ -171,4 +171,129 @@ describe('articleRecordFromEpubFile', () => {
     expect(article.ebook?.chapters[0]?.title).toBe('宽松章节');
     expect(article.contentHtml).toContain('真实 EPUB 正文');
   });
+
+  it('extracts sanitized paragraphs from nested chapter blocks', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'META-INF/container.xml',
+      `<?xml version="1.0"?>
+      <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+        <rootfiles>
+          <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
+        </rootfiles>
+      </container>`,
+    );
+    zip.file(
+      'OPS/package.opf',
+      `<?xml version="1.0"?>
+      <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>复杂段落电子书</dc:title>
+        </metadata>
+        <manifest>
+          <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="c1"/>
+        </spine>
+      </package>`,
+    );
+    zip.file(
+      'OPS/chapter.xhtml',
+      `<html><body>
+        <h1>复杂章节</h1>
+        <div><p>嵌套第一段。</p></div>
+        <blockquote><p>引用段落。</p></blockquote>
+        <table><tbody><tr><th>表头。</th><td>表格内容。</td></tr></tbody></table>
+        <script>隐藏文本。</script>
+      </body></html>`,
+    );
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const data = arrayBufferFromBuffer(buffer);
+    const article = await articleRecordFromEpubFile({
+      fileName: 'nested.epub',
+      mimeType: 'application/epub+zip',
+      data,
+    });
+
+    expect(article.ebook?.index?.paragraphs.map((paragraph) => paragraph.previewStart)).toEqual([
+      '复杂章节',
+      '嵌套第一段。',
+      '引用段落。',
+      '表头。',
+      '表格内容。',
+    ]);
+    expect(article.contentHtml).not.toContain('隐藏文本');
+  });
+
+  it('inlines html and svg chapter images', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'META-INF/container.xml',
+      `<?xml version="1.0"?>
+      <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+        <rootfiles>
+          <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
+        </rootfiles>
+      </container>`,
+    );
+    zip.file(
+      'OPS/package.opf',
+      `<?xml version="1.0"?>
+      <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>图片电子书</dc:title>
+        </metadata>
+        <manifest>
+          <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+          <item id="photo" href="images/photo.png" media-type="image/png"/>
+          <item id="vector" href="images/vector.svg" media-type="image/svg+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="c1"/>
+        </spine>
+      </package>`,
+    );
+    zip.file(
+      'OPS/chapter.xhtml',
+      `<html><body>
+        <p>带图片的正文。</p>
+        <img src="images/photo.png" srcset="images/photo@2x.png 2x">
+        <svg xmlns="http://www.w3.org/2000/svg"><image href="images/vector.svg"/></svg>
+      </body></html>`,
+    );
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+    zip.file('OPS/images/photo.png', Buffer.from([1, 2, 3]));
+    zip.file('OPS/images/vector.svg', svg);
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const data = arrayBufferFromBuffer(buffer);
+    const events: { event: string; data?: Record<string, unknown> }[] = [];
+    const article = await articleRecordFromEpubFile(
+      {
+        fileName: 'images.epub',
+        mimeType: 'application/epub+zip',
+        data,
+      },
+      {
+        performanceLogger: (event, eventData) => events.push({ event, data: eventData }),
+      },
+    );
+
+    expect(article.contentHtml).toContain('src="data:image/png;base64,AQID"');
+    expect(article.contentHtml).toContain(
+      `href="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}"`,
+    );
+    expect(article.contentHtml).not.toContain('srcset=');
+    expect(
+      events.find(
+        (entry) =>
+          entry.event === 'performance.epub_import.chapter' && entry.data?.result === 'imported',
+      )?.data,
+    ).toMatchObject({
+      imageElementCount: 2,
+      inlinedImageCount: 2,
+    });
+  });
 });

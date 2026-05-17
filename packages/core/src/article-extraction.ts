@@ -341,6 +341,10 @@ export function sanitizeArticleContentHtml(
   html: string,
   baseUrl: string,
 ) {
+  return sanitizeArticleContent(articleDocument, html, baseUrl).html;
+}
+
+export function sanitizeArticleContent(articleDocument: Document, html: string, baseUrl: string) {
   const purifyWindow = articleDocument.defaultView;
   const purifier = purifyWindow ? DOMPurify(purifyWindow) : DOMPurify;
   const sanitized = purifier.sanitize(html, {
@@ -358,10 +362,14 @@ export function sanitizeArticleContentHtml(
     ],
     ADD_ATTR: ['display', 'xmlns', 'encoding'],
   });
-  return normalizeReaderHtml(articleDocument, sanitized, baseUrl);
+  const container = normalizeReaderContent(articleDocument, sanitized, baseUrl);
+  return {
+    html: container.innerHTML,
+    container,
+  };
 }
 
-function normalizeReaderHtml(articleDocument: Document, html: string, baseUrl: string) {
+function normalizeReaderContent(articleDocument: Document, html: string, baseUrl: string) {
   const container = articleDocument.createElement('div');
   container.innerHTML = html;
   container.querySelectorAll('script, style, link').forEach((element) => element.remove());
@@ -374,7 +382,7 @@ function normalizeReaderHtml(articleDocument: Document, html: string, baseUrl: s
       element.replaceWith(...Array.from(element.childNodes));
     }
   });
-  return container.innerHTML;
+  return container;
 }
 
 function normalizeReaderElementUrls(element: HTMLElement, baseUrl: string) {
