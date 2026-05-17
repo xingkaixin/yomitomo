@@ -32,6 +32,9 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 - P0-1 已完成：reading progress IPC 已改为返回 `ArticleReadingProgressPatch`，主进程保存阅读进度后不再 `readStore()`，也不再广播完整 `store:updated`。
 - P0-1 的 debounce/coalesce 未做：本次根因是全量 store 读取和完整 store apply；debounce 只降频，不是必要根因修复，保留为后续观察项。
 - P0-2 已完成：EPUB 高亮盒更新改为通过 `createEbookAnchorResolver` 在单次 box update 内懒构建并复用 normalized DOM text index，避免按批注数重复遍历 iframe document body。
+- P1-3 已完成：AI 批注候选匹配在存在 `allowedTextStart`/`allowedTextEnd` 时先裁剪到允许文本范围，再把局部匹配 offset 映射回全文；exact、whitespace-insensitive 和 whitespace-agnostic 三条路径都不再先扫全文。
+- P1-4 已完成：高亮分行改为维护活动行窗口和行均值统计；行内分段改为 sweep-line 事件扫描，避免每个文本 span 都重新过滤整行 box。
+- P1-5 已完成：批注 rail stack 分组改为按 anchor 区间排序后单趟合并重叠连通组，不再对每个 positioned item 扫描已有 groups。
 - 相关 EPUB 页内批注问题已修复：
   - Foliate paginator 会把 iframe 扩成整章多页宽度，当前页 box 裁剪已改为 Foliate 可视 viewport，避免后一页批注误进入当前页 rail。
   - 当前页右侧批注卡片点击已改为只选中可见批注，不再重复 `goToAnnotation`，避免 Foliate 重新定位造成页面跳动。
@@ -159,6 +162,10 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
   - `pnpm --filter @yomitomo/core test -- annotations`
   - 增加 allowed range + whitespace normalized + 重复 exact 的测试。
   - `pnpm --filter @yomitomo/ai test -- segment-annotation-context segment-annotation-runner`
+- 实施记录（2026-05-17）：
+  - 新增 AI 批注搜索 scope：有文本范围约束时只搜索 `articleText.slice(allowedTextStart, allowedTextEnd)`，匹配结果统一加回全文 offset。
+  - exact、whitespace-insensitive 和 whitespace-agnostic 匹配共享同一个 scope；EPUB segment/paragraph allowlist 仍在全局 offset 上继续过滤。
+  - `annotations` 测试新增重复文本和 whitespace-normalized 用例，断言性能日志中的候选匹配数只来自允许范围。
 
 #### 4. 高亮分段在重叠批注多时可能退化为二次扫描
 
@@ -182,6 +189,10 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 - 验证：
   - `pnpm --filter @yomitomo/core test -- reader-dom`
   - 增加多行、多 contributor、完全重叠、部分重叠的 snapshot 或结构断言。
+- 实施记录（2026-05-17）：
+  - `groupHighlightBoxesByLine` 改为维护 `HighlightLineGroup` 的 `topSum`/`heightSum`，并基于按 `top/left` 排序的输入只扫描仍可能匹配的活动行。
+  - `buildHighlightSegments` 的行内分段抽为 sweep-line：按 left/right edge 更新 active contributors，生成相邻 span，并保留原有 annotation/color 顺序和相邻同样式 segment 合并。
+  - `reader-dom` 测试新增 staggered overlaps + 多行断言，覆盖 contributor 顺序和跨行隔离。
 
 #### 5. 批注 rail 分组按已有 groups 反复扫描
 
@@ -205,6 +216,10 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 - 验证：
   - `pnpm --filter @yomitomo/reader-ui test -- reader-utils use-reader-annotation-rail`
   - `pnpm --filter @yomitomo/desktop test -- app-reading-library`
+- 实施记录（2026-05-17）：
+  - `buildAnnotationRailItems` 的 stack 分组抽为 `buildAnnotationRailGroups`，按 `anchor.start/end` 排序后维护当前 overlap group 的最大 `end`。
+  - 分组语义从 rail top 驱动收敛为正文 anchor 区间的重叠连通组；每组内部仍按 `top/index` 排序，保持可见 stack 顺序。
+  - `reader-utils` 测试新增 bridge overlap 用例，覆盖后到的中间批注能把两侧重叠批注放入同一 stack，同时不影响独立批注。
 
 ### P2（导入与常数因子优化）
 
