@@ -85,7 +85,7 @@ function playbackOptions(target = annotation()) {
     document,
     cursorAgent: agent,
     isCurrentArticle: vi.fn(() => true),
-    appendAgentAnnotationToArticle: vi.fn(async () => undefined),
+    appendAgentAnnotationToArticle: vi.fn(async () => target.id),
     goToAnnotation: vi.fn(async () => true),
     finishEbookVirtualReading: vi.fn(),
     stopEbookVirtualReadingTimer: vi.fn(),

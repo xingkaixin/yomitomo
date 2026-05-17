@@ -3,7 +3,6 @@ import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOption
 import type {
   Agent,
   AgentAnnotatePayload,
-  AgentMentionInstructionPayload,
   AgentMessagePayload,
   AnnotationMetadataPayload,
   AppSettings,
@@ -18,7 +17,6 @@ import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
   inferAnnotationMetadata,
   listProviderModels,
-  planAgentMentionInstructions,
   planFocusCoReadingRoute,
   runAgent,
   runAgentAnnotateStream,
@@ -261,14 +259,6 @@ function registerIpc() {
     const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return inferAnnotationMetadata(provider, payload);
   });
-  ipcMain.handle(
-    'agent:mention-instructions',
-    async (_event, payload: AgentMentionInstructionPayload) => {
-      const store = await readStore();
-      const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
-      return planAgentMentionInstructions(provider, payload);
-    },
-  );
   ipcMain.handle('focus-co-reading:route', async (_event, payload: FocusCoReadingRoutePayload) => {
     const store = await readStore();
     const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
@@ -295,6 +285,7 @@ function registerIpc() {
     return {
       ...comment,
       id: makeId('comment'),
+      replyTo: payload.userComment.replyTo || payload.userComment.id,
       readingIntent: payload.readingIntent || comment.readingIntent,
     } satisfies Comment;
   });
@@ -315,7 +306,7 @@ function registerIpc() {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
+        if (!agent) throw new Error(`找不到阅读助手：@${input.payload.agentUsername}`);
         const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
         const comment: Comment = {
           id: makeId('comment'),
@@ -327,6 +318,7 @@ function registerIpc() {
           agentNickname: agent.nickname,
           agentAvatar: agent.avatar,
           agentAnnotationColor: agent.annotationColor,
+          replyTo: input.payload.userComment.replyTo || input.payload.userComment.id,
           readingIntent: input.payload.readingIntent,
           pending: true,
         };
@@ -401,7 +393,7 @@ function registerIpc() {
       } catch (error) {
         event.sender.send(channel, {
           type: 'error',
-          message: error instanceof Error ? error.message : '助手批注失败',
+          message: error instanceof Error ? error.message : '助手添加想法失败',
         });
       }
     },

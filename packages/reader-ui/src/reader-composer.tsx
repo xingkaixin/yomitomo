@@ -124,15 +124,15 @@ export function Composer({
     <div className="reader-composer" style={{ left: composer.x, top: composer.y }}>
       <header className="reader-composer-header">
         <div className="reader-composer-title-row">
-          <strong>批注</strong>
+          <strong>记录想法</strong>
         </div>
       </header>
       <div className="reader-composer-editor">
         <textarea
-          aria-label="批注内容"
+          aria-label="想法内容"
           autoFocus
           ref={textareaRef}
-          placeholder={canMentionAgents ? '写下批注，或 @ 助手给出指导…' : '写下你的批注…'}
+          placeholder={canMentionAgents ? '写下你的想法，或 @助手一起看这段…' : '写下你的想法…'}
           value={note}
           onChange={(event) => {
             setNote(event.currentTarget.value);

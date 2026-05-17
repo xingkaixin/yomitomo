@@ -16,7 +16,7 @@ type PlayEbookAgentAnnotationPlaybackOptions = {
   document: Document | null;
   cursorAgent: PublicAgent | undefined;
   isCurrentArticle: (articleId: string) => boolean;
-  appendAgentAnnotationToArticle: (articleId: string, annotation: Annotation) => Promise<void>;
+  appendAgentAnnotationToArticle: (articleId: string, annotation: Annotation) => Promise<string>;
   goToAnnotation: (annotationId: string) => Promise<boolean>;
   finishEbookVirtualReading: (agentId: string) => void;
   stopEbookVirtualReadingTimer: (agentId: string) => void;
@@ -133,8 +133,8 @@ async function saveEbookAnnotationFallback({
   finishEbookVirtualReading: (agentId: string) => void;
   revealMissingRange?: boolean;
 }) {
-  await appendAgentAnnotationToArticle(articleId, annotation);
-  if (revealMissingRange) void goToAnnotation(annotation.id);
+  const activeId = await appendAgentAnnotationToArticle(articleId, annotation);
+  if (revealMissingRange) void goToAnnotation(activeId);
   finishEbookVirtualReading(cursorId);
 }
 
@@ -171,13 +171,13 @@ async function playOffscreenEbookAnnotation({
     visible: true,
     x: surfaceRect.left + surfaceRect.width / 2,
     y: offscreen === 'above' ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-    label: `${ebookAnnotationAgentName(annotation)} 正在${offscreen === 'above' ? '上方' : '下方'}批注`,
+    label: `${ebookAnnotationAgentName(annotation)} 正在${offscreen === 'above' ? '上方' : '下方'}添加想法`,
     offscreen,
     agent: cursorAgent,
   });
   await sleep(700);
-  await appendAgentAnnotationToArticle(articleId, annotation);
-  if (revealMissingRange) void goToAnnotation(annotation.id);
+  const activeId = await appendAgentAnnotationToArticle(articleId, annotation);
+  if (revealMissingRange) void goToAnnotation(activeId);
   finishEbookVirtualReading(cursorId);
 }
 
@@ -212,7 +212,7 @@ async function playVisibleEbookAnnotation({
   lastRect: DOMRect;
   range: Range;
 }) {
-  const label = `${ebookAnnotationAgentName(annotation)} 正在批注`;
+  const label = `${ebookAnnotationAgentName(annotation)} 正在添加想法`;
   stopEbookVirtualReadingTimer(cursorId);
   updateEbookVirtualCursor(cursorId, {
     id: cursorId,
@@ -253,7 +253,7 @@ async function playVisibleEbookAnnotation({
     visible: true,
     x: lastRect.right,
     y: lastRect.top + lastRect.height / 2,
-    label: `${ebookAnnotationAgentName(annotation)} 批注完成`,
+    label: `${ebookAnnotationAgentName(annotation)} 想法已添加`,
     offscreen: null,
     agent: cursorAgent,
   });

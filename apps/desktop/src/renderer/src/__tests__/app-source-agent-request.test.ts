@@ -7,7 +7,6 @@ import type {
 } from '@yomitomo/shared';
 import {
   buildAgentAnnotationRequestInput,
-  resolveSourceAgentMentionInstructions,
   runSourceAgentAnnotationRequest,
 } from '../app-source-agent-request';
 import type { PromptArticle } from '../app-reading-types';
@@ -125,55 +124,6 @@ describe('buildAgentAnnotationRequestInput', () => {
     expect(input.payload.annotations).toBeUndefined();
     expect(input.payload.readingPlan).toBeUndefined();
     expect(input.payload.readingMemory).toBeUndefined();
-  });
-});
-
-describe('resolveSourceAgentMentionInstructions', () => {
-  it('maps planner output back to the mentioned agents', async () => {
-    const lin = agent();
-    const zhi = agent({ id: 'agent_zhi', username: 'zhi', nickname: 'zhi' });
-    const planAgentMentionInstructions = vi.fn().mockResolvedValue([
-      {
-        agentUsername: 'lin',
-        instruction: '解释这句话',
-        readingIntent: 'explain',
-      },
-      {
-        agentId: 'agent_zhi',
-        instruction: '提出反例',
-        readingIntent: 'challenge',
-      },
-    ]);
-
-    await expect(
-      resolveSourceAgentMentionInstructions({
-        desktop: { planAgentMentionInstructions },
-        article,
-        targetAnchor: anchor,
-        agents: [lin, zhi],
-        note: '@lin @zhi 看这里',
-      }),
-    ).resolves.toEqual([
-      { agent: lin, instruction: '解释这句话', readingIntent: 'explain' },
-      { agent: zhi, instruction: '提出反例', readingIntent: 'challenge' },
-    ]);
-  });
-
-  it('falls back to the common instruction when planning fails', async () => {
-    const onStatus = vi.fn();
-    const planAgentMentionInstructions = vi.fn().mockRejectedValue(new Error('provider failed'));
-
-    await expect(
-      resolveSourceAgentMentionInstructions({
-        desktop: { planAgentMentionInstructions },
-        article,
-        targetAnchor: anchor,
-        agents: [agent()],
-        note: '@lin 解释这里',
-        onStatus,
-      }),
-    ).resolves.toEqual([{ agent: agent(), instruction: '解释这里', readingIntent: undefined }]);
-    expect(onStatus).toHaveBeenLastCalledWith('provider failed', { clearAfterMs: 1800 });
   });
 });
 

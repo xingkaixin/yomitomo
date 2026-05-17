@@ -13,6 +13,7 @@ import {
   commentPersona,
   createAgentAnnotation,
   createUserAnnotation,
+  deleteAnnotationComment,
   findMentionedAgents,
   getMentionQuery,
   parseAnnotationSuggestions,
@@ -326,6 +327,33 @@ describe('annotation core', () => {
     expect(annotationPrimaryComment(withReply)?.content).toBe('批注正文');
     expect(annotationThreadComments(withReply)).toEqual([reply]);
     expect(annotationThreadComments({ ...base, comments: [reply] })).toEqual([reply]);
+  });
+
+  it('deletes a comment with its replies while keeping the annotation', () => {
+    const root = comment('root');
+    const reply = { ...comment('reply'), replyTo: 'root' };
+    const other = comment('other');
+    const targetAnnotation = createUserAnnotation(
+      {
+        exact: 'first principles',
+        prefix: '',
+        suffix: '',
+        start: 0,
+        end: 16,
+      },
+      user,
+      '',
+    );
+
+    const result = deleteAnnotationComment(
+      [{ ...targetAnnotation, id: 'annotation', comments: [root, reply, other] }],
+      'annotation',
+      'root',
+      '2026-01-02T00:02:00.000Z',
+    );
+
+    expect(result?.[0]?.comments).toEqual([other]);
+    expect(result?.[0]?.updatedAt).toBe('2026-01-02T00:02:00.000Z');
   });
 
   it('finds mentioned agents by username once', () => {

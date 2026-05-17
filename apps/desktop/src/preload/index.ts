@@ -3,8 +3,6 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
-  AgentMentionInstruction,
-  AgentMentionInstructionPayload,
   AgentMessagePayload,
   AnnotationMetadata,
   AnnotationMetadataPayload,
@@ -65,8 +63,6 @@ const api = {
     ipcRenderer.invoke('provider:list-models', provider) as Promise<ProviderModel[]>,
   inferAnnotationMetadata: (payload: AnnotationMetadataPayload) =>
     ipcRenderer.invoke('annotation:metadata', payload) as Promise<AnnotationMetadata>,
-  planAgentMentionInstructions: (payload: AgentMentionInstructionPayload) =>
-    ipcRenderer.invoke('agent:mention-instructions', payload) as Promise<AgentMentionInstruction[]>,
   planFocusCoReadingRoute: (payload: FocusCoReadingRoutePayload) =>
     ipcRenderer.invoke('focus-co-reading:route', payload) as Promise<FocusCoReadingRouteResult>,
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,

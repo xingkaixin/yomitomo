@@ -34,6 +34,67 @@ type PlaybackRects = {
   lastRect: DOMRect;
 };
 
+export type MergedAgentAnnotationResult = {
+  activeId: string;
+  annotations: Annotation[];
+};
+
+export function mergeAgentAnnotationAsThought(
+  annotations: Annotation[],
+  annotation: Annotation,
+): MergedAgentAnnotationResult {
+  const sameAnnotation = annotations.find((item) => item.id === annotation.id);
+  if (sameAnnotation) {
+    return { activeId: sameAnnotation.id, annotations };
+  }
+
+  const exactKey = annotationExactKey(annotation);
+  const existing = exactKey
+    ? annotations.find((item) => item.id !== annotation.id && annotationExactKey(item) === exactKey)
+    : null;
+
+  if (!existing) {
+    return { activeId: annotation.id, annotations: [...annotations, annotation] };
+  }
+
+  const existingCommentIds = new Set(existing.comments.map((comment) => comment.id));
+  const commentsToAppend: Annotation['comments'] = [];
+  for (const comment of annotation.comments) {
+    if (!comment.content.trim() || existingCommentIds.has(comment.id)) continue;
+    commentsToAppend.push(Object.assign({}, comment, { replyTo: undefined }));
+  }
+
+  if (commentsToAppend.length === 0) {
+    return { activeId: existing.id, annotations };
+  }
+
+  const nextAnnotations = annotations.map((item) =>
+    item.id === existing.id
+      ? {
+          ...item,
+          comments: [...item.comments, ...commentsToAppend],
+          updatedAt:
+            annotation.updatedAt || commentsToAppend.at(-1)?.createdAt || new Date().toISOString(),
+        }
+      : item,
+  );
+
+  return { activeId: existing.id, annotations: nextAnnotations };
+}
+
+export async function saveAgentAnnotationAsThought({
+  annotation,
+  annotationsRef,
+  saveAnnotations,
+}: Pick<
+  AgentAnnotationPlaybackOptions,
+  'annotation' | 'annotationsRef' | 'saveAnnotations'
+>): Promise<string> {
+  const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
+  await saveAnnotations(result.annotations);
+  return result.activeId;
+}
+
 export async function playAgentAnnotationPlayback({
   annotation,
   articleRef,
@@ -54,20 +115,20 @@ export async function playAgentAnnotationPlayback({
   const elements = playbackElements(articleRef, canvasRef, surfaceRef);
   if (!elements) {
     readerLog('agent.play.no_surface', { annotationId: annotation.id });
-    await saveAnnotations([...annotationsRef.current, annotation]);
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
     return;
   }
 
   const range = playbackRange(elements.article, annotation, readerLog);
   if (!range) {
-    await saveAnnotations([...annotationsRef.current, annotation]);
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
     return;
   }
 
   const rects = playbackRects(range);
   if (!rects) {
     readerLog('agent.play.range_empty', { annotationId: annotation.id });
-    await saveAnnotations([...annotationsRef.current, annotation]);
+    await saveAgentAnnotationAsThought({ annotation, annotationsRef, saveAnnotations });
     return;
   }
 
@@ -151,6 +212,10 @@ function isRectVisibleInSurface(rect: DOMRect, surfaceRect: DOMRect) {
   return rect.bottom >= surfaceRect.top && rect.top <= surfaceRect.bottom;
 }
 
+function annotationExactKey(annotation: Annotation) {
+  return annotation.anchor.exact.trim().replace(/\s+/g, ' ');
+}
+
 async function playOffscreenAnnotation({
   annotation,
   annotationsRef,
@@ -184,13 +249,17 @@ async function playOffscreenAnnotation({
     visible: true,
     x: surfaceRect.left + surfaceRect.width / 2,
     y: offscreen === 'above' ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-    label: `${annotationAgentName(annotation)} 正在${offscreen === 'above' ? '上方' : '下方'}批注`,
+    label: `${annotationAgentName(annotation)} 正在${offscreen === 'above' ? '上方' : '下方'}添加想法`,
     offscreen,
     agent: cursorAgent,
   });
   await sleep(700);
-  await saveAnnotations([...annotationsRef.current, annotation]);
-  setActiveId(annotation.id);
+  const activeId = await saveAgentAnnotationAsThought({
+    annotation,
+    annotationsRef,
+    saveAnnotations,
+  });
+  setActiveId(activeId);
   if (getVirtualReadingMode(cursorId) === 'target') finishVirtualReading(cursorId);
 }
 
@@ -230,7 +299,7 @@ async function playVisibleAnnotation({
   range: Range;
 }) {
   const cursor = getVirtualCursor(cursorId);
-  const label = `${annotationAgentName(annotation)} 正在批注`;
+  const label = `${annotationAgentName(annotation)} 正在添加想法`;
   if (getVirtualReadingMode(cursorId) === 'target' && cursor) {
     updateVirtualCursor(cursorId, {
       ...cursor,
@@ -274,8 +343,12 @@ async function playVisibleAnnotation({
     setAgentTheaterBoxes(nextBoxes);
   });
 
-  await saveAnnotations([...annotationsRef.current, annotation]);
-  setActiveId(annotation.id);
+  const activeId = await saveAgentAnnotationAsThought({
+    annotation,
+    annotationsRef,
+    saveAnnotations,
+  });
+  setActiveId(activeId);
   setAgentTheaterBoxes([]);
   const currentMode = getVirtualReadingMode(cursorId);
   if (currentMode === 'target') {
@@ -287,7 +360,7 @@ async function playVisibleAnnotation({
     visible: true,
     x: lastRect.right,
     y: lastRect.top + lastRect.height / 2,
-    label: `${annotationAgentName(annotation)} ${currentMode ? '继续阅读' : '批注完成'}`,
+    label: `${annotationAgentName(annotation)} ${currentMode ? '继续阅读' : '想法已添加'}`,
     offscreen: null,
     agent: cursorAgent,
   });

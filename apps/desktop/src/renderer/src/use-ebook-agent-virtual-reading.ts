@@ -167,7 +167,7 @@ export function useEbookAgentVirtualReading({
   );
 
   const finishVirtualReading = useCallback(
-    (agentId: string, suffix = '批注完成') => {
+    (agentId: string, suffix = '想法已添加') => {
       stopVirtualReadingTimer(agentId);
       const current = virtualCursorRef.current.get(agentId);
       if (!current) return;

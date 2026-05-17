@@ -91,13 +91,14 @@ export type ReaderAppViewProps = {
   tocItems: TocItem[];
   userProfile: UserProfile;
   virtualCursors: VirtualCursorState[];
-  onAddComment: (annotationId: string, content: string) => void | Promise<void>;
+  onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
   onCancelAgentAnnotateMenu: () => void;
   onCancelComposer: () => void;
   onClose: () => void;
   onClearActiveAnnotation: () => void;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
+  onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
   onAnnotationLayoutChange?: () => void;
   onResolveAnnotationNavigation?: (

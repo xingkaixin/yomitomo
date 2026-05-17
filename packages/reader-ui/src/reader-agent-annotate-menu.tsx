@@ -409,7 +409,7 @@ export function AgentAnnotateMenu({
       <header className="reader-plan-header">
         <div>
           <strong>聚焦共读</strong>
-          <span>按章节规划助手参与和读者留言，再一起进入批注流</span>
+          <span>按章节规划助手参与和读者留言，再一起进入想法流</span>
         </div>
         <p>
           <b>{assignedAgentCount}</b> 助手 · <b>{plannedSectionCount}</b> 章节

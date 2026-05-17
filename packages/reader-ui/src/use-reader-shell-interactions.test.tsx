@@ -33,7 +33,6 @@ function ShellProbe({
   activeId = null,
   agentAnnotateOpen = false,
   composer = null,
-  filteredAnnotationCount = 1,
   settingsOpen = false,
   visibleAnnotationIds = new Set<string>(),
   onCancelComposer = vi.fn(),
@@ -49,7 +48,6 @@ function ShellProbe({
     activeId,
     agentAnnotateOpen,
     composer,
-    filteredAnnotationCount,
     highlightChoice,
     selectionAction,
     selectionActionShortcuts: { copy: 'x', annotate: 'b' },
@@ -67,27 +65,12 @@ function ShellProbe({
 
   return (
     <div onPointerDownCapture={shell.handleReaderPointerDownCapture}>
-      <output data-testid="filter-open">{String(shell.annotationFilterOpen)}</output>
-      <button type="button" onClick={shell.toggleAnnotationFilter}>
-        filter
-      </button>
       <div data-testid="outside">outside</div>
     </div>
   );
 }
 
 describe('useReaderShellInteractions', () => {
-  it('closes the annotation filter with Escape', () => {
-    render(<ShellProbe />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'filter' }));
-    expect(screen.getByTestId('filter-open').textContent).toBe('true');
-
-    fireEvent.keyDown(window, { key: 'Escape' });
-
-    expect(screen.getByTestId('filter-open').textContent).toBe('false');
-  });
-
   it('closes floating state and active annotation on outside pointer down', () => {
     const onClearActiveAnnotation = vi.fn();
     const onCloseFloatingPanels = vi.fn();
