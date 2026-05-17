@@ -676,19 +676,39 @@ export function mappedFoliateRangeRects(range: Range, canvasRect: DOMRect) {
   if (!(frame instanceof HTMLIFrameElement)) return [];
 
   const frameRect = frame.getBoundingClientRect();
+  const viewportRect = foliateFrameViewportRect(frame, canvasRect);
+  if (!viewportRect) return [];
+
   return Array.from(range.getClientRects()).flatMap((rect) => {
     const left = frameRect.left + rect.left;
     const top = frameRect.top + rect.top;
     const right = left + rect.width;
     const bottom = top + rect.height;
-    const visibleLeft = Math.max(left, frameRect.left, canvasRect.left);
-    const visibleTop = Math.max(top, frameRect.top, canvasRect.top);
-    const visibleRight = Math.min(right, frameRect.right, canvasRect.right);
-    const visibleBottom = Math.min(bottom, frameRect.bottom, canvasRect.bottom);
+    const visibleLeft = Math.max(left, viewportRect.left);
+    const visibleTop = Math.max(top, viewportRect.top);
+    const visibleRight = Math.min(right, viewportRect.right);
+    const visibleBottom = Math.min(bottom, viewportRect.bottom);
     const width = visibleRight - visibleLeft;
     const height = visibleBottom - visibleTop;
     return width >= 2 && height >= 2 ? [new DOMRect(visibleLeft, visibleTop, width, height)] : [];
   });
+}
+
+function foliateFrameViewportRect(frame: HTMLIFrameElement, canvasRect: DOMRect) {
+  const root = frame.getRootNode();
+  const host = typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot ? root.host : null;
+  const hostRect = host instanceof HTMLElement ? host.getBoundingClientRect() : null;
+  return intersectRects(frame.getBoundingClientRect(), hostRect || canvasRect, canvasRect);
+}
+
+function intersectRects(...rects: DOMRect[]): DOMRect | null {
+  const left = Math.max(...rects.map((rect) => rect.left));
+  const top = Math.max(...rects.map((rect) => rect.top));
+  const right = Math.min(...rects.map((rect) => rect.right));
+  const bottom = Math.min(...rects.map((rect) => rect.bottom));
+  const width = right - left;
+  const height = bottom - top;
+  return width > 0 && height > 0 ? new DOMRect(left, top, width, height) : null;
 }
 
 export function normalizeRenderedText(value: string) {

@@ -28,6 +28,7 @@ vi.mock('./provider-secrets', () => {
 });
 
 import {
+  buildArticleReadingProgressPatch,
   buildAgentRecord,
   buildProviderRecord,
   mergeSettingsForUpsert,
@@ -228,6 +229,25 @@ describe('desktop store agents', () => {
       enabled: false,
       annotationDensity: 'low',
       temperature: 0.25,
+    });
+  });
+});
+
+describe('desktop store reading progress', () => {
+  it('builds only the article progress patch', () => {
+    const readingProgress = {
+      pageIndex: 3,
+      pageCount: 12,
+      chapterIndex: 1,
+      chapterProgress: 0.25,
+      progress: 0.31,
+      updatedAt: '2026-05-17T08:00:00.000Z',
+    };
+
+    expect(buildArticleReadingProgressPatch('article_progress', readingProgress)).toEqual({
+      articleId: 'article_progress',
+      readingProgress,
+      updatedAt: readingProgress.updatedAt,
     });
   });
 });

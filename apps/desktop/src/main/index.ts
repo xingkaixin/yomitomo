@@ -163,9 +163,7 @@ function registerIpc() {
   ipcMain.handle(
     'article:reading-progress',
     async (_event, input: { articleId: string; progress: ArticleReadingProgress }) => {
-      const store = await saveArticleReadingProgress(input.articleId, input.progress);
-      sendStoreUpdated(store);
-      return store;
+      return saveArticleReadingProgress(input.articleId, input.progress);
     },
   );
   ipcMain.handle('article:import-url', async (_event, input: string) => {

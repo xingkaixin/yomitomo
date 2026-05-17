@@ -4,6 +4,7 @@ import React from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
+import type { HighlightBox } from '@yomitomo/core';
 import type { EbookPageTurnTrace } from '../app-ebook-reader-utils';
 import { EbookBookcase } from '../app-source-bookcase-ebook';
 import type { EbookArticleRecord } from '../app-source-bookcase-shared';
@@ -20,15 +21,24 @@ const mocks = vi.hoisted(() => ({
   resetEbookBoxState: vi.fn(),
   scheduleEbookBoxUpdate: vi.fn(),
   setAgentTheaterBoxes: vi.fn(),
+  boxes: [] as HighlightBox[],
+  readerShellProps: undefined as
+    | { onScrollToHighlight: (annotationId: string) => void }
+    | undefined,
+  view: null as unknown,
   foliateViewInput: undefined as
     | { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }
     | undefined,
 }));
 
 vi.mock('../app-source-ebook-reader-shell', () => ({
-  EbookReaderShell: ({ extracted }: { extracted: { title: string } }) => (
-    <div data-testid="ebook-reader-shell">{extracted.title}</div>
-  ),
+  EbookReaderShell: (props: {
+    extracted: { title: string };
+    onScrollToHighlight: (annotationId: string) => void;
+  }) => {
+    mocks.readerShellProps = props;
+    return <div data-testid="ebook-reader-shell">{props.extracted.title}</div>;
+  },
 }));
 
 vi.mock('../use-ebook-foliate-view', () => ({
@@ -37,7 +47,7 @@ vi.mock('../use-ebook-foliate-view', () => ({
     return {
       viewHostRef: { current: null },
       measureHostRef: { current: null },
-      viewRef: { current: null },
+      viewRef: { current: mocks.view },
       pageInfoSectionIndexRef: { current: undefined },
       paginationLayoutKeyRef: { current: '' },
       readerSettingsRef: { current: { fontSize: 18, contentWidth: 720 } },
@@ -58,7 +68,7 @@ vi.mock('../use-ebook-foliate-view', () => ({
 
 vi.mock('../use-ebook-reader-boxes', () => ({
   useEbookReaderBoxes: () => ({
-    boxes: [],
+    boxes: mocks.boxes,
     attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
     cleanupFoliateDocumentListeners: mocks.cleanupFoliateDocumentListeners,
     hideEbookBoxLayer: mocks.hideEbookBoxLayer,
@@ -101,6 +111,9 @@ const userProfile: UserProfile = {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  mocks.boxes = [];
+  mocks.readerShellProps = undefined;
+  mocks.view = null;
   mocks.foliateViewInput = undefined;
 });
 
@@ -114,6 +127,8 @@ function annotation(id: string): Annotation {
       start: 0,
       end: 8,
       chapterId: 'chapter-1',
+      textStartInBook: 10,
+      textEndInBook: 18,
     },
     author: 'user',
     annotationType: 'key_point',
@@ -155,6 +170,27 @@ function ebookArticle(overrides: Partial<EbookArticleRecord> = {}): EbookArticle
           textLength: 2,
         },
       ],
+      index: {
+        version: 1,
+        articleId: 'ebook-1',
+        textLength: 100,
+        chapters: [
+          {
+            id: 'chapter-1',
+            title: '第一章',
+            indexInBook: 0,
+            textStart: 0,
+            textEnd: 100,
+            textLength: 100,
+            previewStart: '',
+            previewEnd: '',
+            segmentIds: [],
+            paragraphIds: [],
+          },
+        ],
+        segments: [],
+        paragraphs: [],
+      },
     },
     ...overrides,
   };
@@ -234,5 +270,50 @@ describe('EbookBookcase', () => {
 
     expect(mocks.resetEbookBoxState).toHaveBeenCalledTimes(1);
     expect(mocks.hideEbookBoxLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('selects visible page annotations without re-navigating foliate', () => {
+    const annotations = [annotation('note-1')];
+    const goToFraction = vi.fn();
+    mocks.view = {
+      book: { sections: [] },
+      goToFraction,
+    };
+    mocks.boxes = [
+      {
+        id: 'box-1',
+        annotationId: 'note-1',
+        color: '#f4c95d',
+        top: 10,
+        left: 10,
+        width: 40,
+        height: 12,
+      },
+    ];
+    const onOpenAnnotation = vi.fn();
+
+    render(
+      <EbookBookcase
+        agents={[]}
+        annotations={annotations}
+        article={ebookArticle({ annotations })}
+        focusAnnotationId={null}
+        selectedAnnotationId={null}
+        userProfile={userProfile}
+        onClose={vi.fn()}
+        onFocusedAnnotation={vi.fn()}
+        onOpenAnnotation={onOpenAnnotation}
+        onSaveArticle={vi.fn()}
+        onSaveArticleReadingProgress={vi.fn()}
+        onUpdateArticle={vi.fn()}
+      />,
+    );
+
+    act(() => {
+      mocks.readerShellProps?.onScrollToHighlight('note-1');
+    });
+
+    expect(onOpenAnnotation).toHaveBeenCalledWith('note-1');
+    expect(goToFraction).not.toHaveBeenCalled();
   });
 });

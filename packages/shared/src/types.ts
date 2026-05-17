@@ -287,6 +287,12 @@ export type ArticleReadingProgress = {
   updatedAt: string;
 };
 
+export type ArticleReadingProgressPatch = {
+  articleId: string;
+  readingProgress: ArticleReadingProgress;
+  updatedAt: string;
+};
+
 export type SpoilerAllowedScope =
   | 'current-selection'
   | 'current-segment'
