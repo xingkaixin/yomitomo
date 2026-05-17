@@ -5,8 +5,7 @@ export function normalizeTraceItemType(value: unknown): TraceItemType | null {
     value === 'question' ||
     value === 'agent_observation' ||
     value === 'reader_interest' ||
-    value === 'cross_reference_candidate' ||
-    value === 'unresolved_issue'
+    value === 'cross_reference_candidate'
     ? value
     : null;
 }

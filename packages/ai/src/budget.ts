@@ -1,11 +1,6 @@
 import type { LlmProvider } from '@yomitomo/shared';
 
-export type ModelInputTask =
-  | 'agent-message'
-  | 'agent-annotate'
-  | 'reading-card'
-  | 'reading-deliberation'
-  | 'reading-card-review';
+export type ModelInputTask = 'agent-message' | 'agent-annotate';
 
 export type ModelBudgetReport = {
   task: ModelInputTask;
@@ -18,15 +13,6 @@ export type ModelBudgetReport = {
 const TASK_ARTICLE_BUDGETS: Record<ModelInputTask, number> = {
   'agent-message': 30_000,
   'agent-annotate': 50_000,
-  'reading-card': 50_000,
-  'reading-deliberation': 50_000,
-  'reading-card-review': 50_000,
-};
-
-const JSON_BUDGETS = {
-  evidence: 30_000,
-  deliberation: 18_000,
-  readingCard: 30_000,
 };
 
 export function budgetArticleText(
@@ -40,23 +26,6 @@ export function budgetArticleText(
     text,
     TASK_ARTICLE_BUDGETS[task] * modelBudgetFactor(provider),
   );
-}
-
-export function budgetEvidenceJson(task: ModelInputTask, value: unknown) {
-  return budgetText(task, 'evidenceUnits', JSON.stringify(value, null, 2), JSON_BUDGETS.evidence);
-}
-
-export function budgetDeliberationJson(task: ModelInputTask, value: unknown) {
-  return budgetText(
-    task,
-    'readingDeliberation',
-    JSON.stringify(value, null, 2),
-    JSON_BUDGETS.deliberation,
-  );
-}
-
-export function budgetReadingCardJson(task: ModelInputTask, value: unknown) {
-  return budgetText(task, 'readingCard', JSON.stringify(value, null, 2), JSON_BUDGETS.readingCard);
 }
 
 export function formatBudgetNotice(reports: ModelBudgetReport[]) {

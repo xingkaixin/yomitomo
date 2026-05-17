@@ -115,7 +115,7 @@ export function ReadingStatsPanel({
       <PanelHeader
         icon={<BarChart3 size={20} />}
         title="统计"
-        description="基于本地批注、讨论和读后笔记生成阅读概况。"
+        description="基于本地批注、讨论和阅读记录生成阅读概况。"
         action={
           <Button type="button" variant="secondary" onClick={onRefresh}>
             <RefreshCcw size={16} />
@@ -439,9 +439,9 @@ function unstartedChartRange(days: ChartActivityDay[]) {
 }
 
 function chartActivityDescription(recordedDays: number) {
-  if (recordedDays >= 21) return '批注、讨论和读后笔记趋势';
+  if (recordedDays >= 21) return '批注、讨论和阅读趋势';
   if (recordedDays <= 6) return `已记录 ${recordedDays} 天，正在形成你的伴读节奏`;
-  return `已记录 ${recordedDays} 天，读完文章后会生成批注、讨论和读后笔记趋势`;
+  return `已记录 ${recordedDays} 天，正在形成批注、讨论和阅读趋势`;
 }
 
 function periodSummary(stats: ReadingStatsPeriod) {
@@ -502,7 +502,7 @@ function buildReadingInsights(
 }
 
 function dayInteractions(day: ReadingActivityDay) {
-  return day.articles + day.annotations + day.comments + day.cards + day.aiComments;
+  return day.articles + day.annotations + day.comments + day.aiComments;
 }
 
 function buildActivityStamps(days: ReadingActivityDay[], startDate: string): ActivityStamp[] {
@@ -524,14 +524,14 @@ function activityStampLabel(day: ActivityStamp) {
   if (day.status === 'unstarted') return `${day.date}：伴读旅程尚未开始`;
   if (day.status === 'today') return `${day.date}：今天读一篇，盖下第一枚藏书票`;
   const special = day.special ? `，连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date}：${day.annotations} 条批注，${day.comments} 条讨论，${day.cards} 篇笔记${special}`;
+  return `${day.date}：${day.annotations} 条批注，${day.comments} 条讨论${special}`;
 }
 
 function activityStampTitle(day: ActivityStamp) {
   if (day.status === 'unstarted') return `${day.date} · 未开始`;
   if (day.status === 'today') return `${day.date} · 今天读一篇，盖下第一枚藏书票`;
   const special = day.special ? ` · 连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date} · 批注 ${day.annotations} · 讨论 ${day.comments} · 笔记 ${day.cards}${special}`;
+  return `${day.date} · 批注 ${day.annotations} · 讨论 ${day.comments}${special}`;
 }
 
 function activityMapDescription(
@@ -560,7 +560,6 @@ function firstActivityDate(articles: ArticleRecord[]) {
   const dates = articles.flatMap((article) => [
     localDateKey(article.createdAt),
     localDateKey(article.updatedAt),
-    localDateKey(article.readingCard?.createdAt),
     ...article.annotations.flatMap((annotation) => [
       localDateKey(annotation.createdAt),
       ...annotation.comments.map((comment) => localDateKey(comment.createdAt)),

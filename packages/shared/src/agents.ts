@@ -7,7 +7,6 @@ import type {
   AnnotationEvidenceSource,
   AnnotationMove,
   AnnotationType,
-  QuestionStatus,
 } from './types';
 
 export const agentReadingIntentOptions: Array<{
@@ -122,10 +121,6 @@ export function agentReadingIntentDisplayLabel(intent: AgentReadingIntent) {
   const icon = agentReadingIntentIcon(intent);
   const label = agentReadingIntentLabel(intent);
   return icon ? `${icon} ${label}` : label;
-}
-
-export function normalizeQuestionStatus(value: unknown): QuestionStatus | null {
-  return value === 'open' || value === 'answered' || value === 'parked' ? value : null;
 }
 
 export const customPersonalityId = 'custom';

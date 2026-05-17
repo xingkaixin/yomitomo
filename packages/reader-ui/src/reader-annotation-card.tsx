@@ -7,7 +7,6 @@ import {
   annotationPrimaryComment,
   annotationThreadComments,
   commentPersona,
-  questionStatusLabel,
 } from '@yomitomo/core';
 import {
   AnnotationTypeLabelContent,
@@ -33,7 +32,6 @@ export function AnnotationCard({
   stackCount = 1,
   stackIndex = 0,
   commentsCloseKey,
-  replyRequestKey,
   style,
   userProfile,
   onAddComment,
@@ -53,7 +51,6 @@ export function AnnotationCard({
   stackCount?: number;
   stackIndex?: number;
   commentsCloseKey: number;
-  replyRequestKey?: number;
   style?: React.CSSProperties;
   userProfile: UserProfile;
   onAddComment: (annotationId: string, content: string) => void;
@@ -96,13 +93,6 @@ export function AnnotationCard({
     setExpanded(false);
     setExpandedCommentIds(new Set());
   }, [commentsCloseKey]);
-
-  useEffect(() => {
-    if (replyRequestKey === undefined) return;
-    previousCommentIdsRef.current = threadCommentIds;
-    setExpandedCommentIds(new Set());
-    setExpanded(true);
-  }, [replyRequestKey]);
 
   useLayoutEffect(() => {
     if (!expanded) {
@@ -297,9 +287,6 @@ export function AnnotationCard({
                               <ReadingIntentLabelContent intent={comment.readingIntent} />
                             </span>
                           ) : null}
-                          {comment.questionStatus ? (
-                            <span>{questionStatusLabel(comment.questionStatus)}</span>
-                          ) : null}
                           <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
                         </div>
                         <CollapsibleMarkdownContent
@@ -320,7 +307,6 @@ export function AnnotationCard({
             )}
             <AnnotationCommentComposer
               agents={agents}
-              focusRequestKey={replyRequestKey}
               messageSendShortcut={messageSendShortcut}
               shortcutModifier={shortcutModifier}
               suggestedAgents={suggestedMentionAgents}

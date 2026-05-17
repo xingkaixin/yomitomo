@@ -51,7 +51,7 @@ export const agentKindOptions: Array<{
   description: string;
 }> = [
   { value: 'annotation', label: '阅读助手', description: '参与阅读器批注和评论讨论' },
-  { value: 'review', label: '审核助手', description: '审读读后笔记和整理产物' },
+  { value: 'review', label: '审核助手', description: '复核阅读材料、证据和论证质量' },
 ];
 
 export const annotationDensityOptions: Array<{

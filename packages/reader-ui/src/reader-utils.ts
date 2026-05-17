@@ -22,15 +22,12 @@ import {
   annotationPersona,
   annotationPrimaryComment,
   annotationTypeLabel,
-  annotationThreadComments,
   buildTocAnnotationStats as buildCoreTocAnnotationStats,
   buildHighlightSegments,
   highlightSegmentStyle,
   highlightStyle,
-  isQuestionComment,
   isPrimaryTocItem,
   offsetFromArticleStart,
-  questionStatusOrOpen,
   timestamp,
   updateAnnotationComment,
 } from '@yomitomo/core';
@@ -200,22 +197,6 @@ export function buildReaderReadingSections(
       end: bodyEnd,
     },
   ];
-}
-
-export function countOpenQuestions(annotations: Annotation[]) {
-  return annotations.reduce((count, annotation) => {
-    const annotationQuestion =
-      annotation.annotationType === 'question' || annotation.questionStatus
-        ? questionStatusOrOpen(annotation.questionStatus) === 'open'
-          ? 1
-          : 0
-        : 0;
-    const commentQuestions = annotationThreadComments(annotation).filter(
-      (comment) =>
-        isQuestionComment(comment) && questionStatusOrOpen(comment.questionStatus) === 'open',
-    ).length;
-    return count + annotationQuestion + commentQuestions;
-  }, 0);
 }
 
 function readableSectionText(text: string, start: number, end: number) {

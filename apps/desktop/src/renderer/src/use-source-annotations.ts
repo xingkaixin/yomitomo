@@ -4,7 +4,6 @@ import type {
   ArticleRecord,
   Comment as AnnotationComment,
   PublicAgent,
-  QuestionStatus,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -133,35 +132,12 @@ export function useSourceAnnotations({
       const currentArticle = latestArticleRef.current;
       if (!trimmed || !currentArticle) return;
 
-      const userComment = createUserComment(userProfile, trimmed);
-      const isFollowUpQuestion = /[?？]/.test(trimmed);
-      const comment: AnnotationComment = isFollowUpQuestion
-        ? { ...userComment, questionStatus: 'open' }
-        : userComment;
-      const currentAnnotations = isFollowUpQuestion
-        ? currentArticle.annotations
-        : currentArticle.annotations.map((annotation) =>
-            annotation.id !== annotationId
-              ? annotation
-              : Object.assign({}, annotation, {
-                  questionStatus:
-                    annotation.questionStatus === 'open' ||
-                    (annotation.annotationType === 'question' && !annotation.questionStatus)
-                      ? 'answered'
-                      : annotation.questionStatus,
-                  comments: annotation.comments.map((item) =>
-                    item.questionStatus === 'open' ||
-                    (!item.questionStatus && /[?？]/.test(item.content))
-                      ? { ...item, questionStatus: 'answered' as const }
-                      : item,
-                  ),
-                }),
-          );
+      const comment = createUserComment(userProfile, trimmed);
       const nextAnnotations = appendAnnotationComment(
-        currentAnnotations,
+        currentArticle.annotations,
         annotationId,
         comment,
-        userComment.createdAt,
+        comment.createdAt,
       );
       const nextAnnotation = nextAnnotations?.find((annotation) => annotation.id === annotationId);
       if (!nextAnnotations || !nextAnnotation) return;
@@ -177,40 +153,6 @@ export function useSourceAnnotations({
       onCommentSaved?.(result);
     },
     [annotationAgents, onCommentSaved, onOpenAnnotation, saveAnnotations, userProfile],
-  );
-
-  const setAnnotationQuestionStatus = useCallback(
-    async (annotationId: string, status: QuestionStatus) => {
-      const now = new Date().toISOString();
-      const nextAnnotations = annotationsRef.current.map((annotation) =>
-        annotation.id === annotationId
-          ? { ...annotation, questionStatus: status, updatedAt: now }
-          : annotation,
-      );
-      await saveAnnotations(nextAnnotations);
-      onOpenAnnotation?.(annotationId);
-    },
-    [onOpenAnnotation, saveAnnotations],
-  );
-
-  const setCommentQuestionStatus = useCallback(
-    async (annotationId: string, commentId: string, status: QuestionStatus) => {
-      const now = new Date().toISOString();
-      const nextAnnotations = annotationsRef.current.map((annotation) =>
-        annotation.id === annotationId
-          ? {
-              ...annotation,
-              updatedAt: now,
-              comments: annotation.comments.map((comment) =>
-                comment.id === commentId ? { ...comment, questionStatus: status } : comment,
-              ),
-            }
-          : annotation,
-      );
-      await saveAnnotations(nextAnnotations);
-      onOpenAnnotation?.(annotationId);
-    },
-    [onOpenAnnotation, saveAnnotations],
   );
 
   const deleteAnnotation = useCallback(
@@ -233,8 +175,6 @@ export function useSourceAnnotations({
     latestArticleRef,
     replaceAnnotations,
     saveAnnotations,
-    setAnnotationQuestionStatus,
-    setCommentQuestionStatus,
   };
 }
 

@@ -91,7 +91,7 @@ const agentPresenceLineMap: Partial<Record<string, AgentPresenceLine>> = {
   },
   'insight-editor': {
     enter: '我来收拾，散的交给我。',
-    rest: '卡片收好了，用的时候翻。',
+    rest: '线索收好了，用的时候翻。',
   },
   'concept-translator': {
     enter: '在的，哪里读不顺跟我说。',
@@ -102,7 +102,7 @@ const agentPresenceLineMap: Partial<Record<string, AgentPresenceLine>> = {
     rest: '导航关了，路你已经认得。',
   },
   'evidence-archivist': {
-    enter: '把笔记交过来，我逐条对。',
+    enter: '把材料交过来，我逐条对。',
     rest: '账清了，经得起查。',
   },
   'reader-advocate': {

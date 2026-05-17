@@ -303,4 +303,38 @@ ALTER TABLE annotations ADD COLUMN should_show INTEGER;
 ALTER TABLE providers ADD COLUMN api_key_ref TEXT;
 `,
   },
+  {
+    id: '0027_remove_reading_outputs',
+    sql: `
+ALTER TABLE app_settings DROP COLUMN reading_note_provider_id;
+
+ALTER TABLE articles DROP COLUMN reading_card_id;
+ALTER TABLE articles DROP COLUMN reading_card_markdown;
+ALTER TABLE articles DROP COLUMN reading_card_sections;
+ALTER TABLE articles DROP COLUMN reading_card_provider_id;
+ALTER TABLE articles DROP COLUMN reading_card_provider_name;
+ALTER TABLE articles DROP COLUMN reading_card_model_name;
+ALTER TABLE articles DROP COLUMN reading_card_created_at;
+ALTER TABLE articles DROP COLUMN reading_card_updated_at;
+ALTER TABLE articles DROP COLUMN reading_card_review_id;
+ALTER TABLE articles DROP COLUMN reading_card_review_results;
+ALTER TABLE articles DROP COLUMN reading_card_review_created_at;
+ALTER TABLE articles DROP COLUMN reading_card_review_updated_at;
+ALTER TABLE articles DROP COLUMN reading_deliberation_id;
+ALTER TABLE articles DROP COLUMN reading_deliberation_markdown;
+ALTER TABLE articles DROP COLUMN reading_deliberation_sections;
+ALTER TABLE articles DROP COLUMN reading_deliberation_provider_id;
+ALTER TABLE articles DROP COLUMN reading_deliberation_provider_name;
+ALTER TABLE articles DROP COLUMN reading_deliberation_model_name;
+ALTER TABLE articles DROP COLUMN reading_deliberation_created_at;
+ALTER TABLE articles DROP COLUMN reading_deliberation_updated_at;
+`,
+  },
+  {
+    id: '0028_remove_question_status',
+    sql: `
+ALTER TABLE annotations DROP COLUMN question_status;
+ALTER TABLE comments DROP COLUMN question_status;
+`,
+  },
 ];

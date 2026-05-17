@@ -1,9 +1,7 @@
 import React from 'react';
-import { countOpenQuestions } from './reader-utils';
 import { AgentReadingDock } from './reader-agent-reading-dock';
 import { AnnotationConnection } from './reader-annotation-connection';
 import { ReaderFloatingPanels } from './reader-floating-panels';
-import { QuestionPanel } from './reader-question-panel';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderToolbar } from './reader-toolbar';
@@ -48,10 +46,8 @@ export function ReaderAppView({
   filteredAnnotations,
   focusCoReadingPlan,
   highlightChoice,
-  notesOpen,
   noteRefs,
   notesRef,
-  replyRequest,
   readerSettings,
   readingSections,
   selectionAction,
@@ -75,7 +71,6 @@ export function ReaderAppView({
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
-  onAnswerQuestion,
   onAnnotationLayoutChange,
   onResolveAnnotationNavigation,
   onNavigateAnnotation,
@@ -91,9 +86,6 @@ export function ReaderAppView({
   onStartAgentReadingPlan,
   onScrollToHeading,
   onScrollToHighlight,
-  onSetAnnotationQuestionStatus,
-  onSetCommentQuestionStatus,
-  onToggleNotes,
   onToggleToc,
   onToggleAgentAnnotate,
   onToggleSettings,
@@ -159,7 +151,6 @@ export function ReaderAppView({
       },
     [activeId, navigationVersion, onResolveAnnotationNavigation, visibleAnnotations],
   );
-  const questionCount = React.useMemo(() => countOpenQuestions(annotations), [annotations]);
   const hasToc = tocItems.length > 0;
 
   React.useEffect(() => {
@@ -194,7 +185,6 @@ export function ReaderAppView({
         embedded ? 'is-embedded' : '',
         hasToc ? 'has-toc' : '',
         hasToc && tocOpen ? 'is-toc-open' : '',
-        notesOpen ? 'is-notes-open' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -218,8 +208,6 @@ export function ReaderAppView({
         filterActiveCount={filterActiveCount}
         hasAgents={agents.length > 0}
         hasToc={hasToc}
-        notesOpen={notesOpen}
-        questionCount={questionCount}
         settingsOpen={settingsOpen}
         showAnnotationNavigation={Boolean(onResolveAnnotationNavigation && onNavigateAnnotation)}
         tocOpen={tocOpen}
@@ -228,7 +216,6 @@ export function ReaderAppView({
         onNavigateAnnotation={navigateAnnotation}
         onToggleAgentAnnotate={toggleAgentAnnotate}
         onToggleAnnotationFilter={toggleAnnotationFilter}
-        onToggleNotes={onToggleNotes}
         onToggleSettings={toggleSettings}
         onToggleToc={onToggleToc}
       />
@@ -293,7 +280,6 @@ export function ReaderAppView({
           messageSendShortcut={messageSendShortcut}
           noteRefForAnnotation={noteRefForAnnotation}
           notesRef={notesRef}
-          replyRequest={replyRequest}
           selectionAction={selectionAction}
           selectionActionShortcuts={selectionActionShortcuts}
           shortcutModifier={shortcutModifier}
@@ -316,18 +302,6 @@ export function ReaderAppView({
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
           onScrollToHighlight={onScrollToHighlight}
         />
-
-        <aside className="reader-question-drawer">
-          <QuestionPanel
-            agents={agents}
-            annotations={annotations}
-            userProfile={userProfile}
-            onAnswer={onAnswerQuestion}
-            onFocus={onScrollToHighlight}
-            onSetAnnotationQuestionStatus={onSetAnnotationQuestionStatus}
-            onSetCommentQuestionStatus={onSetCommentQuestionStatus}
-          />
-        </aside>
       </main>
 
       {activeConnection ? <AnnotationConnection connection={activeConnection} /> : null}

@@ -30,14 +30,6 @@ export function noteStyle(color: string, active: boolean): React.CSSProperties {
   };
 }
 
-export function questionCardStyle(color: string): React.CSSProperties {
-  const accent = color || '#f4c95d';
-  return {
-    borderColor: alphaColor(accent, 0.42),
-    boxShadow: `inset 3px 0 0 ${alphaColor(accent, 0.58)}, 0 8px 22px rgba(55,42,24,.06)`,
-  };
-}
-
 function alphaColor(color: string, alpha: number) {
   const hex = color.trim();
   if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return `rgba(244,201,93,${alpha})`;

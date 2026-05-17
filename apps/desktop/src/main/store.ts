@@ -13,9 +13,6 @@ import type {
   Comment,
   DesktopStore,
   LlmProvider,
-  ReadingCardRecord,
-  ReadingCardReviewRecord,
-  ReadingDeliberationRecord,
   UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -239,7 +236,6 @@ export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
     defaultProviderId: input.defaultProviderId || undefined,
     readingAssistantProviderId: input.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
-    readingNoteProviderId: input.readingNoteProviderId || undefined,
     messageSendShortcut: normalizeMessageSendShortcut(input.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(input.selectionActionShortcuts),
     saveArticleImages: Boolean(input.saveArticleImages),
@@ -381,8 +377,7 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
     if (
       settings?.defaultProviderId === id ||
       settings?.readingAssistantProviderId === id ||
-      settings?.reviewAssistantProviderId === id ||
-      settings?.readingNoteProviderId === id
+      settings?.reviewAssistantProviderId === id
     ) {
       upsertSettings(tx, {
         defaultProviderId:
@@ -395,10 +390,6 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
           settings.reviewAssistantProviderId === id
             ? undefined
             : (settings.reviewAssistantProviderId ?? undefined),
-        readingNoteProviderId:
-          settings.readingNoteProviderId === id
-            ? undefined
-            : (settings.readingNoteProviderId ?? undefined),
         saveArticleImages: Boolean(settings.saveArticleImages),
       });
     }
@@ -475,72 +466,6 @@ export async function saveArticleReadingProgress(
 
 export async function deleteArticle(id: string): Promise<DesktopStore> {
   getDatabase().delete(schema.articles).where(eq(schema.articles.id, id)).run();
-  return readStore();
-}
-
-export async function saveArticleReadingCard(
-  articleId: string,
-  readingCard: ReadingCardRecord,
-): Promise<DesktopStore> {
-  getDatabase()
-    .update(schema.articles)
-    .set({
-      readingCardId: readingCard.id,
-      readingCardMarkdown: readingCard.contentMarkdown,
-      readingCardSections: readingCard.sections,
-      readingCardProviderId: readingCard.providerId,
-      readingCardProviderName: readingCard.providerName,
-      readingCardModelName: readingCard.modelName,
-      readingCardCreatedAt: readingCard.createdAt,
-      readingCardUpdatedAt: readingCard.updatedAt,
-      readingCardReviewId: null,
-      readingCardReviewResults: null,
-      readingCardReviewCreatedAt: null,
-      readingCardReviewUpdatedAt: null,
-      updatedAt: readingCard.updatedAt,
-    })
-    .where(eq(schema.articles.id, articleId))
-    .run();
-  return readStore();
-}
-
-export async function saveArticleReadingDeliberation(
-  articleId: string,
-  deliberation: ReadingDeliberationRecord,
-): Promise<DesktopStore> {
-  getDatabase()
-    .update(schema.articles)
-    .set({
-      readingDeliberationId: deliberation.id,
-      readingDeliberationMarkdown: deliberation.contentMarkdown,
-      readingDeliberationSections: deliberation.sections,
-      readingDeliberationProviderId: deliberation.providerId,
-      readingDeliberationProviderName: deliberation.providerName,
-      readingDeliberationModelName: deliberation.modelName,
-      readingDeliberationCreatedAt: deliberation.createdAt,
-      readingDeliberationUpdatedAt: deliberation.updatedAt,
-      updatedAt: deliberation.updatedAt,
-    })
-    .where(eq(schema.articles.id, articleId))
-    .run();
-  return readStore();
-}
-
-export async function saveArticleReadingCardReview(
-  articleId: string,
-  review: ReadingCardReviewRecord,
-): Promise<DesktopStore> {
-  getDatabase()
-    .update(schema.articles)
-    .set({
-      readingCardReviewId: review.id,
-      readingCardReviewResults: review.reviewerResults,
-      readingCardReviewCreatedAt: review.createdAt,
-      readingCardReviewUpdatedAt: review.updatedAt,
-      updatedAt: review.updatedAt,
-    })
-    .where(eq(schema.articles.id, articleId))
-    .run();
   return readStore();
 }
 
@@ -664,26 +589,6 @@ function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
       ebookIndex: article.ebook?.index,
       readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       focusCoReadingPlan: article.focusCoReadingPlan,
-      readingDeliberationId: article.readingDeliberation?.id,
-      readingDeliberationMarkdown: article.readingDeliberation?.contentMarkdown,
-      readingDeliberationSections: article.readingDeliberation?.sections,
-      readingDeliberationProviderId: article.readingDeliberation?.providerId,
-      readingDeliberationProviderName: article.readingDeliberation?.providerName,
-      readingDeliberationModelName: article.readingDeliberation?.modelName,
-      readingDeliberationCreatedAt: article.readingDeliberation?.createdAt,
-      readingDeliberationUpdatedAt: article.readingDeliberation?.updatedAt,
-      readingCardId: article.readingCard?.id,
-      readingCardMarkdown: article.readingCard?.contentMarkdown,
-      readingCardSections: article.readingCard?.sections,
-      readingCardProviderId: article.readingCard?.providerId,
-      readingCardProviderName: article.readingCard?.providerName,
-      readingCardModelName: article.readingCard?.modelName,
-      readingCardCreatedAt: article.readingCard?.createdAt,
-      readingCardUpdatedAt: article.readingCard?.updatedAt,
-      readingCardReviewId: article.readingCard?.review?.id,
-      readingCardReviewResults: article.readingCard?.review?.reviewerResults,
-      readingCardReviewCreatedAt: article.readingCard?.review?.createdAt,
-      readingCardReviewUpdatedAt: article.readingCard?.review?.updatedAt,
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
     })
@@ -734,7 +639,6 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
       author: annotation.author,
       annotationType: annotation.annotationType,
       readingIntent: annotation.readingIntent,
-      questionStatus: annotation.questionStatus,
       moveType: annotation.moveType,
       whyHere: annotation.whyHere,
       evidenceUsed: annotation.evidenceUsed,
@@ -772,7 +676,6 @@ function writeAnnotationRows(database: StoreExecutor, articleId: string, annotat
         agentAvatar: comment.agentAvatar,
         agentAnnotationColor: comment.agentAnnotationColor,
         readingIntent: comment.readingIntent,
-        questionStatus: comment.questionStatus,
         userId: comment.userId,
         userUsername: comment.userUsername,
         userNickname: comment.userNickname,
@@ -803,7 +706,6 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     defaultProviderId: merged.defaultProviderId || null,
     readingAssistantProviderId: merged.readingAssistantProviderId || null,
     reviewAssistantProviderId: merged.reviewAssistantProviderId || null,
-    readingNoteProviderId: merged.readingNoteProviderId || null,
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),

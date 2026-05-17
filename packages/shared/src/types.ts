@@ -61,8 +61,6 @@ export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'question' | 'connect';
 
-export type QuestionStatus = 'open' | 'answered' | 'parked';
-
 export type AgentKind = 'annotation' | 'review';
 
 export type ProviderModelInputMode = 'list' | 'custom';
@@ -175,7 +173,6 @@ export type Comment = {
   userAvatar?: string;
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
-  questionStatus?: QuestionStatus;
   pending?: boolean;
 };
 
@@ -201,7 +198,6 @@ export type Annotation = {
   userAvatar?: string;
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
-  questionStatus?: QuestionStatus;
   comments: Comment[];
   createdAt: string;
   updatedAt: string;
@@ -392,8 +388,7 @@ export type TraceItemType =
   | 'question'
   | 'agent_observation'
   | 'reader_interest'
-  | 'cross_reference_candidate'
-  | 'unresolved_issue';
+  | 'cross_reference_candidate';
 
 export type TraceItem = {
   type: TraceItemType;
@@ -623,8 +618,6 @@ export type ArticleRecord = {
   readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
   focusCoReadingPlan?: FocusCoReadingPlan;
-  readingDeliberation?: ReadingDeliberationRecord;
-  readingCard?: ReadingCardRecord;
   createdAt: string;
   updatedAt: string;
 };
@@ -664,88 +657,10 @@ export type FocusCoReadingPlan = {
   updatedAt: string;
 };
 
-export type ReadingDeliberationSection = {
-  title: string;
-  content: string;
-};
-
-export type ReadingDeliberationRecord = {
-  id: string;
-  articleId: string;
-  title: string;
-  contentMarkdown: string;
-  sections: ReadingDeliberationSection[];
-  providerId: string;
-  providerName: string;
-  modelName: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ReadingCardSection = {
-  title: string;
-  content: string;
-};
-
-export type ReadingCardReviewVerdict = 'pass' | 'revise';
-
-export type ReadingCardReviewStatus = 'done' | 'error';
-
-export type ReadingCardReviewSeverity = 'high' | 'medium' | 'low';
-
-export type ReadingCardReviewFinding = {
-  section: string;
-  severity: ReadingCardReviewSeverity;
-  problem: string;
-  evidenceIds: number[];
-  suggestedRewrite?: string;
-};
-
-export type ReadingCardReviewerResult = {
-  id: string;
-  reviewerId: string;
-  reviewerNickname: string;
-  reviewerUsername: string;
-  reviewerAvatar: string;
-  reviewerColor: string;
-  status?: ReadingCardReviewStatus;
-  verdict: ReadingCardReviewVerdict;
-  summary: string;
-  findings: ReadingCardReviewFinding[];
-  acceptedClaims: string[];
-  missingAngles: string[];
-  rawResponse?: string;
-  createdAt: string;
-};
-
-export type ReadingCardReviewRecord = {
-  id: string;
-  articleId: string;
-  readingCardId: string;
-  reviewerResults: ReadingCardReviewerResult[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ReadingCardRecord = {
-  id: string;
-  articleId: string;
-  title: string;
-  contentMarkdown: string;
-  sections: ReadingCardSection[];
-  review?: ReadingCardReviewRecord;
-  providerId: string;
-  providerName: string;
-  modelName: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export type AppSettings = {
   defaultProviderId?: string;
   readingAssistantProviderId?: string;
   reviewAssistantProviderId?: string;
-  readingNoteProviderId?: string;
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   saveArticleImages?: boolean;

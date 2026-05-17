@@ -74,54 +74,13 @@ function annotationWithComments(id: string, count: number): Annotation {
 function completedArticle(): ArticleRecord {
   return article({
     id: 'article_done',
-    title: '完成笔记',
+    title: '完成阅读',
     annotations: [annotation('annotation_done')],
-    readingDeliberation: {
-      id: 'deliberation_1',
-      articleId: 'article_done',
-      title: '阅读审议',
-      contentMarkdown: '## 审议',
-      sections: [{ title: '审议', content: '内容' }],
-      providerId: 'provider_1',
-      providerName: 'Provider',
-      modelName: 'model',
-      createdAt: '2026-05-09T12:01:00.000Z',
-      updatedAt: '2026-05-09T12:01:00.000Z',
-    },
-    readingCard: {
-      id: 'card_1',
-      articleId: 'article_done',
-      title: '读后笔记',
-      contentMarkdown: '## 核心',
-      sections: [{ title: '核心', content: '内容' }],
-      providerId: 'provider_1',
-      providerName: 'Provider',
-      modelName: 'model',
-      createdAt: '2026-05-09T12:02:00.000Z',
-      updatedAt: '2026-05-09T12:02:00.000Z',
-      review: {
-        id: 'review_1',
-        articleId: 'article_done',
-        readingCardId: 'card_1',
-        reviewerResults: [
-          {
-            id: 'result_1',
-            reviewerId: 'agent_1',
-            reviewerNickname: '审稿人',
-            reviewerUsername: 'reviewer',
-            reviewerAvatar: '',
-            reviewerColor: '#8a8f4f',
-            verdict: 'pass',
-            summary: '通过',
-            findings: [],
-            acceptedClaims: [],
-            missingAngles: [],
-            createdAt: '2026-05-09T12:03:00.000Z',
-          },
-        ],
-        createdAt: '2026-05-09T12:03:00.000Z',
-        updatedAt: '2026-05-09T12:03:00.000Z',
-      },
+    readingProgress: {
+      pageIndex: 10,
+      pageCount: 10,
+      progress: 1,
+      updatedAt: '2026-05-09T12:03:00.000Z',
     },
   });
 }
@@ -227,7 +186,7 @@ describe('groupLibraryArticles', () => {
 });
 
 describe('ReadingLibrary home', () => {
-  it('derives reading status from annotations and completed reading-card rounds', () => {
+  it('derives reading status from annotations and reading progress', () => {
     renderLibrary([
       article({ id: 'article_new', title: '新文章' }),
       article({
@@ -255,17 +214,17 @@ describe('ReadingLibrary home', () => {
     ]);
 
     fireEvent.click(screen.getByRole('button', { name: '已读完' }));
-    expect(screen.getAllByText('完成笔记').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('完成阅读').length).toBeGreaterThan(0);
     expect(screen.queryByText('新文章')).toBeNull();
     expect(screen.queryByText('批注文章')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '新收录' }));
     expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('完成笔记')).toBeNull();
+    expect(screen.queryByText('完成阅读')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '进行中' }));
     expect(screen.getAllByText('批注文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('完成笔记')).toBeNull();
+    expect(screen.queryByText('完成阅读')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '全部' }));
     fireEvent.change(screen.getByLabelText('搜索文章、作者或来源'), {
@@ -313,7 +272,7 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]!);
 
-    expect(screen.getByText('当前：原文阅读')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '返回阅读库，当前文章暂无批注' })).toBeTruthy();
     expect(screen.getByText('网页文章')).toBeTruthy();
     expect(screen.getByText('正文')).toBeTruthy();
   });

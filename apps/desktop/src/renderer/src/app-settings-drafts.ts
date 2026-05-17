@@ -107,15 +107,12 @@ export function useSettingsDrafts({
       (settingsDraft.readingAssistantProviderId || '') !==
         (store.settings.readingAssistantProviderId || '') ||
       (settingsDraft.reviewAssistantProviderId || '') !==
-        (store.settings.reviewAssistantProviderId || '') ||
-      (settingsDraft.readingNoteProviderId || '') !== (store.settings.readingNoteProviderId || ''),
+        (store.settings.reviewAssistantProviderId || ''),
     [
       settingsDraft.readingAssistantProviderId,
       settingsDraft.reviewAssistantProviderId,
-      settingsDraft.readingNoteProviderId,
       store.settings.readingAssistantProviderId,
       store.settings.reviewAssistantProviderId,
-      store.settings.readingNoteProviderId,
     ],
   );
   const selectedProvider = useMemo(

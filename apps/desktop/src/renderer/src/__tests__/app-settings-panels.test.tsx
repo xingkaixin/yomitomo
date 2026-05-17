@@ -235,7 +235,6 @@ describe('ProviderSettings', () => {
         settingsDraft={{
           readingAssistantProviderId: 'provider_1',
           reviewAssistantProviderId: 'provider_2',
-          readingNoteProviderId: 'provider_1',
         }}
         providers={providers}
         selectedId="provider_1"
@@ -258,7 +257,6 @@ describe('ProviderSettings', () => {
     expect(screen.getByText('为伴读任务分配默认模型，并管理模型服务商配置。')).toBeTruthy();
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
-    expect(screen.getByLabelText('读后笔记助手供应商')).toBeTruthy();
     expect(screen.getAllByText('已使用')).toHaveLength(2);
     expect(screen.queryByText('设为默认')).toBeNull();
   });

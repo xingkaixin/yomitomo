@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-  Bot,
-  ChevronDown,
-  ChevronUp,
-  Funnel,
-  List,
-  MessageSquare,
-  Settings2,
-  X,
-} from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, Funnel, List, Settings2, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
@@ -27,8 +18,6 @@ export type ReaderToolbarProps = {
   filterActiveCount: number;
   hasAgents: boolean;
   hasToc: boolean;
-  notesOpen: boolean;
-  questionCount: number;
   settingsOpen: boolean;
   showAnnotationNavigation: boolean;
   tocOpen: boolean;
@@ -37,7 +26,6 @@ export type ReaderToolbarProps = {
   onNavigateAnnotation: (direction: AnnotationNavigationDirection) => void;
   onToggleAgentAnnotate: () => void;
   onToggleAnnotationFilter: () => void;
-  onToggleNotes: () => void;
   onToggleSettings: () => void;
   onToggleToc: () => void;
 };
@@ -54,8 +42,6 @@ export function ReaderToolbar({
   filterActiveCount,
   hasAgents,
   hasToc,
-  notesOpen,
-  questionCount,
   settingsOpen,
   showAnnotationNavigation,
   tocOpen,
@@ -64,7 +50,6 @@ export function ReaderToolbar({
   onNavigateAnnotation,
   onToggleAgentAnnotate,
   onToggleAnnotationFilter,
-  onToggleNotes,
   onToggleSettings,
   onToggleToc,
 }: ReaderToolbarProps) {
@@ -98,20 +83,6 @@ export function ReaderToolbar({
           aria-pressed={hasToc && tocOpen}
         >
           <List size={18} />
-        </button>
-        <button
-          className={
-            notesOpen
-              ? 'reader-icon-button reader-notes-toggle is-active'
-              : 'reader-icon-button reader-notes-toggle'
-          }
-          type="button"
-          onClick={onToggleNotes}
-          aria-label="切换未决问题"
-          title="未决问题"
-        >
-          <MessageSquare size={18} />
-          <span>{questionCount}</span>
         </button>
         {showAnnotationNavigation ? (
           <div className="reader-annotation-nav" aria-label="批注快捷选择">

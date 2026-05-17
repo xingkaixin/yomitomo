@@ -8,7 +8,6 @@ export {
   Composer,
   EmptyNotes,
   HighlightChoiceMenu,
-  QuestionPanel,
   ReaderSettingsPanel,
   ReadingCompletionBurst,
   SelectionMenu,

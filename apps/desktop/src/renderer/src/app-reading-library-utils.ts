@@ -152,25 +152,8 @@ function formatLibraryCountGroup(count: number, unit: '批注' | '讨论') {
 
 export function libraryArticleStatus(article: ArticleRecord) {
   if (article.annotations.length === 0) return { label: '新收录', tone: 'new' };
-  if (articleReadingWorkflowDone(article)) return { label: '已读完', tone: 'done' };
+  if ((article.readingProgress?.progress ?? 0) >= 0.98) return { label: '已读完', tone: 'done' };
   return { label: '进行中', tone: 'progress' };
-}
-
-function articleReadingWorkflowDone(article: ArticleRecord) {
-  const deliberation = article.readingDeliberation;
-  const card = article.readingCard;
-  const review = card?.review;
-
-  return Boolean(
-    article.annotations.length > 0 &&
-    deliberation &&
-    card &&
-    review &&
-    review.reviewerResults.length > 0 &&
-    review.reviewerResults.every((result) => result.status !== 'error') &&
-    timestampValue(card.updatedAt) >= timestampValue(deliberation.updatedAt) &&
-    timestampValue(review.updatedAt) >= timestampValue(card.updatedAt),
-  );
 }
 
 function articleCommentCount(article: ArticleRecord) {
