@@ -1,5 +1,10 @@
 import { useCallback, useRef } from 'react';
-import type { ArticleReadingProgress, ArticleRecord, DesktopStore } from '@yomitomo/shared';
+import type {
+  ArticleReadingProgress,
+  ArticleReadingProgressPatch,
+  ArticleRecord,
+  DesktopStore,
+} from '@yomitomo/shared';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
@@ -63,17 +68,15 @@ export function useAppArticleStoreActions({
       if (!desktop) return;
 
       const run = async () => {
-        const optimisticStore = {
-          ...storeRef.current,
-          articles: storeRef.current.articles.map((article) =>
-            article.id === articleId
-              ? { ...article, readingProgress: progress, updatedAt: progress.updatedAt }
-              : article,
-          ),
-        };
+        const optimisticStore = applyArticleReadingProgressPatch(storeRef.current, {
+          articleId,
+          readingProgress: progress,
+          updatedAt: progress.updatedAt,
+        });
         storeRef.current = optimisticStore;
         applyStore(optimisticStore);
-        applyStore(await desktop.saveArticleReadingProgress(articleId, progress));
+        const patch = await desktop.saveArticleReadingProgress(articleId, progress);
+        applyStore(applyArticleReadingProgressPatch(storeRef.current, patch));
       };
       const nextUpdate = articleUpdateQueueRef.current.then(run, run);
       articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
@@ -117,6 +120,20 @@ export function useAppArticleStoreActions({
     saveArticleReadingProgress,
     importArticleUrl,
     importEbookFile,
+  };
+}
+
+export function applyArticleReadingProgressPatch(
+  store: DesktopStore,
+  patch: ArticleReadingProgressPatch,
+): DesktopStore {
+  return {
+    ...store,
+    articles: store.articles.map((article) =>
+      article.id === patch.articleId
+        ? { ...article, readingProgress: patch.readingProgress, updatedAt: patch.updatedAt }
+        : article,
+    ),
   };
 }
 

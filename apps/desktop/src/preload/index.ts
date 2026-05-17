@@ -9,6 +9,7 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleReadingProgressPatch,
   Comment,
   DesktopStore,
   FocusCoReadingRoutePayload,
@@ -86,7 +87,7 @@ const api = {
     ipcRenderer.invoke('article:reading-progress', {
       articleId,
       progress,
-    }) as Promise<DesktopStore>,
+    }) as Promise<ArticleReadingProgressPatch>,
   importArticleUrl: (url: string) =>
     ipcRenderer.invoke('article:import-url', url) as Promise<ArticleImportResult>,
   importEbookFile: (input: EbookImportFileInput) =>

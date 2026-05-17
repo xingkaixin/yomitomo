@@ -10,6 +10,7 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleReadingProgressPatch,
   Comment,
   DesktopStore,
   LlmProvider,
@@ -452,16 +453,25 @@ export async function saveArticle(input: ArticleRecord): Promise<DesktopStore> {
 export async function saveArticleReadingProgress(
   articleId: string,
   progress: ArticleReadingProgress,
-): Promise<DesktopStore> {
+): Promise<ArticleReadingProgressPatch> {
+  const patch = buildArticleReadingProgressPatch(articleId, progress);
   getDatabase()
     .update(schema.articles)
     .set({
-      readingProgress: normalizeArticleReadingProgress(progress),
-      updatedAt: progress.updatedAt,
+      readingProgress: patch.readingProgress,
+      updatedAt: patch.updatedAt,
     })
     .where(eq(schema.articles.id, articleId))
     .run();
-  return readStore();
+  return patch;
+}
+
+export function buildArticleReadingProgressPatch(
+  articleId: string,
+  progress: ArticleReadingProgress,
+): ArticleReadingProgressPatch {
+  const readingProgress = normalizeArticleReadingProgress(progress) || progress;
+  return { articleId, readingProgress, updatedAt: readingProgress.updatedAt };
 }
 
 export async function deleteArticle(id: string): Promise<DesktopStore> {

@@ -920,6 +920,12 @@ export function EbookBookcase({
     void goToAnnotation(annotationId);
   }
 
+  function focusPageAnnotation(annotationId: string) {
+    openAnnotation(annotationId);
+    if (boxes.some((box) => box.annotationId === annotationId)) return;
+    void goToAnnotation(annotationId);
+  }
+
   useEffect(() => {
     if (!focusAnnotationId) return;
     if (!annotations.some((annotation) => annotation.id === focusAnnotationId)) {
@@ -1026,10 +1032,7 @@ export function EbookBookcase({
       onResolveAnnotationNavigation={resolveAnnotationNavigation}
       onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
       onScrollToHeading={goToReaderTocItem}
-      onScrollToHighlight={(annotationId) => {
-        openAnnotation(annotationId);
-        void goToAnnotation(annotationId);
-      }}
+      onScrollToHighlight={focusPageAnnotation}
       onStartAgentReadingPlan={(agent, readingPlan) => {
         setAgentAnnotateOpen(false);
         void requestAgentAnnotations(agent, { readingPlan });
