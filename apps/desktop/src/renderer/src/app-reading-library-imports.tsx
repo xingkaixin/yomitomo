@@ -39,10 +39,12 @@ function articleImportErrorMessage(error: unknown) {
 }
 
 export function LibraryImportControls({
+  defaultImportType,
   onImportEbookFile,
   onImportArticleUrl,
   onOpenArticle,
 }: {
+  defaultImportType?: 'web' | 'ebook';
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -76,17 +78,32 @@ export function LibraryImportControls({
         }}
       >
         <Button
-          aria-expanded={addMenuOpen}
-          aria-haspopup="menu"
-          aria-label="添加文章"
+          aria-expanded={defaultImportType ? undefined : addMenuOpen}
+          aria-haspopup={defaultImportType ? undefined : 'menu'}
+          aria-label={defaultImportType === 'ebook' ? '添加电子书' : '添加网页'}
           className="library-add-trigger"
           type="button"
           variant="secondary"
-          onClick={() => setAddMenuOpen((current) => !current)}
+          onClick={() => {
+            if (defaultImportType === 'web') {
+              openArticleImportDialog();
+              return;
+            }
+            if (defaultImportType === 'ebook') {
+              openEbookImportDialog();
+              return;
+            }
+            setAddMenuOpen((current) => !current);
+          }}
         >
           <Plus size={16} />
+          {defaultImportType === 'web' ? (
+            <span>添加网页</span>
+          ) : defaultImportType === 'ebook' ? (
+            <span>添加电子书</span>
+          ) : null}
         </Button>
-        {addMenuOpen ? (
+        {!defaultImportType && addMenuOpen ? (
           <div className="library-add-menu-popover" role="menu">
             <button type="button" role="menuitem" onClick={openArticleImportDialog}>
               <Globe2 size={15} />
@@ -268,7 +285,7 @@ function ArticleImportDialog({
                 aria-label="网页地址"
                 disabled={importState === 'submitting'}
                 inputMode="url"
-                placeholder="https://example.com/article"
+                placeholder="粘贴网页链接，例如 https://example.com/article"
                 rows={4}
                 value={importUrl}
                 wrap="soft"

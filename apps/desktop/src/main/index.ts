@@ -67,8 +67,8 @@ async function createWindow() {
     minWidth: 980,
     minHeight: 700,
     show: false,
-    backgroundColor: '#1d1510',
-    title: 'Yomitomo | 伴读 · 你的 AI 阅读伙伴',
+    backgroundColor: '#ffffff',
+    title: 'Yomitomo',
     icon: appIconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -109,9 +109,9 @@ function windowChromeOptions(): BrowserWindowConstructorOptions {
     return {
       titleBarStyle: 'hidden',
       titleBarOverlay: {
-        color: '#f8f3e8',
-        symbolColor: '#251d16',
-        height: 42,
+        color: '#ffffff',
+        symbolColor: '#151515',
+        height: 36,
       },
     };
   }

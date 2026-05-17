@@ -47,6 +47,10 @@ export function EbookReaderShell({
 }: EbookReaderShellProps) {
   return (
     <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
+      <button className="source-reader-back-button" type="button" onClick={readerAppProps.onClose}>
+        <ChevronLeft size={16} />
+        <span>返回阅读库</span>
+      </button>
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView
         {...readerAppProps}

@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -754,6 +755,10 @@ export function WebSourceBookcase({
 
   return (
     <section className="source-bookcase source-reader-shell">
+      <button className="source-reader-back-button" type="button" onClick={onClose}>
+        <ChevronLeft size={16} />
+        <span>返回阅读库</span>
+      </button>
       <style>
         {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
       </style>

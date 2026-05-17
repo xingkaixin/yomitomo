@@ -104,7 +104,6 @@ function renderLibrary(
       onDeleteArticle={vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
-      onRefresh={vi.fn()}
       onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
       onUpdateArticle={vi.fn()}
@@ -186,23 +185,22 @@ describe('groupLibraryArticles', () => {
 });
 
 describe('ReadingLibrary home', () => {
-  it('derives reading status from annotations and reading progress', () => {
+  it('renders webpage articles sorted by recent added time', () => {
     renderLibrary([
-      article({ id: 'article_new', title: '新文章' }),
-      article({
-        id: 'article_progress',
-        title: '批注文章',
-        annotations: [annotation('annotation_progress')],
-      }),
-      completedArticle(),
+      article({ id: 'older', title: '较早文章', createdAt: '2026-05-01T12:00:00.000Z' }),
+      article({ id: 'newer', title: '较新文章', createdAt: '2026-05-10T12:00:00.000Z' }),
     ]);
 
-    expect(screen.getAllByText('新收录').length).toBeGreaterThan(1);
-    expect(screen.getAllByText('进行中').length).toBeGreaterThan(1);
-    expect(screen.getAllByText('已读完').length).toBeGreaterThan(1);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((item) => item.textContent)).toEqual([
+      '较新文章',
+      '较早文章',
+    ]);
+    expect(screen.queryByLabelText('0 划线，0 想法')).toBeNull();
+    expect(screen.queryByRole('button', { name: /PDF/ })).toBeNull();
+    expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
 
-  it('filters by reading status and searches source metadata', () => {
+  it('searches source metadata without reading status filters', () => {
     renderLibrary([
       article({ id: 'article_new', title: '新文章', siteName: 'Acme Daily' }),
       article({
@@ -213,20 +211,7 @@ describe('ReadingLibrary home', () => {
       completedArticle(),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: '已读完' }));
-    expect(screen.getAllByText('完成阅读').length).toBeGreaterThan(0);
-    expect(screen.queryByText('新文章')).toBeNull();
-    expect(screen.queryByText('批注文章')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: '新收录' }));
-    expect(screen.getAllByText('新文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('完成阅读')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: '进行中' }));
-    expect(screen.getAllByText('批注文章').length).toBeGreaterThan(0);
-    expect(screen.queryByText('完成阅读')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: '全部' }));
+    expect(screen.queryByRole('button', { name: '已读完' })).toBeNull();
     fireEvent.change(screen.getByLabelText('搜索文章、作者或来源'), {
       target: { value: 'acme' },
     });
@@ -234,21 +219,62 @@ describe('ReadingLibrary home', () => {
     expect(screen.queryByText('批注文章')).toBeNull();
   });
 
-  it('renders the site icon next to article author', () => {
+  it('renders the article domain without site icons', () => {
     const { container } = renderLibrary([
       article({
+        annotations: [annotationWithComments('domain_note', 2), annotation('domain_mark')],
+        canonicalUrl: 'https://nooneshappy.com/posts/1',
         siteIconUrl: 'https://favicon.im/nooneshappy.com',
-        title: '站点图标文章',
+        siteName: '站点名称不显示',
+        title: '域名文章',
       }),
     ]);
 
-    expect(container.querySelector<HTMLImageElement>('.library-site-icon')?.src).toBe(
-      'https://favicon.im/nooneshappy.com?throw-error-on-404=true',
-    );
+    expect(screen.getByText('nooneshappy.com')).toBeTruthy();
+    expect(screen.getByLabelText('2 划线，2 想法')).toBeTruthy();
+    expect(screen.queryByText('站点名称不显示')).toBeNull();
+    expect(container.querySelector('.library-site-icon')).toBeNull();
   });
 
-  it('exposes the full title on hover and keeps an icon placeholder', () => {
+  it('renders ebooks as list rows with cover progress', () => {
     const { container } = renderLibrary([
+      article({
+        id: 'ebook_1',
+        url: 'ebook://ebook_1',
+        canonicalUrl: 'ebook://ebook_1',
+        sourceType: 'ebook',
+        title: '电子书标题',
+        byline: '作者名',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName: 'book.epub',
+            fileSize: 1024,
+          },
+          chapters: [],
+        },
+        annotations: [annotationWithComments('ebook_note', 1)],
+        readingProgress: {
+          pageIndex: 4,
+          pageCount: 10,
+          progress: 0.4,
+          updatedAt: now,
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+
+    expect(screen.queryByRole('button', { name: '书架' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '列表' })).toBeNull();
+    expect(screen.getAllByText('作者名').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(1);
+    expect(screen.getByLabelText('1 划线，1 想法')).toBeTruthy();
+    expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
+  });
+
+  it('exposes the full title on hover', () => {
+    renderLibrary([
       article({
         siteIconUrl: '',
         title: '这是一段会在卡片上被截断的很长标题',
@@ -256,7 +282,6 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.getByTitle('这是一段会在卡片上被截断的很长标题')).toBeTruthy();
-    expect(container.querySelector('.library-site-icon-slot')).toBeTruthy();
   });
 
   it('opens a webpage article in the source reader', () => {
@@ -272,9 +297,14 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]!);
 
-    expect(screen.getByRole('button', { name: '返回阅读库，当前文章暂无批注' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '返回阅读库' })).toBeTruthy();
     expect(screen.getByText('网页文章')).toBeTruthy();
     expect(screen.getByText('正文')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
+
+    expect(screen.queryByText('正文')).toBeNull();
+    expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
   });
 
   it('imports a webpage and shows duplicate article action', async () => {
@@ -285,8 +315,7 @@ describe('ReadingLibrary home', () => {
     });
     renderLibrary([duplicate], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('添加网页文章')).toBeTruthy();
     expect(screen.getByLabelText('网页地址').tagName).toBe('TEXTAREA');
@@ -315,8 +344,7 @@ describe('ReadingLibrary home', () => {
     });
     renderLibrary([], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -337,8 +365,7 @@ describe('ReadingLibrary home', () => {
     const onImportArticleUrl = vi.fn().mockRejectedValue(new Error('fetch failed'));
     renderLibrary([], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -350,11 +377,11 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
-  it('opens ebook import dialog from the add menu', () => {
+  it('opens ebook import dialog from the ebook section action', () => {
     renderLibrary([]);
 
-    fireEvent.click(screen.getByRole('button', { name: '添加文章' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'ePub 电子书' }));
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('添加 ePub 电子书')).toBeTruthy();

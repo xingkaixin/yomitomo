@@ -1,7 +1,18 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, RefreshCcw, Search } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  BookOpen,
+  BookText,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Highlighter,
+  Lightbulb,
+  MoreHorizontal,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { Button } from './components/ui/button';
+import { annotationThreadComments } from '@yomitomo/core';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -12,34 +23,34 @@ import {
   SelectValue,
 } from './components/ui/select';
 import type { EbookImportProgressCallback } from './app-reading-types';
-import {
-  LIBRARY_FILTER_OPTIONS,
-  LIBRARY_SORT_OPTIONS,
-  articleMatchesLibraryFilter,
-  articleMatchesLibrarySearch,
-  compareLibraryArticles,
-  groupLibraryArticles,
-  type LibraryFilter,
-  type LibrarySort,
-} from './app-reading-library-utils';
-import { ArticleLibraryCard } from './app-reading-library-card';
+import { articleMatchesLibrarySearch, compareLibraryArticles } from './app-reading-library-utils';
+import { ArticleBook } from './app-article-book';
+import { urlHost } from './app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
-const LIBRARY_PAGE_SIZE_OPTIONS = [8, 12, 16, 24] as const;
+const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
+const ARTICLE_DELETE_HOLD_MS = 1400;
+
+type LibrarySource = 'web' | 'ebook';
+
+const LIBRARY_SOURCE_OPTIONS: Array<{
+  value: LibrarySource;
+  label: string;
+}> = [
+  { value: 'web', label: '网页文章' },
+  { value: 'ebook', label: '电子书' },
+];
 
 export function LibraryHome({
   articles,
   sortedArticles,
-  stats,
   onDeleteArticle,
   onImportEbookFile,
   onImportArticleUrl,
   onOpenArticle,
-  onRefresh,
 }: {
   articles: ArticleRecord[];
   sortedArticles: ArticleRecord[];
-  stats: { annotations: number; comments: number };
   onDeleteArticle: (articleId: string) => Promise<void>;
   onImportEbookFile: (
     file: File,
@@ -47,29 +58,34 @@ export function LibraryHome({
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
-  onRefresh: () => void;
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<LibraryFilter>('all');
-  const [activeSort, setActiveSort] = useState<LibrarySort>('recentReading');
+  const [activeSource, setActiveSource] = useState<LibrarySource>('web');
   const filteredArticles = useMemo(
     () =>
       sortedArticles
-        .filter(
-          (article) =>
-            articleMatchesLibrarySearch(article, searchQuery) &&
-            articleMatchesLibraryFilter(article, activeFilter),
-        )
-        .toSorted((left, right) => compareLibraryArticles(left, right, activeSort)),
-    [activeFilter, activeSort, searchQuery, sortedArticles],
+        .filter((article) => articleMatchesLibrarySearch(article, searchQuery))
+        .toSorted((left, right) => compareLibraryArticles(left, right, 'recentAdded')),
+    [searchQuery, sortedArticles],
   );
-  const pageCount = Math.max(1, Math.ceil(filteredArticles.length / pageSize));
-  const pageArticles = filteredArticles.slice((page - 1) * pageSize, page * pageSize);
-  const groupedPageArticles = useMemo(
-    () => groupLibraryArticles(pageArticles, activeSort),
-    [activeSort, pageArticles],
+  const sourceArticles = useMemo(
+    () => filteredArticles.filter((article) => articleLibrarySource(article) === activeSource),
+    [activeSource, filteredArticles],
+  );
+  const pageCount = Math.max(1, Math.ceil(sourceArticles.length / pageSize));
+  const pageArticles = sourceArticles.slice((page - 1) * pageSize, page * pageSize);
+  const counts = useMemo(
+    () =>
+      articles.reduce(
+        (result, article) => {
+          result[articleLibrarySource(article)] += 1;
+          return result;
+        },
+        { web: 0, ebook: 0 },
+      ),
+    [articles],
   );
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
@@ -86,17 +102,23 @@ export function LibraryHome({
 
   useEffect(() => {
     setPage(1);
-  }, [activeFilter, activeSort, pageSize, searchQuery]);
+  }, [activeSource, pageSize, searchQuery]);
+
+  const activeSourceLabel = activeSource === 'web' ? '网页文章' : '电子书';
+  const emptyReason = emptyLibraryReason({
+    activeSource,
+    articlesLength: articles.length,
+    filteredLength: filteredArticles.length,
+    searchQuery,
+  });
 
   return (
-    <section className="library-home">
+    <section className={`library-home is-${activeSource}`}>
       <header className="library-home-header">
         <div className="library-home-header-main">
           <div className="library-home-heading">
-            <h2>阅读库</h2>
-            <p>
-              {articles.length} 项内容 · {stats.annotations} 条批注 · {stats.comments} 条讨论
-            </p>
+            <span className="library-kicker">头版</span>
+            <h2>{activeSourceLabel}</h2>
           </div>
           <div className="library-home-actions">
             <label className="library-search">
@@ -104,93 +126,75 @@ export function LibraryHome({
               <Input
                 type="search"
                 value={searchQuery}
-                placeholder="搜索文章 / 作者 / 来源"
+                placeholder="搜索标题 / 来源 / 作者"
                 aria-label="搜索文章、作者或来源"
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
             <LibraryImportControls
+              defaultImportType={activeSource === 'web' ? 'web' : 'ebook'}
               onImportEbookFile={onImportEbookFile}
               onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={onOpenArticle}
             />
-
-            <Button type="button" variant="secondary" onClick={onRefresh}>
-              <RefreshCcw size={16} />
-              刷新
-            </Button>
           </div>
         </div>
-      </header>
-      <div className="library-toolbar" aria-label="阅读库工具栏">
-        <div className="library-filter-group" aria-label="阅读状态筛选">
-          {LIBRARY_FILTER_OPTIONS.map((option) => (
+        <div className="library-source-tabs" role="tablist" aria-label="阅读库内容类型">
+          {LIBRARY_SOURCE_OPTIONS.map((option) => (
             <button
-              className={activeFilter === option.value ? 'is-active' : undefined}
-              type="button"
-              aria-pressed={activeFilter === option.value}
+              aria-pressed={activeSource === option.value}
+              className={activeSource === option.value ? 'is-active' : undefined}
               key={option.value}
-              onClick={() => setActiveFilter(option.value)}
+              type="button"
+              onClick={() => setActiveSource(option.value)}
             >
-              {option.label}
+              <span>{option.label}</span>
+              <em>{option.value === 'web' ? counts.web : counts.ebook}</em>
             </button>
           ))}
         </div>
-        <Select value={activeSort} onValueChange={(value) => setActiveSort(value as LibrarySort)}>
-          <SelectTrigger className="library-sort-trigger" aria-label="阅读库排序">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="theme-select-content">
-            <SelectGroup>
-              {LIBRARY_SORT_OPTIONS.map((option) => (
-                <SelectItem value={option.value} key={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+      </header>
+      <div className="library-toolbar" aria-label="阅读库工具栏">
+        <span>最近添加 · 降序</span>
       </div>
       <div className="library-home-body">
-        {filteredArticles.length > 0 ? (
-          <div className="library-card-scroll">
-            {groupedPageArticles.map((group) => (
-              <section className="library-card-group" key={group.label}>
-                <h3 className="library-card-group-title">
-                  {group.label} · {group.articles.length} 篇
-                </h3>
-                <div className="library-card-grid">
-                  {group.articles.map((article) => (
-                    <ArticleLibraryCard
-                      article={article}
-                      key={article.id}
-                      onDelete={() => void onDeleteArticle(article.id)}
-                      onOpen={() => onOpenArticle(article)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
-        ) : articles.length > 0 ? (
-          <section className="library-empty">
-            <Search size={32} />
-            <h3>暂无匹配文章</h3>
-            <p>调整搜索词、阅读状态或排序后继续浏览。</p>
-          </section>
+        {sourceArticles.length > 0 ? (
+          activeSource === 'web' ? (
+            <div className="library-web-grid">
+              {pageArticles.map((article) => (
+                <WebArticleListItem
+                  article={article}
+                  key={article.id}
+                  onDelete={() => void onDeleteArticle(article.id)}
+                  onOpen={() => onOpenArticle(article)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="library-ebook-list">
+              {pageArticles.map((article) => (
+                <EbookListItem
+                  article={article}
+                  key={article.id}
+                  onDelete={() => void onDeleteArticle(article.id)}
+                  onOpen={() => onOpenArticle(article)}
+                />
+              ))}
+            </div>
+          )
         ) : (
-          <section className="library-empty">
-            <BookOpen size={32} />
-            <h3>还没有同步文章</h3>
-            <p>点击加号添加网页或 ePub 电子书，也可以通过浏览器阅读器同步文章。</p>
-          </section>
+          <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
+            {emptyReason.description}
+          </LibraryEmptyState>
         )}
       </div>
-      {sortedArticles.length > 0 ? (
+      {sourceArticles.length > 0 ? (
         <footer
           className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
         >
-          <span>共 {filteredArticles.length} 项</span>
+          <span>
+            {activeSourceLabel} · 共 {sourceArticles.length} 项
+          </span>
           {pageCount > 1 ? (
             <div className="library-pagination" aria-label="阅读库分页">
               <button
@@ -246,4 +250,290 @@ export function LibraryHome({
       ) : null}
     </section>
   );
+}
+
+function WebArticleListItem({
+  article,
+  onDelete,
+  onOpen,
+}: {
+  article: ArticleRecord;
+  onDelete: () => void;
+  onOpen: () => void;
+}) {
+  const counts = articleCounts(article);
+  const host = webArticleHost(article);
+
+  return (
+    <article
+      className="library-web-item"
+      role="button"
+      tabIndex={0}
+      aria-label={`打开文章：${article.title}`}
+      onClick={onOpen}
+      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
+    >
+      <div className="library-web-item-source">
+        <span>{host}</span>
+      </div>
+      <div className="library-web-item-main">
+        <h3 title={article.title}>{article.title}</h3>
+      </div>
+      <div className="library-web-item-meta">
+        <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
+        <ArticleCountStats counts={counts} />
+      </div>
+      <LibraryItemActions title={article.title} onDelete={onDelete} />
+    </article>
+  );
+}
+
+function EbookListItem({
+  article,
+  onDelete,
+  onOpen,
+}: {
+  article: ArticleRecord;
+  onDelete: () => void;
+  onOpen: () => void;
+}) {
+  const counts = articleCounts(article);
+
+  return (
+    <article
+      className="library-ebook-list-item"
+      role="button"
+      tabIndex={0}
+      aria-label={`打开电子书：${article.title}`}
+      onClick={onOpen}
+      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
+    >
+      <div className="library-ebook-cover-column">
+        <ArticleBook article={article} />
+        <span
+          className="library-ebook-progress"
+          style={ebookProgressStyle(article)}
+          aria-label="阅读进度"
+        />
+      </div>
+      <div className="library-ebook-list-copy">
+        <div className="library-ebook-list-source">
+          <span>{article.byline || article.ebook?.metadata.fileName || '电子书'}</span>
+        </div>
+        <div className="library-ebook-list-main">
+          <h3 title={article.title}>{article.title}</h3>
+        </div>
+        <div className="library-ebook-list-meta">
+          <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
+          <ArticleCountStats counts={counts} />
+        </div>
+      </div>
+      <LibraryItemActions title={article.title} onDelete={onDelete} />
+    </article>
+  );
+}
+
+function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () => void }) {
+  const [deleteHolding, setDeleteHolding] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const deleteTimerRef = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    },
+    [],
+  );
+
+  function stopDeleteHold() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    setDeleteHolding(false);
+  }
+
+  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    if (deleteTimerRef.current !== null) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDeleteHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      onDelete();
+    }, ARTICLE_DELETE_HOLD_MS);
+  }
+
+  return (
+    <div
+      className="library-item-actions"
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+        setMenuOpen(false);
+        stopDeleteHold();
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="library-card-menu">
+        <button
+          className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+          type="button"
+          aria-label={`更多操作：${title}`}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((current) => !current)}
+        >
+          <MoreHorizontal size={17} />
+        </button>
+        {menuOpen ? (
+          <div className="library-card-menu-popover" role="menu">
+            <button
+              className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
+              style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
+              type="button"
+              role="menuitem"
+              aria-label={`长按删除：${title}`}
+              onClick={(event) => event.preventDefault()}
+              onContextMenu={(event) => event.preventDefault()}
+              onPointerCancel={stopDeleteHold}
+              onPointerDown={startDeleteHold}
+              onPointerLeave={stopDeleteHold}
+              onPointerUp={stopDeleteHold}
+            >
+              <Trash2 size={14} />
+              <span>长按删除</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function LibraryEmptyState({
+  children,
+  icon,
+  title,
+}: {
+  children: React.ReactNode;
+  icon: React.ReactNode;
+  title: string;
+}) {
+  return (
+    <section className="library-empty">
+      {icon}
+      <h3>{title}</h3>
+      <p>{children}</p>
+    </section>
+  );
+}
+
+function ArticleCountStats({
+  counts,
+}: {
+  counts: {
+    annotations: number;
+    comments: number;
+  };
+}) {
+  if (counts.annotations === 0 && counts.comments === 0) return null;
+
+  return (
+    <span
+      className="library-count-stats"
+      aria-label={`${counts.annotations} 划线，${counts.comments} 想法`}
+    >
+      <span className="library-count-stat" title="划线">
+        <span className="library-count-value">{counts.annotations}</span>
+        <Highlighter size={14} aria-hidden="true" />
+      </span>
+      <span className="library-count-separator" aria-hidden="true">
+        ·
+      </span>
+      <span className="library-count-stat" title="想法">
+        <span className="library-count-value">{counts.comments}</span>
+        <Lightbulb size={14} aria-hidden="true" />
+      </span>
+    </span>
+  );
+}
+
+function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: () => void) {
+  if (event.target !== event.currentTarget) return;
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  event.preventDefault();
+  onOpen();
+}
+
+function articleLibrarySource(article: ArticleRecord): LibrarySource {
+  return article.sourceType === 'ebook' ? 'ebook' : 'web';
+}
+
+function articleCounts(article: ArticleRecord) {
+  return {
+    annotations: article.annotations.length,
+    comments: article.annotations.reduce(
+      (count, annotation) => count + annotationThreadComments(annotation).length,
+      0,
+    ),
+  };
+}
+
+function webArticleHost(article: ArticleRecord) {
+  return urlHost(article.canonicalUrl || article.url).replace(/^www\./, '') || 'web';
+}
+
+function formatLibraryShortDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function ebookProgressStyle(article: ArticleRecord) {
+  const progress = Math.min(1, Math.max(0, article.readingProgress?.progress ?? 0));
+  return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
+}
+
+function emptyLibraryReason({
+  activeSource,
+  articlesLength,
+  filteredLength,
+  searchQuery,
+}: {
+  activeSource: LibrarySource;
+  articlesLength: number;
+  filteredLength: number;
+  searchQuery: string;
+}) {
+  if (articlesLength === 0) {
+    return {
+      description: '从右上角加号添加网页文章或导入 ePub 电子书，阅读库会按类型分开呈现。',
+      icon: <BookOpen size={32} />,
+      title: '阅读库还没有内容',
+    };
+  }
+
+  if (filteredLength === 0 || searchQuery.trim()) {
+    return {
+      description: '调整搜索词后继续浏览。',
+      icon: <Search size={32} />,
+      title: '暂无匹配内容',
+    };
+  }
+
+  if (activeSource === 'web') {
+    return {
+      description: '点击加号添加网页文章，这一版面会以域名、标题、日期、划线和想法展示。',
+      icon: <FileText size={32} />,
+      title: '暂无网页文章',
+    };
+  }
+
+  return {
+    description: '点击加号导入 ePub 文件，电子书会保留封面并显示阅读进度。',
+    icon: <BookText size={32} />,
+    title: '暂无电子书',
+  };
 }

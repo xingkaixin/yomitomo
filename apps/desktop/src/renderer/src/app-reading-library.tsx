@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -9,7 +8,7 @@ import type {
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
-import { annotationThreadComments, sortAnnotations, sortArticles } from '@yomitomo/core';
+import { sortAnnotations, sortArticles } from '@yomitomo/core';
 import { SourceBookcase } from './app-source-bookcase';
 import type { ArticleUpdater, EbookImportProgressCallback } from './app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
@@ -18,8 +17,6 @@ import { groupLibraryArticles, type LibrarySort } from './app-reading-library-ut
 
 export { groupLibraryArticles };
 export type { LibrarySort };
-
-type BookmarkStatus = 'idle' | 'annotated' | 'co-reading';
 
 export function ReadingLibrary({
   agents,
@@ -32,7 +29,7 @@ export function ReadingLibrary({
   onDeleteArticle,
   onImportEbookFile,
   onImportArticleUrl,
-  onRefresh,
+  onReadingModeChange,
   onSaveArticle,
   onSaveArticleReadingProgress,
   onUpdateArticle,
@@ -50,7 +47,7 @@ export function ReadingLibrary({
     onProgress?: EbookImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
-  onRefresh: () => void;
+  onReadingModeChange?: (open: boolean) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleReadingProgress: (
     articleId: string,
@@ -71,19 +68,6 @@ export function ReadingLibrary({
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
-  const stats = articles.reduce(
-    (result, article) => ({
-      annotations: result.annotations + article.annotations.length,
-      comments:
-        result.comments +
-        article.annotations.reduce(
-          (count, annotation) => count + annotationThreadComments(annotation).length,
-          0,
-        ),
-    }),
-    { annotations: 0, comments: 0 },
-  );
-
   useEffect(() => {
     if (!selectedArticle) {
       setSelectedAnnotationId(null);
@@ -105,6 +89,11 @@ export function ReadingLibrary({
     openArticle(article);
     onArticleOpened?.(article.id);
   }, [openArticleId, onArticleOpened, sortedArticles]);
+
+  useEffect(() => {
+    onReadingModeChange?.(Boolean(selectedArticle && activeShelf === 'source'));
+    return () => onReadingModeChange?.(false);
+  }, [activeShelf, onReadingModeChange, selectedArticle]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
@@ -131,12 +120,10 @@ export function ReadingLibrary({
       <LibraryHome
         articles={articles}
         sortedArticles={sortedArticles}
-        stats={stats}
         onDeleteArticle={deleteLibraryArticle}
         onImportEbookFile={onImportEbookFile}
         onImportArticleUrl={onImportArticleUrl}
         onOpenArticle={openArticle}
-        onRefresh={onRefresh}
       />
     );
   }
@@ -149,82 +136,35 @@ export function ReadingLibrary({
             <LibraryHome
               articles={articles}
               sortedArticles={sortedArticles}
-              stats={stats}
               onDeleteArticle={deleteLibraryArticle}
               onImportEbookFile={onImportEbookFile}
               onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={openArticle}
-              onRefresh={onRefresh}
             />
           </div>
         </div>
       ) : (
-        <>
-          <LibraryBookmark
-            annotationCount={annotations.length}
-            status={
-              selectedArticle.focusCoReadingPlan
-                ? 'co-reading'
-                : annotations.length > 0
-                  ? 'annotated'
-                  : 'idle'
-            }
-            onClick={openLibraryShelf}
-          />
-          <div className="library-shelf is-expanded">
-            <div className="library-shelf-content">
-              <SourceBookcase
-                agents={agents}
-                annotations={annotations}
-                article={selectedArticle}
-                focusAnnotationId={sourceFocusAnnotationId}
-                messageSendShortcut={messageSendShortcut}
-                selectionActionShortcuts={selectionActionShortcuts}
-                selectedAnnotationId={selectedAnnotation?.id || null}
-                userProfile={userProfile}
-                onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
-                onClose={openLibraryShelf}
-                onOpenAnnotation={setSelectedAnnotationId}
-                onSaveArticle={onSaveArticle}
-                onSaveArticleReadingProgress={onSaveArticleReadingProgress}
-                onUpdateArticle={onUpdateArticle}
-              />
-            </div>
+        <div className="library-shelf is-expanded">
+          <div className="library-shelf-content">
+            <SourceBookcase
+              agents={agents}
+              annotations={annotations}
+              article={selectedArticle}
+              focusAnnotationId={sourceFocusAnnotationId}
+              messageSendShortcut={messageSendShortcut}
+              selectionActionShortcuts={selectionActionShortcuts}
+              selectedAnnotationId={selectedAnnotation?.id || null}
+              userProfile={userProfile}
+              onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
+              onClose={openLibraryShelf}
+              onOpenAnnotation={setSelectedAnnotationId}
+              onSaveArticle={onSaveArticle}
+              onSaveArticleReadingProgress={onSaveArticleReadingProgress}
+              onUpdateArticle={onUpdateArticle}
+            />
           </div>
-        </>
+        </div>
       )}
     </div>
-  );
-}
-
-function LibraryBookmark({
-  annotationCount,
-  status,
-  onClick,
-}: {
-  annotationCount: number;
-  status: BookmarkStatus;
-  onClick: () => void;
-}) {
-  const statusLabel =
-    status === 'co-reading'
-      ? '当前文章有聚焦共读计划'
-      : status === 'annotated'
-        ? `当前文章有 ${annotationCount} 条批注`
-        : '当前文章暂无批注';
-  const label = `返回阅读库，${statusLabel}`;
-
-  return (
-    <button
-      aria-label={label}
-      className="library-bookmark-tab"
-      title={label}
-      type="button"
-      onClick={onClick}
-    >
-      <ChevronLeft size={14} />
-      <span className="library-bookmark-label">阅读库</span>
-      <i aria-hidden="true" className={`library-bookmark-status is-${status}`} />
-    </button>
   );
 }

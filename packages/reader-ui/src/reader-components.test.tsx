@@ -4,6 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgentAnnotateMenu, AnnotationCard, SelectionMenu } from './reader-components';
+import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { ReaderReadingSection } from './reader-types';
 
@@ -565,6 +566,25 @@ describe('AnnotationCard', () => {
     } finally {
       HTMLElement.prototype.setPointerCapture = originalSetPointerCapture;
     }
+  });
+});
+
+describe('ReaderTocPanel', () => {
+  it('summarizes highlights and thoughts with icon stats', () => {
+    render(
+      <ReaderTocPanel
+        annotationTotals={{ annotations: 2, comments: 3 }}
+        hasToc
+        tocAnnotationStats={new Map()}
+        tocItems={[{ index: 1, text: '引文', depth: 2, start: 0, end: 10 }]}
+        tocOpen
+        onScrollToHeading={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('2 划线，3 想法')).toBeTruthy();
+    expect(screen.queryByText(/批注/)).toBeNull();
+    expect(screen.queryByText(/评论/)).toBeNull();
   });
 });
 
