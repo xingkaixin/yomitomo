@@ -335,7 +335,11 @@ export const readerConversationStyles = `
 .reader-toc-item-main strong{display:grid;min-width:24px;height:24px;place-items:center;border:1px solid rgba(37,29,22,.12);border-radius:999px;background:#fffaf0;color:var(--reader-ink);font-size:11px;font-weight:850}
 .reader-toc-markers{display:flex;align-items:center;gap:5px}
 .reader-toc-markers i{width:8px;height:8px;border:1px solid rgba(37,29,22,.14);border-radius:999px;box-shadow:0 1px 2px rgba(37,29,22,.12)}
-.reader-toc-summary{margin-top:18px;padding:12px 10px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:rgba(255,250,240,.72);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760;line-height:1.4}
+.reader-toc-summary{display:inline-flex;align-items:center;gap:7px;margin-top:18px;padding:12px 10px;border:1px solid rgba(37,29,22,.12);border-radius:14px;background:rgba(255,250,240,.72);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:760;line-height:1.4;white-space:nowrap}
+.reader-toc-summary-stat{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.reader-toc-summary-stat svg{width:14px;height:14px;flex:none;stroke-width:2.1}
+.reader-toc-summary-value{min-width:1ch;text-align:right}
+.reader-toc-summary-separator{color:var(--reader-muted)}
 .reader-notes-header{display:grid;gap:10px;margin:0 -16px 14px;padding:14px 16px;border-bottom:1px solid rgba(40,35,29,.08);background:rgba(250,247,240,.96);box-shadow:0 8px 18px rgba(40,35,29,.05)}
 .reader-notes-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .reader-notes-title-row strong{font-size:22px;font-weight:900;letter-spacing:0}

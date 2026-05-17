@@ -98,14 +98,12 @@ const settingsSections: Array<{
 
 export function SettingsNavButton({
   active,
-  collapsed,
   icon,
   label,
   onClick,
 }: {
   active: boolean;
-  collapsed: boolean;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   label: string;
   onClick: () => void;
 }) {
@@ -113,10 +111,9 @@ export function SettingsNavButton({
     <button
       className={active ? 'settings-nav-item is-active' : 'settings-nav-item'}
       type="button"
-      title={collapsed ? label : undefined}
       onClick={onClick}
     >
-      {icon}
+      {icon ? icon : null}
       <span>{label}</span>
     </button>
   );

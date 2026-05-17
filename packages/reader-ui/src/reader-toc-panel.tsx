@@ -1,4 +1,5 @@
 import type { TocItem } from '@yomitomo/core';
+import { Highlighter, Lightbulb } from 'lucide-react';
 import type { buildTocAnnotationStats } from './reader-utils';
 import { isPrimaryTocItem } from './reader-utils';
 
@@ -52,8 +53,21 @@ export function ReaderTocPanel({
           </button>
         );
       })}
-      <div className="reader-toc-summary">
-        共 {annotationTotals.annotations} 条批注 · {annotationTotals.comments} 条评论
+      <div
+        className="reader-toc-summary"
+        aria-label={`${annotationTotals.annotations} 划线，${annotationTotals.comments} 想法`}
+      >
+        <span className="reader-toc-summary-stat" title="划线">
+          <span className="reader-toc-summary-value">{annotationTotals.annotations}</span>
+          <Highlighter size={14} aria-hidden="true" />
+        </span>
+        <span className="reader-toc-summary-separator" aria-hidden="true">
+          ·
+        </span>
+        <span className="reader-toc-summary-stat" title="想法">
+          <span className="reader-toc-summary-value">{annotationTotals.comments}</span>
+          <Lightbulb size={14} aria-hidden="true" />
+        </span>
       </div>
     </aside>
   );

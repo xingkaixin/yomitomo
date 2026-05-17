@@ -42,6 +42,7 @@ export type PerformanceTimingInput = {
 };
 
 const api = {
+  platform: process.platform,
   getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
   showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
   getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
