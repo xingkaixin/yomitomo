@@ -5,11 +5,11 @@ import { annotationColor, type HighlightBox } from '@yomitomo/core';
 import type { ReaderSettings } from '@yomitomo/reader-ui';
 import {
   currentFoliateContent,
+  createEbookAnchorResolver,
   ebookChapterForFoliateSection,
   ebookHighlightAnnotationsSignature,
   foliateRangeHighlightBoxes,
   recordEbookPageTurnTrace,
-  rangeForEbookAnchorInDocument,
   type DomTextIndexTiming,
   type EbookBoxScheduleSnapshot,
   type EbookBoxScheduleState,
@@ -243,9 +243,13 @@ export function useEbookReaderBoxes({
         buildMs: 0,
         textChars: 0,
       };
+      const anchorResolver =
+        searchableAnnotations.length > 0
+          ? createEbookAnchorResolver(doc, domTextIndexTiming)
+          : null;
       const nextBoxes = searchableAnnotations.flatMap((annotation) => {
         anchorLookupCount += 1;
-        const range = rangeForEbookAnchorInDocument(doc, annotation.anchor, domTextIndexTiming);
+        const range = anchorResolver?.rangeForAnchor(annotation.anchor) ?? null;
         if (!range) return [];
         resolvedAnchorCount += 1;
         rangeCount += 1;

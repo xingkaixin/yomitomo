@@ -31,6 +31,7 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 
 - P0-1 已完成：reading progress IPC 已改为返回 `ArticleReadingProgressPatch`，主进程保存阅读进度后不再 `readStore()`，也不再广播完整 `store:updated`。
 - P0-1 的 debounce/coalesce 未做：本次根因是全量 store 读取和完整 store apply；debounce 只降频，不是必要根因修复，保留为后续观察项。
+- P0-2 已完成：EPUB 高亮盒更新改为通过 `createEbookAnchorResolver` 在单次 box update 内懒构建并复用 normalized DOM text index，避免按批注数重复遍历 iframe document body。
 - 相关 EPUB 页内批注问题已修复：
   - Foliate paginator 会把 iframe 扩成整章多页宽度，当前页 box 裁剪已改为 Foliate 可视 viewport，避免后一页批注误进入当前页 rail。
   - 当前页右侧批注卡片点击已改为只选中可见批注，不再重复 `goToAnnotation`，避免 Foliate 重新定位造成页面跳动。
@@ -101,6 +102,7 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 
 #### 2. EPUB 高亮盒更新对每条批注重复构建 DOM 文本索引
 
+- 状态：已完成（2026-05-17）。
 - 位置：
   - `apps/desktop/src/renderer/src/use-ebook-reader-boxes.ts:246`
   - `apps/desktop/src/renderer/src/app-ebook-reader-utils.ts:529`
@@ -125,6 +127,10 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
   - `pnpm --filter @yomitomo/desktop test -- use-ebook-reader-boxes`
   - `pnpm --filter @yomitomo/desktop test -- app-source-ebook-agent-playback`
   - 增加多批注长章节用例，断言 `domTextIndexBuildCount` 从多次降为一次。
+- 实施记录（2026-05-17）：
+  - 新增 `createEbookAnchorResolver(doc, timing)`，把 DOM 文本索引绑定到当前 document resolver，并保持 `rangeForEbookAnchorInDocument` 兼容旧调用方。
+  - `useEbookReaderBoxes` 在一次真实 update 内创建一个 resolver，所有 `searchableAnnotations` 共享同一个 normalized DOM text index。
+  - `use-ebook-reader-boxes` 测试新增多批注用例，断言 `anchorLookupCount: 2` 时 `domTextIndexBuildCount: 1`。
 
 ### P1（批注/阅读器核心算法）
 
@@ -285,8 +291,8 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 - [ ] 为 reading progress 保存增加 debounce/coalesce，确保最后进度不会丢失。
 - [x] 修复 Foliate 多页 iframe 裁剪边界，避免当前页误显示后一页批注。
 - [x] 修复当前页 EPUB 批注卡片点击重复导航导致的页面跳动。
-- [ ] 将 EPUB DOM text index 改为单次 box update 内复用。
-- [ ] 为 EPUB 高亮盒路径增加 `domTextIndexBuildCount` 回归断言。
+- [x] 将 EPUB DOM text index 改为单次 box update 内复用。
+- [x] 为 EPUB 高亮盒路径增加 `domTextIndexBuildCount` 回归断言。
 - [x] 跑完 reading progress 与 EPUB 页内批注相关测试并记录结果。
 
 ### Phase 2: P1 核心算法
@@ -342,7 +348,7 @@ Origin: 2026-05-17 complexity-optimizer codebase performance report
 ## 验收标准
 
 - [x] 快速翻页不会因为 reading progress 保存触发完整 `DesktopStore` 重建。
-- [ ] P0 两项完成后，EPUB 高亮盒更新中同一 document 的 normalized DOM text index 不再按批注数重复构建。
+- [x] P0 两项完成后，EPUB 高亮盒更新中同一 document 的 normalized DOM text index 不再按批注数重复构建。
 - [ ] P1 完成后，segment annotation 的锚定搜索复杂度与 segment 范围长度相关，而不是与全书长度相关。
 - [ ] P1 完成后，高亮 segment 和 annotation rail 的多重叠测试覆盖当前视觉语义。
 - [ ] P2 完成后，图片内联和 EPUB 导入测试仍证明输出结构不变。
