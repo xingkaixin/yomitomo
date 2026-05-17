@@ -105,7 +105,7 @@ export function normalizeDesktopReaderSettings(settings: Partial<ReaderSettings>
     fontSize: clampNumber(settings?.fontSize, 16, 28, defaultReaderSettings.fontSize),
     contentWidth: clampNumber(
       settings?.contentWidth,
-      680,
+      600,
       1080,
       defaultReaderSettings.contentWidth,
     ),

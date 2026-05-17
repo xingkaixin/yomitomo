@@ -25,7 +25,7 @@ export function ReaderSettingsPanel({
         label="文章宽度"
         value={`${settings.contentWidth}px`}
         onDecrease={() =>
-          onChange({ ...settings, contentWidth: Math.max(680, settings.contentWidth - 40) })
+          onChange({ ...settings, contentWidth: Math.max(600, settings.contentWidth - 40) })
         }
         onIncrease={() =>
           onChange({ ...settings, contentWidth: Math.min(1080, settings.contentWidth + 40) })

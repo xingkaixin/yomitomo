@@ -19,14 +19,8 @@ export const sourceEbookReaderStyles = `
   grid-template-rows:minmax(0,1fr);
   padding:0;
 }
-.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
-  grid-template-columns:minmax(180px,260px) minmax(0,1fr);
-}
 .source-ebook-reader-shell .reader-app.has-toc .reader-surface{
   padding:18px 14px 24px;
-}
-.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
-  margin:0;
 }
 .source-ebook-reader-shell .reader-article{
   width:min(100%,var(--reader-content-width));
@@ -78,7 +72,20 @@ export const sourceEbookReaderStyles = `
   opacity:.88;
   filter:drop-shadow(0 1px 0 rgba(255,253,248,.72)) drop-shadow(0 0 4px rgba(37,29,22,.14));
 }
+@media(min-width:1101px){
+  .source-ebook-reader-shell .reader-app.has-toc .reader-canvas{
+    margin:0;
+  }
+}
+@media(min-width:1321px){
+  .source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
+    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
+  }
+}
 @media(max-width:1320px){
+  .source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
+    grid-template-columns:minmax(0,1fr);
+  }
   .source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-canvas{
     margin:0 auto;
   }
