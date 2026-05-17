@@ -310,6 +310,11 @@ type DomTextPosition = {
   virtual: boolean;
 };
 
+type NormalizedDomTextIndex = {
+  text: string;
+  positions: DomTextPosition[];
+};
+
 export type DomTextIndexTiming = {
   buildCount: number;
   buildMs: number;
@@ -531,8 +536,7 @@ export function rangeForEbookAnchorInDocument(
   anchor: Annotation['anchor'],
   timing?: DomTextIndexTiming,
 ) {
-  const match = ebookAnchorMatchInDocument(doc, anchor, timing);
-  return match ? rangeFromNormalizedDomText(doc, match.index.positions, match.match) : null;
+  return createEbookAnchorResolver(doc, timing).rangeForAnchor(anchor);
 }
 
 export function rangeForEbookAnchorCursorInDocument(
@@ -540,7 +544,7 @@ export function rangeForEbookAnchorCursorInDocument(
   anchor: Annotation['anchor'],
   progressOffset: number,
 ) {
-  const matched = ebookAnchorMatchInDocument(doc, anchor);
+  const matched = createEbookAnchorResolver(doc).match(anchor);
   if (!matched) return null;
 
   const length = Math.max(1, matched.match.end - matched.match.start);
@@ -548,16 +552,38 @@ export function rangeForEbookAnchorCursorInDocument(
   return rangeFromNormalizedDomTextPoint(doc, matched.index.positions, cursor, matched.match.end);
 }
 
-function ebookAnchorMatchInDocument(
-  doc: Document,
-  anchor: Annotation['anchor'],
-  timing?: DomTextIndexTiming,
-) {
-  const body = doc.body;
-  const query = normalizeRenderedText(anchor.exact);
-  if (!body || !query) return null;
+export function createEbookAnchorResolver(doc: Document, timing?: DomTextIndexTiming) {
+  let index: NormalizedDomTextIndex | null | undefined;
 
-  const index = buildNormalizedDomTextIndex(body, timing);
+  const resolveIndex = () => {
+    if (index !== undefined) return index;
+    index = doc.body ? buildNormalizedDomTextIndex(doc.body, timing) : null;
+    return index;
+  };
+
+  const match = (anchor: Annotation['anchor']) => {
+    const query = normalizeRenderedText(anchor.exact);
+    const resolvedIndex = query ? resolveIndex() : null;
+    if (!resolvedIndex) return null;
+    return ebookAnchorMatchInIndex(resolvedIndex, anchor, query);
+  };
+
+  return {
+    match,
+    rangeForAnchor: (anchor: Annotation['anchor']) => {
+      const matched = match(anchor);
+      return matched
+        ? rangeFromNormalizedDomText(doc, matched.index.positions, matched.match)
+        : null;
+    },
+  };
+}
+
+function ebookAnchorMatchInIndex(
+  index: NormalizedDomTextIndex,
+  anchor: Annotation['anchor'],
+  query: string,
+) {
   let bestMatch: { start: number; end: number } | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   let cursor = index.text.indexOf(query);
@@ -575,7 +601,10 @@ function ebookAnchorMatchInDocument(
   return bestMatch ? { index, match: bestMatch } : null;
 }
 
-function buildNormalizedDomTextIndex(root: HTMLElement, timing?: DomTextIndexTiming) {
+function buildNormalizedDomTextIndex(
+  root: HTMLElement,
+  timing?: DomTextIndexTiming,
+): NormalizedDomTextIndex {
   const startedAt = performance.now();
   let text = '';
   const positions: DomTextPosition[] = [];
