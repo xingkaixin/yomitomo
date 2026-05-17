@@ -61,6 +61,26 @@ describe('reader DOM highlights', () => {
     ]);
   });
 
+  it('splits staggered overlapping highlights without crossing line groups', () => {
+    const segments = buildHighlightSegments([
+      box({ annotationId: 'annotation_1', color: '#111111', top: 10, left: 20, width: 100 }),
+      box({ annotationId: 'annotation_2', color: '#222222', top: 11, left: 60, width: 100 }),
+      box({ annotationId: 'annotation_3', color: '#333333', top: 10, left: 80, width: 30 }),
+      box({ annotationId: 'annotation_4', color: '#444444', top: 40, left: 20, width: 40 }),
+    ]);
+
+    expect(
+      segments.map((segment) => [segment.top, segment.left, segment.width, segment.annotationIds]),
+    ).toEqual([
+      [10, 20, 40, ['annotation_1']],
+      [10, 60, 20, ['annotation_1', 'annotation_2']],
+      [10, 80, 30, ['annotation_1', 'annotation_3', 'annotation_2']],
+      [10, 110, 10, ['annotation_1', 'annotation_2']],
+      [11, 120, 40, ['annotation_2']],
+      [40, 20, 40, ['annotation_4']],
+    ]);
+  });
+
   it('counts overlapping dots by contributor', () => {
     const segments = buildHighlightSegments([
       box({

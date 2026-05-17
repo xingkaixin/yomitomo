@@ -70,6 +70,11 @@ type AgentAnnotationMatchStats = {
   allowedWhitespaceAgnosticMatchCount: number;
 };
 
+type AgentAnnotationSearchScope = {
+  text: string;
+  offset: number;
+};
+
 export type AnnotationPersona = {
   avatar?: string;
   fallback: string;
@@ -255,8 +260,16 @@ function findAgentAnnotationMatch(
     allowedWhitespaceAgnosticMatchCount: 0,
   };
 
+  const searchScope = agentAnnotationSearchScope(articleText, options);
   for (const candidate of candidates) {
-    const match = findAgentAnnotationCandidate(articleText, candidate, suggestion, options, stats);
+    const match = findAgentAnnotationCandidate(
+      articleText,
+      searchScope,
+      candidate,
+      suggestion,
+      options,
+      stats,
+    );
     if (match) {
       logAgentAnnotationMatchTiming(articleText, exact, options, startedAt, match, match.strategy, {
         ...stats,
@@ -271,15 +284,16 @@ function findAgentAnnotationMatch(
 
 function findAgentAnnotationCandidate(
   articleText: string,
+  searchScope: AgentAnnotationSearchScope,
   exact: string,
   suggestion: AnnotationSuggestion,
   options: CreateAgentAnnotationOptions,
   stats: AgentAnnotationMatchStats,
 ) {
   stats.candidatesTried += 1;
-  const exactMatches = findAll(articleText, exact).map((start) => ({
-    start,
-    end: start + exact.length,
+  const exactMatches = findAll(searchScope.text, exact).map((start) => ({
+    start: searchScope.offset + start,
+    end: searchScope.offset + start + exact.length,
   }));
   stats.exactMatchCount += exactMatches.length;
   const allowedExactMatches = allowedAgentAnnotationMatches(exactMatches, options);
@@ -291,7 +305,10 @@ function findAgentAnnotationCandidate(
     };
   }
 
-  const allNormalizedMatches = findWhitespaceInsensitiveMatches(articleText, exact);
+  const allNormalizedMatches = offsetAgentAnnotationMatches(
+    findWhitespaceInsensitiveMatches(searchScope.text, exact),
+    searchScope.offset,
+  );
   stats.whitespaceInsensitiveMatchCount += allNormalizedMatches.length;
   const normalizedMatches = allowedAgentAnnotationMatches(allNormalizedMatches, options);
   stats.allowedWhitespaceInsensitiveMatchCount += normalizedMatches.length;
@@ -302,7 +319,10 @@ function findAgentAnnotationCandidate(
     };
   }
 
-  const allCompactMatches = findWhitespaceAgnosticMatches(articleText, exact);
+  const allCompactMatches = offsetAgentAnnotationMatches(
+    findWhitespaceAgnosticMatches(searchScope.text, exact),
+    searchScope.offset,
+  );
   stats.whitespaceAgnosticMatchCount += allCompactMatches.length;
   const compactMatches = allowedAgentAnnotationMatches(allCompactMatches, options);
   stats.allowedWhitespaceAgnosticMatchCount += compactMatches.length;
@@ -314,6 +334,37 @@ function findAgentAnnotationCandidate(
   }
 
   return null;
+}
+
+function agentAnnotationSearchScope(
+  articleText: string,
+  options: CreateAgentAnnotationOptions,
+): AgentAnnotationSearchScope {
+  const start = Number.isInteger(options.allowedTextStart) ? options.allowedTextStart! : 0;
+  const end = Number.isInteger(options.allowedTextEnd)
+    ? options.allowedTextEnd!
+    : articleText.length;
+  const boundedStart = Math.min(Math.max(start, 0), articleText.length);
+  const boundedEnd = Math.min(Math.max(end, 0), articleText.length);
+  if (boundedStart === 0 && boundedEnd === articleText.length) {
+    return { text: articleText, offset: 0 };
+  }
+  if (boundedEnd <= boundedStart) return { text: '', offset: boundedStart };
+  return {
+    text: articleText.slice(boundedStart, boundedEnd),
+    offset: boundedStart,
+  };
+}
+
+function offsetAgentAnnotationMatches(
+  matches: Array<{ start: number; end: number }>,
+  offset: number,
+) {
+  if (offset === 0) return matches;
+  return matches.map((match) => ({
+    start: match.start + offset,
+    end: match.end + offset,
+  }));
 }
 
 function logAgentAnnotationMatchTiming(

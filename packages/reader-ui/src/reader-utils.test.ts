@@ -16,7 +16,7 @@ import {
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 
-function box(annotationId: string): HighlightBox {
+function box(annotationId: string, overrides: Partial<HighlightBox> = {}): HighlightBox {
   return {
     id: `${annotationId}_box`,
     annotationId,
@@ -25,6 +25,7 @@ function box(annotationId: string): HighlightBox {
     left: 20,
     width: 80,
     height: 18,
+    ...overrides,
   };
 }
 
@@ -237,6 +238,32 @@ describe('reader annotation filters', () => {
     ).toEqual(['user-note', 'assistant-note']);
   });
 
+  it('stacks transitively overlapping rail annotations by anchor range', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('bridge', { anchor: anchor('bridge', 5, 25) }),
+      annotation('third', { anchor: anchor('third', 20, 30) }),
+      annotation('separate', { anchor: anchor('separate', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [box('first', { top: 10 }), box('third', { top: 20 }), box('bridge', { top: 30 })],
+      null,
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+
+    expect(byId.get('first')?.stackCount).toBe(3);
+    expect(byId.get('bridge')?.stackCount).toBe(3);
+    expect(byId.get('third')?.stackCount).toBe(3);
+    expect(byId.get('separate')?.stackCount).toBe(1);
+    expect(items.map((item) => item.annotation.id)).toEqual([
+      'first',
+      'third',
+      'bridge',
+      'separate',
+    ]);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
@@ -271,3 +298,13 @@ describe('reader annotation filters', () => {
     });
   });
 });
+
+function anchor(exact: string, start: number, end: number) {
+  return {
+    exact,
+    prefix: '',
+    suffix: '',
+    start,
+    end,
+  };
+}

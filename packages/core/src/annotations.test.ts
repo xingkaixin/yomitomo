@@ -126,6 +126,7 @@ describe('annotation core', () => {
   it('anchors agent suggestions inside an allowed text range', () => {
     const articleText = '外部 target 不应使用。内部 target 才能批注。';
     const allowedTextStart = articleText.indexOf('内部');
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
     const result = createAgentAnnotation(
       agent,
       articleText,
@@ -137,10 +138,15 @@ describe('annotation core', () => {
       {
         allowedTextStart,
         allowedTextEnd: articleText.length,
+        performanceLogger: (event, data) => events.push({ event, data }),
       },
     );
 
     expect(result?.anchor.start).toBe(articleText.indexOf('target', allowedTextStart));
+    expect(events[0]?.data).toMatchObject({
+      exactMatchCount: 1,
+      allowedExactMatchCount: 1,
+    });
   });
 
   it('anchors repeated agent suggestion text from a context window', () => {
@@ -246,6 +252,36 @@ describe('annotation core', () => {
     );
 
     expect(result?.anchor.exact).toContain('\n知道什么时候不敲');
+  });
+
+  it('limits whitespace-insensitive agent matching to the allowed text range', () => {
+    const repeated =
+      '工具一旦进入手里，也会进入脑子。能力会反过来定义问题。\n知道什么时候不敲，是一种对冲工具偏见的能力。';
+    const articleText = `外部 ${repeated}\n内部 ${repeated}`;
+    const allowedTextStart = articleText.indexOf('内部');
+    const events: Array<{ event: string; data?: Record<string, unknown> }> = [];
+    const result = createAgentAnnotation(
+      agent,
+      articleText,
+      {
+        exact:
+          '工具一旦进入手里，也会进入脑子。能力会反过来定义问题。 知道什么时候不敲，是一种对冲工具偏见的能力。',
+        comment: 'inside allowed range',
+      },
+      '2026-01-02T00:00:00.000Z',
+      {
+        allowedTextStart,
+        allowedTextEnd: articleText.length,
+        performanceLogger: (event, data) => events.push({ event, data }),
+      },
+    );
+
+    expect(result?.anchor.start).toBe(articleText.indexOf('工具', allowedTextStart));
+    expect(events[0]?.data).toMatchObject({
+      exactMatchCount: 0,
+      whitespaceInsensitiveMatchCount: 1,
+      allowedWhitespaceInsensitiveMatchCount: 1,
+    });
   });
 
   it('anchors the longest recoverable fragment when a model uses ellipses', () => {

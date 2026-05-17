@@ -44,6 +44,24 @@ type TocEntry = Omit<TocItem, 'start' | 'end'> & {
   target: HTMLElement;
 };
 
+type HighlightLineGroup = {
+  boxes: HighlightBox[];
+  topSum: number;
+  heightSum: number;
+};
+
+type HighlightEdgeEvent = {
+  edge: number;
+  kind: 'start' | 'end';
+  box: HighlightBox;
+  order: number;
+};
+
+type ActiveHighlightContributor = {
+  box: HighlightBox;
+  order: number;
+};
+
 const defaultChapterPattern =
   /^((第?[一二三四五六七八九十百]+|\d+)[、.．]|[一二三四五六七八九十]+、)/;
 
@@ -273,49 +291,66 @@ export function highlightStyle(box: HighlightBox, active: boolean, fallbackColor
 export function buildHighlightSegments(boxes: HighlightBox[]): HighlightSegment[] {
   const lineGroups = groupHighlightBoxesByLine(boxes);
 
-  return lineGroups.flatMap((line, lineIndex) => {
-    const edges = [...new Set(line.flatMap((box) => [box.left, box.left + box.width]))].toSorted(
-      (left, right) => left - right,
-    );
+  return lineGroups.flatMap((line, lineIndex) => buildLineHighlightSegments(line, lineIndex));
+}
 
-    const segments: HighlightSegment[] = [];
-    for (let index = 0; index < edges.length - 1; index += 1) {
-      const left = edges[index]!;
-      const right = edges[index + 1]!;
-      if (right - left < 1) continue;
+function buildLineHighlightSegments(line: HighlightBox[], lineIndex: number): HighlightSegment[] {
+  const events = line
+    .filter((box) => box.width >= 1)
+    .flatMap((box, order): HighlightEdgeEvent[] => [
+      { edge: box.left, kind: 'start', box, order },
+      { edge: box.left + box.width, kind: 'end', box, order },
+    ])
+    .toSorted((left, right) => left.edge - right.edge);
 
-      const midpoint = (left + right) / 2;
-      const contributors = line.filter(
-        (box) => midpoint >= box.left && midpoint <= box.left + box.width,
-      );
-      if (contributors.length === 0) continue;
+  const active: ActiveHighlightContributor[] = [];
+  const segments: HighlightSegment[] = [];
+  let index = 0;
 
-      const annotationIds = uniqueStrings(contributors.map((box) => box.annotationId));
-      const colors = uniqueContributors(contributors).map((box) => box.color || '#f4c95d');
-      const previous = segments.at(-1);
-      if (
-        previous &&
-        previous.left + previous.width === left &&
-        sameStrings(previous.annotationIds, annotationIds) &&
-        sameStrings(previous.colors, colors)
-      ) {
-        previous.width = right - previous.left;
-        continue;
-      }
-
-      segments.push({
-        id: `${lineIndex}_${segments.length}_${annotationIds.join('_')}`,
-        annotationIds,
-        colors,
-        top: Math.min(...contributors.map((box) => box.top)),
-        left,
-        width: right - left,
-        height: Math.max(...contributors.map((box) => box.height)),
-      });
+  while (index < events.length) {
+    const left = events[index]!.edge;
+    const edgeEvents: HighlightEdgeEvent[] = [];
+    while (index < events.length && events[index]!.edge === left) {
+      edgeEvents.push(events[index]!);
+      index += 1;
     }
 
-    return segments;
-  });
+    for (const event of edgeEvents) {
+      if (event.kind === 'end') removeActiveHighlightContributor(active, event.box);
+    }
+    for (const event of edgeEvents) {
+      if (event.kind === 'start') insertActiveHighlightContributor(active, event);
+    }
+
+    const right = events[index]?.edge;
+    if (right === undefined || right - left < 1 || active.length === 0) continue;
+
+    const contributors = active.map((item) => item.box);
+    const annotationIds = uniqueStrings(contributors.map((box) => box.annotationId));
+    const colors = uniqueContributors(contributors).map((box) => box.color || '#f4c95d');
+    const previous = segments.at(-1);
+    if (
+      previous &&
+      previous.left + previous.width === left &&
+      sameStrings(previous.annotationIds, annotationIds) &&
+      sameStrings(previous.colors, colors)
+    ) {
+      previous.width = right - previous.left;
+      continue;
+    }
+
+    segments.push({
+      id: `${lineIndex}_${segments.length}_${annotationIds.join('_')}`,
+      annotationIds,
+      colors,
+      top: Math.min(...contributors.map((box) => box.top)),
+      left,
+      width: right - left,
+      height: Math.max(...contributors.map((box) => box.height)),
+    });
+  }
+
+  return segments;
 }
 
 export function highlightSegmentStyle(segment: HighlightSegment, active: boolean) {
@@ -375,23 +410,71 @@ function groupHighlightBoxesByLine(boxes: HighlightBox[]) {
   const sorted = [...boxes].toSorted(
     (left, right) => left.top - right.top || left.left - right.left,
   );
-  const groups: HighlightBox[][] = [];
+  const groups: HighlightLineGroup[] = [];
+  let firstActiveIndex = 0;
 
   for (const box of sorted) {
-    const group = groups.find((items) => {
-      const top = items.reduce((sum, item) => sum + item.top, 0) / items.length;
-      const height = items.reduce((sum, item) => sum + item.height, 0) / items.length;
-      return Math.abs(box.top - top) <= 3 && Math.abs(box.height - height) <= 4;
-    });
+    while (
+      firstActiveIndex < groups.length &&
+      box.top - highlightLineAverageTop(groups[firstActiveIndex]!) > 3
+    ) {
+      firstActiveIndex += 1;
+    }
+
+    const group = findHighlightLineGroup(groups, firstActiveIndex, box);
 
     if (group) {
-      group.push(box);
+      group.boxes.push(box);
+      group.topSum += box.top;
+      group.heightSum += box.height;
     } else {
-      groups.push([box]);
+      groups.push({ boxes: [box], topSum: box.top, heightSum: box.height });
     }
   }
 
-  return groups;
+  return groups.map((group) => group.boxes);
+}
+
+function highlightLineAverageTop(group: HighlightLineGroup) {
+  return group.topSum / group.boxes.length;
+}
+
+function highlightLineAverageHeight(group: HighlightLineGroup) {
+  return group.heightSum / group.boxes.length;
+}
+
+function findHighlightLineGroup(
+  groups: HighlightLineGroup[],
+  firstActiveIndex: number,
+  box: HighlightBox,
+) {
+  for (let index = firstActiveIndex; index < groups.length; index += 1) {
+    const group = groups[index]!;
+    if (
+      Math.abs(box.top - highlightLineAverageTop(group)) <= 3 &&
+      Math.abs(box.height - highlightLineAverageHeight(group)) <= 4
+    ) {
+      return group;
+    }
+  }
+  return undefined;
+}
+
+function insertActiveHighlightContributor(
+  active: ActiveHighlightContributor[],
+  contributor: ActiveHighlightContributor,
+) {
+  const index = active.findIndex((item) => item.order > contributor.order);
+  if (index < 0) {
+    active.push(contributor);
+  } else {
+    active.splice(index, 0, contributor);
+  }
+}
+
+function removeActiveHighlightContributor(active: ActiveHighlightContributor[], box: HighlightBox) {
+  const index = active.findIndex((item) => item.box === box);
+  if (index >= 0) active.splice(index, 1);
 }
 
 function uniqueStrings(values: string[]) {

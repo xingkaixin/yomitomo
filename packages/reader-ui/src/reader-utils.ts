@@ -42,6 +42,14 @@ export type AnnotationRailItem = {
   style: React.CSSProperties;
 };
 
+type PositionedAnnotationRailItem = {
+  annotation: Annotation;
+  index: number;
+  start: number;
+  end: number;
+  top: number;
+};
+
 export const defaultUserProfile: UserProfile = {
   id: 'user_local',
   nickname: '我',
@@ -376,14 +384,7 @@ export function buildAnnotationRailItems(
     })
     .toSorted((left, right) => left.top - right.top || left.index - right.index);
 
-  const groups: Array<typeof positioned> = [];
-  for (const item of positioned) {
-    const group = groups.find((items) =>
-      items.some((groupItem) => anchorsOverlap(item, groupItem)),
-    );
-    if (group) group.push(item);
-    else groups.push([item]);
-  }
+  const groups = buildAnnotationRailGroups(positioned);
 
   const railGroups = groups
     .map((group) =>
@@ -624,11 +625,27 @@ function sameStrings(left: readonly string[], right: readonly string[]) {
   return left.every((item, index) => item === right[index]);
 }
 
-function anchorsOverlap(
-  left: { start: number; end: number },
-  right: { start: number; end: number },
-) {
-  return Math.max(left.start, right.start) < Math.min(left.end, right.end);
+function buildAnnotationRailGroups(positioned: PositionedAnnotationRailItem[]) {
+  const sorted = [...positioned].toSorted(
+    (left, right) => left.start - right.start || left.end - right.end || left.index - right.index,
+  );
+  const groups: PositionedAnnotationRailItem[][] = [];
+  let currentGroup: PositionedAnnotationRailItem[] = [];
+  let currentEnd = Number.NEGATIVE_INFINITY;
+
+  for (const item of sorted) {
+    if (currentGroup.length === 0 || item.start >= currentEnd) {
+      currentGroup = [item];
+      groups.push(currentGroup);
+      currentEnd = item.end;
+      continue;
+    }
+
+    currentGroup.push(item);
+    currentEnd = Math.max(currentEnd, item.end);
+  }
+
+  return groups;
 }
 
 function estimateRailGroupHeight(
