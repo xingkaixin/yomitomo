@@ -227,7 +227,7 @@ describe('articleRecordFromEpubFile', () => {
     expect(article.contentHtml).not.toContain('隐藏文本');
   });
 
-  it('inlines html and svg chapter images', async () => {
+  it('strips html and svg chapter image references', async () => {
     const zip = new JSZip();
     zip.file(
       'META-INF/container.xml',
@@ -281,10 +281,11 @@ describe('articleRecordFromEpubFile', () => {
       },
     );
 
-    expect(article.contentHtml).toContain('src="data:image/png;base64,AQID"');
-    expect(article.contentHtml).toContain(
-      `href="data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}"`,
-    );
+    expect(article.contentHtml).toContain('带图片的正文。');
+    expect(article.contentHtml).not.toContain('data:image/');
+    expect(article.contentHtml).not.toContain('https://ebook.local/');
+    expect(article.contentHtml).not.toContain('src=');
+    expect(article.contentHtml).not.toContain('href=');
     expect(article.contentHtml).not.toContain('srcset=');
     expect(
       events.find(
@@ -293,7 +294,7 @@ describe('articleRecordFromEpubFile', () => {
       )?.data,
     ).toMatchObject({
       imageElementCount: 2,
-      inlinedImageCount: 2,
+      strippedImageCount: 2,
     });
   });
 });

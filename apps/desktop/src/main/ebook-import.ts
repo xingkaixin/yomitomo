@@ -13,10 +13,18 @@ import { sanitizeArticleContent } from '@yomitomo/core/article-extraction';
 import { hashText, type ArticleRecord, type EbookChapterRecord } from '@yomitomo/shared';
 
 const MAX_EPUB_BYTES = 80 * 1024 * 1024;
-const INLINE_CHAPTER_IMAGE_CONCURRENCY = 4;
 const EPUB_MIME = 'application/epub+zip';
 const XHTML_TYPES = new Set(['application/xhtml+xml', 'text/html', 'application/xml', 'text/xml']);
 const CHAPTER_PARAGRAPH_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
+const HTML_IMAGE_REFERENCE_ATTRIBUTES = [
+  'src',
+  'srcset',
+  'data-src',
+  'data-original',
+  'data-lazy-src',
+  'data-actualsrc',
+  'data-srcset',
+];
 
 export type EbookImportFileInput = {
   fileName: string;
@@ -60,10 +68,9 @@ type ImportedEbookChapter = EbookChapterRecord & {
   paragraphs: string[];
 };
 
-type InlineChapterImagesMetrics = {
+type ChapterImageMetrics = {
   imageElementCount: number;
-  inlinedImageCount: number;
-  inlinedImageDataChars: number;
+  strippedImageCount: number;
 };
 
 export async function articleRecordFromEpubFile(
@@ -324,7 +331,6 @@ async function readEpubChapters(
   performanceLogger: EbookImportOptions['performanceLogger'],
 ): Promise<ImportedEbookChapter[]> {
   const manifestById = new Map(epub.manifest.map((item) => [item.id, item]));
-  const mediaTypeByPath = new Map(epub.manifest.map((item) => [item.path, item.mediaType]));
   const chapters: ImportedEbookChapter[] = [];
 
   for (let spineIndex = 0; spineIndex < epub.spineIds.length; spineIndex += 1) {
@@ -340,13 +346,8 @@ async function readEpubChapters(
     const parseMs = performanceElapsedMs(parseStartedAt);
     try {
       const imagesStartedAt = performanceStart();
-      const imageMetrics = await inlineChapterImages(
-        dom.window.document,
-        zip,
-        item.path,
-        mediaTypeByPath,
-      );
-      const inlineImagesMs = performanceElapsedMs(imagesStartedAt);
+      const imageMetrics = stripChapterImageReferences(dom.window.document);
+      const stripImagesMs = performanceElapsedMs(imagesStartedAt);
 
       const tocStartedAt = performanceStart();
       const isToc = isTocSpineItem(dom.window.document, item, epub);
@@ -359,7 +360,7 @@ async function readEpubChapters(
           href: item.href,
           sourceChars: text.length,
           parseMs,
-          inlineImagesMs,
+          stripImagesMs,
           tocCheckMs,
           ...imageMetrics,
         });
@@ -391,7 +392,7 @@ async function readEpubChapters(
           sanitizedHtmlChars: html.length,
           paragraphCount: paragraphs.length,
           parseMs,
-          inlineImagesMs,
+          stripImagesMs,
           tocCheckMs,
           sanitizeMs,
           paragraphsMs,
@@ -422,7 +423,7 @@ async function readEpubChapters(
         paragraphCount: paragraphs.length,
         textChars: textLength,
         parseMs,
-        inlineImagesMs,
+        stripImagesMs,
         tocCheckMs,
         sanitizeMs,
         paragraphsMs,
@@ -473,76 +474,32 @@ function isTocSpineItem(document: Document, item: ManifestItem, epub: EpubPackag
   return internalAnchors.length >= 5 && anchorTextLength / bodyText.length > 0.5;
 }
 
-async function inlineChapterImages(
-  document: Document,
-  zip: JSZip,
-  chapterPath: string,
-  mediaTypeByPath: Map<string, string>,
-) {
-  const metrics: InlineChapterImagesMetrics = {
+function stripChapterImageReferences(document: Document) {
+  const metrics: ChapterImageMetrics = {
     imageElementCount: 0,
-    inlinedImageCount: 0,
-    inlinedImageDataChars: 0,
+    strippedImageCount: 0,
   };
-  const baseDir = dirname(chapterPath) === '.' ? '' : dirname(chapterPath);
 
-  const htmlImages = Array.from(document.querySelectorAll<HTMLImageElement>('img[src]'));
+  const htmlImages = Array.from(document.querySelectorAll<HTMLImageElement>('img'));
   metrics.imageElementCount += htmlImages.length;
-  for (let index = 0; index < htmlImages.length; index += INLINE_CHAPTER_IMAGE_CONCURRENCY) {
-    const dataLengths = await Promise.all(
-      htmlImages.slice(index, index + INLINE_CHAPTER_IMAGE_CONCURRENCY).map(async (image) => {
-        const src = image.getAttribute('src');
-        const dataUrl = src
-          ? await imageDataUrl(zip, resolveZipPath(baseDir, src), mediaTypeByPath)
-          : '';
-        if (dataUrl) {
-          image.setAttribute('src', dataUrl);
-        } else {
-          image.removeAttribute('src');
-        }
-        image.removeAttribute('srcset');
-        return dataUrl.length;
-      }),
-    );
-    for (const dataLength of dataLengths) {
-      if (!dataLength) continue;
-      metrics.inlinedImageCount += 1;
-      metrics.inlinedImageDataChars += dataLength;
+  for (const image of htmlImages) {
+    if (HTML_IMAGE_REFERENCE_ATTRIBUTES.some((attribute) => image.hasAttribute(attribute))) {
+      metrics.strippedImageCount += 1;
     }
+    for (const attribute of HTML_IMAGE_REFERENCE_ATTRIBUTES) image.removeAttribute(attribute);
   }
 
   const svgImages = Array.from(document.querySelectorAll('image'));
   metrics.imageElementCount += svgImages.length;
-  for (let index = 0; index < svgImages.length; index += INLINE_CHAPTER_IMAGE_CONCURRENCY) {
-    const dataLengths = await Promise.all(
-      svgImages.slice(index, index + INLINE_CHAPTER_IMAGE_CONCURRENCY).map(async (image) => {
-        const href = image.getAttribute('href') || image.getAttribute('xlink:href');
-        const dataUrl = href
-          ? await imageDataUrl(zip, resolveZipPath(baseDir, href), mediaTypeByPath)
-          : '';
-        if (!dataUrl) return 0;
-        image.setAttribute('href', dataUrl);
-        image.removeAttribute('xlink:href');
-        return dataUrl.length;
-      }),
-    );
-    for (const dataLength of dataLengths) {
-      if (!dataLength) continue;
-      metrics.inlinedImageCount += 1;
-      metrics.inlinedImageDataChars += dataLength;
+  for (const image of svgImages) {
+    if (image.hasAttribute('href') || image.hasAttribute('xlink:href')) {
+      metrics.strippedImageCount += 1;
     }
+    image.removeAttribute('href');
+    image.removeAttribute('xlink:href');
   }
 
   return metrics;
-}
-
-async function imageDataUrl(zip: JSZip, imagePath: string, mediaTypeByPath: Map<string, string>) {
-  if (imagePath.startsWith('data:image/')) return imagePath;
-  const file = zipFile(zip, imagePath);
-  if (!file) return '';
-  const mediaType = imageMimeType(mediaTypeByPath.get(imagePath), imagePath);
-  if (!mediaType) return '';
-  return `data:${mediaType};base64,${await file.async('base64')}`;
 }
 
 async function readCoverImage(zip: JSZip, epub: EpubPackage) {
