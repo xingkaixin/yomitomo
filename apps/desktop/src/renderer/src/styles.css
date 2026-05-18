@@ -10675,15 +10675,18 @@ button.license-package-row:hover {
 }
 
 .library-home-header {
-  gap: 14px;
-  padding: 26px 34px 14px;
+  gap: 0;
+  padding: 20px 34px 12px;
 }
 
 .library-home-header-main {
-  align-items: end;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   border-top: 0;
   border-bottom: 1px solid hsl(var(--foreground));
-  padding: 0 0 18px;
+  padding: 0 0 12px;
 }
 
 .library-home-header h2 {
@@ -10691,7 +10694,9 @@ button.license-package-row:hover {
 }
 
 .library-home-actions {
-  min-width: min(100%, 520px);
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: space-between;
 }
 
 .library-home-actions .library-add-trigger {
@@ -10712,6 +10717,7 @@ button.license-package-row:hover {
 }
 
 .library-source-tabs {
+  flex: 0 0 auto;
   border-bottom: 0;
 }
 

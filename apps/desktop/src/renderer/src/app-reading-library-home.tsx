@@ -105,6 +105,8 @@ export function LibraryHome({
   }, [activeSource, pageSize, searchQuery]);
 
   const activeSourceLabel = activeSource === 'web' ? '网页文章' : '电子书';
+  const footerCountLabel =
+    activeSource === 'web' ? `共 ${sourceArticles.length} 篇` : `共 ${sourceArticles.length} 本`;
   const emptyReason = emptyLibraryReason({
     activeSource,
     articlesLength: articles.length,
@@ -113,12 +115,22 @@ export function LibraryHome({
   });
 
   return (
-    <section className={`library-home is-${activeSource}`}>
+    <section className={`library-home is-${activeSource}`} aria-label={activeSourceLabel}>
       <header className="library-home-header">
         <div className="library-home-header-main">
-          <div className="library-home-heading">
-            <span className="library-kicker">头版</span>
-            <h2>{activeSourceLabel}</h2>
+          <div className="library-source-tabs" role="tablist" aria-label="阅读库内容类型">
+            {LIBRARY_SOURCE_OPTIONS.map((option) => (
+              <button
+                aria-pressed={activeSource === option.value}
+                className={activeSource === option.value ? 'is-active' : undefined}
+                key={option.value}
+                type="button"
+                onClick={() => setActiveSource(option.value)}
+              >
+                <span>{option.label}</span>
+                <em>{option.value === 'web' ? counts.web : counts.ebook}</em>
+              </button>
+            ))}
           </div>
           <div className="library-home-actions">
             <label className="library-search">
@@ -138,20 +150,6 @@ export function LibraryHome({
               onOpenArticle={onOpenArticle}
             />
           </div>
-        </div>
-        <div className="library-source-tabs" role="tablist" aria-label="阅读库内容类型">
-          {LIBRARY_SOURCE_OPTIONS.map((option) => (
-            <button
-              aria-pressed={activeSource === option.value}
-              className={activeSource === option.value ? 'is-active' : undefined}
-              key={option.value}
-              type="button"
-              onClick={() => setActiveSource(option.value)}
-            >
-              <span>{option.label}</span>
-              <em>{option.value === 'web' ? counts.web : counts.ebook}</em>
-            </button>
-          ))}
         </div>
       </header>
       <div className="library-toolbar" aria-label="阅读库工具栏">
@@ -192,9 +190,7 @@ export function LibraryHome({
         <footer
           className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
         >
-          <span>
-            {activeSourceLabel} · 共 {sourceArticles.length} 项
-          </span>
+          <span>{footerCountLabel}</span>
           {pageCount > 1 ? (
             <div className="library-pagination" aria-label="阅读库分页">
               <button
