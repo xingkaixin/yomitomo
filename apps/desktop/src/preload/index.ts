@@ -4,6 +4,7 @@ import type {
   AgentAnnotatePayload,
   AgentAnnotateResult,
   AgentMessagePayload,
+  AgentReviewPayload,
   AnnotationMetadata,
   AnnotationMetadataPayload,
   AppSettings,
@@ -98,6 +99,8 @@ const api = {
   deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,
+  requestAgentReview: (payload: AgentReviewPayload) =>
+    ipcRenderer.invoke('agent:review', payload) as Promise<Comment[]>,
   requestAgentCommentStream: (
     payload: AgentMessagePayload,
     onEvent: (

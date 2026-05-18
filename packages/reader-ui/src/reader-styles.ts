@@ -310,8 +310,12 @@ export const readerConversationStyles = `
 .reader-composer-types button:hover,.reader-composer-types button.is-active{border-color:rgba(159,91,80,.18);background:rgba(159,91,80,.07);color:var(--reader-red)}
 .reader-comment-body{min-width:0}
 .reader-comment-author{display:grid;grid-template-columns:minmax(0,1fr) auto;min-width:0;align-items:baseline;gap:8px;margin-bottom:3px;font-family:ui-sans-serif,system-ui,sans-serif}
-.reader-comment-author strong{min-width:0;font-size:12px;font-weight:850}
+.reader-comment-author strong{display:inline-flex;min-width:0;align-items:center;gap:4px;font-size:12px;font-weight:850}
 .reader-comment .reader-comment-author span{display:inline-flex;width:auto;height:auto;align-items:center;gap:3px;border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-size:10px;font-weight:850;line-height:1;padding:3px 6px}
+.reader-comment .reader-review-label{display:inline-flex;width:max-content;max-width:100%;height:auto;min-width:0;align-items:center;margin:0 0 5px;border:1px solid transparent;border-radius:999px;font-family:ui-sans-serif,system-ui,sans-serif;font-size:9px;font-weight:900;line-height:1;overflow-wrap:normal;padding:3px 6px;white-space:nowrap;word-break:normal}
+.reader-review-label.is-support{border-color:rgba(77,155,114,.18);background:rgba(77,155,114,.11);color:#356f51}
+.reader-review-label.is-challenge{border-color:rgba(159,91,80,.2);background:rgba(159,91,80,.1);color:#8a3f32}
+.reader-review-label.is-supplement{border-color:rgba(79,127,159,.2);background:rgba(79,127,159,.1);color:#3f6d8b}
 .reader-markdown{min-width:0;color:#3f352c;font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.66;overflow-wrap:anywhere;word-break:break-word}
 .reader-markdown-content>*:first-child{margin-top:0}
 .reader-markdown-content>*:last-child{margin-bottom:0}
@@ -356,6 +360,8 @@ export const readerConversationStyles = `
 .reader-note-tabs [data-slot="tabs-trigger"][data-state="active"]{background:#fffdf8;color:var(--reader-ink);box-shadow:0 5px 14px rgba(40,35,29,.08)}
 .reader-note-tabs [data-slot="tabs-trigger"]:focus-visible{outline:2px solid rgba(37,29,22,.24);outline-offset:2px}
 .reader-note{overflow:hidden;padding:0;--reader-note-accent:var(--reader-yellow-strong)}
+.reader-note.has-review-menu{z-index:24;overflow:visible}
+.reader-note.has-review-burst{overflow:visible}
 .reader-note-body{position:relative;min-width:0;padding:16px 16px 0;background:rgba(255,253,248,.96)}
 .reader-note-toolbar{position:relative;display:flex;align-items:stretch;margin:14px -16px 0;border-top:1px solid rgba(40,35,29,.12);background:rgba(250,246,238,.86)}
 .reader-note-thread-toggle{display:flex;width:100%;min-width:0;min-height:44px;align-items:center;justify-content:space-between;gap:12px;border:0;background:transparent;color:var(--reader-muted);cursor:pointer;font:inherit;padding:0 14px 0 16px;text-align:left;transition:background .14s ease,color .14s ease}
@@ -363,6 +369,32 @@ export const readerConversationStyles = `
 .reader-note-thread-toggle:active{background:#eadfce}
 .reader-note-thread-toggle-main{display:inline-flex;min-width:0;align-items:center;gap:10px}
 .reader-note-thread-toggle-side{display:inline-flex;min-width:0;align-items:center;justify-content:flex-end;color:var(--reader-muted)}
+.reader-note-toolbar.has-review-action .reader-note-thread-toggle{width:auto;flex:1 1 auto}
+.reader-review-invite-wrap{position:relative;display:flex;flex:0 0 auto;align-items:stretch;border-left:1px solid rgba(40,35,29,.1)}
+.reader-review-invite{display:inline-flex;min-width:78px;align-items:center;justify-content:center;gap:5px;border:0;background:rgba(255,253,248,.52);color:var(--reader-muted);cursor:pointer;font:inherit;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:860;padding:0 11px;transition:background .14s ease,color .14s ease}
+.reader-review-invite:hover,.reader-review-invite.is-active{background:#f0e3cd;color:var(--reader-ink)}
+.reader-review-invite:disabled{cursor:not-allowed;opacity:.58}
+.reader-review-invite.is-reviewing svg{animation:reader-review-scale 1.05s ease-in-out infinite}
+.reader-review-active-avatars{display:inline-flex;align-items:center;margin-left:1px}
+.reader-review-active-avatars>span{display:grid;width:20px;height:20px;place-items:center;border-radius:999px;animation:reader-review-avatar-float .9s ease-in-out infinite}
+.reader-review-active-avatars .reader-avatar-badge{width:18px;height:18px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:8px}
+.reader-review-active-avatars .reader-avatar-badge.is-image{background:transparent}
+.reader-review-menu{position:absolute;right:8px;bottom:calc(100% + 8px);z-index:30;display:grid;gap:4px;width:238px;padding:8px;border:1px solid rgba(40,35,29,.12);border-radius:14px;background:#fffdf8;box-shadow:0 16px 42px rgba(40,35,29,.16);font-family:ui-sans-serif,system-ui,sans-serif;transform-origin:bottom right}
+.reader-review-menu>button{display:grid;width:100%;grid-template-columns:20px 30px minmax(0,1fr);align-items:center;gap:8px;border:0;border-radius:10px;background:transparent;color:var(--reader-ink);cursor:pointer;padding:8px;text-align:left}
+.reader-review-menu>button:hover,.reader-review-menu>button.is-selected{background:#f0eadf}
+.reader-review-menu button:disabled{cursor:not-allowed;opacity:.54}
+.reader-review-menu-check{display:grid;width:18px;height:18px;place-items:center;border:1px solid rgba(40,35,29,.16);border-radius:999px;color:var(--reader-red)}
+.reader-review-menu .reader-avatar-badge{width:28px;height:28px;overflow:hidden;border-radius:999px;background:var(--reader-green);font-size:10px}
+.reader-review-menu>button>span:last-child{display:grid;min-width:0;gap:2px}
+.reader-review-menu strong{overflow:hidden;font-size:12px;font-weight:900;text-overflow:ellipsis;white-space:nowrap}
+.reader-review-menu em{overflow:hidden;color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:760;text-overflow:ellipsis;white-space:nowrap}
+.reader-review-menu footer{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:4px -2px -2px;padding:8px 2px 0;border-top:1px solid rgba(40,35,29,.1)}
+.reader-review-menu footer button{display:inline-flex;width:auto;height:30px;align-items:center;justify-content:center;border:0;border-radius:999px;background:#e7dac9;color:var(--reader-ink);cursor:pointer;font:inherit;font-size:11px;font-weight:860;padding:0 11px}
+.reader-review-menu footer button:last-child{background:var(--reader-ink);color:#fffaf0}
+.reader-review-menu footer button:disabled{cursor:not-allowed;opacity:.48}
+.reader-note-review-burst{position:absolute;inset:0;z-index:6;overflow:visible;pointer-events:none}
+.reader-note-review-burst .reader-completion-burst{position:absolute;inset:0;overflow:visible}
+.reader-note-review-burst .reader-completion-burst-center{left:50%;top:44%;transform:scale(.58)}
 .reader-note-toolbar .reader-delete-note{height:26px;margin-right:0;padding:0 8px;font-size:11px}
 .reader-delete-annotation{position:absolute;right:0;top:50%;z-index:2;display:inline-flex;min-width:88px;height:32px;align-items:center;justify-content:center;gap:5px;border-radius:999px;background:#fffdf8;box-shadow:0 0 0 1px rgba(255,253,248,.9),0 5px 16px rgba(40,35,29,.1);font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;opacity:0;padding:0 11px;pointer-events:none;transform:translateY(calc(-50% + 2px));transition:background .14s ease,box-shadow .14s ease,opacity .14s ease,transform .14s ease}
 .reader-note:hover .reader-delete-annotation,.reader-delete-annotation:focus-visible,.reader-delete-annotation.is-holding{opacity:1;pointer-events:auto;transform:translateY(-50%)}
@@ -379,7 +411,8 @@ export const readerConversationStyles = `
 .reader-note-meta-copy{display:block;min-width:0}
 .reader-note-meta strong{overflow:hidden;color:var(--reader-ink);font-size:13px;font-weight:880;text-overflow:ellipsis;white-space:nowrap}
 .reader-note-time-actions{position:relative;display:grid;min-width:88px;justify-items:end}
-.reader-note-meta time{margin-left:auto;color:#8d8378;font-size:11px;font-weight:760;font-variant-numeric:tabular-nums;white-space:nowrap}
+.reader-note-meta time{margin-left:auto;color:#8d8378;font-size:11px;font-weight:760;font-variant-numeric:tabular-nums;white-space:nowrap;transition:opacity .14s ease}
+.reader-note:hover .reader-note-time-actions time,.reader-note-time-actions:has(.reader-delete-annotation:focus-visible) time,.reader-note-time-actions:has(.reader-delete-annotation.is-holding) time{opacity:0;pointer-events:none}
 .reader-comment-count{display:inline-flex;align-items:center;gap:6px;min-width:0;color:inherit;font-family:ui-sans-serif,system-ui,sans-serif;font-size:12px;font-weight:820;font-variant-numeric:tabular-nums;white-space:nowrap}
 .reader-note-type,.reader-note-intent{display:inline-flex;width:fit-content;align-items:center;gap:4px;border:1px solid rgba(159,91,80,.16);border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;line-height:1;padding:4px 7px;white-space:nowrap}
 .reader-note-intent{border-color:rgba(37,29,22,.12);background:rgba(37,29,22,.06);color:#6f6258}
@@ -425,6 +458,16 @@ export const readerConversationStyles = `
 .reader-replies-toggle{cursor:pointer;transition:color .14s ease}
 .reader-replies-toggle:hover{color:var(--reader-red)}
 .reader-replies-label{cursor:default}
+.reader-thought-footer-actions{display:inline-flex;min-width:0;align-items:center;justify-content:flex-end;gap:10px;margin-left:auto}
+.reader-thought-review-status{display:inline-flex;min-width:0;align-items:center;gap:6px;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850}
+.reader-replies-toggle .reader-thought-review-status,.reader-replies-label .reader-thought-review-status{margin-left:3px}
+.reader-thought-reviewer-stack,.reader-thought-review-motion{display:inline-flex;min-width:0;align-items:center}
+.reader-thought-reviewer-stack>span,.reader-thought-review-motion>span{display:grid;width:22px;height:22px;place-items:center;border-radius:999px;background:transparent}
+.reader-thought-reviewer-stack>span+span{margin-left:-7px}
+.reader-thought-reviewer-stack .reader-avatar-badge,.reader-thought-review-motion .reader-avatar-badge{width:20px;height:20px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:8px}
+.reader-thought-reviewer-stack .reader-avatar-badge.is-image,.reader-thought-review-motion .reader-avatar-badge.is-image{background:transparent}
+.reader-thought-review-motion{gap:4px}
+.reader-thought-review-motion>span{animation:reader-review-avatar-travel var(--reviewer-duration) ease-in-out infinite;animation-delay:calc(var(--reviewer-index) * 120ms)}
 .reader-delete-thought{position:absolute;right:10px;top:10px;z-index:1;height:24px;margin:0;padding:0 8px;border-radius:999px;background:rgba(255,253,248,.84);box-shadow:0 0 0 1px rgba(255,253,248,.76),0 3px 10px rgba(40,35,29,.08);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:10px;opacity:0;pointer-events:none;transform:translateY(2px);transition:background .14s ease,box-shadow .14s ease,opacity .14s ease,transform .14s ease}
 .reader-discussion-thread:hover .reader-delete-thought,.reader-delete-thought:focus-visible,.reader-delete-thought.is-holding{opacity:1;pointer-events:auto;transform:translateY(0)}
 .reader-thread-detail::-webkit-scrollbar{width:7px}
@@ -438,6 +481,7 @@ export const readerConversationStyles = `
 .reader-comment.is-reply{grid-template-columns:28px minmax(0,1fr)}
 .reader-comment.is-reply .reader-avatar-badge{width:26px;height:26px}
 .reader-thread-reply-composer{display:flex;min-width:0;justify-content:flex-end}
+.reader-thought-footer-actions:has(.reader-inline-composer-panel){flex:1 0 100%;width:100%;align-items:flex-start;justify-content:stretch;margin-left:0}
 .reader-thread-reply-composer:has(.reader-inline-composer-panel){flex:1 0 100%;justify-content:stretch;margin-top:8px}
 .reader-thread-reply-composer .reader-inline-composer-panel{width:100%}
 .reader-new-thought-composer{margin:10px -12px -12px;padding:12px;border-top:1px solid rgba(40,35,29,.1);background:rgba(250,246,238,.84)}
@@ -504,6 +548,9 @@ export const readerConversationStyles = `
 .reader-composer-agent-tray b em{color:var(--reader-muted);font-size:10px;font-style:normal;font-weight:760}
 .reader-selection-menu,.reader-composer{z-index:120}
 @keyframes reader-composer-pop{from{opacity:0;transform:translateY(-6px) scale(.88);filter:blur(2px)}to{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes reader-review-scale{0%,100%{transform:rotate(0deg) scale(1)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(5deg) scale(.98)}}
+@keyframes reader-review-avatar-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.04)}}
+@keyframes reader-review-avatar-travel{0%,100%{transform:translateX(-3px) translateY(0) scale(1)}50%{transform:translateX(4px) translateY(-2px) scale(1.04)}}
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
 .reader-app :where(.reader-composer textarea,.reader-note-comments-panel .reader-comment-box textarea):focus-visible{outline:0;box-shadow:none}
 .reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal}

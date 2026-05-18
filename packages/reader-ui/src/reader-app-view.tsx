@@ -152,6 +152,7 @@ export function ReaderAppView({
   noteRefs,
   notesRef,
   readerSettings,
+  reviewAgents = [],
   readingSections,
   selectionAction,
   settingsOpen,
@@ -174,6 +175,7 @@ export function ReaderAppView({
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
+  onRequestAnnotationReview,
   onAnnotationLayoutChange,
   onResolveAnnotationNavigation,
   onNavigateAnnotation,
@@ -384,6 +386,8 @@ export function ReaderAppView({
           onMouseUp={onMouseUp}
           onOpenComposer={onOpenComposer}
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
+          onRequestAnnotationReview={onRequestAnnotationReview}
+          reviewAgents={reviewAgents}
           onScrollToHighlight={onScrollToHighlight}
         />
       </main>

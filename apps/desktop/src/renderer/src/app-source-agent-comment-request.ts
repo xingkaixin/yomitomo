@@ -12,6 +12,7 @@ type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;
   annotation: Annotation;
   userComment: AnnotationComment;
+  reviewTargetCommentId?: string;
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
   articleText: string;
@@ -25,6 +26,7 @@ export async function runSourceAgentCommentRequest({
   agent,
   annotation,
   userComment,
+  reviewTargetCommentId,
   desktop,
   currentArticle,
   articleText,
@@ -33,7 +35,8 @@ export async function runSourceAgentCommentRequest({
   saveAnnotations,
   setStatusMessage,
 }: RunSourceAgentCommentRequestInput) {
-  setStatusMessage(`${agent.nickname} 正在回复`);
+  setStatusMessage(`${agent.nickname} ${reviewTargetCommentId ? '正在审阅' : '正在回复'}`);
+  const replyTargetId = reviewTargetCommentId || userComment.replyTo || userComment.id;
   let pendingCommentId = '';
   let pendingDelta = '';
   let pendingFrame = 0;
@@ -56,7 +59,10 @@ export async function runSourceAgentCommentRequest({
       return;
     }
 
-    if (!pendingComment || !hasReplyTarget(annotationsRef.current, annotation.id, userComment)) {
+    if (
+      !pendingComment ||
+      !hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)
+    ) {
       return;
     }
     const restoredAnnotations = appendAnnotationComment(
@@ -77,6 +83,7 @@ export async function runSourceAgentCommentRequest({
         agentId: agent.id,
         agentUsername: agent.username,
         readingIntent: annotation.readingIntent || userComment.readingIntent,
+        reviewTargetCommentId,
         article: promptArticle(currentArticle, articleText),
         annotation,
         userComment,
@@ -86,7 +93,7 @@ export async function runSourceAgentCommentRequest({
           pendingCommentId = event.comment.id;
           pendingComment = {
             ...event.comment,
-            replyTo: userComment.replyTo || userComment.id,
+            replyTo: replyTargetId,
           };
           const nextAnnotations = appendAnnotationComment(
             annotationsRef.current,
@@ -109,7 +116,7 @@ export async function runSourceAgentCommentRequest({
     const completedComment = {
       ...finalComment,
       id: finalComment.id || pendingCommentId,
-      replyTo: userComment.replyTo || userComment.id,
+      replyTo: replyTargetId,
       pending: false,
     };
     const nextAnnotations = updateAnnotationComment(
@@ -123,7 +130,7 @@ export async function runSourceAgentCommentRequest({
       hasAnnotationComment(nextAnnotations, annotation.id, completedComment.id)
     ) {
       await saveAnnotations(nextAnnotations);
-    } else if (hasReplyTarget(annotationsRef.current, annotation.id, userComment)) {
+    } else if (hasAnnotationComment(annotationsRef.current, annotation.id, replyTargetId)) {
       const restoredAnnotations = appendAnnotationComment(
         annotationsRef.current,
         annotation.id,
@@ -144,12 +151,4 @@ function hasAnnotationComment(annotations: Annotation[], annotationId: string, c
       annotation.id === annotationId &&
       annotation.comments.some((comment) => comment.id === commentId),
   );
-}
-
-function hasReplyTarget(
-  annotations: Annotation[],
-  annotationId: string,
-  userComment: AnnotationComment,
-) {
-  return hasAnnotationComment(annotations, annotationId, userComment.replyTo || userComment.id);
 }

@@ -258,11 +258,51 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    expect(screen.getByText('1 条想法')).toBeTruthy();
+    expect(screen.getByLabelText('1 条想法')).toBeTruthy();
     expect(screen.getByRole('button', { name: '展开想法列表' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '添加想法' })).toBeNull();
     expect(screen.queryByText('@kevin')).toBeNull();
     expect(screen.queryByLabelText('留言内容')).toBeNull();
+  });
+
+  it('invites selected review agents to review all thoughts', async () => {
+    const reviewAgent = { ...agent('review_1', '梁证言'), kind: 'review' as const };
+    const secondReviewAgent = { ...agent('review_2', '何明衡'), kind: 'review' as const };
+    const onRequestReview = vi.fn(async () => undefined);
+
+    render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        reviewAgents={[reviewAgent, secondReviewAgent]}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+        onRequestReview={onRequestReview}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '邀请审阅' }));
+    expect(screen.getByRole('button', { name: '审阅' })).toHaveProperty('disabled', true);
+
+    fireEvent.click(screen.getByRole('button', { name: '选择梁证言' }));
+    fireEvent.click(screen.getByRole('button', { name: '选择何明衡' }));
+    fireEvent.click(screen.getByRole('button', { name: '审阅' }));
+
+    await waitFor(() => {
+      expect(onRequestReview).toHaveBeenCalledWith('annotation-1', [
+        reviewAgent,
+        secondReviewAgent,
+      ]);
+    });
   });
 
   it('uses a single add thought trigger when expanded without thoughts', () => {
@@ -345,7 +385,9 @@ describe('AnnotationCard', () => {
     );
 
     expect(screen.queryByRole('button', { name: '展开回复列表' })).toBeNull();
-    expect(container.querySelector('.reader-replies-label')?.textContent).toContain('0 条回复');
+    expect(container.querySelector('.reader-replies-label')?.getAttribute('aria-label')).toBe(
+      '0 条回复',
+    );
     expect(container.querySelector('.reader-thought-footer')).toBeTruthy();
   });
 
@@ -438,7 +480,7 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    expect(screen.getByText('2 条想法')).toBeTruthy();
+    expect(screen.getByLabelText('2 条想法')).toBeTruthy();
     expect(screen.getByText('第一个助手想法')).toBeTruthy();
     expect(screen.getByText('第二个助手想法')).toBeTruthy();
   });

@@ -80,6 +80,7 @@ export {
   runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
 } from './agent-annotation';
+export { runAgentReview } from './agent-review';
 
 export async function testProvider(
   provider: LlmProvider,

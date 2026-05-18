@@ -7,6 +7,7 @@ import type {
   AnnotationEvidenceSource,
   AnnotationMove,
   AnnotationType,
+  ReviewOpinionLabel,
 } from './types';
 
 export const agentReadingIntentOptions: Array<{
@@ -121,6 +122,29 @@ export function agentReadingIntentDisplayLabel(intent: AgentReadingIntent) {
   const icon = agentReadingIntentIcon(intent);
   const label = agentReadingIntentLabel(intent);
   return icon ? `${icon} ${label}` : label;
+}
+
+export const reviewOpinionLabels: ReviewOpinionLabel[] = [
+  '站得住',
+  '有洞察',
+  '有异议',
+  '待验证',
+  '可深挖',
+  '有遗漏',
+];
+
+export type ReviewOpinionLabelTone = 'support' | 'challenge' | 'supplement';
+
+export function normalizeReviewOpinionLabel(value: unknown): ReviewOpinionLabel | null {
+  return reviewOpinionLabels.includes(value as ReviewOpinionLabel)
+    ? (value as ReviewOpinionLabel)
+    : null;
+}
+
+export function reviewOpinionLabelTone(label: ReviewOpinionLabel): ReviewOpinionLabelTone {
+  if (label === '站得住' || label === '有洞察') return 'support';
+  if (label === '有异议' || label === '待验证') return 'challenge';
+  return 'supplement';
 }
 
 export const customPersonalityId = 'custom';

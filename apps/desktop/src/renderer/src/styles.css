@@ -11810,6 +11810,7 @@ button.license-package-row:hover {
 .source-reader-shell .reader-comment-agent-tray button,
 .source-reader-shell .reader-comment-agent-tray .reader-comment-mention-label,
 .source-reader-shell .reader-comment-agent-more-menu,
+.source-reader-shell .reader-review-menu,
 .source-ebook-reader-shell .reader-note-owner,
 .source-ebook-reader-shell .reader-note-comments-panel,
 .source-ebook-reader-shell .reader-discussion-thread,
@@ -11819,7 +11820,8 @@ button.license-package-row:hover {
 .source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger,
 .source-ebook-reader-shell .reader-comment-agent-tray button,
 .source-ebook-reader-shell .reader-comment-agent-tray .reader-comment-mention-label,
-.source-ebook-reader-shell .reader-comment-agent-more-menu {
+.source-ebook-reader-shell .reader-comment-agent-more-menu,
+.source-ebook-reader-shell .reader-review-menu {
   border-color: hsl(var(--border) / 0.72);
   border-radius: 0;
   background: hsl(var(--card));
@@ -11836,9 +11838,11 @@ button.license-package-row:hover {
 .source-reader-shell .reader-note-comments-panel > header,
 .source-reader-shell .reader-note-toolbar,
 .source-reader-shell .reader-focus-card-section,
+.source-reader-shell .reader-review-menu footer,
 .source-ebook-reader-shell .reader-note-comments-panel > header,
 .source-ebook-reader-shell .reader-note-toolbar,
-.source-ebook-reader-shell .reader-focus-card-section {
+.source-ebook-reader-shell .reader-focus-card-section,
+.source-ebook-reader-shell .reader-review-menu footer {
   border-color: hsl(var(--border) / 0.72);
 }
 
@@ -11885,12 +11889,16 @@ button.license-package-row:hover {
 .source-reader-shell .reader-comment-agent-tray button:hover,
 .source-reader-shell .reader-comment-agent-more-menu button:hover,
 .source-reader-shell .reader-comment-toggle:hover,
+.source-reader-shell .reader-review-menu > button:hover,
+.source-reader-shell .reader-review-menu > button.is-selected,
 .source-ebook-reader-shell .reader-inline-composer-trigger:hover,
 .source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
 .source-ebook-reader-shell .reader-comment-expand:hover,
 .source-ebook-reader-shell .reader-comment-agent-tray button:hover,
 .source-ebook-reader-shell .reader-comment-agent-more-menu button:hover,
-.source-ebook-reader-shell .reader-comment-toggle:hover {
+.source-ebook-reader-shell .reader-comment-toggle:hover,
+.source-ebook-reader-shell .reader-review-menu > button:hover,
+.source-ebook-reader-shell .reader-review-menu > button.is-selected {
   background: hsl(0 0% 0% / 0.045);
   color: hsl(var(--foreground));
 }
@@ -11912,6 +11920,13 @@ button.license-package-row:hover {
   border-radius: 14px;
   background: hsl(var(--card));
   box-shadow: 0 8px 24px hsl(var(--foreground) / 0.07);
+}
+
+.source-reader-shell .reader-note.has-review-burst,
+.source-reader-shell .reader-note.has-review-menu,
+.source-ebook-reader-shell .reader-note.has-review-burst,
+.source-ebook-reader-shell .reader-note.has-review-menu {
+  overflow: visible;
 }
 
 .source-reader-shell .reader-note-body,
@@ -11945,14 +11960,31 @@ button.license-package-row:hover {
 
 .source-reader-shell .reader-note-thread-toggle:hover,
 .source-reader-shell .reader-replies-toggle:hover,
+.source-reader-shell .reader-review-invite:hover,
+.source-reader-shell .reader-review-invite.is-active,
 .source-reader-shell .reader-inline-composer-trigger:hover,
 .source-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
 .source-ebook-reader-shell .reader-note-thread-toggle:hover,
 .source-ebook-reader-shell .reader-replies-toggle:hover,
+.source-ebook-reader-shell .reader-review-invite:hover,
+.source-ebook-reader-shell .reader-review-invite.is-active,
 .source-ebook-reader-shell .reader-inline-composer-trigger:hover,
 .source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover {
   background: hsl(0 0% 0% / 0.045);
   color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-review-menu footer button,
+.source-ebook-reader-shell .reader-review-menu footer button {
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-review-menu footer button:last-child,
+.source-ebook-reader-shell .reader-review-menu footer button:last-child {
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
 }
 
 .source-reader-shell .reader-note-comments-panel,

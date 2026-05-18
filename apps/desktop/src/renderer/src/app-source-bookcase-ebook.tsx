@@ -57,12 +57,14 @@ import {
   type SourceAgentAnnotationRequestOptions,
 } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
+import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import {
   articleWithAnnotations,
   defaultTocOpen,
   normalizeDesktopReaderSettings,
   promptArticle,
   publicAnnotationAgents,
+  publicReviewAgents,
   readDesktopReaderSettings,
   usesOverlayToc,
   writeDesktopReaderSettings,
@@ -118,6 +120,7 @@ export function EbookBookcase({
     cleanupFoliateDocumentListenersRef.current();
   }, []);
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
   const {
     addComment,
     annotations,
@@ -557,6 +560,7 @@ export function EbookBookcase({
     agent: PublicAgent,
     annotation: Annotation,
     userComment: AnnotationComment,
+    reviewTargetCommentId?: string,
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -566,6 +570,28 @@ export function EbookBookcase({
       agent,
       annotation,
       userComment,
+      desktop,
+      currentArticle,
+      articleText: currentArticleText(),
+      reviewTargetCommentId,
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage,
+    });
+  }
+
+  async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    const currentAnnotation = annotationsRef.current.find(
+      (annotation) => annotation.id === annotationId,
+    );
+    if (!desktop || !currentArticle || !currentAnnotation || selectedAgents.length === 0) return;
+
+    await runSourceAgentReviewRequest({
+      agents: selectedAgents,
+      annotation: currentAnnotation,
       desktop,
       currentArticle,
       articleText: currentArticleText(),
@@ -985,6 +1011,7 @@ export function EbookBookcase({
       progressPercent={progressPercent}
       progressTickId={progressTickId}
       readerSettings={readerSettings}
+      reviewAgents={reviewAgents}
       readerState={readerState}
       readingSections={readingSections}
       sectionFractions={sectionFractions}
@@ -1029,6 +1056,7 @@ export function EbookBookcase({
       onOpenComposer={openComposer}
       onPlanFocusCoReading={planFocusCoReading}
       onReaderKeyDown={handleReaderKeyDown}
+      onRequestAnnotationReview={requestAnnotationReview}
       onResolveAnnotationNavigation={resolveAnnotationNavigation}
       onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
       onScrollToHeading={goToReaderTocItem}
