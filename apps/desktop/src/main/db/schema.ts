@@ -140,6 +140,7 @@ export const comments = sqliteTable(
     agentAvatar: text('agent_avatar'),
     agentAnnotationColor: text('agent_annotation_color'),
     readingIntent: text('reading_intent'),
+    reviewLabel: text('review_label'),
     userId: text('user_id'),
     userUsername: text('user_username'),
     userNickname: text('user_nickname'),

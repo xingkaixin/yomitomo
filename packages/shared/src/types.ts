@@ -63,6 +63,8 @@ export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'questi
 
 export type AgentKind = 'annotation' | 'review';
 
+export type ReviewOpinionLabel = '站得住' | '有洞察' | '有异议' | '待验证' | '可深挖' | '有遗漏';
+
 export type ProviderModelInputMode = 'list' | 'custom';
 
 export type MessageSendShortcut = 'enter' | 'mod-enter';
@@ -173,6 +175,7 @@ export type Comment = {
   userAvatar?: string;
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
+  reviewLabel?: ReviewOpinionLabel;
   pending?: boolean;
 };
 
@@ -685,6 +688,7 @@ export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
   readingIntent?: AgentReadingIntent;
+  reviewTargetCommentId?: string;
   agentRoster?: PublicAgent[];
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
@@ -696,6 +700,21 @@ export type AgentMessagePayload = {
   };
   annotation: Annotation;
   userComment: Comment;
+};
+
+export type AgentReviewPayload = {
+  agentId?: string;
+  agentUsername: string;
+  agentRoster?: PublicAgent[];
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
+  article: {
+    title: string;
+    url: string;
+    text: string;
+    ebookIndex?: EpubBookIndex;
+  };
+  annotation: Annotation;
 };
 
 export type AgentAnnotatePayload = {

@@ -5,11 +5,13 @@ import {
   Lightbulb,
   MessageCircle,
   MessageSquarePlus,
+  ShieldCheck,
   Trash2,
 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
+import { renderMarkdown, reviewOpinionLabelTone } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
+import { ReadingCompletionBurst } from './reader-agent-reading-dock';
 import { AvatarBadge } from './reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatTime } from './reader-date-utils';
@@ -28,6 +30,7 @@ export function AnnotationCard({
   noteRef,
   primaryCommentExpanded,
   railSide = 'right',
+  reviewAgents = [],
   shortcutModifier,
   stackCount = 1,
   stackIndex = 0,
@@ -39,6 +42,7 @@ export function AnnotationCard({
   onDeleteComment = () => undefined,
   onFocus,
   onPrimaryCommentExpandedChange,
+  onRequestReview,
 }: {
   active: boolean;
   agents: PublicAgent[];
@@ -49,6 +53,7 @@ export function AnnotationCard({
   noteRef: (element: HTMLElement | null) => void;
   primaryCommentExpanded: boolean;
   railSide?: AnnotationRailSide;
+  reviewAgents?: PublicAgent[];
   shortcutModifier: string;
   stackCount?: number;
   stackIndex?: number;
@@ -60,19 +65,32 @@ export function AnnotationCard({
   onDeleteComment?: (annotationId: string, commentId: string) => void;
   onFocus: (annotationId: string) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
+  onRequestReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
 }) {
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<string>>(() => new Set());
   const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(() => new Set());
   const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
   const [newThoughtOpen, setNewThoughtOpen] = useState(false);
+  const [reviewMenuOpen, setReviewMenuOpen] = useState(false);
+  const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [reviewingAgentIds, setReviewingAgentIds] = useState<Set<string>>(() => new Set());
+  const [reviewBurstKey, setReviewBurstKey] = useState(0);
+  const [reviewBurstVisible, setReviewBurstVisible] = useState(false);
   const sectionRef = useRef<HTMLElement | null>(null);
   const previousThreadRootIdsRef = useRef<string[] | null>(null);
+  const reviewBurstTimerRef = useRef<number | null>(null);
   const suggestedMentionAgents = annotationMentionAgents(annotation, agents);
-  const author = annotationAuthor(annotation, userProfile, agents);
+  const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);
+  const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
+  const canRequestReview =
+    Boolean(onRequestReview) && reviewAgents.length > 0 && discussionThreads.length > 0;
+  const reviewingAgents = reviewAgents.filter((agent) => reviewingAgentIds.has(agent.id));
   const thoughtAuthors = useMemo(
-    () => uniqueThoughtAuthors(discussionThreads, userProfile, agents),
-    [agents, discussionThreads, userProfile],
+    () => uniqueThoughtAuthors(discussionThreads, userProfile, personaAgents),
+    [discussionThreads, personaAgents, userProfile],
   );
   const threadRootIds = useMemo(
     () => discussionThreads.map((thread) => thread.root.id),
@@ -88,6 +106,8 @@ export function AnnotationCard({
   useEffect(() => {
     setReplyToCommentId(null);
     setNewThoughtOpen(false);
+    setReviewMenuOpen(false);
+    setSelectedReviewAgentIds(new Set());
     setExpandedThreadIds(new Set());
     setExpandedCommentIds(new Set());
     previousThreadRootIdsRef.current = null;
@@ -97,8 +117,17 @@ export function AnnotationCard({
     if (active) return;
     setReplyToCommentId(null);
     setNewThoughtOpen(false);
+    setReviewMenuOpen(false);
+    setSelectedReviewAgentIds(new Set());
     setExpandedThreadIds(new Set());
   }, [active]);
+
+  useEffect(
+    () => () => {
+      if (reviewBurstTimerRef.current !== null) window.clearTimeout(reviewBurstTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     const previousIds = previousThreadRootIdsRef.current;
@@ -191,6 +220,48 @@ export function AnnotationCard({
     setNewThoughtOpen(true);
   }
 
+  function toggleReviewAgent(agentId: string) {
+    setSelectedReviewAgentIds((current) => {
+      const next = new Set(current);
+      if (next.has(agentId)) next.delete(agentId);
+      else next.add(agentId);
+      return next;
+    });
+  }
+
+  async function requestReview() {
+    if (!onRequestReview || reviewingAgentIds.size > 0) return;
+    const selectedAgents = reviewAgents.filter((agent) => selectedReviewAgentIds.has(agent.id));
+    if (selectedAgents.length === 0) return;
+    if (!active) onFocus(annotation.id);
+    if (!primaryCommentExpanded) onPrimaryCommentExpandedChange(annotation.id, true);
+    setReviewMenuOpen(false);
+    setReviewingAgentIds(new Set(selectedAgents.map((agent) => agent.id)));
+    try {
+      await onRequestReview(annotation.id, selectedAgents);
+      playReviewBurst();
+    } finally {
+      setReviewingAgentIds(new Set());
+      setSelectedReviewAgentIds(new Set());
+    }
+  }
+
+  function playReviewBurst() {
+    if (reviewBurstTimerRef.current !== null) window.clearTimeout(reviewBurstTimerRef.current);
+    setReviewBurstVisible(true);
+    setReviewBurstKey((key) => key + 1);
+    reviewBurstTimerRef.current = window.setTimeout(() => {
+      reviewBurstTimerRef.current = null;
+      setReviewBurstVisible(false);
+    }, 1800);
+  }
+
+  function closeReviewMenuOnBlur(event: React.FocusEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    setReviewMenuOpen(false);
+  }
+
   function deleteComment(commentId: string) {
     setExpandedThreadIds((current) => {
       if (!current.has(commentId)) return current;
@@ -211,6 +282,8 @@ export function AnnotationCard({
         exiting ? 'is-filtering-out' : '',
         stackCount > 1 ? 'is-stacked' : '',
         isStackFront ? 'is-stack-front' : '',
+        reviewMenuOpen ? 'has-review-menu' : '',
+        reviewBurstVisible ? 'has-review-burst' : '',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -255,7 +328,11 @@ export function AnnotationCard({
             />
           </span>
         </div>
-        <footer className="reader-note-toolbar">
+        <footer
+          className={['reader-note-toolbar', canRequestReview ? 'has-review-action' : '']
+            .filter(Boolean)
+            .join(' ')}
+        >
           <button
             className="reader-note-thread-toggle"
             type="button"
@@ -264,9 +341,12 @@ export function AnnotationCard({
             onClick={() => setCardExpanded(!primaryCommentExpanded)}
           >
             <span className="reader-note-thread-toggle-main">
-              <span className="reader-comment-count">
+              <span
+                className="reader-comment-count"
+                aria-label={`${discussionThreads.length} 条想法`}
+              >
+                <span>{discussionThreads.length}</span>
                 <Lightbulb size={14} />
-                {discussionThreads.length} 条想法
               </span>
               <ThoughtAuthorStack authors={thoughtAuthors} />
             </span>
@@ -274,8 +354,78 @@ export function AnnotationCard({
               {primaryCommentExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
             </span>
           </button>
+          {canRequestReview ? (
+            <div className="reader-review-invite-wrap" onBlur={closeReviewMenuOnBlur}>
+              <button
+                className={[
+                  'reader-review-invite',
+                  reviewMenuOpen ? 'is-active' : '',
+                  reviewingAgentIds.size > 0 ? 'is-reviewing' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                type="button"
+                aria-expanded={reviewMenuOpen}
+                aria-label={reviewingAgentIds.size > 0 ? '审阅中' : '邀请审阅'}
+                onClick={() => setReviewMenuOpen((open) => !open)}
+              >
+                <ShieldCheck size={14} />
+                <span>{reviewingAgentIds.size > 0 ? '审阅中' : '审阅'}</span>
+                <ReviewingAgentStack agents={reviewAgents} activeAgentIds={reviewingAgentIds} />
+              </button>
+              {reviewMenuOpen ? (
+                <div className="reader-review-menu t-dropdown is-open" data-origin="bottom-right">
+                  {reviewAgents.map((agent) => (
+                    <button
+                      className={selectedReviewAgentIds.has(agent.id) ? 'is-selected' : ''}
+                      key={agent.id}
+                      type="button"
+                      disabled={reviewingAgentIds.size > 0}
+                      aria-pressed={selectedReviewAgentIds.has(agent.id)}
+                      aria-label={`选择${agent.nickname}`}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => toggleReviewAgent(agent.id)}
+                    >
+                      <span className="reader-review-menu-check" aria-hidden="true">
+                        {selectedReviewAgentIds.has(agent.id) ? <ShieldCheck size={13} /> : null}
+                      </span>
+                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      <span>
+                        <strong>{agent.nickname}</strong>
+                        <em>审阅全部想法</em>
+                      </span>
+                    </button>
+                  ))}
+                  <footer>
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => setReviewMenuOpen(false)}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedReviewAgentIds.size === 0 || reviewingAgentIds.size > 0}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => {
+                        void requestReview();
+                      }}
+                    >
+                      审阅
+                    </button>
+                  </footer>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </footer>
       </div>
+      {reviewBurstVisible ? (
+        <span className="reader-note-review-burst" aria-hidden="true">
+          <ReadingCompletionBurst key={reviewBurstKey} />
+        </span>
+      ) : null}
       {primaryCommentExpanded ? (
         <div className="reader-note-comments-region">
           <div className="reader-note-comments-panel">
@@ -283,12 +433,13 @@ export function AnnotationCard({
               <div className="reader-comments">
                 {discussionThreads.map((thread) => (
                   <DiscussionThreadView
-                    agents={agents}
+                    agents={personaAgents}
                     expanded={expandedThreadIds.has(thread.root.id)}
                     expandedCommentIds={expandedCommentIds}
                     key={thread.root.id}
                     messageSendShortcut={messageSendShortcut}
                     replyOpen={replyToCommentId === thread.root.id}
+                    reviewingAgents={reviewingAgents}
                     shortcutModifier={shortcutModifier}
                     suggestedMentionAgents={suggestedMentionAgents}
                     thread={thread}
@@ -366,6 +517,27 @@ function ThoughtAuthorStack({ authors }: { authors: ThoughtAuthor[] }) {
         </span>
       ))}
       {hiddenCount > 0 ? <span className="reader-thought-author-more">+{hiddenCount}</span> : null}
+    </span>
+  );
+}
+
+function ReviewingAgentStack({
+  activeAgentIds,
+  agents,
+}: {
+  activeAgentIds: Set<string>;
+  agents: PublicAgent[];
+}) {
+  const activeAgents = agents.filter((agent) => activeAgentIds.has(agent.id));
+  if (activeAgents.length === 0) return null;
+
+  return (
+    <span className="reader-review-active-avatars" aria-hidden="true">
+      {activeAgents.map((agent) => (
+        <span key={agent.id} style={avatarColorStyle(agent.annotationColor)}>
+          <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+        </span>
+      ))}
     </span>
   );
 }
@@ -460,6 +632,7 @@ function DiscussionThreadView({
   expandedCommentIds,
   messageSendShortcut,
   replyOpen,
+  reviewingAgents,
   shortcutModifier,
   suggestedMentionAgents,
   thread,
@@ -476,6 +649,7 @@ function DiscussionThreadView({
   expandedCommentIds: Set<string>;
   messageSendShortcut: MessageSendShortcut;
   replyOpen: boolean;
+  reviewingAgents: PublicAgent[];
   shortcutModifier: string;
   suggestedMentionAgents: PublicAgent[];
   thread: DiscussionThread;
@@ -489,6 +663,7 @@ function DiscussionThreadView({
 }) {
   const author = commentPersona(thread.root, userProfile, agents);
   const replyCount = thread.replies.length;
+  const reviewerComments = thread.replies.filter((comment) => comment.reviewLabel);
 
   return (
     <section
@@ -542,31 +717,45 @@ function DiscussionThreadView({
             aria-label={expanded ? '收起回复列表' : '展开回复列表'}
             onClick={() => onThreadExpandedChange(!expanded)}
           >
+            <span>{replyCount}</span>
             <MessageCircle size={13} />
-            <span>{replyCount} 条回复</span>
+            <ThoughtReviewStatus
+              agents={agents}
+              comments={reviewerComments}
+              reviewingAgents={reviewingAgents}
+              userProfile={userProfile}
+            />
             {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
         ) : (
-          <span className="reader-replies-label">
+          <span className="reader-replies-label" aria-label="0 条回复">
+            <span>0</span>
             <MessageCircle size={13} />
-            <span>0 条回复</span>
+            <ThoughtReviewStatus
+              agents={agents}
+              comments={reviewerComments}
+              reviewingAgents={reviewingAgents}
+              userProfile={userProfile}
+            />
           </span>
         )}
-        <div className="reader-thread-reply-composer">
-          <InlineCommentComposer
-            agents={agents}
-            open={replyOpen}
-            messageSendShortcut={messageSendShortcut}
-            placeholder="回复这条想法，或 @助手继续讨论"
-            shortcutModifier={shortcutModifier}
-            submitLabel="回复"
-            suggestedAgents={suggestedMentionAgents}
-            triggerIcon={<MessageCircle size={13} />}
-            triggerLabel="回复"
-            onClose={onCloseReply}
-            onOpen={onOpenReply}
-            onSubmit={(content) => onAddReply(content, thread.root.id)}
-          />
+        <div className="reader-thought-footer-actions">
+          <div className="reader-thread-reply-composer">
+            <InlineCommentComposer
+              agents={agents}
+              open={replyOpen}
+              messageSendShortcut={messageSendShortcut}
+              placeholder="回复这条想法，或 @助手继续讨论"
+              shortcutModifier={shortcutModifier}
+              submitLabel="回复"
+              suggestedAgents={suggestedMentionAgents}
+              triggerIcon={<MessageCircle size={13} />}
+              triggerLabel="回复"
+              onClose={onCloseReply}
+              onOpen={onOpenReply}
+              onSubmit={(content) => onAddReply(content, thread.root.id)}
+            />
+          </div>
         </div>
       </footer>
       {expanded ? (
@@ -592,6 +781,87 @@ function DiscussionThreadView({
       ) : null}
     </section>
   );
+}
+
+function ThoughtReviewStatus({
+  agents,
+  comments,
+  reviewingAgents,
+  userProfile,
+}: {
+  agents: PublicAgent[];
+  comments: Annotation['comments'];
+  reviewingAgents: PublicAgent[];
+  userProfile: UserProfile;
+}) {
+  const reviewers = uniqueReviewCommentAuthors(comments, userProfile, agents);
+  const activeReviewingAgents = reviewingAgents.filter(
+    (agent) =>
+      !comments.some(
+        (comment) => comment.agentId === agent.id || comment.agentUsername === agent.username,
+      ),
+  );
+  if (reviewers.length === 0 && activeReviewingAgents.length === 0) return null;
+
+  return (
+    <span className="reader-thought-review-status">
+      <ShieldCheck size={13} />
+      {reviewers.length > 0 ? (
+        <span
+          className="reader-thought-reviewer-stack"
+          aria-label={`已有审阅：${reviewers.map((reviewer) => reviewer.nickname).join('、')}`}
+        >
+          {reviewers.map((reviewer) => (
+            <span
+              key={reviewer.key}
+              style={avatarColorStyle(reviewer.color)}
+              title={reviewer.nickname}
+            >
+              <AvatarBadge avatar={reviewer.avatar} fallback={reviewer.fallback} />
+            </span>
+          ))}
+        </span>
+      ) : null}
+      {activeReviewingAgents.length > 0 ? (
+        <span className="reader-thought-review-motion" aria-label="审阅中">
+          {activeReviewingAgents.map((agent, index) => (
+            <span
+              key={agent.id}
+              style={
+                {
+                  ...avatarColorStyle(agent.annotationColor),
+                  '--reviewer-index': index,
+                  '--reviewer-duration': `${1100 + index * 170}ms`,
+                } as React.CSSProperties
+              }
+              title={`${agent.nickname} 正在审阅`}
+            >
+              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+            </span>
+          ))}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function uniqueReviewCommentAuthors(
+  comments: Annotation['comments'],
+  userProfile: UserProfile,
+  agents: PublicAgent[],
+) {
+  const reviewers: ThoughtAuthor[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const comment of comments) {
+    const persona = commentPersona(comment, userProfile, agents);
+    const key = commentAuthorKey(comment, persona.username);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    reviewers.push({ ...persona, key });
+  }
+
+  return reviewers;
 }
 
 function annotationDiscussionThreads(annotation: Annotation): DiscussionThread[] {
@@ -646,15 +916,22 @@ function ThreadComment({
   onExpandedChange: (expanded: boolean) => void;
 }) {
   const author = commentPersona(comment, userProfile, agents);
+  const reviewLabelTone = comment.reviewLabel ? reviewOpinionLabelTone(comment.reviewLabel) : null;
 
   return (
     <div className={nested ? 'reader-comment is-reply' : 'reader-comment is-root'}>
       <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
       <div className="reader-comment-body">
         <div className="reader-comment-author">
-          <strong>{author.nickname}</strong>
+          <strong>
+            {author.nickname}
+            {comment.reviewLabel ? <ShieldCheck size={12} aria-label="审阅观点" /> : null}
+          </strong>
           <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
         </div>
+        {comment.reviewLabel && reviewLabelTone ? (
+          <span className={`reader-review-label is-${reviewLabelTone}`}>{comment.reviewLabel}</span>
+        ) : null}
         <CollapsibleMarkdownContent
           content={comment.content}
           expanded={expanded}

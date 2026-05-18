@@ -50,6 +50,7 @@ export type ReaderSurfaceViewProps = {
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
+  reviewAgents?: PublicAgent[];
   userProfile: UserProfile;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
@@ -62,6 +63,7 @@ export type ReaderSurfaceViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
+  onRequestAnnotationReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
   onHighlightClick: (
     annotationId: string,
     event: React.MouseEvent<HTMLButtonElement>,
@@ -128,6 +130,7 @@ export function ReaderSurfaceView({
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
+  reviewAgents = [],
   userProfile,
   visibleAnnotationIds,
   visibleAnnotations,
@@ -140,6 +143,7 @@ export function ReaderSurfaceView({
   onDeleteAnnotation,
   onDeleteComment,
   onFocusAnnotation,
+  onRequestAnnotationReview,
   onHighlightClick,
   onMouseUp,
   onOpenComposer,
@@ -269,6 +273,8 @@ export function ReaderSurfaceView({
                   onDeleteComment={onDeleteComment}
                   onFocus={onScrollToHighlight}
                   onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
+                  onRequestReview={onRequestAnnotationReview}
+                  reviewAgents={reviewAgents}
                 />
               ),
             )}

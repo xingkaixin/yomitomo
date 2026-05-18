@@ -337,4 +337,10 @@ ALTER TABLE annotations DROP COLUMN question_status;
 ALTER TABLE comments DROP COLUMN question_status;
 `,
   },
+  {
+    id: '0029_comment_review_label',
+    sql: `
+ALTER TABLE comments ADD COLUMN review_label TEXT;
+`,
+  },
 ];

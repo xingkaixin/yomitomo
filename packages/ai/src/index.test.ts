@@ -164,6 +164,59 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
   });
 
+  it('builds a thought review prompt with all thoughts and the target thought', () => {
+    const reviewer: PublicAgent = {
+      ...lin,
+      id: 'review_liang',
+      kind: 'review',
+      nickname: '梁证言',
+      username: '梁证言',
+      personalityName: '梁证言',
+    };
+    const targetThought = {
+      ...payload.annotation.comments[0]!,
+      id: 'thought_target',
+      content: '这里的判断可能缺少直接证据。',
+    };
+    const otherThought = {
+      id: 'thought_other',
+      author: 'user' as const,
+      userUsername: 'xingkaixin',
+      userNickname: '行开心',
+      content: '我更关心这个判断能不能落到行动。',
+      createdAt: '2026-05-07T00:02:00.000Z',
+    };
+    const reply = {
+      ...otherThought,
+      id: 'reply_other',
+      content: '行动前需要先补证据。',
+      replyTo: otherThought.id,
+    };
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        agentId: reviewer.id,
+        agentUsername: reviewer.username,
+        reviewTargetCommentId: targetThought.id,
+        annotation: {
+          ...payload.annotation,
+          comments: [targetThought, otherThought, reply],
+        },
+        userComment: targetThought,
+      },
+      reviewer,
+    );
+
+    expect(prompt).toContain('批注中的全部想法');
+    expect(prompt).toContain('1. 林知微 (@林知微): 这里的判断可能缺少直接证据。');
+    expect(prompt).toContain('2. 行开心 (@xingkaixin): 我更关心这个判断能不能落到行动。');
+    expect(prompt).toContain('回复 行开心 (@xingkaixin): 行动前需要先补证据。');
+    expect(prompt).toContain('审阅目标想法');
+    expect(prompt).toContain('第一句话以【审阅】开头');
+    expect(prompt).not.toContain('刚刚触发你的读者评论');
+  });
+
   it('uses thread-first context for epub annotation replies', () => {
     const chapters = [
       { id: 'chapter-1', title: '第一章', paragraphs: ['已读背景。'] },

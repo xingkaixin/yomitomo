@@ -198,4 +198,62 @@ describe('runSourceAgentCommentRequest', () => {
     expect(annotationsRef.current[0]?.comments).toEqual([]);
     expect(saveAnnotations).not.toHaveBeenCalled();
   });
+
+  it('saves review replies under the requested target thought', async () => {
+    const rootComment = comment();
+    const targetAnnotation = annotation([rootComment]);
+    const annotationsRef = { current: [targetAnnotation] };
+    const applyAnnotations = vi.fn((annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+      return article(annotations[0]!);
+    });
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+    const pendingAgentComment = {
+      id: 'comment_review',
+      author: 'ai' as const,
+      content: '',
+      createdAt: now,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      pending: true,
+    };
+    const desktop = {
+      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+        onEvent({ type: 'start', comment: pendingAgentComment });
+        return {
+          ...pendingAgentComment,
+          content: '【审阅】证据还不够。',
+          pending: false,
+        };
+      }),
+    };
+
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: targetAnnotation,
+      userComment: rootComment,
+      reviewTargetCommentId: rootComment.id,
+      desktop,
+      currentArticle: article(targetAnnotation),
+      articleText: '正文',
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage: vi.fn(),
+    });
+
+    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ reviewTargetCommentId: rootComment.id }),
+    );
+    expect(annotationsRef.current[0]?.comments).toContainEqual(
+      expect.objectContaining({
+        id: 'comment_review',
+        content: '【审阅】证据还不够。',
+        replyTo: rootComment.id,
+      }),
+    );
+  });
 });

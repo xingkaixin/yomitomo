@@ -4,6 +4,7 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentMessagePayload,
+  AgentReviewPayload,
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
@@ -21,6 +22,7 @@ import {
   runAgent,
   runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
+  runAgentReview,
   runAgentStream,
   setAiLogger,
   testProvider,
@@ -273,19 +275,38 @@ function registerIpc() {
   });
   ipcMain.handle('agent:comment', async (_event, payload: AgentMessagePayload) => {
     const store = await readStore();
-    const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
-    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
+    const agent = findCommentAgent(store.agents, payload.agentId, payload.agentUsername);
+    if (!agent) throw new Error(`找不到助手：@${payload.agentUsername}`);
+    const provider = await taskProvider(
+      store.providers,
+      store.settings,
+      providerTaskForAgent(agent),
+    );
     const comment = await runAgent(provider, agent, {
       ...payload,
-      agentRoster: publicAnnotationAgents(store.agents),
+      agentRoster: publicCommentAgents(store.agents),
     });
     return {
       ...comment,
       id: makeId('comment'),
-      replyTo: payload.userComment.replyTo || payload.userComment.id,
+      replyTo:
+        payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id,
       readingIntent: payload.readingIntent || comment.readingIntent,
     } satisfies Comment;
+  });
+  ipcMain.handle('agent:review', async (_event, payload: AgentReviewPayload) => {
+    const store = await readStore();
+    const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
+    if (!agent) throw new Error(`找不到审阅助手：@${payload.agentUsername}`);
+    const provider = await taskProvider(store.providers, store.settings, 'reviewAssistant');
+    const comments = await runAgentReview(provider, agent, {
+      ...payload,
+      agentRoster: publicCommentAgents(store.agents),
+    });
+    for (const comment of comments) {
+      comment.id = makeId('comment');
+    }
+    return comments;
   });
   ipcMain.on(
     'agent:comment:stream',
@@ -299,13 +320,17 @@ function registerIpc() {
       const channel = `agent:comment:stream:${input.requestId}`;
       try {
         const store = await readStore();
-        const agent = findAnnotationAgent(
+        const agent = findCommentAgent(
           store.agents,
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`找不到阅读助手：@${input.payload.agentUsername}`);
-        const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
+        if (!agent) throw new Error(`找不到助手：@${input.payload.agentUsername}`);
+        const provider = await taskProvider(
+          store.providers,
+          store.settings,
+          providerTaskForAgent(agent),
+        );
         const comment: Comment = {
           id: makeId('comment'),
           author: 'ai',
@@ -316,7 +341,10 @@ function registerIpc() {
           agentNickname: agent.nickname,
           agentAvatar: agent.avatar,
           agentAnnotationColor: agent.annotationColor,
-          replyTo: input.payload.userComment.replyTo || input.payload.userComment.id,
+          replyTo:
+            input.payload.reviewTargetCommentId ||
+            input.payload.userComment.replyTo ||
+            input.payload.userComment.id,
           readingIntent: input.payload.readingIntent,
           pending: true,
         };
@@ -326,7 +354,7 @@ function registerIpc() {
           agent,
           {
             ...input.payload,
-            agentRoster: publicAnnotationAgents(store.agents),
+            agentRoster: publicCommentAgents(store.agents),
             readingIntent: input.payload.readingIntent || comment.readingIntent,
           },
           (delta) => {
@@ -484,9 +512,25 @@ function findAnnotationAgent(agents: Agent[], agentId: string | undefined, usern
     .find((agent) => agent.id === agentId || agent.username === username);
 }
 
-function publicAnnotationAgents(agents: Agent[]) {
+function findCommentAgent(agents: Agent[], agentId: string | undefined, username: string) {
   return agents
-    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
+    .filter((agent) => agent.enabled)
+    .find((agent) => agent.id === agentId || agent.username === username);
+}
+
+function findReviewAgent(agents: Agent[], agentId: string | undefined, username: string) {
+  return agents
+    .filter((agent) => agent.kind === 'review' && agent.enabled)
+    .find((agent) => agent.id === agentId || agent.username === username);
+}
+
+function providerTaskForAgent(agent: Agent): ProviderTask {
+  return agent.kind === 'review' ? 'reviewAssistant' : 'readingAssistant';
+}
+
+function publicCommentAgents(agents: Agent[]) {
+  return agents
+    .filter((agent) => agent.enabled)
     .map((agent) => ({
       id: agent.id,
       kind: agent.kind,

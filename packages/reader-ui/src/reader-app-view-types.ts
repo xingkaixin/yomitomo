@@ -77,6 +77,7 @@ export type ReaderAppViewProps = {
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   readerSettings: ReaderSettings;
+  reviewAgents?: PublicAgent[];
   readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
@@ -100,6 +101,7 @@ export type ReaderAppViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
+  onRequestAnnotationReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
   onAnnotationLayoutChange?: () => void;
   onResolveAnnotationNavigation?: (
     request: AnnotationNavigationRequest,

@@ -701,6 +701,7 @@ function commentRowsForAnnotation(annotation: Annotation) {
     agentAvatar: comment.agentAvatar,
     agentAnnotationColor: comment.agentAnnotationColor,
     readingIntent: comment.readingIntent,
+    reviewLabel: comment.reviewLabel,
     userId: comment.userId,
     userUsername: comment.userUsername,
     userNickname: comment.userNickname,

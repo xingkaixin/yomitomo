@@ -205,6 +205,30 @@ export function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
     });
 }
 
+export function publicReviewAgents(agents: Agent[]): PublicAgent[] {
+  return agents
+    .filter((agent) => agent.kind === 'review' && agent.enabled)
+    .map((agent) => {
+      const personality = agentPersonalities.find(
+        (item) => item.id === agent.presetId || item.soul === agent.soul,
+      );
+      return {
+        id: agent.id,
+        kind: agent.kind,
+        enabled: agent.enabled,
+        presetId: agent.presetId,
+        nickname: agent.nickname,
+        username: agent.username,
+        avatar: agent.avatar,
+        annotationColor: agent.annotationColor,
+        annotationDensity: agent.annotationDensity,
+        personalityName: agentPersonalityName(agent),
+        pinyin: personality?.pinyin,
+        temperature: agent.temperature,
+      };
+    });
+}
+
 export function targetAnchorReadingPlan(
   anchor: Annotation['anchor'] | undefined,
   readingIntent: AgentReadingIntent | undefined,

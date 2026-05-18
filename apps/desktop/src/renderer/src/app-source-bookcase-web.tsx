@@ -55,6 +55,7 @@ import {
   type SourceAgentAnnotationRequestOptions,
 } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
+import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { articleIdentityLine } from './app-utils';
 import {
   articleWithAnnotations,
@@ -62,6 +63,7 @@ import {
   normalizeDesktopReaderSettings,
   promptArticle,
   publicAnnotationAgents,
+  publicReviewAgents,
   readDesktopReaderSettings,
   usesOverlayToc,
   writeDesktopReaderSettings,
@@ -98,6 +100,7 @@ export function WebSourceBookcase({
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
   const {
     addComment,
     annotations,
@@ -411,6 +414,7 @@ export function WebSourceBookcase({
     agent: PublicAgent,
     annotation: Annotation,
     userComment: AnnotationComment,
+    reviewTargetCommentId?: string,
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -420,6 +424,28 @@ export function WebSourceBookcase({
       agent,
       annotation,
       userComment,
+      desktop,
+      currentArticle,
+      articleText: currentArticleText(),
+      reviewTargetCommentId,
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage,
+    });
+  }
+
+  async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    const currentAnnotation = annotationsRef.current.find(
+      (annotation) => annotation.id === annotationId,
+    );
+    if (!desktop || !currentArticle || !currentAnnotation || selectedAgents.length === 0) return;
+
+    await runSourceAgentReviewRequest({
+      agents: selectedAgents,
+      annotation: currentAnnotation,
       desktop,
       currentArticle,
       articleText: currentArticleText(),
@@ -788,6 +814,7 @@ export function WebSourceBookcase({
         noteRefs={noteRefs}
         notesRef={railRef}
         readerSettings={readerSettings}
+        reviewAgents={reviewAgents}
         readingSections={readingSections}
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
@@ -827,6 +854,7 @@ export function WebSourceBookcase({
         onMouseUp={handleArticleMouseUp}
         onOpenComposer={openComposer}
         onPlanFocusCoReading={planFocusCoReading}
+        onRequestAnnotationReview={requestAnnotationReview}
         onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={(annotationId) => {
