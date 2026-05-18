@@ -61,19 +61,28 @@ const userProfile: UserProfile = {
   updatedAt: now,
 };
 
-function renderAgentAnnotateMenu() {
+function renderAgentAnnotateMenu({
+  focusCoReadingPlan,
+  onSaveFocusCoReadingPlan = vi.fn((_: FocusCoReadingPlan) => undefined),
+  readingSections = [section()],
+}: {
+  focusCoReadingPlan?: FocusCoReadingPlan;
+  onSaveFocusCoReadingPlan?: (plan: FocusCoReadingPlan) => void | Promise<void>;
+  readingSections?: ReaderReadingSection[];
+} = {}) {
   const articleId = 'article_1';
   return render(
     <AgentAnnotateMenu
       articleId={articleId}
       agents={[agent('agent_1', '林知微'), agent('agent_2', '周砚')]}
       annotatingAgents={[]}
+      focusCoReadingPlan={focusCoReadingPlan}
       messageSendShortcut="enter"
-      readingSections={[section()]}
+      readingSections={readingSections}
       shortcutModifier="⌘"
       onCancel={vi.fn()}
       onPlanFocusCoReading={vi.fn(async () => plan(articleId))}
-      onSaveFocusCoReadingPlan={vi.fn()}
+      onSaveFocusCoReadingPlan={onSaveFocusCoReadingPlan}
       onStartAgentPlan={vi.fn()}
     />,
   );
@@ -175,6 +184,57 @@ describe('AgentAnnotateMenu add agent menus', () => {
         addControl!.compareDocumentPosition(assignedAgent!) & Node.DOCUMENT_POSITION_FOLLOWING,
       ),
     ).toBe(true);
+  });
+
+  it('clears only section agent assignments', () => {
+    const onSaveFocusCoReadingPlan = vi.fn();
+    renderAgentAnnotateMenu({
+      focusCoReadingPlan: {
+        id: 'focus_1',
+        articleId: 'article_1',
+        selectedAgentIds: ['agent_1'],
+        sections: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '引文',
+            sectionStart: 0,
+            sectionEnd: 20,
+            agentIds: ['agent_1'],
+            messages: [
+              {
+                id: 'message_1',
+                content: '@林知微 重点看这里',
+                agentIds: ['agent_1'],
+                createdAt: now,
+              },
+            ],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+      onSaveFocusCoReadingPlan,
+    });
+
+    const clearButton = screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement;
+    expect(clearButton.disabled).toBe(false);
+
+    fireEvent.click(clearButton);
+
+    const savedPlan = onSaveFocusCoReadingPlan.mock.calls[0]?.[0] as FocusCoReadingPlan;
+    expect(savedPlan.selectedAgentIds).toEqual(['agent_1']);
+    expect(savedPlan.sections).toEqual([]);
+    expect((screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+  });
+
+  it('disables clearing when no sections have assigned agents', () => {
+    renderAgentAnnotateMenu();
+
+    expect((screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 });
 

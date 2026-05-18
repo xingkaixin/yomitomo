@@ -135,6 +135,7 @@ export function AgentAnnotateMenu({
   const plannedSectionCount = sectionPlans.filter((section) => section.agentIds.length > 0).length;
   const canPlan = selectedAgentIds.length > 0 && readingSections.length > 0 && !planning;
   const canStart = plannedSectionCount > 0 && assignedAgentCount > 0;
+  const canClearSectionAssignments = plannedSectionCount > 0 && !planning;
   const planningPhaseIndex = Math.min(
     coReadingAnalysisPhases.length - 1,
     Math.floor((planningProgress / 100) * coReadingAnalysisPhases.length),
@@ -188,6 +189,16 @@ export function AgentAnnotateMenu({
       };
     });
     saveSections(nextSections, nextIds);
+  }
+
+  function clearSectionAssignments() {
+    if (!canClearSectionAssignments) return;
+    const nextSections = sectionPlans.map((section) => ({
+      ...section,
+      agentIds: [],
+      messages: [],
+    }));
+    saveSections(nextSections);
   }
 
   async function planCoReading() {
@@ -456,15 +467,26 @@ export function AgentAnnotateMenu({
             </button>
           ))}
         </div>
-        <button
-          className="reader-focus-plan"
-          disabled={!canPlan}
-          type="button"
-          onClick={planCoReading}
-        >
-          <Sparkles size={15} />
-          {planning ? coReadingAnalysisPhases[planningPhaseIndex] : '开始分析文章'}
-        </button>
+        <div className="reader-focus-actions">
+          <button
+            className="reader-focus-clear"
+            disabled={!canClearSectionAssignments}
+            type="button"
+            onClick={clearSectionAssignments}
+          >
+            <X size={14} />
+            清空编排
+          </button>
+          <button
+            className="reader-focus-plan"
+            disabled={!canPlan}
+            type="button"
+            onClick={planCoReading}
+          >
+            <Sparkles size={15} />
+            {planning ? coReadingAnalysisPhases[planningPhaseIndex] : '开始分析文章'}
+          </button>
+        </div>
       </div>
       {planning ? (
         <div className="reader-focus-progress">

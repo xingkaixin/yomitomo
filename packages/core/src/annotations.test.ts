@@ -6,6 +6,7 @@ import {
   annotationDensityMax,
   annotationPersona,
   annotationPrimaryComment,
+  annotationThoughtComments,
   annotationThreadComments,
   annotationToPublicAgent,
   annotationTypeLabel,
@@ -363,6 +364,32 @@ describe('annotation core', () => {
     expect(annotationPrimaryComment(withReply)?.content).toBe('批注正文');
     expect(annotationThreadComments(withReply)).toEqual([reply]);
     expect(annotationThreadComments({ ...base, comments: [reply] })).toEqual([reply]);
+  });
+
+  it('counts only top-level thoughts separately from replies', () => {
+    const thought = comment('thought');
+    const reply = { ...comment('reply'), replyTo: 'thought' };
+    const otherThought = comment('other-thought');
+    const base = createUserAnnotation(
+      {
+        exact: 'first principles',
+        prefix: '',
+        suffix: '',
+        start: 0,
+        end: 16,
+      },
+      user,
+      '批注正文',
+      'concept',
+      { now: '2026-01-02T00:00:00.000Z' },
+    );
+
+    expect(
+      annotationThoughtComments({
+        ...base,
+        comments: [...base.comments, thought, reply, otherThought],
+      }).map((item) => item.id),
+    ).toEqual([base.comments[0]!.id, 'thought', 'other-thought']);
   });
 
   it('deletes a comment with its replies while keeping the annotation', () => {

@@ -229,6 +229,11 @@ export const readerConversationStyles = `
 .reader-focus-add-menu .reader-avatar-badge{width:26px;height:26px}
 .reader-focus-add-menu strong{overflow:hidden;font-size:12px;font-weight:860;text-overflow:ellipsis;white-space:nowrap}
 .reader-focus-add-menu>em{padding:8px;color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:780}
+.reader-focus-actions{display:inline-flex;align-items:center;justify-content:flex-end;gap:8px}
+.reader-agent-annotate-menu .reader-focus-clear{display:inline-flex;width:auto;height:38px;grid-template-columns:none;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(40,35,29,.12);border-radius:999px;background:#fffdf8;color:var(--reader-muted);cursor:pointer;font:inherit;font-size:12px;font-weight:860;padding:0 12px;white-space:nowrap;transition:background .14s ease,border-color .14s ease,color .14s ease,transform .14s ease}
+.reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled){border-color:rgba(159,91,80,.22);background:#fff4ef;color:var(--reader-red)}
+.reader-agent-annotate-menu .reader-focus-clear:active:not(:disabled){transform:scale(.96)}
+.reader-agent-annotate-menu .reader-focus-clear:disabled{cursor:not-allowed;opacity:.42}
 .reader-agent-annotate-menu .reader-focus-plan{display:inline-flex;width:auto;height:38px;grid-template-columns:none;align-items:center;justify-content:center;gap:7px;border:0;border-radius:999px;background:var(--reader-ink);color:#fffaf0;cursor:pointer;font:inherit;font-size:12px;font-weight:900;padding:0 14px;white-space:nowrap;transition:background .14s ease,box-shadow .14s ease,transform .14s ease}
 .reader-agent-annotate-menu .reader-focus-plan:hover:not(:disabled){background:#3b332b;box-shadow:0 8px 18px rgba(40,35,29,.16)}
 .reader-agent-annotate-menu .reader-focus-plan:active:not(:disabled){transform:scale(.96)}
@@ -397,7 +402,7 @@ export const readerConversationStyles = `
 .reader-thought-summary-side{display:grid;align-self:stretch;justify-items:end;gap:8px}
 .reader-thought-time{color:#9a8f83;font-size:10px;font-weight:760;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap}
 .reader-thought-reply-count{display:inline-flex;height:24px;align-items:center;border-radius:999px;background:rgba(37,29,22,.06);color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:850;font-variant-numeric:tabular-nums;line-height:1;padding:0 8px;white-space:nowrap}
-.reader-delete-thought{position:absolute;right:74px;bottom:11px;height:24px;margin:0;padding:0 8px;font-size:10px;opacity:0;pointer-events:none;transform:translateY(2px);transition:background .14s ease,opacity .14s ease,transform .14s ease}
+.reader-delete-thought{position:absolute;right:74px;bottom:11px;z-index:1;height:24px;margin:0;padding:0 8px;border-radius:999px;background:rgba(255,253,248,.78);box-shadow:0 0 0 1px rgba(255,253,248,.76),0 3px 10px rgba(40,35,29,.08);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:10px;opacity:0;pointer-events:none;transform:translateY(2px);transition:background .14s ease,box-shadow .14s ease,opacity .14s ease,transform .14s ease}
 .reader-discussion-thread:hover .reader-delete-thought,.reader-delete-thought:focus-visible,.reader-delete-thought.is-holding{opacity:1;pointer-events:auto;transform:translateY(0)}
 .reader-thread-detail::-webkit-scrollbar{width:7px}
 .reader-thread-detail::-webkit-scrollbar-track{background:transparent}
@@ -412,11 +417,11 @@ export const readerConversationStyles = `
 .reader-thread-reply-composer{display:grid;gap:8px}
 .reader-new-thought-composer{padding-top:1px}
 .reader-new-thought-composer.is-empty{padding-top:0}
-.reader-inline-composer-trigger{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;border:0;border-radius:999px;background:transparent;color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:0 8px;transition:background .14s ease,color .14s ease,transform .14s ease}
-.reader-inline-composer-trigger:hover{background:#f0e3cd;color:var(--reader-ink)}
+.reader-inline-composer-trigger{display:inline-flex;width:fit-content;justify-self:center;align-items:center;justify-content:center;gap:6px;height:32px;border:1px solid rgba(40,35,29,.14);border-radius:999px;background:rgba(255,253,248,.82);color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:0 12px;box-shadow:0 4px 12px rgba(40,35,29,.05);transition:background .14s ease,border-color .14s ease,box-shadow .14s ease,color .14s ease,transform .14s ease}
+.reader-inline-composer-trigger:hover{border-color:rgba(40,35,29,.22);background:#f0e3cd;box-shadow:0 6px 16px rgba(40,35,29,.08);color:var(--reader-ink)}
 .reader-inline-composer-trigger:active{transform:scale(.96)}
 .reader-inline-composer-trigger:focus-visible{outline:2px solid rgba(37,29,22,.22);outline-offset:2px}
-.reader-new-thought-composer .reader-inline-composer-trigger{width:100%;height:38px;border:1px dashed rgba(40,35,29,.16);border-radius:12px;background:rgba(255,253,248,.5)}
+.reader-new-thought-composer .reader-inline-composer-trigger{width:fit-content;min-width:150px;height:38px;border:1px dashed rgba(40,35,29,.18);border-radius:12px;background:rgba(255,253,248,.62)}
 .reader-new-thought-composer .reader-inline-composer-trigger:hover{border-color:rgba(159,91,80,.18);background:#fffaf0;color:var(--reader-red)}
 .reader-inline-composer-panel{position:relative;transform-origin:top left}
 .reader-inline-composer-panel.t-dropdown{transform:scale(.98);transition:transform .18s cubic-bezier(.22,1,.36,1),opacity .18s cubic-bezier(.22,1,.36,1)}

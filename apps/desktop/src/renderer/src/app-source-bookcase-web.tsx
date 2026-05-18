@@ -18,7 +18,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
-  annotationThreadComments,
+  annotationThoughtComments,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   findMentionedAgents,
@@ -181,7 +181,7 @@ export function WebSourceBookcase({
     () => ({
       annotations: annotations.length,
       comments: annotations.reduce(
-        (count, annotation) => count + annotationThreadComments(annotation).length,
+        (count, annotation) => count + annotationThoughtComments(annotation).length,
         0,
       ),
     }),

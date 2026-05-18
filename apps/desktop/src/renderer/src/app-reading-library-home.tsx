@@ -12,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThreadComments } from '@yomitomo/core';
+import { annotationThoughtComments } from '@yomitomo/core';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -472,7 +472,7 @@ function articleCounts(article: ArticleRecord) {
   return {
     annotations: article.annotations.length,
     comments: article.annotations.reduce(
-      (count, annotation) => count + annotationThreadComments(annotation).length,
+      (count, annotation) => count + annotationThoughtComments(annotation).length,
       0,
     ),
   };
