@@ -13,7 +13,12 @@ import { SourceBookcase } from './app-source-bookcase';
 import type { ArticleUpdater, EbookImportProgressCallback } from './app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import type { ArticleImportResult } from './app-reading-library-imports';
-import { groupLibraryArticles, type LibrarySort } from './app-reading-library-utils';
+import {
+  groupLibraryArticles,
+  librarySourceForArticle,
+  type LibrarySort,
+  type LibrarySource,
+} from './app-reading-library-utils';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -59,6 +64,7 @@ export function ReadingLibrary({
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
+  const [librarySource, setLibrarySource] = useState<LibrarySource>('web');
   const sortedArticles = useMemo<ArticleRecord[]>(() => sortArticles(articles), [articles]);
   const selectedArticle =
     sortedArticles.find((article) => article.id === selectedArticleId) || null;
@@ -103,6 +109,7 @@ export function ReadingLibrary({
   }
 
   function openArticle(article: ArticleRecord) {
+    setLibrarySource(librarySourceForArticle(article));
     setSelectedArticleId(article.id);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
@@ -118,7 +125,9 @@ export function ReadingLibrary({
   if (!selectedArticle) {
     return (
       <LibraryHome
+        activeSource={librarySource}
         articles={articles}
+        onActiveSourceChange={setLibrarySource}
         sortedArticles={sortedArticles}
         onDeleteArticle={deleteLibraryArticle}
         onImportEbookFile={onImportEbookFile}
@@ -134,7 +143,9 @@ export function ReadingLibrary({
         <div className="library-shelf is-expanded is-library-bookcase is-drawn-from-bookmark">
           <div className="library-shelf-content">
             <LibraryHome
+              activeSource={librarySource}
               articles={articles}
+              onActiveSourceChange={setLibrarySource}
               sortedArticles={sortedArticles}
               onDeleteArticle={deleteLibraryArticle}
               onImportEbookFile={onImportEbookFile}
