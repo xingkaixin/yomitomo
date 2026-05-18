@@ -214,6 +214,43 @@ describe('groupLibraryArticles', () => {
 });
 
 describe('ReadingLibrary home', () => {
+  it('keeps library controls in one header row and shows source-specific totals', () => {
+    const { container } = renderLibrary([
+      article({ id: 'web_1', title: '第一篇网页' }),
+      article({ id: 'web_2', title: '第二篇网页' }),
+      article({
+        id: 'ebook_1',
+        url: 'ebook://ebook_1',
+        canonicalUrl: 'ebook://ebook_1',
+        sourceType: 'ebook',
+        title: '第一本书',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName: 'book.epub',
+            fileSize: 1024,
+          },
+          chapters: [],
+        },
+      }),
+    ]);
+
+    const headerMain = container.querySelector('.library-home-header-main');
+
+    expect(container.querySelector('.library-home-header h2')).toBeNull();
+    expect(Array.from(headerMain?.children ?? []).map((item) => item.className)).toEqual([
+      'library-source-tabs',
+      'library-home-actions',
+    ]);
+    expect(screen.getByText('共 2 篇')).toBeTruthy();
+    expect(screen.queryByText(/网页文章 · 共/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+
+    expect(screen.getByText('共 1 本')).toBeTruthy();
+    expect(screen.queryByText(/电子书 · 共/)).toBeNull();
+  });
+
   it('renders webpage articles sorted by recent added time', () => {
     renderLibrary([
       article({ id: 'older', title: '较早文章', createdAt: '2026-05-01T12:00:00.000Z' }),
