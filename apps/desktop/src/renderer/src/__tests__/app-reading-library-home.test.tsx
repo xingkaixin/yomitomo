@@ -71,6 +71,35 @@ function annotationWithComments(id: string, count: number): Annotation {
   };
 }
 
+function annotationWithThoughtsAndReply(id: string): Annotation {
+  const firstThought = {
+    id: `${id}_thought_1`,
+    author: 'user' as const,
+    content: '第一条想法',
+    createdAt: '2026-05-09T12:01:00.000Z',
+  };
+
+  return {
+    ...annotation(id),
+    comments: [
+      firstThought,
+      {
+        id: `${id}_reply_1`,
+        author: 'user' as const,
+        content: '第一条回复',
+        createdAt: '2026-05-09T12:02:00.000Z',
+        replyTo: firstThought.id,
+      },
+      {
+        id: `${id}_thought_2`,
+        author: 'user' as const,
+        content: '第二条想法',
+        createdAt: '2026-05-09T12:03:00.000Z',
+      },
+    ],
+  };
+}
+
 function completedArticle(): ArticleRecord {
   return article({
     id: 'article_done',
@@ -169,7 +198,7 @@ describe('groupLibraryArticles', () => {
     expect(
       groupLibraryArticles(
         [
-          article({ id: 'two_discussions', annotations: [annotationWithComments('d1', 2)] }),
+          article({ id: 'two_discussions', annotations: [annotationWithThoughtsAndReply('d1')] }),
           article({ id: 'no_discussions', annotations: [annotation('d2')] }),
         ],
         'discussions',
@@ -222,7 +251,7 @@ describe('ReadingLibrary home', () => {
   it('renders the article domain without site icons', () => {
     const { container } = renderLibrary([
       article({
-        annotations: [annotationWithComments('domain_note', 2), annotation('domain_mark')],
+        annotations: [annotationWithThoughtsAndReply('domain_note'), annotation('domain_mark')],
         canonicalUrl: 'https://nooneshappy.com/posts/1',
         siteIconUrl: 'https://favicon.im/nooneshappy.com',
         siteName: '站点名称不显示',

@@ -8,7 +8,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThreadComments } from '@yomitomo/core';
+import { annotationThoughtComments } from '@yomitomo/core';
 import { formatDate, urlHost } from './app-utils';
 import { ArticleBook } from './app-article-book';
 import { isEbookArticle } from './app-source-bookcase';
@@ -34,8 +34,8 @@ export function ArticleLibraryCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteIconFailed, setSiteIconFailed] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
-  const comments = article.annotations.reduce(
-    (count, annotation) => count + annotationThreadComments(annotation).length,
+  const thoughts = article.annotations.reduce(
+    (count, annotation) => count + annotationThoughtComments(annotation).length,
     0,
   );
   const isEbook = isEbookArticle(article);
@@ -200,7 +200,7 @@ export function ArticleLibraryCard({
           </span>
           <span>
             <MessageSquareText size={13} />
-            {comments} 讨论
+            {thoughts} 讨论
           </span>
         </div>
         <span className="library-source-badge">{isEbookArticle(article) ? 'ePub' : '网页'}</span>

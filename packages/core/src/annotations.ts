@@ -167,6 +167,10 @@ export function annotationThreadComments(annotation: Annotation): Comment[] {
   return annotationPrimaryComment(annotation) ? annotation.comments.slice(1) : annotation.comments;
 }
 
+export function annotationThoughtComments(annotation: Annotation): Comment[] {
+  return annotation.comments.filter((comment) => !comment.replyTo);
+}
+
 export function createAgentAnnotation(
   agent: Agent,
   articleText: string,

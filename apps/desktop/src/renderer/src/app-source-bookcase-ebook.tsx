@@ -16,7 +16,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
-  annotationThreadComments,
+  annotationThoughtComments,
   annotationIdsAtHighlightPoint,
   createUserAnnotation,
   findMentionedAgents,
@@ -310,7 +310,7 @@ export function EbookBookcase({
     () => ({
       annotations: annotations.length,
       comments: annotations.reduce(
-        (count, annotation) => count + annotationThreadComments(annotation).length,
+        (count, annotation) => count + annotationThoughtComments(annotation).length,
         0,
       ),
     }),

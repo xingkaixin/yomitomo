@@ -1,5 +1,5 @@
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThreadComments } from '@yomitomo/core';
+import { annotationThoughtComments } from '@yomitomo/core';
 import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
@@ -116,7 +116,7 @@ export function compareLibraryArticles(
 
   if (sort === 'discussions') {
     return (
-      articleCommentCount(right) - articleCommentCount(left) ||
+      articleThoughtCount(right) - articleThoughtCount(left) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
       left.title.localeCompare(right.title, 'zh-CN')
     );
@@ -141,7 +141,7 @@ export function groupLibraryArticles(articles: ArticleRecord[], sort: LibrarySor
 function libraryArticleGroupLabel(article: ArticleRecord, sort: LibrarySort) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations') return formatLibraryCountGroup(article.annotations.length, '批注');
-  if (sort === 'discussions') return formatLibraryCountGroup(articleCommentCount(article), '讨论');
+  if (sort === 'discussions') return formatLibraryCountGroup(articleThoughtCount(article), '讨论');
   return formatLibraryDateGroup(article.updatedAt);
 }
 
@@ -156,9 +156,9 @@ export function libraryArticleStatus(article: ArticleRecord) {
   return { label: '进行中', tone: 'progress' };
 }
 
-function articleCommentCount(article: ArticleRecord) {
+function articleThoughtCount(article: ArticleRecord) {
   return article.annotations.reduce(
-    (count, annotation) => count + annotationThreadComments(annotation).length,
+    (count, annotation) => count + annotationThoughtComments(annotation).length,
     0,
   );
 }
