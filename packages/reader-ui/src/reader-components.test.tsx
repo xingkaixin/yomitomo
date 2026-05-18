@@ -239,7 +239,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
 });
 
 describe('AnnotationCard', () => {
-  it('keeps thoughts and the new thought composer collapsed by default', () => {
+  it('keeps the thought list and composer collapsed by default', () => {
     render(
       <AnnotationCard
         active
@@ -259,13 +259,13 @@ describe('AnnotationCard', () => {
     );
 
     expect(screen.getByText('1 条想法')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '展开想法' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '添加想法' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '展开想法列表' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '添加想法' })).toBeNull();
     expect(screen.queryByText('@kevin')).toBeNull();
     expect(screen.queryByLabelText('留言内容')).toBeNull();
   });
 
-  it('uses a single empty-state add thought trigger', () => {
+  it('uses a single add thought trigger when expanded without thoughts', () => {
     render(
       <AnnotationCard
         active
@@ -274,7 +274,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -284,7 +284,7 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: '还没有想法，添加想法' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '添加想法' })).toBeTruthy();
     expect(screen.queryByText('还没有想法')).toBeNull();
   });
 
@@ -305,7 +305,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -315,9 +315,38 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '展开想法' }));
-
     expect(container.textContent?.match(/一个猜测/g)).toHaveLength(1);
+  });
+
+  it('does not render a reply expander when a thought has no replies', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          comments: [
+            {
+              ...annotation().comments[0]!,
+              content: '第一行想法\n第二行想法',
+            },
+          ],
+        })}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: '展开回复列表' })).toBeNull();
+    expect(container.querySelector('.reader-replies-label')?.textContent).toContain('0 条回复');
+    expect(container.querySelector('.reader-thought-footer')).toBeTruthy();
   });
 
   it('orders top-level thoughts oldest first', () => {
@@ -352,7 +381,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -399,7 +428,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -414,13 +443,14 @@ describe('AnnotationCard', () => {
     expect(screen.getByText('第二个助手想法')).toBeTruthy();
   });
 
-  it('expands a newly added top-level thought', async () => {
+  it('opens the thought list and new top-level thought after it is added', async () => {
     const target = annotation();
     const addedComment = {
       ...target.comments[0]!,
       id: 'comment-2',
       content: '新的想法',
     };
+    const onPrimaryCommentExpandedChange = vi.fn();
     const { rerender } = render(
       <AnnotationCard
         active
@@ -435,7 +465,7 @@ describe('AnnotationCard', () => {
         onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
+        onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
       />,
     );
 
@@ -453,27 +483,60 @@ describe('AnnotationCard', () => {
         onAddComment={vi.fn()}
         onDelete={vi.fn()}
         onFocus={vi.fn()}
-        onPrimaryCommentExpandedChange={vi.fn()}
+        onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
       />,
     );
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '收起想法' })).toBeTruthy();
+      expect(onPrimaryCommentExpandedChange).toHaveBeenCalledWith('annotation-1', true);
     });
+
+    rerender(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={{ ...target, comments: [...target.comments, addedComment] }}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
+      />,
+    );
+
+    expect(document.querySelectorAll('.reader-discussion-thread.is-open')).toHaveLength(1);
   });
 
-  it('keeps only one thought expanded and collapses when clicking it again', () => {
+  it('allows multiple reply lists to stay expanded', () => {
+    const baseComment = annotation().comments[0]!;
     const target = annotation({
       comments: [
         {
-          ...annotation().comments[0]!,
+          ...baseComment,
           id: 'comment-1',
           content: '第一个想法',
         },
         {
-          ...annotation().comments[0]!,
+          ...baseComment,
           id: 'comment-2',
           content: '第二个想法',
+        },
+        {
+          ...baseComment,
+          id: 'reply-1',
+          content: '第一个回复',
+          replyTo: 'comment-1',
+        },
+        {
+          ...baseComment,
+          id: 'reply-2',
+          content: '第二个回复',
+          replyTo: 'comment-2',
         },
       ],
     });
@@ -485,7 +548,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -495,25 +558,36 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    const thoughtButtons = screen.getAllByRole('button', { name: '展开想法' });
-    fireEvent.click(thoughtButtons[0]!);
-    expect(
-      container.querySelectorAll('.reader-thought-summary[aria-expanded="true"]'),
-    ).toHaveLength(1);
+    const replyToggles = screen.getAllByRole('button', { name: '展开回复列表' });
+    fireEvent.click(replyToggles[0]!);
+    expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
+      1,
+    );
 
-    fireEvent.click(thoughtButtons[1]!);
-    expect(
-      container.querySelectorAll('.reader-thought-summary[aria-expanded="true"]'),
-    ).toHaveLength(1);
+    fireEvent.click(replyToggles[1]!);
+    expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
+      2,
+    );
 
-    fireEvent.click(screen.getByRole('button', { name: '收起想法' }));
-    expect(
-      container.querySelectorAll('.reader-thought-summary[aria-expanded="true"]'),
-    ).toHaveLength(0);
+    fireEvent.click(screen.getAllByRole('button', { name: '收起回复列表' })[0]!);
+    expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
+      1,
+    );
   });
 
-  it('collapses expanded thoughts when the note loses focus', () => {
-    const target = annotation();
+  it('collapses expanded reply lists when the note loses focus', () => {
+    const baseComment = annotation().comments[0]!;
+    const target = annotation({
+      comments: [
+        baseComment,
+        {
+          ...baseComment,
+          id: 'reply-1',
+          content: '一个回复',
+          replyTo: baseComment.id,
+        },
+      ],
+    });
     const { container, rerender } = render(
       <AnnotationCard
         active
@@ -522,7 +596,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -532,10 +606,10 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '展开想法' }));
-    expect(
-      container.querySelectorAll('.reader-thought-summary[aria-expanded="true"]'),
-    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: '展开回复列表' }));
+    expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
+      1,
+    );
 
     rerender(
       <AnnotationCard
@@ -545,7 +619,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={vi.fn()}
@@ -555,9 +629,9 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    expect(
-      container.querySelectorAll('.reader-thought-summary[aria-expanded="true"]'),
-    ).toHaveLength(0);
+    expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
+      0,
+    );
   });
 
   it('adds replies under the selected top-level thought', () => {
@@ -571,7 +645,7 @@ describe('AnnotationCard', () => {
         commentsCloseKey={0}
         messageSendShortcut="enter"
         noteRef={vi.fn()}
-        primaryCommentExpanded={false}
+        primaryCommentExpanded
         shortcutModifier="⌘"
         userProfile={userProfile}
         onAddComment={onAddComment}
@@ -581,7 +655,6 @@ describe('AnnotationCard', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '展开想法' }));
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
     fireEvent.change(screen.getAllByLabelText('留言内容')[0]!, {
       target: { value: '继续聊' },
@@ -606,7 +679,7 @@ describe('AnnotationCard', () => {
           commentsCloseKey={0}
           messageSendShortcut="enter"
           noteRef={vi.fn()}
-          primaryCommentExpanded={false}
+          primaryCommentExpanded
           shortcutModifier="⌘"
           userProfile={userProfile}
           onAddComment={vi.fn()}
