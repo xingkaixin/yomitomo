@@ -164,6 +164,7 @@ function App() {
         <button
           aria-label="打开个人设置"
           className="app-nav-profile-button"
+          data-tooltip="个人设置"
           type="button"
           onClick={() => setProfileDialogOpen(true)}
         >
