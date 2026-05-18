@@ -264,6 +264,54 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('places rail items on the side nearest their highlight when both sides fit', () => {
+    const items = buildAnnotationRailItems(
+      [
+        annotation('left-note', { anchor: anchor('left', 0, 10) }),
+        annotation('right-note', { anchor: anchor('right', 20, 30) }),
+      ],
+      [box('left-note', { left: 120 }), box('right-note', { left: 720 })],
+      null,
+      {},
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'both',
+        railWidth: 320,
+        rightRailLeft: 980,
+      },
+    );
+
+    expect(items.map((item) => [item.annotation.id, item.railSide, item.style.left])).toEqual([
+      ['left-note', 'left', 24],
+      ['right-note', 'right', 980],
+    ]);
+  });
+
+  it('alternates nearby rail groups across both sides', () => {
+    const items = buildAnnotationRailItems(
+      [
+        annotation('first', { anchor: anchor('first', 0, 10) }),
+        annotation('second', { anchor: anchor('second', 20, 30) }),
+      ],
+      [box('first', { left: 120, top: 120 }), box('second', { left: 140, top: 170 })],
+      null,
+      {},
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'both',
+        railWidth: 320,
+        rightRailLeft: 980,
+      },
+    );
+
+    expect(items.map((item) => [item.annotation.id, item.railSide, item.style.top])).toEqual([
+      ['first', 'left', 110],
+      ['second', 'right', 160],
+    ]);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 

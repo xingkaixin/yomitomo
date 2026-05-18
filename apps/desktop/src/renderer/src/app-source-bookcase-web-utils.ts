@@ -15,16 +15,10 @@ export const sourceReaderTocStyles = `
     padding:18px 14px 64px;
   }
   .source-reader-shell .reader-app.has-toc .reader-canvas{
-    margin:0;
-  }
-}
-@media(min-width:1321px){
-  .source-reader-shell .reader-app.has-toc.is-toc-open .reader-main{
-    grid-template-columns:minmax(180px,260px) minmax(0,1fr);
+    margin:0 auto;
   }
 }
 .reader-app.has-toc.is-toc-open .reader-toc{
-  margin:18px 0 18px 18px;
   padding:14px;
   border:1px solid rgba(150,123,84,.28);
   border-radius:8px;
@@ -70,9 +64,8 @@ export const sourceReaderTocStyles = `
   margin-top:12px;
   border-radius:8px;
 }
-@media(max-width:1320px){
+@media(max-width:760px){
   .reader-app.has-toc.is-toc-open .reader-toc{
-    margin:0;
     border-radius:0;
   }
 }

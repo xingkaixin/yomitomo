@@ -7,6 +7,7 @@ import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
 import type { AnnotationNavigationDirection, ReaderAppViewProps } from './reader-app-view-types';
+import type { AnnotationRailLayout } from './reader-utils';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
@@ -20,6 +21,109 @@ export type {
   ReaderArticle,
   SelectionAction,
 } from './reader-app-view-types';
+
+const stackedAnnotationRailLayout: AnnotationRailLayout = {
+  articleCenterX: 0,
+  leftRailLeft: 0,
+  mode: 'stacked',
+  railWidth: 0,
+  rightRailLeft: 0,
+};
+
+function useAnnotationRailLayout(
+  canvasRef: React.RefObject<HTMLDivElement | null>,
+  articleRef: React.RefObject<HTMLElement | null>,
+  articleId: string,
+) {
+  const [layout, setLayout] = React.useState<AnnotationRailLayout>(stackedAnnotationRailLayout);
+
+  React.useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    const article = articleRef.current;
+    if (!canvas || !article) {
+      setLayout((current) =>
+        sameAnnotationRailLayout(current, stackedAnnotationRailLayout)
+          ? current
+          : stackedAnnotationRailLayout,
+      );
+      return;
+    }
+
+    const updateLayout = () => {
+      const nextLayout = measureAnnotationRailLayout(canvas, article);
+      setLayout((current) =>
+        sameAnnotationRailLayout(current, nextLayout) ? current : nextLayout,
+      );
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => window.removeEventListener('resize', updateLayout);
+    }
+
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(canvas);
+    observer.observe(article);
+    return () => {
+      window.removeEventListener('resize', updateLayout);
+      observer.disconnect();
+    };
+  }, [articleId, articleRef, canvasRef]);
+
+  return layout;
+}
+
+function measureAnnotationRailLayout(
+  canvas: HTMLDivElement,
+  article: HTMLElement,
+): AnnotationRailLayout {
+  const canvasRect = canvas.getBoundingClientRect();
+  const articleRect = article.getBoundingClientRect();
+  if (canvasRect.width <= 0 || articleRect.width <= 0) return stackedAnnotationRailLayout;
+
+  const gap = 20;
+  const minimumRailWidth = 280;
+  const maximumRailWidth = 420;
+  const articleLeft = Math.max(0, Math.round(articleRect.left - canvasRect.left));
+  const articleRight = Math.min(canvasRect.width, Math.round(articleRect.right - canvasRect.left));
+  const leftSpace = articleLeft;
+  const rightSpace = Math.max(0, Math.round(canvasRect.width - articleRight));
+  const leftAvailable = leftSpace >= minimumRailWidth + gap;
+  const rightAvailable = rightSpace >= minimumRailWidth + gap;
+  if (!leftAvailable && !rightAvailable) {
+    return {
+      articleCenterX: Math.round((articleLeft + articleRight) / 2),
+      leftRailLeft: 0,
+      mode: 'stacked',
+      railWidth: 0,
+      rightRailLeft: Math.round(articleRight + gap),
+    };
+  }
+
+  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
+  const usableSpace =
+    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
+  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
+  return {
+    articleCenterX: Math.round((articleLeft + articleRight) / 2),
+    leftRailLeft: Math.round(articleLeft - gap - railWidth),
+    mode,
+    railWidth: Math.round(railWidth),
+    rightRailLeft: Math.round(articleRight + gap),
+  };
+}
+
+function sameAnnotationRailLayout(left: AnnotationRailLayout, right: AnnotationRailLayout) {
+  return (
+    left.articleCenterX === right.articleCenterX &&
+    left.leftRailLeft === right.leftRailLeft &&
+    left.mode === right.mode &&
+    left.railWidth === right.railWidth &&
+    left.rightRailLeft === right.rightRailLeft
+  );
+}
 
 export function ReaderAppView({
   activeConnection,
@@ -92,6 +196,7 @@ export function ReaderAppView({
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
   const [navigationVersion, setNavigationVersion] = React.useState(0);
+  const annotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
   const {
     annotationRailItems,
     exitingAnnotationIds,
@@ -103,6 +208,7 @@ export function ReaderAppView({
     visibleRailAnnotations,
   } = useReaderAnnotationRail({
     activeId,
+    annotationRailLayout,
     annotations,
     articleId,
     boxes,
@@ -170,6 +276,7 @@ export function ReaderAppView({
       className={[
         'reader-app',
         embedded ? 'is-embedded' : '',
+        annotationRailLayout.mode === 'stacked' ? 'is-annotation-stacked' : '',
         hasToc ? 'has-toc' : '',
         hasToc && tocOpen ? 'is-toc-open' : '',
       ]
@@ -239,6 +346,7 @@ export function ReaderAppView({
         <ReaderSurfaceView
           activeId={activeId}
           agentTheaterBoxes={agentTheaterBoxes}
+          annotationRailLayout={annotationRailLayout}
           agents={agents}
           annotationRailItems={annotationRailItems}
           annotations={annotations}

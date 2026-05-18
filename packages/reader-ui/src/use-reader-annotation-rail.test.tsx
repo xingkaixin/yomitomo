@@ -246,4 +246,30 @@ describe('useReaderAnnotationRail', () => {
       expect(screen.getByTestId('expanded').textContent).toBe('');
     });
   });
+
+  it('does not expand annotations that only enter the current rail subset', async () => {
+    const firstNote = annotation('user-note');
+    const pageNote = annotation('page-note');
+    const noteRefs = createNoteRefs();
+
+    const { rerender } = render(
+      <HookProbe
+        annotations={[firstNote]}
+        filteredAnnotations={[firstNote, pageNote]}
+        noteRefs={noteRefs}
+      />,
+    );
+
+    rerender(
+      <HookProbe
+        annotations={[pageNote]}
+        filteredAnnotations={[firstNote, pageNote]}
+        noteRefs={noteRefs}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('expanded').textContent).toBe('');
+    });
+  });
 });

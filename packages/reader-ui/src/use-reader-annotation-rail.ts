@@ -1,7 +1,7 @@
 import React from 'react';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
-import { buildAnnotationRailItems } from './reader-utils';
+import { buildAnnotationRailItems, type AnnotationRailLayout } from './reader-utils';
 
 const FILTERED_NOTE_EXIT_MS = 190;
 
@@ -19,6 +19,7 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
 
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
+  annotationRailLayout?: AnnotationRailLayout;
   annotations: Annotation[];
   articleId: string;
   boxes: HighlightBox[];
@@ -41,6 +42,7 @@ export type ReaderAnnotationRailState = {
 
 export function useReaderAnnotationRail({
   activeId,
+  annotationRailLayout,
   annotations,
   articleId,
   boxes,
@@ -61,9 +63,9 @@ export function useReaderAnnotationRail({
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
   );
-  const annotationIdsSnapshotRef = React.useRef({
+  const sourceAnnotationIdsSnapshotRef = React.useRef({
     articleId,
-    ids: new Set(annotations.map((annotation) => annotation.id)),
+    ids: new Set(filteredAnnotations.map((annotation) => annotation.id)),
   });
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
   const registerNoteElementRef = React.useRef<
@@ -91,8 +93,9 @@ export function useReaderAnnotationRail({
     [railAnimation.ids, railAnnotationById],
   );
   const annotationRailItems = React.useMemo(
-    () => buildAnnotationRailItems(railAnnotations, boxes, activeId, noteHeights),
-    [activeId, boxes, noteHeights, railAnnotations],
+    () =>
+      buildAnnotationRailItems(railAnnotations, boxes, activeId, noteHeights, annotationRailLayout),
+    [activeId, annotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
   const updateNoteHeight = React.useCallback((annotationId: string, height: number) => {
@@ -170,35 +173,40 @@ export function useReaderAnnotationRail({
   }, []);
 
   React.useLayoutEffect(() => {
-    const annotationIds = annotations.map((annotation) => annotation.id);
-    const annotationIdSet = new Set(annotationIds);
-    const previous = annotationIdsSnapshotRef.current;
+    const sourceAnnotationIds = filteredAnnotations.map((annotation) => annotation.id);
+    const sourceAnnotationIdSet = new Set(sourceAnnotationIds);
+    const renderedAnnotationIdSet = new Set(annotations.map((annotation) => annotation.id));
+    const previous = sourceAnnotationIdsSnapshotRef.current;
 
-    const sameArticleAnnotationIds =
+    const sameArticleSourceAnnotationIds =
       previous.articleId === articleId &&
-      previous.ids.size === annotationIdSet.size &&
-      annotationIds.every((id) => previous.ids.has(id));
-    if (sameArticleAnnotationIds) return;
+      previous.ids.size === sourceAnnotationIdSet.size &&
+      sourceAnnotationIds.every((id) => previous.ids.has(id));
 
     if (previous.articleId !== articleId) {
-      annotationIdsSnapshotRef.current = { articleId, ids: annotationIdSet };
+      sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
       setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
       return;
     }
 
-    const addedIds = annotationIds.filter((id) => !previous.ids.has(id));
-    annotationIdsSnapshotRef.current = { articleId, ids: annotationIdSet };
+    const addedIds = sameArticleSourceAnnotationIds
+      ? []
+      : sourceAnnotationIds.filter((id) => !previous.ids.has(id));
+    if (!sameArticleSourceAnnotationIds) {
+      sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
+    }
 
     setExpandedPrimaryCommentIds((current) => {
       let changed = false;
       const next = new Set<string>();
 
       for (const id of current) {
-        if (annotationIdSet.has(id)) next.add(id);
+        if (renderedAnnotationIdSet.has(id)) next.add(id);
         else changed = true;
       }
 
       for (const id of addedIds) {
+        if (!renderedAnnotationIdSet.has(id)) continue;
         if (next.has(id)) continue;
         next.add(id);
         changed = true;
@@ -206,7 +214,7 @@ export function useReaderAnnotationRail({
 
       return changed ? next : current;
     });
-  }, [annotations, articleId]);
+  }, [annotations, articleId, filteredAnnotations]);
 
   React.useEffect(() => {
     setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
