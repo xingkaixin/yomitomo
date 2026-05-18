@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
@@ -371,6 +371,49 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.queryByText('正文')).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
+  });
+
+  it('returns to the ebook section after reading an ebook', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    renderLibrary([
+      article({ id: 'web_1', title: '网页文章' }),
+      article({
+        id: 'ebook_1',
+        url: 'ebook://ebook_1',
+        canonicalUrl: 'ebook://ebook_1',
+        sourceType: 'ebook',
+        title: '电子书标题',
+        contentHtml: '<p>书正文</p>',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName: 'book.epub',
+            fileSize: 1024,
+          },
+          chapters: [],
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '打开电子书：电子书标题' }));
+    fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
+
+    const sourceTabs = screen.getByRole('tablist', { name: '阅读库内容类型' });
+    expect(
+      within(sourceTabs)
+        .getByRole('button', { name: /电子书/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getByRole('button', { name: '打开电子书：电子书标题' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
   });
 
   it('imports a webpage and shows duplicate article action', async () => {

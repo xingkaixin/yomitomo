@@ -4,6 +4,8 @@ import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
+export type LibrarySource = 'web' | 'ebook';
+
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 
 export const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
@@ -38,6 +40,10 @@ export function articleMatchesLibrarySearch(article: ArticleRecord, query: strin
     .join(' ')
     .toLocaleLowerCase('zh-CN')
     .includes(normalizedQuery);
+}
+
+export function librarySourceForArticle(article: ArticleRecord): LibrarySource {
+  return article.sourceType === 'ebook' ? 'ebook' : 'web';
 }
 
 export function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilter) {

@@ -23,15 +23,18 @@ import {
   SelectValue,
 } from './components/ui/select';
 import type { EbookImportProgressCallback } from './app-reading-types';
-import { articleMatchesLibrarySearch, compareLibraryArticles } from './app-reading-library-utils';
+import {
+  articleMatchesLibrarySearch,
+  compareLibraryArticles,
+  librarySourceForArticle,
+  type LibrarySource,
+} from './app-reading-library-utils';
 import { ArticleBook } from './app-article-book';
 import { urlHost } from './app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const ARTICLE_DELETE_HOLD_MS = 1400;
-
-type LibrarySource = 'web' | 'ebook';
 
 const LIBRARY_SOURCE_OPTIONS: Array<{
   value: LibrarySource;
@@ -42,14 +45,18 @@ const LIBRARY_SOURCE_OPTIONS: Array<{
 ];
 
 export function LibraryHome({
+  activeSource,
   articles,
+  onActiveSourceChange,
   sortedArticles,
   onDeleteArticle,
   onImportEbookFile,
   onImportArticleUrl,
   onOpenArticle,
 }: {
+  activeSource: LibrarySource;
   articles: ArticleRecord[];
+  onActiveSourceChange: (source: LibrarySource) => void;
   sortedArticles: ArticleRecord[];
   onDeleteArticle: (articleId: string) => Promise<void>;
   onImportEbookFile: (
@@ -62,7 +69,6 @@ export function LibraryHome({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeSource, setActiveSource] = useState<LibrarySource>('web');
   const filteredArticles = useMemo(
     () =>
       sortedArticles
@@ -71,7 +77,7 @@ export function LibraryHome({
     [searchQuery, sortedArticles],
   );
   const sourceArticles = useMemo(
-    () => filteredArticles.filter((article) => articleLibrarySource(article) === activeSource),
+    () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
     [activeSource, filteredArticles],
   );
   const pageCount = Math.max(1, Math.ceil(sourceArticles.length / pageSize));
@@ -80,7 +86,7 @@ export function LibraryHome({
     () =>
       articles.reduce(
         (result, article) => {
-          result[articleLibrarySource(article)] += 1;
+          result[librarySourceForArticle(article)] += 1;
           return result;
         },
         { web: 0, ebook: 0 },
@@ -125,7 +131,7 @@ export function LibraryHome({
                 className={activeSource === option.value ? 'is-active' : undefined}
                 key={option.value}
                 type="button"
-                onClick={() => setActiveSource(option.value)}
+                onClick={() => onActiveSourceChange(option.value)}
               >
                 <span>{option.label}</span>
                 <em>{option.value === 'web' ? counts.web : counts.ebook}</em>
@@ -458,10 +464,6 @@ function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: (
   if (event.key !== 'Enter' && event.key !== ' ') return;
   event.preventDefault();
   onOpen();
-}
-
-function articleLibrarySource(article: ArticleRecord): LibrarySource {
-  return article.sourceType === 'ebook' ? 'ebook' : 'web';
 }
 
 function articleCounts(article: ArticleRecord) {
