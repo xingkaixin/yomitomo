@@ -8,6 +8,7 @@ import type {
   AnnotationMetadata,
   AnnotationMetadataPayload,
   AppSettings,
+  ArticleDeletePatch,
   ArticleRecord,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
@@ -83,6 +84,9 @@ const api = {
     return () => ipcRenderer.removeListener('updates:status', listener);
   },
   openUrl: (url: string) => ipcRenderer.invoke('url:open', url) as Promise<void>,
+  getArticle: (id: string) =>
+    ipcRenderer.invoke('article:get', id) as Promise<ArticleRecord | null>,
+  getArticleCover: (id: string) => ipcRenderer.invoke('article:get-cover', id) as Promise<string>,
   saveArticle: (article: ArticleRecord) =>
     ipcRenderer.invoke('article:save', article) as Promise<DesktopStore>,
   saveArticleReadingProgress: (articleId: string, progress: ArticleReadingProgress) =>
@@ -96,7 +100,8 @@ const api = {
     ipcRenderer.invoke('ebook:import-file', input) as Promise<ArticleImportResult>,
   readEbookFile: (articleId: string) =>
     ipcRenderer.invoke('ebook:read-file', articleId) as Promise<ArrayBuffer>,
-  deleteArticle: (id: string) => ipcRenderer.invoke('article:delete', id) as Promise<DesktopStore>,
+  deleteArticle: (id: string) =>
+    ipcRenderer.invoke('article:delete', id) as Promise<ArticleDeletePatch>,
   requestAgentComment: (payload: AgentMessagePayload) =>
     ipcRenderer.invoke('agent:comment', payload) as Promise<Comment>,
   requestAgentReview: (payload: AgentReviewPayload) =>

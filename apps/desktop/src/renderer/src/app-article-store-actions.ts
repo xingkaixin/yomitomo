@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import type {
+  ArticleDeletePatch,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
@@ -26,10 +27,18 @@ export function useAppArticleStoreActions({
       const desktop = window.yomitomoDesktop;
       if (!desktop) return;
 
-      applyStore(await desktop.deleteArticle(articleId));
+      applyStore(applyArticleDeletePatch(storeRef.current, { articleId }));
+      await desktop.deleteArticle(articleId);
     },
-    [applyStore],
+    [applyStore, storeRef],
   );
+
+  const readArticle = useCallback(async (articleId: string) => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return null;
+
+    return desktop.getArticle(articleId);
+  }, []);
 
   const saveArticle = useCallback(
     async (article: ArticleRecord) => {
@@ -47,9 +56,7 @@ export function useAppArticleStoreActions({
       if (!desktop) return;
 
       const run = async () => {
-        const currentStore = await desktop.getState();
-        storeRef.current = currentStore;
-        const article = currentStore.articles.find((item) => item.id === articleId);
+        const article = await desktop.getArticle(articleId);
         if (!article) return;
         const nextArticle = update(article);
         if (!nextArticle) return;
@@ -59,7 +66,7 @@ export function useAppArticleStoreActions({
       articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
       await nextUpdate;
     },
-    [applyStore, storeRef],
+    [applyStore],
   );
 
   const saveArticleReadingProgress = useCallback(
@@ -115,6 +122,7 @@ export function useAppArticleStoreActions({
 
   return {
     deleteArticle,
+    readArticle,
     saveArticle,
     updateArticle,
     saveArticleReadingProgress,
@@ -134,6 +142,16 @@ export function applyArticleReadingProgressPatch(
         ? { ...article, readingProgress: patch.readingProgress, updatedAt: patch.updatedAt }
         : article,
     ),
+  };
+}
+
+export function applyArticleDeletePatch(
+  store: DesktopStore,
+  patch: ArticleDeletePatch,
+): DesktopStore {
+  return {
+    ...store,
+    articles: store.articles.filter((article) => article.id !== patch.articleId),
   };
 }
 

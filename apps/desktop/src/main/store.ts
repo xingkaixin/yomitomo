@@ -1,13 +1,14 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import SQLiteDatabase from 'better-sqlite3';
 import type {
   Agent,
   Annotation,
   AppSettings,
+  ArticleDeletePatch,
   ArticleRecord,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
@@ -50,9 +51,11 @@ import {
   normalizeTemperature,
   normalizeUser,
   normalizeUsername,
+  type ArticleSummaryRow,
   rowToAgent,
   rowToAnnotation,
   rowToArticle,
+  rowToArticleSummary,
   rowToComment,
   rowToProvider,
   rowToSettings,
@@ -67,6 +70,22 @@ const DB_FILE_NAME = 'yomitomo.sqlite';
 const INSERT_BATCH_SIZE = 32;
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
+const articleSummaryColumns = {
+  id: schema.articles.id,
+  url: schema.articles.url,
+  canonicalUrl: schema.articles.canonicalUrl,
+  sourceType: schema.articles.sourceType,
+  title: schema.articles.title,
+  byline: schema.articles.byline,
+  excerpt: schema.articles.excerpt,
+  siteName: schema.articles.siteName,
+  themeColor: schema.articles.themeColor,
+  contentHash: schema.articles.contentHash,
+  ebookMetadata: schema.articles.ebookMetadata,
+  readingProgress: schema.articles.readingProgress,
+  createdAt: schema.articles.createdAt,
+  updatedAt: schema.articles.updatedAt,
+} satisfies Record<keyof ArticleSummaryRow, unknown>;
 
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: BetterSQLite3Database<typeof schema> | null = null;
@@ -177,6 +196,25 @@ export async function readStore(): Promise<DesktopStore> {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   return readStoreRows(database);
+}
+
+export async function readArticle(id: string): Promise<ArticleRecord | null> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  const row = database.select().from(schema.articles).where(eq(schema.articles.id, id)).get();
+  if (!row) return null;
+
+  return rowToArticle(row, readArticleAnnotations(database, id));
+}
+
+export async function readArticleCover(id: string): Promise<string> {
+  return (
+    getDatabase()
+      .select({ leadImageUrl: schema.articles.leadImageUrl })
+      .from(schema.articles)
+      .where(eq(schema.articles.id, id))
+      .get()?.leadImageUrl || ''
+  );
 }
 
 export async function writeStore(store: DesktopStore): Promise<DesktopStore> {
@@ -475,9 +513,9 @@ export function buildArticleReadingProgressPatch(
   return { articleId, readingProgress, updatedAt: readingProgress.updatedAt };
 }
 
-export async function deleteArticle(id: string): Promise<DesktopStore> {
+export async function deleteArticle(id: string): Promise<ArticleDeletePatch> {
   getDatabase().delete(schema.articles).where(eq(schema.articles.id, id)).run();
-  return readStore();
+  return { articleId: id };
 }
 
 function ensurePresetAgents(
@@ -530,10 +568,49 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
   const providerRows = database.select().from(schema.providers).all();
   ensurePresetAgents(database, providerRows, settings);
   const agentRows = database.select().from(schema.agents).all();
-  const articleRows = database.select().from(schema.articles).all();
+  const articleRows = database.select(articleSummaryColumns).from(schema.articles).all();
   const annotationRows = database.select().from(schema.annotations).all();
   const commentRows = database.select().from(schema.comments).all();
 
+  const annotationsByArticle = groupAnnotationsByArticle(annotationRows, commentRows);
+
+  return {
+    user: normalizeUser(rowToUser(user)),
+    settings: rowToSettings(settings),
+    providers: providerRows.map(rowToProvider),
+    agents: agentRows.map(rowToAgent),
+    articles: articleRows
+      .map((row) =>
+        rowToArticleSummary(row, sortByCreatedAt(annotationsByArticle.get(row.id) || [])),
+      )
+      .toSorted((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
+  };
+}
+
+function readArticleAnnotations(database: StoreDatabase, articleId: string) {
+  const annotationRows = database
+    .select()
+    .from(schema.annotations)
+    .where(eq(schema.annotations.articleId, articleId))
+    .all();
+  const annotationIds = annotationRows.map((row) => row.id);
+  const commentRows =
+    annotationIds.length > 0
+      ? database
+          .select()
+          .from(schema.comments)
+          .where(inArray(schema.comments.annotationId, annotationIds))
+          .all()
+      : [];
+  return sortByCreatedAt(
+    groupAnnotationsByArticle(annotationRows, commentRows).get(articleId) || [],
+  );
+}
+
+function groupAnnotationsByArticle(
+  annotationRows: Array<typeof schema.annotations.$inferSelect>,
+  commentRows: Array<typeof schema.comments.$inferSelect>,
+) {
   const commentsByAnnotation = new Map<string, Comment[]>();
   for (const row of commentRows) {
     const list = commentsByAnnotation.get(row.annotationId) || [];
@@ -547,16 +624,7 @@ function readStoreRows(database: StoreDatabase): DesktopStore {
     list.push(rowToAnnotation(row, sortByCreatedAt(commentsByAnnotation.get(row.id) || [])));
     annotationsByArticle.set(row.articleId, list);
   }
-
-  return {
-    user: normalizeUser(rowToUser(user)),
-    settings: rowToSettings(settings),
-    providers: providerRows.map(rowToProvider),
-    agents: agentRows.map(rowToAgent),
-    articles: articleRows
-      .map((row) => rowToArticle(row, sortByCreatedAt(annotationsByArticle.get(row.id) || [])))
-      .toSorted((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
-  };
+  return annotationsByArticle;
 }
 
 function writeStoreRows(database: StoreDatabase, store: DesktopStore) {

@@ -37,6 +37,26 @@ import {
 } from '@yomitomo/shared';
 import * as schema from './db/schema';
 
+type ArticleRow = typeof schema.articles.$inferSelect;
+export type ArticleSummaryRow = Pick<
+  ArticleRow,
+  | 'id'
+  | 'url'
+  | 'canonicalUrl'
+  | 'sourceType'
+  | 'title'
+  | 'byline'
+  | 'excerpt'
+  | 'siteName'
+  | 'themeColor'
+  | 'contentHash'
+  | 'ebookMetadata'
+  | 'readingProgress'
+  | 'createdAt'
+  | 'updatedAt'
+>;
+type ArticleBaseRow = ArticleSummaryRow & Partial<Pick<ArticleRow, 'siteIconUrl' | 'leadImageUrl'>>;
+
 export const defaultUser: UserProfile = {
   id: 'user_local',
   nickname: '我',
@@ -147,10 +167,28 @@ export function rowToAgent(row: typeof schema.agents.$inferSelect): Agent {
   };
 }
 
-export function rowToArticle(
-  row: typeof schema.articles.$inferSelect,
+export function rowToArticle(row: ArticleRow, annotations: Annotation[]): ArticleRecord {
+  return {
+    ...rowToArticleBase(row, annotations),
+    contentHtml: row.contentHtml || undefined,
+    ebook: rowToEbook(row),
+    focusCoReadingPlan: row.focusCoReadingPlan
+      ? (row.focusCoReadingPlan as FocusCoReadingPlan)
+      : undefined,
+  };
+}
+
+export function rowToArticleSummary(
+  row: ArticleSummaryRow,
   annotations: Annotation[],
 ): ArticleRecord {
+  return {
+    ...rowToArticleBase(row, annotations),
+    ebook: rowToEbookSummary(row),
+  };
+}
+
+function rowToArticleBase(row: ArticleBaseRow, annotations: Annotation[]): ArticleRecord {
   return {
     id: row.id,
     url: row.url,
@@ -163,13 +201,8 @@ export function rowToArticle(
     siteIconUrl: row.siteIconUrl || undefined,
     leadImageUrl: row.leadImageUrl || undefined,
     themeColor: row.themeColor || undefined,
-    contentHtml: row.contentHtml || undefined,
     contentHash: row.contentHash,
-    ebook: rowToEbook(row),
     readingProgress: normalizeArticleReadingProgress(row.readingProgress),
-    focusCoReadingPlan: row.focusCoReadingPlan
-      ? (row.focusCoReadingPlan as FocusCoReadingPlan)
-      : undefined,
     annotations,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -267,7 +300,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   };
 }
 
-function rowToEbook(row: typeof schema.articles.$inferSelect): ArticleRecord['ebook'] {
+function rowToEbook(row: ArticleRow): ArticleRecord['ebook'] {
   const sourceType = normalizeArticleSourceType(row.sourceType);
   if (sourceType !== 'ebook') return undefined;
 
@@ -275,6 +308,14 @@ function rowToEbook(row: typeof schema.articles.$inferSelect): ArticleRecord['eb
   const chapters = normalizeEbookChapters(row.ebookChapters);
   const index = normalizeEpubBookIndex(row.ebookIndex);
   return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
+}
+
+function rowToEbookSummary(row: ArticleSummaryRow): ArticleRecord['ebook'] {
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+  if (sourceType !== 'ebook') return undefined;
+
+  const metadata = normalizeEbookMetadata(row.ebookMetadata);
+  return metadata ? { metadata, chapters: [] } : undefined;
 }
 
 export function normalizeArticleSourceType(value: unknown): ArticleSourceType {

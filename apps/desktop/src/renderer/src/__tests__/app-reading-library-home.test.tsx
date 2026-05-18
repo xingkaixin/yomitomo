@@ -133,6 +133,7 @@ function renderLibrary(
       onDeleteArticle={vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
+      onReadArticle={async (articleId) => articles.find((item) => item.id === articleId) || null}
       onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
       onUpdateArticle={vi.fn()}
@@ -302,7 +303,13 @@ describe('ReadingLibrary home', () => {
     expect(container.querySelector('.library-site-icon')).toBeNull();
   });
 
-  it('renders ebooks as list rows with cover progress', () => {
+  it('renders ebooks as list rows with cover progress', async () => {
+    const coverUrl = 'data:image/jpeg;base64,ZmFrZS1jb3Zlcg==';
+    const getArticleCover = vi.fn().mockResolvedValue(coverUrl);
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { getArticleCover },
+    });
     const { container } = renderLibrary([
       article({
         id: 'ebook_1',
@@ -337,6 +344,10 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(1);
     expect(screen.getByLabelText('1 划线，1 想法')).toBeTruthy();
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
+    await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_1'));
+    expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
+      coverUrl,
+    );
   });
 
   it('exposes the full title on hover', () => {
@@ -350,7 +361,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByTitle('这是一段会在卡片上被截断的很长标题')).toBeTruthy();
   });
 
-  it('opens a webpage article in the source reader', () => {
+  it('opens a webpage article in the source reader', async () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -363,8 +374,8 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]!);
 
-    expect(screen.getByRole('button', { name: '返回阅读库' })).toBeTruthy();
-    expect(screen.getByText('网页文章')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
+    expect(screen.getAllByText('网页文章').length).toBeGreaterThan(0);
     expect(screen.getByText('正文')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
@@ -373,7 +384,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
   });
 
-  it('returns to the ebook section after reading an ebook', () => {
+  it('returns to the ebook section after reading an ebook', async () => {
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -404,6 +415,7 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '打开电子书：电子书标题' }));
+    expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
 
     const sourceTabs = screen.getByRole('tablist', { name: '阅读库内容类型' });

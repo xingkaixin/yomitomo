@@ -40,6 +40,7 @@ function App() {
     useDesktopStoreState();
   const {
     deleteArticle,
+    readArticle,
     saveArticle,
     updateArticle,
     saveArticleReadingProgress,
@@ -190,6 +191,7 @@ function App() {
             onImportArticleUrl={importArticleUrl}
             onImportEbookFile={importEbookFile}
             onReadingModeChange={setLibraryReaderOpen}
+            onReadArticle={readArticle}
             onSaveArticle={saveArticle}
             onSaveArticleReadingProgress={saveArticleReadingProgress}
             onUpdateArticle={updateArticle}

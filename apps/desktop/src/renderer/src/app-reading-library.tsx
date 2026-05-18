@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Agent,
   Annotation,
@@ -35,6 +35,7 @@ export function ReadingLibrary({
   onImportEbookFile,
   onImportArticleUrl,
   onReadingModeChange,
+  onReadArticle,
   onSaveArticle,
   onSaveArticleReadingProgress,
   onUpdateArticle,
@@ -53,6 +54,7 @@ export function ReadingLibrary({
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onReadingModeChange?: (open: boolean) => void;
+  onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleReadingProgress: (
     articleId: string,
@@ -62,12 +64,12 @@ export function ReadingLibrary({
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<ArticleRecord | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
   const [librarySource, setLibrarySource] = useState<LibrarySource>('web');
+  const articleLoadRef = useRef(0);
   const sortedArticles = useMemo<ArticleRecord[]>(() => sortArticles(articles), [articles]);
-  const selectedArticle =
-    sortedArticles.find((article) => article.id === selectedArticleId) || null;
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -85,6 +87,7 @@ export function ReadingLibrary({
   useEffect(() => {
     if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
       setSelectedArticleId(null);
+      setSelectedArticle(null);
     }
   }, [selectedArticleId, sortedArticles]);
 
@@ -92,7 +95,7 @@ export function ReadingLibrary({
     if (!openArticleId) return;
     const article = sortedArticles.find((item) => item.id === openArticleId);
     if (!article) return;
-    openArticle(article);
+    void openArticle(article);
     onArticleOpened?.(article.id);
   }, [openArticleId, onArticleOpened, sortedArticles]);
 
@@ -104,15 +107,21 @@ export function ReadingLibrary({
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
     if (selectedArticleId === articleId) {
+      setSelectedArticle(null);
       openLibraryShelf();
     }
   }
 
-  function openArticle(article: ArticleRecord) {
+  async function openArticle(article: ArticleRecord) {
+    const loadId = articleLoadRef.current + 1;
+    articleLoadRef.current = loadId;
     setLibrarySource(librarySourceForArticle(article));
     setSelectedArticleId(article.id);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
+    const fullArticle = articleHasReadableBody(article) ? article : await onReadArticle(article.id);
+    if (articleLoadRef.current !== loadId || !fullArticle) return;
+    setSelectedArticle(fullArticle);
     setActiveShelf('source');
   }
 
@@ -120,6 +129,31 @@ export function ReadingLibrary({
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
     setActiveShelf('library');
+  }
+
+  async function saveSelectedArticle(article: ArticleRecord) {
+    setSelectedArticle(article);
+    await onSaveArticle(article);
+  }
+
+  async function saveSelectedArticleReadingProgress(
+    articleId: string,
+    progress: ArticleReadingProgress,
+  ) {
+    setSelectedArticle((current) =>
+      current?.id === articleId
+        ? { ...current, readingProgress: progress, updatedAt: progress.updatedAt }
+        : current,
+    );
+    await onSaveArticleReadingProgress(articleId, progress);
+  }
+
+  async function updateSelectedArticle(articleId: string, update: ArticleUpdater) {
+    await onUpdateArticle(articleId, (article) => {
+      const nextArticle = update(selectedArticle?.id === articleId ? selectedArticle : article);
+      if (nextArticle) setSelectedArticle(nextArticle);
+      return nextArticle;
+    });
   }
 
   if (!selectedArticle) {
@@ -132,7 +166,7 @@ export function ReadingLibrary({
         onDeleteArticle={deleteLibraryArticle}
         onImportEbookFile={onImportEbookFile}
         onImportArticleUrl={onImportArticleUrl}
-        onOpenArticle={openArticle}
+        onOpenArticle={(article) => void openArticle(article)}
       />
     );
   }
@@ -150,7 +184,7 @@ export function ReadingLibrary({
               onDeleteArticle={deleteLibraryArticle}
               onImportEbookFile={onImportEbookFile}
               onImportArticleUrl={onImportArticleUrl}
-              onOpenArticle={openArticle}
+              onOpenArticle={(article) => void openArticle(article)}
             />
           </div>
         </div>
@@ -169,13 +203,18 @@ export function ReadingLibrary({
               onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
               onClose={openLibraryShelf}
               onOpenAnnotation={setSelectedAnnotationId}
-              onSaveArticle={onSaveArticle}
-              onSaveArticleReadingProgress={onSaveArticleReadingProgress}
-              onUpdateArticle={onUpdateArticle}
+              onSaveArticle={saveSelectedArticle}
+              onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}
+              onUpdateArticle={updateSelectedArticle}
             />
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function articleHasReadableBody(article: ArticleRecord) {
+  if (article.sourceType === 'ebook') return Boolean(article.ebook?.chapters.length);
+  return Boolean(article.contentHtml);
 }

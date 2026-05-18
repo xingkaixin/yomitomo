@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { ArticleRecord } from '@yomitomo/shared';
 
 type ArticleBookStyle = React.CSSProperties & {
@@ -43,8 +43,11 @@ const BOOK_COVER_PALETTES = [
   { from: '#eef5f0', to: '#d5eadc', text: '#1a3a28', accent: '#88bba0', mode: 'light' },
 ] as const;
 
+const articleCoverCache = new Map<string, string | null>();
+
 export function ArticleBook({ article }: { article: ArticleRecord }) {
-  const visual = useMemo(() => articleBookVisual(article), [article]);
+  const coverUrl = useArticleCover(article);
+  const visual = useMemo(() => articleBookVisual(article, coverUrl), [article, coverUrl]);
 
   return (
     <span
@@ -82,14 +85,51 @@ export function ArticleBook({ article }: { article: ArticleRecord }) {
   );
 }
 
-function articleBookVisual(article: ArticleRecord) {
+function useArticleCover(article: ArticleRecord) {
+  const directCoverUrl = safeHttpUrl(article.leadImageUrl);
+  const [coverUrl, setCoverUrl] = useState<string | undefined>(directCoverUrl);
+
+  useEffect(() => {
+    const nextDirectCoverUrl = safeHttpUrl(article.leadImageUrl);
+    if (nextDirectCoverUrl || article.sourceType !== 'ebook') {
+      setCoverUrl(nextDirectCoverUrl);
+      return;
+    }
+
+    const cached = articleCoverCache.get(article.id);
+    if (cached !== undefined) {
+      setCoverUrl(cached || undefined);
+      return;
+    }
+
+    let cancelled = false;
+    void window.yomitomoDesktop
+      ?.getArticleCover(article.id)
+      .then((value) => {
+        const loadedUrl = safeHttpUrl(value) || null;
+        articleCoverCache.set(article.id, loadedUrl);
+        if (!cancelled) setCoverUrl(loadedUrl || undefined);
+      })
+      .catch(() => {
+        articleCoverCache.set(article.id, null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id, article.leadImageUrl, article.sourceType]);
+
+  return coverUrl;
+}
+
+function articleBookVisual(article: ArticleRecord, coverUrl?: string) {
   const seed = stableHash(
     [article.id, article.canonicalUrl, article.title, article.siteName, article.contentHash].join(
       '|',
     ),
   );
   const palette = BOOK_COVER_PALETTES[seed % BOOK_COVER_PALETTES.length];
-  const imageUrl = safeHttpUrl(article.leadImageUrl);
+  const imageUrl = coverUrl;
   const nativeCover = article.sourceType === 'ebook' && Boolean(imageUrl);
   const bylineLabel = normalizeLabel(article.byline || '');
   const hasCjkTitle = /[\u3400-\u9fff]/.test(article.title);
