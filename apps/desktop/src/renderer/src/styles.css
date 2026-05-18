@@ -10618,32 +10618,64 @@ button.license-package-row:hover {
 }
 
 .app-nav-profile-button {
+  position: relative;
   display: grid;
   width: 40px;
   height: 40px;
   margin-left: auto;
   place-items: center;
   border: 1px solid transparent;
-  border-radius: 0;
+  border-radius: 999px;
   background: transparent;
   color: hsl(var(--foreground));
   cursor: pointer;
   padding: 0;
   transition:
-    border-color 150ms ease,
-    background 150ms ease,
+    background-color 150ms ease,
+    box-shadow 150ms ease,
     transform 150ms ease;
 }
 
 .app-nav-profile-button:hover,
 .app-nav-profile-button:focus-visible {
-  border-color: hsl(var(--foreground));
-  background: hsl(0 0% 0% / 0.025);
+  background-color: hsl(var(--background) / 0.72);
+  box-shadow:
+    0 0 0 1px hsl(var(--foreground) / 0.16),
+    0 9px 20px hsl(31 34% 24% / 0.1);
   outline: 0;
 }
 
 .app-nav-profile-button:active {
   transform: scale(0.96);
+}
+
+.app-nav-profile-button::after {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  z-index: 2;
+  opacity: 0;
+  border-radius: 999px;
+  background: hsl(var(--foreground));
+  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.14);
+  color: hsl(var(--card));
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 7px 10px;
+  pointer-events: none;
+  transform: translate(4px, -50%);
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+  white-space: nowrap;
+}
+
+.app-nav-profile-button:hover::after,
+.app-nav-profile-button:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
 }
 
 .avatar-image.app-nav-profile-avatar {
@@ -10656,11 +10688,17 @@ button.license-package-row:hover {
   font-size: 12px;
   font-weight: 840;
   box-shadow: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
 }
 
 .app-nav-profile-button:hover .avatar-image.app-nav-profile-avatar,
 .app-nav-profile-button:focus-visible .avatar-image.app-nav-profile-avatar {
-  border-color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.58);
+  box-shadow: 0 6px 14px hsl(31 34% 24% / 0.12);
+  transform: scale(1.05);
 }
 
 .settings-content {
