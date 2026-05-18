@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
 
 import { emptyStore } from '../app-settings';
-import { applyArticleReadingProgressPatch } from '../app-article-store-actions';
+import {
+  applyArticleDeletePatch,
+  applyArticleReadingProgressPatch,
+} from '../app-article-store-actions';
 
 describe('applyArticleReadingProgressPatch', () => {
   it('updates only the target article progress', () => {
@@ -33,6 +36,21 @@ describe('applyArticleReadingProgressPatch', () => {
       updatedAt: readingProgress.updatedAt,
     });
     expect(nextStore.articles[1]).toBe(secondArticle);
+  });
+});
+
+describe('applyArticleDeletePatch', () => {
+  it('removes only the deleted article from the store', () => {
+    const firstArticle = makeArticle('article-1');
+    const secondArticle = makeArticle('article-2');
+    const store: DesktopStore = {
+      ...emptyStore,
+      articles: [firstArticle, secondArticle],
+    };
+
+    expect(applyArticleDeletePatch(store, { articleId: firstArticle.id }).articles).toEqual([
+      secondArticle,
+    ]);
   });
 });
 

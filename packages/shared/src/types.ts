@@ -296,6 +296,10 @@ export type ArticleReadingProgressPatch = {
   updatedAt: string;
 };
 
+export type ArticleDeletePatch = {
+  articleId: string;
+};
+
 export type SpoilerAllowedScope =
   | 'current-selection'
   | 'current-segment'

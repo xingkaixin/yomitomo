@@ -33,6 +33,8 @@ import {
   deleteProvider,
   hydrateProviderApiKey,
   hydrateProviderInputApiKey,
+  readArticle,
+  readArticleCover,
   readStore,
   saveAgent,
   saveArticleReadingProgress,
@@ -157,6 +159,8 @@ function registerIpc() {
   ipcMain.handle('updates:install', () => installAppUpdate());
   ipcMain.handle('performance:timing', (_event, input: unknown) => recordPerformanceTiming(input));
   ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
+  ipcMain.handle('article:get', async (_event, id: string) => readArticle(id));
+  ipcMain.handle('article:get-cover', async (_event, id: string) => readArticleCover(id));
   ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
     const store = await saveArticle(input);
     sendStoreUpdated(store);
@@ -174,19 +178,20 @@ function registerIpc() {
       inlineImages: Boolean(previousStore.settings.saveArticleImages),
     });
     const existingArticle = findArticleByIdentity(previousStore.articles, record);
-    if (existingArticle && !isArticleImportChallengeRecord(existingArticle)) {
+    const existingFullArticle = existingArticle ? await readArticle(existingArticle.id) : null;
+    if (existingFullArticle && !isArticleImportChallengeRecord(existingFullArticle)) {
       return {
         status: 'duplicate',
-        article: existingArticle,
+        article: existingFullArticle,
         store: previousStore,
       };
     }
 
     const store = await saveArticle({
       ...record,
-      createdAt: existingArticle?.createdAt || record.createdAt,
+      createdAt: existingFullArticle?.createdAt || record.createdAt,
     });
-    const article = store.articles.find((item) => item.id === record.id);
+    const article = await readArticle(record.id);
     if (!article) throw new Error('文章保存失败');
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
@@ -205,17 +210,18 @@ function registerIpc() {
       const record = await articleRecordFromEpubFile(input, { performanceLogger: logInfo });
       const existingArticle = findArticleByIdentity(previousStore.articles, record);
       if (existingArticle) {
+        const existingFullArticle = await readArticle(existingArticle.id);
         await saveEbookSourceFile(existingArticle.id, input.data);
         return {
           status: 'duplicate',
-          article: existingArticle,
+          article: existingFullArticle || existingArticle,
           store: previousStore,
         };
       }
 
       await saveEbookSourceFile(record.id, input.data);
       const store = await saveArticle(record);
-      const article = store.articles.find((item) => item.id === record.id);
+      const article = await readArticle(record.id);
       if (!article) throw new Error('电子书保存失败');
       sendStoreUpdated(store);
       return { status: 'imported', article, store };
@@ -269,9 +275,7 @@ function registerIpc() {
     return planFocusCoReadingRoute(provider, payload, agents);
   });
   ipcMain.handle('article:delete', async (_event, id: string) => {
-    const store = await deleteArticle(id);
-    sendStoreUpdated(store);
-    return store;
+    return deleteArticle(id);
   });
   ipcMain.handle('agent:comment', async (_event, payload: AgentMessagePayload) => {
     const store = await readStore();
