@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { MessageSquare, MessageSquarePlus, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
+  MessageCircle,
+  MessageSquarePlus,
+  Trash2,
+} from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
@@ -18,6 +25,7 @@ export function AnnotationCard({
   isStackFront = true,
   messageSendShortcut,
   noteRef,
+  primaryCommentExpanded,
   shortcutModifier,
   stackCount = 1,
   stackIndex = 0,
@@ -28,6 +36,7 @@ export function AnnotationCard({
   onDelete,
   onDeleteComment = () => undefined,
   onFocus,
+  onPrimaryCommentExpandedChange,
 }: {
   active: boolean;
   agents: PublicAgent[];
@@ -50,7 +59,7 @@ export function AnnotationCard({
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
 }) {
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<string>>(() => new Set());
-  const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
+  const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(() => new Set());
   const [replyToCommentId, setReplyToCommentId] = useState<string | null>(null);
   const [newThoughtOpen, setNewThoughtOpen] = useState(false);
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -58,6 +67,10 @@ export function AnnotationCard({
   const suggestedMentionAgents = annotationMentionAgents(annotation, agents);
   const author = annotationAuthor(annotation, userProfile, agents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
+  const thoughtAuthors = useMemo(
+    () => uniqueThoughtAuthors(discussionThreads, userProfile, agents),
+    [agents, discussionThreads, userProfile],
+  );
   const threadRootIds = useMemo(
     () => discussionThreads.map((thread) => thread.root.id),
     [discussionThreads],
@@ -65,13 +78,14 @@ export function AnnotationCard({
   const threadRootIdKey = threadRootIds.join('\u0000');
   const annotationStyle = {
     ...noteStyle(author.color, active),
+    '--reader-note-accent': author.color || annotation.color,
     ...style,
-  };
+  } as React.CSSProperties;
 
   useEffect(() => {
     setReplyToCommentId(null);
     setNewThoughtOpen(false);
-    setExpandedThreadId(null);
+    setExpandedThreadIds(new Set());
     setExpandedCommentIds(new Set());
     previousThreadRootIdsRef.current = null;
   }, [commentsCloseKey]);
@@ -80,7 +94,7 @@ export function AnnotationCard({
     if (active) return;
     setReplyToCommentId(null);
     setNewThoughtOpen(false);
-    setExpandedThreadId(null);
+    setExpandedThreadIds(new Set());
   }, [active]);
 
   useEffect(() => {
@@ -95,8 +109,15 @@ export function AnnotationCard({
     previousThreadRootIdsRef.current = threadRootIds;
     if (addedIds.length === 0) return;
 
-    setExpandedThreadId(addedIds.at(-1) || null);
-  }, [threadRootIdKey, threadRootIds]);
+    const addedId = addedIds.at(-1);
+    if (!addedId) return;
+    onPrimaryCommentExpandedChange(annotation.id, true);
+    setExpandedThreadIds((current) => {
+      const next = new Set(current);
+      next.add(addedId);
+      return next;
+    });
+  }, [annotation.id, onPrimaryCommentExpandedChange, threadRootIdKey, threadRootIds]);
 
   const setNoteElement = useCallback(
     (element: HTMLElement | null) => {
@@ -124,8 +145,25 @@ export function AnnotationCard({
 
   function setThreadExpanded(commentId: string, nextExpanded: boolean) {
     if (nextExpanded && !active) onFocus(annotation.id);
-    setExpandedThreadId(nextExpanded ? commentId : null);
+    if (nextExpanded && !primaryCommentExpanded) {
+      onPrimaryCommentExpandedChange(annotation.id, true);
+    }
+    setExpandedThreadIds((current) => {
+      const next = new Set(current);
+      if (nextExpanded) next.add(commentId);
+      else next.delete(commentId);
+      return next;
+    });
     if (!nextExpanded && replyToCommentId === commentId) setReplyToCommentId(null);
+  }
+
+  function setCardExpanded(nextExpanded: boolean) {
+    if (nextExpanded && !active) onFocus(annotation.id);
+    onPrimaryCommentExpandedChange(annotation.id, nextExpanded);
+    if (!nextExpanded) {
+      setReplyToCommentId(null);
+      setNewThoughtOpen(false);
+    }
   }
 
   function openReplyComposer(commentId: string) {
@@ -146,11 +184,17 @@ export function AnnotationCard({
 
   function openNewThoughtComposer() {
     if (!active) onFocus(annotation.id);
+    if (!primaryCommentExpanded) onPrimaryCommentExpandedChange(annotation.id, true);
     setNewThoughtOpen(true);
   }
 
   function deleteComment(commentId: string) {
-    if (expandedThreadId === commentId) setExpandedThreadId(null);
+    setExpandedThreadIds((current) => {
+      if (!current.has(commentId)) return current;
+      const next = new Set(current);
+      next.delete(commentId);
+      return next;
+    });
     if (replyToCommentId === commentId) setReplyToCommentId(null);
     onDeleteComment(annotation.id, commentId);
   }
@@ -160,6 +204,7 @@ export function AnnotationCard({
       className={[
         'reader-note',
         active ? 'is-active' : '',
+        primaryCommentExpanded ? 'is-expanded' : '',
         exiting ? 'is-filtering-out' : '',
         stackCount > 1 ? 'is-stacked' : '',
         isStackFront ? 'is-stack-front' : '',
@@ -180,83 +225,108 @@ export function AnnotationCard({
             type="button"
             onClick={() => onFocus(annotation.id)}
           >
-            “{annotation.anchor.exact}”
+            <span className="reader-note-quote-mark" aria-hidden="true">
+              “
+            </span>
+            <span className="reader-note-quote-text">{annotation.anchor.exact}</span>
           </button>
         </header>
         <div className="reader-note-meta">
-          <span className="reader-note-owner" aria-hidden="true">
+          <span
+            className="reader-note-owner"
+            style={avatarColorStyle(author.color)}
+            aria-hidden="true"
+          >
             <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
           </span>
           <span className="reader-note-meta-copy">
             <strong>{author.nickname}</strong>
           </span>
-          <time dateTime={annotation.createdAt}>{formatTime(annotation.createdAt)}</time>
-        </div>
-        <div className="reader-note-toolbar">
-          <span className="reader-comment-count">
-            <MessageSquare size={14} />
-            {discussionThreads.length} 条想法
-          </span>
-          <HoldDeleteButton
-            ariaLabel="长按删除批注"
-            className="reader-delete-note"
-            onDelete={() => onDelete(annotation.id)}
-          />
-        </div>
-      </div>
-      <div className="reader-note-comments-region">
-        <div className="reader-note-comments-panel">
-          {discussionThreads.length > 0 ? (
-            <div className="reader-comments">
-              {discussionThreads.map((thread) => (
-                <DiscussionThreadView
-                  agents={agents}
-                  expanded={expandedThreadId === thread.root.id}
-                  expandedCommentIds={expandedCommentIds}
-                  key={thread.root.id}
-                  messageSendShortcut={messageSendShortcut}
-                  replyOpen={replyToCommentId === thread.root.id}
-                  shortcutModifier={shortcutModifier}
-                  suggestedMentionAgents={suggestedMentionAgents}
-                  thread={thread}
-                  userProfile={userProfile}
-                  onAddReply={addReply}
-                  onCloseReply={() => setReplyToCommentId(null)}
-                  onCommentExpandedChange={setCommentExpanded}
-                  onDelete={() => deleteComment(thread.root.id)}
-                  onOpenReply={() => openReplyComposer(thread.root.id)}
-                  onThreadExpandedChange={(nextExpanded) =>
-                    setThreadExpanded(thread.root.id, nextExpanded)
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
-          <div
-            className={[
-              'reader-new-thought-composer',
-              discussionThreads.length === 0 ? 'is-empty' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <InlineCommentComposer
-              agents={agents}
-              open={newThoughtOpen}
-              messageSendShortcut={messageSendShortcut}
-              placeholder="添加新的想法，或 @助手一起看这段"
-              shortcutModifier={shortcutModifier}
-              submitLabel="记录"
-              suggestedAgents={suggestedMentionAgents}
-              triggerIcon={<MessageSquarePlus size={14} />}
-              triggerLabel={discussionThreads.length === 0 ? '还没有想法，添加想法' : '添加想法'}
-              onClose={() => setNewThoughtOpen(false)}
-              onOpen={openNewThoughtComposer}
-              onSubmit={addTopLevelComment}
+          <span className="reader-note-time-actions">
+            <time dateTime={annotation.createdAt}>{formatTime(annotation.createdAt)}</time>
+            <HoldDeleteButton
+              ariaLabel="长按删除批注"
+              className="reader-delete-note reader-delete-annotation"
+              onDelete={() => onDelete(annotation.id)}
             />
+          </span>
+        </div>
+        <footer className="reader-note-toolbar">
+          <button
+            className="reader-note-thread-toggle"
+            type="button"
+            aria-expanded={primaryCommentExpanded}
+            aria-label={primaryCommentExpanded ? '收起想法列表' : '展开想法列表'}
+            onClick={() => setCardExpanded(!primaryCommentExpanded)}
+          >
+            <span className="reader-note-thread-toggle-main">
+              <span className="reader-comment-count">
+                <Lightbulb size={14} />
+                {discussionThreads.length} 条想法
+              </span>
+              <ThoughtAuthorStack authors={thoughtAuthors} />
+            </span>
+            <span className="reader-note-thread-toggle-side">
+              {primaryCommentExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </span>
+          </button>
+        </footer>
+      </div>
+      {primaryCommentExpanded ? (
+        <div className="reader-note-comments-region">
+          <div className="reader-note-comments-panel">
+            {discussionThreads.length > 0 ? (
+              <div className="reader-comments">
+                {discussionThreads.map((thread) => (
+                  <DiscussionThreadView
+                    agents={agents}
+                    expanded={expandedThreadIds.has(thread.root.id)}
+                    expandedCommentIds={expandedCommentIds}
+                    key={thread.root.id}
+                    messageSendShortcut={messageSendShortcut}
+                    replyOpen={replyToCommentId === thread.root.id}
+                    shortcutModifier={shortcutModifier}
+                    suggestedMentionAgents={suggestedMentionAgents}
+                    thread={thread}
+                    userProfile={userProfile}
+                    onAddReply={addReply}
+                    onCloseReply={() => setReplyToCommentId(null)}
+                    onCommentExpandedChange={setCommentExpanded}
+                    onDelete={() => deleteComment(thread.root.id)}
+                    onOpenReply={() => openReplyComposer(thread.root.id)}
+                    onThreadExpandedChange={(nextExpanded) =>
+                      setThreadExpanded(thread.root.id, nextExpanded)
+                    }
+                  />
+                ))}
+              </div>
+            ) : null}
+            <div
+              className={[
+                'reader-new-thought-composer',
+                discussionThreads.length === 0 ? 'is-empty' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <InlineCommentComposer
+                agents={agents}
+                open={newThoughtOpen}
+                messageSendShortcut={messageSendShortcut}
+                placeholder="添加新的想法，或 @助手一起看这段"
+                shortcutModifier={shortcutModifier}
+                submitLabel="记录"
+                suggestedAgents={suggestedMentionAgents}
+                triggerIcon={<MessageSquarePlus size={14} />}
+                triggerLabel="添加想法"
+                onClose={() => setNewThoughtOpen(false)}
+                onOpen={openNewThoughtComposer}
+                onSubmit={addTopLevelComment}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }
@@ -265,6 +335,65 @@ type DiscussionThread = {
   root: Annotation['comments'][number];
   replies: Annotation['comments'];
 };
+
+type ThoughtAuthor = ReturnType<typeof commentPersona> & { key: string };
+
+const MAX_FOOTER_AUTHORS = 4;
+
+function ThoughtAuthorStack({ authors }: { authors: ThoughtAuthor[] }) {
+  if (authors.length === 0) return null;
+
+  const visibleAuthors = authors.slice(0, MAX_FOOTER_AUTHORS);
+  const hiddenCount = authors.length - visibleAuthors.length;
+
+  return (
+    <span
+      className="reader-thought-author-stack"
+      aria-label={authors.map((author) => author.nickname).join('、')}
+    >
+      {visibleAuthors.map((author) => (
+        <span
+          className="reader-thought-author-avatar"
+          key={author.key}
+          style={avatarColorStyle(author.color)}
+          title={author.nickname}
+        >
+          <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+        </span>
+      ))}
+      {hiddenCount > 0 ? <span className="reader-thought-author-more">+{hiddenCount}</span> : null}
+    </span>
+  );
+}
+
+function uniqueThoughtAuthors(
+  threads: DiscussionThread[],
+  userProfile: UserProfile,
+  agents: PublicAgent[],
+): ThoughtAuthor[] {
+  const authors: ThoughtAuthor[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const thread of threads) {
+    const persona = commentPersona(thread.root, userProfile, agents);
+    const key = commentAuthorKey(thread.root, persona.username);
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    authors.push({ ...persona, key });
+  }
+
+  return authors;
+}
+
+function commentAuthorKey(comment: Annotation['comments'][number], username: string) {
+  return comment.author === 'ai'
+    ? `ai:${comment.agentId || comment.agentUsername || username}`
+    : `user:${comment.userId || comment.userUsername || username}`;
+}
+
+function avatarColorStyle(color: string): React.CSSProperties {
+  return { '--reader-avatar-color': color } as React.CSSProperties;
+}
 
 function HoldDeleteButton({
   ariaLabel,
@@ -368,27 +497,31 @@ function DiscussionThreadView({
         .join(' ')}
     >
       <div className="reader-thought-summary-wrap">
-        <button
-          className="reader-thought-summary"
-          type="button"
-          aria-expanded={expanded}
-          aria-label={expanded ? '收起想法' : '展开想法'}
-          onClick={() => onThreadExpandedChange(!expanded)}
-        >
-          <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-          <span className="reader-thought-summary-copy">
-            <span className="reader-thought-summary-meta">
+        <div className="reader-thought-summary">
+          <span
+            className="reader-thought-owner"
+            style={avatarColorStyle(author.color)}
+            aria-hidden="true"
+          >
+            <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+          </span>
+          <div className="reader-thought-summary-copy">
+            <div className="reader-thought-summary-meta">
               <strong>{author.nickname}</strong>
-            </span>
-            <span className="reader-thought-preview">{commentPreview(thread.root.content)}</span>
-          </span>
-          <span className="reader-thought-summary-side">
-            <time className="reader-thought-time" dateTime={thread.root.createdAt}>
-              {formatTime(thread.root.createdAt)}
-            </time>
-            <span className="reader-thought-reply-count">{replyCount} 条回复</span>
-          </span>
-        </button>
+              <time className="reader-thought-time" dateTime={thread.root.createdAt}>
+                {formatTime(thread.root.createdAt)}
+              </time>
+            </div>
+            <CollapsibleMarkdownContent
+              content={thread.root.content}
+              expanded={expandedCommentIds.has(thread.root.id)}
+              pending={thread.root.pending}
+              onExpandedChange={(nextExpanded) =>
+                onCommentExpandedChange(thread.root.id, nextExpanded)
+              }
+            />
+          </div>
+        </div>
         <HoldDeleteButton
           ariaLabel="长按删除想法"
           className="reader-delete-note reader-delete-thought"
@@ -396,6 +529,42 @@ function DiscussionThreadView({
           onDelete={onDelete}
         />
       </div>
+      <footer className="reader-thought-footer">
+        {replyCount > 0 ? (
+          <button
+            className="reader-replies-toggle"
+            type="button"
+            aria-expanded={expanded}
+            aria-label={expanded ? '收起回复列表' : '展开回复列表'}
+            onClick={() => onThreadExpandedChange(!expanded)}
+          >
+            <MessageCircle size={13} />
+            <span>{replyCount} 条回复</span>
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+        ) : (
+          <span className="reader-replies-label">
+            <MessageCircle size={13} />
+            <span>0 条回复</span>
+          </span>
+        )}
+        <div className="reader-thread-reply-composer">
+          <InlineCommentComposer
+            agents={agents}
+            open={replyOpen}
+            messageSendShortcut={messageSendShortcut}
+            placeholder="回复这条想法，或 @助手继续讨论"
+            shortcutModifier={shortcutModifier}
+            submitLabel="回复"
+            suggestedAgents={suggestedMentionAgents}
+            triggerIcon={<MessageCircle size={13} />}
+            triggerLabel="回复"
+            onClose={onCloseReply}
+            onOpen={onOpenReply}
+            onSubmit={(content) => onAddReply(content, thread.root.id)}
+          />
+        </div>
+      </footer>
       {expanded ? (
         <div className="reader-thread-detail">
           {replyCount > 0 ? (
@@ -415,22 +584,6 @@ function DiscussionThreadView({
               ))}
             </div>
           ) : null}
-          <div className="reader-thread-reply-composer">
-            <InlineCommentComposer
-              agents={agents}
-              open={replyOpen}
-              messageSendShortcut={messageSendShortcut}
-              placeholder="回复这条想法，或 @助手继续讨论"
-              shortcutModifier={shortcutModifier}
-              submitLabel="回复"
-              suggestedAgents={suggestedMentionAgents}
-              triggerIcon={<MessageSquare size={13} />}
-              triggerLabel="回复"
-              onClose={onCloseReply}
-              onOpen={onOpenReply}
-              onSubmit={(content) => onAddReply(content, thread.root.id)}
-            />
-          </div>
         </div>
       ) : null}
     </section>
@@ -642,15 +795,6 @@ function CollapsibleMarkdownContent({
         </button>
       ) : null}
     </div>
-  );
-}
-
-function commentPreview(content: string) {
-  return (
-    content
-      .replace(/[`*_>#\-[\]()]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim() || '空想法'
   );
 }
 

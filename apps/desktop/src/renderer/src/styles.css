@@ -11862,6 +11862,92 @@ button.license-package-row:hover {
   background: hsl(var(--card));
 }
 
+.source-reader-shell .reader-note,
+.source-ebook-reader-shell .reader-note {
+  overflow: hidden;
+  border-radius: 14px;
+  background: hsl(var(--card));
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.07);
+}
+
+.source-reader-shell .reader-note-body,
+.source-ebook-reader-shell .reader-note-body {
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-note-quote,
+.source-ebook-reader-shell .reader-note-quote {
+  border-left-color: transparent;
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note-quote-mark,
+.source-ebook-reader-shell .reader-note-quote-mark {
+  color: var(--reader-note-accent);
+}
+
+.source-reader-shell .reader-note-toolbar,
+.source-reader-shell .reader-note-comments-panel,
+.source-reader-shell .reader-thought-footer,
+.source-reader-shell .reader-new-thought-composer,
+.source-ebook-reader-shell .reader-note-toolbar,
+.source-ebook-reader-shell .reader-note-comments-panel,
+.source-ebook-reader-shell .reader-thought-footer,
+.source-ebook-reader-shell .reader-new-thought-composer {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(0 0% 0% / 0.025);
+}
+
+.source-reader-shell .reader-note-thread-toggle:hover,
+.source-reader-shell .reader-replies-toggle:hover,
+.source-reader-shell .reader-inline-composer-trigger:hover,
+.source-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-note-thread-toggle:hover,
+.source-ebook-reader-shell .reader-replies-toggle:hover,
+.source-ebook-reader-shell .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note-comments-panel,
+.source-ebook-reader-shell .reader-note-comments-panel {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-discussion-thread,
+.source-ebook-reader-shell .reader-discussion-thread {
+  border-radius: 8px;
+}
+
+.source-reader-shell .reader-thought-summary,
+.source-ebook-reader-shell .reader-thought-summary {
+  border-radius: 0;
+  background: transparent;
+}
+
+.source-reader-shell .reader-note-owner .reader-avatar-badge,
+.source-reader-shell .reader-thought-owner .reader-avatar-badge,
+.source-reader-shell .reader-thought-author-avatar .reader-avatar-badge,
+.source-ebook-reader-shell .reader-note-owner .reader-avatar-badge,
+.source-ebook-reader-shell .reader-thought-owner .reader-avatar-badge,
+.source-ebook-reader-shell .reader-thought-author-avatar .reader-avatar-badge {
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--reader-avatar-color, hsl(var(--foreground)));
+}
+
+.source-reader-shell .reader-note-owner .reader-avatar-badge.is-image,
+.source-reader-shell .reader-thought-owner .reader-avatar-badge.is-image,
+.source-reader-shell .reader-thought-author-avatar .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-note-owner .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-thought-owner .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-thought-author-avatar .reader-avatar-badge.is-image {
+  background: transparent;
+}
+
 .source-reader-shell .reader-comment-markdown.is-collapsed::after,
 .source-reader-shell .reader-note-primary-comment .reader-comment-markdown.is-collapsed::after,
 .source-ebook-reader-shell .reader-comment-markdown.is-collapsed::after,
