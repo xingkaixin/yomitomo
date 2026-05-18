@@ -22,6 +22,7 @@ import {
   buildAnnotationRailItems,
   buildHighlightSegments,
   highlightSegmentStyle,
+  type AnnotationRailLayout,
 } from './reader-utils';
 
 export type ReaderSurfaceViewProps = {
@@ -29,6 +30,7 @@ export type ReaderSurfaceViewProps = {
   agentTheaterBoxes: HighlightBox[];
   agents: PublicAgent[];
   annotationRailItems: ReturnType<typeof buildAnnotationRailItems>;
+  annotationRailLayout: AnnotationRailLayout;
   annotations: Annotation[];
   articleContent?: React.ReactNode;
   articleRef: React.RefObject<HTMLElement | null>;
@@ -106,6 +108,7 @@ export function ReaderSurfaceView({
   agentTheaterBoxes,
   agents,
   annotationRailItems,
+  annotationRailLayout,
   annotations,
   articleContent,
   articleRef,
@@ -163,6 +166,18 @@ export function ReaderSurfaceView({
     return index >= 0 ? `打开引文讨论 ${index + 1}` : '打开引文讨论';
   }
 
+  const annotationRailStyle =
+    annotationRailLayout.mode === 'stacked'
+      ? undefined
+      : ({
+          '--reader-empty-left': `${
+            annotationRailLayout.mode === 'left'
+              ? annotationRailLayout.leftRailLeft
+              : annotationRailLayout.rightRailLeft
+          }px`,
+          '--reader-note-width': `${annotationRailLayout.railWidth}px`,
+        } as React.CSSProperties);
+
   return (
     <div className="reader-surface-frame">
       <section className="reader-surface" ref={surfaceRef} onMouseUp={onMouseUp}>
@@ -217,7 +232,12 @@ export function ReaderSurfaceView({
               </div>
             ))}
           </div>
-          <aside className="reader-annotation-rail" ref={notesRef} aria-label="引文讨论">
+          <aside
+            className="reader-annotation-rail"
+            ref={notesRef}
+            aria-label="引文讨论"
+            style={annotationRailStyle}
+          >
             {annotations.length === 0 ? <EmptyNotes /> : null}
             {annotations.length > 0 && visibleRailAnnotations.length === 0 ? (
               <div className="reader-empty">
@@ -226,7 +246,7 @@ export function ReaderSurfaceView({
               </div>
             ) : null}
             {annotationRailItems.map(
-              ({ annotation, isStackFront, stackCount, stackIndex, style }) => (
+              ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard
                   active={annotation.id === activeId}
                   agents={agents}
@@ -241,6 +261,7 @@ export function ReaderSurfaceView({
                   stackCount={stackCount}
                   stackIndex={stackIndex}
                   commentsCloseKey={commentsCloseKey}
+                  railSide={railSide}
                   style={style}
                   userProfile={userProfile}
                   onAddComment={onAddComment}

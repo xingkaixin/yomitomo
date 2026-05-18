@@ -14,6 +14,7 @@ import { AvatarBadge } from './reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatTime } from './reader-date-utils';
 import { noteStyle } from './reader-style-utils';
+import type { AnnotationRailSide } from './reader-utils';
 
 const DELETE_HOLD_MS = 1600;
 
@@ -26,6 +27,7 @@ export function AnnotationCard({
   messageSendShortcut,
   noteRef,
   primaryCommentExpanded,
+  railSide = 'right',
   shortcutModifier,
   stackCount = 1,
   stackIndex = 0,
@@ -46,6 +48,7 @@ export function AnnotationCard({
   messageSendShortcut: MessageSendShortcut;
   noteRef: (element: HTMLElement | null) => void;
   primaryCommentExpanded: boolean;
+  railSide?: AnnotationRailSide;
   shortcutModifier: string;
   stackCount?: number;
   stackIndex?: number;
@@ -214,6 +217,7 @@ export function AnnotationCard({
       data-stack-count={stackCount}
       data-stack-index={stackIndex}
       data-annotation-id={annotation.id}
+      data-rail-side={railSide}
       ref={setNoteElement}
       style={annotationStyle}
       onClick={handleCardClick}

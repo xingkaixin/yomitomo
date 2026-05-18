@@ -37,14 +37,26 @@ import type { HighlightBox, TocItem } from '@yomitomo/core';
 export type AnnotationRailItem = {
   annotation: Annotation;
   isStackFront: boolean;
+  railSide: AnnotationRailSide;
   stackCount: number;
   stackIndex: number;
   style: React.CSSProperties;
 };
 
+export type AnnotationRailSide = 'left' | 'right' | 'stacked';
+
+export type AnnotationRailLayout = {
+  articleCenterX: number;
+  leftRailLeft: number;
+  mode: 'both' | 'left' | 'right' | 'stacked';
+  railWidth: number;
+  rightRailLeft: number;
+};
+
 type PositionedAnnotationRailItem = {
   annotation: Annotation;
   index: number;
+  preferredSide: AnnotationRailSide;
   start: number;
   end: number;
   top: number;
@@ -359,6 +371,7 @@ export function buildAnnotationRailItems(
   boxes: HighlightBox[],
   activeId: string | null,
   noteHeights: Record<string, number> = {},
+  railLayout?: AnnotationRailLayout,
 ): AnnotationRailItem[] {
   const boxesByAnnotation = new Map<string, HighlightBox[]>();
   for (const box of boxes) {
@@ -377,6 +390,7 @@ export function buildAnnotationRailItems(
       return {
         annotation,
         index,
+        preferredSide: annotationRailSide(annotationBoxes, railLayout),
         start: annotation.anchor.start,
         end: annotation.anchor.end,
         top,
@@ -394,38 +408,39 @@ export function buildAnnotationRailItems(
       group,
       desiredTop: group[0]?.top || 0,
       height: estimateRailGroupHeight(group, activeId, noteHeights),
+      side: railGroupPreferredSide(group),
     }))
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
-  const groupTops = railGroups.map((group) => group.desiredTop);
-  for (let index = 1; index < railGroups.length; index += 1) {
-    const previousBottom = groupTops[index - 1]! + railGroups[index - 1]!.height + 18;
-    groupTops[index] = Math.max(groupTops[index]!, previousBottom);
-  }
-  for (let index = railGroups.length - 2; index >= 0; index -= 1) {
-    const nextTop = groupTops[index + 1]! - railGroups[index]!.height - 18;
-    groupTops[index] = Math.max(0, Math.min(groupTops[index]!, nextTop));
-  }
+  const groupSides = resolveRailGroupSides(railGroups, railLayout);
+  const groupTops = resolveRailGroupTops(railGroups, groupSides);
 
   return railGroups.flatMap(({ group }, groupIndex) => {
     const stackCount = group.length;
     const groupTop = groupTops[groupIndex] || 0;
+    const railSide = groupSides[groupIndex] || 'right';
     const activeIndex = group.findIndex((item) => item.annotation.id === activeId);
     const frontIndex = activeIndex >= 0 ? activeIndex : 0;
     return group.map((item, stackIndex) => {
       const stackDepth = stackCount > 1 ? (stackIndex - frontIndex + stackCount) % stackCount : 0;
       const isStackFront = stackDepth === 0;
       const isActive = item.annotation.id === activeId;
+      const style: React.CSSProperties = {
+        top: groupTop + stackDepth * 42,
+        zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
+        '--stack-offset': `${Math.min(stackDepth, 4) * 14}px`,
+      } as React.CSSProperties;
+      if (railLayout && railLayout.mode !== 'stacked') {
+        style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;
+        style.width = railLayout.railWidth;
+      }
       return {
         annotation: item.annotation,
         isStackFront,
+        railSide,
         stackCount,
         stackIndex: stackDepth,
-        style: {
-          top: groupTop + stackDepth * 42,
-          zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
-          '--stack-offset': `${Math.min(stackDepth, 4) * 14}px`,
-        },
+        style,
       };
     });
   });
@@ -646,6 +661,96 @@ function buildAnnotationRailGroups(positioned: PositionedAnnotationRailItem[]) {
   }
 
   return groups;
+}
+
+function annotationRailSide(
+  boxes: HighlightBox[],
+  railLayout: AnnotationRailLayout | undefined,
+): AnnotationRailSide {
+  if (!railLayout || railLayout.mode === 'stacked') return 'right';
+  if (railLayout.mode === 'left' || railLayout.mode === 'right') return railLayout.mode;
+  if (boxes.length === 0) return 'right';
+
+  const center =
+    boxes.reduce((sum, box) => sum + box.left + box.width / 2, 0) / Math.max(1, boxes.length);
+  return center < railLayout.articleCenterX ? 'left' : 'right';
+}
+
+function railGroupPreferredSide(group: PositionedAnnotationRailItem[]): AnnotationRailSide {
+  let leftCount = 0;
+  let rightCount = 0;
+  for (const item of group) {
+    if (item.preferredSide === 'left') leftCount += 1;
+    if (item.preferredSide === 'right') rightCount += 1;
+  }
+  if (leftCount === rightCount) return group[0]?.preferredSide || 'right';
+  return leftCount > rightCount ? 'left' : 'right';
+}
+
+function resolveRailGroupSides(
+  railGroups: Array<{ desiredTop: number; height: number; side: AnnotationRailSide }>,
+  railLayout: AnnotationRailLayout | undefined,
+): AnnotationRailSide[] {
+  if (!railLayout || railLayout.mode === 'stacked') {
+    return railGroups.map(() => 'right');
+  }
+  if (railLayout.mode === 'left' || railLayout.mode === 'right') {
+    const side = railLayout.mode;
+    return railGroups.map(() => side);
+  }
+
+  const sides: AnnotationRailSide[] = [];
+  const sideBottoms: Record<'left' | 'right', number> = {
+    left: Number.NEGATIVE_INFINITY,
+    right: Number.NEGATIVE_INFINITY,
+  };
+  for (const group of railGroups) {
+    const preferredSide = group.side === 'left' ? 'left' : 'right';
+    const side = (['left', 'right'] as const).toSorted((left, right) => {
+      const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
+      const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
+      return leftCost - rightCost;
+    })[0]!;
+    sideBottoms[side] = Math.max(group.desiredTop, sideBottoms[side] + 18) + group.height;
+    sides.push(side);
+  }
+  return sides;
+}
+
+function railSidePlacementCost(
+  group: { desiredTop: number },
+  side: 'left' | 'right',
+  preferredSide: 'left' | 'right',
+  sideBottom: number,
+) {
+  const displacedTop = Math.max(group.desiredTop, sideBottom + 18);
+  const preferencePenalty = side === preferredSide ? 0 : 56;
+  return displacedTop - group.desiredTop + preferencePenalty;
+}
+
+function resolveRailGroupTops(
+  railGroups: Array<{ desiredTop: number; height: number }>,
+  groupSides: AnnotationRailSide[],
+) {
+  const groupTops = railGroups.map((group) => group.desiredTop);
+  for (const side of ['left', 'right'] as const) {
+    const indexes = groupSides
+      .map((groupSide, index) => (groupSide === side ? index : -1))
+      .filter((index) => index >= 0);
+    for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
+      const previousIndex = indexes[listIndex - 1]!;
+      const currentIndex = indexes[listIndex]!;
+      const previousBottom = groupTops[previousIndex]! + railGroups[previousIndex]!.height + 18;
+      groupTops[currentIndex] = Math.max(groupTops[currentIndex]!, previousBottom);
+    }
+    for (let listIndex = indexes.length - 2; listIndex >= 0; listIndex -= 1) {
+      const currentIndex = indexes[listIndex]!;
+      const nextIndex = indexes[listIndex + 1]!;
+      const nextTop = groupTops[nextIndex]! - railGroups[currentIndex]!.height - 18;
+      groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex]!, nextTop));
+    }
+  }
+  return groupTops;
 }
 
 function estimateRailGroupHeight(

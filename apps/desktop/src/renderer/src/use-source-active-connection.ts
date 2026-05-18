@@ -17,10 +17,12 @@ type UseSourceActiveConnectionInput = {
 
 function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) {
   const noteRect = noteElement.getBoundingClientRect();
+  const side = noteElement.dataset.railSide === 'left' ? 'left' : 'right';
   const offsetParent = noteElement.offsetParent;
   if (!(offsetParent instanceof HTMLElement)) {
     return {
-      x: noteRect.left - readerRect.left,
+      side,
+      x: (side === 'left' ? noteRect.right : noteRect.left) - readerRect.left,
       y: noteRect.top - readerRect.top + Math.min(72, noteRect.height / 2),
     };
   }
@@ -29,7 +31,12 @@ function connectionTargetForNote(noteElement: HTMLElement, readerRect: DOMRect) 
   const top = Number.parseFloat(noteElement.style.top);
   const layoutTop = Number.isFinite(top) ? top : noteElement.offsetTop;
   return {
-    x: parentRect.left - readerRect.left + noteElement.offsetLeft,
+    side,
+    x:
+      parentRect.left -
+      readerRect.left +
+      noteElement.offsetLeft +
+      (side === 'left' ? noteElement.offsetWidth : 0),
     y: parentRect.top - readerRect.top + layoutTop + Math.min(72, noteRect.height / 2),
   };
 }
@@ -86,9 +93,12 @@ export function useSourceActiveConnection({
       return;
     }
 
-    const startX = canvasRect.left - readerRect.left + box.left + box.width + 6;
+    const startX =
+      canvasRect.left -
+      readerRect.left +
+      (noteTarget.side === 'left' ? box.left - 6 : box.left + box.width + 6);
     const startY = canvasRect.top - readerRect.top + box.top + box.height / 2;
-    const endX = noteTarget.x - 8;
+    const endX = noteTarget.x + (noteTarget.side === 'left' ? 8 : -8);
     const endY = noteY;
     const highlightViewportY = readerRect.top + startY;
     const highlightVisible =

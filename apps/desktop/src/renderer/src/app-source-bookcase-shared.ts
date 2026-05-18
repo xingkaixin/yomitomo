@@ -26,11 +26,11 @@ const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
 export type SourceSelectionAction = SelectionAction;
 
 export function defaultTocOpen() {
-  return typeof window !== 'undefined' && window.innerWidth > 1320;
+  return false;
 }
 
 export function usesOverlayToc() {
-  return typeof window !== 'undefined' && window.innerWidth <= 1320;
+  return true;
 }
 
 export function buildAnnotationConnectionPath(
