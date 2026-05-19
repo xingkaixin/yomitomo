@@ -25,6 +25,16 @@ describe('database reader compatibility', () => {
     });
   });
 
+  it('recognizes historical additive dev migrations', () => {
+    const migration = migrations.find((item) => item.id === '0027_reading_receipt_state');
+
+    expect(migration && migrationReaderLevel(migration)).toBe(1);
+    expect(databaseReaderCompatibility(['0027_reading_receipt_state'], null)).toEqual({
+      requiredReaderLevel: 1,
+      unknownMigrationIds: [],
+    });
+  });
+
   it('allows future additive migrations when the stored reader level is compatible', () => {
     expect(databaseReaderCompatibility(['0099_future_additive'], 1)).toEqual({
       requiredReaderLevel: 1,
