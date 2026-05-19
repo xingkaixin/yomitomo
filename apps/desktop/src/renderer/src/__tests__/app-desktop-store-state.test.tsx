@@ -24,7 +24,7 @@ describe('useDesktopStoreState', () => {
     Object.defineProperty(window, 'yomitomoDesktop', {
       configurable: true,
       value: {
-        getState: vi.fn().mockResolvedValue(initialStore),
+        getStateResult: vi.fn().mockResolvedValue({ ok: true, store: initialStore }),
         onStoreUpdated: vi.fn((callback: (store: DesktopStore) => void) => {
           emitStoreUpdated = callback;
           return offStoreUpdated;
@@ -58,6 +58,43 @@ describe('useDesktopStoreState', () => {
 
     expect(latest.current?.store).toBe(appliedStore);
     expect(latest.current?.storeRef.current).toBe(appliedStore);
+  });
+
+  it('exposes store load errors without leaving an unhandled startup failure', async () => {
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getStateResult: vi.fn().mockResolvedValue({
+          ok: false,
+          error: {
+            code: 'DATABASE_TOO_NEW',
+            message: '请安装最新版继续使用。',
+            requiredReaderLevel: 2,
+            supportedReaderLevel: 1,
+            logPath: '/tmp/yomitomo-agent.log',
+          },
+        }),
+        onStoreUpdated: vi.fn(() => vi.fn()),
+      },
+    });
+
+    const latest: { current?: ReturnType<typeof useDesktopStoreState> } = {};
+
+    function Harness() {
+      latest.current = useDesktopStoreState();
+      return null;
+    }
+
+    render(<Harness />);
+
+    await waitFor(() => expect(latest.current?.storeLoadError?.code).toBe('DATABASE_TOO_NEW'));
+    expect(latest.current?.storeLoaded).toBe(false);
+    expect(latest.current?.storeLoadError).toMatchObject({
+      message: '请安装最新版继续使用。',
+      requiredReaderLevel: 2,
+      supportedReaderLevel: 1,
+      logPath: '/tmp/yomitomo-agent.log',
+    });
   });
 });
 

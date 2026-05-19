@@ -102,6 +102,158 @@
   color: hsl(var(--foreground));
 }
 
+.store-load-error-shell {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  background: linear-gradient(135deg, hsl(45 38% 94%), hsl(36 30% 90%));
+  padding: 32px;
+  color: hsl(var(--foreground));
+}
+
+.store-load-error-panel {
+  width: min(640px, 100%);
+  box-sizing: border-box;
+  border: 1px solid hsl(var(--border) / 0.72);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.86);
+  box-shadow: 0 22px 55px hsl(31 32% 24% / 0.14);
+  padding: 32px;
+}
+
+.store-load-error-icon {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid hsl(8 45% 46% / 0.28);
+  border-radius: 8px;
+  background: hsl(8 45% 46% / 0.08);
+  color: hsl(8 45% 38%);
+}
+
+.store-load-error-kicker {
+  margin: 22px 0 8px;
+  color: hsl(83 24% 35%);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.store-load-error-panel h1 {
+  margin: 0;
+  max-width: 560px;
+  font-size: 30px;
+  line-height: 1.14;
+}
+
+.store-load-error-message {
+  margin: 14px 0 0;
+  max-width: 560px;
+  color: hsl(var(--muted-foreground));
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.store-load-error-levels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 22px 0 0;
+}
+
+.store-load-error-levels div {
+  border: 1px solid hsl(var(--border) / 0.68);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.54);
+  padding: 12px;
+}
+
+.store-load-error-levels dt {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.store-load-error-levels dd {
+  margin: 5px 0 0;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.store-load-error-path {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  border: 1px solid hsl(var(--border) / 0.68);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.5);
+  padding: 10px 12px;
+}
+
+.store-load-error-path span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.store-load-error-path code {
+  min-width: 0;
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-load-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0 0;
+}
+
+.store-load-error-actions .action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-weight: 800;
+  padding: 8px 13px;
+}
+
+.store-load-error-actions .action-button.is-primary {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+}
+
+@media (max-width: 640px) {
+  .store-load-error-shell {
+    align-items: start;
+    padding: 18px;
+  }
+
+  .store-load-error-panel {
+    padding: 24px;
+  }
+
+  .store-load-error-panel h1 {
+    font-size: 24px;
+  }
+
+  .store-load-error-levels,
+  .store-load-error-path {
+    grid-template-columns: 1fr;
+  }
+}
+
 .app-window-header {
   display: flex;
   align-items: center;
