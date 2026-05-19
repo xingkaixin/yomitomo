@@ -81,8 +81,8 @@ const api = {
     ipcRenderer.invoke('provider:save', provider) as Promise<DesktopStore>,
   deleteProvider: (id: string) =>
     ipcRenderer.invoke('provider:delete', id) as Promise<DesktopStore>,
-  testProvider: (id: string) =>
-    ipcRenderer.invoke('provider:test', id) as Promise<{ ok: boolean; message: string }>,
+  testProvider: (provider: Partial<LlmProvider>) =>
+    ipcRenderer.invoke('provider:test', provider) as Promise<{ ok: boolean; message: string }>,
   listProviderModels: (provider: Partial<LlmProvider>) =>
     ipcRenderer.invoke('provider:list-models', provider) as Promise<ProviderModel[]>,
   inferAnnotationMetadata: (payload: AnnotationMetadataPayload) =>

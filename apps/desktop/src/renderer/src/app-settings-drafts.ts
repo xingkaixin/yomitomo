@@ -31,6 +31,7 @@ export function useSettingsDrafts({
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [providerEditorActive, setProviderEditorActive] = useState(false);
   const [testState, setTestState] = useState('');
   const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
   const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
@@ -42,6 +43,7 @@ export function useSettingsDrafts({
   const selectProvider = useCallback((provider: LlmProvider) => {
     setSelectedProviderId(provider.id);
     setProviderDraft(provider);
+    setProviderEditorActive(true);
     setTestState('');
     setProviderSaveState('idle');
   }, []);
@@ -49,6 +51,7 @@ export function useSettingsDrafts({
   const createProvider = useCallback(() => {
     setSelectedProviderId(null);
     setProviderDraft(emptyProvider);
+    setProviderEditorActive(true);
     setTestState('');
     setProviderSaveState('idle');
   }, []);
@@ -125,7 +128,9 @@ export function useSettingsDrafts({
   );
 
   const canSaveProvider =
-    providerSaveState !== 'saving' && (selectedProviderId ? providerHasChanges : true);
+    providerEditorActive &&
+    providerSaveState !== 'saving' &&
+    (selectedProviderId ? providerHasChanges : true);
   const canSaveProviderRoutes = routeSaveState !== 'saving' && providerRoutesHaveChanges;
   const canSaveUser = profileSaveState !== 'saving' && userHasChanges;
   const canSaveGeneralSettings = generalSaveState !== 'saving' && settingsHasChanges;
@@ -149,6 +154,7 @@ export function useSettingsDrafts({
 
   const updateProviderDraft = useCallback((draft: ProviderDraft) => {
     setProviderDraft(draft);
+    setTestState('');
     setProviderSaveState('idle');
   }, []);
 
@@ -200,7 +206,7 @@ export function useSettingsDrafts({
   }, [applyStore, settingsDraft, shortcutSettingsHaveChanges]);
 
   const saveProviderDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !canSaveProvider) return;
+    if (!window.yomitomoDesktop || !canSaveProvider) return false;
     setProviderSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveProvider(providerDraft);
@@ -214,10 +220,14 @@ export function useSettingsDrafts({
         setProviderDraft(savedProvider);
         setProviderSaveState('saved');
         window.setTimeout(() => setProviderSaveState('idle'), 1200);
+        return true;
       }
+      setProviderSaveState('idle');
+      return false;
     } catch (error) {
       setTestState(error instanceof Error ? `保存失败：${error.message}` : '保存失败。');
       setProviderSaveState('idle');
+      return false;
     }
   }, [applyStore, canSaveProvider, providerDraft]);
 
@@ -243,15 +253,19 @@ export function useSettingsDrafts({
       setSettingsDraft(nextStore.settings);
       const nextProvider = nextStore.providers[0];
       if (nextProvider) selectProvider(nextProvider);
-      if (!nextProvider) createProvider();
+      if (!nextProvider) {
+        setSelectedProviderId(null);
+        setProviderDraft(emptyProvider);
+        setProviderEditorActive(false);
+      }
     },
-    [applyStore, createProvider, selectProvider],
+    [applyStore, selectProvider],
   );
 
-  const testProvider = useCallback(async (id: string) => {
+  const testProvider = useCallback(async (provider: ProviderDraft) => {
     if (!window.yomitomoDesktop) return;
     setTestState('测试中...');
-    const result = await window.yomitomoDesktop.testProvider(id);
+    const result = await window.yomitomoDesktop.testProvider(provider);
     setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
   }, []);
 

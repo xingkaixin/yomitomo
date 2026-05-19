@@ -110,6 +110,11 @@ function App() {
     setOnboardingFlowKey((key) => key + 1);
   }
 
+  function openModelRoutesSettings() {
+    setActiveSetting('settings');
+    setActiveSettingsSection('models');
+  }
+
   if (storeLoadError) {
     return <StoreLoadErrorScreen error={storeLoadError} onRetry={refreshStore} />;
   }
@@ -269,7 +274,10 @@ function App() {
           <AgentSettings
             agents={store.agents}
             error={agentSaveError}
+            providers={store.providers}
+            settings={store.settings}
             saveState={agentSaveState}
+            onConfigureRoutes={openModelRoutesSettings}
             onToggle={toggleAgent}
           />
         ) : null}

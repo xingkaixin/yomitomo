@@ -204,7 +204,7 @@ export function GeneralSettings({
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
 
   return (
-    <div className="settings-panel">
+    <div className="settings-panel collection-settings-panel">
       <PanelHeader
         icon={<Settings size={20} />}
         title="采集与保存"
@@ -343,7 +343,7 @@ export function ShortcutSettings({
   }
 
   return (
-    <div className="settings-panel">
+    <div className="settings-panel shortcut-settings-panel">
       <PanelHeader
         icon={<Keyboard size={20} />}
         title="快捷键"
