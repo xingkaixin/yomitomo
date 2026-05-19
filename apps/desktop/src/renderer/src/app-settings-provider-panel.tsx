@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Check, KeyRound, Save, ShieldCheck, Trash2, X } from 'lucide-react';
+import { BookOpen, Check, KeyRound, Save, ShieldCheck, X } from 'lucide-react';
 import type { AppSettings, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { PanelHeader } from './app-ui';
@@ -18,7 +18,6 @@ import {
   SelectValue,
 } from './components/ui/select';
 
-const PROVIDER_EDITOR_COMPACT_WIDTH = 900;
 type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
 
 export function ProviderSettings({
@@ -51,16 +50,14 @@ export function ProviderSettings({
   onRouteChange: (draft: AppSettings) => void;
   onCreate: () => void;
   onDelete: (id: string) => void;
-  onSave: () => void;
+  onSave: () => Promise<boolean | void> | boolean | void;
   saveState: SaveState;
   routeSaveState: SaveState;
   onRouteSave: () => void;
   onSelect: (provider: LlmProvider) => void;
-  onTest: (id: string) => Promise<void> | void;
+  onTest: (draft: ProviderDraft) => Promise<void> | void;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [compactProviderEditor, setCompactProviderEditor] = useState(false);
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const [testStatus, setTestStatus] = useState<ProviderTestStatus>('idle');
   const usedProviderIds = new Set(
@@ -68,24 +65,6 @@ export function ProviderSettings({
       (id): id is string => Boolean(id),
     ),
   );
-
-  useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel || typeof ResizeObserver === 'undefined') return;
-
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width || panel.getBoundingClientRect().width;
-      setCompactProviderEditor(width <= PROVIDER_EDITOR_COMPACT_WIDTH);
-    });
-
-    setCompactProviderEditor(panel.getBoundingClientRect().width <= PROVIDER_EDITOR_COMPACT_WIDTH);
-    observer.observe(panel);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (providerEditorOpen && !compactProviderEditor) setProviderEditorOpen(false);
-  }, [compactProviderEditor, providerEditorOpen]);
 
   useEffect(() => {
     setTestStatus('idle');
@@ -120,12 +99,12 @@ export function ProviderSettings({
 
   function selectProvider(provider: LlmProvider) {
     onSelect(provider);
-    if (compactProviderEditor) setProviderEditorOpen(true);
+    setProviderEditorOpen(true);
   }
 
   function createProvider() {
     onCreate();
-    if (compactProviderEditor) setProviderEditorOpen(true);
+    setProviderEditorOpen(true);
   }
 
   function deleteProvider(id: string) {
@@ -133,21 +112,24 @@ export function ProviderSettings({
     setProviderEditorOpen(false);
   }
 
-  function testProvider(id: string) {
+  function testProvider(providerDraft: ProviderDraft) {
     setTestStatus('testing');
-    void Promise.resolve(onTest(id)).catch(() => setTestStatus('error'));
+    void Promise.resolve(onTest(providerDraft)).catch(() => setTestStatus('error'));
+  }
+
+  async function saveProviderAndClose() {
+    try {
+      const result = await onSave();
+      if (result !== false) setProviderEditorOpen(false);
+    } catch {
+      setProviderEditorOpen(true);
+    }
   }
 
   const editorDialog =
     providerEditorOpen && typeof document !== 'undefined'
       ? createPortal(
-          <div
-            className="provider-editor-dialog-overlay"
-            role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setProviderEditorOpen(false);
-            }}
-          >
+          <div className="provider-editor-dialog-overlay" role="presentation">
             <section
               aria-labelledby="provider-editor-dialog-title"
               aria-modal="true"
@@ -170,8 +152,7 @@ export function ProviderSettings({
                 titleId="provider-editor-dialog-title"
                 canSave={canSave}
                 onChange={onChange}
-                onDelete={deleteProvider}
-                onSave={onSave}
+                onSave={saveProviderAndClose}
                 onTest={testProvider}
               />
             </section>
@@ -182,7 +163,7 @@ export function ProviderSettings({
 
   return (
     <>
-      <div className="settings-panel settings-model-panel" ref={panelRef}>
+      <div className="settings-panel settings-model-panel">
         <PanelHeader
           icon={<KeyRound size={20} />}
           title="模型与路由"
@@ -196,28 +177,13 @@ export function ProviderSettings({
           onChange={onRouteChange}
           onSave={onRouteSave}
         />
-        <div className="settings-detail-grid">
-          <ProviderList
-            providers={providers}
-            selectedProviderId={selectedId}
-            usedProviderIds={usedProviderIds}
-            onCreate={createProvider}
-            onSelect={selectProvider}
-          />
-          <section className="detail-pane">
-            <ProviderEditorContent
-              draft={draft}
-              saveLabel={saveLabel}
-              saveState={saveState}
-              testStatus={testStatus}
-              canSave={canSave}
-              onChange={onChange}
-              onDelete={onDelete}
-              onSave={onSave}
-              onTest={testProvider}
-            />
-          </section>
-        </div>
+        <ProviderList
+          providers={providers}
+          usedProviderIds={usedProviderIds}
+          onCreate={createProvider}
+          onDelete={deleteProvider}
+          onEdit={selectProvider}
+        />
       </div>
       {editorDialog}
     </>
@@ -232,7 +198,6 @@ function ProviderEditorContent({
   titleId,
   canSave,
   onChange,
-  onDelete,
   onSave,
   onTest,
 }: {
@@ -243,9 +208,8 @@ function ProviderEditorContent({
   titleId?: string;
   canSave: boolean;
   onChange: (draft: ProviderDraft) => void;
-  onDelete: (id: string) => void;
-  onSave: () => void;
-  onTest: (id: string) => void;
+  onSave: () => Promise<void> | void;
+  onTest: (draft: ProviderDraft) => void;
 }) {
   const testResultIcon =
     testStatus === 'success' || testStatus === 'error' ? (
@@ -267,30 +231,18 @@ function ProviderEditorContent({
           <p>管理模型服务商、API Key、Base URL 和可用模型。</p>
         </div>
         <div className="flex gap-2">
-          {draft.id ? (
-            <span className="provider-test-control">
-              <Button
-                className="action-button test-action"
-                variant="secondary"
-                type="button"
-                onClick={() => onTest(draft.id!)}
-              >
-                {testStatus === 'testing' ? '测试中' : '测试'}
-              </Button>
-              {testResultIcon}
-            </span>
-          ) : null}
-          {draft.id ? (
+          <span className="provider-test-control">
             <Button
-              className="action-button danger-action"
-              variant="destructive"
-              size="icon"
+              className="action-button test-action"
+              disabled={testStatus === 'testing'}
+              variant="secondary"
               type="button"
-              onClick={() => onDelete(draft.id!)}
+              onClick={() => onTest(draft)}
             >
-              <Trash2 size={15} />
+              {testStatus === 'testing' ? '测试中' : '测试'}
             </Button>
-          ) : null}
+            {testResultIcon}
+          </span>
           <Button
             className={
               saveState === 'saved'
@@ -348,13 +300,18 @@ function TaskProviderRoutes({
 }) {
   const saveLabel =
     saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存任务路由';
+  const hasProviders = providers.length > 0;
 
   return (
     <section className="task-route-panel" aria-labelledby="task-route-title">
       <div className="task-route-header">
         <div>
           <h3 id="task-route-title">任务路由</h3>
-          <p>为不同伴读任务分配默认模型。</p>
+          <p>
+            {hasProviders
+              ? '为不同伴读任务分配默认模型。'
+              : '先新增模型供应商，再为伴读任务分配默认模型。'}
+          </p>
         </div>
         <Button
           className={
@@ -370,6 +327,11 @@ function TaskProviderRoutes({
           {saveLabel}
         </Button>
       </div>
+      {!hasProviders ? (
+        <p className="task-route-empty-note">
+          当前还没有可选供应商。新增并保存供应商后，这里会开放选择。
+        </p>
+      ) : null}
       <div className="task-route-list">
         {taskRouteOptions.map((option) => (
           <div className="task-route-row" key={option.key}>
@@ -377,11 +339,15 @@ function TaskProviderRoutes({
               <span className="task-route-icon">{option.icon}</span>
               <div>
                 <strong>{option.title}</strong>
-                <p>{option.description}</p>
+                <p>
+                  {hasProviders
+                    ? option.description
+                    : `新增供应商后，可把它分配给${option.title}。`}
+                </p>
               </div>
             </div>
             <Select
-              disabled={providers.length === 0}
+              disabled={!hasProviders}
               value={settingsDraft[option.key] || ''}
               onValueChange={(providerId) =>
                 onChange({ ...settingsDraft, [option.key]: providerId })
@@ -391,7 +357,7 @@ function TaskProviderRoutes({
                 aria-label={`${option.title}供应商`}
                 className="task-route-select-trigger"
               >
-                <SelectValue placeholder="选择供应商" />
+                <SelectValue placeholder={hasProviders ? '选择供应商' : '先新增供应商'} />
               </SelectTrigger>
               <SelectContent className="theme-select-content provider-select-content">
                 <SelectGroup>

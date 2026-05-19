@@ -277,12 +277,27 @@ function registerIpc() {
     const store = await deleteProvider(id);
     return store;
   });
-  ipcMain.handle('provider:test', async (_event, id: string) => {
+  ipcMain.handle('provider:test', async (_event, input: Partial<LlmProvider>) => {
     try {
-      const store = await readStore();
-      const provider = store.providers.find((item) => item.id === id);
-      if (!provider) return { ok: false, message: 'Provider 不存在' };
-      return testProvider(await hydrateProviderApiKey(provider));
+      const provider = await hydrateProviderInputApiKey(input);
+      const apiKey = provider.apiKey?.trim() || '';
+      if (!apiKey) return { ok: false, message: '请先配置 API Key' };
+      return testProvider({
+        id: provider.id || 'provider_test',
+        name: provider.name?.trim() || '临时供应商',
+        type: provider.type || 'openai-chat',
+        presetId: provider.presetId,
+        logo: provider.logo,
+        baseUrl: provider.baseUrl?.trim() || '',
+        apiKey,
+        hasApiKey: true,
+        modelName: provider.modelName?.trim() || '',
+        modelNames: provider.modelNames,
+        modelInputMode: provider.modelInputMode,
+        reasoningEffort: provider.reasoningEffort,
+        createdAt: provider.createdAt || '',
+        updatedAt: provider.updatedAt || '',
+      });
     } catch (error) {
       return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
     }

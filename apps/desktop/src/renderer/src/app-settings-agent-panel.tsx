@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Bot, Eye, EyeOff, ShieldCheck } from 'lucide-react';
-import type { Agent, AgentKind } from '@yomitomo/shared';
+import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck } from 'lucide-react';
+import type { Agent, AgentKind, AppSettings, LlmProvider } from '@yomitomo/shared';
 import {
   agentKindLabel,
   agentPersonalities,
@@ -26,9 +26,11 @@ import yeTinglanCover from './assets/reviewer-profiles/ye-tinglan-cover.webp';
 import { ColorPicker } from './app-settings-color-picker';
 import { AvatarImage, Field } from './app-ui';
 import type { SaveState } from './app-types';
+import { Button } from './components/ui/button';
 
 type AgentFilter = AgentKind;
 type AgentPresenceLine = { enter: string; rest: string };
+type AgentCardModel = { agent: Agent; persisted: boolean };
 type AgentLineCue = {
   agentId: string;
   id: string;
@@ -133,19 +135,85 @@ function agentPresenceLine(agent: Agent, nextEnabled: boolean) {
   return nextEnabled ? lines.enter : lines.rest;
 }
 
+function agentRouteProviderId(settings: AppSettings, filter: AgentFilter) {
+  return filter === 'review'
+    ? settings.reviewAssistantProviderId
+    : settings.readingAssistantProviderId;
+}
+
+function hasAgentRoute(settings: AppSettings, providers: LlmProvider[], filter: AgentFilter) {
+  const providerId = agentRouteProviderId(settings, filter);
+  return Boolean(providerId && providers.some((provider) => provider.id === providerId));
+}
+
+function routeNoticeCopy(filter: AgentFilter, hasProviders: boolean) {
+  const modeLabel = agentFilterOptions.find((option) => option.value === filter)?.label || '助手';
+
+  if (!hasProviders) {
+    return {
+      title: '先连接模型供应商',
+      description:
+        '这些助手资料可以先浏览。要让他们真正参与阅读，需要在模型与路由里添加供应商并分配任务路由。',
+    };
+  }
+
+  return {
+    title: `还没有配置${modeLabel}模型路由`,
+    description: '这些助手会先展示在这里。选择模型供应商后，就可以在阅读中使用当前模式。',
+  };
+}
+
+function previewAgentsForFilter(filter: AgentFilter): AgentCardModel[] {
+  return personalitiesForKind(filter).map((personality) => ({
+    agent: {
+      id: `agent_preview_${personality.id}`,
+      kind: personality.kind,
+      presetId: personality.id,
+      enabled: personality.defaultEnabled,
+      providerId: '',
+      nickname: personality.name,
+      username: personality.name,
+      avatar: personality.name.slice(0, 1),
+      annotationColor: personality.defaultColor,
+      annotationDensity: 'medium',
+      temperature: personality.temperature,
+      soul: personality.soul,
+      createdAt: '',
+      updatedAt: '',
+    },
+    persisted: false,
+  }));
+}
+
+function visibleAgentsForFilter(agents: Agent[], filter: AgentFilter): AgentCardModel[] {
+  const filteredAgents = agents
+    .filter((agent) => (agent.kind || 'annotation') === filter)
+    .map((agent) => ({ agent, persisted: true }));
+
+  return filteredAgents.length > 0 ? filteredAgents : previewAgentsForFilter(filter);
+}
+
 export function AgentSettings({
   agents,
   error,
+  providers,
+  settings,
+  onConfigureRoutes,
   onToggle,
 }: {
   agents: Agent[];
   error: string;
+  providers: LlmProvider[];
+  settings: AppSettings;
   saveState: SaveState;
+  onConfigureRoutes: () => void;
   onToggle: (agent: Agent) => void;
 }) {
   const [filter, setFilter] = useState<AgentFilter>('annotation');
   const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
-  const filteredAgents = agents.filter((agent) => (agent.kind || 'annotation') === filter);
+  const visibleAgents = visibleAgentsForFilter(agents, filter);
+  const routeConfigured = hasAgentRoute(settings, providers, filter);
+  const routeNotice = routeConfigured ? null : routeNoticeCopy(filter, providers.length > 0);
   const currentMode = agentFilterOptions.find((option) => option.value === filter);
   const emptyKindLabel = currentMode?.agentLabel || agentKindLabel(filter);
 
@@ -187,17 +255,38 @@ export function AgentSettings({
             </div>
           ) : null}
         </div>
+        {routeNotice ? (
+          <div className="agent-route-notice">
+            <span>
+              <Settings2 size={18} />
+            </span>
+            <div>
+              <strong>{routeNotice.title}</strong>
+              <p>{routeNotice.description}</p>
+            </div>
+            <Button
+              className="action-button agent-route-configure"
+              size="sm"
+              type="button"
+              onClick={onConfigureRoutes}
+            >
+              <Settings2 size={15} />
+              去配置模型与路由
+            </Button>
+          </div>
+        ) : null}
         <div className="agent-card-list">
-          {filteredAgents.length === 0 ? (
+          {visibleAgents.length === 0 ? (
             <div className="agent-list-empty">
               <Bot size={22} />
               <strong>还没有{emptyKindLabel}</strong>
-              <p>配置供应商后会自动生成预设助手库。</p>
+              <p>这里会展示可用于阅读理解和深度审阅的预设助手。</p>
             </div>
           ) : (
-            filteredAgents.map((agent) => (
+            visibleAgents.map(({ agent, persisted }) => (
               <AgentProfileListCard
                 agent={agent}
+                canToggle={routeConfigured && persisted}
                 key={agent.id}
                 lineCue={lineCue?.agentId === agent.id ? lineCue : null}
                 onToggle={handleAgentToggle}
@@ -212,10 +301,12 @@ export function AgentSettings({
 
 function AgentProfileListCard({
   agent,
+  canToggle,
   lineCue,
   onToggle,
 }: {
   agent: Agent;
+  canToggle: boolean;
   lineCue: AgentLineCue | null;
   onToggle: (agent: Agent) => void;
 }) {
@@ -229,21 +320,30 @@ function AgentProfileListCard({
   const roleTitle = personality?.roleTitle || personalityName;
   const pronunciation = personality ? agentPronunciationMap[personality.id] : '';
 
+  const enabled = canToggle && agent.enabled;
+  const statusLabel = canToggle ? (agent.enabled ? '在场' : '休息中') : '待配置';
+  const statusClassName = !canToggle
+    ? 'agent-list-status-badge is-pending'
+    : agent.enabled
+      ? 'agent-list-status-badge'
+      : 'agent-list-status-badge is-resting';
+  const cardClassName = [
+    'agent-list-card',
+    enabled ? 'is-enabled' : '',
+    canToggle ? '' : 'needs-route',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <article
-      className={agent.enabled ? 'agent-list-card is-enabled' : 'agent-list-card'}
+      className={cardClassName}
       style={{ '--agent-accent': agent.annotationColor } as React.CSSProperties}
     >
       <div className="agent-list-body">
         <div className="agent-list-identity">
           <div className="agent-list-cover-frame">
-            <span
-              className={
-                agent.enabled ? 'agent-list-status-badge' : 'agent-list-status-badge is-resting'
-              }
-            >
-              {agent.enabled ? '在场' : '休息中'}
-            </span>
+            <span className={statusClassName}>{statusLabel}</span>
             {lineCue ? (
               <span
                 className={
@@ -282,12 +382,21 @@ function AgentProfileListCard({
       </div>
       <div className="agent-list-footer">
         <span className="agent-list-role">{roleTitle}</span>
-        <label className="agent-card-toggle">
+        <label className={canToggle ? 'agent-card-toggle' : 'agent-card-toggle is-disabled'}>
           <input
-            aria-label={agent.enabled ? `让${agent.nickname}先休息` : `请${agent.nickname}加入`}
+            aria-label={
+              canToggle
+                ? agent.enabled
+                  ? `让${agent.nickname}先休息`
+                  : `请${agent.nickname}加入`
+                : `${agent.nickname}需要先配置模型路由`
+            }
             type="checkbox"
-            checked={agent.enabled}
-            onChange={() => onToggle(agent)}
+            checked={canToggle && agent.enabled}
+            disabled={!canToggle}
+            onChange={() => {
+              if (canToggle) onToggle(agent);
+            }}
           />
           <span className="settings-toggle-switch" aria-hidden="true" />
         </label>
@@ -311,6 +420,7 @@ function AgentFilterTabs({
         const count = agents.filter(
           (agent) => (agent.kind || 'annotation') === option.value,
         ).length;
+        const visibleCount = count || personalitiesForKind(option.value).length;
         const Icon = option.value === 'annotation' ? BookOpen : ShieldCheck;
         return (
           <button
@@ -324,7 +434,7 @@ function AgentFilterTabs({
           >
             <Icon size={18} />
             <span>{option.label}</span>
-            <strong>{count}</strong>
+            <strong>{visibleCount}</strong>
           </button>
         );
       })}

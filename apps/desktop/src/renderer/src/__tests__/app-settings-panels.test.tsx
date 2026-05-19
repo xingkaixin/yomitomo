@@ -14,7 +14,7 @@ import {
   UserProfileSettingsDialog,
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../app-settings';
-import type { Agent, LlmProvider } from '@yomitomo/shared';
+import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 
 const localStorageStore: Record<string, string> = {};
 
@@ -290,7 +290,166 @@ describe('ProviderSettings', () => {
     expect(screen.getByLabelText('阅读理解助手供应商')).toBeTruthy();
     expect(screen.getByLabelText('深度审阅助手供应商')).toBeTruthy();
     expect(screen.getAllByText('已使用')).toHaveLength(2);
+    expect(screen.getAllByText('claude-sonnet-4-5').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Anthropic').length).toBeGreaterThan(0);
     expect(screen.queryByText('设为默认')).toBeNull();
+  });
+
+  it('opens provider editing from the provider card menu', () => {
+    const provider = makeProvider('provider_1', 'Anthropic');
+    const onSelect = vi.fn();
+
+    render(
+      <ProviderSettings
+        draft={provider}
+        settingsDraft={{}}
+        providers={[provider]}
+        selectedId={null}
+        testState=""
+        canSave={false}
+        canSaveRoutes={false}
+        onChange={vi.fn()}
+        onRouteChange={vi.fn()}
+        onCreate={vi.fn()}
+        onDelete={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+        routeSaveState="idle"
+        onRouteSave={vi.fn()}
+        onSelect={onSelect}
+        onTest={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '编辑' }));
+
+    expect(onSelect).toHaveBeenCalledWith(provider);
+    expect(screen.getByText('编辑供应商')).toBeTruthy();
+  });
+
+  it('keeps the provider editor open on backdrop clicks and closes after saving', async () => {
+    const provider = makeProvider('provider_1', 'Anthropic');
+    const onSave = vi.fn(async () => true);
+
+    render(
+      <ProviderSettings
+        draft={provider}
+        settingsDraft={{}}
+        providers={[provider]}
+        selectedId="provider_1"
+        testState=""
+        canSave
+        canSaveRoutes={false}
+        onChange={vi.fn()}
+        onRouteChange={vi.fn()}
+        onCreate={vi.fn()}
+        onDelete={vi.fn()}
+        onSave={onSave}
+        saveState="idle"
+        routeSaveState="idle"
+        onRouteSave={vi.fn()}
+        onSelect={vi.fn()}
+        onTest={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '编辑' }));
+
+    const overlay = document.querySelector('.provider-editor-dialog-overlay');
+    expect(overlay).toBeTruthy();
+    fireEvent.mouseDown(overlay!);
+    expect(screen.getByText('编辑供应商')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => expect(screen.queryByText('编辑供应商')).toBeNull());
+    expect(onSave).toHaveBeenCalledOnce();
+  });
+
+  it('deletes a provider only after holding delete', () => {
+    vi.useFakeTimers();
+    const provider = makeProvider('provider_1', 'Anthropic');
+    const onDelete = vi.fn();
+
+    render(
+      <ProviderSettings
+        draft={provider}
+        settingsDraft={{}}
+        providers={[provider]}
+        selectedId={null}
+        testState=""
+        canSave={false}
+        canSaveRoutes={false}
+        onChange={vi.fn()}
+        onRouteChange={vi.fn()}
+        onCreate={vi.fn()}
+        onDelete={onDelete}
+        onSave={vi.fn()}
+        saveState="idle"
+        routeSaveState="idle"
+        onRouteSave={vi.fn()}
+        onSelect={vi.fn()}
+        onTest={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
+    const deleteButton = screen.getByRole('menuitem', { name: '长按删除' });
+    fireEvent.pointerDown(deleteButton);
+    expect(deleteButton.className).toContain('is-holding-delete');
+    fireEvent.pointerUp(deleteButton);
+    expect(deleteButton.className).not.toContain('is-holding-delete');
+    vi.advanceTimersByTime(900);
+    expect(onDelete).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(deleteButton);
+    vi.advanceTimersByTime(900);
+    expect(onDelete).toHaveBeenCalledWith('provider_1');
+    vi.useRealTimers();
+  });
+
+  it('guides users to add a provider before editing routes', () => {
+    const onCreate = vi.fn();
+    const onTest = vi.fn();
+
+    render(
+      <ProviderSettings
+        draft={emptyProvider}
+        settingsDraft={{}}
+        providers={[]}
+        selectedId={null}
+        testState=""
+        canSave={false}
+        canSaveRoutes={false}
+        onChange={vi.fn()}
+        onRouteChange={vi.fn()}
+        onCreate={onCreate}
+        onDelete={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+        routeSaveState="idle"
+        onRouteSave={vi.fn()}
+        onSelect={vi.fn()}
+        onTest={onTest}
+      />,
+    );
+
+    expect(
+      screen.getByText('当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'),
+    ).toBeTruthy();
+    expect(screen.getAllByText('先新增供应商')).toHaveLength(2);
+    expect(screen.getByText('添加供应商')).toBeTruthy();
+    expect(screen.getByText('配置模型服务商和 API Key')).toBeTruthy();
+    expect(screen.queryByText('管理模型服务商、API Key、Base URL 和可用模型。')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /新增模型供应商/ }));
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(screen.getByText('新增供应商')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '测试' }));
+    expect(onTest).toHaveBeenCalledWith(emptyProvider);
   });
 });
 
@@ -374,9 +533,42 @@ describe('AgentSettings', () => {
     makeAgent('agent_review', 'review', '梁证言', '梁证言'),
   ];
 
+  function renderAgentSettings({
+    agents: nextAgents = agents,
+    error = '',
+    providers = [makeProvider('provider_1', 'Anthropic')],
+    settings = {
+      readingAssistantProviderId: 'provider_1',
+      reviewAssistantProviderId: 'provider_1',
+    },
+    saveState = 'idle',
+    onConfigureRoutes = vi.fn(),
+    onToggle = vi.fn(),
+  }: {
+    agents?: Agent[];
+    error?: string;
+    providers?: LlmProvider[];
+    settings?: AppSettings;
+    saveState?: 'idle' | 'saving' | 'saved';
+    onConfigureRoutes?: () => void;
+    onToggle?: (agent: Agent) => void;
+  } = {}) {
+    return render(
+      <AgentSettings
+        agents={nextAgents}
+        error={error}
+        providers={providers}
+        settings={settings}
+        saveState={saveState}
+        onConfigureRoutes={onConfigureRoutes}
+        onToggle={onToggle}
+      />,
+    );
+  }
+
   it('toggles configured preset agents', () => {
     const onToggle = vi.fn();
-    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={onToggle} />);
+    renderAgentSettings({ onToggle });
 
     fireEvent.click(screen.getByRole('checkbox', { name: /让林知微先休息/ }));
 
@@ -385,7 +577,7 @@ describe('AgentSettings', () => {
   });
 
   it('filters configured agents by type tabs', () => {
-    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
+    renderAgentSettings();
 
     fireEvent.click(screen.getByRole('tab', { name: /深度审阅/ }));
 
@@ -396,7 +588,7 @@ describe('AgentSettings', () => {
   });
 
   it('keeps the subtitle stable without showing save status', () => {
-    render(<AgentSettings agents={agents} error="" saveState="saving" onToggle={vi.fn()} />);
+    renderAgentSettings({ saveState: 'saving' });
 
     expect(screen.getByText('不同模式，不同视角，组成你专属的思考团队。')).toBeTruthy();
     expect(screen.queryByText('正在保存助手状态。')).toBeNull();
@@ -404,14 +596,9 @@ describe('AgentSettings', () => {
   });
 
   it('keeps disabled agents visible', () => {
-    render(
-      <AgentSettings
-        agents={[agents[0]!, makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false)]}
-        error=""
-        saveState="idle"
-        onToggle={vi.fn()}
-      />,
-    );
+    renderAgentSettings({
+      agents: [agents[0]!, makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false)],
+    });
 
     expect(screen.getByText('林知微')).toBeTruthy();
     expect(screen.getByText('沈清源')).toBeTruthy();
@@ -422,9 +609,43 @@ describe('AgentSettings', () => {
   });
 
   it('marks enabled agent work photos with a status badge', () => {
-    render(<AgentSettings agents={agents} error="" saveState="idle" onToggle={vi.fn()} />);
+    renderAgentSettings();
 
     expect(screen.getAllByText('在场')).toHaveLength(1);
+  });
+
+  it('shows preset assistant cards before provider configuration', () => {
+    const onConfigureRoutes = vi.fn();
+    renderAgentSettings({
+      agents: [],
+      providers: [],
+      settings: {},
+      onConfigureRoutes,
+    });
+
+    expect(screen.getByText('林知微')).toBeTruthy();
+    expect(screen.getByText('先连接模型供应商')).toBeTruthy();
+
+    const toggle = screen.getByRole('checkbox', {
+      name: /林知微需要先配置模型路由/,
+    }) as HTMLInputElement;
+    expect(toggle.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: /去配置模型与路由/ }));
+    expect(onConfigureRoutes).toHaveBeenCalledOnce();
+  });
+
+  it('prompts for the active assistant route when providers exist', () => {
+    const onConfigureRoutes = vi.fn();
+    renderAgentSettings({
+      settings: { reviewAssistantProviderId: 'provider_1' },
+      onConfigureRoutes,
+    });
+
+    expect(screen.getByText('还没有配置阅读理解模型路由')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /去配置模型与路由/ }));
+    expect(onConfigureRoutes).toHaveBeenCalledOnce();
   });
 });
 
