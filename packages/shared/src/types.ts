@@ -3,7 +3,6 @@ export type AnnotationAuthor = 'user' | 'ai';
 export type ProviderType = 'openai-chat' | 'openai-responses' | 'anthropic' | 'gemini';
 
 export type ProviderPresetId =
-  | 'minimax'
   | 'dashscope'
   | 'deepseek'
   | 'moonshot'

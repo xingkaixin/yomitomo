@@ -1,33 +1,6 @@
-import type { ProviderPreset, ReasoningEffort } from './types';
-
-export const reasoningEffortOptions: Array<{ value: ReasoningEffort; label: string }> = [
-  { value: 'default', label: '默认' },
-  { value: 'none', label: '关闭' },
-  { value: 'minimal', label: '极低' },
-  { value: 'low', label: '低' },
-  { value: 'medium', label: '中' },
-  { value: 'high', label: '高' },
-  { value: 'xhigh', label: '极高' },
-  { value: 'auto', label: '自动' },
-];
+import type { ProviderPreset } from './types';
 
 export const providerPresets: ProviderPreset[] = [
-  {
-    id: 'minimax',
-    name: 'MiniMax',
-    type: 'openai-chat',
-    baseUrl: 'https://api.minimaxi.com/v1',
-    modelName: 'MiniMax-M2.7',
-    logo: 'minimax.png',
-    modelNames: [
-      'MiniMax-M2.7',
-      'MiniMax-M2.7-highspeed',
-      'MiniMax-M2.5',
-      'MiniMax-M2.5-highspeed',
-      'MiniMax-M2.1',
-      'MiniMax-M2',
-    ],
-  },
   {
     id: 'dashscope',
     name: '阿里云百炼',
@@ -104,7 +77,7 @@ export const providerPresets: ProviderPreset[] = [
   {
     id: 'openai',
     name: 'OpenAI',
-    type: 'openai-responses',
+    type: 'openai-chat',
     baseUrl: 'https://api.openai.com',
     modelName: 'gpt-5.2',
     logo: 'openai.png',

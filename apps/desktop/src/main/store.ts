@@ -55,7 +55,6 @@ import {
   normalizePresetId,
   normalizeProviderModelInputMode,
   normalizeProviderType,
-  normalizeReasoningEffort,
   normalizeStore,
   normalizeTemperature,
   normalizeUser,
@@ -430,7 +429,7 @@ export function buildProviderRecord(
   return {
     id,
     name: input.name?.trim() || existing?.name || preset?.name || 'Untitled Provider',
-    type: normalizeProviderType(input.type || existing?.type || preset?.type) || 'openai-chat',
+    type: preset?.type || normalizeProviderType(input.type || existing?.type) || 'openai-chat',
     presetId: normalizePresetId(input.presetId || existing?.presetId || preset?.id),
     logo: input.logo || existing?.logo || preset?.logo,
     baseUrl:
@@ -454,8 +453,7 @@ export function buildProviderRecord(
           normalizeModelNames(existing?.modelNames) ||
           preset?.modelNames,
     modelInputMode,
-    reasoningEffort:
-      normalizeReasoningEffort(input.reasoningEffort || existing?.reasoningEffort) || 'none',
+    reasoningEffort: 'none',
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };

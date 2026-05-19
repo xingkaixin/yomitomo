@@ -6,6 +6,7 @@ import {
   defaultSelectionActionShortcuts,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
+  providerPresets,
   renderMarkdown,
   resolveTextAnchor,
   selectionActionShortcutsConflict,
@@ -60,6 +61,23 @@ describe('agent presets', () => {
 
   it('formats reading intent labels with icons', () => {
     expect(agentReadingIntentDisplayLabel('challenge')).toBe('⚔️ 挑战');
+  });
+});
+
+describe('provider presets', () => {
+  it('keeps MiniMax out of selectable presets', () => {
+    expect(providerPresets.map((preset) => preset.id)).not.toContain('minimax');
+  });
+
+  it('binds API types to provider presets', () => {
+    expect(providerPresets.find((preset) => preset.id === 'openai')?.type).toBe('openai-chat');
+    expect(providerPresets.find((preset) => preset.id === 'anthropic')?.type).toBe('anthropic');
+    expect(providerPresets.find((preset) => preset.id === 'gemini')?.type).toBe('gemini');
+    expect(
+      providerPresets
+        .filter((preset) => !['openai', 'anthropic', 'gemini'].includes(preset.id))
+        .every((preset) => preset.type === 'openai-chat'),
+    ).toBe(true);
   });
 });
 

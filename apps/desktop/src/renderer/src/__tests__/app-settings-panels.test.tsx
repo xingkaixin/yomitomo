@@ -79,6 +79,8 @@ describe('ProviderForm', () => {
     expect(screen.getByLabelText('Base URL')).toBeTruthy();
     expect(screen.getByLabelText('模型')).toBeTruthy();
     expect(screen.getByLabelText('API Key')).toBeTruthy();
+    expect(screen.queryByLabelText('API 类型')).toBeNull();
+    expect(screen.queryByText('思考强度')).toBeNull();
   });
 
   it('shows fetched models after clicking get', async () => {
@@ -98,7 +100,7 @@ describe('ProviderForm', () => {
         draft={{
           ...emptyProvider,
           presetId: 'openai',
-          type: 'openai-responses',
+          type: 'openai-chat',
           apiKey: 'sk-test',
           modelName: 'gpt-5.1',
         }}
@@ -148,6 +150,30 @@ describe('ProviderForm', () => {
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
+  });
+
+  it('filters long fetched model lists in the model menu', () => {
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          modelName: 'model-01',
+          modelNames: Array.from({ length: 12 }, (_, index) =>
+            index === 10 ? 'qwen-max-latest' : `model-${String(index + 1).padStart(2, '0')}`,
+          ),
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'ArrowDown' });
+    const search = screen.getByLabelText('搜索模型') as HTMLInputElement;
+    expect(document.activeElement).toBe(search);
+    fireEvent.change(search, { target: { value: 'qwen' } });
+
+    const listbox = screen.getByRole('listbox');
+    expect(within(listbox).getByText('qwen-max-latest')).toBeTruthy();
+    expect(within(listbox).queryByText('model-01')).toBeNull();
   });
 
   it('can fetch models with a stored api key without revealing it', async () => {
