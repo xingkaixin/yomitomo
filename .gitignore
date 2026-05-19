@@ -28,3 +28,7 @@ assets/*.mp4
 .agents
 .claude
 skills-lock.json
+
+
+# chore
+videos/
