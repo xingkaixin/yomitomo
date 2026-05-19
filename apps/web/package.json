@@ -1,0 +1,33 @@
+{
+  "name": "@yomitomo/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "lint": "oxlint src astro.config.mjs postcss.config.js",
+    "lint:fix": "oxlint src astro.config.mjs postcss.config.js --fix",
+    "format": "oxfmt --write \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs postcss.config.js package.json tsconfig.json",
+    "format:check": "oxfmt --check \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs postcss.config.js package.json tsconfig.json",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.5",
+    "astro": "^6.3.4",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.2",
+    "vitest": "^4.1.6"
+  }
+}

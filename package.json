@@ -7,6 +7,7 @@
     "dev": "turbo dev",
     "dev:app": "pnpm --filter @yomitomo/desktop dev",
     "dev:app:debug": "YOMITOMO_OPEN_DEVTOOLS=1 pnpm --filter @yomitomo/desktop dev",
+    "dev:web": "pnpm --filter @yomitomo/web dev",
     "licenses:generate": "node scripts/generate-third-party-notices.mjs",
     "licenses:check": "node scripts/generate-third-party-notices.mjs --check",
     "make": "pnpm run make:app:mac-arm",
