@@ -1,5 +1,6 @@
-import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { existsSync, mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { app } from 'electron';
 import { eq, inArray } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -108,6 +109,14 @@ function databasePath() {
   return join(app.getPath('userData'), DB_FILE_NAME);
 }
 
+export function getDataDirectoryPath() {
+  return app.getPath('userData');
+}
+
+export function getDatabasePath() {
+  return databasePath();
+}
+
 function getDatabase() {
   if (db) return db;
 
@@ -122,6 +131,64 @@ function getDatabase() {
   db = drizzle(sqlite, { schema });
   seedDefaultStore(db);
   return db;
+}
+
+function getSqliteDatabase() {
+  getDatabase();
+  if (!sqlite) throw new Error('本地数据库尚未打开');
+  return sqlite;
+}
+
+export async function backupDatabaseFile(targetPath: string) {
+  const target = resolve(targetPath);
+  const source = resolve(databasePath());
+  if (target === source) throw new Error('不能把备份保存到当前数据库文件');
+
+  const database = getSqliteDatabase();
+  await mkdir(dirname(target), { recursive: true });
+  await rm(target, { force: true });
+  await removeSqliteSidecarFiles(target);
+  database.pragma('wal_checkpoint(FULL)');
+  await database.backup(target);
+  return target;
+}
+
+export function closeDatabase() {
+  db = null;
+  if (sqlite) {
+    sqlite.close();
+    sqlite = null;
+  }
+  providerSecretsMigrated = false;
+}
+
+export async function replaceDatabaseFile(sourcePath: string) {
+  const source = resolve(sourcePath);
+  const target = resolve(databasePath());
+  if (source === target) throw new Error('不能从当前数据库文件还原');
+
+  const backupPath = await safetyBackupPath();
+  if (existsSync(target)) await backupDatabaseFile(backupPath);
+
+  closeDatabase();
+  await mkdir(dirname(target), { recursive: true });
+  await removeSqliteSidecarFiles(target);
+  await copyFile(source, target);
+  return backupPath;
+}
+
+async function safetyBackupPath() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const directory = join(app.getPath('userData'), 'backups');
+  await mkdir(directory, { recursive: true });
+  return join(directory, `yomitomo-before-restore-${timestamp}.sqlite`);
+}
+
+async function removeSqliteSidecarFiles(filePath: string) {
+  await Promise.all([
+    rm(`${filePath}-wal`, { force: true }),
+    rm(`${filePath}-shm`, { force: true }),
+  ]);
 }
 
 function runMigrations(database: SQLiteDatabase.Database) {
@@ -289,15 +356,7 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
 }
 
 export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
-  upsertSettings(getDatabase(), {
-    defaultProviderId: input.defaultProviderId || undefined,
-    readingAssistantProviderId: input.readingAssistantProviderId || undefined,
-    reviewAssistantProviderId: input.reviewAssistantProviderId || undefined,
-    messageSendShortcut: normalizeMessageSendShortcut(input.messageSendShortcut),
-    selectionActionShortcuts: normalizeSelectionActionShortcuts(input.selectionActionShortcuts),
-    saveArticleImages: Boolean(input.saveArticleImages),
-    onboardingCompletedAt: input.onboardingCompletedAt || undefined,
-  });
+  upsertSettings(getDatabase(), input);
   return readStore();
 }
 
@@ -818,6 +877,7 @@ function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),
+    logRetentionDays: merged.logRetentionDays || null,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
     updatedAt: new Date().toISOString(),
   };

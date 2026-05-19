@@ -43,7 +43,14 @@ import {
   saveSettings,
   saveUser,
 } from './store';
-import { clearLogFile, getLogPath, logError, logInfo, readLogFile } from './logger';
+import {
+  backupDatabaseWithDialog,
+  getDataManagementPaths,
+  openDataManagementPath,
+  restoreDatabaseWithDialog,
+  type DataManagementPathKind,
+} from './data-management';
+import { clearLogFile, getLogPath, logError, logInfo, pruneLogFile, readLogFile } from './logger';
 import { articleRecordFromUrl, isArticleImportChallengeRecord } from './article-import';
 import { articleRecordFromEpubFile } from './ebook-import';
 import { readEbookSourceFile, saveEbookSourceFile } from './ebook-storage';
@@ -153,11 +160,23 @@ function registerIpc() {
   });
   ipcMain.handle('store:get', async (): Promise<DesktopStoreGetResult> => {
     try {
-      return { ok: true, store: await readStore() };
+      const store = await readStore();
+      await pruneLogFile(store.settings.logRetentionDays);
+      return { ok: true, store };
     } catch (error) {
       logError('store.get_failed', error);
       return { ok: false, error: storeLoadErrorInfo(error) };
     }
+  });
+  ipcMain.handle('data:paths', () => getDataManagementPaths());
+  ipcMain.handle('data:open-path', (_event, kind: DataManagementPathKind) =>
+    openDataManagementPath(kind),
+  );
+  ipcMain.handle('data:database-backup', () => backupDatabaseWithDialog(mainWindow));
+  ipcMain.handle('data:database-restore', async () => {
+    const result = await restoreDatabaseWithDialog(mainWindow);
+    if (!result.canceled) sendStoreUpdated(result.store);
+    return result;
   });
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());
@@ -243,6 +262,8 @@ function registerIpc() {
   ipcMain.handle('user:save', (_event, input: Partial<UserProfile>) => saveUser(input));
   ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
     const store = await saveSettings(input);
+    await pruneLogFile(store.settings.logRetentionDays);
+    sendStoreUpdated(store);
     return store;
   });
   ipcMain.handle(

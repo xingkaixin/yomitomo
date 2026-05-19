@@ -229,6 +229,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     saveArticleImages: settingsFieldProvided(settings, 'saveArticleImages')
       ? Boolean(settings.saveArticleImages)
       : Boolean(existing?.saveArticleImages),
+    logRetentionDays: settingsFieldProvided(settings, 'logRetentionDays')
+      ? normalizeLogRetentionDays(settings.logRetentionDays)
+      : normalizeLogRetentionDays(existing?.logRetentionDays),
     onboardingCompletedAt: settingsFieldProvided(settings, 'onboardingCompletedAt')
       ? settings.onboardingCompletedAt || undefined
       : existing?.onboardingCompletedAt || undefined,
@@ -284,6 +287,7 @@ export function rowToSettings(
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
+    logRetentionDays: normalizeLogRetentionDays(row?.logRetentionDays),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
   };
 }
@@ -296,8 +300,13 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
+    logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };
+}
+
+function normalizeLogRetentionDays(value: unknown) {
+  return value === 15 || value === 30 || value === 90 ? value : undefined;
 }
 
 function rowToEbook(row: ArticleRow): ArticleRecord['ebook'] {

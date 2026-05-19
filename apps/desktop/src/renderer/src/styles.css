@@ -9145,6 +9145,186 @@
   line-height: 1.55;
 }
 
+.data-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 980px;
+}
+
+.data-management-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid hsl(var(--border) / 0.66);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.36);
+  padding: 16px;
+}
+
+.data-management-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.data-management-card-heading,
+.data-path-row,
+.data-management-actions,
+.data-retention-option {
+  display: flex;
+  align-items: center;
+}
+
+.data-management-card-heading {
+  gap: 12px;
+}
+
+.data-management-card-heading > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.data-management-card h3 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.data-management-card p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.data-path-list {
+  display: grid;
+  gap: 8px;
+}
+
+.data-path-row {
+  min-width: 0;
+  gap: 10px;
+  border: 1px solid hsl(var(--border) / 0.58);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.62);
+  padding: 10px;
+}
+
+.data-path-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: hsl(var(--accent) / 0.72);
+  color: hsl(var(--primary));
+}
+
+.data-path-row > div {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 4px;
+}
+
+.data-path-row strong {
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.data-path-row code {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-path-open {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.72);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+.data-path-open:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.data-retention-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.data-retention-option {
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  border: 1px solid hsl(var(--border) / 0.68);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.52);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 860;
+}
+
+.data-retention-option.is-active {
+  border-color: hsl(8 45% 48% / 0.42);
+  background: hsl(38 44% 90% / 0.76);
+  color: hsl(var(--primary));
+}
+
+.data-management-actions {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.data-management-note {
+  border-left: 3px solid hsl(var(--primary) / 0.32);
+  background: hsl(var(--accent) / 0.48);
+  padding: 10px 12px;
+}
+
+.data-management-status {
+  max-width: 980px;
+  margin: 2px 0 0;
+  border: 1px solid hsl(var(--border) / 0.58);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.68);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+}
+
+.data-primary-action.is-loading svg,
+.data-restore-action.is-loading svg,
+.data-danger-action.is-loading svg {
+  animation: log-refresh-spin 720ms linear infinite;
+}
+
 .about-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9462,9 +9642,14 @@ button.license-package-row:hover {
 
 @media (max-width: 760px) {
   .settings-section-nav,
+  .data-management-grid,
   .about-grid,
   .license-package-detail dl {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .data-retention-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .about-version-row,
