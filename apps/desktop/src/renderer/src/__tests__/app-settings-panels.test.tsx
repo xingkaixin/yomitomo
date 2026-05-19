@@ -1,18 +1,19 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentForm,
   AgentSettings,
+  DataManagementSettings,
   GeneralSettings,
   ProviderForm,
   ProviderSettings,
   ShortcutSettings,
   UserProfileSettingsDialog,
 } from '../app-settings-panels';
-import { defaultUser, emptyProvider, type AgentDraft } from '../app-settings';
+import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../app-settings';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 
 const localStorageStore: Record<string, string> = {};
@@ -38,6 +39,37 @@ afterEach(() => {
   window.localStorage.clear();
   vi.clearAllMocks();
 });
+
+function installDesktopDataApi() {
+  const retainedStore = { ...emptyStore, settings: { logRetentionDays: 15 } };
+  const restoredStore = { ...emptyStore, settings: { logRetentionDays: 90 } };
+  const desktop = {
+    getDataManagementPaths: vi.fn().mockResolvedValue({
+      dataDir: '/tmp/yomitomo',
+      logFile: '/tmp/yomitomo/yomitomo-agent.log',
+      databaseFile: '/tmp/yomitomo/yomitomo.sqlite',
+    }),
+    openDataManagementPath: vi.fn().mockResolvedValue(undefined),
+    saveSettings: vi.fn().mockResolvedValue(retainedStore),
+    clearLog: vi.fn().mockResolvedValue(undefined),
+    backupDatabase: vi.fn().mockResolvedValue({
+      canceled: false,
+      filePath: '/tmp/yomitomo-backup.sqlite',
+    }),
+    restoreDatabase: vi.fn().mockResolvedValue({
+      canceled: false,
+      backupPath: '/tmp/yomitomo/backups/yomitomo-before-restore.sqlite',
+      store: restoredStore,
+    }),
+  };
+
+  Object.defineProperty(window, 'yomitomoDesktop', {
+    configurable: true,
+    value: desktop,
+  });
+
+  return desktop;
+}
 
 describe('ProviderForm', () => {
   it('links visible labels to provider inputs', () => {
@@ -562,6 +594,70 @@ describe('ShortcutSettings', () => {
       messageSendShortcut: 'enter',
       selectionActionShortcuts: { copy: 'C', annotate: 'B' },
     });
+  });
+});
+
+describe('DataManagementSettings', () => {
+  it('shows data paths and opens the selected location', async () => {
+    const desktop = installDesktopDataApi();
+
+    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+
+    expect(await screen.findByText('/tmp/yomitomo/yomitomo.sqlite')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '打开数据库文件' }));
+
+    await waitFor(() =>
+      expect(desktop.openDataManagementPath).toHaveBeenCalledWith('databaseFile'),
+    );
+  });
+
+  it('saves log retention without opening a log viewer', async () => {
+    const desktop = installDesktopDataApi();
+    const onStoreUpdated = vi.fn();
+
+    render(
+      <DataManagementSettings
+        settings={{ onboardingCompletedAt: '2026-05-12T00:00:00.000Z' }}
+        onStoreUpdated={onStoreUpdated}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '最近 15 天' }));
+
+    await waitFor(() =>
+      expect(desktop.saveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          logRetentionDays: 15,
+          onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
+        }),
+      ),
+    );
+    expect(onStoreUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 15 }) }),
+    );
+    expect(screen.queryByRole('textbox', { name: /日志/ })).toBeNull();
+  });
+
+  it('backs up and restores the database through desktop actions', async () => {
+    const desktop = installDesktopDataApi();
+    const onStoreUpdated = vi.fn();
+
+    render(
+      <DataManagementSettings
+        settings={{ logRetentionDays: 30 }}
+        onStoreUpdated={onStoreUpdated}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '备份数据库' }));
+    await waitFor(() => expect(desktop.backupDatabase).toHaveBeenCalledOnce());
+    expect(await screen.findByText(/数据库已备份到/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '还原数据库' }));
+    await waitFor(() => expect(desktop.restoreDatabase).toHaveBeenCalledOnce());
+    expect(onStoreUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 90 }) }),
+    );
   });
 });
 

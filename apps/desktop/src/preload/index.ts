@@ -44,6 +44,20 @@ export type PerformanceTimingInput = {
   data?: Record<string, unknown>;
 };
 
+export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
+
+export type DataManagementPaths = {
+  dataDir: string;
+  logFile: string;
+  databaseFile: string;
+};
+
+export type DatabaseBackupResult = { canceled: true } | { canceled: false; filePath: string };
+
+export type DatabaseRestoreResult =
+  | { canceled: true }
+  | { canceled: false; backupPath: string; store: DesktopStore };
+
 const api = {
   platform: process.platform,
   getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
@@ -78,6 +92,12 @@ const api = {
   getLogPath: () => ipcRenderer.invoke('log:path') as Promise<string>,
   readLog: () => ipcRenderer.invoke('log:read') as Promise<string>,
   clearLog: () => ipcRenderer.invoke('log:clear') as Promise<void>,
+  getDataManagementPaths: () => ipcRenderer.invoke('data:paths') as Promise<DataManagementPaths>,
+  openDataManagementPath: (kind: DataManagementPathKind) =>
+    ipcRenderer.invoke('data:open-path', kind) as Promise<void>,
+  backupDatabase: () => ipcRenderer.invoke('data:database-backup') as Promise<DatabaseBackupResult>,
+  restoreDatabase: () =>
+    ipcRenderer.invoke('data:database-restore') as Promise<DatabaseRestoreResult>,
   recordPerformanceTiming: (input: PerformanceTimingInput) =>
     ipcRenderer.invoke('performance:timing', input) as Promise<void>,
   getUpdateStatus: () => ipcRenderer.invoke('updates:get-status') as Promise<AppUpdateState>,

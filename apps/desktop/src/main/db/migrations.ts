@@ -354,4 +354,10 @@ ALTER TABLE comments DROP COLUMN question_status;
 ALTER TABLE comments ADD COLUMN review_label TEXT;
 `,
   },
+  {
+    id: '0030_log_retention_days',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN log_retention_days INTEGER;
+`,
+  },
 ];

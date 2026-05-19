@@ -17,6 +17,7 @@ export const appSettings = sqliteTable('app_settings', {
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
   selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
+  logRetentionDays: integer('log_retention_days'),
   onboardingCompletedAt: text('onboarding_completed_at'),
   updatedAt: text('updated_at').notNull(),
 });

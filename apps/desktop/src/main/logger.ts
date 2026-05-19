@@ -31,6 +31,21 @@ export async function clearLogFile() {
   await writeFile(getLogPath(), '', 'utf8');
 }
 
+export async function pruneLogFile(retentionDays?: number) {
+  if (!retentionDays) return;
+
+  await ensureLogFile();
+  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const lines = (await readFile(getLogPath(), 'utf8')).split('\n');
+  const retained = lines.filter((line) => {
+    if (!line.trim()) return false;
+
+    const time = logLineTime(line);
+    return time === null || time >= cutoff;
+  });
+  await writeFile(getLogPath(), retained.length > 0 ? `${retained.join('\n')}\n` : '', 'utf8');
+}
+
 function legacyLogPath() {
   return join(app.getPath('appData'), '@reader', 'desktop', LEGACY_LOG_FILE_NAME);
 }
@@ -52,4 +67,15 @@ async function ensureLogFile() {
   await mkdir(dirname(getLogPath()), { recursive: true });
   await copyFile(legacyLogPath(), getLogPath(), constants.COPYFILE_EXCL).catch(() => undefined);
   await appendFile(getLogPath(), '', 'utf8');
+}
+
+function logLineTime(line: string) {
+  try {
+    const parsed = JSON.parse(line) as { at?: unknown };
+    if (typeof parsed.at !== 'string') return null;
+    const time = new Date(parsed.at).getTime();
+    return Number.isNaN(time) ? null : time;
+  } catch {
+    return null;
+  }
 }

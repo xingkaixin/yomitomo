@@ -3,6 +3,10 @@ import {
   Check,
   ChevronRight,
   Database,
+  Download,
+  FileText,
+  FolderOpen,
+  HardDrive,
   Image as ImageIcon,
   Info,
   Keyboard,
@@ -10,8 +14,15 @@ import {
   RefreshCw,
   Save,
   Settings,
+  Trash2,
+  Upload,
 } from 'lucide-react';
-import type { AppSettings, MessageSendShortcut, SelectionActionShortcuts } from '@yomitomo/shared';
+import type {
+  AppSettings,
+  DesktopStore,
+  MessageSendShortcut,
+  SelectionActionShortcuts,
+} from '@yomitomo/shared';
 import {
   defaultSelectionActionShortcuts,
   normalizeMessageSendShortcut,
@@ -21,7 +32,8 @@ import {
 } from '@yomitomo/shared';
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-utils';
 import { messageSendShortcutOptions } from './app-settings';
-import { Field, PanelHeader } from './app-ui';
+import type { DataManagementPathKind, DataManagementPaths } from '../../preload';
+import { CopyIconButton, Field, PanelHeader } from './app-ui';
 import type { SaveState } from './app-types';
 import { Button } from './components/ui/button';
 import { Kbd } from './components/ui/kbd';
@@ -58,6 +70,13 @@ const selectionShortcutRows: Array<{
   { action: 'annotate', label: '记录想法', description: '阅读区选中文本后的想法入口。' },
 ];
 
+const logRetentionOptions: Array<{ label: string; value?: number }> = [
+  { label: '永久' },
+  { label: '最近 90 天', value: 90 },
+  { label: '最近 30 天', value: 30 },
+  { label: '最近 15 天', value: 15 },
+];
+
 const settingsSections: Array<{
   key: SettingsSectionKey;
   title: string;
@@ -85,7 +104,7 @@ const settingsSections: Array<{
   {
     key: 'data',
     title: '数据管理',
-    description: '集中管理导出和清理类操作。',
+    description: '查看路径、清理日志并备份数据库。',
     icon: <Database size={17} />,
   },
   {
@@ -476,19 +495,256 @@ export function ShortcutSettings({
   );
 }
 
-export function DataManagementSettings() {
+export function DataManagementSettings({
+  settings,
+  onStoreUpdated,
+}: {
+  settings: AppSettings;
+  onStoreUpdated: (store: DesktopStore) => void;
+}) {
+  const [paths, setPaths] = useState<DataManagementPaths | null>(null);
+  const [busyAction, setBusyAction] = useState('');
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    window.yomitomoDesktop
+      .getDataManagementPaths()
+      .then((nextPaths) => {
+        if (mounted) setPaths(nextPaths);
+      })
+      .catch((error) => {
+        if (mounted) setStatus(dataManagementErrorMessage(error));
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function openPath(kind: DataManagementPathKind) {
+    await runDataAction(`open:${kind}`, async () => {
+      await window.yomitomoDesktop.openDataManagementPath(kind);
+    });
+  }
+
+  async function saveLogRetention(days?: number) {
+    await runDataAction(`retention:${days ?? 'forever'}`, async () => {
+      const input: AppSettings = { ...settings };
+      Object.assign(input, { logRetentionDays: days });
+      const nextStore = await window.yomitomoDesktop.saveSettings(input);
+      onStoreUpdated(nextStore);
+      setStatus(days ? `日志将保留最近 ${days} 天。` : '日志将永久保留，直到手动清空。');
+    });
+  }
+
+  async function clearLog() {
+    await runDataAction('clear-log', async () => {
+      await window.yomitomoDesktop.clearLog();
+      setStatus('日志文件已清空。');
+    });
+  }
+
+  async function backupDatabase() {
+    await runDataAction('backup-db', async () => {
+      const result = await window.yomitomoDesktop.backupDatabase();
+      setStatus(result.canceled ? '已取消数据库备份。' : `数据库已备份到 ${result.filePath}`);
+    });
+  }
+
+  async function restoreDatabase() {
+    await runDataAction('restore-db', async () => {
+      const result = await window.yomitomoDesktop.restoreDatabase();
+      if (result.canceled) {
+        setStatus('已取消数据库还原。');
+        return;
+      }
+
+      onStoreUpdated(result.store);
+      setStatus(`数据库已还原。原数据库已备份到 ${result.backupPath}`);
+    });
+  }
+
+  async function runDataAction(action: string, task: () => Promise<void>) {
+    setBusyAction(action);
+    setStatus('');
+    try {
+      await task();
+    } catch (error) {
+      setStatus(dataManagementErrorMessage(error));
+    } finally {
+      setBusyAction('');
+    }
+  }
+
+  const activeRetentionDays = settings.logRetentionDays;
+
   return (
     <div className="settings-panel">
       <PanelHeader
         icon={<Database size={20} />}
         title="数据管理"
-        description="导出数据和清理数据会集中放在这里。"
+        description="查看本地数据位置，管理日志保留，并备份或还原数据库。"
       />
-      <section className="settings-empty-panel">
-        <Database size={24} />
-        <strong>数据工具规划中</strong>
-        <p>后续会在这里提供导出数据和清理数据入口。</p>
-      </section>
+      <div className="data-management-grid">
+        <section className="data-management-card" aria-labelledby="data-paths-title">
+          <div className="data-management-card-heading">
+            <span>
+              <FolderOpen size={18} />
+            </span>
+            <div>
+              <h3 id="data-paths-title">本地位置</h3>
+              <p>路径只用于定位文件，不在这里展示日志内容。</p>
+            </div>
+          </div>
+          <div className="data-path-list">
+            <DataPathRow
+              icon={<HardDrive size={16} />}
+              label="数据目录"
+              path={paths?.dataDir || ''}
+              onOpen={() => openPath('dataDir')}
+            />
+            <DataPathRow
+              icon={<FileText size={16} />}
+              label="日志文件"
+              path={paths?.logFile || ''}
+              onOpen={() => openPath('logFile')}
+            />
+            <DataPathRow
+              icon={<Database size={16} />}
+              label="数据库文件"
+              path={paths?.databaseFile || ''}
+              onOpen={() => openPath('databaseFile')}
+            />
+          </div>
+        </section>
+
+        <section className="data-management-card" aria-labelledby="log-policy-title">
+          <div className="data-management-card-heading">
+            <span>
+              <FileText size={18} />
+            </span>
+            <div>
+              <h3 id="log-policy-title">日志</h3>
+              <p>只保留排查用日志文件路径、保留时间和清空操作。</p>
+            </div>
+          </div>
+          <div className="data-retention-options" role="group" aria-label="日志保留时间">
+            {logRetentionOptions.map((option) => {
+              const active = (activeRetentionDays || undefined) === option.value;
+              const action = `retention:${option.value ?? 'forever'}`;
+              return (
+                <button
+                  className={active ? 'data-retention-option is-active' : 'data-retention-option'}
+                  disabled={busyAction === action}
+                  key={option.label}
+                  type="button"
+                  onClick={() => void saveLogRetention(option.value)}
+                >
+                  {active ? <Check size={14} /> : null}
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="data-management-actions">
+            <Button
+              className={
+                busyAction === 'clear-log'
+                  ? 'action-button data-danger-action is-loading'
+                  : 'action-button data-danger-action'
+              }
+              disabled={busyAction === 'clear-log'}
+              type="button"
+              variant="secondary"
+              onClick={() => void clearLog()}
+            >
+              <Trash2 size={15} />
+              清空日志
+            </Button>
+          </div>
+        </section>
+
+        <section className="data-management-card" aria-labelledby="database-tools-title">
+          <div className="data-management-card-heading">
+            <span>
+              <Database size={18} />
+            </span>
+            <div>
+              <h3 id="database-tools-title">数据库</h3>
+              <p>备份当前 SQLite 数据库，或从兼容的数据库文件还原。</p>
+            </div>
+          </div>
+          <p className="data-management-note">
+            数据库备份不包含系统钥匙串中的模型密钥，也不包含单独保存的 EPUB 原文件。
+          </p>
+          <div className="data-management-actions">
+            <Button
+              className={
+                busyAction === 'backup-db'
+                  ? 'action-button data-primary-action is-loading'
+                  : 'action-button data-primary-action'
+              }
+              disabled={busyAction === 'backup-db'}
+              type="button"
+              onClick={() => void backupDatabase()}
+            >
+              <Download size={15} />
+              备份数据库
+            </Button>
+            <Button
+              className={
+                busyAction === 'restore-db'
+                  ? 'action-button data-restore-action is-loading'
+                  : 'action-button data-restore-action'
+              }
+              disabled={busyAction === 'restore-db'}
+              type="button"
+              variant="secondary"
+              onClick={() => void restoreDatabase()}
+            >
+              <Upload size={15} />
+              还原数据库
+            </Button>
+          </div>
+        </section>
+      </div>
+      {status ? <p className="data-management-status">{status}</p> : null}
     </div>
   );
+}
+
+function DataPathRow({
+  icon,
+  label,
+  path,
+  onOpen,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  path: string;
+  onOpen: () => void;
+}) {
+  return (
+    <div className="data-path-row">
+      <span className="data-path-icon">{icon}</span>
+      <div>
+        <strong>{label}</strong>
+        <code>{path || '读取中'}</code>
+      </div>
+      {path ? <CopyIconButton label={`复制${label}路径`} value={path} /> : null}
+      <button
+        aria-label={`打开${label}`}
+        className="data-path-open"
+        disabled={!path}
+        type="button"
+        onClick={onOpen}
+      >
+        <FolderOpen size={15} />
+      </button>
+    </div>
+  );
+}
+
+function dataManagementErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : '数据管理操作失败。';
 }

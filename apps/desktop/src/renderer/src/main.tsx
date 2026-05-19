@@ -257,7 +257,9 @@ function App() {
                 saveState={shortcutSaveState}
               />
             ) : null}
-            {activeSettingsSection === 'data' ? <DataManagementSettings /> : null}
+            {activeSettingsSection === 'data' ? (
+              <DataManagementSettings settings={store.settings} onStoreUpdated={applyStore} />
+            ) : null}
             {activeSettingsSection === 'about' ? (
               <AboutSettings onStartOnboarding={startOnboarding} />
             ) : null}

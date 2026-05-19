@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, Comment } from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
@@ -54,6 +54,7 @@ describe('desktop store settings', () => {
           messageSendShortcut: 'mod-enter',
           selectionActionShortcuts: { copy: 'X', annotate: 'B' },
           saveArticleImages: true,
+          logRetentionDays: 30,
           onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
         },
       ),
@@ -64,9 +65,30 @@ describe('desktop store settings', () => {
       messageSendShortcut: 'mod-enter',
       selectionActionShortcuts: { copy: 'X', annotate: 'B' },
       saveArticleImages: true,
+      logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
     });
   });
+
+  it('preserves onboarding completion when merging a log retention patch', () => {
+    expect(
+      mergeSettingsForUpsert(
+        { logRetentionDays: 15 },
+        {
+          onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
+          saveArticleImages: true,
+        },
+      ),
+    ).toMatchObject({
+      onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
+      logRetentionDays: 15,
+      saveArticleImages: true,
+    });
+  });
+});
+
+beforeEach(() => {
+  testState.secrets.clear();
 });
 
 describe('desktop store providers', () => {

@@ -49,6 +49,19 @@ export function readDatabaseReaderLevel(database: SQLiteDatabase.Database) {
   return level;
 }
 
+export function readDatabaseReaderLevelIfPresent(database: SQLiteDatabase.Database) {
+  if (!databaseTableExists(database, '__yomitomo_metadata')) return null;
+  return readDatabaseReaderLevel(database);
+}
+
+export function readAppliedDatabaseMigrationIds(database: SQLiteDatabase.Database) {
+  if (!databaseTableExists(database, '__yomitomo_migrations')) return null;
+  return database
+    .prepare('SELECT id FROM __yomitomo_migrations')
+    .all()
+    .map((row) => String((row as { id: string }).id));
+}
+
 export function writeDatabaseReaderLevel(database: SQLiteDatabase.Database, readerLevel: number) {
   database
     .prepare(
@@ -109,4 +122,11 @@ export function assertDatabaseReaderCompatible(
   }
 
   return compatibility.requiredReaderLevel;
+}
+
+function databaseTableExists(database: SQLiteDatabase.Database, name: string) {
+  const row = database
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(name);
+  return Boolean(row);
 }
