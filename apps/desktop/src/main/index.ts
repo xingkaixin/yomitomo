@@ -35,6 +35,7 @@ import {
   hydrateProviderInputApiKey,
   readArticle,
   readArticleCover,
+  readStoredProviderApiKey,
   readStore,
   saveAgent,
   saveArticleReadingProgress,
@@ -276,6 +277,10 @@ function registerIpc() {
   ipcMain.handle('provider:delete', async (_event, id: string) => {
     const store = await deleteProvider(id);
     return store;
+  });
+  ipcMain.handle('provider:read-api-key', async (_event, providerId: string) => {
+    if (!providerId) return '';
+    return readStoredProviderApiKey(providerId);
   });
   ipcMain.handle('provider:test', async (_event, input: Partial<LlmProvider>) => {
     try {

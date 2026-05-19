@@ -34,6 +34,7 @@ import {
   buildArticleChildRows,
   buildProviderRecord,
   mergeSettingsForUpsert,
+  readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from './store';
 
@@ -171,6 +172,12 @@ describe('desktop store providers', () => {
       createdAt: '2026-05-15T00:00:00.000Z',
       updatedAt: '2026-05-16T00:00:00.000Z',
     });
+  });
+
+  it('reads stored provider api keys from the keyring', async () => {
+    testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
+
+    await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-stored');
   });
 });
 

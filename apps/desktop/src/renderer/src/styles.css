@@ -8964,6 +8964,13 @@
   gap: 8px;
 }
 
+.secret-input-error {
+  margin: 0;
+  color: hsl(var(--destructive));
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .secret-remove {
   justify-self: start;
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import type { LlmProvider, ProviderType } from '@yomitomo/shared';
 import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
@@ -142,8 +142,14 @@ export function ProviderForm({
         <SecretInput
           id="provider-api-key"
           hasStoredValue={Boolean(draft.hasApiKey)}
+          storedValueId={draft.id}
           value={draft.apiKey || ''}
           onChange={(apiKey) => onChange({ ...draft, apiKey, removeApiKey: false })}
+          onRevealStoredValue={() =>
+            draft.id && window.yomitomoDesktop
+              ? window.yomitomoDesktop.readProviderApiKey(draft.id)
+              : Promise.resolve('')
+          }
           onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
         />
       </Field>
@@ -180,17 +186,73 @@ export function ProviderForm({
 function SecretInput({
   hasStoredValue,
   id,
+  storedValueId,
   value,
   onChange,
+  onRevealStoredValue,
   onRemove,
 }: {
   hasStoredValue?: boolean;
   id: string;
+  storedValueId?: string;
   value: string;
   onChange: (value: string) => void;
+  onRevealStoredValue?: () => Promise<string>;
   onRemove: () => void;
 }) {
   const [visible, setVisible] = useState(false);
+  const [revealedStoredValue, setRevealedStoredValue] = useState('');
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [revealError, setRevealError] = useState('');
+  const revealRequestRef = useRef(0);
+  const displayValue = value || (visible ? revealedStoredValue : '');
+
+  async function toggleVisible() {
+    if (visible) {
+      setVisible(false);
+      setRevealedStoredValue('');
+      setRevealError('');
+      return;
+    }
+
+    if (value || !hasStoredValue) {
+      setVisible(true);
+      return;
+    }
+
+    setRevealError('');
+    setRevealLoading(true);
+    const requestId = ++revealRequestRef.current;
+    try {
+      const storedValue = (await onRevealStoredValue?.()) || '';
+      if (requestId !== revealRequestRef.current) return;
+      setRevealedStoredValue(storedValue);
+      setVisible(true);
+      if (!storedValue) setRevealError('没有读取到已保存的 Key');
+    } catch {
+      if (requestId !== revealRequestRef.current) return;
+      setRevealError('读取已保存的 Key 失败');
+    } finally {
+      if (requestId === revealRequestRef.current) setRevealLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    revealRequestRef.current += 1;
+    setVisible(false);
+    setRevealedStoredValue('');
+    setRevealError('');
+    setRevealLoading(false);
+  }, [storedValueId]);
+
+  useEffect(() => {
+    if (hasStoredValue && !value) return;
+    revealRequestRef.current += 1;
+    setRevealedStoredValue('');
+    setRevealError('');
+    setRevealLoading(false);
+    if (!value) setVisible(false);
+  }, [hasStoredValue, value]);
 
   return (
     <div className="secret-input">
@@ -203,18 +265,20 @@ function SecretInput({
           placeholder={hasStoredValue ? '已安全保存，输入新 Key 会覆盖' : undefined}
           spellCheck={false}
           type={visible ? 'text' : 'password'}
-          value={value}
+          value={displayValue}
           onChange={(event) => onChange(event.target.value)}
         />
         <button
           className="secret-toggle"
           type="button"
+          disabled={revealLoading}
           aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
-          onClick={() => setVisible((next) => !next)}
+          onClick={toggleVisible}
         >
           {visible ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
       </div>
+      {revealError ? <p className="secret-input-error">{revealError}</p> : null}
       {hasStoredValue && !value ? (
         <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
           <Trash2 size={14} />
