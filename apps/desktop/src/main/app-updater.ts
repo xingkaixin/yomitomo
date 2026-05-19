@@ -157,7 +157,6 @@ function supportedState(): AppUpdateState | null {
     return {
       status: 'unsupported',
       currentVersion: app.getVersion(),
-      message: '打包安装后可检查更新',
     };
   }
 

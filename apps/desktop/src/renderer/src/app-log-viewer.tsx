@@ -29,7 +29,8 @@ type LicensePackage = {
   homepage: string;
 };
 
-const docsUrl = 'https://github.com/xingkaixin/yomitomo#readme';
+const githubUrl = 'https://github.com/xingkaixin/yomitomo';
+const homepageUrl = 'https://yomitomo.app';
 const releasesUrl = 'https://github.com/xingkaixin/yomitomo/releases';
 const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
@@ -137,10 +138,17 @@ export function AboutSettings({
         />
         <AboutActionCard
           icon={<BookOpen size={18} />}
-          title="官网 / 文档"
-          description="打开项目文档、使用说明和源码主页。"
-          actionLabel="打开文档"
-          onAction={() => openExternal(docsUrl)}
+          title="GitHub 项目"
+          description="打开源码主页、README 和项目资料。"
+          actionLabel="打开 GitHub"
+          onAction={() => openExternal(githubUrl)}
+        />
+        <AboutActionCard
+          icon={<ExternalLink size={18} />}
+          title="官网"
+          description="打开 Yomitomo 官网入口。"
+          actionLabel="打开官网"
+          onAction={() => openExternal(homepageUrl)}
         />
         <AboutActionCard
           icon={<MessageSquare size={18} />}

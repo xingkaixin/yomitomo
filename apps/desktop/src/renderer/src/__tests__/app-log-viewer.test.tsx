@@ -96,16 +96,20 @@ describe('AboutSettings', () => {
     expect(desktop.installUpdate).toHaveBeenCalledOnce();
   });
 
-  it('opens project links through the desktop bridge', async () => {
+  it('opens project and homepage links through the desktop bridge', async () => {
     const desktop = installDesktopAboutApi();
 
     render(<AboutSettings />);
 
-    fireEvent.click(screen.getByRole('button', { name: /打开文档/ }));
+    fireEvent.click(screen.getByRole('button', { name: /打开 GitHub/ }));
 
     await waitFor(() =>
-      expect(desktop.openUrl).toHaveBeenCalledWith('https://github.com/xingkaixin/yomitomo#readme'),
+      expect(desktop.openUrl).toHaveBeenCalledWith('https://github.com/xingkaixin/yomitomo'),
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /打开官网/ }));
+
+    await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app'));
   });
 
   it('filters open source packages in the license dialog', async () => {
