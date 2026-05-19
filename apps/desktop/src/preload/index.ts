@@ -81,6 +81,8 @@ const api = {
     ipcRenderer.invoke('provider:save', provider) as Promise<DesktopStore>,
   deleteProvider: (id: string) =>
     ipcRenderer.invoke('provider:delete', id) as Promise<DesktopStore>,
+  readProviderApiKey: (providerId: string) =>
+    ipcRenderer.invoke('provider:read-api-key', providerId) as Promise<string>,
   testProvider: (provider: Partial<LlmProvider>) =>
     ipcRenderer.invoke('provider:test', provider) as Promise<{ ok: boolean; message: string }>,
   listProviderModels: (provider: Partial<LlmProvider>) =>

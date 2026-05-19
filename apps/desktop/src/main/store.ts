@@ -329,6 +329,10 @@ export async function hydrateProviderInputApiKey(
   return { ...provider, apiKey };
 }
 
+export async function readStoredProviderApiKey(providerId: string) {
+  return (await readProviderApiKey(providerId)) || readLegacyProviderApiKey(providerId);
+}
+
 function readLegacyProviderApiKey(providerId: string) {
   return (
     getDatabase()

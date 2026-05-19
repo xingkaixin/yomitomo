@@ -181,6 +181,67 @@ describe('ProviderForm', () => {
     expect(listProviderModels).toHaveBeenCalledWith(expect.objectContaining({ hasApiKey: true }));
   });
 
+  it('reveals a stored api key only after explicit user action', async () => {
+    const onChange = vi.fn();
+    const readProviderApiKey = vi.fn().mockResolvedValue('sk-stored');
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        readProviderApiKey,
+      },
+    });
+
+    render(
+      <ProviderForm
+        draft={{
+          ...emptyProvider,
+          id: 'provider_1',
+          apiKey: '',
+          hasApiKey: true,
+        }}
+        onChange={onChange}
+      />,
+    );
+
+    const apiKeyInput = screen.getByLabelText('API Key') as HTMLInputElement;
+    expect(apiKeyInput.value).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: '显示 API Key' }));
+
+    await waitFor(() => expect(apiKeyInput.value).toBe('sk-stored'));
+    expect(readProviderApiKey).toHaveBeenCalledWith('provider_1');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('edits from a revealed stored api key as a new draft key', async () => {
+    const readProviderApiKey = vi.fn().mockResolvedValue('sk-stored');
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        readProviderApiKey,
+      },
+    });
+
+    render(
+      <StatefulProviderForm
+        initialDraft={{
+          ...emptyProvider,
+          id: 'provider_1',
+          apiKey: '',
+          hasApiKey: true,
+        }}
+      />,
+    );
+
+    const apiKeyInput = screen.getByLabelText('API Key') as HTMLInputElement;
+    fireEvent.click(screen.getByRole('button', { name: '显示 API Key' }));
+    await waitFor(() => expect(apiKeyInput.value).toBe('sk-stored'));
+
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-updated' } });
+
+    expect(apiKeyInput.value).toBe('sk-updated');
+  });
+
   it('falls back to preset models before an api key is available', async () => {
     const onChange = vi.fn();
     const listProviderModels = vi.fn();
