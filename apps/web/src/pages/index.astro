@@ -1,0 +1,197 @@
+---
+import { CtaLink } from '../components/CtaLink';
+import '../styles/global.css';
+
+const pageTitle = 'Yomitomo - 让每次停顿都留下东西';
+const pageDescription =
+  'Yomitomo 把阅读的最小单位从文章变成判断。划线是证据锚点，想法是阅读产出。';
+
+const whyItems = [
+  {
+    number: '01',
+    title: '现状问题',
+    body: '大多数工具围绕“文章”这个粒度运转：收藏一篇、总结一篇、问答一篇。但你真正在意的不是文章本身，是你在某段话停下来时产生的那个想法。',
+  },
+  {
+    number: '02',
+    title: '想法没有好的归宿',
+    body: '笔记软件里它脱离了原文，AI 摘要里它被替代了，稍后读里它还没来得及产生。',
+  },
+  {
+    number: '03',
+    title: 'Yomitomo 的做法',
+    body: '把划线变成证据锚点，把想法变成阅读的最小单位。一条划线下面可以挂多个想法，每个想法可以继续讨论、追问、审阅。读完之后留下的不是脱离原文的摘要，而是一组能回到原文现场的阅读判断。',
+  },
+];
+
+const comparisonItems = [
+  {
+    number: '01',
+    title: '收藏 / 稍后读工具',
+    judgment: '解决“先存着”，不解决“怎么读进去”。',
+    features: ['收藏路径顺滑，囤积成本低', '发现内容快，启动阅读慢'],
+    caveats: ['文章越存越多，真正产生的判断很少', '存下来的是文章，不是你的思考'],
+  },
+  {
+    number: '02',
+    title: '传统阅读器 / 笔记工具',
+    judgment: '有划线有笔记，但划线只是静态标记。',
+    features: ['阅读界面干净，标注功能有', '笔记可以导出，数据在自己手里'],
+    caveats: ['一条划线只能挂一条笔记，不能自然承载讨论', '想法写完就是终态，没有继续推进的路径'],
+  },
+  {
+    number: '03',
+    title: 'Yomitomo',
+    judgment: '以划线为证据锚点，以想法为阅读单位，按需让助手参与。',
+    features: [
+      '划线是原文锚点，一条划线下可以有多个想法',
+      '每个想法可以继续评论，形成讨论线程',
+      '用户决定哪个想法要请阅读助手参与讨论，或请审阅助手检查逻辑',
+      '可以启动编排助手批量阅读，命中相同原文时自动合并到同一划线下',
+      '读完留下的是能回到原文位置的判断，不是脱离上下文的摘要',
+    ],
+    caveats: [],
+    highlight: true,
+  },
+];
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+    <link rel="icon" type="image/png" href="/assets/yomitomo-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-page text-ink">
+    <header class="py-7">
+      <nav class="page-container flex items-center" aria-label="主导航">
+        <a class="flex items-center gap-3 no-underline" href="/" aria-label="Yomitomo 首页">
+          <img
+            class="h-8 w-8 mix-blend-multiply"
+            src="/assets/yomitomo-logo.png"
+            width="32"
+            height="32"
+            alt=""
+          />
+          <span class="font-serif text-[1.05rem] font-bold tracking-normal">Yomitomo</span>
+        </a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="page-container min-w-0">
+          <div class="hero-inner">
+            <h1 class="hero-headline">
+              收藏了 500 篇文章，真正留下来的<mark>判断</mark>有几个？
+            </h1>
+            <p class="hero-sub">
+              Yomitomo 把阅读的最小单位从文章变成判断——划线是证据锚点，想法是阅读产出。
+            </p>
+            <CtaLink href="#start">开始使用</CtaLink>
+          </div>
+        </div>
+      </section>
+
+      <hr class="m-0 border-0 border-t border-line" />
+
+      <section class="section-block">
+        <div class="page-container">
+          <p class="section-label">为什么需要 Yomitomo</p>
+          <hr class="section-rule" />
+          <h2 class="section-headline">你的阅读不是以文章为单位发生的，而是以一次次停顿发生的。</h2>
+
+          <div class="flex max-w-[620px] flex-col gap-[clamp(36px,5vh,56px)]">
+            {
+              whyItems.map((item) => (
+                <article>
+                  <span class="mb-2 block font-mono text-xs tracking-normal text-muted">
+                    {item.number}
+                  </span>
+                  <h3 class="mb-2.5 mt-0 font-serif text-[clamp(17px,1.4vw,21px)] font-bold leading-[1.4] tracking-normal">
+                    {item.title}
+                  </h3>
+                  <p class="m-0 leading-[1.85]">{item.body}</p>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <hr class="m-0 border-0 border-t border-line" />
+
+      <section id="comparison" class="section-block">
+        <div class="page-container">
+          <p class="section-label">场景对比</p>
+          <hr class="section-rule" />
+          <h2 class="section-headline">不是读得更快，是让每次停顿都留下东西。</h2>
+
+          <div class="grid border border-line md:grid-cols-2 lg:grid-cols-3">
+            {
+              comparisonItems.map((item) => (
+                <article
+                  class:list={[
+                    'relative p-[clamp(24px,3vw,40px)] md:[&:nth-child(3)]:col-span-2 md:[&:nth-child(3)]:border-t lg:[&:nth-child(3)]:col-span-1 lg:[&:nth-child(3)]:border-t-0',
+                    'border-t border-line first:border-t-0 md:border-l md:first:border-l-0 md:[&:nth-child(2)]:border-t-0 lg:[&:nth-child(3)]:border-l',
+                    item.highlight &&
+                      'bg-accent-soft before:absolute before:-left-px before:-right-px before:-top-px before:h-[3px] before:bg-accent',
+                  ]}
+                >
+                  <span class="mb-3.5 block font-mono text-xs tracking-normal text-muted">
+                    {item.number}
+                  </span>
+                  <h3 class="mb-2 mt-0 font-serif text-[clamp(16px,1.2vw,19px)] font-bold leading-[1.35] tracking-normal">
+                    {item.title}
+                  </h3>
+                  <p class="mb-[clamp(20px,3vh,32px)] mt-0 font-mono text-[0.78rem] leading-[1.65] text-muted">
+                    {item.judgment}
+                  </p>
+                  <ul class="m-0 flex list-none flex-col gap-2.5 p-0">
+                    {
+                      item.features.map((feature) => (
+                        <li class="relative pl-[1.2em] text-[0.9rem] leading-[1.65] before:absolute before:left-0 before:font-bold before:content-['·']">
+                          {feature}
+                        </li>
+                      ))
+                    }
+                    {
+                      item.caveats.map((caveat) => (
+                        <li class="relative pl-[1.2em] text-[0.9rem] leading-[1.65] text-muted before:absolute before:left-0 before:top-[0.15em] before:text-[0.75em] before:text-accent before:opacity-70 before:content-['※']">
+                          {caveat}
+                        </li>
+                      ))
+                    }
+                  </ul>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <hr class="m-0 border-0 border-t border-line" />
+
+    <footer id="start" class="section-block text-center">
+      <div class="page-container">
+        <h2 class="mx-auto mb-[clamp(24px,3vh,40px)] mt-0 max-w-2xl text-balance font-serif text-[clamp(22px,3vw,36px)] font-bold leading-[1.38] tracking-normal">
+          试试看，把阅读从处理文章拉回产生判断。
+        </h2>
+        <div class="mb-[clamp(56px,8vh,96px)]">
+          <CtaLink href="#">开始使用 Yomitomo</CtaLink>
+        </div>
+        <p class="m-0 font-mono text-xs tracking-normal text-muted">© 2026 Yomitomo</p>
+      </div>
+    </footer>
+  </body>
+</html>
