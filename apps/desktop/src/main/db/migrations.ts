@@ -306,6 +306,13 @@ ALTER TABLE providers ADD COLUMN api_key_ref TEXT;
 `,
   },
   {
+    // Historical dev migration kept so local databases that applied it remain readable.
+    id: '0027_reading_receipt_state',
+    sql: `
+ALTER TABLE articles ADD COLUMN reading_receipt_state TEXT;
+`,
+  },
+  {
     id: '0027_remove_reading_outputs',
     minReaderLevel: 2,
     sql: `
