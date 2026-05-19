@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
-import type { LlmProvider, ProviderType } from '@yomitomo/shared';
+import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
-
-const providerTypeLabels: Record<ProviderType, string> = {
-  'openai-chat': 'OpenAI Chat',
-  'openai-responses': 'OpenAI Responses',
-  anthropic: 'Anthropic',
-  gemini: 'Gemini',
-};
 
 const DELETE_HOLD_MS = 900;
 
@@ -73,9 +66,8 @@ function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
           <h4>添加供应商</h4>
         </div>
       </header>
-      <p className="provider-card-model">配置模型服务商和 API Key</p>
       <footer className="provider-card-footer">
-        <span className="provider-card-api-type is-placeholder">选择 API 类型</span>
+        <span className="provider-card-footnote">配置模型服务商和 API Key</span>
         <span className="provider-create-action">新增</span>
       </footer>
     </article>
@@ -146,11 +138,8 @@ function ProviderCard({
         </div>
         {used ? <span className="provider-used-label">已使用</span> : null}
       </header>
-      <p className="provider-card-model">{provider.modelName}</p>
       <footer className="provider-card-footer">
-        <span className={`provider-card-api-type is-${provider.type}`}>
-          {providerTypeLabels[provider.type]}
-        </span>
+        <span className="provider-card-model">{provider.modelName}</span>
         <div className="provider-card-actions">
           <button
             className="provider-card-menu-button"

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
-import type { LlmProvider, ProviderType } from '@yomitomo/shared';
-import { providerPresets, reasoningEffortOptions } from '@yomitomo/shared';
+import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { Field } from './app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -22,12 +21,10 @@ export function ProviderForm({
   draft,
   onChange,
   selectContentClassName = 'theme-select-content',
-  showReasoning = true,
 }: {
   draft: ProviderDraft;
   onChange: (draft: ProviderDraft) => void;
   selectContentClassName?: string;
-  showReasoning?: boolean;
 }) {
   const { fetchModels, clearModelStatus, modelError, modelLoading, modelNotice, visibleModels } =
     useProviderModelFetch(draft, onChange);
@@ -46,7 +43,7 @@ export function ProviderForm({
       modelName: preset.modelName,
       modelNames: preset.modelNames,
       modelInputMode: 'list',
-      reasoningEffort: draft.reasoningEffort || 'none',
+      reasoningEffort: 'none',
     });
   }
 
@@ -97,26 +94,6 @@ export function ProviderForm({
           onChange={(event) => onChange({ ...draft, name: event.target.value })}
         />
       </Field>
-      <Field id="provider-type" label="API 类型">
-        <Select
-          value={draft.type || 'anthropic'}
-          onValueChange={(value) =>
-            onChange({ ...draft, type: value as ProviderType, presetId: undefined })
-          }
-        >
-          <SelectTrigger id="provider-type" aria-labelledby="provider-type-label">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className={selectContentClassName}>
-            <SelectGroup>
-              <SelectItem value="openai-chat">OpenAI Chat</SelectItem>
-              <SelectItem value="openai-responses">OpenAI Responses</SelectItem>
-              <SelectItem value="anthropic">Anthropic</SelectItem>
-              <SelectItem value="gemini">Gemini</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
       <Field id="provider-base-url" label="Base URL">
         <Input
           id="provider-base-url"
@@ -132,7 +109,6 @@ export function ProviderForm({
         modelError={modelError}
         modelLoading={modelLoading}
         modelNotice={modelNotice}
-        selectContentClassName={selectContentClassName}
         visibleModels={visibleModels}
         onChange={onChange}
         onFetchModels={fetchModels}
@@ -153,32 +129,6 @@ export function ProviderForm({
           onRemove={() => onChange({ ...draft, apiKey: '', hasApiKey: false, removeApiKey: true })}
         />
       </Field>
-      {showReasoning ? (
-        <Field id="provider-reasoning" className="col-span-2" label="思考强度">
-          <Select
-            value={draft.reasoningEffort || 'none'}
-            onValueChange={(reasoningEffort) =>
-              onChange({
-                ...draft,
-                reasoningEffort: reasoningEffort as LlmProvider['reasoningEffort'],
-              })
-            }
-          >
-            <SelectTrigger id="provider-reasoning" aria-labelledby="provider-reasoning-label">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className={selectContentClassName}>
-              <SelectGroup>
-                {reasoningEffortOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-      ) : null}
     </div>
   );
 }

@@ -130,11 +130,13 @@ export function rowToAnnotation(
 }
 
 export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmProvider {
+  const presetId = normalizePresetId(row.presetId || undefined);
+  const preset = providerPresets.find((item) => item.id === presetId);
   return {
     id: row.id,
     name: row.name,
-    type: normalizeProviderType(row.type) || 'openai-chat',
-    presetId: normalizePresetId(row.presetId || undefined),
+    type: preset?.type || normalizeProviderType(row.type) || 'openai-chat',
+    presetId,
     logo: row.logo || undefined,
     baseUrl: row.baseUrl,
     apiKey: '',
@@ -142,7 +144,7 @@ export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmPro
     modelName: row.modelName,
     modelNames: normalizeModelNames(row.modelNames) || undefined,
     modelInputMode: normalizeProviderModelInputMode(row.modelInputMode) || 'list',
-    reasoningEffort: normalizeReasoningEffort(row.reasoningEffort || undefined) || 'none',
+    reasoningEffort: 'none',
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -246,18 +248,20 @@ export function normalizeStore(store: DesktopStore): DesktopStore {
   return {
     user: normalizeUser(store.user),
     settings: normalizeSettings(store.settings),
-    providers: (store.providers || []).map((provider) =>
-      Object.assign({}, provider, {
-        type: normalizeProviderType(provider.type) || 'openai-chat',
-        presetId: normalizePresetId(provider.presetId),
+    providers: (store.providers || []).map((provider) => {
+      const presetId = normalizePresetId(provider.presetId);
+      const preset = providerPresets.find((item) => item.id === presetId);
+      return Object.assign({}, provider, {
+        type: preset?.type || normalizeProviderType(provider.type) || 'openai-chat',
+        presetId,
         modelNames:
           provider.modelInputMode === 'custom'
             ? undefined
             : normalizeModelNames(provider.modelNames),
         modelInputMode: normalizeProviderModelInputMode(provider.modelInputMode) || 'list',
-        reasoningEffort: normalizeReasoningEffort(provider.reasoningEffort) || 'none',
-      }),
-    ),
+        reasoningEffort: 'none',
+      });
+    }),
     agents: (store.agents || []).map((agent) =>
       Object.assign({}, agent, {
         annotationColor: agent.annotationColor || '#8ab6d6',

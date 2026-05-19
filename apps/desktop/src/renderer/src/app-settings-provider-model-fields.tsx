@@ -1,23 +1,16 @@
-import { Keyboard, RefreshCw } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, Keyboard, RefreshCw, Search } from 'lucide-react';
 import type { ProviderDraft } from './app-settings';
 import { Field } from './app-ui';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './components/ui/select';
 
 export function ProviderModelFields({
   draft,
   modelError,
   modelLoading,
   modelNotice,
-  selectContentClassName,
   visibleModels,
   onChange,
   onFetchModels,
@@ -27,7 +20,6 @@ export function ProviderModelFields({
   modelError: string;
   modelLoading: boolean;
   modelNotice: string;
-  selectContentClassName: string;
   visibleModels: string[];
   onChange: (draft: ProviderDraft) => void;
   onFetchModels: () => void;
@@ -47,24 +39,13 @@ export function ProviderModelFields({
             onChange={(event) => onChange({ ...draft, modelName: event.target.value })}
           />
         ) : (
-          <Select
-            disabled={visibleModels.length === 0}
-            value={visibleModels.includes(draft.modelName || '') ? draft.modelName : ''}
-            onValueChange={(modelName) => onChange({ ...draft, modelName })}
-          >
-            <SelectTrigger id="provider-model" aria-labelledby="provider-model-label">
-              <SelectValue placeholder="选择模型" />
-            </SelectTrigger>
-            <SelectContent className={selectContentClassName}>
-              <SelectGroup>
-                {visibleModels.map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <ProviderModelPicker
+            id="provider-model"
+            labelledBy="provider-model-label"
+            modelName={draft.modelName || ''}
+            models={visibleModels}
+            onChange={(modelName) => onChange({ ...draft, modelName })}
+          />
         )}
         <Button
           className={
@@ -94,4 +75,221 @@ export function ProviderModelFields({
       {modelError ? <p className="field-inline-error">{modelError}</p> : null}
     </Field>
   );
+}
+
+function ProviderModelPicker({
+  id,
+  labelledBy,
+  modelName,
+  models,
+  onChange,
+}: {
+  id: string;
+  labelledBy: string;
+  modelName: string;
+  models: string[];
+  onChange: (modelName: string) => void;
+}) {
+  const listboxId = useId();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [menuPosition, setMenuPosition] = useState<ProviderModelMenuPosition | null>(null);
+  const selectedModel = models.includes(modelName) ? modelName : '';
+  const filteredModels = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return models;
+    return models.filter((model) => model.toLowerCase().includes(normalizedQuery));
+  }, [models, query]);
+
+  useEffect(() => {
+    setQuery('');
+  }, [models]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function closeOutside(event: PointerEvent) {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+      setQuery('');
+    }
+
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    searchRef.current?.focus();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function updatePosition() {
+      setMenuPosition(providerModelMenuPosition(triggerRef.current, models.length > 8));
+    }
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [models.length, open]);
+
+  function closePicker() {
+    setOpen(false);
+    setQuery('');
+  }
+
+  function openPicker() {
+    setMenuPosition(providerModelMenuPosition(triggerRef.current, models.length > 8));
+    setOpen(true);
+  }
+
+  function selectModel(nextModel: string) {
+    onChange(nextModel);
+    closePicker();
+  }
+
+  return (
+    <div className="provider-model-picker" ref={rootRef}>
+      <button
+        aria-controls={listboxId}
+        aria-expanded={open}
+        aria-labelledby={labelledBy}
+        className="provider-model-trigger"
+        disabled={models.length === 0}
+        id={id}
+        ref={triggerRef}
+        role="combobox"
+        type="button"
+        onClick={() => {
+          if (open) {
+            closePicker();
+            return;
+          }
+          openPicker();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openPicker();
+          }
+          if (event.key === 'Escape') closePicker();
+        }}
+      >
+        <span className={selectedModel ? 'provider-model-value' : 'provider-model-placeholder'}>
+          {selectedModel || '选择模型'}
+        </span>
+        <ChevronDown size={16} />
+      </button>
+      {open && menuPosition && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="provider-model-menu theme-select-content"
+              ref={menuRef}
+              style={{
+                left: menuPosition.left,
+                top: menuPosition.top,
+                width: menuPosition.width,
+              }}
+            >
+              {models.length > 8 ? (
+                <div className="provider-model-search">
+                  <Search size={15} />
+                  <Input
+                    aria-label="搜索模型"
+                    autoComplete="off"
+                    placeholder="搜索模型"
+                    ref={searchRef}
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') closePicker();
+                    }}
+                  />
+                </div>
+              ) : null}
+              <div
+                className="provider-model-options"
+                id={listboxId}
+                role="listbox"
+                style={{ maxHeight: menuPosition.optionsMaxHeight }}
+              >
+                {filteredModels.map((model) => (
+                  <button
+                    aria-selected={model === selectedModel}
+                    className="provider-model-option"
+                    key={model}
+                    role="option"
+                    type="button"
+                    onClick={() => selectModel(model)}
+                  >
+                    {model}
+                  </button>
+                ))}
+              </div>
+              {filteredModels.length === 0 ? (
+                <p className="provider-model-empty">没有匹配模型</p>
+              ) : null}
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
+type ProviderModelMenuPosition = CSSProperties & {
+  optionsMaxHeight: number;
+  width: number;
+  left: number;
+  top: number;
+};
+
+function providerModelMenuPosition(
+  trigger: HTMLButtonElement | null,
+  hasSearch: boolean,
+): ProviderModelMenuPosition {
+  const fallback = { left: 24, top: 24, width: 360, optionsMaxHeight: 320 };
+  if (!trigger || typeof window === 'undefined') return fallback;
+
+  const rect = trigger.getBoundingClientRect();
+  const padding = 24;
+  const gap = 8;
+  const viewportWidth = window.innerWidth || 1024;
+  const viewportHeight = window.innerHeight || 768;
+  const width = Math.min(
+    640,
+    Math.max(rect.width, 360),
+    Math.max(rect.width, viewportWidth - padding * 2),
+  );
+  const left = Math.min(
+    Math.max(padding, rect.left),
+    Math.max(padding, viewportWidth - width - padding),
+  );
+  const below = viewportHeight - rect.bottom - padding;
+  const above = rect.top - padding;
+  const placeAbove = below < 220 && above > below;
+  const available = Math.max(180, (placeAbove ? above : below) - gap);
+  const menuMaxHeight = Math.min(420, available);
+  const top = placeAbove
+    ? Math.max(padding, rect.top - gap - menuMaxHeight)
+    : Math.min(rect.bottom + gap, viewportHeight - padding);
+  const searchReserve = hasSearch ? 66 : 18;
+
+  return {
+    left,
+    optionsMaxHeight: Math.max(120, menuMaxHeight - searchReserve),
+    top,
+    width,
+  };
 }
