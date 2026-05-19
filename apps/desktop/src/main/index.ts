@@ -55,6 +55,8 @@ import {
   installAppUpdate,
 } from './app-updater';
 import type { AppUpdateState } from '../app-update-types';
+import type { DesktopStoreGetResult, DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import { DatabaseTooNewError } from './db/compatibility';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -149,7 +151,14 @@ function registerIpc() {
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
     if (browserWindow && !browserWindow.isDestroyed()) browserWindow.show();
   });
-  ipcMain.handle('store:get', () => readStore());
+  ipcMain.handle('store:get', async (): Promise<DesktopStoreGetResult> => {
+    try {
+      return { ok: true, store: await readStore() };
+    } catch (error) {
+      logError('store.get_failed', error);
+      return { ok: false, error: storeLoadErrorInfo(error) };
+    }
+  });
   ipcMain.handle('log:path', () => getLogPath());
   ipcMain.handle('log:read', () => readLogFile());
   ipcMain.handle('log:clear', () => clearLogFile());
@@ -440,6 +449,27 @@ function registerIpc() {
 
 function sendStoreUpdated(store: Awaited<ReturnType<typeof readStore>>) {
   sendToRenderer('store:updated', store);
+}
+
+function storeLoadErrorInfo(error: unknown): DesktopStoreLoadErrorInfo {
+  if (error instanceof DatabaseTooNewError) {
+    return {
+      code: 'DATABASE_TOO_NEW',
+      message:
+        '这份本地数据库已经被更新版本的 Yomitomo 迁移过。请安装最新版继续使用，或从迁移前备份恢复数据后再打开当前版本。',
+      detail: error.message,
+      requiredReaderLevel: error.requiredReaderLevel,
+      supportedReaderLevel: error.supportedReaderLevel,
+      logPath: getLogPath(),
+    };
+  }
+
+  return {
+    code: 'DATABASE_UNAVAILABLE',
+    message: '本地数据库加载失败。请查看日志确认原因，避免直接删除数据文件。',
+    detail: error instanceof Error ? error.message : undefined,
+    logPath: getLogPath(),
+  };
 }
 
 function sendUpdateStatusUpdated(state: AppUpdateState) {

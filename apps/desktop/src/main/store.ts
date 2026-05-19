@@ -25,6 +25,14 @@ import {
 } from '@yomitomo/shared';
 import { agentPersonalities } from '@yomitomo/shared';
 import { presetAgentAvatars } from './agent-avatars';
+import {
+  assertDatabaseReaderCompatible,
+  databaseReaderCompatibility,
+  ensureDatabaseCompatibilityTable,
+  migrationReaderLevel,
+  readDatabaseReaderLevel,
+  writeDatabaseReaderLevel,
+} from './db/compatibility';
 import { migrations } from './db/migrations';
 import * as schema from './db/schema';
 import {
@@ -131,6 +139,9 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
       .map((row) => String((row as { id: string }).id)),
   );
 
+  ensureDatabaseCompatibilityTable(database);
+  let readerLevel = assertDatabaseReaderCompatible(applied, readDatabaseReaderLevel(database));
+
   for (const migration of migrations) {
     if (applied.has(migration.id)) continue;
     database.transaction(() => {
@@ -138,8 +149,14 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
       database
         .prepare('INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)')
         .run(migration.id, new Date().toISOString());
+      readerLevel = Math.max(readerLevel, migrationReaderLevel(migration));
+      writeDatabaseReaderLevel(database, readerLevel);
     })();
+    applied.add(migration.id);
   }
+
+  const compatibility = databaseReaderCompatibility(applied, readDatabaseReaderLevel(database));
+  writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
 }
 
 async function migrateProviderApiKeys(database: StoreDatabase) {

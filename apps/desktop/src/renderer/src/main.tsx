@@ -22,6 +22,7 @@ import { useAppAgentActions } from './app-agent-actions';
 import { useAppArticleStoreActions } from './app-article-store-actions';
 import { useDesktopStoreState } from './app-desktop-store-state';
 import { useSettingsDrafts } from './app-settings-drafts';
+import { StoreLoadErrorScreen } from './app-store-load-error';
 import './styles.css';
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
@@ -36,8 +37,15 @@ function App() {
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
 
-  const { store, storeLoaded, storeSyncSnapshot, storeRef, refreshStore, applyStore } =
-    useDesktopStoreState();
+  const {
+    store,
+    storeLoaded,
+    storeLoadError,
+    storeSyncSnapshot,
+    storeRef,
+    refreshStore,
+    applyStore,
+  } = useDesktopStoreState();
   const {
     deleteArticle,
     readArticle,
@@ -82,9 +90,9 @@ function App() {
   const showOnboarding = onboardingForced || !store.settings.onboardingCompletedAt;
 
   useEffect(() => {
-    if (!storeLoaded) return;
+    if (!storeLoaded && !storeLoadError) return;
     window.yomitomoDesktop.showMainWindow();
-  }, [storeLoaded]);
+  }, [storeLoadError, storeLoaded]);
 
   useEffect(() => {
     if (activeSetting !== 'library') setLibraryReaderOpen(false);
@@ -100,6 +108,10 @@ function App() {
   function startOnboarding() {
     setOnboardingForced(true);
     setOnboardingFlowKey((key) => key + 1);
+  }
+
+  if (storeLoadError) {
+    return <StoreLoadErrorScreen error={storeLoadError} onRetry={refreshStore} />;
   }
 
   if (!storeLoaded) return null;

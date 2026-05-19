@@ -21,6 +21,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { AppUpdateState } from '../app-update-types';
+import { DesktopStoreLoadError, type DesktopStoreGetResult } from '../app-store-errors';
 
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -47,7 +48,12 @@ const api = {
   platform: process.platform,
   getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
   showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
-  getState: () => ipcRenderer.invoke('store:get') as Promise<DesktopStore>,
+  getStateResult: () => ipcRenderer.invoke('store:get') as Promise<DesktopStoreGetResult>,
+  getState: async () => {
+    const result = (await ipcRenderer.invoke('store:get')) as DesktopStoreGetResult;
+    if (result.ok) return result.store;
+    throw new DesktopStoreLoadError(result.error);
+  },
   onStoreUpdated: (callback: (store: DesktopStore) => void) => {
     const listener = (_event: IpcRendererEvent, store: DesktopStore) => callback(store);
     ipcRenderer.on('store:updated', listener);

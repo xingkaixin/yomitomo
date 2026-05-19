@@ -1,6 +1,7 @@
 export type DatabaseMigration = {
   id: string;
   sql: string;
+  minReaderLevel?: number;
 };
 
 export const migrations: DatabaseMigration[] = [
@@ -299,12 +300,14 @@ ALTER TABLE annotations ADD COLUMN should_show INTEGER;
   },
   {
     id: '0026_provider_api_key_ref',
+    minReaderLevel: 2,
     sql: `
 ALTER TABLE providers ADD COLUMN api_key_ref TEXT;
 `,
   },
   {
     id: '0027_remove_reading_outputs',
+    minReaderLevel: 2,
     sql: `
 ALTER TABLE app_settings DROP COLUMN reading_note_provider_id;
 
@@ -332,6 +335,7 @@ ALTER TABLE articles DROP COLUMN reading_deliberation_updated_at;
   },
   {
     id: '0028_remove_question_status',
+    minReaderLevel: 2,
     sql: `
 ALTER TABLE annotations DROP COLUMN question_status;
 ALTER TABLE comments DROP COLUMN question_status;
