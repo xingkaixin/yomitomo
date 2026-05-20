@@ -731,6 +731,70 @@ describe('AnnotationCard', () => {
     expect(onAddComment).toHaveBeenCalledWith('annotation-1', '继续聊', 'comment-1');
   });
 
+  it('keeps the new thought composer open when its panel whitespace is clicked', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+    const textarea = screen.getByLabelText('留言内容');
+    const panel = container.querySelector(
+      '.reader-new-thought-composer .reader-inline-composer-panel',
+    );
+    expect(panel).toBeTruthy();
+
+    fireEvent.mouseDown(panel!);
+    fireEvent.blur(textarea, { relatedTarget: null });
+
+    expect(screen.getByLabelText('留言内容')).toBeTruthy();
+  });
+
+  it('keeps the reply composer open when its panel whitespace is clicked', () => {
+    const { container } = render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+    const textarea = screen.getByLabelText('留言内容');
+    const panel = container.querySelector(
+      '.reader-thread-reply-composer .reader-inline-composer-panel',
+    );
+    expect(panel).toBeTruthy();
+
+    fireEvent.mouseDown(panel!);
+    fireEvent.blur(textarea, { relatedTarget: null });
+
+    expect(screen.getByLabelText('留言内容')).toBeTruthy();
+  });
+
   it('long-press deletes a top-level thought', () => {
     vi.useFakeTimers();
     const originalSetPointerCapture = HTMLElement.prototype.setPointerCapture;

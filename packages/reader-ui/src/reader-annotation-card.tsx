@@ -1025,6 +1025,7 @@ function InlineCommentComposer({
   onSubmit: (content: string) => void;
 }) {
   const [focusRequestKey, setFocusRequestKey] = useState(0);
+  const internalMouseDownRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -1034,7 +1035,20 @@ function InlineCommentComposer({
   function handleBlur(event: React.FocusEvent<HTMLDivElement>) {
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    if (internalMouseDownRef.current) return;
     onClose();
+  }
+
+  function handleMouseDownCapture(event: React.MouseEvent<HTMLDivElement>) {
+    internalMouseDownRef.current = true;
+    window.setTimeout(() => {
+      internalMouseDownRef.current = false;
+    }, 0);
+
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('textarea, button, input, select, a, [contenteditable="true"]')) return;
+    event.preventDefault();
   }
 
   function submit(content: string) {
@@ -1056,6 +1070,7 @@ function InlineCommentComposer({
       className="reader-inline-composer-panel t-dropdown is-open"
       data-origin="top-left"
       onBlur={handleBlur}
+      onMouseDownCapture={handleMouseDownCapture}
     >
       <AnnotationCommentComposer
         agents={agents}
