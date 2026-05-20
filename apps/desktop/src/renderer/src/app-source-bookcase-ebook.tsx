@@ -63,6 +63,7 @@ import { runSourceAgentCommentRequest } from './app-source-agent-comment-request
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import {
   articleWithAnnotations,
+  articleWithMergedAgentAnnotation,
   agentInstructionFromNote,
   defaultTocOpen,
   mentionDirectivesForAgent,
@@ -612,16 +613,18 @@ export function EbookBookcase({
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
+    let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
     if (isCurrentArticle(articleId)) {
       const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
       activeId = result.activeId;
+      currentMerge = result;
       applyAnnotations(result.annotations);
       openAnnotation(result.activeId);
     }
     await onUpdateArticle(articleId, (targetArticle) => {
-      const result = mergeAgentAnnotationAsThought(targetArticle.annotations, annotation);
+      const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
       activeId = result.activeId;
-      return articleWithAnnotations(targetArticle, result.annotations);
+      return result.article;
     });
     return activeId;
   }

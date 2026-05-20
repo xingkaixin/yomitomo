@@ -87,6 +87,31 @@ describe('buildAgentAnnotationRequestInput', () => {
     expect(input.payload.targetAnchor).toBe(anchor);
   });
 
+  it('keeps target playback anchored when no reading intent is provided', () => {
+    const input = buildAgentAnnotationRequestInput(
+      agent(),
+      { targetAnchor: anchor },
+      {
+        article,
+        annotations: [annotation],
+        readingMemory,
+      },
+    );
+
+    expect(input.playbackMode).toBe('target');
+    expect(input.shouldSaveReadingMemory).toBe(false);
+    expect(input.readingPlan).toEqual([
+      {
+        sectionId: 'target-selection',
+        sectionTitle: '选区',
+        sectionStart: 2,
+        sectionEnd: 4,
+      },
+    ]);
+    expect(input.payload.readingPlan).toBeUndefined();
+    expect(input.payload.targetAnchor).toBe(anchor);
+  });
+
   it('builds careful plan requests with reading memory', () => {
     const readingPlan: AgentReadingPlanItem[] = [
       {
