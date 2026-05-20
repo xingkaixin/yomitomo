@@ -12,7 +12,8 @@
     "lint:fix": "oxlint src astro.config.mjs postcss.config.js --fix",
     "format": "oxfmt --write \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs postcss.config.js package.json tsconfig.json",
     "format:check": "oxfmt --check \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs postcss.config.js package.json tsconfig.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "deploy:cf": "pnpm build && wrangler pages deploy dist --project-name yomitomo"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.5",
