@@ -5,6 +5,7 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   AgentReviewPayload,
+  AgentMentionInstructionPayload,
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
@@ -18,6 +19,7 @@ import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import {
   inferAnnotationMetadata,
   listProviderModels,
+  planAgentMentionRoute,
   planFocusCoReadingRoute,
   runAgent,
   runAgentAnnotateStream,
@@ -314,6 +316,11 @@ function registerIpc() {
     const store = await readStore();
     const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return inferAnnotationMetadata(provider, payload);
+  });
+  ipcMain.handle('agent:mention-route', async (_event, payload: AgentMentionInstructionPayload) => {
+    const store = await readStore();
+    const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
+    return planAgentMentionRoute(provider, payload);
   });
   ipcMain.handle('focus-co-reading:route', async (_event, payload: FocusCoReadingRoutePayload) => {
     const store = await readStore();

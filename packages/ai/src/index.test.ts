@@ -7,6 +7,7 @@ import {
   buildAgentPrompt,
   extractJsonObjects,
   parseAgentMentionInstructions,
+  parseAgentMentionRoutePlan,
   parseFocusCoReadingRouteResult,
   planFocusCoReadingRoute,
   runAgentAnnotate,
@@ -453,14 +454,64 @@ describe('agent message prompts', () => {
       {
         agentId: lin.id,
         agentUsername: lin.username,
+        action: 'comment',
         instruction: '解释这个概念',
         readingIntent: 'explain',
       },
       {
         agentId: zhou.id,
         agentUsername: zhou.username,
+        action: 'comment',
       },
     ]);
+  });
+
+  it('parses mention route plans with multiple actions', () => {
+    const route = parseAgentMentionRoutePlan(
+      JSON.stringify({
+        createUserThought: true,
+        directives: [
+          {
+            agentUsername: '林知微',
+            action: 'comment',
+            instruction: '回应我的想法',
+          },
+          {
+            agentUsername: '周砚',
+            actions: ['comment', 'create_thought'],
+            instruction: '从反方角度处理',
+            readingIntent: 'challenge',
+          },
+        ],
+      }),
+      [lin, zhou],
+    );
+
+    expect(route).toEqual({
+      createUserThought: true,
+      directives: [
+        {
+          agentId: lin.id,
+          agentUsername: lin.username,
+          action: 'comment',
+          instruction: '回应我的想法',
+        },
+        {
+          agentId: zhou.id,
+          agentUsername: zhou.username,
+          action: 'comment',
+          instruction: '从反方角度处理',
+          readingIntent: 'challenge',
+        },
+        {
+          agentId: zhou.id,
+          agentUsername: zhou.username,
+          action: 'create_thought',
+          instruction: '从反方角度处理',
+          readingIntent: 'challenge',
+        },
+      ],
+    });
   });
 
   it('parses focus co-reading routes against selected agents and sections', () => {

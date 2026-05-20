@@ -67,7 +67,9 @@ export { parseFocusCoReadingRouteResult, planFocusCoReadingRoute } from './focus
 export {
   inferAnnotationMetadata,
   parseAgentMentionInstructions,
+  parseAgentMentionRoutePlan,
   planAgentMentionInstructions,
+  planAgentMentionRoute,
 } from './annotation-metadata';
 export {
   buildAgentMessageSystemPrompt,

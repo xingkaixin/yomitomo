@@ -1,4 +1,5 @@
 import type {
+  AgentReadingIntent,
   Annotation,
   ArticleRecord,
   Comment as AnnotationComment,
@@ -12,6 +13,8 @@ type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;
   annotation: Annotation;
   userComment: AnnotationComment;
+  instruction?: string;
+  readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
@@ -26,6 +29,8 @@ export async function runSourceAgentCommentRequest({
   agent,
   annotation,
   userComment,
+  instruction,
+  readingIntent,
   reviewTargetCommentId,
   desktop,
   currentArticle,
@@ -82,7 +87,8 @@ export async function runSourceAgentCommentRequest({
       {
         agentId: agent.id,
         agentUsername: agent.username,
-        readingIntent: annotation.readingIntent || userComment.readingIntent,
+        readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
+        instruction,
         reviewTargetCommentId,
         article: promptArticle(currentArticle, articleText),
         annotation,

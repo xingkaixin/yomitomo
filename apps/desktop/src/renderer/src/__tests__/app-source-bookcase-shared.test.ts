@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import type { Annotation, PublicAgent } from '@yomitomo/shared';
-import { agentInstructionFromNote, targetAnchorReadingPlan } from '../app-source-bookcase-shared';
+import { describe, expect, it, vi } from 'vitest';
+import type { AgentMentionRoutePlan, Annotation, PublicAgent } from '@yomitomo/shared';
+import {
+  agentInstructionFromNote,
+  planSelectionMentionRoute,
+  routeFocusReadingPlanMessages,
+  targetAnchorReadingPlan,
+} from '../app-source-bookcase-shared';
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {
@@ -54,5 +59,106 @@ describe('targetAnchorReadingPlan', () => {
         readingIntent: 'challenge',
       },
     ]);
+  });
+});
+
+describe('planSelectionMentionRoute', () => {
+  const anchor: Annotation['anchor'] = {
+    exact: '原文',
+    prefix: '',
+    suffix: '',
+    start: 4,
+    end: 8,
+  };
+
+  it('does not call the gate without mentioned agents', async () => {
+    const desktop = { planAgentMentionRoute: vi.fn() };
+    const route = await planSelectionMentionRoute({
+      desktop,
+      note: '我的想法',
+      targetAnchor: anchor,
+      agents: [],
+      article: { title: '标题', url: '', text: '正文' },
+    });
+
+    expect(route).toEqual({ createUserThought: true, directives: [] });
+    expect(desktop.planAgentMentionRoute).not.toHaveBeenCalled();
+  });
+
+  it('does not create a user thought for pure mentions when the gate is unavailable', async () => {
+    const lin = agent();
+    const zhou = agent({ id: 'agent_zhou', username: 'zhou', nickname: 'zhou' });
+
+    const route = await planSelectionMentionRoute({
+      desktop: undefined,
+      note: '@lin @zhou',
+      targetAnchor: anchor,
+      agents: [lin, zhou],
+      article: { title: '标题', url: '', text: '正文' },
+    });
+
+    expect(route.createUserThought).toBe(false);
+    expect(route.directives).toEqual([
+      {
+        agentId: lin.id,
+        agentUsername: lin.username,
+        action: 'comment',
+        instruction: undefined,
+      },
+      {
+        agentId: zhou.id,
+        agentUsername: zhou.username,
+        action: 'comment',
+        instruction: undefined,
+      },
+    ]);
+  });
+});
+
+describe('routeFocusReadingPlanMessages', () => {
+  it('routes mentioned section messages as create-thought instructions', async () => {
+    const lin = agent();
+    const zhou = agent({ id: 'agent_zhou', username: 'zhou', nickname: 'zhou' });
+    const route: AgentMentionRoutePlan = {
+      createUserThought: false,
+      directives: [
+        {
+          agentId: zhou.id,
+          agentUsername: zhou.username,
+          action: 'create_thought',
+          instruction: '提出反方想法',
+          readingIntent: 'challenge',
+        },
+      ],
+    };
+    const desktop = { planAgentMentionRoute: vi.fn(async () => route) };
+
+    const readingPlan = await routeFocusReadingPlanMessages({
+      desktop,
+      agent: zhou,
+      agents: [lin, zhou],
+      article: { title: '标题', url: '', text: '这是一段章节正文。' },
+      readingPlan: [
+        {
+          sectionId: 's1',
+          sectionTitle: '第一节',
+          sectionStart: 0,
+          sectionEnd: 8,
+          messages: [
+            {
+              content: '@lin 解释一下，@zhou 从反方看',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(readingPlan[0]?.messages?.map((message) => message.content)).toEqual(['提出反方想法']);
+    expect(desktop.planAgentMentionRoute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedActions: ['create_thought'],
+        agents: [lin, zhou],
+      }),
+    );
   });
 });
