@@ -20,6 +20,7 @@ jobs:
             os: macos-latest
             command: pnpm make:app:mac-arm
             artifact: yomitomo-macos-arm64
+            updateMetadata: dist/app/mac-arm64/latest-mac.yml
             artifactPath: |
               dist/app/mac-arm64/*.dmg
               dist/app/mac-arm64/*.zip
@@ -29,6 +30,7 @@ jobs:
             os: windows-latest
             command: pnpm make:app:win-x64
             artifact: yomitomo-windows-x64
+            updateMetadata: dist/app/win-x64/latest.yml
             artifactPath: |
               dist/app/win-x64/*.exe
               dist/app/win-x64/*.blockmap
@@ -62,6 +64,14 @@ jobs:
       - name: Make release package
         run: ${{ matrix.command }}
 
+      - name: Verify update metadata
+        shell: bash
+        run: |
+          if [ ! -f "${{ matrix.updateMetadata }}" ]; then
+            echo "::error file=${{ matrix.updateMetadata }}::Missing electron-updater metadata."
+            exit 1
+          fi
+
       - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
@@ -82,9 +92,19 @@ jobs:
         with:
           path: release-assets
 
-      - name: Publish release
+      - name: Upload release assets
         shell: bash
         run: |
+          for metadata in \
+            release-assets/yomitomo-macos-arm64/latest-mac.yml \
+            release-assets/yomitomo-windows-x64/latest.yml
+          do
+            if [ ! -f "$metadata" ]; then
+              echo "::error file=$metadata::Missing electron-updater metadata."
+              exit 1
+            fi
+          done
+
           mapfile -t assets < <(find release-assets -type f \( \
             -name '*.dmg' -o \
             -name '*.zip' -o \
@@ -101,5 +121,5 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --generate-notes
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --generate-notes --draft
           fi
