@@ -426,6 +426,13 @@ export const readerConversationStyles = `
 .reader-thought-author-avatar .reader-avatar-badge{width:23px;height:23px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:10px}
 .reader-thought-author-avatar .reader-avatar-badge.is-image{background:transparent}
 .reader-thought-author-more{display:grid;min-width:25px;height:25px;place-items:center;margin-left:-8px;border:2px solid rgba(255,253,248,.92);border-radius:999px;background:#eee6db;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:900;font-variant-numeric:tabular-nums}
+.reader-pending-agent-stack{display:inline-flex;min-width:0;align-items:center}
+.reader-pending-agent-avatar{position:relative;display:grid;width:25px;height:25px;place-items:center;border-radius:999px;background:transparent}
+.reader-pending-agent-avatar+.reader-pending-agent-avatar{margin-left:-8px}
+.reader-pending-agent-avatar::after{content:"";position:absolute;right:1px;bottom:1px;width:7px;height:7px;border:2px solid rgba(255,253,248,.94);border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));box-shadow:0 0 0 0 color-mix(in srgb,var(--reader-avatar-color,var(--reader-green)) 28%,transparent);animation:reader-pending-agent-pulse 1.24s ease-in-out infinite}
+.reader-pending-agent-avatar .reader-avatar-badge{width:23px;height:23px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:10px;filter:saturate(.82);opacity:.78}
+.reader-pending-agent-avatar .reader-avatar-badge.is-image{background:transparent}
+.reader-pending-agent-more{display:grid;min-width:25px;height:25px;place-items:center;margin-left:-8px;border:2px solid rgba(255,253,248,.92);border-radius:999px;background:#eee6db;color:var(--reader-muted);font-family:ui-sans-serif,system-ui,sans-serif;font-size:10px;font-weight:900;font-variant-numeric:tabular-nums}
 .reader-note-comments-region{width:100%;margin-top:0}
 .reader-note-comments-panel{display:grid;grid-template-rows:auto auto;min-height:0;overflow:visible;gap:0;border-top:1px solid rgba(40,35,29,.1);background:rgba(250,246,238,.86);padding:12px}
 .reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.14);font-family:ui-sans-serif,system-ui,sans-serif}
@@ -484,6 +491,13 @@ export const readerConversationStyles = `
 .reader-thought-footer-actions:has(.reader-inline-composer-panel){flex:1 0 100%;width:100%;align-items:flex-start;justify-content:stretch;margin-left:0}
 .reader-thread-reply-composer:has(.reader-inline-composer-panel){flex:1 0 100%;justify-content:stretch;margin-top:8px}
 .reader-thread-reply-composer .reader-inline-composer-panel{width:100%}
+.reader-pending-thoughts{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;margin:8px 0 0;padding:11px 12px 13px;overflow:hidden;border:1px solid rgba(40,35,29,.1);border-radius:8px;background:rgba(255,253,248,.72);box-shadow:0 1px 3px rgba(40,35,29,.04);font-family:ui-sans-serif,system-ui,sans-serif}
+.reader-pending-thoughts .reader-pending-agent-stack{align-self:start;padding-top:2px}
+.reader-pending-thought-copy{display:grid;min-width:0;gap:3px}
+.reader-pending-thought-copy strong{overflow:hidden;color:var(--reader-ink);font-size:13px;font-weight:880;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
+.reader-pending-thought-copy em{color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:720;line-height:1.4;text-wrap:pretty}
+.reader-pending-thought-progress{position:absolute;left:0;right:0;bottom:0;height:3px;overflow:hidden;background:rgba(40,35,29,.08)}
+.reader-pending-thought-progress i{display:block;width:42%;height:100%;border-radius:999px;background:linear-gradient(90deg,transparent,var(--reader-note-accent,var(--reader-green)),transparent);animation:reader-pending-thought-progress 1.38s cubic-bezier(.22,1,.36,1) infinite}
 .reader-new-thought-composer{margin:10px -12px -12px;padding:12px;border-top:1px solid rgba(40,35,29,.1);background:rgba(250,246,238,.84)}
 .reader-new-thought-composer.is-empty{margin-top:0}
 .reader-inline-composer-trigger{display:inline-flex;width:fit-content;justify-self:center;align-items:center;justify-content:center;gap:6px;height:32px;border:1px solid rgba(40,35,29,.14);border-radius:999px;background:rgba(255,253,248,.82);color:var(--reader-muted);cursor:pointer;font-family:ui-sans-serif,system-ui,sans-serif;font-size:11px;font-weight:850;padding:0 12px;box-shadow:0 4px 12px rgba(40,35,29,.05);transition:background .14s ease,border-color .14s ease,box-shadow .14s ease,color .14s ease,transform .14s ease}
@@ -551,6 +565,8 @@ export const readerConversationStyles = `
 @keyframes reader-review-scale{0%,100%{transform:rotate(0deg) scale(1)}45%{transform:rotate(-8deg) scale(1.08)}70%{transform:rotate(5deg) scale(.98)}}
 @keyframes reader-review-avatar-float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-2px) scale(1.04)}}
 @keyframes reader-review-avatar-travel{0%,100%{transform:translateX(-3px) translateY(0) scale(1)}50%{transform:translateX(4px) translateY(-2px) scale(1.04)}}
+@keyframes reader-pending-agent-pulse{0%,100%{opacity:.52;box-shadow:0 0 0 0 color-mix(in srgb,var(--reader-avatar-color,var(--reader-green)) 28%,transparent)}50%{opacity:1;box-shadow:0 0 0 5px transparent}}
+@keyframes reader-pending-thought-progress{0%{transform:translateX(-105%)}100%{transform:translateX(245%)}}
 .reader-app :where(button,textarea,input,[tabindex]):focus-visible{outline:2px solid rgba(37,29,22,.42);outline-offset:3px}
 .reader-app :where(.reader-composer textarea,.reader-note-comments-panel .reader-comment-box textarea):focus-visible{outline:0;box-shadow:none}
 .reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal}

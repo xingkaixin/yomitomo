@@ -53,9 +53,11 @@ import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
 import {
   buildAgentAnnotationRequestInput,
+  createPendingAgentAnnotation,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
+  withoutAnnotationId,
 } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
@@ -80,6 +82,7 @@ import {
 import { useSourceAnnotations } from './use-source-annotations';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
+import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   sourceArticleBodyHtml,
@@ -110,6 +113,13 @@ export function WebSourceBookcase({
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
   const {
+    pendingAnnotationAgents,
+    addPendingAnnotationAgent,
+    removePendingAnnotationAgent,
+    clearPendingAnnotationAgents,
+    clearAllPendingAnnotationAgents,
+  } = usePendingAnnotationAgents();
+  const {
     addComment,
     annotations,
     annotationsRef,
@@ -123,7 +133,10 @@ export function WebSourceBookcase({
     annotations: articleAnnotations,
     article,
     ignoreStaleArticleUpdates: true,
-    onBeforeDeleteAnnotation: (annotationId) => noteRefs.current.delete(annotationId),
+    onBeforeDeleteAnnotation: (annotationId) => {
+      noteRefs.current.delete(annotationId);
+      clearPendingAnnotationAgents(annotationId);
+    },
     onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
       for (const agent of mentionedAgents) {
         void requestAgentComment(agent, annotation, comment);
@@ -137,6 +150,11 @@ export function WebSourceBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
+
+  useEffect(() => {
+    clearAllPendingAnnotationAgents();
+  }, [article.id, clearAllPendingAnnotationAgents]);
+
   const {
     temporaryBoxes,
     highlightChoice,
@@ -358,6 +376,7 @@ export function WebSourceBookcase({
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, '');
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
+    for (const agent of mentionedAgents) addPendingAnnotationAgent(annotation.id, agent);
 
     if (mentionedAgents.length === 0) {
       const comment = createUserComment(userProfile, note, { now: annotation.createdAt });
@@ -408,26 +427,36 @@ export function WebSourceBookcase({
       const thoughtDirectives = directives.filter(
         (directive) => directive.action === 'create_thought',
       );
+      let scheduledAgentRequest = false;
       if (primaryComment) {
         for (const directive of commentDirectives) {
+          scheduledAgentRequest = true;
           void requestAgentComment(agent, annotation, primaryComment, undefined, {
             instruction: directive.instruction,
             readingIntent: directive.readingIntent,
+            pendingAnnotationId: annotation.id,
           });
         }
       }
-      for (const directive of thoughtDirectives.length > 0
-        ? thoughtDirectives
-        : !primaryComment && commentDirectives.length > 0
-          ? commentDirectives
-          : []) {
+      const targetThoughtDirectives =
+        thoughtDirectives.length > 0
+          ? thoughtDirectives
+          : !primaryComment && commentDirectives.length > 0
+            ? commentDirectives
+            : [];
+      for (const directive of targetThoughtDirectives) {
         void requestAgentAnnotations(agent, {
           targetAnchor: currentComposer.anchor,
           instruction: directive.instruction || agentInstructionFromNote(note, [agent]),
           readingIntent: directive.readingIntent,
           article: articleContext,
           articleId: currentArticle.id,
+          pendingAnnotationId: annotation.id,
         });
+        scheduledAgentRequest = true;
+      }
+      if (!scheduledAgentRequest) {
+        removePendingAnnotationAgent(annotation.id, agent.id);
       }
     }
   }
@@ -495,27 +524,42 @@ export function WebSourceBookcase({
     annotation: Annotation,
     userComment: AnnotationComment,
     reviewTargetCommentId?: string,
-    options: { instruction?: string; readingIntent?: AgentReadingIntent } = {},
+    options: {
+      instruction?: string;
+      readingIntent?: AgentReadingIntent;
+      pendingAnnotationId?: string;
+    } = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle) return;
+    if (!desktop || !currentArticle) {
+      if (options.pendingAnnotationId) {
+        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+      }
+      return;
+    }
 
-    await runSourceAgentCommentRequest({
-      agent,
-      annotation,
-      userComment,
-      instruction: options.instruction,
-      readingIntent: options.readingIntent,
-      desktop,
-      currentArticle,
-      articleText: currentArticleText(),
-      reviewTargetCommentId,
-      annotationsRef,
-      applyAnnotations,
-      saveAnnotations,
-      setStatusMessage,
-    });
+    try {
+      await runSourceAgentCommentRequest({
+        agent,
+        annotation,
+        userComment,
+        instruction: options.instruction,
+        readingIntent: options.readingIntent,
+        desktop,
+        currentArticle,
+        articleText: currentArticleText(),
+        reviewTargetCommentId,
+        annotationsRef,
+        applyAnnotations,
+        saveAnnotations,
+        setStatusMessage,
+      });
+    } finally {
+      if (options.pendingAnnotationId) {
+        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+      }
+    }
   }
 
   async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
@@ -687,9 +731,19 @@ export function WebSourceBookcase({
     const articleContext =
       options.article ||
       (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
-    if (!desktop || !articleId || !articleContext) return;
+    if (!desktop || !articleId || !articleContext) {
+      if (options.pendingAnnotationId) {
+        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+      }
+      return;
+    }
     const articleScopedWrite = Boolean(options.articleId);
-    if (!articleScopedWrite && annotatingAgentIds.includes(agent.id)) return;
+    if (!articleScopedWrite && annotatingAgentIds.includes(agent.id)) {
+      if (options.pendingAnnotationId) {
+        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+      }
+      return;
+    }
     const visibleArticle = isCurrentArticle(articleId);
     const showProgress = !articleScopedWrite || visibleArticle;
     const requestInput = buildAgentAnnotationRequestInput(agent, options, {
@@ -716,20 +770,36 @@ export function WebSourceBookcase({
             },
           };
     const { readingPlan } = routedRequestInput;
+    let pendingAnnotationId = '';
 
     startAgentAnnotationPlayback(agent, readingPlan, routedRequestInput.playbackMode, showProgress);
+    if (showProgress && options.targetAnchor && visibleArticle && !options.pendingAnnotationId) {
+      const pendingAnnotation = createPendingAgentAnnotation(
+        agent,
+        options.targetAnchor,
+        options.readingIntent,
+      );
+      pendingAnnotationId = pendingAnnotation.id;
+      applyAnnotations([...annotationsRef.current, pendingAnnotation]);
+      openAnnotation(pendingAnnotation.id);
+    }
     try {
       const { result, annotationCount } = await runSourceAgentAnnotationRequest({
         desktop,
         requestInput: routedRequestInput,
-        onAnnotation: (annotation) =>
-          handleAgentAnnotationStreamItem(
+        onAnnotation: (annotation) => {
+          if (pendingAnnotationId) {
+            applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
+            pendingAnnotationId = '';
+          }
+          return handleAgentAnnotationStreamItem(
             articleId,
             annotation,
             readingPlan,
             articleScopedWrite,
             articleScopedWrite ? articleContext.text : currentArticleText(),
-          ),
+          );
+        },
       });
       if (requestInput.shouldSaveReadingMemory) {
         await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
@@ -741,7 +811,13 @@ export function WebSourceBookcase({
       }
       if (showProgress && isCurrentArticle(articleId)) finishVirtualReadingIfIdle(agent.id);
     } finally {
+      if (pendingAnnotationId) {
+        applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
+      }
       finishAgentAnnotationRequest(agent, showProgress);
+      if (options.pendingAnnotationId) {
+        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+      }
     }
   }
 
@@ -914,6 +990,7 @@ export function WebSourceBookcase({
         highlightChoice={highlightChoice}
         noteRefs={noteRefs}
         notesRef={railRef}
+        pendingAnnotationAgents={pendingAnnotationAgents}
         readerSettings={readerSettings}
         reviewAgents={reviewAgents}
         readingSections={readingSections}

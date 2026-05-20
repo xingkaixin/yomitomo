@@ -43,6 +43,7 @@ export type ReaderSurfaceViewProps = {
   extracted: ReaderArticle;
   highlightChoice: HighlightChoice | null;
   messageSendShortcut: MessageSendShortcut;
+  pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
   notesRef: React.RefObject<HTMLElement | null>;
   selectionAction: SelectionAction | null;
@@ -123,6 +124,7 @@ export function ReaderSurfaceView({
   extracted,
   highlightChoice,
   messageSendShortcut,
+  pendingAnnotationAgents = {},
   noteRefForAnnotation,
   notesRef,
   selectionAction,
@@ -260,6 +262,7 @@ export function ReaderSurfaceView({
                   messageSendShortcut={messageSendShortcut}
                   key={annotation.id}
                   noteRef={noteRefForAnnotation(annotation.id)}
+                  pendingAgents={pendingAnnotationAgents[annotation.id] || []}
                   primaryCommentExpanded={expandedPrimaryCommentIds.has(annotation.id)}
                   shortcutModifier={shortcutModifier}
                   stackCount={stackCount}

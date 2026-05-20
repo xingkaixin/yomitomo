@@ -43,6 +43,7 @@ export function AnnotationCard({
   onFocus,
   onPrimaryCommentExpandedChange,
   onRequestReview,
+  pendingAgents = [],
 }: {
   active: boolean;
   agents: PublicAgent[];
@@ -66,6 +67,7 @@ export function AnnotationCard({
   onFocus: (annotationId: string) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   onRequestReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
+  pendingAgents?: PublicAgent[];
 }) {
   const [expandedCommentIds, setExpandedCommentIds] = useState<Set<string>>(() => new Set());
   const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(() => new Set());
@@ -88,6 +90,7 @@ export function AnnotationCard({
   const canRequestReview =
     Boolean(onRequestReview) && reviewAgents.length > 0 && discussionThreads.length > 0;
   const reviewingAgents = reviewAgents.filter((agent) => reviewingAgentIds.has(agent.id));
+  const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
   const thoughtAuthors = useMemo(
     () => uniqueThoughtAuthors(discussionThreads, userProfile, personaAgents),
     [discussionThreads, personaAgents, userProfile],
@@ -343,12 +346,15 @@ export function AnnotationCard({
             <span className="reader-note-thread-toggle-main">
               <span
                 className="reader-comment-count"
-                aria-label={`${discussionThreads.length} 条想法`}
+                aria-label={`${visibleThoughtCount} 条想法${
+                  pendingAgents.length > 0 ? '，助手处理中' : ''
+                }`}
               >
-                <span>{discussionThreads.length}</span>
+                <span>{visibleThoughtCount}</span>
                 <Lightbulb size={14} />
               </span>
               <ThoughtAuthorStack authors={thoughtAuthors} />
+              <PendingAgentStack agents={pendingAgents} />
             </span>
             <span className="reader-note-thread-toggle-side">
               {primaryCommentExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
@@ -456,10 +462,11 @@ export function AnnotationCard({
                 ))}
               </div>
             ) : null}
+            <PendingAgentThoughts agents={pendingAgents} />
             <div
               className={[
                 'reader-new-thought-composer',
-                discussionThreads.length === 0 ? 'is-empty' : '',
+                discussionThreads.length === 0 && pendingAgents.length === 0 ? 'is-empty' : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
@@ -518,6 +525,53 @@ function ThoughtAuthorStack({ authors }: { authors: ThoughtAuthor[] }) {
       ))}
       {hiddenCount > 0 ? <span className="reader-thought-author-more">+{hiddenCount}</span> : null}
     </span>
+  );
+}
+
+function PendingAgentStack({ agents }: { agents: PublicAgent[] }) {
+  if (agents.length === 0) return null;
+
+  return (
+    <span
+      className="reader-pending-agent-stack"
+      aria-label={`${agents.map((agent) => agent.nickname).join('、')} 正在整理想法`}
+    >
+      {agents.slice(0, MAX_FOOTER_AUTHORS).map((agent) => (
+        <span
+          className="reader-pending-agent-avatar"
+          key={agent.id}
+          style={avatarColorStyle(agent.annotationColor)}
+          title={`${agent.nickname} 正在整理想法`}
+        >
+          <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+        </span>
+      ))}
+      {agents.length > MAX_FOOTER_AUTHORS ? (
+        <span className="reader-pending-agent-more">+{agents.length - MAX_FOOTER_AUTHORS}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function PendingAgentThoughts({ agents }: { agents: PublicAgent[] }) {
+  if (agents.length === 0) return null;
+
+  const label =
+    agents.length === 1
+      ? `${agents[0]!.nickname} 正在整理想法`
+      : `${agents.length} 位助手正在整理想法`;
+
+  return (
+    <div className="reader-pending-thoughts" role="status" aria-live="polite">
+      <PendingAgentStack agents={agents} />
+      <span className="reader-pending-thought-copy">
+        <strong>{label}</strong>
+        <em>正在理解这段，稍后会补上想法。</em>
+      </span>
+      <span className="reader-pending-thought-progress" aria-hidden="true">
+        <i />
+      </span>
+    </div>
   );
 }
 

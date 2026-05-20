@@ -76,6 +76,81 @@ function annotation(comments: AnnotationComment[]): Annotation {
 }
 
 describe('runSourceAgentCommentRequest', () => {
+  it('shows a pending reply before the stream starts', async () => {
+    const rootComment = comment();
+    const targetAnnotation = annotation([rootComment]);
+    const annotationsRef = { current: [targetAnnotation] };
+    const applyAnnotations = vi.fn((annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+      return article(annotations[0]!);
+    });
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+    const desktop = {
+      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+        const pendingReply = annotationsRef.current[0]?.comments.find(
+          (item) => item.author === 'ai',
+        );
+        expect(pendingReply).toEqual(
+          expect.objectContaining({
+            agentId: agent.id,
+            pending: true,
+            replyTo: rootComment.id,
+          }),
+        );
+        onEvent({
+          type: 'start',
+          comment: {
+            id: 'comment_agent',
+            author: 'ai',
+            content: '',
+            createdAt: now,
+            agentId: agent.id,
+            agentUsername: agent.username,
+            agentNickname: agent.nickname,
+            pending: true,
+          },
+        });
+        return {
+          id: 'comment_agent',
+          author: 'ai' as const,
+          content: '我先回应这条想法。',
+          createdAt: now,
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+          pending: false,
+        };
+      }),
+    };
+
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: targetAnnotation,
+      userComment: rootComment,
+      desktop,
+      currentArticle: article(targetAnnotation),
+      articleText: '正文',
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage: vi.fn(),
+    });
+
+    expect(applyAnnotations.mock.invocationCallOrder[0]).toBeLessThan(
+      desktop.requestAgentCommentStream.mock.invocationCallOrder[0]!,
+    );
+    expect(annotationsRef.current[0]?.comments).toContainEqual(
+      expect.objectContaining({
+        id: 'comment_agent',
+        content: '我先回应这条想法。',
+        pending: false,
+        replyTo: rootComment.id,
+      }),
+    );
+  });
+
   it('restores a streaming reply when a stale article update removes the pending comment', async () => {
     const rootComment = comment();
     const replyComment = comment({
