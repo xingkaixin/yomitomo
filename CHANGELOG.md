@@ -1,5 +1,95 @@
 # Changelog
 
+## 0.4.0 - 2026-05-21
+
+### 新功能
+
+- 桌面端新增应用更新流程，并把关于页、引导页和官网下载入口连到 GitHub Release 产物。(#51, #100, #101)
+- 新增产品官网 `apps/web`，提供 Yomitomo landing page、macOS / Windows 下载链接、SEO 元信息、sitemap、robots 和社交预览图。(#94, #100, #101)
+- 设置页新增数据管理能力，可查看数据目录、日志和数据库文件，备份/还原 SQLite 数据库，并在数据库版本不兼容时给出明确提示。(#93, #95, #96)
+- Provider 设置改为安全保存 API key，支持显式查看已保存 key、拉取模型列表、配置任务路由，并简化模型设置表单。(#52, #97, #98, #99)
+- 阅读器想法和讨论体验升级，支持选区 `@助手` 路由、审阅助手评论、批注讨论卡、悬浮目录、双侧笔记栏和待处理助手状态。(#78, #85, #90, #91, #102, #104)
+
+### 调整
+
+- 移除读后输出流程，让产品重心收敛到原文锚点、想法线程、评论讨论和助手共读。(#76)
+- 阅读库拆分网页文章和 EPUB 电子书入口，优化首页布局、返回来源、资料卡片和 EPUB 导入记录体积。(#54, #86, #87, #88)
+- 阅读器布局和交互进一步打磨，包括源阅读器布局、批注连接线、想法计数、共读控制、头像 hover 和想法输入器交互。(#77, #83, #84, #89, #103, #105)
+
+### 性能
+
+- EPUB 阅读复用 DOM 文本索引，减少翻页、页面更新和批注渲染的重复计算。(#74, #79, #80)
+- 优化批注热路径、运行时 import 热点和阅读库 article payload 加载，降低大书和大库场景下的启动与交互成本。(#81, #82, #92)
+
+### 修复
+
+- 修复 EPUB 批注渲染、翻页速度、页面位置恢复、页面更新和堆叠批注连接线稳定性问题。(#72, #73, #74, #75, #79)
+- 修复 Provider 删除 API key 后名称保留、开发数据库迁移历史保留、数据库兼容错误展示和目标批注归属保持问题。(#71, #93, #95, #103)
+- 修复阅读库返回后来源丢失、助手待处理态不可见、想法输入器交互细节和共读控制状态问题。(#84, #88, #104, #105)
+
+### 工程
+
+- 拆分 main app state、source bookcase、设置面板、reader 组件、批注评论输入器、助手批注队列、agent runtime、provider settings 和 EPUB runtime 边界，降低核心 UI 与运行时代码复杂度。(#53, #55, #56, #58, #60, #61, #63, #65, #66, #68, #69, #70)
+- 抽取阅读卡片工作流状态、source agent 请求管线和代码健康热点边界，并补充运行时性能热点审计文档。(#57, #62, #64, #67, #82)
+
+### Changelog Detail
+
+- #105 fix(reader): polish thought composer interactions @xingkaixin
+- #104 fix(reader): show pending assistant state @xingkaixin
+- #103 fix(reader): preserve target annotation ownership @xingkaixin
+- #102 feat(reader): route selection mentions @xingkaixin
+- #101 Add social preview assets and desktop links @xingkaixin
+- #100 Update web landing page downloads and SEO @xingkaixin
+- #99 fix(provider): simplify model settings @xingkaixin
+- #98 [codex] Reveal stored provider API keys @xingkaixin
+- #97 Improve model routing settings UI @xingkaixin
+- #96 feat(desktop): add data management settings @xingkaixin
+- #95 fix(desktop): preserve dev DB migration @xingkaixin
+- #94 feat(web): add product landing page @xingkaixin
+- #93 fix(desktop): show database compatibility errors @xingkaixin
+- #92 fix(library): lazy-load article payloads @xingkaixin
+- #91 [codex] Add review assistant comments @xingkaixin
+- #90 feat(reader): float toc and balance note rails @xingkaixin
+- #89 fix(desktop): refine profile avatar hover state @xingkaixin
+- #88 fix: preserve library source on return @xingkaixin
+- #87 fix(desktop): shrink EPUB import records @xingkaixin
+- #86 fix(desktop): adjust library home layout @xingkaixin
+- #85 feat(reader): update annotation discussion cards @xingkaixin
+- #84 Fix reader thought counts and co-reading controls @xingkaixin
+- #83 Fix reader library UI polish @xingkaixin
+- #82 perf: optimize runtime import hotspots @xingkaixin
+- #81 perf: optimize annotation hot paths @xingkaixin
+- #80 perf: reuse EPUB DOM text index @xingkaixin
+- #79 fix: stabilize ebook page updates @xingkaixin
+- #78 feat: refine annotation thought threads @xingkaixin
+- #77 fix(reader): align source reader layout @xingkaixin
+- #76 feat: remove reading output flows @xingkaixin
+- #75 fix(desktop): restore ebook page position @xingkaixin
+- #74 fix(desktop): speed up ebook page turns @xingkaixin
+- #73 fix(reader): align stacked annotation connector @xingkaixin
+- #72 fix: stabilize EPUB annotation rendering @xingkaixin
+- #71 fix(desktop): preserve provider name on key removal @xingkaixin
+- #70 refactor(desktop): split ebook runtime boundary @xingkaixin
+- #69 refactor(ai): split agent runtime boundary @xingkaixin
+- #68 refactor: split provider settings boundary @xingkaixin
+- #67 refactor: split code health boundaries @xingkaixin
+- #66 refactor: split source bookcase runtime state @xingkaixin
+- #65 refactor(desktop): split main app state @xingkaixin
+- #64 refactor: split code health hotspots @xingkaixin
+- #63 refactor(reader-ui): split agent annotation queue @xingkaixin
+- #62 refactor: extract source agent request pipeline @xingkaixin
+- #61 refactor(reader-ui): split reader app view shell @xingkaixin
+- #60 refactor: split reading library home @xingkaixin
+- #59 fix(desktop): guard stale reading card results @xingkaixin
+- #58 refactor(reader-ui): split annotation comment composer @xingkaixin
+- #57 refactor: extract reading card workflow state @xingkaixin
+- #56 refactor(settings): split settings panels @xingkaixin
+- #55 refactor(reader-ui): split reader components @xingkaixin
+- #54 feat(desktop): split source bookcase readers @xingkaixin
+- #53 refactor: split code health hotspots @xingkaixin
+- #52 fix(desktop): store provider API keys securely @xingkaixin
+- #51 feat(desktop): add app update flow @xingkaixin
+
 ## 0.3.0 - 2026-05-15
 
 ### 新功能
