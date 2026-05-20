@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
+  AgentReadingIntent,
   Annotation,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -20,6 +21,8 @@ import {
   annotationPrimaryComment,
   annotationThoughtComments,
   annotationIdsAtHighlightPoint,
+  appendAnnotationComment,
+  createUserComment,
   createEpubTextAnchor,
   findMentionedAgents,
   findCurrentTocTarget,
@@ -59,12 +62,16 @@ import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { articleIdentityLine } from './app-utils';
 import {
   articleWithAnnotations,
+  agentInstructionFromNote,
   defaultTocOpen,
+  mentionDirectivesForAgent,
   normalizeDesktopReaderSettings,
+  planSelectionMentionRoute,
   promptArticle,
   publicAnnotationAgents,
   publicReviewAgents,
   readDesktopReaderSettings,
+  routeFocusReadingPlanMessages,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type WebSourceBookcaseProps,
@@ -345,18 +352,81 @@ export function WebSourceBookcase({
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
     const articleContext = promptArticle(currentArticle, currentArticleText());
-
     cancelComposer();
-    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
+    const mentionedAgents = findMentionedAgents(note, annotationAgents);
+    const annotation = createUserAnnotation(currentComposer.anchor, userProfile, '');
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
-    void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
 
-    const mentionedAgents = findMentionedAgents(note, annotationAgents);
-    const primaryComment = annotationPrimaryComment(annotation);
-    if (primaryComment) {
-      for (const agent of mentionedAgents) {
-        void requestAgentComment(agent, annotation, primaryComment);
+    if (mentionedAgents.length === 0) {
+      const comment = createUserComment(userProfile, note, { now: annotation.createdAt });
+      const nextAnnotations = appendAnnotationComment(
+        annotationsRef.current,
+        annotation.id,
+        comment,
+        annotation.createdAt,
+      );
+      const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
+      if (!nextAnnotations || !nextAnnotation) return;
+      await saveAnnotations(nextAnnotations);
+      void inferAnnotationMetadataForAnnotation(currentArticle.id, nextAnnotation, articleContext);
+      return;
+    }
+
+    const mentionRoute = await planSelectionMentionRoute({
+      desktop: window.yomitomoDesktop,
+      note,
+      targetAnchor: currentComposer.anchor,
+      agents: mentionedAgents,
+      article: articleContext,
+    });
+    let primaryComment: AnnotationComment | null = null;
+    if (mentionRoute.createUserThought) {
+      const comment = createUserComment(userProfile, note, { now: annotation.createdAt });
+      const nextAnnotations = appendAnnotationComment(
+        annotationsRef.current,
+        annotation.id,
+        comment,
+        annotation.createdAt,
+      );
+      const nextAnnotation = nextAnnotations?.find((item) => item.id === annotation.id);
+      if (nextAnnotations && nextAnnotation) {
+        await saveAnnotations(nextAnnotations);
+        primaryComment = annotationPrimaryComment(nextAnnotation);
+        void inferAnnotationMetadataForAnnotation(
+          currentArticle.id,
+          nextAnnotation,
+          articleContext,
+        );
+      }
+    }
+
+    for (const agent of mentionedAgents) {
+      const directives = mentionDirectivesForAgent(mentionRoute, agent);
+      const commentDirectives = directives.filter((directive) => directive.action === 'comment');
+      const thoughtDirectives = directives.filter(
+        (directive) => directive.action === 'create_thought',
+      );
+      if (primaryComment) {
+        for (const directive of commentDirectives) {
+          void requestAgentComment(agent, annotation, primaryComment, undefined, {
+            instruction: directive.instruction,
+            readingIntent: directive.readingIntent,
+          });
+        }
+      }
+      for (const directive of thoughtDirectives.length > 0
+        ? thoughtDirectives
+        : !primaryComment && commentDirectives.length > 0
+          ? commentDirectives
+          : []) {
+        void requestAgentAnnotations(agent, {
+          targetAnchor: currentComposer.anchor,
+          instruction: directive.instruction || agentInstructionFromNote(note, [agent]),
+          readingIntent: directive.readingIntent,
+          article: articleContext,
+          articleId: currentArticle.id,
+        });
       }
     }
   }
@@ -402,12 +472,19 @@ export function WebSourceBookcase({
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    await onUpdateArticle(articleId, (targetArticle) =>
-      articleWithAnnotations(
-        targetArticle,
-        mergeAgentAnnotationAsThought(targetArticle.annotations, annotation).annotations,
-      ),
-    );
+    let activeId = annotation.id;
+    if (isCurrentArticle(articleId)) {
+      const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
+      activeId = result.activeId;
+      applyAnnotations(result.annotations);
+      openAnnotation(result.activeId);
+    }
+    await onUpdateArticle(articleId, (targetArticle) => {
+      const result = mergeAgentAnnotationAsThought(targetArticle.annotations, annotation);
+      activeId = result.activeId;
+      return articleWithAnnotations(targetArticle, result.annotations);
+    });
+    return activeId;
   }
 
   async function requestAgentComment(
@@ -415,6 +492,7 @@ export function WebSourceBookcase({
     annotation: Annotation,
     userComment: AnnotationComment,
     reviewTargetCommentId?: string,
+    options: { instruction?: string; readingIntent?: AgentReadingIntent } = {},
   ) {
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
@@ -424,6 +502,8 @@ export function WebSourceBookcase({
       agent,
       annotation,
       userComment,
+      instruction: options.instruction,
+      readingIntent: options.readingIntent,
       desktop,
       currentArticle,
       articleText: currentArticleText(),
@@ -614,13 +694,31 @@ export function WebSourceBookcase({
       annotations: annotationsRef.current,
       readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
     });
-    const { readingPlan } = requestInput;
+    const routedReadingPlan = await routeFocusReadingPlanMessages({
+      desktop,
+      agent,
+      agents: annotationAgents,
+      article: articleContext,
+      readingPlan: requestInput.readingPlan,
+    });
+    const routedRequestInput =
+      routedReadingPlan === requestInput.readingPlan
+        ? requestInput
+        : {
+            ...requestInput,
+            readingPlan: routedReadingPlan,
+            payload: {
+              ...requestInput.payload,
+              readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
+            },
+          };
+    const { readingPlan } = routedRequestInput;
 
-    startAgentAnnotationPlayback(agent, readingPlan, requestInput.playbackMode, showProgress);
+    startAgentAnnotationPlayback(agent, readingPlan, routedRequestInput.playbackMode, showProgress);
     try {
       const { result, annotationCount } = await runSourceAgentAnnotationRequest({
         desktop,
-        requestInput,
+        requestInput: routedRequestInput,
         onAnnotation: (annotation) =>
           handleAgentAnnotationStreamItem(
             articleId,

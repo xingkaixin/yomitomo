@@ -692,6 +692,7 @@ export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
   readingIntent?: AgentReadingIntent;
+  instruction?: string;
   reviewTargetCommentId?: string;
   agentRoster?: PublicAgent[];
   readerProgress?: ReaderProgress;
@@ -829,7 +830,13 @@ export type AgentReadingPlanMessage = {
 
 export type AgentMentionInstructionPayload = {
   note: string;
-  targetAnchor: TextAnchor;
+  targetAnchor?: TextAnchor;
+  targetSection?: {
+    sectionId?: string;
+    sectionTitle?: string;
+    text: string;
+  };
+  allowedActions?: AgentMentionAction[];
   agents: PublicAgent[];
   article: {
     title: string;
@@ -838,9 +845,19 @@ export type AgentMentionInstructionPayload = {
   };
 };
 
-export type AgentMentionInstruction = {
+export type AgentMentionAction = 'comment' | 'create_thought';
+
+export type AgentMentionDirective = {
   agentId?: string;
   agentUsername: string;
+  action: AgentMentionAction;
   instruction?: string;
   readingIntent?: AgentReadingIntent;
 };
+
+export type AgentMentionRoutePlan = {
+  createUserThought: boolean;
+  directives: AgentMentionDirective[];
+};
+
+export type AgentMentionInstruction = AgentMentionDirective;
