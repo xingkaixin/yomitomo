@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AgentMentionRoutePlan, Annotation, PublicAgent } from '@yomitomo/shared';
+import type {
+  AgentMentionRoutePlan,
+  Annotation,
+  ArticleRecord,
+  PublicAgent,
+} from '@yomitomo/shared';
 import {
   agentInstructionFromNote,
+  articleWithMergedAgentAnnotation,
   planSelectionMentionRoute,
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
@@ -49,6 +55,17 @@ describe('targetAnchorReadingPlan', () => {
     expect(targetAnchorReadingPlan(undefined, 'explain')).toEqual([]);
   });
 
+  it('builds a selected-anchor plan without a reading intent', () => {
+    expect(targetAnchorReadingPlan(anchor, undefined)).toEqual([
+      {
+        sectionId: 'target-selection',
+        sectionTitle: '选区',
+        sectionStart: 4,
+        sectionEnd: 8,
+      },
+    ]);
+  });
+
   it('builds a single-section plan for the selected anchor', () => {
     expect(targetAnchorReadingPlan(anchor, 'challenge')).toEqual([
       {
@@ -59,6 +76,83 @@ describe('targetAnchorReadingPlan', () => {
         readingIntent: 'challenge',
       },
     ]);
+  });
+});
+
+describe('articleWithMergedAgentAnnotation', () => {
+  const anchor: Annotation['anchor'] = {
+    exact: '用户划线',
+    prefix: '',
+    suffix: '',
+    start: 4,
+    end: 8,
+  };
+  const userAnnotation: Annotation = {
+    id: 'user-note',
+    anchor,
+    author: 'user',
+    color: '#f4c95d',
+    userId: 'user-1',
+    userUsername: 'kevin',
+    userNickname: 'Kevin',
+    comments: [],
+    createdAt: '2026-05-20T00:00:00.000Z',
+    updatedAt: '2026-05-20T00:00:00.000Z',
+  };
+  const agentAnnotation: Annotation = {
+    id: 'agent-note',
+    anchor,
+    author: 'ai',
+    color: '#8a8f4f',
+    agentId: 'agent_lin',
+    agentUsername: 'lin',
+    agentNickname: 'lin',
+    comments: [
+      {
+        id: 'comment-1',
+        author: 'ai',
+        content: '助手想法',
+        agentId: 'agent_lin',
+        agentUsername: 'lin',
+        agentNickname: 'lin',
+        createdAt: '2026-05-20T00:00:01.000Z',
+      },
+    ],
+    createdAt: '2026-05-20T00:00:01.000Z',
+    updatedAt: '2026-05-20T00:00:01.000Z',
+  };
+  const staleArticle = {
+    id: 'article-1',
+    sourceType: 'web',
+    url: 'https://example.com',
+    canonicalUrl: 'https://example.com',
+    title: '文章',
+    contentHtml: '<p>正文</p>',
+    contentHash: 'hash',
+    annotations: [],
+    createdAt: '2026-05-20T00:00:00.000Z',
+    updatedAt: '2026-05-20T00:00:00.000Z',
+  } as ArticleRecord;
+
+  it('persists the current user-owned merge over a stale article snapshot', () => {
+    const mergedUserAnnotation = {
+      ...userAnnotation,
+      comments: agentAnnotation.comments,
+      updatedAt: agentAnnotation.updatedAt,
+    };
+    const result = articleWithMergedAgentAnnotation(staleArticle, agentAnnotation, {
+      activeId: userAnnotation.id,
+      annotations: [mergedUserAnnotation],
+    });
+
+    expect(result.activeId).toBe(userAnnotation.id);
+    expect(result.article.annotations).toHaveLength(1);
+    expect(result.article.annotations[0]).toMatchObject({
+      id: userAnnotation.id,
+      author: 'user',
+      userUsername: 'kevin',
+      comments: agentAnnotation.comments,
+    });
   });
 });
 

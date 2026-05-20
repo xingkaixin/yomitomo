@@ -18,6 +18,7 @@ import {
   annotationNavigationForReferenceIndex,
   clampNumber,
   defaultReaderSettings,
+  mergeAgentAnnotationAsThought,
   type ReaderSettings,
   type SelectionAction,
 } from '@yomitomo/reader-ui';
@@ -146,6 +147,18 @@ export function articleWithAnnotations(article: ArticleRecord, annotations: Anno
   };
 }
 
+export function articleWithMergedAgentAnnotation(
+  article: ArticleRecord,
+  annotation: Annotation,
+  currentMerge?: ReturnType<typeof mergeAgentAnnotationAsThought> | null,
+) {
+  const result = currentMerge || mergeAgentAnnotationAsThought(article.annotations, annotation);
+  return {
+    activeId: result.activeId,
+    article: articleWithAnnotations(article, result.annotations),
+  };
+}
+
 export function navigationForActiveAnnotation(annotations: Annotation[], activeId: string | null) {
   if (!activeId) return null;
   const activeIndex = annotations.findIndex((annotation) => annotation.id === activeId);
@@ -235,14 +248,14 @@ export function targetAnchorReadingPlan(
   anchor: Annotation['anchor'] | undefined,
   readingIntent: AgentReadingIntent | undefined,
 ): AgentReadingPlanItem[] {
-  if (!anchor || !readingIntent) return [];
+  if (!anchor) return [];
   return [
     {
       sectionId: 'target-selection',
       sectionTitle: '选区',
       sectionStart: anchor.start,
       sectionEnd: anchor.end,
-      readingIntent,
+      ...(readingIntent ? { readingIntent } : {}),
     },
   ];
 }
