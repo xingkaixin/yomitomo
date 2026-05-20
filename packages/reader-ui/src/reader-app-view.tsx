@@ -157,6 +157,7 @@ export function ReaderAppView({
   selectionAction,
   settingsOpen,
   messageSendShortcut,
+  pendingAnnotationAgents = {},
   selectionActionShortcuts,
   shortcutModifier,
   surfaceRef,
@@ -385,6 +386,7 @@ export function ReaderAppView({
           onHighlightClick={onHighlightClick}
           onMouseUp={onMouseUp}
           onOpenComposer={onOpenComposer}
+          pendingAnnotationAgents={pendingAnnotationAgents}
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
           onRequestAnnotationReview={onRequestAnnotationReview}
           reviewAgents={reviewAgents}

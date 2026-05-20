@@ -63,6 +63,7 @@ export function useReaderAnnotationRail({
   const noteRefCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
   );
+  const pendingAutoExpandAnnotationIdsRef = React.useRef(new Set<string>());
   const sourceAnnotationIdsSnapshotRef = React.useRef({
     articleId,
     ids: new Set(filteredAnnotations.map((annotation) => annotation.id)),
@@ -184,6 +185,7 @@ export function useReaderAnnotationRail({
       sourceAnnotationIds.every((id) => previous.ids.has(id));
 
     if (previous.articleId !== articleId) {
+      pendingAutoExpandAnnotationIdsRef.current.clear();
       sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
       setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));
       return;
@@ -194,7 +196,17 @@ export function useReaderAnnotationRail({
       : sourceAnnotationIds.filter((id) => !previous.ids.has(id));
     if (!sameArticleSourceAnnotationIds) {
       sourceAnnotationIdsSnapshotRef.current = { articleId, ids: sourceAnnotationIdSet };
+      for (const id of addedIds) pendingAutoExpandAnnotationIdsRef.current.add(id);
     }
+
+    for (const id of pendingAutoExpandAnnotationIdsRef.current) {
+      if (!sourceAnnotationIdSet.has(id)) pendingAutoExpandAnnotationIdsRef.current.delete(id);
+    }
+
+    const autoExpandIds = Array.from(pendingAutoExpandAnnotationIdsRef.current).filter((id) =>
+      renderedAnnotationIdSet.has(id),
+    );
+    for (const id of autoExpandIds) pendingAutoExpandAnnotationIdsRef.current.delete(id);
 
     setExpandedPrimaryCommentIds((current) => {
       let changed = false;
@@ -205,8 +217,7 @@ export function useReaderAnnotationRail({
         else changed = true;
       }
 
-      for (const id of addedIds) {
-        if (!renderedAnnotationIdSet.has(id)) continue;
+      for (const id of autoExpandIds) {
         if (next.has(id)) continue;
         next.add(id);
         changed = true;

@@ -82,6 +82,7 @@ export type ReaderAppViewProps = {
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
   messageSendShortcut: MessageSendShortcut;
+  pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;

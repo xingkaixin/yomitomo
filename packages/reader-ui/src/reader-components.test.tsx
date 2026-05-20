@@ -328,6 +328,31 @@ describe('AnnotationCard', () => {
     expect(screen.queryByText('还没有想法')).toBeNull();
   });
 
+  it('shows pending assistant work inside an empty expanded annotation', () => {
+    render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={{ ...annotation(), comments: [] }}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        pendingAgents={[agent('agent_1', '林知微')]}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('1 条想法，助手处理中')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('林知微 正在整理想法');
+    expect(screen.getByRole('button', { name: '添加想法' })).toBeTruthy();
+  });
+
   it('shows expanded top-level thought content only once', () => {
     const target = annotation({
       comments: [

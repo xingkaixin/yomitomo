@@ -5,6 +5,7 @@ import type {
   Comment as AnnotationComment,
   PublicAgent,
 } from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './app-source-bookcase-shared';
@@ -83,6 +84,30 @@ export async function runSourceAgentCommentRequest({
     pendingFrame = window.requestAnimationFrame(flushDelta);
   };
   try {
+    const placeholderComment: AnnotationComment = {
+      id: makeId('comment'),
+      author: 'ai',
+      content: '',
+      createdAt: new Date().toISOString(),
+      replyTo: replyTargetId,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      agentAvatar: agent.avatar,
+      agentAnnotationColor: agent.annotationColor,
+      readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
+      pending: true,
+    };
+    pendingCommentId = placeholderComment.id;
+    pendingComment = placeholderComment;
+    const pendingAnnotations = appendAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      placeholderComment,
+      placeholderComment.createdAt,
+    );
+    if (pendingAnnotations) applyAnnotations(pendingAnnotations);
+
     const finalComment = await desktop.requestAgentCommentStream(
       {
         agentId: agent.id,
@@ -96,18 +121,26 @@ export async function runSourceAgentCommentRequest({
       },
       (event) => {
         if (event.type === 'start') {
-          pendingCommentId = event.comment.id;
+          const placeholderId = pendingCommentId;
+          pendingCommentId = event.comment.id || placeholderId;
           pendingComment = {
             ...event.comment,
+            id: pendingCommentId,
             replyTo: replyTargetId,
           };
-          const nextAnnotations = appendAnnotationComment(
+          const nextAnnotations = updateAnnotationComment(
             annotationsRef.current,
             annotation.id,
-            pendingComment,
+            placeholderId,
+            () => pendingComment!,
             pendingComment.createdAt,
           );
-          if (nextAnnotations) applyAnnotations(nextAnnotations);
+          if (
+            nextAnnotations &&
+            hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
+          ) {
+            applyAnnotations(nextAnnotations);
+          }
           return;
         }
 

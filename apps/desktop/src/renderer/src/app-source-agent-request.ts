@@ -7,6 +7,7 @@ import type {
   PublicAgent,
   ReadingMemory,
 } from '@yomitomo/shared';
+import { makeId } from '@yomitomo/shared';
 import type { PromptArticle } from './app-reading-types';
 import { targetAnchorReadingPlan } from './app-source-bookcase-shared';
 
@@ -18,6 +19,7 @@ export type SourceAgentAnnotationRequestOptions = {
   readingPlan?: AgentReadingPlanItem[];
   article?: PromptArticle;
   articleId?: string;
+  pendingAnnotationId?: string;
 };
 
 export type SourceAgentAnnotationRuntimeContext = {
@@ -68,6 +70,47 @@ export function buildAgentAnnotationRequestInput(
     playbackMode: isTargetRequest ? 'target' : hasReadingPlan ? 'careful' : 'article',
     shouldSaveReadingMemory,
   };
+}
+
+export function createPendingAgentAnnotation(
+  agent: PublicAgent,
+  targetAnchor: Annotation['anchor'],
+  readingIntent?: AgentReadingIntent,
+  now = new Date().toISOString(),
+): Annotation {
+  return {
+    id: makeId('annotation'),
+    anchor: targetAnchor,
+    author: 'ai',
+    color: agent.annotationColor,
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+    readingIntent,
+    comments: [
+      {
+        id: makeId('comment'),
+        author: 'ai',
+        content: `${agent.nickname} 正在思考`,
+        createdAt: now,
+        agentId: agent.id,
+        agentUsername: agent.username,
+        agentNickname: agent.nickname,
+        agentAvatar: agent.avatar,
+        agentAnnotationColor: agent.annotationColor,
+        readingIntent,
+        pending: true,
+      },
+    ],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function withoutAnnotationId(annotations: Annotation[], annotationId: string) {
+  return annotations.filter((annotation) => annotation.id !== annotationId);
 }
 
 export async function runSourceAgentAnnotationRequest({

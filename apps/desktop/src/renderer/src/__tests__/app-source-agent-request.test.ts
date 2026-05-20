@@ -7,7 +7,9 @@ import type {
 } from '@yomitomo/shared';
 import {
   buildAgentAnnotationRequestInput,
+  createPendingAgentAnnotation,
   runSourceAgentAnnotationRequest,
+  withoutAnnotationId,
 } from '../app-source-agent-request';
 import type { PromptArticle } from '../app-reading-types';
 
@@ -33,6 +35,8 @@ const article: PromptArticle = {
   url: 'https://example.com/article',
   text: '一二三四五六七八九十',
 };
+
+const now = '2026-05-16T00:00:00.000Z';
 
 const anchor: Annotation['anchor'] = {
   exact: '三四',
@@ -175,5 +179,37 @@ describe('runSourceAgentAnnotationRequest', () => {
 
     expect(result.annotationCount).toBe(1);
     expect(result.result.readingMemory).toBe(readingMemory);
+  });
+});
+
+describe('pending agent annotation', () => {
+  it('builds a temporary thinking annotation for target requests', () => {
+    const pending = createPendingAgentAnnotation(agent(), anchor, 'explain', now);
+
+    expect(pending).toEqual(
+      expect.objectContaining({
+        anchor,
+        author: 'ai',
+        agentId: 'agent_lin',
+        readingIntent: 'explain',
+        createdAt: now,
+        updatedAt: now,
+      }),
+    );
+    expect(pending.comments).toEqual([
+      expect.objectContaining({
+        author: 'ai',
+        content: 'lin 正在思考',
+        agentId: 'agent_lin',
+        readingIntent: 'explain',
+        pending: true,
+      }),
+    ]);
+  });
+
+  it('removes a temporary thinking annotation by id', () => {
+    const pending = createPendingAgentAnnotation(agent(), anchor, undefined, now);
+
+    expect(withoutAnnotationId([annotation, pending], pending.id)).toEqual([annotation]);
   });
 });

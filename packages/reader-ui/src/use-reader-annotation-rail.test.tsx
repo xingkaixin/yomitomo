@@ -272,4 +272,42 @@ describe('useReaderAnnotationRail', () => {
       expect(screen.getByTestId('expanded').textContent).toBe('');
     });
   });
+
+  it('expands a new annotation when it enters the current rail subset later', async () => {
+    const firstNote = annotation('user-note');
+    const addedNote = annotation('agent-note', {
+      author: 'ai',
+      agentId: 'agent-a',
+      agentUsername: 'agent_a',
+    });
+    const noteRefs = createNoteRefs();
+
+    const { rerender } = render(
+      <HookProbe annotations={[firstNote]} filteredAnnotations={[firstNote]} noteRefs={noteRefs} />,
+    );
+
+    rerender(
+      <HookProbe
+        annotations={[firstNote]}
+        filteredAnnotations={[firstNote, addedNote]}
+        noteRefs={noteRefs}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('expanded').textContent).toBe('');
+    });
+
+    rerender(
+      <HookProbe
+        annotations={[firstNote, addedNote]}
+        filteredAnnotations={[firstNote, addedNote]}
+        noteRefs={noteRefs}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('expanded').textContent).toBe('agent-note');
+    });
+  });
 });
