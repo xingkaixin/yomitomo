@@ -12912,6 +12912,79 @@ button.license-package-row:hover {
   box-shadow: none;
 }
 
+.source-reader-shell .reader-composer,
+.source-ebook-reader-shell .reader-composer {
+  border-color: hsl(var(--border) / 0.92);
+  border-radius: 8px;
+  box-shadow:
+    0 18px 42px hsl(var(--foreground) / 0.11),
+    0 3px 10px hsl(var(--foreground) / 0.06),
+    inset 0 1px 0 hsl(var(--background) / 0.9);
+}
+
+.source-reader-shell .reader-composer:focus-within,
+.source-ebook-reader-shell .reader-composer:focus-within {
+  box-shadow:
+    0 20px 48px hsl(var(--foreground) / 0.12),
+    0 4px 12px hsl(var(--foreground) / 0.06),
+    0 0 0 2px hsl(var(--foreground) / 0.035),
+    inset 0 1px 0 hsl(var(--background) / 0.9);
+}
+
+.source-reader-shell .reader-composer-header,
+.source-ebook-reader-shell .reader-composer-header {
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background) / 0.68));
+  box-shadow: inset 0 -1px 0 hsl(var(--border) / 0.72);
+}
+
+.source-reader-shell .reader-composer textarea,
+.source-ebook-reader-shell .reader-composer textarea {
+  background: linear-gradient(180deg, hsl(var(--background) / 0.26), hsl(var(--card)) 32%);
+  box-shadow:
+    inset 0 1px 2px hsl(var(--foreground) / 0.05),
+    inset 0 -1px 0 hsl(var(--background) / 0.72);
+}
+
+.source-reader-shell .reader-composer-actions,
+.source-ebook-reader-shell .reader-composer-actions {
+  border-radius: 0 0 7px 7px;
+  background: linear-gradient(180deg, hsl(var(--background) / 0.78), hsl(var(--background) / 0.9));
+  box-shadow: inset 0 1px 0 hsl(var(--background) / 0.84);
+}
+
+.source-reader-shell .reader-inline-composer-panel,
+.source-ebook-reader-shell .reader-inline-composer-panel {
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 10px;
+  background: hsl(var(--card));
+  box-shadow:
+    0 10px 24px hsl(var(--foreground) / 0.06),
+    inset 0 1px 0 hsl(var(--background) / 0.86);
+  padding: 10px;
+}
+
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 8px;
+  background: linear-gradient(180deg, hsl(var(--background) / 0.18), hsl(var(--card)) 30%);
+  box-shadow:
+    inset 0 1px 2px hsl(var(--foreground) / 0.05),
+    0 1px 0 hsl(var(--background) / 0.86);
+}
+
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus,
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus-visible,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus-visible {
+  border-color: hsl(var(--foreground) / 0.36);
+  box-shadow:
+    inset 0 1px 2px hsl(var(--foreground) / 0.06),
+    0 0 0 2px hsl(var(--foreground) / 0.055),
+    0 1px 0 hsl(var(--background) / 0.86);
+}
+
 .source-reader-shell .reader-composer-types button,
 .source-ebook-reader-shell .reader-composer-types button {
   border-color: hsl(var(--border) / 0.72);
