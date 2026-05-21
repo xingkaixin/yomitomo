@@ -64,6 +64,7 @@ import {
   getAppUpdateState,
   installAppUpdate,
 } from './app-updater';
+import { configureDesktopAppStorage } from './app-environment';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreGetResult, DesktopStoreLoadErrorInfo } from '../app-store-errors';
 import { DatabaseTooNewError } from './db/compatibility';
@@ -71,8 +72,7 @@ import { DatabaseTooNewError } from './db/compatibility';
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
 
-app.setName('Yomitomo');
-app.setPath('userData', join(app.getPath('appData'), '@yomitomo/desktop'));
+configureDesktopAppStorage();
 setAiLogger({ info: logInfo, error: logError });
 
 async function createWindow() {

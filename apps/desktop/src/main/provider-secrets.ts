@@ -1,4 +1,4 @@
-const SERVICE_NAME = 'app.yomitomo.desktop';
+import { getDesktopAppProfile } from './app-environment';
 
 type KeyringModule = typeof import('@napi-rs/keyring');
 
@@ -36,7 +36,7 @@ export async function deleteProviderApiKey(providerId: string, apiKeyRef?: strin
 
 async function createEntry(account: string) {
   const { Entry } = await loadKeyring();
-  return new Entry(SERVICE_NAME, account);
+  return new Entry(getDesktopAppProfile().keychainService, account);
 }
 
 function loadKeyring() {
