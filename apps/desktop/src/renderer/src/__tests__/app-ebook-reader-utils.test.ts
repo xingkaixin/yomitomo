@@ -19,6 +19,22 @@ describe('configureFoliateView', () => {
     expect(renderer.hasAttribute('animated')).toBe(false);
     expect(renderer.getAttribute('flow')).toBe('paginated');
   });
+
+  it('applies reader font size through the ebook body', () => {
+    const renderer = document.createElement('div') as unknown as HTMLElement & {
+      setStyles: (styles: string | string[]) => void;
+    };
+    renderer.setStyles = vi.fn();
+
+    configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
+      fontSize: 22,
+      contentWidth: 720,
+    });
+
+    const styles = vi.mocked(renderer.setStyles).mock.calls[0]?.[0];
+    expect(styles).toContain('font-size: 22px;');
+    expect(styles).toContain('body {\n      font-size: inherit;');
+  });
 });
 
 describe('mappedFoliateRangeRects', () => {
