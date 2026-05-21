@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "yomitomo-download",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-21",
+  "routes": [
+    {
+      "pattern": "download.yomitomo.app",
+      "custom_domain": true,
+    },
+  ],
+}
