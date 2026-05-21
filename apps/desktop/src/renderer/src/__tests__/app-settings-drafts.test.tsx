@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 
 import { emptyStore } from '../app-settings';
@@ -9,6 +9,8 @@ import { useSettingsDrafts } from '../app-settings-drafts';
 
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, 'yomitomoDesktop');
+  vi.clearAllMocks();
 });
 
 describe('useSettingsDrafts', () => {
@@ -42,11 +44,86 @@ describe('useSettingsDrafts', () => {
     view.rerender(<Harness store={refreshedStore} storeSyncSnapshot={refreshedStore} />);
     await waitFor(() => expect(latest.current?.settingsDraft.saveArticleImages).toBe(false));
   });
+
+  it('returns true after saving profile changes', async () => {
+    const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
+    const nextStore = makeStore({
+      user: { ...emptyStore.user, nickname: '行开心' },
+    });
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        saveUser: vi.fn().mockResolvedValue(nextStore),
+      },
+    });
+
+    function Harness() {
+      latest.current = useSettingsDrafts({
+        store: emptyStore,
+        storeSyncSnapshot: emptyStore,
+        applyStore,
+      });
+      return null;
+    }
+
+    render(<Harness />);
+    await waitFor(() => expect(latest.current?.userDraft.nickname).toBe('我'));
+
+    act(() => {
+      latest.current?.updateUserDraft({ ...emptyStore.user, nickname: '行开心' });
+    });
+
+    let result = false;
+    await act(async () => {
+      result = Boolean(await latest.current?.saveProfileDraft());
+    });
+
+    expect(result).toBe(true);
+    expect(window.yomitomoDesktop.saveUser).toHaveBeenCalledWith(
+      expect.objectContaining({ nickname: '行开心' }),
+    );
+  });
+
+  it('returns false when profile saving fails', async () => {
+    const latest: { current?: ReturnType<typeof useSettingsDrafts> } = {};
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        saveUser: vi.fn().mockRejectedValue(new Error('save failed')),
+      },
+    });
+
+    function Harness() {
+      latest.current = useSettingsDrafts({
+        store: emptyStore,
+        storeSyncSnapshot: emptyStore,
+        applyStore,
+      });
+      return null;
+    }
+
+    render(<Harness />);
+    await waitFor(() => expect(latest.current?.userDraft.nickname).toBe('我'));
+
+    act(() => {
+      latest.current?.updateUserDraft({ ...emptyStore.user, nickname: '行开心' });
+    });
+
+    let result = true;
+    await act(async () => {
+      result = Boolean(await latest.current?.saveProfileDraft());
+    });
+
+    expect(result).toBe(false);
+  });
 });
 
-function makeStore(input: { settings?: DesktopStore['settings'] } = {}): DesktopStore {
+function makeStore(
+  input: { settings?: DesktopStore['settings']; user?: DesktopStore['user'] } = {},
+): DesktopStore {
   return {
     ...emptyStore,
+    user: input.user || emptyStore.user,
     settings: input.settings || {},
   };
 }

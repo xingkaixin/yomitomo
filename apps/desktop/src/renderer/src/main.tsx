@@ -288,7 +288,9 @@ function App() {
           canSave={canSaveUser}
           onChange={updateUserDraft}
           onClose={() => setProfileDialogOpen(false)}
-          onSave={saveProfileDraft}
+          onSave={async () => {
+            if (await saveProfileDraft()) window.setTimeout(() => setProfileDialogOpen(false), 700);
+          }}
           saveState={profileSaveState}
         />
       ) : null}
