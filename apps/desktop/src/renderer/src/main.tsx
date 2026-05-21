@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSettings } from '@yomitomo/shared';
+import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
 
 import type { SettingsSectionKey } from './app-settings-panels';
 import { AvatarImage } from './app-ui';
@@ -15,8 +15,9 @@ import './styles.css';
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
   import('./app-reading-library').then((module) => ({ default: module.ReadingLibrary }));
+const loadReadingStatsModule = () => import('./app-reading-stats');
 const loadReadingStatsPanel = () =>
-  import('./app-reading-stats').then((module) => ({ default: module.ReadingStatsPanel }));
+  loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
 const loadOnboardingFlow = () =>
   import('./app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
 const loadAgentSettings = () =>
@@ -52,7 +53,6 @@ const AboutSettings = lazy(loadAboutSettings);
 
 const idlePreloadModules = [
   loadAgentSettings,
-  loadReadingStatsPanel,
   loadSettingsSectionShell,
   loadGeneralSettings,
   loadProviderSettings,
@@ -62,8 +62,11 @@ const idlePreloadModules = [
   loadUserProfileSettingsDialog,
 ];
 
-function preloadIdleModules() {
+function preloadIdleModules(articles: ArticleRecord[]) {
   void Promise.allSettled(idlePreloadModules.map((load) => load()));
+  void loadReadingStatsModule()
+    .then((module) => module.preloadReadingStatsFirstPaintData(articles))
+    .catch(() => undefined);
 }
 
 type IdlePreloadHandle =
@@ -93,6 +96,7 @@ function App() {
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
+  const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
   const windowShowRequestedRef = useRef(false);
 
   useEffect(() => {
@@ -164,10 +168,10 @@ function App() {
     if (!storeLoaded || storeLoadError || showOnboarding) return;
     const idleId = scheduleIdlePreload(() => {
       recordStartupTiming('secondary_modules.preload_start');
-      preloadIdleModules();
+      preloadIdleModules(store.articles);
     });
     return () => cancelIdlePreload(idleId);
-  }, [showOnboarding, storeLoadError, storeLoaded]);
+  }, [showOnboarding, store.articles, storeLoadError, storeLoaded]);
 
   useEffect(() => {
     if (activeSetting !== 'library') setLibraryReaderOpen(false);
@@ -188,6 +192,16 @@ function App() {
   function openModelRoutesSettings() {
     setActiveSetting('settings');
     setActiveSettingsSection('models');
+  }
+
+  function openStats() {
+    const startedAt = performance.now();
+    setStatsNavigationStartedAt(startedAt);
+    recordStatsTiming('navigation_click', {
+      articleCount: store.articles.length,
+      rendererElapsedMs: elapsedMs(0),
+    });
+    setActiveSetting('stats');
   }
 
   function requestMainWindow(reason: string, data: Record<string, unknown>) {
@@ -253,11 +267,7 @@ function App() {
           label="助手"
           onClick={() => setActiveSetting('agents')}
         />
-        <SettingsNavButton
-          active={activeSetting === 'stats'}
-          label="统计"
-          onClick={() => setActiveSetting('stats')}
-        />
+        <SettingsNavButton active={activeSetting === 'stats'} label="统计" onClick={openStats} />
         <SettingsNavButton
           active={activeSetting === 'settings'}
           label="设置"
@@ -300,7 +310,11 @@ function App() {
             />
           ) : null}
           {activeSetting === 'stats' ? (
-            <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
+            <ReadingStatsPanel
+              articles={store.articles}
+              navigationStartedAt={statsNavigationStartedAt}
+              onRefresh={refreshStore}
+            />
           ) : null}
           {activeSetting === 'settings' ? (
             <SettingsSectionShell
@@ -473,6 +487,12 @@ function recordStartupTiming(event: string, data: Record<string, unknown> = {}) 
       },
     })
     .catch(() => undefined);
+}
+
+function recordStatsTiming(event: string, data: Record<string, unknown>) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop.recordPerformanceTiming({ event: `stats.${event}`, data }).catch(() => undefined);
 }
 
 function elapsedMs(startedAt: number) {
