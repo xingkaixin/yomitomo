@@ -164,7 +164,7 @@ export function useSettingsDrafts({
   }, []);
 
   const saveProfileDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !userHasChanges) return;
+    if (!window.yomitomoDesktop || !userHasChanges) return false;
     setProfileSaveState('saving');
     try {
       const nextStore = await window.yomitomoDesktop.saveUser(userDraft);
@@ -172,8 +172,10 @@ export function useSettingsDrafts({
       setUserDraft(nextStore.user);
       setProfileSaveState('saved');
       window.setTimeout(() => setProfileSaveState('idle'), 1200);
+      return true;
     } catch {
       setProfileSaveState('idle');
+      return false;
     }
   }, [applyStore, userDraft, userHasChanges]);
 
