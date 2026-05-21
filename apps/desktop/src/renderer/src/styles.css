@@ -11566,6 +11566,146 @@ button.license-package-row:hover {
   overflow: hidden;
 }
 
+.library-skeleton {
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  padding: 20px 34px 24px;
+}
+
+.library-skeleton-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 14px;
+}
+
+.library-skeleton-title,
+.library-skeleton-action,
+.library-skeleton-toolbar span,
+.library-skeleton-card i,
+.library-skeleton-card b,
+.library-skeleton-card em {
+  display: block;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, transparent, hsl(var(--background) / 0.68), transparent) -160px 0 / 160px
+      100% no-repeat,
+    hsl(var(--muted) / 0.52);
+  animation: library-skeleton-sheen 1200ms ease-in-out infinite;
+}
+
+.library-skeleton-title {
+  width: min(280px, 52%);
+  height: 34px;
+}
+
+.library-skeleton-action {
+  width: 116px;
+  height: 36px;
+}
+
+.library-skeleton-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-top: 1px solid hsl(var(--border) / 0.72);
+  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  padding: 12px 0;
+}
+
+.library-skeleton-toolbar span:first-child {
+  width: min(320px, 46%);
+  height: 36px;
+}
+
+.library-skeleton-toolbar span:last-child {
+  width: 168px;
+  height: 36px;
+}
+
+.library-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  min-height: 0;
+  border-top: 1px solid hsl(var(--foreground));
+  border-left: 1px solid hsl(var(--border) / 0.72);
+}
+
+.library-skeleton-card {
+  display: grid;
+  min-height: 156px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  border-right: 1px solid hsl(var(--border) / 0.72);
+  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  padding: 22px 26px 20px;
+}
+
+.library-skeleton-card i {
+  width: 40%;
+  height: 11px;
+}
+
+.library-skeleton-card b {
+  width: 86%;
+  height: 58px;
+  align-self: start;
+}
+
+.library-skeleton-card em {
+  width: 62%;
+  height: 14px;
+  justify-self: end;
+}
+
+.library-skeleton-card:nth-child(2n) i,
+.library-skeleton-card:nth-child(2n) b,
+.library-skeleton-card:nth-child(2n) em {
+  animation-delay: 120ms;
+}
+
+.library-skeleton-card:nth-child(3n) i,
+.library-skeleton-card:nth-child(3n) b,
+.library-skeleton-card:nth-child(3n) em {
+  animation-delay: 240ms;
+}
+
+@keyframes library-skeleton-sheen {
+  0% {
+    background-position:
+      -160px 0,
+      0 0;
+  }
+
+  100% {
+    background-position:
+      calc(100% + 160px) 0,
+      0 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .library-skeleton-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .library-skeleton-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .library-skeleton-title,
+  .library-skeleton-action,
+  .library-skeleton-toolbar span:first-child,
+  .library-skeleton-toolbar span:last-child {
+    width: 100%;
+  }
+}
+
 .library-home {
   background:
     repeating-linear-gradient(90deg, rgb(0 0 0 / 0.014) 0 1px, transparent 1px 16px),

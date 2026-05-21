@@ -1,29 +1,86 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings } from '@yomitomo/shared';
 
-import { ReadingLibrary } from './app-reading-library';
-import { ReadingStatsPanel } from './app-reading-stats';
-import { OnboardingFlow } from './app-onboarding';
-import {
-  AgentSettings,
-  DataManagementSettings,
-  GeneralSettings,
-  ProviderSettings,
-  ShortcutSettings,
-  SettingsSectionShell,
-  SettingsNavButton,
-  UserProfileSettingsDialog,
-  type SettingsSectionKey,
-} from './app-settings-panels';
-import { AboutSettings } from './app-log-viewer';
+import type { SettingsSectionKey } from './app-settings-panels';
 import { AvatarImage } from './app-ui';
 import { useAppAgentActions } from './app-agent-actions';
 import { useAppArticleStoreActions } from './app-article-store-actions';
 import { useDesktopStoreState } from './app-desktop-store-state';
 import { useSettingsDrafts } from './app-settings-drafts';
+import { SettingsNavButton } from './app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
 import './styles.css';
+
+const rendererModuleLoadedAt = performance.now();
+const loadReadingLibrary = () =>
+  import('./app-reading-library').then((module) => ({ default: module.ReadingLibrary }));
+const loadReadingStatsPanel = () =>
+  import('./app-reading-stats').then((module) => ({ default: module.ReadingStatsPanel }));
+const loadOnboardingFlow = () =>
+  import('./app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
+const loadAgentSettings = () =>
+  import('./app-settings-agent-panel').then((module) => ({ default: module.AgentSettings }));
+const loadDataManagementSettings = () =>
+  import('./app-settings-panels').then((module) => ({ default: module.DataManagementSettings }));
+const loadGeneralSettings = () =>
+  import('./app-settings-panels').then((module) => ({ default: module.GeneralSettings }));
+const loadProviderSettings = () =>
+  import('./app-settings-provider-panel').then((module) => ({ default: module.ProviderSettings }));
+const loadShortcutSettings = () =>
+  import('./app-settings-panels').then((module) => ({ default: module.ShortcutSettings }));
+const loadSettingsSectionShell = () =>
+  import('./app-settings-panels').then((module) => ({ default: module.SettingsSectionShell }));
+const loadUserProfileSettingsDialog = () =>
+  import('./app-settings-profile-dialog').then((module) => ({
+    default: module.UserProfileSettingsDialog,
+  }));
+const loadAboutSettings = () =>
+  import('./app-log-viewer').then((module) => ({ default: module.AboutSettings }));
+
+const ReadingLibrary = lazy(loadReadingLibrary);
+const ReadingStatsPanel = lazy(loadReadingStatsPanel);
+const OnboardingFlow = lazy(loadOnboardingFlow);
+const AgentSettings = lazy(loadAgentSettings);
+const DataManagementSettings = lazy(loadDataManagementSettings);
+const GeneralSettings = lazy(loadGeneralSettings);
+const ProviderSettings = lazy(loadProviderSettings);
+const ShortcutSettings = lazy(loadShortcutSettings);
+const SettingsSectionShell = lazy(loadSettingsSectionShell);
+const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
+const AboutSettings = lazy(loadAboutSettings);
+
+const idlePreloadModules = [
+  loadAgentSettings,
+  loadReadingStatsPanel,
+  loadSettingsSectionShell,
+  loadGeneralSettings,
+  loadProviderSettings,
+  loadShortcutSettings,
+  loadDataManagementSettings,
+  loadAboutSettings,
+  loadUserProfileSettingsDialog,
+];
+
+function preloadIdleModules() {
+  void Promise.allSettled(idlePreloadModules.map((load) => load()));
+}
+
+type IdlePreloadHandle =
+  | { kind: 'idle'; id: number }
+  | { kind: 'timeout'; id: ReturnType<typeof globalThis.setTimeout> };
+
+function scheduleIdlePreload(callback: () => void): IdlePreloadHandle {
+  if ('requestIdleCallback' in window) {
+    return { kind: 'idle', id: window.requestIdleCallback(callback, { timeout: 3000 }) };
+  }
+  return { kind: 'timeout', id: globalThis.setTimeout(callback, 800) };
+}
+
+function cancelIdlePreload(handle: IdlePreloadHandle) {
+  if (handle.kind === 'idle') window.cancelIdleCallback(handle.id);
+  else globalThis.clearTimeout(handle.id);
+}
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
@@ -36,6 +93,12 @@ function App() {
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
+  const windowShowRequestedRef = useRef(false);
+
+  useEffect(() => {
+    recordStartupTiming('app.mounted');
+    requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
+  }, []);
 
   const {
     store,
@@ -91,8 +154,20 @@ function App() {
 
   useEffect(() => {
     if (!storeLoaded && !storeLoadError) return;
-    window.yomitomoDesktop.showMainWindow();
+    recordStartupTiming('store.ready_for_ui', {
+      storeLoaded,
+      storeLoadError: Boolean(storeLoadError),
+    });
   }, [storeLoadError, storeLoaded]);
+
+  useEffect(() => {
+    if (!storeLoaded || storeLoadError || showOnboarding) return;
+    const idleId = scheduleIdlePreload(() => {
+      recordStartupTiming('secondary_modules.preload_start');
+      preloadIdleModules();
+    });
+    return () => cancelIdlePreload(idleId);
+  }, [showOnboarding, storeLoadError, storeLoaded]);
 
   useEffect(() => {
     if (activeSetting !== 'library') setLibraryReaderOpen(false);
@@ -115,19 +190,28 @@ function App() {
     setActiveSettingsSection('models');
   }
 
+  function requestMainWindow(reason: string, data: Record<string, unknown>) {
+    if (windowShowRequestedRef.current) return;
+    windowShowRequestedRef.current = true;
+    recordStartupTiming('window.show_requested', { reason, ...data });
+    window.yomitomoDesktop.showMainWindow();
+  }
+
   if (storeLoadError) {
     return <StoreLoadErrorScreen error={storeLoadError} onRetry={refreshStore} />;
   }
 
-  if (!storeLoaded) return null;
+  if (!storeLoaded) return <StartupShell />;
 
   if (showOnboarding) {
     return (
-      <OnboardingFlow
-        key={onboardingFlowKey}
-        store={store}
-        onSaveSettings={saveOnboardingSettings}
-      />
+      <Suspense fallback={null}>
+        <OnboardingFlow
+          key={onboardingFlowKey}
+          store={store}
+          onSaveSettings={saveOnboardingSettings}
+        />
+      </Suspense>
     );
   }
 
@@ -195,107 +279,202 @@ function App() {
       </nav>
 
       <section className="settings-content">
-        {activeSetting === 'library' ? (
-          <ReadingLibrary
-            agents={store.agents}
-            articles={store.articles}
-            messageSendShortcut={store.settings.messageSendShortcut}
-            selectionActionShortcuts={store.settings.selectionActionShortcuts}
-            openArticleId={pendingOpenArticleId}
-            userProfile={store.user}
-            onDeleteArticle={deleteArticle}
-            onArticleOpened={() => setPendingOpenArticleId(null)}
-            onImportArticleUrl={importArticleUrl}
-            onImportEbookFile={importEbookFile}
-            onReadingModeChange={setLibraryReaderOpen}
-            onReadArticle={readArticle}
-            onSaveArticle={saveArticle}
-            onSaveArticleReadingProgress={saveArticleReadingProgress}
-            onUpdateArticle={updateArticle}
-          />
-        ) : null}
-        {activeSetting === 'stats' ? (
-          <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
-        ) : null}
-        {activeSetting === 'settings' ? (
-          <SettingsSectionShell
-            activeSection={activeSettingsSection}
-            onSectionChange={setActiveSettingsSection}
-          >
-            {activeSettingsSection === 'collection' ? (
-              <GeneralSettings
-                settingsDraft={settingsDraft}
-                canSave={canSaveGeneralSettings}
-                onSettingsChange={updateGeneralSettingsDraft}
-                onSave={saveGeneralSettingsDraft}
-                saveState={generalSaveState}
-              />
-            ) : null}
-            {activeSettingsSection === 'models' ? (
-              <ProviderSettings
-                draft={providerDraft}
-                settingsDraft={settingsDraft}
-                providers={store.providers}
-                selectedId={selectedProviderId}
-                testState={testState}
-                canSave={canSaveProvider}
-                canSaveRoutes={canSaveProviderRoutes}
-                onChange={updateProviderDraft}
-                onRouteChange={updateProviderRoutesDraft}
-                onCreate={createProvider}
-                onDelete={deleteProvider}
-                onSave={saveProviderDraft}
-                saveState={providerSaveState}
-                routeSaveState={routeSaveState}
-                onRouteSave={saveProviderRoutes}
-                onSelect={selectProvider}
-                onTest={testProvider}
-              />
-            ) : null}
-            {activeSettingsSection === 'shortcuts' ? (
-              <ShortcutSettings
-                savedSettings={store.settings}
-                settingsDraft={settingsDraft}
-                canSave={canSaveShortcutSettings}
-                onSettingsChange={updateShortcutSettingsDraft}
-                onSave={saveShortcutSettingsDraft}
-                saveState={shortcutSaveState}
-              />
-            ) : null}
-            {activeSettingsSection === 'data' ? (
-              <DataManagementSettings settings={store.settings} onStoreUpdated={applyStore} />
-            ) : null}
-            {activeSettingsSection === 'about' ? (
-              <AboutSettings onStartOnboarding={startOnboarding} />
-            ) : null}
-          </SettingsSectionShell>
-        ) : null}
-        {activeSetting === 'agents' ? (
-          <AgentSettings
-            agents={store.agents}
-            error={agentSaveError}
-            providers={store.providers}
-            settings={store.settings}
-            saveState={agentSaveState}
-            onConfigureRoutes={openModelRoutesSettings}
-            onToggle={toggleAgent}
-          />
-        ) : null}
+        <Suspense fallback={<LibrarySkeleton />}>
+          {activeSetting === 'library' ? (
+            <ReadingLibrary
+              agents={store.agents}
+              articles={store.articles}
+              messageSendShortcut={store.settings.messageSendShortcut}
+              selectionActionShortcuts={store.settings.selectionActionShortcuts}
+              openArticleId={pendingOpenArticleId}
+              userProfile={store.user}
+              onDeleteArticle={deleteArticle}
+              onArticleOpened={() => setPendingOpenArticleId(null)}
+              onImportArticleUrl={importArticleUrl}
+              onImportEbookFile={importEbookFile}
+              onReadingModeChange={setLibraryReaderOpen}
+              onReadArticle={readArticle}
+              onSaveArticle={saveArticle}
+              onSaveArticleReadingProgress={saveArticleReadingProgress}
+              onUpdateArticle={updateArticle}
+            />
+          ) : null}
+          {activeSetting === 'stats' ? (
+            <ReadingStatsPanel articles={store.articles} onRefresh={refreshStore} />
+          ) : null}
+          {activeSetting === 'settings' ? (
+            <SettingsSectionShell
+              activeSection={activeSettingsSection}
+              onSectionChange={setActiveSettingsSection}
+            >
+              {activeSettingsSection === 'collection' ? (
+                <GeneralSettings
+                  settingsDraft={settingsDraft}
+                  canSave={canSaveGeneralSettings}
+                  onSettingsChange={updateGeneralSettingsDraft}
+                  onSave={saveGeneralSettingsDraft}
+                  saveState={generalSaveState}
+                />
+              ) : null}
+              {activeSettingsSection === 'models' ? (
+                <ProviderSettings
+                  draft={providerDraft}
+                  settingsDraft={settingsDraft}
+                  providers={store.providers}
+                  selectedId={selectedProviderId}
+                  testState={testState}
+                  canSave={canSaveProvider}
+                  canSaveRoutes={canSaveProviderRoutes}
+                  onChange={updateProviderDraft}
+                  onRouteChange={updateProviderRoutesDraft}
+                  onCreate={createProvider}
+                  onDelete={deleteProvider}
+                  onSave={saveProviderDraft}
+                  saveState={providerSaveState}
+                  routeSaveState={routeSaveState}
+                  onRouteSave={saveProviderRoutes}
+                  onSelect={selectProvider}
+                  onTest={testProvider}
+                />
+              ) : null}
+              {activeSettingsSection === 'shortcuts' ? (
+                <ShortcutSettings
+                  savedSettings={store.settings}
+                  settingsDraft={settingsDraft}
+                  canSave={canSaveShortcutSettings}
+                  onSettingsChange={updateShortcutSettingsDraft}
+                  onSave={saveShortcutSettingsDraft}
+                  saveState={shortcutSaveState}
+                />
+              ) : null}
+              {activeSettingsSection === 'data' ? (
+                <DataManagementSettings settings={store.settings} onStoreUpdated={applyStore} />
+              ) : null}
+              {activeSettingsSection === 'about' ? (
+                <AboutSettings onStartOnboarding={startOnboarding} />
+              ) : null}
+            </SettingsSectionShell>
+          ) : null}
+          {activeSetting === 'agents' ? (
+            <AgentSettings
+              agents={store.agents}
+              error={agentSaveError}
+              providers={store.providers}
+              settings={store.settings}
+              saveState={agentSaveState}
+              onConfigureRoutes={openModelRoutesSettings}
+              onToggle={toggleAgent}
+            />
+          ) : null}
+        </Suspense>
       </section>
       {profileDialogOpen ? (
-        <UserProfileSettingsDialog
-          draft={userDraft}
-          canSave={canSaveUser}
-          onChange={updateUserDraft}
-          onClose={() => setProfileDialogOpen(false)}
-          onSave={async () => {
-            if (await saveProfileDraft()) window.setTimeout(() => setProfileDialogOpen(false), 700);
-          }}
-          saveState={profileSaveState}
-        />
+        <Suspense fallback={null}>
+          <UserProfileSettingsDialog
+            draft={userDraft}
+            canSave={canSaveUser}
+            onChange={updateUserDraft}
+            onClose={() => setProfileDialogOpen(false)}
+            onSave={async () => {
+              if (await saveProfileDraft())
+                window.setTimeout(() => setProfileDialogOpen(false), 700);
+            }}
+            saveState={profileSaveState}
+          />
+        </Suspense>
       ) : null}
     </main>
   );
 }
 
+function StartupShell() {
+  return (
+    <main className={`app-shell is-${window.yomitomoDesktop.platform ?? 'unknown'}`}>
+      <AppMasthead />
+      <StartupNav />
+      <section className="settings-content">
+        <LibrarySkeleton />
+      </section>
+    </main>
+  );
+}
+
+function AppMasthead() {
+  return (
+    <header className="app-masthead">
+      <div className="app-masthead-title">
+        <h1>
+          Yomitomo <em>伴读</em>
+        </h1>
+      </div>
+    </header>
+  );
+}
+
+function StartupNav() {
+  return (
+    <nav className="app-section-nav" aria-label="主导航">
+      <button className="settings-nav-item is-active" disabled type="button">
+        <span>阅读库</span>
+      </button>
+      <button className="settings-nav-item" disabled type="button">
+        <span>助手</span>
+      </button>
+      <button className="settings-nav-item" disabled type="button">
+        <span>统计</span>
+      </button>
+      <button className="settings-nav-item" disabled type="button">
+        <span>设置</span>
+      </button>
+    </nav>
+  );
+}
+
+function LibrarySkeleton() {
+  return (
+    <div className="library-skeleton" aria-busy="true">
+      <header className="library-skeleton-header">
+        <span className="library-skeleton-title" />
+        <span className="library-skeleton-action" />
+      </header>
+      <div className="library-skeleton-toolbar">
+        <span />
+        <span />
+      </div>
+      <div className="library-skeleton-grid">
+        {Array.from({ length: 6 }, (_, index) => (
+          <span className="library-skeleton-card" key={index}>
+            <i />
+            <b />
+            <em />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+recordStartupTiming('renderer.module_loaded', {
+  preloadLoadedAt: window.yomitomoDesktop?.startupTiming?.preloadLoadedAt,
+  rendererModuleLoadedAt,
+});
 createRoot(document.getElementById('root')!).render(<App />);
+recordStartupTiming('react.render_scheduled');
+
+function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop
+    .recordPerformanceTiming({
+      event: `startup.${event}`,
+      data: {
+        rendererElapsedMs: elapsedMs(0),
+        ...data,
+      },
+    })
+    .catch(() => undefined);
+}
+
+function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}

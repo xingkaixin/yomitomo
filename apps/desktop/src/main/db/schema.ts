@@ -85,6 +85,22 @@ export const articles = sqliteTable(
   (table) => [
     index('articles_updated_at_idx').on(table.updatedAt),
     index('articles_canonical_url_idx').on(table.canonicalUrl),
+    index('articles_summary_cover_idx').on(
+      table.updatedAt,
+      table.id,
+      table.url,
+      table.canonicalUrl,
+      table.sourceType,
+      table.title,
+      table.byline,
+      table.excerpt,
+      table.siteName,
+      table.themeColor,
+      table.contentHash,
+      table.ebookMetadata,
+      table.readingProgress,
+      table.createdAt,
+    ),
   ],
 );
 

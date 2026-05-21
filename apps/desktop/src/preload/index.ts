@@ -25,6 +25,8 @@ import type {
 import type { AppUpdateState } from '../app-update-types';
 import { DesktopStoreLoadError, type DesktopStoreGetResult } from '../app-store-errors';
 
+const preloadLoadedAt = performance.now();
+
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
   article: ArticleRecord;
@@ -62,6 +64,9 @@ export type DatabaseRestoreResult =
 
 const api = {
   platform: process.platform,
+  startupTiming: {
+    preloadLoadedAt,
+  },
   getAppInfo: () => ipcRenderer.invoke('app:info') as Promise<AppInfo>,
   showMainWindow: () => ipcRenderer.send('app:renderer-ready'),
   getStateResult: () => ipcRenderer.invoke('store:get') as Promise<DesktopStoreGetResult>,

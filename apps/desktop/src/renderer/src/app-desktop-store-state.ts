@@ -20,22 +20,33 @@ export function useDesktopStoreState() {
   const refreshStore = useCallback(async () => {
     const desktop = window.yomitomoDesktop;
     if (!desktop) return null;
+    const startedAt = performance.now();
+    recordStartupTiming('store.refresh_start');
 
     try {
       const result = await desktop.getStateResult();
       if (!result.ok) {
+        recordStartupTiming('store.refresh_error', {
+          durationMs: elapsedMs(startedAt),
+          code: result.error.code,
+        });
         setStoreLoadError(result.error);
         setStoreLoaded(false);
         return null;
       }
 
       const nextStore = result.store;
+      recordStartupTiming('store.refresh_success', {
+        durationMs: elapsedMs(startedAt),
+        articleCount: nextStore.articles.length,
+      });
       applyStore(nextStore);
       setStoreSyncSnapshot(nextStore);
       setStoreLoadError(null);
       setStoreLoaded(true);
       return nextStore;
     } catch (error) {
+      recordStartupTiming('store.refresh_exception', { durationMs: elapsedMs(startedAt) });
       setStoreLoadError(
         desktopStoreLoadErrorInfo(error) || {
           code: 'DATABASE_UNAVAILABLE',
@@ -72,4 +83,22 @@ export function useDesktopStoreState() {
     refreshStore,
     applyStore,
   };
+}
+
+function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
+  const desktop = window.yomitomoDesktop;
+  if (!desktop?.recordPerformanceTiming) return;
+  void desktop
+    .recordPerformanceTiming({
+      event: `startup.${event}`,
+      data: {
+        rendererElapsedMs: elapsedMs(0),
+        ...data,
+      },
+    })
+    .catch(() => undefined);
+}
+
+function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
 }
