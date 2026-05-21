@@ -1,0 +1,110 @@
+---
+export type ProductCarouselSlide = {
+  title: string;
+  caption: string;
+  image: string;
+  alt: string;
+  objectPosition?: string;
+};
+
+type Props = {
+  slides: ProductCarouselSlide[];
+  autoplayInterval?: number;
+};
+
+const { slides, autoplayInterval = 4200 } = Astro.props;
+
+function responsiveImageSet(image: string) {
+  const match = image.match(/^(.*)\.webp$/);
+  return match ? `${match[1]}-1600.webp 1600w, ${match[1]}-2400.webp 2400w, ${image} 4654w` : undefined;
+}
+---
+
+{
+  slides.length > 0 ? (
+    <section
+      class="product-carousel"
+      aria-label="产品介绍图"
+      data-product-carousel
+      data-autoplay-interval={autoplayInterval}
+      style={`--carousel-duration: ${autoplayInterval}ms`}
+    >
+      <div class="product-carousel-frame">
+        {slides.map((slide, index) => (
+          <img
+            class:list={['product-carousel-image', index === 0 && 'is-active']}
+            src={slide.image}
+            srcset={responsiveImageSet(slide.image)}
+            sizes="(max-width: 640px) calc(100vw - 48px), min(980px, calc(100vw - 160px))"
+            alt={slide.alt}
+            style={`object-position: ${slide.objectPosition || 'center'}`}
+            loading={index === 0 ? 'eager' : 'lazy'}
+            decoding={index === 0 ? 'sync' : 'async'}
+            data-title={slide.title}
+            data-caption={slide.caption}
+          />
+        ))}
+        <div class="product-carousel-copy">
+          <span data-carousel-title>{slides[0]?.title}</span>
+          <p data-carousel-caption>{slides[0]?.caption}</p>
+        </div>
+      </div>
+      <div class="product-carousel-indicators">
+        {slides.map((slide, index) => (
+          <button
+            class:list={['product-carousel-indicator', index === 0 && 'is-active']}
+            type="button"
+            aria-label={`查看${slide.title}`}
+            aria-pressed={index === 0}
+            data-carousel-index={index}
+          >
+            <span class="product-carousel-progress" aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+    </section>
+  ) : null
+}
+
+<script>
+  const carousels = document.querySelectorAll<HTMLElement>('[data-product-carousel]');
+
+  for (const carousel of carousels) {
+    const images = Array.from(carousel.querySelectorAll<HTMLImageElement>('.product-carousel-image'));
+    const buttons = Array.from(
+      carousel.querySelectorAll<HTMLButtonElement>('.product-carousel-indicator'),
+    );
+    const title = carousel.querySelector<HTMLElement>('[data-carousel-title]');
+    const caption = carousel.querySelector<HTMLElement>('[data-carousel-caption]');
+    const interval = Number(carousel.dataset.autoplayInterval) || 4200;
+    let activeIndex = 0;
+
+    function setActiveSlide(index: number) {
+      activeIndex = index;
+      for (const [imageIndex, image] of images.entries()) {
+        image.classList.toggle('is-active', imageIndex === activeIndex);
+      }
+      for (const [buttonIndex, button] of buttons.entries()) {
+        const active = buttonIndex === activeIndex;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-pressed', String(active));
+      }
+      const image = images[activeIndex];
+      if (title && image) title.textContent = image.dataset.title || '';
+      if (caption && image) caption.textContent = image.dataset.caption || caption.textContent;
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.carouselIndex);
+        if (Number.isInteger(index)) setActiveSlide(index);
+      });
+    });
+
+    if (images.length > 1) {
+      window.setInterval(() => {
+        setActiveSlide((activeIndex + 1) % images.length);
+      }, interval);
+    }
+  }
+</script>

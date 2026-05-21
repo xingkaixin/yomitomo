@@ -118,6 +118,26 @@
       transform 160ms ease;
   }
 
+  .header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(12px, 2vw, 20px);
+  }
+
+  .nav-text-link {
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0;
+    text-decoration: none;
+    transition: color 160ms ease;
+    white-space: nowrap;
+  }
+
+  .nav-text-link:hover {
+    color: var(--color-ink);
+  }
+
   .header-link:hover {
     border-color: hsl(3 62% 42% / 0.34);
     background: hsl(0 0% 100% / 0.78);
@@ -533,11 +553,19 @@
 @media (max-width: 640px) {
   .site-nav {
     min-height: 58px;
+    gap: 12px;
   }
 
   .header-link {
-    width: 34px;
-    min-height: 34px;
+    display: none;
+  }
+
+  .header-actions {
+    gap: 10px;
+  }
+
+  .nav-text-link {
+    font-size: 0.68rem;
   }
 
   .hero {
