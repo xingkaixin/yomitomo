@@ -1,8 +1,9 @@
 import { copyFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { app } from 'electron';
-import { eq, inArray } from 'drizzle-orm';
+import { count, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import SQLiteDatabase from 'better-sqlite3';
 import type {
@@ -69,6 +70,7 @@ import {
   rowToSettings,
   rowToUser,
   sortByCreatedAt,
+  type ArticleSummaryCounts,
   userToRow,
 } from './store-normalizers';
 
@@ -103,6 +105,11 @@ type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (tx:
   ? T
   : never;
 type StoreExecutor = StoreDatabase | StoreTransaction;
+export type StoreReadProfileEntry = {
+  name: string;
+  durationMs: number;
+  data?: Record<string, number>;
+};
 
 function databasePath() {
   return join(app.getPath('userData'), DB_FILE_NAME);
@@ -276,9 +283,29 @@ function seedDefaultStore(database: StoreDatabase) {
 }
 
 export async function readStore(): Promise<DesktopStore> {
-  const database = getDatabase();
-  await migrateProviderApiKeys(database);
-  return readStoreRows(database);
+  return readStoreInternal();
+}
+
+export async function readStoreWithProfile(): Promise<{
+  store: DesktopStore;
+  profile: StoreReadProfileEntry[];
+}> {
+  const profile: StoreReadProfileEntry[] = [];
+  return { store: await readStoreInternal(profile), profile };
+}
+
+export function warmStoreDatabaseWithProfile() {
+  const profile: StoreReadProfileEntry[] = [];
+  measureStoreRead(profile, 'get_database', getDatabase);
+  return profile;
+}
+
+async function readStoreInternal(profile?: StoreReadProfileEntry[]): Promise<DesktopStore> {
+  const database = measureStoreRead(profile, 'get_database', getDatabase);
+  await measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
+    migrateProviderApiKeys(database),
+  );
+  return measureStoreRead(profile, 'read_store_rows', () => readStoreRows(database, profile));
 }
 
 export async function readArticle(id: string): Promise<ArticleRecord | null> {
@@ -487,6 +514,38 @@ async function removeProviderApiKey(providerId: string, apiKeyRef?: string) {
   return undefined;
 }
 
+function measureStoreRead<T>(
+  profile: StoreReadProfileEntry[] | undefined,
+  name: string,
+  read: () => T,
+  data?: Record<string, number>,
+): T {
+  const startedAt = performance.now();
+  try {
+    return read();
+  } finally {
+    profile?.push({ name, durationMs: elapsedMs(startedAt), data });
+  }
+}
+
+async function measureStoreReadAsync<T>(
+  profile: StoreReadProfileEntry[] | undefined,
+  name: string,
+  read: () => Promise<T>,
+  data?: Record<string, number>,
+): Promise<T> {
+  const startedAt = performance.now();
+  try {
+    return await read();
+  } finally {
+    profile?.push({ name, durationMs: elapsedMs(startedAt), data });
+  }
+}
+
+function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}
+
 export async function deleteProvider(id: string): Promise<DesktopStore> {
   await deleteProviderApiKey(id);
   const database = getDatabase();
@@ -600,8 +659,9 @@ function ensurePresetAgents(
   database: StoreDatabase,
   providerRows: Array<typeof schema.providers.$inferSelect>,
   settings: typeof schema.appSettings.$inferSelect | undefined,
-) {
-  if (providerRows.length === 0) return;
+): Array<typeof schema.agents.$inferSelect> {
+  const agentRows = database.select().from(schema.agents).all();
+  if (providerRows.length === 0) return agentRows;
 
   const defaultProviderId =
     settings?.readingAssistantProviderId &&
@@ -611,11 +671,11 @@ function ensurePresetAgents(
           providerRows.some((provider) => provider.id === settings.defaultProviderId)
         ? settings.defaultProviderId
         : providerRows[0]!.id;
-  const agentRows = database.select().from(schema.agents).all();
   const rowsByPreset = new Map(
     agentRows.flatMap((row) => (row.presetId ? [[row.presetId, row] as const] : [])),
   );
   const now = new Date().toISOString();
+  let changed = false;
 
   for (const personality of agentPersonalities) {
     const existing = rowsByPreset.get(personality.id);
@@ -636,33 +696,109 @@ function ensurePresetAgents(
       createdAt: existing?.createdAt || now,
       updatedAt: existing?.updatedAt || now,
     };
+    if (existing && agentRowMatches(existing, agent)) continue;
     upsertAgent(database, agent);
+    changed = true;
   }
+
+  return changed ? database.select().from(schema.agents).all() : agentRows;
 }
 
-function readStoreRows(database: StoreDatabase): DesktopStore {
-  const user = database.select().from(schema.userProfiles).limit(1).get();
-  const settings = database.select().from(schema.appSettings).limit(1).get();
-  const providerRows = database.select().from(schema.providers).all();
-  ensurePresetAgents(database, providerRows, settings);
-  const agentRows = database.select().from(schema.agents).all();
-  const articleRows = database.select(articleSummaryColumns).from(schema.articles).all();
-  const annotationRows = database.select().from(schema.annotations).all();
-  const commentRows = database.select().from(schema.comments).all();
+function agentRowMatches(row: typeof schema.agents.$inferSelect, agent: Agent) {
+  return (
+    row.id === agent.id &&
+    row.kind === agent.kind &&
+    row.presetId === (agent.presetId || null) &&
+    Boolean(row.enabled) === agent.enabled &&
+    row.providerId === agent.providerId &&
+    row.nickname === agent.nickname &&
+    row.username === agent.username &&
+    row.avatar === agent.avatar &&
+    row.annotationColor === agent.annotationColor &&
+    row.annotationDensity === agent.annotationDensity &&
+    row.temperature === agent.temperature &&
+    row.soul === agent.soul
+  );
+}
 
-  const annotationsByArticle = groupAnnotationsByArticle(annotationRows, commentRows);
+function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[]): DesktopStore {
+  const user = measureStoreRead(profile, 'read_user', () =>
+    database.select().from(schema.userProfiles).limit(1).get(),
+  );
+  const settings = measureStoreRead(profile, 'read_settings', () =>
+    database.select().from(schema.appSettings).limit(1).get(),
+  );
+  const providerRows = measureStoreRead(profile, 'read_providers', () =>
+    database.select().from(schema.providers).all(),
+  );
+  const agentRows = measureStoreRead(profile, 'ensure_preset_agents', () =>
+    ensurePresetAgents(database, providerRows, settings),
+  );
+  const articleRows = measureStoreRead(profile, 'read_article_summaries', () =>
+    database
+      .select(articleSummaryColumns)
+      .from(schema.articles)
+      .orderBy(desc(schema.articles.updatedAt))
+      .all(),
+  );
+  const articleCounts = measureStoreRead(profile, 'read_article_summary_counts', () =>
+    readArticleSummaryCounts(database, profile),
+  );
 
-  return {
-    user: normalizeUser(rowToUser(user)),
-    settings: rowToSettings(settings),
-    providers: providerRows.map(rowToProvider),
-    agents: agentRows.map(rowToAgent),
-    articles: articleRows
-      .map((row) =>
-        rowToArticleSummary(row, sortByCreatedAt(annotationsByArticle.get(row.id) || [])),
-      )
-      .toSorted((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)),
-  };
+  return measureStoreRead(
+    profile,
+    'normalize_store_rows',
+    () => ({
+      user: normalizeUser(rowToUser(user)),
+      settings: rowToSettings(settings),
+      providers: providerRows.map(rowToProvider),
+      agents: agentRows.map(rowToAgent),
+      articles: articleRows.map((row) => rowToArticleSummary(row, [], articleCounts.get(row.id))),
+    }),
+    { articleCount: articleRows.length, agentCount: agentRows.length },
+  );
+}
+
+function readArticleSummaryCounts(database: StoreDatabase, profile?: StoreReadProfileEntry[]) {
+  const annotationCounts = measureStoreRead(profile, 'count_annotations_by_article', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        count: count(),
+      })
+      .from(schema.annotations)
+      .groupBy(schema.annotations.articleId)
+      .all(),
+  );
+  const commentCounts = measureStoreRead(profile, 'count_comments_by_article', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        count: count(),
+      })
+      .from(schema.comments)
+      .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
+      .where(isNull(schema.comments.replyTo))
+      .groupBy(schema.annotations.articleId)
+      .all(),
+  );
+  const countsByArticle = new Map<string, ArticleSummaryCounts>();
+
+  for (const row of annotationCounts) {
+    countsByArticle.set(row.articleId, {
+      annotationCount: Number(row.count),
+      commentCount: 0,
+    });
+  }
+
+  for (const row of commentCounts) {
+    const counts = countsByArticle.get(row.articleId);
+    if (counts) counts.commentCount = Number(row.count);
+    else
+      countsByArticle.set(row.articleId, { annotationCount: 0, commentCount: Number(row.count) });
+  }
+
+  return countsByArticle;
 }
 
 function readArticleAnnotations(database: StoreDatabase, articleId: string) {

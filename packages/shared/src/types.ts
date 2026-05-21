@@ -629,6 +629,8 @@ export type ArticleRecord = {
   ebook?: EbookRecord;
   readingProgress?: ArticleReadingProgress;
   annotations: Annotation[];
+  annotationCount?: number;
+  commentCount?: number;
   focusCoReadingPlan?: FocusCoReadingPlan;
   createdAt: string;
   updatedAt: string;

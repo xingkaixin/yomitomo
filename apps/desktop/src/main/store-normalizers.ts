@@ -169,6 +169,11 @@ export function rowToAgent(row: typeof schema.agents.$inferSelect): Agent {
   };
 }
 
+export type ArticleSummaryCounts = {
+  annotationCount: number;
+  commentCount: number;
+};
+
 export function rowToArticle(row: ArticleRow, annotations: Annotation[]): ArticleRecord {
   return {
     ...rowToArticleBase(row, annotations),
@@ -183,14 +188,19 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
 export function rowToArticleSummary(
   row: ArticleSummaryRow,
   annotations: Annotation[],
+  counts?: ArticleSummaryCounts,
 ): ArticleRecord {
   return {
-    ...rowToArticleBase(row, annotations),
+    ...rowToArticleBase(row, annotations, counts),
     ebook: rowToEbookSummary(row),
   };
 }
 
-function rowToArticleBase(row: ArticleBaseRow, annotations: Annotation[]): ArticleRecord {
+function rowToArticleBase(
+  row: ArticleBaseRow,
+  annotations: Annotation[],
+  counts = articleCountsFromAnnotations(annotations),
+): ArticleRecord {
   return {
     id: row.id,
     url: row.url,
@@ -206,8 +216,21 @@ function rowToArticleBase(row: ArticleBaseRow, annotations: Annotation[]): Artic
     contentHash: row.contentHash,
     readingProgress: normalizeArticleReadingProgress(row.readingProgress),
     annotations,
+    annotationCount: counts.annotationCount,
+    commentCount: counts.commentCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+  };
+}
+
+function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummaryCounts {
+  return {
+    annotationCount: annotations.length,
+    commentCount: annotations.reduce(
+      (count, annotation) =>
+        count + annotation.comments.filter((comment) => !comment.replyTo).length,
+      0,
+    ),
   };
 }
 

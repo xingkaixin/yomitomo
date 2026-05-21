@@ -115,29 +115,6 @@ const settingsSections: Array<{
   },
 ];
 
-export function SettingsNavButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon?: React.ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className={active ? 'settings-nav-item is-active' : 'settings-nav-item'}
-      type="button"
-      onClick={onClick}
-    >
-      {icon ? icon : null}
-      <span>{label}</span>
-    </button>
-  );
-}
-
 export function SettingsSectionShell({
   activeSection,
   children,

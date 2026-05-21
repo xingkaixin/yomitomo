@@ -1,5 +1,4 @@
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThoughtComments } from '@yomitomo/core';
 import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
@@ -114,7 +113,7 @@ export function compareLibraryArticles(
 
   if (sort === 'annotations') {
     return (
-      right.annotations.length - left.annotations.length ||
+      articleAnnotationCount(right) - articleAnnotationCount(left) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
       left.title.localeCompare(right.title, 'zh-CN')
     );
@@ -146,7 +145,8 @@ export function groupLibraryArticles(articles: ArticleRecord[], sort: LibrarySor
 
 function libraryArticleGroupLabel(article: ArticleRecord, sort: LibrarySort) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
-  if (sort === 'annotations') return formatLibraryCountGroup(article.annotations.length, '批注');
+  if (sort === 'annotations')
+    return formatLibraryCountGroup(articleAnnotationCount(article), '批注');
   if (sort === 'discussions') return formatLibraryCountGroup(articleThoughtCount(article), '讨论');
   return formatLibraryDateGroup(article.updatedAt);
 }
@@ -157,15 +157,23 @@ function formatLibraryCountGroup(count: number, unit: '批注' | '讨论') {
 }
 
 export function libraryArticleStatus(article: ArticleRecord) {
-  if (article.annotations.length === 0) return { label: '新收录', tone: 'new' };
+  if (articleAnnotationCount(article) === 0) return { label: '新收录', tone: 'new' };
   if ((article.readingProgress?.progress ?? 0) >= 0.98) return { label: '已读完', tone: 'done' };
   return { label: '进行中', tone: 'progress' };
 }
 
-function articleThoughtCount(article: ArticleRecord) {
-  return article.annotations.reduce(
-    (count, annotation) => count + annotationThoughtComments(annotation).length,
-    0,
+export function articleAnnotationCount(article: ArticleRecord) {
+  return article.annotationCount ?? article.annotations.length;
+}
+
+export function articleThoughtCount(article: ArticleRecord) {
+  return (
+    article.commentCount ??
+    article.annotations.reduce(
+      (count, annotation) =>
+        count + annotation.comments.filter((comment) => !comment.replyTo).length,
+      0,
+    )
   );
 }
 

@@ -12,7 +12,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThoughtComments } from '@yomitomo/core';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -24,6 +23,8 @@ import {
 } from './components/ui/select';
 import type { EbookImportProgressCallback } from './app-reading-types';
 import {
+  articleAnnotationCount,
+  articleThoughtCount,
   articleMatchesLibrarySearch,
   compareLibraryArticles,
   librarySourceForArticle,
@@ -468,11 +469,8 @@ function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: (
 
 function articleCounts(article: ArticleRecord) {
   return {
-    annotations: article.annotations.length,
-    comments: article.annotations.reduce(
-      (count, annotation) => count + annotationThoughtComments(annotation).length,
-      0,
-    ),
+    annotations: articleAnnotationCount(article),
+    comments: articleThoughtCount(article),
   };
 }
 

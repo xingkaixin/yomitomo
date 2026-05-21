@@ -37,6 +37,7 @@ import {
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from './store';
+import { rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {
@@ -284,6 +285,17 @@ describe('desktop store reading progress', () => {
 });
 
 describe('desktop store articles', () => {
+  it('keeps aggregate counts on lightweight article summaries', () => {
+    const article = rowToArticleSummary(storeSummaryRow(), [], {
+      annotationCount: 2,
+      commentCount: 1,
+    });
+
+    expect(article.annotations).toEqual([]);
+    expect(article.annotationCount).toBe(2);
+    expect(article.commentCount).toBe(1);
+  });
+
   it('builds child rows for multiple annotations and comments', () => {
     const rows = buildArticleChildRows({
       id: 'store-batch-article',
@@ -345,5 +357,24 @@ function commentRecord(id: string, content: string): Comment {
     content,
     createdAt: '2026-05-17T00:00:00.000Z',
     userId: 'user-test',
+  };
+}
+
+function storeSummaryRow(): ArticleSummaryRow {
+  return {
+    id: 'store-summary-article',
+    url: 'https://example.com/article',
+    canonicalUrl: 'https://example.com/article',
+    sourceType: 'web',
+    title: '摘要计数文章',
+    byline: null,
+    excerpt: null,
+    siteName: null,
+    themeColor: null,
+    contentHash: 'hash-summary',
+    ebookMetadata: null,
+    readingProgress: null,
+    createdAt: '2026-05-17T00:00:00.000Z',
+    updatedAt: '2026-05-17T00:00:00.000Z',
   };
 }

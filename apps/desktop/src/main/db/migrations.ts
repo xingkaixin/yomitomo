@@ -360,4 +360,26 @@ ALTER TABLE comments ADD COLUMN review_label TEXT;
 ALTER TABLE app_settings ADD COLUMN log_retention_days INTEGER;
 `,
   },
+  {
+    id: '0031_article_summary_cover_index',
+    sql: `
+CREATE INDEX IF NOT EXISTS articles_summary_cover_idx
+ON articles(
+  updated_at,
+  id,
+  url,
+  canonical_url,
+  source_type,
+  title,
+  byline,
+  excerpt,
+  site_name,
+  theme_color,
+  content_hash,
+  ebook_metadata,
+  reading_progress,
+  created_at
+);
+`,
+  },
 ];

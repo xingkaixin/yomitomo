@@ -8,13 +8,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { annotationThoughtComments } from '@yomitomo/core';
 import { formatDate, urlHost } from './app-utils';
 import { ArticleBook } from './app-article-book';
 import { isEbookArticle } from './app-source-bookcase';
 import {
+  articleAnnotationCount,
   articleReadingMinutes,
   articleSiteIconUrl,
+  articleThoughtCount,
   formatLibraryRelativeTime,
   libraryArticleStatus,
 } from './app-reading-library-utils';
@@ -34,10 +35,8 @@ export function ArticleLibraryCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteIconFailed, setSiteIconFailed] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
-  const thoughts = article.annotations.reduce(
-    (count, annotation) => count + annotationThoughtComments(annotation).length,
-    0,
-  );
+  const annotations = articleAnnotationCount(article);
+  const thoughts = articleThoughtCount(article);
   const isEbook = isEbookArticle(article);
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
@@ -196,7 +195,7 @@ export function ArticleLibraryCard({
         <div className="library-card-meta">
           <span>
             <PencilLine size={13} />
-            {article.annotations.length} 批注
+            {annotations} 批注
           </span>
           <span>
             <MessageSquareText size={13} />
