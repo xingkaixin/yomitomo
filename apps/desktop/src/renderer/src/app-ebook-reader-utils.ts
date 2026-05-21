@@ -135,6 +135,7 @@ function foliateReaderCss(settings: ReaderSettings) {
     }
 
     body {
+      font-size: inherit;
       overflow-wrap: break-word;
     }
 
