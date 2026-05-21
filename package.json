@@ -14,6 +14,7 @@
     "make:app:mac-arm": "pnpm --filter @yomitomo/desktop make:mac-arm",
     "make:app:win-x64": "pnpm --filter @yomitomo/desktop make:win-x64",
     "deploy:cf": "pnpm --filter @yomitomo/web deploy:cf",
+    "deploy:download": "pnpm --filter @yomitomo/download deploy:cf",
     "build": "turbo build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
