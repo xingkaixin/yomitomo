@@ -121,6 +121,7 @@ function App() {
     saveArticleReadingProgress,
     importArticleUrl,
     importEbookFile,
+    importPdfFile,
   } = useAppArticleStoreActions({ storeRef, applyStore });
   const {
     userDraft,
@@ -302,6 +303,7 @@ function App() {
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onImportArticleUrl={importArticleUrl}
               onImportEbookFile={importEbookFile}
+              onImportPdfFile={importPdfFile}
               onReadingModeChange={setLibraryReaderOpen}
               onReadArticle={readArticle}
               onSaveArticle={saveArticle}

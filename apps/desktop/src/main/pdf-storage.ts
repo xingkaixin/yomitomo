@@ -1,0 +1,34 @@
+import { Buffer } from 'node:buffer';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { app } from 'electron';
+
+function pdfDirectory() {
+  return join(app.getPath('userData'), 'pdf');
+}
+
+function pdfFilePath(articleId: string) {
+  const safeId = articleId.replace(/[^a-z0-9_-]/gi, '');
+  if (!safeId) throw new Error('PDF ID 无效');
+  return join(pdfDirectory(), `${safeId}.pdf`);
+}
+
+export async function savePdfSourceFile(articleId: string, data: ArrayBuffer) {
+  await mkdir(pdfDirectory(), { recursive: true });
+  await writeFile(pdfFilePath(articleId), Buffer.from(data));
+}
+
+export async function readPdfSourceFile(articleId: string) {
+  try {
+    return await readFile(pdfFilePath(articleId));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error('原始 PDF 文件不存在，请重新导入', { cause: error });
+    }
+    throw error;
+  }
+}
+
+export async function deletePdfSourceFile(articleId: string) {
+  await rm(pdfFilePath(articleId), { force: true });
+}
