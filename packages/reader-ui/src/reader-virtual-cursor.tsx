@@ -16,7 +16,13 @@ export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
       ]
         .filter(Boolean)
         .join(' ')}
-      style={{ left: cursor.x, top: cursor.y, '--cursor-color': color } as React.CSSProperties}
+      style={
+        {
+          '--cursor-color': color,
+          '--reader-cursor-x': `${cursor.x}px`,
+          '--reader-cursor-y': `${cursor.y}px`,
+        } as React.CSSProperties
+      }
     >
       <svg
         aria-hidden="true"
