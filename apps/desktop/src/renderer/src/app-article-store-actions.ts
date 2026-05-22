@@ -4,6 +4,7 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
+  ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
 
@@ -45,9 +46,12 @@ export function useAppArticleStoreActions({
       const desktop = window.yomitomoDesktop;
       if (!desktop) return;
 
-      applyStore(await desktop.saveArticle(article));
+      const patch = await desktop.saveArticle(article);
+      const nextStore = applyArticleUpsertPatch(storeRef.current, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
     },
-    [applyStore],
+    [applyStore, storeRef],
   );
 
   const updateArticle = useCallback(
@@ -60,13 +64,16 @@ export function useAppArticleStoreActions({
         if (!article) return;
         const nextArticle = update(article);
         if (!nextArticle) return;
-        applyStore(await desktop.saveArticle(nextArticle));
+        const patch = await desktop.saveArticle(nextArticle);
+        const nextStore = applyArticleUpsertPatch(storeRef.current, patch);
+        storeRef.current = nextStore;
+        applyStore(nextStore);
       };
       const nextUpdate = articleUpdateQueueRef.current.then(run, run);
       articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
       await nextUpdate;
     },
-    [applyStore],
+    [applyStore, storeRef],
   );
 
   const saveArticleReadingProgress = useCallback(
@@ -141,6 +148,26 @@ export function applyArticleReadingProgressPatch(
       article.id === patch.articleId
         ? { ...article, readingProgress: patch.readingProgress, updatedAt: patch.updatedAt }
         : article,
+    ),
+  };
+}
+
+export function applyArticleUpsertPatch(
+  store: DesktopStore,
+  patch: ArticleUpsertPatch,
+): DesktopStore {
+  const existingIndex = store.articles.findIndex((article) => article.id === patch.article.id);
+  if (existingIndex === -1) {
+    return {
+      ...store,
+      articles: [patch.article, ...store.articles],
+    };
+  }
+
+  return {
+    ...store,
+    articles: store.articles.map((article, index) =>
+      index === existingIndex ? patch.article : article,
     ),
   };
 }

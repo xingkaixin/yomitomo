@@ -14,6 +14,7 @@ import type {
   ArticleRecord,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
+  ArticleUpsertPatch,
   Comment,
   DesktopStore,
   LlmProvider,
@@ -621,9 +622,15 @@ export async function deleteAgent(id: string): Promise<DesktopStore> {
   return readStore();
 }
 
-export async function saveArticle(input: ArticleRecord): Promise<DesktopStore> {
+export async function saveArticle(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   writeArticleRowsInTransaction(getDatabase(), input);
-  return readStore();
+  const article = await readArticle(input.id);
+  if (!article) throw new Error('文章保存失败');
+  return buildArticleUpsertPatch(article);
+}
+
+export function buildArticleUpsertPatch(article: ArticleRecord): ArticleUpsertPatch {
+  return { type: 'article-upsert', article };
 }
 
 export async function saveArticleReadingProgress(

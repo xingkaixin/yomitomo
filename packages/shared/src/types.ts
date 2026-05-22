@@ -295,9 +295,19 @@ export type ArticleReadingProgressPatch = {
   updatedAt: string;
 };
 
+export type ArticleUpsertPatch = {
+  type: 'article-upsert';
+  article: ArticleRecord;
+};
+
 export type ArticleDeletePatch = {
   articleId: string;
 };
+
+export type ArticleStorePatch =
+  | ArticleUpsertPatch
+  | (ArticleReadingProgressPatch & { type: 'article-reading-progress' })
+  | (ArticleDeletePatch & { type: 'article-delete' });
 
 export type SpoilerAllowedScope =
   | 'current-selection'

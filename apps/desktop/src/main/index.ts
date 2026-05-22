@@ -303,9 +303,7 @@ function registerIpc() {
   });
   handleDesktopIpc('article:save', async (_event, input) => {
     const { saveArticle } = await getStoreModule();
-    const store = await saveArticle(input);
-    sendStoreUpdated(store);
-    return store;
+    return saveArticle(input);
   });
   handleDesktopIpc('article:reading-progress', async (_event, input) => {
     const { saveArticleReadingProgress } = await getStoreModule();
@@ -329,12 +327,13 @@ function registerIpc() {
       };
     }
 
-    const store = await saveArticle({
+    await saveArticle({
       ...record,
       createdAt: existingFullArticle?.createdAt || record.createdAt,
     });
     const article = await readArticle(record.id);
     if (!article) throw new Error('文章保存失败');
+    const store = await readStore();
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
   });
@@ -356,9 +355,10 @@ function registerIpc() {
     }
 
     await saveEbookSourceFile(record.id, input.data);
-    const store = await saveArticle(record);
+    await saveArticle(record);
     const article = await readArticle(record.id);
     if (!article) throw new Error('电子书保存失败');
+    const store = await readStore();
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
   });

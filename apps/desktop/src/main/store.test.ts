@@ -32,6 +32,7 @@ import {
   buildArticleReadingProgressPatch,
   buildAgentRecord,
   buildArticleChildRows,
+  buildArticleUpsertPatch,
   buildProviderRecord,
   mergeSettingsForUpsert,
   readStoredProviderApiKey,
@@ -285,6 +286,25 @@ describe('desktop store reading progress', () => {
 });
 
 describe('desktop store articles', () => {
+  it('builds only the article upsert patch', () => {
+    const article = {
+      id: 'article-upsert',
+      url: 'https://example.com/article-upsert',
+      canonicalUrl: 'https://example.com/article-upsert',
+      title: 'Upsert article',
+      contentHtml: '<p>Hello</p>',
+      contentHash: 'hash-upsert',
+      annotations: [],
+      createdAt: '2026-05-17T07:00:00.000Z',
+      updatedAt: '2026-05-17T08:00:00.000Z',
+    };
+
+    expect(buildArticleUpsertPatch(article)).toEqual({
+      type: 'article-upsert',
+      article,
+    });
+  });
+
   it('keeps aggregate counts on lightweight article summaries', () => {
     const article = rowToArticleSummary(storeSummaryRow(), [], {
       annotationCount: 2,
