@@ -85,6 +85,7 @@ import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
+  articleLinkExternalUrl,
   sourceArticleBodyHtml,
   sourceReaderTocStyles,
   webAnnotationNavigationState,
@@ -363,6 +364,18 @@ export function WebSourceBookcase({
       ),
     );
     selection.removeAllRanges();
+  }
+
+  function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
+    const target = event.target instanceof Element ? event.target : null;
+    const anchor = target?.closest<HTMLAnchorElement>('a[href]');
+    if (!anchor) return;
+
+    const url = articleLinkExternalUrl(article, anchor.getAttribute('href'));
+    if (!url) return;
+
+    event.preventDefault();
+    void window.yomitomoDesktop.openUrl(url);
   }
 
   async function createAnnotation(note: string) {
@@ -976,6 +989,13 @@ export function WebSourceBookcase({
         annotatingAgents={annotatingAgentIds}
         annotationTotals={annotationTotals}
         annotations={annotations}
+        articleContent={
+          <div
+            className="reader-article-body"
+            dangerouslySetInnerHTML={{ __html: contentHtml }}
+            onClick={handleArticleClick}
+          />
+        }
         articleId={article.id}
         articleRef={articleRef}
         boxes={boxes}

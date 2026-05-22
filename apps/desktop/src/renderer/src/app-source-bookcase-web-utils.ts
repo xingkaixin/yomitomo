@@ -126,6 +126,28 @@ export function sourceArticleBodyHtml(article: ArticleRecord) {
   return container.innerHTML;
 }
 
+export function articleLinkExternalUrl(article: ArticleRecord, href: string | null) {
+  const rawHref = href?.trim();
+  if (!rawHref || rawHref.startsWith('#')) return '';
+
+  const directUrl = httpUrl(rawHref);
+  if (directUrl) return directUrl;
+
+  const baseUrl = httpUrl(article.canonicalUrl) || httpUrl(article.url);
+  if (!baseUrl) return '';
+
+  return httpUrl(rawHref, baseUrl);
+}
+
+function httpUrl(value: string, base?: string) {
+  try {
+    const url = new URL(value, base);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
 function annotationNavigationForViewportRange(
   annotations: Annotation[],
   positions: Array<{ index: number; top: number; bottom: number }>,
