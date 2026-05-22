@@ -69,6 +69,8 @@ export function useReaderAnnotationRail({
     ids: new Set(filteredAnnotations.map((annotation) => annotation.id)),
   });
   const noteResizeObserverRef = React.useRef<ResizeObserver | null>(null);
+  const pendingNoteHeightsRef = React.useRef(new Map<string, number>());
+  const noteHeightFrameRef = React.useRef(0);
   const registerNoteElementRef = React.useRef<
     (annotationId: string, element: HTMLElement | null) => void
   >(() => {});
@@ -99,6 +101,34 @@ export function useReaderAnnotationRail({
     [activeId, annotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
+  const flushPendingNoteHeights = React.useCallback(() => {
+    noteHeightFrameRef.current = 0;
+    if (pendingNoteHeightsRef.current.size === 0) return;
+
+    const measuredHeights = pendingNoteHeightsRef.current;
+    pendingNoteHeightsRef.current = new Map();
+    setNoteHeights((current) => {
+      let next = current;
+      for (const [annotationId, height] of measuredHeights) {
+        if (current[annotationId] === height) continue;
+        if (next === current) next = { ...current };
+        next[annotationId] = height;
+      }
+      return next;
+    });
+  }, []);
+
+  const queueNoteHeight = React.useCallback(
+    (annotationId: string, height: number) => {
+      const nextHeight = Math.ceil(height);
+      if (nextHeight <= 0) return;
+      pendingNoteHeightsRef.current.set(annotationId, nextHeight);
+      if (noteHeightFrameRef.current) return;
+      noteHeightFrameRef.current = window.requestAnimationFrame(flushPendingNoteHeights);
+    },
+    [flushPendingNoteHeights],
+  );
+
   const updateNoteHeight = React.useCallback((annotationId: string, height: number) => {
     const nextHeight = Math.ceil(height);
     if (nextHeight <= 0) return;
@@ -126,6 +156,7 @@ export function useReaderAnnotationRail({
         if (existing) noteResizeObserverRef.current?.unobserve(existing);
         noteElementsRef.current.delete(annotationId);
         noteRefs.current.delete(annotationId);
+        pendingNoteHeightsRef.current.delete(annotationId);
         setNoteHeights((current) => {
           if (!(annotationId in current)) return current;
           const next = { ...current };
@@ -137,27 +168,22 @@ export function useReaderAnnotationRail({
 
       noteElementsRef.current.set(annotationId, element);
       noteRefs.current.set(annotationId, element);
-      updateNoteHeight(annotationId, element.getBoundingClientRect().height);
 
-      if (typeof ResizeObserver === 'undefined') return;
+      if (typeof ResizeObserver === 'undefined') {
+        updateNoteHeight(annotationId, element.getBoundingClientRect().height);
+        return;
+      }
       if (!noteResizeObserverRef.current) {
         noteResizeObserverRef.current = new ResizeObserver((entries) => {
-          setNoteHeights((current) => {
-            let next = current;
-            for (const entry of entries) {
-              const id = entry.target.getAttribute('data-annotation-id');
-              const height = Math.ceil(entry.contentRect.height);
-              if (!id || height <= 0 || current[id] === height) continue;
-              if (next === current) next = { ...current };
-              next[id] = height;
-            }
-            return next;
-          });
+          for (const entry of entries) {
+            const id = entry.target.getAttribute('data-annotation-id');
+            if (id) queueNoteHeight(id, entry.contentRect.height);
+          }
         });
       }
       noteResizeObserverRef.current.observe(element);
     },
-    [noteRefs, updateNoteHeight],
+    [noteRefs, queueNoteHeight, updateNoteHeight],
   );
 
   registerNoteElementRef.current = registerNoteElement;
@@ -284,7 +310,13 @@ export function useReaderAnnotationRail({
     });
   }, [railAnnotations]);
 
-  React.useEffect(() => () => noteResizeObserverRef.current?.disconnect(), []);
+  React.useEffect(
+    () => () => {
+      noteResizeObserverRef.current?.disconnect();
+      if (noteHeightFrameRef.current) window.cancelAnimationFrame(noteHeightFrameRef.current);
+    },
+    [],
+  );
 
   React.useLayoutEffect(() => {
     onAnnotationLayoutChange?.();

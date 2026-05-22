@@ -6,7 +6,11 @@ import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
-import type { AnnotationNavigationDirection, ReaderAppViewProps } from './reader-app-view-types';
+import type {
+  AnnotationNavigationDirection,
+  AnnotationNavigationState,
+  ReaderAppViewProps,
+} from './reader-app-view-types';
 import type { AnnotationRailLayout } from './reader-utils';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
@@ -28,6 +32,11 @@ const stackedAnnotationRailLayout: AnnotationRailLayout = {
   mode: 'stacked',
   railWidth: 0,
   rightRailLeft: 0,
+};
+
+const emptyAnnotationNavigation: AnnotationNavigationState = {
+  nextId: null,
+  previousId: null,
 };
 
 function useAnnotationRailLayout(
@@ -125,6 +134,13 @@ function sameAnnotationRailLayout(left: AnnotationRailLayout, right: AnnotationR
   );
 }
 
+function sameAnnotationNavigation(
+  left: AnnotationNavigationState,
+  right: AnnotationNavigationState,
+) {
+  return left.previousId === right.previousId && left.nextId === right.nextId;
+}
+
 export function ReaderAppView({
   activeConnection,
   activeId,
@@ -198,7 +214,6 @@ export function ReaderAppView({
   onToggleSettings,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
-  const [navigationVersion, setNavigationVersion] = React.useState(0);
   const annotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
   const {
     annotationRailItems,
@@ -220,6 +235,11 @@ export function ReaderAppView({
     noteRefs,
     onAnnotationLayoutChange,
   });
+  const [annotationNavigation, setAnnotationNavigation] = React.useState<AnnotationNavigationState>(
+    () =>
+      onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ??
+      emptyAnnotationNavigation,
+  );
   const { handleReaderPointerDownCapture, toggleAgentAnnotate, toggleSettings } =
     useReaderShellInteractions({
       activeId,
@@ -239,33 +259,41 @@ export function ReaderAppView({
       onToggleAgentAnnotate,
       onToggleSettings,
     });
-  const annotationNavigation = React.useMemo(
-    () =>
-      onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ?? {
-        previousId: null,
-        nextId: null,
-      },
-    [activeId, navigationVersion, onResolveAnnotationNavigation, visibleAnnotations],
-  );
   const hasToc = tocItems.length > 0;
 
   React.useEffect(() => {
-    if (!onResolveAnnotationNavigation) return;
+    if (!onResolveAnnotationNavigation) {
+      setAnnotationNavigation((current) =>
+        sameAnnotationNavigation(current, emptyAnnotationNavigation)
+          ? current
+          : emptyAnnotationNavigation,
+      );
+      return;
+    }
     const surface = surfaceRef.current;
     if (!surface) return;
 
     let frame = 0;
+    const updateNavigation = () => {
+      const nextNavigation =
+        onResolveAnnotationNavigation({ activeId, annotations: visibleAnnotations }) ??
+        emptyAnnotationNavigation;
+      setAnnotationNavigation((current) =>
+        sameAnnotationNavigation(current, nextNavigation) ? current : nextNavigation,
+      );
+    };
     const schedule = () => {
       window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => setNavigationVersion((version) => version + 1));
+      frame = window.requestAnimationFrame(updateNavigation);
     };
 
+    updateNavigation();
     surface.addEventListener('scroll', schedule, { passive: true });
     return () => {
       window.cancelAnimationFrame(frame);
       surface.removeEventListener('scroll', schedule);
     };
-  }, [onResolveAnnotationNavigation, surfaceRef]);
+  }, [activeId, onResolveAnnotationNavigation, surfaceRef, visibleAnnotations]);
 
   function navigateAnnotation(direction: AnnotationNavigationDirection) {
     const annotationId =

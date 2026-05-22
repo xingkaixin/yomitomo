@@ -21,8 +21,41 @@ const userProfile: UserProfile = {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
+
+class MockResizeObserver {
+  static instances: MockResizeObserver[] = [];
+
+  readonly elements = new Set<Element>();
+
+  constructor(readonly callback: ResizeObserverCallback) {
+    MockResizeObserver.instances.push(this);
+  }
+
+  observe(element: Element) {
+    this.elements.add(element);
+  }
+
+  unobserve(element: Element) {
+    this.elements.delete(element);
+  }
+
+  disconnect() {
+    this.elements.clear();
+  }
+
+  emit(entries: Array<{ target: Element; height: number }>) {
+    this.callback(
+      entries.map(({ target, height }) => ({
+        target,
+        contentRect: { height },
+      })) as ResizeObserverEntry[],
+      this as unknown as ResizeObserver,
+    );
+  }
+}
 
 function annotation(id: string, overrides: Partial<Annotation> = {}): Annotation {
   return {
@@ -218,6 +251,62 @@ describe('useReaderAnnotationRail', () => {
     });
 
     expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses ResizeObserver instead of synchronous mount measurement when available', () => {
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+    const getBoundingClientRect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect');
+    const userNote = annotation('user-note');
+    const noteRefs = createNoteRefs();
+
+    render(<HookProbe annotations={[userNote]} noteRefs={noteRefs} />);
+
+    expect(MockResizeObserver.instances).toHaveLength(1);
+    expect(MockResizeObserver.instances[0]?.elements.size).toBe(1);
+    expect(getBoundingClientRect).not.toHaveBeenCalled();
+  });
+
+  it('batches ResizeObserver note height updates into one layout notification', () => {
+    vi.useFakeTimers();
+    MockResizeObserver.instances = [];
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+    const userNote = annotation('user-note');
+    const agentNote = annotation('agent-note', {
+      author: 'ai',
+      agentId: 'agent-a',
+      agentUsername: 'agent_a',
+    });
+    const noteRefs = createNoteRefs();
+    const onAnnotationLayoutChange = vi.fn();
+
+    render(
+      <HookProbe
+        annotations={[userNote, agentNote]}
+        noteRefs={noteRefs}
+        onAnnotationLayoutChange={onAnnotationLayoutChange}
+      />,
+    );
+
+    expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
+    const observer = MockResizeObserver.instances[0]!;
+    const entries = Array.from(observer.elements).map((target, index) => ({
+      target,
+      height: index === 0 ? 44 : 72,
+    }));
+
+    act(() => {
+      observer.emit(entries);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(2);
+
+    act(() => {
+      observer.emit(entries);
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(2);
   });
 
   it('expands new annotations and clears expansion on article switch', async () => {
