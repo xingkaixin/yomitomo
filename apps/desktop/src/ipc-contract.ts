@@ -29,11 +29,9 @@ export type AppInfo = {
   desktopVersion: string;
 };
 
-export type ArticleImportResult = {
-  status: 'imported' | 'duplicate';
-  article: ArticleRecord;
-  store: DesktopStore;
-};
+export type ArticleImportResult =
+  | { status: 'duplicate'; article: ArticleRecord }
+  | { status: 'imported'; article: ArticleRecord; patch: ArticleUpsertPatch };
 
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
 

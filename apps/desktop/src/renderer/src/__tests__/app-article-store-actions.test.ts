@@ -60,6 +60,137 @@ describe('useAppArticleStoreActions', () => {
       articles: [savedArticle, secondArticle],
     });
   });
+
+  it('applies the imported article patch without a full store result', async () => {
+    const firstArticle = makeArticle('article-1');
+    const importedArticle = makeArticle('article-imported');
+    const storeRef = {
+      current: {
+        ...emptyStore,
+        articles: [firstArticle],
+      },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const importArticleUrl = vi.fn().mockResolvedValue({
+      status: 'imported',
+      article: importedArticle,
+      patch: {
+        type: 'article-upsert',
+        article: importedArticle,
+      },
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { importArticleUrl },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    let result!: Awaited<ReturnType<typeof actions.importArticleUrl>>;
+    await act(async () => {
+      result = await actions.importArticleUrl('https://example.com/imported');
+    });
+
+    expect(result).toMatchObject({ status: 'imported', article: importedArticle });
+    expect(importArticleUrl).toHaveBeenCalledWith('https://example.com/imported');
+    expect(applyStore).toHaveBeenCalledWith({
+      ...emptyStore,
+      articles: [importedArticle, firstArticle],
+    });
+  });
+
+  it('does not replace the store when imported article is a duplicate', async () => {
+    const firstArticle = makeArticle('article-1');
+    const storeRef = {
+      current: {
+        ...emptyStore,
+        articles: [firstArticle],
+      },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const importArticleUrl = vi.fn().mockResolvedValue({
+      status: 'duplicate',
+      article: firstArticle,
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { importArticleUrl },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.importArticleUrl('https://example.com/article-1');
+    });
+
+    expect(applyStore).not.toHaveBeenCalled();
+    expect(storeRef.current.articles).toEqual([firstArticle]);
+  });
+
+  it('applies the imported ebook patch without a full store result', async () => {
+    const firstArticle = makeArticle('article-1');
+    const importedArticle = makeArticle('ebook-imported');
+    const storeRef = {
+      current: {
+        ...emptyStore,
+        articles: [firstArticle],
+      },
+    };
+    const applyStore = vi.fn((store: DesktopStore) => {
+      storeRef.current = store;
+      return store;
+    });
+    const importEbookFile = vi.fn().mockResolvedValue({
+      status: 'imported',
+      article: importedArticle,
+      patch: {
+        type: 'article-upsert',
+        article: importedArticle,
+      },
+    });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { importEbookFile },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.importEbookFile(new File(['ebook'], 'book.epub'));
+    });
+
+    expect(importEbookFile).toHaveBeenCalledWith(
+      expect.objectContaining({ fileName: 'book.epub' }),
+    );
+    expect(applyStore).toHaveBeenCalledWith({
+      ...emptyStore,
+      articles: [importedArticle, firstArticle],
+    });
+  });
 });
 
 describe('applyArticleReadingProgressPatch', () => {

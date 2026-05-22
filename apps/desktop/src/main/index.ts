@@ -323,19 +323,14 @@ function registerIpc() {
       return {
         status: 'duplicate',
         article: existingFullArticle,
-        store: previousStore,
       };
     }
 
-    await saveArticle({
+    const patch = await saveArticle({
       ...record,
       createdAt: existingFullArticle?.createdAt || record.createdAt,
     });
-    const article = await readArticle(record.id);
-    if (!article) throw new Error('文章保存失败');
-    const store = await readStore();
-    sendStoreUpdated(store);
-    return { status: 'imported', article, store };
+    return { status: 'imported', article: patch.article, patch };
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { readArticle, readStore, saveArticle } = await getStoreModule();
@@ -350,17 +345,12 @@ function registerIpc() {
       return {
         status: 'duplicate',
         article: existingFullArticle || existingArticle,
-        store: previousStore,
       };
     }
 
     await saveEbookSourceFile(record.id, input.data);
-    await saveArticle(record);
-    const article = await readArticle(record.id);
-    if (!article) throw new Error('电子书保存失败');
-    const store = await readStore();
-    sendStoreUpdated(store);
-    return { status: 'imported', article, store };
+    const patch = await saveArticle(record);
+    return { status: 'imported', article: patch.article, patch };
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('./ebook-storage');
