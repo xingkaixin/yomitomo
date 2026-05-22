@@ -1,28 +1,34 @@
 import { performance } from 'node:perf_hooks';
 import { join } from 'node:path';
-import { app, BrowserWindow, ipcMain, shell, type BrowserWindowConstructorOptions } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  shell,
+  type BrowserWindowConstructorOptions,
+  type IpcMainInvokeEvent,
+} from 'electron';
 import type {
   Agent,
   AgentAnnotatePayload,
   AgentMessagePayload,
-  AgentReviewPayload,
-  AgentMentionInstructionPayload,
-  AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
-  ArticleReadingProgress,
   Comment,
   DesktopStore,
-  FocusCoReadingRoutePayload,
   LlmProvider,
-  UserProfile,
 } from '@yomitomo/shared';
 import { agentPersonalityName, makeId } from '@yomitomo/shared';
-import type { DataManagementPathKind } from './data-management';
 import { clearLogFile, getLogPath, logError, logInfo, pruneLogFile, readLogFile } from './logger';
 import { configureDesktopAppStorage } from './app-environment';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreGetResult, DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import type {
+  DesktopIpcInvokeArgs,
+  DesktopIpcInvokeChannel,
+  DesktopIpcInvokeResult,
+  EbookImportFileInput,
+} from '../ipc-contract';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -201,7 +207,7 @@ app.on('activate', () => {
 });
 
 function registerIpc() {
-  ipcMain.handle('app:info', () => ({ desktopVersion: app.getVersion() }));
+  handleDesktopIpc('app:info', () => ({ desktopVersion: app.getVersion() }));
   ipcMain.on('app:renderer-ready', (event) => {
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
     if (browserWindow && !browserWindow.isDestroyed()) {
@@ -209,7 +215,7 @@ function registerIpc() {
       browserWindow.show();
     }
   });
-  ipcMain.handle('store:get', async (): Promise<DesktopStoreGetResult> => {
+  handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
     const startedAt = performance.now();
     recordStartupTiming('store.get_start');
     try {
@@ -248,67 +254,64 @@ function registerIpc() {
       return { ok: false, error: await storeLoadErrorInfo(error) };
     }
   });
-  ipcMain.handle('data:paths', async () => {
+  handleDesktopIpc('data:paths', async () => {
     const { getDataManagementPaths } = await import('./data-management');
     return getDataManagementPaths();
   });
-  ipcMain.handle('data:open-path', async (_event, kind: DataManagementPathKind) => {
+  handleDesktopIpc('data:open-path', async (_event, kind) => {
     const { openDataManagementPath } = await import('./data-management');
     return openDataManagementPath(kind);
   });
-  ipcMain.handle('data:database-backup', async () => {
+  handleDesktopIpc('data:database-backup', async () => {
     const { backupDatabaseWithDialog } = await import('./data-management');
     return backupDatabaseWithDialog(mainWindow);
   });
-  ipcMain.handle('data:database-restore', async () => {
+  handleDesktopIpc('data:database-restore', async () => {
     const { restoreDatabaseWithDialog } = await import('./data-management');
     const result = await restoreDatabaseWithDialog(mainWindow);
     if (!result.canceled) sendStoreUpdated(result.store);
     return result;
   });
-  ipcMain.handle('log:path', () => getLogPath());
-  ipcMain.handle('log:read', () => readLogFile());
-  ipcMain.handle('log:clear', () => clearLogFile());
-  ipcMain.handle('updates:get-status', async () => {
+  handleDesktopIpc('log:path', () => getLogPath());
+  handleDesktopIpc('log:read', () => readLogFile());
+  handleDesktopIpc('log:clear', () => clearLogFile());
+  handleDesktopIpc('updates:get-status', async () => {
     const { getAppUpdateState } = await getAppUpdaterModule();
     return getAppUpdateState();
   });
-  ipcMain.handle('updates:check', async () => {
+  handleDesktopIpc('updates:check', async () => {
     const { checkForAppUpdates } = await getAppUpdaterModule();
     return checkForAppUpdates();
   });
-  ipcMain.handle('updates:download', async () => {
+  handleDesktopIpc('updates:download', async () => {
     const { downloadAppUpdate } = await getAppUpdaterModule();
     return downloadAppUpdate();
   });
-  ipcMain.handle('updates:install', async () => {
+  handleDesktopIpc('updates:install', async () => {
     const { installAppUpdate } = await getAppUpdaterModule();
     return installAppUpdate();
   });
-  ipcMain.handle('performance:timing', (_event, input: unknown) => recordPerformanceTiming(input));
-  ipcMain.handle('url:open', (_event, value: string) => openExternalUrl(value));
-  ipcMain.handle('article:get', async (_event, id: string) => {
+  handleDesktopIpc('performance:timing', (_event, input) => recordPerformanceTiming(input));
+  handleDesktopIpc('url:open', (_event, value) => openExternalUrl(value));
+  handleDesktopIpc('article:get', async (_event, id) => {
     const { readArticle } = await getStoreModule();
     return readArticle(id);
   });
-  ipcMain.handle('article:get-cover', async (_event, id: string) => {
+  handleDesktopIpc('article:get-cover', async (_event, id) => {
     const { readArticleCover } = await getStoreModule();
     return readArticleCover(id);
   });
-  ipcMain.handle('article:save', async (_event, input: ArticleRecord) => {
+  handleDesktopIpc('article:save', async (_event, input) => {
     const { saveArticle } = await getStoreModule();
     const store = await saveArticle(input);
     sendStoreUpdated(store);
     return store;
   });
-  ipcMain.handle(
-    'article:reading-progress',
-    async (_event, input: { articleId: string; progress: ArticleReadingProgress }) => {
-      const { saveArticleReadingProgress } = await getStoreModule();
-      return saveArticleReadingProgress(input.articleId, input.progress);
-    },
-  );
-  ipcMain.handle('article:import-url', async (_event, input: string) => {
+  handleDesktopIpc('article:reading-progress', async (_event, input) => {
+    const { saveArticleReadingProgress } = await getStoreModule();
+    return saveArticleReadingProgress(input.articleId, input.progress);
+  });
+  handleDesktopIpc('article:import-url', async (_event, input) => {
     const { readArticle, readStore, saveArticle } = await getStoreModule();
     const { articleRecordFromUrl, isArticleImportChallengeRecord } =
       await import('./article-import');
@@ -335,75 +338,62 @@ function registerIpc() {
     sendStoreUpdated(store);
     return { status: 'imported', article, store };
   });
-  ipcMain.handle(
-    'ebook:import-file',
-    async (
-      _event,
-      input: {
-        fileName: string;
-        mimeType?: string;
-        data: ArrayBuffer;
-      },
-    ) => {
-      const { readArticle, readStore, saveArticle } = await getStoreModule();
-      const { articleRecordFromEpubFile } = await import('./ebook-import');
-      const { saveEbookSourceFile } = await import('./ebook-storage');
-      const previousStore = await readStore();
-      const record = await articleRecordFromEpubFile(input, { performanceLogger: logInfo });
-      const existingArticle = findArticleByIdentity(previousStore.articles, record);
-      if (existingArticle) {
-        const existingFullArticle = await readArticle(existingArticle.id);
-        await saveEbookSourceFile(existingArticle.id, input.data);
-        return {
-          status: 'duplicate',
-          article: existingFullArticle || existingArticle,
-          store: previousStore,
-        };
-      }
+  handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
+    const { readArticle, readStore, saveArticle } = await getStoreModule();
+    const { articleRecordFromEpubFile } = await import('./ebook-import');
+    const { saveEbookSourceFile } = await import('./ebook-storage');
+    const previousStore = await readStore();
+    const record = await articleRecordFromEpubFile(input, { performanceLogger: logInfo });
+    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    if (existingArticle) {
+      const existingFullArticle = await readArticle(existingArticle.id);
+      await saveEbookSourceFile(existingArticle.id, input.data);
+      return {
+        status: 'duplicate',
+        article: existingFullArticle || existingArticle,
+        store: previousStore,
+      };
+    }
 
-      await saveEbookSourceFile(record.id, input.data);
-      const store = await saveArticle(record);
-      const article = await readArticle(record.id);
-      if (!article) throw new Error('电子书保存失败');
-      sendStoreUpdated(store);
-      return { status: 'imported', article, store };
-    },
-  );
-  ipcMain.handle('ebook:read-file', async (_event, articleId: string) => {
+    await saveEbookSourceFile(record.id, input.data);
+    const store = await saveArticle(record);
+    const article = await readArticle(record.id);
+    if (!article) throw new Error('电子书保存失败');
+    sendStoreUpdated(store);
+    return { status: 'imported', article, store };
+  });
+  handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('./ebook-storage');
     const file = await readEbookSourceFile(articleId);
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
   });
-  ipcMain.handle('user:save', async (_event, input: Partial<UserProfile>) => {
+  handleDesktopIpc('user:save', async (_event, input) => {
     const { saveUser } = await getStoreModule();
     return saveUser(input);
   });
-  ipcMain.handle('settings:save', async (_event, input: AppSettings) => {
+  handleDesktopIpc('settings:save', async (_event, input) => {
     const { saveSettings } = await getStoreModule();
     const store = await saveSettings(input);
     await pruneLogFile(store.settings.logRetentionDays);
     sendStoreUpdated(store);
     return store;
   });
-  ipcMain.handle(
-    'provider:save',
-    async (_event, input: Partial<LlmProvider> & { removeApiKey?: boolean }) => {
-      const { saveProvider } = await getStoreModule();
-      const store = await saveProvider(input);
-      return store;
-    },
-  );
-  ipcMain.handle('provider:delete', async (_event, id: string) => {
+  handleDesktopIpc('provider:save', async (_event, input) => {
+    const { saveProvider } = await getStoreModule();
+    const store = await saveProvider(input);
+    return store;
+  });
+  handleDesktopIpc('provider:delete', async (_event, id) => {
     const { deleteProvider } = await getStoreModule();
     const store = await deleteProvider(id);
     return store;
   });
-  ipcMain.handle('provider:read-api-key', async (_event, providerId: string) => {
+  handleDesktopIpc('provider:read-api-key', async (_event, providerId) => {
     if (!providerId) return '';
     const { readStoredProviderApiKey } = await getStoreModule();
     return readStoredProviderApiKey(providerId);
   });
-  ipcMain.handle('provider:test', async (_event, input: Partial<LlmProvider>) => {
+  handleDesktopIpc('provider:test', async (_event, input) => {
     try {
       const { hydrateProviderInputApiKey } = await getStoreModule();
       const { testProvider } = await getAiModule();
@@ -430,26 +420,26 @@ function registerIpc() {
       return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
     }
   });
-  ipcMain.handle('provider:list-models', async (_event, input: Partial<LlmProvider>) => {
+  handleDesktopIpc('provider:list-models', async (_event, input) => {
     const { hydrateProviderInputApiKey } = await getStoreModule();
     const { listProviderModels } = await getAiModule();
     return listProviderModels(await hydrateProviderInputApiKey(input));
   });
-  ipcMain.handle('annotation:metadata', async (_event, payload: AnnotationMetadataPayload) => {
+  handleDesktopIpc('annotation:metadata', async (_event, payload) => {
     const { inferAnnotationMetadata } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
     const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return inferAnnotationMetadata(provider, payload);
   });
-  ipcMain.handle('agent:mention-route', async (_event, payload: AgentMentionInstructionPayload) => {
+  handleDesktopIpc('agent:mention-route', async (_event, payload) => {
     const { planAgentMentionRoute } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
     const provider = await taskProvider(store.providers, store.settings, 'readingAssistant');
     return planAgentMentionRoute(provider, payload);
   });
-  ipcMain.handle('focus-co-reading:route', async (_event, payload: FocusCoReadingRoutePayload) => {
+  handleDesktopIpc('focus-co-reading:route', async (_event, payload) => {
     const { planFocusCoReadingRoute } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
@@ -460,11 +450,11 @@ function registerIpc() {
     );
     return planFocusCoReadingRoute(provider, payload, agents);
   });
-  ipcMain.handle('article:delete', async (_event, id: string) => {
+  handleDesktopIpc('article:delete', async (_event, id) => {
     const { deleteArticle } = await getStoreModule();
     return deleteArticle(id);
   });
-  ipcMain.handle('agent:comment', async (_event, payload: AgentMessagePayload) => {
+  handleDesktopIpc('agent:comment', async (_event, payload) => {
     const { runAgent } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
@@ -487,7 +477,7 @@ function registerIpc() {
       readingIntent: payload.readingIntent || comment.readingIntent,
     } satisfies Comment;
   });
-  ipcMain.handle('agent:review', async (_event, payload: AgentReviewPayload) => {
+  handleDesktopIpc('agent:review', async (_event, payload) => {
     const { runAgentReview } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
@@ -571,7 +561,7 @@ function registerIpc() {
       }
     },
   );
-  ipcMain.handle('agent:annotate', async (_event, payload: AgentAnnotatePayload) => {
+  handleDesktopIpc('agent:annotate', async (_event, payload) => {
     const { runAgentAnnotateWithMemory } = await getAiModule();
     const { readStore } = await getStoreModule();
     const store = await readStore();
@@ -625,16 +615,28 @@ function registerIpc() {
       }
     },
   );
-  ipcMain.handle('agent:save', async (_event, input: Partial<Agent>) => {
+  handleDesktopIpc('agent:save', async (_event, input) => {
     const { saveAgent } = await getStoreModule();
     const store = await saveAgent(input);
     return store;
   });
-  ipcMain.handle('agent:delete', async (_event, id: string) => {
+  handleDesktopIpc('agent:delete', async (_event, id) => {
     const { deleteAgent } = await getStoreModule();
     const store = await deleteAgent(id);
     return store;
   });
+}
+
+type DesktopIpcHandler<Channel extends DesktopIpcInvokeChannel> = (
+  event: IpcMainInvokeEvent,
+  ...args: DesktopIpcInvokeArgs<Channel>
+) => DesktopIpcInvokeResult<Channel> | Promise<DesktopIpcInvokeResult<Channel>>;
+
+function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
+  channel: Channel,
+  handler: DesktopIpcHandler<Channel>,
+) {
+  ipcMain.handle(channel, handler);
 }
 
 function sendStoreUpdated(store: DesktopStore) {
