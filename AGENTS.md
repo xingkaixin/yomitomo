@@ -102,6 +102,10 @@ pnpm build
 - 桌面端持久化路径基于 Electron `app.getPath("userData")`。
 - 桌面端文章导入逻辑放在 `apps/desktop/src/main/article-import.ts`。
 - 桌面端 provider API key 通过系统 keyring 保存，SQLite 只保留 provider 配置和 key 引用。
+- 桌面端 invoke 型 IPC 必须先在 `apps/desktop/src/ipc-contract.ts` 的 `DesktopIpcInvokeMap` 中声明 channel、args 和 result，再在 main/preload 中使用；不要在 `ipcMain.handle` 或 `ipcRenderer.invoke` 两端重复手写裸字符串和返回类型断言。
+- 桌面端 main 侧注册 invoke handler 时使用 `handleDesktopIpc(...)`，preload 侧调用 invoke 时使用 `invokeDesktopIpc(...)`，确保 channel、payload 和 result 来自同一份 contract。
+- `apps/desktop/src/ipc-contract.ts` 是桌面端内部边界协议；不要把 Electron IPC contract 放进 `packages/shared`。`packages/shared` 只承载跨包业务类型，desktop contract 可以通过 type import 复用这些类型。
+- 事件型 IPC（`ipcMain.on`、`ipcRenderer.send`、`webContents.send`）暂不混入 `DesktopIpcInvokeMap`；如需收敛事件协议，单独建立 event map，避免和 request/response 型 invoke contract 混用。
 - 官网页面、产品图、SEO、下载链接放在 `apps/web/src` 和 `apps/web/public`。下载链接从 `apps/desktop/package.json` 的版本号生成。
 - `pnpm dev` 通过 workspace 源码消费 `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui`；改动这些包后，桌面端 Vite watch 链路会重新构建相关代码。
 - UI 图标优先使用 `lucide-react`。
