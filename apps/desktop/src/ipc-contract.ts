@@ -13,6 +13,7 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
+  ArticleUpsertPatch,
   Comment,
   DesktopStore,
   FocusCoReadingRoutePayload,
@@ -119,7 +120,7 @@ export type DesktopIpcInvokeMap = {
   };
   'article:save': {
     args: [article: ArticleRecord];
-    result: DesktopStore;
+    result: ArticleUpsertPatch;
   };
   'data:database-backup': {
     args: [];
