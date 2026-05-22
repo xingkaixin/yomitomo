@@ -4,6 +4,7 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
+  ArticleStorePatch,
   ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
@@ -28,7 +29,12 @@ export function useAppArticleStoreActions({
       const desktop = window.yomitomoDesktop;
       if (!desktop) return;
 
-      applyStore(applyArticleDeletePatch(storeRef.current, { articleId }));
+      const nextStore = applyArticleStorePatch(storeRef.current, {
+        type: 'article-delete',
+        articleId,
+      });
+      storeRef.current = nextStore;
+      applyStore(nextStore);
       await desktop.deleteArticle(articleId);
     },
     [applyStore, storeRef],
@@ -47,7 +53,7 @@ export function useAppArticleStoreActions({
       if (!desktop) return;
 
       const patch = await desktop.saveArticle(article);
-      const nextStore = applyArticleUpsertPatch(storeRef.current, patch);
+      const nextStore = applyArticleStorePatch(storeRef.current, patch);
       storeRef.current = nextStore;
       applyStore(nextStore);
     },
@@ -65,7 +71,7 @@ export function useAppArticleStoreActions({
         const nextArticle = update(article);
         if (!nextArticle) return;
         const patch = await desktop.saveArticle(nextArticle);
-        const nextStore = applyArticleUpsertPatch(storeRef.current, patch);
+        const nextStore = applyArticleStorePatch(storeRef.current, patch);
         storeRef.current = nextStore;
         applyStore(nextStore);
       };
@@ -90,7 +96,12 @@ export function useAppArticleStoreActions({
         storeRef.current = optimisticStore;
         applyStore(optimisticStore);
         const patch = await desktop.saveArticleReadingProgress(articleId, progress);
-        applyStore(applyArticleReadingProgressPatch(storeRef.current, patch));
+        const nextStore = applyArticleStorePatch(storeRef.current, {
+          type: 'article-reading-progress',
+          ...patch,
+        });
+        storeRef.current = nextStore;
+        applyStore(nextStore);
       };
       const nextUpdate = articleUpdateQueueRef.current.then(run, run);
       articleUpdateQueueRef.current = nextUpdate.catch(() => undefined);
@@ -103,7 +114,7 @@ export function useAppArticleStoreActions({
     async (url: string) => {
       const result = await window.yomitomoDesktop.importArticleUrl(url);
       if (result.status === 'imported') {
-        const nextStore = applyArticleUpsertPatch(storeRef.current, result.patch);
+        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
         storeRef.current = nextStore;
         applyStore(nextStore);
       }
@@ -126,7 +137,7 @@ export function useAppArticleStoreActions({
       });
       onProgress?.(100);
       if (result.status === 'imported') {
-        const nextStore = applyArticleUpsertPatch(storeRef.current, result.patch);
+        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
         storeRef.current = nextStore;
         applyStore(nextStore);
       }
@@ -144,6 +155,20 @@ export function useAppArticleStoreActions({
     importArticleUrl,
     importEbookFile,
   };
+}
+
+export function applyArticleStorePatch(
+  store: DesktopStore,
+  patch: ArticleStorePatch,
+): DesktopStore {
+  switch (patch.type) {
+    case 'article-upsert':
+      return applyArticleUpsertPatch(store, patch);
+    case 'article-reading-progress':
+      return applyArticleReadingProgressPatch(store, patch);
+    case 'article-delete':
+      return applyArticleDeletePatch(store, patch);
+  }
 }
 
 export function applyArticleReadingProgressPatch(

@@ -269,7 +269,7 @@ function registerIpc() {
   handleDesktopIpc('data:database-restore', async () => {
     const { restoreDatabaseWithDialog } = await import('./data-management');
     const result = await restoreDatabaseWithDialog(mainWindow);
-    if (!result.canceled) sendStoreUpdated(result.store);
+    if (!result.canceled) sendFullStoreUpdated(result.store);
     return result;
   });
   handleDesktopIpc('log:path', () => getLogPath());
@@ -365,7 +365,7 @@ function registerIpc() {
     const { saveSettings } = await getStoreModule();
     const store = await saveSettings(input);
     await pruneLogFile(store.settings.logRetentionDays);
-    sendStoreUpdated(store);
+    sendFullStoreUpdated(store);
     return store;
   });
   handleDesktopIpc('provider:save', async (_event, input) => {
@@ -629,7 +629,7 @@ function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
   ipcMain.handle(channel, handler);
 }
 
-function sendStoreUpdated(store: DesktopStore) {
+function sendFullStoreUpdated(store: DesktopStore) {
   sendToRenderer('store:updated', store);
 }
 

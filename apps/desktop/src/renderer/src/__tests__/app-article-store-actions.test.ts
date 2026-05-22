@@ -7,6 +7,7 @@ import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
 
 import { emptyStore } from '../app-settings';
 import {
+  applyArticleStorePatch,
   applyArticleUpsertPatch,
   applyArticleDeletePatch,
   applyArticleReadingProgressPatch,
@@ -222,6 +223,62 @@ describe('applyArticleReadingProgressPatch', () => {
       updatedAt: readingProgress.updatedAt,
     });
     expect(nextStore.articles[1]).toBe(secondArticle);
+  });
+});
+
+describe('applyArticleStorePatch', () => {
+  it('applies article upsert patches', () => {
+    const firstArticle = makeArticle('article-1');
+    const savedArticle = makeArticle('article-saved');
+    const store: DesktopStore = {
+      ...emptyStore,
+      articles: [firstArticle],
+    };
+
+    expect(
+      applyArticleStorePatch(store, { type: 'article-upsert', article: savedArticle }).articles,
+    ).toEqual([savedArticle, firstArticle]);
+  });
+
+  it('applies article reading progress patches', () => {
+    const firstArticle = makeArticle('article-1');
+    const secondArticle = makeArticle('article-2');
+    const store: DesktopStore = {
+      ...emptyStore,
+      articles: [firstArticle, secondArticle],
+    };
+    const readingProgress = {
+      pageIndex: 2,
+      pageCount: 12,
+      progress: 0.25,
+      updatedAt: '2026-05-17T08:00:00.000Z',
+    };
+
+    expect(
+      applyArticleStorePatch(store, {
+        type: 'article-reading-progress',
+        articleId: firstArticle.id,
+        readingProgress,
+        updatedAt: readingProgress.updatedAt,
+      }).articles,
+    ).toEqual([
+      { ...firstArticle, readingProgress, updatedAt: readingProgress.updatedAt },
+      secondArticle,
+    ]);
+  });
+
+  it('applies article delete patches', () => {
+    const firstArticle = makeArticle('article-1');
+    const secondArticle = makeArticle('article-2');
+    const store: DesktopStore = {
+      ...emptyStore,
+      articles: [firstArticle, secondArticle],
+    };
+
+    expect(
+      applyArticleStorePatch(store, { type: 'article-delete', articleId: firstArticle.id })
+        .articles,
+    ).toEqual([secondArticle]);
   });
 });
 
