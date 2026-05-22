@@ -38,11 +38,13 @@ export function ArticleLibraryCard({
   const annotations = articleAnnotationCount(article);
   const thoughts = articleThoughtCount(article);
   const isEbook = isEbookArticle(article);
+  const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
-  const siteIconUrl = isEbook ? '' : articleSiteIconUrl(article);
+  const siteIconUrl = isEbook || isPdf ? '' : articleSiteIconUrl(article);
   const authorLabel =
     article.byline ||
+    article.pdf?.metadata.fileName ||
     article.siteName ||
     urlHost(article.canonicalUrl || article.url) ||
     '未知作者';
@@ -169,7 +171,7 @@ export function ArticleLibraryCard({
             </div>
             <h3 title={article.title}>{article.title}</h3>
             <p className="library-card-author">
-              {isEbook ? null : (
+              {isEbook || isPdf ? null : (
                 <span className="library-site-icon-slot" aria-hidden="true">
                   {siteIconUrl && !siteIconFailed ? (
                     <img
@@ -202,7 +204,9 @@ export function ArticleLibraryCard({
             {thoughts} 讨论
           </span>
         </div>
-        <span className="library-source-badge">{isEbookArticle(article) ? 'ePub' : '网页'}</span>
+        <span className="library-source-badge">
+          {isEbookArticle(article) ? 'ePub' : isPdf ? 'PDF' : '网页'}
+        </span>
       </footer>
     </article>
   );

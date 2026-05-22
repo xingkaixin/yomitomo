@@ -4,6 +4,7 @@ import {
   Check,
   CircleAlert,
   ExternalLink,
+  FileText,
   FileUp,
   Globe2,
   LoaderCircle,
@@ -14,9 +15,10 @@ import {
 import type { ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui';
 import { Button } from './components/ui/button';
-import type { EbookImportProgressCallback } from './app-reading-types';
+import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
+const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -41,13 +43,18 @@ function articleImportErrorMessage(error: unknown) {
 export function LibraryImportControls({
   defaultImportType,
   onImportEbookFile,
+  onImportPdfFile,
   onImportArticleUrl,
   onOpenArticle,
 }: {
-  defaultImportType?: 'web' | 'ebook';
+  defaultImportType?: 'web' | 'ebook' | 'pdf';
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
+  onImportPdfFile: (
+    file: File,
+    onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
@@ -55,17 +62,27 @@ export function LibraryImportControls({
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [articleImportOpen, setArticleImportOpen] = useState(false);
   const [ebookImportOpen, setEbookImportOpen] = useState(false);
+  const [pdfImportOpen, setPdfImportOpen] = useState(false);
 
   function openArticleImportDialog() {
     setAddMenuOpen(false);
     setEbookImportOpen(false);
+    setPdfImportOpen(false);
     setArticleImportOpen(true);
   }
 
   function openEbookImportDialog() {
     setAddMenuOpen(false);
     setArticleImportOpen(false);
+    setPdfImportOpen(false);
     setEbookImportOpen(true);
+  }
+
+  function openPdfImportDialog() {
+    setAddMenuOpen(false);
+    setArticleImportOpen(false);
+    setEbookImportOpen(false);
+    setPdfImportOpen(true);
   }
 
   return (
@@ -80,7 +97,13 @@ export function LibraryImportControls({
         <Button
           aria-expanded={defaultImportType ? undefined : addMenuOpen}
           aria-haspopup={defaultImportType ? undefined : 'menu'}
-          aria-label={defaultImportType === 'ebook' ? '添加电子书' : '添加网页'}
+          aria-label={
+            defaultImportType === 'ebook'
+              ? '添加电子书'
+              : defaultImportType === 'pdf'
+                ? '添加 PDF'
+                : '添加网页'
+          }
           className="library-add-trigger"
           type="button"
           variant="secondary"
@@ -93,6 +116,10 @@ export function LibraryImportControls({
               openEbookImportDialog();
               return;
             }
+            if (defaultImportType === 'pdf') {
+              openPdfImportDialog();
+              return;
+            }
             setAddMenuOpen((current) => !current);
           }}
         >
@@ -101,6 +128,8 @@ export function LibraryImportControls({
             <span>添加网页</span>
           ) : defaultImportType === 'ebook' ? (
             <span>添加电子书</span>
+          ) : defaultImportType === 'pdf' ? (
+            <span>添加 PDF</span>
           ) : null}
         </Button>
         {!defaultImportType && addMenuOpen ? (
@@ -112,6 +141,10 @@ export function LibraryImportControls({
             <button type="button" role="menuitem" onClick={openEbookImportDialog}>
               <BookText size={15} />
               ePub 电子书
+            </button>
+            <button type="button" role="menuitem" onClick={openPdfImportDialog}>
+              <FileText size={15} />
+              PDF 文档
             </button>
           </div>
         ) : null}
@@ -127,6 +160,13 @@ export function LibraryImportControls({
         <EbookImportDialog
           onClose={() => setEbookImportOpen(false)}
           onImportEbookFile={onImportEbookFile}
+          onOpenArticle={onOpenArticle}
+        />
+      ) : null}
+      {pdfImportOpen ? (
+        <PdfImportDialog
+          onClose={() => setPdfImportOpen(false)}
+          onImportPdfFile={onImportPdfFile}
           onOpenArticle={onOpenArticle}
         />
       ) : null}
@@ -586,6 +626,235 @@ function EbookImportDialog({
             >
               <ExternalLink size={14} />
               {ebookImportState === 'duplicate' ? '打开已有电子书' : '打开电子书'}
+            </button>
+          ) : null}
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function PdfImportDialog({
+  onClose,
+  onImportPdfFile,
+  onOpenArticle,
+}: {
+  onClose: () => void;
+  onImportPdfFile: (
+    file: File,
+    onProgress?: PdfImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
+  onOpenArticle: (article: ArticleRecord) => void;
+}) {
+  const [pdfImportState, setPdfImportState] = useState<ArticleImportState>('idle');
+  const [pdfImportMessage, setPdfImportMessage] = useState('');
+  const [pdfImportArticle, setPdfImportArticle] = useState<ArticleRecord | null>(null);
+  const [pdfImportProgress, setPdfImportProgress] = useState(0);
+  const [pdfDragging, setPdfDragging] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement | null>(null);
+  const pdfImportCloseTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => clearPdfImportCloseTimer(), []);
+
+  useEffect(() => {
+    if (pdfImportState !== 'submitting') return;
+
+    const timer = window.setInterval(() => {
+      setPdfImportProgress(advanceImportProgress);
+    }, 180);
+
+    return () => window.clearInterval(timer);
+  }, [pdfImportState]);
+
+  async function importPdf(file: File | undefined) {
+    if (!file) return;
+    clearPdfImportCloseTimer();
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setPdfImportState('error');
+      setPdfImportMessage('请选择 PDF 文件');
+      setPdfImportArticle(null);
+      setPdfImportProgress(0);
+      return;
+    }
+    if (file.size > MAX_PDF_IMPORT_BYTES) {
+      setPdfImportState('error');
+      setPdfImportMessage('PDF 文件不能超过 120MB');
+      setPdfImportArticle(null);
+      setPdfImportProgress(0);
+      return;
+    }
+
+    try {
+      setPdfImportState('submitting');
+      setPdfImportMessage(`正在解析 ${file.name}`);
+      setPdfImportArticle(null);
+      setPdfImportProgress(4);
+      const result = await onImportPdfFile(file, (nextProgress) => {
+        setPdfImportProgress(clampNumber(nextProgress, 0, 100, 4));
+      });
+      setPdfImportArticle(result.article);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+      if (result.status === 'duplicate') {
+        setPdfImportState('duplicate');
+        setPdfImportMessage('这份 PDF 已在阅读库');
+        setPdfImportProgress(100);
+        return;
+      }
+
+      setPdfImportProgress(100);
+      setPdfImportState('imported');
+      setPdfImportMessage('已添加到阅读库');
+      pdfImportCloseTimerRef.current = window.setTimeout(() => {
+        pdfImportCloseTimerRef.current = null;
+        onClose();
+        setPdfDragging(false);
+      }, 850);
+    } catch (error) {
+      setPdfImportState('error');
+      setPdfImportMessage(error instanceof Error ? error.message : '添加 PDF 失败');
+      setPdfImportArticle(null);
+      setPdfImportProgress(0);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  }
+
+  function clearPdfImportCloseTimer() {
+    if (pdfImportCloseTimerRef.current === null) return;
+    window.clearTimeout(pdfImportCloseTimerRef.current);
+    pdfImportCloseTimerRef.current = null;
+  }
+
+  function closePdfImportDialog() {
+    if (pdfImportState === 'submitting') return;
+    clearPdfImportCloseTimer();
+    setPdfDragging(false);
+    onClose();
+  }
+
+  const pdfImportProgressPercent = Math.round(pdfImportProgress);
+
+  return (
+    <div
+      className="library-import-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="library-pdf-import-title"
+    >
+      <button
+        className="library-import-modal-scrim"
+        type="button"
+        aria-label="关闭 PDF 导入"
+        onClick={closePdfImportDialog}
+      />
+      <section className={`library-import-dialog is-${pdfImportState}`}>
+        <header>
+          <div>
+            <strong id="library-pdf-import-title">添加 PDF 文档</strong>
+            <span>{pdfImportMessage || '拖入一份 PDF，或点击选择本地文件。'}</span>
+          </div>
+          <button type="button" aria-label="关闭 PDF 导入" onClick={closePdfImportDialog}>
+            <X size={17} />
+          </button>
+        </header>
+        <label
+          className={[
+            'library-ebook-dropzone',
+            pdfDragging ? 'is-dragging' : '',
+            pdfImportState === 'submitting' ? 'is-submitting' : '',
+            pdfImportState === 'imported' ? 'is-imported' : '',
+            pdfImportState === 'error' ? 'is-error' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          htmlFor="library-pdf-file"
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setPdfDragging(false);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            if (pdfImportState !== 'submitting') setPdfDragging(true);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setPdfDragging(false);
+            if (pdfImportState === 'submitting') return;
+            void importPdf(event.dataTransfer.files[0]);
+          }}
+        >
+          <input
+            accept=".pdf,application/pdf"
+            disabled={pdfImportState === 'submitting'}
+            id="library-pdf-file"
+            ref={pdfInputRef}
+            type="file"
+            onChange={(event) => void importPdf(event.target.files?.[0])}
+          />
+          <span
+            className={[
+              'library-ebook-dropzone-icon',
+              pdfImportState === 'imported' ? 'is-success' : '',
+              pdfImportState === 'error' ? 'is-error' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {pdfImportState === 'submitting' ? (
+              <LoaderCircle className="is-spinning" size={22} />
+            ) : pdfImportState === 'imported' ? (
+              <Check className="library-import-success-icon" size={24} />
+            ) : pdfImportState === 'error' ? (
+              <X size={24} />
+            ) : pdfDragging ? (
+              <FileUp size={24} />
+            ) : (
+              <Upload size={24} />
+            )}
+          </span>
+          <span className="library-ebook-dropzone-copy">
+            <strong>
+              {pdfImportState === 'imported'
+                ? '导入完成'
+                : pdfDragging
+                  ? '松开开始解析'
+                  : '拖入 PDF，或点击选择'}
+            </strong>
+            <em>单次导入一份文档 · PDF · 最高 120MB</em>
+          </span>
+          {pdfImportState === 'idle' ? null : (
+            <span
+              className="library-import-progress"
+              role="progressbar"
+              aria-label="PDF 导入进度"
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={pdfImportProgressPercent}
+              style={
+                {
+                  '--library-import-progress': `${pdfImportProgressPercent}%`,
+                } as React.CSSProperties
+              }
+            >
+              <span className="library-import-progress-track">
+                <span />
+              </span>
+              <em>{pdfImportProgressPercent}%</em>
+            </span>
+          )}
+        </label>
+        <footer>
+          <span>{pdfImportMessage || '解析完成后会保存页数和基础元信息。'}</span>
+          {pdfImportArticle ? (
+            <button
+              type="button"
+              onClick={() => {
+                clearPdfImportCloseTimer();
+                onClose();
+                onOpenArticle(pdfImportArticle);
+              }}
+            >
+              <ExternalLink size={14} />
+              {pdfImportState === 'duplicate' ? '打开已有 PDF' : '打开 PDF'}
             </button>
           ) : null}
         </footer>

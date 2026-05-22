@@ -3,7 +3,7 @@ import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
-export type LibrarySource = 'web' | 'ebook';
+export type LibrarySource = 'web' | 'ebook' | 'pdf';
 
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 
@@ -31,6 +31,7 @@ export function articleMatchesLibrarySearch(article: ArticleRecord, query: strin
     article.siteName,
     article.excerpt,
     article.ebook?.metadata.fileName,
+    article.pdf?.metadata.fileName,
     urlHost(article.canonicalUrl || article.url),
     article.canonicalUrl,
     article.url,
@@ -42,7 +43,8 @@ export function articleMatchesLibrarySearch(article: ArticleRecord, query: strin
 }
 
 export function librarySourceForArticle(article: ArticleRecord): LibrarySource {
-  return article.sourceType === 'ebook' ? 'ebook' : 'web';
+  if (article.sourceType === 'ebook' || article.sourceType === 'pdf') return article.sourceType;
+  return 'web';
 }
 
 export function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilter) {

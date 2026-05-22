@@ -382,4 +382,30 @@ ON articles(
 );
 `,
   },
+  {
+    id: '0032_article_pdf_metadata',
+    sql: `
+ALTER TABLE articles ADD COLUMN pdf_metadata TEXT;
+
+DROP INDEX IF EXISTS articles_summary_cover_idx;
+CREATE INDEX IF NOT EXISTS articles_summary_cover_idx
+ON articles(
+  updated_at,
+  id,
+  url,
+  canonical_url,
+  source_type,
+  title,
+  byline,
+  excerpt,
+  site_name,
+  theme_color,
+  content_hash,
+  ebook_metadata,
+  pdf_metadata,
+  reading_progress,
+  created_at
+);
+`,
+  },
 ];

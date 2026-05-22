@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './components/ui/select';
-import type { EbookImportProgressCallback } from './app-reading-types';
+import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
 import {
   articleAnnotationCount,
   articleThoughtCount,
@@ -43,6 +43,7 @@ const LIBRARY_SOURCE_OPTIONS: Array<{
 }> = [
   { value: 'web', label: '网页文章' },
   { value: 'ebook', label: '电子书' },
+  { value: 'pdf', label: 'PDF' },
 ];
 
 export function LibraryHome({
@@ -52,6 +53,7 @@ export function LibraryHome({
   sortedArticles,
   onDeleteArticle,
   onImportEbookFile,
+  onImportPdfFile,
   onImportArticleUrl,
   onOpenArticle,
 }: {
@@ -63,6 +65,10 @@ export function LibraryHome({
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
+  onImportPdfFile: (
+    file: File,
+    onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
@@ -90,7 +96,7 @@ export function LibraryHome({
           result[librarySourceForArticle(article)] += 1;
           return result;
         },
-        { web: 0, ebook: 0 },
+        { web: 0, ebook: 0, pdf: 0 },
       ),
     [articles],
   );
@@ -111,9 +117,14 @@ export function LibraryHome({
     setPage(1);
   }, [activeSource, pageSize, searchQuery]);
 
-  const activeSourceLabel = activeSource === 'web' ? '网页文章' : '电子书';
+  const activeSourceLabel =
+    activeSource === 'web' ? '网页文章' : activeSource === 'ebook' ? '电子书' : 'PDF';
   const footerCountLabel =
-    activeSource === 'web' ? `共 ${sourceArticles.length} 篇` : `共 ${sourceArticles.length} 本`;
+    activeSource === 'web'
+      ? `共 ${sourceArticles.length} 篇`
+      : activeSource === 'ebook'
+        ? `共 ${sourceArticles.length} 本`
+        : `共 ${sourceArticles.length} 份`;
   const emptyReason = emptyLibraryReason({
     activeSource,
     articlesLength: articles.length,
@@ -135,7 +146,7 @@ export function LibraryHome({
                 onClick={() => onActiveSourceChange(option.value)}
               >
                 <span>{option.label}</span>
-                <em>{option.value === 'web' ? counts.web : counts.ebook}</em>
+                <em>{counts[option.value]}</em>
               </button>
             ))}
           </div>
@@ -151,8 +162,9 @@ export function LibraryHome({
               />
             </label>
             <LibraryImportControls
-              defaultImportType={activeSource === 'web' ? 'web' : 'ebook'}
+              defaultImportType={activeSource}
               onImportEbookFile={onImportEbookFile}
+              onImportPdfFile={onImportPdfFile}
               onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={onOpenArticle}
             />
@@ -178,7 +190,7 @@ export function LibraryHome({
           ) : (
             <div className="library-ebook-list">
               {pageArticles.map((article) => (
-                <EbookListItem
+                <LibraryDocumentListItem
                   article={article}
                   key={article.id}
                   onDelete={() => void onDeleteArticle(article.id)}
@@ -291,7 +303,7 @@ function WebArticleListItem({
   );
 }
 
-function EbookListItem({
+function LibraryDocumentListItem({
   article,
   onDelete,
   onOpen,
@@ -307,7 +319,7 @@ function EbookListItem({
       className="library-ebook-list-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开电子书：${article.title}`}
+      aria-label={`打开${article.sourceType === 'pdf' ? 'PDF' : '电子书'}：${article.title}`}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -321,7 +333,12 @@ function EbookListItem({
       </div>
       <div className="library-ebook-list-copy">
         <div className="library-ebook-list-source">
-          <span>{article.byline || article.ebook?.metadata.fileName || '电子书'}</span>
+          <span>
+            {article.byline ||
+              article.ebook?.metadata.fileName ||
+              article.pdf?.metadata.fileName ||
+              (article.sourceType === 'pdf' ? 'PDF' : '电子书')}
+          </span>
         </div>
         <div className="library-ebook-list-main">
           <h3 title={article.title}>{article.title}</h3>
@@ -524,6 +541,14 @@ function emptyLibraryReason({
       description: '点击加号添加网页文章，这一版面会以域名、标题、日期、划线和想法展示。',
       icon: <FileText size={32} />,
       title: '暂无网页文章',
+    };
+  }
+
+  if (activeSource === 'pdf') {
+    return {
+      description: '点击加号导入 PDF 文件，文档会保留页数和基础信息。',
+      icon: <FileText size={32} />,
+      title: '暂无 PDF',
     };
   }
 

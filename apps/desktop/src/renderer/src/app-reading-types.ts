@@ -4,6 +4,8 @@ export type ArticleUpdater = (article: ArticleRecord) => ArticleRecord | null;
 
 export type EbookImportProgressCallback = (progress: number) => void;
 
+export type PdfImportProgressCallback = (progress: number) => void;
+
 export type PromptArticle = {
   title: string;
   url: string;

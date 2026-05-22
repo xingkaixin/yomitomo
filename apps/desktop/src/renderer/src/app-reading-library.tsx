@@ -10,7 +10,11 @@ import type {
 } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
 import { SourceBookcase } from './app-source-bookcase';
-import type { ArticleUpdater, EbookImportProgressCallback } from './app-reading-types';
+import type {
+  ArticleUpdater,
+  EbookImportProgressCallback,
+  PdfImportProgressCallback,
+} from './app-reading-types';
 import { LibraryHome } from './app-reading-library-home';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
@@ -33,6 +37,7 @@ export function ReadingLibrary({
   onArticleOpened,
   onDeleteArticle,
   onImportEbookFile,
+  onImportPdfFile,
   onImportArticleUrl,
   onReadingModeChange,
   onReadArticle,
@@ -51,6 +56,10 @@ export function ReadingLibrary({
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
+  ) => Promise<ArticleImportResult>;
+  onImportPdfFile: (
+    file: File,
+    onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onReadingModeChange?: (open: boolean) => void;
@@ -165,6 +174,7 @@ export function ReadingLibrary({
         sortedArticles={sortedArticles}
         onDeleteArticle={deleteLibraryArticle}
         onImportEbookFile={onImportEbookFile}
+        onImportPdfFile={onImportPdfFile}
         onImportArticleUrl={onImportArticleUrl}
         onOpenArticle={(article) => void openArticle(article)}
       />
@@ -183,6 +193,7 @@ export function ReadingLibrary({
               sortedArticles={sortedArticles}
               onDeleteArticle={deleteLibraryArticle}
               onImportEbookFile={onImportEbookFile}
+              onImportPdfFile={onImportPdfFile}
               onImportArticleUrl={onImportArticleUrl}
               onOpenArticle={(article) => void openArticle(article)}
             />
@@ -216,5 +227,6 @@ export function ReadingLibrary({
 
 function articleHasReadableBody(article: ArticleRecord) {
   if (article.sourceType === 'ebook') return Boolean(article.ebook?.chapters.length);
+  if (article.sourceType === 'pdf') return Boolean(article.pdf);
   return Boolean(article.contentHtml);
 }

@@ -28,6 +28,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
   EbookImportFileInput,
+  PdfImportFileInput,
 } from '../ipc-contract';
 
 let mainWindow: BrowserWindow | null = null;
@@ -357,6 +358,31 @@ function registerIpc() {
     const file = await readEbookSourceFile(articleId);
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
   });
+  handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
+    const { readArticle, readStore, saveArticle } = await getStoreModule();
+    const { articleRecordFromPdfFile } = await import('./pdf-import');
+    const { savePdfSourceFile } = await import('./pdf-storage');
+    const previousStore = await readStore();
+    const record = await articleRecordFromPdfFile(input);
+    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    if (existingArticle) {
+      const existingFullArticle = await readArticle(existingArticle.id);
+      await savePdfSourceFile(existingArticle.id, input.data);
+      return {
+        status: 'duplicate',
+        article: existingFullArticle || existingArticle,
+      };
+    }
+
+    await savePdfSourceFile(record.id, input.data);
+    const patch = await saveArticle(record);
+    return { status: 'imported', article: patch.article, patch };
+  });
+  handleDesktopIpc('pdf:read-file', async (_event, articleId) => {
+    const { readPdfSourceFile } = await import('./pdf-storage');
+    const file = await readPdfSourceFile(articleId);
+    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+  });
   handleDesktopIpc('user:save', async (_event, input) => {
     const { saveUser } = await getStoreModule();
     return saveUser(input);
@@ -441,8 +467,14 @@ function registerIpc() {
     return planFocusCoReadingRoute(provider, payload, agents);
   });
   handleDesktopIpc('article:delete', async (_event, id) => {
-    const { deleteArticle } = await getStoreModule();
-    return deleteArticle(id);
+    const { deleteArticle, readArticle } = await getStoreModule();
+    const article = await readArticle(id);
+    const patch = await deleteArticle(id);
+    if (article?.sourceType === 'pdf') {
+      const { deletePdfSourceFile } = await import('./pdf-storage');
+      await deletePdfSourceFile(id);
+    }
+    return patch;
   });
   handleDesktopIpc('agent:comment', async (_event, payload) => {
     const { runAgent } = await getAiModule();

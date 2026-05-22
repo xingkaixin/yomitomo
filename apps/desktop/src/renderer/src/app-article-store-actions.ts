@@ -126,11 +126,42 @@ export function useAppArticleStoreActions({
   const importEbookFile = useCallback(
     async (file: File, onProgress?: ImportProgressCallback) => {
       onProgress?.(4);
-      const data = await readFileArrayBuffer(file, (progress) => {
-        onProgress?.(Math.min(76, Math.round(progress * 76)));
-      });
+      const data = await readFileArrayBuffer(
+        file,
+        (progress) => {
+          onProgress?.(Math.min(76, Math.round(progress * 76)));
+        },
+        '读取 EPUB 文件失败',
+      );
       onProgress?.(82);
       const result = await window.yomitomoDesktop.importEbookFile({
+        fileName: file.name,
+        mimeType: file.type,
+        data,
+      });
+      onProgress?.(100);
+      if (result.status === 'imported') {
+        const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
+        storeRef.current = nextStore;
+        applyStore(nextStore);
+      }
+      return result;
+    },
+    [applyStore, storeRef],
+  );
+
+  const importPdfFile = useCallback(
+    async (file: File, onProgress?: ImportProgressCallback) => {
+      onProgress?.(4);
+      const data = await readFileArrayBuffer(
+        file,
+        (progress) => {
+          onProgress?.(Math.min(76, Math.round(progress * 76)));
+        },
+        '读取 PDF 文件失败',
+      );
+      onProgress?.(82);
+      const result = await window.yomitomoDesktop.importPdfFile({
         fileName: file.name,
         mimeType: file.type,
         data,
@@ -154,6 +185,7 @@ export function useAppArticleStoreActions({
     saveArticleReadingProgress,
     importArticleUrl,
     importEbookFile,
+    importPdfFile,
   };
 }
 
@@ -215,7 +247,11 @@ export function applyArticleDeletePatch(
   };
 }
 
-function readFileArrayBuffer(file: File, onProgress: (progress: number) => void) {
+function readFileArrayBuffer(
+  file: File,
+  onProgress: (progress: number) => void,
+  errorMessage: string,
+) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener('progress', (event) => {
@@ -228,9 +264,9 @@ function readFileArrayBuffer(file: File, onProgress: (progress: number) => void)
         resolve(reader.result);
         return;
       }
-      reject(new Error('读取 EPUB 文件失败'));
+      reject(new Error(errorMessage));
     });
-    reader.addEventListener('error', () => reject(reader.error || new Error('读取 EPUB 文件失败')));
+    reader.addEventListener('error', () => reject(reader.error || new Error(errorMessage)));
     reader.readAsArrayBuffer(file);
   });
 }

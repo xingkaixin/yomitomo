@@ -53,6 +53,12 @@ export type EbookImportFileInput = {
   data: ArrayBuffer;
 };
 
+export type PdfImportFileInput = {
+  fileName: string;
+  mimeType?: string;
+  data: ArrayBuffer;
+};
+
 export type PerformanceTimingInput = {
   event: string;
   data?: Record<string, unknown>;
@@ -141,6 +147,14 @@ export type DesktopIpcInvokeMap = {
     result: ArticleImportResult;
   };
   'ebook:read-file': {
+    args: [articleId: string];
+    result: ArrayBuffer;
+  };
+  'pdf:import-file': {
+    args: [input: PdfImportFileInput];
+    result: ArticleImportResult;
+  };
+  'pdf:read-file': {
     args: [articleId: string];
     result: ArrayBuffer;
   };

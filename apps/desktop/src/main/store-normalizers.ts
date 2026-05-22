@@ -20,6 +20,7 @@ import type {
   EpubSegmentIndex,
   FocusCoReadingPlan,
   LlmProvider,
+  PdfMetadata,
   ProviderPresetId,
   ProviderType,
   ReasoningEffort,
@@ -51,6 +52,7 @@ export type ArticleSummaryRow = Pick<
   | 'themeColor'
   | 'contentHash'
   | 'ebookMetadata'
+  | 'pdfMetadata'
   | 'readingProgress'
   | 'createdAt'
   | 'updatedAt'
@@ -179,6 +181,7 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
     ...rowToArticleBase(row, annotations),
     contentHtml: row.contentHtml || undefined,
     ebook: rowToEbook(row),
+    pdf: rowToPdf(row),
     focusCoReadingPlan: row.focusCoReadingPlan
       ? (row.focusCoReadingPlan as FocusCoReadingPlan)
       : undefined,
@@ -193,6 +196,7 @@ export function rowToArticleSummary(
   return {
     ...rowToArticleBase(row, annotations, counts),
     ebook: rowToEbookSummary(row),
+    pdf: rowToPdfSummary(row),
   };
 }
 
@@ -298,6 +302,7 @@ export function normalizeStore(store: DesktopStore): DesktopStore {
       Object.assign({}, article, {
         sourceType: normalizeArticleSourceType(article.sourceType),
         ebook: normalizeEbookRecord(article.ebook),
+        pdf: normalizePdfRecord(article.pdf),
         readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       }),
     ),
@@ -355,7 +360,8 @@ function rowToEbookSummary(row: ArticleSummaryRow): ArticleRecord['ebook'] {
 }
 
 export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
-  return value === 'ebook' ? 'ebook' : 'web';
+  if (value === 'ebook' || value === 'pdf') return value;
+  return 'web';
 }
 
 export function normalizeArticleReadingProgress(
@@ -385,6 +391,49 @@ function normalizeEbookRecord(value: ArticleRecord['ebook'] | undefined): Articl
   const chapters = normalizeEbookChapters(value?.chapters);
   const index = normalizeEpubBookIndex(value?.index);
   return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
+}
+
+function rowToPdf(row: ArticleRow): ArticleRecord['pdf'] {
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+  if (sourceType !== 'pdf') return undefined;
+
+  const metadata = normalizePdfMetadata(row.pdfMetadata);
+  return metadata ? { metadata } : undefined;
+}
+
+function rowToPdfSummary(row: ArticleSummaryRow): ArticleRecord['pdf'] {
+  const sourceType = normalizeArticleSourceType(row.sourceType);
+  if (sourceType !== 'pdf') return undefined;
+
+  const metadata = normalizePdfMetadata(row.pdfMetadata);
+  return metadata ? { metadata } : undefined;
+}
+
+function normalizePdfRecord(value: ArticleRecord['pdf'] | undefined): ArticleRecord['pdf'] {
+  const metadata = normalizePdfMetadata(value?.metadata);
+  return metadata ? { metadata } : undefined;
+}
+
+function normalizePdfMetadata(value: unknown): PdfMetadata | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const metadata = value as Record<string, unknown>;
+  const fileName = stringValue(metadata.fileName);
+  const fileSize = Number(metadata.fileSize);
+  const pageCount = Number(metadata.pageCount);
+  return {
+    format: 'pdf',
+    fileName,
+    fileSize: Number.isFinite(fileSize) && fileSize > 0 ? fileSize : 0,
+    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
+    title: stringValue(metadata.title) || undefined,
+    author: stringValue(metadata.author) || undefined,
+    subject: stringValue(metadata.subject) || undefined,
+    keywords: stringValue(metadata.keywords) || undefined,
+    creator: stringValue(metadata.creator) || undefined,
+    producer: stringValue(metadata.producer) || undefined,
+    creationDate: stringValue(metadata.creationDate) || undefined,
+    modificationDate: stringValue(metadata.modificationDate) || undefined,
+  };
 }
 
 function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {

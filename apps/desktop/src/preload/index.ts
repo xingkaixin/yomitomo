@@ -25,6 +25,7 @@ import type {
   DesktopIpcInvokeResult,
   EbookImportFileInput,
   PerformanceTimingInput,
+  PdfImportFileInput,
 } from '../ipc-contract';
 
 export type {
@@ -36,6 +37,7 @@ export type {
   DatabaseRestoreResult,
   EbookImportFileInput,
   PerformanceTimingInput,
+  PdfImportFileInput,
 } from '../ipc-contract';
 
 const preloadLoadedAt = performance.now();
@@ -104,6 +106,8 @@ const api = {
   importArticleUrl: (url: string) => invokeDesktopIpc('article:import-url', url),
   importEbookFile: (input: EbookImportFileInput) => invokeDesktopIpc('ebook:import-file', input),
   readEbookFile: (articleId: string) => invokeDesktopIpc('ebook:read-file', articleId),
+  importPdfFile: (input: PdfImportFileInput) => invokeDesktopIpc('pdf:import-file', input),
+  readPdfFile: (articleId: string) => invokeDesktopIpc('pdf:read-file', articleId),
   deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
   requestAgentComment: (payload: AgentMessagePayload) => invokeDesktopIpc('agent:comment', payload),
   requestAgentReview: (payload: AgentReviewPayload) => invokeDesktopIpc('agent:review', payload),

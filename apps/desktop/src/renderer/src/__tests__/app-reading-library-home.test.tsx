@@ -132,6 +132,7 @@ function renderLibrary(
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
+      onImportPdfFile={vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
       onReadArticle={async (articleId) => articles.find((item) => item.id === articleId) || null}
       onSaveArticle={vi.fn()}
@@ -263,7 +264,7 @@ describe('ReadingLibrary home', () => {
       '较早文章',
     ]);
     expect(screen.queryByLabelText('0 划线，0 想法')).toBeNull();
-    expect(screen.queryByRole('button', { name: /PDF/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
 
@@ -348,6 +349,35 @@ describe('ReadingLibrary home', () => {
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
       coverUrl,
     );
+  });
+
+  it('renders PDFs as document rows with metadata', () => {
+    renderLibrary([
+      article({
+        id: 'pdf_1',
+        url: 'pdf:pdf_1',
+        canonicalUrl: 'pdf:hash_1',
+        sourceType: 'pdf',
+        title: 'PDF 标题',
+        byline: undefined,
+        siteName: 'PDF',
+        contentHtml: undefined,
+        pdf: {
+          metadata: {
+            format: 'pdf',
+            fileName: 'paper.pdf',
+            fileSize: 2048,
+            pageCount: 12,
+          },
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+
+    expect(screen.getByText('共 1 份')).toBeTruthy();
+    expect(screen.getAllByText('paper.pdf').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
   });
 
   it('exposes the full title on hover', () => {
