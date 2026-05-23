@@ -614,44 +614,45 @@ describe('AgentForm', () => {
   });
 });
 
-describe('AgentSettings', () => {
-  const agents: Agent[] = [
-    makeAgent('agent_reading', 'annotation', '林知微', '林知微'),
-    makeAgent('agent_review', 'review', '梁证言', '梁证言'),
-  ];
+const agentSettingsAgents: Agent[] = [
+  makeAgent('agent_reading', 'annotation', '林知微', '林知微'),
+  makeAgent('agent_review', 'review', '梁证言', '梁证言'),
+];
 
-  function renderAgentSettings({
-    agents: nextAgents = agents,
-    error = '',
-    providers = [makeProvider('provider_1', 'Anthropic')],
-    settings = {
-      readingAssistantProviderId: 'provider_1',
-      reviewAssistantProviderId: 'provider_1',
-    },
-    saveState = 'idle',
-    onConfigureRoutes = vi.fn(),
-    onToggle = vi.fn(),
-  }: {
-    agents?: Agent[];
-    error?: string;
-    providers?: LlmProvider[];
-    settings?: AppSettings;
-    saveState?: 'idle' | 'saving' | 'saved';
-    onConfigureRoutes?: () => void;
-    onToggle?: (agent: Agent) => void;
-  } = {}) {
-    return render(
-      <AgentSettings
-        agents={nextAgents}
-        error={error}
-        providers={providers}
-        settings={settings}
-        saveState={saveState}
-        onConfigureRoutes={onConfigureRoutes}
-        onToggle={onToggle}
-      />,
-    );
-  }
+function renderAgentSettings({
+  agents: nextAgents = agentSettingsAgents,
+  error = '',
+  providers = [makeProvider('provider_1', 'Anthropic')],
+  settings = {
+    readingAssistantProviderId: 'provider_1',
+    reviewAssistantProviderId: 'provider_1',
+  },
+  saveState = 'idle',
+  onConfigureRoutes = vi.fn(),
+  onToggle = vi.fn(),
+}: {
+  agents?: Agent[];
+  error?: string;
+  providers?: LlmProvider[];
+  settings?: AppSettings;
+  saveState?: 'idle' | 'saving' | 'saved';
+  onConfigureRoutes?: () => void;
+  onToggle?: (agent: Agent) => void;
+} = {}) {
+  return render(
+    <AgentSettings
+      agents={nextAgents}
+      error={error}
+      providers={providers}
+      settings={settings}
+      saveState={saveState}
+      onConfigureRoutes={onConfigureRoutes}
+      onToggle={onToggle}
+    />,
+  );
+}
+
+describe('AgentSettings', () => {
 
   it('toggles configured preset agents', () => {
     const onToggle = vi.fn();
@@ -659,7 +660,7 @@ describe('AgentSettings', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: /让林知微先休息/ }));
 
-    expect(onToggle).toHaveBeenCalledWith(agents[0]);
+    expect(onToggle).toHaveBeenCalledWith(agentSettingsAgents[0]);
     expect(screen.getByText('先走了，你继续读。')).toBeTruthy();
   });
 
@@ -684,7 +685,10 @@ describe('AgentSettings', () => {
 
   it('keeps disabled agents visible', () => {
     renderAgentSettings({
-      agents: [agents[0]!, makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false)],
+      agents: [
+        agentSettingsAgents[0]!,
+        makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false),
+      ],
     });
 
     expect(screen.getByText('林知微')).toBeTruthy();
