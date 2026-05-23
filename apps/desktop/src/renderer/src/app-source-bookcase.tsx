@@ -1,5 +1,6 @@
 import type { ArticleRecord } from '@yomitomo/shared';
 import { EbookBookcase } from './app-source-bookcase-ebook';
+import { PdfBookcase } from './app-source-bookcase-pdf';
 import type { EbookArticleRecord, SourceBookcaseProps } from './app-source-bookcase-shared';
 import { WebSourceBookcase } from './app-source-bookcase-web';
 
@@ -17,11 +18,7 @@ export function SourceBookcase(props: SourceBookcaseProps) {
   }
 
   if (isPdfArticle(props.article)) {
-    return (
-      <section className="source-bookcase is-empty">
-        <div className="source-empty">PDF 阅读器将在下一阶段接入</div>
-      </section>
-    );
+    return <PdfBookcase {...props} article={props.article} />;
   }
 
   return <WebSourceBookcase {...props} article={props.article} />;

@@ -18,6 +18,12 @@ vi.mock('../app-source-bookcase-ebook', () => ({
   ),
 }));
 
+vi.mock('../app-source-bookcase-pdf', () => ({
+  PdfBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
+    <div data-testid="pdf-source-bookcase">{sourceArticle.title}</div>
+  ),
+}));
+
 const now = '2026-05-16T12:00:00.000Z';
 
 const userProfile: UserProfile = {
@@ -75,6 +81,22 @@ function ebookArticle(): ArticleRecord {
   });
 }
 
+function pdfArticle(): ArticleRecord {
+  return article({
+    id: 'pdf_1',
+    sourceType: 'pdf',
+    title: 'PDF 文档',
+    pdf: {
+      metadata: {
+        format: 'pdf',
+        fileName: 'paper.pdf',
+        fileSize: 1024,
+        pageCount: 3,
+      },
+    },
+  });
+}
+
 function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
   return render(
     <SourceBookcase
@@ -113,6 +135,13 @@ describe('SourceBookcase', () => {
     renderSourceBookcase(ebookArticle());
 
     expect(screen.getByTestId('ebook-source-bookcase').textContent).toBe('电子书');
+    expect(screen.queryByTestId('web-source-bookcase')).toBeNull();
+  });
+
+  it('routes PDF articles to the PDF source reader', () => {
+    renderSourceBookcase(pdfArticle());
+
+    expect(screen.getByTestId('pdf-source-bookcase').textContent).toBe('PDF 文档');
     expect(screen.queryByTestId('web-source-bookcase')).toBeNull();
   });
 });
