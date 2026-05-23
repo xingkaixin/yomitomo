@@ -55,7 +55,6 @@ export type ReaderSurfaceViewProps = {
   userProfile: UserProfile;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
-  visibleRailAnnotations: Annotation[];
   onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
   onCancelComposer: () => void;
   onCloseHighlightChoice: () => void;
@@ -136,7 +135,6 @@ export function ReaderSurfaceView({
   userProfile,
   visibleAnnotationIds,
   visibleAnnotations,
-  visibleRailAnnotations,
   onAddComment,
   onCancelComposer,
   onCloseHighlightChoice,
@@ -245,12 +243,6 @@ export function ReaderSurfaceView({
             style={annotationRailStyle}
           >
             {annotations.length === 0 ? <EmptyNotes /> : null}
-            {annotations.length > 0 && visibleRailAnnotations.length === 0 ? (
-              <div className="reader-empty">
-                <strong>没有匹配的讨论</strong>
-                <p>当前视图没有匹配的引文讨论。</p>
-              </div>
-            ) : null}
             {annotationRailItems.map(
               ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard

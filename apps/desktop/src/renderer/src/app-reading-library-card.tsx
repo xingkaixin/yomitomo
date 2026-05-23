@@ -42,12 +42,7 @@ export function ArticleLibraryCard({
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
   const siteIconUrl = isEbook || isPdf ? '' : articleSiteIconUrl(article);
-  const authorLabel =
-    article.byline ||
-    article.pdf?.metadata.fileName ||
-    article.siteName ||
-    urlHost(article.canonicalUrl || article.url) ||
-    '未知作者';
+  const authorLabel = libraryArticleAuthorLabel(article);
 
   useEffect(
     () => () => {
@@ -170,22 +165,24 @@ export function ArticleLibraryCard({
               </span>
             </div>
             <h3 title={article.title}>{article.title}</h3>
-            <p className="library-card-author">
-              {isEbook || isPdf ? null : (
-                <span className="library-site-icon-slot" aria-hidden="true">
-                  {siteIconUrl && !siteIconFailed ? (
-                    <img
-                      alt=""
-                      className="library-site-icon"
-                      loading="lazy"
-                      src={siteIconUrl}
-                      onError={() => setSiteIconFailed(true)}
-                    />
-                  ) : null}
-                </span>
-              )}
-              <span>{authorLabel}</span>
-            </p>
+            {authorLabel ? (
+              <p className="library-card-author">
+                {isEbook || isPdf ? null : (
+                  <span className="library-site-icon-slot" aria-hidden="true">
+                    {siteIconUrl && !siteIconFailed ? (
+                      <img
+                        alt=""
+                        className="library-site-icon"
+                        loading="lazy"
+                        src={siteIconUrl}
+                        onError={() => setSiteIconFailed(true)}
+                      />
+                    ) : null}
+                  </span>
+                )}
+                <span>{authorLabel}</span>
+              </p>
+            ) : null}
             <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
             <div className="library-card-reading-meta">
               最近阅读 {formatLibraryRelativeTime(article.updatedAt)}
@@ -209,5 +206,14 @@ export function ArticleLibraryCard({
         </span>
       </footer>
     </article>
+  );
+}
+
+function libraryArticleAuthorLabel(article: ArticleRecord) {
+  if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
+  if (article.sourceType === 'ebook')
+    return article.byline || article.ebook?.metadata.fileName || '';
+  return (
+    article.byline || article.siteName || urlHost(article.canonicalUrl || article.url) || '未知作者'
   );
 }
