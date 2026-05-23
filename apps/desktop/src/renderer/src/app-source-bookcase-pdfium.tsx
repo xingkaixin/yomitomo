@@ -68,6 +68,7 @@ import {
   mergeAgentAnnotationAsThought,
   animateTheaterHighlight,
   sleep,
+  useAgentReadingDock,
   type AnnotationRailLayout,
   type VirtualCursorState,
 } from '@yomitomo/reader-ui';
@@ -333,6 +334,8 @@ function PdfiumDocument({
   const virtualReadingTimersRef = useRef(new Map<string, number>());
   const virtualReadingStepRef = useRef(new Map<string, number>());
   const virtualReadingStepSizeRef = useRef(new Map<string, number>());
+  const activeDockAgentIdsRef = useRef(new Set<string>());
+  const dockHadFailureRef = useRef(false);
   const initialPageIndexRef = useRef(normalizeInitialPageIndex(article));
   const lastSavedPageRef = useRef(initialPageIndexRef.current);
   const restoredInitialPageRef = useRef(false);
@@ -351,6 +354,15 @@ function PdfiumDocument({
   const zoom = documentState?.scale || 1;
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
+  const {
+    agentDockCompleting,
+    agentDockItems,
+    completionBurstKey,
+    activateAgentDock,
+    markAgentDockDone,
+    completeAgentDock,
+    clearAgentDock,
+  } = useAgentReadingDock(annotationAgents);
   const actionShortcuts = useMemo(
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
@@ -754,9 +766,29 @@ function PdfiumDocument({
     virtualReadingTimersRef.current.clear();
     virtualReadingStepRef.current.clear();
     virtualReadingStepSizeRef.current.clear();
+    activeDockAgentIdsRef.current.clear();
+    dockHadFailureRef.current = false;
+    clearAgentDock();
     virtualCursorRef.current.clear();
     setVirtualCursors([]);
     setAgentTheaterBoxes([]);
+  }
+
+  function startPdfiumAgentDock(agent: PublicAgent) {
+    activeDockAgentIdsRef.current.add(agent.id);
+    activateAgentDock(agent);
+  }
+
+  function finishPdfiumAgentDock(agentId: string, succeeded: boolean) {
+    if (!activeDockAgentIdsRef.current.has(agentId)) return;
+    markAgentDockDone(agentId);
+    activeDockAgentIdsRef.current.delete(agentId);
+    if (!succeeded) dockHadFailureRef.current = true;
+    if (activeDockAgentIdsRef.current.size > 0) return;
+
+    const shouldCelebrate = !dockHadFailureRef.current;
+    dockHadFailureRef.current = false;
+    completeAgentDock(shouldCelebrate);
   }
 
   function startPdfiumVirtualReading(agent: PublicAgent, anchor: Annotation['anchor'] | undefined) {
@@ -843,6 +875,7 @@ function PdfiumDocument({
     agentAnnotationPlaybackQueueRef.current = agentAnnotationPlaybackQueueRef.current
       .catch(() => undefined)
       .then(() => playPdfiumAgentAnnotation(articleId, annotation));
+    return agentAnnotationPlaybackQueueRef.current;
   }
 
   async function playPdfiumAgentAnnotation(articleId: string, annotation: Annotation) {
@@ -1137,7 +1170,10 @@ function PdfiumDocument({
       return;
     }
     const showProgress = latestArticleRef.current?.id === articleId;
-    if (showProgress) startPdfiumVirtualReading(agent, targetAnchor);
+    if (showProgress) {
+      startPdfiumAgentDock(agent);
+      startPdfiumVirtualReading(agent, targetAnchor);
+    }
 
     const pageText = await extractPdfiumPageText(pageIndex);
     const geometry = await engine.getPageGeometry(document, page).toPromise();
@@ -1149,6 +1185,8 @@ function PdfiumDocument({
     });
 
     let acceptedAnnotation = false;
+    let playbackPromise: Promise<void> = Promise.resolve();
+    let requestFailed = true;
     try {
       await runSourceAgentAnnotationRequest({
         desktop,
@@ -1164,13 +1202,22 @@ function PdfiumDocument({
           );
           if (!pdfAnnotation) return false;
           acceptedAnnotation = true;
-          enqueuePdfiumAgentAnnotationPlayback(articleId, pdfAnnotation);
+          playbackPromise = enqueuePdfiumAgentAnnotationPlayback(articleId, pdfAnnotation);
           return true;
         },
       });
+      if (showProgress) {
+        if (!acceptedAnnotation) {
+          finishPdfiumVirtualReading(agent.id, '没有新想法');
+        } else {
+          await playbackPromise;
+        }
+      }
+      requestFailed = false;
     } finally {
-      if (showProgress && !acceptedAnnotation) {
-        finishPdfiumVirtualReading(agent.id, '没有新想法');
+      if (showProgress) {
+        if (requestFailed) finishPdfiumVirtualReading(agent.id, '想法添加失败');
+        finishPdfiumAgentDock(agent.id, !requestFailed);
       }
       if (options.pendingAnnotationId) {
         removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
@@ -1269,8 +1316,8 @@ function PdfiumDocument({
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
         agentAnnotateOpen={false}
-        agentDockCompleting={false}
-        agentDockItems={[]}
+        agentDockCompleting={agentDockCompleting}
+        agentDockItems={agentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
         annotatingAgents={[]}
@@ -1320,7 +1367,7 @@ function PdfiumDocument({
         canvasRef={canvasRef}
         commentsCloseKey={commentsCloseKey}
         composer={composer}
-        completionBurstKey={0}
+        completionBurstKey={completionBurstKey}
         embedded
         extracted={{
           title: article.pdf.metadata.title || article.title,
