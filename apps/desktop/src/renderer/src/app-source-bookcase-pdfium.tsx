@@ -28,20 +28,27 @@ import {
 } from '@embedpdf/plugin-selection/react';
 import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
-import { ZoomIn, ZoomOut, ChevronLeft, ChevronRight, List, LoaderCircle } from 'lucide-react';
+import { Bot, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, List, LoaderCircle } from 'lucide-react';
 import type { PdfBookmarkObject, PdfEngine, PdfPageGeometry } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
+  createTextAnchor,
   isPdfTextAnchor,
+  makeId,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  resolveTextAnchor,
+  type AgentReadingPlanItem,
   type AgentReadingIntent,
   type ArticleReadingProgress,
   type Comment as AnnotationComment,
   type Annotation,
   type ArticleRecord,
+  type FocusCoReadingPlan,
   type PdfRect,
+  type PdfTextAnchor,
   type PublicAgent,
+  type ReadingMemory,
   type UserProfile,
 } from '@yomitomo/shared';
 import {
@@ -53,6 +60,7 @@ import {
   createUserAnnotation,
   createUserComment,
   findMentionedAgents,
+  mergeReadingMemory,
   selectionActionPosition,
   type HighlightBox,
   type TocItem,
@@ -83,6 +91,7 @@ import {
   promptArticle,
   publicAnnotationAgents,
   publicReviewAgents,
+  routeFocusReadingPlanMessages,
   type SourceBookcaseProps,
 } from './app-source-bookcase-shared';
 import {
@@ -98,6 +107,9 @@ import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
+type PdfiumLoadedDocument = NonNullable<
+  NonNullable<ReturnType<typeof useDocumentState>>['document']
+>;
 
 type PageMetric = {
   left: number;
@@ -108,6 +120,26 @@ type PageMetric = {
   clipTop: number;
   clipRight: number;
   clipBottom: number;
+};
+
+type PdfPageTextIndex = {
+  pageIndex: number;
+  pageText: string;
+  textStart: number;
+  textEnd: number;
+  bodyStart: number;
+  bodyEnd: number;
+};
+
+type PdfTextDocument = {
+  text: string;
+  pages: PdfPageTextIndex[];
+};
+
+type PdfPageGeometryEntry = {
+  geometry: PdfPageGeometry;
+  width: number;
+  height: number;
 };
 
 export function PdfiumBookcase({
@@ -126,8 +158,10 @@ export function PdfiumBookcase({
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const {
     engine,
     error: engineError,
@@ -214,6 +248,22 @@ export function PdfiumBookcase({
           >
             <List size={18} />
           </button>
+          <button
+            aria-label="聚焦共读"
+            aria-pressed={agentAnnotateOpen}
+            className={
+              agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
+            }
+            disabled={annotationAgents.length === 0}
+            type="button"
+            onClick={() => {
+              setTocOpen(false);
+              setAgentAnnotateOpen((open) => !open);
+            }}
+          >
+            <Bot size={16} />
+            <span>聚焦共读</span>
+          </button>
         </div>
       </header>
       <div className="pdf-reader-main pdfium-spike-main">
@@ -234,6 +284,7 @@ export function PdfiumBookcase({
                   {({ isLoaded, isError, documentState }) =>
                     isLoaded ? (
                       <PdfiumDocument
+                        agentAnnotateOpen={agentAnnotateOpen}
                         agents={agents}
                         annotations={articleAnnotations}
                         article={article}
@@ -250,6 +301,7 @@ export function PdfiumBookcase({
                         userProfile={userProfile}
                         onClose={onClose}
                         onCloseToc={() => setTocOpen(false)}
+                        onSetAgentAnnotateOpen={setAgentAnnotateOpen}
                         onSetTocItems={setTocItems}
                         onToggleToc={() => setTocOpen((open) => !open)}
                         onOpenAnnotation={onOpenAnnotation}
@@ -279,6 +331,7 @@ export function PdfiumBookcase({
 }
 
 function PdfiumDocument({
+  agentAnnotateOpen,
   agents,
   annotations: articleAnnotations,
   article,
@@ -297,9 +350,11 @@ function PdfiumDocument({
   onSaveArticle,
   onSaveArticleReadingProgress,
   onSetTocItems,
+  onSetAgentAnnotateOpen,
   onToggleToc,
   onUpdateArticle,
 }: {
+  agentAnnotateOpen: boolean;
   agents: SourceBookcaseProps['agents'];
   annotations: SourceBookcaseProps['annotations'];
   article: PdfArticleRecord;
@@ -318,6 +373,7 @@ function PdfiumDocument({
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
   onSetTocItems: (items: TocItem[]) => void;
+  onSetAgentAnnotateOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onToggleToc: () => void;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
 }) {
@@ -327,6 +383,7 @@ function PdfiumDocument({
   const notesRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const pageMetricsFrameRef = useRef(0);
+  const pageMetricsRef = useRef<Record<number, PageMetric>>({});
   const pageTextCacheRef = useRef(new Map<number, Promise<string>>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
@@ -348,6 +405,7 @@ function PdfiumDocument({
   const [annotationRailViewportHeight, setAnnotationRailViewportHeight] = useState(0);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
+  const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
   const currentPage = scroll?.getCurrentPage() || 1;
@@ -432,6 +490,10 @@ function PdfiumDocument({
     }),
     [annotations],
   );
+  const pdfReadingSections = useMemo(
+    () => (pdfTextDocument ? pdfReaderReadingSections(pdfTextDocument, tocItems, pageCount) : []),
+    [pageCount, pdfTextDocument, tocItems],
+  );
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,
@@ -462,12 +524,35 @@ function PdfiumDocument({
   }, [bookmark, documentId, onSetTocItems, pageCount]);
 
   useEffect(() => {
+    const document = documentState?.document;
+    if (!document) {
+      setPdfTextDocument(null);
+      return;
+    }
+
+    let cancelled = false;
+    Promise.all(document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)))
+      .then((pageTexts) => {
+        if (!cancelled) setPdfTextDocument(buildPdfTextDocument(pageTexts));
+      })
+      .catch(() => {
+        if (!cancelled) setPdfTextDocument(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id, documentState?.document]);
+
+  useEffect(() => {
     initialPageIndexRef.current = normalizeInitialPageIndex(article);
     lastSavedPageRef.current = initialPageIndexRef.current;
     restoredInitialPageRef.current = false;
     pageTextCacheRef.current = new Map();
+    onSetAgentAnnotateOpen(false);
+    setPdfTextDocument(null);
     clearAgentAnnotationPlayback();
-  }, [article.id, article.pdf.metadata.pageCount]);
+  }, [article.id, article.pdf.metadata.pageCount, onSetAgentAnnotateOpen]);
 
   useEffect(() => {
     if (!scrollCapability) return;
@@ -549,6 +634,7 @@ function PdfiumDocument({
         clipBottom: (viewportRect?.bottom ?? canvasRect.bottom) - canvasRect.top,
       };
     }
+    pageMetricsRef.current = nextMetrics;
     setPageMetrics((current) => (samePageMetrics(current, nextMetrics) ? current : nextMetrics));
   }, []);
 
@@ -598,17 +684,6 @@ function PdfiumDocument({
       unsubscribe?.();
     };
   }, [schedulePageMetricsUpdate, scroll]);
-
-  useEffect(() => {
-    if (!selectedAnnotationId) return;
-    const annotation = annotations.find((item) => item.id === selectedAnnotationId);
-    if (!annotation || !isPdfTextAnchor(annotation.anchor)) return;
-    if (pageMetrics[annotation.anchor.pageIndex]) return;
-    scroll?.scrollToPage({
-      pageNumber: annotation.anchor.pageIndex + 1,
-      behavior: 'smooth',
-    });
-  }, [annotations, pageMetrics, scroll, selectedAnnotationId]);
 
   useEffect(() => {
     if (!documentState?.scale) return;
@@ -717,15 +792,17 @@ function PdfiumDocument({
   }
 
   async function currentArticleText() {
+    if (pdfTextDocument) return pdfTextDocument.text;
     const document = documentState?.document;
     if (!document) return '';
     const texts = await Promise.all(
       document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)),
     );
-    return texts
-      .map((text, index) => `第 ${index + 1} 页\n${text}`)
-      .filter((text) => text.trim())
-      .join('\n\n');
+    return buildPdfTextDocument(texts).text;
+  }
+
+  function isCurrentArticle(articleId: string) {
+    return latestArticleRef.current?.id === articleId;
   }
 
   function showStatusMessage(message: string) {
@@ -844,7 +921,7 @@ function PdfiumDocument({
   ): VirtualCursorState | null {
     const canvasRect = canvasRef.current?.getBoundingClientRect();
     if (canvasRect && anchor && isPdfTextAnchor(anchor)) {
-      const position = pdfiumAnchorReadingPosition(anchor, pageMetrics, step);
+      const position = pdfiumAnchorReadingPosition(anchor, pageMetricsRef.current, step);
       if (position) {
         return {
           id: agent.id,
@@ -858,17 +935,102 @@ function PdfiumDocument({
       }
     }
 
-    const fallbackRect = canvasRef.current?.getBoundingClientRect();
-    if (!fallbackRect) return null;
+    return pdfiumReadingFallbackCursor(
+      agent.id,
+      agent,
+      anchor && isPdfTextAnchor(anchor) ? anchor.pageIndex : undefined,
+      `${agent.nickname} 正在阅读`,
+      step,
+    );
+  }
+
+  function pdfiumReadingFallbackCursor(
+    cursorId: string,
+    agent: PublicAgent | undefined,
+    pageIndex: number | undefined,
+    visibleLabel: string,
+    step: number,
+  ): VirtualCursorState | null {
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const viewportRect = pdfiumViewportRect();
+    if (!canvasRect || !viewportRect) return null;
+
+    const offscreen =
+      pageIndex === undefined ? null : pdfiumOffscreenDirection(pageIndex, pageMetricsRef.current);
+    if (offscreen) {
+      return {
+        id: cursorId,
+        visible: true,
+        x: viewportRect.left + viewportRect.width / 2,
+        y: offscreen === 'above' ? viewportRect.top + 20 : viewportRect.bottom - 20,
+        label: `${agent?.nickname || '助手'} 正在${offscreen === 'above' ? '上方' : '下方'}阅读`,
+        offscreen,
+        agent,
+      };
+    }
+
+    const metric =
+      pageIndex !== undefined ? pageMetricsRef.current[pageIndex] : firstVisiblePdfiumPageMetric();
+    const targetMetric = metric || firstVisiblePdfiumPageMetric();
+    if (!targetMetric) {
+      return {
+        id: cursorId,
+        visible: true,
+        x: viewportRect.left + viewportRect.width / 2,
+        y: viewportRect.top + 48,
+        label: visibleLabel,
+        offscreen: null,
+        agent,
+      };
+    }
+
+    const visibleTop = Math.max(targetMetric.top, targetMetric.clipTop);
+    const visibleBottom = Math.min(targetMetric.top + targetMetric.height, targetMetric.clipBottom);
+    const travelWidth = Math.max(1, targetMetric.width - 128);
     return {
-      id: agent.id,
+      id: cursorId,
       visible: true,
-      x: fallbackRect.left + Math.min(fallbackRect.width - 40, 72 + step * 12),
-      y: fallbackRect.top + 56,
-      label: `${agent.nickname} 正在阅读`,
+      x: canvasRect.left + targetMetric.left + 64 + ((step * 12) % travelWidth),
+      y:
+        canvasRect.top +
+        Math.min(visibleBottom - 24, Math.max(visibleTop + 24, targetMetric.top + 56)),
+      label: visibleLabel,
       offscreen: null,
       agent,
     };
+  }
+
+  function pdfiumViewportRect() {
+    return (
+      canvasRef.current
+        ?.querySelector<HTMLElement>('.pdfium-spike-viewport')
+        ?.getBoundingClientRect() ||
+      canvasRef.current?.getBoundingClientRect() ||
+      null
+    );
+  }
+
+  function firstVisiblePdfiumPageMetric() {
+    return Object.values(pageMetricsRef.current).toSorted((left, right) => left.top - right.top)[0];
+  }
+
+  function pdfiumOffscreenDirection(
+    pageIndex: number,
+    metrics: Record<number, PageMetric>,
+  ): 'above' | 'below' | null {
+    if (metrics[pageIndex]) return null;
+    const visiblePageIndexes = Object.keys(metrics)
+      .map(Number)
+      .filter(Number.isFinite)
+      .toSorted((left, right) => left - right);
+    const firstPageIndex = visiblePageIndexes[0];
+    const lastPageIndex = visiblePageIndexes[visiblePageIndexes.length - 1];
+    if (firstPageIndex === undefined || lastPageIndex === undefined) {
+      return pageIndex + 1 < currentPage ? 'above' : 'below';
+    }
+    if (pageIndex < firstPageIndex) return 'above';
+    if (pageIndex > lastPageIndex) return 'below';
+    return pageIndex + 1 < currentPage ? 'above' : 'below';
   }
 
   function enqueuePdfiumAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
@@ -889,13 +1051,35 @@ function PdfiumDocument({
     );
     const cursorId =
       cursorAgent?.id || annotation.agentId || annotation.agentUsername || annotation.id;
-    const theaterBoxes = pdfiumAnnotationTheaterBoxes(annotation, pageMetrics);
+    updatePageMetrics();
+    let theaterBoxes = pdfiumAnnotationTheaterBoxes(annotation, pageMetricsRef.current);
     const firstBox = theaterBoxes[0];
     const lastBox = theaterBoxes[theaterBoxes.length - 1];
     const canvasRect = canvasRef.current?.getBoundingClientRect();
     if (!firstBox || !lastBox || !canvasRect) {
-      finishPdfiumVirtualReading(cursorId);
+      const direction = pdfiumOffscreenDirection(
+        annotation.anchor.pageIndex,
+        pageMetricsRef.current,
+      );
+      if (direction) {
+        const cursor = pdfiumReadingFallbackCursor(
+          cursorId,
+          cursorAgent,
+          annotation.anchor.pageIndex,
+          `${pdfiumAnnotationAgentName(annotation)} 正在添加想法`,
+          0,
+        );
+        if (cursor) {
+          updatePdfiumVirtualCursor(cursorId, {
+            ...cursor,
+            label: `${pdfiumAnnotationAgentName(annotation)} 正在${direction === 'above' ? '上方' : '下方'}添加想法`,
+            offscreen: direction,
+          });
+          await sleep(700);
+        }
+      }
       await appendAgentAnnotationToArticle(articleId, annotation);
+      finishPdfiumVirtualReading(cursorId);
       return;
     }
 
@@ -1152,10 +1336,127 @@ function PdfiumDocument({
     });
   }
 
+  async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
+    await onUpdateArticle(plan.articleId, (targetArticle) => {
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: plan,
+        updatedAt: new Date().toISOString(),
+      };
+      if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
+  async function saveFocusCoReadingReadingMemory(
+    articleId: string,
+    readingMemory: ReadingMemory | undefined,
+  ) {
+    if (!readingMemory) return;
+    await onUpdateArticle(articleId, (targetArticle) => {
+      const plan = targetArticle.focusCoReadingPlan;
+      if (!plan) return null;
+      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
+      if (!mergedMemory) return null;
+      const now = new Date().toISOString();
+      const nextArticle = {
+        ...targetArticle,
+        focusCoReadingPlan: {
+          ...plan,
+          readingMemory: mergedMemory,
+          updatedAt: now,
+        },
+        updatedAt: now,
+      };
+      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
+      return nextArticle;
+    });
+  }
+
+  async function planFocusCoReading(selectedAgentIds: string[]) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    const textDocument = pdfTextDocument;
+    if (!desktop || !currentArticle || !textDocument) throw new Error('无法规划 PDF 聚焦共读');
+
+    setStatusMessage('正在规划聚焦共读');
+    try {
+      const route = await desktop.planFocusCoReadingRoute({
+        selectedAgentIds,
+        sections: pdfReadingSections.map((section) => ({
+          sectionId: section.id,
+          sectionTitle: section.title,
+          sectionStart: section.start,
+          sectionEnd: section.end,
+        })),
+        chapterSummaries: currentArticle.focusCoReadingPlan?.sections.flatMap((section) =>
+          section.summary || section.tag
+            ? [
+                {
+                  sectionId: section.sectionId,
+                  summary: section.summary,
+                  tag: section.tag,
+                },
+              ]
+            : [],
+        ),
+        article: promptArticle(currentArticle, textDocument.text),
+      });
+      const now = new Date().toISOString();
+      const routeBySection = new Map(route.sections.map((section) => [section.sectionId, section]));
+      const previousSections = new Map(
+        currentArticle.focusCoReadingPlan?.sections.map((section) => [section.sectionId, section]),
+      );
+      const sections = pdfReadingSections.flatMap((section) => {
+        const routed = routeBySection.get(section.id);
+        const previous = previousSections.get(section.id);
+        const agentIds = (routed?.agentIds || []).filter((agentId) =>
+          selectedAgentIds.includes(agentId),
+        );
+        const messages = previous?.messages || [];
+        if (agentIds.length === 0 && messages.length === 0 && !routed?.summary && !routed?.tag) {
+          return [];
+        }
+        return [
+          {
+            sectionId: section.id,
+            sectionTitle: section.title,
+            sectionStart: section.start,
+            sectionEnd: section.end,
+            summary: routed?.summary,
+            tag: routed?.tag,
+            targetDensity: routed?.targetDensity,
+            needsFurtherPlanning: routed?.needsFurtherPlanning,
+            agentIds,
+            messages,
+          },
+        ];
+      });
+      const plan: FocusCoReadingPlan = {
+        id: currentArticle.focusCoReadingPlan?.id || makeId('focus_co_reading'),
+        articleId: currentArticle.id,
+        selectedAgentIds,
+        sections,
+        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
+        createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
+        updatedAt: now,
+      };
+      await saveFocusCoReadingPlan(plan);
+      return plan;
+    } finally {
+      setStatusMessage('');
+    }
+  }
+
   async function requestAgentAnnotation(
     agent: PublicAgent,
     options: SourceAgentAnnotationRequestOptions,
   ) {
+    if (options.readingPlan?.length && !options.targetAnchor) {
+      await requestPdfiumAgentReadingPlan(agent, options.readingPlan, options.articleId);
+      return;
+    }
+
     const desktop = window.yomitomoDesktop;
     const currentArticle = latestArticleRef.current;
     const document = documentState?.document;
@@ -1225,13 +1526,125 @@ function PdfiumDocument({
     }
   }
 
+  async function requestPdfiumAgentReadingPlan(
+    agent: PublicAgent,
+    readingPlan: AgentReadingPlanItem[],
+    requestedArticleId: string | undefined,
+  ) {
+    const desktop = window.yomitomoDesktop;
+    const currentArticle = latestArticleRef.current;
+    const document = documentState?.document;
+    const textDocument = pdfTextDocument;
+    const articleId = requestedArticleId || currentArticle?.id;
+    if (!desktop || !currentArticle || !document || !textDocument || !articleId) return;
+    const orderedReadingPlan = readingPlan.toSorted(
+      (left, right) => left.sectionStart - right.sectionStart,
+    );
+
+    const visibleArticle = isCurrentArticle(articleId);
+    if (visibleArticle) startPdfiumAgentDock(agent);
+
+    const articleContext = promptArticle(currentArticle, textDocument.text);
+    const requestInput = buildAgentAnnotationRequestInput(
+      agent,
+      { readingPlan: orderedReadingPlan },
+      {
+        article: articleContext,
+        annotations: annotationsRef.current,
+        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
+      },
+    );
+    const routedReadingPlan = await routeFocusReadingPlanMessages({
+      desktop,
+      agent,
+      agents: annotationAgents,
+      article: articleContext,
+      readingPlan: requestInput.readingPlan,
+    });
+    const routedRequestInput =
+      routedReadingPlan === requestInput.readingPlan
+        ? requestInput
+        : {
+            ...requestInput,
+            readingPlan: routedReadingPlan,
+            payload: {
+              ...requestInput.payload,
+              readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
+            },
+          };
+    const pageGeometryByIndex = await pdfiumPageGeometriesForReadingPlan(
+      document,
+      textDocument,
+      routedRequestInput.readingPlan,
+    );
+    if (visibleArticle) {
+      startPdfiumVirtualReading(
+        agent,
+        pdfiumAnchorForReadingPlanStart(
+          routedRequestInput.readingPlan,
+          textDocument,
+          pageGeometryByIndex,
+        ),
+      );
+    }
+
+    let acceptedAnnotation = false;
+    let playbackPromise: Promise<void> = Promise.resolve();
+    let requestFailed = true;
+    try {
+      const { result, annotationCount } = await runSourceAgentAnnotationRequest({
+        desktop,
+        requestInput: routedRequestInput,
+        onAnnotation: (annotation) => {
+          const constrainedAnnotation = constrainPdfiumAgentPlanAnnotation(
+            annotation,
+            routedRequestInput.readingPlan,
+            textDocument.text,
+          );
+          if (!constrainedAnnotation) return false;
+          const pdfAnnotation = pdfiumAnnotationFromGlobalAgentAnnotation(
+            constrainedAnnotation,
+            textDocument,
+            pageGeometryByIndex,
+          );
+          if (!pdfAnnotation) return false;
+          acceptedAnnotation = true;
+          playbackPromise = enqueuePdfiumAgentAnnotationPlayback(articleId, pdfAnnotation);
+          return true;
+        },
+      });
+      if (routedRequestInput.shouldSaveReadingMemory) {
+        await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
+      }
+      if (visibleArticle) {
+        if (annotationCount === 0 || !acceptedAnnotation) {
+          finishPdfiumVirtualReading(agent.id, '没有新想法');
+          setStatusMessage(`${agent.nickname} 暂无新想法`);
+          window.setTimeout(() => setStatusMessage(''), 1400);
+        } else {
+          await playbackPromise;
+        }
+      }
+      requestFailed = false;
+    } finally {
+      if (visibleArticle) {
+        if (requestFailed) finishPdfiumVirtualReading(agent.id, '想法添加失败');
+        finishPdfiumAgentDock(agent.id, !requestFailed);
+      }
+    }
+  }
+
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
     if (latestArticleRef.current?.id === articleId) {
       const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
       currentMerge = result;
       applyAnnotations(result.annotations);
-      onOpenAnnotation(result.activeId);
+      onOpenAnnotation(
+        pdfiumAnnotationIsVisible(result.activeId, result.annotations, pageMetricsRef.current)
+          ? result.activeId
+          : null,
+      );
     }
     await onUpdateArticle(articleId, (targetArticle) => {
       const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
@@ -1249,9 +1662,40 @@ function PdfiumDocument({
     return text;
   }
 
+  async function pdfiumPageGeometriesForReadingPlan(
+    document: PdfiumLoadedDocument,
+    textDocument: PdfTextDocument,
+    readingPlan: AgentReadingPlanItem[],
+  ) {
+    const pageIndexes = new Set<number>();
+    for (const item of readingPlan) {
+      for (const page of textDocument.pages) {
+        if (page.bodyEnd <= item.sectionStart || page.bodyStart >= item.sectionEnd) continue;
+        pageIndexes.add(page.pageIndex);
+      }
+    }
+
+    const entries = await Promise.all(
+      Array.from(pageIndexes).map(async (pageIndex) => {
+        const page = document.pages[pageIndex];
+        if (!page) return null;
+        const geometry = await engine.getPageGeometry(document, page).toPromise();
+        return [pageIndex, { geometry, width: page.size.width, height: page.size.height }] as const;
+      }),
+    );
+    return new Map(entries.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)));
+  }
+
   const tocStats = useMemo(
-    () => pdfiumTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
-    [annotationAgents, annotations, tocItems, userProfile],
+    () =>
+      pdfiumTocAnnotationStats(
+        tocItems,
+        annotations,
+        userProfile,
+        annotationAgents,
+        pdfTextDocument,
+      ),
+    [annotationAgents, annotations, pdfTextDocument, tocItems, userProfile],
   );
 
   return (
@@ -1315,7 +1759,7 @@ function PdfiumDocument({
       <ReaderAppView
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
-        agentAnnotateOpen={false}
+        agentAnnotateOpen={agentAnnotateOpen}
         agentDockCompleting={agentDockCompleting}
         agentDockItems={agentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
@@ -1382,7 +1826,8 @@ function PdfiumDocument({
         pendingAnnotationAgents={pendingAnnotationAgents}
         readerSettings={defaultReaderSettings}
         reviewAgents={reviewAgents}
-        readingSections={[]}
+        focusCoReadingPlan={article.focusCoReadingPlan}
+        readingSections={pdfReadingSections}
         selectionAction={selectionAction}
         selectionActionShortcuts={actionShortcuts}
         settingsOpen={false}
@@ -1396,11 +1841,14 @@ function PdfiumDocument({
         virtualCursors={virtualCursors}
         onAddComment={addComment}
         onAnnotationLayoutChange={handleAnnotationLayoutChange}
-        onCancelAgentAnnotateMenu={() => undefined}
+        onCancelAgentAnnotateMenu={() => onSetAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
         onClose={onClose}
-        onCloseFloatingPanels={() => undefined}
+        onCloseFloatingPanels={() => {
+          onSetAgentAnnotateOpen(false);
+          onCloseToc();
+        }}
         onCloseHighlightChoice={() => setHighlightChoice(null)}
         onCloseResponsivePanels={onCloseToc}
         onCopySelection={copySelection}
@@ -1411,20 +1859,19 @@ function PdfiumDocument({
         onHighlightClick={handleHighlightClick}
         onMouseUp={() => undefined}
         onOpenComposer={openComposer}
-        onPlanFocusCoReading={async (selectedAgentIds) => ({
-          id: `pdfium_focus_${Date.now()}`,
-          articleId: article.id,
-          selectedAgentIds,
-          sections: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })}
+        onPlanFocusCoReading={planFocusCoReading}
         onRequestAnnotationReview={requestAnnotationReview}
-        onSaveFocusCoReadingPlan={async () => undefined}
+        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={scrollToAnnotation}
-        onStartAgentReadingPlan={() => undefined}
-        onToggleAgentAnnotate={() => undefined}
+        onStartAgentReadingPlan={(agent, readingPlan) => {
+          onSetAgentAnnotateOpen(false);
+          void requestAgentAnnotation(agent, { readingPlan });
+        }}
+        onToggleAgentAnnotate={() => {
+          onSetAgentAnnotateOpen((open) => !open);
+          onCloseToc();
+        }}
         onToggleSettings={() => undefined}
         onToggleToc={onToggleToc}
         onUpdateReaderSettings={async () => undefined}
@@ -1559,6 +2006,18 @@ function pdfiumAnnotationTheaterBoxes(
   });
 }
 
+function pdfiumAnnotationIsVisible(
+  annotationId: string | null,
+  annotations: Annotation[],
+  metrics: Record<number, PageMetric>,
+) {
+  if (!annotationId) return false;
+  const annotation = annotations.find((item) => item.id === annotationId);
+  return Boolean(
+    annotation && isPdfTextAnchor(annotation.anchor) && metrics[annotation.anchor.pageIndex],
+  );
+}
+
 function pdfiumAnnotationAgentName(annotation: Annotation) {
   return annotation.agentNickname || annotation.agentUsername || '助手';
 }
@@ -1687,6 +2146,298 @@ function pdfiumPromptArticle(
   return {
     ...articleContext,
     text: `${pageLabel}${pageText}`,
+  };
+}
+
+function buildPdfTextDocument(pageTexts: string[]): PdfTextDocument {
+  let text = '';
+  const pages: PdfPageTextIndex[] = [];
+  pageTexts.forEach((pageText, pageIndex) => {
+    if (pageIndex > 0) text += '\n\n';
+    const header = `第 ${pageIndex + 1} 页\n`;
+    const textStart = text.length;
+    text += header;
+    const bodyStart = text.length;
+    text += pageText;
+    const bodyEnd = text.length;
+    pages.push({
+      pageIndex,
+      pageText,
+      textStart,
+      textEnd: text.length,
+      bodyStart,
+      bodyEnd,
+    });
+  });
+  return { text, pages };
+}
+
+function pdfReaderReadingSections(
+  textDocument: PdfTextDocument,
+  tocItems: TocItem[],
+  pageCount: number,
+) {
+  const tocSections = pdfReaderBookmarkRanges(textDocument, tocItems).flatMap((range) =>
+    pdfReadingSectionForTextRange(
+      textDocument,
+      range.start,
+      range.end,
+      `pdf-bookmark-${range.pageIndex + 1}-${range.localStart}-${range.item.index}`,
+      range.item.text,
+    ),
+  );
+  if (tocSections.length > 0) return tocSections;
+
+  const pageGroupSize = 5;
+  const sections = [];
+  for (let startPage = 0; startPage < pageCount; startPage += pageGroupSize) {
+    const endPage = Math.min(pageCount, startPage + pageGroupSize);
+    sections.push(
+      ...pdfReadingSectionForPageRange(
+        textDocument,
+        startPage,
+        endPage,
+        `pdf-pages-${startPage + 1}-${endPage}`,
+        startPage + 1 === endPage ? `第 ${endPage} 页` : `第 ${startPage + 1}-${endPage} 页`,
+      ),
+    );
+  }
+  return sections;
+}
+
+function pdfReaderBookmarkRanges(textDocument: PdfTextDocument, tocItems: TocItem[]) {
+  const orderedBoundaries = pdfReaderBookmarkBoundaries(textDocument, tocItems);
+  return orderedBoundaries.flatMap((boundary, index) => {
+    const end = orderedBoundaries[index + 1]?.start ?? textDocument.text.length;
+    return end > boundary.start ? [{ ...boundary, end }] : [];
+  });
+}
+
+function pdfReaderBookmarkBoundaries(textDocument: PdfTextDocument, tocItems: TocItem[]) {
+  const searchStartByPage = new Map<number, number>();
+  return tocItems
+    .toSorted((left, right) => left.start - right.start || left.index - right.index)
+    .flatMap((item) => {
+      const page = textDocument.pages[item.start];
+      if (!page) return [];
+      const searchStart = searchStartByPage.get(page.pageIndex) ?? 0;
+      const foundAfterPrevious = page.pageText.indexOf(item.text, searchStart);
+      const found = foundAfterPrevious >= 0 ? foundAfterPrevious : page.pageText.indexOf(item.text);
+      const localStart = Math.max(
+        0,
+        Math.min(found >= 0 ? found : searchStart, page.pageText.length),
+      );
+      searchStartByPage.set(page.pageIndex, localStart + item.text.length);
+      return [
+        {
+          item,
+          pageIndex: page.pageIndex,
+          localStart,
+          start: page.bodyStart + localStart,
+        },
+      ];
+    });
+}
+
+function pdfReadingSectionForTextRange(
+  textDocument: PdfTextDocument,
+  start: number,
+  end: number,
+  id: string,
+  title: string,
+) {
+  const safeStart = Math.max(0, Math.min(start, textDocument.text.length));
+  const safeEnd = Math.max(safeStart, Math.min(end, textDocument.text.length));
+  if (!textDocument.text.slice(safeStart, safeEnd).trim()) return [];
+  return [
+    {
+      id,
+      title,
+      start: safeStart,
+      end: safeEnd,
+    },
+  ];
+}
+
+function pdfReadingSectionForPageRange(
+  textDocument: PdfTextDocument,
+  startPage: number,
+  endPage: number,
+  id: string,
+  title: string,
+) {
+  const pages = textDocument.pages
+    .slice(Math.max(0, startPage), Math.min(textDocument.pages.length, endPage))
+    .filter((page) => page.pageText.trim());
+  const firstPage = pages[0];
+  const lastPage = pages[pages.length - 1];
+  if (!firstPage || !lastPage || lastPage.bodyEnd <= firstPage.bodyStart) return [];
+  return [
+    {
+      id,
+      title,
+      start: firstPage.bodyStart,
+      end: lastPage.bodyEnd,
+    },
+  ];
+}
+
+function constrainPdfiumAgentPlanAnnotation(
+  annotation: Annotation,
+  readingPlan: AgentReadingPlanItem[] | undefined,
+  articleText: string,
+) {
+  if (!readingPlan?.length) return annotation;
+
+  const scopedAnchor = resolvePdfiumAgentPlanAnchor(annotation, readingPlan, articleText);
+  if (!scopedAnchor) return null;
+  const { planItem, position } = scopedAnchor;
+  const scopedAnnotation = {
+    ...annotation,
+    anchor: createTextAnchor(articleText, position.start, position.end),
+  };
+  if (!planItem) return null;
+  if (!planItem.readingIntent) return scopedAnnotation;
+  if (annotation.readingIntent === planItem.readingIntent) return scopedAnnotation;
+
+  return {
+    ...scopedAnnotation,
+    readingIntent: planItem.readingIntent,
+    comments: annotation.comments.map((comment) => ({
+      ...comment,
+      readingIntent: comment.readingIntent || planItem.readingIntent,
+    })),
+  };
+}
+
+function resolvePdfiumAgentPlanAnchor(
+  annotation: Annotation,
+  readingPlan: AgentReadingPlanItem[],
+  articleText: string,
+) {
+  const orderedPlan = readingPlan.toSorted((left, right) => left.sectionStart - right.sectionStart);
+  for (const planItem of orderedPlan) {
+    const sectionText = articleText.slice(planItem.sectionStart, planItem.sectionEnd);
+    const localRange = resolvePdfiumAnchorInSection(annotation.anchor, sectionText, planItem);
+    if (!localRange) continue;
+    return {
+      planItem,
+      position: {
+        start: planItem.sectionStart + localRange.start,
+        end: planItem.sectionStart + localRange.end,
+      },
+    };
+  }
+  return null;
+}
+
+function resolvePdfiumAnchorInSection(
+  anchor: Annotation['anchor'],
+  sectionText: string,
+  planItem: AgentReadingPlanItem,
+) {
+  const candidates = [anchor.start - planItem.sectionStart, anchor.start, 0];
+  for (const start of candidates) {
+    const safeStart = Math.max(0, Math.min(start, Math.max(0, sectionText.length - 1)));
+    const safeEnd = Math.max(
+      safeStart,
+      Math.min(safeStart + anchor.exact.length, sectionText.length),
+    );
+    const resolved = resolveTextAnchor(sectionText, {
+      ...anchor,
+      start: safeStart,
+      end: safeEnd,
+    });
+    if (resolved) return resolved;
+  }
+  return null;
+}
+
+function pdfiumAnchorForReadingPlanStart(
+  readingPlan: AgentReadingPlanItem[],
+  textDocument: PdfTextDocument,
+  pageGeometryByIndex: Map<number, PdfPageGeometryEntry>,
+) {
+  const firstItem = readingPlan.toSorted(
+    (left, right) => left.sectionStart - right.sectionStart,
+  )[0];
+  if (!firstItem) return undefined;
+  const page = textDocument.pages.find(
+    (item) => item.bodyStart <= firstItem.sectionStart && item.bodyEnd > firstItem.sectionStart,
+  );
+  if (!page) return undefined;
+  const geometryEntry = pageGeometryByIndex.get(page.pageIndex);
+  if (!geometryEntry) return undefined;
+  const range = pdfiumReadingPlanStartRange(firstItem, page);
+  const rects = pdfiumRectsForTextRange(
+    geometryEntry.geometry,
+    range.start,
+    range.end,
+    geometryEntry.width,
+    geometryEntry.height,
+  );
+  return createPdfTextAnchor({
+    pageText: page.pageText,
+    pageIndex: page.pageIndex,
+    start: range.start,
+    end: range.end,
+    pageWidth: geometryEntry.width,
+    pageHeight: geometryEntry.height,
+    rects,
+  });
+}
+
+function pdfiumReadingPlanStartRange(item: AgentReadingPlanItem, page: PdfPageTextIndex) {
+  if (page.pageText.length === 0) return { start: 0, end: 0 };
+  const sectionStart = Math.max(0, item.sectionStart - page.bodyStart);
+  const sectionEnd = Math.max(
+    sectionStart + 1,
+    Math.min(item.sectionEnd - page.bodyStart, page.pageText.length),
+  );
+  const text = page.pageText.slice(sectionStart, sectionEnd);
+  const firstTextOffset = text.search(/\S/);
+  const start = Math.min(
+    page.pageText.length - 1,
+    sectionStart + (firstTextOffset >= 0 ? firstTextOffset : 0),
+  );
+  const end = Math.min(page.pageText.length, Math.max(start + 1, start + 24));
+  return { start, end };
+}
+
+function pdfiumAnnotationFromGlobalAgentAnnotation(
+  annotation: Annotation,
+  textDocument: PdfTextDocument,
+  pageGeometryByIndex: Map<number, PdfPageGeometryEntry>,
+): Annotation | null {
+  const range = resolveTextAnchor(textDocument.text, annotation.anchor);
+  if (!range) return null;
+  const page = textDocument.pages.find(
+    (item) => range.start >= item.bodyStart && range.end <= item.bodyEnd,
+  );
+  if (!page) return null;
+  const geometryEntry = pageGeometryByIndex.get(page.pageIndex);
+  if (!geometryEntry) return null;
+  const pageStart = range.start - page.bodyStart;
+  const pageEnd = range.end - page.bodyStart;
+  const rects = pdfiumRectsForTextRange(
+    geometryEntry.geometry,
+    pageStart,
+    pageEnd,
+    geometryEntry.width,
+    geometryEntry.height,
+  );
+  if (rects.length === 0) return null;
+  return {
+    ...annotation,
+    anchor: createPdfTextAnchor({
+      pageText: page.pageText,
+      pageIndex: page.pageIndex,
+      start: pageStart,
+      end: pageEnd,
+      pageWidth: geometryEntry.width,
+      pageHeight: geometryEntry.height,
+      rects,
+    }),
   };
 }
 
@@ -1876,21 +2627,51 @@ function pdfiumTocAnnotationStats(
   annotations: Annotation[],
   userProfile: UserProfile,
   agents: PublicAgent[],
+  textDocument: PdfTextDocument | null,
 ) {
-  const stats = new Map<number, { count: number; colors: string[] }>();
+  const drafts = new Map<number, { count: number; colors: Set<string> }>();
   for (const item of tocItems) {
-    const sectionAnnotations = annotations.filter((annotation) => {
-      if (!isPdfTextAnchor(annotation.anchor)) return false;
-      return annotation.anchor.pageIndex >= item.start && annotation.anchor.pageIndex < item.end;
-    });
-    stats.set(item.index, {
-      count: sectionAnnotations.length,
-      colors: Array.from(
-        new Set(
-          sectionAnnotations.map((annotation) => annotationColor(annotation, userProfile, agents)),
-        ),
-      ),
-    });
+    drafts.set(item.index, { count: 0, colors: new Set() });
   }
-  return stats;
+  const ranges = textDocument ? pdfReaderBookmarkRanges(textDocument, tocItems) : [];
+  for (const annotation of annotations) {
+    if (!isPdfTextAnchor(annotation.anchor)) continue;
+    const item = textDocument
+      ? pdfiumTocItemForTextAnchor(annotation.anchor, textDocument, ranges)
+      : pdfiumTocItemForPageAnchor(annotation.anchor, tocItems);
+    if (!item) continue;
+    const draft = drafts.get(item.index);
+    if (!draft) continue;
+    draft.count += 1;
+    draft.colors.add(annotationColor(annotation, userProfile, agents));
+  }
+  return new Map(
+    Array.from(drafts, ([index, draft]) => [
+      index,
+      { count: draft.count, colors: Array.from(draft.colors) },
+    ]),
+  );
+}
+
+function pdfiumTocItemForTextAnchor(
+  anchor: PdfTextAnchor,
+  textDocument: PdfTextDocument,
+  ranges: ReturnType<typeof pdfReaderBookmarkRanges>,
+) {
+  const page = textDocument.pages[anchor.pageIndex];
+  if (!page) return null;
+  const position = page.bodyStart + anchor.start;
+  return ranges.find((range) => position >= range.start && position < range.end)?.item ?? null;
+}
+
+function pdfiumTocItemForPageAnchor(anchor: PdfTextAnchor, tocItems: TocItem[]) {
+  const candidates = tocItems.filter(
+    (item) => anchor.pageIndex >= item.start && anchor.pageIndex < item.end,
+  );
+  return candidates.toSorted(
+    (left, right) =>
+      left.end - left.start - (right.end - right.start) ||
+      right.depth - left.depth ||
+      right.index - left.index,
+  )[0];
 }
