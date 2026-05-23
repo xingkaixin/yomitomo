@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
+import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 
 import type { SettingsSectionKey } from './app-settings-panels';
 import { AvatarImage } from './app-ui';
@@ -62,7 +62,7 @@ const idlePreloadModules = [
   loadUserProfileSettingsDialog,
 ];
 
-function preloadIdleModules(articles: ArticleRecord[]) {
+function preloadIdleModules(articles: ArticleSummaryRecord[]) {
   void Promise.allSettled(idlePreloadModules.map((load) => load()));
   void loadReadingStatsModule()
     .then((module) => module.preloadReadingStatsFirstPaintData(articles))

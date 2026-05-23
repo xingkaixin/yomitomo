@@ -7,10 +7,9 @@ import {
   PencilLine,
   Trash2,
 } from 'lucide-react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from './app-utils';
 import { ArticleBook } from './app-article-book';
-import { isEbookArticle } from './app-source-bookcase';
 import {
   articleAnnotationCount,
   articleReadingMinutes,
@@ -27,7 +26,7 @@ export function ArticleLibraryCard({
   onDelete,
   onOpen,
 }: {
-  article: ArticleRecord;
+  article: ArticleSummaryRecord;
   onDelete: () => void;
   onOpen: () => void;
 }) {
@@ -37,7 +36,7 @@ export function ArticleLibraryCard({
   const deleteTimerRef = useRef<number | null>(null);
   const annotations = articleAnnotationCount(article);
   const thoughts = articleThoughtCount(article);
-  const isEbook = isEbookArticle(article);
+  const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
@@ -201,15 +200,13 @@ export function ArticleLibraryCard({
             {thoughts} 讨论
           </span>
         </div>
-        <span className="library-source-badge">
-          {isEbookArticle(article) ? 'ePub' : isPdf ? 'PDF' : '网页'}
-        </span>
+        <span className="library-source-badge">{isEbook ? 'ePub' : isPdf ? 'PDF' : '网页'}</span>
       </footer>
     </article>
   );
 }
 
-function libraryArticleAuthorLabel(article: ArticleRecord) {
+function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
   if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';

@@ -3,7 +3,7 @@
 import { createElement } from 'react';
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ArticleRecord, DesktopStore } from '@yomitomo/shared';
+import type { ArticleRecord, ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
 
 import { emptyStore } from '../app-settings';
 import {
@@ -24,7 +24,8 @@ describe('useAppArticleStoreActions', () => {
     const firstArticle = makeArticle('article-1');
     const secondArticle = makeArticle('article-2');
     const savedArticle = { ...firstArticle, title: 'Saved article' };
-    const storeRef = {
+    const savedSummary = articleSummary(savedArticle);
+    const storeRef: { current: DesktopStore } = {
       current: {
         ...emptyStore,
         articles: [firstArticle, secondArticle],
@@ -36,7 +37,7 @@ describe('useAppArticleStoreActions', () => {
     });
     const saveArticle = vi.fn().mockResolvedValue({
       type: 'article-upsert',
-      article: savedArticle,
+      article: savedSummary,
     });
     let actions!: ReturnType<typeof useAppArticleStoreActions>;
 
@@ -58,14 +59,15 @@ describe('useAppArticleStoreActions', () => {
     expect(saveArticle).toHaveBeenCalledWith(savedArticle);
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
-      articles: [savedArticle, secondArticle],
+      articles: [savedSummary, secondArticle],
     });
   });
 
   it('applies the imported article patch without a full store result', async () => {
     const firstArticle = makeArticle('article-1');
     const importedArticle = makeArticle('article-imported');
-    const storeRef = {
+    const importedSummary = articleSummary(importedArticle);
+    const storeRef: { current: DesktopStore } = {
       current: {
         ...emptyStore,
         articles: [firstArticle],
@@ -80,7 +82,7 @@ describe('useAppArticleStoreActions', () => {
       article: importedArticle,
       patch: {
         type: 'article-upsert',
-        article: importedArticle,
+        article: importedSummary,
       },
     });
     let actions!: ReturnType<typeof useAppArticleStoreActions>;
@@ -105,13 +107,13 @@ describe('useAppArticleStoreActions', () => {
     expect(importArticleUrl).toHaveBeenCalledWith('https://example.com/imported');
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
-      articles: [importedArticle, firstArticle],
+      articles: [importedSummary, firstArticle],
     });
   });
 
   it('does not replace the store when imported article is a duplicate', async () => {
     const firstArticle = makeArticle('article-1');
-    const storeRef = {
+    const storeRef: { current: DesktopStore } = {
       current: {
         ...emptyStore,
         articles: [firstArticle],
@@ -149,7 +151,8 @@ describe('useAppArticleStoreActions', () => {
   it('applies the imported ebook patch without a full store result', async () => {
     const firstArticle = makeArticle('article-1');
     const importedArticle = makeArticle('ebook-imported');
-    const storeRef = {
+    const importedSummary = articleSummary(importedArticle);
+    const storeRef: { current: DesktopStore } = {
       current: {
         ...emptyStore,
         articles: [firstArticle],
@@ -164,7 +167,7 @@ describe('useAppArticleStoreActions', () => {
       article: importedArticle,
       patch: {
         type: 'article-upsert',
-        article: importedArticle,
+        article: importedSummary,
       },
     });
     let actions!: ReturnType<typeof useAppArticleStoreActions>;
@@ -189,7 +192,7 @@ describe('useAppArticleStoreActions', () => {
     );
     expect(applyStore).toHaveBeenCalledWith({
       ...emptyStore,
-      articles: [importedArticle, firstArticle],
+      articles: [importedSummary, firstArticle],
     });
   });
 });
@@ -230,14 +233,15 @@ describe('applyArticleStorePatch', () => {
   it('applies article upsert patches', () => {
     const firstArticle = makeArticle('article-1');
     const savedArticle = makeArticle('article-saved');
+    const savedSummary = articleSummary(savedArticle);
     const store: DesktopStore = {
       ...emptyStore,
       articles: [firstArticle],
     };
 
     expect(
-      applyArticleStorePatch(store, { type: 'article-upsert', article: savedArticle }).articles,
-    ).toEqual([savedArticle, firstArticle]);
+      applyArticleStorePatch(store, { type: 'article-upsert', article: savedSummary }).articles,
+    ).toEqual([savedSummary, firstArticle]);
   });
 
   it('applies article reading progress patches', () => {
@@ -287,6 +291,7 @@ describe('applyArticleUpsertPatch', () => {
     const firstArticle = makeArticle('article-1');
     const secondArticle = makeArticle('article-2');
     const savedArticle = { ...firstArticle, title: 'Saved article' };
+    const savedSummary = articleSummary(savedArticle);
     const store: DesktopStore = {
       ...emptyStore,
       articles: [firstArticle, secondArticle],
@@ -294,24 +299,53 @@ describe('applyArticleUpsertPatch', () => {
 
     const nextStore = applyArticleUpsertPatch(store, {
       type: 'article-upsert',
-      article: savedArticle,
+      article: savedSummary,
     });
 
-    expect(nextStore.articles).toEqual([savedArticle, secondArticle]);
+    expect(nextStore.articles).toEqual([savedSummary, secondArticle]);
     expect(nextStore.articles[1]).toBe(secondArticle);
   });
 
   it('prepends a newly saved article', () => {
     const firstArticle = makeArticle('article-1');
     const savedArticle = makeArticle('article-new');
+    const savedSummary = articleSummary(savedArticle);
     const store: DesktopStore = {
       ...emptyStore,
       articles: [firstArticle],
     };
 
     expect(
-      applyArticleUpsertPatch(store, { type: 'article-upsert', article: savedArticle }).articles,
-    ).toEqual([savedArticle, firstArticle]);
+      applyArticleUpsertPatch(store, { type: 'article-upsert', article: savedSummary }).articles,
+    ).toEqual([savedSummary, firstArticle]);
+  });
+
+  it('keeps full-only fields out of the article list', () => {
+    const firstArticle = makeArticle('article-1');
+    const savedArticle = {
+      ...firstArticle,
+      contentHtml: '<p>Updated body</p>',
+      focusCoReadingPlan: {
+        id: 'plan-1',
+        articleId: firstArticle.id,
+        selectedAgentIds: [],
+        sections: [],
+        createdAt: firstArticle.createdAt,
+        updatedAt: firstArticle.updatedAt,
+      },
+    };
+    const store: DesktopStore = {
+      ...emptyStore,
+      articles: [firstArticle],
+    };
+
+    const nextStore = applyArticleUpsertPatch(store, {
+      type: 'article-upsert',
+      article: articleSummary(savedArticle),
+    });
+
+    expect(nextStore.articles[0]).not.toHaveProperty('contentHtml');
+    expect(nextStore.articles[0]).not.toHaveProperty('focusCoReadingPlan');
   });
 });
 
@@ -344,4 +378,17 @@ function makeArticle(id: string): ArticleRecord {
     createdAt: '2026-05-17T07:00:00.000Z',
     updatedAt: '2026-05-17T07:00:00.000Z',
   };
+}
+
+function articleSummary(article: ArticleRecord): ArticleSummaryRecord {
+  const summary = { ...article };
+  delete summary.contentHtml;
+  delete summary.focusCoReadingPlan;
+  if (summary.ebook) {
+    return {
+      ...summary,
+      ebook: { metadata: summary.ebook.metadata },
+    };
+  }
+  return summary;
 }

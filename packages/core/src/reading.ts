@@ -1,4 +1,4 @@
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
 import { annotationThreadComments } from './annotations';
 
 export type ReadingStats = {
@@ -21,7 +21,7 @@ export type ReadingActivityDay = ReadingStatsPeriod & {
   level: number;
 };
 
-export function sortArticles(articles: ArticleRecord[]) {
+export function sortArticles(articles: ArticleSummaryRecord[]) {
   return articles.toSorted((left, right) => timestamp(right.updatedAt) - timestamp(left.updatedAt));
 }
 
@@ -34,7 +34,10 @@ export function sortAnnotations(annotations: Annotation[]) {
   });
 }
 
-export function computeReadingStats(articles: ArticleRecord[], now = new Date()): ReadingStats {
+export function computeReadingStats(
+  articles: ArticleSummaryRecord[],
+  now = new Date(),
+): ReadingStats {
   return {
     today: countReadingStats(articles, startOfDay(now)),
     week: countReadingStats(articles, startOfWeek(now)),
@@ -43,7 +46,7 @@ export function computeReadingStats(articles: ArticleRecord[], now = new Date())
 }
 
 export function computeReadingActivityDays(
-  articles: ArticleRecord[],
+  articles: ArticleSummaryRecord[],
   days = 70,
   now = new Date(),
 ): ReadingActivityDay[] {
@@ -95,7 +98,10 @@ export function timestamp(value: string) {
   return Number.isNaN(time) ? 0 : time;
 }
 
-function countReadingStats(articles: ArticleRecord[], since: Date | null): ReadingStatsPeriod {
+function countReadingStats(
+  articles: ArticleSummaryRecord[],
+  since: Date | null,
+): ReadingStatsPeriod {
   const inPeriod = (value: string) => {
     if (!since) return true;
     const date = new Date(value);

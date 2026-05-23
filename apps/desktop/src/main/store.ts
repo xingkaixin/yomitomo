@@ -14,6 +14,7 @@ import type {
   ArticleRecord,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
+  ArticleSummaryRecord,
   ArticleUpsertPatch,
   Comment,
   DesktopStore,
@@ -281,7 +282,7 @@ function seedDefaultStore(database: StoreDatabase) {
     .get();
   if (hasUser) return;
 
-  writeStoreRows(database, defaultStore);
+  writeStoreRows(database, defaultStore as WritableDesktopStore);
 }
 
 export async function readStore(): Promise<DesktopStore> {
@@ -319,6 +320,19 @@ export async function readArticle(id: string): Promise<ArticleRecord | null> {
   return rowToArticle(row, readArticleAnnotations(database, id));
 }
 
+export async function readArticleSummary(id: string): Promise<ArticleSummaryRecord | null> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  const row = database
+    .select(articleSummaryColumns)
+    .from(schema.articles)
+    .where(eq(schema.articles.id, id))
+    .get();
+  if (!row) return null;
+
+  return rowToArticleSummary(row, [], readArticleSummaryCounts(database).get(id));
+}
+
 export async function readArticleCover(id: string): Promise<string> {
   return (
     getDatabase()
@@ -329,8 +343,10 @@ export async function readArticleCover(id: string): Promise<string> {
   );
 }
 
-export async function writeStore(store: DesktopStore): Promise<DesktopStore> {
-  const normalized = normalizeStore(store);
+type WritableDesktopStore = Omit<DesktopStore, 'articles'> & { articles: ArticleRecord[] };
+
+export async function writeStore(store: WritableDesktopStore): Promise<DesktopStore> {
+  const normalized = normalizeStore(store) as WritableDesktopStore;
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   writeStoreRows(database, normalized);
@@ -625,12 +641,12 @@ export async function deleteAgent(id: string): Promise<DesktopStore> {
 
 export async function saveArticle(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   writeArticleRowsInTransaction(getDatabase(), input);
-  const article = await readArticle(input.id);
+  const article = await readArticleSummary(input.id);
   if (!article) throw new Error('文章保存失败');
   return buildArticleUpsertPatch(article);
 }
 
-export function buildArticleUpsertPatch(article: ArticleRecord): ArticleUpsertPatch {
+export function buildArticleUpsertPatch(article: ArticleSummaryRecord): ArticleUpsertPatch {
   return { type: 'article-upsert', article };
 }
 
@@ -849,7 +865,7 @@ function groupAnnotationsByArticle(
   return annotationsByArticle;
 }
 
-function writeStoreRows(database: StoreDatabase, store: DesktopStore) {
+function writeStoreRows(database: StoreDatabase, store: WritableDesktopStore) {
   database.transaction((tx) => {
     tx.delete(schema.comments).run();
     tx.delete(schema.annotations).run();

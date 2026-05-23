@@ -3,7 +3,12 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleRecord, UserProfile } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleSummaryRecord,
+  UserProfile,
+} from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
 
 const now = '2026-05-09T12:00:00.000Z';
@@ -57,6 +62,19 @@ function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
     updatedAt: now,
     ...overrides,
   };
+}
+
+function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
+  const summary = { ...record };
+  delete summary.contentHtml;
+  delete summary.focusCoReadingPlan;
+  if (summary.ebook) {
+    return {
+      ...summary,
+      ebook: { metadata: summary.ebook.metadata },
+    };
+  }
+  return summary;
 }
 
 function annotationWithComments(id: string, count: number): Annotation {
@@ -115,7 +133,7 @@ function completedArticle(): ArticleRecord {
 }
 
 function renderLibrary(
-  articles: ArticleRecord[],
+  articles: ArticleSummaryRecord[],
   options: {
     onImportArticleUrl?: (
       url: string,
@@ -123,6 +141,7 @@ function renderLibrary(
     onImportEbookFile?: (
       file: File,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+    onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
   } = {},
 ) {
   return render(
@@ -134,7 +153,11 @@ function renderLibrary(
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportPdfFile={vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
-      onReadArticle={async (articleId) => articles.find((item) => item.id === articleId) || null}
+      onReadArticle={
+        options.onReadArticle ||
+        (async (articleId) =>
+          (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null)
+      }
       onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
       onUpdateArticle={vi.fn()}
@@ -380,6 +403,36 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('PDF 作者')).toBeTruthy();
     expect(screen.queryByText('paper.pdf')).toBeNull();
     expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
+  });
+
+  it('loads the full article before opening a PDF summary', async () => {
+    const pdfSummary = articleSummary(
+      article({
+        id: 'pdf_1',
+        url: 'pdf:pdf_1',
+        canonicalUrl: 'pdf:hash_1',
+        sourceType: 'pdf',
+        title: 'PDF 标题',
+        siteName: 'PDF',
+        pdf: {
+          metadata: {
+            format: 'pdf',
+            fileName: 'paper.pdf',
+            fileSize: 1024,
+            pageCount: 12,
+          },
+        },
+      }),
+    );
+    const onReadArticle = vi.fn().mockResolvedValue(null);
+    renderLibrary([pdfSummary], { onReadArticle });
+
+    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: '打开PDF：PDF 标题' }));
+
+    await waitFor(() => {
+      expect(onReadArticle).toHaveBeenCalledWith('pdf_1');
+    });
   });
 
   it('exposes the full title on hover', () => {

@@ -1,4 +1,9 @@
-import type { Annotation, ArticleRecord, Comment as AnnotationComment } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleRecord,
+  ArticleSummaryRecord,
+  Comment as AnnotationComment,
+} from '@yomitomo/shared';
 
 export type LogEntry = {
   id: string;
@@ -82,8 +87,8 @@ export function articleReadingStatsLine(stats: {
   return `${stats.annotations} 批注 · ${stats.comments} 评论 · ${stats.aiContributions} 助手建议`;
 }
 
-export function articlePlainText(article: ArticleRecord) {
-  const html = article.contentHtml || '';
+export function articlePlainText(article: ArticleRecord | ArticleSummaryRecord) {
+  const html = 'contentHtml' in article ? article.contentHtml || '' : '';
   if (!html) return article.excerpt || '';
   const container = document.createElement('div');
   container.innerHTML = html;

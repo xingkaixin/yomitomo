@@ -1961,17 +1961,16 @@ function EmbedPdfSelectionBridge({
 }) {
   const documentState = useDocumentState(documentId);
   const { provides } = useSelectionCapability();
+  const ignoreSelectionClearUntilRef = useRef(0);
 
   useEffect(() => {
     if (!provides || !documentState?.document) return;
     const scope = provides.forDocument(documentId);
     const document = documentState.document;
-    let ignoreNextSelectionClear = false;
 
     const unsubscribeChange = scope.onSelectionChange((selectionRange) => {
       if (selectionRange) return;
-      if (ignoreNextSelectionClear) {
-        ignoreNextSelectionClear = false;
+      if (performance.now() < ignoreSelectionClearUntilRef.current) {
         return;
       }
       onSelection(null);
@@ -2007,8 +2006,8 @@ function EmbedPdfSelectionBridge({
               rectToPdfRect(rect, page.size.width, page.size.height),
             ),
           });
+          ignoreSelectionClearUntilRef.current = performance.now() + 120;
           onSelection(anchor.exact.trim() ? anchor : null);
-          ignoreNextSelectionClear = true;
           clearEmbedPdfSelection(scope);
         })
         .catch(() => {

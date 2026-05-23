@@ -295,6 +295,10 @@ export type EbookRecord = {
   index?: EpubBookIndex;
 };
 
+export type EbookSummaryRecord = {
+  metadata: EbookMetadata;
+};
+
 export type PdfMetadata = {
   format: 'pdf';
   fileName: string;
@@ -331,7 +335,7 @@ export type ArticleReadingProgressPatch = {
 
 export type ArticleUpsertPatch = {
   type: 'article-upsert';
-  article: ArticleRecord;
+  article: ArticleSummaryRecord;
 };
 
 export type ArticleDeletePatch = {
@@ -681,6 +685,13 @@ export type ArticleRecord = {
   updatedAt: string;
 };
 
+export type ArticleSummaryRecord = Omit<
+  ArticleRecord,
+  'contentHtml' | 'ebook' | 'focusCoReadingPlan'
+> & {
+  ebook?: EbookSummaryRecord;
+};
+
 export type FocusCoReadingMessage = {
   id: string;
   content: string;
@@ -732,7 +743,7 @@ export type DesktopStore = {
   settings: AppSettings;
   providers: LlmProvider[];
   agents: Agent[];
-  articles: ArticleRecord[];
+  articles: ArticleSummaryRecord[];
 };
 
 export type AgentMessagePayload = {

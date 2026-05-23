@@ -9,6 +9,7 @@ import type {
   AppSettings,
   ArticleReadingProgress,
   ArticleRecord,
+  ArticleSummaryRecord,
   ArticleSourceType,
   Comment,
   DesktopStore,
@@ -192,7 +193,7 @@ export function rowToArticleSummary(
   row: ArticleSummaryRow,
   annotations: Annotation[],
   counts?: ArticleSummaryCounts,
-): ArticleRecord {
+): ArticleSummaryRecord {
   return {
     ...rowToArticleBase(row, annotations, counts),
     ebook: rowToEbookSummary(row),
@@ -351,12 +352,12 @@ function rowToEbook(row: ArticleRow): ArticleRecord['ebook'] {
   return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
 }
 
-function rowToEbookSummary(row: ArticleSummaryRow): ArticleRecord['ebook'] {
+function rowToEbookSummary(row: ArticleSummaryRow): ArticleSummaryRecord['ebook'] {
   const sourceType = normalizeArticleSourceType(row.sourceType);
   if (sourceType !== 'ebook') return undefined;
 
   const metadata = normalizeEbookMetadata(row.ebookMetadata);
-  return metadata ? { metadata, chapters: [] } : undefined;
+  return metadata ? { metadata } : undefined;
 }
 
 export function normalizeArticleSourceType(value: unknown): ArticleSourceType {
@@ -386,10 +387,14 @@ export function normalizeArticleReadingProgress(
   };
 }
 
-function normalizeEbookRecord(value: ArticleRecord['ebook'] | undefined): ArticleRecord['ebook'] {
+function normalizeEbookRecord(
+  value: ArticleRecord['ebook'] | ArticleSummaryRecord['ebook'] | undefined,
+): ArticleRecord['ebook'] {
   const metadata = normalizeEbookMetadata(value?.metadata);
-  const chapters = normalizeEbookChapters(value?.chapters);
-  const index = normalizeEpubBookIndex(value?.index);
+  const chapters = normalizeEbookChapters(
+    value && 'chapters' in value ? value.chapters : undefined,
+  );
+  const index = normalizeEpubBookIndex(value && 'index' in value ? value.index : undefined);
   return metadata && chapters.length > 0 ? { metadata, chapters, index } : undefined;
 }
 

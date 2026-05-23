@@ -1,4 +1,4 @@
-import type { Agent, AgentKind, Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Agent, AgentKind, Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
 import { annotationPrimaryComment } from '@yomitomo/core';
 
 type DailyQuoteSource = 'builtin' | 'user' | 'ai';
@@ -109,7 +109,7 @@ export const builtinDailyQuotes = [
 ].map((text, index): DailyQuoteCandidate => ({ id: `builtin:${index}`, text, source: 'builtin' }));
 
 export function selectDailyQuote(
-  articles: ArticleRecord[],
+  articles: ArticleSummaryRecord[],
   options: SelectDailyQuoteOptions = {},
 ): DailyQuote {
   const now = options.now || new Date();
@@ -165,7 +165,9 @@ export function selectDailyQuote(
   return toDailyQuote(selected, now, assistant);
 }
 
-export function collectDailyQuoteCandidates(articles: ArticleRecord[]): DailyQuoteCandidate[] {
+export function collectDailyQuoteCandidates(
+  articles: ArticleSummaryRecord[],
+): DailyQuoteCandidate[] {
   return articles.flatMap((article) =>
     article.annotations.flatMap((annotation) => dailyQuoteCandidate(annotation)),
   );
