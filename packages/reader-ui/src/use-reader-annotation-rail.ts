@@ -20,8 +20,10 @@ function stringSetsEqual(left: Set<string>, right: Set<string>): boolean {
 export type UseReaderAnnotationRailOptions = {
   activeId: string | null;
   annotationRailLayout?: AnnotationRailLayout;
+  annotationRailViewportHeight?: number;
   annotations: Annotation[];
   articleId: string;
+  autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
   commentsCloseKey: number;
   filteredAnnotations: Annotation[];
@@ -43,8 +45,10 @@ export type ReaderAnnotationRailState = {
 export function useReaderAnnotationRail({
   activeId,
   annotationRailLayout,
+  annotationRailViewportHeight,
   annotations,
   articleId,
+  autoExpandNewAnnotations = true,
   boxes,
   commentsCloseKey,
   filteredAnnotations,
@@ -95,10 +99,23 @@ export function useReaderAnnotationRail({
         .filter((annotation): annotation is Annotation => Boolean(annotation)),
     [railAnimation.ids, railAnnotationById],
   );
+  const boundedAnnotationRailLayout = React.useMemo(
+    () =>
+      annotationRailViewportHeight && annotationRailLayout
+        ? { ...annotationRailLayout, viewportHeight: annotationRailViewportHeight }
+        : annotationRailLayout,
+    [annotationRailLayout, annotationRailViewportHeight],
+  );
   const annotationRailItems = React.useMemo(
     () =>
-      buildAnnotationRailItems(railAnnotations, boxes, activeId, noteHeights, annotationRailLayout),
-    [activeId, annotationRailLayout, boxes, noteHeights, railAnnotations],
+      buildAnnotationRailItems(
+        railAnnotations,
+        boxes,
+        activeId,
+        noteHeights,
+        boundedAnnotationRailLayout,
+      ),
+    [activeId, boundedAnnotationRailLayout, boxes, noteHeights, railAnnotations],
   );
 
   const flushPendingNoteHeights = React.useCallback(() => {
@@ -243,15 +260,17 @@ export function useReaderAnnotationRail({
         else changed = true;
       }
 
-      for (const id of autoExpandIds) {
-        if (next.has(id)) continue;
-        next.add(id);
-        changed = true;
+      if (autoExpandNewAnnotations) {
+        for (const id of autoExpandIds) {
+          if (next.has(id)) continue;
+          next.add(id);
+          changed = true;
+        }
       }
 
       return changed ? next : current;
     });
-  }, [annotations, articleId, filteredAnnotations]);
+  }, [annotations, articleId, autoExpandNewAnnotations, filteredAnnotations]);
 
   React.useEffect(() => {
     setExpandedPrimaryCommentIds((current) => (current.size === 0 ? current : new Set()));

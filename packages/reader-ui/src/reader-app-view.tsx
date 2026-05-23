@@ -155,6 +155,9 @@ export function ReaderAppView({
   articleContent,
   articleId,
   articleRef,
+  annotationRailLayoutOverride,
+  annotationRailViewportHeight,
+  autoExpandNewAnnotations,
   boxes,
   canvasRef,
   commentsCloseKey,
@@ -214,7 +217,8 @@ export function ReaderAppView({
   onToggleSettings,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
-  const annotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
+  const measuredAnnotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
+  const annotationRailLayout = annotationRailLayoutOverride ?? measuredAnnotationRailLayout;
   const {
     annotationRailItems,
     exitingAnnotationIds,
@@ -227,8 +231,10 @@ export function ReaderAppView({
   } = useReaderAnnotationRail({
     activeId,
     annotationRailLayout,
+    annotationRailViewportHeight,
     annotations,
     articleId,
+    autoExpandNewAnnotations,
     boxes,
     commentsCloseKey,
     filteredAnnotations,

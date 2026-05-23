@@ -1,5 +1,14 @@
 import type React from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ChevronLeft, ChevronRight, List, LoaderCircle, ZoomIn, ZoomOut } from 'lucide-react';
 import {
   GlobalWorkerOptions,
@@ -77,6 +86,11 @@ const MIN_SCALE = 0.7;
 const MAX_SCALE = 2.2;
 const SCALE_STEP = 0.15;
 const PAGE_STAGE_MARGIN = 56;
+const PdfEmbedPdfSpikeBookcase = lazy(() =>
+  import('./app-source-bookcase-pdf-embedpdf-spike').then((module) => ({
+    default: module.PdfEmbedPdfSpikeBookcase,
+  })),
+);
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
@@ -147,6 +161,17 @@ type PdfOutlineItem = {
 };
 
 export function PdfBookcase({
+  article,
+  ...props
+}: SourceBookcaseProps & { article: PdfArticleRecord }) {
+  return (
+    <Suspense fallback={<section className="source-bookcase source-pdf-reader-shell" />}>
+      <PdfEmbedPdfSpikeBookcase {...props} article={article} />
+    </Suspense>
+  );
+}
+
+function PdfJsBookcase({
   agents,
   annotations: articleAnnotations,
   article,
@@ -161,7 +186,8 @@ export function PdfBookcase({
   onSaveArticle,
   onSaveArticleReadingProgress,
   onUpdateArticle,
-}: SourceBookcaseProps & { article: PdfArticleRecord }) {
+  onUseEmbedPdf,
+}: SourceBookcaseProps & { article: PdfArticleRecord; onUseEmbedPdf: () => void }) {
   const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const readerCanvasRef = useRef<HTMLDivElement | null>(null);
@@ -192,6 +218,7 @@ export function PdfBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const selectingRef = useRef(false);
   const pageCount = pdfDocument?.numPages || article.pdf.metadata.pageCount;
+  const canUseEmbedPdfSpike = import.meta.env.DEV;
   const pageNumber = pageIndex + 1;
   const progress = pageProgress(pageIndex, pageCount);
   const progressPercent = Math.round(progress * 100);
@@ -1016,6 +1043,11 @@ export function PdfBookcase({
               <ZoomIn size={16} />
             </Button>
           </div>
+          {canUseEmbedPdfSpike ? (
+            <Button size="sm" type="button" variant="outline" onClick={onUseEmbedPdf}>
+              PDFium 实验
+            </Button>
+          ) : null}
         </div>
       </header>
       <div className="pdf-reader-main">

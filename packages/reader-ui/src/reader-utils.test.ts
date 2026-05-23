@@ -312,6 +312,25 @@ describe('reader annotation filters', () => {
     ]);
   });
 
+  it('keeps tall rail cards inside a bounded viewport', () => {
+    const items = buildAnnotationRailItems(
+      [annotation('long-note', { anchor: anchor('long', 0, 10) })],
+      [box('long-note', { top: 560 })],
+      'long-note',
+      { 'long-note': 360 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'left',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 620,
+      },
+    );
+
+    expect(items[0]?.style.top).toBe(242);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 

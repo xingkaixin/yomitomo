@@ -51,6 +51,7 @@ export type AnnotationRailLayout = {
   mode: 'both' | 'left' | 'right' | 'stacked';
   railWidth: number;
   rightRailLeft: number;
+  viewportHeight?: number;
 };
 
 type PositionedAnnotationRailItem = {
@@ -413,7 +414,7 @@ export function buildAnnotationRailItems(
     .toSorted((left, right) => left.desiredTop - right.desiredTop);
 
   const groupSides = resolveRailGroupSides(railGroups, railLayout);
-  const groupTops = resolveRailGroupTops(railGroups, groupSides);
+  const groupTops = resolveRailGroupTops(railGroups, groupSides, railLayout?.viewportHeight);
 
   return railGroups.flatMap(({ group }, groupIndex) => {
     const stackCount = group.length;
@@ -731,8 +732,10 @@ function railSidePlacementCost(
 function resolveRailGroupTops(
   railGroups: Array<{ desiredTop: number; height: number }>,
   groupSides: AnnotationRailSide[],
+  viewportHeight = 0,
 ) {
   const groupTops = railGroups.map((group) => group.desiredTop);
+  const viewportBottom = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
   for (const side of ['left', 'right'] as const) {
     const indexes = groupSides
       .map((groupSide, index) => (groupSide === side ? index : -1))
@@ -748,6 +751,12 @@ function resolveRailGroupTops(
       const nextIndex = indexes[listIndex + 1]!;
       const nextTop = groupTops[nextIndex]! - railGroups[currentIndex]!.height - 18;
       groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex]!, nextTop));
+    }
+    if (viewportBottom > 0) {
+      for (const index of indexes) {
+        const maxTop = Math.max(0, viewportBottom - railGroups[index]!.height - 18);
+        groupTops[index] = Math.max(0, Math.min(groupTops[index]!, maxTop));
+      }
     }
   }
   return groupTops;
