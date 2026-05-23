@@ -9,7 +9,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { HighlightBox, TocItem } from '@yomitomo/core';
-import type { buildTocAnnotationStats } from './reader-utils';
+import type { AnnotationRailLayout, buildTocAnnotationStats } from './reader-utils';
 import type {
   ActiveConnection,
   AgentDockItem,
@@ -64,6 +64,9 @@ export type ReaderAppViewProps = {
   articleContent?: React.ReactNode;
   articleId: string;
   articleRef: React.RefObject<HTMLElement | null>;
+  annotationRailLayoutOverride?: AnnotationRailLayout;
+  annotationRailViewportHeight?: number;
+  autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
   canvasRef: React.RefObject<HTMLDivElement | null>;
   commentsCloseKey: number;

@@ -13386,6 +13386,7 @@ button.license-package-row:hover {
 }
 
 .pdf-reader-main {
+  position: relative;
   min-height: 0;
   border: 1px solid hsl(var(--border) / 0.82);
   background:
@@ -13550,6 +13551,115 @@ button.license-package-row:hover {
 .pdf-reader-progress {
   justify-self: stretch;
   width: 100%;
+}
+
+.source-pdfium-spike-shell {
+  padding-bottom: 22px;
+}
+
+.pdfium-spike-main {
+  overflow: hidden;
+}
+
+.source-pdfium-spike-reader {
+  position: relative;
+  min-height: 100%;
+}
+
+.source-pdfium-spike-reader,
+.source-pdfium-spike-reader .reader-app {
+  height: 100%;
+}
+
+.source-pdfium-spike-reader .reader-surface {
+  overflow: hidden;
+  padding: 18px 0 42px;
+}
+
+.source-pdfium-spike-reader .reader-article {
+  width: 100%;
+  height: calc(100vh - 148px);
+}
+
+.source-pdfium-spike-reader .reader-annotation-rail > .reader-note {
+  max-height: min(72vh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-burst,
+.source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-menu {
+  overflow: visible;
+}
+
+.pdfium-spike-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+}
+
+.pdfium-spike-viewport {
+  height: 100%;
+  min-height: 100%;
+  background:
+    linear-gradient(90deg, hsl(var(--border) / 0.2) 1px, transparent 1px),
+    linear-gradient(180deg, hsl(var(--border) / 0.18) 1px, transparent 1px),
+    hsl(var(--muted) / 0.42);
+  background-size: 28px 28px;
+}
+
+.pdfium-spike-page-shell {
+  margin: 0 auto;
+}
+
+.pdfium-spike-page {
+  position: relative;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 18px 42px rgb(15 23 42 / 0.16);
+}
+
+.pdfium-spike-page img {
+  display: block;
+  background: white;
+  user-select: none;
+}
+
+.pdfium-spike-floating-toolbar {
+  position: absolute;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.82);
+  background: hsl(var(--background) / 0.96);
+  color: hsl(var(--foreground));
+  box-shadow: 0 14px 36px rgb(15 23 42 / 0.12);
+}
+
+.pdfium-spike-floating-toolbar {
+  top: 14px;
+  left: 50%;
+  gap: 6px;
+  height: 38px;
+  transform: translateX(-50%);
+  padding: 0 8px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdfium-spike-floating-toolbar button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pdfium-spike-floating-toolbar span {
+  min-width: 42px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
 }
 
 .library-ebook-list {
