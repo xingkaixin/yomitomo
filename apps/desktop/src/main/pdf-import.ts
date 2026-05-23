@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { basename } from 'node:path';
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { PdfEngine, PdfiumNative, type ImageDataConverter } from '@embedpdf/engines/pdfium';
+import { NoopLogger } from '@embedpdf/models';
+import { init } from '@embedpdf/pdfium';
 import type { ArticleRecord } from '@yomitomo/shared';
 
 export const MAX_PDF_BYTES = 120 * 1024 * 1024;
@@ -11,16 +13,7 @@ export type PdfImportFileInput = {
   data: ArrayBuffer;
 };
 
-type PdfInfo = {
-  Title?: string;
-  Author?: string;
-  Subject?: string;
-  Keywords?: string;
-  Creator?: string;
-  Producer?: string;
-  CreationDate?: string;
-  ModDate?: string;
-};
+let pdfEnginePromise: Promise<PdfEngine<Buffer>> | undefined;
 
 export async function articleRecordFromPdfFile(input: PdfImportFileInput): Promise<ArticleRecord> {
   const fileName = input.fileName.trim() || 'Untitled.pdf';
@@ -30,14 +23,16 @@ export async function articleRecordFromPdfFile(input: PdfImportFileInput): Promi
 
   const bytes = new Uint8Array(input.data);
   const contentHash = pdfContentHash(bytes);
-  const loadingTask = getDocument({ data: bytes.slice() });
-  const document = await loadingTask.promise;
+  const engine = await pdfImportEngine();
+  const document = await engine
+    .openDocumentBuffer({ id: pdfArticleId(contentHash), content: input.data.slice(0) })
+    .toPromise();
   try {
-    const metadata = await document.getMetadata().catch(() => null);
-    const info = metadata?.info as PdfInfo | undefined;
+    const info = await engine.getMetadata(document).toPromise();
     const id = pdfArticleId(contentHash);
-    const title = cleanPdfText(info?.Title) || fileTitle(fileName);
-    const author = cleanPdfText(info?.Author);
+    const title = cleanPdfText(info.title) || fileTitle(fileName);
+    const author = cleanPdfText(info.author);
+    const subject = cleanPdfText(info.subject);
     const now = new Date().toISOString();
 
     return {
@@ -47,7 +42,7 @@ export async function articleRecordFromPdfFile(input: PdfImportFileInput): Promi
       sourceType: 'pdf',
       title,
       byline: author,
-      excerpt: cleanPdfText(info?.Subject),
+      excerpt: subject,
       siteName: 'PDF',
       contentHash,
       pdf: {
@@ -55,20 +50,20 @@ export async function articleRecordFromPdfFile(input: PdfImportFileInput): Promi
           format: 'pdf',
           fileName,
           fileSize,
-          pageCount: document.numPages,
+          pageCount: document.pageCount,
           title,
           author,
-          subject: cleanPdfText(info?.Subject),
-          keywords: cleanPdfText(info?.Keywords),
-          creator: cleanPdfText(info?.Creator),
-          producer: cleanPdfText(info?.Producer),
-          creationDate: cleanPdfText(info?.CreationDate),
-          modificationDate: cleanPdfText(info?.ModDate),
+          subject,
+          keywords: cleanPdfText(info.keywords),
+          creator: cleanPdfText(info.creator),
+          producer: cleanPdfText(info.producer),
+          creationDate: cleanPdfDate(info.creationDate),
+          modificationDate: cleanPdfDate(info.modificationDate),
         },
       },
       readingProgress: {
         pageIndex: 0,
-        pageCount: document.numPages,
+        pageCount: document.pageCount,
         progress: 0,
         updatedAt: now,
       },
@@ -77,9 +72,25 @@ export async function articleRecordFromPdfFile(input: PdfImportFileInput): Promi
       updatedAt: now,
     };
   } finally {
-    await document.destroy();
+    await engine.closeDocument(document).toPromise();
   }
 }
+
+async function pdfImportEngine() {
+  pdfEnginePromise ??= createPdfImportEngine();
+  return pdfEnginePromise;
+}
+
+async function createPdfImportEngine() {
+  const logger = new NoopLogger();
+  const pdfiumModule = await init({});
+  const native = new PdfiumNative(pdfiumModule, { logger });
+  return new PdfEngine<Buffer>(native, { imageConverter: pdfImportImageConverter, logger });
+}
+
+const pdfImportImageConverter: ImageDataConverter<Buffer> = async () => {
+  throw new Error('PDF 导入不渲染页面图像');
+};
 
 function isPdfFile(fileName: string, mimeType: string | undefined) {
   const normalizedMime = mimeType?.toLowerCase();
@@ -106,7 +117,11 @@ function fileTitle(fileName: string) {
   );
 }
 
-function cleanPdfText(value: string | undefined) {
+function cleanPdfText(value: string | null | undefined) {
   const text = value?.replace(/\s+/g, ' ').trim();
   return text || undefined;
+}
+
+function cleanPdfDate(value: Date | null | undefined) {
+  return value?.toISOString();
 }

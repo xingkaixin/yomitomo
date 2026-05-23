@@ -13313,9 +13313,7 @@ button.license-package-row:hover {
   font-size: 0.78rem;
 }
 
-.pdf-reader-controls,
-.pdf-reader-zoom,
-.pdf-page-field {
+.pdf-reader-controls {
   display: flex;
   align-items: center;
 }
@@ -13340,49 +13338,8 @@ button.license-package-row:hover {
   box-shadow: none;
 }
 
-.pdf-reader-controls button,
-.pdf-page-field,
-.pdf-reader-zoom {
+.pdf-reader-controls button {
   border-radius: 0;
-}
-
-.pdf-page-field,
-.pdf-reader-zoom {
-  height: 34px;
-  border: 1px solid hsl(var(--border) / 0.8);
-  background: hsl(var(--card));
-}
-
-.pdf-page-field {
-  gap: 6px;
-  padding: 0 9px;
-}
-
-.pdf-page-field input {
-  width: 48px;
-  border: 0;
-  background: transparent;
-  color: hsl(var(--foreground));
-  font: inherit;
-  text-align: right;
-  outline: none;
-}
-
-.pdf-page-field span,
-.pdf-reader-zoom span {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.78rem;
-}
-
-.pdf-reader-zoom {
-  gap: 4px;
-  padding: 0 4px;
-}
-
-.pdf-reader-zoom span {
-  width: 44px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
 }
 
 .pdf-reader-main {
@@ -13450,82 +13407,6 @@ button.license-package-row:hover {
   border-radius: 8px;
   background: hsl(var(--background) / 0.96);
   box-shadow: 0 18px 48px hsl(var(--foreground) / 0.12);
-}
-
-.pdf-page-stage {
-  position: relative;
-  min-height: 0;
-  outline: none;
-}
-
-.pdf-page-frame {
-  position: relative;
-  background: white;
-  box-shadow: 0 18px 42px rgb(15 23 42 / 0.16);
-}
-
-.pdf-page-canvas {
-  display: block;
-  background: white;
-}
-
-.pdf-text-layer {
-  position: absolute;
-  inset: 0;
-  overflow: clip;
-  line-height: 1;
-  opacity: 1;
-  text-align: initial;
-  text-size-adjust: none;
-  forced-color-adjust: none;
-  transform-origin: 0 0;
-  user-select: text;
-  caret-color: transparent;
-}
-
-.pdf-text-layer :is(span, br) {
-  position: absolute;
-  color: transparent;
-  cursor: text;
-  transform-origin: 0% 0%;
-  white-space: pre;
-}
-
-.pdf-text-layer span[role='img'] {
-  cursor: default;
-  user-select: none;
-}
-
-.pdf-text-layer .markedContent {
-  display: contents;
-}
-
-.pdf-text-layer .endOfContent {
-  position: absolute;
-  inset: 100% 0 0;
-  display: block;
-  cursor: default;
-  user-select: none;
-}
-
-.pdf-text-layer.selecting .endOfContent {
-  top: 0;
-}
-
-.pdf-text-layer ::selection,
-.pdf-text-layer br::selection {
-  background: transparent;
-}
-
-.pdf-reader-text-empty {
-  position: absolute;
-  right: 14px;
-  bottom: 14px;
-  border: 1px solid hsl(var(--border) / 0.82);
-  background: hsl(var(--card));
-  padding: 8px 10px;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.78rem;
 }
 
 .pdf-reader-status {
