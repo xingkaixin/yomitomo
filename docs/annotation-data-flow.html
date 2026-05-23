@@ -577,6 +577,7 @@ body {
     <button class="nav-btn" data-target="sec-card">卡片中操作</button>
     <button class="nav-btn" data-target="sec-persist">持久化</button>
     <button class="nav-btn" data-target="sec-ipc">IPC 清单</button>
+    <button class="nav-btn" data-target="sec-theater">演出状态</button>
     <button class="nav-btn" data-target="sec-ai-reply">AI 回复</button>
     <button class="nav-btn" data-target="sec-ai-thought">AI 新想法</button>
     <button class="nav-btn" data-target="sec-review">审阅</button>
@@ -910,9 +911,79 @@ body {
   </div>
 </div>
 
+<!-- 前端演出状态 -->
+<div class="section" id="sec-theater">
+  <div class="section-label">07 · Frontend Theater Boundary</div>
+  <h2>前端演出状态边界</h2>
+  <p class="section-desc">虚拟鼠标、dock 栏和临时剧场高亮只用于表现助手正在阅读和添加想法。最终事实仍是 ArticleRecord.annotations，不是演出状态。</p>
+
+  <div class="type-grid">
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-blue)"></span>VirtualCursorState</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">id</span><span class="field-desc">cursor 标识，通常为 agent id</span></div>
+        <div class="field"><span class="field-name">x / y</span><span class="field-desc">viewport 坐标，用于渲染虚拟鼠标</span></div>
+        <div class="field"><span class="field-name">label</span><span class="field-desc">正在阅读、正在添加想法、想法已添加等文案</span></div>
+        <div class="field"><span class="field-name">offscreen</span><span class="field-desc">目标在当前视口上方或下方时的方向提示</span></div>
+        <div class="field"><span class="field-name">leaving</span><span class="field-desc">离场动画状态，延迟移除 cursor</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-purple)"></span>AgentDockItem</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">agent</span><span class="field-desc">显示在 dock 中的助手资料</span></div>
+        <div class="field"><span class="field-name">state</span><span class="field-desc">只有 active / done 两态</span></div>
+        <div class="field"><span class="field-name">completionBurstKey</span><span class="field-desc">成功完成时递增，触发完成 burst</span></div>
+        <div class="field"><span class="field-name">clear timer</span><span class="field-desc">完成后延迟清空，取消或卸载时立即清理</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-orange)"></span>agentTheaterBoxes</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">来源</span><span class="field-desc">播放 AI 新批注时从 Range 或阅读器几何信息生成</span></div>
+        <div class="field"><span class="field-name">用途</span><span class="field-desc">临时高亮助手正在添加想法的位置</span></div>
+        <div class="field"><span class="field-name">生命周期</span><span class="field-desc">播放完成或清理时清空，不持久化</span></div>
+        <div class="field"><span class="field-name">事实来源</span><span class="field-desc">最终正文高亮仍来自 Annotation.anchor</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline-grid" style="margin-top:16px;">
+    <div class="pipeline-card">
+      <div class="pipeline-header">
+        <div class="pipeline-icon" style="background:var(--accent-purple-light);color:var(--accent-purple);">🎭</div>
+        <h3>回复链路 vs 新想法演出</h3>
+      </div>
+      <div class="pipeline-body">
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">A</div>
+          <div class="step-text"><code>agent:comment:stream</code> 只更新 comment 占位、delta 内容和 pending 状态，不启动虚拟阅读或 dock 完成演出。</div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">B</div>
+          <div class="step-text">AI 新想法在当前文章播放时，会先把 annotation 放入队列，定位锚点 viewport 坐标，移动虚拟鼠标并展示 <code>agentTheaterBoxes</code>。</div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-green-light);color:var(--accent-green);">C</div>
+          <div class="step-text">播放完成后才通过 <code>mergeAgentAnnotationAsThought()</code> 保存或合并；后台文章和无法播放的场景会跳过演出直接保存。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-container" style="margin-top:16px;">
+    <div class="flow-title"><span>🧹</span> 清理要求</div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+      新阅读器如果支持助手新想法演出，必须能把 <code>Annotation.anchor</code> 映射为 viewport 坐标；目标不可见或无法定位时提供稳定 fallback，例如阅读容器顶部区域或上下边缘提示；文章切换、播放取消和组件卸载时清理 interval/timeout、虚拟光标、临时高亮和 dock 状态。
+    </div>
+  </div>
+</div>
+
 <!-- AI 回复 -->
 <div class="section" id="sec-ai-reply">
-  <div class="section-label">07 · AI Reply Pipeline</div>
+  <div class="section-label">08 · AI Reply Pipeline</div>
   <h2>AI 回复链路</h2>
   <p class="section-desc">用户 @助手 后触发 comment 指令时的流式回复流程。</p>
   <div class="pipeline-card">
@@ -952,7 +1023,7 @@ body {
 
 <!-- AI 新想法 -->
 <div class="section" id="sec-ai-thought">
-  <div class="section-label">08 · AI Thought Pipeline</div>
+  <div class="section-label">09 · AI Thought Pipeline</div>
   <h2>AI 新想法链路</h2>
   <p class="section-desc">助手围绕选区或主动在文章中创建批注和想法的流程。模型输出的 exact 必须在原文中匹配才会保存。</p>
   <div class="pipeline-card">
@@ -997,7 +1068,7 @@ body {
 
 <!-- 审阅 -->
 <div class="section" id="sec-review">
-  <div class="section-label">09 · Review Pipeline</div>
+  <div class="section-label">10 · Review Pipeline</div>
   <h2>审阅助手链路</h2>
   <p class="section-desc">审阅助手对每条顶层想法打标签并回复，带重复控制。</p>
   <div class="pipeline-card">
@@ -1037,7 +1108,7 @@ body {
 
 <!-- Prompt 拼接 -->
 <div class="section" id="sec-prompt">
-  <div class="section-label">10 · Prompt Assembly</div>
+  <div class="section-label">11 · Prompt Assembly</div>
   <h2>Prompt 拼接规则</h2>
   <p class="section-desc">不同场景下 system prompt 和 user prompt 的拼接内容和策略。</p>
   <div class="prompt-grid">
@@ -1105,7 +1176,7 @@ body {
 
 <!-- 接入清单 -->
 <div class="section" id="sec-checklist">
-  <div class="section-label">11 · Integration Checklist</div>
+  <div class="section-label">12 · Integration Checklist</div>
   <h2>新阅读器接入清单</h2>
   <p class="section-desc">接入新阅读器实现时需要满足的全部要求。</p>
   <div class="checklist-grid">
@@ -1119,6 +1190,10 @@ body {
     <div class="check-item"><div class="check-num">8</div><div class="check-text">AI 创建想法复用 <code>buildAgentAnnotationRequestInput()</code> 和 <code>runSourceAgentAnnotationRequest()</code></div></div>
     <div class="check-item"><div class="check-num">9</div><div class="check-text">@助手路由调用 <code>planSelectionMentionRoute()</code>，不要硬编码语义</div></div>
     <div class="check-item"><div class="check-num">10</div><div class="check-text">电子书/长文传入 <code>ebookIndex</code>、阅读进度和章节 id，否则 AI 退化为全文预算裁剪</div></div>
+    <div class="check-item"><div class="check-num">11</div><div class="check-text">支持助手新想法演出时，把 <code>Annotation.anchor</code> 映射为 viewport 坐标</div></div>
+    <div class="check-item"><div class="check-num">12</div><div class="check-text">锚点不可见或无法定位时提供 fallback，例如阅读容器顶部或上下边缘提示</div></div>
+    <div class="check-item"><div class="check-num">13</div><div class="check-text">卸载、文章切换和播放取消时清理 interval/timeout、虚拟光标、临时高亮和 dock 状态</div></div>
+    <div class="check-item"><div class="check-num">14</div><div class="check-text">不要把演出状态作为保存成功依据；最终事实仍是 <code>ArticleRecord.annotations</code></div></div>
   </div>
 </div>
 

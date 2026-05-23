@@ -212,6 +212,28 @@ type Comment = {
 | `agent:annotate:stream` | `requestAgentAnnotationsStream(payload, onEvent)` | `AgentAnnotatePayload` | `AgentAnnotateResult` | 流式助手创建批注/想法 |
 | `agent:review` | `requestAgentReview(payload)` | `AgentReviewPayload` | `Comment[]` | 审阅助手给顶层想法添加审阅回复 |
 
+## 前端演出状态边界
+
+批注、想法和 AI 回复的事实来源只有 `ArticleRecord.annotations`。虚拟鼠标、
+dock 栏和临时剧场高亮都是阅读器内存态，用来表现“助手正在读”和“正在添加想法”，
+不会写入 SQLite，也不能作为批注保存成功的判断依据。
+
+相关类型与组件：
+
+- `VirtualCursorState`：定义虚拟鼠标位置、label、离场状态和离屏方向。
+- `AgentDockItem`：只记录 dock 中助手的 `active` / `done` 展示状态。
+- `agentTheaterBoxes`：播放 AI 新批注时的临时高亮 boxes，动画结束后清空；最终正文高亮仍来自 `Annotation.anchor`。
+- `AgentReadingDock` / `VirtualCursor`：只渲染宿主阅读器传入的内存状态。
+
+普通 `agent:comment:stream` 只更新批注卡片中的 AI comment 占位、增量内容和
+`pending` 状态，不启动聚焦共读的虚拟阅读和 dock 完成演出。它的保存边界仍是
+流式完成后调用 `saveAnnotations()`。
+
+AI 新想法链路会涉及演出：当前文章收到 AI annotation 时，阅读器会先把 annotation
+放入播放队列，尝试把锚点映射成 viewport 坐标，移动虚拟鼠标并展示
+`agentTheaterBoxes` 临时高亮；播放完成后才通过 `mergeAgentAnnotationAsThought()`
+保存或合并为真实批注/想法。后台文章或无法播放的场景会跳过演出，直接保存合并结果。
+
 ## AI 回复链路
 
 入口：`apps/desktop/src/renderer/src/app-source-agent-comment-request.ts`
@@ -448,6 +470,7 @@ renderer 再把每条结果作为 `replyTo = thoughtId` 的 AI comment 写回批
 8. 需要 AI 围绕选区创建想法时复用 `buildAgentAnnotationRequestInput()` 和 `runSourceAgentAnnotationRequest()`。
 9. 需要 `@助手` 智能路由时调用 `planSelectionMentionRoute()`，不要在新阅读器里硬编码 `@` 文本语义。
 10. 电子书或长文接入时传入 `ebookIndex`、阅读进度和稳定章节/段落 id，否则 AI 上下文只能退化到全文预算裁剪。
+11. 如果支持助手新想法演出，必须把 `Annotation.anchor` 映射为 viewport 坐标，提供不可见内容 fallback，并在文章切换、播放取消和组件卸载时清理 interval/timeout、虚拟光标、临时高亮和 dock 状态。
 
 ## 调试建议
 
