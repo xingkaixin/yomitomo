@@ -90,6 +90,33 @@ import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 
+function constrainAgentPlanAnnotation(
+  annotation: Annotation,
+  readingPlan: AgentReadingPlanItem[] | undefined,
+  articleText: string,
+) {
+  if (!readingPlan?.length) return annotation;
+
+  const position = resolveTextAnchor(articleText, annotation.anchor);
+  if (!position) return null;
+
+  const planItem = readingPlan.find(
+    (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
+  );
+  if (!planItem) return null;
+  if (!planItem.readingIntent) return annotation;
+  if (annotation.readingIntent === planItem.readingIntent) return annotation;
+
+  return {
+    ...annotation,
+    readingIntent: planItem.readingIntent,
+    comments: annotation.comments.map((comment) => ({
+      ...comment,
+      readingIntent: comment.readingIntent || planItem.readingIntent,
+    })),
+  };
+}
+
 export function EbookBookcase({
   agents,
   annotations: articleAnnotations,
@@ -720,33 +747,6 @@ export function EbookBookcase({
       saveAnnotations,
       setStatusMessage,
     });
-  }
-
-  function constrainAgentPlanAnnotation(
-    annotation: Annotation,
-    readingPlan: AgentReadingPlanItem[] | undefined,
-    articleText = currentArticleText(),
-  ) {
-    if (!readingPlan?.length) return annotation;
-
-    const position = resolveTextAnchor(articleText, annotation.anchor);
-    if (!position) return null;
-
-    const planItem = readingPlan.find(
-      (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
-    );
-    if (!planItem) return null;
-    if (!planItem.readingIntent) return annotation;
-    if (annotation.readingIntent === planItem.readingIntent) return annotation;
-
-    return {
-      ...annotation,
-      readingIntent: planItem.readingIntent,
-      comments: annotation.comments.map((comment) => ({
-        ...comment,
-        readingIntent: comment.readingIntent || planItem.readingIntent,
-      })),
-    };
   }
 
   async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
