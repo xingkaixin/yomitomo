@@ -171,7 +171,7 @@ export function PdfBookcase({
   );
 }
 
-function PdfJsBookcase({
+export function PdfJsBookcase({
   agents,
   annotations: articleAnnotations,
   article,
