@@ -313,6 +313,7 @@ function LibraryDocumentListItem({
   onOpen: () => void;
 }) {
   const counts = articleCounts(article);
+  const sourceLabel = libraryDocumentSourceLabel(article);
 
   return (
     <article
@@ -332,14 +333,11 @@ function LibraryDocumentListItem({
         />
       </div>
       <div className="library-ebook-list-copy">
-        <div className="library-ebook-list-source">
-          <span>
-            {article.byline ||
-              article.ebook?.metadata.fileName ||
-              article.pdf?.metadata.fileName ||
-              (article.sourceType === 'pdf' ? 'PDF' : '电子书')}
-          </span>
-        </div>
+        {sourceLabel ? (
+          <div className="library-ebook-list-source">
+            <span>{sourceLabel}</span>
+          </div>
+        ) : null}
         <div className="library-ebook-list-main">
           <h3 title={article.title}>{article.title}</h3>
         </div>
@@ -351,6 +349,11 @@ function LibraryDocumentListItem({
       <LibraryItemActions title={article.title} onDelete={onDelete} />
     </article>
   );
+}
+
+function libraryDocumentSourceLabel(article: ArticleRecord) {
+  if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
+  return article.byline || article.ebook?.metadata.fileName || '电子书';
 }
 
 function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () => void }) {

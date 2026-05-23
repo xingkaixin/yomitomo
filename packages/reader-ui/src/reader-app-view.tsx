@@ -227,7 +227,6 @@ export function ReaderAppView({
     setPrimaryCommentExpanded,
     visibleAnnotationIds,
     visibleAnnotations,
-    visibleRailAnnotations,
   } = useReaderAnnotationRail({
     activeId,
     annotationRailLayout,
@@ -408,7 +407,6 @@ export function ReaderAppView({
           userProfile={userProfile}
           visibleAnnotationIds={visibleAnnotationIds}
           visibleAnnotations={visibleAnnotations}
-          visibleRailAnnotations={visibleRailAnnotations}
           onAddComment={onAddComment}
           onCancelComposer={onCancelComposer}
           onCloseHighlightChoice={onCloseHighlightChoice}

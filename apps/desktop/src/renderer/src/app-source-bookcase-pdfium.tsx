@@ -28,7 +28,17 @@ import {
 } from '@embedpdf/plugin-selection/react';
 import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
-import { Bot, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, List, LoaderCircle } from 'lucide-react';
+import {
+  Bot,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  List,
+  LoaderCircle,
+} from 'lucide-react';
 import type { PdfBookmarkObject, PdfEngine, PdfPageGeometry } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
@@ -142,6 +152,11 @@ type PdfPageGeometryEntry = {
   height: number;
 };
 
+type PdfAnnotationNavigationState = {
+  previousId: string | null;
+  nextId: string | null;
+};
+
 export function PdfiumBookcase({
   agents,
   annotations: articleAnnotations,
@@ -159,6 +174,11 @@ export function PdfiumBookcase({
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = useState('');
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
+  const [annotationNavigation, setAnnotationNavigation] = useState<PdfAnnotationNavigationState>({
+    previousId: null,
+    nextId: null,
+  });
+  const navigateAnnotationRef = useRef<(annotationId: string) => void>(() => undefined);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
@@ -248,6 +268,36 @@ export function PdfiumBookcase({
           >
             <List size={18} />
           </button>
+          <div className="reader-annotation-nav" aria-label="批注快捷选择">
+            <button
+              aria-label="上一个批注"
+              className="reader-icon-button"
+              disabled={!annotationNavigation.previousId}
+              title="上一个批注"
+              type="button"
+              onClick={() => {
+                if (annotationNavigation.previousId) {
+                  navigateAnnotationRef.current(annotationNavigation.previousId);
+                }
+              }}
+            >
+              <ChevronUp size={17} />
+            </button>
+            <button
+              aria-label="下一个批注"
+              className="reader-icon-button"
+              disabled={!annotationNavigation.nextId}
+              title="下一个批注"
+              type="button"
+              onClick={() => {
+                if (annotationNavigation.nextId) {
+                  navigateAnnotationRef.current(annotationNavigation.nextId);
+                }
+              }}
+            >
+              <ChevronDown size={17} />
+            </button>
+          </div>
           <button
             aria-label="聚焦共读"
             aria-pressed={agentAnnotateOpen}
@@ -302,6 +352,10 @@ export function PdfiumBookcase({
                         onClose={onClose}
                         onCloseToc={() => setTocOpen(false)}
                         onSetAgentAnnotateOpen={setAgentAnnotateOpen}
+                        onSetAnnotationNavigation={setAnnotationNavigation}
+                        onSetAnnotationNavigator={(navigator) => {
+                          navigateAnnotationRef.current = navigator;
+                        }}
                         onSetTocItems={setTocItems}
                         onToggleToc={() => setTocOpen((open) => !open)}
                         onOpenAnnotation={onOpenAnnotation}
@@ -351,6 +405,8 @@ function PdfiumDocument({
   onSaveArticleReadingProgress,
   onSetTocItems,
   onSetAgentAnnotateOpen,
+  onSetAnnotationNavigation,
+  onSetAnnotationNavigator,
   onToggleToc,
   onUpdateArticle,
 }: {
@@ -374,6 +430,8 @@ function PdfiumDocument({
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
   onSetTocItems: (items: TocItem[]) => void;
   onSetAgentAnnotateOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
+  onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
   onToggleToc: () => void;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
 }) {
@@ -476,10 +534,6 @@ function PdfiumDocument({
     () => pdfiumAnnotationRailLayout(pageMetrics, canvasRef.current, annotationRailViewportHeight),
     [annotationRailViewportHeight, pageMetrics],
   );
-  const visiblePdfiumAnnotations = useMemo(() => {
-    const visibleAnnotationIds = new Set(boxes.map((box) => box.annotationId));
-    return annotations.filter((annotation) => visibleAnnotationIds.has(annotation.id));
-  }, [annotations, boxes]);
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
@@ -709,6 +763,12 @@ function PdfiumDocument({
     clearAnnotationUiState();
   }, [article.id, clearAnnotationUiState]);
 
+  useEffect(() => {
+    onSetAnnotationNavigation(
+      pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
+    );
+  }, [annotations, currentPage, onSetAnnotationNavigation, selectedAnnotationId]);
+
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
     if (!selectionAction || composer) return;
     const shortcut = selectionActionShortcut(event, actionShortcuts);
@@ -773,15 +833,23 @@ function PdfiumDocument({
     recalculateActiveConnection();
   }
 
-  function scrollToAnnotation(annotationId: string) {
-    onOpenAnnotation(annotationId);
-    const annotation = annotations.find((item) => item.id === annotationId);
-    if (!annotation || !isPdfTextAnchor(annotation.anchor)) return;
-    scroll?.scrollToPage({
-      pageNumber: annotation.anchor.pageIndex + 1,
-      behavior: 'smooth',
-    });
-  }
+  const scrollToAnnotation = useCallback(
+    (annotationId: string) => {
+      onOpenAnnotation(annotationId);
+      const annotation = annotations.find((item) => item.id === annotationId);
+      if (!annotation || !isPdfTextAnchor(annotation.anchor)) return;
+      scroll?.scrollToPage({
+        pageNumber: annotation.anchor.pageIndex + 1,
+        behavior: 'smooth',
+      });
+    },
+    [annotations, onOpenAnnotation, scroll],
+  );
+
+  useEffect(() => {
+    onSetAnnotationNavigator(scrollToAnnotation);
+    return () => onSetAnnotationNavigator(() => undefined);
+  }, [onSetAnnotationNavigator, scrollToAnnotation]);
 
   function scrollToTocItem(item: TocItem) {
     onCloseToc();
@@ -1794,7 +1862,7 @@ function PdfiumDocument({
                         <SelectionLayer
                           documentId={documentId}
                           pageIndex={pageIndex}
-                          textStyle={{ background: 'rgb(250 204 21 / 0.42)' }}
+                          textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
                         />
                       </PagePointerProvider>
                     </div>
@@ -1818,7 +1886,7 @@ function PdfiumDocument({
           byline: article.pdf.metadata.author,
           content: '',
         }}
-        filteredAnnotations={visiblePdfiumAnnotations}
+        filteredAnnotations={annotations}
         highlightChoice={highlightChoice}
         messageSendShortcut={sendShortcut}
         noteRefs={noteRefs}
@@ -1898,9 +1966,15 @@ function EmbedPdfSelectionBridge({
     if (!provides || !documentState?.document) return;
     const scope = provides.forDocument(documentId);
     const document = documentState.document;
+    let ignoreNextSelectionClear = false;
 
     const unsubscribeChange = scope.onSelectionChange((selectionRange) => {
-      if (!selectionRange) onSelection(null);
+      if (selectionRange) return;
+      if (ignoreNextSelectionClear) {
+        ignoreNextSelectionClear = false;
+        return;
+      }
+      onSelection(null);
     });
     const unsubscribeEnd = scope.onEndSelection(() => {
       const state = scope.getState();
@@ -1934,6 +2008,8 @@ function EmbedPdfSelectionBridge({
             ),
           });
           onSelection(anchor.exact.trim() ? anchor : null);
+          ignoreNextSelectionClear = true;
+          clearEmbedPdfSelection(scope);
         })
         .catch(() => {
           onSelection(null);
@@ -2018,6 +2094,47 @@ function pdfiumAnnotationIsVisible(
   );
 }
 
+function pdfiumAnnotationNavigationState(
+  annotations: Annotation[],
+  activeId: string | null,
+  currentPage: number,
+): PdfAnnotationNavigationState {
+  const ordered = pdfiumNavigableAnnotations(annotations);
+  if (ordered.length === 0) return { previousId: null, nextId: null };
+
+  const activeIndex = activeId ? ordered.findIndex((annotation) => annotation.id === activeId) : -1;
+  if (activeIndex >= 0) {
+    return {
+      previousId: ordered[activeIndex - 1]?.id ?? null,
+      nextId: ordered[activeIndex + 1]?.id ?? null,
+    };
+  }
+
+  const currentPageIndex = Math.max(0, currentPage - 1);
+  const insertionIndex = ordered.findIndex((annotation) => {
+    if (!isPdfTextAnchor(annotation.anchor)) return false;
+    return annotation.anchor.pageIndex >= currentPageIndex;
+  });
+  const boundedIndex = insertionIndex >= 0 ? insertionIndex : ordered.length;
+  return {
+    previousId: ordered[boundedIndex - 1]?.id ?? null,
+    nextId: ordered[boundedIndex]?.id ?? null,
+  };
+}
+
+function pdfiumNavigableAnnotations(annotations: Annotation[]) {
+  return annotations
+    .filter((annotation) => isPdfTextAnchor(annotation.anchor))
+    .toSorted((left, right) => {
+      if (!isPdfTextAnchor(left.anchor) || !isPdfTextAnchor(right.anchor)) return 0;
+      return (
+        left.anchor.pageIndex - right.anchor.pageIndex ||
+        left.anchor.start - right.anchor.start ||
+        left.createdAt.localeCompare(right.createdAt)
+      );
+    });
+}
+
 function pdfiumAnnotationAgentName(annotation: Annotation) {
   return annotation.agentNickname || annotation.agentUsername || '助手';
 }
@@ -2070,7 +2187,7 @@ function pdfiumTemporaryBoxes(
     id: `pdfium-selection-${index}`,
     annotationId: 'pdfium-selection',
     contributorId,
-    color: 'hsl(var(--foreground))',
+    color: 'rgb(77 155 114)',
     top: metric.top + rect.y * metric.height,
     left: metric.left + rect.x * metric.width,
     width: Math.max(1, rect.width * metric.width),

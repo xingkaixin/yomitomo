@@ -1,7 +1,6 @@
 import type { TocItem } from '@yomitomo/core';
 import { Highlighter, Lightbulb } from 'lucide-react';
 import type { buildTocAnnotationStats } from './reader-utils';
-import { isPrimaryTocItem } from './reader-utils';
 
 export type ReaderTocPanelProps = {
   annotationTotals: { annotations: number; comments: number };
@@ -28,7 +27,7 @@ export function ReaderTocPanel({
     >
       <div className="reader-toc-title">目录</div>
       {tocItems.map((item) => {
-        const stats = isPrimaryTocItem(item) ? tocAnnotationStats.get(item.index) : undefined;
+        const stats = tocAnnotationStats.get(item.index);
         return (
           <button
             className="reader-toc-item"

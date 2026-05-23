@@ -366,6 +366,7 @@ describe('ReadingLibrary home', () => {
           metadata: {
             format: 'pdf',
             fileName: 'paper.pdf',
+            author: 'PDF 作者',
             fileSize: 2048,
             pageCount: 12,
           },
@@ -376,7 +377,8 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
 
     expect(screen.getByText('共 1 份')).toBeTruthy();
-    expect(screen.getAllByText('paper.pdf').length).toBeGreaterThan(0);
+    expect(screen.getByText('PDF 作者')).toBeTruthy();
+    expect(screen.queryByText('paper.pdf')).toBeNull();
     expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
   });
 
