@@ -13235,7 +13235,8 @@ button.license-package-row:hover {
   border-radius: 0;
 }
 
-.source-ebook-reader-shell .ebook-progress-slider::-webkit-slider-runnable-track {
+.source-ebook-reader-shell .ebook-progress-slider::-webkit-slider-runnable-track,
+.source-pdf-reader-shell .ebook-progress-slider::-webkit-slider-runnable-track {
   border-radius: 0;
   background: linear-gradient(
     to right,
@@ -13244,9 +13245,180 @@ button.license-package-row:hover {
   );
 }
 
-.source-ebook-reader-shell .ebook-progress-slider::-webkit-slider-thumb {
+.source-ebook-reader-shell .ebook-progress-slider::-webkit-slider-thumb,
+.source-pdf-reader-shell .ebook-progress-slider::-webkit-slider-thumb {
   border-color: hsl(var(--card));
   background: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell {
+  --ebook-content-width: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  min-height: 0;
+  background: hsl(var(--card));
+  padding: 54px 22px 18px;
+}
+
+.pdf-reader-toolbar {
+  border: 1px solid hsl(var(--border) / 0.82);
+  background: hsl(var(--background));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px calc(var(--reader-titlebar-padding-right) + 18px) 12px
+    var(--reader-titlebar-back-left);
+}
+
+.source-pdf-reader-shell .source-reader-back-button {
+  position: static;
+  z-index: auto;
+  height: 34px;
+  flex-shrink: 0;
+  transform: none;
+}
+
+.pdf-reader-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.pdf-reader-title strong,
+.pdf-reader-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-reader-title strong {
+  color: hsl(var(--foreground));
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.pdf-reader-title span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+}
+
+.pdf-reader-controls,
+.pdf-reader-zoom,
+.pdf-page-field {
+  display: flex;
+  align-items: center;
+}
+
+.pdf-reader-controls {
+  gap: 8px;
+  justify-self: end;
+  max-width: 100%;
+}
+
+.pdf-reader-controls button {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pdf-reader-controls button:hover,
+.pdf-reader-controls button:active {
+  transform: none;
+  box-shadow: none;
+}
+
+.pdf-reader-controls button,
+.pdf-page-field,
+.pdf-reader-zoom {
+  border-radius: 0;
+}
+
+.pdf-page-field,
+.pdf-reader-zoom {
+  height: 34px;
+  border: 1px solid hsl(var(--border) / 0.8);
+  background: hsl(var(--card));
+}
+
+.pdf-page-field {
+  gap: 6px;
+  padding: 0 9px;
+}
+
+.pdf-page-field input {
+  width: 48px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  text-align: right;
+  outline: none;
+}
+
+.pdf-page-field span,
+.pdf-reader-zoom span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+}
+
+.pdf-reader-zoom {
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.pdf-reader-zoom span {
+  width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pdf-page-stage {
+  position: relative;
+  overflow: auto;
+  min-height: 0;
+  border: 1px solid hsl(var(--border) / 0.82);
+  background:
+    linear-gradient(90deg, hsl(var(--border) / 0.24) 1px, transparent 1px),
+    linear-gradient(180deg, hsl(var(--border) / 0.22) 1px, transparent 1px),
+    hsl(var(--muted) / 0.42);
+  background-size: 28px 28px;
+  outline: none;
+}
+
+.pdf-page-canvas {
+  display: block;
+  margin: 28px auto;
+  background: white;
+  box-shadow: 0 18px 42px rgb(15 23 42 / 0.16);
+}
+
+.pdf-reader-status {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  transform: translate(-50%, -50%);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid hsl(var(--border) / 0.82);
+  background: hsl(var(--card));
+  padding: 10px 12px;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.84rem;
+  box-shadow: 0 14px 32px rgb(15 23 42 / 0.12);
+}
+
+.pdf-reader-status.is-error {
+  color: hsl(var(--destructive));
+}
+
+.pdf-reader-progress {
+  justify-self: stretch;
+  width: 100%;
 }
 
 .library-ebook-list {
@@ -13559,6 +13731,30 @@ button.license-package-row:hover {
   .source-reader-shell .reader-toolbar,
   .source-ebook-reader-shell .reader-toolbar {
     padding-left: var(--reader-titlebar-mobile-padding-left);
+  }
+
+  .source-pdf-reader-shell {
+    padding: 52px 12px 12px;
+  }
+
+  .pdf-reader-toolbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding-left: var(--reader-titlebar-mobile-back-left);
+  }
+
+  .pdf-reader-controls {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    overflow-x: auto;
+  }
+
+  .source-pdf-reader-shell .source-reader-back-button {
+    width: auto;
+    padding: 0 12px 0 10px;
+  }
+
+  .source-pdf-reader-shell .source-reader-back-button span {
+    display: inline;
   }
 
   .library-ebook-list {
