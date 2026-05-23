@@ -96,6 +96,10 @@ pnpm build
 优先在推送前同时运行 `pnpm lint`、`pnpm format:check`、`pnpm typecheck`
 和相关测试，避免把可本地发现的格式问题推到 CI。
 
+提交代码时不要把 `.issues/` 下的内容加入 Git。`.issues/` 是本地 issue
+跟踪数据，即使任务要求创建或更新 issue，也只应保留为本地文件；不要使用
+`git add -f .issues/...`，提交前必须确认 staged files 不包含 `.issues/` 路径。
+
 ## 开发注意事项
 
 - 新共享类型、provider preset、agent preset、ID/哈希工具、文本锚定和协议类型放在 `packages/shared/src`，再从 `packages/shared/src/index.ts` 导出。
