@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yomitomo 划线批注 · 数据链路</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF7;
+  --bg-warm: #F5F3EE;
+  --bg-card: #FFFFFF;
+  --bg-code: #F0EDE6;
+  --text-primary: #1A1A18;
+  --text-secondary: #5C5B56;
+  --text-tertiary: #8E8D88;
+  --border: #E2DFD6;
+  --border-light: #EDEAE2;
+  --accent-blue: #2563EB;
+  --accent-blue-light: #EFF6FF;
+  --accent-blue-muted: #93C5FD;
+  --accent-orange: #EA580C;
+  --accent-orange-light: #FFF7ED;
+  --accent-green: #16A34A;
+  --accent-green-light: #F0FDF4;
+  --accent-purple: #7C3AED;
+  --accent-purple-light: #F5F3FF;
+  --accent-rose: #E11D48;
+  --accent-rose-light: #FFF1F2;
+  --accent-amber: #D97706;
+  --accent-amber-light: #FFFBEB;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-header {
+  padding: 60px 0 40px;
+  text-align: center;
+  position: relative;
+}
+.page-header::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: var(--accent-blue);
+  margin: 24px auto 0;
+  border-radius: 2px;
+}
+.page-header h1 {
+  font-family: 'Source Serif 4', serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+.page-header .subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  font-weight: 300;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+/* NAV */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 250, 247, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-light);
+  padding: 0 32px;
+}
+.nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 10px 0;
+}
+.nav-inner::-webkit-scrollbar { display: none; }
+.nav-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-btn:hover { color: var(--text-primary); background: var(--bg-warm); }
+.nav-btn.active { color: var(--accent-blue); background: var(--accent-blue-light); }
+
+/* SECTIONS */
+.section {
+  margin-top: 56px;
+  scroll-margin-top: 64px;
+  animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.section h2 {
+  font-family: 'Source Serif 4', serif;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.section .section-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  max-width: 680px;
+}
+
+/* TYPE CARDS */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.type-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s, transform 0.25s;
+}
+.type-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.type-card h3 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.type-card h3 .dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.type-card .field-list {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.type-card .field-list .field {
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--border-light);
+  display: flex;
+  gap: 8px;
+}
+.type-card .field-list .field:last-child { border-bottom: none; }
+.field-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+  min-width: 100px;
+}
+.field-desc { font-size: 12.5px; color: var(--text-secondary); }
+
+/* FLOW DIAGRAMS */
+.flow-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+}
+.flow-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.flow-title .badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.flow-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 130px;
+  max-width: 160px;
+  text-align: center;
+  position: relative;
+}
+.flow-step .step-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 2;
+}
+.flow-step .step-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.flow-step .step-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  line-height: 1.35;
+  font-family: 'JetBrains Mono', monospace;
+}
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  padding-top: 10px;
+  color: var(--border);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* BRANCH */
+.flow-branch {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+.branch-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+/* IPC TABLE */
+.ipc-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.ipc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ipc-table thead th {
+  background: var(--bg-warm);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ipc-table tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+.ipc-table tbody tr:last-child td { border-bottom: none; }
+.ipc-table tbody tr:hover { background: var(--bg-warm); }
+.ipc-table .ch {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-purple);
+}
+.ipc-table .cat {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.cat-save { background: var(--accent-green-light); color: var(--accent-green); }
+.cat-ai { background: var(--accent-purple-light); color: var(--accent-purple); }
+
+/* PIPELINE CARDS */
+.pipeline-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+.pipeline-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.25s;
+}
+.pipeline-card:hover { box-shadow: var(--shadow-md); }
+.pipeline-header {
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.pipeline-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.pipeline-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.pipeline-header .pipe-tag {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.pipeline-body {
+  padding: 20px 24px 24px;
+}
+.pipeline-body .step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 0;
+}
+.step-row .step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-row .step-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.step-row .step-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent-blue);
+}
+.step-connector {
+  width: 22px;
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+.step-connector .vline {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+
+/* PROMPT SECTION */
+.prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+.prompt-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s;
+}
+.prompt-card:hover { box-shadow: var(--shadow-md); }
+.prompt-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.prompt-card .prompt-fn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+}
+.prompt-card .prompt-items {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.prompt-card .prompt-items li {
+  padding: 3px 0;
+  list-style: none;
+  position: relative;
+  padding-left: 14px;
+}
+.prompt-card .prompt-items li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+.prompt-card .output-label {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.prompt-card .output-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-orange);
+  margin-top: 4px;
+}
+
+/* CHECKLIST */
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.check-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: box-shadow 0.2s;
+  cursor: default;
+}
+.check-item:hover { box-shadow: var(--shadow-sm); }
+.check-num {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: var(--accent-blue-light);
+  color: var(--accent-blue);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.check-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.check-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent-blue);
+}
+
+/* PERSIST DIAGRAM */
+.persist-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 600px;
+}
+.persist-layer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.persist-layer .layer-label {
+  font-weight: 600;
+  min-width: 120px;
+  font-size: 12px;
+}
+.persist-layer .layer-api {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.persist-arrow-down {
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  padding: 2px 0;
+}
+
+@media (max-width: 720px) {
+  .container { padding: 0 16px 60px; }
+  .page-header { padding: 40px 16px 24px; }
+  .page-header h1 { font-size: 24px; }
+  .flow-container { padding: 20px; }
+  .type-grid { grid-template-columns: 1fr; }
+  .prompt-grid { grid-template-columns: 1fr; }
+  .checklist-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>読み友 · 批注数据链路</h1>
+  <div class="subtitle">从用户划线到 AI 回复的完整数据流与 API 边界</div>
+</div>
+
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <button class="nav-btn active" data-target="sec-model">核心模型</button>
+    <button class="nav-btn" data-target="sec-anchor">选区→锚点</button>
+    <button class="nav-btn" data-target="sec-highlight">划线添加想法</button>
+    <button class="nav-btn" data-target="sec-card">卡片中操作</button>
+    <button class="nav-btn" data-target="sec-persist">持久化</button>
+    <button class="nav-btn" data-target="sec-ipc">IPC 清单</button>
+    <button class="nav-btn" data-target="sec-ai-reply">AI 回复</button>
+    <button class="nav-btn" data-target="sec-ai-thought">AI 新想法</button>
+    <button class="nav-btn" data-target="sec-review">审阅</button>
+    <button class="nav-btn" data-target="sec-prompt">Prompt 拼接</button>
+    <button class="nav-btn" data-target="sec-checklist">接入清单</button>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- 核心模型 -->
+<div class="section" id="sec-model">
+  <div class="section-label">01 · Data Model</div>
+  <h2>核心模型</h2>
+  <p class="section-desc">批注数据挂在 ArticleRecord.annotations 上。每条划线是一个 Annotation，每条想法或回复是一个 Comment。</p>
+  <div class="type-grid">
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-blue)"></span>TextAnchor</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">exact</span><span class="field-desc">用户选中的原文文本</span></div>
+        <div class="field"><span class="field-name">prefix / suffix</span><span class="field-desc">选区前后文，用于模糊恢复</span></div>
+        <div class="field"><span class="field-name">start / end</span><span class="field-desc">在全文 textContent 中的字符偏移</span></div>
+        <div class="field"><span class="field-name">paragraphId</span><span class="field-desc">所在段落 ID（可选）</span></div>
+        <div class="field"><span class="field-name">chapterId</span><span class="field-desc">所在章节 ID，电子书推荐</span></div>
+        <div class="field"><span class="field-name">textStartInBook</span><span class="field-desc">全书偏移，EPUB 推荐</span></div>
+        <div class="field"><span class="field-name">quoteHash</span><span class="field-desc">选区文本哈希，加速匹配</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-orange)"></span>Annotation</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">id</span><span class="field-desc">唯一标识</span></div>
+        <div class="field"><span class="field-name">anchor</span><span class="field-desc">TextAnchor，划线定位唯一事实来源</span></div>
+        <div class="field"><span class="field-name">author</span><span class="field-desc">"user" | "ai"</span></div>
+        <div class="field"><span class="field-name">comments[]</span><span class="field-desc">想法列表和回复树</span></div>
+        <div class="field"><span class="field-name">annotationType</span><span class="field-desc">AI 推断的批注类型</span></div>
+        <div class="field"><span class="field-name">readingIntent</span><span class="field-desc">阅读动作意图</span></div>
+        <div class="field"><span class="field-name">color</span><span class="field-desc">划线颜色</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-green)"></span>Comment</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">id</span><span class="field-desc">唯一标识</span></div>
+        <div class="field"><span class="field-name">author</span><span class="field-desc">"user" | "ai"</span></div>
+        <div class="field"><span class="field-name">content</span><span class="field-desc">想法或回复的文本内容</span></div>
+        <div class="field"><span class="field-name">replyTo</span><span class="field-desc">为空 = 顶层想法，有值 = 回复</span></div>
+        <div class="field"><span class="field-name">reviewLabel</span><span class="field-desc">审阅标签（审阅回复专用）</span></div>
+        <div class="field"><span class="field-name">pending</span><span class="field-desc">true = 流式占位，不持久化</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 选区→锚点 -->
+<div class="section" id="sec-anchor">
+  <div class="section-label">02 · Selection → Anchor</div>
+  <h2>选区到锚点</h2>
+  <p class="section-desc">用户划线后，系统把浏览器 Selection 转换为可持久化的 TextAnchor。网页文章和 EPUB 电子书走不同路径。</p>
+
+  <div class="flow-container" style="margin-bottom:16px;">
+    <div class="flow-title">
+      <span>🌐</span> 网页文章
+      <span class="badge" style="background:var(--accent-blue-light);color:var(--accent-blue);">app-source-bookcase-web.tsx</span>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">✋</div>
+        <div class="step-label">用户划线</div>
+        <div class="step-detail">DOM Selection</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">📐</div>
+        <div class="step-label">计算偏移</div>
+        <div class="step-detail">offsetFromArticleStart()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">⚓</div>
+        <div class="step-label">生成锚点</div>
+        <div class="step-detail">createTextAnchor()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">💬</div>
+        <div class="step-label">打开菜单</div>
+        <div class="step-detail">openSelectionAction()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">📝</div>
+        <div class="step-label">提交批注</div>
+        <div class="step-detail">createAnnotation()</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-container">
+    <div class="flow-title">
+      <span>📖</span> EPUB 电子书
+      <span class="badge" style="background:var(--accent-green-light);color:var(--accent-green);">use-ebook-selection.ts</span>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-green-light);color:var(--accent-green);">✋</div>
+        <div class="step-label">划线</div>
+        <div class="step-detail">iframe Selection</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-green-light);color:var(--accent-green);">📚</div>
+        <div class="step-label">定位章节</div>
+        <div class="step-detail">ebookChapterFor<br>FoliateSection()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-green-light);color:var(--accent-green);">🔍</div>
+        <div class="step-label">提取上下文</div>
+        <div class="step-detail">selectionContext<br>ForRange()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-green-light);color:var(--accent-green);">⚓</div>
+        <div class="step-label">反查锚点</div>
+        <div class="step-detail">createEpubText<br>AnchorFromQuote()</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-icon" style="background:var(--accent-green-light);color:var(--accent-green);">📝</div>
+        <div class="step-label">提交批注</div>
+        <div class="step-detail">createAnnotation()</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 划线添加想法 -->
+<div class="section" id="sec-highlight">
+  <div class="section-label">03 · Create Annotation</div>
+  <h2>划线添加想法</h2>
+  <p class="section-desc">用户划线提交后的核心处理流程。根据是否 @助手分叉为两条路径。</p>
+
+  <div class="pipeline-grid">
+    <div class="pipeline-card">
+      <div class="pipeline-header">
+        <div class="pipeline-icon" style="background:var(--accent-orange-light);color:var(--accent-orange);">✏️</div>
+        <h3>createAnnotation(note) 主流程</h3>
+      </div>
+      <div class="pipeline-body">
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">1</div>
+          <div class="step-text">读取当前文章和选区 <code>composer.anchor</code></div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">2</div>
+          <div class="step-text"><code>promptArticle()</code> 构造 AI 可用文章上下文</div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">3</div>
+          <div class="step-text"><code>findMentionedAgents()</code> 检测是否 @助手</div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+        <div class="step-row">
+          <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">4</div>
+          <div class="step-text"><code>createUserAnnotation()</code> 创建批注（初始无想法），立即 <code>saveAnnotations()</code></div>
+        </div>
+        <div class="step-connector"><div class="vline"></div></div>
+
+        <div class="flow-branch">
+          <div class="branch-label">分支 A：无 @助手</div>
+          <div class="step-row">
+            <div class="step-num" style="background:var(--accent-green-light);color:var(--accent-green);">5a</div>
+            <div class="step-text">创建用户顶层想法 → <code>appendAnnotationComment()</code> 写入 comments</div>
+          </div>
+          <div class="step-connector"><div class="vline"></div></div>
+          <div class="step-row">
+            <div class="step-num" style="background:var(--accent-green-light);color:var(--accent-green);">6a</div>
+            <div class="step-text">异步 <code>inferAnnotationMetadata()</code> 推断 annotationType 和 readingIntent</div>
+          </div>
+        </div>
+
+        <div class="flow-branch">
+          <div class="branch-label">分支 B：有 @助手</div>
+          <div class="step-row">
+            <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">5b</div>
+            <div class="step-text">调用 <code>agent:mention-route</code> 决定是否保存用户想法，以及助手执行 comment 还是 create_thought</div>
+          </div>
+          <div class="step-connector"><div class="vline"></div></div>
+          <div class="step-row">
+            <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">6b</div>
+            <div class="step-text">comment 指令 → AI 回复链路 ·  create_thought 指令 → AI 新想法链路</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 卡片中操作 -->
+<div class="section" id="sec-card">
+  <div class="section-label">04 · Card Operations</div>
+  <h2>批注卡片中的操作</h2>
+  <p class="section-desc">已存在的批注卡片上添加想法、回复想法、删除操作的数据流。</p>
+
+  <div class="type-grid">
+    <div class="flow-container">
+      <div class="flow-title"><span>💭</span> 添加想法</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">👆</div>
+          <div class="step-label">点击"添加想法"</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">📝</div>
+          <div class="step-label">InlineComment<br>Composer 提交</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">📤</div>
+          <div class="step-label">addComment()</div>
+          <div class="step-detail">不传 replyTo</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">💾</div>
+          <div class="step-label">saveAnnotations</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">🤖</div>
+          <div class="step-label">检测 @助手<br>触发 AI</div>
+        </div>
+      </div>
+    </div>
+    <div class="flow-container">
+      <div class="flow-title"><span>↩️</span> 回复想法</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">💬</div>
+          <div class="step-label">点击回复</div>
+          <div class="step-detail">openReplyComposer</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">📝</div>
+          <div class="step-label">提交回复</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">📤</div>
+          <div class="step-label">addComment()</div>
+          <div class="step-detail">传入 replyTo</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">💾</div>
+          <div class="step-label">saveAnnotations</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="step-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">🤖</div>
+          <div class="step-label">同 thread<br>AI 回复</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 持久化 -->
+<div class="section" id="sec-persist">
+  <div class="section-label">05 · Persistence</div>
+  <h2>保存与持久化</h2>
+  <p class="section-desc">批注保存当前是"文章级替换"：删除该文章所有旧 annotations，按当前状态重建。并发写入应通过 onUpdateArticle 队列合并。</p>
+
+  <div class="flow-container">
+    <div class="persist-stack">
+      <div class="persist-layer" style="background:var(--accent-blue-light);">
+        <span class="layer-label" style="color:var(--accent-blue);">Renderer</span>
+        <span class="layer-api">saveAnnotations(next) → onSaveArticle(nextArticle)</span>
+      </div>
+      <div class="persist-arrow-down">↓</div>
+      <div class="persist-layer" style="background:var(--accent-purple-light);">
+        <span class="layer-label" style="color:var(--accent-purple);">IPC Preload</span>
+        <span class="layer-api">window.yomitomoDesktop.saveArticle(article) → article:save</span>
+      </div>
+      <div class="persist-arrow-down">↓</div>
+      <div class="persist-layer" style="background:var(--accent-orange-light);">
+        <span class="layer-label" style="color:var(--accent-orange);">Main Store</span>
+        <span class="layer-api">saveArticle(input) → writeArticleRows() + upsert annotations + comments</span>
+      </div>
+      <div class="persist-arrow-down">↓</div>
+      <div class="persist-layer" style="background:var(--accent-green-light);">
+        <span class="layer-label" style="color:var(--accent-green);">SQLite</span>
+        <span class="layer-api">articles · annotations · comments （复杂字段 JSON 存储）</span>
+      </div>
+    </div>
+    <div style="margin-top:20px;font-size:13px;color:var(--text-secondary);">
+      <strong>三个保存语义：</strong>
+      <code>saveAnnotations()</code> 排序 + 落库 · <code>applyAnnotations()</code> 仅更新本地状态（流式占位）· <code>replaceAnnotations()</code> 外部更新替换本地
+    </div>
+  </div>
+</div>
+
+<!-- IPC 清单 -->
+<div class="section" id="sec-ipc">
+  <div class="section-label">06 · IPC Contract</div>
+  <h2>Desktop IPC 清单</h2>
+  <p class="section-desc">所有 renderer ↔ main 进程通信 channel，分为文章保存和 AI 调用两大类。</p>
+  <div class="ipc-table-wrap">
+    <table class="ipc-table">
+      <thead>
+        <tr><th>Channel</th><th>类型</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="ch">article:get</td><td><span class="cat cat-save">保存</span></td><td>读取完整文章和批注</td></tr>
+        <tr><td class="ch">article:save</td><td><span class="cat cat-save">保存</span></td><td>保存文章、批注、评论（文章级替换）</td></tr>
+        <tr><td class="ch">article:reading-progress</td><td><span class="cat cat-save">保存</span></td><td>保存阅读进度</td></tr>
+        <tr><td class="ch">annotation:metadata</td><td><span class="cat cat-ai">AI</span></td><td>推断批注类型与阅读动作</td></tr>
+        <tr><td class="ch">agent:mention-route</td><td><span class="cat cat-ai">AI</span></td><td>@助手 路由：是否保存想法 + 助手动作</td></tr>
+        <tr><td class="ch">agent:comment</td><td><span class="cat cat-ai">AI</span></td><td>非流式助手回复</td></tr>
+        <tr><td class="ch">agent:comment:stream</td><td><span class="cat cat-ai">AI</span></td><td>流式助手回复</td></tr>
+        <tr><td class="ch">agent:annotate</td><td><span class="cat cat-ai">AI</span></td><td>非流式助手创建批注/想法</td></tr>
+        <tr><td class="ch">agent:annotate:stream</td><td><span class="cat cat-ai">AI</span></td><td>流式助手创建批注/想法</td></tr>
+        <tr><td class="ch">agent:review</td><td><span class="cat cat-ai">AI</span></td><td>审阅助手批量审阅顶层想法</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- AI 回复 -->
+<div class="section" id="sec-ai-reply">
+  <div class="section-label">07 · AI Reply Pipeline</div>
+  <h2>AI 回复链路</h2>
+  <p class="section-desc">用户 @助手 后触发 comment 指令时的流式回复流程。</p>
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-purple-light);color:var(--accent-purple);">🤖</div>
+      <h3>agent:comment:stream</h3>
+      <span class="pipe-tag" style="background:var(--accent-purple-light);color:var(--accent-purple);">app-source-agent-comment-request.ts</span>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">1</div>
+        <div class="step-text">本地追加 <code>pending</code> AI comment 占位（位置由 replyTo / reviewTarget 决定）</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">2</div>
+        <div class="step-text">调用 <code>requestAgentCommentStream(payload, onEvent)</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">3</div>
+        <div class="step-text">main 通过 <code>runAgentStream(provider, agent, payload, onDelta)</code> 流式调用 LLM</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">4</div>
+        <div class="step-text">收到 <code>start</code>: 用真实 id 替换占位 · 收到 <code>delta</code>: <code>updateAnnotationComment()</code> 追加内容</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">5</div>
+        <div class="step-text">完成 → <code>pending = false</code> → <code>saveAnnotations()</code> 持久化</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI 新想法 -->
+<div class="section" id="sec-ai-thought">
+  <div class="section-label">08 · AI Thought Pipeline</div>
+  <h2>AI 新想法链路</h2>
+  <p class="section-desc">助手围绕选区或主动在文章中创建批注和想法的流程。模型输出的 exact 必须在原文中匹配才会保存。</p>
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-orange-light);color:var(--accent-orange);">💡</div>
+      <h3>agent:annotate:stream</h3>
+      <span class="pipe-tag" style="background:var(--accent-orange-light);color:var(--accent-orange);">app-source-agent-request.ts</span>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">1</div>
+        <div class="step-text"><code>buildAgentAnnotationRequestInput()</code> 构造 payload，有 targetAnchor 时生成单项 reading plan</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">2</div>
+        <div class="step-text">调用 <code>requestAgentAnnotationsStream(payload, onEvent)</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">3</div>
+        <div class="step-text">main 执行 <code>runAgentAnnotateStream()</code>，AI 输出 JSON/NDJSON suggestion</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">4</div>
+        <div class="step-text"><code>createAgentAnnotation()</code> 在 articleText 中匹配 exact，匹配失败则丢弃</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">5</div>
+        <div class="step-text"><code>mergeAgentAnnotationAsThought()</code> 尝试合并到已有批注下作为 AI 顶层想法</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">6</div>
+        <div class="step-text">target 模式下 <code>targetAnchorSuggestion()</code> 强制覆盖 exact 为用户选区，防漂移</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 审阅 -->
+<div class="section" id="sec-review">
+  <div class="section-label">09 · Review Pipeline</div>
+  <h2>审阅助手链路</h2>
+  <p class="section-desc">审阅助手对每条顶层想法打标签并回复，带重复控制。</p>
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-rose-light);color:var(--accent-rose);">📋</div>
+      <h3>agent:review</h3>
+      <span class="pipe-tag" style="background:var(--accent-rose-light);color:var(--accent-rose);">app-source-agent-review-request.ts</span>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-rose-light);color:var(--accent-rose);">1</div>
+        <div class="step-text">用户在批注卡片点击"审阅"，选择审阅助手</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-rose-light);color:var(--accent-rose);">2</div>
+        <div class="step-text">调用 <code>requestAgentReview()</code>，payload 包含待审阅顶层想法</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-rose-light);color:var(--accent-rose);">3</div>
+        <div class="step-text">AI 返回 JSON 数组：每条绑定 <code>thoughtId</code> + <code>label</code> + <code>content</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-rose-light);color:var(--accent-rose);">4</div>
+        <div class="step-text">写为 <code>replyTo = thoughtId</code> 的 AI comment，带 <code>reviewLabel</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-rose-light);color:var(--accent-rose);">5</div>
+        <div class="step-text"><code>reviewerAlreadyCommented()</code> 防止同一审阅助手对同一想法重复审阅</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt 拼接 -->
+<div class="section" id="sec-prompt">
+  <div class="section-label">10 · Prompt Assembly</div>
+  <h2>Prompt 拼接规则</h2>
+  <p class="section-desc">不同场景下 system prompt 和 user prompt 的拼接内容和策略。</p>
+  <div class="prompt-grid">
+    <div class="prompt-card">
+      <h4>批注元数据推断</h4>
+      <div class="prompt-fn">buildAnnotationMetadataPrompt()</div>
+      <ul class="prompt-items">
+        <li>文章标题 + URL</li>
+        <li>用户选区 anchor.exact</li>
+        <li>用户批注 note</li>
+        <li>批注类型候选 + 阅读动作候选</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">{ annotationType, readingIntent }</div>
+    </div>
+    <div class="prompt-card">
+      <h4>@助手语义路由</h4>
+      <div class="prompt-fn">buildAgentMentionInstructionPrompt()</div>
+      <ul class="prompt-items">
+        <li>文章标题 + URL + 目标选区/章节</li>
+        <li>用户文本 + @助手列表</li>
+        <li>可选阅读动作 + 允许动作</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">{ createUserThought, directives[] }</div>
+    </div>
+    <div class="prompt-card">
+      <h4>助手回复</h4>
+      <div class="prompt-fn">buildAgentPrompt()</div>
+      <ul class="prompt-items">
+        <li>角色卡 + 阅读动作 system prompt</li>
+        <li>EPUB: thread-first 上下文 + lexical 召回</li>
+        <li>普通: 全文预算裁剪 + 高亮 + 讨论</li>
+        <li>无剧透范围 + 参与者 + 身份规则</li>
+      </ul>
+      <div class="output-label">路径选择</div>
+      <div class="output-val">thread-first (EPUB) / budget-text (web)</div>
+    </div>
+    <div class="prompt-card">
+      <h4>助手新想法</h4>
+      <div class="prompt-fn">buildAgentAnnotatePrompt()</div>
+      <ul class="prompt-items">
+        <li>角色卡 + target/主动/reading plan 三模式</li>
+        <li>target: 选区 + 局部窗口 + 章节记忆</li>
+        <li>主动: 全文裁剪 + 批注密度说明</li>
+        <li>exact 必须从 sectionText/选区匹配</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">JSON / NDJSON suggestion[]</div>
+    </div>
+    <div class="prompt-card">
+      <h4>审阅</h4>
+      <div class="prompt-fn">buildAgentReviewPrompt()</div>
+      <ul class="prompt-items">
+        <li>角色卡 + 审阅标签说明</li>
+        <li>全文预算裁剪 + 无剧透范围</li>
+        <li>用户高亮 + 待审阅想法 JSON</li>
+        <li>已审阅 thought id 排除</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">[{ thoughtId, label, content }]</div>
+    </div>
+  </div>
+</div>
+
+<!-- 接入清单 -->
+<div class="section" id="sec-checklist">
+  <div class="section-label">11 · Integration Checklist</div>
+  <h2>新阅读器接入清单</h2>
+  <p class="section-desc">接入新阅读器实现时需要满足的全部要求。</p>
+  <div class="checklist-grid">
+    <div class="check-item"><div class="check-num">1</div><div class="check-text">提供文章纯文本，用于 <code>promptArticle()</code>、锚点定位和 AI exact 匹配</div></div>
+    <div class="check-item"><div class="check-num">2</div><div class="check-text">选区生成 <code>TextAnchor</code>：普通文档用 <code>createTextAnchor()</code>，电子书优先建 index 用 EPUB 锚点</div></div>
+    <div class="check-item"><div class="check-num">3</div><div class="check-text">实现高亮 boxes：根据 annotationsRef 和 viewport 计算每条批注的 DOM/画布矩形</div></div>
+    <div class="check-item"><div class="check-num">4</div><div class="check-text">复用 <code>useSourceAnnotations()</code>，不要重新实现评论追加、删除、保存和 stale 防护</div></div>
+    <div class="check-item"><div class="check-num">5</div><div class="check-text">接入 AnnotationCard / ReaderAppView 时，把 onAddComment、onDelete、onDeleteComment 传回 hook</div></div>
+    <div class="check-item"><div class="check-num">6</div><div class="check-text">保存统一走 <code>onSaveArticle()</code> 或 <code>onUpdateArticle()</code>，最终落到 article:save</div></div>
+    <div class="check-item"><div class="check-num">7</div><div class="check-text">AI 回复复用 <code>runSourceAgentCommentRequest()</code></div></div>
+    <div class="check-item"><div class="check-num">8</div><div class="check-text">AI 创建想法复用 <code>buildAgentAnnotationRequestInput()</code> 和 <code>runSourceAgentAnnotationRequest()</code></div></div>
+    <div class="check-item"><div class="check-num">9</div><div class="check-text">@助手路由调用 <code>planSelectionMentionRoute()</code>，不要硬编码语义</div></div>
+    <div class="check-item"><div class="check-num">10</div><div class="check-text">电子书/长文传入 <code>ebookIndex</code>、阅读进度和章节 id，否则 AI 退化为全文预算裁剪</div></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// Nav scroll tracking
+const navBtns = document.querySelectorAll('.nav-btn');
+const sections = document.querySelectorAll('.section');
+
+navBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = document.getElementById(btn.dataset.target);
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navBtns.forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`[data-target="${entry.target.id}"]`);
+      if (btn) btn.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

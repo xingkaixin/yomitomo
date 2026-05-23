@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yomitomo 聚焦共读 · 数据链路</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF7;
+  --bg-warm: #F5F3EE;
+  --bg-card: #FFFFFF;
+  --bg-code: #F0EDE6;
+  --text-primary: #1A1A18;
+  --text-secondary: #5C5B56;
+  --text-tertiary: #8E8D88;
+  --border: #E2DFD6;
+  --border-light: #EDEAE2;
+  --accent-blue: #2563EB;
+  --accent-blue-light: #EFF6FF;
+  --accent-blue-muted: #93C5FD;
+  --accent-orange: #EA580C;
+  --accent-orange-light: #FFF7ED;
+  --accent-green: #16A34A;
+  --accent-green-light: #F0FDF4;
+  --accent-purple: #7C3AED;
+  --accent-purple-light: #F5F3FF;
+  --accent-rose: #E11D48;
+  --accent-rose-light: #FFF1F2;
+  --accent-amber: #D97706;
+  --accent-amber-light: #FFFBEB;
+  --accent-teal: #0D9488;
+  --accent-teal-light: #F0FDFA;
+  --accent-indigo: #4F46E5;
+  --accent-indigo-light: #EEF2FF;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.08);
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-header {
+  padding: 60px 0 40px;
+  text-align: center;
+  position: relative;
+}
+.page-header::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 3px;
+  background: var(--accent-teal);
+  margin: 24px auto 0;
+  border-radius: 2px;
+}
+.page-header h1 {
+  font-family: 'Source Serif 4', serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.page-header .subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  font-weight: 300;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 32px 80px;
+}
+
+/* NAV */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 250, 247, 0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-light);
+  padding: 0 32px;
+}
+.nav-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 10px 0;
+}
+.nav-inner::-webkit-scrollbar { display: none; }
+.nav-btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  font-family: 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-btn:hover { color: var(--text-primary); background: var(--bg-warm); }
+.nav-btn.active { color: var(--accent-teal); background: var(--accent-teal-light); }
+
+/* SECTIONS */
+.section {
+  margin-top: 56px;
+  scroll-margin-top: 64px;
+  animation: fadeUp 0.5s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 8px;
+}
+.section h2 {
+  font-family: 'Source Serif 4', serif;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.section .section-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  max-width: 720px;
+}
+
+/* OVERVIEW DIAGRAM */
+.overview-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.overview-phase {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+  text-align: center;
+  padding: 24px 16px 20px;
+}
+.overview-phase::after {
+  content: '→';
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--border);
+  font-size: 20px;
+  z-index: 2;
+}
+.overview-phase:last-child::after { display: none; }
+.phase-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+.phase-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.phase-detail {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
+/* TYPE CARDS */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+.type-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s, transform 0.25s;
+}
+.type-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.type-card h3 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.type-card h3 .dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.field-list { font-size: 13px; color: var(--text-secondary); }
+.field-list .field {
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--border-light);
+  display: flex;
+  gap: 8px;
+}
+.field-list .field:last-child { border-bottom: none; }
+.field-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-teal);
+  flex-shrink: 0;
+  min-width: 130px;
+}
+.field-desc { font-size: 12.5px; color: var(--text-secondary); }
+
+/* FLOW */
+.flow-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+.flow-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.flow-steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+.flow-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  max-width: 150px;
+  text-align: center;
+}
+.flow-step .step-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+.flow-step .step-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.flow-step .step-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  line-height: 1.35;
+  font-family: 'JetBrains Mono', monospace;
+}
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  padding-top: 10px;
+  color: var(--border);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* PIPELINE CARD */
+.pipeline-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.25s;
+  margin-bottom: 16px;
+}
+.pipeline-card:hover { box-shadow: var(--shadow-md); }
+.pipeline-header {
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.pipeline-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.pipeline-header h3 { font-size: 16px; font-weight: 600; }
+.pipe-tag {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.pipeline-body { padding: 20px 24px 24px; }
+.step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 8px 0;
+}
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.step-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent-teal);
+}
+.step-connector {
+  width: 22px;
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+.step-connector .vline {
+  width: 1px; height: 12px; background: var(--border);
+}
+
+/* TWO-COL COMPARE */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) { .compare-grid { grid-template-columns: 1fr; } }
+
+/* PROMPT CARDS */
+.prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+.prompt-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.25s;
+}
+.prompt-card:hover { box-shadow: var(--shadow-md); }
+.prompt-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.prompt-fn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+}
+.prompt-items {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  list-style: none;
+}
+.prompt-items li {
+  padding: 3px 0;
+  position: relative;
+  padding-left: 14px;
+}
+.prompt-items li::before {
+  content: '·';
+  position: absolute;
+  left: 0;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+.output-label {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.output-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-orange);
+  margin-top: 4px;
+}
+
+/* CALLOUT */
+.callout {
+  padding: 16px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 16px;
+}
+.callout code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: rgba(0,0,0,0.04);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.callout-teal { background: var(--accent-teal-light); border-left: 3px solid var(--accent-teal); }
+.callout-amber { background: var(--accent-amber-light); border-left: 3px solid var(--accent-amber); }
+.callout-purple { background: var(--accent-purple-light); border-left: 3px solid var(--accent-purple); }
+
+/* IPC TABLE */
+.ipc-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.ipc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ipc-table thead th {
+  background: var(--bg-warm);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ipc-table tbody td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: top;
+}
+.ipc-table tbody tr:last-child td { border-bottom: none; }
+.ipc-table tbody tr:hover { background: var(--bg-warm); }
+.ipc-table .ch {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent-purple);
+}
+.cat {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.cat-plan { background: var(--accent-teal-light); color: var(--accent-teal); }
+.cat-exec { background: var(--accent-orange-light); color: var(--accent-orange); }
+.cat-route { background: var(--accent-indigo-light); color: var(--accent-indigo); }
+.cat-save { background: var(--accent-green-light); color: var(--accent-green); }
+
+/* MERGE DIAGRAM */
+.merge-flow {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  box-shadow: var(--shadow-sm);
+}
+.merge-flow .merge-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+.merge-branches {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.merge-branch {
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.merge-branch h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.merge-branch p {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.merge-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 16px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .merge-branches { grid-template-columns: 1fr; }
+  .merge-divider { flex-direction: row; padding-top: 0; }
+}
+
+/* CHECKLIST */
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 12px;
+}
+.check-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: box-shadow 0.2s;
+}
+.check-item:hover { box-shadow: var(--shadow-sm); }
+.check-num {
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  background: var(--accent-teal-light);
+  color: var(--accent-teal);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.check-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.check-text code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: var(--bg-code);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--accent-teal);
+}
+
+@media (max-width: 720px) {
+  .container { padding: 0 16px 60px; }
+  .page-header { padding: 40px 16px 24px; }
+  .page-header h1 { font-size: 24px; }
+  .flow-container { padding: 20px; }
+  .type-grid, .prompt-grid, .checklist-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>読み友 · 聚焦共读链路</h1>
+  <div class="subtitle">从选择助手、分析文章、编排计划到执行共读的完整数据流</div>
+</div>
+
+<nav class="nav-bar">
+  <div class="nav-inner">
+    <button class="nav-btn active" data-target="sec-overview">全局概览</button>
+    <button class="nav-btn" data-target="sec-model">数据模型</button>
+    <button class="nav-btn" data-target="sec-sections">章节来源</button>
+    <button class="nav-btn" data-target="sec-analysis">自动分析</button>
+    <button class="nav-btn" data-target="sec-manual">手工编排</button>
+    <button class="nav-btn" data-target="sec-messages">章节留言</button>
+    <button class="nav-btn" data-target="sec-plan2exec">计划→执行</button>
+    <button class="nav-btn" data-target="sec-exec">执行共读</button>
+    <button class="nav-btn" data-target="sec-merge">划线合并</button>
+    <button class="nav-btn" data-target="sec-prompt">Prompt 设计</button>
+    <button class="nav-btn" data-target="sec-ipc">IPC/存储</button>
+    <button class="nav-btn" data-target="sec-checklist">接入清单</button>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- 全局概览 -->
+<div class="section" id="sec-overview">
+  <div class="section-label">00 · Overview</div>
+  <h2>聚焦共读全局流程</h2>
+  <p class="section-desc">聚焦共读不是普通的"让一个助手全文批注"。它先生成章节级计划，再按计划拆分给每位助手独立执行，同一划线的 AI 输出合并为已有批注下的新想法。</p>
+
+  <div class="flow-container" style="border-left:3px solid var(--accent-teal);">
+    <div class="overview-track">
+      <div class="overview-phase">
+        <div class="phase-icon" style="background:var(--accent-blue-light);color:var(--accent-blue);">👥</div>
+        <div class="phase-name">选择助手</div>
+        <div class="phase-detail">添加助手到<br>selectedAgentIds</div>
+      </div>
+      <div class="overview-phase">
+        <div class="phase-icon" style="background:var(--accent-teal-light);color:var(--accent-teal);">🔍</div>
+        <div class="phase-name">自动分析</div>
+        <div class="phase-detail">AI 生成章节摘要<br>标签和助手分配</div>
+      </div>
+      <div class="overview-phase">
+        <div class="phase-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">✏️</div>
+        <div class="phase-name">手工编排</div>
+        <div class="phase-detail">调整助手分配<br>添加章节留言</div>
+      </div>
+      <div class="overview-phase">
+        <div class="phase-icon" style="background:var(--accent-orange-light);color:var(--accent-orange);">🚀</div>
+        <div class="phase-name">计划→执行</div>
+        <div class="phase-detail">按助手拆分<br>reading plan</div>
+      </div>
+      <div class="overview-phase">
+        <div class="phase-icon" style="background:var(--accent-purple-light);color:var(--accent-purple);">🤖</div>
+        <div class="phase-name">执行共读</div>
+        <div class="phase-detail">流式生成批注<br>章节范围约束</div>
+      </div>
+      <div class="overview-phase" style="border:none;">
+        <div class="phase-icon" style="background:var(--accent-green-light);color:var(--accent-green);">🔗</div>
+        <div class="phase-name">合并保存</div>
+        <div class="phase-detail">相同划线合并<br>为已有批注想法</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-teal" style="margin-top:16px;">
+    <strong>核心约定：</strong>计划保存在 <code>ArticleRecord.focusCoReadingPlan</code>，批注和想法保存在 <code>ArticleRecord.annotations</code>。计划阶段只做分配，执行阶段才生成真实 Annotation。
+  </div>
+</div>
+
+<!-- 数据模型 -->
+<div class="section" id="sec-model">
+  <div class="section-label">01 · Data Model</div>
+  <h2>核心数据模型</h2>
+  <p class="section-desc">聚焦共读引入三个主要类型：计划级的 FocusCoReadingPlan 和 SectionPlan，执行级的 AgentReadingPlanItem。</p>
+  <div class="type-grid">
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-teal)"></span>FocusCoReadingPlan</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">id / articleId</span><span class="field-desc">计划和文章唯一标识</span></div>
+        <div class="field"><span class="field-name">selectedAgentIds</span><span class="field-desc">参与规划的助手池（不代表每章都执行）</span></div>
+        <div class="field"><span class="field-name">sections[]</span><span class="field-desc">章节编排列表 SectionPlan</span></div>
+        <div class="field"><span class="field-name">readingMemory</span><span class="field-desc">执行产生的压缩阅读记忆</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-orange)"></span>FocusCoReadingSectionPlan</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">sectionId / Title</span><span class="field-desc">章节标识和标题</span></div>
+        <div class="field"><span class="field-name">sectionStart / End</span><span class="field-desc">在 article.text 中的字符范围</span></div>
+        <div class="field"><span class="field-name">summary / tag</span><span class="field-desc">AI 生成的摘要和标签</span></div>
+        <div class="field"><span class="field-name">targetDensity</span><span class="field-desc">批注密度建议 low/medium/high</span></div>
+        <div class="field"><span class="field-name">agentIds[]</span><span class="field-desc">本章节分配的助手</span></div>
+        <div class="field"><span class="field-name">messages[]</span><span class="field-desc">读者留言（可指定助手）</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-purple)"></span>AgentReadingPlanItem</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">sectionId / Title</span><span class="field-desc">执行目标章节</span></div>
+        <div class="field"><span class="field-name">sectionStart / End</span><span class="field-desc">落锚允许的字符范围</span></div>
+        <div class="field"><span class="field-name">sectionSummary / Tag</span><span class="field-desc">传递给 AI 的章节提示</span></div>
+        <div class="field"><span class="field-name">readingIntent</span><span class="field-desc">阅读动作意图</span></div>
+        <div class="field"><span class="field-name">targetDensity</span><span class="field-desc">覆盖默认密度</span></div>
+        <div class="field"><span class="field-name">messages[]</span><span class="field-desc">只包含对当前助手生效的留言</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="type-grid" style="margin-top:16px;">
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-amber)"></span>FocusCoReadingMessage</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">content</span><span class="field-desc">读者留言文本</span></div>
+        <div class="field"><span class="field-name">agentId</span><span class="field-desc">指定的目标助手（单个，可选）</span></div>
+        <div class="field"><span class="field-name">agentIds[]</span><span class="field-desc">指定的多个目标助手（可选）</span></div>
+        <div class="field"><span class="field-name">agentNicknames[]</span><span class="field-desc">被 @ 的助手昵称</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 章节来源 -->
+<div class="section" id="sec-sections">
+  <div class="section-label">02 · Reading Sections</div>
+  <h2>阅读章节来源</h2>
+  <p class="section-desc">聚焦共读基于 ReaderReadingSection[] 编排。网页和 EPUB 各自有不同的章节生成方式。</p>
+  <div class="compare-grid">
+    <div class="flow-container">
+      <div class="flow-title"><span>🌐</span> 网页文章</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">buildReaderReadingSections(articleRef, tocItems, title)</code>
+        <br><br>
+        从文章 DOM 和 TOC 推导章节。有正文前引文时生成 intro 章节；无可用 TOC 时退化为单个 body 章节。
+      </div>
+    </div>
+    <div class="flow-container">
+      <div class="flow-title"><span>📖</span> EPUB 电子书</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">ebookReaderReadingSections(article, ebookText)</code>
+        <br><br>
+        使用 EPUB index 和章节信息生成。sectionStart/End 对应全书聚合文本偏移。
+      </div>
+    </div>
+  </div>
+  <div class="callout callout-amber">
+    <strong>接入要求：</strong>新阅读器必须提供稳定的章节 id 和字符范围。自动分析、手工编排、执行落锚和无剧透上下文都依赖这些范围。
+  </div>
+</div>
+
+<!-- 自动分析 -->
+<div class="section" id="sec-analysis">
+  <div class="section-label">03 · Auto Analysis</div>
+  <h2>选择助手与自动分析</h2>
+  <p class="section-desc">用户选择助手后触发 AI 自动分析文章，生成章节级摘要、标签和助手分配。</p>
+
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-teal-light);color:var(--accent-teal);">🔍</div>
+      <h3>planCoReading() 自动分析流程</h3>
+      <span class="pipe-tag" style="background:var(--accent-teal-light);color:var(--accent-teal);">focus-co-reading:route</span>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">1</div>
+        <div class="step-text">用户点击"添加助手"，id 加入 <code>selectedAgentIds</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">2</div>
+        <div class="step-text">点击"开始分析文章"触发 <code>planCoReading()</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">3</div>
+        <div class="step-text">调用宿主 <code>onPlanFocusCoReading(selectedAgentIds)</code> → preload → <code>focus-co-reading:route</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">4</div>
+        <div class="step-text">main 读取 store，组装 payload（selectedAgentIds, sections, chapterSummaries, article）</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">5</div>
+        <div class="step-text">AI 返回 <code>FocusCoReadingRouteResult</code>：每章的 summary, tag, agentIds, targetDensity</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-teal-light);color:var(--accent-teal);">6</div>
+        <div class="step-text">合并为新 <code>FocusCoReadingPlan</code>：继承旧 messages/readingMemory/createdAt，保存到文章</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-teal">
+    <strong>合并规则：</strong>route 返回的 agentIds 只保留用户本轮选择的助手。旧计划的 messages 按 section 继承。没有助手、留言、summary、tag 的 section 不保存。
+  </div>
+</div>
+
+<!-- 手工编排 -->
+<div class="section" id="sec-manual">
+  <div class="section-label">04 · Manual Arrangement</div>
+  <h2>手工编排助手</h2>
+  <p class="section-desc">用户可以在自动分析前后手工调整章节的助手分配和留言。每次调整都即时保存。</p>
+
+  <div class="flow-container">
+    <div class="flow-title"><span>🎛️</span> 编排操作与数据流</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+      <div style="padding:14px;background:var(--bg-warm);border-radius:var(--radius-sm);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">添加全局助手</div>
+        <div style="font-size:12px;color:var(--text-secondary);"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg-code);padding:1px 4px;border-radius:3px;color:var(--accent-teal);">addPlanAgent(id)</code><br>加入 selectedAgentIds 池</div>
+      </div>
+      <div style="padding:14px;background:var(--bg-warm);border-radius:var(--radius-sm);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">移除全局助手</div>
+        <div style="font-size:12px;color:var(--text-secondary);"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg-code);padding:1px 4px;border-radius:3px;color:var(--accent-teal);">removePlanAgent(id)</code><br>从所有章节移除 + 过滤留言</div>
+      </div>
+      <div style="padding:14px;background:var(--bg-warm);border-radius:var(--radius-sm);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">章节添加/移除助手</div>
+        <div style="font-size:12px;color:var(--text-secondary);"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg-code);padding:1px 4px;border-radius:3px;color:var(--accent-teal);">add/removeSectionAgent()</code><br>移除时过滤只发给该助手的留言</div>
+      </div>
+      <div style="padding:14px;background:var(--bg-warm);border-radius:var(--radius-sm);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">清空所有章节</div>
+        <div style="font-size:12px;color:var(--text-secondary);"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg-code);padding:1px 4px;border-radius:3px;color:var(--accent-teal);">clearSectionAssignments()</code><br>清空所有章节助手和留言</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;font-size:13px;color:var(--text-secondary);">
+      每次调整 → <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">saveSections()</code> → <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">onSaveFocusCoReadingPlan(plan)</code> → <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">onUpdateArticle()</code> → <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">article:save</code>
+    </div>
+  </div>
+</div>
+
+<!-- 章节留言 -->
+<div class="section" id="sec-messages">
+  <div class="section-label">05 · Section Messages</div>
+  <h2>添加章节留言</h2>
+  <p class="section-desc">留言是给章节或章节内特定助手的阅读指引。支持 @助手 指定目标，不指定时对所有助手生效。</p>
+
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-amber-light);color:var(--accent-amber);">💬</div>
+      <h3>留言创建与过滤</h3>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-amber-light);color:var(--accent-amber);">1</div>
+        <div class="step-text">用户展开章节 → 输入留言（可用 <code>@助手昵称</code> 指定目标）</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-amber-light);color:var(--accent-amber);">2</div>
+        <div class="step-text"><code>focusMessageFromDraft()</code> 从留言中提取被 @ 的章节助手</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-amber-light);color:var(--accent-amber);">3</div>
+        <div class="step-text">匹配到 → 写入 agentIds/agentUsernames/agentNicknames；未匹配 → 全局留言，对所有助手生效</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-amber-light);color:var(--accent-amber);">4</div>
+        <div class="step-text">助手被移除章节时，<code>filterFocusMessagesForAgents()</code> 过滤失效留言</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-amber">
+    <strong>过滤规则：</strong>留言没有指定目标助手时，只要章节还有任意助手就保留。指定了多个助手时，只保留仍在章节中的目标。
+  </div>
+</div>
+
+<!-- 计划→执行 -->
+<div class="section" id="sec-plan2exec">
+  <div class="section-label">06 · Plan → Execution</div>
+  <h2>计划转执行</h2>
+  <p class="section-desc">开始共读时，按助手拆分 SectionPlan 为各自的 AgentReadingPlanItem[]，并对留言做二次路由。</p>
+
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-orange-light);color:var(--accent-orange);">🚀</div>
+      <h3>startReadingPlan() 拆分流程</h3>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">1</div>
+        <div class="step-text">遍历所有可用助手，从 sections 中筛选包含该助手 id 的章节</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">2</div>
+        <div class="step-text"><code>focusSectionToReadingPlanItem()</code> 转成 AgentReadingPlanItem，只保留对当前助手生效的 messages</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">3</div>
+        <div class="step-text"><code>routeFocusReadingPlanMessages()</code> 二次路由留言：@A 解释概念 → A 看到"解释概念"，@B 挑战前提 → B 看到"挑战前提"</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-orange-light);color:var(--accent-orange);">4</div>
+        <div class="step-text">调用 <code>onStartAgentPlan(agent, readingPlan)</code> → <code>requestAgentAnnotations(agent, { readingPlan })</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-purple">
+    <strong>留言二次路由：</strong>对含 @ 的留言调用 <code>agent:mention-route</code>（只允许 create_thought），把 content 替换成该助手的具体 instruction。路由失败时退回 <code>agentInstructionFromNote()</code> 去掉 @ 称呼后的文本。
+  </div>
+</div>
+
+<!-- 执行共读 -->
+<div class="section" id="sec-exec">
+  <div class="section-label">07 · Execution</div>
+  <h2>执行共读：生成批注</h2>
+  <p class="section-desc">通过 agent:annotate:stream 流式生成批注。每条 AI 输出都经过章节范围验证后才进入保存链路。</p>
+
+  <div class="pipeline-card">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-purple-light);color:var(--accent-purple);">🤖</div>
+      <h3>执行共读主流程</h3>
+      <span class="pipe-tag" style="background:var(--accent-purple-light);color:var(--accent-purple);">agent:annotate:stream</span>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">1</div>
+        <div class="step-text"><code>promptArticle()</code> + <code>buildAgentAnnotationRequestInput()</code> 构造 payload</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">2</div>
+        <div class="step-text"><code>routeFocusReadingPlanMessages()</code> 二次路由留言</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">3</div>
+        <div class="step-text"><code>runSourceAgentAnnotationRequest()</code> → preload → main <code>runAgentAnnotateStream()</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">4</div>
+        <div class="step-text">收到 item → <code>constrainAgentPlanAnnotation()</code> 验证落在 reading plan 章节范围内</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">5</div>
+        <div class="step-text">验证通过 → 播放/保存链路 → <code>appendAgentAnnotationToArticle()</code></div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">6</div>
+        <div class="step-text">EPUB 多 segment 时，每个 segment 后合并 readingMemory，最终 <code>saveFocusCoReadingReadingMemory()</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-grid" style="margin-top:16px;">
+    <div class="flow-container">
+      <div class="flow-title"><span>🌐</span> 网页执行差异</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">startAgentAnnotationPlayback()</code> 启动虚拟阅读动画。当前文章走 <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">enqueueAgentAnnotation()</code> 边播放边保存；后台 article 直接写入。
+      </div>
+    </div>
+    <div class="flow-container">
+      <div class="flow-title"><span>📖</span> EPUB 执行差异</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">startEbookPlayback()</code> 启动 dock 播放。通过 Foliate 页面定位。批注不在当前可见范围时尝试跳转或直接保存。
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 划线合并 -->
+<div class="section" id="sec-merge">
+  <div class="section-label">08 · Merge Logic</div>
+  <h2>相同划线合并为新想法</h2>
+  <p class="section-desc">同一段划线文本上的多个 AI 输出不会创建重复批注卡片，而是合并为已有批注下的新顶层想法。</p>
+
+  <div class="merge-flow">
+    <div class="merge-title">mergeAgentAnnotationAsThought() 合并决策</div>
+    <div class="merge-branches">
+      <div class="merge-branch" style="background:var(--accent-green-light);">
+        <h4 style="color:var(--accent-green);">✅ 找到相同 exact key</h4>
+        <p>把 AI annotation 的 comments 追加到已有批注的 comments 中。replyTo 置空，成为新顶层想法。已存在相同 comment id 时跳过。返回 activeId = existing.id。</p>
+      </div>
+      <div class="merge-divider">
+        <div style="width:1px;height:40px;background:var(--border);"></div>
+        <span>OR</span>
+        <div style="width:1px;height:40px;background:var(--border);"></div>
+      </div>
+      <div class="merge-branch" style="background:var(--accent-blue-light);">
+        <h4 style="color:var(--accent-blue);">🆕 未找到相同 exact key</h4>
+        <p>新增一条 Annotation，创建新的批注卡片。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout callout-teal" style="margin-top:16px;">
+    <strong>合并边界：</strong>基于 <code>annotationExactKey()</code> 做文本匹配，不依赖 AI annotation id。只合并 comment，不合并 annotationType/moveType/whyHere 到已有批注顶层。不同 exact 但语义相近的文本不会合并。
+  </div>
+</div>
+
+<!-- Prompt 设计 -->
+<div class="section" id="sec-prompt">
+  <div class="section-label">09 · Prompt Design</div>
+  <h2>Prompt 设计</h2>
+  <p class="section-desc">计划阶段和执行阶段使用不同的 prompt 策略。</p>
+
+  <div class="prompt-grid">
+    <div class="prompt-card">
+      <h4>网页文章 Route</h4>
+      <div class="prompt-fn">buildFocusCoReadingRoutePrompt()</div>
+      <ul class="prompt-items">
+        <li>文章标题、URL</li>
+        <li>助手列表（id, username, nickname, roleCard）</li>
+        <li>章节清单 + 压缩文本（≤1200 原样，&gt;1200 前 900 + 后 240）</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">{ sections: [{ sectionId, summary, tag, agentIds }] }</div>
+    </div>
+    <div class="prompt-card">
+      <h4>EPUB Route</h4>
+      <div class="prompt-fn">buildEpubFocusCoReadingRoutePrompt()</div>
+      <ul class="prompt-items">
+        <li>书籍元数据（标题、作者、语言、章节数）</li>
+        <li>助手列表 + 完整角色卡</li>
+        <li>章节 descriptors（id, title, length, segmentCount, preview）</li>
+        <li>压缩 chapter route context</li>
+      </ul>
+      <div class="output-label">额外字段</div>
+      <div class="output-val">targetDensity, needsFurtherPlanning</div>
+    </div>
+    <div class="prompt-card">
+      <h4>非 segment 执行</h4>
+      <div class="prompt-fn">buildAgentAnnotateStreamPrompt() reading plan 分支</div>
+      <ul class="prompt-items">
+        <li>文章标题 + URL + 预算裁剪文本</li>
+        <li>readingPlanPrompt()：sectionText, summary, tag, readerMessages</li>
+        <li>无剧透范围 + 批注密度指令</li>
+        <li>exact 必须来自 sectionText 连续原文</li>
+      </ul>
+      <div class="output-label">约束</div>
+      <div class="output-val">只能在编排的 sectionText 内落锚</div>
+    </div>
+    <div class="prompt-card">
+      <h4>EPUB segment 执行</h4>
+      <div class="prompt-fn">buildAgentSegmentAnnotateStreamPrompt()</div>
+      <ul class="prompt-items">
+        <li>book / chapter / currentSegment 信息</li>
+        <li>routeInstruction（summary, tag, intent, messages）</li>
+        <li>allowedAnchorRange（coreParagraphIds）</li>
+        <li>packed blocks：segment, evidence, memory, trace, dedup</li>
+      </ul>
+      <div class="output-label">约束</div>
+      <div class="output-val">只能在 currentSegment coreParagraphIds 内落锚</div>
+    </div>
+    <div class="prompt-card">
+      <h4>阅读记忆更新</h4>
+      <div class="prompt-fn">generateSegmentReadingMemoryUpdate()</div>
+      <ul class="prompt-items">
+        <li>当前 chapter / segment 范围和原文</li>
+        <li>previousSummary + previousSegmentTrace</li>
+        <li>chapterTrace + routeInstruction</li>
+        <li>当前助手身份 + 本 segment 已接受 annotations</li>
+      </ul>
+      <div class="output-label">输出</div>
+      <div class="output-val">{ segmentSummary, segmentTrace, chapterTrace }</div>
+    </div>
+  </div>
+</div>
+
+<!-- IPC/存储 -->
+<div class="section" id="sec-ipc">
+  <div class="section-label">10 · IPC & Storage</div>
+  <h2>存储与 API</h2>
+  <p class="section-desc">聚焦共读涉及的 IPC channel 和持久化位置。</p>
+  <div class="ipc-table-wrap">
+    <table class="ipc-table">
+      <thead>
+        <tr><th>Channel</th><th>类型</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="ch">focus-co-reading:route</td><td><span class="cat cat-plan">计划</span></td><td>自动分析文章并生成章节级分配</td></tr>
+        <tr><td class="ch">agent:annotate:stream</td><td><span class="cat cat-exec">执行</span></td><td>执行共读并流式返回批注</td></tr>
+        <tr><td class="ch">agent:mention-route</td><td><span class="cat cat-route">路由</span></td><td>章节留言二次路由（@ 助手拆分）</td></tr>
+        <tr><td class="ch">article:save</td><td><span class="cat cat-save">保存</span></td><td>保存计划、readingMemory、批注和评论</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout-teal" style="margin-top:16px;">
+    <strong>持久化位置：</strong><code>FocusCoReadingPlan</code> 存在 <code>articles.focus_co_reading_plan</code> JSON 字段中。批注仍在 annotations 和 comments 表。readingMemory 在计划 JSON 内。
+  </div>
+</div>
+
+<!-- 接入清单 -->
+<div class="section" id="sec-checklist">
+  <div class="section-label">11 · Integration Checklist</div>
+  <h2>新阅读器接入清单</h2>
+  <p class="section-desc">接入聚焦共读功能时需要满足的全部要求。</p>
+  <div class="checklist-grid">
+    <div class="check-item"><div class="check-num">1</div><div class="check-text">提供稳定的 <code>ReaderReadingSection[]</code>，包含 id、标题、开始/结束文本 offset</div></div>
+    <div class="check-item"><div class="check-num">2</div><div class="check-text">把 <code>focusCoReadingPlan</code> 从 ArticleRecord 传给 ReaderAppView</div></div>
+    <div class="check-item"><div class="check-num">3</div><div class="check-text">实现 <code>onPlanFocusCoReading()</code>，调用 focus-co-reading:route</div></div>
+    <div class="check-item"><div class="check-num">4</div><div class="check-text">实现 <code>onSaveFocusCoReadingPlan()</code>，通过 onUpdateArticle() 写回</div></div>
+    <div class="check-item"><div class="check-num">5</div><div class="check-text">实现 <code>onStartAgentReadingPlan()</code>，调用 requestAgentAnnotations()</div></div>
+    <div class="check-item"><div class="check-num">6</div><div class="check-text">确保 <code>promptArticle()</code> 的 text 与 section offset 使用同一份文本</div></div>
+    <div class="check-item"><div class="check-num">7</div><div class="check-text">AI 输出经过 <code>constrainAgentPlanAnnotation()</code> 验证章节范围</div></div>
+    <div class="check-item"><div class="check-num">8</div><div class="check-text">保存时经过 <code>mergeAgentAnnotationAsThought()</code> 确保相同划线合并</div></div>
+    <div class="check-item"><div class="check-num">9</div><div class="check-text">长文/电子书提供 index、segment、paragraph 信息，否则无法使用 segment 上下文和 readingMemory</div></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const navBtns = document.querySelectorAll('.nav-btn');
+const sections = document.querySelectorAll('.section');
+
+navBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = document.getElementById(btn.dataset.target);
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navBtns.forEach(b => b.classList.remove('active'));
+      const btn = document.querySelector(`[data-target="${entry.target.id}"]`);
+      if (btn) btn.classList.add('active');
+    }
+  });
+}, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
