@@ -226,6 +226,7 @@ export function ReadingLibrary({
 }
 
 function articleHasReadableBody(article: ArticleRecord) {
+  if ((article.annotationCount ?? 0) > article.annotations.length) return false;
   if (article.sourceType === 'ebook') return Boolean(article.ebook?.chapters.length);
   if (article.sourceType === 'pdf') return Boolean(article.pdf);
   return Boolean(article.contentHtml);

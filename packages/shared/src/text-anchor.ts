@@ -1,4 +1,4 @@
-import type { TextAnchor } from './types';
+import type { PdfRect, PdfTextAnchor, TextAnchor } from './types';
 
 import { hashText } from './ids';
 
@@ -19,6 +19,38 @@ export function createTextAnchor(text: string, start: number, end: number): Text
     end: safeEnd,
     quoteHash: exact ? textAnchorQuoteHash(exact) : undefined,
   };
+}
+
+export function createPdfTextAnchor({
+  pageText,
+  pageIndex,
+  start,
+  end,
+  pageWidth,
+  pageHeight,
+  rects,
+}: {
+  pageText: string;
+  pageIndex: number;
+  start: number;
+  end: number;
+  pageWidth: number;
+  pageHeight: number;
+  rects: PdfRect[];
+}): PdfTextAnchor {
+  const anchor = createTextAnchor(pageText, start, end);
+  return {
+    ...anchor,
+    kind: 'pdf-text',
+    pageIndex,
+    pageWidth,
+    pageHeight,
+    rects,
+  };
+}
+
+export function isPdfTextAnchor(anchor: TextAnchor): anchor is PdfTextAnchor {
+  return 'kind' in anchor && anchor.kind === 'pdf-text';
 }
 
 export function resolveTextAnchor(
