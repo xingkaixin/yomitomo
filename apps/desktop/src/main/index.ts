@@ -14,6 +14,7 @@ import type {
   AgentMessagePayload,
   AppSettings,
   ArticleRecord,
+  ArticleSummaryRecord,
   Comment,
   DesktopStore,
   LlmProvider,
@@ -327,11 +328,12 @@ function registerIpc() {
       };
     }
 
-    const patch = await saveArticle({
+    const article = {
       ...record,
       createdAt: existingFullArticle?.createdAt || record.createdAt,
-    });
-    return { status: 'imported', article: patch.article, patch };
+    };
+    const patch = await saveArticle(article);
+    return { status: 'imported', article, patch };
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { readArticle, readStore, saveArticle } = await getStoreModule();
@@ -345,13 +347,13 @@ function registerIpc() {
       await saveEbookSourceFile(existingArticle.id, input.data);
       return {
         status: 'duplicate',
-        article: existingFullArticle || existingArticle,
+        article: existingFullArticle || record,
       };
     }
 
     await saveEbookSourceFile(record.id, input.data);
     const patch = await saveArticle(record);
-    return { status: 'imported', article: patch.article, patch };
+    return { status: 'imported', article: record, patch };
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('./ebook-storage');
@@ -370,13 +372,13 @@ function registerIpc() {
       await savePdfSourceFile(existingArticle.id, input.data);
       return {
         status: 'duplicate',
-        article: existingFullArticle || existingArticle,
+        article: existingFullArticle || record,
       };
     }
 
     await savePdfSourceFile(record.id, input.data);
     const patch = await saveArticle(record);
-    return { status: 'imported', article: patch.article, patch };
+    return { status: 'imported', article: record, patch };
   });
   handleDesktopIpc('pdf:read-file', async (_event, articleId) => {
     const { readPdfSourceFile } = await import('./pdf-storage');
@@ -720,7 +722,7 @@ function elapsedMs(startedAt: number) {
 }
 
 function findArticleByIdentity(
-  articles: ArticleRecord[],
+  articles: ArticleSummaryRecord[],
   identity: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
 ) {
   return (

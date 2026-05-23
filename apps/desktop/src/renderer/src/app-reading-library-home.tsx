@@ -11,7 +11,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -58,9 +58,9 @@ export function LibraryHome({
   onOpenArticle,
 }: {
   activeSource: LibrarySource;
-  articles: ArticleRecord[];
+  articles: ArticleSummaryRecord[];
   onActiveSourceChange: (source: LibrarySource) => void;
-  sortedArticles: ArticleRecord[];
+  sortedArticles: ArticleSummaryRecord[];
   onDeleteArticle: (articleId: string) => Promise<void>;
   onImportEbookFile: (
     file: File,
@@ -71,7 +71,7 @@ export function LibraryHome({
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
-  onOpenArticle: (article: ArticleRecord) => void;
+  onOpenArticle: (article: ArticleSummaryRecord) => void;
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
@@ -272,7 +272,7 @@ function WebArticleListItem({
   onDelete,
   onOpen,
 }: {
-  article: ArticleRecord;
+  article: ArticleSummaryRecord;
   onDelete: () => void;
   onOpen: () => void;
 }) {
@@ -308,7 +308,7 @@ function LibraryDocumentListItem({
   onDelete,
   onOpen,
 }: {
-  article: ArticleRecord;
+  article: ArticleSummaryRecord;
   onDelete: () => void;
   onOpen: () => void;
 }) {
@@ -351,7 +351,7 @@ function LibraryDocumentListItem({
   );
 }
 
-function libraryDocumentSourceLabel(article: ArticleRecord) {
+function libraryDocumentSourceLabel(article: ArticleSummaryRecord) {
   if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
   return article.byline || article.ebook?.metadata.fileName || '电子书';
 }
@@ -487,14 +487,14 @@ function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: (
   onOpen();
 }
 
-function articleCounts(article: ArticleRecord) {
+function articleCounts(article: ArticleSummaryRecord) {
   return {
     annotations: articleAnnotationCount(article),
     comments: articleThoughtCount(article),
   };
 }
 
-function webArticleHost(article: ArticleRecord) {
+function webArticleHost(article: ArticleSummaryRecord) {
   return urlHost(article.canonicalUrl || article.url).replace(/^www\./, '') || 'web';
 }
 
@@ -507,7 +507,7 @@ function formatLibraryShortDate(value: string) {
   }).format(date);
 }
 
-function ebookProgressStyle(article: ArticleRecord) {
+function ebookProgressStyle(article: ArticleSummaryRecord) {
   const progress = Math.min(1, Math.max(0, article.readingProgress?.progress ?? 0));
   return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 
 type ArticleBookStyle = React.CSSProperties & {
   '--book-from': string;
@@ -45,7 +45,7 @@ const BOOK_COVER_PALETTES = [
 
 const articleCoverCache = new Map<string, string | null>();
 
-export function ArticleBook({ article }: { article: ArticleRecord }) {
+export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
   const coverUrl = useArticleCover(article);
   const visual = useMemo(() => articleBookVisual(article, coverUrl), [article, coverUrl]);
 
@@ -85,7 +85,7 @@ export function ArticleBook({ article }: { article: ArticleRecord }) {
   );
 }
 
-function useArticleCover(article: ArticleRecord) {
+function useArticleCover(article: ArticleSummaryRecord) {
   const directCoverUrl = safeHttpUrl(article.leadImageUrl);
   const [coverUrl, setCoverUrl] = useState<string | undefined>(directCoverUrl);
 
@@ -122,7 +122,7 @@ function useArticleCover(article: ArticleRecord) {
   return coverUrl;
 }
 
-function articleBookVisual(article: ArticleRecord, coverUrl?: string) {
+function articleBookVisual(article: ArticleSummaryRecord, coverUrl?: string) {
   const seed = stableHash(
     [article.id, article.canonicalUrl, article.title, article.siteName, article.contentHash].join(
       '|',

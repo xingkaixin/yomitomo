@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, RefreshCcw } from 'lucide-react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
 import { PanelHeader } from './app-ui';
 import {
@@ -33,7 +33,7 @@ export function ReadingStatsPanel({
   navigationStartedAt,
   onRefresh,
 }: {
-  articles: ArticleRecord[];
+  articles: ArticleSummaryRecord[];
   navigationStartedAt?: number;
   onRefresh: () => void;
 }) {

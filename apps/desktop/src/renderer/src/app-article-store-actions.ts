@@ -5,6 +5,7 @@ import type {
   ArticleReadingProgressPatch,
   ArticleRecord,
   ArticleStorePatch,
+  ArticleSummaryRecord,
   ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
@@ -231,8 +232,8 @@ export function applyArticleUpsertPatch(
 
   return {
     ...store,
-    articles: store.articles.map((article, index) =>
-      index === existingIndex ? patch.article : article,
+    articles: store.articles.map(
+      (article, index): ArticleSummaryRecord => (index === existingIndex ? patch.article : article),
     ),
   };
 }

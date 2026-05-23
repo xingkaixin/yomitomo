@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, Comment } from '@yomitomo/shared';
+import type { Annotation, ArticleSummaryRecord, Comment } from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
@@ -287,12 +287,11 @@ describe('desktop store reading progress', () => {
 
 describe('desktop store articles', () => {
   it('builds only the article upsert patch', () => {
-    const article = {
+    const article: ArticleSummaryRecord = {
       id: 'article-upsert',
       url: 'https://example.com/article-upsert',
       canonicalUrl: 'https://example.com/article-upsert',
       title: 'Upsert article',
-      contentHtml: '<p>Hello</p>',
       contentHash: 'hash-upsert',
       annotations: [],
       createdAt: '2026-05-17T07:00:00.000Z',
@@ -314,6 +313,29 @@ describe('desktop store articles', () => {
     expect(article.annotations).toEqual([]);
     expect(article.annotationCount).toBe(2);
     expect(article.commentCount).toBe(1);
+  });
+
+  it('keeps ebook summaries free of full chapter data', () => {
+    const article = rowToArticleSummary(
+      {
+        ...storeSummaryRow(),
+        sourceType: 'ebook',
+        ebookMetadata: {
+          format: 'epub',
+          fileName: 'book.epub',
+          fileSize: 1200,
+        },
+      },
+      [],
+    );
+
+    expect(article.ebook).toEqual({
+      metadata: {
+        format: 'epub',
+        fileName: 'book.epub',
+        fileSize: 1200,
+      },
+    });
   });
 
   it('builds child rows for multiple annotations and comments', () => {

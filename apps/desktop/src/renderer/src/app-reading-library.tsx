@@ -4,6 +4,7 @@ import type {
   Annotation,
   ArticleReadingProgress,
   ArticleRecord,
+  ArticleSummaryRecord,
   MessageSendShortcut,
   SelectionActionShortcuts,
   UserProfile,
@@ -46,7 +47,7 @@ export function ReadingLibrary({
   onUpdateArticle,
 }: {
   agents: Agent[];
-  articles: ArticleRecord[];
+  articles: ArticleSummaryRecord[];
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleId?: string | null;
@@ -78,7 +79,7 @@ export function ReadingLibrary({
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
   const [librarySource, setLibrarySource] = useState<LibrarySource>('web');
   const articleLoadRef = useRef(0);
-  const sortedArticles = useMemo<ArticleRecord[]>(() => sortArticles(articles), [articles]);
+  const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -109,6 +110,17 @@ export function ReadingLibrary({
   }, [openArticleId, onArticleOpened, sortedArticles]);
 
   useEffect(() => {
+    if (!selectedArticle || selectedArticle.sourceType !== 'pdf') return;
+    let cancelled = false;
+    void onReadArticle(selectedArticle.id).then((fullArticle) => {
+      if (!cancelled && fullArticle) setSelectedArticle(fullArticle);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [onReadArticle, selectedArticle?.id, selectedArticle?.sourceType]);
+
+  useEffect(() => {
     onReadingModeChange?.(Boolean(selectedArticle && activeShelf === 'source'));
     return () => onReadingModeChange?.(false);
   }, [activeShelf, onReadingModeChange, selectedArticle]);
@@ -121,7 +133,7 @@ export function ReadingLibrary({
     }
   }
 
-  async function openArticle(article: ArticleRecord) {
+  async function openArticle(article: ArticleSummaryRecord) {
     const loadId = articleLoadRef.current + 1;
     articleLoadRef.current = loadId;
     setLibrarySource(librarySourceForArticle(article));
@@ -225,9 +237,12 @@ export function ReadingLibrary({
   );
 }
 
-function articleHasReadableBody(article: ArticleRecord) {
+function articleHasReadableBody(
+  article: ArticleRecord | ArticleSummaryRecord,
+): article is ArticleRecord {
   if ((article.annotationCount ?? 0) > article.annotations.length) return false;
-  if (article.sourceType === 'ebook') return Boolean(article.ebook?.chapters.length);
-  if (article.sourceType === 'pdf') return Boolean(article.pdf);
-  return Boolean(article.contentHtml);
+  if (article.sourceType === 'ebook')
+    return Boolean(article.ebook && 'chapters' in article.ebook && article.ebook.chapters.length);
+  if (article.sourceType === 'pdf') return false;
+  return Boolean('contentHtml' in article && article.contentHtml);
 }

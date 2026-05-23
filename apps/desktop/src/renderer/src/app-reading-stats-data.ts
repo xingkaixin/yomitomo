@@ -1,4 +1,4 @@
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
   computeReadingStats,
@@ -35,9 +35,9 @@ export type ReadingStatsViewData = {
   insights: ReadingInsight[];
 };
 
-const statsViewDataCache = new WeakMap<ArticleRecord[], ReadingStatsViewData>();
+const statsViewDataCache = new WeakMap<ArticleSummaryRecord[], ReadingStatsViewData>();
 
-export function getReadingStatsViewData(articles: ArticleRecord[]): ReadingStatsViewData {
+export function getReadingStatsViewData(articles: ArticleSummaryRecord[]): ReadingStatsViewData {
   const cached = statsViewDataCache.get(articles);
   if (cached) return cached;
 
@@ -76,7 +76,7 @@ export function getReadingStatsViewData(articles: ArticleRecord[]): ReadingStats
   return data;
 }
 
-export function preloadReadingStatsFirstPaintData(articles: ArticleRecord[]) {
+export function preloadReadingStatsFirstPaintData(articles: ArticleSummaryRecord[]) {
   getReadingStatsViewData(articles);
 }
 
@@ -198,7 +198,7 @@ function activityStampStatus(
   return 'empty';
 }
 
-function firstActivityDate(articles: ArticleRecord[]) {
+function firstActivityDate(articles: ArticleSummaryRecord[]) {
   let first = '';
   const visit = (value: string | undefined) => {
     const date = localDateKey(value);

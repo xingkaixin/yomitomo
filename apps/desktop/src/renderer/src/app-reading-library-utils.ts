@@ -1,4 +1,4 @@
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
@@ -21,7 +21,7 @@ export const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> 
   { value: 'discussions', label: '讨论最多' },
 ];
 
-export function articleMatchesLibrarySearch(article: ArticleRecord, query: string) {
+export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN');
   if (!normalizedQuery) return true;
 
@@ -42,12 +42,12 @@ export function articleMatchesLibrarySearch(article: ArticleRecord, query: strin
     .includes(normalizedQuery);
 }
 
-export function librarySourceForArticle(article: ArticleRecord): LibrarySource {
+export function librarySourceForArticle(article: ArticleSummaryRecord): LibrarySource {
   if (article.sourceType === 'ebook' || article.sourceType === 'pdf') return article.sourceType;
   return 'web';
 }
 
-export function articleMatchesLibraryFilter(article: ArticleRecord, filter: LibraryFilter) {
+export function articleMatchesLibraryFilter(article: ArticleSummaryRecord, filter: LibraryFilter) {
   const status = libraryArticleStatus(article);
   if (filter === 'new') return status.tone === 'new';
   if (filter === 'progress') return status.tone === 'progress';
@@ -55,7 +55,7 @@ export function articleMatchesLibraryFilter(article: ArticleRecord, filter: Libr
   return true;
 }
 
-export function articleSiteIconUrl(article: ArticleRecord) {
+export function articleSiteIconUrl(article: ArticleSummaryRecord) {
   const iconUrl = safeLibraryImageUrl(article.siteIconUrl);
   if (iconUrl) return withFaviconThrowErrorParam(iconUrl);
 
@@ -63,7 +63,7 @@ export function articleSiteIconUrl(article: ArticleRecord) {
   return host ? faviconServiceUrl(host) : '';
 }
 
-function articleHost(article: ArticleRecord) {
+function articleHost(article: ArticleSummaryRecord) {
   try {
     const url = new URL(article.canonicalUrl || article.url);
     return url.hostname.replace(/^www\./, '');
@@ -101,8 +101,8 @@ function withFaviconThrowErrorParam(value: string) {
 }
 
 export function compareLibraryArticles(
-  left: ArticleRecord,
-  right: ArticleRecord,
+  left: ArticleSummaryRecord,
+  right: ArticleSummaryRecord,
   sort: LibrarySort,
 ) {
   if (sort === 'recentAdded') {
@@ -136,8 +136,8 @@ export function compareLibraryArticles(
   );
 }
 
-export function groupLibraryArticles(articles: ArticleRecord[], sort: LibrarySort) {
-  const groups = new Map<string, ArticleRecord[]>();
+export function groupLibraryArticles(articles: ArticleSummaryRecord[], sort: LibrarySort) {
+  const groups = new Map<string, ArticleSummaryRecord[]>();
   for (const article of articles) {
     const label = libraryArticleGroupLabel(article, sort);
     groups.set(label, [...(groups.get(label) || []), article]);
@@ -145,7 +145,7 @@ export function groupLibraryArticles(articles: ArticleRecord[], sort: LibrarySor
   return Array.from(groups, ([label, groupArticles]) => ({ label, articles: groupArticles }));
 }
 
-function libraryArticleGroupLabel(article: ArticleRecord, sort: LibrarySort) {
+function libraryArticleGroupLabel(article: ArticleSummaryRecord, sort: LibrarySort) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations')
     return formatLibraryCountGroup(articleAnnotationCount(article), '批注');
@@ -158,17 +158,17 @@ function formatLibraryCountGroup(count: number, unit: '批注' | '讨论') {
   return `${count} 条${unit}`;
 }
 
-export function libraryArticleStatus(article: ArticleRecord) {
+export function libraryArticleStatus(article: ArticleSummaryRecord) {
   if (articleAnnotationCount(article) === 0) return { label: '新收录', tone: 'new' };
   if ((article.readingProgress?.progress ?? 0) >= 0.98) return { label: '已读完', tone: 'done' };
   return { label: '进行中', tone: 'progress' };
 }
 
-export function articleAnnotationCount(article: ArticleRecord) {
+export function articleAnnotationCount(article: ArticleSummaryRecord) {
   return article.annotationCount ?? article.annotations.length;
 }
 
-export function articleThoughtCount(article: ArticleRecord) {
+export function articleThoughtCount(article: ArticleSummaryRecord) {
   return (
     article.commentCount ??
     article.annotations.reduce(
@@ -179,7 +179,7 @@ export function articleThoughtCount(article: ArticleRecord) {
   );
 }
 
-export function articleReadingMinutes(article: ArticleRecord) {
+export function articleReadingMinutes(article: ArticleSummaryRecord) {
   const text =
     (typeof document === 'undefined' ? article.excerpt : articlePlainText(article)) ||
     article.title;
