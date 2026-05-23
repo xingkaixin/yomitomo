@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Yomitomo abstract animated logo</title>
+  <desc id="desc">A restrained animated SVG using only the Yomitomo logo elements: two reading companions, an open book, flowing reading lines, and a quiet center pulse.</desc>
+  <defs>
+    <radialGradient id="paperGlow" cx="50%" cy="42%" r="72%">
+      <stop offset="0%" stop-color="#fff9ee"/>
+      <stop offset="64%" stop-color="#f8ead5"/>
+      <stop offset="100%" stop-color="#ecd7b6"/>
+    </radialGradient>
+    <linearGradient id="blackInk" x1="18%" y1="18%" x2="82%" y2="82%">
+      <stop offset="0%" stop-color="#282a2a"/>
+      <stop offset="100%" stop-color="#101111"/>
+    </linearGradient>
+    <linearGradient id="redInk" x1="18%" y1="18%" x2="82%" y2="82%">
+      <stop offset="0%" stop-color="#ef4635"/>
+      <stop offset="100%" stop-color="#c82119"/>
+    </linearGradient>
+    <filter id="softShadow" x="-25%" y="-30%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="22" stdDeviation="20" flood-color="#2f2217" flood-opacity=".18"/>
+    </filter>
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <clipPath id="leftPageClip">
+      <path d="M174 590 C265 546 435 551 619 618 L619 724 C500 675 326 670 174 716 Z"/>
+    </clipPath>
+    <clipPath id="rightPageClip">
+      <path d="M780 618 C964 551 1134 546 1226 590 L1226 716 C1074 670 900 675 780 724 Z"/>
+    </clipPath>
+
+    <style>
+      :root { color-scheme: light; }
+      .logo { transform-origin: 700px 540px; animation: breathe 6.4s ease-in-out infinite; }
+      .left { transform-origin: 620px 655px; animation: leftSettle 6.4s ease-in-out infinite; }
+      .right { transform-origin: 780px 655px; animation: rightSettle 6.4s ease-in-out infinite; }
+      .head { transform-origin: center; animation: nod 6.4s ease-in-out infinite; }
+      .right .head { animation-delay: .18s; }
+      .pageWhite { animation: pageLight 6.4s ease-in-out infinite; }
+      .line { fill: none; stroke-width: 12; stroke-linecap: round; stroke-dasharray: 360; stroke-dashoffset: 360; animation: writeLine 6.4s ease-in-out infinite; }
+      .line.l2 { animation-delay: .12s; }
+      .line.l3 { animation-delay: .24s; }
+      .line.l4 { animation-delay: .36s; }
+      .centerBridge { fill: none; stroke: #d52a20; stroke-width: 12; stroke-linecap: round; stroke-dasharray: 240; stroke-dashoffset: 240; animation: bridge 6.4s ease-in-out infinite; }
+      .spine { transform-origin: 700px 686px; animation: spinePulse 6.4s ease-in-out infinite; }
+      .glow { opacity: 0; transform-origin: 700px 642px; animation: glowPulse 6.4s ease-in-out infinite; }
+      .baseline { transform-origin: 700px 724px; animation: baseWave 6.4s ease-in-out infinite; }
+
+      @keyframes breathe {
+        0%,100% { transform: translateY(0) scale(1); }
+        45% { transform: translateY(-10px) scale(1.012); }
+        72% { transform: translateY(2px) scale(.997); }
+      }
+      @keyframes leftSettle {
+        0%,100% { transform: translateX(0) rotate(0deg); }
+        18% { transform: translateX(-22px) rotate(-1.2deg); }
+        42% { transform: translateX(6px) rotate(.3deg); }
+        62% { transform: translateX(0) rotate(0deg); }
+      }
+      @keyframes rightSettle {
+        0%,100% { transform: translateX(0) rotate(0deg); }
+        18% { transform: translateX(22px) rotate(1.2deg); }
+        42% { transform: translateX(-6px) rotate(-.3deg); }
+        62% { transform: translateX(0) rotate(0deg); }
+      }
+      @keyframes nod {
+        0%,100% { transform: translateY(0) scale(1); }
+        25% { transform: translateY(-8px) scale(1.02); }
+        55% { transform: translateY(2px) scale(.995); }
+      }
+      @keyframes writeLine {
+        0%,12% { stroke-dashoffset: 360; opacity: .25; }
+        34%,70% { stroke-dashoffset: 0; opacity: 1; }
+        88%,100% { stroke-dashoffset: -360; opacity: .22; }
+      }
+      @keyframes bridge {
+        0%,20% { stroke-dashoffset: 240; opacity: 0; }
+        38%,66% { stroke-dashoffset: 0; opacity: 1; }
+        86%,100% { stroke-dashoffset: -240; opacity: 0; }
+      }
+      @keyframes spinePulse {
+        0%,100% { transform: scaleY(1); opacity: 1; }
+        42% { transform: scaleY(1.08); opacity: .72; }
+        62% { transform: scaleY(.96); opacity: .95; }
+      }
+      @keyframes glowPulse {
+        0%,22%,100% { opacity: 0; transform: scale(.86); }
+        42%,64% { opacity: .28; transform: scale(1.18); }
+      }
+      @keyframes pageLight {
+        0%,100% { opacity: 1; }
+        45% { opacity: .94; }
+      }
+      @keyframes baseWave {
+        0%,100% { transform: translateY(0) scaleX(1); }
+        48% { transform: translateY(-4px) scaleX(1.015); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .logo,.left,.right,.head,.line,.centerBridge,.spine,.glow,.baseline,.pageWhite { animation: none !important; }
+        .line,.centerBridge { stroke-dashoffset: 0; opacity: 1; }
+      }
+    </style>
+  </defs>
+
+  <rect width="1400" height="900" rx="44" fill="url(#paperGlow)"/>
+
+  <g class="logo" filter="url(#softShadow)">
+    <ellipse class="glow" cx="700" cy="642" rx="154" ry="54" fill="#d72d21" filter="url(#softGlow)"/>
+
+    <g class="left">
+      <path d="M174 716 V592 C220 568 276 554 344 552 C474 548 570 587 619 618 V724 C500 676 327 671 174 716 Z" fill="url(#blackInk)"/>
+      <path d="M173 592 C182 489 275 453 369 455 C485 458 568 524 618 618 C499 556 318 532 173 592 Z" fill="url(#blackInk)"/>
+      <circle class="head" cx="432" cy="320" r="84" fill="url(#blackInk)"/>
+      <path class="pageWhite" d="M174 590 C265 546 435 551 619 618 L619 724 C500 675 326 670 174 716 Z" fill="#fff8ec"/>
+      <g clip-path="url(#leftPageClip)">
+        <path class="line l1" d="M270 592 C335 588 405 596 489 622" stroke="#151718"/>
+        <path class="line l2" d="M270 638 C360 631 454 649 542 680" stroke="#151718"/>
+        <path class="line l3" d="M270 684 C382 676 493 699 572 729" stroke="#151718"/>
+        <path class="line l4" d="M270 731 C302 728 334 729 363 733" stroke="#151718"/>
+      </g>
+    </g>
+
+    <g class="right">
+      <path d="M780 724 V618 C830 587 926 548 1056 552 C1124 554 1180 568 1226 592 V716 C1073 671 900 676 780 724 Z" fill="url(#redInk)"/>
+      <path d="M781 618 C831 524 914 458 1030 455 C1124 453 1217 489 1226 592 C1081 532 901 556 781 618 Z" fill="url(#redInk)"/>
+      <circle class="head" cx="968" cy="326" r="84" fill="url(#redInk)"/>
+      <path class="pageWhite" d="M780 618 C964 551 1134 546 1226 590 L1226 716 C1074 670 900 675 780 724 Z" fill="#fff8ec"/>
+      <g clip-path="url(#rightPageClip)">
+        <path class="line l1" d="M870 622 C955 596 1025 588 1090 592" stroke="#d72d21"/>
+        <path class="line l2" d="M818 680 C906 649 1000 631 1090 638" stroke="#d72d21"/>
+        <path class="line l3" d="M788 729 C867 699 978 676 1090 684" stroke="#d72d21"/>
+        <path class="line l4" d="M1037 733 C1066 729 1098 728 1130 731" stroke="#d72d21"/>
+      </g>
+    </g>
+
+    <g class="baseline">
+      <path d="M174 716 C326 670 500 675 619 724" fill="none" stroke="#151718" stroke-width="28" stroke-linecap="round" opacity=".98"/>
+      <path d="M780 724 C900 675 1074 670 1226 716" fill="none" stroke="#d72d21" stroke-width="28" stroke-linecap="round" opacity=".98"/>
+    </g>
+
+    <path class="spine" d="M700 635 V736" stroke="#151718" stroke-width="18" stroke-linecap="round"/>
+    <path d="M622 724 C633 704 646 696 664 696 H736 C754 696 767 704 778 724" fill="#fff8ec"/>
+    <path class="centerBridge" d="M585 621 C638 653 722 653 775 621"/>
+  </g>
+</svg>
