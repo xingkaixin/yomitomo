@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   agentPersonalities,
   agentReadingIntentDisplayLabel,
+  createPdfTextAnchor,
   createTextAnchor,
   defaultSelectionActionShortcuts,
   normalizeSelectionActionShortcutDraft,
@@ -9,6 +10,7 @@ import {
   providerPresets,
   renderMarkdown,
   resolveTextAnchor,
+  isPdfTextAnchor,
   selectionActionShortcutsConflict,
 } from './index';
 
@@ -34,6 +36,28 @@ describe('shared text anchors', () => {
       start: rendered.indexOf('target'),
       end: rendered.indexOf(' omega'),
     });
+  });
+
+  it('creates PDF text anchors with page-local geometry', () => {
+    const anchor = createPdfTextAnchor({
+      pageText: 'alpha target omega',
+      pageIndex: 2,
+      start: 6,
+      end: 12,
+      pageWidth: 600,
+      pageHeight: 800,
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    });
+
+    expect(isPdfTextAnchor(anchor)).toBe(true);
+    expect(anchor).toMatchObject({
+      kind: 'pdf-text',
+      exact: 'target',
+      pageIndex: 2,
+      pageWidth: 600,
+      pageHeight: 800,
+    });
+    expect(anchor.rects).toHaveLength(1);
   });
 });
 

@@ -157,6 +157,21 @@ export type TextAnchor = {
   quoteHash?: string;
 };
 
+export type PdfRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type PdfTextAnchor = TextAnchor & {
+  kind: 'pdf-text';
+  pageIndex: number;
+  pageWidth: number;
+  pageHeight: number;
+  rects: PdfRect[];
+};
+
 export type Comment = {
   id: string;
   author: AnnotationAuthor;
