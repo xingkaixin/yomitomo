@@ -92,6 +92,10 @@ pnpm test
 pnpm build
 ```
 
+推送 PR 分支前必须至少运行 `pnpm format:check`。如果本次改动会触发完整 CI，
+优先在推送前同时运行 `pnpm lint`、`pnpm format:check`、`pnpm typecheck`
+和相关测试，避免把可本地发现的格式问题推到 CI。
+
 ## 开发注意事项
 
 - 新共享类型、provider preset、agent preset、ID/哈希工具、文本锚定和协议类型放在 `packages/shared/src`，再从 `packages/shared/src/index.ts` 导出。

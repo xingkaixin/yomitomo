@@ -653,7 +653,6 @@ function renderAgentSettings({
 }
 
 describe('AgentSettings', () => {
-
   it('toggles configured preset agents', () => {
     const onToggle = vi.fn();
     renderAgentSettings({ onToggle });
