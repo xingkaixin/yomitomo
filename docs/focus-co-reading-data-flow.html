@@ -637,6 +637,7 @@ body {
     <button class="nav-btn" data-target="sec-messages">章节留言</button>
     <button class="nav-btn" data-target="sec-plan2exec">计划→执行</button>
     <button class="nav-btn" data-target="sec-exec">执行共读</button>
+    <button class="nav-btn" data-target="sec-theater">演出链路</button>
     <button class="nav-btn" data-target="sec-merge">划线合并</button>
     <button class="nav-btn" data-target="sec-prompt">Prompt 设计</button>
     <button class="nav-btn" data-target="sec-ipc">IPC/存储</button>
@@ -992,9 +993,92 @@ body {
   </div>
 </div>
 
+<!-- 助手演出链路 -->
+<div class="section" id="sec-theater">
+  <div class="section-label">08 · Assistant Theater</div>
+  <h2>助手演出链路</h2>
+  <p class="section-desc">执行共读时有两条并行链路：AI 生成和保存链路负责产出 Annotation，前端演出链路负责展示助手正在读、移动到落点和完成收尾。演出状态不写入 ArticleRecord。</p>
+
+  <div class="type-grid">
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-teal)"></span>dock 栏状态机</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">activate</span><span class="field-desc"><code>activateAgentDock(agent)</code> 进入 active</span></div>
+        <div class="field"><span class="field-name">done</span><span class="field-desc"><code>markAgentDockDone(agentId)</code> 单个助手完成</span></div>
+        <div class="field"><span class="field-name">complete</span><span class="field-desc"><code>completeAgentDock(celebrate)</code> 全部结束后收尾</span></div>
+        <div class="field"><span class="field-name">burst</span><span class="field-desc">成功时递增 completionBurstKey，显示完成 burst</span></div>
+        <div class="field"><span class="field-name">clear</span><span class="field-desc"><code>clearAgentDock()</code> 取消、卸载或清理时清空</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-purple)"></span>虚拟鼠标状态机</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">start</span><span class="field-desc">根据 reading plan、target anchor 或阅读容器生成坐标</span></div>
+        <div class="field"><span class="field-name">update</span><span class="field-desc">写入内存 map，ReaderAppView 渲染 VirtualCursor</span></div>
+        <div class="field"><span class="field-name">finish</span><span class="field-desc">停止 timer，更新离场 label，延迟移除 cursor</span></div>
+        <div class="field"><span class="field-name">offscreen</span><span class="field-desc">目标在视口外时显示上方/下方提示</span></div>
+        <div class="field"><span class="field-name">cleanup</span><span class="field-desc">清理 interval/timeout、cursor、dock、失败标记</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <h3><span class="dot" style="background:var(--accent-orange)"></span>agentTheaterBoxes</h3>
+      <div class="field-list">
+        <div class="field"><span class="field-name">定位</span><span class="field-desc">从 DOM Range、Foliate range 或 PDF anchor geometry 生成</span></div>
+        <div class="field"><span class="field-name">用途</span><span class="field-desc">播放过程中展示临时高亮</span></div>
+        <div class="field"><span class="field-name">保存</span><span class="field-desc">不保存；最终高亮来自 Annotation.anchor</span></div>
+        <div class="field"><span class="field-name">fallback</span><span class="field-desc">不可见或无法定位时直接保存，或展示 dock-only / 边缘提示</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-grid" style="margin-top:16px;">
+    <div class="flow-container">
+      <div class="flow-title"><span>🌐</span> 网页文章</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">startVirtualReading(agent, readingPlan, mode)</code> 创建 VirtualReadingSession，根据 section offset 持续更新 cursor。<code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">careful</code> 和 <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">target</code> 模式显示 dock；播放队列空闲后 <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">finishVirtualReadingIfIdle()</code> 触发离场。
+      </div>
+    </div>
+    <div class="flow-container">
+      <div class="flow-title"><span>📖</span> EPUB</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">startEbookPlayback()</code> 启动 dock；目标选区模式才启动虚拟阅读。Foliate anchor 可定位时跟随选区，不可定位时 fallback 到阅读容器顶部区域。<code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">cleanupAgentTheater()</code> 清理 timers、cursor、dock 和临时高亮。
+      </div>
+    </div>
+    <div class="flow-container">
+      <div class="flow-title"><span>📄</span> PDFium</div>
+      <div style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+        PDFium 当前支持单次助手批注的 dock、虚拟鼠标和临时高亮演出，但 <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg-code);padding:1px 5px;border-radius:3px;color:var(--accent-teal);">onStartAgentReadingPlan</code> 仍是空实现，尚未接通聚焦共读入口。定位优先使用 PDF text anchor 和页面 metrics，失败时 fallback 到画布顶部。
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline-card" style="margin-top:16px;">
+    <div class="pipeline-header">
+      <div class="pipeline-icon" style="background:var(--accent-purple-light);color:var(--accent-purple);">🎬</div>
+      <h3>播放与保存边界</h3>
+    </div>
+    <div class="pipeline-body">
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">1</div>
+        <div class="step-text">AI 输出通过章节范围验证后进入播放队列；当前文章播放，后台文章直接保存。</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">2</div>
+        <div class="step-text">播放层尝试定位锚点，移动虚拟鼠标并展示 <code>agentTheaterBoxes</code>；不可见内容使用边缘提示、容器 fallback 或直接保存。</div>
+      </div>
+      <div class="step-connector"><div class="vline"></div></div>
+      <div class="step-row">
+        <div class="step-num" style="background:var(--accent-purple-light);color:var(--accent-purple);">3</div>
+        <div class="step-text">最终保存仍调用 <code>mergeAgentAnnotationAsThought()</code> / <code>appendAgentAnnotationToArticle()</code>，不依赖演出状态。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 划线合并 -->
 <div class="section" id="sec-merge">
-  <div class="section-label">08 · Merge Logic</div>
+  <div class="section-label">09 · Merge Logic</div>
   <h2>相同划线合并为新想法</h2>
   <p class="section-desc">同一段划线文本上的多个 AI 输出不会创建重复批注卡片，而是合并为已有批注下的新顶层想法。</p>
 
@@ -1024,7 +1108,7 @@ body {
 
 <!-- Prompt 设计 -->
 <div class="section" id="sec-prompt">
-  <div class="section-label">09 · Prompt Design</div>
+  <div class="section-label">10 · Prompt Design</div>
   <h2>Prompt 设计</h2>
   <p class="section-desc">计划阶段和执行阶段使用不同的 prompt 策略。</p>
 
@@ -1093,7 +1177,7 @@ body {
 
 <!-- IPC/存储 -->
 <div class="section" id="sec-ipc">
-  <div class="section-label">10 · IPC & Storage</div>
+  <div class="section-label">11 · IPC & Storage</div>
   <h2>存储与 API</h2>
   <p class="section-desc">聚焦共读涉及的 IPC channel 和持久化位置。</p>
   <div class="ipc-table-wrap">
@@ -1116,7 +1200,7 @@ body {
 
 <!-- 接入清单 -->
 <div class="section" id="sec-checklist">
-  <div class="section-label">11 · Integration Checklist</div>
+  <div class="section-label">12 · Integration Checklist</div>
   <h2>新阅读器接入清单</h2>
   <p class="section-desc">接入聚焦共读功能时需要满足的全部要求。</p>
   <div class="checklist-grid">
@@ -1129,6 +1213,11 @@ body {
     <div class="check-item"><div class="check-num">7</div><div class="check-text">AI 输出经过 <code>constrainAgentPlanAnnotation()</code> 验证章节范围</div></div>
     <div class="check-item"><div class="check-num">8</div><div class="check-text">保存时经过 <code>mergeAgentAnnotationAsThought()</code> 确保相同划线合并</div></div>
     <div class="check-item"><div class="check-num">9</div><div class="check-text">长文/电子书提供 index、segment、paragraph 信息，否则无法使用 segment 上下文和 readingMemory</div></div>
+    <div class="check-item"><div class="check-num">10</div><div class="check-text">支持共读演出时，把 <code>Annotation.anchor</code> 或目标选区映射为 viewport 坐标</div></div>
+    <div class="check-item"><div class="check-num">11</div><div class="check-text">锚点不可见或无法定位时提供稳定 fallback，例如容器顶部、上下边缘提示或 dock-only 演出</div></div>
+    <div class="check-item"><div class="check-num">12</div><div class="check-text">播放队列开始、单个助手完成、全部助手完成和失败取消时调用对应 dock 状态方法</div></div>
+    <div class="check-item"><div class="check-num">13</div><div class="check-text">卸载、文章切换和播放取消时清理 interval/timeout、虚拟光标、<code>agentTheaterBoxes</code>、dock 状态和 active id 记录</div></div>
+    <div class="check-item"><div class="check-num">14</div><div class="check-text">不要把演出状态作为保存成功依据；最终事实仍是 <code>ArticleRecord.annotations</code></div></div>
   </div>
 </div>
 

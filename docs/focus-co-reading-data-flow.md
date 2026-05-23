@@ -369,6 +369,80 @@ EPUB route 不读取整章正文，而是用目录、章节长度、章节 previ
 - 找不到对应章节则丢弃。
 - 如果章节有 `readingIntent`，覆盖 annotation 和 comment 的 `readingIntent`。
 
+## 助手演出链路
+
+执行共读时有两条并行链路：AI 生成和保存链路负责产出 `Annotation`，
+前端演出链路负责让读者看到助手正在读、移动到落点和完成收尾。演出状态只存在于
+阅读器内存中，不写入 `ArticleRecord`，也不参与 `mergeAgentAnnotationAsThought()`
+的事实判断。
+
+### dock 栏状态机
+
+共享 hook：`packages/reader-ui/src/use-agent-reading-dock.ts`
+
+状态对象是 `AgentDockItem`，只包含助手和 `active` / `done` 两种状态：
+
+1. `activateAgentDock(agent)`：助手进入 dock，并标记为 `active`。
+2. `markAgentDockDone(agentId)`：单个助手完成，状态改为 `done`。
+3. `completeAgentDock(celebrate)`：所有 active 助手结束后进入收尾；`celebrate`
+   为 true 时递增 `completionBurstKey`，`AgentReadingDock` 渲染完成 burst。
+4. `clearAgentDock()`：取消、卸载、文章切换或清理时立即清空 dock 和完成 timer。
+
+网页阅读器通过 `useAgentVirtualReading()` 只在 `careful` 和 `target` 模式显示 dock。
+EPUB 和 PDFium 使用各自的 active id set 统计进行中的助手，最后一个助手结束后
+根据是否发生失败决定 `completeAgentDock(true | false)`。失败收尾仍会清空 dock，
+但不会播放成功 burst。
+
+### 虚拟鼠标状态机
+
+状态对象是 `VirtualCursorState`，包含 cursor id、viewport 坐标、label、
+`offscreen` 和 `leaving`。阅读器宿主把数组传给 `ReaderAppView`，由
+`VirtualCursor` 渲染。
+
+网页文章：
+
+- `startVirtualReading(agent, readingPlan, mode)` 创建 `VirtualReadingSession`，
+  根据 reading plan section 或正文起点生成 offset，并用 interval 持续调用
+  `cursorPositionFromOffset()`。
+- `updateVirtualCursor(id, cursor)` 写入内存 map，触发 `VirtualCursor` 重新渲染。
+- `markVirtualReadingDone(agentId)` 只标记 AI 请求已完成；如果播放队列仍有同助手
+  annotation，会等 `finishVirtualReadingIfIdle()` 再离场。
+- `finishVirtualReading(agentId, suffix)` 停止 interval，更新离场 label，900ms 后移除 cursor。
+- `cleanupVirtualReadingSessions()` 清理全部 interval、cursor、dock 和失败标记。
+
+EPUB：
+
+- `startVirtualReading(agent, anchor)` 只在目标选区模式启动虚拟阅读；普通聚焦共读
+  主要通过 dock 表达进行中状态。
+- `readingCursorForAnchor()` 优先用 Foliate 文档中的 anchor range 计算坐标；不可定位时
+  fallback 到阅读容器顶部区域。
+- `finishVirtualReading()` 停止 timer，显示“想法已添加 / 没有新想法 / 想法添加失败”
+  等离场文案，再延迟移除 cursor。
+- `cleanupAgentTheater()` 清理 timers、cursor、dock、active id、失败标记和临时高亮。
+
+PDFium：
+
+- 当前 PDFium 阅读器支持单次助手批注的 dock、虚拟鼠标和临时高亮演出，但
+  `onStartAgentReadingPlan` 仍是空实现，尚未接通聚焦共读执行入口。
+- `startPdfiumVirtualReading()` 优先根据 PDF text anchor 和页面 metrics 计算坐标；
+  无法定位时 fallback 到画布顶部区域。
+- `finishPdfiumVirtualReading()` 停止 interval，显示离场 label，900ms 后移除 cursor。
+- `clearAgentAnnotationPlayback()` 清理 timeout、interval、cursor、dock、active id
+  和 `agentTheaterBoxes`。
+
+### 临时高亮与不可见 fallback
+
+`agentTheaterBoxes` 是播放过程中的临时高亮，不是最终批注高亮：
+
+- 网页通过 `rangeHighlightBoxes()` 从 DOM `Range` 生成 theater boxes。
+- EPUB 通过 Foliate 当前文档定位 anchor；可见时播放临时高亮，不可见或无法定位时
+  会尝试跳转，仍失败则直接保存。
+- PDFium 通过 PDF anchor geometry 生成 theater boxes；缺少可播放 box 时保存批注并结束虚拟鼠标。
+
+网页文章如果落点在可滚动区域外，会把 cursor 放在上方或下方边缘，label 显示
+“正在上方/下方添加想法”，短暂停留后直接保存并打开对应批注。后台文章写入不会播放，
+直接调用保存合并链路。
+
 ## 网页与 EPUB 执行差异
 
 网页文章：
@@ -549,6 +623,11 @@ prompt 位置：`packages/ai/src/reading-memory.ts`
 7. 执行 AI 输出后必须经过 `constrainAgentPlanAnnotation()`，避免跨章节落锚。
 8. 保存 AI 输出时必须经过 `mergeAgentAnnotationAsThought()`，保证相同划线合并为新想法。
 9. 长文或电子书应提供 index、segment、paragraph 信息，否则无法使用 segment-level 上下文和 reading memory。
+10. 如果支持共读演出，必须能把 `Annotation.anchor` 或目标选区映射为 viewport 坐标。
+11. 锚点不可见或无法定位时必须有稳定 fallback，例如阅读容器顶部区域、上下边缘提示或 dock-only 演出。
+12. 播放队列开始、单个助手完成、全部助手完成和失败取消时，需要调用对应 dock 状态方法。
+13. 卸载、文章切换和播放取消时，必须清理 interval/timeout、虚拟光标、`agentTheaterBoxes`、dock 状态和 active id 记录。
+14. 不要把演出状态作为保存成功的事实来源；最终事实仍是 `ArticleRecord.annotations`。
 
 ## 调试建议
 
