@@ -13,7 +13,6 @@ import {
   makeId,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
-  resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
@@ -72,15 +71,12 @@ import {
   normalizeDesktopReaderSettings,
   planSelectionMentionRoute,
   promptArticle,
-  publicAnnotationAgents,
-  publicReviewAgents,
   readDesktopReaderSettings,
   routeFocusReadingPlanMessages,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type EbookBookcaseProps,
 } from './app-source-bookcase-shared';
-import { useSourceAnnotations } from './use-source-annotations';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
@@ -88,36 +84,12 @@ import { useEbookSelection } from './use-ebook-selection';
 import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
-import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from './app-article-book';
-
-function constrainAgentPlanAnnotation(
-  annotation: Annotation,
-  readingPlan: AgentReadingPlanItem[] | undefined,
-  articleText: string,
-) {
-  if (!readingPlan?.length) return annotation;
-
-  const position = resolveTextAnchor(articleText, annotation.anchor);
-  if (!position) return null;
-
-  const planItem = readingPlan.find(
-    (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
-  );
-  if (!planItem) return null;
-  if (!planItem.readingIntent) return annotation;
-  if (annotation.readingIntent === planItem.readingIntent) return annotation;
-
-  return {
-    ...annotation,
-    readingIntent: planItem.readingIntent,
-    comments: annotation.comments.map((comment) => ({
-      ...comment,
-      readingIntent: comment.readingIntent || planItem.readingIntent,
-    })),
-  };
-}
+import {
+  constrainSourceAgentPlanAnnotation,
+  useSourceReaderSession,
+} from './use-source-reader-session';
 
 export function EbookBookcase({
   agents,
@@ -159,38 +131,33 @@ export function EbookBookcase({
   const cleanupFoliateDocumentListenersBridge = useCallback(() => {
     cleanupFoliateDocumentListenersRef.current();
   }, []);
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
-  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
-  const {
-    pendingAnnotationAgents,
-    addPendingAnnotationAgent,
-    removePendingAnnotationAgent,
-    clearPendingAnnotationAgents,
-    clearAllPendingAnnotationAgents,
-  } = usePendingAnnotationAgents();
   const {
     addComment,
     annotations,
     annotationsRef,
+    annotationAgents,
     applyAnnotations,
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
+    pendingAnnotationAgents,
+    addPendingAnnotationAgent,
+    removePendingAnnotationAgent,
     replaceAnnotations,
+    reviewAgents,
     saveAnnotations,
-  } = useSourceAnnotations({
-    annotationAgents,
+  } = useSourceReaderSession({
+    agents,
     annotations: articleAnnotations,
     article,
+    clearPendingOnArticleChange: true,
+    clearPendingOnDeleteAnnotation: true,
     ignoreStaleArticleUpdates: true,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
-      clearPendingAnnotationAgents(annotationId);
     },
-    onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
-      for (const agent of mentionedAgents) {
-        void requestAgentComment(agent, annotation, comment);
-      }
+    onAgentCommentMentioned: (agent, annotation, comment) => {
+      void requestAgentComment(agent, annotation, comment);
     },
     onAnnotationsApplied: ({ previousAnnotations, nextAnnotations }) => {
       const previousHighlightSignature = ebookHighlightAnnotationsSignature(
@@ -231,10 +198,6 @@ export function EbookBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
-
-  useEffect(() => {
-    clearAllPendingAnnotationAgents();
-  }, [article.id, clearAllPendingAnnotationAgents]);
 
   const {
     temporaryBoxes,
@@ -997,7 +960,7 @@ export function EbookBookcase({
     articleText: string,
     revealMissingRange: boolean,
   ) {
-    const constrainedAnnotation = constrainAgentPlanAnnotation(
+    const constrainedAnnotation = constrainSourceAgentPlanAnnotation(
       annotation,
       readingPlan,
       articleText,

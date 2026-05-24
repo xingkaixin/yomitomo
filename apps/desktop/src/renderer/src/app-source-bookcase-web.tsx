@@ -15,7 +15,6 @@ import {
   makeId,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
-  resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
@@ -71,18 +70,14 @@ import {
   normalizeDesktopReaderSettings,
   planSelectionMentionRoute,
   promptArticle,
-  publicAnnotationAgents,
-  publicReviewAgents,
   readDesktopReaderSettings,
   routeFocusReadingPlanMessages,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type WebSourceBookcaseProps,
 } from './app-source-bookcase-shared';
-import { useSourceAnnotations } from './use-source-annotations';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
-import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
@@ -90,33 +85,10 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-
-function constrainAgentPlanAnnotation(
-  annotation: Annotation,
-  readingPlan: AgentReadingPlanItem[] | undefined,
-  articleText: string,
-) {
-  if (!readingPlan?.length) return annotation;
-
-  const position = resolveTextAnchor(articleText, annotation.anchor);
-  if (!position) return null;
-
-  const planItem = readingPlan.find(
-    (item) => position.start >= item.sectionStart && position.end <= item.sectionEnd,
-  );
-  if (!planItem) return null;
-  if (!planItem.readingIntent) return annotation;
-  if (annotation.readingIntent === planItem.readingIntent) return annotation;
-
-  return {
-    ...annotation,
-    readingIntent: planItem.readingIntent,
-    comments: annotation.comments.map((comment) => ({
-      ...comment,
-      readingIntent: comment.readingIntent || planItem.readingIntent,
-    })),
-  };
-}
+import {
+  constrainSourceAgentPlanAnnotation,
+  useSourceReaderSession,
+} from './use-source-reader-session';
 
 export function WebSourceBookcase({
   agents,
@@ -138,37 +110,32 @@ export function WebSourceBookcase({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
-  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
-  const {
-    pendingAnnotationAgents,
-    addPendingAnnotationAgent,
-    removePendingAnnotationAgent,
-    clearPendingAnnotationAgents,
-    clearAllPendingAnnotationAgents,
-  } = usePendingAnnotationAgents();
   const {
     addComment,
     annotations,
     annotationsRef,
+    annotationAgents,
     applyAnnotations,
     deleteAnnotation,
     deleteComment,
     latestArticleRef,
+    pendingAnnotationAgents,
+    addPendingAnnotationAgent,
+    removePendingAnnotationAgent,
+    reviewAgents,
     saveAnnotations,
-  } = useSourceAnnotations({
-    annotationAgents,
+  } = useSourceReaderSession({
+    agents,
     annotations: articleAnnotations,
     article,
+    clearPendingOnArticleChange: true,
+    clearPendingOnDeleteAnnotation: true,
     ignoreStaleArticleUpdates: true,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
-      clearPendingAnnotationAgents(annotationId);
     },
-    onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
-      for (const agent of mentionedAgents) {
-        void requestAgentComment(agent, annotation, comment);
-      }
+    onAgentCommentMentioned: (agent, annotation, comment) => {
+      void requestAgentComment(agent, annotation, comment);
     },
     onOpenAnnotation: openAnnotation,
     onSaveArticle,
@@ -178,10 +145,6 @@ export function WebSourceBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
-
-  useEffect(() => {
-    clearAllPendingAnnotationAgents();
-  }, [article.id, clearAllPendingAnnotationAgents]);
 
   const {
     temporaryBoxes,
@@ -853,7 +816,7 @@ export function WebSourceBookcase({
     articleScopedWrite: boolean,
     articleText: string,
   ) {
-    const constrainedAnnotation = constrainAgentPlanAnnotation(
+    const constrainedAnnotation = constrainSourceAgentPlanAnnotation(
       annotation,
       readingPlan,
       articleText,

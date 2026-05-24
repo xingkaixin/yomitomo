@@ -94,7 +94,6 @@ import {
   planSelectionMentionRoute,
   promptArticle,
   publicAnnotationAgents,
-  publicReviewAgents,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
   routeFocusReadingPlanMessages,
@@ -107,11 +106,10 @@ import {
 } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
-import { useSourceAnnotations } from './use-source-annotations';
 import { useSourceActiveConnection } from './use-source-active-connection';
-import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
+import { useSourceReaderSession } from './use-source-reader-session';
 import {
   buildPdfTextDocument,
   constrainPdfiumAgentPlanAnnotation,
@@ -538,8 +536,32 @@ function PdfiumDocument({
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
   const zoom = documentState?.scale || 1;
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
-  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
+  const {
+    addComment,
+    annotations,
+    annotationsRef,
+    annotationAgents,
+    applyAnnotations,
+    deleteAnnotation,
+    deleteComment,
+    latestArticleRef,
+    pendingAnnotationAgents,
+    addPendingAnnotationAgent,
+    removePendingAnnotationAgent,
+    reviewAgents,
+    saveAnnotations,
+  } = useSourceReaderSession({
+    agents,
+    annotations: articleAnnotations,
+    article,
+    ignoreStaleArticleUpdates: true,
+    onAgentCommentMentioned: (agent, annotation, comment) => {
+      void requestAgentComment(agent, annotation, comment);
+    },
+    onOpenAnnotation,
+    onSaveArticle,
+    userProfile,
+  });
   const {
     agentDockCompleting,
     agentDockItems,
@@ -555,31 +577,6 @@ function PdfiumDocument({
   );
   const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
-  const {
-    annotations,
-    annotationsRef,
-    addComment,
-    applyAnnotations,
-    deleteAnnotation,
-    deleteComment,
-    latestArticleRef,
-    saveAnnotations,
-  } = useSourceAnnotations({
-    annotationAgents,
-    annotations: articleAnnotations,
-    article,
-    ignoreStaleArticleUpdates: true,
-    onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
-      for (const agent of mentionedAgents) {
-        void requestAgentComment(agent, annotation, comment);
-      }
-    },
-    onOpenAnnotation,
-    onSaveArticle,
-    userProfile,
-  });
-  const { pendingAnnotationAgents, addPendingAnnotationAgent, removePendingAnnotationAgent } =
-    usePendingAnnotationAgents();
   const {
     temporaryBoxes,
     highlightChoice,
