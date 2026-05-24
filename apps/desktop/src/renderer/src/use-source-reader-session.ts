@@ -6,10 +6,20 @@ import type {
   ArticleRecord,
   Comment as AnnotationComment,
   PublicAgent,
+  ReadingMemory,
   UserProfile,
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
+import type { PromptArticle } from './app-reading-types';
 import { publicAnnotationAgents, publicReviewAgents } from './app-source-bookcase-shared';
+import {
+  createPendingAgentAnnotation,
+  prepareSourceAgentAnnotationRequestInput,
+  runSourceAgentAnnotationRequest,
+  type SourceAgentAnnotationRequestInput,
+  type SourceAgentAnnotationRequestOptions,
+  withoutAnnotationId,
+} from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
@@ -24,6 +34,7 @@ type SourceAnnotationsChange = {
 
 type UseSourceReaderSessionOptions = {
   agents: Agent[];
+  agentAnnotationAdapter?: SourceAgentAnnotationAdapter;
   annotations: Annotation[];
   article: ArticleRecord;
   clearPendingOnArticleChange?: boolean;
@@ -44,6 +55,95 @@ type UseSourceReaderSessionOptions = {
   userProfile: UserProfile;
 };
 
+export type SourceAgentAnnotationContext<TSource = any> = {
+  article: PromptArticle;
+  articleId: string;
+  articleScopedWrite?: boolean;
+  articleText: string;
+  readingMemory?: ReadingMemory;
+  showProgress?: boolean;
+  source?: TSource;
+  visibleArticle?: boolean;
+};
+
+export type SourceAgentAnnotationAdapter<TSource = any, TPlayback = any> = {
+  getContext: (args: {
+    agent: PublicAgent;
+    currentArticle: ArticleRecord;
+    options: SourceAgentAnnotationRequestOptions;
+  }) =>
+    | Promise<SourceAgentAnnotationContext<TSource> | null>
+    | SourceAgentAnnotationContext<TSource>
+    | null;
+  resolveOptions?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+  }) => SourceAgentAnnotationRequestOptions;
+  isBusy?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+  }) => boolean;
+  start?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    requestInput: SourceAgentAnnotationRequestInput;
+  }) => Promise<TPlayback> | TPlayback;
+  onPendingAnnotationCreated?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    pendingAnnotation: Annotation;
+    playback: TPlayback | undefined;
+  }) => void;
+  onPendingAnnotationRemoved?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    pendingAnnotation: Annotation;
+    playback: TPlayback | undefined;
+  }) => void;
+  onAnnotation: (args: {
+    agent: PublicAgent;
+    annotation: Annotation;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    playback: TPlayback | undefined;
+    requestInput: SourceAgentAnnotationRequestInput;
+  }) => boolean;
+  onReadingMemory?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    readingMemory: ReadingMemory | undefined;
+  }) => Promise<void> | void;
+  onEmpty?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    playback: TPlayback | undefined;
+    requestInput: SourceAgentAnnotationRequestInput;
+  }) => Promise<void> | void;
+  onSuccess?: (args: {
+    agent: PublicAgent;
+    annotationCount: number;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    playback: TPlayback | undefined;
+    requestInput: SourceAgentAnnotationRequestInput;
+  }) => Promise<void> | void;
+  finish?: (args: {
+    agent: PublicAgent;
+    context: SourceAgentAnnotationContext<TSource>;
+    options: SourceAgentAnnotationRequestOptions;
+    playback: TPlayback | undefined;
+    requestFailed: boolean;
+    requestInput?: SourceAgentAnnotationRequestInput;
+  }) => Promise<void> | void;
+};
+
 type RequestAgentCommentOptions = {
   instruction?: string;
   readingIntent?: Annotation['readingIntent'];
@@ -52,6 +152,7 @@ type RequestAgentCommentOptions = {
 
 export function useSourceReaderSession({
   agents,
+  agentAnnotationAdapter,
   annotations: articleAnnotations,
   article,
   clearPendingOnArticleChange = false,
@@ -203,10 +304,171 @@ export function useSourceReaderSession({
     ],
   );
 
+  const requestAgentAnnotations = useCallback(
+    async (agent: PublicAgent, options: SourceAgentAnnotationRequestOptions = {}) => {
+      const desktop = window.yomitomoDesktop;
+      const currentArticle = sourceAnnotations.latestArticleRef.current;
+      if (!desktop || !currentArticle || !agentAnnotationAdapter) {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+        return;
+      }
+
+      const context = await agentAnnotationAdapter.getContext({
+        agent,
+        currentArticle,
+        options,
+      });
+      if (!context) {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+        return;
+      }
+      if (agentAnnotationAdapter.isBusy?.({ agent, context, options })) {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+        return;
+      }
+      const requestOptions =
+        agentAnnotationAdapter.resolveOptions?.({ agent, context, options }) ?? options;
+
+      const requestInput = await prepareSourceAgentAnnotationRequestInput({
+        desktop,
+        agent,
+        agents: annotationAgents,
+        options: requestOptions,
+        context: {
+          article: context.article,
+          annotations: sourceAnnotations.annotationsRef.current,
+          readingMemory: context.readingMemory ?? currentArticle.focusCoReadingPlan?.readingMemory,
+        },
+      });
+      const playback = await agentAnnotationAdapter.start?.({
+        agent,
+        context,
+        options: requestOptions,
+        requestInput,
+      });
+      let pendingAnnotation: Annotation | null = null;
+      const removePendingAnnotation = () => {
+        if (!pendingAnnotation) return;
+        sourceAnnotations.applyAnnotations(
+          withoutAnnotationId(sourceAnnotations.annotationsRef.current, pendingAnnotation.id),
+        );
+        agentAnnotationAdapter.onPendingAnnotationRemoved?.({
+          agent,
+          context,
+          options: requestOptions,
+          pendingAnnotation,
+          playback,
+        });
+        pendingAnnotation = null;
+      };
+
+      if (
+        context.showProgress !== false &&
+        context.visibleArticle !== false &&
+        requestOptions.targetAnchor &&
+        !requestOptions.pendingAnnotationId
+      ) {
+        pendingAnnotation = createPendingAgentAnnotation(
+          agent,
+          requestOptions.targetAnchor,
+          requestOptions.readingIntent,
+        );
+        sourceAnnotations.applyAnnotations([
+          ...sourceAnnotations.annotationsRef.current,
+          pendingAnnotation,
+        ]);
+        onOpenAnnotation?.(pendingAnnotation.id);
+        agentAnnotationAdapter.onPendingAnnotationCreated?.({
+          agent,
+          context,
+          options: requestOptions,
+          pendingAnnotation,
+          playback,
+        });
+      }
+
+      let requestFailed = true;
+      try {
+        const { result, annotationCount } = await runSourceAgentAnnotationRequest({
+          desktop,
+          requestInput,
+          onAnnotation: (annotation) => {
+            removePendingAnnotation();
+            return agentAnnotationAdapter.onAnnotation({
+              agent,
+              annotation,
+              context,
+              options: requestOptions,
+              playback,
+              requestInput,
+            });
+          },
+        });
+        if (requestInput.shouldSaveReadingMemory) {
+          await agentAnnotationAdapter.onReadingMemory?.({
+            agent,
+            context,
+            options: requestOptions,
+            readingMemory: result.readingMemory,
+          });
+        }
+        if (annotationCount === 0) {
+          await agentAnnotationAdapter.onEmpty?.({
+            agent,
+            context,
+            options: requestOptions,
+            playback,
+            requestInput,
+          });
+          requestFailed = false;
+          return;
+        }
+        await agentAnnotationAdapter.onSuccess?.({
+          agent,
+          annotationCount,
+          context,
+          options: requestOptions,
+          playback,
+          requestInput,
+        });
+        requestFailed = false;
+      } finally {
+        removePendingAnnotation();
+        await agentAnnotationAdapter.finish?.({
+          agent,
+          context,
+          options: requestOptions,
+          playback,
+          requestFailed,
+          requestInput,
+        });
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+      }
+    },
+    [
+      agentAnnotationAdapter,
+      annotationAgents,
+      onOpenAnnotation,
+      pendingAgents,
+      sourceAnnotations.annotationsRef,
+      sourceAnnotations.applyAnnotations,
+      sourceAnnotations.latestArticleRef,
+    ],
+  );
+
   return {
     annotationAgents,
     reviewAgents,
     requestAgentComment,
+    requestAgentAnnotations,
     requestAnnotationReview,
     ...pendingAgents,
     ...sourceAnnotations,

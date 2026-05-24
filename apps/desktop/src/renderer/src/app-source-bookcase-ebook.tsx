@@ -51,14 +51,7 @@ import {
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import type { PromptArticle } from './app-reading-types';
-import {
-  createPendingAgentAnnotation,
-  prepareSourceAgentAnnotationRequestInput,
-  runSourceAgentAnnotationRequest,
-  type SourceAgentAnnotationPlaybackMode,
-  type SourceAgentAnnotationRequestOptions,
-  withoutAnnotationId,
-} from './app-source-agent-request';
+import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';
 import {
   articleWithAnnotations,
   articleWithMergedAgentAnnotation,
@@ -142,11 +135,56 @@ export function EbookBookcase({
     removePendingAnnotationAgent,
     replaceAnnotations,
     requestAgentComment,
+    requestAgentAnnotations,
     requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
     agents,
+    agentAnnotationAdapter: {
+      getContext: ({ currentArticle, options }) => {
+        const articleId = options.articleId || currentArticle.id;
+        const articleContext =
+          options.article || promptArticle(currentArticle, currentArticleText());
+        return {
+          article: articleContext,
+          articleId,
+          articleText: articleContext.text,
+          visibleArticle: isCurrentArticle(articleId),
+        };
+      },
+      isBusy: ({ agent, options }) => !options.articleId && annotatingAgentIds.includes(agent.id),
+      start: ({ agent, context, options, requestInput }) =>
+        startEbookPlayback(
+          agent,
+          context.articleId,
+          options.targetAnchor,
+          requestInput.playbackMode,
+        ),
+      onAnnotation: ({ annotation, context, options, requestInput }) =>
+        handleEbookStreamItem(
+          context.articleId,
+          annotation,
+          requestInput.readingPlan,
+          context.articleText,
+          Boolean(options.targetAnchor),
+        ),
+      onReadingMemory: ({ context, readingMemory }) =>
+        saveFocusCoReadingReadingMemory(context.articleId, readingMemory),
+      onEmpty: async ({ agent, context, options, playback }) => {
+        if (isCurrentArticle(context.articleId)) {
+          finishEmptyEbookPlayback(agent, options.targetAnchor);
+        }
+        await finishEbookPlayback(agent.id, Boolean(playback));
+      },
+      onSuccess: ({ agent, playback }) => finishEbookPlayback(agent.id, Boolean(playback)),
+      finish: ({ agent, context, options, playback, requestFailed }) => {
+        finishEbookRequest(agent, context.articleId, options.targetAnchor, {
+          requestFailed,
+          visibleArticle: Boolean(playback),
+        });
+      },
+    },
     annotations: articleAnnotations,
     article,
     clearPendingOnArticleChange: true,
@@ -766,95 +804,6 @@ export function EbookBookcase({
       return plan;
     } finally {
       setStatusMessage('');
-    }
-  }
-
-  async function requestAgentAnnotations(
-    agent: PublicAgent,
-    options: SourceAgentAnnotationRequestOptions = {},
-  ) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const articleId = options.articleId || currentArticle?.id;
-    const articleContext =
-      options.article ||
-      (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
-    if (!desktop || !articleId || !articleContext) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-    if (!options.articleId && annotatingAgentIds.includes(agent.id)) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-    const targetAnchor = options.targetAnchor;
-    const requestInput = await prepareSourceAgentAnnotationRequestInput({
-      desktop,
-      agent,
-      agents: annotationAgents,
-      options,
-      context: {
-        article: articleContext,
-        annotations: annotationsRef.current,
-        readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
-      },
-    });
-    const { playbackMode, readingPlan } = requestInput;
-
-    const visibleArticle = startEbookPlayback(agent, articleId, targetAnchor, playbackMode);
-    let pendingAnnotationId = '';
-    if (visibleArticle && targetAnchor && !options.pendingAnnotationId) {
-      const pendingAnnotation = createPendingAgentAnnotation(
-        agent,
-        targetAnchor,
-        options.readingIntent,
-      );
-      pendingAnnotationId = pendingAnnotation.id;
-      applyAnnotations([...annotationsRef.current, pendingAnnotation]);
-      openAnnotation(pendingAnnotation.id);
-    }
-    let requestFailed = true;
-    try {
-      const { result, annotationCount } = await runSourceAgentAnnotationRequest({
-        desktop,
-        requestInput,
-        onAnnotation: (annotation) => {
-          if (pendingAnnotationId) {
-            applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
-            pendingAnnotationId = '';
-          }
-          return handleEbookStreamItem(
-            articleId,
-            annotation,
-            readingPlan,
-            articleContext.text,
-            Boolean(targetAnchor),
-          );
-        },
-      });
-      if (requestInput.shouldSaveReadingMemory) {
-        await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
-      }
-      if (annotationCount === 0 && isCurrentArticle(articleId)) {
-        finishEmptyEbookPlayback(agent, targetAnchor);
-      }
-      await finishEbookPlayback(agent.id, visibleArticle);
-      requestFailed = false;
-    } finally {
-      if (pendingAnnotationId) {
-        applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
-      }
-      finishEbookRequest(agent, articleId, targetAnchor, {
-        requestFailed,
-        visibleArticle,
-      });
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
     }
   }
 
