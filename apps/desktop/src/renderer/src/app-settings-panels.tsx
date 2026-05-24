@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Save,
   Settings,
+  Smartphone,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -22,6 +23,8 @@ import type {
   DesktopStore,
   MessageSendShortcut,
   SelectionActionShortcuts,
+  WeReadOpenMethod,
+  WeReadSettings,
 } from '@yomitomo/shared';
 import {
   defaultSelectionActionShortcuts,
@@ -43,7 +46,13 @@ export { ProviderForm } from './app-settings-provider-form';
 export { ProviderSettings } from './app-settings-provider-panel';
 export { UserProfileSettingsDialog } from './app-settings-profile-dialog';
 
-export type SettingsSectionKey = 'collection' | 'models' | 'shortcuts' | 'data' | 'about';
+export type SettingsSectionKey =
+  | 'collection'
+  | 'models'
+  | 'weread'
+  | 'shortcuts'
+  | 'data'
+  | 'about';
 
 function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: string) {
   if (shortcut === 'enter') {
@@ -94,6 +103,12 @@ const settingsSections: Array<{
     title: '模型与路由',
     description: '分配任务模型，并维护模型供应商。',
     icon: <KeyRound size={17} />,
+  },
+  {
+    key: 'weread',
+    title: '微信读书',
+    description: '配置 API Key 和默认打开方式。',
+    icon: <Smartphone size={17} />,
   },
   {
     key: 'shortcuts',
@@ -241,6 +256,172 @@ export function GeneralSettings({
     </div>
   );
 }
+
+export function WeReadSettingsPanel() {
+  const [settings, setSettings] = useState<WeReadSettings>({
+    configured: false,
+    openMethod: 'deeplink',
+  });
+  const [apiKey, setApiKey] = useState('');
+  const [removeApiKey, setRemoveApiKey] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [testState, setTestState] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    void window.yomitomoDesktop
+      ?.getWeReadState?.()
+      .then((state) => {
+        if (cancelled) return;
+        setSettings(state.settings);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function saveSettings() {
+    if (!window.yomitomoDesktop) return;
+    setSaveState('saving');
+    try {
+      const state = await window.yomitomoDesktop.saveWeReadSettings({
+        apiKey,
+        removeApiKey,
+        openMethod: settings.openMethod,
+      });
+      setSettings(state.settings);
+      setApiKey('');
+      setRemoveApiKey(false);
+      setSaveState('saved');
+      window.setTimeout(() => setSaveState('idle'), 1200);
+    } catch {
+      setSaveState('idle');
+    }
+  }
+
+  async function testConnection() {
+    if (!window.yomitomoDesktop) return;
+    setTestState('测试中...');
+    const result = await window.yomitomoDesktop.testWeRead(apiKey);
+    setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
+    const state = await window.yomitomoDesktop.getWeReadState();
+    setSettings(state.settings);
+  }
+
+  const canSave = saveState !== 'saving' && (Boolean(apiKey.trim()) || removeApiKey);
+  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+
+  return (
+    <div className="settings-panel weread-settings-panel">
+      <PanelHeader
+        icon={<Smartphone size={20} />}
+        title="微信读书"
+        description="同步微信读书中的划线、想法和阅读进度。"
+        action={
+          <Button
+            className="action-button save-action"
+            disabled={!canSave}
+            type="button"
+            onClick={saveSettings}
+          >
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
+          </Button>
+        }
+      />
+      <div className="settings-form-grid max-w-3xl">
+        <Field
+          id="weread-api-key"
+          className="col-span-2"
+          label="API Key"
+          description={
+            settings.configured
+              ? '已保存到系统安全凭据库。输入新 API Key 并保存可替换当前配置。'
+              : 'API Key 会保存到系统安全凭据库，不会明文写入本地数据库。'
+          }
+        >
+          <div className="weread-api-key-row">
+            <input
+              id="weread-api-key"
+              type="password"
+              value={apiKey}
+              placeholder={settings.configured ? '已配置，留空保持不变' : 'wrk-...'}
+              onChange={(event) => {
+                setApiKey(event.target.value);
+                setRemoveApiKey(false);
+                setSaveState('idle');
+              }}
+            />
+            <Button type="button" variant="outline" onClick={testConnection}>
+              <RefreshCw size={15} />
+              测试连接
+            </Button>
+          </div>
+          {settings.configured ? (
+            <label className="weread-remove-key">
+              <input
+                type="checkbox"
+                checked={removeApiKey}
+                onChange={(event) => {
+                  setRemoveApiKey(event.target.checked);
+                  setSaveState('idle');
+                }}
+              />
+              移除已保存的 API Key
+            </label>
+          ) : null}
+          {testState ? <p className="shortcut-tips">{testState}</p> : null}
+        </Field>
+        <Field
+          id="weread-open-method"
+          className="col-span-2"
+          label="默认打开方式"
+          description="网页版打开到章节；App 可打开到对应划线或想法，需本机已安装微信读书。"
+        >
+          <div className="weread-open-methods" role="radiogroup" aria-label="微信读书默认打开方式">
+            {wereadOpenMethods.map((option) => (
+              <button
+                aria-checked={settings.openMethod === option.value}
+                className={settings.openMethod === option.value ? 'is-active' : undefined}
+                key={option.value}
+                type="button"
+                role="radio"
+                onClick={() => {
+                  setSettings((current) => ({ ...current, openMethod: option.value }));
+                  void window.yomitomoDesktop
+                    ?.saveWeReadSettings?.({ openMethod: option.value })
+                    .then((state) => setSettings(state.settings));
+                }}
+              >
+                {settings.openMethod === option.value ? <em>当前使用</em> : null}
+                <strong>{option.label}</strong>
+                <span>{option.description}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+      </div>
+    </div>
+  );
+}
+
+const wereadOpenMethods: Array<{
+  value: WeReadOpenMethod;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'deeplink',
+    label: '打开微信读书 App',
+    description: '需要已安装 App，可定位到对应划线或想法。',
+  },
+  {
+    value: 'web',
+    label: '使用网页版',
+    description: '无需安装 App，只能打开到对应章节。',
+  },
+];
 
 export function ShortcutSettings({
   savedSettings,

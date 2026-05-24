@@ -408,4 +408,81 @@ ON articles(
 );
 `,
   },
+  {
+    id: '0033_weread_sync',
+    sql: `
+CREATE TABLE IF NOT EXISTS weread_accounts (
+  id TEXT PRIMARY KEY NOT NULL,
+  api_key_ref TEXT,
+  open_method TEXT NOT NULL DEFAULT 'deeplink',
+  skill_version TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'idle',
+  message TEXT,
+  last_sync_at TEXT,
+  last_test_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS weread_books (
+  book_id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  author TEXT,
+  cover TEXT,
+  intro TEXT,
+  review_count INTEGER NOT NULL DEFAULT 0,
+  note_count INTEGER NOT NULL DEFAULT 0,
+  bookmark_count INTEGER NOT NULL DEFAULT 0,
+  reading_progress INTEGER NOT NULL DEFAULT 0,
+  marked_status INTEGER,
+  sort INTEGER,
+  current_chapter_uid INTEGER,
+  current_chapter_offset INTEGER,
+  record_reading_time INTEGER,
+  last_read_at INTEGER,
+  synced_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS weread_chapters (
+  book_id TEXT NOT NULL,
+  chapter_uid INTEGER NOT NULL,
+  chapter_idx INTEGER NOT NULL DEFAULT 0,
+  title TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 1,
+  word_count INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS weread_highlights (
+  bookmark_id TEXT PRIMARY KEY NOT NULL,
+  book_id TEXT NOT NULL,
+  chapter_uid INTEGER NOT NULL,
+  chapter_idx INTEGER,
+  range TEXT,
+  mark_text TEXT NOT NULL,
+  color_style INTEGER,
+  create_time INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS weread_thoughts (
+  review_id TEXT PRIMARY KEY NOT NULL,
+  book_id TEXT NOT NULL,
+  user_vid INTEGER,
+  author TEXT,
+  chapter_uid INTEGER,
+  chapter_idx INTEGER,
+  chapter_name TEXT,
+  range TEXT,
+  abstract TEXT,
+  content TEXT NOT NULL,
+  create_time INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS weread_books_updated_at_idx ON weread_books(updated_at);
+CREATE INDEX IF NOT EXISTS weread_books_sort_idx ON weread_books(sort);
+CREATE INDEX IF NOT EXISTS weread_chapters_book_idx ON weread_chapters(book_id, chapter_idx);
+CREATE INDEX IF NOT EXISTS weread_chapters_uid_idx ON weread_chapters(book_id, chapter_uid);
+CREATE INDEX IF NOT EXISTS weread_highlights_book_idx ON weread_highlights(book_id, chapter_uid);
+CREATE INDEX IF NOT EXISTS weread_thoughts_book_idx ON weread_thoughts(book_id, chapter_uid);
+`,
+  },
 ];

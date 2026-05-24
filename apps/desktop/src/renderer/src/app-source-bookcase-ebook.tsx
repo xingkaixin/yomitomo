@@ -89,6 +89,7 @@ import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
+import { ArticleBook } from './app-article-book';
 
 function constrainAgentPlanAnnotation(
   annotation: Annotation,
@@ -1193,6 +1194,11 @@ export function EbookBookcase({
       shortcutModifier={shortcutModifier}
       surfaceRef={surfaceRef}
       temporaryBoxes={temporaryBoxes}
+      toolbarArticleAction={
+        <span className="ebook-toolbar-cover">
+          <ArticleBook article={article} />
+        </span>
+      }
       tocAnnotationStats={tocStats}
       tocItems={readerTocItems}
       tocOpen={tocOpen}

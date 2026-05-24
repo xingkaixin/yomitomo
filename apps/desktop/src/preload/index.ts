@@ -26,6 +26,8 @@ import type {
   EbookImportFileInput,
   PerformanceTimingInput,
   PdfImportFileInput,
+  WeReadOpenTarget,
+  WeReadSaveSettingsInput,
 } from '../ipc-contract';
 
 export type {
@@ -38,6 +40,8 @@ export type {
   EbookImportFileInput,
   PerformanceTimingInput,
   PdfImportFileInput,
+  WeReadOpenTarget,
+  WeReadSaveSettingsInput,
 } from '../ipc-contract';
 
 const preloadLoadedAt = performance.now();
@@ -108,6 +112,15 @@ const api = {
   readEbookFile: (articleId: string) => invokeDesktopIpc('ebook:read-file', articleId),
   importPdfFile: (input: PdfImportFileInput) => invokeDesktopIpc('pdf:import-file', input),
   readPdfFile: (articleId: string) => invokeDesktopIpc('pdf:read-file', articleId),
+  getWeReadState: () => invokeDesktopIpc('weread:get-state'),
+  readWeReadApiKey: () => invokeDesktopIpc('weread:read-api-key'),
+  saveWeReadSettings: (input: WeReadSaveSettingsInput) =>
+    invokeDesktopIpc('weread:save-settings', input),
+  testWeRead: (apiKey?: string) => invokeDesktopIpc('weread:test', apiKey),
+  syncWeRead: () => invokeDesktopIpc('weread:sync'),
+  syncWeReadBook: (bookId: string) => invokeDesktopIpc('weread:sync-book', bookId),
+  getWeReadBook: (bookId: string) => invokeDesktopIpc('weread:get-book', bookId),
+  openWeRead: (target: WeReadOpenTarget) => invokeDesktopIpc('weread:open', target),
   deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
   requestAgentComment: (payload: AgentMessagePayload) => invokeDesktopIpc('agent:comment', payload),
   requestAgentReview: (payload: AgentReviewPayload) => invokeDesktopIpc('agent:review', payload),

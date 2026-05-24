@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { app } from 'electron';
-import { count, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { count, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import SQLiteDatabase from 'better-sqlite3';
 import type {
@@ -20,6 +20,13 @@ import type {
   DesktopStore,
   LlmProvider,
   UserProfile,
+  WeReadBook,
+  WeReadBookDetail,
+  WeReadChapter,
+  WeReadHighlight,
+  WeReadOpenMethod,
+  WeReadSettings,
+  WeReadThought,
 } from '@yomitomo/shared';
 import {
   makeId,
@@ -43,7 +50,10 @@ import {
   deleteProviderApiKey,
   providerApiKeyRef,
   readProviderApiKey,
+  readWeReadApiKey,
   saveProviderApiKey,
+  saveWeReadApiKey,
+  deleteWeReadApiKey,
 } from './provider-secrets';
 import {
   defaultStore,
@@ -99,6 +109,8 @@ const articleSummaryColumns = {
   createdAt: schema.articles.createdAt,
   updatedAt: schema.articles.updatedAt,
 } satisfies Record<keyof ArticleSummaryRow, unknown>;
+const WEREAD_ACCOUNT_ID = 'default';
+const WEREAD_SKILL_VERSION = '1.0.3';
 
 let sqlite: SQLiteDatabase.Database | null = null;
 let db: BetterSQLite3Database<typeof schema> | null = null;
@@ -377,6 +389,169 @@ export async function readStoredProviderApiKey(providerId: string) {
   return (await readProviderApiKey(providerId)) || readLegacyProviderApiKey(providerId);
 }
 
+export async function readStoredWeReadApiKey() {
+  const account = readWeReadAccountRow();
+  return readWeReadApiKey(account?.apiKeyRef);
+}
+
+export async function readWeReadState() {
+  return {
+    settings: await readWeReadSettings(),
+    books: readWeReadBooks(),
+  };
+}
+
+export async function readWeReadSettings(): Promise<WeReadSettings> {
+  const account = readWeReadAccountRow();
+  return {
+    configured: Boolean(account?.apiKeyRef && (await readWeReadApiKey(account.apiKeyRef))),
+    openMethod: normalizeWeReadOpenMethod(account?.openMethod),
+    status: normalizeWeReadStatus(account?.status),
+    lastSyncAt: account?.lastSyncAt || undefined,
+    lastTestAt: account?.lastTestAt || undefined,
+    message: account?.message || undefined,
+  };
+}
+
+export async function saveWeReadSettings(input: {
+  apiKey?: string;
+  removeApiKey?: boolean;
+  openMethod: WeReadOpenMethod;
+}) {
+  const existing = readWeReadAccountRow();
+  let apiKeyRef = existing?.apiKeyRef || null;
+  if (input.apiKey?.trim()) apiKeyRef = await saveWeReadApiKey(input.apiKey.trim());
+  else if (input.removeApiKey) {
+    await deleteWeReadApiKey(apiKeyRef);
+    apiKeyRef = null;
+  }
+  upsertWeReadAccount({
+    apiKeyRef,
+    openMethod: normalizeWeReadOpenMethod(input.openMethod),
+    status: apiKeyRef ? existing?.status || 'idle' : 'idle',
+    message: apiKeyRef ? existing?.message : null,
+    lastSyncAt: existing?.lastSyncAt,
+    lastTestAt: existing?.lastTestAt,
+  });
+  return readWeReadState();
+}
+
+export async function saveWeReadTestResult(ok: boolean, message: string) {
+  const existing = readWeReadAccountRow();
+  upsertWeReadAccount({
+    apiKeyRef: existing?.apiKeyRef || null,
+    openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+    status: ok ? 'connected' : 'error',
+    message,
+    lastSyncAt: existing?.lastSyncAt,
+    lastTestAt: new Date().toISOString(),
+  });
+  return readWeReadState();
+}
+
+export async function saveWeReadBooks(books: WeReadBook[]) {
+  const database = getDatabase();
+  database.transaction((tx) => {
+    for (const book of books) upsertWeReadBook(tx, book);
+    removeStaleWeReadBooks(
+      tx,
+      books.map((book) => book.bookId),
+    );
+    const existing = tx
+      .select()
+      .from(schema.wereadAccounts)
+      .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
+      .get();
+    upsertWeReadAccountRow(tx, {
+      apiKeyRef: existing?.apiKeyRef || null,
+      openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+      status: 'connected',
+      message: null,
+      lastSyncAt: new Date().toISOString(),
+      lastTestAt: existing?.lastTestAt,
+    });
+  });
+  return readWeReadState();
+}
+
+export async function saveWeReadBookDetails(details: WeReadBookDetail[]) {
+  const database = getDatabase();
+  database.transaction((tx) => {
+    for (const detail of details) upsertWeReadBookDetail(tx, detail);
+    removeStaleWeReadBooks(
+      tx,
+      details.map((detail) => detail.book.bookId),
+    );
+    const existing = tx
+      .select()
+      .from(schema.wereadAccounts)
+      .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
+      .get();
+    upsertWeReadAccountRow(tx, {
+      apiKeyRef: existing?.apiKeyRef || null,
+      openMethod: normalizeWeReadOpenMethod(existing?.openMethod),
+      status: 'connected',
+      message: null,
+      lastSyncAt: new Date().toISOString(),
+      lastTestAt: existing?.lastTestAt,
+    });
+  });
+  return readWeReadState();
+}
+
+export async function saveWeReadBookDetail(detail: WeReadBookDetail) {
+  const database = getDatabase();
+  database.transaction((tx) => {
+    if (detail.highlights.length + detail.thoughts.length === 0)
+      removeWeReadBookRows(tx, [detail.book.bookId]);
+    else upsertWeReadBookDetail(tx, detail);
+  });
+  const saved = readWeReadBookDetail(detail.book.bookId);
+  return saved;
+}
+
+export function readWeReadBooks(): WeReadBook[] {
+  return getDatabase()
+    .select()
+    .from(schema.wereadBooks)
+    .orderBy(desc(schema.wereadBooks.updatedAt))
+    .all()
+    .map(rowToWeReadBook)
+    .toSorted(
+      (left, right) => (right.lastReadAt || right.sort || 0) - (left.lastReadAt || left.sort || 0),
+    );
+}
+
+export function readWeReadBookDetail(bookId: string): WeReadBookDetail | null {
+  const database = getDatabase();
+  const book = database
+    .select()
+    .from(schema.wereadBooks)
+    .where(eq(schema.wereadBooks.bookId, bookId))
+    .get();
+  if (!book) return null;
+  const chapters = database
+    .select()
+    .from(schema.wereadChapters)
+    .where(eq(schema.wereadChapters.bookId, bookId))
+    .all()
+    .map(rowToWeReadChapter)
+    .toSorted((left, right) => left.chapterIdx - right.chapterIdx);
+  const highlights = database
+    .select()
+    .from(schema.wereadHighlights)
+    .where(eq(schema.wereadHighlights.bookId, bookId))
+    .all()
+    .map(rowToWeReadHighlight);
+  const thoughts = database
+    .select()
+    .from(schema.wereadThoughts)
+    .where(eq(schema.wereadThoughts.bookId, bookId))
+    .all()
+    .map(rowToWeReadThought);
+  return { book: rowToWeReadBook(book), chapters, highlights, thoughts };
+}
+
 function readLegacyProviderApiKey(providerId: string) {
   return (
     getDatabase()
@@ -386,6 +561,250 @@ function readLegacyProviderApiKey(providerId: string) {
       .get()
       ?.apiKey.trim() || ''
   );
+}
+
+function readWeReadAccountRow() {
+  return getDatabase()
+    .select()
+    .from(schema.wereadAccounts)
+    .where(eq(schema.wereadAccounts.id, WEREAD_ACCOUNT_ID))
+    .get();
+}
+
+function upsertWeReadAccount(input: {
+  apiKeyRef: string | null;
+  openMethod: WeReadOpenMethod;
+  status: string;
+  message?: string | null;
+  lastSyncAt?: string | null;
+  lastTestAt?: string | null;
+}) {
+  upsertWeReadAccountRow(getDatabase(), input);
+}
+
+function upsertWeReadAccountRow(
+  database: StoreExecutor,
+  input: {
+    apiKeyRef: string | null;
+    openMethod: WeReadOpenMethod;
+    status: string;
+    message?: string | null;
+    lastSyncAt?: string | null;
+    lastTestAt?: string | null;
+  },
+) {
+  const row = {
+    id: WEREAD_ACCOUNT_ID,
+    apiKeyRef: input.apiKeyRef,
+    openMethod: input.openMethod,
+    skillVersion: WEREAD_SKILL_VERSION,
+    status: input.status,
+    message: input.message || null,
+    lastSyncAt: input.lastSyncAt || null,
+    lastTestAt: input.lastTestAt || null,
+    updatedAt: new Date().toISOString(),
+  };
+  database
+    .insert(schema.wereadAccounts)
+    .values(row)
+    .onConflictDoUpdate({ target: schema.wereadAccounts.id, set: row })
+    .run();
+}
+
+function upsertWeReadBook(database: StoreExecutor, book: WeReadBook) {
+  const row = {
+    bookId: book.bookId,
+    title: book.title,
+    author: book.author || null,
+    cover: book.cover || null,
+    intro: book.intro || null,
+    reviewCount: book.reviewCount,
+    noteCount: book.noteCount,
+    bookmarkCount: book.bookmarkCount,
+    readingProgress: book.readingProgress,
+    markedStatus: book.markedStatus ?? null,
+    sort: book.sort ?? null,
+    currentChapterUid: book.currentChapterUid ?? null,
+    currentChapterOffset: book.currentChapterOffset ?? null,
+    recordReadingTime: book.recordReadingTime ?? null,
+    lastReadAt: book.lastReadAt ?? null,
+    syncedAt: book.syncedAt || new Date().toISOString(),
+    updatedAt: book.updatedAt,
+  };
+  database
+    .insert(schema.wereadBooks)
+    .values(row)
+    .onConflictDoUpdate({ target: schema.wereadBooks.bookId, set: row })
+    .run();
+}
+
+function upsertWeReadBookDetail(database: StoreExecutor, detail: WeReadBookDetail) {
+  upsertWeReadBook(database, detail.book);
+  database
+    .delete(schema.wereadChapters)
+    .where(eq(schema.wereadChapters.bookId, detail.book.bookId))
+    .run();
+  database
+    .delete(schema.wereadHighlights)
+    .where(eq(schema.wereadHighlights.bookId, detail.book.bookId))
+    .run();
+  database
+    .delete(schema.wereadThoughts)
+    .where(eq(schema.wereadThoughts.bookId, detail.book.bookId))
+    .run();
+  for (const chapter of detail.chapters) insertWeReadChapter(database, chapter);
+  for (const highlight of detail.highlights) insertWeReadHighlight(database, highlight);
+  for (const thought of detail.thoughts) insertWeReadThought(database, thought);
+}
+
+function removeStaleWeReadBooks(database: StoreExecutor, bookIds: string[]) {
+  const staleBookRows =
+    bookIds.length > 0
+      ? database
+          .select({ bookId: schema.wereadBooks.bookId })
+          .from(schema.wereadBooks)
+          .where(notInArray(schema.wereadBooks.bookId, bookIds))
+          .all()
+      : database.select({ bookId: schema.wereadBooks.bookId }).from(schema.wereadBooks).all();
+  const staleBookIds = staleBookRows.map((row) => row.bookId);
+  if (staleBookIds.length === 0) return;
+
+  removeWeReadBookRows(database, staleBookIds);
+}
+
+function removeWeReadBookRows(database: StoreExecutor, staleBookIds: string[]) {
+  database
+    .delete(schema.wereadChapters)
+    .where(inArray(schema.wereadChapters.bookId, staleBookIds))
+    .run();
+  database
+    .delete(schema.wereadHighlights)
+    .where(inArray(schema.wereadHighlights.bookId, staleBookIds))
+    .run();
+  database
+    .delete(schema.wereadThoughts)
+    .where(inArray(schema.wereadThoughts.bookId, staleBookIds))
+    .run();
+  database.delete(schema.wereadBooks).where(inArray(schema.wereadBooks.bookId, staleBookIds)).run();
+}
+
+function insertWeReadChapter(database: StoreExecutor, chapter: WeReadChapter) {
+  database
+    .insert(schema.wereadChapters)
+    .values({
+      bookId: chapter.bookId,
+      chapterUid: chapter.chapterUid,
+      chapterIdx: chapter.chapterIdx,
+      title: chapter.title,
+      level: chapter.level,
+      wordCount: chapter.wordCount ?? null,
+    })
+    .run();
+}
+
+function insertWeReadHighlight(database: StoreExecutor, highlight: WeReadHighlight) {
+  database
+    .insert(schema.wereadHighlights)
+    .values({
+      bookmarkId: highlight.bookmarkId,
+      bookId: highlight.bookId,
+      chapterUid: highlight.chapterUid,
+      chapterIdx: highlight.chapterIdx ?? null,
+      range: highlight.range || null,
+      markText: highlight.markText,
+      colorStyle: highlight.colorStyle ?? null,
+      createTime: highlight.createTime,
+    })
+    .run();
+}
+
+function insertWeReadThought(database: StoreExecutor, thought: WeReadThought) {
+  database
+    .insert(schema.wereadThoughts)
+    .values({
+      reviewId: thought.reviewId,
+      bookId: thought.bookId,
+      userVid: thought.userVid ?? null,
+      author: thought.author || null,
+      chapterUid: thought.chapterUid ?? null,
+      chapterIdx: thought.chapterIdx ?? null,
+      chapterName: thought.chapterName || null,
+      range: thought.range || null,
+      abstract: thought.abstract || null,
+      content: thought.content,
+      createTime: thought.createTime,
+    })
+    .run();
+}
+
+function rowToWeReadBook(row: typeof schema.wereadBooks.$inferSelect): WeReadBook {
+  return {
+    bookId: row.bookId,
+    title: row.title,
+    author: row.author || undefined,
+    cover: row.cover || undefined,
+    intro: row.intro || undefined,
+    reviewCount: row.reviewCount,
+    noteCount: row.noteCount,
+    bookmarkCount: row.bookmarkCount,
+    readingProgress: row.readingProgress,
+    markedStatus: row.markedStatus ?? undefined,
+    sort: row.sort ?? undefined,
+    currentChapterUid: row.currentChapterUid ?? undefined,
+    currentChapterOffset: row.currentChapterOffset ?? undefined,
+    recordReadingTime: row.recordReadingTime ?? undefined,
+    lastReadAt: row.lastReadAt ?? undefined,
+    syncedAt: row.syncedAt || undefined,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function rowToWeReadChapter(row: typeof schema.wereadChapters.$inferSelect): WeReadChapter {
+  return {
+    bookId: row.bookId,
+    chapterUid: row.chapterUid,
+    chapterIdx: row.chapterIdx,
+    title: row.title,
+    level: row.level,
+    wordCount: row.wordCount ?? undefined,
+  };
+}
+
+function rowToWeReadHighlight(row: typeof schema.wereadHighlights.$inferSelect): WeReadHighlight {
+  return {
+    bookmarkId: row.bookmarkId,
+    bookId: row.bookId,
+    chapterUid: row.chapterUid,
+    chapterIdx: row.chapterIdx ?? undefined,
+    range: row.range || undefined,
+    markText: row.markText,
+    colorStyle: row.colorStyle ?? undefined,
+    createTime: row.createTime,
+  };
+}
+
+function rowToWeReadThought(row: typeof schema.wereadThoughts.$inferSelect): WeReadThought {
+  return {
+    reviewId: row.reviewId,
+    bookId: row.bookId,
+    userVid: row.userVid ?? undefined,
+    author: (row.author as WeReadThought['author']) || undefined,
+    chapterUid: row.chapterUid ?? undefined,
+    chapterIdx: row.chapterIdx ?? undefined,
+    chapterName: row.chapterName || undefined,
+    range: row.range || undefined,
+    abstract: row.abstract || undefined,
+    content: row.content,
+    createTime: row.createTime,
+  };
+}
+
+function normalizeWeReadOpenMethod(value: unknown): WeReadOpenMethod {
+  return value === 'web' ? 'web' : 'deeplink';
+}
+
+function normalizeWeReadStatus(value: unknown): WeReadSettings['status'] {
+  return value === 'connected' || value === 'error' || value === 'idle' ? value : 'idle';
 }
 
 export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStore> {
