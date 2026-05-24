@@ -3864,6 +3864,35 @@
   box-shadow: inset 0 0 0 1px hsl(34 28% 74% / 0.44);
 }
 
+.stats-source-tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: 4px;
+  margin: 4px 0 14px;
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.72);
+  padding: 3px;
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.56);
+}
+
+.stats-source-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 850;
+  padding: 0 12px;
+}
+
+.stats-source-tabs button[aria-pressed='true'] {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.08);
+}
+
 .stats-chart-card,
 .stats-activity-card {
   position: relative;
@@ -4487,6 +4516,236 @@
   font-weight: 780;
   line-height: 1.5;
   box-shadow: inset 0 0 0 1px hsl(35 30% 72% / 0.34);
+}
+
+.weread-stats-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.weread-stats-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.weread-stats-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.72);
+  padding: 0 8px;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 850;
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.68);
+}
+
+.weread-stats-period button {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.weread-stats-period button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.weread-stats-period button:not(:disabled):hover {
+  background: hsl(var(--muted) / 0.72);
+  color: hsl(var(--foreground));
+}
+
+.weread-stats-message {
+  margin: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.weread-stats-message.is-error {
+  background: hsl(0 82% 96%);
+  color: hsl(0 62% 38%);
+}
+
+.weread-stats-empty {
+  display: grid;
+  gap: 8px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.58);
+  padding: 28px;
+}
+
+.weread-stats-empty h3,
+.weread-stats-empty p {
+  margin: 0;
+}
+
+.weread-stats-empty h3 {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.weread-stats-empty p,
+.weread-stats-empty span {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.weread-stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.weread-stats-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.weread-stats-meta span {
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.68);
+  padding: 6px 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.weread-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.weread-stats-card {
+  margin-top: 0;
+}
+
+.weread-stats-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.weread-stats-kpis span {
+  display: grid;
+  gap: 3px;
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.62);
+  padding: 10px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 780;
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.54);
+}
+
+.weread-stats-kpis strong {
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.weread-stats-bars {
+  display: grid;
+  gap: 9px;
+}
+
+.weread-stats-bars div {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 74px;
+  align-items: center;
+  gap: 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.weread-stats-bars span,
+.weread-stats-bars strong {
+  white-space: nowrap;
+}
+
+.weread-stats-bars i {
+  height: 8px;
+  border-radius: 999px;
+  background: hsl(12 58% 45% / 0.78);
+}
+
+.weread-stats-bars p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.weread-stats-book-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.weread-stats-book-list article {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.58);
+  padding: 10px;
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.54);
+}
+
+.weread-stats-book-list img,
+.weread-stats-book-list article > span {
+  width: 44px;
+  height: 62px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: hsl(var(--muted));
+}
+
+.weread-stats-book-list strong,
+.weread-stats-book-list p {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-stats-book-list strong {
+  display: block;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.weread-stats-book-list p {
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.is-spinning {
+  animation: app-spin 900ms linear infinite;
 }
 
 .library-screen {

@@ -27,6 +27,7 @@ import type {
   PerformanceTimingInput,
   PdfImportFileInput,
   WeReadOpenTarget,
+  WeReadReadingStatsQueryInput,
   WeReadSaveSettingsInput,
 } from '../ipc-contract';
 
@@ -41,6 +42,7 @@ export type {
   PerformanceTimingInput,
   PdfImportFileInput,
   WeReadOpenTarget,
+  WeReadReadingStatsQueryInput,
   WeReadSaveSettingsInput,
 } from '../ipc-contract';
 
@@ -121,6 +123,9 @@ const api = {
   syncWeReadBook: (bookId: string) => invokeDesktopIpc('weread:sync-book', bookId),
   getWeReadBook: (bookId: string) => invokeDesktopIpc('weread:get-book', bookId),
   openWeRead: (target: WeReadOpenTarget) => invokeDesktopIpc('weread:open', target),
+  getWeReadReadingStats: () => invokeDesktopIpc('weread:get-reading-stats'),
+  queryWeReadReadingStats: (input: WeReadReadingStatsQueryInput) =>
+    invokeDesktopIpc('weread:query-reading-stats', input),
   deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
   requestAgentComment: (payload: AgentMessagePayload) => invokeDesktopIpc('agent:comment', payload),
   requestAgentReview: (payload: AgentReviewPayload) => invokeDesktopIpc('agent:review', payload),

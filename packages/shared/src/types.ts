@@ -343,6 +343,7 @@ export type WeReadBook = {
   sort?: number;
   currentChapterUid?: number;
   currentChapterOffset?: number;
+  readingTime?: number;
   recordReadingTime?: number;
   lastReadAt?: number;
   syncedAt?: string;
@@ -400,6 +401,57 @@ export type WeReadSyncResult = {
   settings: WeReadSettings;
   books: WeReadBook[];
   syncedBook?: WeReadBookDetail;
+};
+
+export type WeReadReadingStatsMode = 'weekly' | 'monthly' | 'annually' | 'overall';
+
+export type WeReadReadingStatsItem = {
+  stat: string;
+  counts: string;
+};
+
+export type WeReadReadingStatsBook = {
+  bookId?: string;
+  title?: string;
+  author?: string;
+  cover?: string;
+  readTime?: number;
+  finishReadingTime?: number;
+};
+
+export type WeReadReadingStats = {
+  mode: WeReadReadingStatsMode;
+  totalReadTime: number;
+  readDays?: number;
+  dayAverageReadTime?: number;
+  compare?: number;
+  readRate?: number;
+  wrReadTime?: number;
+  wrListenTime?: number;
+  readStat: WeReadReadingStatsItem[];
+  readTimes: Record<string, number>;
+  readLongest: WeReadReadingStatsBook[];
+  preferCategory: WeReadReadingStatsItem[];
+  preferCategoryWord?: string;
+  preferTimeWord?: string;
+  preferTime?: number[];
+  preferAuthor?: string;
+  preferPublisher?: string;
+  authorCount?: number;
+  registTime?: number;
+};
+
+export type WeReadReadingStatsSnapshot = {
+  id: string;
+  mode: WeReadReadingStatsMode;
+  periodStart: number;
+  sourceBaseTime?: number;
+  data: WeReadReadingStats;
+  fetchedAt: string;
+};
+
+export type WeReadReadingStatsState = {
+  snapshots: WeReadReadingStatsSnapshot[];
 };
 
 export type ArticleReadingProgress = {
