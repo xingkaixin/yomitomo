@@ -34,6 +34,7 @@ import {
   buildArticleChildRows,
   buildArticleUpsertPatch,
   buildProviderRecord,
+  findArticleInListByIdentity,
   mergeSettingsForUpsert,
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
@@ -371,7 +372,64 @@ describe('desktop store articles', () => {
       'store-batch-annotation-2',
     ]);
   });
+
+  it('finds existing import articles by id before url identity', () => {
+    const idMatch = articleSummaryRecord({
+      id: 'id-match',
+      url: 'https://example.com/id-match',
+      canonicalUrl: 'https://example.com/id-match',
+    });
+    const urlMatch = articleSummaryRecord({
+      id: 'url-match',
+      url: 'https://example.com/import',
+      canonicalUrl: 'https://example.com/import',
+    });
+
+    expect(
+      findArticleInListByIdentity([urlMatch, idMatch], {
+        id: 'id-match',
+        url: 'https://example.com/import',
+        canonicalUrl: 'https://example.com/import',
+      })?.id,
+    ).toBe('id-match');
+  });
+
+  it('finds existing import articles by cross-url identity in list order', () => {
+    const newer = articleSummaryRecord({
+      id: 'newer',
+      url: 'https://example.com/newer',
+      canonicalUrl: 'https://example.com/import',
+    });
+    const older = articleSummaryRecord({
+      id: 'older',
+      url: 'https://example.com/import',
+      canonicalUrl: 'https://example.com/older',
+    });
+
+    expect(
+      findArticleInListByIdentity([newer, older], {
+        id: 'missing',
+        url: 'https://example.com/import',
+        canonicalUrl: 'https://example.com/canonical',
+      })?.id,
+    ).toBe('newer');
+  });
 });
+
+function articleSummaryRecord(input: Partial<ArticleSummaryRecord>): ArticleSummaryRecord {
+  const id = input.id || 'article';
+  return {
+    id,
+    url: input.url || `https://example.com/${id}`,
+    canonicalUrl: input.canonicalUrl || input.url || `https://example.com/${id}`,
+    sourceType: input.sourceType || 'web',
+    title: input.title || id,
+    contentHash: input.contentHash || `hash-${id}`,
+    annotations: input.annotations || [],
+    createdAt: input.createdAt || '2026-05-17T07:00:00.000Z',
+    updatedAt: input.updatedAt || '2026-05-17T08:00:00.000Z',
+  };
+}
 
 function annotationRecord(id: string, comments: Comment[]): Annotation {
   return {

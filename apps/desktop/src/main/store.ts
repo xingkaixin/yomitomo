@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { app } from 'electron';
-import { count, desc, eq, inArray, isNull, notInArray } from 'drizzle-orm';
+import { count, desc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import SQLiteDatabase from 'better-sqlite3';
 import type {
@@ -111,6 +111,11 @@ const articleSummaryColumns = {
   createdAt: schema.articles.createdAt,
   updatedAt: schema.articles.updatedAt,
 } satisfies Record<keyof ArticleSummaryRow, unknown>;
+const articleIdentityColumns = {
+  id: schema.articles.id,
+  url: schema.articles.url,
+  canonicalUrl: schema.articles.canonicalUrl,
+};
 const WEREAD_ACCOUNT_ID = 'default';
 const WEREAD_SKILL_VERSION = '1.0.3';
 
@@ -122,6 +127,7 @@ type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (tx:
   ? T
   : never;
 type StoreExecutor = StoreDatabase | StoreTransaction;
+type ArticleIdentity = Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>;
 export type StoreReadProfileEntry = {
   name: string;
   durationMs: number;
@@ -345,6 +351,52 @@ export async function readArticleSummary(id: string): Promise<ArticleSummaryReco
   if (!row) return null;
 
   return rowToArticleSummary(row, [], readArticleSummaryCounts(database).get(id));
+}
+
+export function readImportSettings(): Pick<AppSettings, 'saveArticleImages'> {
+  const settings = getDatabase().select().from(schema.appSettings).limit(1).get();
+  return { saveArticleImages: Boolean(settings?.saveArticleImages) };
+}
+
+export function findArticleByIdentity(identity: ArticleIdentity): ArticleIdentity | null {
+  const database = getDatabase();
+  const idMatch = database
+    .select(articleIdentityColumns)
+    .from(schema.articles)
+    .where(eq(schema.articles.id, identity.id))
+    .get();
+  if (idMatch) return idMatch;
+
+  const candidates = Array.from(new Set([identity.canonicalUrl, identity.url]));
+  const row = database
+    .select(articleIdentityColumns)
+    .from(schema.articles)
+    .where(
+      or(
+        inArray(schema.articles.canonicalUrl, candidates),
+        inArray(schema.articles.url, candidates),
+      ),
+    )
+    .orderBy(desc(schema.articles.updatedAt))
+    .get();
+  return row ? findArticleInListByIdentity([row], identity) : null;
+}
+
+export function findArticleInListByIdentity<T extends ArticleIdentity>(
+  articles: T[],
+  identity: ArticleIdentity,
+): T | null {
+  return (
+    articles.find((item) => item.id === identity.id) ||
+    articles.find(
+      (item) =>
+        item.canonicalUrl === identity.canonicalUrl ||
+        item.url === identity.url ||
+        item.url === identity.canonicalUrl ||
+        item.canonicalUrl === identity.url,
+    ) ||
+    null
+  );
 }
 
 export async function readArticleCover(id: string): Promise<string> {
