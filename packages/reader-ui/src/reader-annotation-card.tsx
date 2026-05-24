@@ -444,6 +444,7 @@ export function AnnotationCard({
                     expandedCommentIds={expandedCommentIds}
                     key={thread.root.id}
                     messageSendShortcut={messageSendShortcut}
+                    mentionAgents={agents}
                     replyOpen={replyToCommentId === thread.root.id}
                     reviewingAgents={reviewingAgents}
                     shortcutModifier={shortcutModifier}
@@ -685,6 +686,7 @@ function DiscussionThreadView({
   expanded,
   expandedCommentIds,
   messageSendShortcut,
+  mentionAgents,
   replyOpen,
   reviewingAgents,
   shortcutModifier,
@@ -702,6 +704,7 @@ function DiscussionThreadView({
   expanded: boolean;
   expandedCommentIds: Set<string>;
   messageSendShortcut: MessageSendShortcut;
+  mentionAgents: PublicAgent[];
   replyOpen: boolean;
   reviewingAgents: PublicAgent[];
   shortcutModifier: string;
@@ -797,6 +800,7 @@ function DiscussionThreadView({
           <div className="reader-thread-reply-composer">
             <InlineCommentComposer
               agents={agents}
+              mentionAgents={mentionAgents}
               open={replyOpen}
               messageSendShortcut={messageSendShortcut}
               placeholder="回复这条想法，或 @助手继续讨论"
@@ -999,6 +1003,7 @@ function ThreadComment({
 
 function InlineCommentComposer({
   agents,
+  mentionAgents = agents,
   messageSendShortcut,
   open,
   placeholder,
@@ -1012,6 +1017,7 @@ function InlineCommentComposer({
   onSubmit,
 }: {
   agents: PublicAgent[];
+  mentionAgents?: PublicAgent[];
   messageSendShortcut: MessageSendShortcut;
   open: boolean;
   placeholder: string;
@@ -1073,7 +1079,7 @@ function InlineCommentComposer({
       onMouseDownCapture={handleMouseDownCapture}
     >
       <AnnotationCommentComposer
-        agents={agents}
+        agents={mentionAgents}
         focusRequestKey={focusRequestKey}
         messageSendShortcut={messageSendShortcut}
         placeholder={placeholder}

@@ -305,6 +305,37 @@ describe('AnnotationCard', () => {
     });
   });
 
+  it('excludes review agents from reply mention suggestions', () => {
+    const annotationAgent = agent('lin', '林知微');
+    const reviewAgent = { ...agent('review_1', '梁证言'), kind: 'review' as const };
+
+    render(
+      <AnnotationCard
+        active
+        agents={[annotationAgent]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        reviewAgents={[reviewAgent]}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+        onRequestReview={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+    fireEvent.change(screen.getByLabelText('留言内容'), { target: { value: '@' } });
+
+    expect(screen.getByText('林知微')).toBeTruthy();
+    expect(screen.queryByText('梁证言')).toBeNull();
+  });
+
   it('uses a single add thought trigger when expanded without thoughts', () => {
     render(
       <AnnotationCard
