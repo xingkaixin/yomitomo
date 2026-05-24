@@ -24,6 +24,8 @@ import type {
   WeReadBook,
   WeReadBookDetail,
   WeReadOpenMethod,
+  WeReadReadingStatsMode,
+  WeReadReadingStatsState,
   WeReadSettings,
   WeReadSyncResult,
 } from '@yomitomo/shared';
@@ -90,6 +92,11 @@ export type WeReadOpenTarget = {
 export type WeReadState = {
   settings: WeReadSettings;
   books: WeReadBook[];
+};
+
+export type WeReadReadingStatsQueryInput = {
+  mode: WeReadReadingStatsMode;
+  baseTime?: number;
 };
 
 export type DesktopIpcInvokeMap = {
@@ -280,6 +287,14 @@ export type DesktopIpcInvokeMap = {
   'weread:open': {
     args: [target: WeReadOpenTarget];
     result: void;
+  };
+  'weread:get-reading-stats': {
+    args: [];
+    result: WeReadReadingStatsState;
+  };
+  'weread:query-reading-stats': {
+    args: [input: WeReadReadingStatsQueryInput];
+    result: WeReadReadingStatsState;
   };
   'user:save': {
     args: [user: Partial<UserProfile>];

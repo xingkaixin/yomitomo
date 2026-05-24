@@ -201,6 +201,7 @@ export const wereadBooks = sqliteTable(
     sort: integer('sort'),
     currentChapterUid: integer('current_chapter_uid'),
     currentChapterOffset: integer('current_chapter_offset'),
+    readingTime: integer('reading_time'),
     recordReadingTime: integer('record_reading_time'),
     lastReadAt: integer('last_read_at'),
     syncedAt: text('synced_at'),
@@ -259,4 +260,21 @@ export const wereadThoughts = sqliteTable(
     createTime: integer('create_time').notNull().default(0),
   },
   (table) => [index('weread_thoughts_book_idx').on(table.bookId, table.chapterUid)],
+);
+
+export const wereadReadingStats = sqliteTable(
+  'weread_reading_stats',
+  {
+    id: text('id').primaryKey(),
+    mode: text('mode').notNull(),
+    periodStart: integer('period_start').notNull(),
+    sourceBaseTime: integer('source_base_time'),
+    payload: text('payload', { mode: 'json' }).notNull(),
+    fetchedAt: text('fetched_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('weread_reading_stats_period_idx').on(table.mode, table.periodStart),
+    index('weread_reading_stats_fetched_at_idx').on(table.fetchedAt),
+  ],
 );

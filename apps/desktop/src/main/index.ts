@@ -20,6 +20,7 @@ import type {
   DesktopStore,
   LlmProvider,
   WeReadOpenMethod,
+  WeReadReadingStatsMode,
 } from '@yomitomo/shared';
 import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import { clearLogFile, getLogPath, logError, logInfo, pruneLogFile, readLogFile } from './logger';
@@ -461,6 +462,28 @@ function registerIpc() {
     const { readWeReadSettings } = await getStoreModule();
     const settings = await readWeReadSettings();
     return openExternalUrl(buildWeReadOpenUrl(target, settings.openMethod));
+  });
+  handleDesktopIpc('weread:get-reading-stats', async () => {
+    const { readWeReadReadingStatsState } = await getStoreModule();
+    return readWeReadReadingStatsState();
+  });
+  handleDesktopIpc('weread:query-reading-stats', async (_event, input) => {
+    const store = await getStoreModule();
+    const apiKey = await store.readStoredWeReadApiKey();
+    if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
+    const { fetchWeReadReadingStats } = await import('./weread-client');
+    const sourceBaseTime =
+      input.mode === 'overall' ? undefined : Math.floor((input.baseTime ?? Date.now()) / 1000);
+    const periodStart = getWeReadStatsPeriodStart(input.mode, sourceBaseTime);
+    const data = await fetchWeReadReadingStats(apiKey, input.mode, sourceBaseTime);
+    return store.saveWeReadReadingStatsSnapshot({
+      id: `${input.mode}:${periodStart}`,
+      mode: input.mode,
+      periodStart,
+      sourceBaseTime,
+      data,
+      fetchedAt: new Date().toISOString(),
+    });
   });
   handleDesktopIpc('user:save', async (_event, input) => {
     const { saveUser } = await getStoreModule();
@@ -921,6 +944,21 @@ function buildWeReadOpenUrl(
   if (target.chapterUid !== undefined)
     url.searchParams.set('chapterUid', String(target.chapterUid));
   return url.href;
+}
+
+function getWeReadStatsPeriodStart(mode: WeReadReadingStatsMode, baseTime?: number) {
+  if (mode === 'overall') return 0;
+  const date = new Date((baseTime ?? Math.floor(Date.now() / 1000)) * 1000);
+  date.setHours(0, 0, 0, 0);
+  if (mode === 'weekly') {
+    const day = date.getDay() || 7;
+    date.setDate(date.getDate() - day + 1);
+  } else if (mode === 'monthly') {
+    date.setDate(1);
+  } else {
+    date.setMonth(0, 1);
+  }
+  return Math.floor(date.getTime() / 1000);
 }
 
 function buildWeReadWebBookId(bookId: string) {

@@ -485,4 +485,26 @@ CREATE INDEX IF NOT EXISTS weread_highlights_book_idx ON weread_highlights(book_
 CREATE INDEX IF NOT EXISTS weread_thoughts_book_idx ON weread_thoughts(book_id, chapter_uid);
 `,
   },
+  {
+    id: '0034_weread_reading_stats',
+    sql: `
+ALTER TABLE weread_books ADD COLUMN reading_time INTEGER;
+
+CREATE TABLE IF NOT EXISTS weread_reading_stats (
+  id TEXT PRIMARY KEY NOT NULL,
+  mode TEXT NOT NULL,
+  period_start INTEGER NOT NULL,
+  source_base_time INTEGER,
+  payload TEXT NOT NULL,
+  fetched_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS weread_reading_stats_period_idx
+ON weread_reading_stats(mode, period_start);
+
+CREATE INDEX IF NOT EXISTS weread_reading_stats_fetched_at_idx
+ON weread_reading_stats(fetched_at);
+`,
+  },
 ];

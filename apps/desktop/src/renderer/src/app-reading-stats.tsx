@@ -3,6 +3,7 @@ import { BarChart3, RefreshCcw } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
 import { PanelHeader } from './app-ui';
+import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
 import {
   activityMapDescription,
   activityStampLabel,
@@ -43,6 +44,7 @@ export function ReadingStatsPanel({
   onRefresh: () => void;
 }) {
   const [showDeferredContent, setShowDeferredContent] = useState(false);
+  const [source, setSource] = useState<'local' | 'weread'>('local');
   const recordedNavigationStartRef = useRef<number | undefined>(undefined);
   const recordedDeferredStartRef = useRef<number | undefined>(undefined);
   const recordedContentReadyRef = useRef<number | undefined>(undefined);
@@ -118,33 +120,56 @@ export function ReadingStatsPanel({
       <PanelHeader
         icon={<BarChart3 size={20} />}
         title="统计"
-        description="基于本地批注、讨论和阅读记录生成阅读概况。"
+        description={
+          source === 'local'
+            ? '基于本地批注、讨论和阅读记录生成阅读概况。'
+            : '查询并保存微信读书按周期统计。切换周期只读取本地缓存。'
+        }
         action={
-          <Button type="button" variant="secondary" onClick={onRefresh}>
-            <RefreshCcw size={16} />
-            刷新
-          </Button>
+          source === 'local' ? (
+            <Button type="button" variant="secondary" onClick={onRefresh}>
+              <RefreshCcw size={16} />
+              刷新
+            </Button>
+          ) : null
         }
       />
-      <StatsFirstPaintOverview data={data} />
-      {showDeferredContent ? (
+      <div className="stats-source-tabs" role="tablist" aria-label="统计来源">
+        <button type="button" aria-pressed={source === 'local'} onClick={() => setSource('local')}>
+          本地阅读
+        </button>
+        <button
+          type="button"
+          aria-pressed={source === 'weread'}
+          onClick={() => setSource('weread')}
+        >
+          微信读书
+        </button>
+      </div>
+      {source === 'weread' ? <WeReadReadingStatsPanel /> : null}
+      {source === 'local' ? (
         <>
-          <section className="stats-visual-grid">
-            <Suspense fallback={<StatsChartSkeleton />}>
-              <ReadingStatsChart
-                activityDays={data.activityDays}
-                activityStartDate={data.activityStartDate}
-                onReady={recordChartReady}
-                recordedDays={data.recordedDays}
-              />
-            </Suspense>
-            <StatsActivityCard data={data} />
-          </section>
-          <StatsInsights data={data} onReady={recordContentReady} />
+          <StatsFirstPaintOverview data={data} />
+          {showDeferredContent ? (
+            <>
+              <section className="stats-visual-grid">
+                <Suspense fallback={<StatsChartSkeleton />}>
+                  <ReadingStatsChart
+                    activityDays={data.activityDays}
+                    activityStartDate={data.activityStartDate}
+                    onReady={recordChartReady}
+                    recordedDays={data.recordedDays}
+                  />
+                </Suspense>
+                <StatsActivityCard data={data} />
+              </section>
+              <StatsInsights data={data} onReady={recordContentReady} />
+            </>
+          ) : (
+            <StatsDeferredSkeleton />
+          )}
         </>
-      ) : (
-        <StatsDeferredSkeleton />
-      )}
+      ) : null}
     </div>
   );
 }

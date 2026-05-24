@@ -25,6 +25,8 @@ import type {
   WeReadChapter,
   WeReadHighlight,
   WeReadOpenMethod,
+  WeReadReadingStatsSnapshot,
+  WeReadReadingStatsState,
   WeReadSettings,
   WeReadThought,
 } from '@yomitomo/shared';
@@ -552,6 +554,35 @@ export function readWeReadBookDetail(bookId: string): WeReadBookDetail | null {
   return { book: rowToWeReadBook(book), chapters, highlights, thoughts };
 }
 
+export function readWeReadReadingStatsState(): WeReadReadingStatsState {
+  return {
+    snapshots: getDatabase()
+      .select()
+      .from(schema.wereadReadingStats)
+      .orderBy(desc(schema.wereadReadingStats.fetchedAt))
+      .all()
+      .map(rowToWeReadReadingStatsSnapshot),
+  };
+}
+
+export function saveWeReadReadingStatsSnapshot(snapshot: WeReadReadingStatsSnapshot) {
+  const row = {
+    id: snapshot.id,
+    mode: snapshot.mode,
+    periodStart: snapshot.periodStart,
+    sourceBaseTime: snapshot.sourceBaseTime ?? null,
+    payload: snapshot.data,
+    fetchedAt: snapshot.fetchedAt,
+    updatedAt: new Date().toISOString(),
+  };
+  getDatabase()
+    .insert(schema.wereadReadingStats)
+    .values(row)
+    .onConflictDoUpdate({ target: schema.wereadReadingStats.id, set: row })
+    .run();
+  return readWeReadReadingStatsState();
+}
+
 function readLegacyProviderApiKey(providerId: string) {
   return (
     getDatabase()
@@ -626,6 +657,7 @@ function upsertWeReadBook(database: StoreExecutor, book: WeReadBook) {
     sort: book.sort ?? null,
     currentChapterUid: book.currentChapterUid ?? null,
     currentChapterOffset: book.currentChapterOffset ?? null,
+    readingTime: book.readingTime ?? null,
     recordReadingTime: book.recordReadingTime ?? null,
     lastReadAt: book.lastReadAt ?? null,
     syncedAt: book.syncedAt || new Date().toISOString(),
@@ -752,10 +784,27 @@ function rowToWeReadBook(row: typeof schema.wereadBooks.$inferSelect): WeReadBoo
     sort: row.sort ?? undefined,
     currentChapterUid: row.currentChapterUid ?? undefined,
     currentChapterOffset: row.currentChapterOffset ?? undefined,
+    readingTime: row.readingTime ?? undefined,
     recordReadingTime: row.recordReadingTime ?? undefined,
     lastReadAt: row.lastReadAt ?? undefined,
     syncedAt: row.syncedAt || undefined,
     updatedAt: row.updatedAt,
+  };
+}
+
+function rowToWeReadReadingStatsSnapshot(
+  row: typeof schema.wereadReadingStats.$inferSelect,
+): WeReadReadingStatsSnapshot {
+  return {
+    id: row.id,
+    mode:
+      row.mode === 'weekly' || row.mode === 'monthly' || row.mode === 'annually'
+        ? row.mode
+        : 'overall',
+    periodStart: row.periodStart,
+    sourceBaseTime: row.sourceBaseTime ?? undefined,
+    data: row.payload as WeReadReadingStatsSnapshot['data'],
+    fetchedAt: row.fetchedAt,
   };
 }
 

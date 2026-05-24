@@ -3,6 +3,10 @@ import type {
   WeReadBookDetail,
   WeReadChapter,
   WeReadHighlight,
+  WeReadReadingStats,
+  WeReadReadingStatsBook,
+  WeReadReadingStatsItem,
+  WeReadReadingStatsMode,
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
@@ -72,6 +76,18 @@ export async function fetchWeReadBookDetail(
   );
 
   return { book, chapters, highlights, thoughts };
+}
+
+export async function fetchWeReadReadingStats(
+  apiKey: string,
+  mode: WeReadReadingStatsMode,
+  baseTime?: number,
+): Promise<WeReadReadingStats> {
+  const response = await requestWeRead(apiKey, '/readdata/detail', {
+    mode,
+    ...(mode === 'overall' || baseTime === undefined ? {} : { baseTime }),
+  });
+  return readingStatsFromResponse(mode, response);
 }
 
 export function mergeWeReadNotebookBook(
@@ -177,6 +193,7 @@ function mergeBookInfo(book: WeReadBook, progressResponse: Record<string, unknow
     readingProgress: numberValue(progress.progress),
     currentChapterUid: optionalNumber(progress.chapterUid),
     currentChapterOffset: optionalNumber(progress.chapterOffset),
+    readingTime: optionalNumber(progress.readingTime),
     recordReadingTime: optionalNumber(progress.recordReadingTime),
     lastReadAt: optionalNumber(progress.updateTime),
   };
@@ -267,6 +284,70 @@ function userFromResponse(value: unknown): WeReadUser | undefined {
     name: stringValue(user.name) || undefined,
     avatar: stringValue(user.avatar) || undefined,
   };
+}
+
+function readingStatsFromResponse(
+  mode: WeReadReadingStatsMode,
+  response: Record<string, unknown>,
+): WeReadReadingStats {
+  return {
+    mode,
+    totalReadTime: numberValue(response.totalReadTime),
+    readDays: optionalNumber(response.readDays),
+    dayAverageReadTime: optionalNumber(response.dayAverageReadTime),
+    compare: optionalNumber(response.compare),
+    readRate: optionalNumber(response.readRate),
+    wrReadTime: optionalNumber(response.wrReadTime),
+    wrListenTime: optionalNumber(response.wrListenTime),
+    readStat: arrayValue(response.readStat).map(readingStatsItemFromResponse),
+    readTimes: numberMapFromResponse(response.readTimes),
+    readLongest: arrayValue(response.readLongest).map(readingStatsBookFromResponse),
+    preferCategory: arrayValue(response.preferCategory).map(readingStatsItemFromResponse),
+    preferCategoryWord: stringValue(response.preferCategoryWord) || undefined,
+    preferTimeWord: stringValue(response.preferTimeWord) || undefined,
+    preferTime: numberArrayFromResponse(response.preferTime),
+    preferAuthor: stringValue(response.preferAuthor) || undefined,
+    preferPublisher: stringValue(response.preferPublisher) || undefined,
+    authorCount: optionalNumber(response.authorCount),
+    registTime: optionalNumber(response.registTime),
+  };
+}
+
+function readingStatsItemFromResponse(item: Record<string, unknown>): WeReadReadingStatsItem {
+  return {
+    stat: stringValue(item.stat),
+    counts: stringValue(item.counts),
+  };
+}
+
+function readingStatsBookFromResponse(item: Record<string, unknown>): WeReadReadingStatsBook {
+  const book = objectValue(item.book) || objectValue(item.bookInfo) || objectValue(item.albumInfo);
+  return {
+    bookId: stringValue(item.bookId) || (book ? stringValue(book.bookId) : undefined) || undefined,
+    title: stringValue(item.title) || (book ? stringValue(book.title) : undefined) || undefined,
+    author: stringValue(item.author) || (book ? stringValue(book.author) : undefined) || undefined,
+    cover: stringValue(item.cover) || (book ? stringValue(book.cover) : undefined) || undefined,
+    readTime: optionalNumber(item.readTime),
+    finishReadingTime: optionalNumber(item.finishReadingTime),
+  };
+}
+
+function numberMapFromResponse(value: unknown) {
+  const object = objectValue(value);
+  if (!object) return {};
+  return Object.fromEntries(
+    Object.entries(object)
+      .map(([key, item]) => [key, optionalNumber(item)] as const)
+      .filter((entry): entry is readonly [string, number] => entry[1] !== undefined),
+  );
+}
+
+function numberArrayFromResponse(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .map((item) => optionalNumber(item))
+    .filter((item): item is number => item !== undefined);
+  return items.length > 0 ? items : undefined;
 }
 
 function objectValue(value: unknown) {

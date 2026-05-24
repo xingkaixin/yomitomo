@@ -443,6 +443,7 @@ function WeReadBookListItem({
   onOpen: () => void;
   onOpenExternal: () => void;
 }) {
+  const readingTime = book.readingTime ?? book.recordReadingTime;
   return (
     <article
       className="library-ebook-list-item"
@@ -469,12 +470,21 @@ function WeReadBookListItem({
         </div>
         <div className="library-ebook-list-meta">
           <span>{Math.round(book.readingProgress)}% 已读</span>
+          {readingTime ? <span>阅读 {formatWeReadDuration(readingTime)}</span> : null}
           <ArticleCountStats counts={{ annotations: book.noteCount, comments: book.reviewCount }} />
         </div>
       </div>
       <WeReadItemActions title={book.title} onOpenExternal={onOpenExternal} />
     </article>
   );
+}
+
+function formatWeReadDuration(value: number) {
+  const minutes = Math.round(value / 60);
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
 }
 
 export function WeReadCover({ book }: { book: WeReadBook }) {
