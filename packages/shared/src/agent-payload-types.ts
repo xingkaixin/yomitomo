@@ -1,0 +1,179 @@
+import type { AgentAnnotationDensity, AgentReadingIntent, PublicAgent } from './agent-types';
+import type { Annotation, AnnotationType, Comment } from './annotation-types';
+import type { TextAnchor } from './anchor-types';
+import type { EbookMetadata, EpubBookIndex } from './ebook-types';
+import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from './reader-context-types';
+
+export type AgentMessagePayload = {
+  agentId?: string;
+  agentUsername: string;
+  readingIntent?: AgentReadingIntent;
+  instruction?: string;
+  reviewTargetCommentId?: string;
+  agentRoster?: PublicAgent[];
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
+  article: {
+    title: string;
+    url: string;
+    text: string;
+    ebookIndex?: EpubBookIndex;
+  };
+  annotation: Annotation;
+  userComment: Comment;
+};
+
+export type AgentReviewPayload = {
+  agentId?: string;
+  agentUsername: string;
+  agentRoster?: PublicAgent[];
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
+  article: {
+    title: string;
+    url: string;
+    text: string;
+    ebookIndex?: EpubBookIndex;
+  };
+  annotation: Annotation;
+};
+
+export type AgentAnnotatePayload = {
+  agentId?: string;
+  agentUsername: string;
+  annotationType?: AnnotationType;
+  readingIntent?: AgentReadingIntent;
+  instruction?: string;
+  annotations?: Annotation[];
+  readingMemory?: ReadingMemory;
+  readingPlan?: AgentReadingPlanItem[];
+  targetAnchor?: TextAnchor;
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
+  article: {
+    title: string;
+    url: string;
+    text: string;
+    ebookIndex?: EpubBookIndex;
+  };
+};
+
+export type AgentAnnotateResult = {
+  annotations: Annotation[];
+  readingMemory?: ReadingMemory;
+};
+
+export type FocusCoReadingRouteSectionInput = {
+  sectionId: string;
+  sectionTitle: string;
+  sectionStart: number;
+  sectionEnd: number;
+};
+
+export type FocusCoReadingRouteChapterSummaryInput = {
+  chapterId?: string;
+  sectionId?: string;
+  summary?: string;
+  tag?: string;
+};
+
+export type FocusCoReadingRoutePayload = {
+  selectedAgentIds: string[];
+  sections: FocusCoReadingRouteSectionInput[];
+  chapterSummaries?: FocusCoReadingRouteChapterSummaryInput[];
+  readerGoal?: string;
+  article: {
+    title: string;
+    url: string;
+    byline?: string;
+    text: string;
+    ebookIndex?: EpubBookIndex;
+    ebookMetadata?: EbookMetadata;
+  };
+  readerProgress?: ReaderProgress;
+  spoilerPolicy?: SpoilerPolicy;
+};
+
+export type FocusCoReadingRouteSection = {
+  sectionId: string;
+  summary?: string;
+  tag?: string;
+  targetDensity?: AgentAnnotationDensity;
+  needsFurtherPlanning?: boolean;
+  agentIds: string[];
+};
+
+export type FocusCoReadingRouteResult = {
+  sections: FocusCoReadingRouteSection[];
+};
+
+export type AnnotationMetadataPayload = {
+  article: {
+    title: string;
+    url: string;
+    text: string;
+  };
+  anchor: TextAnchor;
+  note: string;
+};
+
+export type AnnotationMetadata = {
+  annotationType: AnnotationType;
+  readingIntent: AgentReadingIntent;
+};
+
+export type AgentReadingPlanItem = {
+  sectionId: string;
+  sectionTitle: string;
+  sectionStart: number;
+  sectionEnd: number;
+  readingIntent?: AgentReadingIntent;
+  sectionSummary?: string;
+  sectionTag?: string;
+  targetDensity?: AgentAnnotationDensity;
+  messages?: AgentReadingPlanMessage[];
+};
+
+export type AgentReadingPlanMessage = {
+  content: string;
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentIds?: string[];
+  agentUsernames?: string[];
+  agentNicknames?: string[];
+};
+
+export type AgentMentionInstructionPayload = {
+  note: string;
+  targetAnchor?: TextAnchor;
+  targetSection?: {
+    sectionId?: string;
+    sectionTitle?: string;
+    text: string;
+  };
+  allowedActions?: AgentMentionAction[];
+  agents: PublicAgent[];
+  article: {
+    title: string;
+    url: string;
+    text: string;
+  };
+};
+
+export type AgentMentionAction = 'comment' | 'create_thought';
+
+export type AgentMentionDirective = {
+  agentId?: string;
+  agentUsername: string;
+  action: AgentMentionAction;
+  instruction?: string;
+  readingIntent?: AgentReadingIntent;
+};
+
+export type AgentMentionRoutePlan = {
+  createUserThought: boolean;
+  directives: AgentMentionDirective[];
+};
+
+export type AgentMentionInstruction = AgentMentionDirective;
