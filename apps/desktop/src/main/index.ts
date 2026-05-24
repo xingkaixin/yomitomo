@@ -15,7 +15,6 @@ import type {
   AgentMessagePayload,
   AppSettings,
   ArticleRecord,
-  ArticleSummaryRecord,
   Comment,
   DesktopStore,
   LlmProvider,
@@ -315,14 +314,14 @@ function registerIpc() {
     return saveArticleReadingProgress(input.articleId, input.progress);
   });
   handleDesktopIpc('article:import-url', async (_event, input) => {
-    const { readArticle, readStore, saveArticle } = await getStoreModule();
+    const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
+      await getStoreModule();
     const { articleRecordFromUrl, isArticleImportChallengeRecord } =
       await import('./article-import');
-    const previousStore = await readStore();
     const record = await articleRecordFromUrl(input, {
-      inlineImages: Boolean(previousStore.settings.saveArticleImages),
+      inlineImages: readImportSettings().saveArticleImages,
     });
-    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    const existingArticle = findArticleByIdentity(record);
     const existingFullArticle = existingArticle ? await readArticle(existingArticle.id) : null;
     if (existingFullArticle && !isArticleImportChallengeRecord(existingFullArticle)) {
       return {
@@ -339,12 +338,11 @@ function registerIpc() {
     return { status: 'imported', article, patch };
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
-    const { readArticle, readStore, saveArticle } = await getStoreModule();
+    const { findArticleByIdentity, readArticle, saveArticle } = await getStoreModule();
     const { articleRecordFromEpubFile } = await import('./ebook-import');
     const { saveEbookSourceFile } = await import('./ebook-storage');
-    const previousStore = await readStore();
     const record = await articleRecordFromEpubFile(input, { performanceLogger: logInfo });
-    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    const existingArticle = findArticleByIdentity(record);
     if (existingArticle) {
       const existingFullArticle = await readArticle(existingArticle.id);
       await saveEbookSourceFile(existingArticle.id, input.data);
@@ -364,12 +362,11 @@ function registerIpc() {
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
   });
   handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
-    const { readArticle, readStore, saveArticle } = await getStoreModule();
+    const { findArticleByIdentity, readArticle, saveArticle } = await getStoreModule();
     const { articleRecordFromPdfFile } = await import('./pdf-import');
     const { savePdfSourceFile } = await import('./pdf-storage');
-    const previousStore = await readStore();
     const record = await articleRecordFromPdfFile(input);
-    const existingArticle = findArticleByIdentity(previousStore.articles, record);
+    const existingArticle = findArticleByIdentity(record);
     if (existingArticle) {
       const existingFullArticle = await readArticle(existingArticle.id);
       await savePdfSourceFile(existingArticle.id, input.data);
@@ -819,23 +816,6 @@ function recordStartupTiming(event: string, data: Record<string, unknown> = {}) 
 
 function elapsedMs(startedAt: number) {
   return Number((performance.now() - startedAt).toFixed(2));
-}
-
-function findArticleByIdentity(
-  articles: ArticleSummaryRecord[],
-  identity: Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>,
-) {
-  return (
-    articles.find((item) => item.id === identity.id) ||
-    articles.find(
-      (item) =>
-        item.canonicalUrl === identity.canonicalUrl ||
-        item.url === identity.url ||
-        item.url === identity.canonicalUrl ||
-        item.canonicalUrl === identity.url,
-    ) ||
-    null
-  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
