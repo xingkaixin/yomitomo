@@ -649,6 +649,25 @@ export function ShortcutSettings({
           支持 A-Z 单字母。重复键位会阻止保存。
         </p>
       </section>
+      <section className="shortcut-settings-card" aria-labelledby="shortcut-reader-title">
+        <header className="shortcut-settings-card-header">
+          <h3 id="shortcut-reader-title">阅读器翻页</h3>
+          <p>PDF 和电子书阅读时可直接用键盘翻页。</p>
+        </header>
+        <div className="shortcut-readonly-list">
+          <div className="shortcut-readonly-row">
+            <div className="selection-shortcut-copy">
+              <strong>上一页 / 下一页</strong>
+              <span>适用于 PDF 和电子书阅读器。该快捷键为内置说明，不支持自定义。</span>
+            </div>
+            <span className="shortcut-keyset" aria-label="左右方向键">
+              <Kbd className="shortcut-keycap">←</Kbd>
+              <span className="shortcut-key-plus">/</span>
+              <Kbd className="shortcut-keycap">→</Kbd>
+            </span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

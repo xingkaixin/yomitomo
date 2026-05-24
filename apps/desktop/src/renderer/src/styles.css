@@ -2887,6 +2887,23 @@
     box-shadow 140ms ease;
 }
 
+.shortcut-readonly-list {
+  display: grid;
+  gap: 10px;
+}
+
+.shortcut-readonly-row {
+  display: grid;
+  min-height: 74px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid hsl(var(--border) / 0.74);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.72);
+  padding: 12px 14px;
+}
+
 .selection-shortcut-row:hover,
 .selection-shortcut-row.is-recording {
   background-color: hsl(var(--background));
@@ -11077,6 +11094,10 @@ button.license-package-row:hover {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .shortcut-readonly-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .selection-shortcut-key,
   .selection-shortcut-status,
   .selection-shortcut-reset-slot {
@@ -14935,6 +14956,7 @@ button.license-package-row:hover {
 .settings-toggle-card,
 .shortcut-option-card,
 .selection-shortcut-row,
+.shortcut-readonly-row,
 .provider-select-trigger,
 .task-route-select-trigger,
 .provider-editor-close,

@@ -85,6 +85,7 @@ import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
 import { useEbookSelection } from './use-ebook-selection';
+import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
@@ -298,6 +299,13 @@ export function EbookBookcase({
     onScheduleEbookBoxUpdate: scheduleEbookBoxUpdate,
     pageTurnTraceRef,
   });
+  const turnPageFromKeyboard = useCallback(
+    (direction: ReaderPageTurnDirection) => {
+      if (direction === 'left') goLeft();
+      else goRight();
+    },
+    [goLeft, goRight],
+  );
   const { handleFoliateSelection, handleFoliateSelectionShortcut } = useEbookSelection({
     article,
     canvasRef,
@@ -313,6 +321,10 @@ export function EbookBookcase({
     openComposer,
     openSelectionAction,
     setStatusMessage,
+  });
+  useReaderPageTurnKeys({
+    enabled: readerState.status === 'ready',
+    onTurnPage: turnPageFromKeyboard,
   });
   const {
     boxes,

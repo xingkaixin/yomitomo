@@ -117,6 +117,7 @@ import { useSourceAnnotations } from './use-source-annotations';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
+import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumLoadedDocument = NonNullable<
@@ -907,6 +908,22 @@ function PdfiumDocument({
       pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
     );
   }, [annotations, currentPage, onSetAnnotationNavigation, selectedAnnotationId]);
+
+  const turnPdfPageFromKeyboard = useCallback(
+    (direction: ReaderPageTurnDirection) => {
+      if (direction === 'left') {
+        if (currentPage > 1) scroll?.scrollToPreviousPage('smooth');
+        return;
+      }
+      if (currentPage < pageCount) scroll?.scrollToNextPage('smooth');
+    },
+    [currentPage, pageCount, scroll],
+  );
+
+  useReaderPageTurnKeys({
+    enabled: Boolean(scroll && documentState?.document),
+    onTurnPage: turnPdfPageFromKeyboard,
+  });
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLElement>) {
     if (!selectionAction || composer) return;
