@@ -21,6 +21,11 @@ import type {
   LlmProvider,
   ProviderModel,
   UserProfile,
+  WeReadBook,
+  WeReadBookDetail,
+  WeReadOpenMethod,
+  WeReadSettings,
+  WeReadSyncResult,
 } from '@yomitomo/shared';
 import type { DesktopStoreGetResult } from './app-store-errors';
 import type { AppUpdateState } from './app-update-types';
@@ -67,6 +72,24 @@ export type PerformanceTimingInput = {
 export type ProviderTestResult = {
   ok: boolean;
   message: string;
+};
+
+export type WeReadSaveSettingsInput = {
+  apiKey?: string;
+  removeApiKey?: boolean;
+  openMethod: WeReadOpenMethod;
+};
+
+export type WeReadOpenTarget = {
+  bookId: string;
+  chapterUid?: number;
+  range?: string;
+  userVid?: number;
+};
+
+export type WeReadState = {
+  settings: WeReadSettings;
+  books: WeReadBook[];
 };
 
 export type DesktopIpcInvokeMap = {
@@ -224,6 +247,38 @@ export type DesktopIpcInvokeMap = {
   };
   'url:open': {
     args: [url: string];
+    result: void;
+  };
+  'weread:get-state': {
+    args: [];
+    result: WeReadState;
+  };
+  'weread:read-api-key': {
+    args: [];
+    result: string;
+  };
+  'weread:save-settings': {
+    args: [input: WeReadSaveSettingsInput];
+    result: WeReadState;
+  };
+  'weread:test': {
+    args: [apiKey?: string];
+    result: ProviderTestResult;
+  };
+  'weread:sync': {
+    args: [];
+    result: WeReadSyncResult;
+  };
+  'weread:sync-book': {
+    args: [bookId: string];
+    result: WeReadBookDetail | null;
+  };
+  'weread:get-book': {
+    args: [bookId: string];
+    result: WeReadBookDetail | null;
+  };
+  'weread:open': {
+    args: [target: WeReadOpenTarget];
     result: void;
   };
   'user:save': {

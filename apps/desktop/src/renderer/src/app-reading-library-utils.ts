@@ -3,7 +3,7 @@ import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 
-export type LibrarySource = 'web' | 'ebook' | 'pdf';
+export type LibrarySource = 'web' | 'ebook' | 'pdf' | 'weread';
 
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 

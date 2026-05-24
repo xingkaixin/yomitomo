@@ -318,6 +318,90 @@ export type PdfRecord = {
   metadata: PdfMetadata;
 };
 
+export type WeReadOpenMethod = 'deeplink' | 'web';
+
+export type WeReadSettings = {
+  configured: boolean;
+  openMethod: WeReadOpenMethod;
+  status?: 'idle' | 'connected' | 'error';
+  lastSyncAt?: string;
+  lastTestAt?: string;
+  message?: string;
+};
+
+export type WeReadBook = {
+  bookId: string;
+  title: string;
+  author?: string;
+  cover?: string;
+  intro?: string;
+  reviewCount: number;
+  noteCount: number;
+  bookmarkCount: number;
+  readingProgress: number;
+  markedStatus?: number;
+  sort?: number;
+  currentChapterUid?: number;
+  currentChapterOffset?: number;
+  recordReadingTime?: number;
+  lastReadAt?: number;
+  syncedAt?: string;
+  updatedAt: string;
+};
+
+export type WeReadChapter = {
+  bookId: string;
+  chapterUid: number;
+  chapterIdx: number;
+  title: string;
+  level: number;
+  wordCount?: number;
+};
+
+export type WeReadHighlight = {
+  bookmarkId: string;
+  bookId: string;
+  chapterUid: number;
+  chapterIdx?: number;
+  range?: string;
+  markText: string;
+  colorStyle?: number;
+  createTime: number;
+};
+
+export type WeReadUser = {
+  userVid?: number;
+  name?: string;
+  avatar?: string;
+};
+
+export type WeReadThought = {
+  reviewId: string;
+  bookId: string;
+  userVid?: number;
+  author?: WeReadUser;
+  chapterUid?: number;
+  chapterIdx?: number;
+  chapterName?: string;
+  range?: string;
+  abstract?: string;
+  content: string;
+  createTime: number;
+};
+
+export type WeReadBookDetail = {
+  book: WeReadBook;
+  chapters: WeReadChapter[];
+  highlights: WeReadHighlight[];
+  thoughts: WeReadThought[];
+};
+
+export type WeReadSyncResult = {
+  settings: WeReadSettings;
+  books: WeReadBook[];
+  syncedBook?: WeReadBookDetail;
+};
+
 export type ArticleReadingProgress = {
   pageIndex: number;
   pageCount: number;

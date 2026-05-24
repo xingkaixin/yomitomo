@@ -32,6 +32,8 @@ const loadProviderSettings = () =>
   preloadEntries.settingsProvider.load().then((module) => ({ default: module.ProviderSettings }));
 const loadShortcutSettings = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.ShortcutSettings }));
+const loadWeReadSettingsPanel = () =>
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.WeReadSettingsPanel }));
 const loadSettingsSectionShell = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.SettingsSectionShell }));
 const loadUserProfileSettingsDialog = () =>
@@ -49,6 +51,7 @@ const DataManagementSettings = lazy(loadDataManagementSettings);
 const GeneralSettings = lazy(loadGeneralSettings);
 const ProviderSettings = lazy(loadProviderSettings);
 const ShortcutSettings = lazy(loadShortcutSettings);
+const WeReadSettingsPanel = lazy(loadWeReadSettingsPanel);
 const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
@@ -431,6 +434,8 @@ function App() {
     settingsPanelsModule?.SettingsSectionShell ?? SettingsSectionShell;
   const ActiveGeneralSettings = settingsPanelsModule?.GeneralSettings ?? GeneralSettings;
   const ActiveShortcutSettings = settingsPanelsModule?.ShortcutSettings ?? ShortcutSettings;
+  const ActiveWeReadSettingsPanel =
+    settingsPanelsModule?.WeReadSettingsPanel ?? WeReadSettingsPanel;
   const ActiveDataManagementSettings =
     settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
   const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
@@ -543,6 +548,7 @@ function App() {
                   onTest={testProvider}
                 />
               ) : null}
+              {activeSettingsSection === 'weread' ? <ActiveWeReadSettingsPanel /> : null}
               {activeSettingsSection === 'shortcuts' ? (
                 <ActiveShortcutSettings
                   savedSettings={store.settings}

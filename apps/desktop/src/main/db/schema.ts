@@ -172,3 +172,91 @@ export const comments = sqliteTable(
     index('comments_created_at_idx').on(table.createdAt),
   ],
 );
+
+export const wereadAccounts = sqliteTable('weread_accounts', {
+  id: text('id').primaryKey(),
+  apiKeyRef: text('api_key_ref'),
+  openMethod: text('open_method').notNull().default('deeplink'),
+  skillVersion: text('skill_version').notNull(),
+  status: text('status').notNull().default('idle'),
+  message: text('message'),
+  lastSyncAt: text('last_sync_at'),
+  lastTestAt: text('last_test_at'),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const wereadBooks = sqliteTable(
+  'weread_books',
+  {
+    bookId: text('book_id').primaryKey(),
+    title: text('title').notNull(),
+    author: text('author'),
+    cover: text('cover'),
+    intro: text('intro'),
+    reviewCount: integer('review_count').notNull().default(0),
+    noteCount: integer('note_count').notNull().default(0),
+    bookmarkCount: integer('bookmark_count').notNull().default(0),
+    readingProgress: integer('reading_progress').notNull().default(0),
+    markedStatus: integer('marked_status'),
+    sort: integer('sort'),
+    currentChapterUid: integer('current_chapter_uid'),
+    currentChapterOffset: integer('current_chapter_offset'),
+    recordReadingTime: integer('record_reading_time'),
+    lastReadAt: integer('last_read_at'),
+    syncedAt: text('synced_at'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('weread_books_updated_at_idx').on(table.updatedAt),
+    index('weread_books_sort_idx').on(table.sort),
+  ],
+);
+
+export const wereadChapters = sqliteTable(
+  'weread_chapters',
+  {
+    bookId: text('book_id').notNull(),
+    chapterUid: integer('chapter_uid').notNull(),
+    chapterIdx: integer('chapter_idx').notNull().default(0),
+    title: text('title').notNull(),
+    level: integer('level').notNull().default(1),
+    wordCount: integer('word_count'),
+  },
+  (table) => [
+    index('weread_chapters_book_idx').on(table.bookId, table.chapterIdx),
+    index('weread_chapters_uid_idx').on(table.bookId, table.chapterUid),
+  ],
+);
+
+export const wereadHighlights = sqliteTable(
+  'weread_highlights',
+  {
+    bookmarkId: text('bookmark_id').primaryKey(),
+    bookId: text('book_id').notNull(),
+    chapterUid: integer('chapter_uid').notNull(),
+    chapterIdx: integer('chapter_idx'),
+    range: text('range'),
+    markText: text('mark_text').notNull(),
+    colorStyle: integer('color_style'),
+    createTime: integer('create_time').notNull().default(0),
+  },
+  (table) => [index('weread_highlights_book_idx').on(table.bookId, table.chapterUid)],
+);
+
+export const wereadThoughts = sqliteTable(
+  'weread_thoughts',
+  {
+    reviewId: text('review_id').primaryKey(),
+    bookId: text('book_id').notNull(),
+    userVid: integer('user_vid'),
+    author: text('author', { mode: 'json' }),
+    chapterUid: integer('chapter_uid'),
+    chapterIdx: integer('chapter_idx'),
+    chapterName: text('chapter_name'),
+    range: text('range'),
+    abstract: text('abstract'),
+    content: text('content').notNull(),
+    createTime: integer('create_time').notNull().default(0),
+  },
+  (table) => [index('weread_thoughts_book_idx').on(table.bookId, table.chapterUid)],
+);

@@ -8,10 +8,12 @@ import {
   Highlighter,
   Lightbulb,
   MoreHorizontal,
+  RefreshCw,
   Search,
+  Smartphone,
   Trash2,
 } from 'lucide-react';
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import type { ArticleSummaryRecord, WeReadBook, WeReadSettings } from '@yomitomo/shared';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -44,6 +46,7 @@ const LIBRARY_SOURCE_OPTIONS: Array<{
   { value: 'web', label: '网页文章' },
   { value: 'ebook', label: '电子书' },
   { value: 'pdf', label: 'PDF' },
+  { value: 'weread', label: '微信读书' },
 ];
 
 export function LibraryHome({
@@ -56,6 +59,13 @@ export function LibraryHome({
   onImportPdfFile,
   onImportArticleUrl,
   onOpenArticle,
+  onOpenWeReadBook,
+  onOpenWeReadExternal,
+  onSyncWeRead,
+  wereadBooks,
+  wereadOpenMessage,
+  wereadSettings,
+  wereadSyncing,
 }: {
   activeSource: LibrarySource;
   articles: ArticleSummaryRecord[];
@@ -72,6 +82,13 @@ export function LibraryHome({
   ) => Promise<ArticleImportResult>;
   onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleSummaryRecord) => void;
+  onOpenWeReadBook: (book: WeReadBook) => void;
+  onOpenWeReadExternal: (book: WeReadBook) => void;
+  onSyncWeRead: () => void;
+  wereadBooks: WeReadBook[];
+  wereadOpenMessage: string;
+  wereadSettings: WeReadSettings;
+  wereadSyncing: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
@@ -87,8 +104,15 @@ export function LibraryHome({
     () => filteredArticles.filter((article) => librarySourceForArticle(article) === activeSource),
     [activeSource, filteredArticles],
   );
-  const pageCount = Math.max(1, Math.ceil(sourceArticles.length / pageSize));
+  const filteredWeReadBooks = useMemo(
+    () => wereadBooks.filter((book) => weReadBookMatchesSearch(book, searchQuery)),
+    [searchQuery, wereadBooks],
+  );
+  const activeItemsLength =
+    activeSource === 'weread' ? filteredWeReadBooks.length : sourceArticles.length;
+  const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
   const pageArticles = sourceArticles.slice((page - 1) * pageSize, page * pageSize);
+  const pageWeReadBooks = filteredWeReadBooks.slice((page - 1) * pageSize, page * pageSize);
   const counts = useMemo(
     () =>
       articles.reduce(
@@ -96,9 +120,9 @@ export function LibraryHome({
           result[librarySourceForArticle(article)] += 1;
           return result;
         },
-        { web: 0, ebook: 0, pdf: 0 },
+        { web: 0, ebook: 0, pdf: 0, weread: wereadBooks.length },
       ),
-    [articles],
+    [articles, wereadBooks.length],
   );
   const pageNumbers = useMemo(() => {
     const visibleCount = Math.min(5, pageCount);
@@ -118,17 +142,26 @@ export function LibraryHome({
   }, [activeSource, pageSize, searchQuery]);
 
   const activeSourceLabel =
-    activeSource === 'web' ? '网页文章' : activeSource === 'ebook' ? '电子书' : 'PDF';
+    activeSource === 'web'
+      ? '网页文章'
+      : activeSource === 'ebook'
+        ? '电子书'
+        : activeSource === 'pdf'
+          ? 'PDF'
+          : '微信读书';
   const footerCountLabel =
     activeSource === 'web'
       ? `共 ${sourceArticles.length} 篇`
       : activeSource === 'ebook'
         ? `共 ${sourceArticles.length} 本`
-        : `共 ${sourceArticles.length} 份`;
+        : activeSource === 'pdf'
+          ? `共 ${sourceArticles.length} 份`
+          : `共 ${filteredWeReadBooks.length} 本`;
   const emptyReason = emptyLibraryReason({
     activeSource,
-    articlesLength: articles.length,
-    filteredLength: filteredArticles.length,
+    itemsLength: activeSource === 'weread' ? wereadBooks.length : articles.length,
+    filteredLength:
+      activeSource === 'weread' ? filteredWeReadBooks.length : filteredArticles.length,
     searchQuery,
   });
 
@@ -140,10 +173,29 @@ export function LibraryHome({
             {LIBRARY_SOURCE_OPTIONS.map((option) => (
               <button
                 aria-pressed={activeSource === option.value}
-                className={activeSource === option.value ? 'is-active' : undefined}
+                aria-disabled={option.value === 'weread' && !wereadSettings.configured}
+                className={[
+                  activeSource === option.value ? 'is-active' : '',
+                  option.value === 'weread' && !wereadSettings.configured ? 'is-disabled' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                data-tooltip={
+                  option.value === 'weread' && !wereadSettings.configured
+                    ? '请先到设置 / 微信读书配置 API Key'
+                    : undefined
+                }
+                title={
+                  option.value === 'weread' && !wereadSettings.configured
+                    ? '请先到设置 / 微信读书配置 API Key'
+                    : undefined
+                }
                 key={option.value}
                 type="button"
-                onClick={() => onActiveSourceChange(option.value)}
+                onClick={() => {
+                  if (option.value === 'weread' && !wereadSettings.configured) return;
+                  onActiveSourceChange(option.value);
+                }}
               >
                 <span>{option.label}</span>
                 <em>{counts[option.value]}</em>
@@ -161,13 +213,29 @@ export function LibraryHome({
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
-            <LibraryImportControls
-              defaultImportType={activeSource}
-              onImportEbookFile={onImportEbookFile}
-              onImportPdfFile={onImportPdfFile}
-              onImportArticleUrl={onImportArticleUrl}
-              onOpenArticle={onOpenArticle}
-            />
+            {activeSource === 'weread' ? null : (
+              <LibraryImportControls
+                defaultImportType={activeSource}
+                onImportEbookFile={onImportEbookFile}
+                onImportPdfFile={onImportPdfFile}
+                onImportArticleUrl={onImportArticleUrl}
+                onOpenArticle={onOpenArticle}
+              />
+            )}
+            {activeSource === 'weread' ? (
+              <button
+                className="library-sync-button"
+                type="button"
+                disabled={!wereadSettings.configured || wereadSyncing}
+                onClick={onSyncWeRead}
+              >
+                <RefreshCw size={15} />
+                {wereadSyncing ? '同步中' : '同步'}
+              </button>
+            ) : null}
+            {activeSource === 'weread' && wereadOpenMessage ? (
+              <p className="library-inline-error">{wereadOpenMessage}</p>
+            ) : null}
           </div>
         </div>
       </header>
@@ -175,7 +243,22 @@ export function LibraryHome({
         <span>最近添加 · 降序</span>
       </div>
       <div className="library-home-body">
-        {sourceArticles.length > 0 ? (
+        {activeSource === 'weread' && !wereadSettings.configured ? (
+          <LibraryEmptyState icon={<Smartphone size={32} />} title="需要配置微信读书">
+            请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。
+          </LibraryEmptyState>
+        ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
+          <div className="library-ebook-list">
+            {pageWeReadBooks.map((book) => (
+              <WeReadBookListItem
+                book={book}
+                key={book.bookId}
+                onOpen={() => onOpenWeReadBook(book)}
+                onOpenExternal={() => onOpenWeReadExternal(book)}
+              />
+            ))}
+          </div>
+        ) : sourceArticles.length > 0 ? (
           activeSource === 'web' ? (
             <div className="library-web-grid">
               {pageArticles.map((article) => (
@@ -205,7 +288,7 @@ export function LibraryHome({
           </LibraryEmptyState>
         )}
       </div>
-      {sourceArticles.length > 0 ? (
+      {activeItemsLength > 0 ? (
         <footer
           className={pageCount > 1 ? 'library-home-footer' : 'library-home-footer is-compact'}
         >
@@ -348,6 +431,110 @@ function LibraryDocumentListItem({
       </div>
       <LibraryItemActions title={article.title} onDelete={onDelete} />
     </article>
+  );
+}
+
+function WeReadBookListItem({
+  book,
+  onOpen,
+  onOpenExternal,
+}: {
+  book: WeReadBook;
+  onOpen: () => void;
+  onOpenExternal: () => void;
+}) {
+  return (
+    <article
+      className="library-ebook-list-item"
+      role="button"
+      tabIndex={0}
+      aria-label={`打开微信读书笔记：${book.title}`}
+      onClick={onOpen}
+      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
+    >
+      <div className="library-ebook-cover-column">
+        <WeReadCover book={book} />
+        <span
+          className="library-ebook-progress"
+          style={weReadProgressStyle(book)}
+          aria-label="阅读进度"
+        />
+      </div>
+      <div className="library-ebook-list-copy">
+        <div className="library-ebook-list-source">
+          <span>{book.author || '微信读书'}</span>
+        </div>
+        <div className="library-ebook-list-main">
+          <h3 title={book.title}>{book.title}</h3>
+        </div>
+        <div className="library-ebook-list-meta">
+          <span>{Math.round(book.readingProgress)}% 已读</span>
+          <ArticleCountStats counts={{ annotations: book.noteCount, comments: book.reviewCount }} />
+        </div>
+      </div>
+      <WeReadItemActions title={book.title} onOpenExternal={onOpenExternal} />
+    </article>
+  );
+}
+
+export function WeReadCover({ book }: { book: WeReadBook }) {
+  return (
+    <span className="weread-book-cover" aria-hidden="true">
+      {book.cover ? (
+        <img alt="" src={book.cover} loading="lazy" />
+      ) : (
+        <span>{book.title.slice(0, 6)}</span>
+      )}
+    </span>
+  );
+}
+
+function WeReadItemActions({
+  title,
+  onOpenExternal,
+}: {
+  title: string;
+  onOpenExternal: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  return (
+    <div
+      className="library-item-actions"
+      tabIndex={-1}
+      onBlur={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget)) return;
+        setMenuOpen(false);
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="library-card-menu">
+        <button
+          className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+          type="button"
+          aria-label={`更多操作：${title}`}
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((current) => !current)}
+        >
+          <MoreHorizontal size={17} />
+        </button>
+        {menuOpen ? (
+          <div className="library-card-menu-popover" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenExternal();
+              }}
+            >
+              <Smartphone size={14} />
+              <span>打开微信读书</span>
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -512,18 +699,31 @@ function ebookProgressStyle(article: ArticleSummaryRecord) {
   return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }
 
+function weReadProgressStyle(book: WeReadBook) {
+  const progress = Math.min(1, Math.max(0, book.readingProgress / 100));
+  return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
+}
+
+function weReadBookMatchesSearch(book: WeReadBook, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+  return [book.title, book.author, book.intro]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+}
+
 function emptyLibraryReason({
   activeSource,
-  articlesLength,
+  itemsLength,
   filteredLength,
   searchQuery,
 }: {
   activeSource: LibrarySource;
-  articlesLength: number;
+  itemsLength: number;
   filteredLength: number;
   searchQuery: string;
 }) {
-  if (articlesLength === 0) {
+  if (itemsLength === 0) {
     return {
       description: '从右上角加号添加网页文章或导入 ePub 电子书，阅读库会按类型分开呈现。',
       icon: <BookOpen size={32} />,
@@ -552,6 +752,14 @@ function emptyLibraryReason({
       description: '点击加号导入 PDF 文件，文档会保留页数和基础信息。',
       icon: <FileText size={32} />,
       title: '暂无 PDF',
+    };
+  }
+
+  if (activeSource === 'weread') {
+    return {
+      description: '点击同步拉取微信读书中已有笔记的书籍，列表会展示封面、阅读进度、划线和想法。',
+      icon: <Smartphone size={32} />,
+      title: '暂无微信读书笔记',
     };
   }
 
