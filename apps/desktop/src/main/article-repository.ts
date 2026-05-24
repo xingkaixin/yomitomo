@@ -1,0 +1,423 @@
+import { count, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import type {
+  Annotation,
+  ArticleDeletePatch,
+  ArticleRecord,
+  ArticleReadingProgress,
+  ArticleReadingProgressPatch,
+  ArticleSummaryRecord,
+  ArticleUpsertPatch,
+  Comment,
+} from '@yomitomo/shared';
+import * as schema from './db/schema';
+import {
+  getDatabase,
+  type StoreDatabase,
+  type StoreExecutor,
+  type StoreReadProfileEntry,
+} from './store-db';
+import {
+  normalizeArticleReadingProgress,
+  normalizeArticleSourceType,
+  rowToAnnotation,
+  rowToArticle,
+  rowToArticleSummary,
+  rowToComment,
+  sortByCreatedAt,
+  type ArticleSummaryCounts,
+  type ArticleSummaryRow,
+} from './store-normalizers';
+
+const INSERT_BATCH_SIZE = 32;
+
+export type ArticleIdentity = Pick<ArticleRecord, 'id' | 'url' | 'canonicalUrl'>;
+
+export const articleSummaryColumns = {
+  id: schema.articles.id,
+  url: schema.articles.url,
+  canonicalUrl: schema.articles.canonicalUrl,
+  sourceType: schema.articles.sourceType,
+  title: schema.articles.title,
+  byline: schema.articles.byline,
+  excerpt: schema.articles.excerpt,
+  siteName: schema.articles.siteName,
+  themeColor: schema.articles.themeColor,
+  contentHash: schema.articles.contentHash,
+  ebookMetadata: schema.articles.ebookMetadata,
+  pdfMetadata: schema.articles.pdfMetadata,
+  readingProgress: schema.articles.readingProgress,
+  createdAt: schema.articles.createdAt,
+  updatedAt: schema.articles.updatedAt,
+} satisfies Record<keyof ArticleSummaryRow, unknown>;
+
+const articleIdentityColumns = {
+  id: schema.articles.id,
+  url: schema.articles.url,
+  canonicalUrl: schema.articles.canonicalUrl,
+};
+
+export function readArticleRows(database: StoreDatabase, id: string): ArticleRecord | null {
+  const row = database.select().from(schema.articles).where(eq(schema.articles.id, id)).get();
+  if (!row) return null;
+
+  return rowToArticle(row, readArticleAnnotations(database, id));
+}
+
+export function readArticleSummaryRows(
+  database: StoreDatabase,
+  id: string,
+): ArticleSummaryRecord | null {
+  const row = database
+    .select(articleSummaryColumns)
+    .from(schema.articles)
+    .where(eq(schema.articles.id, id))
+    .get();
+  if (!row) return null;
+
+  return rowToArticleSummary(row, [], readArticleSummaryCounts(database).get(id));
+}
+
+export function findArticleByIdentityRows(
+  database: StoreDatabase,
+  identity: ArticleIdentity,
+): ArticleIdentity | null {
+  const idMatch = database
+    .select(articleIdentityColumns)
+    .from(schema.articles)
+    .where(eq(schema.articles.id, identity.id))
+    .get();
+  if (idMatch) return idMatch;
+
+  const candidates = Array.from(new Set([identity.canonicalUrl, identity.url]));
+  const row = database
+    .select(articleIdentityColumns)
+    .from(schema.articles)
+    .where(
+      or(
+        inArray(schema.articles.canonicalUrl, candidates),
+        inArray(schema.articles.url, candidates),
+      ),
+    )
+    .orderBy(desc(schema.articles.updatedAt))
+    .get();
+  return row ? findArticleInListByIdentity([row], identity) : null;
+}
+
+export function findArticleInListByIdentity<T extends ArticleIdentity>(
+  articles: T[],
+  identity: ArticleIdentity,
+): T | null {
+  return (
+    articles.find((item) => item.id === identity.id) ||
+    articles.find(
+      (item) =>
+        item.canonicalUrl === identity.canonicalUrl ||
+        item.url === identity.url ||
+        item.url === identity.canonicalUrl ||
+        item.canonicalUrl === identity.url,
+    ) ||
+    null
+  );
+}
+
+export function readArticleCoverRows(database: StoreDatabase, id: string): string {
+  return (
+    database
+      .select({ leadImageUrl: schema.articles.leadImageUrl })
+      .from(schema.articles)
+      .where(eq(schema.articles.id, id))
+      .get()?.leadImageUrl || ''
+  );
+}
+
+export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
+  writeArticleRowsInTransaction(getDatabase(), input);
+  const article = readArticleSummaryRows(getDatabase(), input.id);
+  if (!article) throw new Error('文章保存失败');
+  return buildArticleUpsertPatch(article);
+}
+
+export function buildArticleUpsertPatch(article: ArticleSummaryRecord): ArticleUpsertPatch {
+  return { type: 'article-upsert', article };
+}
+
+export function saveArticleReadingProgressRows(
+  database: StoreDatabase,
+  articleId: string,
+  progress: ArticleReadingProgress,
+): ArticleReadingProgressPatch {
+  const patch = buildArticleReadingProgressPatch(articleId, progress);
+  database
+    .update(schema.articles)
+    .set({
+      readingProgress: patch.readingProgress,
+      updatedAt: patch.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return patch;
+}
+
+export function buildArticleReadingProgressPatch(
+  articleId: string,
+  progress: ArticleReadingProgress,
+): ArticleReadingProgressPatch {
+  const readingProgress = normalizeArticleReadingProgress(progress) || progress;
+  return { articleId, readingProgress, updatedAt: readingProgress.updatedAt };
+}
+
+export function deleteArticleRows(database: StoreDatabase, id: string): ArticleDeletePatch {
+  database.delete(schema.articles).where(eq(schema.articles.id, id)).run();
+  return { articleId: id };
+}
+
+export function readArticleSummaryRowsForStore(
+  database: StoreDatabase,
+  profile?: StoreReadProfileEntry[],
+) {
+  return measureStoreRead(profile, 'read_article_summaries', () =>
+    database
+      .select(articleSummaryColumns)
+      .from(schema.articles)
+      .orderBy(desc(schema.articles.updatedAt))
+      .all(),
+  );
+}
+
+export function readArticleSummaryCounts(
+  database: StoreDatabase,
+  profile?: StoreReadProfileEntry[],
+) {
+  const annotationCounts = measureStoreRead(profile, 'count_annotations_by_article', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        count: count(),
+      })
+      .from(schema.annotations)
+      .groupBy(schema.annotations.articleId)
+      .all(),
+  );
+  const commentCounts = measureStoreRead(profile, 'count_comments_by_article', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        count: count(),
+      })
+      .from(schema.comments)
+      .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
+      .where(isNull(schema.comments.replyTo))
+      .groupBy(schema.annotations.articleId)
+      .all(),
+  );
+  const countsByArticle = new Map<string, ArticleSummaryCounts>();
+
+  for (const row of annotationCounts) {
+    countsByArticle.set(row.articleId, {
+      annotationCount: Number(row.count),
+      commentCount: 0,
+    });
+  }
+
+  for (const row of commentCounts) {
+    const counts = countsByArticle.get(row.articleId);
+    if (counts) counts.commentCount = Number(row.count);
+    else
+      countsByArticle.set(row.articleId, { annotationCount: 0, commentCount: Number(row.count) });
+  }
+
+  return countsByArticle;
+}
+
+export function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
+  database
+    .insert(schema.articles)
+    .values({
+      id: article.id,
+      url: article.url,
+      canonicalUrl: article.canonicalUrl,
+      sourceType: normalizeArticleSourceType(article.sourceType),
+      title: article.title,
+      byline: article.byline,
+      excerpt: article.excerpt,
+      siteName: article.siteName,
+      siteIconUrl: article.siteIconUrl,
+      leadImageUrl: article.leadImageUrl,
+      themeColor: article.themeColor,
+      contentHtml: article.contentHtml,
+      contentHash: article.contentHash,
+      ebookMetadata: article.ebook?.metadata,
+      ebookChapters: article.ebook?.chapters,
+      ebookIndex: article.ebook?.index,
+      pdfMetadata: article.pdf?.metadata,
+      readingProgress: normalizeArticleReadingProgress(article.readingProgress),
+      focusCoReadingPlan: article.focusCoReadingPlan,
+      createdAt: article.createdAt,
+      updatedAt: article.updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: schema.articles.id,
+      set: {
+        url: article.url,
+        canonicalUrl: article.canonicalUrl,
+        sourceType: normalizeArticleSourceType(article.sourceType),
+        title: article.title,
+        byline: article.byline,
+        excerpt: article.excerpt,
+        siteName: article.siteName,
+        siteIconUrl: article.siteIconUrl,
+        leadImageUrl: article.leadImageUrl,
+        themeColor: article.themeColor,
+        contentHtml: article.contentHtml,
+        contentHash: article.contentHash,
+        ebookMetadata: article.ebook?.metadata,
+        ebookChapters: article.ebook?.chapters,
+        ebookIndex: article.ebook?.index,
+        pdfMetadata: article.pdf?.metadata,
+        readingProgress: normalizeArticleReadingProgress(article.readingProgress),
+        focusCoReadingPlan: article.focusCoReadingPlan,
+        updatedAt: article.updatedAt,
+      },
+    })
+    .run();
+
+  database.delete(schema.annotations).where(eq(schema.annotations.articleId, article.id)).run();
+  const { annotationRows, commentRows } = buildArticleChildRows(article);
+  for (let index = 0; index < annotationRows.length; index += INSERT_BATCH_SIZE) {
+    database
+      .insert(schema.annotations)
+      .values(annotationRows.slice(index, index + INSERT_BATCH_SIZE))
+      .run();
+  }
+  for (let index = 0; index < commentRows.length; index += INSERT_BATCH_SIZE) {
+    database
+      .insert(schema.comments)
+      .values(commentRows.slice(index, index + INSERT_BATCH_SIZE))
+      .run();
+  }
+}
+
+function writeArticleRowsInTransaction(database: StoreDatabase, article: ArticleRecord) {
+  database.transaction((tx) => {
+    writeArticleRows(tx, article);
+  });
+}
+
+export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+  const annotationRows = article.annotations.map((annotation) =>
+    annotationToRow(article.id, annotation),
+  );
+  const commentRows = article.annotations.flatMap(commentRowsForAnnotation);
+  return { annotationRows, commentRows };
+}
+
+function readArticleAnnotations(database: StoreDatabase, articleId: string) {
+  const annotationRows = database
+    .select()
+    .from(schema.annotations)
+    .where(eq(schema.annotations.articleId, articleId))
+    .all();
+  const annotationIds = annotationRows.map((row) => row.id);
+  const commentRows =
+    annotationIds.length > 0
+      ? database
+          .select()
+          .from(schema.comments)
+          .where(inArray(schema.comments.annotationId, annotationIds))
+          .all()
+      : [];
+  return sortByCreatedAt(
+    groupAnnotationsByArticle(annotationRows, commentRows).get(articleId) || [],
+  );
+}
+
+function groupAnnotationsByArticle(
+  annotationRows: Array<typeof schema.annotations.$inferSelect>,
+  commentRows: Array<typeof schema.comments.$inferSelect>,
+) {
+  const commentsByAnnotation = new Map<string, Comment[]>();
+  for (const row of commentRows) {
+    const list = commentsByAnnotation.get(row.annotationId) || [];
+    list.push(rowToComment(row));
+    commentsByAnnotation.set(row.annotationId, list);
+  }
+
+  const annotationsByArticle = new Map<string, Annotation[]>();
+  for (const row of annotationRows) {
+    const list = annotationsByArticle.get(row.articleId) || [];
+    list.push(rowToAnnotation(row, sortByCreatedAt(commentsByAnnotation.get(row.id) || [])));
+    annotationsByArticle.set(row.articleId, list);
+  }
+  return annotationsByArticle;
+}
+
+function annotationToRow(articleId: string, annotation: Annotation) {
+  return {
+    id: annotation.id,
+    articleId,
+    anchor: annotation.anchor,
+    author: annotation.author,
+    annotationType: annotation.annotationType,
+    readingIntent: annotation.readingIntent,
+    moveType: annotation.moveType,
+    whyHere: annotation.whyHere,
+    evidenceUsed: annotation.evidenceUsed,
+    confidence: annotation.confidence,
+    shouldShow: annotation.shouldShow,
+    color: annotation.color,
+    agentId: annotation.agentId,
+    agentUsername: annotation.agentUsername,
+    agentNickname: annotation.agentNickname,
+    agentAvatar: annotation.agentAvatar,
+    agentAnnotationColor: annotation.agentAnnotationColor,
+    userId: annotation.userId,
+    userUsername: annotation.userUsername,
+    userNickname: annotation.userNickname,
+    userAvatar: annotation.userAvatar,
+    userAnnotationColor: annotation.userAnnotationColor,
+    createdAt: annotation.createdAt,
+    updatedAt: annotation.updatedAt,
+  };
+}
+
+function commentRowsForAnnotation(annotation: Annotation) {
+  return annotation.comments.map((comment) => ({
+    id: comment.id,
+    annotationId: annotation.id,
+    author: comment.author,
+    content: comment.content,
+    createdAt: comment.createdAt,
+    replyTo: comment.replyTo,
+    agentId: comment.agentId,
+    agentUsername: comment.agentUsername,
+    agentNickname: comment.agentNickname,
+    agentAvatar: comment.agentAvatar,
+    agentAnnotationColor: comment.agentAnnotationColor,
+    readingIntent: comment.readingIntent,
+    reviewLabel: comment.reviewLabel,
+    userId: comment.userId,
+    userUsername: comment.userUsername,
+    userNickname: comment.userNickname,
+    userAvatar: comment.userAvatar,
+    userAnnotationColor: comment.userAnnotationColor,
+    pending: comment.pending,
+  }));
+}
+
+function measureStoreRead<T>(
+  profile: StoreReadProfileEntry[] | undefined,
+  name: string,
+  read: () => T,
+  data?: Record<string, number>,
+): T {
+  const startedAt = performance.now();
+  try {
+    return read();
+  } finally {
+    profile?.push({ name, durationMs: elapsedMs(startedAt), data });
+  }
+}
+
+function elapsedMs(startedAt: number) {
+  return Number((performance.now() - startedAt).toFixed(2));
+}
