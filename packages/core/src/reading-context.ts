@@ -2,6 +2,7 @@ import type {
   AgentReadingPlanItem,
   EpubBookIndex,
   EpubChapterIndex,
+  EpubParagraphIndex,
   EpubSegmentIndex,
   ReaderProgress,
   RelatedPassageInput,
@@ -69,6 +70,13 @@ export type ReadingContextBundle = {
   chapterSummaries: ReadingContextChapterSummaryInput[];
 };
 
+type EpubContextLookup = {
+  chapterById: Map<string, EpubChapterIndex>;
+  segmentById: Map<string, EpubSegmentIndex>;
+  paragraphById: Map<string, EpubParagraphIndex>;
+  firstSegmentByChapterId: Map<string, EpubSegmentIndex>;
+};
+
 export function buildReadingContextBundle(
   input: BuildReadingContextBundleInput,
 ): ReadingContextBundle {
@@ -85,10 +93,13 @@ export function buildReadingContextBundle(
     };
   }
 
+  const lookup = buildEpubContextLookup(input.ebookIndex);
   const targetRange = resolveTargetRange(input.ebookIndex, input.articleText, input.targetAnchor);
   const progress =
     input.readerProgress || inferReaderProgress(input.ebookIndex, input.articleText, input);
-  const ranges = mergeTextRanges(scopeTextRanges(input.ebookIndex, progress, targetRange, policy));
+  const ranges = mergeTextRanges(
+    scopeTextRanges(input.ebookIndex, lookup, progress, targetRange, policy),
+  );
 
   return {
     articleText: readingContextText(input.articleText, ranges),
@@ -96,16 +107,12 @@ export function buildReadingContextBundle(
     readerProgress: progress,
     spoilerPolicy: policy,
     relatedPassages: filterRelatedPassages(
-      input.ebookIndex,
+      lookup,
       input.articleText,
       ranges,
       input.relatedPassages || [],
     ),
-    chapterSummaries: filterChapterSummaries(
-      input.ebookIndex,
-      ranges,
-      input.chapterSummaries || [],
-    ),
+    chapterSummaries: filterChapterSummaries(lookup, ranges, input.chapterSummaries || []),
   };
 }
 
@@ -182,6 +189,7 @@ function progressFromLocation(
 
 function scopeTextRanges(
   index: EpubBookIndex,
+  lookup: EpubContextLookup,
   progress: ReaderProgress | undefined,
   targetRange: ReadingContextTextRange | null,
   policy: SpoilerPolicy,
@@ -190,13 +198,13 @@ function scopeTextRanges(
   if (policy.allowedScope === 'current-selection') return targetRange ? [targetRange] : [];
   if (!progress) return targetRange ? [targetRange] : [];
 
-  const currentChapter = index.chapters.find((chapter) => chapter.id === progress.currentChapterId);
+  const currentChapter = lookup.chapterById.get(progress.currentChapterId);
   if (!currentChapter) return targetRange ? [targetRange] : [];
   const currentSegment =
-    index.segments.find((segment) => segment.id === progress.currentSegmentId) ||
+    (progress.currentSegmentId ? lookup.segmentById.get(progress.currentSegmentId) : undefined) ||
     (targetRange
       ? locateEpubOffset(index, targetRange.textStart)?.segment
-      : index.segments.find((segment) => segment.chapterId === currentChapter.id));
+      : lookup.firstSegmentByChapterId.get(currentChapter.id));
   const readUntil = progressReadUntil(index, progress, currentChapter, currentSegment, targetRange);
 
   if (policy.allowedScope === 'current-segment') {
@@ -279,14 +287,14 @@ function filterFutureChapterRanges(index: EpubBookIndex, ranges: ReadingContextT
 }
 
 function filterRelatedPassages(
-  index: EpubBookIndex,
+  lookup: EpubContextLookup,
   articleText: string,
   allowedRanges: ReadingContextTextRange[],
   passages: ReadingContextPassageInput[],
 ): ReadingContextPassageInput[] {
   return passages.flatMap((passage) => {
-    const range = passageRange(index, passage);
-    if (!range) return passageAllowedByIds(index, allowedRanges, passage) ? [passage] : [];
+    const range = passageRange(lookup, passage);
+    if (!range) return passageAllowedByIds(lookup, allowedRanges, passage) ? [passage] : [];
 
     const intersections = intersectTextRanges(allowedRanges, range);
     if (intersections.length === 0) return [];
@@ -300,19 +308,19 @@ function filterRelatedPassages(
 }
 
 function filterChapterSummaries(
-  index: EpubBookIndex,
+  lookup: EpubContextLookup,
   allowedRanges: ReadingContextTextRange[],
   summaries: ReadingContextChapterSummaryInput[],
 ) {
   return summaries.filter((summary) => {
     if (summary.scope === 'descriptor') return true;
-    const chapter = index.chapters.find((item) => item.id === summary.chapterId);
+    const chapter = lookup.chapterById.get(summary.chapterId);
     return chapter ? rangeFullyCovered(chapter, allowedRanges) : false;
   });
 }
 
 function passageRange(
-  index: EpubBookIndex,
+  lookup: EpubContextLookup,
   passage: ReadingContextPassageInput,
 ): ReadingContextTextRange | null {
   const textStart = integerValue(passage.textStart);
@@ -320,38 +328,60 @@ function passageRange(
   if (textStart !== null && textEnd !== null && textEnd > textStart) return { textStart, textEnd };
 
   if (passage.paragraphId) {
-    const paragraph = index.paragraphs.find((item) => item.id === passage.paragraphId);
+    const paragraph = lookup.paragraphById.get(passage.paragraphId);
     if (paragraph) return { textStart: paragraph.textStart, textEnd: paragraph.textEnd };
   }
   if (passage.segmentId) {
-    const segment = index.segments.find((item) => item.id === passage.segmentId);
+    const segment = lookup.segmentById.get(passage.segmentId);
     if (segment) return { textStart: segment.textStart, textEnd: segment.textEnd };
   }
   if (passage.chapterId) {
-    const chapter = index.chapters.find((item) => item.id === passage.chapterId);
+    const chapter = lookup.chapterById.get(passage.chapterId);
     if (chapter) return { textStart: chapter.textStart, textEnd: chapter.textEnd };
   }
   return null;
 }
 
 function passageAllowedByIds(
-  index: EpubBookIndex,
+  lookup: EpubContextLookup,
   allowedRanges: ReadingContextTextRange[],
   passage: ReadingContextPassageInput,
 ) {
   if (passage.paragraphId) {
-    const paragraph = index.paragraphs.find((item) => item.id === passage.paragraphId);
+    const paragraph = lookup.paragraphById.get(passage.paragraphId);
     return paragraph ? rangeFullyCovered(paragraph, allowedRanges) : false;
   }
   if (passage.segmentId) {
-    const segment = index.segments.find((item) => item.id === passage.segmentId);
+    const segment = lookup.segmentById.get(passage.segmentId);
     return segment ? rangeFullyCovered(segment, allowedRanges) : false;
   }
   if (passage.chapterId) {
-    const chapter = index.chapters.find((item) => item.id === passage.chapterId);
+    const chapter = lookup.chapterById.get(passage.chapterId);
     return chapter ? rangeFullyCovered(chapter, allowedRanges) : false;
   }
   return false;
+}
+
+function buildEpubContextLookup(index: EpubBookIndex): EpubContextLookup {
+  const chapterById = new Map<string, EpubChapterIndex>();
+  const segmentById = new Map<string, EpubSegmentIndex>();
+  const paragraphById = new Map<string, EpubParagraphIndex>();
+  const firstSegmentByChapterId = new Map<string, EpubSegmentIndex>();
+
+  for (const chapter of index.chapters) {
+    if (!chapterById.has(chapter.id)) chapterById.set(chapter.id, chapter);
+  }
+  for (const segment of index.segments) {
+    if (!segmentById.has(segment.id)) segmentById.set(segment.id, segment);
+    if (!firstSegmentByChapterId.has(segment.chapterId)) {
+      firstSegmentByChapterId.set(segment.chapterId, segment);
+    }
+  }
+  for (const paragraph of index.paragraphs) {
+    if (!paragraphById.has(paragraph.id)) paragraphById.set(paragraph.id, paragraph);
+  }
+
+  return { chapterById, segmentById, paragraphById, firstSegmentByChapterId };
 }
 
 function readingContextText(articleText: string, ranges: ReadingContextTextRange[]) {

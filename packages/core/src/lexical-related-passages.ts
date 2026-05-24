@@ -59,6 +59,11 @@ type ScoredParagraph = ParagraphDocument & {
   matchedTerms: string[];
 };
 
+type ParagraphWindowLookup = {
+  paragraphsByChapterId: Map<string, EpubParagraphIndex[]>;
+  paragraphIndexByChapterAndId: Map<string, number>;
+};
+
 export function buildCurrentChapterLexicalRelatedPassages(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
 ): ReadingContextPassageInput[] {
@@ -94,6 +99,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
 
   const chapterIds = candidateChapterIds(input, chapter);
   const excluded = new Set(input.excludeParagraphIds || []);
+  const paragraphLookup = buildParagraphWindowLookup(input.ebookIndex.paragraphs);
   const documents = input.ebookIndex.paragraphs.flatMap((paragraph) => {
     if (!chapterIds.has(paragraph.chapterId) || excluded.has(paragraph.id)) return [];
     const ranges = intersectTextRanges(allowedRanges, paragraph);
@@ -120,7 +126,7 @@ export function buildCurrentChapterLexicalRelatedPassages(
     return left.paragraph.textStart - right.paragraph.textStart;
   });
 
-  const passages = buildPassages(input, scored, allowedRanges, excluded);
+  const passages = buildPassages(input, scored, allowedRanges, excluded, paragraphLookup);
   logTiming({
     result: 'ok',
     chapterId: chapter.id,
@@ -259,6 +265,7 @@ function buildPassages(
   scored: ScoredParagraph[],
   allowedRanges: ReadingContextTextRange[],
   excluded: Set<string>,
+  paragraphLookup: ParagraphWindowLookup,
 ): ReadingContextPassageInput[] {
   const maxPassages = positiveInteger(input.maxPassages, DEFAULT_RELATED_PASSAGE_LIMIT);
   const neighborParagraphs = nonNegativeInteger(
@@ -270,7 +277,7 @@ function buildPassages(
 
   for (const document of scored) {
     if (passages.length >= maxPassages || usedParagraphIds.has(document.paragraph.id)) continue;
-    const blocks = paragraphWindow(input.ebookIndex, document.paragraph, neighborParagraphs)
+    const blocks = paragraphWindow(paragraphLookup, document.paragraph, neighborParagraphs)
       .filter((paragraph) => !excluded.has(paragraph.id))
       .flatMap((paragraph) => {
         const ranges = intersectTextRanges(allowedRanges, paragraph);
@@ -326,17 +333,40 @@ function createRelatedPassageAnchor(
 }
 
 function paragraphWindow(
-  index: EpubBookIndex,
+  lookup: ParagraphWindowLookup,
   paragraph: EpubParagraphIndex,
   neighborParagraphs: number,
 ) {
-  const siblings = index.paragraphs.filter((item) => item.chapterId === paragraph.chapterId);
-  const indexInChapter = siblings.findIndex((item) => item.id === paragraph.id);
-  if (indexInChapter < 0) return [];
+  const siblings = lookup.paragraphsByChapterId.get(paragraph.chapterId) || [];
+  const indexInChapter = lookup.paragraphIndexByChapterAndId.get(
+    paragraphWindowLookupKey(paragraph),
+  );
+  if (indexInChapter === undefined) return [];
   return siblings.slice(
     Math.max(0, indexInChapter - neighborParagraphs),
     indexInChapter + neighborParagraphs + 1,
   );
+}
+
+function buildParagraphWindowLookup(paragraphs: EpubParagraphIndex[]): ParagraphWindowLookup {
+  const paragraphsByChapterId = new Map<string, EpubParagraphIndex[]>();
+  const paragraphIndexByChapterAndId = new Map<string, number>();
+
+  for (const paragraph of paragraphs) {
+    const siblings = paragraphsByChapterId.get(paragraph.chapterId) || [];
+    if (siblings.length === 0) paragraphsByChapterId.set(paragraph.chapterId, siblings);
+    const key = paragraphWindowLookupKey(paragraph);
+    if (!paragraphIndexByChapterAndId.has(key)) {
+      paragraphIndexByChapterAndId.set(key, siblings.length);
+    }
+    siblings.push(paragraph);
+  }
+
+  return { paragraphsByChapterId, paragraphIndexByChapterAndId };
+}
+
+function paragraphWindowLookupKey(paragraph: Pick<EpubParagraphIndex, 'chapterId' | 'id'>) {
+  return `${paragraph.chapterId}\u0000${paragraph.id}`;
 }
 
 function intersectTextRanges(
