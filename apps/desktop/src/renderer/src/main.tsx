@@ -15,29 +15,31 @@ import './styles.css';
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
   import('./app-reading-library').then((module) => ({ default: module.ReadingLibrary }));
-const loadReadingStatsModule = () => import('./app-reading-stats');
+const loadReadingStatsModule = () => preloadEntries.stats.load();
 const loadReadingStatsPanel = () =>
   loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
 const loadOnboardingFlow = () =>
   import('./app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
 const loadAgentSettings = () =>
-  import('./app-settings-agent-panel').then((module) => ({ default: module.AgentSettings }));
+  preloadEntries.agents.load().then((module) => ({ default: module.AgentSettings }));
 const loadDataManagementSettings = () =>
-  import('./app-settings-panels').then((module) => ({ default: module.DataManagementSettings }));
+  preloadEntries.settingsPanels
+    .load()
+    .then((module) => ({ default: module.DataManagementSettings }));
 const loadGeneralSettings = () =>
-  import('./app-settings-panels').then((module) => ({ default: module.GeneralSettings }));
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.GeneralSettings }));
 const loadProviderSettings = () =>
-  import('./app-settings-provider-panel').then((module) => ({ default: module.ProviderSettings }));
+  preloadEntries.settingsProvider.load().then((module) => ({ default: module.ProviderSettings }));
 const loadShortcutSettings = () =>
-  import('./app-settings-panels').then((module) => ({ default: module.ShortcutSettings }));
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.ShortcutSettings }));
 const loadSettingsSectionShell = () =>
-  import('./app-settings-panels').then((module) => ({ default: module.SettingsSectionShell }));
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.SettingsSectionShell }));
 const loadUserProfileSettingsDialog = () =>
-  import('./app-settings-profile-dialog').then((module) => ({
-    default: module.UserProfileSettingsDialog,
-  }));
+  preloadEntries.profileDialog
+    .load()
+    .then((module) => ({ default: module.UserProfileSettingsDialog }));
 const loadAboutSettings = () =>
-  import('./app-log-viewer').then((module) => ({ default: module.AboutSettings }));
+  preloadEntries.settingsAbout.load().then((module) => ({ default: module.AboutSettings }));
 
 const ReadingLibrary = lazy(loadReadingLibrary);
 const ReadingStatsPanel = lazy(loadReadingStatsPanel);
@@ -51,22 +53,136 @@ const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
 
-const idlePreloadModules = [
-  loadAgentSettings,
-  loadSettingsSectionShell,
-  loadGeneralSettings,
-  loadProviderSettings,
-  loadShortcutSettings,
-  loadDataManagementSettings,
-  loadAboutSettings,
-  loadUserProfileSettingsDialog,
-];
+type ReadingStatsModule = typeof import('./app-reading-stats');
+type AgentSettingsModule = typeof import('./app-settings-agent-panel');
+type SettingsPanelsModule = typeof import('./app-settings-panels');
+type SettingsProviderModule = typeof import('./app-settings-provider-panel');
+type SettingsAboutModule = typeof import('./app-log-viewer');
+type ProfileDialogModule = typeof import('./app-settings-profile-dialog');
+
+type PreloadStatus = 'not-started' | 'scheduled' | 'loading' | 'ready' | 'failed';
+type PreloadKey =
+  | 'agents'
+  | 'stats'
+  | 'settings-panels'
+  | 'settings-provider'
+  | 'settings-about'
+  | 'profile-dialog';
+
+type PreloadEntry<TModule> = {
+  key: PreloadKey;
+  status: PreloadStatus;
+  module?: TModule;
+  promise?: Promise<TModule>;
+  markScheduled: () => void;
+  load: () => Promise<TModule>;
+};
+
+const preloadListeners = new Set<() => void>();
+
+function subscribePreloadModules(listener: () => void) {
+  preloadListeners.add(listener);
+  return () => {
+    preloadListeners.delete(listener);
+  };
+}
+
+function notifyPreloadModules() {
+  for (const listener of preloadListeners) listener();
+}
+
+function createPreloadEntry<TModule>(
+  key: PreloadKey,
+  importModule: () => Promise<TModule>,
+): PreloadEntry<TModule> {
+  const entry: PreloadEntry<TModule> = {
+    key,
+    status: 'not-started',
+    markScheduled: () => {
+      if (entry.status !== 'not-started') return;
+      entry.status = 'scheduled';
+      recordStartupTiming('secondary_modules.preload_module_scheduled', { key });
+      notifyPreloadModules();
+    },
+    load: () => {
+      if (entry.module) return Promise.resolve(entry.module);
+      if (entry.promise) return entry.promise;
+
+      const startedAt = performance.now();
+      entry.status = 'loading';
+      recordStartupTiming('secondary_modules.preload_module_start', { key });
+      notifyPreloadModules();
+      entry.promise = importModule()
+        .then((module) => {
+          entry.module = module;
+          entry.status = 'ready';
+          recordStartupTiming('secondary_modules.preload_module_success', {
+            key,
+            durationMs: elapsedMs(startedAt),
+          });
+          notifyPreloadModules();
+          return module;
+        })
+        .catch((error: unknown) => {
+          entry.status = 'failed';
+          entry.promise = undefined;
+          recordStartupTiming('secondary_modules.preload_module_failed', {
+            key,
+            durationMs: elapsedMs(startedAt),
+            message: error instanceof Error ? error.message : String(error),
+          });
+          notifyPreloadModules();
+          throw error;
+        });
+      return entry.promise;
+    },
+  };
+  return entry;
+}
+
+const preloadEntries = {
+  agents: createPreloadEntry<AgentSettingsModule>(
+    'agents',
+    () => import('./app-settings-agent-panel'),
+  ),
+  stats: createPreloadEntry<ReadingStatsModule>('stats', () => import('./app-reading-stats')),
+  settingsPanels: createPreloadEntry<SettingsPanelsModule>(
+    'settings-panels',
+    () => import('./app-settings-panels'),
+  ),
+  settingsProvider: createPreloadEntry<SettingsProviderModule>(
+    'settings-provider',
+    () => import('./app-settings-provider-panel'),
+  ),
+  settingsAbout: createPreloadEntry<SettingsAboutModule>(
+    'settings-about',
+    () => import('./app-log-viewer'),
+  ),
+  profileDialog: createPreloadEntry<ProfileDialogModule>(
+    'profile-dialog',
+    () => import('./app-settings-profile-dialog'),
+  ),
+};
 
 function preloadIdleModules(articles: ArticleSummaryRecord[]) {
-  void Promise.allSettled(idlePreloadModules.map((load) => load()));
-  void loadReadingStatsModule()
-    .then((module) => module.preloadReadingStatsFirstPaintData(articles))
-    .catch(() => undefined);
+  recordStartupTiming('secondary_modules.preload_scheduled');
+  const tasks = [
+    () => preloadEntries.settingsPanels.load(),
+    () => preloadEntries.settingsProvider.load(),
+    () => preloadEntries.settingsAbout.load(),
+    () => preloadEntries.profileDialog.load(),
+    () => preloadEntries.agents.load(),
+    () =>
+      preloadEntries.stats
+        .load()
+        .then((module) =>
+          Promise.all([
+            module.preloadReadingStatsFirstPaintData(articles),
+            module.preloadReadingStatsDeferredModules(),
+          ]),
+        ),
+  ];
+  scheduleIdlePreloadQueue(tasks);
 }
 
 type IdlePreloadHandle =
@@ -85,12 +201,30 @@ function cancelIdlePreload(handle: IdlePreloadHandle) {
   else globalThis.clearTimeout(handle.id);
 }
 
+function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
+  let taskIndex = 0;
+  const runNextTask = () => {
+    const task = tasks[taskIndex];
+    taskIndex += 1;
+    if (!task) {
+      recordStartupTiming('secondary_modules.preload_complete');
+      return;
+    }
+    void task()
+      .catch(() => undefined)
+      .finally(() => scheduleIdlePreload(runNextTask));
+  };
+  for (const entry of Object.values(preloadEntries)) entry.markScheduled();
+  scheduleIdlePreload(runNextTask);
+}
+
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
 function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
+  const [, setPreloadVersion] = useState(0);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
@@ -98,11 +232,14 @@ function App() {
   const [onboardingFlowKey, setOnboardingFlowKey] = useState(0);
   const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
   const windowShowRequestedRef = useRef(false);
+  const idlePreloadStartedRef = useRef(false);
 
   useEffect(() => {
     recordStartupTiming('app.mounted');
     requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
   }, []);
+
+  useEffect(() => subscribePreloadModules(() => setPreloadVersion((version) => version + 1)), []);
 
   const {
     store,
@@ -167,6 +304,8 @@ function App() {
 
   useEffect(() => {
     if (!storeLoaded || storeLoadError || showOnboarding) return;
+    if (idlePreloadStartedRef.current) return;
+    idlePreloadStartedRef.current = true;
     const idleId = scheduleIdlePreload(() => {
       recordStartupTiming('secondary_modules.preload_start');
       preloadIdleModules(store.articles);
@@ -191,8 +330,34 @@ function App() {
   }
 
   function openModelRoutesSettings() {
+    openSettings();
+    changeSettingsSection('models');
+  }
+
+  function openAgents() {
+    recordStartupTiming('secondary_modules.navigation', {
+      key: 'agents',
+      status: preloadEntries.agents.status,
+    });
+    setActiveSetting('agents');
+  }
+
+  function openSettings() {
+    recordStartupTiming('secondary_modules.navigation', {
+      key: 'settings',
+      settingsPanelsStatus: preloadEntries.settingsPanels.status,
+      settingsProviderStatus: preloadEntries.settingsProvider.status,
+      settingsAboutStatus: preloadEntries.settingsAbout.status,
+    });
     setActiveSetting('settings');
-    setActiveSettingsSection('models');
+  }
+
+  function openProfileDialog() {
+    recordStartupTiming('secondary_modules.navigation', {
+      key: 'profile-dialog',
+      status: preloadEntries.profileDialog.status,
+    });
+    setProfileDialogOpen(true);
   }
 
   function openStats() {
@@ -201,8 +366,19 @@ function App() {
     recordStatsTiming('navigation_click', {
       articleCount: store.articles.length,
       rendererElapsedMs: elapsedMs(0),
+      preloadStatus: preloadEntries.stats.status,
     });
     setActiveSetting('stats');
+  }
+
+  function changeSettingsSection(section: SettingsSectionKey) {
+    recordStartupTiming('secondary_modules.settings_section_change', {
+      section,
+      settingsPanelsStatus: preloadEntries.settingsPanels.status,
+      settingsProviderStatus: preloadEntries.settingsProvider.status,
+      settingsAboutStatus: preloadEntries.settingsAbout.status,
+    });
+    setActiveSettingsSection(section);
   }
 
   function requestMainWindow(reason: string, data: Record<string, unknown>) {
@@ -243,6 +419,24 @@ function App() {
   ]
     .filter(Boolean)
     .join(' ');
+  const settingsPanelsModule = preloadEntries.settingsPanels.module;
+  const settingsProviderModule = preloadEntries.settingsProvider.module;
+  const settingsAboutModule = preloadEntries.settingsAbout.module;
+  const agentsModule = preloadEntries.agents.module;
+  const statsModule = preloadEntries.stats.module;
+  const profileDialogModule = preloadEntries.profileDialog.module;
+  const ActiveReadingStatsPanel = statsModule?.ReadingStatsPanel ?? ReadingStatsPanel;
+  const ActiveAgentSettings = agentsModule?.AgentSettings ?? AgentSettings;
+  const ActiveSettingsSectionShell =
+    settingsPanelsModule?.SettingsSectionShell ?? SettingsSectionShell;
+  const ActiveGeneralSettings = settingsPanelsModule?.GeneralSettings ?? GeneralSettings;
+  const ActiveShortcutSettings = settingsPanelsModule?.ShortcutSettings ?? ShortcutSettings;
+  const ActiveDataManagementSettings =
+    settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
+  const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
+  const ActiveAboutSettings = settingsAboutModule?.AboutSettings ?? AboutSettings;
+  const ActiveUserProfileSettingsDialog =
+    profileDialogModule?.UserProfileSettingsDialog ?? UserProfileSettingsDialog;
 
   return (
     <main className={appShellClassName}>
@@ -263,23 +457,19 @@ function App() {
           label="阅读库"
           onClick={() => setActiveSetting('library')}
         />
-        <SettingsNavButton
-          active={activeSetting === 'agents'}
-          label="助手"
-          onClick={() => setActiveSetting('agents')}
-        />
+        <SettingsNavButton active={activeSetting === 'agents'} label="助手" onClick={openAgents} />
         <SettingsNavButton active={activeSetting === 'stats'} label="统计" onClick={openStats} />
         <SettingsNavButton
           active={activeSetting === 'settings'}
           label="设置"
-          onClick={() => setActiveSetting('settings')}
+          onClick={openSettings}
         />
         <button
           aria-label="打开个人设置"
           className="app-nav-profile-button"
           data-tooltip="个人设置"
           type="button"
-          onClick={() => setProfileDialogOpen(true)}
+          onClick={openProfileDialog}
         >
           <AvatarImage
             value={store.user.avatar || ''}
@@ -312,19 +502,19 @@ function App() {
             />
           ) : null}
           {activeSetting === 'stats' ? (
-            <ReadingStatsPanel
+            <ActiveReadingStatsPanel
               articles={store.articles}
               navigationStartedAt={statsNavigationStartedAt}
               onRefresh={refreshStore}
             />
           ) : null}
           {activeSetting === 'settings' ? (
-            <SettingsSectionShell
+            <ActiveSettingsSectionShell
               activeSection={activeSettingsSection}
-              onSectionChange={setActiveSettingsSection}
+              onSectionChange={changeSettingsSection}
             >
               {activeSettingsSection === 'collection' ? (
-                <GeneralSettings
+                <ActiveGeneralSettings
                   settingsDraft={settingsDraft}
                   canSave={canSaveGeneralSettings}
                   onSettingsChange={updateGeneralSettingsDraft}
@@ -333,7 +523,7 @@ function App() {
                 />
               ) : null}
               {activeSettingsSection === 'models' ? (
-                <ProviderSettings
+                <ActiveProviderSettings
                   draft={providerDraft}
                   settingsDraft={settingsDraft}
                   providers={store.providers}
@@ -354,7 +544,7 @@ function App() {
                 />
               ) : null}
               {activeSettingsSection === 'shortcuts' ? (
-                <ShortcutSettings
+                <ActiveShortcutSettings
                   savedSettings={store.settings}
                   settingsDraft={settingsDraft}
                   canSave={canSaveShortcutSettings}
@@ -364,15 +554,18 @@ function App() {
                 />
               ) : null}
               {activeSettingsSection === 'data' ? (
-                <DataManagementSettings settings={store.settings} onStoreUpdated={applyStore} />
+                <ActiveDataManagementSettings
+                  settings={store.settings}
+                  onStoreUpdated={applyStore}
+                />
               ) : null}
               {activeSettingsSection === 'about' ? (
-                <AboutSettings onStartOnboarding={startOnboarding} />
+                <ActiveAboutSettings onStartOnboarding={startOnboarding} />
               ) : null}
-            </SettingsSectionShell>
+            </ActiveSettingsSectionShell>
           ) : null}
           {activeSetting === 'agents' ? (
-            <AgentSettings
+            <ActiveAgentSettings
               agents={store.agents}
               error={agentSaveError}
               providers={store.providers}
@@ -386,7 +579,7 @@ function App() {
       </section>
       {profileDialogOpen ? (
         <Suspense fallback={null}>
-          <UserProfileSettingsDialog
+          <ActiveUserProfileSettingsDialog
             draft={userDraft}
             canSave={canSaveUser}
             onChange={updateUserDraft}
