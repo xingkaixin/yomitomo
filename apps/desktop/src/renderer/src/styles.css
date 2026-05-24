@@ -1,8 +1,67 @@
 @import 'tailwindcss';
 @config "../../../tailwind.config.ts";
 
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('./assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('./assets/fonts/SourceSerif4-Regular.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('./assets/fonts/SourceSerif4-Bold.woff2') format('woff2');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
+@font-face {
+  font-family: 'Source Serif 4';
+  src: url('./assets/fonts/SourceSerif4-Italic.woff2') format('woff2');
+  font-display: swap;
+  font-style: italic;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Noto Serif SC';
+  src: url('./assets/fonts/NotoSerifSC-Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
 @layer base {
   :root {
+    --font-ui: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-reader-serif: 'Source Serif 4', 'Noto Serif SC', 'Songti SC', Georgia, serif;
     --background: 0 0% 98%;
     --foreground: 0 0% 8%;
     --card: 0 0% 100%;
@@ -42,7 +101,7 @@
     margin: 0;
     background: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+    font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -309,7 +368,7 @@
 
 .app-header-copy h1 {
   margin: 0;
-  font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 16px;
   font-weight: 900;
   line-height: 1.1;
@@ -518,7 +577,7 @@
   margin: 0;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 14px;
   font-weight: 650;
   line-height: 1.5;
@@ -911,7 +970,7 @@
 .agent-library-header h2 {
   margin: 0;
   color: hsl(var(--foreground));
-  font-family: 'Songti SC', 'STSong', Georgia, serif;
+  font-family: var(--font-reader-serif);
   font-size: clamp(26px, 3vw, 34px);
   font-weight: 760;
   letter-spacing: 0;
@@ -1822,7 +1881,7 @@
   flex: 0 0 auto;
   margin: 0;
   color: hsl(var(--muted-foreground));
-  font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.02em;
@@ -2896,7 +2955,7 @@
   border-radius: 8px;
   background: hsl(var(--background));
   color: hsl(var(--foreground) / 0.82);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 18px;
   font-weight: 850;
   line-height: 1;
@@ -3392,7 +3451,7 @@
   background: transparent;
   color: hsl(var(--foreground));
   cursor: pointer;
-  font-family: Charter, Georgia, Cambria, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   padding: 0;
   text-align: left;
 }
@@ -3400,7 +3459,7 @@
 .weread-note-card .reader-note-quote-mark {
   display: block;
   color: var(--reader-note-accent);
-  font-family: Georgia, Cambria, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 28px;
   font-weight: 900;
   line-height: 0.78;
@@ -4933,7 +4992,7 @@
 .library-home-header h2 {
   margin: 0;
   color: hsl(31 23% 20%);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 34px;
   font-weight: 760;
   line-height: 1.08;
@@ -5867,7 +5926,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   color: hsl(31 23% 20%);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 20px;
   font-weight: 760;
   line-height: 1.24;
@@ -6239,7 +6298,7 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   color: hsl(31 23% 20%);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 11px;
   font-weight: 760;
   line-height: 1.25;
@@ -6903,7 +6962,7 @@
 
 .ebook-page-content {
   color: hsl(31 23% 20%);
-  font-family: Charter, Georgia, Cambria, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: var(--ebook-font-size);
   line-height: 1.78;
   overflow-wrap: anywhere;
@@ -6921,7 +6980,7 @@
 .ebook-page-content h2 {
   margin: 0 0 1.1em;
   color: hsl(31 23% 18%);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 1.34em;
   font-weight: 920;
   letter-spacing: 0;
@@ -7424,7 +7483,7 @@
   overflow: auto;
   border-right: 1px solid hsl(36 31% 72% / 0.56);
   padding: 22px 12px 28px 0;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .source-toc.is-empty {
@@ -7608,7 +7667,7 @@
     0 18px 54px hsl(31 34% 24% / 0.12),
     inset 0 0 42px hsl(37 34% 70% / 0.14);
   color: hsl(32 22% 21%);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 17px;
   line-height: 1.78;
   padding: 42px 48px 54px;
@@ -7622,7 +7681,7 @@
   left: calc(var(--source-content-width, 760px) + 18px);
   width: 320px;
   min-height: 100%;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .source-note,
@@ -7758,7 +7817,7 @@
   background: hsl(39 39% 88% / 0.58);
   color: hsl(31 18% 36%);
   cursor: pointer;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 12px;
   font-style: italic;
   font-weight: 650;
@@ -7990,7 +8049,7 @@
 
 .source-note-comment .comment-markdown {
   margin-top: 5px;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   line-height: 1.58;
   overflow-wrap: anywhere;
@@ -8041,7 +8100,7 @@
 .source-article-body h6 {
   margin: 1.5em 0 0.55em;
   color: hsl(32 22% 18%);
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-weight: 700;
   line-height: 1.25;
 }
@@ -8098,7 +8157,7 @@
   border-radius: 8px;
   background: hsl(32 21% 18%);
   color: hsl(42 64% 96%);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.65;
   padding: 16px;
@@ -8107,7 +8166,7 @@
 .source-article-body code {
   border-radius: 5px;
   background: hsl(36 31% 72% / 0.28);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.88em;
   padding: 0.1em 0.3em;
 }
@@ -8120,7 +8179,7 @@
 .source-article-body table {
   display: block;
   border-collapse: collapse;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.5;
   overflow-x: auto;
@@ -8153,7 +8212,7 @@
 .source-article-body figcaption {
   margin-top: 8px;
   color: hsl(var(--muted-foreground));
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 13px;
   text-align: center;
 }
@@ -8286,7 +8345,7 @@
   background: hsl(42 64% 96% / 0.98);
   box-shadow: 0 18px 46px hsl(31 34% 24% / 0.2);
   color: hsl(32 22% 21%);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   padding: 10px;
 }
 
@@ -8375,7 +8434,7 @@
 .source-composer {
   position: absolute;
   z-index: 150;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
 }
 
 .source-selection-menu > button {
@@ -8571,7 +8630,7 @@
   background: hsl(43 66% 98%);
   box-shadow: 0 1px 0 hsl(31 34% 24% / 0.12);
   color: hsl(32 22% 21%);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 10px;
   font-weight: 780;
   line-height: 1;
@@ -8807,7 +8866,7 @@
   background: hsl(42 64% 96% / 0.98);
   box-shadow: 0 10px 28px hsl(31 34% 24% / 0.14);
   color: var(--cursor-color);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 840;
   padding: 6px 10px 6px 6px;
@@ -8895,7 +8954,7 @@
 
 .library-stat strong {
   display: block;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 23px;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
@@ -8965,7 +9024,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 15px;
   font-weight: 700;
   line-height: 1.28;
@@ -9034,7 +9093,7 @@
   --book-author-scale: 0.046;
   --book-title-letter-spacing: 0;
   --book-author-letter-spacing: 0.06em;
-  --book-cover-font-family: Georgia, Palatino, serif;
+  --book-cover-font-family: var(--font-reader-serif);
   position: relative;
   display: grid;
   width: 74px;
@@ -9411,7 +9470,7 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
@@ -9609,7 +9668,7 @@
 .quote-card blockquote {
   margin: 14px 0 0;
   color: hsl(32 22% 21%);
-  font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
+  font-family: var(--font-reader-serif);
   font-size: 18px;
   line-height: 1.8;
 }
@@ -9696,7 +9755,7 @@
 .comment-markdown {
   margin: 12px 0 0;
   color: hsl(31 21% 24%);
-  font-family: 'Kaiti SC', 'Songti SC', Georgia, serif;
+  font-family: var(--font-reader-serif);
   font-size: 17px;
   line-height: 1.78;
   overflow-wrap: anywhere;
@@ -9726,7 +9785,7 @@
 .comment-markdown h6 {
   margin: 16px 0 8px;
   color: hsl(31 22% 18%);
-  font-family: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-ui);
   font-weight: 900;
   line-height: 1.35;
 }
@@ -9766,7 +9825,7 @@
 .comment-markdown code {
   border-radius: 5px;
   background: hsl(31 24% 22% / 0.08);
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 0.86em;
   padding: 1px 5px;
 }
@@ -9777,7 +9836,7 @@
   border-radius: 8px;
   background: hsl(31 24% 17%);
   color: hsl(43 62% 94%);
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
   padding: 12px;
@@ -10000,7 +10059,7 @@
   border-radius: 10px;
   background: hsl(var(--foreground) / 0.92);
   color: hsl(var(--primary-foreground));
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -10187,7 +10246,7 @@
   border-radius: 8px;
   background: hsl(48 100% 99% / 0.66);
   color: hsl(var(--foreground));
-  font-family: Charter, Georgia, Cambria, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-size: 18px;
   line-height: 1.82;
   padding: 14px 16px;
@@ -10760,7 +10819,7 @@
 .data-path-row code {
   overflow: hidden;
   color: hsl(var(--muted-foreground));
-  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -11288,7 +11347,7 @@ button.license-package-row:hover {
 
 .onboarding-scroll h1,
 .onboarding-scroll h2 {
-  font-family: Charter, Georgia, Cambria, 'Times New Roman', serif;
+  font-family: var(--font-reader-serif);
   font-weight: 850;
   letter-spacing: 0;
 }
@@ -11510,7 +11569,7 @@ button.license-package-row:hover {
   place-items: center;
   background: hsl(3 62% 39%);
   color: hsl(0 0% 100%);
-  font-family: 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 14px;
   font-weight: 800;
   line-height: 1;
@@ -11518,7 +11577,7 @@ button.license-package-row:hover {
 
 .app-header-copy h1 {
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0;
@@ -11695,7 +11754,7 @@ button.license-package-row:hover {
 
 .library-home-header h2 {
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: clamp(34px, 4.3vw, 58px);
   font-weight: 800;
   letter-spacing: 0;
@@ -12033,7 +12092,7 @@ button.license-package-row:hover {
   margin: 0;
   overflow: hidden;
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 23px;
   font-weight: 790;
   letter-spacing: 0;
@@ -12271,7 +12330,7 @@ button.license-package-row:hover {
 
 .library-empty h3 {
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 22px;
 }
 
@@ -12442,7 +12501,7 @@ button.license-package-row:hover {
 .app-masthead-title h1 {
   margin: 0;
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: clamp(52px, 6.2vw, 92px);
   font-weight: 820;
   letter-spacing: 0;
@@ -12482,7 +12541,7 @@ button.license-package-row:hover {
   gap: 0;
   border-radius: 0;
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 18px;
   font-weight: 760;
   padding: 0;
@@ -13132,7 +13191,7 @@ button.license-package-row:hover {
 
 .library-import-dialog > header strong {
   color: hsl(var(--foreground));
-  font-family: Georgia, 'Songti SC', 'Noto Serif SC', serif;
+  font-family: var(--font-reader-serif);
   font-size: 22px;
   letter-spacing: 0;
 }

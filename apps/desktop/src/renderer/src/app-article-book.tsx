@@ -154,9 +154,7 @@ function articleBookVisual(article: ArticleSummaryRecord, coverUrl?: string) {
     '--book-author-scale': String(authorScale(bylineLabel)),
     '--book-title-letter-spacing': hasCjkTitle ? '0.04em' : '0',
     '--book-author-letter-spacing': '0.06em',
-    '--book-cover-font-family': hasCjkTitle
-      ? '"Noto Serif SC", "Source Han Serif SC", "Songti SC", serif'
-      : '"Georgia", "Palatino", serif',
+    '--book-cover-font-family': 'var(--font-reader-serif)',
   };
 
   return {
