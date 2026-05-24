@@ -47,7 +47,6 @@ import {
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
   type AgentReadingPlanItem,
-  type AgentReadingIntent,
   type ArticleReadingProgress,
   type Comment as AnnotationComment,
   type Annotation,
@@ -96,16 +95,13 @@ import {
   publicAnnotationAgents,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-  routeFocusReadingPlanMessages,
   type SourceBookcaseProps,
 } from './app-source-bookcase-shared';
 import {
-  buildAgentAnnotationRequestInput,
+  prepareSourceAgentAnnotationRequestInput,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationRequestOptions,
 } from './app-source-agent-request';
-import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
-import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
@@ -548,6 +544,8 @@ function PdfiumDocument({
     pendingAnnotationAgents,
     addPendingAnnotationAgent,
     removePendingAnnotationAgent,
+    requestAgentComment,
+    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -555,11 +553,10 @@ function PdfiumDocument({
     annotations: articleAnnotations,
     article,
     ignoreStaleArticleUpdates: true,
-    onAgentCommentMentioned: (agent, annotation, comment) => {
-      void requestAgentComment(agent, annotation, comment);
-    },
+    getArticleText: currentArticleText,
     onOpenAnnotation,
     onSaveArticle,
+    setStatusMessage,
     userProfile,
   });
   const {
@@ -1418,7 +1415,7 @@ function PdfiumDocument({
       if (primaryComment) {
         for (const directive of commentDirectives) {
           scheduledAgentRequest = true;
-          void requestAgentComment(agent, annotation, primaryComment, {
+          void requestAgentComment(agent, annotation, primaryComment, undefined, {
             instruction: directive.instruction,
             readingIntent: directive.readingIntent,
             pendingAnnotationId: annotation.id,
@@ -1483,68 +1480,6 @@ function PdfiumDocument({
       if (latestArticleRef.current?.id !== articleId) return;
       showStatusMessage(error instanceof Error ? error.message : '想法标签生成失败');
     }
-  }
-
-  async function requestAgentComment(
-    agent: PublicAgent,
-    annotation: Annotation,
-    userComment: AnnotationComment,
-    options: {
-      instruction?: string;
-      readingIntent?: AgentReadingIntent;
-      pendingAnnotationId?: string;
-    } = {},
-  ) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-
-    try {
-      await runSourceAgentCommentRequest({
-        agent,
-        annotation,
-        userComment,
-        instruction: options.instruction,
-        readingIntent: options.readingIntent,
-        desktop,
-        currentArticle,
-        articleText: await currentArticleText(),
-        annotationsRef,
-        applyAnnotations,
-        saveAnnotations,
-        setStatusMessage,
-      });
-    } finally {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-    }
-  }
-
-  async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const currentAnnotation = annotationsRef.current.find(
-      (annotation) => annotation.id === annotationId,
-    );
-    if (!desktop || !currentArticle || !currentAnnotation || selectedAgents.length === 0) return;
-
-    await runSourceAgentReviewRequest({
-      agents: selectedAgents,
-      annotation: currentAnnotation,
-      desktop,
-      currentArticle,
-      articleText: await currentArticleText(),
-      annotationsRef,
-      applyAnnotations,
-      saveAnnotations,
-      setStatusMessage,
-    });
   }
 
   async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
@@ -1691,9 +1626,15 @@ function PdfiumDocument({
     const geometry = await engine.getPageGeometry(document, page).toPromise();
     const articleContext =
       options.article || pdfiumPromptArticle(currentArticle, targetAnchor, pageText);
-    const requestInput = buildAgentAnnotationRequestInput(agent, options, {
-      article: articleContext,
-      annotations: annotationsRef.current,
+    const requestInput = await prepareSourceAgentAnnotationRequestInput({
+      desktop,
+      agent,
+      agents: annotationAgents,
+      options,
+      context: {
+        article: articleContext,
+        annotations: annotationsRef.current,
+      },
     });
 
     let acceptedAnnotation = false;
@@ -1756,43 +1697,27 @@ function PdfiumDocument({
     if (visibleArticle) startPdfiumAgentDock(agent);
 
     const articleContext = promptArticle(currentArticle, textDocument.text);
-    const requestInput = buildAgentAnnotationRequestInput(
+    const requestInput = await prepareSourceAgentAnnotationRequestInput({
+      desktop,
       agent,
-      { readingPlan: orderedReadingPlan },
-      {
+      agents: annotationAgents,
+      options: { readingPlan: orderedReadingPlan },
+      context: {
         article: articleContext,
         annotations: annotationsRef.current,
         readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
       },
-    );
-    const routedReadingPlan = await routeFocusReadingPlanMessages({
-      desktop,
-      agent,
-      agents: annotationAgents,
-      article: articleContext,
-      readingPlan: requestInput.readingPlan,
     });
-    const routedRequestInput =
-      routedReadingPlan === requestInput.readingPlan
-        ? requestInput
-        : {
-            ...requestInput,
-            readingPlan: routedReadingPlan,
-            payload: {
-              ...requestInput.payload,
-              readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
-            },
-          };
     const pageGeometryByIndex = await pdfiumPageGeometriesForReadingPlan(
       document,
       textDocument,
-      routedRequestInput.readingPlan,
+      requestInput.readingPlan,
     );
     if (visibleArticle) {
       startPdfiumVirtualReading(
         agent,
         pdfiumAnchorForReadingPlanStart(
-          routedRequestInput.readingPlan,
+          requestInput.readingPlan,
           textDocument,
           pageGeometryByIndex,
         ),
@@ -1805,11 +1730,11 @@ function PdfiumDocument({
     try {
       const { result, annotationCount } = await runSourceAgentAnnotationRequest({
         desktop,
-        requestInput: routedRequestInput,
+        requestInput,
         onAnnotation: (annotation) => {
           const constrainedAnnotation = constrainPdfiumAgentPlanAnnotation(
             annotation,
-            routedRequestInput.readingPlan,
+            requestInput.readingPlan,
             textDocument.text,
           );
           if (!constrainedAnnotation) return false;
@@ -1824,7 +1749,7 @@ function PdfiumDocument({
           return true;
         },
       });
-      if (routedRequestInput.shouldSaveReadingMemory) {
+      if (requestInput.shouldSaveReadingMemory) {
         await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
       }
       if (visibleArticle) {

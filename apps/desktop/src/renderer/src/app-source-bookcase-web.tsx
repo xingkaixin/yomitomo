@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
-  AgentReadingIntent,
   Annotation,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -51,15 +50,13 @@ import {
 import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
 import {
-  buildAgentAnnotationRequestInput,
   createPendingAgentAnnotation,
+  prepareSourceAgentAnnotationRequestInput,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
   withoutAnnotationId,
 } from './app-source-agent-request';
-import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
-import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { articleIdentityLine } from './app-utils';
 import {
   articleWithAnnotations,
@@ -71,7 +68,6 @@ import {
   planSelectionMentionRoute,
   promptArticle,
   readDesktopReaderSettings,
-  routeFocusReadingPlanMessages,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type WebSourceBookcaseProps,
@@ -110,6 +106,7 @@ export function WebSourceBookcase({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const [statusMessage, setStatusMessage] = useState('');
   const {
     addComment,
     annotations,
@@ -122,6 +119,8 @@ export function WebSourceBookcase({
     pendingAnnotationAgents,
     addPendingAnnotationAgent,
     removePendingAnnotationAgent,
+    requestAgentComment,
+    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -134,11 +133,10 @@ export function WebSourceBookcase({
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
     },
-    onAgentCommentMentioned: (agent, annotation, comment) => {
-      void requestAgentComment(agent, annotation, comment);
-    },
+    getArticleText: currentArticleText,
     onOpenAnnotation: openAnnotation,
     onSaveArticle,
+    setStatusMessage,
     userProfile,
   });
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
@@ -165,7 +163,6 @@ export function WebSourceBookcase({
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
-  const [statusMessage, setStatusMessage] = useState('');
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const { boxes, tocItems } = useWebReaderBoxes({
     annotationAgents,
@@ -522,70 +519,6 @@ export function WebSourceBookcase({
     return activeId;
   }
 
-  async function requestAgentComment(
-    agent: PublicAgent,
-    annotation: Annotation,
-    userComment: AnnotationComment,
-    reviewTargetCommentId?: string,
-    options: {
-      instruction?: string;
-      readingIntent?: AgentReadingIntent;
-      pendingAnnotationId?: string;
-    } = {},
-  ) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-
-    try {
-      await runSourceAgentCommentRequest({
-        agent,
-        annotation,
-        userComment,
-        instruction: options.instruction,
-        readingIntent: options.readingIntent,
-        desktop,
-        currentArticle,
-        articleText: currentArticleText(),
-        reviewTargetCommentId,
-        annotationsRef,
-        applyAnnotations,
-        saveAnnotations,
-        setStatusMessage,
-      });
-    } finally {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-    }
-  }
-
-  async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const currentAnnotation = annotationsRef.current.find(
-      (annotation) => annotation.id === annotationId,
-    );
-    if (!desktop || !currentArticle || !currentAnnotation || selectedAgents.length === 0) return;
-
-    await runSourceAgentReviewRequest({
-      agents: selectedAgents,
-      annotation: currentAnnotation,
-      desktop,
-      currentArticle,
-      articleText: currentArticleText(),
-      annotationsRef,
-      applyAnnotations,
-      saveAnnotations,
-      setStatusMessage,
-    });
-  }
-
   async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
     await onUpdateArticle(plan.articleId, (targetArticle) => {
       const nextArticle = {
@@ -722,33 +655,21 @@ export function WebSourceBookcase({
     }
     const visibleArticle = isCurrentArticle(articleId);
     const showProgress = !articleScopedWrite || visibleArticle;
-    const requestInput = buildAgentAnnotationRequestInput(agent, options, {
-      article: articleContext,
-      annotations: annotationsRef.current,
-      readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
-    });
-    const routedReadingPlan = await routeFocusReadingPlanMessages({
+    const requestInput = await prepareSourceAgentAnnotationRequestInput({
       desktop,
       agent,
       agents: annotationAgents,
-      article: articleContext,
-      readingPlan: requestInput.readingPlan,
+      options,
+      context: {
+        article: articleContext,
+        annotations: annotationsRef.current,
+        readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
+      },
     });
-    const routedRequestInput =
-      routedReadingPlan === requestInput.readingPlan
-        ? requestInput
-        : {
-            ...requestInput,
-            readingPlan: routedReadingPlan,
-            payload: {
-              ...requestInput.payload,
-              readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
-            },
-          };
-    const { readingPlan } = routedRequestInput;
+    const { readingPlan } = requestInput;
     let pendingAnnotationId = '';
 
-    startAgentAnnotationPlayback(agent, readingPlan, routedRequestInput.playbackMode, showProgress);
+    startAgentAnnotationPlayback(agent, readingPlan, requestInput.playbackMode, showProgress);
     if (showProgress && options.targetAnchor && visibleArticle && !options.pendingAnnotationId) {
       const pendingAnnotation = createPendingAgentAnnotation(
         agent,
@@ -762,7 +683,7 @@ export function WebSourceBookcase({
     try {
       const { result, annotationCount } = await runSourceAgentAnnotationRequest({
         desktop,
-        requestInput: routedRequestInput,
+        requestInput,
         onAnnotation: (annotation) => {
           if (pendingAnnotationId) {
             applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));

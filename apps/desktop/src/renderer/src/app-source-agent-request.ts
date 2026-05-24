@@ -9,7 +9,10 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import type { PromptArticle } from './app-reading-types';
-import { targetAnchorReadingPlan } from './app-source-bookcase-shared';
+import {
+  routeFocusReadingPlanMessages,
+  targetAnchorReadingPlan,
+} from './app-source-bookcase-shared';
 
 export type SourceAgentAnnotationRequestOptions = {
   annotationType?: AnnotationType;
@@ -69,6 +72,38 @@ export function buildAgentAnnotationRequestInput(
     readingPlan,
     playbackMode: isTargetRequest ? 'target' : hasReadingPlan ? 'careful' : 'article',
     shouldSaveReadingMemory,
+  };
+}
+
+export async function prepareSourceAgentAnnotationRequestInput({
+  desktop,
+  agent,
+  agents,
+  options,
+  context,
+}: {
+  desktop: Parameters<typeof routeFocusReadingPlanMessages>[0]['desktop'];
+  agent: PublicAgent;
+  agents: PublicAgent[];
+  options: SourceAgentAnnotationRequestOptions;
+  context: SourceAgentAnnotationRuntimeContext;
+}) {
+  const requestInput = buildAgentAnnotationRequestInput(agent, options, context);
+  const routedReadingPlan = await routeFocusReadingPlanMessages({
+    desktop,
+    agent,
+    agents,
+    article: context.article,
+    readingPlan: requestInput.readingPlan,
+  });
+  if (routedReadingPlan === requestInput.readingPlan) return requestInput;
+  return {
+    ...requestInput,
+    readingPlan: routedReadingPlan,
+    payload: {
+      ...requestInput.payload,
+      readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
+    },
   };
 }
 

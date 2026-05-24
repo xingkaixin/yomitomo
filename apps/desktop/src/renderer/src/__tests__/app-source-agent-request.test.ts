@@ -8,6 +8,7 @@ import type {
 import {
   buildAgentAnnotationRequestInput,
   createPendingAgentAnnotation,
+  prepareSourceAgentAnnotationRequestInput,
   runSourceAgentAnnotationRequest,
   withoutAnnotationId,
 } from '../app-source-agent-request';
@@ -179,6 +180,50 @@ describe('runSourceAgentAnnotationRequest', () => {
 
     expect(result.annotationCount).toBe(1);
     expect(result.result.readingMemory).toBe(readingMemory);
+  });
+});
+
+describe('prepareSourceAgentAnnotationRequestInput', () => {
+  it('routes reading plan messages before building the stream payload', async () => {
+    const readingPlan: AgentReadingPlanItem[] = [
+      {
+        sectionId: 'section_1',
+        sectionTitle: '第一节',
+        sectionStart: 0,
+        sectionEnd: 6,
+        messages: [
+          {
+            content: '@lin 解释这段',
+          },
+        ],
+      },
+    ];
+    const planAgentMentionRoute = vi.fn().mockResolvedValue({
+      createUserThought: false,
+      directives: [
+        {
+          agentId: 'agent_lin',
+          action: 'create_thought',
+          instruction: '解释这段',
+        },
+      ],
+    });
+
+    const input = await prepareSourceAgentAnnotationRequestInput({
+      desktop: { planAgentMentionRoute },
+      agent: agent(),
+      agents: [agent()],
+      options: { readingPlan },
+      context: { article, annotations: [annotation], readingMemory },
+    });
+
+    expect(input.readingPlan[0]?.messages).toEqual([
+      expect.objectContaining({
+        content: '解释这段',
+        agentId: 'agent_lin',
+      }),
+    ]);
+    expect(input.payload.readingPlan).toBe(input.readingPlan);
   });
 });
 

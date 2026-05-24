@@ -2,7 +2,6 @@ import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   AgentReadingPlanItem,
-  AgentReadingIntent,
   Annotation,
   Comment as AnnotationComment,
   FocusCoReadingPlan,
@@ -53,15 +52,13 @@ import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
 import type { PromptArticle } from './app-reading-types';
 import {
-  buildAgentAnnotationRequestInput,
   createPendingAgentAnnotation,
+  prepareSourceAgentAnnotationRequestInput,
   runSourceAgentAnnotationRequest,
   type SourceAgentAnnotationPlaybackMode,
   type SourceAgentAnnotationRequestOptions,
   withoutAnnotationId,
 } from './app-source-agent-request';
-import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
-import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import {
   articleWithAnnotations,
   articleWithMergedAgentAnnotation,
@@ -72,7 +69,6 @@ import {
   planSelectionMentionRoute,
   promptArticle,
   readDesktopReaderSettings,
-  routeFocusReadingPlanMessages,
   usesOverlayToc,
   writeDesktopReaderSettings,
   type EbookBookcaseProps,
@@ -131,6 +127,7 @@ export function EbookBookcase({
   const cleanupFoliateDocumentListenersBridge = useCallback(() => {
     cleanupFoliateDocumentListenersRef.current();
   }, []);
+  const [statusMessage, setStatusMessage] = useState('');
   const {
     addComment,
     annotations,
@@ -144,6 +141,8 @@ export function EbookBookcase({
     addPendingAnnotationAgent,
     removePendingAnnotationAgent,
     replaceAnnotations,
+    requestAgentComment,
+    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -156,9 +155,7 @@ export function EbookBookcase({
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
     },
-    onAgentCommentMentioned: (agent, annotation, comment) => {
-      void requestAgentComment(agent, annotation, comment);
-    },
+    getArticleText: currentArticleText,
     onAnnotationsApplied: ({ previousAnnotations, nextAnnotations }) => {
       const previousHighlightSignature = ebookHighlightAnnotationsSignature(
         previousAnnotations,
@@ -191,6 +188,7 @@ export function EbookBookcase({
     },
     onOpenAnnotation: openAnnotation,
     onSaveArticle,
+    setStatusMessage,
     userProfile,
   });
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
@@ -215,7 +213,6 @@ export function EbookBookcase({
     canvasRef,
     onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
   });
-  const [statusMessage, setStatusMessage] = useState('');
   const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
     readDesktopReaderSettings(),
   );
@@ -661,70 +658,6 @@ export function EbookBookcase({
     return activeId;
   }
 
-  async function requestAgentComment(
-    agent: PublicAgent,
-    annotation: Annotation,
-    userComment: AnnotationComment,
-    reviewTargetCommentId?: string,
-    options: {
-      instruction?: string;
-      readingIntent?: AgentReadingIntent;
-      pendingAnnotationId?: string;
-    } = {},
-  ) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-
-    try {
-      await runSourceAgentCommentRequest({
-        agent,
-        annotation,
-        userComment,
-        instruction: options.instruction,
-        readingIntent: options.readingIntent,
-        desktop,
-        currentArticle,
-        articleText: currentArticleText(),
-        reviewTargetCommentId,
-        annotationsRef,
-        applyAnnotations,
-        saveAnnotations,
-        setStatusMessage,
-      });
-    } finally {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-    }
-  }
-
-  async function requestAnnotationReview(annotationId: string, selectedAgents: PublicAgent[]) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const currentAnnotation = annotationsRef.current.find(
-      (annotation) => annotation.id === annotationId,
-    );
-    if (!desktop || !currentArticle || !currentAnnotation || selectedAgents.length === 0) return;
-
-    await runSourceAgentReviewRequest({
-      agents: selectedAgents,
-      annotation: currentAnnotation,
-      desktop,
-      currentArticle,
-      articleText: currentArticleText(),
-      annotationsRef,
-      applyAnnotations,
-      saveAnnotations,
-      setStatusMessage,
-    });
-  }
-
   async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
     await onUpdateArticle(plan.articleId, (targetArticle) => {
       const nextArticle = {
@@ -859,30 +792,18 @@ export function EbookBookcase({
       return;
     }
     const targetAnchor = options.targetAnchor;
-    const requestInput = buildAgentAnnotationRequestInput(agent, options, {
-      article: articleContext,
-      annotations: annotationsRef.current,
-      readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
-    });
-    const routedReadingPlan = await routeFocusReadingPlanMessages({
+    const requestInput = await prepareSourceAgentAnnotationRequestInput({
       desktop,
       agent,
       agents: annotationAgents,
-      article: articleContext,
-      readingPlan: requestInput.readingPlan,
+      options,
+      context: {
+        article: articleContext,
+        annotations: annotationsRef.current,
+        readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
+      },
     });
-    const routedRequestInput =
-      routedReadingPlan === requestInput.readingPlan
-        ? requestInput
-        : {
-            ...requestInput,
-            readingPlan: routedReadingPlan,
-            payload: {
-              ...requestInput.payload,
-              readingPlan: requestInput.payload.readingPlan ? routedReadingPlan : undefined,
-            },
-          };
-    const { playbackMode, readingPlan } = routedRequestInput;
+    const { playbackMode, readingPlan } = requestInput;
 
     const visibleArticle = startEbookPlayback(agent, articleId, targetAnchor, playbackMode);
     let pendingAnnotationId = '';
@@ -900,7 +821,7 @@ export function EbookBookcase({
     try {
       const { result, annotationCount } = await runSourceAgentAnnotationRequest({
         desktop,
-        requestInput: routedRequestInput,
+        requestInput,
         onAnnotation: (annotation) => {
           if (pendingAnnotationId) {
             applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
