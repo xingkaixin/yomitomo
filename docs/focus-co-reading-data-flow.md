@@ -15,7 +15,8 @@
 
 ## 核心数据模型
 
-类型定义在 `packages/shared/src/types.ts`：
+关键类型由 `@yomitomo/shared` 导出，源码按领域分布在 `packages/shared/src/article-types.ts`
+和 `packages/shared/src/agent-payload-types.ts`：
 
 ```ts
 type FocusCoReadingMessage = {

@@ -6,7 +6,8 @@
 
 批注数据挂在 `ArticleRecord.annotations` 上。每条划线是一个 `Annotation`，每条想法或回复是一个 `Comment`。
 
-关键类型在 `packages/shared/src/types.ts`：
+关键类型由 `@yomitomo/shared` 导出，源码按领域分布在 `packages/shared/src/anchor-types.ts`
+和 `packages/shared/src/annotation-types.ts`：
 
 ```ts
 type TextAnchor = {
