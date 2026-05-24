@@ -1,0 +1,165 @@
+import { existsSync, mkdirSync } from 'node:fs';
+import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { app } from 'electron';
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import SQLiteDatabase from 'better-sqlite3';
+import {
+  assertDatabaseReaderCompatible,
+  databaseReaderCompatibility,
+  ensureDatabaseCompatibilityTable,
+  migrationReaderLevel,
+  readDatabaseReaderLevel,
+  writeDatabaseReaderLevel,
+} from './db/compatibility';
+import { migrations } from './db/migrations';
+import * as schema from './db/schema';
+
+const DB_FILE_NAME = 'yomitomo.sqlite';
+
+let sqlite: SQLiteDatabase.Database | null = null;
+let db: StoreDatabase | null = null;
+let seedDatabase: ((database: StoreDatabase) => void) | null = null;
+
+export type StoreDatabase = BetterSQLite3Database<typeof schema>;
+export type StoreTransaction = Parameters<StoreDatabase['transaction']>[0] extends (
+  tx: infer T,
+) => unknown
+  ? T
+  : never;
+export type StoreExecutor = StoreDatabase | StoreTransaction;
+export type StoreReadProfileEntry = {
+  name: string;
+  durationMs: number;
+  data?: Record<string, number>;
+};
+
+export function configureStoreDatabaseSeeder(seeder: (database: StoreDatabase) => void) {
+  seedDatabase = seeder;
+}
+
+function databasePath() {
+  return join(app.getPath('userData'), DB_FILE_NAME);
+}
+
+export function getDataDirectoryPath() {
+  return app.getPath('userData');
+}
+
+export function getDatabasePath() {
+  return databasePath();
+}
+
+export function getDatabase() {
+  if (db) return db;
+
+  const file = databasePath();
+  mkdirSync(dirname(file), { recursive: true });
+
+  sqlite = new SQLiteDatabase(file);
+  sqlite.pragma('journal_mode = WAL');
+  sqlite.pragma('foreign_keys = ON');
+  runMigrations(sqlite);
+
+  db = drizzle(sqlite, { schema });
+  seedDatabase?.(db);
+  return db;
+}
+
+function getSqliteDatabase() {
+  getDatabase();
+  if (!sqlite) throw new Error('本地数据库尚未打开');
+  return sqlite;
+}
+
+export async function backupDatabaseFile(targetPath: string) {
+  const target = resolve(targetPath);
+  const source = resolve(databasePath());
+  if (target === source) throw new Error('不能把备份保存到当前数据库文件');
+
+  const database = getSqliteDatabase();
+  await mkdir(dirname(target), { recursive: true });
+  await rm(target, { force: true });
+  await removeSqliteSidecarFiles(target);
+  database.pragma('wal_checkpoint(FULL)');
+  await database.backup(target);
+  return target;
+}
+
+export function closeDatabase() {
+  db = null;
+  if (sqlite) {
+    sqlite.close();
+    sqlite = null;
+  }
+}
+
+export async function replaceDatabaseFile(sourcePath: string) {
+  const source = resolve(sourcePath);
+  const target = resolve(databasePath());
+  if (source === target) throw new Error('不能从当前数据库文件还原');
+
+  const backupPath = await safetyBackupPath();
+  if (existsSync(target)) await backupDatabaseFile(backupPath);
+
+  closeDatabase();
+  await mkdir(dirname(target), { recursive: true });
+  await removeSqliteSidecarFiles(target);
+  await copyFile(source, target);
+  return backupPath;
+}
+
+export function purgeSqliteFiles() {
+  if (!sqlite) return;
+  sqlite.pragma('wal_checkpoint(TRUNCATE)');
+  sqlite.exec('VACUUM');
+}
+
+async function safetyBackupPath() {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const directory = join(app.getPath('userData'), 'backups');
+  await mkdir(directory, { recursive: true });
+  return join(directory, `yomitomo-before-restore-${timestamp}.sqlite`);
+}
+
+async function removeSqliteSidecarFiles(filePath: string) {
+  await Promise.all([
+    rm(`${filePath}-wal`, { force: true }),
+    rm(`${filePath}-shm`, { force: true }),
+  ]);
+}
+
+function runMigrations(database: SQLiteDatabase.Database) {
+  database.exec(`
+CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
+  id TEXT PRIMARY KEY NOT NULL,
+  applied_at TEXT NOT NULL
+);
+`);
+
+  const applied = new Set(
+    database
+      .prepare('SELECT id FROM __yomitomo_migrations')
+      .all()
+      .map((row) => String((row as { id: string }).id)),
+  );
+
+  ensureDatabaseCompatibilityTable(database);
+  let readerLevel = assertDatabaseReaderCompatible(applied, readDatabaseReaderLevel(database));
+
+  for (const migration of migrations) {
+    if (applied.has(migration.id)) continue;
+    database.transaction(() => {
+      database.exec(migration.sql);
+      database
+        .prepare('INSERT INTO __yomitomo_migrations (id, applied_at) VALUES (?, ?)')
+        .run(migration.id, new Date().toISOString());
+      readerLevel = Math.max(readerLevel, migrationReaderLevel(migration));
+      writeDatabaseReaderLevel(database, readerLevel);
+    })();
+    applied.add(migration.id);
+  }
+
+  const compatibility = databaseReaderCompatibility(applied, readDatabaseReaderLevel(database));
+  writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
+}
