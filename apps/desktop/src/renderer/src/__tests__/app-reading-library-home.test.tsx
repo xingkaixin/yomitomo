@@ -140,6 +140,11 @@ function renderLibrary(
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
     onImportEbookFile?: (
       file: File,
+      onProgress?: (progress: number) => void,
+    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+    onImportPdfFile?: (
+      file: File,
+      onProgress?: (progress: number) => void,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
   } = {},
@@ -151,7 +156,7 @@ function renderLibrary(
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
-      onImportPdfFile={vi.fn()}
+      onImportPdfFile={options.onImportPdfFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
       onReadArticle={
         options.onReadArticle ||
@@ -163,6 +168,18 @@ function renderLibrary(
       onUpdateArticle={vi.fn()}
     />,
   );
+}
+
+function fileWithSize(name: string, size: number): File {
+  const file = new File(['content'], name);
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
+}
+
+function selectImportFile(container: HTMLElement, inputId: string, file: File) {
+  const input = container.querySelector<HTMLInputElement>(`#${inputId}`);
+  expect(input).toBeTruthy();
+  fireEvent.change(input!, { target: { files: [file] } });
 }
 
 describe('groupLibraryArticles', () => {
@@ -592,5 +609,196 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('添加 ePub 电子书')).toBeTruthy();
     expect(screen.getByText('拖入 EPUB，或点击选择')).toBeTruthy();
+  });
+
+  it('imports an ebook file with progress feedback', async () => {
+    const imported = article({
+      id: 'ebook_imported',
+      url: 'ebook://ebook_imported',
+      canonicalUrl: 'ebook://ebook_imported',
+      sourceType: 'ebook',
+      title: '导入电子书',
+      ebook: {
+        metadata: {
+          format: 'epub',
+          fileName: 'book.epub',
+          fileSize: 1024,
+        },
+        chapters: [],
+      },
+    });
+    const onImportEbookFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
+      onProgress?.(42);
+      return { status: 'imported' as const, article: imported };
+    });
+    const { container } = renderLibrary([], { onImportEbookFile });
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    const file = fileWithSize('book.epub', 1024);
+    selectImportFile(container, 'library-ebook-file', file);
+
+    await waitFor(() => expect(onImportEbookFile).toHaveBeenCalledWith(file, expect.any(Function)));
+    expect(
+      screen.getByRole('progressbar', { name: '电子书导入进度' }).getAttribute('aria-valuenow'),
+    ).toBe('100');
+    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '打开电子书' })).toBeTruthy();
+  });
+
+  it('opens an existing ebook from the duplicate import state', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const duplicate = article({
+      id: 'ebook_duplicate',
+      url: 'ebook://ebook_duplicate',
+      canonicalUrl: 'ebook://ebook_duplicate',
+      sourceType: 'ebook',
+      title: '已有电子书',
+      contentHtml: '<p>书正文</p>',
+      ebook: {
+        metadata: {
+          format: 'epub',
+          fileName: 'duplicate.epub',
+          fileSize: 1024,
+        },
+        chapters: [],
+      },
+    });
+    const onImportEbookFile = vi.fn().mockResolvedValue({
+      status: 'duplicate',
+      article: duplicate,
+    });
+    const onReadArticle = vi.fn().mockResolvedValue(duplicate);
+    const { container } = renderLibrary([articleSummary(duplicate)], {
+      onImportEbookFile,
+      onReadArticle,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    selectImportFile(container, 'library-ebook-file', fileWithSize('duplicate.epub', 1024));
+
+    expect((await screen.findAllByText('这本电子书已在阅读库')).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: '打开已有电子书' }));
+
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledWith('ebook_duplicate'));
+  });
+
+  it('validates ebook file extension and size before importing', async () => {
+    const onImportEbookFile = vi.fn();
+    const { container } = renderLibrary([], { onImportEbookFile });
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    selectImportFile(container, 'library-ebook-file', fileWithSize('notes.txt', 1024));
+
+    expect((await screen.findAllByText('请选择 EPUB 文件')).length).toBeGreaterThan(0);
+    selectImportFile(
+      container,
+      'library-ebook-file',
+      fileWithSize('large.epub', 80 * 1024 * 1024 + 1),
+    );
+
+    expect((await screen.findAllByText('EPUB 文件不能超过 80MB')).length).toBeGreaterThan(0);
+    expect(onImportEbookFile).not.toHaveBeenCalled();
+  });
+
+  it('imports a PDF file and exposes the imported open action', async () => {
+    const imported = article({
+      id: 'pdf_imported',
+      url: 'pdf:pdf_imported',
+      canonicalUrl: 'pdf:hash_imported',
+      sourceType: 'pdf',
+      title: '导入 PDF',
+      siteName: 'PDF',
+      pdf: {
+        metadata: {
+          format: 'pdf',
+          fileName: 'paper.pdf',
+          fileSize: 2048,
+          pageCount: 12,
+        },
+      },
+    });
+    const onImportPdfFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
+      onProgress?.(64);
+      return { status: 'imported' as const, article: imported };
+    });
+    const { container } = renderLibrary([], { onImportPdfFile });
+
+    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    const file = fileWithSize('paper.pdf', 2048);
+    selectImportFile(container, 'library-pdf-file', file);
+
+    await waitFor(() => expect(onImportPdfFile).toHaveBeenCalledWith(file, expect.any(Function)));
+    expect(
+      screen.getByRole('progressbar', { name: 'PDF 导入进度' }).getAttribute('aria-valuenow'),
+    ).toBe('100');
+    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '打开 PDF' })).toBeTruthy();
+  });
+
+  it('opens an existing PDF from the duplicate import state', async () => {
+    const duplicate = article({
+      id: 'pdf_duplicate',
+      url: 'pdf:pdf_duplicate',
+      canonicalUrl: 'pdf:hash_duplicate',
+      sourceType: 'pdf',
+      title: '已有 PDF',
+      siteName: 'PDF',
+      pdf: {
+        metadata: {
+          format: 'pdf',
+          fileName: 'duplicate.pdf',
+          fileSize: 2048,
+          pageCount: 12,
+        },
+      },
+    });
+    const onImportPdfFile = vi.fn().mockResolvedValue({
+      status: 'duplicate',
+      article: duplicate,
+    });
+    const onReadArticle = vi.fn().mockResolvedValue(duplicate);
+    const { container } = renderLibrary([articleSummary(duplicate)], {
+      onImportPdfFile,
+      onReadArticle,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    selectImportFile(container, 'library-pdf-file', fileWithSize('duplicate.pdf', 2048));
+
+    expect((await screen.findAllByText('这份 PDF 已在阅读库')).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: '打开已有 PDF' }));
+
+    await waitFor(() => expect(onReadArticle).toHaveBeenCalledWith('pdf_duplicate'));
+  });
+
+  it('validates PDF file extension and size before importing', async () => {
+    const onImportPdfFile = vi.fn();
+    const { container } = renderLibrary([], { onImportPdfFile });
+
+    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
+    selectImportFile(container, 'library-pdf-file', fileWithSize('book.epub', 1024));
+
+    expect((await screen.findAllByText('请选择 PDF 文件')).length).toBeGreaterThan(0);
+    selectImportFile(
+      container,
+      'library-pdf-file',
+      fileWithSize('large.pdf', 120 * 1024 * 1024 + 1),
+    );
+
+    expect((await screen.findAllByText('PDF 文件不能超过 120MB')).length).toBeGreaterThan(0);
+    expect(onImportPdfFile).not.toHaveBeenCalled();
   });
 });
