@@ -14,8 +14,9 @@ import {
   type ReadingStatsViewData,
 } from './app-reading-stats-data';
 
+const loadReadingStatsChart = () => import('./app-reading-stats-chart');
 const ReadingStatsChart = lazy(() =>
-  import('./app-reading-stats-chart').then((module) => ({ default: module.ReadingStatsChart })),
+  loadReadingStatsChart().then((module) => ({ default: module.ReadingStatsChart })),
 );
 
 const statsLoadPhases = {
@@ -27,6 +28,10 @@ const statsLoadPhases = {
 } as const;
 
 export { preloadReadingStatsFirstPaintData };
+
+export function preloadReadingStatsDeferredModules() {
+  return loadReadingStatsChart();
+}
 
 export function ReadingStatsPanel({
   articles,
