@@ -101,6 +101,8 @@ import {
   promptArticle,
   publicAnnotationAgents,
   publicReviewAgents,
+  recordRendererPerformanceTiming,
+  rendererPerformanceElapsedMs,
   routeFocusReadingPlanMessages,
   type SourceBookcaseProps,
 } from './app-source-bookcase-shared';
@@ -157,6 +159,39 @@ type PdfAnnotationNavigationState = {
   nextId: string | null;
 };
 
+type PdfOpenTrace = {
+  articleId: string;
+  startedAt: number;
+};
+
+function pdfOpenTrace(articleId: string): PdfOpenTrace {
+  return { articleId, startedAt: performance.now() };
+}
+
+function recordPdfOpenTiming(
+  trace: PdfOpenTrace,
+  phase: string,
+  data: Record<string, unknown> = {},
+) {
+  recordRendererPerformanceTiming('pdf.open', {
+    articleId: trace.articleId,
+    elapsedMs: rendererPerformanceElapsedMs(trace.startedAt),
+    phase,
+    ...data,
+  });
+}
+
+function recordPdfOpenTimingOnce(
+  recordedPhases: { current: Set<string> },
+  trace: PdfOpenTrace,
+  phase: string,
+  data: Record<string, unknown> = {},
+) {
+  if (recordedPhases.current.has(phase)) return;
+  recordedPhases.current.add(phase);
+  recordPdfOpenTiming(trace, phase, data);
+}
+
 export function PdfiumBookcase({
   agents,
   annotations: articleAnnotations,
@@ -171,6 +206,8 @@ export function PdfiumBookcase({
   onSaveArticleReadingProgress,
   onUpdateArticle,
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
+  const openTraceRef = useRef<PdfOpenTrace | null>(null);
+  const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = useState('');
   const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
@@ -182,6 +219,11 @@ export function PdfiumBookcase({
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  if (!openTraceRef.current || openTraceRef.current.articleId !== article.id) {
+    openTraceRef.current = pdfOpenTrace(article.id);
+    recordedOpenPhasesRef.current = new Set();
+  }
+  const openTrace = openTraceRef.current;
   const {
     engine,
     error: engineError,
@@ -192,23 +234,62 @@ export function PdfiumBookcase({
   });
 
   useEffect(() => {
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'open_requested', {
+      fileSize: article.pdf.metadata.fileSize,
+      pageCount: article.pdf.metadata.pageCount,
+    });
+  }, [article.id, article.pdf.metadata.fileSize, article.pdf.metadata.pageCount, openTrace]);
+
+  useEffect(() => {
+    if (!engine || isLoading) return;
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_done');
+  }, [engine, isLoading, openTrace]);
+
+  useEffect(() => {
+    if (!engineError) return;
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_error', {
+      message: engineError.message,
+    });
+  }, [engineError, openTrace]);
+
+  useEffect(() => {
     let cancelled = false;
+    const fileReadStartedAt = performance.now();
     setBuffer(null);
     setLoadError('');
+    recordPdfOpenTiming(openTrace, 'file_read_start', {
+      fileSize: article.pdf.metadata.fileSize,
+    });
 
     void window.yomitomoDesktop
       .readPdfFile(article.id)
       .then((data) => {
-        if (!cancelled) setBuffer(data.slice(0));
+        const copyStartedAt = performance.now();
+        const nextBuffer = data.slice(0);
+        if (!cancelled) {
+          setBuffer(nextBuffer);
+          recordPdfOpenTiming(openTrace, 'file_read_done', {
+            byteLength: nextBuffer.byteLength,
+            copyDurationMs: rendererPerformanceElapsedMs(copyStartedAt),
+            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
+          });
+        }
       })
       .catch((error) => {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'PDF 读取失败');
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'PDF 读取失败';
+          setLoadError(message);
+          recordPdfOpenTiming(openTrace, 'file_read_error', {
+            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
+            message,
+          });
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [article.id]);
+  }, [article.id, article.pdf.metadata.fileSize, openTrace]);
 
   const documentId = `embedpdf-${article.id}`;
   const plugins = useMemo(() => {
@@ -340,6 +421,7 @@ export function PdfiumBookcase({
                         article={article}
                         documentId={activeDocumentId}
                         engine={engine}
+                        openTrace={openTrace}
                         messageSendShortcut={messageSendShortcut}
                         pageCount={
                           documentState.document?.pageCount || article.pdf.metadata.pageCount
@@ -391,6 +473,7 @@ function PdfiumDocument({
   article,
   documentId,
   engine,
+  openTrace,
   messageSendShortcut,
   pageCount,
   selectedAnnotationId,
@@ -416,6 +499,7 @@ function PdfiumDocument({
   article: PdfArticleRecord;
   documentId: string;
   engine: PdfEngine<Blob>;
+  openTrace: PdfOpenTrace;
   messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
   pageCount: number;
   selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
@@ -443,6 +527,7 @@ function PdfiumDocument({
   const pageMetricsFrameRef = useRef(0);
   const pageMetricsRef = useRef<Record<number, PageMetric>>({});
   const pageTextCacheRef = useRef(new Map<number, Promise<string>>());
+  const recordedOpenPhasesRef = useRef(new Set<string>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
   const virtualCursorTimersRef = useRef(new Map<string, number>());
@@ -464,9 +549,13 @@ function PdfiumDocument({
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
   const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
+  const [pdfFirstPageReady, setPdfFirstPageReady] = useState(false);
+  const [restoringInitialPage, setRestoringInitialPage] = useState(
+    () => initialPageIndexRef.current > 0,
+  );
+  const [currentPage, setCurrentPage] = useState(() => initialPageIndexRef.current + 1);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
-  const currentPage = scroll?.getCurrentPage() || 1;
   const zoom = documentState?.scale || 1;
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
@@ -560,6 +649,18 @@ function PdfiumDocument({
   });
 
   useEffect(() => {
+    recordedOpenPhasesRef.current = new Set();
+  }, [article.id]);
+
+  useEffect(() => {
+    const document = documentState?.document;
+    if (!document) return;
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'document_ready', {
+      pageCount: document.pageCount,
+    });
+  }, [documentState?.document, openTrace]);
+
+  useEffect(() => {
     if (!bookmark) return;
     let cancelled = false;
     bookmark
@@ -583,20 +684,42 @@ function PdfiumDocument({
       setPdfTextDocument(null);
       return;
     }
+    if (!pdfFirstPageReady) return;
 
     let cancelled = false;
-    Promise.all(document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)))
-      .then((pageTexts) => {
-        if (!cancelled) setPdfTextDocument(buildPdfTextDocument(pageTexts));
-      })
-      .catch(() => {
-        if (!cancelled) setPdfTextDocument(null);
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      const textExtractStartedAt = performance.now();
+      recordPdfOpenTiming(openTrace, 'text_extract_start', {
+        pageCount: document.pageCount,
       });
+      Promise.all(document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)))
+        .then((pageTexts) => {
+          if (!cancelled) {
+            setPdfTextDocument(buildPdfTextDocument(pageTexts));
+            recordPdfOpenTiming(openTrace, 'text_extract_done', {
+              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
+              pageCount: pageTexts.length,
+              textChars: pageTexts.reduce((count, text) => count + text.length, 0),
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setPdfTextDocument(null);
+            recordPdfOpenTiming(openTrace, 'text_extract_error', {
+              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
+              pageCount: document.pageCount,
+            });
+          }
+        });
+    }, 120);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [article.id, documentState?.document]);
+  }, [article.id, documentState?.document, openTrace, pdfFirstPageReady]);
 
   useEffect(() => {
     initialPageIndexRef.current = normalizeInitialPageIndex(article);
@@ -604,6 +727,9 @@ function PdfiumDocument({
     restoredInitialPageRef.current = false;
     pageTextCacheRef.current = new Map();
     onSetAgentAnnotateOpen(false);
+    setCurrentPage(initialPageIndexRef.current + 1);
+    setRestoringInitialPage(initialPageIndexRef.current > 0);
+    setPdfFirstPageReady(false);
     setPdfTextDocument(null);
     clearAgentAnnotationPlayback();
   }, [article.id, article.pdf.metadata.pageCount, onSetAgentAnnotateOpen]);
@@ -611,19 +737,17 @@ function PdfiumDocument({
   useEffect(() => {
     if (!scrollCapability) return;
 
-    let frame = 0;
     const restoreInitialPage = () => {
       if (restoredInitialPageRef.current) return;
       const initialPageIndex = initialPageIndexRef.current;
       restoredInitialPageRef.current = true;
       if (initialPageIndex <= 0) return;
 
-      frame = window.requestAnimationFrame(() => {
-        scrollCapability.forDocument(documentId).scrollToPage({
-          pageNumber: initialPageIndex + 1,
-          behavior: 'instant',
-        });
+      scrollCapability.forDocument(documentId).scrollToPage({
+        pageNumber: initialPageIndex + 1,
+        behavior: 'instant',
       });
+      setCurrentPage(initialPageIndex + 1);
     };
 
     const unsubscribe = scrollCapability.onLayoutReady((event) => {
@@ -631,7 +755,6 @@ function PdfiumDocument({
     });
 
     return () => {
-      window.cancelAnimationFrame(frame);
       unsubscribe();
     };
   }, [documentId, scrollCapability]);
@@ -641,6 +764,7 @@ function PdfiumDocument({
 
     const saveCurrentPage = () => {
       const pageIndex = clampPageIndex(scroll.getCurrentPage() - 1, pageCount);
+      setCurrentPage(pageIndex + 1);
       if (lastSavedPageRef.current === pageIndex) return;
       lastSavedPageRef.current = pageIndex;
       onSaveArticleReadingProgress(article.id, pdfReadingProgress(pageIndex, pageCount));
@@ -729,6 +853,21 @@ function PdfiumDocument({
       resizeObserver?.disconnect();
     };
   }, [pageCount, schedulePageMetricsUpdate]);
+
+  useEffect(() => {
+    const visiblePageCount = Object.keys(pageMetrics).length;
+    if (visiblePageCount === 0) return;
+    const expectedPageIndex = initialPageIndexRef.current;
+    if (expectedPageIndex > 0 && !pageMetrics[expectedPageIndex]) return;
+    setRestoringInitialPage(false);
+    setPdfFirstPageReady(true);
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'first_page_ready', {
+      visiblePageCount,
+    });
+    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'interactive_ready', {
+      visiblePageCount,
+    });
+  }, [openTrace, pageMetrics]);
 
   useEffect(() => {
     const unsubscribe = scroll?.onScroll?.(() => {
@@ -857,6 +996,12 @@ function PdfiumDocument({
       pageNumber: item.start + 1,
       behavior: 'smooth',
     });
+  }
+
+  function handlePageSliderChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const pageNumber = clampPageIndex(Number(event.currentTarget.value) - 1, pageCount) + 1;
+    setCurrentPage(pageNumber);
+    scroll?.scrollToPage({ pageNumber, behavior: 'instant' });
   }
 
   async function currentArticleText() {
@@ -1767,7 +1912,15 @@ function PdfiumDocument({
   );
 
   return (
-    <section className="source-pdfium-spike-reader" onKeyDown={handleKeyDown}>
+    <section
+      className={[
+        'source-pdfium-spike-reader',
+        restoringInitialPage ? 'is-restoring-initial-page' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      onKeyDown={handleKeyDown}
+    >
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}`}</style>
       <div className="pdfium-spike-floating-toolbar">
         <Button
@@ -1783,6 +1936,21 @@ function PdfiumDocument({
         <span>
           {currentPage} / {pageCount}
         </span>
+        <input
+          aria-label="快速跳转 PDF 页码"
+          className="ebook-progress-slider pdfium-page-slider"
+          max={pageCount}
+          min="1"
+          step="1"
+          style={
+            {
+              '--ebook-progress-percent': `${pdfPageProgressPercent(currentPage, pageCount)}%`,
+            } as React.CSSProperties
+          }
+          type="range"
+          value={currentPage}
+          onChange={handlePageSliderChange}
+        />
         <Button
           aria-label="下一页"
           disabled={currentPage >= pageCount}
@@ -1819,6 +1987,12 @@ function PdfiumDocument({
         onInvalidSelection={showStatusMessage}
         onSelection={handleSelection}
       />
+      {restoringInitialPage ? (
+        <div className="pdf-reader-status" role="status">
+          <LoaderCircle className="is-spinning" size={18} />
+          <span>正在恢复到第 {initialPageIndexRef.current + 1} 页</span>
+        </div>
+      ) : null}
       {statusMessage ? (
         <div className="pdf-reader-status" role="status">
           <span>{statusMessage}</span>
@@ -2691,6 +2865,12 @@ function clampPageIndex(pageIndex: number, pageCount: number) {
 function pageProgress(pageIndex: number, pageCount: number) {
   if (pageCount <= 1) return 1;
   return pageIndex / (pageCount - 1);
+}
+
+function pdfPageProgressPercent(pageNumber: number, pageCount: number) {
+  return Number(
+    (pageProgress(clampPageIndex(pageNumber - 1, pageCount), pageCount) * 100).toFixed(2),
+  );
 }
 
 function pdfReadingProgress(pageIndex: number, pageCount: number): ArticleReadingProgress {
