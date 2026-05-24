@@ -274,6 +274,11 @@ function App() {
     shortcutSaveState,
     providerSaveState,
     routeSaveState,
+    profileSaveError,
+    generalSaveError,
+    shortcutSaveError,
+    providerSaveError,
+    routeSaveError,
     canSaveUser,
     canSaveGeneralSettings,
     canSaveShortcutSettings,
@@ -525,6 +530,7 @@ function App() {
                   onSettingsChange={updateGeneralSettingsDraft}
                   onSave={saveGeneralSettingsDraft}
                   saveState={generalSaveState}
+                  saveError={generalSaveError}
                 />
               ) : null}
               {activeSettingsSection === 'models' ? (
@@ -542,7 +548,9 @@ function App() {
                   onDelete={deleteProvider}
                   onSave={saveProviderDraft}
                   saveState={providerSaveState}
+                  saveError={providerSaveError}
                   routeSaveState={routeSaveState}
+                  routeSaveError={routeSaveError}
                   onRouteSave={saveProviderRoutes}
                   onSelect={selectProvider}
                   onTest={testProvider}
@@ -557,6 +565,7 @@ function App() {
                   onSettingsChange={updateShortcutSettingsDraft}
                   onSave={saveShortcutSettingsDraft}
                   saveState={shortcutSaveState}
+                  saveError={shortcutSaveError}
                 />
               ) : null}
               {activeSettingsSection === 'data' ? (
@@ -595,6 +604,7 @@ function App() {
                 window.setTimeout(() => setProfileDialogOpen(false), 700);
             }}
             saveState={profileSaveState}
+            saveError={profileSaveError}
           />
         </Suspense>
       ) : null}

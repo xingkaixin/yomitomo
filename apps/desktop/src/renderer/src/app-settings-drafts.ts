@@ -38,6 +38,11 @@ export function useSettingsDrafts({
   const [shortcutSaveState, setShortcutSaveState] = useState<SaveState>('idle');
   const [providerSaveState, setProviderSaveState] = useState<SaveState>('idle');
   const [routeSaveState, setRouteSaveState] = useState<SaveState>('idle');
+  const [profileSaveError, setProfileSaveError] = useState('');
+  const [generalSaveError, setGeneralSaveError] = useState('');
+  const [shortcutSaveError, setShortcutSaveError] = useState('');
+  const [providerSaveError, setProviderSaveError] = useState('');
+  const [routeSaveError, setRouteSaveError] = useState('');
   const initialProviderSelectedRef = useRef(false);
 
   const selectProvider = useCallback((provider: LlmProvider) => {
@@ -46,6 +51,7 @@ export function useSettingsDrafts({
     setProviderEditorActive(true);
     setTestState('');
     setProviderSaveState('idle');
+    setProviderSaveError('');
   }, []);
 
   const createProvider = useCallback(() => {
@@ -54,6 +60,7 @@ export function useSettingsDrafts({
     setProviderEditorActive(true);
     setTestState('');
     setProviderSaveState('idle');
+    setProviderSaveError('');
   }, []);
 
   useEffect(() => {
@@ -140,27 +147,32 @@ export function useSettingsDrafts({
   const updateUserDraft = useCallback((draft: UserDraft) => {
     setUserDraft(draft);
     setProfileSaveState('idle');
+    setProfileSaveError('');
   }, []);
 
   const updateGeneralSettingsDraft = useCallback((draft: AppSettings) => {
     setSettingsDraft(draft);
     setGeneralSaveState('idle');
+    setGeneralSaveError('');
   }, []);
 
   const updateShortcutSettingsDraft = useCallback((draft: AppSettings) => {
     setSettingsDraft(draft);
     setShortcutSaveState('idle');
+    setShortcutSaveError('');
   }, []);
 
   const updateProviderDraft = useCallback((draft: ProviderDraft) => {
     setProviderDraft(draft);
     setTestState('');
     setProviderSaveState('idle');
+    setProviderSaveError('');
   }, []);
 
   const updateProviderRoutesDraft = useCallback((draft: AppSettings) => {
     setSettingsDraft(draft);
     setRouteSaveState('idle');
+    setRouteSaveError('');
   }, []);
 
   const saveProfileDraft = useCallback(async () => {
@@ -173,39 +185,52 @@ export function useSettingsDrafts({
       setProfileSaveState('saved');
       window.setTimeout(() => setProfileSaveState('idle'), 1200);
       return true;
-    } catch {
-      setProfileSaveState('idle');
+    } catch (error) {
+      setProfileSaveError(settingsSaveErrorMessage(error));
+      setProfileSaveState('error');
       return false;
     }
   }, [applyStore, userDraft, userHasChanges]);
 
-  const saveGeneralSettingsDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !settingsHasChanges) return;
-    setGeneralSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      applyStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setGeneralSaveState('saved');
-      window.setTimeout(() => setGeneralSaveState('idle'), 1200);
-    } catch {
-      setGeneralSaveState('idle');
-    }
-  }, [applyStore, settingsDraft, settingsHasChanges]);
+  const saveGeneralSettingsDraft = useCallback(
+    async (draftOverride?: AppSettings) => {
+      const draft = draftOverride || settingsDraft;
+      if (!window.yomitomoDesktop || (!draftOverride && !settingsHasChanges)) return;
+      setGeneralSaveState('saving');
+      setGeneralSaveError('');
+      try {
+        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        applyStore(nextStore);
+        setSettingsDraft(nextStore.settings);
+        setGeneralSaveState('saved');
+        window.setTimeout(() => setGeneralSaveState('idle'), 1200);
+      } catch (error) {
+        setGeneralSaveError(settingsSaveErrorMessage(error));
+        setGeneralSaveState('error');
+      }
+    },
+    [applyStore, settingsDraft, settingsHasChanges],
+  );
 
-  const saveShortcutSettingsDraft = useCallback(async () => {
-    if (!window.yomitomoDesktop || !shortcutSettingsHaveChanges) return;
-    setShortcutSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      applyStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setShortcutSaveState('saved');
-      window.setTimeout(() => setShortcutSaveState('idle'), 1200);
-    } catch {
-      setShortcutSaveState('idle');
-    }
-  }, [applyStore, settingsDraft, shortcutSettingsHaveChanges]);
+  const saveShortcutSettingsDraft = useCallback(
+    async (draftOverride?: AppSettings) => {
+      const draft = draftOverride || settingsDraft;
+      if (!window.yomitomoDesktop || (!draftOverride && !shortcutSettingsHaveChanges)) return;
+      setShortcutSaveState('saving');
+      setShortcutSaveError('');
+      try {
+        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        applyStore(nextStore);
+        setSettingsDraft(nextStore.settings);
+        setShortcutSaveState('saved');
+        window.setTimeout(() => setShortcutSaveState('idle'), 1200);
+      } catch (error) {
+        setShortcutSaveError(settingsSaveErrorMessage(error));
+        setShortcutSaveState('error');
+      }
+    },
+    [applyStore, settingsDraft, shortcutSettingsHaveChanges],
+  );
 
   const saveProviderDraft = useCallback(async () => {
     if (!window.yomitomoDesktop || !canSaveProvider) return false;
@@ -227,25 +252,31 @@ export function useSettingsDrafts({
       setProviderSaveState('idle');
       return false;
     } catch (error) {
-      setTestState(error instanceof Error ? `保存失败：${error.message}` : '保存失败。');
-      setProviderSaveState('idle');
+      setProviderSaveError(settingsSaveErrorMessage(error));
+      setProviderSaveState('error');
       return false;
     }
   }, [applyStore, canSaveProvider, providerDraft]);
 
-  const saveProviderRoutes = useCallback(async () => {
-    if (!window.yomitomoDesktop || !canSaveProviderRoutes) return;
-    setRouteSaveState('saving');
-    try {
-      const nextStore = await window.yomitomoDesktop.saveSettings(settingsDraft);
-      applyStore(nextStore);
-      setSettingsDraft(nextStore.settings);
-      setRouteSaveState('saved');
-      window.setTimeout(() => setRouteSaveState('idle'), 1200);
-    } catch {
-      setRouteSaveState('idle');
-    }
-  }, [applyStore, canSaveProviderRoutes, settingsDraft]);
+  const saveProviderRoutes = useCallback(
+    async (draftOverride?: AppSettings) => {
+      const draft = draftOverride || settingsDraft;
+      if (!window.yomitomoDesktop || (!draftOverride && !canSaveProviderRoutes)) return;
+      setRouteSaveState('saving');
+      setRouteSaveError('');
+      try {
+        const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        applyStore(nextStore);
+        setSettingsDraft(nextStore.settings);
+        setRouteSaveState('saved');
+        window.setTimeout(() => setRouteSaveState('idle'), 1200);
+      } catch (error) {
+        setRouteSaveError(settingsSaveErrorMessage(error));
+        setRouteSaveState('error');
+      }
+    },
+    [applyStore, canSaveProviderRoutes, settingsDraft],
+  );
 
   const deleteProvider = useCallback(
     async (id: string) => {
@@ -282,6 +313,11 @@ export function useSettingsDrafts({
     shortcutSaveState,
     providerSaveState,
     routeSaveState,
+    profileSaveError,
+    generalSaveError,
+    shortcutSaveError,
+    providerSaveError,
+    routeSaveError,
     canSaveUser,
     canSaveGeneralSettings,
     canSaveShortcutSettings,
@@ -302,4 +338,9 @@ export function useSettingsDrafts({
     saveProviderRoutes,
     testProvider,
   };
+}
+
+function settingsSaveErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return `保存失败：${error.message}`;
+  return '保存失败，请重试。';
 }

@@ -8,6 +8,7 @@ import { providerLogoMap } from './app-settings-provider-assets';
 import { ProviderForm } from './app-settings-provider-form';
 import { ProviderList } from './app-settings-provider-list';
 import type { SaveState } from './app-types';
+import { AutoSaveStatus } from './app-settings-save-status';
 import { Button } from './components/ui/button';
 import {
   Select,
@@ -34,7 +35,9 @@ export function ProviderSettings({
   onDelete,
   onSave,
   saveState,
+  saveError,
   routeSaveState,
+  routeSaveError,
   onRouteSave,
   onSelect,
   onTest,
@@ -52,8 +55,10 @@ export function ProviderSettings({
   onDelete: (id: string) => void;
   onSave: () => Promise<boolean | void> | boolean | void;
   saveState: SaveState;
+  saveError?: string;
   routeSaveState: SaveState;
-  onRouteSave: () => void;
+  routeSaveError?: string;
+  onRouteSave: (draft?: AppSettings) => void;
   onSelect: (provider: LlmProvider) => void;
   onTest: (draft: ProviderDraft) => Promise<void> | void;
 }) {
@@ -136,22 +141,16 @@ export function ProviderSettings({
               className="provider-editor-dialog"
               role="dialog"
             >
-              <button
-                aria-label="关闭供应商编辑"
-                className="provider-editor-close"
-                type="button"
-                onClick={() => setProviderEditorOpen(false)}
-              >
-                <X size={18} />
-              </button>
               <ProviderEditorContent
                 draft={draft}
                 saveLabel={saveLabel}
+                saveError={saveError}
                 saveState={saveState}
                 testStatus={testStatus}
                 titleId="provider-editor-dialog-title"
                 canSave={canSave}
                 onChange={onChange}
+                onCancel={() => setProviderEditorOpen(false)}
                 onSave={saveProviderAndClose}
                 onTest={testProvider}
               />
@@ -172,6 +171,7 @@ export function ProviderSettings({
         <TaskProviderRoutes
           canSave={canSaveRoutes}
           providers={providers}
+          saveError={routeSaveError}
           saveState={routeSaveState}
           settingsDraft={settingsDraft}
           onChange={onRouteChange}
@@ -193,21 +193,25 @@ export function ProviderSettings({
 function ProviderEditorContent({
   draft,
   saveLabel,
+  saveError,
   saveState,
   testStatus,
   titleId,
   canSave,
   onChange,
+  onCancel,
   onSave,
   onTest,
 }: {
   draft: ProviderDraft;
   saveLabel: string;
+  saveError?: string;
   saveState: SaveState;
   testStatus: ProviderTestStatus;
   titleId?: string;
   canSave: boolean;
   onChange: (draft: ProviderDraft) => void;
+  onCancel: () => void;
   onSave: () => Promise<void> | void;
   onTest: (draft: ProviderDraft) => void;
 }) {
@@ -243,6 +247,9 @@ function ProviderEditorContent({
             </Button>
             {testResultIcon}
           </span>
+          <Button className="action-button" type="button" variant="secondary" onClick={onCancel}>
+            取消
+          </Button>
           <Button
             className={
               saveState === 'saved'
@@ -258,6 +265,11 @@ function ProviderEditorContent({
           </Button>
         </div>
       </div>
+      {saveState === 'error' ? (
+        <p className="settings-inline-error" role="alert">
+          {saveError || '保存失败，请重试。'}
+        </p>
+      ) : null}
       <ProviderForm draft={draft} onChange={onChange} />
     </>
   );
@@ -288,6 +300,7 @@ function TaskProviderRoutes({
   settingsDraft,
   canSave,
   saveState,
+  saveError,
   onChange,
   onSave,
 }: {
@@ -295,11 +308,10 @@ function TaskProviderRoutes({
   settingsDraft: AppSettings;
   canSave: boolean;
   saveState: SaveState;
+  saveError?: string;
   onChange: (draft: AppSettings) => void;
-  onSave: () => void;
+  onSave: (draft?: AppSettings) => void;
 }) {
-  const saveLabel =
-    saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存任务路由';
   const hasProviders = providers.length > 0;
 
   return (
@@ -313,19 +325,11 @@ function TaskProviderRoutes({
               : '先新增模型供应商，再为伴读任务分配默认模型。'}
           </p>
         </div>
-        <Button
-          className={
-            saveState === 'saved'
-              ? 'action-button save-action is-saved'
-              : 'action-button save-action'
-          }
-          disabled={!canSave}
-          type="button"
-          onClick={onSave}
-        >
-          {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-          {saveLabel}
-        </Button>
+        <AutoSaveStatus
+          error={saveError}
+          state={saveState}
+          onRetry={canSave ? () => onSave() : undefined}
+        />
       </div>
       {!hasProviders ? (
         <p className="task-route-empty-note">
@@ -349,9 +353,11 @@ function TaskProviderRoutes({
             <Select
               disabled={!hasProviders}
               value={settingsDraft[option.key] || ''}
-              onValueChange={(providerId) =>
-                onChange({ ...settingsDraft, [option.key]: providerId })
-              }
+              onValueChange={(providerId) => {
+                const nextDraft = { ...settingsDraft, [option.key]: providerId };
+                onChange(nextDraft);
+                onSave(nextDraft);
+              }}
             >
               <SelectTrigger
                 aria-label={`${option.title}供应商`}

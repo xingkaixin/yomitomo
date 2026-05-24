@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronRight,
   Database,
   Download,
+  Eye,
+  EyeOff,
   FileText,
   FolderOpen,
   HardDrive,
@@ -17,6 +19,7 @@ import {
   Smartphone,
   Trash2,
   Upload,
+  X,
 } from 'lucide-react';
 import type {
   AppSettings,
@@ -37,9 +40,11 @@ import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-u
 import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../preload';
 import { CopyIconButton, Field, PanelHeader } from './app-ui';
+import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from './app-types';
 import { Button } from './components/ui/button';
 import { Kbd } from './components/ui/kbd';
+import { Input } from './components/ui/input';
 
 export { AgentForm, AgentSettings } from './app-settings-agent-panel';
 export { ProviderForm } from './app-settings-provider-form';
@@ -185,16 +190,16 @@ export function GeneralSettings({
   canSave,
   onSettingsChange,
   onSave,
+  saveError,
   saveState,
 }: {
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
-  onSave: () => void;
+  onSave: (draft?: AppSettings) => void;
+  saveError?: string;
   saveState: SaveState;
 }) {
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
-
   return (
     <div className="settings-panel collection-settings-panel">
       <PanelHeader
@@ -202,19 +207,11 @@ export function GeneralSettings({
         title="采集与保存"
         description="控制导入文章时的本地保存行为。"
         action={
-          <Button
-            className={
-              saveState === 'saved'
-                ? 'action-button save-action is-saved'
-                : 'action-button save-action'
-            }
-            disabled={!canSave}
-            type="button"
-            onClick={onSave}
-          >
-            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-            {saveLabel}
-          </Button>
+          <AutoSaveStatus
+            error={saveError}
+            state={saveState}
+            onRetry={canSave ? () => onSave() : undefined}
+          />
         }
       />
       <div className="settings-form-grid max-w-3xl">
@@ -242,12 +239,14 @@ export function GeneralSettings({
               id="general-save-images"
               type="checkbox"
               checked={Boolean(settingsDraft.saveArticleImages)}
-              onChange={(event) =>
-                onSettingsChange({
+              onChange={(event) => {
+                const nextDraft = {
                   ...settingsDraft,
                   saveArticleImages: event.target.checked,
-                })
-              }
+                };
+                onSettingsChange(nextDraft);
+                onSave(nextDraft);
+              }}
             />
             <span className="settings-toggle-switch" aria-hidden="true" />
           </label>
@@ -263,9 +262,17 @@ export function WeReadSettingsPanel() {
     openMethod: 'deeplink',
   });
   const [apiKey, setApiKey] = useState('');
-  const [removeApiKey, setRemoveApiKey] = useState(false);
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [revealedStoredApiKey, setRevealedStoredApiKey] = useState('');
+  const [revealLoading, setRevealLoading] = useState(false);
+  const [apiKeyMessage, setApiKeyMessage] = useState('');
+  const [openMethodSaveError, setOpenMethodSaveError] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [testState, setTestState] = useState('');
+  const [openMethodSaveState, setOpenMethodSaveState] = useState<SaveState>('idle');
+  const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [testMessage, setTestMessage] = useState('');
+  const revealRequestRef = useRef(0);
+  const displayedApiKey = apiKey || (apiKeyVisible ? revealedStoredApiKey : '');
 
   useEffect(() => {
     let cancelled = false;
@@ -283,34 +290,129 @@ export function WeReadSettingsPanel() {
 
   async function saveSettings() {
     if (!window.yomitomoDesktop) return;
+    if (!apiKey.trim()) return;
     setSaveState('saving');
+    setApiKeyMessage('');
     try {
       const state = await window.yomitomoDesktop.saveWeReadSettings({
         apiKey,
-        removeApiKey,
         openMethod: settings.openMethod,
       });
       setSettings(state.settings);
       setApiKey('');
-      setRemoveApiKey(false);
+      setApiKeyVisible(false);
+      setRevealedStoredApiKey('');
       setSaveState('saved');
       window.setTimeout(() => setSaveState('idle'), 1200);
-    } catch {
-      setSaveState('idle');
+    } catch (error) {
+      setApiKeyMessage(settingsSaveErrorMessage(error));
+      setSaveState('error');
+    }
+  }
+
+  async function removeStoredApiKey() {
+    if (!window.yomitomoDesktop || !settings.configured) return;
+    setSaveState('saving');
+    setApiKeyMessage('');
+    try {
+      const state = await window.yomitomoDesktop.saveWeReadSettings({
+        removeApiKey: true,
+        openMethod: settings.openMethod,
+      });
+      setSettings(state.settings);
+      setApiKey('');
+      setApiKeyVisible(false);
+      setRevealedStoredApiKey('');
+      setTestState('idle');
+      setTestMessage('');
+      setSaveState('saved');
+      window.setTimeout(() => setSaveState('idle'), 1200);
+    } catch (error) {
+      setApiKeyMessage(settingsSaveErrorMessage(error));
+      setSaveState('error');
     }
   }
 
   async function testConnection() {
     if (!window.yomitomoDesktop) return;
-    setTestState('测试中...');
-    const result = await window.yomitomoDesktop.testWeRead(apiKey);
-    setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
-    const state = await window.yomitomoDesktop.getWeReadState();
-    setSettings(state.settings);
+    setTestState('testing');
+    setTestMessage('');
+    try {
+      const result = await window.yomitomoDesktop.testWeRead(apiKey);
+      setTestState(result.ok ? 'success' : 'error');
+      setTestMessage(result.message);
+      const state = await window.yomitomoDesktop.getWeReadState();
+      setSettings(state.settings);
+    } catch (error) {
+      setTestState('error');
+      setTestMessage(wereadErrorMessage(error));
+    } finally {
+      window.setTimeout(() => setTestState('idle'), 1400);
+    }
   }
 
-  const canSave = saveState !== 'saving' && (Boolean(apiKey.trim()) || removeApiKey);
+  async function toggleApiKeyVisible() {
+    if (apiKeyVisible) {
+      revealRequestRef.current += 1;
+      setApiKeyVisible(false);
+      setRevealedStoredApiKey('');
+      setRevealLoading(false);
+      setApiKeyMessage('');
+      return;
+    }
+
+    if (apiKey || !settings.configured) {
+      setApiKeyVisible(true);
+      return;
+    }
+
+    setRevealLoading(true);
+    setApiKeyMessage('');
+    const requestId = ++revealRequestRef.current;
+    try {
+      const storedApiKey = (await window.yomitomoDesktop?.readWeReadApiKey?.()) || '';
+      if (requestId !== revealRequestRef.current) return;
+      setRevealedStoredApiKey(storedApiKey);
+      setApiKeyVisible(true);
+      if (!storedApiKey) setApiKeyMessage('没有读取到已保存的 API Key');
+    } catch {
+      if (requestId !== revealRequestRef.current) return;
+      setApiKeyMessage('读取已保存的 API Key 失败');
+    } finally {
+      if (requestId === revealRequestRef.current) setRevealLoading(false);
+    }
+  }
+
+  async function saveOpenMethod(openMethod: WeReadOpenMethod) {
+    if (!window.yomitomoDesktop) return;
+    const previous = settings.openMethod;
+    setSettings((current) => ({ ...current, openMethod }));
+    setOpenMethodSaveState('saving');
+    setOpenMethodSaveError('');
+    try {
+      const state = await window.yomitomoDesktop.saveWeReadSettings({ openMethod });
+      setSettings(state.settings);
+      setOpenMethodSaveState('saved');
+      window.setTimeout(() => setOpenMethodSaveState('idle'), 1200);
+    } catch (error) {
+      setSettings((current) => ({ ...current, openMethod: previous }));
+      setOpenMethodSaveError(settingsSaveErrorMessage(error));
+      setOpenMethodSaveState('error');
+    }
+  }
+
+  const canSave = saveState !== 'saving' && Boolean(apiKey.trim());
+  const canTest = testState !== 'testing' && (Boolean(apiKey.trim()) || settings.configured);
+  const canRemove = saveState !== 'saving' && settings.configured;
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const testLabel =
+    testState === 'testing'
+      ? '测试中'
+      : testState === 'success'
+        ? '测试成功'
+        : testState === 'error'
+          ? '测试失败'
+          : '测试连接';
 
   return (
     <div className="settings-panel weread-settings-panel">
@@ -318,17 +420,6 @@ export function WeReadSettingsPanel() {
         icon={<Smartphone size={20} />}
         title="微信读书"
         description="同步微信读书中的划线、想法和阅读进度。"
-        action={
-          <Button
-            className="action-button save-action"
-            disabled={!canSave}
-            type="button"
-            onClick={saveSettings}
-          >
-            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-            {saveLabel}
-          </Button>
-        }
       />
       <div className="settings-form-grid max-w-3xl">
         <Field
@@ -341,37 +432,86 @@ export function WeReadSettingsPanel() {
               : 'API Key 会保存到系统安全凭据库，不会明文写入本地数据库。'
           }
         >
-          <div className="weread-api-key-row">
-            <input
+          <div className="weread-api-key-field">
+            <Input
               id="weread-api-key"
-              type="password"
-              value={apiKey}
-              placeholder={settings.configured ? '已配置，留空保持不变' : 'wrk-...'}
+              className="pr-12"
+              type={apiKeyVisible ? 'text' : 'password'}
+              value={displayedApiKey}
+              placeholder={settings.configured ? '已配置，输入新 Key 后保存' : 'wrk-...'}
+              autoComplete="off"
+              spellCheck={false}
               onChange={(event) => {
                 setApiKey(event.target.value);
-                setRemoveApiKey(false);
+                setRevealedStoredApiKey('');
                 setSaveState('idle');
+                setApiKeyMessage('');
               }}
             />
-            <Button type="button" variant="outline" onClick={testConnection}>
-              <RefreshCw size={15} />
-              测试连接
+            <button
+              aria-label={apiKeyVisible ? '隐藏 API Key' : '显示 API Key'}
+              className="secret-toggle"
+              disabled={revealLoading}
+              type="button"
+              onClick={toggleApiKeyVisible}
+            >
+              {apiKeyVisible ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </div>
+          <div className="weread-api-key-actions">
+            <Button
+              className={
+                saveState === 'saved'
+                  ? 'action-button save-action is-saved'
+                  : 'action-button save-action'
+              }
+              disabled={!canSave}
+              type="button"
+              onClick={saveSettings}
+            >
+              {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+              {saveLabel}
+            </Button>
+            <Button
+              className={
+                testState === 'testing'
+                  ? 'action-button test-action is-loading'
+                  : testState === 'success'
+                    ? 'action-button test-action is-success'
+                    : testState === 'error'
+                      ? 'action-button test-action is-error'
+                      : 'action-button test-action'
+              }
+              disabled={!canTest}
+              type="button"
+              variant="outline"
+              onClick={testConnection}
+            >
+              {testState === 'success' ? (
+                <Check size={15} />
+              ) : testState === 'error' ? (
+                <X size={15} />
+              ) : (
+                <RefreshCw size={15} />
+              )}
+              {testLabel}
+            </Button>
+            <Button
+              className="action-button weread-remove-action"
+              disabled={!canRemove}
+              type="button"
+              variant="secondary"
+              onClick={removeStoredApiKey}
+            >
+              <Trash2 size={15} />
+              移除
             </Button>
           </div>
-          {settings.configured ? (
-            <label className="weread-remove-key">
-              <input
-                type="checkbox"
-                checked={removeApiKey}
-                onChange={(event) => {
-                  setRemoveApiKey(event.target.checked);
-                  setSaveState('idle');
-                }}
-              />
-              移除已保存的 API Key
-            </label>
+          {saveState === 'error' || apiKeyMessage ? (
+            <p className="shortcut-tips is-error">{apiKeyMessage || '保存失败，请重试。'}</p>
+          ) : testState === 'error' && testMessage ? (
+            <p className="shortcut-tips is-error">{testMessage}</p>
           ) : null}
-          {testState ? <p className="shortcut-tips">{testState}</p> : null}
         </Field>
         <Field
           id="weread-open-method"
@@ -379,6 +519,13 @@ export function WeReadSettingsPanel() {
           label="默认打开方式"
           description="网页版打开到章节；App 可打开到对应划线或想法，需本机已安装微信读书。"
         >
+          <div className="weread-open-method-save-status">
+            <AutoSaveStatus
+              error={openMethodSaveError}
+              state={openMethodSaveState}
+              onRetry={() => void saveOpenMethod(settings.openMethod)}
+            />
+          </div>
           <div className="weread-open-methods" role="radiogroup" aria-label="微信读书默认打开方式">
             {wereadOpenMethods.map((option) => (
               <button
@@ -388,10 +535,8 @@ export function WeReadSettingsPanel() {
                 type="button"
                 role="radio"
                 onClick={() => {
-                  setSettings((current) => ({ ...current, openMethod: option.value }));
-                  void window.yomitomoDesktop
-                    ?.saveWeReadSettings?.({ openMethod: option.value })
-                    .then((state) => setSettings(state.settings));
+                  if (settings.openMethod === option.value) return;
+                  void saveOpenMethod(option.value);
                 }}
               >
                 {settings.openMethod === option.value ? <em>当前使用</em> : null}
@@ -429,17 +574,18 @@ export function ShortcutSettings({
   canSave,
   onSettingsChange,
   onSave,
+  saveError,
   saveState,
 }: {
   savedSettings: AppSettings;
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
-  onSave: () => void;
+  onSave: (draft?: AppSettings) => void;
+  saveError?: string;
   saveState: SaveState;
 }) {
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
   const savedShortcut = normalizeMessageSendShortcut(savedSettings.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
@@ -476,28 +622,42 @@ export function ShortcutSettings({
       const key = normalizeSelectionActionShortcutKey(event.key, '');
       if (!key) return;
 
-      onSettingsChange({
+      const nextDraft = {
         ...settingsDraft,
         selectionActionShortcuts: {
           ...selectionShortcuts,
           [action]: key,
         },
-      });
+      };
+      onSettingsChange(nextDraft);
+      if (
+        !selectionActionShortcutsConflict(
+          normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
+        )
+      )
+        onSave(nextDraft);
       finishRecording();
     }
 
     window.addEventListener('keydown', handleShortcutKeyDown, true);
     return () => window.removeEventListener('keydown', handleShortcutKeyDown, true);
-  }, [onSettingsChange, recordingAction, selectionShortcuts, settingsDraft]);
+  }, [onSave, onSettingsChange, recordingAction, selectionShortcuts, settingsDraft]);
 
   function resetSelectionShortcut(action: SelectionShortcutAction) {
-    onSettingsChange({
+    const nextDraft = {
       ...settingsDraft,
       selectionActionShortcuts: {
         ...selectionShortcuts,
         [action]: defaultSelectionActionShortcuts[action],
       },
-    });
+    };
+    onSettingsChange(nextDraft);
+    if (
+      !selectionActionShortcutsConflict(
+        normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
+      )
+    )
+      onSave(nextDraft);
   }
 
   return (
@@ -507,19 +667,11 @@ export function ShortcutSettings({
         title="快捷键"
         description="配置应用内常用操作的键盘触发方式。"
         action={
-          <Button
-            className={
-              saveState === 'saved'
-                ? 'action-button save-action is-saved'
-                : 'action-button save-action'
-            }
-            disabled={!canSave}
-            type="button"
-            onClick={onSave}
-          >
-            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-            {saveLabel}
-          </Button>
+          <AutoSaveStatus
+            error={saveError}
+            state={saveState}
+            onRetry={canSave ? () => onSave() : undefined}
+          />
         }
       />
       <section className="shortcut-settings-card" aria-labelledby="shortcut-message-send-title">
@@ -543,9 +695,11 @@ export function ShortcutSettings({
                 key={option.value}
                 role="radio"
                 type="button"
-                onClick={() =>
-                  onSettingsChange({ ...settingsDraft, messageSendShortcut: option.value })
-                }
+                onClick={() => {
+                  const nextDraft = { ...settingsDraft, messageSendShortcut: option.value };
+                  onSettingsChange(nextDraft);
+                  onSave(nextDraft);
+                }}
               >
                 <span className="shortcut-radio" aria-hidden="true" />
                 <span className="shortcut-keyset" aria-hidden="true">
@@ -682,6 +836,9 @@ export function DataManagementSettings({
   const [paths, setPaths] = useState<DataManagementPaths | null>(null);
   const [busyAction, setBusyAction] = useState('');
   const [status, setStatus] = useState('');
+  const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
+  const [retentionSaveError, setRetentionSaveError] = useState('');
+  const [lastRetentionDays, setLastRetentionDays] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     let mounted = true;
@@ -705,12 +862,17 @@ export function DataManagementSettings({
   }
 
   async function saveLogRetention(days?: number) {
+    setLastRetentionDays(days);
+    setRetentionSaveState('saving');
+    setRetentionSaveError('');
     await runDataAction(`retention:${days ?? 'forever'}`, async () => {
       const input: AppSettings = { ...settings };
       Object.assign(input, { logRetentionDays: days });
       const nextStore = await window.yomitomoDesktop.saveSettings(input);
       onStoreUpdated(nextStore);
+      setRetentionSaveState('saved');
       setStatus(days ? `日志将保留最近 ${days} 天。` : '日志将永久保留，直到手动清空。');
+      window.setTimeout(() => setRetentionSaveState('idle'), 1200);
     });
   }
 
@@ -747,7 +909,12 @@ export function DataManagementSettings({
     try {
       await task();
     } catch (error) {
-      setStatus(dataManagementErrorMessage(error));
+      const message = dataManagementErrorMessage(error);
+      setStatus(message);
+      if (action.startsWith('retention:')) {
+        setRetentionSaveError(message);
+        setRetentionSaveState('error');
+      }
     } finally {
       setBusyAction('');
     }
@@ -804,6 +971,11 @@ export function DataManagementSettings({
               <h3 id="log-policy-title">日志</h3>
               <p>只保留排查用日志文件路径、保留时间和清空操作。</p>
             </div>
+            <AutoSaveStatus
+              error={retentionSaveError}
+              state={retentionSaveState}
+              onRetry={() => void saveLogRetention(lastRetentionDays)}
+            />
           </div>
           <div className="data-retention-options" role="group" aria-label="日志保留时间">
             {logRetentionOptions.map((option) => {
@@ -924,4 +1096,13 @@ function DataPathRow({
 
 function dataManagementErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : '数据管理操作失败。';
+}
+
+function settingsSaveErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return `保存失败：${error.message}`;
+  return '保存失败，请重试。';
+}
+
+function wereadErrorMessage(error: unknown) {
+  return error instanceof Error && error.message ? error.message : '微信读书连接测试失败';
 }
