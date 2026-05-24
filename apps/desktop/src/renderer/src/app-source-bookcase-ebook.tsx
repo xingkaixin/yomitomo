@@ -1204,6 +1204,7 @@ export function EbookBookcase({
       onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
       onCancelComposer={cancelComposer}
       onClearActiveAnnotation={() => onOpenAnnotation(null)}
+      onClearSelection={clearSelection}
       onClose={onClose}
       onCloseFloatingPanels={() => {
         setSettingsOpen(false);

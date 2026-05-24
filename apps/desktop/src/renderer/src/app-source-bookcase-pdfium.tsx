@@ -1912,6 +1912,7 @@ function PdfiumDocument({
         onCancelAgentAnnotateMenu={() => onSetAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
+        onClearSelection={clearSelection}
         onClose={onClose}
         onCloseFloatingPanels={() => {
           onSetAgentAnnotateOpen(false);
@@ -2722,12 +2723,23 @@ function pdfiumBookmarkTocItems(bookmarks: PdfBookmarkObject[], pageCount: numbe
   }
 
   visit(bookmarks, 0);
-  for (let itemIndex = 0; itemIndex < items.length; itemIndex += 1) {
-    const item = items[itemIndex]!;
-    const nextPageItem = items.slice(itemIndex + 1).find((next) => next.start > item.start);
-    item.end = nextPageItem?.start ?? pageCount;
-  }
-  return items;
+  return primaryPdfiumTocItems(items, pageCount);
+}
+
+function primaryPdfiumTocItems(items: TocItem[], pageCount: number): TocItem[] {
+  const primaryDepth = Math.min(...items.map((item) => item.depth));
+  if (!Number.isFinite(primaryDepth)) return [];
+  const primaryItems = items.filter((item) => item.depth === primaryDepth);
+  return primaryItems.map((item, index) => {
+    const nextPageItem = primaryItems.slice(index + 1).find((next) => next.start > item.start);
+    return {
+      index,
+      text: item.text,
+      depth: item.depth,
+      start: item.start,
+      end: nextPageItem?.start ?? pageCount,
+    };
+  });
 }
 
 function pdfiumBookmarkPageIndex(bookmark: PdfBookmarkObject): number | null {

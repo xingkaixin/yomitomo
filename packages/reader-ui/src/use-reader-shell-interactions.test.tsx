@@ -37,6 +37,7 @@ function ShellProbe({
   visibleAnnotationIds = new Set<string>(),
   onCancelComposer = vi.fn(),
   onClearActiveAnnotation = vi.fn(),
+  onClearSelection = vi.fn(),
   onCloseFloatingPanels = vi.fn(),
   onCloseHighlightChoice = vi.fn(),
   onCopySelection = vi.fn(),
@@ -55,6 +56,7 @@ function ShellProbe({
     visibleAnnotationIds,
     onCancelComposer,
     onClearActiveAnnotation,
+    onClearSelection,
     onCloseFloatingPanels,
     onCloseHighlightChoice,
     onCopySelection,
@@ -105,5 +107,55 @@ describe('useReaderShellInteractions', () => {
 
     expect(onCopySelection).toHaveBeenCalledWith(selectionAction);
     expect(onOpenComposer).toHaveBeenCalledWith(selectionAction);
+  });
+
+  it('clears selection action on outside pointer down', () => {
+    const onClearSelection = vi.fn();
+
+    render(<ShellProbe onClearSelection={onClearSelection} />);
+
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+
+    expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps selection action when pressing the selection menu', () => {
+    const onClearSelection = vi.fn();
+
+    function Probe() {
+      const shell = useReaderShellInteractions({
+        activeId: null,
+        agentAnnotateOpen: false,
+        composer: null,
+        highlightChoice,
+        selectionAction,
+        selectionActionShortcuts: { copy: 'x', annotate: 'b' },
+        settingsOpen: false,
+        visibleAnnotationIds: new Set(),
+        onCancelComposer: vi.fn(),
+        onClearActiveAnnotation: vi.fn(),
+        onClearSelection,
+        onCloseFloatingPanels: vi.fn(),
+        onCloseHighlightChoice: vi.fn(),
+        onCopySelection: vi.fn(),
+        onOpenComposer: vi.fn(),
+        onToggleAgentAnnotate: vi.fn(),
+        onToggleSettings: vi.fn(),
+      });
+
+      return (
+        <div onPointerDownCapture={shell.handleReaderPointerDownCapture}>
+          <div className="reader-selection-menu">
+            <button type="button">复制</button>
+          </div>
+        </div>
+      );
+    }
+
+    render(<Probe />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: '复制' }));
+
+    expect(onClearSelection).not.toHaveBeenCalled();
   });
 });

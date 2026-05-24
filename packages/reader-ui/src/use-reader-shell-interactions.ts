@@ -34,6 +34,7 @@ export type UseReaderShellInteractionsOptions = {
   visibleAnnotationIds: Set<string>;
   onCancelComposer: () => void;
   onClearActiveAnnotation: () => void;
+  onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
@@ -59,6 +60,7 @@ export function useReaderShellInteractions({
   visibleAnnotationIds,
   onCancelComposer,
   onClearActiveAnnotation,
+  onClearSelection,
   onCloseFloatingPanels,
   onCloseHighlightChoice,
   onCopySelection,
@@ -128,6 +130,10 @@ export function useReaderShellInteractions({
         onCloseHighlightChoice();
       }
 
+      if (selectionAction && !target.closest('.reader-selection-menu')) {
+        onClearSelection();
+      }
+
       if (!activeId) return;
       if (target.closest(activeAnnotationPreserveSelector)) return;
 
@@ -141,6 +147,7 @@ export function useReaderShellInteractions({
       highlightChoice,
       onCancelComposer,
       onClearActiveAnnotation,
+      onClearSelection,
       onCloseFloatingPanels,
       onCloseHighlightChoice,
       settingsOpen,
