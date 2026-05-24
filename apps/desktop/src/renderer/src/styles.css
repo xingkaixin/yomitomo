@@ -12535,24 +12535,28 @@ button.license-package-row:hover {
 }
 
 .source-reader-shell .reader-toc-title,
-.source-ebook-reader-shell .reader-toc-title {
+.source-ebook-reader-shell .reader-toc-title,
+.source-pdf-reader-shell .reader-toc-title {
   color: hsl(var(--foreground));
 }
 
 .source-reader-shell .reader-toc-item,
-.source-ebook-reader-shell .reader-toc-item {
+.source-ebook-reader-shell .reader-toc-item,
+.source-pdf-reader-shell .reader-toc-item {
   border-radius: 0;
   color: hsl(var(--muted-foreground));
 }
 
 .source-reader-shell .reader-toc-item:hover,
-.source-ebook-reader-shell .reader-toc-item:hover {
+.source-ebook-reader-shell .reader-toc-item:hover,
+.source-pdf-reader-shell .reader-toc-item:hover {
   background: hsl(0 0% 0% / 0.045);
   color: hsl(var(--foreground));
 }
 
 .source-reader-shell .reader-toc-item-main strong,
-.source-ebook-reader-shell .reader-toc-item-main strong {
+.source-ebook-reader-shell .reader-toc-item-main strong,
+.source-pdf-reader-shell .reader-toc-item-main strong {
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
   background: hsl(var(--card));

@@ -101,6 +101,7 @@ export type ReaderAppViewProps = {
   onCancelComposer: () => void;
   onClose: () => void;
   onClearActiveAnnotation: () => void;
+  onClearSelection: () => void;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;

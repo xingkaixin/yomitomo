@@ -1032,6 +1032,7 @@ export function WebSourceBookcase({
         onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
+        onClearSelection={clearSelection}
         onClose={onClose}
         onCloseFloatingPanels={() => {
           setSettingsOpen(false);
