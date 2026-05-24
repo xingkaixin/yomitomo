@@ -381,9 +381,19 @@ function registerIpc() {
     return { status: 'imported', article: record, patch };
   });
   handleDesktopIpc('pdf:read-file', async (_event, articleId) => {
+    const startedAt = performance.now();
     const { readPdfSourceFile } = await import('./pdf-storage');
     const file = await readPdfSourceFile(articleId);
-    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+    const data = file.buffer.slice(
+      file.byteOffset,
+      file.byteOffset + file.byteLength,
+    ) as ArrayBuffer;
+    logInfo('performance.pdf.file_read_main', {
+      articleId,
+      byteLength: data.byteLength,
+      durationMs: elapsedMs(startedAt),
+    });
+    return data;
   });
   handleDesktopIpc('user:save', async (_event, input) => {
     const { saveUser } = await getStoreModule();
