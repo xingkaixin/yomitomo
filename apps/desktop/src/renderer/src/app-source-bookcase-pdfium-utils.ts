@@ -12,6 +12,7 @@ import {
   type UserProfile,
 } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox, type TocItem } from '@yomitomo/core';
+import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
 
 export type PageMetric = {
   left: number;
@@ -478,6 +479,38 @@ export function pdfiumReadingPlanStartRange(item: AgentReadingPlanItem, page: Pd
   return { start, end };
 }
 
+export function pdfiumAgentAnnotationRequestOptions(
+  options: SourceAgentAnnotationRequestOptions,
+): SourceAgentAnnotationRequestOptions {
+  return options.readingPlan?.length && !options.targetAnchor
+    ? {
+        ...options,
+        readingPlan: options.readingPlan.toSorted(
+          (left, right) => left.sectionStart - right.sectionStart,
+        ),
+      }
+    : options;
+}
+
+export function pdfiumMapReadingPlanAgentAnnotation(
+  annotation: Annotation,
+  readingPlan: AgentReadingPlanItem[],
+  textDocument: PdfTextDocument,
+  pageGeometryByIndex: Map<number, PdfPageGeometryEntry>,
+) {
+  const constrainedAnnotation = constrainPdfiumAgentPlanAnnotation(
+    annotation,
+    readingPlan,
+    textDocument.text,
+  );
+  if (!constrainedAnnotation) return null;
+  return pdfiumAnnotationFromGlobalAgentAnnotation(
+    constrainedAnnotation,
+    textDocument,
+    pageGeometryByIndex,
+  );
+}
+
 export function pdfiumAnnotationFromGlobalAgentAnnotation(
   annotation: Annotation,
   textDocument: PdfTextDocument,
@@ -539,6 +572,31 @@ export function pdfiumAnnotationFromAgentAnnotation(
       rects,
     }),
   };
+}
+
+export function pdfiumMapTargetAgentAnnotation({
+  annotation,
+  geometry,
+  pageHeight,
+  pageIndex,
+  pageText,
+  pageWidth,
+}: {
+  annotation: Annotation;
+  geometry: PdfPageGeometry;
+  pageHeight: number;
+  pageIndex: number;
+  pageText: string;
+  pageWidth: number;
+}) {
+  return pdfiumAnnotationFromAgentAnnotation(
+    annotation,
+    pageText,
+    pageIndex,
+    pageWidth,
+    pageHeight,
+    geometry,
+  );
 }
 
 export function pdfiumTextRangeForAgentAnnotation(

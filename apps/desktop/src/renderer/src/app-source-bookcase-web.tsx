@@ -49,14 +49,7 @@ import {
 } from '@yomitomo/reader-ui';
 import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
-import {
-  createPendingAgentAnnotation,
-  prepareSourceAgentAnnotationRequestInput,
-  runSourceAgentAnnotationRequest,
-  type SourceAgentAnnotationPlaybackMode,
-  type SourceAgentAnnotationRequestOptions,
-  withoutAnnotationId,
-} from './app-source-agent-request';
+import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';
 import { articleIdentityLine } from './app-utils';
 import {
   articleWithAnnotations,
@@ -120,11 +113,68 @@ export function WebSourceBookcase({
     addPendingAnnotationAgent,
     removePendingAnnotationAgent,
     requestAgentComment,
+    requestAgentAnnotations,
     requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
     agents,
+    agentAnnotationAdapter: {
+      getContext: ({ currentArticle, options }) => {
+        const articleId = options.articleId || currentArticle.id;
+        const articleContext =
+          options.article || promptArticle(currentArticle, currentArticleText());
+        const articleScopedWrite = Boolean(options.articleId);
+        const visibleArticle = isCurrentArticle(articleId);
+        return {
+          article: articleContext,
+          articleId,
+          articleScopedWrite,
+          articleText: articleScopedWrite ? articleContext.text : currentArticleText(),
+          showProgress: !articleScopedWrite || visibleArticle,
+          visibleArticle,
+        };
+      },
+      isBusy: ({ agent, context }) =>
+        !context.articleScopedWrite && annotatingAgentIds.includes(agent.id),
+      start: ({ agent, context, requestInput }) => {
+        startAgentAnnotationPlayback(
+          agent,
+          requestInput.readingPlan,
+          requestInput.playbackMode,
+          context.showProgress !== false,
+        );
+      },
+      onAnnotation: ({ annotation, context, requestInput }) =>
+        handleAgentAnnotationStreamItem(
+          context.articleId,
+          annotation,
+          requestInput.readingPlan,
+          Boolean(context.articleScopedWrite),
+          context.articleText,
+        ),
+      onReadingMemory: ({ context, readingMemory }) =>
+        saveFocusCoReadingReadingMemory(context.articleId, readingMemory),
+      onEmpty: ({ agent, context }) => {
+        if (context.showProgress !== false && isCurrentArticle(context.articleId)) {
+          markVirtualReadingDone(agent.id);
+        }
+        finishEmptyAgentAnnotationPlayback(
+          agent,
+          context.articleId,
+          context.showProgress !== false,
+        );
+      },
+      onSuccess: ({ agent, context }) => {
+        if (context.showProgress !== false && isCurrentArticle(context.articleId)) {
+          markVirtualReadingDone(agent.id);
+          finishVirtualReadingIfIdle(agent.id);
+        }
+      },
+      finish: ({ agent, context }) => {
+        finishAgentAnnotationRequest(agent, context.showProgress !== false);
+      },
+    },
     annotations: articleAnnotations,
     article,
     clearPendingOnArticleChange: true,
@@ -627,94 +677,6 @@ export function WebSourceBookcase({
       return plan;
     } finally {
       setStatusMessage('');
-    }
-  }
-
-  async function requestAgentAnnotations(
-    agent: PublicAgent,
-    options: SourceAgentAnnotationRequestOptions = {},
-  ) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const articleId = options.articleId || currentArticle?.id;
-    const articleContext =
-      options.article ||
-      (currentArticle ? promptArticle(currentArticle, currentArticleText()) : null);
-    if (!desktop || !articleId || !articleContext) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-    const articleScopedWrite = Boolean(options.articleId);
-    if (!articleScopedWrite && annotatingAgentIds.includes(agent.id)) {
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
-      return;
-    }
-    const visibleArticle = isCurrentArticle(articleId);
-    const showProgress = !articleScopedWrite || visibleArticle;
-    const requestInput = await prepareSourceAgentAnnotationRequestInput({
-      desktop,
-      agent,
-      agents: annotationAgents,
-      options,
-      context: {
-        article: articleContext,
-        annotations: annotationsRef.current,
-        readingMemory: latestArticleRef.current?.focusCoReadingPlan?.readingMemory,
-      },
-    });
-    const { readingPlan } = requestInput;
-    let pendingAnnotationId = '';
-
-    startAgentAnnotationPlayback(agent, readingPlan, requestInput.playbackMode, showProgress);
-    if (showProgress && options.targetAnchor && visibleArticle && !options.pendingAnnotationId) {
-      const pendingAnnotation = createPendingAgentAnnotation(
-        agent,
-        options.targetAnchor,
-        options.readingIntent,
-      );
-      pendingAnnotationId = pendingAnnotation.id;
-      applyAnnotations([...annotationsRef.current, pendingAnnotation]);
-      openAnnotation(pendingAnnotation.id);
-    }
-    try {
-      const { result, annotationCount } = await runSourceAgentAnnotationRequest({
-        desktop,
-        requestInput,
-        onAnnotation: (annotation) => {
-          if (pendingAnnotationId) {
-            applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
-            pendingAnnotationId = '';
-          }
-          return handleAgentAnnotationStreamItem(
-            articleId,
-            annotation,
-            readingPlan,
-            articleScopedWrite,
-            articleScopedWrite ? articleContext.text : currentArticleText(),
-          );
-        },
-      });
-      if (requestInput.shouldSaveReadingMemory) {
-        await saveFocusCoReadingReadingMemory(articleId, result.readingMemory);
-      }
-      if (showProgress && isCurrentArticle(articleId)) markVirtualReadingDone(agent.id);
-      if (annotationCount === 0) {
-        finishEmptyAgentAnnotationPlayback(agent, articleId, showProgress);
-        return;
-      }
-      if (showProgress && isCurrentArticle(articleId)) finishVirtualReadingIfIdle(agent.id);
-    } finally {
-      if (pendingAnnotationId) {
-        applyAnnotations(withoutAnnotationId(annotationsRef.current, pendingAnnotationId));
-      }
-      finishAgentAnnotationRequest(agent, showProgress);
-      if (options.pendingAnnotationId) {
-        removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
-      }
     }
   }
 
