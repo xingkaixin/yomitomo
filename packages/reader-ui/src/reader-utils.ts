@@ -63,6 +63,11 @@ type PositionedAnnotationRailItem = {
   top: number;
 };
 
+type HighlightBoxGroup = {
+  boxes: HighlightBox[];
+  minTop: number;
+};
+
 export const defaultUserProfile: UserProfile = {
   id: 'user_local',
   nickname: '我',
@@ -317,6 +322,12 @@ export function buildAnnotationFilterFacets(
   agents: PublicAgent[],
 ): AnnotationFilterFacets {
   const resultCount = filterAnnotationsByFacets(annotations, filter).length;
+  const presentTypeIds = new Set<AnnotationType>();
+  const presentActionIds = new Set<AgentReadingIntent>();
+  for (const annotation of annotations) {
+    if (annotation.annotationType) presentTypeIds.add(annotation.annotationType);
+    if (annotation.readingIntent) presentActionIds.add(annotation.readingIntent);
+  }
   const personCounts = countFacetValues(annotations, filter, 'person', annotationPersonFilterId);
   const typeCounts = countFacetValues(
     annotations,
@@ -332,7 +343,7 @@ export function buildAnnotationFilterFacets(
   );
   const people = buildPersonFilterOptions(annotations, filter, userProfile, agents, personCounts);
   const types = annotationTypeOrder
-    .filter((type) => annotations.some((annotation) => annotation.annotationType === type))
+    .filter((type) => presentTypeIds.has(type))
     .map((type) => {
       const selected = filter.typeIds.includes(type);
       const count = typeCounts.get(type) || 0;
@@ -345,7 +356,7 @@ export function buildAnnotationFilterFacets(
       };
     });
   const actions = agentReadingIntentOptions
-    .filter((option) => annotations.some((annotation) => annotation.readingIntent === option.value))
+    .filter((option) => presentActionIds.has(option.value))
     .map((option) => {
       const selected = filter.actionIds.includes(option.value);
       const count = actionCounts.get(option.value) || 0;
@@ -374,19 +385,24 @@ export function buildAnnotationRailItems(
   noteHeights: Record<string, number> = {},
   railLayout?: AnnotationRailLayout,
 ): AnnotationRailItem[] {
-  const boxesByAnnotation = new Map<string, HighlightBox[]>();
+  const boxesByAnnotation = new Map<string, HighlightBoxGroup>();
   for (const box of boxes) {
-    const items = boxesByAnnotation.get(box.annotationId) || [];
-    items.push(box);
-    boxesByAnnotation.set(box.annotationId, items);
+    const group = boxesByAnnotation.get(box.annotationId);
+    if (group) {
+      group.boxes.push(box);
+      group.minTop = Math.min(group.minTop, box.top);
+    } else {
+      boxesByAnnotation.set(box.annotationId, { boxes: [box], minTop: box.top });
+    }
   }
 
   const positioned = annotations
     .map((annotation, index) => {
-      const annotationBoxes = boxesByAnnotation.get(annotation.id) || [];
+      const boxGroup = boxesByAnnotation.get(annotation.id);
+      const annotationBoxes = boxGroup?.boxes || [];
       const top =
-        annotationBoxes.length > 0
-          ? Math.max(0, Math.min(...annotationBoxes.map((box) => box.top)) - 10)
+        annotationBoxes.length > 0 && boxGroup
+          ? Math.max(0, boxGroup.minTop - 10)
           : 120 + index * 150;
       return {
         annotation,

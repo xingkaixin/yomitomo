@@ -159,9 +159,13 @@ export function ReaderSurfaceView({
     () => buildHighlightSegments(agentTheaterBoxes),
     [agentTheaterBoxes],
   );
+  const visibleAnnotationById = React.useMemo(
+    () => new Map(visibleAnnotations.map((annotation) => [annotation.id, annotation])),
+    [visibleAnnotations],
+  );
   const highlightChoiceAnnotations = highlightChoice
     ? highlightChoice.annotationIds
-        .map((id) => visibleAnnotations.find((annotation) => annotation.id === id))
+        .map((id) => visibleAnnotationById.get(id))
         .filter((annotation): annotation is Annotation => Boolean(annotation))
     : [];
 
