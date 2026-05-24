@@ -2,6 +2,12 @@ import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomit
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui';
+import jetBrainsMonoBoldUrl from './assets/fonts/JetBrainsMono-Bold.woff2?url';
+import jetBrainsMonoRegularUrl from './assets/fonts/JetBrainsMono-Regular.woff2?url';
+import notoSerifScRegularUrl from './assets/fonts/NotoSerifSC-Regular.ttf?url';
+import sourceSerif4BoldUrl from './assets/fonts/SourceSerif4-Bold.woff2?url';
+import sourceSerif4ItalicUrl from './assets/fonts/SourceSerif4-Italic.woff2?url';
+import sourceSerif4RegularUrl from './assets/fonts/SourceSerif4-Regular.woff2?url';
 
 export type FoliateTocSourceItem = {
   label?: unknown;
@@ -129,6 +135,48 @@ function foliateReaderCss(settings: ReaderSettings) {
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
 
+    @font-face {
+      font-family: "Source Serif 4";
+      src: url("${sourceSerif4RegularUrl}") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Source Serif 4";
+      src: url("${sourceSerif4BoldUrl}") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+    }
+
+    @font-face {
+      font-family: "Source Serif 4";
+      src: url("${sourceSerif4ItalicUrl}") format("woff2");
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "Noto Serif SC";
+      src: url("${notoSerifScRegularUrl}") format("truetype");
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("${jetBrainsMonoRegularUrl}") format("woff2");
+      font-style: normal;
+      font-weight: 400;
+    }
+
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("${jetBrainsMonoBoldUrl}") format("woff2");
+      font-style: normal;
+      font-weight: 700;
+    }
+
     html {
       color-scheme: light;
       font-size: ${settings.fontSize}px;
@@ -136,6 +184,7 @@ function foliateReaderCss(settings: ReaderSettings) {
 
     body {
       font-size: inherit;
+      font-family: "Source Serif 4", "Noto Serif SC", "Songti SC", Georgia, serif;
       overflow-wrap: break-word;
     }
 
@@ -157,6 +206,10 @@ function foliateReaderCss(settings: ReaderSettings) {
 
     pre {
       white-space: pre-wrap !important;
+    }
+
+    code, pre, kbd, samp {
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     }
 
     a {
