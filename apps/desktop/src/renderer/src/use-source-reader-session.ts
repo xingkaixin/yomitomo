@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type {
   Agent,
   AgentReadingPlanItem,
@@ -10,6 +10,8 @@ import type {
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
 import { publicAnnotationAgents, publicReviewAgents } from './app-source-bookcase-shared';
+import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
+import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
 import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
 import { useSourceAnnotations } from './use-source-annotations';
 
@@ -27,6 +29,7 @@ type UseSourceReaderSessionOptions = {
   clearPendingOnArticleChange?: boolean;
   clearPendingOnDeleteAnnotation?: boolean;
   ignoreStaleArticleUpdates?: boolean;
+  getArticleText?: () => Promise<string> | string;
   onAgentCommentMentioned?: (
     agent: PublicAgent,
     annotation: Annotation,
@@ -37,7 +40,14 @@ type UseSourceReaderSessionOptions = {
   onBeforeDeleteAnnotation?: (annotationId: string) => void;
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
+  setStatusMessage?: (message: string) => void;
   userProfile: UserProfile;
+};
+
+type RequestAgentCommentOptions = {
+  instruction?: string;
+  readingIntent?: Annotation['readingIntent'];
+  pendingAnnotationId?: string;
 };
 
 export function useSourceReaderSession({
@@ -47,18 +57,30 @@ export function useSourceReaderSession({
   clearPendingOnArticleChange = false,
   clearPendingOnDeleteAnnotation = false,
   ignoreStaleArticleUpdates = false,
+  getArticleText,
   onAgentCommentMentioned,
   onAnnotationsApplied,
   onAnnotationsSaved,
   onBeforeDeleteAnnotation,
   onOpenAnnotation,
   onSaveArticle,
+  setStatusMessage,
   userProfile,
 }: UseSourceReaderSessionOptions) {
   const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
   const pendingAgents = usePendingAnnotationAgents();
   const { clearAllPendingAnnotationAgents, clearPendingAnnotationAgents } = pendingAgents;
+  const requestAgentCommentRef = useRef<
+    (
+      agent: PublicAgent,
+      annotation: Annotation,
+      userComment: AnnotationComment,
+      reviewTargetCommentId?: string,
+      options?: RequestAgentCommentOptions,
+    ) => Promise<void>
+  >(async () => undefined);
+  const canRunAgentActions = Boolean(getArticleText && setStatusMessage);
 
   const sourceAnnotations = useSourceAnnotations({
     annotationAgents,
@@ -70,8 +92,14 @@ export function useSourceReaderSession({
       if (clearPendingOnDeleteAnnotation) clearPendingAnnotationAgents(annotationId);
     },
     onCommentSaved: ({ annotation, comment, mentionedAgents }) => {
-      if (!onAgentCommentMentioned) return;
-      for (const agent of mentionedAgents) onAgentCommentMentioned(agent, annotation, comment);
+      if (onAgentCommentMentioned) {
+        for (const agent of mentionedAgents) onAgentCommentMentioned(agent, annotation, comment);
+        return;
+      }
+      if (!canRunAgentActions) return;
+      for (const agent of mentionedAgents) {
+        void requestAgentCommentRef.current(agent, annotation, comment);
+      }
     },
     onOpenAnnotation,
     onSaveArticle,
@@ -84,9 +112,102 @@ export function useSourceReaderSession({
     if (clearPendingOnArticleChange) clearAllPendingAnnotationAgents();
   }, [article.id, clearAllPendingAnnotationAgents, clearPendingOnArticleChange]);
 
+  const requestAgentComment = useCallback(
+    async (
+      agent: PublicAgent,
+      annotation: Annotation,
+      userComment: AnnotationComment,
+      reviewTargetCommentId?: string,
+      options: RequestAgentCommentOptions = {},
+    ) => {
+      const desktop = window.yomitomoDesktop;
+      const currentArticle = sourceAnnotations.latestArticleRef.current;
+      if (!desktop || !currentArticle || !getArticleText || !setStatusMessage) {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+        return;
+      }
+
+      try {
+        await runSourceAgentCommentRequest({
+          agent,
+          annotation,
+          userComment,
+          instruction: options.instruction,
+          readingIntent: options.readingIntent,
+          desktop,
+          currentArticle,
+          articleText: await getArticleText(),
+          reviewTargetCommentId,
+          annotationsRef: sourceAnnotations.annotationsRef,
+          applyAnnotations: sourceAnnotations.applyAnnotations,
+          saveAnnotations: sourceAnnotations.saveAnnotations,
+          setStatusMessage,
+        });
+      } finally {
+        if (options.pendingAnnotationId) {
+          pendingAgents.removePendingAnnotationAgent(options.pendingAnnotationId, agent.id);
+        }
+      }
+    },
+    [
+      getArticleText,
+      pendingAgents,
+      setStatusMessage,
+      sourceAnnotations.annotationsRef,
+      sourceAnnotations.applyAnnotations,
+      sourceAnnotations.latestArticleRef,
+      sourceAnnotations.saveAnnotations,
+    ],
+  );
+  requestAgentCommentRef.current = requestAgentComment;
+
+  const requestAnnotationReview = useCallback(
+    async (annotationId: string, selectedAgents: PublicAgent[]) => {
+      const desktop = window.yomitomoDesktop;
+      const currentArticle = sourceAnnotations.latestArticleRef.current;
+      const currentAnnotation = sourceAnnotations.annotationsRef.current.find(
+        (annotation) => annotation.id === annotationId,
+      );
+      if (
+        !desktop ||
+        !currentArticle ||
+        !currentAnnotation ||
+        selectedAgents.length === 0 ||
+        !getArticleText ||
+        !setStatusMessage
+      ) {
+        return;
+      }
+
+      await runSourceAgentReviewRequest({
+        agents: selectedAgents,
+        annotation: currentAnnotation,
+        desktop,
+        currentArticle,
+        articleText: await getArticleText(),
+        annotationsRef: sourceAnnotations.annotationsRef,
+        applyAnnotations: sourceAnnotations.applyAnnotations,
+        saveAnnotations: sourceAnnotations.saveAnnotations,
+        setStatusMessage,
+      });
+    },
+    [
+      getArticleText,
+      setStatusMessage,
+      sourceAnnotations.annotationsRef,
+      sourceAnnotations.applyAnnotations,
+      sourceAnnotations.latestArticleRef,
+      sourceAnnotations.saveAnnotations,
+    ],
+  );
+
   return {
     annotationAgents,
     reviewAgents,
+    requestAgentComment,
+    requestAnnotationReview,
     ...pendingAgents,
     ...sourceAnnotations,
   };
