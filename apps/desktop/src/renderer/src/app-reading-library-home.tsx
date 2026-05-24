@@ -469,7 +469,6 @@ function WeReadBookListItem({
           <h3 title={book.title}>{book.title}</h3>
         </div>
         <div className="library-ebook-list-meta">
-          <span>{Math.round(book.readingProgress)}% 已读</span>
           {readingTime ? <span>阅读 {formatWeReadDuration(readingTime)}</span> : null}
           <ArticleCountStats counts={{ annotations: book.noteCount, comments: book.reviewCount }} />
         </div>

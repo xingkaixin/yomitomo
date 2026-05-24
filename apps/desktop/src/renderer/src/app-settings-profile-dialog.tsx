@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Save, Upload, User, X } from 'lucide-react';
+import { Check, Save, Upload, User } from 'lucide-react';
 import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
 import { readFileAsDataUrl } from './app-utils';
 import { AvatarImage, Field } from './app-ui';
@@ -14,6 +14,7 @@ export function UserProfileSettingsDialog({
   onChange,
   onClose,
   onSave,
+  saveError,
   saveState,
 }: {
   draft: UserDraft;
@@ -21,6 +22,7 @@ export function UserProfileSettingsDialog({
   onChange: (draft: UserDraft) => void;
   onClose: () => void;
   onSave: () => void;
+  saveError?: string;
   saveState: SaveState;
 }) {
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
@@ -66,14 +68,6 @@ export function UserProfileSettingsDialog({
               <p>配置批注和评论中使用的身份信息。</p>
             </div>
           </div>
-          <button
-            aria-label="关闭个人设置"
-            className="user-profile-dialog-close"
-            type="button"
-            onClick={onClose}
-          >
-            <X size={18} />
-          </button>
         </header>
 
         <div className="user-profile-form">
@@ -125,6 +119,14 @@ export function UserProfileSettingsDialog({
         </div>
 
         <footer>
+          {saveState === 'error' ? (
+            <p className="settings-inline-error" role="alert">
+              {saveError || '保存失败，请重试。'}
+            </p>
+          ) : null}
+          <Button className="action-button" type="button" variant="secondary" onClick={onClose}>
+            取消
+          </Button>
           <Button
             className={
               saveState === 'saved'

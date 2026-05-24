@@ -1,1 +1,1 @@
-export type SaveState = 'idle' | 'saving' | 'saved';
+export type SaveState = 'idle' | 'saving' | 'saved' | 'error';

@@ -12,6 +12,7 @@ import {
   ProviderSettings,
   ShortcutSettings,
   UserProfileSettingsDialog,
+  WeReadSettingsPanel,
 } from '../app-settings-panels';
 import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
@@ -780,6 +781,33 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+  });
+});
+
+describe('WeReadSettingsPanel', () => {
+  it('reveals a stored api key after explicit user action', async () => {
+    const readWeReadApiKey = vi.fn().mockResolvedValue('wrk-stored');
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getWeReadState: vi.fn().mockResolvedValue({
+          settings: { configured: true, openMethod: 'deeplink' },
+          books: [],
+        }),
+        readWeReadApiKey,
+      },
+    });
+
+    render(<WeReadSettingsPanel />);
+
+    const apiKeyInput = (await screen.findByLabelText('API Key')) as HTMLInputElement;
+    expect(apiKeyInput.value).toBe('');
+
+    fireEvent.click(screen.getByRole('button', { name: '显示 API Key' }));
+
+    await waitFor(() => expect(apiKeyInput.value).toBe('wrk-stored'));
+    expect(apiKeyInput.type).toBe('text');
+    expect(readWeReadApiKey).toHaveBeenCalledOnce();
   });
 });
 
