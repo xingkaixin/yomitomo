@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
-import { buildAnnotationRailItems, readerAnnotationScrollTop } from '@yomitomo/reader-ui';
+import {
+  buildAnnotationRailItems,
+  readerAnnotationScrollTop,
+} from '@yomitomo/reader-ui/reader-utils';
 
 function box(input: Partial<HighlightBox> & Pick<HighlightBox, 'annotationId'>): HighlightBox {
   return {

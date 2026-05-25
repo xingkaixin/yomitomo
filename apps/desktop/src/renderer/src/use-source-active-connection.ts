@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState, type RefObject } from 'react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
-import type { ActiveConnection } from '@yomitomo/reader-ui';
+import type { ActiveConnection } from '@yomitomo/reader-ui/reader-types';
 import { buildAnnotationConnectionPath } from './app-source-bookcase-shared';
 
 type UseSourceActiveConnectionInput = {

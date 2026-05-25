@@ -1,6 +1,7 @@
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
-import { animateTheaterHighlight, sleep, type VirtualCursorState } from '@yomitomo/reader-ui';
+import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
+import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-utils';
 import {
   foliateRangeHighlightBoxes,
   mappedFoliateRangeRects,

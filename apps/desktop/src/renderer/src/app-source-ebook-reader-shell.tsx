@@ -1,12 +1,11 @@
 import type React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ReaderAppView, type ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import {
-  ReaderAppView,
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
-  type ReaderAppViewProps,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
 
 type EbookReaderShellProps = Omit<ReaderAppViewProps, 'articleContent'> & {

@@ -68,21 +68,23 @@ import {
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
+import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import {
-  defaultReaderSettings,
-  getShortcutModifier,
-  ReaderAppView,
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
+} from '@yomitomo/reader-ui/reader-styles';
+import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
+import {
+  defaultReaderSettings,
+  getShortcutModifier,
   selectionActionShortcut,
-  mergeAgentAnnotationAsThought,
   animateTheaterHighlight,
   sleep,
-  useAgentReadingDock,
   type AnnotationRailLayout,
-  type VirtualCursorState,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-utils';
+import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
 import { Button } from './components/ui/button';
 import type { PromptArticle } from './app-reading-types';
 import {

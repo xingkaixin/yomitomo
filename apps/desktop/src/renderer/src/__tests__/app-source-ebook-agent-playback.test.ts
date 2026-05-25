@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   sleep: vi.fn(),
 }));
 
-vi.mock('@yomitomo/reader-ui', () => ({
+vi.mock('@yomitomo/reader-ui/reader-utils', () => ({
   animateTheaterHighlight: mocks.animateTheaterHighlight,
   sleep: mocks.sleep,
 }));

@@ -24,13 +24,13 @@ import {
   mergeReadingMemory,
   type TocItem,
 } from '@yomitomo/core';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
+import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import {
   buildTocAnnotationStats,
   getShortcutModifier,
-  mergeAgentAnnotationAsThought,
   sleep,
-  type ReaderSettings,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-utils';
 import {
   currentFoliateContent,
   ebookArticleText,
