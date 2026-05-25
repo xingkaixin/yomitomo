@@ -1,12 +1,12 @@
 import { X } from 'lucide-react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor } from '@yomitomo/core';
-import type { HighlightChoiceAction } from './reader-types';
+import type { HighlightChoiceAction } from '../reader-types';
 import {
   AnnotationTypeLabelContent,
   AvatarBadge,
   ReadingIntentLabelContent,
-} from './shared/reader-component-primitives';
+} from '../shared/reader-component-primitives';
 
 export function HighlightChoiceMenu({
   action,

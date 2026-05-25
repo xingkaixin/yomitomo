@@ -5,9 +5,9 @@ import type {
   MessageSendShortcut,
   PublicAgent,
 } from '@yomitomo/shared';
-import { AgentAnnotateMenu } from './agent/reader-agent-annotate-menu';
+import { AgentAnnotateMenu } from '../agent/reader-agent-annotate-menu';
 import { ReaderSettingsPanel } from './reader-settings-panel';
-import type { ReaderReadingSection, ReaderSettings } from './reader-types';
+import type { ReaderReadingSection, ReaderSettings } from '../reader-types';
 
 export type ReaderFloatingPanelsProps = {
   agentAnnotateOpen: boolean;

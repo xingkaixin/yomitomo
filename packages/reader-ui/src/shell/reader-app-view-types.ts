@@ -12,7 +12,7 @@ import type { HighlightBox, TocItem } from '@yomitomo/core';
 import type {
   AnnotationRailLayout,
   buildTocAnnotationStats,
-} from './annotations/reader-annotations';
+} from '../annotations/reader-annotations';
 import type {
   ActiveConnection,
   AgentDockItem,
@@ -20,7 +20,7 @@ import type {
   ReaderReadingSection,
   ReaderSettings,
   VirtualCursorState,
-} from './reader-types';
+} from '../reader-types';
 
 export type SelectionAction = {
   x: number;

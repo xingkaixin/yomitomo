@@ -7,7 +7,7 @@ import type {
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
-import { AnnotationCard } from './annotations/reader-annotation-card';
+import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { Composer } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
@@ -23,7 +23,7 @@ import {
   buildHighlightSegments,
   highlightSegmentStyle,
   type AnnotationRailLayout,
-} from './annotations/reader-annotations';
+} from '../annotations/reader-annotations';
 
 export type ReaderSurfaceViewProps = {
   activeId: string | null;
