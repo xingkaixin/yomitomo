@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type HighlightBox } from '@yomitomo/core';
-import type { ReaderSettings } from '@yomitomo/reader-ui';
+import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import {
   currentFoliateContent,
   createEbookAnchorResolver,

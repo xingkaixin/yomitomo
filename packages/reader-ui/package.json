@@ -6,10 +6,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./reader-app-view": "./src/reader-app-view.tsx",
+    "./reader-agent-annotation-playback": "./src/reader-agent-annotation-playback.ts",
     "./reader-components": "./src/reader-components.tsx",
     "./reader-styles": "./src/reader-styles.ts",
+    "./reader-types": "./src/reader-types.ts",
     "./reader-utils": "./src/reader-utils.ts",
-    "./use-agent-annotation-queue": "./src/use-agent-annotation-queue.ts"
+    "./use-agent-annotation-queue": "./src/use-agent-annotation-queue.ts",
+    "./use-agent-reading-dock": "./src/use-agent-reading-dock.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

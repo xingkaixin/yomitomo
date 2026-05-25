@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
-import { useAgentReadingDock, type VirtualCursorState } from '@yomitomo/reader-ui';
+import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
+import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
 import {
   currentFoliateContent,
   lastFoliateRangeViewportRect,

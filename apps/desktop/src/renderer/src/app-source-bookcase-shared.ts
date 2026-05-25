@@ -14,14 +14,14 @@ import type {
 } from '@yomitomo/shared';
 import { agentPersonalities, agentPersonalityName } from '@yomitomo/shared';
 import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomitomo/core';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
+import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
+import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import {
   annotationNavigationForReferenceIndex,
   clampNumber,
   defaultReaderSettings,
-  mergeAgentAnnotationAsThought,
-  type ReaderSettings,
-  type SelectionAction,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-utils';
 import type { ArticleUpdater, PromptArticle } from './app-reading-types';
 
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';

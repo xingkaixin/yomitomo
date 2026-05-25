@@ -1,7 +1,7 @@
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
-import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui';
+import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import jetBrainsMonoBoldUrl from './assets/fonts/JetBrainsMono-Bold.woff2?url';
 import jetBrainsMonoRegularUrl from './assets/fonts/JetBrainsMono-Regular.woff2?url';
 import notoSerifScRegularUrl from './assets/fonts/NotoSerifSC-Regular.ttf?url';

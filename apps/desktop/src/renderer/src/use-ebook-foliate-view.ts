@@ -1,7 +1,8 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
-import { clampNumber, type ReaderSettings } from '@yomitomo/reader-ui';
+import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
+import { clampNumber } from '@yomitomo/reader-ui/reader-utils';
 import {
   closeFoliateView,
   configureFoliateView,

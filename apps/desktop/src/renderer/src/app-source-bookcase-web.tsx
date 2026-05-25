@@ -34,19 +34,23 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import {
-  buildTocAnnotationStats,
-  useAgentAnnotationQueue,
-  getShortcutModifier,
-  mergeAgentAnnotationAsThought,
   ReaderAppView,
-  buildReaderReadingSections,
-  readerAnnotationScrollTop,
+  type AnnotationNavigationDirection,
+} from '@yomitomo/reader-ui/reader-app-view';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
+import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
   readerStyles,
-  type AnnotationNavigationDirection,
-  type ReaderSettings,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-styles';
+import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
+import {
+  buildTocAnnotationStats,
+  getShortcutModifier,
+  buildReaderReadingSections,
+  readerAnnotationScrollTop,
+} from '@yomitomo/reader-ui/reader-utils';
+import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';
 import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';

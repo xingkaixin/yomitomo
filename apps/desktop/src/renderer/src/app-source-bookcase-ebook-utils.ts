@@ -3,7 +3,7 @@ import type { HighlightBox } from '@yomitomo/core';
 import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,
-} from '@yomitomo/reader-ui';
+} from '@yomitomo/reader-ui/reader-utils';
 import {
   ebookChapterForFoliateSection,
   type FoliatePageInfo,

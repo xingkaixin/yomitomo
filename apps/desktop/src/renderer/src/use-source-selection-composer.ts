@@ -1,6 +1,6 @@
 import { useCallback, useState, type RefObject } from 'react';
 import type { HighlightBox } from '@yomitomo/core';
-import type { HighlightChoice } from '@yomitomo/reader-ui';
+import type { HighlightChoice } from '@yomitomo/reader-ui/reader-app-view';
 import type { SourceSelectionAction } from './app-source-bookcase-shared';
 
 type UseSourceSelectionComposerInput = {
