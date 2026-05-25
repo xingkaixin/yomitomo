@@ -17,7 +17,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { AvatarBadge, SubmitShortcutKeys } from './shared/reader-component-primitives';
+import { AvatarBadge, SubmitShortcutKeys } from '../shared/reader-component-primitives';
 import {
   filterFocusMessagesForAgents,
   focusMessageFromDraft,
@@ -28,9 +28,9 @@ import {
   normalizeFocusSectionPlans,
   uniqueIds,
 } from './reader-agent-annotate-utils';
-import { matchesAgentMentionQuery, mentionDraftWithAgent } from './reader-mention-utils';
-import type { ReaderReadingSection } from './reader-types';
-import { isMessageSendShortcutEvent } from './reader-shortcuts';
+import { matchesAgentMentionQuery, mentionDraftWithAgent } from '../reader-mention-utils';
+import type { ReaderReadingSection } from '../reader-types';
+import { isMessageSendShortcutEvent } from '../reader-shortcuts';
 
 const coReadingAnalysisPhases = [
   '扫描章节边界',

@@ -5,8 +5,8 @@ import type {
   PublicAgent,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import type { ReaderReadingSection } from './reader-types';
-import { escapeRegExp } from './reader-mention-utils';
+import type { ReaderReadingSection } from '../reader-types';
+import { escapeRegExp } from '../reader-mention-utils';
 
 export function normalizeFocusSectionPlans(
   sections: FocusCoReadingSectionPlan[] | undefined,

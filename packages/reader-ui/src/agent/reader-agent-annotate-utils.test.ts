@@ -9,7 +9,7 @@ import {
   focusSectionToReadingPlanItem,
   normalizeFocusSectionPlans,
 } from './reader-agent-annotate-utils';
-import type { ReaderReadingSection } from './reader-types';
+import type { ReaderReadingSection } from '../reader-types';
 
 function agent(id: string, nickname: string): PublicAgent {
   return {
