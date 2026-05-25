@@ -1,5 +1,5 @@
 import type React from 'react';
-import { AvatarBadge } from './reader-component-primitives';
+import { AvatarBadge } from './shared/reader-component-primitives';
 import { cursorColorFromId, cursorSvgId, VIRTUAL_CURSOR_PATH } from './reader-style-utils';
 import type { VirtualCursorState } from './reader-types';
 

@@ -3,7 +3,7 @@ import { AtSign } from 'lucide-react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
 import { Kbd } from './components/ui/kbd';
-import { AvatarBadge, SubmitShortcutKeys } from './reader-component-primitives';
+import { AvatarBadge, SubmitShortcutKeys } from './shared/reader-component-primitives';
 import {
   escapeRegExp,
   matchesAgentMentionQuery,

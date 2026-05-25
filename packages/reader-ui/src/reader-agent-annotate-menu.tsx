@@ -17,7 +17,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { AvatarBadge, SubmitShortcutKeys } from './reader-component-primitives';
+import { AvatarBadge, SubmitShortcutKeys } from './shared/reader-component-primitives';
 import {
   filterFocusMessagesForAgents,
   focusMessageFromDraft,
