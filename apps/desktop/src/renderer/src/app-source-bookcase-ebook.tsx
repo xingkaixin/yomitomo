@@ -26,11 +26,9 @@ import {
 } from '@yomitomo/core';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
-import {
-  buildTocAnnotationStats,
-  getShortcutModifier,
-  sleep,
-} from '@yomitomo/reader-ui/reader-utils';
+import { sleep } from '@yomitomo/reader-ui/reader-animation';
+import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   currentFoliateContent,
   ebookArticleText,

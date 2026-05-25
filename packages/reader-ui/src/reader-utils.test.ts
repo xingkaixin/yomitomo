@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
-  annotationNavigationForInsertionIndex,
-  annotationNavigationForReferenceIndex,
   buildAnnotationFilterFacets,
   buildAnnotationRailItems,
   createEmptyAnnotationFilter,
   filterAnnotationsByFacets,
   isAnnotationFilterActive,
+  toggleAnnotationFilterValue,
+  type AnnotationFilterState,
+} from './reader-annotations';
+import {
+  annotationNavigationForInsertionIndex,
+  annotationNavigationForReferenceIndex,
+} from './reader-navigation';
+import {
   isMessageSendShortcutEvent,
   messageSendShortcutKeys,
   selectionActionShortcut,
-  toggleAnnotationFilterValue,
-  type AnnotationFilterState,
-} from './reader-utils';
+} from './reader-shortcuts';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 

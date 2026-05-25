@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { extractTocItems, type ExtractTocOptions } from '@yomitomo/core';
-import { buildReaderReadingSections } from './reader-utils';
+import { buildReaderReadingSections } from './reader-reading-sections';
 
 const sourceTocOptions: ExtractTocOptions = {
   headingSelector:

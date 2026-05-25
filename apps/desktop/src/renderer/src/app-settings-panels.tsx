@@ -36,7 +36,7 @@ import {
   normalizeSelectionActionShortcutKey,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
-import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-utils';
+import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-shortcuts';
 import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../preload';
 import { CopyIconButton, Field, PanelHeader } from './app-ui';

@@ -16,7 +16,7 @@ import { AvatarBadge } from './reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatTime } from './reader-date-utils';
 import { noteStyle } from './reader-style-utils';
-import type { AnnotationRailSide } from './reader-utils';
+import type { AnnotationRailSide } from './reader-annotations';
 
 const DELETE_HOLD_MS = 1600;
 

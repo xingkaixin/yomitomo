@@ -27,7 +27,7 @@ vi.mock('@yomitomo/core', () => ({
   rangeHighlightBoxes: mocks.rangeHighlightBoxes,
 }));
 
-vi.mock('./reader-utils', () => ({
+vi.mock('./reader-animation', () => ({
   animateTheaterHighlight: mocks.animateTheaterHighlight,
   sleep: mocks.sleep,
 }));

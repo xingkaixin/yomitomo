@@ -1,7 +1,7 @@
 import { useCallback, type RefObject } from 'react';
 import type { SelectionActionShortcuts, UserProfile } from '@yomitomo/shared';
 import { createEpubTextAnchorFromQuote, selectionActionPosition } from '@yomitomo/core';
-import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-utils';
+import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   currentFoliateContent,
   ebookChapterForFoliateSection,

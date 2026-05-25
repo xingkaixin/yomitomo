@@ -7,7 +7,7 @@ import {
   saveAgentAnnotationAsThought,
 } from './reader-agent-annotation-playback';
 import { useAgentVirtualReading } from './use-agent-virtual-reading';
-import { sleep } from './reader-utils';
+import { sleep } from './reader-animation';
 
 type UseAgentAnnotationQueueOptions = {
   agents: PublicAgent[];
