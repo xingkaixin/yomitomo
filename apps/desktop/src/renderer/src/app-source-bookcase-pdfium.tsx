@@ -1930,7 +1930,6 @@ function PdfiumDocument({
         }
         articleId={article.id}
         articleRef={articleRef}
-        autoExpandNewAnnotations={false}
         boxes={boxes}
         canvasRef={canvasRef}
         commentsCloseKey={commentsCloseKey}

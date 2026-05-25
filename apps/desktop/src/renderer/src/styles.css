@@ -14445,7 +14445,9 @@ button.license-package-row:hover {
 .source-ebook-reader-shell .reader-comment-markdown.is-collapsed::after,
 .source-ebook-reader-shell
   .reader-note-primary-comment
-  .reader-comment-markdown.is-collapsed::after {
+  .reader-comment-markdown.is-collapsed::after,
+.source-pdf-reader-shell .reader-comment-markdown.is-collapsed::after,
+.source-pdf-reader-shell .reader-note-primary-comment .reader-comment-markdown.is-collapsed::after {
   background: linear-gradient(to bottom, hsl(var(--card) / 0), hsl(var(--card)));
 }
 
