@@ -143,4 +143,19 @@ describe('AboutSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /foliate-js/ }));
     expect(screen.getAllByText('MIT').length).toBeGreaterThan(0);
   });
+
+  it('includes bundled font notices in the license dialog', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
+    fireEvent.change(screen.getByPlaceholderText('搜索软件包或许可证...'), {
+      target: { value: 'JetBrains Mono' },
+    });
+
+    expect(screen.getByText('JetBrains Mono')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /JetBrains Mono/ }));
+    expect(screen.getAllByText('OFL-1.1').length).toBeGreaterThan(0);
+  });
 });
