@@ -1,17 +1,30 @@
 # Third Party Notices
 
-This file lists third-party production dependencies and vendored components used by Yomitomo.
-It is generated from pnpm dependency metadata and vendor upstream metadata with:
+This file lists third-party production dependencies, vendored components, and bundled fonts used by Yomitomo Desktop.
+It is generated from pnpm dependency metadata, vendor upstream metadata, and bundled font notices with:
 
 ```bash
 pnpm licenses:generate
 ```
 
-The project source code is licensed under MIT. Third-party packages and vendored components remain under their own licenses.
+The project source code is licensed under MIT. Third-party packages, vendored components, and bundled fonts remain under their own licenses.
+
+pnpm package licenses are limited to:
+
+- `@yomitomo/desktop...`
+
+Direct dependencies declared only by non-desktop apps are excluded from the generated desktop notice:
+
+- `apps/download/package.json`
+- `apps/web/package.json`
 
 Vendored components are discovered from:
 
 - `apps/desktop/src/renderer/src/vendor/*/UPSTREAM.md`
+
+Bundled font notices are discovered from:
+
+- `apps/desktop/resources/licenses/fonts/THIRD_PARTY_FONT_NOTICES.md`
 
 ## License Summary
 
@@ -23,17 +36,18 @@ Vendored components are discovered from:
 | (MIT OR WTFPL) | 1 |
 | (MPL-2.0 OR Apache-2.0) | 1 |
 | 0BSD | 1 |
-| Apache-2.0 | 7 |
+| Apache-2.0 | 9 |
 | BlueOak-1.0.0 | 2 |
 | BSD-2-Clause | 9 |
 | BSD-3-Clause | 4 |
 | CC-BY-4.0 | 1 |
 | CC0-1.0 | 1 |
-| ISC | 27 |
-| MIT | 215 |
+| ISC | 28 |
+| MIT | 249 |
 | MIT AND ISC | 1 |
 | MIT-0 | 2 |
 | MPL-2.0 | 2 |
+| OFL-1.1 | 11 |
 | Python-2.0 | 1 |
 
 ## Packages
@@ -69,6 +83,26 @@ Vendored components are discovered from:
 | @csstools/css-parser-algorithms | 4.0.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-parser-algorithms#readme) |
 | @csstools/css-syntax-patches-for-csstree | 1.1.3 | MIT-0 | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-syntax-patches-for-csstree#readme) |
 | @csstools/css-tokenizer | 4.0.0 | MIT | [link](https://github.com/csstools/postcss-plugins/tree/main/packages/css-tokenizer#readme) |
+| @embedpdf/core | 2.14.3 | MIT |  |
+| @embedpdf/engines | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs/engines/introduction) |
+| @embedpdf/fonts-arabic | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-hebrew | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-jp | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-kr | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-latin | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-sc | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/fonts-tc | 1.0.0 | OFL-1.1 | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/models | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/pdfium | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs/pdfium/introduction) |
+| @embedpdf/plugin-bookmark | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-document-manager | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-interaction-manager | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-render | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-scroll | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-selection | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-viewport | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/plugin-zoom | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
+| @embedpdf/utils | 2.14.3 | MIT | [link](https://www.embedpdf.com/docs) |
 | @esbuild/darwin-arm64 | 0.25.12, 0.27.7 | MIT | [link](https://github.com/evanw/esbuild#readme) |
 | @exodus/bytes | 1.15.0 | MIT | [link](https://github.com/ExodusOSS/bytes) |
 | @floating-ui/core | 1.7.5 | MIT | [link](https://floating-ui.com) |
@@ -84,7 +118,7 @@ Vendored components are discovered from:
 | @mozilla/readability | 0.6.0 | Apache-2.0 | [link](https://github.com/mozilla/readability) |
 | @napi-rs/keyring | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
 | @napi-rs/keyring-darwin-arm64 | 1.3.0 | MIT | [link](https://github.com/Brooooooklyn/keyring-node#readme) |
-| @oxc-project/types | 0.129.0 | MIT | [link](https://oxc.rs) |
+| @oxc-project/types | 0.130.0 | MIT | [link](https://oxc.rs) |
 | @radix-ui/number | 1.1.1 | MIT | [link](https://radix-ui.com/primitives) |
 | @radix-ui/primitive | 1.1.3 | MIT | [link](https://radix-ui.com/primitives) |
 | @radix-ui/react-arrow | 1.1.7 | MIT | [link](https://radix-ui.com/primitives) |
@@ -112,10 +146,11 @@ Vendored components are discovered from:
 | @radix-ui/react-visually-hidden | 1.2.3 | MIT | [link](https://radix-ui.com/primitives) |
 | @radix-ui/rect | 1.1.1 | MIT | [link](https://radix-ui.com/primitives) |
 | @reduxjs/toolkit | 2.11.2 | MIT | [link](https://redux-toolkit.js.org) |
-| @rolldown/binding-darwin-arm64 | 1.0.0 | MIT | [link](https://rolldown.rs/) |
-| @rolldown/pluginutils | 1.0.0-rc.7, 1.0.0 | MIT | [link](https://rolldown.rs/) |
+| @rolldown/binding-darwin-arm64 | 1.0.1 | MIT | [link](https://rolldown.rs/) |
+| @rolldown/pluginutils | 1.0.1 | MIT | [link](https://github.com/rolldown/plugins/tree/main/packages/pluginutils#readme) |
 | @standard-schema/spec | 1.1.0 | MIT | [link](https://standardschema.dev) |
 | @standard-schema/utils | 0.3.0 | MIT | [link](https://github.com/standard-schema/standard-schema#readme) |
+| @sveltejs/acorn-typescript | 1.0.10 | MIT | [link](https://github.com/sveltejs/acorn-typescript#readme) |
 | @types/better-sqlite3 | 7.6.13 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/better-sqlite3) |
 | @types/d3-array | 3.2.2 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-array) |
 | @types/d3-color | 3.1.3 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-color) |
@@ -126,15 +161,28 @@ Vendored components are discovered from:
 | @types/d3-shape | 3.1.8 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-shape) |
 | @types/d3-time | 3.0.4 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-time) |
 | @types/d3-timer | 3.0.2 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/d3-timer) |
-| @types/node | 25.7.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
+| @types/estree | 1.0.9 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/estree) |
+| @types/node | 25.9.0 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node) |
 | @types/react | 19.2.14 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react) |
 | @types/react-dom | 19.2.3 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom) |
 | @types/trusted-types | 2.0.7 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/trusted-types) |
 | @types/use-sync-external-store | 0.0.6 | MIT | [link](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/use-sync-external-store) |
-| @vitejs/plugin-react | 6.0.1 | MIT | [link](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#readme) |
+| @vitejs/plugin-react | 6.0.2 | MIT | [link](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#readme) |
+| @vue/compiler-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-core#readme) |
+| @vue/compiler-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme) |
+| @vue/compiler-sfc | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme) |
+| @vue/compiler-ssr | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/compiler-ssr#readme) |
+| @vue/reactivity | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/reactivity#readme) |
+| @vue/runtime-core | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/runtime-core#readme) |
+| @vue/runtime-dom | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/runtime-dom#readme) |
+| @vue/server-renderer | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/server-renderer#readme) |
+| @vue/shared | 3.5.34 | MIT | [link](https://github.com/vuejs/core/tree/main/packages/shared#readme) |
 | @xmldom/xmldom | 0.8.13 | MIT | [link](https://github.com/xmldom/xmldom) |
+| acorn | 8.16.0 | MIT | [link](https://github.com/acornjs/acorn) |
 | argparse | 2.0.1 | Python-2.0 | [link](https://github.com/nodeca/argparse#readme) |
 | aria-hidden | 1.2.6 | MIT | [link](https://github.com/theKashey/aria-hidden#readme) |
+| aria-query | 5.3.1 | Apache-2.0 | [link](https://github.com/A11yance/aria-query#readme) |
+| axobject-query | 4.1.0 | Apache-2.0 | [link](https://github.com/A11yance/axobject-query#readme) |
 | base64-js | 1.5.1 | MIT | [link](https://github.com/beatgammit/base64-js) |
 | baseline-browser-mapping | 2.10.25 | Apache-2.0 | [link](https://github.com/web-platform-dx/baseline-browser-mapping#readme) |
 | better-sqlite3 | 12.10.0 | MIT | [link](http://github.com/WiseLibs/better-sqlite3) |
@@ -178,10 +226,11 @@ Vendored components are discovered from:
 | defuddle | 0.18.1 | MIT | [link](https://github.com/kepano/defuddle) |
 | detect-libc | 2.1.2 | Apache-2.0 | [link](https://github.com/lovell/detect-libc#readme) |
 | detect-node-es | 1.1.0 | MIT | [link](https://github.com/thekashey/detect-node) |
+| devalue | 5.8.1 | MIT | [link](https://github.com/sveltejs/devalue#readme) |
 | dom-serializer | 2.0.0 | MIT | [link](https://github.com/cheeriojs/dom-serializer#readme) |
 | domelementtype | 2.3.0 | BSD-2-Clause | [link](https://github.com/fb55/domelementtype#readme) |
 | domhandler | 5.0.3 | BSD-2-Clause | [link](https://github.com/fb55/domhandler#readme) |
-| dompurify | 3.4.3 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
+| dompurify | 3.4.5 | (MPL-2.0 OR Apache-2.0) | [link](https://github.com/cure53/DOMPurify) |
 | domutils | 3.2.2 | BSD-2-Clause | [link](https://github.com/fb55/domutils#readme) |
 | drizzle-orm | 0.45.2 | Apache-2.0 | [link](https://orm.drizzle.team) |
 | electron-to-chromium | 1.5.349 | ISC | [link](https://github.com/Kilian/electron-to-chromium#readme) |
@@ -192,6 +241,9 @@ Vendored components are discovered from:
 | es-toolkit | 1.46.1 | MIT | [link](https://es-toolkit.dev) |
 | esbuild | 0.25.12, 0.27.7 | MIT | [link](https://github.com/evanw/esbuild#readme) |
 | escalade | 3.2.0 | MIT | [link](https://github.com/lukeed/escalade#readme) |
+| esm-env | 1.2.2 | MIT | [link](https://github.com/benmccann/esm-env) |
+| esrap | 2.2.9 | MIT | [link](https://github.com/sveltejs/esrap#readme) |
+| estree-walker | 2.0.2 | MIT | [link](https://github.com/Rich-Harris/estree-walker#readme) |
 | eventemitter3 | 5.0.4 | MIT | [link](https://github.com/primus/eventemitter3#readme) |
 | expand-template | 2.0.3 | (MIT OR WTFPL) | [link](https://github.com/ralphtheninja/expand-template) |
 | fdir | 6.5.0 | MIT | [link](https://github.com/thecodrr/fdir#readme) |
@@ -215,7 +267,9 @@ Vendored components are discovered from:
 | ini | 1.3.8 | ISC | [link](https://github.com/isaacs/ini#readme) |
 | internmap | 2.0.3 | ISC | [link](https://github.com/mbostock/internmap/) |
 | is-potential-custom-element-name | 1.0.1 | MIT | [link](https://github.com/mathiasbynens/is-potential-custom-element-name) |
+| is-reference | 3.0.3 | MIT | [link](https://github.com/Rich-Harris/is-reference#readme) |
 | isarray | 1.0.0 | MIT | [link](https://github.com/juliangruber/isarray) |
+| JetBrains Mono | 2.304 | OFL-1.1 | [link](https://github.com/JetBrains/JetBrainsMono) |
 | jiti | 2.7.0 | MIT | [link](https://github.com/unjs/jiti#readme) |
 | js-tokens | 4.0.0 | MIT | [link](https://github.com/lydell/js-tokens#readme) |
 | js-yaml | 4.1.1 | MIT | [link](https://github.com/nodeca/js-yaml#readme) |
@@ -229,11 +283,12 @@ Vendored components are discovered from:
 | lightningcss | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | lightningcss-darwin-arm64 | 1.32.0 | MPL-2.0 | [link](https://github.com/parcel-bundler/lightningcss#readme) |
 | linkedom | 0.18.12 | ISC | [link](https://github.com/WebReflection/linkedom#readme) |
+| locate-character | 3.0.0 | MIT | [link](https://gitlab.com/Rich-Harris/locate-character#README) |
 | lodash.escaperegexp | 4.1.2 | MIT | [link](https://lodash.com/) |
 | lodash.isequal | 4.5.0 | MIT | [link](https://lodash.com/) |
 | lru-cache | 11.3.5 | BlueOak-1.0.0 | [link](https://github.com/isaacs/node-lru-cache#readme) |
 | lru-cache | 5.1.1 | ISC | [link](https://github.com/isaacs/node-lru-cache#readme) |
-| lucide-react | 1.14.0 | ISC | [link](https://lucide.dev) |
+| lucide-react | 1.16.0 | ISC | [link](https://lucide.dev) |
 | magic-string | 0.30.21 | MIT | [link](https://github.com/Rich-Harris/magic-string#readme) |
 | mathml-to-latex | 1.5.0 | MIT | [link](https://github.com/asnunes/mathml-to-latex#readme) |
 | mdn-data | 2.27.1 | CC0-1.0 | [link](https://developer.mozilla.org) |
@@ -245,6 +300,8 @@ Vendored components are discovered from:
 | napi-build-utils | 2.0.0 | MIT | [link](https://github.com/inspiredware/napi-build-utils#readme) |
 | node-abi | 3.90.0 | MIT | [link](https://github.com/electron/node-abi#readme) |
 | node-releases | 2.0.38 | MIT | [link](https://github.com/chicoxyzzy/node-releases#readme) |
+| Noto Sans SC | bundled | OFL-1.1 | [link](https://fonts.google.com/noto/specimen/Noto+Sans+SC) |
+| Noto Serif SC | bundled | OFL-1.1 | [link](https://fonts.google.com/noto/specimen/Noto+Serif+SC) |
 | nth-check | 2.1.1 | BSD-2-Clause | [link](https://github.com/fb55/nth-check) |
 | once | 1.4.0 | ISC | [link](https://github.com/isaacs/once#readme) |
 | pako | 1.0.11 | (MIT AND Zlib) | [link](https://github.com/nodeca/pako) |
@@ -252,6 +309,7 @@ Vendored components are discovered from:
 | picocolors | 1.1.1 | ISC | [link](https://github.com/alexeyraspopov/picocolors#readme) |
 | picomatch | 4.0.4 | MIT | [link](https://github.com/micromatch/picomatch) |
 | postcss | 8.5.14 | MIT | [link](https://postcss.org/) |
+| preact | 10.29.2 | MIT | [link](https://preactjs.com) |
 | prebuild-install | 7.1.3 | MIT | [link](https://github.com/prebuild/prebuild-install) |
 | process-nextick-args | 2.0.1 | MIT | [link](https://github.com/calvinmetcalf/process-nextick-args) |
 | pump | 3.0.4 | MIT | [link](https://github.com/mafintosh/pump#readme) |
@@ -271,7 +329,7 @@ Vendored components are discovered from:
 | require-from-string | 2.0.2 | MIT | [link](https://github.com/floatdrop/require-from-string#readme) |
 | reselect | 5.1.1 | MIT | [link](https://github.com/reduxjs/reselect#readme) |
 | resolve-pkg-maps | 1.0.0 | MIT | [link](https://github.com/privatenumber/resolve-pkg-maps#readme) |
-| rolldown | 1.0.0 | MIT | [link](https://rolldown.rs/) |
+| rolldown | 1.0.1 | MIT | [link](https://rolldown.rs/) |
 | safe-buffer | 5.1.2, 5.2.1 | MIT | [link](https://github.com/feross/safe-buffer) |
 | sax | 1.6.0 | BlueOak-1.0.0 | [link](https://github.com/isaacs/sax-js#readme) |
 | saxes | 6.0.0 | ISC | [link](https://github.com/lddubeau/saxes#readme) |
@@ -280,9 +338,11 @@ Vendored components are discovered from:
 | setimmediate | 1.0.5 | MIT | [link](https://github.com/YuzuJS/setImmediate#readme) |
 | simple-concat | 1.0.1 | MIT | [link](https://github.com/feross/simple-concat) |
 | simple-get | 4.0.1 | MIT | [link](https://github.com/feross/simple-get) |
+| Source Serif 4 | 4.005 | OFL-1.1 | [link](https://github.com/adobe-fonts/source-serif) |
 | source-map-js | 1.2.1 | BSD-3-Clause | [link](https://github.com/7rulnik/source-map-js) |
 | string_decoder | 1.1.1 | MIT | [link](https://github.com/nodejs/string_decoder) |
 | strip-json-comments | 2.0.1 | MIT | [link](https://github.com/sindresorhus/strip-json-comments#readme) |
+| svelte | 5.55.9 | MIT | [link](https://svelte.dev) |
 | symbol-tree | 3.2.4 | MIT | [link](https://github.com/jsdom/js-symbol-tree#symbol-tree) |
 | tailwind-merge | 3.6.0 | MIT | [link](https://github.com/dcastil/tailwind-merge) |
 | tar-fs | 2.1.4 | MIT | [link](https://github.com/mafintosh/tar-fs) |
@@ -301,7 +361,7 @@ Vendored components are discovered from:
 | turndown | 7.2.4 | MIT | [link](https://github.com/mixmark-io/turndown#readme) |
 | uhyphen | 0.2.0 | ISC | [link](https://github.com/WebReflection/uhyphen#readme) |
 | undici | 7.25.0 | MIT | [link](https://undici.nodejs.org) |
-| undici-types | 7.21.0 | MIT | [link](https://undici.nodejs.org) |
+| undici-types | 7.24.6 | MIT | [link](https://undici.nodejs.org) |
 | universalify | 2.0.1 | MIT | [link](https://github.com/RyanZim/universalify#readme) |
 | update-browserslist-db | 1.2.3 | MIT | [link](https://github.com/browserslist/update-db#readme) |
 | use-callback-ref | 1.3.3 | MIT | [link](https://github.com/theKashey/use-callback-ref#readme) |
@@ -309,7 +369,7 @@ Vendored components are discovered from:
 | use-sync-external-store | 1.6.0 | MIT | [link](https://github.com/facebook/react#readme) |
 | util-deprecate | 1.0.2 | MIT | [link](https://github.com/TooTallNate/util-deprecate) |
 | victory-vendor | 37.3.6 | MIT AND ISC | [link](https://commerce.nearform.com/open-source/victory) |
-| vite | 8.0.12 | MIT | [link](https://vite.dev) |
+| vue | 3.5.34 | MIT | [link](https://vuejs.org/) |
 | w3c-xmlserializer | 5.0.0 | MIT | [link](https://github.com/jsdom/w3c-xmlserializer#readme) |
 | webidl-conversions | 8.0.1 | BSD-2-Clause | [link](https://github.com/jsdom/webidl-conversions#readme) |
 | whatwg-mimetype | 5.0.0 | MIT | [link](https://github.com/jsdom/whatwg-mimetype#readme) |
@@ -318,3 +378,5 @@ Vendored components are discovered from:
 | xml-name-validator | 5.0.0 | Apache-2.0 | [link](https://github.com/jsdom/xml-name-validator#readme) |
 | xmlchars | 2.2.0 | MIT | [link](https://github.com/lddubeau/xmlchars#readme) |
 | yallist | 3.1.1 | ISC | [link](https://github.com/isaacs/yallist#readme) |
+| yaml | 2.9.0 | ISC | [link](https://eemeli.org/yaml/) |
+| zimmerframe | 1.1.4 | MIT | [link](https://github.com/sveltejs/zimmerframe#readme) |

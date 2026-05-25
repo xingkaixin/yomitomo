@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.5.0 - 2026-05-26
+
+### 新功能
+
+- 桌面端新增 PDF 导入和阅读链路，支持本地 PDF 入库、目录、选区、批注视觉统一、助手 dock 和 PDF 重点共读。(#122, #123, #124, #125, #130, #131, #133, #134)
+- 微信读书集成新增笔记同步、阅读统计和 API key 设置说明，方便把微信读书沉淀接入 Yomitomo 的本地阅读库。(#139, #140, #159)
+- 阅读体验补齐键盘翻页、内置阅读字体和设置自动保存状态反馈，让 EPUB、PDF 和设置页的日常操作更稳定可感知。(#141, #145, #153)
+- 桌面端文章更新链路改为 typed IPC 和局部 article patch，减少全量 store 替换对阅读状态、设置草稿和多窗口同步的干扰。(#117, #118, #119, #120, #121)
+
+### 性能
+
+- 优化桌面端启动、统计页加载和二级模块预加载，并减少导入流程中的全量 store 读取。(#112, #113, #137, #142)
+- 为 EPUB 上下文和索引范围查询建立索引，降低长书章节定位、上下文检索和批注生成的重复扫描成本。(#143, #161)
+- 减少阅读器批注扫描和滚动时的布局工作，并补充 PDF 打开性能追踪，方便定位大文档加载瓶颈。(#115, #138, #144)
+
+### 修复
+
+- 修复 PDF 选区、目录行为、批注流和 PDF 想法展开对齐问题。(#130, #136, #162)
+- 修复阅读器正文字号继承、外部链接打开、动画布局成本、中等宽度批注布局和助手菜单裁切问题。(#110, #114, #116, #146, #160)
+- 修复桌面端资料页保存后弹窗关闭、文件导入对话框回归风险，并补充相关测试覆盖。(#109, #155)
+
+### 工程
+
+- 拆分桌面端 article summary records、store 持久化、article settings、main IPC 注册、文件导入对话框、PDFium reader utils 和 source reader session 边界，降低主进程与阅读器耦合。(#135, #147, #148, #149, #150, #151, #154, #156)
+- 拆分 shared 类型导出和 reader-ui 模块边界，并集中 agent annotation actions，减少跨包导入面和重复动作逻辑。(#152, #157, #158)
+- 清理 PDF.js 依赖、函数作用域告警，补充 reader interaction flow、agent theater data flow 和桌面 store patch 规则文档。(#127, #128, #129, #132)
+- 新增开发资源隔离、release proxy worker、官网文档/changelog 页面和 animated logo 实验，完善发布与官网基础设施。(#107, #108, #111, #126)
+
+### Changelog Detail
+
+- #162 fix(desktop): align PDF thought expansion @xingkaixin
+- #161 perf(core): optimize EPUB index range lookup @xingkaixin
+- #160 fix(reader-ui): prevent assistant menu clipping @xingkaixin
+- #159 feat(weread): add API key setup docs @xingkaixin
+- #158 refactor(reader-ui): organize module boundaries @xingkaixin
+- #157 Centralize agent annotation actions @xingkaixin
+- #156 refactor(desktop): centralize source agent actions @xingkaixin
+- #155 test(desktop): cover file import dialog regressions @xingkaixin
+- #154 refactor(desktop): split store article settings @xingkaixin
+- #153 feat(desktop): add bundled reader fonts @xingkaixin
+- #152 refactor(shared): split type exports by domain @xingkaixin
+- #151 refactor(desktop): split store persistence @xingkaixin
+- #150 refactor(desktop): split main ipc registration @xingkaixin
+- #149 refactor(desktop): share source reader session @xingkaixin
+- #148 refactor(desktop): extract PDFium reader utils @xingkaixin
+- #147 refactor(desktop): abstract file import dialog @xingkaixin
+- #146 fix(reader): adjust medium annotation layout @xingkaixin
+- #145 feat(settings): add autosave status feedback @xingkaixin
+- #144 perf(reader-ui): reduce annotation scans @xingkaixin
+- #143 perf(core): index EPUB context lookups @xingkaixin
+- #142 perf(desktop): avoid full store reads during import @xingkaixin
+- #141 feat(reader): add arrow key page turns @xingkaixin
+- #140 feat(weread): add reading stats @xingkaixin
+- #139 feat(weread): add note sync @xingkaixin
+- #138 Improve PDF open performance tracing @xingkaixin
+- #137 Preload secondary desktop modules @xingkaixin
+- #136 Fix PDF selection and TOC behavior @xingkaixin
+- #135 Refactor article summary records @xingkaixin
+- #134 Unify PDF reader annotation visuals @xingkaixin
+- #133 feat(pdf): add focus co-reading @xingkaixin
+- #132 docs: add agent theater data flow @xingkaixin
+- #131 feat(pdf): show agent dock for assistant notes @xingkaixin
+- #130 Align PDFium annotation flow @xingkaixin
+- #129 chore(desktop): remove pdfjs dependency @xingkaixin
+- #128 chore(desktop): clear function scoping warnings @xingkaixin
+- #127 Add reader interaction flow docs @xingkaixin
+- #126 Add animated logo experiment @xingkaixin
+- #125 Migrate PDF reader to EmbedPDF @xingkaixin
+- #124 feat(pdf): add outline toc and improve selection @xingkaixin
+- #123 feat(desktop): add PDF reader MVP @xingkaixin
+- #122 feat(desktop): add PDF import scaffold @xingkaixin
+- #121 docs: document desktop store patch rules @xingkaixin
+- #120 feat(desktop): unify article patch application @xingkaixin
+- #119 feat(desktop): return import patches @xingkaixin
+- #118 feat(desktop): return article save patch @xingkaixin
+- #117 feat(desktop): add typed IPC contract map @xingkaixin
+- #116 fix(desktop): open reader links externally @xingkaixin
+- #115 perf(reader): reduce annotation scroll work @xingkaixin
+- #114 fix(reader): reduce layout-heavy reader animations @xingkaixin
+- #113 feat(desktop): optimize stats page loading @xingkaixin
+- #112 Optimize desktop startup performance @xingkaixin
+- #111 feat(web): add docs and changelog pages @xingkaixin
+- #110 fix(reader): inherit EPUB body font size @xingkaixin
+- #109 fix(desktop): close profile dialog after save @xingkaixin
+- #108 feat(desktop): isolate development resources @xingkaixin
+- #107 feat(download): add release proxy worker @xingkaixin
+
 ## 0.4.0 - 2026-05-21
 
 ### 新功能

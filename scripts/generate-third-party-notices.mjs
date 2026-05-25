@@ -1,35 +1,33 @@
 import { execFileSync } from 'node:child_process';
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const noticesPath = join(repoRoot, 'THIRD_PARTY_NOTICES.md');
+const pnpmLicenseFilter = '@yomitomo/desktop...';
+const ignoredWorkspacePackagePaths = ['apps/download/package.json', 'apps/web/package.json'];
 const vendorRoots = ['apps/desktop/src/renderer/src/vendor'];
+const fontNoticePaths = ['apps/desktop/resources/licenses/fonts/THIRD_PARTY_FONT_NOTICES.md'];
 const checkOnly = process.argv.includes('--check');
+const ignoredPackageNames = ignoredWorkspacePackageNames();
 
 const pnpmLicenses = JSON.parse(
-  execFileSync(process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm', [
-    'licenses',
-    'list',
-    '--prod',
-    '--json',
-  ], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'inherit'],
-  }),
+  execFileSync(
+    process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+    ['licenses', 'list', '--prod', '--json', '--filter', pnpmLicenseFilter],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    },
+  ),
 );
 
 const notices = renderNotices([
   ...licenseEntries(pnpmLicenses),
   ...vendorEntries(),
+  ...fontEntries(),
 ]);
 
 if (checkOnly) {
@@ -44,13 +42,33 @@ if (checkOnly) {
 
 function licenseEntries(licensesByType) {
   return Object.entries(licensesByType).flatMap(([license, packages]) =>
-    packages.map((item) => ({
-      name: item.name,
-      versions: normalizeVersions(item.versions),
-      license: item.license || license,
-      homepage: item.homepage || '',
-    })),
+    packages
+      .filter((item) => !ignoredPackageNames.has(item.name))
+      .map((item) => ({
+        name: item.name,
+        versions: normalizeVersions(item.versions),
+        license: item.license || license,
+        homepage: item.homepage || '',
+      })),
   );
+}
+
+function ignoredWorkspacePackageNames() {
+  return ignoredWorkspacePackagePaths.reduce((names, packagePath) => {
+    const absolutePath = join(repoRoot, packagePath);
+    if (!existsSync(absolutePath)) return names;
+
+    const manifest = JSON.parse(readFileSync(absolutePath, 'utf8'));
+    for (const key of [
+      'dependencies',
+      'devDependencies',
+      'optionalDependencies',
+      'peerDependencies',
+    ]) {
+      for (const name of Object.keys(manifest[key] || {})) names.add(name);
+    }
+    return names;
+  }, new Set());
 }
 
 function vendorEntries() {
@@ -84,6 +102,43 @@ function vendorEntry(path) {
   };
 }
 
+function fontEntries() {
+  return fontNoticePaths.flatMap((noticePath) => {
+    const absolutePath = join(repoRoot, noticePath);
+    if (!existsSync(absolutePath)) return [];
+
+    return parseFontNotice(readFileSync(absolutePath, 'utf8'));
+  });
+}
+
+function parseFontNotice(markdown) {
+  const entries = [];
+  let current;
+
+  for (const line of markdown.split('\n')) {
+    const heading = line.match(/^##\s+(.+)$/);
+    if (heading) {
+      if (current) entries.push(current);
+      current = { name: heading[1], body: [] };
+    } else if (current) {
+      current.body.push(line);
+    }
+  }
+  if (current) entries.push(current);
+
+  return entries
+    .map((entry) => {
+      const body = entry.body.join('\n');
+      return {
+        name: entry.name,
+        versions: field(body, 'Version') || 'bundled',
+        license: normalizeFontLicense(field(body, 'License')),
+        homepage: field(body, 'Source'),
+      };
+    })
+    .filter((item) => item.name && item.license);
+}
+
 function renderNotices(entries) {
   const sortedEntries = [...entries].sort(compareEntries);
   const summaryRows = [...licenseCounts(sortedEntries).entries()]
@@ -96,18 +151,30 @@ function renderNotices(entries) {
 
   return `# Third Party Notices
 
-This file lists third-party production dependencies and vendored components used by Yomitomo.
-It is generated from pnpm dependency metadata and vendor upstream metadata with:
+This file lists third-party production dependencies, vendored components, and bundled fonts used by Yomitomo Desktop.
+It is generated from pnpm dependency metadata, vendor upstream metadata, and bundled font notices with:
 
 \`\`\`bash
 pnpm licenses:generate
 \`\`\`
 
-The project source code is licensed under MIT. Third-party packages and vendored components remain under their own licenses.
+The project source code is licensed under MIT. Third-party packages, vendored components, and bundled fonts remain under their own licenses.
+
+pnpm package licenses are limited to:
+
+- \`${pnpmLicenseFilter}\`
+
+Direct dependencies declared only by non-desktop apps are excluded from the generated desktop notice:
+
+${ignoredWorkspacePackagePaths.map((path) => `- \`${path}\``).join('\n')}
 
 Vendored components are discovered from:
 
 ${vendorRoots.map((root) => `- \`${root}/*/UPSTREAM.md\``).join('\n')}
+
+Bundled font notices are discovered from:
+
+${fontNoticePaths.map((path) => `- \`${path}\``).join('\n')}
 
 ## License Summary
 
@@ -146,6 +213,11 @@ function homepageCell(homepage) {
   return homepage ? `[link](${homepage})` : '';
 }
 
+function normalizeFontLicense(license) {
+  if (license === 'SIL Open Font License 1.1') return 'OFL-1.1';
+  return license;
+}
+
 function field(markdown, name) {
-  return markdown.match(new RegExp(`^${name}:\\s*(.+)$`, 'm'))?.[1].trim() || '';
+  return markdown.match(new RegExp(`^(?:-\\s*)?${name}:\\s*(.+)$`, 'm'))?.[1].trim() || '';
 }
