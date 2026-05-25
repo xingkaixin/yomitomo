@@ -1,6 +1,6 @@
 import type { TocItem } from '@yomitomo/core';
 import { Highlighter, Lightbulb } from 'lucide-react';
-import type { buildTocAnnotationStats } from './reader-annotations';
+import type { buildTocAnnotationStats } from './annotations/reader-annotations';
 
 export type ReaderTocPanelProps = {
   annotationTotals: { annotations: number; comments: number };

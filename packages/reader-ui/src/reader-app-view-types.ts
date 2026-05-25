@@ -9,7 +9,10 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import type { HighlightBox, TocItem } from '@yomitomo/core';
-import type { AnnotationRailLayout, buildTocAnnotationStats } from './reader-annotations';
+import type {
+  AnnotationRailLayout,
+  buildTocAnnotationStats,
+} from './annotations/reader-annotations';
 import type {
   ActiveConnection,
   AgentDockItem,

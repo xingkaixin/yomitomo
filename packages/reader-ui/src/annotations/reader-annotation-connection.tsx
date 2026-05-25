@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ActiveConnection } from './reader-types';
+import type { ActiveConnection } from '../reader-types';
 
 export function AnnotationConnection({ connection }: { connection: ActiveConnection }) {
   const markerId = React.useId().replace(/:/g, '');
