@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./reader-app-view": "./src/reader-app-view.tsx",
-    "./reader-agent-annotation-playback": "./src/reader-agent-annotation-playback.ts",
+    "./reader-agent-annotation-playback": "./src/agent/reader-agent-annotation-playback.ts",
     "./reader-annotations": "./src/reader-annotations.ts",
     "./reader-animation": "./src/reader-animation.ts",
     "./reader-navigation": "./src/reader-navigation.ts",
@@ -14,8 +14,8 @@
     "./reader-styles": "./src/reader-styles.ts",
     "./reader-shortcuts": "./src/reader-shortcuts.ts",
     "./reader-types": "./src/reader-types.ts",
-    "./use-agent-annotation-queue": "./src/use-agent-annotation-queue.ts",
-    "./use-agent-reading-dock": "./src/use-agent-reading-dock.ts"
+    "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",
+    "./use-agent-reading-dock": "./src/agent/use-agent-reading-dock.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

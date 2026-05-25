@@ -1,7 +1,7 @@
 import type React from 'react';
-import { AvatarBadge } from './shared/reader-component-primitives';
-import { cursorColorFromId } from './reader-style-utils';
-import type { AgentDockItem } from './reader-types';
+import { AvatarBadge } from '../shared/reader-component-primitives';
+import { cursorColorFromId } from '../reader-style-utils';
+import type { AgentDockItem } from '../reader-types';
 
 const completionBurstParticles = [
   { x: -128, y: -42, rotate: -28, delay: 0, color: '#5EC0E8', shape: 'strip' },

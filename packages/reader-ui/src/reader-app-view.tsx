@@ -1,5 +1,5 @@
 import React from 'react';
-import { AgentReadingDock } from './reader-agent-reading-dock';
+import { AgentReadingDock } from './agent/reader-agent-reading-dock';
 import { AnnotationConnection } from './reader-annotation-connection';
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';

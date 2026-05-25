@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import type { AgentReadingPlanItem, PublicAgent } from '@yomitomo/shared';
 import { cursorPositionFromOffset, offsetFromArticleStart } from '@yomitomo/core';
-import type { VirtualCursorState } from './reader-types';
+import type { VirtualCursorState } from '../reader-types';
 import { useAgentReadingDock } from './use-agent-reading-dock';
 import {
   currentReadingSection,
