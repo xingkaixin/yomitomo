@@ -14860,6 +14860,14 @@ button.license-package-row:hover {
   scrollbar-gutter: stable;
 }
 
+.source-pdfium-spike-reader .reader-annotation-rail > .reader-note:has(.reader-agent-menu),
+.source-pdfium-spike-reader
+  .reader-annotation-rail
+  > .reader-note:has(.reader-comment-agent-more-menu) {
+  z-index: 26;
+  overflow: visible;
+}
+
 .source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-burst,
 .source-pdfium-spike-reader .reader-annotation-rail > .reader-note.has-review-menu {
   overflow: visible;
