@@ -6,7 +6,7 @@ import {
   AnnotationTypeLabelContent,
   AvatarBadge,
   ReadingIntentLabelContent,
-} from './reader-component-primitives';
+} from './shared/reader-component-primitives';
 
 export function HighlightChoiceMenu({
   action,

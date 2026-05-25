@@ -12,7 +12,7 @@ import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '
 import { renderMarkdown, reviewOpinionLabelTone } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { ReadingCompletionBurst } from './reader-agent-reading-dock';
-import { AvatarBadge } from './reader-component-primitives';
+import { AvatarBadge } from './shared/reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatTime } from './reader-date-utils';
 import { noteStyle } from './reader-style-utils';

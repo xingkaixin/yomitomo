@@ -14,8 +14,8 @@ import {
 import type { AgentReadingIntent, AnnotationType, MessageSendShortcut } from '@yomitomo/shared';
 import { agentReadingIntentLabel, agentReadingIntentOptions } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
-import { Kbd } from './components/ui/kbd';
-import { messageSendShortcutKeys } from './reader-shortcuts';
+import { Kbd } from '../components/ui/kbd';
+import { messageSendShortcutKeys } from '../reader-shortcuts';
 
 const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
   explain: MessageCircle,

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { getMentionQuery } from '@yomitomo/core';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
-import { AvatarBadge, SubmitShortcutKeys } from './reader-component-primitives';
+import { AvatarBadge, SubmitShortcutKeys } from './shared/reader-component-primitives';
 import { matchesAgentMentionQuery, mentionDraftWithAgent } from './reader-mention-utils';
 import { isMessageSendShortcutEvent } from './reader-shortcuts';
 
