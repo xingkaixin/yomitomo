@@ -5,7 +5,18 @@ module.exports = {
     buildResources: 'resources',
     output: '../../dist/app',
   },
-  files: ['dist/main/**', 'dist/preload/**', 'dist/renderer/**', 'resources/**', 'package.json'],
+  files: [
+    'dist/main/**',
+    'dist/preload/**',
+    'dist/renderer/**',
+    'resources/**',
+    'package.json',
+    '!node_modules/@embedpdf/fonts-*/fonts/**',
+    '!node_modules/**/*.map',
+    '!node_modules/**/*.d.ts',
+    '!node_modules/**/*.d.mts',
+    '!node_modules/**/*.d.cts',
+  ],
   asarUnpack: ['node_modules/better-sqlite3/**'],
   publish: [
     {

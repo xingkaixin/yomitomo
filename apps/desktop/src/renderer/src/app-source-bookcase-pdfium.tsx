@@ -39,7 +39,7 @@ import {
   List,
   LoaderCircle,
 } from 'lucide-react';
-import type { PdfEngine } from '@embedpdf/models';
+import { FontCharset, type PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
@@ -99,6 +99,7 @@ import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
 import { useSourceReaderSession } from './use-source-reader-session';
+import notoSansScRegularUrl from './assets/fonts/NotoSansSC-Regular.ttf?url';
 import {
   buildPdfTextDocument,
   pdfiumAgentAnnotationRequestOptions,
@@ -130,6 +131,13 @@ type PdfiumLoadedDocument = NonNullable<
 type PdfOpenTrace = {
   articleId: string;
   startedAt: number;
+};
+
+const pdfiumFontFallback = {
+  fonts: {
+    [FontCharset.GB2312]: notoSansScRegularUrl,
+    [FontCharset.CHINESEBIG5]: notoSansScRegularUrl,
+  },
 };
 
 function pdfOpenTrace(articleId: string): PdfOpenTrace {
@@ -199,6 +207,7 @@ export function PdfiumBookcase({
   } = usePdfiumEngine({
     wasmUrl: pdfiumWasmUrl,
     worker: false,
+    fontFallback: pdfiumFontFallback,
   });
 
   useEffect(() => {
