@@ -4,7 +4,7 @@ import { resolveTextAnchor } from '@yomitomo/shared';
 import { annotationToPublicAgent as annotationToAgent } from '@yomitomo/core';
 import { rangeFromOffsets, rangeHighlightBoxes, type HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from './reader-types';
-import { animateTheaterHighlight, sleep } from './reader-utils';
+import { animateTheaterHighlight, sleep } from './reader-animation';
 import type { VirtualReadingMode } from './reader-agent-virtual-reading';
 
 type AgentAnnotationPlaybackOptions = {

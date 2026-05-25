@@ -13,7 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { clampNumber } from '@yomitomo/reader-ui/reader-utils';
+import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { Button } from './components/ui/button';
 import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
 

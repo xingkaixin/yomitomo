@@ -11,7 +11,7 @@ import type {
   AnnotationNavigationState,
   ReaderAppViewProps,
 } from './reader-app-view-types';
-import type { AnnotationRailLayout } from './reader-utils';
+import type { AnnotationRailLayout } from './reader-annotations';
 import { useReaderAnnotationRail } from './use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 

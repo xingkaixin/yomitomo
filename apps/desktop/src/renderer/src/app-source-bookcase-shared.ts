@@ -17,11 +17,8 @@ import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomito
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
-import {
-  annotationNavigationForReferenceIndex,
-  clampNumber,
-  defaultReaderSettings,
-} from '@yomitomo/reader-ui/reader-utils';
+import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
+import { clampNumber, defaultReaderSettings } from '@yomitomo/reader-ui/reader-settings';
 import type { ArticleUpdater, PromptArticle } from './app-reading-types';
 
 const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';

@@ -30,7 +30,7 @@ import {
 } from './reader-agent-annotate-utils';
 import { matchesAgentMentionQuery, mentionDraftWithAgent } from './reader-mention-utils';
 import type { ReaderReadingSection } from './reader-types';
-import { isMessageSendShortcutEvent } from './reader-utils';
+import { isMessageSendShortcutEvent } from './reader-shortcuts';
 
 const coReadingAnalysisPhases = [
   '扫描章节边界',

@@ -76,14 +76,10 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
-import {
-  defaultReaderSettings,
-  getShortcutModifier,
-  selectionActionShortcut,
-  animateTheaterHighlight,
-  sleep,
-  type AnnotationRailLayout,
-} from '@yomitomo/reader-ui/reader-utils';
+import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
+import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
+import { defaultReaderSettings } from '@yomitomo/reader-ui/reader-settings';
+import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
 import { Button } from './components/ui/button';
 import type { PromptArticle } from './app-reading-types';

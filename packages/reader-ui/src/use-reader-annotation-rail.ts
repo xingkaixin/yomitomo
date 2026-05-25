@@ -1,7 +1,7 @@
 import React from 'react';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation } from '@yomitomo/shared';
-import { buildAnnotationRailItems, type AnnotationRailLayout } from './reader-utils';
+import { buildAnnotationRailItems, type AnnotationRailLayout } from './reader-annotations';
 
 const FILTERED_NOTE_EXIT_MS = 190;
 

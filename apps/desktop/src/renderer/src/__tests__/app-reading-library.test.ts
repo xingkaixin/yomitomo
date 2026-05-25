@@ -4,7 +4,7 @@ import type { Annotation } from '@yomitomo/shared';
 import {
   buildAnnotationRailItems,
   readerAnnotationScrollTop,
-} from '@yomitomo/reader-ui/reader-utils';
+} from '@yomitomo/reader-ui/reader-annotations';
 
 function box(input: Partial<HighlightBox> & Pick<HighlightBox, 'annotationId'>): HighlightBox {
   return {

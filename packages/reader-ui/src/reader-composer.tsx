@@ -10,7 +10,7 @@ import {
   mentionDraftWithAgent,
 } from './reader-mention-utils';
 import type { PendingComposer } from './reader-types';
-import { isMessageSendShortcutEvent } from './reader-utils';
+import { isMessageSendShortcutEvent } from './reader-shortcuts';
 
 export function Composer({
   agents,

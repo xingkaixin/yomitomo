@@ -23,7 +23,7 @@ import {
   buildHighlightSegments,
   highlightSegmentStyle,
   type AnnotationRailLayout,
-} from './reader-utils';
+} from './reader-annotations';
 
 export type ReaderSurfaceViewProps = {
   activeId: string | null;

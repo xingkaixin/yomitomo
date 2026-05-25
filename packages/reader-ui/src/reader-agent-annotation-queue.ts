@@ -1,5 +1,5 @@
 import type { Annotation } from '@yomitomo/shared';
-import { agentQueueKey } from './reader-utils';
+import { agentQueueKey } from './reader-annotations';
 
 export class AgentAnnotationQueue {
   private readonly queues = new Map<string, Annotation[]>();

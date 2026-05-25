@@ -44,12 +44,12 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
+import { buildReaderReadingSections } from '@yomitomo/reader-ui/reader-reading-sections';
+import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   buildTocAnnotationStats,
-  getShortcutModifier,
-  buildReaderReadingSections,
   readerAnnotationScrollTop,
-} from '@yomitomo/reader-ui/reader-utils';
+} from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from './app-ui';
 import type { PromptArticle } from './app-reading-types';

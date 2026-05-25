@@ -1,7 +1,7 @@
 import React from 'react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import type { HighlightChoice, PendingComposer, SelectionAction } from './reader-app-view-types';
-import { selectionActionShortcut } from './reader-utils';
+import { selectionActionShortcut } from './reader-shortcuts';
 
 const activeAnnotationPreserveSelector = [
   'button',
