@@ -24,6 +24,10 @@ Yomitomo 支持预设供应商和 OpenAI 兼容自定义供应商。添加供应
 
 API Key 会保存在系统 keyring 中，SQLite 只保留 provider 配置和 key 引用。
 
+## 微信读书
+
+微信读书同步需要单独配置微信读书 API KEY。获取方式见「[获取微信读书 API KEY](/docs/weread-api-key/)」。
+
 ## 任务路由
 
 配置供应商后，需要为不同任务指定模型：

@@ -6,6 +6,7 @@ import {
   Download,
   Eye,
   EyeOff,
+  ExternalLink,
   FileText,
   FolderOpen,
   HardDrive,
@@ -45,6 +46,8 @@ import type { SaveState } from './app-types';
 import { Button } from './components/ui/button';
 import { Kbd } from './components/ui/kbd';
 import { Input } from './components/ui/input';
+
+const WEREAD_API_KEY_HELP_URL = 'https://yomitomo.app/docs/weread-api-key/';
 
 export { AgentForm, AgentSettings } from './app-settings-agent-panel';
 export { ProviderForm } from './app-settings-provider-form';
@@ -401,6 +404,20 @@ export function WeReadSettingsPanel() {
     }
   }
 
+  async function openWeReadApiKeyHelp() {
+    const openUrl = window.yomitomoDesktop?.openUrl;
+    if (!openUrl) {
+      window.open(WEREAD_API_KEY_HELP_URL, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      await openUrl(WEREAD_API_KEY_HELP_URL);
+    } catch {
+      window.open(WEREAD_API_KEY_HELP_URL, '_blank', 'noopener,noreferrer');
+    }
+  }
+
   const canSave = saveState !== 'saving' && Boolean(apiKey.trim());
   const canTest = testState !== 'testing' && (Boolean(apiKey.trim()) || settings.configured);
   const canRemove = saveState !== 'saving' && settings.configured;
@@ -507,6 +524,11 @@ export function WeReadSettingsPanel() {
               移除
             </Button>
           </div>
+          <button className="weread-help-link" type="button" onClick={openWeReadApiKeyHelp}>
+            <Info size={15} />
+            如何获取微信读书 API KEY
+            <ExternalLink size={13} />
+          </button>
           {saveState === 'error' || apiKeyMessage ? (
             <p className="shortcut-tips is-error">{apiKeyMessage || '保存失败，请重试。'}</p>
           ) : testState === 'error' && testMessage ? (

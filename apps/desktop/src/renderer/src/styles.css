@@ -3671,6 +3671,29 @@
   margin-top: 10px;
 }
 
+.weread-help-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: hsl(118 24% 32%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 780;
+  padding: 2px 0;
+  text-align: left;
+}
+
+.weread-help-link:hover,
+.weread-help-link:focus-visible {
+  color: hsl(118 30% 24%);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .weread-remove-action:disabled {
   opacity: 0.46;
 }
