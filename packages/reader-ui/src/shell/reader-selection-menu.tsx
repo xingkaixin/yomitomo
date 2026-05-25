@@ -1,8 +1,8 @@
 import { Copy, MessageSquarePlus } from 'lucide-react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import { normalizeSelectionActionShortcuts } from '@yomitomo/shared';
-import { Kbd } from './components/ui/kbd';
-import type { SelectionMenuAction } from './reader-types';
+import { Kbd } from '../components/ui/kbd';
+import type { SelectionMenuAction } from '../reader-types';
 
 export function SelectionMenu({
   action,

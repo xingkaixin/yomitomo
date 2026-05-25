@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./reader-app-view": "./src/reader-app-view.tsx",
+    "./reader-app-view": "./src/shell/reader-app-view.tsx",
     "./reader-agent-annotation-playback": "./src/agent/reader-agent-annotation-playback.ts",
     "./reader-annotations": "./src/annotations/reader-annotations.ts",
     "./reader-animation": "./src/reader-animation.ts",

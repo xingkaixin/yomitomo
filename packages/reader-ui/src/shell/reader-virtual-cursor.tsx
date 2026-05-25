@@ -1,7 +1,7 @@
 import type React from 'react';
-import { AvatarBadge } from './shared/reader-component-primitives';
-import { cursorColorFromId, cursorSvgId, VIRTUAL_CURSOR_PATH } from './reader-style-utils';
-import type { VirtualCursorState } from './reader-types';
+import { AvatarBadge } from '../shared/reader-component-primitives';
+import { cursorColorFromId, cursorSvgId, VIRTUAL_CURSOR_PATH } from '../reader-style-utils';
+import type { VirtualCursorState } from '../reader-types';
 
 export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
   const color = cursor.agent?.annotationColor || cursorColorFromId(cursor.id);

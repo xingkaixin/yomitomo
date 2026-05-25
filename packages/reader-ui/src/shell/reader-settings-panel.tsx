@@ -1,6 +1,6 @@
 import type React from 'react';
 import { CaseSensitive, Maximize2, Minus, Plus } from 'lucide-react';
-import type { ReaderSettings } from './reader-types';
+import type { ReaderSettings } from '../reader-types';
 
 export function ReaderSettingsPanel({
   panelProps,

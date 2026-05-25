@@ -2,15 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AtSign } from 'lucide-react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { Kbd } from './components/ui/kbd';
-import { AvatarBadge, SubmitShortcutKeys } from './shared/reader-component-primitives';
+import { Kbd } from '../components/ui/kbd';
+import { AvatarBadge, SubmitShortcutKeys } from '../shared/reader-component-primitives';
 import {
   escapeRegExp,
   matchesAgentMentionQuery,
   mentionDraftWithAgent,
-} from './reader-mention-utils';
-import type { PendingComposer } from './reader-types';
-import { isMessageSendShortcutEvent } from './reader-shortcuts';
+} from '../reader-mention-utils';
+import type { PendingComposer } from '../reader-types';
+import { isMessageSendShortcutEvent } from '../reader-shortcuts';
 
 export function Composer({
   agents,
