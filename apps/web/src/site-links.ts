@@ -22,4 +22,5 @@ export const githubUrl = 'https://github.com/xingkaixin/yomitomo';
 export const youtubeUrl = 'https://www.youtube.com/@yomitomo';
 export const xUrl = 'https://x.com/yomitomo';
 export const docsUrl = '/docs/';
+export const wereadApiKeyDocsUrl = '/docs/weread-api-key/';
 export const changelogsUrl = latestChangelog.url;

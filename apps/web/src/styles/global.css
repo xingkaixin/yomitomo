@@ -237,6 +237,23 @@
     line-height: 1.3;
   }
 
+  .install-doc-link {
+    display: inline-flex;
+    width: fit-content;
+    margin-top: 10px;
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-decoration: none;
+    text-underline-offset: 4px;
+  }
+
+  .install-doc-link:hover {
+    text-decoration: underline;
+  }
+
   .download-cards {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

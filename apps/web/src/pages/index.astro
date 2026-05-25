@@ -3,7 +3,7 @@ import desktopPackage from '../../../desktop/package.json';
 import ProductCarousel, { type ProductCarouselSlide } from '../components/ProductCarousel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import { githubUrl, youtubeUrl } from '../site-links';
+import { githubUrl, wereadApiKeyDocsUrl, youtubeUrl } from '../site-links';
 import '../styles/global.css';
 
 const siteUrl = 'https://yomitomo.app';
@@ -247,6 +247,9 @@ const productSlides: ProductCarouselSlide[] = [
                   <span>{releaseTag}</span>
                 </p>
                 <h2 id="install-title" class="install-title">下载 Yomitomo</h2>
+                <a class="install-doc-link" href={wereadApiKeyDocsUrl}>
+                  微信读书 API KEY 获取说明
+                </a>
               </div>
               <div class="download-cards">
                 {
