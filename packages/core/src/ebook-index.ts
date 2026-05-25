@@ -149,22 +149,18 @@ export function locateEpubOffset(
 ): EpubIndexLocation | null {
   if (index.textLength <= 0) return null;
   const cursor = clampInteger(offset, 0, index.textLength - 1);
-  const chapter = findRange(index.chapters, cursor);
-  const segment = findRange(index.segments, cursor, (item) => item.chapterId === chapter?.id);
+  const chapter = findRange(index.chapters, cursor)?.item || null;
+  const segment = findRange(index.segments, cursor)?.item || null;
   if (!chapter || !segment) return null;
 
-  const paragraph = findRange(
-    index.paragraphs,
-    cursor,
-    (item) => item.chapterId === chapter.id && item.segmentId === segment.id,
-  );
+  const paragraph = findRange(index.paragraphs, cursor);
 
   return {
     textStart: cursor,
     textEnd: cursor,
     chapter,
     segment,
-    paragraph,
+    paragraph: paragraph?.item || null,
     paragraphWindow: paragraphWindow(index.paragraphs, paragraph, options.paragraphWindowSize),
   };
 }
@@ -556,32 +552,60 @@ function commonSuffixLength(left: string, right: string) {
   return length;
 }
 
-function findRange<T extends { textStart: number; textEnd: number }>(
-  items: T[],
-  offset: number,
-  predicate: (item: T) => boolean = () => true,
-) {
-  const candidates = items.filter(predicate);
-  const direct = candidates.find((item) => offset >= item.textStart && offset < item.textEnd);
-  if (direct) return direct;
-  for (let index = candidates.length - 1; index >= 0; index -= 1) {
-    const item = candidates[index];
-    if (item && offset >= item.textStart) return item;
+function findRange<T extends { textStart: number; textEnd: number }>(items: T[], offset: number) {
+  if (items.length === 0) return null;
+
+  let low = 0;
+  let high = items.length - 1;
+  let candidateIndex = 0;
+
+  while (low <= high) {
+    const index = Math.floor((low + high) / 2);
+    const item = items[index]!;
+    if (item.textStart <= offset) {
+      candidateIndex = index;
+      low = index + 1;
+    } else {
+      high = index - 1;
+    }
   }
-  return candidates[0] || null;
+
+  for (let index = candidateIndex; index >= 0; index -= 1) {
+    const item = items[index]!;
+    if (offset >= item.textStart && offset < item.textEnd) return { item, index };
+    if (offset >= item.textStart) return { item, index };
+  }
+
+  const first = items[0];
+  return first ? { item: first, index: 0 } : null;
 }
 
 function paragraphWindow(
   paragraphs: EpubParagraphIndex[],
-  paragraph: EpubParagraphIndex | null,
+  paragraph: { item: EpubParagraphIndex; index: number } | null,
   windowSize = 1,
 ) {
   if (!paragraph) return [];
-  const siblingParagraphs = paragraphs.filter((item) => item.chapterId === paragraph.chapterId);
-  const index = siblingParagraphs.findIndex((item) => item.id === paragraph.id);
-  if (index < 0) return [];
   const size = Math.max(0, Math.floor(windowSize));
-  return siblingParagraphs.slice(Math.max(0, index - size), index + size + 1);
+  let start = paragraph.index;
+  let end = paragraph.index;
+
+  while (
+    start > 0 &&
+    paragraph.index - start < size &&
+    paragraphs[start - 1]?.chapterId === paragraph.item.chapterId
+  ) {
+    start -= 1;
+  }
+  while (
+    end + 1 < paragraphs.length &&
+    end - paragraph.index < size &&
+    paragraphs[end + 1]?.chapterId === paragraph.item.chapterId
+  ) {
+    end += 1;
+  }
+
+  return paragraphs.slice(start, end + 1);
 }
 
 function positiveInteger(value: number | undefined, fallback: number) {
