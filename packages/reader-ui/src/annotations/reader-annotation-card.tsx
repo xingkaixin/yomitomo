@@ -11,11 +11,11 @@ import {
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown, reviewOpinionLabelTone } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
-import { ReadingCompletionBurst } from './agent/reader-agent-reading-dock';
-import { AvatarBadge } from './shared/reader-component-primitives';
+import { ReadingCompletionBurst } from '../agent/reader-agent-reading-dock';
+import { AvatarBadge } from '../shared/reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
-import { formatTime } from './reader-date-utils';
-import { noteStyle } from './reader-style-utils';
+import { formatTime } from '../reader-date-utils';
+import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
 
 const DELETE_HOLD_MS = 1600;

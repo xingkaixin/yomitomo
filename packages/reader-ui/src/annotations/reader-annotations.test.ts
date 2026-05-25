@@ -11,12 +11,12 @@ import {
 import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,
-} from './reader-navigation';
+} from '../reader-navigation';
 import {
   isMessageSendShortcutEvent,
   messageSendShortcutKeys,
   selectionActionShortcut,
-} from './reader-shortcuts';
+} from '../reader-shortcuts';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 

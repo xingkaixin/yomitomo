@@ -1,6 +1,6 @@
 import React from 'react';
 import { AgentReadingDock } from './agent/reader-agent-reading-dock';
-import { AnnotationConnection } from './reader-annotation-connection';
+import { AnnotationConnection } from './annotations/reader-annotation-connection';
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
@@ -11,8 +11,8 @@ import type {
   AnnotationNavigationState,
   ReaderAppViewProps,
 } from './reader-app-view-types';
-import type { AnnotationRailLayout } from './reader-annotations';
-import { useReaderAnnotationRail } from './use-reader-annotation-rail';
+import type { AnnotationRailLayout } from './annotations/reader-annotations';
+import { useReaderAnnotationRail } from './annotations/use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
 export type {
