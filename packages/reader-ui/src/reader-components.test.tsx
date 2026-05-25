@@ -3,7 +3,9 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentAnnotateMenu, AnnotationCard, SelectionMenu } from './reader-components';
+import { AgentAnnotateMenu } from './reader-agent-annotate-menu';
+import { AnnotationCard } from './reader-annotation-card';
+import { SelectionMenu } from './reader-selection-menu';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { ReaderReadingSection } from './reader-types';
