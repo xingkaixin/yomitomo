@@ -11,6 +11,7 @@ import {
   rebuildReadingMemoryFts,
   searchReadingMemoryEntries,
   softDeleteReadingMemoryEntriesBySource,
+  upsertReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from './reading-memory-store';
 
@@ -39,6 +40,58 @@ describe('reading memory store', () => {
         executor: database,
       }).map((item) => item.id),
     ).toEqual(['entry_1']);
+  });
+
+  it('upserts deterministic entries and replaces stale FTS rows', () => {
+    const database = memoryDatabase();
+    insertProjection(database);
+
+    upsertReadingMemoryEntries(
+      [
+        entry({
+          id: 'annotation_memory_annotation_1',
+          kind: 'reader_signal',
+          scope: 'reader',
+          sourceType: 'annotation',
+          sourceAnnotationId: 'annotation_1',
+          payload: { source: 'annotation', anchorExact: 'before topic' },
+        }),
+      ],
+      database,
+    );
+    upsertReadingMemoryEntries(
+      [
+        entry({
+          id: 'annotation_memory_annotation_1',
+          kind: 'reader_signal',
+          scope: 'reader',
+          sourceType: 'annotation',
+          sourceAnnotationId: 'annotation_1',
+          payload: { source: 'annotation', anchorExact: 'after topic' },
+          updatedAt: '2026-05-26T01:00:00.000Z',
+        }),
+      ],
+      database,
+    );
+
+    const entries = readReadingMemoryEntries({ articleId: 'article_1', executor: database });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.payload).toMatchObject({ anchorExact: 'after topic' });
+    expect(countRows(database, 'reading_memory_projections')).toBe(0);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'before',
+        executor: database,
+      }),
+    ).toEqual([]);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'after',
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['annotation_memory_annotation_1']);
   });
 
   it('soft-deletes source entries and removes their FTS rows', () => {

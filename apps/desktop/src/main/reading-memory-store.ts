@@ -108,6 +108,25 @@ export function appendReadingMemoryEntries(
   });
 }
 
+export function upsertReadingMemoryEntries(
+  entries: ReadingMemoryEntry[],
+  executor?: ReadingMemorySqliteExecutor,
+  options: { useTransaction?: boolean } = {},
+) {
+  if (entries.length === 0) return;
+  const database = executor || defaultExecutor();
+  const run = () => {
+    const articleIds = new Set<string>();
+    for (const entry of entries) {
+      upsertReadingMemoryEntryInTransaction(database, entry);
+      articleIds.add(entry.articleId);
+    }
+    for (const articleId of articleIds) deleteProjectionRows(database, articleId);
+  };
+  if (options.useTransaction === false) run();
+  else withReadingMemoryTransaction(database, run);
+}
+
 export function appendReadingMemoryCorrection(options: AppendReadingMemoryCorrectionOptions) {
   const executor = options.executor || defaultExecutor();
   return withReadingMemoryTransaction(executor, () => {
@@ -399,35 +418,110 @@ INSERT INTO reading_memory_entries (
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `,
     )
-    .run(
-      entry.id,
-      entry.articleId,
-      entry.kind,
-      entry.scope,
-      entry.visibility,
-      entry.payloadVersion,
-      entry.chapterId || null,
-      entry.segmentId || null,
-      entry.paragraphId || null,
-      entry.textRange?.textStart ?? null,
-      entry.textRange?.textEnd ?? null,
-      entry.agentId || null,
-      entry.readerId || null,
-      entry.sourceType,
-      entry.sourceId || null,
-      entry.sourceAnnotationId || null,
-      entry.sourceCommentId || null,
-      entry.sourceTaskId || null,
-      JSON.stringify(entry.sourceEntryIds),
-      entry.supersedesEntryId || null,
-      entry.anchor ? JSON.stringify(entry.anchor) : null,
-      JSON.stringify(entry.payload),
-      entry.createdAt,
-      entry.updatedAt,
-      entry.deletedAt || null,
-      entry.deletionReason || null,
-    );
+    .run(...readingMemoryEntrySqlValues(entry));
   if (!entry.deletedAt) upsertFtsRow(executor, entry);
+}
+
+function upsertReadingMemoryEntryInTransaction(
+  executor: ReadingMemorySqliteExecutor,
+  input: ReadingMemoryEntry,
+) {
+  const entry = normalizeReadingMemoryEntry(input);
+  if (!entry) throw new Error('阅读记忆 entry 无效');
+  executor
+    .prepare(
+      `
+INSERT INTO reading_memory_entries (
+  id,
+  article_id,
+  kind,
+  scope,
+  visibility,
+  payload_version,
+  chapter_id,
+  segment_id,
+  paragraph_id,
+  text_start,
+  text_end,
+  agent_id,
+  reader_id,
+  source_type,
+  source_id,
+  source_annotation_id,
+  source_comment_id,
+  source_task_id,
+  source_entry_ids,
+  supersedes_entry_id,
+  anchor,
+  payload,
+  created_at,
+  updated_at,
+  deleted_at,
+  deletion_reason
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+  article_id = excluded.article_id,
+  kind = excluded.kind,
+  scope = excluded.scope,
+  visibility = excluded.visibility,
+  payload_version = excluded.payload_version,
+  chapter_id = excluded.chapter_id,
+  segment_id = excluded.segment_id,
+  paragraph_id = excluded.paragraph_id,
+  text_start = excluded.text_start,
+  text_end = excluded.text_end,
+  agent_id = excluded.agent_id,
+  reader_id = excluded.reader_id,
+  source_type = excluded.source_type,
+  source_id = excluded.source_id,
+  source_annotation_id = excluded.source_annotation_id,
+  source_comment_id = excluded.source_comment_id,
+  source_task_id = excluded.source_task_id,
+  source_entry_ids = excluded.source_entry_ids,
+  supersedes_entry_id = excluded.supersedes_entry_id,
+  anchor = excluded.anchor,
+  payload = excluded.payload,
+  created_at = excluded.created_at,
+  updated_at = excluded.updated_at,
+  deleted_at = excluded.deleted_at,
+  deletion_reason = excluded.deletion_reason
+`,
+    )
+    .run(...readingMemoryEntrySqlValues(entry));
+  deleteFtsRows(executor, [entry.id]);
+  if (!entry.deletedAt) upsertFtsRow(executor, entry);
+}
+
+function readingMemoryEntrySqlValues(entry: ReadingMemoryEntry): SqliteValue[] {
+  return [
+    entry.id,
+    entry.articleId,
+    entry.kind,
+    entry.scope,
+    entry.visibility,
+    entry.payloadVersion,
+    entry.chapterId || null,
+    entry.segmentId || null,
+    entry.paragraphId || null,
+    entry.textRange?.textStart ?? null,
+    entry.textRange?.textEnd ?? null,
+    entry.agentId || null,
+    entry.readerId || null,
+    entry.sourceType,
+    entry.sourceId || null,
+    entry.sourceAnnotationId || null,
+    entry.sourceCommentId || null,
+    entry.sourceTaskId || null,
+    JSON.stringify(entry.sourceEntryIds),
+    entry.supersedesEntryId || null,
+    entry.anchor ? JSON.stringify(entry.anchor) : null,
+    JSON.stringify(entry.payload),
+    entry.createdAt,
+    entry.updatedAt,
+    entry.deletedAt || null,
+    entry.deletionReason || null,
+  ];
 }
 
 function upsertFtsRow(executor: ReadingMemorySqliteExecutor, entry: ReadingMemoryEntry) {

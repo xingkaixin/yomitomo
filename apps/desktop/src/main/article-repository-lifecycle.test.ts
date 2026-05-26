@@ -1,11 +1,12 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import type { ReadingMemoryEntry } from '@yomitomo/shared';
+import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from './db/migrations';
 import {
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
+  syncArticleAnnotationMemoryEntries,
 } from './article-repository';
 import {
   appendReadingMemoryEntries,
@@ -146,6 +147,61 @@ describe('article memory lifecycle', () => {
       ),
     ).toEqual(['annotation_entry']);
   });
+
+  it('syncs annotation and comment memory entries from the main store model', () => {
+    const database = lifecycleDatabase();
+
+    syncArticleAnnotationMemoryEntries(
+      {
+        id: 'article_1',
+        annotations: [
+          annotation({
+            id: 'annotation_1',
+            author: 'user',
+            comments: [
+              {
+                id: 'comment_1',
+                author: 'ai',
+                content: 'assistant thread memory',
+                createdAt: '2026-05-26T00:10:00.000Z',
+                agentId: 'agent_1',
+              },
+            ],
+          }),
+        ],
+      },
+      database,
+    );
+
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map((entry) => ({
+        id: entry.id,
+        kind: entry.kind,
+        sourceAnnotationId: entry.sourceAnnotationId,
+        sourceCommentId: entry.sourceCommentId,
+      })),
+    ).toEqual([
+      {
+        id: 'annotation_memory_annotation_1',
+        kind: 'reader_signal',
+        sourceAnnotationId: 'annotation_1',
+        sourceCommentId: undefined,
+      },
+      {
+        id: 'comment_memory_comment_1',
+        kind: 'trace',
+        sourceAnnotationId: 'annotation_1',
+        sourceCommentId: 'comment_1',
+      },
+    ]);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'assistant',
+        executor: database,
+      }).map((entry) => entry.id),
+    ).toEqual(['comment_memory_comment_1']);
+  });
 });
 
 function lifecycleDatabase(): ReadingMemorySqliteExecutor {
@@ -272,6 +328,25 @@ VALUES ('projection_1', 'article_1', 'legacy', 'article_1', '{}', '["entry_1"]',
 `,
     )
     .run('2026-05-26T00:00:00.000Z');
+}
+
+function annotation(overrides: Partial<Annotation> = {}): Annotation {
+  return {
+    id: 'annotation_1',
+    anchor: {
+      start: 10,
+      end: 14,
+      exact: '目标句子',
+      prefix: '前文',
+      suffix: '后文',
+    },
+    author: 'user',
+    color: '#f4c95d',
+    comments: [],
+    createdAt: '2026-05-26T00:00:00.000Z',
+    updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
+  };
 }
 
 function countRows(database: ReadingMemorySqliteExecutor, table: string) {

@@ -158,7 +158,7 @@ export function readingMemoryEntryFromAnnotation(input: {
       updatedAt: annotation.updatedAt,
     },
     createdAt,
-    updatedAt: createdAt,
+    updatedAt: annotation.updatedAt || createdAt,
   };
 }
 
