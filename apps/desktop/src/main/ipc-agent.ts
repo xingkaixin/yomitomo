@@ -16,6 +16,10 @@ import {
   agentMessagePayloadWithReadingMemoryView,
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
+import {
+  runAgentThreadReplyWithToolLoop,
+  type ThreadReplyRuntimeResult,
+} from './agent-thread-runtime';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -59,7 +63,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     return planFocusCoReadingRoute(provider, payload, agents);
   });
   handleDesktopIpc('agent:comment', async (_event, payload) => {
-    const { runAgent } = await context.getAiModule();
+    const ai = await context.getAiModule();
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findCommentAgent(store.agents, payload.agentId, payload.agentUsername);
@@ -70,15 +74,31 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       providerTaskForAgent(agent),
     );
-    const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-      payload: {
-        ...payload,
-        agentRoster: publicCommentAgents(store.agents),
-      },
-      logInfo: context.logInfo,
-      logError: context.logError,
-    });
-    const comment = await runAgent(provider, agent, payloadWithMemory);
+    const payloadWithRoster = {
+      ...payload,
+      agentRoster: publicCommentAgents(store.agents),
+    };
+    const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster)
+      ? await runAgentThreadReplyWithToolLoop({
+          ai,
+          provider,
+          agent,
+          payload: payloadWithRoster,
+        })
+      : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logThreadReplyRuntime(context, runtime);
+    const comment =
+      runtime.status === 'comment'
+        ? runtime.comment
+        : await ai.runAgent(
+            provider,
+            agent,
+            agentMessagePayloadWithReadingMemoryView({
+              payload: payloadWithRoster,
+              logInfo: context.logInfo,
+              logError: context.logError,
+            }),
+          );
     return {
       ...comment,
       id: makeId('comment'),
@@ -119,7 +139,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     ) => {
       const channel = `agent:comment:stream:${input.requestId}`;
       try {
-        const { runAgentStream } = await context.getAiModule();
+        const ai = await context.getAiModule();
         const { readStore } = await context.getStoreModule();
         const store = await readStore();
         const agent = findCommentAgent(
@@ -152,19 +172,34 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           pending: true,
         };
         event.sender.send(channel, { type: 'start', comment });
-        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-          payload: {
-            ...input.payload,
-            agentRoster: publicCommentAgents(store.agents),
-            readingIntent: input.payload.readingIntent || comment.readingIntent,
-          },
-          logInfo: context.logInfo,
-          logError: context.logError,
-        });
-        await runAgentStream(provider, agent, payloadWithMemory, (delta) => {
-          comment.content += delta;
-          event.sender.send(channel, { type: 'delta', delta });
-        });
+        const payloadWithRoster = {
+          ...input.payload,
+          agentRoster: publicCommentAgents(store.agents),
+          readingIntent: input.payload.readingIntent || comment.readingIntent,
+        };
+        const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster)
+          ? await runAgentThreadReplyWithToolLoop({
+              ai,
+              provider,
+              agent,
+              payload: payloadWithRoster,
+            })
+          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logThreadReplyRuntime(context, runtime);
+        if (runtime.status === 'comment') {
+          comment.content = runtime.comment.content;
+          event.sender.send(channel, { type: 'delta', delta: comment.content });
+        } else {
+          const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+            payload: payloadWithRoster,
+            logInfo: context.logInfo,
+            logError: context.logError,
+          });
+          await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
+            comment.content += delta;
+            event.sender.send(channel, { type: 'delta', delta });
+          });
+        }
         event.sender.send(channel, {
           type: 'done',
           comment: { ...comment, pending: false },
@@ -321,6 +356,28 @@ function findReviewAgent(agents: Agent[], agentId: string | undefined, username:
 
 function providerTaskForAgent(agent: Agent): ProviderTask {
   return agent.kind === 'review' ? 'reviewAssistant' : 'readingAssistant';
+}
+
+function shouldUseThreadReplyToolLoop(payload: AgentMessagePayload) {
+  return Boolean(payload.article.id) && !payload.reviewTargetCommentId;
+}
+
+function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadReplyRuntimeResult) {
+  if (result.status === 'comment') {
+    context.logInfo('assistant_runtime.thread_reply', {
+      status: 'comment',
+      stepCount: result.runtime.trace.steps.length,
+      finalActionType: result.runtime.trace.finalActionType,
+      repairUsed: result.runtime.repairUsed,
+    });
+    return;
+  }
+  context.logInfo('assistant_runtime.thread_reply', {
+    status: 'fallback',
+    failureReason: result.failureReason,
+    stepCount: result.runtime?.trace.steps.length,
+    finalActionType: result.runtime?.trace.finalActionType,
+  });
 }
 
 function publicCommentAgents(agents: Agent[]) {
