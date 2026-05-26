@@ -7,4 +7,5 @@ export * from './reading';
 export * from './reading-context';
 export * from './reader-annotations';
 export * from './reading-memory';
+export * from './reading-memory-entries';
 export * from './reader-dom';
