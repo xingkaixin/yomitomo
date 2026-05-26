@@ -52,6 +52,13 @@ export {
   type AssistantToolName,
 } from './assistant-runtime';
 export {
+  callAssistantProviderEvent,
+  createAssistantProviderModelAdapter,
+  parseAssistantProviderEvent,
+  type AssistantProviderAdapterOptions,
+  type AssistantProviderAdapterPayload,
+} from './assistant-provider-adapter';
+export {
   buildSelectionAnnotationContext,
   buildSelectionThreadContext,
   selectionAnnotationContextPrompt,
