@@ -106,6 +106,7 @@ export {
 } from './annotation-metadata';
 export {
   buildAgentMessageSystemPrompt,
+  buildAgentThreadReplyRuntimePayload,
   buildAgentPrompt,
   runAgent,
   runAgentStream,

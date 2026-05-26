@@ -70,6 +70,23 @@ export async function runAgent(
   };
 }
 
+export function buildAgentThreadReplyRuntimePayload(
+  provider: LlmProvider,
+  agent: PromptAgent & { temperature: number },
+  payload: AgentMessagePayload,
+) {
+  const runtimePayload = {
+    ...payload,
+    readingMemoryView: undefined,
+  };
+  return {
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。你可以先调用工具读取当前 thread、anchor 原文、文章 passage 或文章记忆；最终只能返回 \`reply_to_thread\` action，不要返回普通自然语言正文。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n最终 action 要求：\n- type 必须是 "reply_to_thread"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入 thread 的回复正文。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么这样回复。`,
+    maxTokens: 1200,
+    temperature: agent.temperature,
+  };
+}
+
 type PromptAgentIdentity = {
   username?: string;
   nickname?: string;
