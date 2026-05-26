@@ -112,6 +112,7 @@ export {
   runAgentStream,
 } from './agent-message';
 export {
+  buildAgentCoReadingRuntimePayload,
   buildAgentSelectionRuntimePayload,
   runAgentAnnotate,
   runAgentAnnotateStream,

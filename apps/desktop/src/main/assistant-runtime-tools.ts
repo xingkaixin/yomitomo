@@ -222,10 +222,11 @@ function duplicateThoughtEvidence(
     fallbackToSubstring: true,
     executor: input.executor,
   }).filter((entry) => memoryNearAnchor(entry, input.currentAnchor));
-  return entries.map((entry) => ({
-    ...memoryEntryEvidence(entry),
-    summary: `可能重复的既有记忆：${memoryEntrySummary(entry)}`,
-  }));
+  return entries.map((entry) => {
+    const evidence = memoryEntryEvidence(entry);
+    evidence.summary = `可能重复的既有记忆：${memoryEntrySummary(entry)}`;
+    return evidence;
+  });
 }
 
 function fallbackPassageSearch(

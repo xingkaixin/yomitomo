@@ -24,6 +24,10 @@ import {
   runAgentSelectionWithToolLoop,
   type SelectionRuntimeResult,
 } from './agent-selection-runtime';
+import {
+  runAgentCoReadingHybridWithToolLoop,
+  type CoReadingRuntimeResult,
+} from './agent-co-reading-runtime';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -240,8 +244,15 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agent,
           payload: payloadWithMemory,
         })
-      : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logSelectionRuntime(context, runtime);
+      : shouldUseCoReadingHybridToolLoop(payloadWithMemory)
+        ? await runAgentCoReadingHybridWithToolLoop({
+            ai,
+            provider,
+            agent,
+            payload: payloadWithMemory,
+          })
+        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logAnnotateRuntime(context, runtime);
     const result =
       runtime.status === 'result'
         ? runtime.result
@@ -294,8 +305,15 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
               agent,
               payload: payloadWithMemory,
             })
-          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-        logSelectionRuntime(context, runtime);
+          : shouldUseCoReadingHybridToolLoop(payloadWithMemory)
+            ? await runAgentCoReadingHybridWithToolLoop({
+                ai,
+                provider,
+                agent,
+                payload: payloadWithMemory,
+              })
+            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logAnnotateRuntime(context, runtime);
         const result =
           runtime.status === 'result'
             ? runtime.result
@@ -397,6 +415,10 @@ function shouldUseSelectionFirstToolLoop(payload: AgentAnnotatePayload) {
   );
 }
 
+function shouldUseCoReadingHybridToolLoop(payload: AgentAnnotatePayload) {
+  return Boolean(payload.article.id) && Boolean(payload.readingPlan?.length);
+}
+
 function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadReplyRuntimeResult) {
   if (result.status === 'comment') {
     context.logInfo('assistant_runtime.thread_reply', {
@@ -415,7 +437,21 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
   });
 }
 
-function logSelectionRuntime(context: DesktopMainIpcContext, result: SelectionRuntimeResult) {
+function logAnnotateRuntime(
+  context: DesktopMainIpcContext,
+  result: SelectionRuntimeResult | CoReadingRuntimeResult,
+) {
+  if ('traces' in result) {
+    context.logInfo('assistant_runtime.co_reading_section', {
+      status: 'result',
+      annotationCount: result.result.annotations.length,
+      decisionCount: result.traces.length,
+      filteredCount: result.traces.filter((trace) => trace.actionType === 'no_action').length,
+      fallbackCount: result.traces.filter((trace) => trace.status === 'fallback').length,
+    });
+    return;
+  }
+
   if (result.status === 'result') {
     context.logInfo('assistant_runtime.selection_first', {
       status: 'result',
@@ -429,8 +465,8 @@ function logSelectionRuntime(context: DesktopMainIpcContext, result: SelectionRu
   context.logInfo('assistant_runtime.selection_first', {
     status: 'fallback',
     failureReason: result.failureReason,
-    stepCount: result.runtime?.trace.steps.length,
-    finalActionType: result.runtime?.trace.finalActionType,
+    stepCount: 'runtime' in result ? result.runtime?.trace.steps.length : undefined,
+    finalActionType: 'runtime' in result ? result.runtime?.trace.finalActionType : undefined,
   });
 }
 
