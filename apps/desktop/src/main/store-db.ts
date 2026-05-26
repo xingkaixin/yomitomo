@@ -72,6 +72,10 @@ function getSqliteDatabase() {
   return sqlite;
 }
 
+export function getSqliteExecutor() {
+  return getSqliteDatabase();
+}
+
 export async function backupDatabaseFile(targetPath: string) {
   const target = resolve(targetPath);
   const source = resolve(databasePath());
