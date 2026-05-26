@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Agent,
   AgentMessagePayload,
+  Annotation,
   LlmProvider,
   PublicAgent,
   ReadingMemoryEntry,
@@ -1283,6 +1284,73 @@ describe('agent annotations', () => {
     expect(prompt).toContain('article-section memory_view');
     expect(prompt).toContain('用户之前关心第二节的证据');
     expect(prompt).toContain('批注 exact 仍必须来自编排列表里的 sectionText');
+  });
+
+  it('skips repeated reading-plan thoughts on the same article anchor', async () => {
+    const text = '开头。工具的本质是解决问题。后续说明。';
+    const exact = '工具的本质是解决问题';
+    const start = text.indexOf(exact);
+    const existingAnnotation: Annotation = {
+      id: 'annotation_existing',
+      author: 'ai',
+      color: agent.annotationColor,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      anchor: {
+        start,
+        end: start + exact.length,
+        exact,
+        prefix: '开头。',
+        suffix: '。后续说明。',
+      },
+      comments: [
+        {
+          id: 'comment_existing',
+          author: 'ai',
+          content:
+            '这句话是全文的方法论基石。作者用最朴素的表述定义了工具的价值标准，不是功能多，而是能解决真实问题。',
+          createdAt: '2026-05-26T00:00:00.000Z',
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+        },
+      ],
+      createdAt: '2026-05-26T00:00:00.000Z',
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    };
+    const content = JSON.stringify([
+      {
+        exact,
+        type: 'key_point',
+        comment:
+          '这是全文的方法论基石。作者用一句朴素的话定义工具价值标准，不是功能多，而是解决真实问题。',
+      },
+    ]);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+    );
+
+    const annotations = await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      annotations: [existingAnnotation],
+      readingPlan: [
+        {
+          sectionId: 'article',
+          sectionTitle: '全文',
+          sectionStart: 0,
+          sectionEnd: text.length,
+        },
+      ],
+      article: {
+        title: '网页文章',
+        url: 'https://example.test/article',
+        text,
+      },
+    });
+
+    expect(annotations).toEqual([]);
   });
 
   it('generates ebook reading plan annotations segment by segment', async () => {
