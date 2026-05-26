@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks';
 import type {
   MemoryViewType,
   ReaderProgress,
@@ -15,6 +16,7 @@ import {
 } from '@yomitomo/core';
 import { getSqliteExecutor } from './store-db';
 
+type PerformanceLogger = (event: string, data?: Record<string, unknown>) => void;
 type SqliteValue = string | number | null;
 type SqliteStatement = {
   run: (...values: SqliteValue[]) => unknown;
@@ -34,6 +36,7 @@ export type ReadReadingMemoryEntriesOptions = {
   segmentId?: string;
   includeDeleted?: boolean;
   applySupersedes?: boolean;
+  performanceLogger?: PerformanceLogger;
   executor?: ReadingMemorySqliteExecutor;
 };
 
@@ -41,6 +44,7 @@ export type SearchReadingMemoryEntriesOptions = {
   articleId: string;
   query: string;
   limit?: number;
+  performanceLogger?: PerformanceLogger;
   executor?: ReadingMemorySqliteExecutor;
 };
 
@@ -54,6 +58,7 @@ export type BuildReadingMemoryViewOptions = {
   readerProgress?: ReaderProgress;
   structuredLimit?: number;
   ftsLimit?: number;
+  performanceLogger?: PerformanceLogger;
   executor?: ReadingMemorySqliteExecutor;
 };
 
@@ -133,6 +138,7 @@ export function appendReadingMemoryCorrection(options: AppendReadingMemoryCorrec
 }
 
 export function readReadingMemoryEntries(options: ReadReadingMemoryEntriesOptions) {
+  const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
   const { where, values } = readingMemoryWhereClause(options);
   const rows = executor
@@ -149,13 +155,31 @@ ORDER BY created_at ASC, id ASC
     const entry = rowToReadingMemoryEntry(row);
     return entry ? [entry] : [];
   });
-  return options.applySupersedes === false ? entries : applySupersededEntryFilter(entries);
+  const result = options.applySupersedes === false ? entries : applySupersededEntryFilter(entries);
+  logReadingMemoryTiming(options.performanceLogger, 'entry_query', startedAt, {
+    articleId: options.articleId,
+    kind: options.kind,
+    scope: options.scope,
+    chapterId: options.chapterId,
+    segmentId: options.segmentId,
+    includeDeleted: Boolean(options.includeDeleted),
+    entryCount: result.length,
+  });
+  return result;
 }
 
 export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOptions) {
+  const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
   const query = options.query.trim();
-  if (!query) return [];
+  if (!query) {
+    logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
+      articleId: options.articleId,
+      queryLength: 0,
+      entryCount: 0,
+    });
+    return [];
+  }
   const limit = Math.max(1, Math.min(options.limit || 20, 100));
   const rows = executor
     .prepare(
@@ -170,26 +194,42 @@ LIMIT ?
     )
     .all(query, options.articleId, limit) as Array<{ entryId: string }>;
   const ids = rows.map((row) => row.entryId).filter(Boolean);
-  if (ids.length === 0) return [];
+  if (ids.length === 0) {
+    logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
+      articleId: options.articleId,
+      queryLength: query.length,
+      entryCount: 0,
+    });
+    return [];
+  }
 
   const entries = readReadingMemoryEntries({
     articleId: options.articleId,
     executor,
   });
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
-  return ids.flatMap((id) => {
+  const result = ids.flatMap((id) => {
     const entry = byId.get(id);
     return entry ? [entry] : [];
   });
+  logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
+    articleId: options.articleId,
+    queryLength: query.length,
+    limit,
+    entryCount: result.length,
+  });
+  return result;
 }
 
 export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {
+  const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
   const structuredLimit = normalizeLimit(options.structuredLimit, 12, 50);
   const ftsLimit = normalizeLimit(options.ftsLimit, 5, 20);
   const structured = readReadingMemoryEntries({
     articleId: options.articleId,
     includeDeleted: false,
+    performanceLogger: options.performanceLogger,
     executor,
   })
     .filter((entry) => structuredMemoryViewEntry(entry, options))
@@ -209,6 +249,7 @@ export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): 
       articleId: options.articleId,
       query,
       limit: ftsLimit * 3,
+      performanceLogger: options.performanceLogger,
       executor,
     })) {
       if (entries.length >= structured.length + ftsLimit) break;
@@ -224,7 +265,7 @@ export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): 
     }
   }
 
-  return {
+  const view = {
     articleId: options.articleId,
     viewType: options.viewType,
     viewKey: memoryViewKey(options),
@@ -232,6 +273,15 @@ export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): 
     sourceEntryIds: entries.map((item) => item.entry.id),
     updatedAt: latestMemoryEntryUpdatedAt(entries.map((item) => item.entry)),
   };
+  logReadingMemoryTiming(options.performanceLogger, 'view_build', startedAt, {
+    articleId: options.articleId,
+    viewType: options.viewType,
+    viewKey: view.viewKey,
+    structuredCount: structured.length,
+    ftsCount: entries.filter((item) => item.source === 'fts').length,
+    entryCount: entries.length,
+  });
+  return view;
 }
 
 export function softDeleteReadingMemoryEntriesBySource(
@@ -574,6 +624,18 @@ function latestMemoryEntryUpdatedAt(entries: ReadingMemoryEntry[]) {
 
 function normalizeLimit(value: number | undefined, fallback: number, max: number) {
   return Math.max(1, Math.min(value || fallback, max));
+}
+
+function logReadingMemoryTiming(
+  logger: PerformanceLogger | undefined,
+  phase: string,
+  startedAt: number,
+  data: Record<string, unknown>,
+) {
+  logger?.(`performance.reading_memory.${phase}`, {
+    ...data,
+    durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+  });
 }
 
 function rowToReadingMemoryEntry(row: unknown): ReadingMemoryEntry | null {

@@ -19,6 +19,8 @@ import type {
 import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
+  performanceElapsedMs,
+  performanceStart,
   segmentAnnotationSpoilerPolicy,
   type CreateAgentAnnotationOptions,
   type ReadingContextPassageInput,
@@ -178,6 +180,11 @@ function buildSegmentAnnotationContext(input: {
       readerProgress,
     ),
   });
+  const memoryViewBlocks = timedMemoryViewBlocks(payload.readingMemoryView, {
+    articleId: index.articleId,
+    chapterId: chapter.id,
+    segmentId: segment.id,
+  });
 
   return {
     task: 'chapter_segment_annotation',
@@ -249,7 +256,7 @@ function buildSegmentAnnotationContext(input: {
       },
     },
     retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
-    memoryViewBlocks: memoryViewContextBlocks(payload.readingMemoryView),
+    memoryViewBlocks,
     previousMemory: previousSegmentMemory(
       index,
       payload.article.text,
@@ -279,6 +286,23 @@ function buildSegmentAnnotationContext(input: {
       },
     },
   };
+}
+
+function timedMemoryViewBlocks(
+  view: AgentAnnotatePayload['readingMemoryView'],
+  data: Record<string, unknown>,
+) {
+  const startedAt = performanceStart();
+  const blocks = memoryViewContextBlocks(view);
+  logAiInfo('performance.reading_memory.context_assembly', {
+    ...data,
+    viewType: view?.viewType,
+    viewKey: view?.viewKey,
+    entryCount: view?.entries.length || 0,
+    blockCount: blocks.length,
+    durationMs: performanceElapsedMs(startedAt),
+  });
+  return blocks;
 }
 
 function segmentRelatedPassages(

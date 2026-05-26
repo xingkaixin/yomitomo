@@ -185,6 +185,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     );
     const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
       payload,
+      logInfo: context.logInfo,
       logError: context.logError,
     });
     const result = await runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
@@ -226,6 +227,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         event.sender.send(channel, { type: 'start' });
         const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
           payload: input.payload,
+          logInfo: context.logInfo,
           logError: context.logError,
         });
         const result = await runAgentAnnotateStream(

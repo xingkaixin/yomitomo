@@ -6,7 +6,6 @@ import type {
   Comment as AnnotationComment,
   FocusCoReadingPlan,
   PublicAgent,
-  ReadingMemory,
 } from '@yomitomo/shared';
 import {
   makeId,
@@ -21,7 +20,6 @@ import {
   createUserComment,
   createUserAnnotation,
   findMentionedAgents,
-  mergeReadingMemory,
   type TocItem,
 } from '@yomitomo/core';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
@@ -169,8 +167,6 @@ export function EbookBookcase({
           context.articleText,
           Boolean(options.targetAnchor),
         ),
-      onReadingMemory: ({ context, readingMemory }) =>
-        saveFocusCoReadingReadingMemory(context.articleId, readingMemory),
       onEmpty: async ({ agent, context, options, playback }) => {
         if (isCurrentArticle(context.articleId)) {
           finishEmptyEbookPlayback(agent, options.targetAnchor);
@@ -706,31 +702,6 @@ export function EbookBookcase({
         updatedAt: new Date().toISOString(),
       };
       if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
-      return nextArticle;
-    });
-  }
-
-  async function saveFocusCoReadingReadingMemory(
-    articleId: string,
-    readingMemory: ReadingMemory | undefined,
-  ) {
-    if (!readingMemory) return;
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const plan = targetArticle.focusCoReadingPlan;
-      if (!plan) return null;
-      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
-      if (!mergedMemory) return null;
-      const now = new Date().toISOString();
-      const nextArticle = {
-        ...targetArticle,
-        focusCoReadingPlan: {
-          ...plan,
-          readingMemory: mergedMemory,
-          updatedAt: now,
-        },
-        updatedAt: now,
-      };
-      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
       return nextArticle;
     });
   }
