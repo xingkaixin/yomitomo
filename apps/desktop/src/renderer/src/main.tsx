@@ -579,7 +579,11 @@ function App() {
                 />
               ) : null}
               {activeSettingsSection === 'about' ? (
-                <ActiveAboutSettings onStartOnboarding={startOnboarding} />
+                <ActiveAboutSettings
+                  settings={store.settings}
+                  onStartOnboarding={startOnboarding}
+                  onStoreUpdated={applyStore}
+                />
               ) : null}
             </ActiveSettingsSectionShell>
           ) : null}

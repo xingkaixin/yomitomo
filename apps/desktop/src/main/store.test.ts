@@ -58,6 +58,7 @@ describe('desktop store settings', () => {
           messageSendShortcut: 'mod-enter',
           selectionActionShortcuts: { copy: 'X', annotate: 'B' },
           saveArticleImages: true,
+          developerModeEnabled: false,
           logRetentionDays: 30,
           onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
         },
@@ -69,6 +70,7 @@ describe('desktop store settings', () => {
       messageSendShortcut: 'mod-enter',
       selectionActionShortcuts: { copy: 'X', annotate: 'B' },
       saveArticleImages: true,
+      developerModeEnabled: false,
       logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
     });

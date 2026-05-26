@@ -2,6 +2,11 @@ import { performance } from 'node:perf_hooks';
 import type { DesktopStoreGetResult } from '../app-store-errors';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import {
+  clearAgentRuntimeTraces,
+  getAgentRuntimeTracePath,
+  readAgentRuntimeTraces,
+} from './agent-runtime-trace-log';
 import { clearLogFile, getLogPath, readLogFile } from './logger';
 
 export function registerStoreDataIpc(context: DesktopMainIpcContext) {
@@ -65,6 +70,9 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('log:path', () => getLogPath());
   handleDesktopIpc('log:read', () => readLogFile());
   handleDesktopIpc('log:clear', () => clearLogFile());
+  handleDesktopIpc('agent-trace:path', () => getAgentRuntimeTracePath());
+  handleDesktopIpc('agent-trace:list', (_event, input) => readAgentRuntimeTraces(input));
+  handleDesktopIpc('agent-trace:clear', () => clearAgentRuntimeTraces());
   handleDesktopIpc('updates:get-status', async () => {
     const { getAppUpdateState } = await context.getAppUpdaterModule();
     return getAppUpdateState();

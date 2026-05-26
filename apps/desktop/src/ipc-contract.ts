@@ -59,6 +59,49 @@ export type DataManagementPaths = {
   databaseFile: string;
 };
 
+export type AgentRuntimeTraceTaskType = 'thread_reply' | 'selection_first' | 'co_reading_section';
+
+export type AgentRuntimeTraceStatus =
+  | 'comment'
+  | 'result'
+  | 'fallback'
+  | 'final'
+  | 'kept_without_runtime';
+
+export type AgentRuntimeTraceListInput = {
+  taskType?: AgentRuntimeTraceTaskType | 'all';
+  agentId?: string;
+  articleId?: string;
+  failureOnly?: boolean;
+  limit?: number;
+};
+
+export type AgentRuntimeTraceDecision = {
+  annotationId: string;
+  status: AgentRuntimeTraceStatus;
+  actionType?: string;
+  failureReason?: string;
+};
+
+export type AgentRuntimeTraceEntry = {
+  id: string;
+  at: string;
+  taskType: AgentRuntimeTraceTaskType;
+  agentId: string;
+  articleId: string;
+  status: AgentRuntimeTraceStatus;
+  finalActionType?: string;
+  failureReason?: string;
+  stepCount: number;
+  repairUsed?: boolean;
+  annotationCount?: number;
+  decisionCount?: number;
+  filteredCount?: number;
+  fallbackCount?: number;
+  trace?: unknown;
+  decisions?: AgentRuntimeTraceDecision[];
+};
+
 export type DatabaseBackupResult = { canceled: true } | { canceled: false; filePath: string };
 
 export type DatabaseRestoreResult =
@@ -134,6 +177,18 @@ export type DesktopIpcInvokeMap = {
   'agent:save': {
     args: [agent: Partial<Agent>];
     result: DesktopStore;
+  };
+  'agent-trace:clear': {
+    args: [];
+    result: void;
+  };
+  'agent-trace:list': {
+    args: [input?: AgentRuntimeTraceListInput];
+    result: AgentRuntimeTraceEntry[];
+  };
+  'agent-trace:path': {
+    args: [];
+    result: string;
   };
   'annotation:metadata': {
     args: [payload: AnnotationMetadataPayload];

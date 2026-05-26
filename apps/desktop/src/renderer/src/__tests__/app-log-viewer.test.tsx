@@ -39,6 +39,39 @@ function installDesktopAboutApi() {
       return () => undefined;
     }),
     openUrl: vi.fn().mockResolvedValue(undefined),
+    saveSettings: vi.fn().mockImplementation((settings) =>
+      Promise.resolve({
+        user: {
+          id: 'user_local',
+          nickname: '我',
+          username: 'me',
+          avatar: '',
+          annotationColor: '#f4c95d',
+          updatedAt: '',
+        },
+        settings,
+        providers: [],
+        agents: [],
+        articles: [],
+      }),
+    ),
+    getAgentRuntimeTracePath: vi.fn().mockResolvedValue('/tmp/yomitomo-agent-trace.jsonl'),
+    listAgentRuntimeTraces: vi.fn().mockResolvedValue([
+      {
+        id: 'trace_1',
+        at: '2026-05-26T00:00:00.000Z',
+        taskType: 'selection_first',
+        agentId: 'agent_1',
+        articleId: 'article_1',
+        status: 'result',
+        finalActionType: 'add_annotation',
+        stepCount: 2,
+        repairUsed: false,
+        annotationCount: 1,
+        trace: { steps: [] },
+      },
+    ]),
+    clearAgentRuntimeTraces: vi.fn().mockResolvedValue(undefined),
     emitUpdate: (state: AppUpdateState) => {
       updateListeners.forEach((listener) => listener(state));
     },
@@ -157,5 +190,41 @@ describe('AboutSettings', () => {
     expect(screen.getByText('JetBrains Mono')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /JetBrains Mono/ }));
     expect(screen.getAllByText('OFL-1.1').length).toBeGreaterThan(0);
+  });
+
+  it('saves developer mode from the about panel', async () => {
+    const desktop = installDesktopAboutApi();
+    const onStoreUpdated = vi.fn();
+
+    render(<AboutSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Trace 面板/ }));
+
+    await waitFor(() =>
+      expect(desktop.saveSettings).toHaveBeenCalledWith({ developerModeEnabled: true }),
+    );
+    expect(onStoreUpdated).toHaveBeenCalledOnce();
+  });
+
+  it('shows and filters agent traces when developer mode is enabled', async () => {
+    const desktop = installDesktopAboutApi();
+
+    render(<AboutSettings settings={{ developerModeEnabled: true }} />);
+
+    expect(await screen.findByText('Agent Trace')).toBeTruthy();
+    expect(await screen.findByText('selection_first')).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText('agent id'), { target: { value: 'agent_1' } });
+    fireEvent.click(screen.getByRole('button', { name: /刷新/ }));
+
+    await waitFor(() =>
+      expect(desktop.listAgentRuntimeTraces).toHaveBeenLastCalledWith({
+        taskType: 'all',
+        agentId: 'agent_1',
+        articleId: '',
+        failureOnly: false,
+        limit: 100,
+      }),
+    );
   });
 });

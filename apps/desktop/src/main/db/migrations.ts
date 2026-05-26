@@ -591,4 +591,10 @@ CREATE INDEX IF NOT EXISTS reading_memory_agent_lookup_idx
 ON reading_memory_entries(article_id, agent_id, visibility, deleted_at, created_at);
 `,
   },
+  {
+    id: '0037_developer_mode_setting',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN developer_mode_enabled INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];

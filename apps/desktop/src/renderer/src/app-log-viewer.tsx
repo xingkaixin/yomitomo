@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BookOpen,
+  Bug,
   ChevronDown,
   ChevronRight,
   Download,
@@ -13,13 +14,15 @@ import {
   RefreshCw,
   Search,
   Tag,
+  Trash2,
   X,
 } from 'lucide-react';
 import thirdPartyNoticesRaw from '../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { PanelHeader } from './app-ui';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
-import type { AppInfo } from '../../preload';
+import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import type { AgentRuntimeTraceEntry, AgentRuntimeTraceListInput, AppInfo } from '../../preload';
 import type { AppUpdateState } from '../../app-update-types';
 
 type LicensePackage = {
@@ -37,12 +40,17 @@ const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 
 export function AboutSettings({
   onStartOnboarding = () => undefined,
+  settings = {},
+  onStoreUpdated = () => undefined,
 }: {
   onStartOnboarding?: () => void;
+  settings?: AppSettings;
+  onStoreUpdated?: (store: DesktopStore) => void;
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
   const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
   const [licensesOpen, setLicensesOpen] = useState(false);
+  const [developerModeSaving, setDeveloperModeSaving] = useState(false);
 
   useEffect(() => {
     const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
@@ -79,8 +87,24 @@ export function AboutSettings({
     setUpdateState(nextState);
   }
 
+  async function toggleDeveloperMode() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.saveSettings !== 'function') return;
+    setDeveloperModeSaving(true);
+    try {
+      const nextStore = await desktop.saveSettings({
+        ...settings,
+        developerModeEnabled: !settings.developerModeEnabled,
+      });
+      onStoreUpdated(nextStore);
+    } finally {
+      setDeveloperModeSaving(false);
+    }
+  }
+
   const updateCopy = updateStateCopy(updateState);
   const updateButton = updateAction(updateState);
+  const developerModeEnabled = Boolean(settings.developerModeEnabled);
 
   return (
     <div className="settings-panel">
@@ -165,6 +189,35 @@ export function AboutSettings({
           actionIcon={<Play size={15} />}
           onAction={onStartOnboarding}
         />
+        <section className="about-card about-developer-card">
+          <div className="about-card-heading">
+            <span>
+              <Bug size={18} />
+            </span>
+            <div>
+              <h3>开发者模式</h3>
+              <p>显示 agent runtime trace 和本地调试入口。</p>
+            </div>
+          </div>
+          <label className="settings-toggle-card about-developer-toggle">
+            <span className="settings-toggle-main">
+              <span className="settings-toggle-icon">
+                <Bug size={17} />
+              </span>
+              <span>
+                <strong>Trace 面板</strong>
+                <em>{developerModeEnabled ? '已启用' : '已隐藏'}</em>
+              </span>
+            </span>
+            <input
+              checked={developerModeEnabled}
+              disabled={developerModeSaving}
+              type="checkbox"
+              onChange={toggleDeveloperMode}
+            />
+            <span className="settings-toggle-switch" aria-hidden="true" />
+          </label>
+        </section>
         <AboutActionCard
           icon={<Package size={18} />}
           title="开源许可证"
@@ -172,9 +225,184 @@ export function AboutSettings({
           actionLabel="查看许可证"
           onAction={() => setLicensesOpen(true)}
         />
+        {developerModeEnabled ? <AgentRuntimeTracePanel /> : null}
       </div>
       {licensesOpen ? <OpenSourceLicensesDialog onClose={() => setLicensesOpen(false)} /> : null}
     </div>
+  );
+}
+
+function AgentRuntimeTracePanel() {
+  const [taskType, setTaskType] = useState<AgentRuntimeTraceListInput['taskType']>('all');
+  const [agentId, setAgentId] = useState('');
+  const [articleId, setArticleId] = useState('');
+  const [failureOnly, setFailureOnly] = useState(false);
+  const [traces, setTraces] = useState<AgentRuntimeTraceEntry[]>([]);
+  const [tracePath, setTracePath] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+
+  useEffect(() => {
+    void refreshTraces();
+  }, []);
+
+  async function refreshTraces() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.listAgentRuntimeTraces !== 'function') return;
+    setBusy(true);
+    setStatus('');
+    try {
+      const [nextTraces, nextPath] = await Promise.all([
+        desktop.listAgentRuntimeTraces({ taskType, agentId, articleId, failureOnly, limit: 100 }),
+        typeof desktop.getAgentRuntimeTracePath === 'function'
+          ? desktop.getAgentRuntimeTracePath()
+          : Promise.resolve(''),
+      ]);
+      setTraces(nextTraces);
+      setTracePath(nextPath);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '读取 trace 失败。');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearTraces() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.clearAgentRuntimeTraces !== 'function') return;
+    setBusy(true);
+    try {
+      await desktop.clearAgentRuntimeTraces();
+      setTraces([]);
+      setStatus('Trace 已清空。');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '清空 trace 失败。');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="about-card agent-trace-panel" aria-labelledby="agent-trace-title">
+      <div className="about-card-heading">
+        <span>
+          <Bug size={18} />
+        </span>
+        <div>
+          <h3 id="agent-trace-title">Agent Trace</h3>
+          <p>最近 100 条 tool loop runtime 记录。</p>
+        </div>
+      </div>
+
+      <div className="agent-trace-filters">
+        <label>
+          <span>任务</span>
+          <select
+            value={taskType}
+            onChange={(event) =>
+              setTaskType(event.target.value as AgentRuntimeTraceListInput['taskType'])
+            }
+          >
+            <option value="all">全部</option>
+            <option value="thread_reply">Thread reply</option>
+            <option value="selection_first">Selection first</option>
+            <option value="co_reading_section">Co-reading</option>
+          </select>
+        </label>
+        <label>
+          <span>Agent</span>
+          <Input
+            placeholder="agent id"
+            value={agentId}
+            onChange={(event) => setAgentId(event.target.value)}
+          />
+        </label>
+        <label>
+          <span>Article</span>
+          <Input
+            placeholder="article id"
+            value={articleId}
+            onChange={(event) => setArticleId(event.target.value)}
+          />
+        </label>
+        <label className="agent-trace-check">
+          <input
+            checked={failureOnly}
+            type="checkbox"
+            onChange={(event) => setFailureOnly(event.target.checked)}
+          />
+          <span>仅失败</span>
+        </label>
+      </div>
+
+      <div className="agent-trace-actions">
+        <Button
+          className={busy ? 'action-button about-update-action is-loading' : 'action-button'}
+          disabled={busy}
+          type="button"
+          onClick={refreshTraces}
+        >
+          <RefreshCw size={15} />
+          刷新
+        </Button>
+        <Button
+          className="action-button data-danger-action"
+          disabled={busy || traces.length === 0}
+          type="button"
+          variant="secondary"
+          onClick={clearTraces}
+        >
+          <Trash2 size={15} />
+          清空
+        </Button>
+        {tracePath ? <code>{tracePath}</code> : null}
+      </div>
+
+      {status ? <p className="agent-trace-status">{status}</p> : null}
+      <div className="agent-trace-list" role="list">
+        {traces.length === 0 ? (
+          <p className="agent-trace-empty">暂无 trace。</p>
+        ) : (
+          traces.map((trace) => <AgentRuntimeTraceItem key={trace.id} trace={trace} />)
+        )}
+      </div>
+    </section>
+  );
+}
+
+function AgentRuntimeTraceItem({ trace }: { trace: AgentRuntimeTraceEntry }) {
+  const detail = trace.trace || trace.decisions || {};
+  return (
+    <article className="agent-trace-item" role="listitem">
+      <header>
+        <strong>{trace.taskType}</strong>
+        <span>{trace.status}</span>
+        <time>{new Date(trace.at).toLocaleString()}</time>
+      </header>
+      <dl>
+        <div>
+          <dt>Agent</dt>
+          <dd>{trace.agentId || '-'}</dd>
+        </div>
+        <div>
+          <dt>Article</dt>
+          <dd>{trace.articleId || '-'}</dd>
+        </div>
+        <div>
+          <dt>Steps</dt>
+          <dd>{trace.stepCount}</dd>
+        </div>
+        <div>
+          <dt>Action</dt>
+          <dd>{trace.finalActionType || '-'}</dd>
+        </div>
+      </dl>
+      {trace.failureReason ? <p>{trace.failureReason}</p> : null}
+      <details>
+        <summary>Raw trace</summary>
+        <pre>{JSON.stringify(detail, null, 2)}</pre>
+      </details>
+    </article>
   );
 }
 
