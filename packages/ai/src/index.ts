@@ -27,6 +27,31 @@ export {
 } from './context-packing';
 export { memoryViewContextBlocks } from './reading-view-assembler';
 export {
+  DEFAULT_ASSISTANT_RUNTIME_BUDGETS,
+  runAssistantToolRuntime,
+  validateAssistantFinalAction,
+  type AssistantEvidence,
+  type AssistantEvidenceProvenance,
+  type AssistantFinalAction,
+  type AssistantProviderEvent,
+  type AssistantProviderFailureEvent,
+  type AssistantProviderFinalActionEvent,
+  type AssistantProviderInvalidResponseEvent,
+  type AssistantProviderToolCallEvent,
+  type AssistantRuntimeBudget,
+  type AssistantRuntimeOptions,
+  type AssistantRuntimeResult,
+  type AssistantRuntimeTaskType,
+  type AssistantRuntimeTrace,
+  type AssistantRuntimeTraceStep,
+  type AssistantRuntimeTurn,
+  type AssistantToolCall,
+  type AssistantToolDefinition,
+  type AssistantToolExecutionResult,
+  type AssistantToolEvidenceInput,
+  type AssistantToolName,
+} from './assistant-runtime';
+export {
   buildSelectionAnnotationContext,
   buildSelectionThreadContext,
   selectionAnnotationContextPrompt,
