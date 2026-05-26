@@ -54,7 +54,40 @@ function memoryEntryBlockText(entry: ReadingMemoryEntry) {
     return `correction: ${entry.payload.reason}${replacement}`;
   }
 
+  const sourcePayload = memorySourcePayloadText(entry);
+  if (sourcePayload) return sourcePayload;
+
   if (entry.kind === 'retrieval_note') return stringifyValue(entry.payload);
+  return '';
+}
+
+function memorySourcePayloadText(entry: ReadingMemoryEntry) {
+  if (!isRecord(entry.payload)) return '';
+  const payload = entry.payload as Record<string, unknown>;
+  const source = stringField(payload.source);
+  const author = stringField(payload.author);
+  const authorPrefix = author ? `${author} ` : '';
+
+  if (source === 'comment') {
+    const content = stringField(payload.content);
+    if (!content) return '';
+    return `${authorPrefix}comment: ${content}`;
+  }
+
+  if (source === 'annotation') {
+    const anchorExact = stringField(payload.anchorExact);
+    const annotationType = stringField(payload.annotationType);
+    const readingIntent = stringField(payload.readingIntent);
+    const whyHere = stringField(payload.whyHere);
+    const parts = [
+      anchorExact ? `selection: ${anchorExact}` : '',
+      annotationType ? `type: ${annotationType}` : '',
+      readingIntent ? `intent: ${readingIntent}` : '',
+      whyHere ? `why: ${whyHere}` : '',
+    ].filter(Boolean);
+    return parts.length > 0 ? `${authorPrefix}annotation\n${parts.join('\n')}` : '';
+  }
+
   return '';
 }
 
@@ -110,4 +143,8 @@ function stringifyValue(value: unknown) {
   } catch {
     return String(value);
   }
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }

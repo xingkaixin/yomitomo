@@ -979,6 +979,71 @@ describe('agent annotations', () => {
     expect(annotations[0]?.anchor.exact).toBe('第二章已读论证');
   });
 
+  it('includes selection memory view for target annotation prompts', async () => {
+    const content = JSON.stringify([{ exact: '目标句子', type: 'question', comment: '一' }]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+
+    await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      targetAnchor: {
+        start: 3,
+        end: 7,
+        exact: '目标句子',
+        prefix: '前文',
+        suffix: '后文',
+      },
+      article: {
+        title: '短文',
+        url: 'https://example.test/article',
+        text: '前文目标句子后文。',
+      },
+      readingMemoryView: {
+        articleId: 'article_1',
+        viewType: 'selection',
+        viewKey: 'selection:::3:7',
+        sourceEntryIds: ['comment_memory_comment_1'],
+        updatedAt: '2026-05-26T00:00:00.000Z',
+        entries: [
+          {
+            source: 'structured',
+            entry: {
+              id: 'comment_memory_comment_1',
+              articleId: 'article_1',
+              kind: 'reader_signal',
+              scope: 'reader',
+              visibility: 'default',
+              payloadVersion: 1,
+              textRange: { textStart: 3, textEnd: 7 },
+              sourceType: 'comment',
+              sourceCommentId: 'comment_1',
+              sourceEntryIds: [],
+              payload: {
+                source: 'comment',
+                author: 'user',
+                content: '用户之前关心这里的因果关系',
+              },
+              createdAt: '2026-05-26T00:00:00.000Z',
+              updatedAt: '2026-05-26T00:00:00.000Z',
+            },
+          },
+        ],
+      },
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    const prompt = requestBody.messages[1]?.content || '';
+    expect(prompt).toContain('selection memory_view');
+    expect(prompt).toContain('用户之前关心这里的因果关系');
+    expect(prompt).toContain('批注锚点仍必须保持为目标选区本身');
+  });
+
   it('scopes ebook reading plan annotations to the current segment range', async () => {
     const chapters = [
       {

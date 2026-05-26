@@ -113,6 +113,58 @@ describe('agent reading memory persistence', () => {
     expect(payload.readingMemoryView?.viewType).toBe('segment');
   });
 
+  it('attaches a selection memory view for target annotations', () => {
+    const logInfo = vi.fn();
+    memoryStore.readReadingMemoryEntries.mockReturnValue([]);
+    memoryStore.buildReadingMemoryView.mockReturnValue({
+      articleId: 'article_1',
+      viewType: 'selection',
+      viewKey: 'selection:::2:6',
+      entries: [
+        {
+          source: 'structured',
+          entry: memoryEntry({
+            id: 'comment_memory_comment_1',
+            kind: 'trace',
+            scope: 'agent',
+            textRange: { textStart: 2, textEnd: 6 },
+            sourceType: 'comment',
+            sourceCommentId: 'comment_1',
+            payload: { source: 'comment', author: 'ai', content: '既有讨论' },
+          }),
+        },
+      ],
+      sourceEntryIds: ['comment_memory_comment_1'],
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    });
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({
+        targetAnchor: {
+          start: 2,
+          end: 6,
+          exact: '目标句子',
+          prefix: '前文',
+          suffix: '后文',
+        },
+        instruction: '解释这里',
+      }),
+      logInfo,
+      logError: vi.fn(),
+    });
+
+    expect(memoryStore.buildReadingMemoryView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'article_1',
+        viewType: 'selection',
+        textRange: { textStart: 2, textEnd: 6 },
+        query: expect.stringContaining('目标句子'),
+        performanceLogger: logInfo,
+      }),
+    );
+    expect(payload.readingMemoryView?.viewType).toBe('selection');
+  });
+
   it('keeps legacy annotate payload memory when no entries exist', () => {
     memoryStore.readReadingMemoryEntries.mockReturnValue([]);
     const legacyMemory = annotatePayload().readingMemory;

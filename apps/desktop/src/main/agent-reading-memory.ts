@@ -45,6 +45,10 @@ function agentAnnotateMemoryView(
   articleId: string,
   logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
 ) {
+  if (payload.targetAnchor) {
+    return selectionAnnotateMemoryView(payload, articleId, logInfo);
+  }
+
   const index = payload.article.ebookIndex;
   const firstPlanItem = payload.readingPlan?.[0];
   if (!index || !firstPlanItem) return undefined;
@@ -85,6 +89,70 @@ function agentAnnotateMemoryView(
     },
     performanceLogger: logInfo,
   });
+}
+
+function selectionAnnotateMemoryView(
+  payload: AgentAnnotatePayload,
+  articleId: string,
+  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
+) {
+  const textRange = anchorTextRange(payload.targetAnchor);
+  const location = textRange ? ebookLocationForRange(payload, textRange) : undefined;
+  return buildReadingMemoryView({
+    articleId,
+    viewType: 'selection',
+    chapterId: location?.chapterId,
+    segmentId: location?.segmentId,
+    textRange,
+    query: [
+      payload.targetAnchor?.exact || '',
+      payload.readingIntent || '',
+      payload.instruction || '',
+    ]
+      .join(' ')
+      .trim(),
+    readerProgress:
+      location && textRange
+        ? {
+            currentChapterId: location.chapterId,
+            currentSegmentId: location.segmentId,
+            readChapterIds: location.readChapterIds,
+            readUntilTextOffset: textRange.textEnd,
+          }
+        : payload.readerProgress,
+    performanceLogger: logInfo,
+  });
+}
+
+function ebookLocationForRange(payload: AgentAnnotatePayload, textRange: { textEnd: number }) {
+  const index = payload.article.ebookIndex;
+  if (!index) return undefined;
+  const segment = index.segments.find(
+    (item) => item.textStart < textRange.textEnd && item.textEnd >= textRange.textEnd,
+  );
+  if (!segment) return undefined;
+  const chapter = index.chapters.find((item) => item.id === segment.chapterId);
+  if (!chapter) return undefined;
+  return {
+    chapterId: chapter.id,
+    segmentId: segment.id,
+    readChapterIds: index.chapters
+      .filter((item) => item.indexInBook < chapter.indexInBook)
+      .map((item) => item.id),
+  };
+}
+
+function anchorTextRange(anchor: AgentAnnotatePayload['targetAnchor']) {
+  if (!anchor) return undefined;
+  const textStart = integerValue(anchor.textStartInBook) ?? integerValue(anchor.start);
+  const textEnd = integerValue(anchor.textEndInBook) ?? integerValue(anchor.end);
+  return textStart !== null && textEnd !== null && textEnd > textStart
+    ? { textStart, textEnd }
+    : undefined;
+}
+
+function integerValue(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
 export function saveAgentAnnotateReadingMemoryEntries(input: {

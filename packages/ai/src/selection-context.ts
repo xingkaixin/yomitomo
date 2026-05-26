@@ -26,6 +26,7 @@ import {
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
 import { relatedPassagesFromReadingContext } from './related-passages';
+import { memoryViewContextBlocks } from './reading-view-assembler';
 
 const SELECTION_PARAGRAPH_WINDOW_SIZE = 2;
 const SELECTION_CONTEXT_TOKEN_BUDGET = 9000;
@@ -60,6 +61,7 @@ export function buildSelectionAnnotationContext(
     task: 'selection_annotation',
     selection,
     localWindow,
+    memoryViewBlocks: memoryViewContextBlocks(payload.readingMemoryView),
     nearbyAnnotations: nearbyAnnotationSummaries(
       payload.annotations || [],
       index,
@@ -94,7 +96,7 @@ export function selectionAnnotationContextPrompt(context: SelectionAnnotationCon
     },
     null,
     2,
-  )}\n\n上下文使用规则：\n- 你可以用 selection-first 上下文理解目标选区的段落、章节位置和附近讨论。\n- retrieved_evidence 是同章 lexical 召回，只能辅助理解目标选区，不能作为新锚点来源。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到上下文里的其他句子。\n- 如果附近批注与目标选区无关，忽略它。`;
+  )}\n\n上下文使用规则：\n- 你可以用 selection-first 上下文理解目标选区的段落、章节位置和附近讨论。\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解读者/助手已有关注点的背景。\n- retrieved_evidence 是同章 lexical 召回，只能辅助理解目标选区，不能作为新锚点来源。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到上下文里的其他句子。\n- 如果附近批注与目标选区无关，忽略它。`;
 }
 
 export function buildSelectionThreadContext(
@@ -183,12 +185,14 @@ function selectionBaseContext(
       blockTypeOrder: [
         'selection',
         'local_window',
+        'memory_view',
         'retrieved_evidence',
         'chapter_memory',
         'nearby_annotation',
       ],
       reserveTokensByType: {
         local_window: 3600,
+        memory_view: 1200,
         retrieved_evidence: 1200,
         chapter_memory: 800,
         nearby_annotation: 1200,
