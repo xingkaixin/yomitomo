@@ -24,6 +24,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
   EbookImportFileInput,
+  AgentRuntimeTraceListInput,
   PerformanceTimingInput,
   PdfImportFileInput,
   WeReadOpenTarget,
@@ -33,6 +34,9 @@ import type {
 
 export type {
   AppInfo,
+  AgentRuntimeTraceEntry,
+  AgentRuntimeTraceListInput,
+  AgentRuntimeTraceTaskType,
   ArticleAnnotationDeleteInput,
   ArticleCommentDeleteInput,
   ArticleImportResult,
@@ -86,6 +90,10 @@ const api = {
   getLogPath: () => invokeDesktopIpc('log:path'),
   readLog: () => invokeDesktopIpc('log:read'),
   clearLog: () => invokeDesktopIpc('log:clear'),
+  getAgentRuntimeTracePath: () => invokeDesktopIpc('agent-trace:path'),
+  listAgentRuntimeTraces: (input?: AgentRuntimeTraceListInput) =>
+    invokeDesktopIpc('agent-trace:list', input),
+  clearAgentRuntimeTraces: () => invokeDesktopIpc('agent-trace:clear'),
   getDataManagementPaths: () => invokeDesktopIpc('data:paths'),
   openDataManagementPath: (kind: DataManagementPathKind) =>
     invokeDesktopIpc('data:open-path', kind),

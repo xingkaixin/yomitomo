@@ -259,6 +259,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     saveArticleImages: settingsFieldProvided(settings, 'saveArticleImages')
       ? Boolean(settings.saveArticleImages)
       : Boolean(existing?.saveArticleImages),
+    developerModeEnabled: settingsFieldProvided(settings, 'developerModeEnabled')
+      ? Boolean(settings.developerModeEnabled)
+      : Boolean(existing?.developerModeEnabled),
     logRetentionDays: settingsFieldProvided(settings, 'logRetentionDays')
       ? normalizeLogRetentionDays(settings.logRetentionDays)
       : normalizeLogRetentionDays(existing?.logRetentionDays),
@@ -320,6 +323,7 @@ export function rowToSettings(
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
+    developerModeEnabled: Boolean(row?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(row?.logRetentionDays),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
   };
@@ -333,6 +337,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),
+    developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
   };

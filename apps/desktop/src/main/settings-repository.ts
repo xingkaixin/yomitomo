@@ -57,6 +57,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),
+    developerModeEnabled: Boolean(merged.developerModeEnabled),
     logRetentionDays: merged.logRetentionDays || null,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
     updatedAt: new Date().toISOString(),

@@ -28,6 +28,7 @@ import {
   runAgentCoReadingHybridWithToolLoop,
   type CoReadingRuntimeResult,
 } from './agent-co-reading-runtime';
+import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -237,22 +238,24 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       logInfo: context.logInfo,
       logError: context.logError,
     });
-    const runtime = shouldUseSelectionFirstToolLoop(payloadWithMemory)
-      ? await runAgentSelectionWithToolLoop({
-          ai,
-          provider,
-          agent,
-          payload: payloadWithMemory,
-        })
-      : shouldUseCoReadingHybridToolLoop(payloadWithMemory)
-        ? await runAgentCoReadingHybridWithToolLoop({
+    const runtimeTaskType = annotateRuntimeTaskType(payloadWithMemory);
+    const runtime =
+      runtimeTaskType === 'selection_first'
+        ? await runAgentSelectionWithToolLoop({
             ai,
             provider,
             agent,
             payload: payloadWithMemory,
           })
-        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logAnnotateRuntime(context, runtime);
+        : runtimeTaskType === 'co_reading_section'
+          ? await runAgentCoReadingHybridWithToolLoop({
+              ai,
+              provider,
+              agent,
+              payload: payloadWithMemory,
+            })
+          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logAnnotateRuntime(context, runtime, payloadWithMemory, agent, runtimeTaskType);
     const result =
       runtime.status === 'result'
         ? runtime.result
@@ -298,22 +301,24 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           logInfo: context.logInfo,
           logError: context.logError,
         });
-        const runtime = shouldUseSelectionFirstToolLoop(payloadWithMemory)
-          ? await runAgentSelectionWithToolLoop({
-              ai,
-              provider,
-              agent,
-              payload: payloadWithMemory,
-            })
-          : shouldUseCoReadingHybridToolLoop(payloadWithMemory)
-            ? await runAgentCoReadingHybridWithToolLoop({
+        const runtimeTaskType = annotateRuntimeTaskType(payloadWithMemory);
+        const runtime =
+          runtimeTaskType === 'selection_first'
+            ? await runAgentSelectionWithToolLoop({
                 ai,
                 provider,
                 agent,
                 payload: payloadWithMemory,
               })
-            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-        logAnnotateRuntime(context, runtime);
+            : runtimeTaskType === 'co_reading_section'
+              ? await runAgentCoReadingHybridWithToolLoop({
+                  ai,
+                  provider,
+                  agent,
+                  payload: payloadWithMemory,
+                })
+              : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logAnnotateRuntime(context, runtime, payloadWithMemory, agent, runtimeTaskType);
         const result =
           runtime.status === 'result'
             ? runtime.result
@@ -419,6 +424,12 @@ function shouldUseCoReadingHybridToolLoop(payload: AgentAnnotatePayload) {
   return Boolean(payload.article.id) && Boolean(payload.readingPlan?.length);
 }
 
+function annotateRuntimeTaskType(payload: AgentAnnotatePayload) {
+  if (shouldUseSelectionFirstToolLoop(payload)) return 'selection_first';
+  if (shouldUseCoReadingHybridToolLoop(payload)) return 'co_reading_section';
+  return undefined;
+}
+
 function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadReplyRuntimeResult) {
   if (result.status === 'comment') {
     context.logInfo('assistant_runtime.thread_reply', {
@@ -427,6 +438,16 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
       finalActionType: result.runtime.trace.finalActionType,
       repairUsed: result.runtime.repairUsed,
     });
+    void appendAgentRuntimeTrace({
+      taskType: 'thread_reply',
+      agentId: result.runtime.trace.agentId,
+      articleId: result.runtime.trace.articleId,
+      status: 'comment',
+      finalActionType: result.runtime.trace.finalActionType,
+      stepCount: result.runtime.trace.steps.length,
+      repairUsed: result.runtime.repairUsed,
+      trace: result.runtime.trace,
+    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
     return;
   }
   context.logInfo('assistant_runtime.thread_reply', {
@@ -435,11 +456,27 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
     stepCount: result.runtime?.trace.steps.length,
     finalActionType: result.runtime?.trace.finalActionType,
   });
+  if (result.runtime) {
+    void appendAgentRuntimeTrace({
+      taskType: 'thread_reply',
+      agentId: result.runtime.trace.agentId,
+      articleId: result.runtime.trace.articleId,
+      status: 'fallback',
+      failureReason: result.failureReason,
+      finalActionType: result.runtime.trace.finalActionType,
+      stepCount: result.runtime.trace.steps.length,
+      repairUsed: result.runtime.repairUsed,
+      trace: result.runtime.trace,
+    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
+  }
 }
 
 function logAnnotateRuntime(
   context: DesktopMainIpcContext,
   result: SelectionRuntimeResult | CoReadingRuntimeResult,
+  payload: AgentAnnotatePayload,
+  agent: Agent,
+  runtimeTaskType: ReturnType<typeof annotateRuntimeTaskType>,
 ) {
   if ('traces' in result) {
     context.logInfo('assistant_runtime.co_reading_section', {
@@ -449,6 +486,18 @@ function logAnnotateRuntime(
       filteredCount: result.traces.filter((trace) => trace.actionType === 'no_action').length,
       fallbackCount: result.traces.filter((trace) => trace.status === 'fallback').length,
     });
+    void appendAgentRuntimeTrace({
+      taskType: 'co_reading_section',
+      agentId: agent.id,
+      articleId: payload.article.id || '',
+      status: 'result',
+      stepCount: result.traces.length,
+      annotationCount: result.result.annotations.length,
+      decisionCount: result.traces.length,
+      filteredCount: result.traces.filter((trace) => trace.actionType === 'no_action').length,
+      fallbackCount: result.traces.filter((trace) => trace.status === 'fallback').length,
+      decisions: result.traces,
+    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
     return;
   }
 
@@ -460,14 +509,43 @@ function logAnnotateRuntime(
       finalActionType: result.runtime.trace.finalActionType,
       repairUsed: result.runtime.repairUsed,
     });
+    void appendAgentRuntimeTrace({
+      taskType: 'selection_first',
+      agentId: result.runtime.trace.agentId,
+      articleId: result.runtime.trace.articleId,
+      status: 'result',
+      finalActionType: result.runtime.trace.finalActionType,
+      stepCount: result.runtime.trace.steps.length,
+      repairUsed: result.runtime.repairUsed,
+      annotationCount: result.result.annotations.length,
+      trace: result.runtime.trace,
+    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
     return;
   }
-  context.logInfo('assistant_runtime.selection_first', {
+  const logEvent =
+    runtimeTaskType === 'co_reading_section'
+      ? 'assistant_runtime.co_reading_section'
+      : 'assistant_runtime.selection_first';
+  context.logInfo(logEvent, {
     status: 'fallback',
     failureReason: result.failureReason,
     stepCount: 'runtime' in result ? result.runtime?.trace.steps.length : undefined,
     finalActionType: 'runtime' in result ? result.runtime?.trace.finalActionType : undefined,
   });
+  const runtime = 'runtime' in result ? result.runtime : undefined;
+  if (runtime) {
+    void appendAgentRuntimeTrace({
+      taskType: 'selection_first',
+      agentId: runtime.trace.agentId,
+      articleId: runtime.trace.articleId,
+      status: 'fallback',
+      failureReason: result.failureReason,
+      finalActionType: runtime.trace.finalActionType,
+      stepCount: runtime.trace.steps.length,
+      repairUsed: runtime.repairUsed,
+      trace: runtime.trace,
+    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
+  }
 }
 
 function publicCommentAgents(agents: Agent[]) {
