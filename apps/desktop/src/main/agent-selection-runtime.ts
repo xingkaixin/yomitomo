@@ -46,7 +46,8 @@ export async function runAgentSelectionWithToolLoop(input: {
     taskType: 'selection_first',
     articleId,
     agentId: input.agent.id,
-    tools: assistantReadingToolDefinitions,
+    tools: assistantReadingToolDefinitions.filter((tool) => tool.name !== 'get_current_thread'),
+    addAnnotationAnchor: targetAnchor,
     modelAdapter: input.ai.createAssistantProviderModelAdapter(
       input.provider,
       input.ai.buildAgentSelectionRuntimePayload(input.provider, input.agent, input.payload),

@@ -41,6 +41,9 @@ describe('agent co-reading hybrid tool loop', () => {
     expect(result.status === 'result' && result.result.annotations[0]?.comments[0]?.content).toBe(
       '收紧后的共读批注。',
     );
+    expect(adapter.mock.calls[0]?.[0].availableTools.map((tool) => tool.name)).not.toContain(
+      'get_current_thread',
+    );
   });
 
   it('filters an annotation when the runtime returns no_action', async () => {

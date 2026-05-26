@@ -9,11 +9,30 @@ export type GenerateOptions = {
   failOnMaxTokens?: boolean;
 };
 
+export type JsonSchema = {
+  type?: string | string[];
+  enum?: unknown[];
+  const?: unknown;
+  properties?: Record<string, JsonSchema>;
+  items?: JsonSchema;
+  required?: string[];
+  additionalProperties?: boolean | JsonSchema;
+  anyOf?: JsonSchema[];
+  description?: string;
+};
+
+export type ResponseSchema = {
+  name: string;
+  schema: JsonSchema;
+  strict?: boolean;
+};
+
 export type TextPayload = {
   system: string;
   user: string;
   maxTokens: number;
   temperature?: number;
+  responseSchema?: ResponseSchema;
 };
 
 export async function listProviderModels(provider: Partial<LlmProvider>): Promise<ProviderModel[]> {
@@ -341,6 +360,7 @@ function openAIChatBody(provider: LlmProvider, payload: TextPayload, stream: boo
     max_tokens: payload.maxTokens,
     temperature: payload.temperature,
     stream,
+    ...openAIChatResponseFormat(provider, payload.responseSchema),
     ...openAICompatibleReasoningParams(provider, payload.maxTokens),
   };
 }
@@ -354,6 +374,7 @@ function openAIResponsesBody(provider: LlmProvider, payload: TextPayload, stream
     temperature: payload.temperature,
     stream,
     store: false,
+    ...openAIResponsesTextFormat(provider, payload.responseSchema),
     ...openAIResponsesReasoningParams(provider),
   };
 }
@@ -378,9 +399,50 @@ function geminiBody(provider: LlmProvider, payload: TextPayload) {
     generationConfig: {
       maxOutputTokens: payload.maxTokens,
       temperature: payload.temperature,
+      ...geminiResponseSchema(payload.responseSchema),
       ...geminiThinkingConfig(provider, payload.maxTokens),
     },
   };
+}
+
+function openAIChatResponseFormat(provider: LlmProvider, schema: ResponseSchema | undefined) {
+  if (!schema || !supportsNativeJsonSchema(provider)) return {};
+  return {
+    response_format: {
+      type: 'json_schema',
+      json_schema: {
+        name: schema.name,
+        strict: schema.strict ?? true,
+        schema: schema.schema,
+      },
+    },
+  };
+}
+
+function openAIResponsesTextFormat(provider: LlmProvider, schema: ResponseSchema | undefined) {
+  if (!schema || !supportsNativeJsonSchema(provider)) return {};
+  return {
+    text: {
+      format: {
+        type: 'json_schema',
+        name: schema.name,
+        strict: schema.strict ?? true,
+        schema: schema.schema,
+      },
+    },
+  };
+}
+
+function geminiResponseSchema(schema: ResponseSchema | undefined) {
+  if (!schema) return {};
+  return {
+    responseMimeType: 'application/json',
+    responseSchema: schema.schema,
+  };
+}
+
+function supportsNativeJsonSchema(provider: LlmProvider) {
+  return provider.presetId === 'openai' || /^https:\/\/api\.openai\.com\/?/.test(provider.baseUrl);
 }
 
 function openAIResponsesReasoningParams(provider: LlmProvider) {

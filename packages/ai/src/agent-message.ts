@@ -80,8 +80,8 @@ export function buildAgentThreadReplyRuntimePayload(
     readingMemoryView: undefined,
   };
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。你可以先调用工具读取当前 thread、anchor 原文、文章 passage 或文章记忆；最终只能返回 \`reply_to_thread\` action，不要返回普通自然语言正文。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n最终 action 要求：\n- type 必须是 "reply_to_thread"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入 thread 的回复正文。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么这样回复。`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`reply_to_thread\` action JSON，不要返回普通自然语言正文。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n\n最终 action 要求：\n- type 必须是 "reply_to_thread"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入 thread 的回复正文。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么这样回复。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -104,7 +104,7 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
     return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。`;
   }
 
-  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
+  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\nthread 参与边界：你不是只回复最新评论者，而是在加入这条批注想法的讨论。必须先考虑原始想法的作者和内容，再回应最新读者评论；读者只 @ 你时，也视为邀请你评论这条原始想法。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
 }
 
 function buildAgentMessageContextBundle(payload: AgentMessagePayload) {
@@ -149,9 +149,9 @@ export function buildAgentPrompt(
   agent?: PromptAgentIdentity,
 ) {
   const context = buildAgentMessageContextBundle(payload);
-  const comments = payload.annotation.comments
+  const comments = focusedThreadComments(payload)
     .map((comment) => {
-      return `${formatCommentAuthor(comment)}: ${comment.content}`;
+      return `${comment.replyTo ? `回复 ${comment.replyTo} ` : ''}${formatCommentAuthor(comment)}: ${comment.content}`;
     })
     .join('\n');
   const userMention = formatUserMention(payload.userComment);
@@ -175,13 +175,13 @@ export function buildAgentPrompt(
   }
 
   if (threadContextPrompt) {
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${threadContextPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。回复必须回到 thread-first 上下文中的原文依据。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${threadContextPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。回复必须回到 thread-first 上下文中的原文依据，并且要回应当前 thread 的原始想法，而不只是回应最新读者评论。`;
   }
 
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。回复必须回应当前 thread 的原始想法，而不只是回应最新读者评论。`;
 }
 
 function buildAgentThoughtReviewPrompt(
@@ -226,6 +226,20 @@ function threadMemoryViewPromptBlock(payload: AgentMessagePayload) {
     null,
     2,
   )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- 当前批注讨论和刚刚触发你的读者评论优先级更高。\n- 只有 memory_view 或当前 thread 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 如果 memory_view 与当前 thread 无关，忽略它。`;
+}
+
+function focusedThreadComments(payload: AgentMessagePayload) {
+  const rootId = payload.reviewTargetCommentId || payload.userComment.replyTo;
+  if (!rootId) return payload.annotation.comments.filter((comment) => comment.content.trim());
+  const root = payload.annotation.comments.find((comment) => comment.id === rootId);
+  const resolvedRootId = root?.replyTo || root?.id || rootId;
+  const focused = payload.annotation.comments.filter(
+    (comment) =>
+      comment.content.trim() &&
+      (comment.id === resolvedRootId || comment.replyTo === resolvedRootId),
+  );
+  if (focused.length > 0) return focused;
+  return payload.annotation.comments.filter((comment) => comment.content.trim());
 }
 
 function buildAgentSelfInstruction(

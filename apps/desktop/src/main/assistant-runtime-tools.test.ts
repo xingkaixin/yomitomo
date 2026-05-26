@@ -41,7 +41,36 @@ describe('assistant runtime reading tools', () => {
         },
       ],
     });
-    expect(result.ok && result.evidence?.[0]?.text).toContain('读者追问目标观点');
+    const text = result.ok ? result.evidence?.[0]?.text || '' : '';
+    expect(text).toContain('original_thought_author: 林知微 (@lin)');
+    expect(text).toContain('original_thought: 目标观点值得展开。');
+    expect(text).toContain('latest_user_comment: user: 读者追问目标观点。');
+  });
+
+  it('focuses current thread evidence on the replied root thought', async () => {
+    const executor = createAssistantReadingToolExecutor({
+      article: {
+        id: 'article_1',
+        title: '文章',
+        annotations: [annotationWithSiblingThoughts()],
+      },
+      articleText: articleText(),
+      agentId: 'agent_3',
+      currentAnnotationId: 'annotation_1',
+      currentThreadRootCommentId: 'gu_thought',
+      currentAnchor: anchor(),
+    });
+
+    const result = await executor({
+      name: 'get_current_thread',
+      input: {},
+    });
+
+    const text = result.ok ? result.evidence?.[0]?.text || '' : '';
+    expect(text).toContain('original_thought_author: 顾行简 (@guxingjian)');
+    expect(text).toContain('original_thought: 顾行简的想法。');
+    expect(text).toContain('latest_user_comment: user: @林知微 你怎么看？');
+    expect(text).not.toContain('划线助手的另一条想法。');
   });
 
   it('searches own and other agent memory with agent filters', async () => {
@@ -149,19 +178,62 @@ function annotation(): Annotation {
     author: 'ai',
     agentId: 'agent_1',
     agentNickname: '林知微',
-    agentUsername: '林知微',
+    agentUsername: 'lin',
     color: '#6fa48f',
     anchor: anchor(),
     comments: [
       {
         id: 'comment_1',
+        author: 'ai',
+        agentId: 'agent_1',
+        agentNickname: '林知微',
+        agentUsername: 'lin',
+        content: '目标观点值得展开。',
+        createdAt: '2026-05-26T00:00:30.000Z',
+      },
+      {
+        id: 'comment_2',
         author: 'user',
         content: '读者追问目标观点。',
+        replyTo: 'comment_1',
         createdAt: '2026-05-26T00:01:00.000Z',
       },
     ],
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
+  };
+}
+
+function annotationWithSiblingThoughts(): Annotation {
+  return {
+    ...annotation(),
+    comments: [
+      {
+        id: 'other_thought',
+        author: 'ai',
+        agentId: 'agent_2',
+        agentNickname: '划线助手',
+        agentUsername: 'highlighter',
+        content: '划线助手的另一条想法。',
+        createdAt: '2026-05-26T00:00:10.000Z',
+      },
+      {
+        id: 'gu_thought',
+        author: 'ai',
+        agentId: 'agent_gu',
+        agentNickname: '顾行简',
+        agentUsername: 'guxingjian',
+        content: '顾行简的想法。',
+        createdAt: '2026-05-26T00:00:20.000Z',
+      },
+      {
+        id: 'reader_reply',
+        author: 'user',
+        content: '@林知微 你怎么看？',
+        replyTo: 'gu_thought',
+        createdAt: '2026-05-26T00:01:00.000Z',
+      },
+    ],
   };
 }
 

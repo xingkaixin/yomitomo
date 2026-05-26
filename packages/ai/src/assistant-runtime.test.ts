@@ -65,11 +65,83 @@ describe('assistant tool runtime', () => {
       toolName: 'get_current_thread',
       resultCount: 1,
       evidenceIds: ['evidence_0_0'],
+      evidenceSummaries: [
+        {
+          id: 'evidence_0_0',
+          summary: '当前 thread 中读者询问目标句子。',
+          provenance: {
+            articleId: 'article_1',
+            sourceType: 'comment',
+            sourceAnnotationId: 'annotation_1',
+            sourceCommentId: 'comment_1',
+            authorType: 'user',
+          },
+        },
+      ],
     });
     expect(toolExecutor).toHaveBeenCalledWith({
       id: 'call_thread',
       name: 'get_current_thread',
       input: { annotationId: 'annotation_1' },
+    });
+  });
+
+  it('allows repeated tool calls during debug-friendly runtime exploration', async () => {
+    const modelAdapter = vi
+      .fn<(turn: AssistantRuntimeTurn) => Promise<AssistantProviderEvent>>()
+      .mockResolvedValueOnce({
+        type: 'tool_call',
+        toolCall: {
+          name: 'get_current_thread',
+          input: {},
+        },
+      })
+      .mockResolvedValueOnce({
+        type: 'tool_call',
+        toolCall: {
+          name: 'get_current_thread',
+          input: {},
+        },
+      })
+      .mockResolvedValueOnce({
+        type: 'final_action',
+        action: {
+          type: 'reply_to_thread',
+          annotationId: 'annotation_1',
+          content: '基于当前 thread 回复。',
+          evidenceIds: ['evidence_0_0'],
+          confidence: 0.8,
+          reason: '已有 thread evidence。',
+        },
+      });
+    const toolExecutor = vi.fn(async () => ({
+      ok: true as const,
+      evidence: [
+        {
+          summary: '当前 thread evidence',
+          provenance: { articleId: 'article_1', sourceType: 'comment' },
+        },
+      ],
+    }));
+
+    const result = await runAssistantToolRuntime({
+      taskType: 'thread_reply',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      allowedAnnotationIds: ['annotation_1'],
+      tools: [tool('get_current_thread')],
+      modelAdapter,
+      toolExecutor,
+    });
+
+    expect(result.status).toBe('final');
+    expect(result.repairUsed).toBe(false);
+    expect(toolExecutor).toHaveBeenCalledTimes(2);
+    expect(result.trace.steps[1]).toMatchObject({
+      eventType: 'tool_call',
+      toolName: 'get_current_thread',
+      resultCount: 1,
+      evidenceIds: ['evidence_1_0'],
     });
   });
 
@@ -284,6 +356,67 @@ describe('assistant final action validation', () => {
     );
 
     expect(result).toEqual({ ok: false, reason: 'no_action_cannot_write' });
+  });
+
+  it('normalizes common evidence id field variants', () => {
+    const result = validateAssistantFinalAction(
+      {
+        type: 'no_action',
+        reason: '已有证据足够。',
+        evidence_ids: 'evidence_0_0',
+        confidence: 0.7,
+      },
+      {
+        articleId: 'article_1',
+        evidenceIds: new Set(['evidence_0_0']),
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      action: {
+        type: 'no_action',
+        reason: '已有证据足够。',
+        evidenceIds: ['evidence_0_0'],
+        confidence: 0.7,
+      },
+    });
+  });
+
+  it('uses the host target anchor for add_annotation actions without model-owned anchors', () => {
+    const targetAnchor = {
+      exact: '目标选区',
+      prefix: '',
+      suffix: '',
+      start: 8,
+      end: 12,
+    };
+    const result = validateAssistantFinalAction(
+      {
+        type: 'add_annotation',
+        thought: '这段值得补一条批注。',
+        evidenceIds: [],
+        confidence: 0.8,
+        reason: '目标选区有讨论价值。',
+      },
+      {
+        articleId: 'article_1',
+        evidenceIds: new Set(),
+        addAnnotationAnchor: targetAnchor,
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      action: {
+        type: 'add_annotation',
+        anchor: targetAnchor,
+        thought: '这段值得补一条批注。',
+        evidenceIds: [],
+        confidence: 0.8,
+        reason: '目标选区有讨论价值。',
+      },
+    });
   });
 
   it('rejects reply actions for annotations outside the host allowlist', () => {

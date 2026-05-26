@@ -621,7 +621,6 @@ export const readerDesktopEmbeddedStyles = `
 .reader-brand-mark{display:grid;place-items:center;background:var(--reader-ink);color:var(--reader-paper);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:18px;font-weight:950;line-height:1}
 .reader-app.is-embedded{position:relative;inset:auto;z-index:0;width:100%;height:100%;min-height:0;overflow:hidden;border-radius:8px}
 .reader-app.is-embedded:has(.reader-agent-menu),.reader-app.is-embedded:has(.reader-comment-agent-more-menu){z-index:260;overflow:visible}
-.reader-app.is-embedded:has(.reader-agent-menu) .reader-surface,.reader-app.is-embedded:has(.reader-comment-agent-more-menu) .reader-surface{overflow:visible}
 .reader-app.is-embedded .reader-settings-panel{position:absolute}
 .reader-app.is-embedded .reader-agent-annotate-popover{position:absolute}
 .reader-app.is-embedded .reader-agent-annotate-scrim{position:absolute}

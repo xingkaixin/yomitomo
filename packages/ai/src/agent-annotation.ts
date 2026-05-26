@@ -121,8 +121,8 @@ export function buildAgentSelectionRuntimePayload(
   };
   const context = buildAgentAnnotateContextBundle(runtimePayload);
   return {
-    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 决定是否给目标选区添加批注。你可以先调用工具读取 anchor 原文、相关 passage、文章记忆或检查重复；最终只能返回 \`add_annotation\` 或 \`no_action\` action，不要返回普通 JSON 数组或自然语言正文。`,
-    user: `${buildAgentAnnotatePrompt(provider, runtimePayload, agent, context)}\n\n最终 action 要求：\n- 如果目标选区值得添加新想法，返回 type 为 "add_annotation"。\n- add_annotation.anchor 必须等于本轮目标选区 anchor。\n- add_annotation.thought 是将写入批注评论的内容。\n- 如果证据不足、目标选区没有讨论价值或和既有想法重复，返回 type 为 "no_action"。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明动作决策理由。`,
+    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 决定是否给目标选区添加批注。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 action JSON，type 为 \`add_annotation\` 或 \`no_action\`，不要返回普通 JSON 数组或自然语言正文。`,
+    user: `${buildAgentAnnotatePrompt(provider, runtimePayload, agent, context)}\n\n最终 action 要求：\n- 如果目标选区值得添加新想法，type 为 "add_annotation"。\n- 不要输出 anchor；本轮目标选区由宿主代码负责写入。\n- thought 是将写入批注评论的内容。\n- 如果证据不足、目标选区没有讨论价值或和既有想法重复，type 为 "no_action"。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明动作决策理由。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -141,7 +141,7 @@ export function buildAgentCoReadingRuntimePayload(
   const context = buildAgentAnnotateContextBundle(runtimePayload);
   const primaryComment = candidate.comments[0]?.content || '';
   return {
-    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 复核聚焦共读已经生成的一条候选批注。你可以调用工具读取 anchor 原文、相关 passage、文章记忆或检查重复；最终只能返回 \`add_annotation\` 或 \`no_action\` action，不要返回普通 JSON 数组或自然语言正文。`,
+    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 复核聚焦共读已经生成的一条候选批注。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 action JSON，type 为 \`add_annotation\` 或 \`no_action\`，不要返回普通 JSON 数组或自然语言正文。`,
     user: `${buildAgentAnnotatePrompt(provider, runtimePayload, agent, context)}\n\n候选批注：\n${JSON.stringify(
       {
         exact: candidate.anchor.exact,
@@ -154,7 +154,7 @@ export function buildAgentCoReadingRuntimePayload(
       },
       null,
       2,
-    )}\n\n最终 action 要求：\n- 如果候选批注提供了新的、有价值的共读想法，返回 type 为 "add_annotation"。\n- add_annotation.anchor 必须等于候选批注 anchor。\n- add_annotation.thought 使用候选 comment，可在不改变含义的前提下做轻微收紧。\n- 如果候选和既有想法重复、证据不足、或只是在泛泛摘要，返回 type 为 "no_action"。\n- evidenceIds 只能引用本轮工具返回的 evidence id。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明保留或过滤理由。`,
+    )}\n\n最终 action 要求：\n- 如果候选批注提供了新的、有价值的共读想法，type 为 "add_annotation"。\n- 不要输出 anchor；候选批注 anchor 由宿主代码负责保留。\n- thought 使用候选 comment，可在不改变含义的前提下做轻微收紧。\n- 如果候选和既有想法重复、证据不足、或只是在泛泛摘要，type 为 "no_action"。\n- evidenceIds 只能引用本轮工具返回的 evidence id。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明保留或过滤理由。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
