@@ -1,9 +1,12 @@
 import type {
+  ReadingMemory,
   ReadingMemoryEntry,
   ReadingMemoryEntryKind,
   ReadingMemoryScope,
   ReadingMemorySourceType,
   ReadingMemoryVisibility,
+  ReadingTrace,
+  TextSummary,
   TextRange,
 } from '@yomitomo/shared';
 
@@ -73,6 +76,39 @@ export function readingMemoryEntrySearchText(entry: ReadingMemoryEntry) {
   return compactSearchText(parts.join(' '));
 }
 
+export function readingMemoryEntriesFromMemoryDelta(input: {
+  articleId: string;
+  agentId?: string;
+  sourceTaskId: string;
+  createdAt: string;
+  current?: ReadingMemory;
+  next?: ReadingMemory;
+}): ReadingMemoryEntry[] {
+  const next = input.next;
+  if (!next) return [];
+  const entries: ReadingMemoryEntry[] = [];
+  const currentSummaries = new Map(
+    (input.current?.textSummaries || []).map((summary) => [textSummaryKey(summary), summary]),
+  );
+  const currentTraces = new Map(
+    (input.current?.readingTraces || []).map((trace) => [readingTraceKey(trace), trace]),
+  );
+
+  for (const summary of next.textSummaries || []) {
+    const previous = currentSummaries.get(textSummaryKey(summary));
+    if (previous && JSON.stringify(previous) === JSON.stringify(summary)) continue;
+    entries.push(summaryEntry(input, summary, entries.length));
+  }
+
+  for (const trace of next.readingTraces || []) {
+    const previous = currentTraces.get(readingTraceKey(trace));
+    if (previous && JSON.stringify(previous) === JSON.stringify(trace)) continue;
+    entries.push(traceEntry(input, trace, entries.length));
+  }
+
+  return entries;
+}
+
 function normalizeTextRange(range: TextRange | undefined) {
   if (!range) return undefined;
   if (!Number.isInteger(range.textStart) || !Number.isInteger(range.textEnd)) return null;
@@ -106,4 +142,92 @@ function collectSearchTextParts(value: unknown): string[] {
 
 function compactSearchText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+function summaryEntry(
+  input: {
+    articleId: string;
+    agentId?: string;
+    sourceTaskId: string;
+    createdAt: string;
+  },
+  summary: TextSummary,
+  index: number,
+): ReadingMemoryEntry {
+  return {
+    id: `${input.sourceTaskId}_summary_${index}`,
+    articleId: input.articleId,
+    kind: 'summary',
+    scope: summary.scope,
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: summary.chapterId,
+    segmentId: summary.segmentId,
+    textRange: summary.sourceRange,
+    agentId: input.agentId,
+    sourceType: 'ai_task',
+    sourceId: input.sourceTaskId,
+    sourceTaskId: input.sourceTaskId,
+    sourceEntryIds: [],
+    payload: {
+      summary: summary.summary,
+      keyTerms: summary.keyTerms,
+    },
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
+function traceEntry(
+  input: {
+    articleId: string;
+    agentId?: string;
+    sourceTaskId: string;
+    createdAt: string;
+  },
+  trace: ReadingTrace,
+  index: number,
+): ReadingMemoryEntry {
+  return {
+    id: `${input.sourceTaskId}_trace_${index}`,
+    articleId: input.articleId,
+    kind: 'trace',
+    scope: trace.scope,
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: trace.chapterId,
+    segmentId: trace.segmentId,
+    textRange: trace.sourceRange,
+    agentId: trace.agentId || input.agentId,
+    sourceType: 'ai_task',
+    sourceId: input.sourceTaskId,
+    sourceTaskId: input.sourceTaskId,
+    sourceEntryIds: [],
+    payload: {
+      items: trace.items,
+    },
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
+function textSummaryKey(summary: TextSummary) {
+  return [
+    summary.scope,
+    summary.chapterId || '',
+    summary.segmentId || '',
+    summary.sourceRange.textStart,
+    summary.sourceRange.textEnd,
+  ].join(':');
+}
+
+function readingTraceKey(trace: ReadingTrace) {
+  return [
+    trace.scope,
+    trace.chapterId || '',
+    trace.segmentId || '',
+    trace.agentId || '',
+    trace.sourceRange?.textStart ?? '',
+    trace.sourceRange?.textEnd ?? '',
+  ].join(':');
 }
