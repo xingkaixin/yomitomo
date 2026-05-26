@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from './db/migrations';
 import {
@@ -220,6 +220,7 @@ describe('reading memory store', () => {
 
   it('builds segment memory views with structured entries and scoped FTS results', () => {
     const database = memoryDatabase();
+    const performanceLogger = vi.fn();
     appendReadingMemoryEntries(
       [
         entry({
@@ -257,6 +258,7 @@ describe('reading memory store', () => {
         readChapterIds: [],
         readUntilTextOffset: 100,
       },
+      performanceLogger,
       executor: database,
     });
 
@@ -266,6 +268,14 @@ describe('reading memory store', () => {
       ['fts_note', 'fts'],
     ]);
     expect(view.sourceEntryIds).toEqual(['prior_summary', 'fts_note']);
+    expect(performanceLogger).toHaveBeenCalledWith(
+      'performance.reading_memory.view_build',
+      expect.objectContaining({
+        articleId: 'article_1',
+        viewType: 'segment',
+        entryCount: 2,
+      }),
+    );
   });
 });
 

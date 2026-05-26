@@ -7,7 +7,6 @@ import type {
   Comment as AnnotationComment,
   FocusCoReadingPlan,
   PublicAgent,
-  ReadingMemory,
 } from '@yomitomo/shared';
 import {
   createTextAnchor,
@@ -26,7 +25,6 @@ import {
   findCurrentTocTarget,
   getArticleSelection,
   isRangeInsideArticle,
-  mergeReadingMemory,
   offsetFromArticleStart,
   rangeHighlightBoxes,
   selectionActionPosition,
@@ -159,8 +157,6 @@ export function WebSourceBookcase({
           Boolean(context.articleScopedWrite),
           context.articleText,
         ),
-      onReadingMemory: ({ context, readingMemory }) =>
-        saveFocusCoReadingReadingMemory(context.articleId, readingMemory),
       onEmpty: ({ agent, context }) => {
         if (context.showProgress !== false && isCurrentArticle(context.articleId)) {
           markVirtualReadingDone(agent.id);
@@ -585,31 +581,6 @@ export function WebSourceBookcase({
         updatedAt: new Date().toISOString(),
       };
       if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
-      return nextArticle;
-    });
-  }
-
-  async function saveFocusCoReadingReadingMemory(
-    articleId: string,
-    readingMemory: ReadingMemory | undefined,
-  ) {
-    if (!readingMemory) return;
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const plan = targetArticle.focusCoReadingPlan;
-      if (!plan) return null;
-      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
-      if (!mergedMemory) return null;
-      const now = new Date().toISOString();
-      const nextArticle = {
-        ...targetArticle,
-        focusCoReadingPlan: {
-          ...plan,
-          readingMemory: mergedMemory,
-          updatedAt: now,
-        },
-        updatedAt: now,
-      };
-      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
       return nextArticle;
     });
   }

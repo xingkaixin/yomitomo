@@ -62,6 +62,7 @@ describe('agent reading memory persistence', () => {
   });
 
   it('attaches a segment memory view for EPUB co-reading payloads', () => {
+    const logInfo = vi.fn();
     memoryStore.readReadingMemoryEntries.mockReturnValue([
       memoryEntry({
         id: 'entry_summary',
@@ -94,6 +95,7 @@ describe('agent reading memory persistence', () => {
           },
         ],
       }),
+      logInfo,
       logError: vi.fn(),
     });
 
@@ -105,6 +107,7 @@ describe('agent reading memory persistence', () => {
         segmentId: 'segment_1',
         textRange: { textStart: 0, textEnd: 100 },
         query: expect.stringContaining('灯笼线索'),
+        performanceLogger: logInfo,
       }),
     );
     expect(payload.readingMemoryView?.viewType).toBe('segment');

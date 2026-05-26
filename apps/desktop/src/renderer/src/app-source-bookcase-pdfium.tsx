@@ -53,7 +53,6 @@ import {
   type ArticleRecord,
   type FocusCoReadingPlan,
   type PublicAgent,
-  type ReadingMemory,
 } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
@@ -63,7 +62,6 @@ import {
   createUserAnnotation,
   createUserComment,
   findMentionedAgents,
-  mergeReadingMemory,
   selectionActionPosition,
   type HighlightBox,
   type TocItem,
@@ -678,8 +676,6 @@ function PdfiumDocument({
         );
         return true;
       },
-      onReadingMemory: ({ context, readingMemory }) =>
-        saveFocusCoReadingReadingMemory(context.articleId, readingMemory),
       onEmpty: ({ agent, context }) => {
         if (context.source?.kind === 'reading-plan' && context.visibleArticle !== false) {
           finishPdfiumVirtualReading(agent.id, '没有新想法');
@@ -1644,31 +1640,6 @@ function PdfiumDocument({
         updatedAt: new Date().toISOString(),
       };
       if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
-      return nextArticle;
-    });
-  }
-
-  async function saveFocusCoReadingReadingMemory(
-    articleId: string,
-    readingMemory: ReadingMemory | undefined,
-  ) {
-    if (!readingMemory) return;
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const plan = targetArticle.focusCoReadingPlan;
-      if (!plan) return null;
-      const mergedMemory = mergeReadingMemory(plan.readingMemory, readingMemory);
-      if (!mergedMemory) return null;
-      const now = new Date().toISOString();
-      const nextArticle = {
-        ...targetArticle,
-        focusCoReadingPlan: {
-          ...plan,
-          readingMemory: mergedMemory,
-          updatedAt: now,
-        },
-        updatedAt: now,
-      };
-      if (isCurrentArticle(articleId)) latestArticleRef.current = nextArticle;
       return nextArticle;
     });
   }

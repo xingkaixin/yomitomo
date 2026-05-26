@@ -13,15 +13,19 @@ import {
 
 export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
   payload: AgentAnnotatePayload;
+  logInfo?: (event: string, data?: Record<string, unknown>) => void;
   logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 }): AgentAnnotatePayload {
   const articleId = input.payload.article.id;
   if (!articleId) return input.payload;
 
   try {
-    const entries = readReadingMemoryEntries({ articleId });
+    const entries = readReadingMemoryEntries({
+      articleId,
+      performanceLogger: input.logInfo,
+    });
     const memory = readingMemoryFromEntries(entries);
-    const readingMemoryView = agentAnnotateMemoryView(input.payload, articleId);
+    const readingMemoryView = agentAnnotateMemoryView(input.payload, articleId, input.logInfo);
     if (!memory && (!readingMemoryView || readingMemoryView.entries.length === 0)) {
       return input.payload;
     }
@@ -36,7 +40,11 @@ export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
   }
 }
 
-function agentAnnotateMemoryView(payload: AgentAnnotatePayload, articleId: string) {
+function agentAnnotateMemoryView(
+  payload: AgentAnnotatePayload,
+  articleId: string,
+  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
+) {
   const index = payload.article.ebookIndex;
   const firstPlanItem = payload.readingPlan?.[0];
   if (!index || !firstPlanItem) return undefined;
@@ -75,6 +83,7 @@ function agentAnnotateMemoryView(payload: AgentAnnotatePayload, articleId: strin
         .map((item) => item.id),
       readUntilTextOffset: textRange.textEnd,
     },
+    performanceLogger: logInfo,
   });
 }
 
