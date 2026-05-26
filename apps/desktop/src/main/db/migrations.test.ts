@@ -21,6 +21,7 @@ describe('reading memory migrations', () => {
         'reading_memory_annotation_source_idx',
         'reading_memory_comment_source_idx',
         'reading_memory_active_kind_idx',
+        'reading_memory_agent_lookup_idx',
         'reading_memory_projection_article_idx',
         'reading_memory_projection_key_idx',
       ]),
@@ -115,10 +116,13 @@ function migratedDatabase() {
   const database = new DatabaseSync(':memory:');
   database.exec('PRAGMA foreign_keys = ON');
   const initial = migrations.find((migration) => migration.id === '0001_initial');
-  const readingMemory = migrations.find((migration) => migration.id === '0035_reading_memory_tape');
-  if (!initial || !readingMemory) throw new Error('missing migrations for test');
+  const readingMemoryMigrations = migrations.filter(
+    (migration) => migration.id.startsWith('0035_') || migration.id.startsWith('0036_'),
+  );
+  if (!initial || readingMemoryMigrations.length < 2)
+    throw new Error('missing migrations for test');
   database.exec(initial.sql);
-  database.exec(readingMemory.sql);
+  for (const migration of readingMemoryMigrations) database.exec(migration.sql);
   return database;
 }
 

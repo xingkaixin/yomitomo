@@ -584,4 +584,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS reading_memory_projection_key_idx
 ON reading_memory_projections(article_id, view_type, view_key);
 `,
   },
+  {
+    id: '0036_reading_memory_agent_lookup',
+    sql: `
+CREATE INDEX IF NOT EXISTS reading_memory_agent_lookup_idx
+ON reading_memory_entries(article_id, agent_id, visibility, deleted_at, created_at);
+`,
+  },
 ];

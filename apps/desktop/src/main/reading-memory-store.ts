@@ -32,6 +32,10 @@ export type ReadReadingMemoryEntriesOptions = {
   articleId: string;
   kind?: ReadingMemoryEntry['kind'];
   scope?: ReadingMemoryEntry['scope'];
+  agentId?: string;
+  excludeAgentId?: string;
+  requireAgentId?: boolean;
+  visibility?: ReadingMemoryEntry['visibility'][];
   chapterId?: string;
   segmentId?: string;
   includeDeleted?: boolean;
@@ -43,6 +47,11 @@ export type ReadReadingMemoryEntriesOptions = {
 export type SearchReadingMemoryEntriesOptions = {
   articleId: string;
   query: string;
+  agentId?: string;
+  excludeAgentId?: string;
+  requireAgentId?: boolean;
+  visibility?: ReadingMemoryEntry['visibility'][];
+  fallbackToSubstring?: boolean;
   limit?: number;
   performanceLogger?: PerformanceLogger;
   executor?: ReadingMemorySqliteExecutor;
@@ -218,16 +227,24 @@ LIMIT ?
     .all(ftsQuery, options.articleId, limit) as Array<{ entryId: string }>;
   const ids = rows.map((row) => row.entryId).filter(Boolean);
   if (ids.length === 0) {
+    const fallback = options.fallbackToSubstring
+      ? searchReadingMemoryEntriesBySubstring(options, executor, limit)
+      : [];
     logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
       articleId: options.articleId,
       queryLength: query.length,
-      entryCount: 0,
+      fallback: 'substring',
+      entryCount: fallback.length,
     });
-    return [];
+    return fallback;
   }
 
   const entries = readReadingMemoryEntries({
     articleId: options.articleId,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
     executor,
   });
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -242,6 +259,25 @@ LIMIT ?
     entryCount: result.length,
   });
   return result;
+}
+
+function searchReadingMemoryEntriesBySubstring(
+  options: SearchReadingMemoryEntriesOptions,
+  executor: ReadingMemorySqliteExecutor,
+  limit: number,
+) {
+  const query = options.query.trim().toLocaleLowerCase();
+  if (!query) return [];
+  return readReadingMemoryEntries({
+    articleId: options.articleId,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
+    executor,
+  })
+    .filter((entry) => readingMemoryEntrySearchText(entry).toLocaleLowerCase().includes(query))
+    .slice(0, limit);
 }
 
 function readingMemoryFtsQuery(query: string) {
@@ -605,6 +641,21 @@ function readingMemoryWhereClause(options: ReadReadingMemoryEntriesOptions) {
     clauses.push('scope = ?');
     values.push(options.scope);
   }
+  if (options.agentId) {
+    clauses.push('agent_id = ?');
+    values.push(options.agentId);
+  }
+  if (options.excludeAgentId) {
+    clauses.push('agent_id IS NOT NULL');
+    clauses.push('agent_id != ?');
+    values.push(options.excludeAgentId);
+  } else if (options.requireAgentId) {
+    clauses.push('agent_id IS NOT NULL');
+  }
+  if (options.visibility && options.visibility.length > 0) {
+    clauses.push(`visibility IN (${options.visibility.map(() => '?').join(', ')})`);
+    values.push(...options.visibility);
+  }
   if (options.chapterId) {
     clauses.push('chapter_id = ?');
     values.push(options.chapterId);
@@ -819,6 +870,7 @@ function numberValue(value: unknown) {
 }
 
 function integerValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return null;
   const number = numberValue(value);
   return Number.isInteger(number) ? number : null;
 }

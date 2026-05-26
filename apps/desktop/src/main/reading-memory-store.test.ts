@@ -130,6 +130,49 @@ describe('reading memory store', () => {
     ).toEqual(['annotation_memory_annotation_1']);
   });
 
+  it('filters memory entries by current and other agent ids', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'own_entry',
+          scope: 'agent',
+          agentId: 'agent_1',
+          payload: { summary: 'own memory', keyTerms: ['shared'] },
+        }),
+        entry({
+          id: 'other_entry',
+          scope: 'agent',
+          agentId: 'agent_2',
+          payload: { summary: 'other memory', keyTerms: ['shared'] },
+        }),
+        entry({
+          id: 'reader_entry',
+          scope: 'reader',
+          payload: { summary: 'reader memory', keyTerms: ['shared'] },
+        }),
+      ],
+      database,
+    );
+
+    expect(
+      readReadingMemoryEntries({
+        articleId: 'article_1',
+        agentId: 'agent_1',
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['own_entry']);
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'shared',
+        excludeAgentId: 'agent_1',
+        requireAgentId: true,
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['other_entry']);
+  });
+
   it('soft-deletes source entries and removes their FTS rows', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
