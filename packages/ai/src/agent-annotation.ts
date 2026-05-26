@@ -110,6 +110,24 @@ export async function runAgentAnnotateWithMemory(
   };
 }
 
+export function buildAgentSelectionRuntimePayload(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+) {
+  const runtimePayload = {
+    ...payload,
+    readingMemoryView: undefined,
+  };
+  const context = buildAgentAnnotateContextBundle(runtimePayload);
+  return {
+    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 决定是否给目标选区添加批注。你可以先调用工具读取 anchor 原文、相关 passage、文章记忆或检查重复；最终只能返回 \`add_annotation\` 或 \`no_action\` action，不要返回普通 JSON 数组或自然语言正文。`,
+    user: `${buildAgentAnnotatePrompt(provider, runtimePayload, agent, context)}\n\n最终 action 要求：\n- 如果目标选区值得添加新想法，返回 type 为 "add_annotation"。\n- add_annotation.anchor 必须等于本轮目标选区 anchor。\n- add_annotation.thought 是将写入批注评论的内容。\n- 如果证据不足、目标选区没有讨论价值或和既有想法重复，返回 type 为 "no_action"。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明动作决策理由。`,
+    maxTokens: 1200,
+    temperature: agent.temperature,
+  };
+}
+
 export async function runAgentAnnotateStream(
   provider: LlmProvider,
   agent: Agent,

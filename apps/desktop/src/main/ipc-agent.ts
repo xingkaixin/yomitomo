@@ -20,6 +20,10 @@ import {
   runAgentThreadReplyWithToolLoop,
   type ThreadReplyRuntimeResult,
 } from './agent-thread-runtime';
+import {
+  runAgentSelectionWithToolLoop,
+  type SelectionRuntimeResult,
+} from './agent-selection-runtime';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -213,7 +217,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     },
   );
   handleDesktopIpc('agent:annotate', async (_event, payload) => {
-    const { runAgentAnnotateWithMemory } = await context.getAiModule();
+    const ai = await context.getAiModule();
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
@@ -229,7 +233,19 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       logInfo: context.logInfo,
       logError: context.logError,
     });
-    const result = await runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
+    const runtime = shouldUseSelectionFirstToolLoop(payloadWithMemory)
+      ? await runAgentSelectionWithToolLoop({
+          ai,
+          provider,
+          agent,
+          payload: payloadWithMemory,
+        })
+      : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logSelectionRuntime(context, runtime);
+    const result =
+      runtime.status === 'result'
+        ? runtime.result
+        : await ai.runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
     saveAgentAnnotateReadingMemoryEntries({
       agent,
       payload: payloadWithMemory,
@@ -249,7 +265,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     ) => {
       const channel = `agent:annotate:stream:${input.requestId}`;
       try {
-        const { runAgentAnnotateStream } = await context.getAiModule();
+        const ai = await context.getAiModule();
         const { readStore } = await context.getStoreModule();
         const store = await readStore();
         const agent = findAnnotationAgent(
@@ -271,15 +287,28 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           logInfo: context.logInfo,
           logError: context.logError,
         });
-        const result = await runAgentAnnotateStream(
-          provider,
-          agent,
-          payloadWithMemory,
-          (annotation) => {
+        const runtime = shouldUseSelectionFirstToolLoop(payloadWithMemory)
+          ? await runAgentSelectionWithToolLoop({
+              ai,
+              provider,
+              agent,
+              payload: payloadWithMemory,
+            })
+          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logSelectionRuntime(context, runtime);
+        const result =
+          runtime.status === 'result'
+            ? runtime.result
+            : await ai.runAgentAnnotateStream(provider, agent, payloadWithMemory, (annotation) => {
+                annotations.push(annotation);
+                event.sender.send(channel, { type: 'item', annotation });
+              });
+        if (runtime.status === 'result') {
+          for (const annotation of result.annotations) {
             annotations.push(annotation);
             event.sender.send(channel, { type: 'item', annotation });
-          },
-        );
+          }
+        }
         saveAgentAnnotateReadingMemoryEntries({
           agent,
           payload: payloadWithMemory,
@@ -362,6 +391,12 @@ function shouldUseThreadReplyToolLoop(payload: AgentMessagePayload) {
   return Boolean(payload.article.id) && !payload.reviewTargetCommentId;
 }
 
+function shouldUseSelectionFirstToolLoop(payload: AgentAnnotatePayload) {
+  return (
+    Boolean(payload.article.id) && Boolean(payload.targetAnchor) && !payload.readingPlan?.length
+  );
+}
+
 function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadReplyRuntimeResult) {
   if (result.status === 'comment') {
     context.logInfo('assistant_runtime.thread_reply', {
@@ -373,6 +408,25 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
     return;
   }
   context.logInfo('assistant_runtime.thread_reply', {
+    status: 'fallback',
+    failureReason: result.failureReason,
+    stepCount: result.runtime?.trace.steps.length,
+    finalActionType: result.runtime?.trace.finalActionType,
+  });
+}
+
+function logSelectionRuntime(context: DesktopMainIpcContext, result: SelectionRuntimeResult) {
+  if (result.status === 'result') {
+    context.logInfo('assistant_runtime.selection_first', {
+      status: 'result',
+      annotationCount: result.result.annotations.length,
+      stepCount: result.runtime.trace.steps.length,
+      finalActionType: result.runtime.trace.finalActionType,
+      repairUsed: result.runtime.repairUsed,
+    });
+    return;
+  }
+  context.logInfo('assistant_runtime.selection_first', {
     status: 'fallback',
     failureReason: result.failureReason,
     stepCount: result.runtime?.trace.steps.length,
