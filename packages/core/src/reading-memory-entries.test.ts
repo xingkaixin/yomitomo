@@ -3,6 +3,7 @@ import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import {
   activeReadingMemoryEntries,
   normalizeReadingMemoryEntry,
+  readingMemoryEntriesFromMemoryDelta,
   readingMemoryEntrySearchText,
 } from './reading-memory-entries';
 
@@ -72,6 +73,93 @@ describe('reading memory entries', () => {
       'agent_observation 助手注意到人物动机变化 medium chapter_segment_annotation 关键原文',
     );
   });
+
+  it('creates summary and trace entries from reading memory deltas', () => {
+    const entries = readingMemoryEntriesFromMemoryDelta({
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      sourceTaskId: 'task_1',
+      createdAt: '2026-05-26T00:00:00.000Z',
+      current: {
+        updatedAt: '2026-05-26T00:00:00.000Z',
+        textSummaries: [],
+        readingTraces: [],
+      },
+      next: {
+        updatedAt: '2026-05-26T00:00:00.000Z',
+        textSummaries: [
+          {
+            scope: 'segment',
+            chapterId: 'chapter_1',
+            segmentId: 'segment_1',
+            sourceRange: { textStart: 0, textEnd: 100 },
+            summary: '这一段交代人物进入新环境。',
+            keyTerms: ['人物'],
+            updatedAt: '2026-05-26T00:00:00.000Z',
+          },
+        ],
+        readingTraces: [
+          {
+            scope: 'chapter',
+            chapterId: 'chapter_1',
+            agentId: 'agent_1',
+            sourceRange: { textStart: 0, textEnd: 100 },
+            items: [traceItem('注意人物动机')],
+            updatedAt: '2026-05-26T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    expect(entries).toMatchObject([
+      {
+        id: 'task_1_summary_0',
+        articleId: 'article_1',
+        kind: 'summary',
+        scope: 'segment',
+        sourceType: 'ai_task',
+        sourceTaskId: 'task_1',
+        payload: { summary: '这一段交代人物进入新环境。', keyTerms: ['人物'] },
+      },
+      {
+        id: 'task_1_trace_1',
+        articleId: 'article_1',
+        kind: 'trace',
+        scope: 'chapter',
+        sourceType: 'ai_task',
+        sourceTaskId: 'task_1',
+        payload: { items: [traceItem('注意人物动机')] },
+      },
+    ]);
+  });
+
+  it('skips unchanged memory facts when building delta entries', () => {
+    const memory = {
+      updatedAt: '2026-05-26T00:00:00.000Z',
+      textSummaries: [
+        {
+          scope: 'segment' as const,
+          chapterId: 'chapter_1',
+          segmentId: 'segment_1',
+          sourceRange: { textStart: 0, textEnd: 100 },
+          summary: '旧摘要',
+          keyTerms: ['旧'],
+          updatedAt: '2026-05-26T00:00:00.000Z',
+        },
+      ],
+      readingTraces: [],
+    };
+
+    expect(
+      readingMemoryEntriesFromMemoryDelta({
+        articleId: 'article_1',
+        sourceTaskId: 'task_1',
+        createdAt: '2026-05-26T00:00:00.000Z',
+        current: memory,
+        next: memory,
+      }),
+    ).toEqual([]);
+  });
 });
 
 function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
@@ -95,5 +183,15 @@ function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry 
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
     ...overrides,
+  };
+}
+
+function traceItem(content: string) {
+  return {
+    type: 'agent_observation' as const,
+    content,
+    evidenceAnchors: [],
+    confidence: 'medium' as const,
+    createdFromTask: 'chapter_segment_annotation',
   };
 }

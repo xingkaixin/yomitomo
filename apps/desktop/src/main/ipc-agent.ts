@@ -11,6 +11,7 @@ import type {
 import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import { saveAgentAnnotateReadingMemoryEntries } from './agent-reading-memory';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -179,7 +180,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       'readingAssistant',
     );
-    return runAgentAnnotateWithMemory(provider, agent, payload);
+    const result = await runAgentAnnotateWithMemory(provider, agent, payload);
+    saveAgentAnnotateReadingMemoryEntries({
+      agent,
+      payload,
+      result,
+      logError: context.logError,
+    });
+    return result;
   });
   ipcMain.on(
     'agent:annotate:stream',
@@ -218,6 +226,12 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
             event.sender.send(channel, { type: 'item', annotation });
           },
         );
+        saveAgentAnnotateReadingMemoryEntries({
+          agent,
+          payload: input.payload,
+          result,
+          logError: context.logError,
+        });
         event.sender.send(channel, {
           type: 'done',
           annotations,

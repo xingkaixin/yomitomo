@@ -14,6 +14,7 @@ export type AgentMessagePayload = {
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
   article: {
+    id?: string;
     title: string;
     url: string;
     text: string;
@@ -30,6 +31,7 @@ export type AgentReviewPayload = {
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
   article: {
+    id?: string;
     title: string;
     url: string;
     text: string;
@@ -51,6 +53,7 @@ export type AgentAnnotatePayload = {
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
   article: {
+    id?: string;
     title: string;
     url: string;
     text: string;

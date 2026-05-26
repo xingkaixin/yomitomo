@@ -127,6 +127,7 @@ export function promptArticle(
   articleText: string,
 ): PromptArticle {
   return {
+    id: currentArticle?.id,
     title: currentArticle?.title || '',
     url: currentArticle?.canonicalUrl || currentArticle?.url || '',
     byline: currentArticle?.byline,
