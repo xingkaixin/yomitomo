@@ -59,6 +59,7 @@ export async function runAgentThreadReplyWithToolLoop(input: {
       articleText: input.payload.article.text,
       agentId: input.agent.id,
       currentAnnotationId: input.payload.annotation.id,
+      currentThreadRootCommentId: threadRootCommentId(input.payload),
       currentAnchor: input.payload.annotation.anchor,
       readerProgress: input.payload.readerProgress,
     }),
@@ -97,4 +98,8 @@ export async function runAgentThreadReplyWithToolLoop(input: {
 function ebookRuntimeRecord(payload: AgentMessagePayload): ArticleRecord['ebook'] {
   if (!payload.article.ebookIndex) return undefined;
   return { index: payload.article.ebookIndex } as ArticleRecord['ebook'];
+}
+
+function threadRootCommentId(payload: AgentMessagePayload) {
+  return payload.reviewTargetCommentId || payload.userComment.replyTo;
 }

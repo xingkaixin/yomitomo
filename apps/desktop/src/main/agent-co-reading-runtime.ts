@@ -93,7 +93,8 @@ async function coReadingAnnotationDecision(
     taskType: 'co_reading_section',
     articleId,
     agentId: input.agent.id,
-    tools: assistantReadingToolDefinitions,
+    tools: assistantReadingToolDefinitions.filter((tool) => tool.name !== 'get_current_thread'),
+    addAnnotationAnchor: annotation.anchor,
     modelAdapter: input.ai.createAssistantProviderModelAdapter(
       input.provider,
       input.ai.buildAgentCoReadingRuntimePayload(

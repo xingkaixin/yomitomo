@@ -30,6 +30,7 @@ export type AssistantReadingToolExecutorInput = {
   articleText: string;
   agentId: string;
   currentAnnotationId?: string;
+  currentThreadRootCommentId?: string;
   currentAnchor?: TextAnchor;
   readerProgress?: ReaderProgress;
   executor?: ReadingMemorySqliteExecutor;
@@ -112,11 +113,21 @@ function currentThreadEvidence(
 ): AssistantToolEvidenceInput[] {
   const annotation = annotationForTool(input, stringField(recordField(raw, 'annotationId')));
   if (!annotation) return [];
-  const comments = annotation.comments.map(formatComment).join('\n');
+  const rootComment = rootCommentForThread(annotation, input.currentThreadRootCommentId);
+  const threadComments = commentsForThread(annotation, rootComment?.id);
+  const latestUserComment = threadComments
+    .toReversed()
+    .find((comment) => comment.author === 'user');
+  const comments = threadComments.map(formatThreadComment).join('\n');
   const text = [
     `selection: ${annotation.anchor.exact}`,
-    `annotation: ${annotation.author}${annotation.agentNickname ? ` / ${annotation.agentNickname}` : ''}`,
-    comments ? `comments:\n${comments}` : '',
+    `annotation_author: ${annotationAuthorLabel(annotation)}`,
+    rootComment ? `original_thought_author: ${formatCommentAuthor(rootComment)}` : '',
+    rootComment ? `original_thought: ${rootComment.content}` : '',
+    latestUserComment
+      ? `latest_user_comment: ${formatCommentAuthor(latestUserComment)}: ${latestUserComment.content}`
+      : '',
+    comments ? `thread_messages:\n${comments}` : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -349,12 +360,51 @@ function okEvidence(evidence: AssistantToolEvidenceInput[]): AssistantToolExecut
   return { ok: true, evidence };
 }
 
-function formatComment(comment: Annotation['comments'][number]) {
+function rootCommentForThread(annotation: Annotation, rootCommentId: string | undefined) {
+  if (rootCommentId) {
+    const exact = annotation.comments.find((comment) => comment.id === rootCommentId);
+    if (exact?.replyTo) {
+      return annotation.comments.find((comment) => comment.id === exact.replyTo) || exact;
+    }
+    if (exact) return exact;
+  }
+  return (
+    annotation.comments.find((comment) => !comment.replyTo && comment.content.trim()) ||
+    annotation.comments.find((comment) => comment.content.trim())
+  );
+}
+
+function commentsForThread(annotation: Annotation, rootCommentId: string | undefined) {
+  if (!rootCommentId) return annotation.comments.filter((comment) => comment.content.trim());
+  const focused = annotation.comments.filter(
+    (comment) =>
+      comment.content.trim() && (comment.id === rootCommentId || comment.replyTo === rootCommentId),
+  );
+  return focused.length > 0
+    ? focused
+    : annotation.comments.filter((comment) => comment.content.trim());
+}
+
+function annotationAuthorLabel(annotation: Annotation) {
+  if (annotation.author === 'ai') {
+    return annotation.agentNickname || annotation.agentUsername || 'assistant';
+  }
+  return annotation.userNickname || annotation.userUsername || 'user';
+}
+
+function formatThreadComment(comment: Annotation['comments'][number]) {
+  const role = comment.replyTo ? `reply_to:${comment.replyTo}` : 'root_thought';
+  return `${role} ${formatCommentAuthor(comment)}: ${comment.content}`;
+}
+
+function formatCommentAuthor(comment: Annotation['comments'][number]) {
   const author =
     comment.author === 'ai'
       ? comment.agentNickname || comment.agentUsername || 'assistant'
       : comment.userNickname || comment.userUsername || 'user';
-  return `${author}: ${comment.content}`;
+  return comment.author === 'ai' && comment.agentUsername
+    ? `${author} (@${comment.agentUsername})`
+    : author;
 }
 
 function requireQuery(input: unknown) {

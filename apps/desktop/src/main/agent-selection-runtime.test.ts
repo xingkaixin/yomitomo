@@ -46,6 +46,9 @@ describe('agent selection tool loop', () => {
     expect(result.status === 'result' && result.result.annotations[0]?.comments[0]?.content).toBe(
       '这句话把选择压力放回了具体机制里。',
     );
+    expect(adapter.mock.calls[0]?.[0].availableTools.map((tool) => tool.name)).not.toContain(
+      'get_current_thread',
+    );
   });
 
   it('returns no annotations for a no_action decision', async () => {

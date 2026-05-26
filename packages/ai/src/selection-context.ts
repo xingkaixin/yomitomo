@@ -148,7 +148,7 @@ export function selectionThreadContextPrompt(context: SelectionThreadContext) {
     },
     null,
     2,
-  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- retrieved_evidence 是同章 lexical 召回，用于补足章节内回指和相似术语。\n- 只有 thread 或 memory_view 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
+  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- thread 中第一条 root 想法是这条批注讨论的原始想法；即使最新读者评论只是 @ 你，也要先理解并回应原始想法的作者和内容。\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- retrieved_evidence 是同章 lexical 召回，用于补足章节内回指和相似术语。\n- 只有 thread 或 memory_view 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
 }
 
 function selectionBaseContext(
@@ -436,7 +436,11 @@ function threadMessages(
   index: EpubBookIndex,
   location: SelectionLocation | null,
 ): ThreadMessageContext[] {
-  const comments = threadContextComments(payload.annotation.comments, payload.userComment);
+  const comments = threadContextComments(
+    payload.annotation.comments,
+    payload.userComment,
+    payload.reviewTargetCommentId || payload.userComment.replyTo,
+  );
   return comments.map((comment) => ({
     commentId: comment.id,
     author: comment.author,
@@ -450,13 +454,30 @@ function threadMessages(
   }));
 }
 
-function threadContextComments(comments: Comment[], userComment: Comment) {
+function threadContextComments(
+  comments: Comment[],
+  userComment: Comment,
+  rootCommentId: string | undefined,
+) {
   const merged = comments.some((comment) => comment.id === userComment.id)
     ? comments
     : [...comments, userComment];
-  const nonEmpty = merged.filter((comment) => comment.content.trim());
-  if (nonEmpty.length <= THREAD_CONTEXT_RECENT_LIMIT + 1) return nonEmpty;
+  if (!rootCommentId) return clippedThreadContextComments(merged);
+  const root = merged.find((comment) => comment.id === rootCommentId);
+  const resolvedRootId = root?.replyTo || root?.id || rootCommentId;
+  const focused = merged.filter(
+    (comment) =>
+      comment.content.trim() &&
+      (comment.id === resolvedRootId || comment.replyTo === resolvedRootId),
+  );
+  const nonEmpty =
+    focused.length > 0 ? focused : merged.filter((comment) => comment.content.trim());
+  return clippedThreadContextComments(nonEmpty);
+}
 
+function clippedThreadContextComments(comments: Comment[]) {
+  const nonEmpty = comments.filter((comment) => comment.content.trim());
+  if (nonEmpty.length <= THREAD_CONTEXT_RECENT_LIMIT + 1) return nonEmpty;
   const first = nonEmpty[0];
   const recent = nonEmpty.slice(-THREAD_CONTEXT_RECENT_LIMIT);
   return first && !recent.some((comment) => comment.id === first.id) ? [first, ...recent] : recent;

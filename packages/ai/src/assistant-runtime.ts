@@ -22,17 +22,17 @@ export const DEFAULT_ASSISTANT_RUNTIME_BUDGETS: Record<
   AssistantRuntimeBudget
 > = {
   thread_reply: {
-    maxSteps: 3,
+    maxSteps: 20,
     maxToolResults: 6,
     maxToolResultCharacters: 2400,
   },
   selection_first: {
-    maxSteps: 5,
+    maxSteps: 20,
     maxToolResults: 8,
     maxToolResultCharacters: 3200,
   },
   co_reading_section: {
-    maxSteps: 4,
+    maxSteps: 20,
     maxToolResults: 8,
     maxToolResultCharacters: 3600,
   },
@@ -114,6 +114,16 @@ export type AssistantProviderEvent =
   | AssistantProviderInvalidResponseEvent
   | AssistantProviderFailureEvent;
 
+export type AssistantToolResultMessage = {
+  toolCallId: string;
+  toolName: AssistantToolName;
+  ok: boolean;
+  summary?: string;
+  evidenceIds: string[];
+  evidence: AssistantEvidence[];
+  failureReason?: string;
+};
+
 export type AssistantFinalAction =
   | {
       type: 'reply_to_thread';
@@ -145,6 +155,7 @@ export type AssistantRuntimeTurn = {
   stepIndex: number;
   availableTools: AssistantToolDefinition[];
   evidence: AssistantEvidence[];
+  toolResults: AssistantToolResultMessage[];
   repairReason?: string;
 };
 
@@ -155,6 +166,11 @@ export type AssistantRuntimeTraceStep = {
   sanitizedToolInput?: unknown;
   resultCount: number;
   evidenceIds: string[];
+  evidenceSummaries: Array<{
+    id: string;
+    summary: string;
+    provenance: AssistantEvidenceProvenance;
+  }>;
   latencyMs: number;
   failureReason?: string;
 };
@@ -192,6 +208,7 @@ export type AssistantRuntimeOptions = {
   agentId: string;
   tools: AssistantToolDefinition[];
   allowedAnnotationIds?: string[];
+  addAnnotationAnchor?: TextAnchor;
   budget?: Partial<AssistantRuntimeBudget>;
   now?: () => string;
   modelAdapter: (turn: AssistantRuntimeTurn) => Promise<AssistantProviderEvent>;
@@ -212,6 +229,7 @@ export async function runAssistantToolRuntime(
   };
   const toolsByName = new Map(options.tools.map((tool) => [tool.name, tool]));
   const evidence: AssistantEvidence[] = [];
+  const toolResults: AssistantToolResultMessage[] = [];
   let repairReason: string | undefined;
   let repairUsed = false;
 
@@ -224,16 +242,26 @@ export async function runAssistantToolRuntime(
       stepIndex,
       availableTools: options.tools,
       evidence,
+      toolResults,
       repairReason,
     });
     repairReason = undefined;
 
     if (event.type === 'tool_call') {
+      const toolCallId = event.toolCall.id || `tool_call_${stepIndex}`;
       const tool = toolsByName.get(event.toolCall.name);
       const invalidReason =
         tool?.validateInput?.(event.toolCall.input) ||
         (!tool ? `unknown_tool:${event.toolCall.name}` : null);
       if (invalidReason) {
+        toolResults.push({
+          toolCallId,
+          toolName: event.toolCall.name,
+          ok: false,
+          failureReason: invalidReason,
+          evidenceIds: [],
+          evidence: [],
+        });
         trace.steps.push(
           traceStep(stepIndex, event, startedAt, {
             failureReason: invalidReason,
@@ -246,7 +274,6 @@ export async function runAssistantToolRuntime(
         continue;
       }
 
-      const toolCallId = event.toolCall.id || `tool_call_${stepIndex}`;
       const result = await options.toolExecutor(event.toolCall);
       if (!result.ok) {
         trace.steps.push(
@@ -281,10 +308,23 @@ export async function runAssistantToolRuntime(
           }),
         );
       evidence.push(...nextEvidence);
+      toolResults.push({
+        toolCallId,
+        toolName: event.toolCall.name,
+        ok: true,
+        summary: result.summary,
+        evidenceIds: nextEvidence.map((item) => item.id),
+        evidence: nextEvidence,
+      });
       trace.steps.push(
         traceStep(stepIndex, event, startedAt, {
           resultCount: nextEvidence.length,
           evidenceIds: nextEvidence.map((item) => item.id),
+          evidenceSummaries: nextEvidence.map((item) => ({
+            id: item.id,
+            summary: item.summary,
+            provenance: item.provenance,
+          })),
         }),
       );
       continue;
@@ -295,6 +335,7 @@ export async function runAssistantToolRuntime(
         articleId: options.articleId,
         evidenceIds: new Set(evidence.map((item) => item.id)),
         allowedAnnotationIds: options.allowedAnnotationIds,
+        addAnnotationAnchor: options.addAnnotationAnchor,
       });
       if (!validation.ok) {
         trace.steps.push(
@@ -350,11 +391,12 @@ export function validateAssistantFinalAction(
     articleId: string;
     evidenceIds: Set<string>;
     allowedAnnotationIds?: string[];
+    addAnnotationAnchor?: TextAnchor;
   },
 ): { ok: true; action: AssistantFinalAction } | { ok: false; reason: string } {
   if (!isRecord(value)) return { ok: false, reason: 'final_action_not_object' };
   const type = stringField(value.type);
-  const evidenceIds = stringArray(value.evidenceIds);
+  const evidenceIds = evidenceIdArray(value);
   if (!evidenceIds) return { ok: false, reason: 'invalid_evidence_ids' };
   const unknownEvidenceId = evidenceIds.find((id) => !context.evidenceIds.has(id));
   if (unknownEvidenceId) return { ok: false, reason: `unknown_evidence:${unknownEvidenceId}` };
@@ -380,17 +422,23 @@ export function validateAssistantFinalAction(
   }
 
   if (type === 'add_annotation') {
-    if (!isTextAnchor(value.anchor)) return { ok: false, reason: 'invalid_anchor' };
+    const anchor = isTextAnchor(value.anchor) ? value.anchor : context.addAnnotationAnchor;
+    if (!anchor) return { ok: false, reason: 'invalid_anchor' };
     const thought = stringField(value.thought);
     if (!thought) return { ok: false, reason: 'missing_thought' };
     return {
       ok: true,
-      action: { type, anchor: value.anchor, thought, evidenceIds, confidence, reason },
+      action: { type, anchor, thought, evidenceIds, confidence, reason },
     };
   }
 
   if (type === 'no_action') {
-    if ('content' in value || 'thought' in value || 'anchor' in value || 'annotationId' in value) {
+    if (
+      hasWritableValue(value.content) ||
+      hasWritableValue(value.thought) ||
+      hasWritableValue(value.anchor) ||
+      hasWritableValue(value.annotationId)
+    ) {
       return { ok: false, reason: 'no_action_cannot_write' };
     }
     return {
@@ -430,7 +478,10 @@ function traceStep(
   event: AssistantProviderEvent,
   startedAt: number,
   data: Partial<
-    Pick<AssistantRuntimeTraceStep, 'resultCount' | 'evidenceIds' | 'failureReason'>
+    Pick<
+      AssistantRuntimeTraceStep,
+      'resultCount' | 'evidenceIds' | 'evidenceSummaries' | 'failureReason'
+    >
   > = {},
 ): AssistantRuntimeTraceStep {
   const toolCall = event.type === 'tool_call' ? event.toolCall : undefined;
@@ -441,6 +492,7 @@ function traceStep(
     sanitizedToolInput: toolCall ? sanitizeToolInput(toolCall.input) : undefined,
     resultCount: data.resultCount || 0,
     evidenceIds: data.evidenceIds || [],
+    evidenceSummaries: data.evidenceSummaries || [],
     latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
     failureReason: data.failureReason,
   };
@@ -508,6 +560,18 @@ function stringField(value: unknown) {
 function stringArray(value: unknown) {
   if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) return null;
   return value;
+}
+
+function evidenceIdArray(value: Record<string, unknown>) {
+  const raw = value.evidenceIds || value.evidence_ids || value.evidenceId || value.evidence_id;
+  if (typeof raw === 'string') return raw.trim() ? [raw.trim()] : [];
+  return stringArray(raw);
+}
+
+function hasWritableValue(value: unknown) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
 }
 
 function numberField(value: unknown) {

@@ -1,7 +1,7 @@
 import type { LlmProvider } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { streamProviderText } from './provider-client';
+import { callProviderText, streamProviderText } from './provider-client';
 
 describe('streamProviderText', () => {
   afterEach(() => {
@@ -32,6 +32,98 @@ describe('streamProviderText', () => {
   });
 });
 
+describe('callProviderText response schema', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('passes JSON schema response_format to OpenAI chat providers', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), {
+        status: 200,
+      }),
+    );
+
+    await callProviderText(
+      {
+        ...provider(),
+        presetId: 'openai',
+        baseUrl: 'https://api.openai.com',
+      },
+      { ...payload(), responseSchema: testResponseSchema() },
+    );
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      response_format?: unknown;
+    };
+    expect(body.response_format).toEqual({
+      type: 'json_schema',
+      json_schema: {
+        name: 'test_schema',
+        strict: true,
+        schema: testResponseSchema().schema,
+      },
+    });
+  });
+
+  it('passes JSON schema text format to OpenAI responses providers', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ output_text: '{"ok":true}' }), { status: 200 }),
+      );
+
+    await callProviderText(
+      {
+        ...provider(),
+        type: 'openai-responses',
+        presetId: 'openai',
+        baseUrl: 'https://api.openai.com',
+      },
+      { ...payload(), responseSchema: testResponseSchema() },
+    );
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      text?: unknown;
+    };
+    expect(body.text).toEqual({
+      format: {
+        type: 'json_schema',
+        name: 'test_schema',
+        strict: true,
+        schema: testResponseSchema().schema,
+      },
+    });
+  });
+
+  it('passes responseSchema to Gemini generation config', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await callProviderText(
+      {
+        ...provider(),
+        type: 'gemini',
+        presetId: 'gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      { ...payload(), responseSchema: testResponseSchema() },
+    );
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      generationConfig?: Record<string, unknown>;
+    };
+    expect(body.generationConfig?.responseMimeType).toBe('application/json');
+    expect(body.generationConfig?.responseSchema).toEqual(testResponseSchema().schema);
+  });
+});
+
 function provider(): LlmProvider {
   return {
     id: 'provider-1',
@@ -50,5 +142,20 @@ function payload() {
     system: 'system',
     user: 'user',
     maxTokens: 128,
+  };
+}
+
+function testResponseSchema() {
+  return {
+    name: 'test_schema',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['ok'],
+      properties: {
+        ok: { type: 'boolean' },
+      },
+    },
   };
 }
