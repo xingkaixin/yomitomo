@@ -9,9 +9,11 @@ import type {
   ArticleUpsertPatch,
   Comment,
 } from '@yomitomo/shared';
+import { readingMemoryEntriesFromAnnotationThread } from '@yomitomo/core';
 import * as schema from './db/schema';
 import {
   getDatabase,
+  getSqliteExecutor,
   type StoreDatabase,
   type StoreExecutor,
   type StoreReadProfileEntry,
@@ -19,6 +21,7 @@ import {
 import {
   deleteReadingMemoryForArticle,
   softDeleteReadingMemoryEntriesBySource,
+  upsertReadingMemoryEntries,
   withReadingMemoryTransaction,
   type ReadingMemorySqliteExecutor,
 } from './reading-memory-store';
@@ -138,9 +141,37 @@ export function readArticleCoverRows(database: StoreDatabase, id: string): strin
 
 export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   writeArticleRowsInTransaction(getDatabase(), input);
+  trySyncArticleAnnotationMemoryEntries(input);
   const article = readArticleSummaryRows(getDatabase(), input.id);
   if (!article) throw new Error('文章保存失败');
   return buildArticleUpsertPatch(article);
+}
+
+function trySyncArticleAnnotationMemoryEntries(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+  try {
+    syncArticleAnnotationMemoryEntries(article);
+  } catch (error) {
+    console.warn('[reading-memory] sync annotation memory entries failed', {
+      articleId: article.id,
+      error,
+    });
+  }
+}
+
+export function syncArticleAnnotationMemoryEntries(
+  article: Pick<ArticleRecord, 'id' | 'annotations'>,
+  executor?: ReadingMemorySqliteExecutor,
+) {
+  const entries = article.annotations.flatMap((annotation) =>
+    readingMemoryEntriesFromAnnotationThread({
+      articleId: article.id,
+      annotation,
+    }),
+  );
+  upsertReadingMemoryEntries(
+    entries,
+    executor || (getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor),
+  );
 }
 
 export function buildArticleUpsertPatch(article: ArticleSummaryRecord): ArticleUpsertPatch {
