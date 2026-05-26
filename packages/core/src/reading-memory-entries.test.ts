@@ -4,6 +4,7 @@ import {
   activeReadingMemoryEntries,
   normalizeReadingMemoryEntry,
   readingMemoryEntriesFromMemoryDelta,
+  readingMemoryFromEntries,
   readingMemoryEntrySearchText,
 } from './reading-memory-entries';
 
@@ -159,6 +160,65 @@ describe('reading memory entries', () => {
         next: memory,
       }),
     ).toEqual([]);
+  });
+
+  it('projects active summary and trace entries to legacy reading memory', () => {
+    const memory = readingMemoryFromEntries([
+      entry({
+        id: 'summary_1',
+        kind: 'summary',
+        payload: { summary: '投影摘要', keyTerms: ['投影'] },
+      }),
+      entry({
+        id: 'trace_1',
+        kind: 'trace',
+        payload: { items: [traceItem('投影 trace')] },
+        updatedAt: '2026-05-26T01:00:00.000Z',
+      }),
+    ]);
+
+    expect(memory).toEqual({
+      updatedAt: '2026-05-26T01:00:00.000Z',
+      textSummaries: [
+        {
+          scope: 'segment',
+          chapterId: 'chapter_1',
+          segmentId: 'segment_1',
+          sourceRange: { textStart: 0, textEnd: 100 },
+          summary: '投影摘要',
+          keyTerms: ['投影'],
+          updatedAt: '2026-05-26T00:00:00.000Z',
+        },
+      ],
+      readingTraces: [
+        {
+          scope: 'segment',
+          chapterId: 'chapter_1',
+          segmentId: 'segment_1',
+          sourceRange: { textStart: 0, textEnd: 100 },
+          items: [traceItem('投影 trace')],
+          updatedAt: '2026-05-26T01:00:00.000Z',
+        },
+      ],
+    });
+  });
+
+  it('excludes deleted and superseded entries from legacy projection', () => {
+    const memory = readingMemoryFromEntries([
+      entry({ id: 'old', payload: { summary: '旧摘要', keyTerms: [] } }),
+      entry({
+        id: 'deleted',
+        deletedAt: '2026-05-26T01:00:00.000Z',
+        payload: { summary: '删除摘要', keyTerms: [] },
+      }),
+      entry({
+        id: 'new',
+        supersedesEntryId: 'old',
+        payload: { summary: '新摘要', keyTerms: [] },
+      }),
+    ]);
+
+    expect(memory?.textSummaries.map((summary) => summary.summary)).toEqual(['新摘要']);
   });
 });
 

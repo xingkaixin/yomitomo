@@ -1,7 +1,27 @@
 import type { Agent, AgentAnnotatePayload, AgentAnnotateResult } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import { readingMemoryEntriesFromMemoryDelta } from '@yomitomo/core';
-import { appendReadingMemoryEntries } from './reading-memory-store';
+import { readingMemoryEntriesFromMemoryDelta, readingMemoryFromEntries } from '@yomitomo/core';
+import { appendReadingMemoryEntries, readReadingMemoryEntries } from './reading-memory-store';
+
+export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
+  payload: AgentAnnotatePayload;
+  logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
+}): AgentAnnotatePayload {
+  const articleId = input.payload.article.id;
+  if (!articleId) return input.payload;
+
+  try {
+    const memory = readingMemoryFromEntries(readReadingMemoryEntries({ articleId }));
+    if (!memory) return input.payload;
+    return {
+      ...input.payload,
+      readingMemory: memory,
+    };
+  } catch (error) {
+    input.logError('reading_memory.read_failed', error, { articleId });
+    return input.payload;
+  }
+}
 
 export function saveAgentAnnotateReadingMemoryEntries(input: {
   agent: Agent;

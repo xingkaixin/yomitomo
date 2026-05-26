@@ -109,6 +109,30 @@ export function readingMemoryEntriesFromMemoryDelta(input: {
   return entries;
 }
 
+export function readingMemoryFromEntries(entries: ReadingMemoryEntry[]): ReadingMemory | undefined {
+  const activeEntries = activeReadingMemoryEntries(entries);
+  if (activeEntries.length === 0) return undefined;
+
+  const projectedEntries: ReadingMemoryEntry[] = [];
+  const textSummaries = activeEntries.flatMap((entry) => {
+    const summary = textSummaryFromEntry(entry);
+    if (summary) projectedEntries.push(entry);
+    return summary ? [summary] : [];
+  });
+  const readingTraces = activeEntries.flatMap((entry) => {
+    const trace = readingTraceFromEntry(entry);
+    if (trace) projectedEntries.push(entry);
+    return trace ? [trace] : [];
+  });
+  if (textSummaries.length === 0 && readingTraces.length === 0) return undefined;
+
+  return {
+    textSummaries,
+    readingTraces,
+    updatedAt: latestUpdatedAt(projectedEntries),
+  };
+}
+
 function normalizeTextRange(range: TextRange | undefined) {
   if (!range) return undefined;
   if (!Number.isInteger(range.textStart) || !Number.isInteger(range.textEnd)) return null;
@@ -142,6 +166,78 @@ function collectSearchTextParts(value: unknown): string[] {
 
 function compactSearchText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
+}
+
+function textSummaryFromEntry(entry: ReadingMemoryEntry): TextSummary | null {
+  if (entry.kind !== 'summary') return null;
+  if (!entry.textRange) return null;
+  if (entry.scope !== 'segment' && entry.scope !== 'chapter' && entry.scope !== 'book') {
+    return null;
+  }
+  if (!isSummaryPayload(entry.payload)) return null;
+  return {
+    scope: entry.scope,
+    chapterId: entry.chapterId,
+    segmentId: entry.segmentId,
+    sourceRange: entry.textRange,
+    summary: entry.payload.summary,
+    keyTerms: entry.payload.keyTerms,
+    updatedAt: entry.updatedAt,
+  };
+}
+
+function readingTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
+  if (entry.kind !== 'trace') return null;
+  if (
+    entry.scope !== 'segment' &&
+    entry.scope !== 'chapter' &&
+    entry.scope !== 'agent' &&
+    entry.scope !== 'reader'
+  ) {
+    return null;
+  }
+  if (!isTracePayload(entry.payload)) return null;
+  return {
+    scope: entry.scope,
+    chapterId: entry.chapterId,
+    segmentId: entry.segmentId,
+    sourceRange: entry.textRange,
+    agentId: entry.agentId,
+    items: entry.payload.items,
+    updatedAt: entry.updatedAt,
+  };
+}
+
+function isSummaryPayload(payload: ReadingMemoryEntry['payload']): payload is {
+  summary: string;
+  keyTerms: string[];
+} {
+  if (!isRecord(payload)) return false;
+  const value = payload as Record<string, unknown>;
+  const keyTerms = value.keyTerms;
+  return (
+    typeof value.summary === 'string' &&
+    Array.isArray(keyTerms) &&
+    keyTerms.every((term) => typeof term === 'string')
+  );
+}
+
+function isTracePayload(payload: ReadingMemoryEntry['payload']): payload is {
+  items: ReadingTrace['items'];
+} {
+  if (!isRecord(payload)) return false;
+  return Array.isArray((payload as Record<string, unknown>).items);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function latestUpdatedAt(entries: ReadingMemoryEntry[]) {
+  return entries.reduce((latest, entry) => {
+    if (!latest || entry.updatedAt > latest) return entry.updatedAt;
+    return latest;
+  }, '');
 }
 
 function summaryEntry(
