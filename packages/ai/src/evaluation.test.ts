@@ -57,7 +57,15 @@ describe('epub evaluation metrics', () => {
       controlGroup: 'structured_context',
       segmentOutputs: [
         { segmentId: segmentIds[0]!, annotations: [] },
-        { segmentId: segmentIds[1]!, annotations: [valid, duplicate] },
+        {
+          segmentId: segmentIds[1]!,
+          annotations: [valid, duplicate],
+          toolLoopDecisions: [
+            { status: 'final', actionType: 'add_annotation' },
+            { status: 'final', actionType: 'no_action' },
+            { status: 'fallback', failureReason: 'provider_failed' },
+          ],
+        },
         { segmentId: segmentIds[2]!, annotations: [invalid] },
       ],
     });
@@ -67,6 +75,9 @@ describe('epub evaluation metrics', () => {
     expect(metrics.duplicateAnnotationRate).toBeCloseTo(1 / 3);
     expect(metrics.emptySegmentRate).toBeCloseTo(2 / 3);
     expect(metrics.annotationsPer1000Chars).toBeGreaterThan(0);
+    expect(metrics.toolLoopDecisionCount).toBe(3);
+    expect(metrics.toolLoopFilteredRate).toBeCloseTo(1 / 3);
+    expect(metrics.toolLoopFallbackRate).toBeCloseTo(1 / 3);
   });
 
   it('aggregates control groups and evaluates phase-one gates', () => {
@@ -116,6 +127,10 @@ describe('epub evaluation metrics', () => {
             annotations: [
               annotationFromExact(segmentCase, '第二个可批注点指出', 'a-4', 'ask_question'),
             ],
+            toolLoopDecisions: [
+              { status: 'final', actionType: 'add_annotation' },
+              { status: 'final', actionType: 'no_action' },
+            ],
           },
           { segmentId: segmentIds[2]!, annotations: [] },
         ],
@@ -132,6 +147,8 @@ describe('epub evaluation metrics', () => {
     expect(structured?.selectionContextScore).toBe(4.5);
     expect(structured?.threadGroundingScore).toBe(4.2);
     expect(structured?.emptySegmentRate).toBeCloseTo(1 / 3);
+    expect(structured?.toolLoopFilteredRate).toBeCloseTo(1 / 2);
+    expect(structured?.toolLoopFallbackRate).toBe(0);
     expect(structured?.totalInputTokens).toBe(900);
     expect(phaseOne.passed).toBe(true);
   });

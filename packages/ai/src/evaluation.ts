@@ -100,9 +100,16 @@ export type EpubEvaluationUsage = Partial<{
   costUsd: number;
 }>;
 
+export type EpubEvaluationToolLoopDecision = {
+  status: 'final' | 'fallback' | 'kept_without_runtime';
+  actionType?: 'add_annotation' | 'no_action' | 'reply_to_thread' | string;
+  failureReason?: string;
+};
+
 export type EpubEvaluationSegmentOutput = {
   segmentId: string;
   annotations: Annotation[];
+  toolLoopDecisions?: EpubEvaluationToolLoopDecision[];
 };
 
 export type EpubEvaluationRun = {
@@ -110,6 +117,7 @@ export type EpubEvaluationRun = {
   controlGroup: EpubEvaluationControlGroup;
   annotations?: Annotation[];
   segmentOutputs?: EpubEvaluationSegmentOutput[];
+  toolLoopDecisions?: EpubEvaluationToolLoopDecision[];
   route?: FocusCoReadingRouteResult;
   replyText?: string;
   manualScores?: EpubEvaluationManualScores;
@@ -128,6 +136,9 @@ export type EpubEvaluationMetrics = {
   inputTokens: number | null;
   outputTokens: number | null;
   costUsd: number | null;
+  toolLoopDecisionCount: number;
+  toolLoopFilteredRate: number | null;
+  toolLoopFallbackRate: number | null;
 };
 
 export type EpubEvaluationCaseResult = {
@@ -151,6 +162,8 @@ export type EpubEvaluationControlSummary = {
   totalInputTokens: number;
   totalOutputTokens: number;
   totalCostUsd: number;
+  toolLoopFilteredRate: number | null;
+  toolLoopFallbackRate: number | null;
   failureCounts: Partial<Record<EpubEvaluationFailureLabel, number>>;
 };
 
@@ -186,6 +199,7 @@ export function evaluateEpubRun(
 ): EpubEvaluationMetrics {
   const annotations = visibleAnnotations(runAnnotations(run));
   const textLength = metricTextLength(evaluationCase);
+  const toolLoopDecisions = runToolLoopDecisions(run);
   const hitCount = annotations.filter((annotation) =>
     annotationAnchorResolves(evaluationCase, annotation),
   ).length;
@@ -203,6 +217,17 @@ export function evaluateEpubRun(
     inputTokens: numericValue(run.usage?.inputTokens),
     outputTokens: numericValue(run.usage?.outputTokens),
     costUsd: numericValue(run.usage?.costUsd),
+    toolLoopDecisionCount: toolLoopDecisions.length,
+    toolLoopFilteredRate:
+      toolLoopDecisions.length > 0
+        ? toolLoopDecisions.filter((decision) => decision.actionType === 'no_action').length /
+          toolLoopDecisions.length
+        : null,
+    toolLoopFallbackRate:
+      toolLoopDecisions.length > 0
+        ? toolLoopDecisions.filter((decision) => decision.status === 'fallback').length /
+          toolLoopDecisions.length
+        : null,
   };
 }
 
@@ -348,6 +373,12 @@ function summarizeControlGroup(
     totalInputTokens: sumNumbers(results.map((result) => result.metrics.inputTokens)),
     totalOutputTokens: sumNumbers(results.map((result) => result.metrics.outputTokens)),
     totalCostUsd: sumNumbers(results.map((result) => result.metrics.costUsd)),
+    toolLoopFilteredRate: averageNullable(
+      results.map((result) => result.metrics.toolLoopFilteredRate),
+    ),
+    toolLoopFallbackRate: averageNullable(
+      results.map((result) => result.metrics.toolLoopFallbackRate),
+    ),
     failureCounts,
   };
 }
@@ -397,6 +428,14 @@ function controlSummary(report: EpubEvaluationReport, controlGroup: EpubEvaluati
 
 function runAnnotations(run: EpubEvaluationRun) {
   return run.segmentOutputs?.flatMap((segment) => segment.annotations) || run.annotations || [];
+}
+
+function runToolLoopDecisions(run: EpubEvaluationRun) {
+  return (
+    run.toolLoopDecisions ||
+    run.segmentOutputs?.flatMap((segment) => segment.toolLoopDecisions || []) ||
+    []
+  );
 }
 
 function visibleAnnotations(annotations: Annotation[]) {
