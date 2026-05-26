@@ -7,7 +7,7 @@ description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomit
 
 ## 网页端获取
 
-1. 打开 [微信读书 Skill 页面](https://weread.qq.com/r/weread-skills)。
+1. 打开 <a href="https://weread.qq.com/r/weread-skills" target="_blank" rel="noopener noreferrer">微信读书 Skill 页面</a>。
 2. 点击「快速配置」。
 3. 登录微信读书。
 4. 在「获取 API Key」区域创建 API KEY；如果之前已经创建，直接复制已有 key。
