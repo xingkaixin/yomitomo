@@ -115,6 +115,61 @@ describe('agent reading memory persistence', () => {
     expect(payload.readingMemoryView?.viewType).toBe('segment');
   });
 
+  it('attaches an article section memory view for non-EPUB reading plans', () => {
+    const logInfo = vi.fn();
+    memoryStore.readReadingMemoryEntries.mockReturnValue([]);
+    memoryStore.buildReadingMemoryView.mockReturnValue({
+      articleId: 'article_1',
+      viewType: 'article_section',
+      viewKey: 'article_section:::10:60',
+      entries: [
+        {
+          source: 'structured',
+          entry: memoryEntry({
+            id: 'comment_memory_comment_1',
+            kind: 'reader_signal',
+            scope: 'reader',
+            textRange: { textStart: 20, textEnd: 30 },
+            sourceType: 'comment',
+            sourceCommentId: 'comment_1',
+            payload: { source: 'comment', author: 'user', content: '既有 section 讨论' },
+          }),
+        },
+      ],
+      sourceEntryIds: ['comment_memory_comment_1'],
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    });
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({
+        instruction: '关注争议点',
+        readingPlan: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '第一节',
+            sectionStart: 10,
+            sectionEnd: 60,
+            sectionSummary: '增长判断',
+            sectionTag: 'growth',
+          },
+        ],
+      }),
+      logInfo,
+      logError: vi.fn(),
+    });
+
+    expect(memoryStore.buildReadingMemoryView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'article_1',
+        viewType: 'article_section',
+        textRange: { textStart: 10, textEnd: 60 },
+        query: expect.stringContaining('增长判断'),
+        performanceLogger: logInfo,
+      }),
+    );
+    expect(payload.readingMemoryView?.viewType).toBe('article_section');
+  });
+
   it('attaches a selection memory view for target annotations', () => {
     const logInfo = vi.fn();
     memoryStore.readReadingMemoryEntries.mockReturnValue([]);

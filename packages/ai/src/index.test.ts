@@ -1215,6 +1215,76 @@ describe('agent annotations', () => {
     expect(prompt).not.toContain('第三章未来剧情。');
   });
 
+  it('includes article-section memory view for non-epub reading plans', async () => {
+    const content = JSON.stringify([{ exact: '第二节关键判断', type: 'key_point', comment: '一' }]);
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      );
+    const text = '第一节背景。第二节关键判断需要讨论。第三节后续。';
+    const sectionStart = text.indexOf('第二节关键判断');
+    const sectionEnd = text.indexOf('第三节后续');
+
+    await runAgentAnnotate(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'section_2',
+          sectionTitle: '第二节',
+          sectionStart,
+          sectionEnd,
+          sectionSummary: '关键判断',
+        },
+      ],
+      article: {
+        title: '网页文章',
+        url: 'https://example.test/article',
+        text,
+      },
+      readingMemoryView: {
+        articleId: 'article_1',
+        viewType: 'article_section',
+        viewKey: 'article_section:::5:20',
+        sourceEntryIds: ['comment_memory_comment_1'],
+        updatedAt: '2026-05-26T00:00:00.000Z',
+        entries: [
+          {
+            source: 'structured',
+            entry: {
+              id: 'comment_memory_comment_1',
+              articleId: 'article_1',
+              kind: 'reader_signal',
+              scope: 'reader',
+              visibility: 'default',
+              payloadVersion: 1,
+              textRange: { textStart: sectionStart, textEnd: sectionEnd },
+              sourceType: 'comment',
+              sourceCommentId: 'comment_1',
+              sourceEntryIds: [],
+              payload: {
+                source: 'comment',
+                author: 'user',
+                content: '用户之前关心第二节的证据',
+              },
+              createdAt: '2026-05-26T00:00:00.000Z',
+              updatedAt: '2026-05-26T00:00:00.000Z',
+            },
+          },
+        ],
+      },
+    });
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      messages: Array<{ content: string }>;
+    };
+    const prompt = requestBody.messages[1]?.content || '';
+    expect(prompt).toContain('article-section memory_view');
+    expect(prompt).toContain('用户之前关心第二节的证据');
+    expect(prompt).toContain('批注 exact 仍必须来自编排列表里的 sectionText');
+  });
+
   it('generates ebook reading plan annotations segment by segment', async () => {
     const chapters = [
       {

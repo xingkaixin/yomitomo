@@ -50,7 +50,10 @@ export type SearchReadingMemoryEntriesOptions = {
 
 export type BuildReadingMemoryViewOptions = {
   articleId: string;
-  viewType: Extract<MemoryViewType, 'selection' | 'selection_thread' | 'segment' | 'chapter'>;
+  viewType: Extract<
+    MemoryViewType,
+    'selection' | 'selection_thread' | 'article_section' | 'segment' | 'chapter'
+  >;
   chapterId?: string;
   segmentId?: string;
   textRange?: TextRange;
@@ -631,12 +634,22 @@ function memoryEntryAllowedForView(
   entry: ReadingMemoryEntry,
   options: BuildReadingMemoryViewOptions,
 ) {
-  if (entry.kind !== 'summary' && entry.kind !== 'trace' && entry.kind !== 'correction') {
+  if (
+    entry.kind !== 'summary' &&
+    entry.kind !== 'trace' &&
+    entry.kind !== 'correction' &&
+    entry.kind !== 'reader_signal'
+  ) {
     return false;
   }
 
   if (options.viewType === 'selection' || options.viewType === 'selection_thread') {
     if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
+    if (!options.textRange || !entry.textRange) return true;
+    return rangesNear(entry.textRange, options.textRange, 2400);
+  }
+
+  if (options.viewType === 'article_section') {
     if (!options.textRange || !entry.textRange) return true;
     return rangesNear(entry.textRange, options.textRange, 2400);
   }

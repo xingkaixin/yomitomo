@@ -81,6 +81,7 @@ export type ReadingMemoryEntry = {
 export type MemoryViewType =
   | 'selection'
   | 'selection_thread'
+  | 'article_section'
   | 'segment'
   | 'chapter'
   | 'agent'
