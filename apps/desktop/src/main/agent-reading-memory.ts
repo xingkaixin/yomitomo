@@ -77,7 +77,8 @@ function agentAnnotateMemoryView(
 
   const index = payload.article.ebookIndex;
   const firstPlanItem = payload.readingPlan?.[0];
-  if (!index || !firstPlanItem) return undefined;
+  if (!firstPlanItem) return undefined;
+  if (!index) return articleSectionMemoryView(payload, articleId, logInfo);
 
   const segment = index.segments.find(
     (item) =>
@@ -115,6 +116,38 @@ function agentAnnotateMemoryView(
     },
     performanceLogger: logInfo,
   });
+}
+
+function articleSectionMemoryView(
+  payload: AgentAnnotatePayload,
+  articleId: string,
+  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
+) {
+  const ranges = (payload.readingPlan || []).flatMap((item) => {
+    const textRange = normalizeTextRange(item.sectionStart, item.sectionEnd);
+    return textRange ? [textRange] : [];
+  });
+  if (ranges.length === 0) return undefined;
+  const textRange = {
+    textStart: Math.min(...ranges.map((range) => range.textStart)),
+    textEnd: Math.max(...ranges.map((range) => range.textEnd)),
+  };
+  return buildReadingMemoryView({
+    articleId,
+    viewType: 'article_section',
+    textRange,
+    query: articleSectionQuery(payload),
+    performanceLogger: logInfo,
+  });
+}
+
+function articleSectionQuery(payload: AgentAnnotatePayload) {
+  const parts = [payload.readingIntent || '', payload.instruction || ''];
+  for (const item of payload.readingPlan || []) {
+    parts.push(item.sectionTitle, item.sectionSummary || '', item.sectionTag || '');
+    for (const message of item.messages || []) parts.push(message.content);
+  }
+  return parts.join(' ').trim();
 }
 
 function selectionAnnotateMemoryView(
@@ -216,6 +249,12 @@ function anchorTextRange(anchor: AgentAnnotatePayload['targetAnchor']) {
 
 function integerValue(value: unknown) {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
+function normalizeTextRange(textStart: unknown, textEnd: unknown) {
+  const start = integerValue(textStart);
+  const end = integerValue(textEnd);
+  return start !== null && end !== null && end > start ? { textStart: start, textEnd: end } : null;
 }
 
 export function saveAgentAnnotateReadingMemoryEntries(input: {

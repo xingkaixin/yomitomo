@@ -328,6 +328,21 @@ function selectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
   )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解读者/助手已有关注点的背景。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到 memory_view 里的其他句子。\n- 如果 memory_view 与目标选区无关，忽略它。`;
 }
 
+function articleSectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
+  if (payload.article.ebookIndex) return '';
+  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
+  if (blocks.length === 0) return '';
+  return `\n\narticle-section memory_view：\n${JSON.stringify(
+    blocks.map((block) => ({
+      id: block.id,
+      source: block.source,
+      text: block.text,
+    })),
+    null,
+    2,
+  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解本轮 section 的相关背景。\n- 批注 exact 仍必须来自编排列表里的 sectionText，不能从 memory_view 里选择锚点。\n- 如果 memory_view 与本轮 section 无关，忽略它。`;
+}
+
 function agentAnnotationOutputLimit(
   agent: Agent,
   payload: AgentAnnotatePayload,
@@ -347,9 +362,10 @@ function buildAgentAnnotatePrompt(
   if (planPrompt) {
     const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
     const budgetNotice = formatBudgetNotice([article.report]);
+    const memoryViewPrompt = articleSectionMemoryViewPromptBlock(payload);
     const readingIntentOutputLine =
       '- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -378,7 +394,8 @@ function buildAgentAnnotateStreamPrompt(
   if (planPrompt) {
     const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
     const budgetNotice = formatBudgetNotice([article.report]);
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+    const memoryViewPrompt = articleSectionMemoryViewPromptBlock(payload);
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent

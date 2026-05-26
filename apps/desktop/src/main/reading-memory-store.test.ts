@@ -330,6 +330,44 @@ describe('reading memory store', () => {
       }),
     );
   });
+
+  it('builds article section memory views by article text range', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'section_note',
+          kind: 'reader_signal',
+          scope: 'reader',
+          textRange: { textStart: 40, textEnd: 60 },
+          sourceType: 'comment',
+          sourceCommentId: 'comment_1',
+          payload: { source: 'comment', author: 'user', content: 'section concern' },
+        }),
+        entry({
+          id: 'distant_note',
+          kind: 'reader_signal',
+          scope: 'reader',
+          textRange: { textStart: 4000, textEnd: 4020 },
+          sourceType: 'comment',
+          sourceCommentId: 'comment_2',
+          payload: { source: 'comment', author: 'user', content: 'distant concern' },
+        }),
+      ],
+      database,
+    );
+
+    const view = buildReadingMemoryView({
+      articleId: 'article_1',
+      viewType: 'article_section',
+      textRange: { textStart: 30, textEnd: 80 },
+      query: 'concern',
+      executor: database,
+    });
+
+    expect(view.viewType).toBe('article_section');
+    expect(view.entries.map((item) => item.entry.id)).toEqual(['section_note']);
+  });
 });
 
 function memoryDatabase(): ReadingMemorySqliteExecutor {
