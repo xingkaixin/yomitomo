@@ -1,4 +1,6 @@
 import type {
+  Annotation,
+  Comment,
   EpubBookIndex,
   ReadingMemory,
   ReadingMemoryEntry,
@@ -111,6 +113,117 @@ export function readingMemoryEntriesFromMemoryDelta(input: {
   }
 
   return entries;
+}
+
+export function readingMemoryEntryFromAnnotation(input: {
+  articleId: string;
+  annotation: Annotation;
+  createdAt?: string;
+  textRange?: TextRange;
+}): ReadingMemoryEntry | null {
+  const annotation = input.annotation;
+  if (!annotation.id || !annotation.anchor.exact.trim()) return null;
+  const createdAt = input.createdAt || annotation.createdAt;
+  return {
+    id: annotationMemoryEntryId(annotation.id),
+    articleId: input.articleId,
+    kind: annotation.author === 'user' ? 'reader_signal' : 'trace',
+    scope: annotation.author === 'user' ? 'reader' : 'agent',
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: annotation.anchor.chapterId,
+    segmentId: annotation.anchor.segmentId,
+    paragraphId: annotation.anchor.paragraphId,
+    textRange: input.textRange || anchorTextRange(annotation.anchor),
+    agentId: annotation.agentId,
+    readerId: annotation.userId,
+    sourceType: 'annotation',
+    sourceId: annotation.id,
+    sourceAnnotationId: annotation.id,
+    sourceEntryIds: [],
+    anchor: annotation.anchor,
+    payload: {
+      source: 'annotation',
+      author: annotation.author,
+      annotationType: annotation.annotationType,
+      readingIntent: annotation.readingIntent,
+      moveType: annotation.moveType,
+      whyHere: annotation.whyHere,
+      evidenceUsed: annotation.evidenceUsed,
+      confidence: annotation.confidence,
+      anchorExact: annotation.anchor.exact,
+      agentUsername: annotation.agentUsername,
+      userUsername: annotation.userUsername,
+      createdAt: annotation.createdAt,
+      updatedAt: annotation.updatedAt,
+    },
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+export function readingMemoryEntryFromComment(input: {
+  articleId: string;
+  annotation: Annotation;
+  comment: Comment;
+  createdAt?: string;
+  textRange?: TextRange;
+}): ReadingMemoryEntry | null {
+  const content = input.comment.content.trim();
+  if (!input.comment.id || !content) return null;
+  const createdAt = input.createdAt || input.comment.createdAt;
+  return {
+    id: commentMemoryEntryId(input.comment.id),
+    articleId: input.articleId,
+    kind: input.comment.author === 'user' ? 'reader_signal' : 'trace',
+    scope: input.comment.author === 'user' ? 'reader' : 'agent',
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: input.annotation.anchor.chapterId,
+    segmentId: input.annotation.anchor.segmentId,
+    paragraphId: input.annotation.anchor.paragraphId,
+    textRange: input.textRange || anchorTextRange(input.annotation.anchor),
+    agentId: input.comment.agentId,
+    readerId: input.comment.userId,
+    sourceType: 'comment',
+    sourceId: input.comment.id,
+    sourceAnnotationId: input.annotation.id,
+    sourceCommentId: input.comment.id,
+    sourceEntryIds: [annotationMemoryEntryId(input.annotation.id)],
+    anchor: input.annotation.anchor,
+    payload: {
+      source: 'comment',
+      author: input.comment.author,
+      content,
+      replyTo: input.comment.replyTo,
+      readingIntent: input.comment.readingIntent,
+      reviewLabel: input.comment.reviewLabel,
+      annotationId: input.annotation.id,
+      anchorExact: input.annotation.anchor.exact,
+      agentUsername: input.comment.agentUsername,
+      userUsername: input.comment.userUsername,
+      createdAt: input.comment.createdAt,
+    },
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+export function readingMemoryEntriesFromAnnotationThread(input: {
+  articleId: string;
+  annotation: Annotation;
+  createdAt?: string;
+  textRange?: TextRange;
+}): ReadingMemoryEntry[] {
+  const annotationEntry = readingMemoryEntryFromAnnotation(input);
+  const commentEntries = input.annotation.comments.flatMap((comment) => {
+    const entry = readingMemoryEntryFromComment({
+      ...input,
+      comment,
+    });
+    return entry ? [entry] : [];
+  });
+  return annotationEntry ? [annotationEntry, ...commentEntries] : commentEntries;
 }
 
 export function readingMemoryAnchorCheckpointEntries(input: {
@@ -278,6 +391,22 @@ function anchorForEntry(
     ? createEpubTextAnchor(ebookIndex, articleText, range.textStart, range.textEnd)
     : createTextAnchor(articleText, range.textStart, range.textEnd);
   return anchor.exact.trim() ? anchor : null;
+}
+
+function anchorTextRange(anchor: TextAnchor): TextRange | undefined {
+  const textStart = anchor.textStartInBook ?? anchor.start;
+  const textEnd = anchor.textEndInBook ?? anchor.end;
+  if (!Number.isInteger(textStart) || !Number.isInteger(textEnd)) return undefined;
+  if (textEnd <= textStart) return undefined;
+  return { textStart, textEnd };
+}
+
+function annotationMemoryEntryId(annotationId: string) {
+  return `annotation_memory_${annotationId}`;
+}
+
+function commentMemoryEntryId(commentId: string) {
+  return `comment_memory_${commentId}`;
 }
 
 function textSummaryFromEntry(entry: ReadingMemoryEntry): TextSummary | null {

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { ReadingMemoryEntry } from '@yomitomo/shared';
+import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
 import {
   activeReadingMemoryEntries,
   normalizeReadingMemoryEntry,
   readingMemoryAnchorCheckpointEntries,
+  readingMemoryEntriesFromAnnotationThread,
   readingMemoryCorrectionEntry,
   readingMemoryEntriesFromMemoryDelta,
+  readingMemoryEntryFromAnnotation,
+  readingMemoryEntryFromComment,
   readingMemoryFromEntries,
   readingMemoryEntrySearchText,
 } from './reading-memory-entries';
@@ -134,6 +137,113 @@ describe('reading memory entries', () => {
         payload: { items: [traceItem('注意人物动机')] },
       },
     ]);
+  });
+
+  it('creates deterministic memory entries from user annotations', () => {
+    const memoryEntry = readingMemoryEntryFromAnnotation({
+      articleId: 'article_1',
+      annotation: annotation({
+        author: 'user',
+        userId: 'reader_1',
+        userUsername: 'kevin',
+        annotationType: 'question',
+        readingIntent: 'question',
+      }),
+    });
+
+    expect(memoryEntry).toMatchObject({
+      id: 'annotation_memory_annotation_1',
+      articleId: 'article_1',
+      kind: 'reader_signal',
+      scope: 'reader',
+      readerId: 'reader_1',
+      sourceType: 'annotation',
+      sourceId: 'annotation_1',
+      sourceAnnotationId: 'annotation_1',
+      textRange: { textStart: 10, textEnd: 14 },
+      anchor: { exact: '目标句子' },
+      payload: {
+        source: 'annotation',
+        author: 'user',
+        annotationType: 'question',
+        readingIntent: 'question',
+        anchorExact: '目标句子',
+        userUsername: 'kevin',
+      },
+    });
+  });
+
+  it('creates deterministic memory entries from assistant comments with raw content', () => {
+    const source = annotation({
+      author: 'ai',
+      agentId: 'agent_1',
+      comments: [
+        {
+          id: 'comment_1',
+          author: 'ai',
+          content: '  这里保留助手原始回复  ',
+          createdAt: '2026-05-26T00:10:00.000Z',
+          agentId: 'agent_1',
+          agentUsername: 'lin',
+          readingIntent: 'explain',
+        },
+      ],
+    });
+    const memoryEntry = readingMemoryEntryFromComment({
+      articleId: 'article_1',
+      annotation: source,
+      comment: source.comments[0]!,
+    });
+
+    expect(memoryEntry).toMatchObject({
+      id: 'comment_memory_comment_1',
+      articleId: 'article_1',
+      kind: 'trace',
+      scope: 'agent',
+      agentId: 'agent_1',
+      sourceType: 'comment',
+      sourceId: 'comment_1',
+      sourceAnnotationId: 'annotation_1',
+      sourceCommentId: 'comment_1',
+      sourceEntryIds: ['annotation_memory_annotation_1'],
+      payload: {
+        source: 'comment',
+        author: 'ai',
+        content: '这里保留助手原始回复',
+        annotationId: 'annotation_1',
+        anchorExact: '目标句子',
+        agentUsername: 'lin',
+      },
+    });
+  });
+
+  it('creates annotation thread memory entries and skips blank comments', () => {
+    const entries = readingMemoryEntriesFromAnnotationThread({
+      articleId: 'article_1',
+      annotation: annotation({
+        comments: [
+          {
+            id: 'comment_1',
+            author: 'user',
+            content: '用户补充自己的想法',
+            createdAt: '2026-05-26T00:10:00.000Z',
+            userId: 'reader_1',
+          },
+          {
+            id: 'comment_blank',
+            author: 'user',
+            content: '  ',
+            createdAt: '2026-05-26T00:11:00.000Z',
+          },
+        ],
+      }),
+    });
+
+    expect(entries.map((item) => item.id)).toEqual([
+      'annotation_memory_annotation_1',
+      'comment_memory_comment_1',
+    ]);
+    expect(readingMemoryEntrySearchText(entries[1]!)).toContain('用户补充自己的想法');
   });
 
   it('skips unchanged memory facts when building delta entries', () => {
@@ -322,5 +432,27 @@ function traceItem(content: string) {
     evidenceAnchors: [],
     confidence: 'medium' as const,
     createdFromTask: 'chapter_segment_annotation',
+  };
+}
+
+function annotation(overrides: Partial<Annotation> = {}): Annotation {
+  return {
+    id: 'annotation_1',
+    anchor: {
+      exact: '目标句子',
+      prefix: '前文',
+      suffix: '后文',
+      start: 10,
+      end: 14,
+      chapterId: 'chapter_1',
+      segmentId: 'segment_1',
+      paragraphId: 'paragraph_1',
+    },
+    author: 'user',
+    color: '#f4c95d',
+    comments: [],
+    createdAt: '2026-05-26T00:00:00.000Z',
+    updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
   };
 }
