@@ -50,7 +50,7 @@ export type SearchReadingMemoryEntriesOptions = {
 
 export type BuildReadingMemoryViewOptions = {
   articleId: string;
-  viewType: Extract<MemoryViewType, 'selection' | 'segment' | 'chapter'>;
+  viewType: Extract<MemoryViewType, 'selection' | 'selection_thread' | 'segment' | 'chapter'>;
   chapterId?: string;
   segmentId?: string;
   textRange?: TextRange;
@@ -635,7 +635,7 @@ function memoryEntryAllowedForView(
     return false;
   }
 
-  if (options.viewType === 'selection') {
+  if (options.viewType === 'selection' || options.viewType === 'selection_thread') {
     if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
     if (!options.textRange || !entry.textRange) return true;
     return rangesNear(entry.textRange, options.textRange, 2400);

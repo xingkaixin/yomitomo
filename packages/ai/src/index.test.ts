@@ -299,6 +299,73 @@ describe('agent message prompts', () => {
     expect(prompt).not.toContain('未来章节不应出现。');
   });
 
+  it('includes memory view blocks in epub thread-first context', () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['选区前文。目标观点需要局部上下文。选区后文。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    const start = text.indexOf('目标观点');
+    const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '目标观点'.length);
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        article: {
+          title: '长书',
+          url: 'ebook://book-1',
+          text,
+          ebookIndex,
+        },
+        annotation: {
+          ...payload.annotation,
+          anchor,
+        },
+        readingMemoryView: {
+          articleId: 'book-1',
+          viewType: 'selection_thread',
+          viewKey: 'selection_thread:chapter-1::0:4',
+          sourceEntryIds: ['comment_memory_comment_1'],
+          updatedAt: '2026-05-26T00:00:00.000Z',
+          entries: [
+            {
+              source: 'structured',
+              entry: {
+                id: 'comment_memory_comment_1',
+                articleId: 'book-1',
+                kind: 'reader_signal',
+                scope: 'reader',
+                visibility: 'default',
+                payloadVersion: 1,
+                textRange: { textStart: start, textEnd: start + '目标观点'.length },
+                sourceType: 'comment',
+                sourceCommentId: 'comment_1',
+                sourceEntryIds: [],
+                payload: {
+                  source: 'comment',
+                  author: 'user',
+                  content: '用户之前问过目标观点的证据缺口',
+                },
+                createdAt: '2026-05-26T00:00:00.000Z',
+                updatedAt: '2026-05-26T00:00:00.000Z',
+              },
+            },
+          ],
+        },
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('thread-first 上下文');
+    expect(prompt).toContain('"type": "memory_view"');
+    expect(prompt).toContain('用户之前问过目标观点的证据缺口');
+    expect(prompt).toContain('不能覆盖当前 thread');
+  });
+
   it('adds current-chapter lexical passages to epub thread context', () => {
     const chapters = [
       {
@@ -448,6 +515,51 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('代码审查是迭代过程。');
     expect(prompt).toContain('当前批注讨论');
     expect(prompt).not.toContain('thread-first 上下文');
+  });
+
+  it('includes memory view blocks in non-epub thread replies', () => {
+    const prompt = buildAgentPrompt(
+      provider,
+      {
+        ...payload,
+        readingMemoryView: {
+          articleId: 'article_1',
+          viewType: 'selection_thread',
+          viewKey: 'selection_thread:::0:10',
+          sourceEntryIds: ['comment_memory_comment_1'],
+          updatedAt: '2026-05-26T00:00:00.000Z',
+          entries: [
+            {
+              source: 'structured',
+              entry: {
+                id: 'comment_memory_comment_1',
+                articleId: 'article_1',
+                kind: 'trace',
+                scope: 'agent',
+                visibility: 'default',
+                payloadVersion: 1,
+                textRange: { textStart: 0, textEnd: 10 },
+                sourceType: 'comment',
+                sourceCommentId: 'comment_1',
+                sourceEntryIds: [],
+                payload: {
+                  source: 'comment',
+                  author: 'ai',
+                  content: '助手之前提醒过迭代上下文',
+                },
+                createdAt: '2026-05-26T00:00:00.000Z',
+                updatedAt: '2026-05-26T00:00:00.000Z',
+              },
+            },
+          ],
+        },
+      },
+      lin,
+    );
+
+    expect(prompt).toContain('thread memory_view');
+    expect(prompt).toContain('助手之前提醒过迭代上下文');
+    expect(prompt).toContain('当前批注讨论和刚刚触发你的读者评论优先级更高');
   });
 
   it('parses per-agent mention instructions', () => {

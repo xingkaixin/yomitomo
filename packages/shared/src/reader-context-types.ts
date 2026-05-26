@@ -291,6 +291,7 @@ export type SelectionThreadContext = BaseReadingContext & {
   originalSelection: TextAnchor;
   thread: ThreadContext;
   localWindow: ParagraphWindow;
+  memoryViewBlocks?: SourceLabeledContextBlock[];
   retrievedEvidence: RelatedPassage[];
 };
 
