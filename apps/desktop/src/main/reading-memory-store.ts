@@ -194,10 +194,11 @@ export function searchReadingMemoryEntries(options: SearchReadingMemoryEntriesOp
   const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
   const query = options.query.trim();
-  if (!query) {
+  const ftsQuery = readingMemoryFtsQuery(query);
+  if (!ftsQuery) {
     logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
       articleId: options.articleId,
-      queryLength: 0,
+      queryLength: query.length,
       entryCount: 0,
     });
     return [];
@@ -214,7 +215,7 @@ ORDER BY bm25(reading_memory_entry_fts)
 LIMIT ?
 `,
     )
-    .all(query, options.articleId, limit) as Array<{ entryId: string }>;
+    .all(ftsQuery, options.articleId, limit) as Array<{ entryId: string }>;
   const ids = rows.map((row) => row.entryId).filter(Boolean);
   if (ids.length === 0) {
     logReadingMemoryTiming(options.performanceLogger, 'fts_query', startedAt, {
@@ -241,6 +242,18 @@ LIMIT ?
     entryCount: result.length,
   });
   return result;
+}
+
+function readingMemoryFtsQuery(query: string) {
+  const tokens = Array.from(query.matchAll(/[\p{L}\p{M}\p{N}_]+/gu), (match) => match[0])
+    .map((token) => token.trim())
+    .filter(Boolean);
+  const uniqueTokens = tokens.filter((token, index, list) => list.indexOf(token) === index);
+  if (uniqueTokens.length === 0) return '';
+  return uniqueTokens
+    .slice(0, 16)
+    .map((token) => `"${token.replaceAll('"', '""')}"`)
+    .join(' ');
 }
 
 export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {

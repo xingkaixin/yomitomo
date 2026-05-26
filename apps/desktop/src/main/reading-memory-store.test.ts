@@ -42,6 +42,42 @@ describe('reading memory store', () => {
     ).toEqual(['entry_1']);
   });
 
+  it('sanitizes mention and punctuation queries before FTS lookup', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'mention_entry',
+          kind: 'reader_signal',
+          scope: 'reader',
+          sourceType: 'comment',
+          sourceCommentId: 'comment_1',
+          payload: {
+            source: 'comment',
+            author: 'user',
+            content: '@林知微 选择压力',
+          },
+        }),
+      ],
+      database,
+    );
+
+    expect(() =>
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: '@林知微：选择压力？',
+        executor: database,
+      }),
+    ).not.toThrow();
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: '@林知微：选择压力？',
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['mention_entry']);
+  });
+
   it('upserts deterministic entries and replaces stale FTS rows', () => {
     const database = memoryDatabase();
     insertProjection(database);

@@ -148,7 +148,7 @@ export function selectionThreadContextPrompt(context: SelectionThreadContext) {
     },
     null,
     2,
-  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- retrieved_evidence 是同章 lexical 召回，用于补足章节内回指和相似术语。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
+  )}\n\n上下文使用规则：\n- 你正在回复同一条批注 thread，必须优先围绕 selection、local_window、thread 三类上下文判断。\n- selection 是原批注锚点；local_window 是它附近的原文依据；thread 是裁剪后的历史讨论和最新读者评论。\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- retrieved_evidence 是同章 lexical 召回，用于补足章节内回指和相似术语。\n- 只有 thread 或 memory_view 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 回复必须能回到原文依据；不要把这次追问漂移成脱离原文的普通聊天。\n- 如果 thread 历史被裁剪，以当前提供的上下文为准，不要编造缺失讨论。`;
 }
 
 function selectionBaseContext(
