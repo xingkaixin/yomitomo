@@ -178,6 +178,24 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
   });
 
+  it('guards historical claims in plain thread replies', () => {
+    const system = buildAgentMessageSystemPrompt(
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
+      payload,
+    );
+    const prompt = buildAgentPrompt(provider, payload, lin);
+
+    expect(system).toContain('只有当前 thread 或 memory_view 明确提供了对应内容时');
+    expect(system).toContain('没有证据时，直接说明当前上下文里没有看到这类历史记录');
+    expect(prompt).toContain('历史断言规则');
+    expect(prompt).toContain('才能说“我之前批注过”“我之前说过”或“其他助手批注过”');
+  });
+
   it('builds a thought review prompt with all thoughts and the target thought', () => {
     const reviewer: PublicAgent = {
       ...lin,
@@ -365,6 +383,7 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('"type": "memory_view"');
     expect(prompt).toContain('用户之前问过目标观点的证据缺口');
     expect(prompt).toContain('不能覆盖当前 thread');
+    expect(prompt).toContain('只有 thread 或 memory_view 明确提供证据时');
   });
 
   it('adds current-chapter lexical passages to epub thread context', () => {

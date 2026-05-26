@@ -87,7 +87,7 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
     return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。`;
   }
 
-  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
+  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
 }
 
 function buildAgentMessageContextBundle(payload: AgentMessagePayload) {
@@ -208,7 +208,7 @@ function threadMemoryViewPromptBlock(payload: AgentMessagePayload) {
     })),
     null,
     2,
-  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- 当前批注讨论和刚刚触发你的读者评论优先级更高。\n- 如果 memory_view 与当前 thread 无关，忽略它。`;
+  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- 当前批注讨论和刚刚触发你的读者评论优先级更高。\n- 只有 memory_view 或当前 thread 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 如果 memory_view 与当前 thread 无关，忽略它。`;
 }
 
 function buildAgentSelfInstruction(
@@ -222,7 +222,7 @@ function buildAgentSelfInstruction(
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
 
-  return `本轮发言者：${nickname}（@${username}）\n身份识别规则：读者评论里的 ${selfNames} 指向你本人。先判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。`;
+  return `本轮发言者：${nickname}（@${username}）\n身份识别规则：读者评论里的 ${selfNames} 指向你本人。先判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n历史断言规则：只有当前 thread 或 memory_view 明确提供对应证据时，才能说“我之前批注过”“我之前说过”或“其他助手批注过”；没有证据时，说当前上下文里没有看到。`;
 }
 
 function buildAgentMessageParticipants(
