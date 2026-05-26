@@ -12,6 +12,7 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import { buildAgentRecord, ensurePresetAgents, upsertAgent } from './agent-repository';
 import {
+  backfillStoredArticleAnnotationMemoryEntries,
   buildArticleUpsertPatch,
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
@@ -102,12 +103,14 @@ export {
 } from './provider-repository';
 export { buildAgentRecord } from './agent-repository';
 let providerSecretsMigrated = false;
+let annotationMemoryBackfilled = false;
 
 configureStoreDatabaseSeeder(seedDefaultStore);
 
 export function closeDatabase() {
   closeStoreDatabase();
   providerSecretsMigrated = false;
+  annotationMemoryBackfilled = false;
 }
 
 async function migrateProviderApiKeys(database: StoreDatabase) {
@@ -181,13 +184,16 @@ async function readStoreInternal(profile?: StoreReadProfileEntry[]): Promise<Des
   await measureStoreReadAsync(profile, 'migrate_provider_api_keys', () =>
     migrateProviderApiKeys(database),
   );
+  backfillAnnotationMemoryOnce(database, profile);
   return measureStoreRead(profile, 'read_store_rows', () => readStoreRows(database, profile));
 }
 
 export async function readArticle(id: string): Promise<ArticleRecord | null> {
   const database = getDatabase();
   await migrateProviderApiKeys(database);
-  return readArticleRows(database, id);
+  const article = readArticleRows(database, id);
+  if (article?.sourceType === 'pdf') backfillArticleAnnotationMemory(article);
+  return article;
 }
 
 export async function readArticleSummary(id: string) {
@@ -358,6 +364,35 @@ export async function deleteArticleComment(input: {
 
 function sqliteExecutor() {
   return getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+}
+
+function backfillAnnotationMemoryOnce(database: StoreDatabase, profile?: StoreReadProfileEntry[]) {
+  if (annotationMemoryBackfilled) return;
+  annotationMemoryBackfilled = true;
+
+  try {
+    measureStoreRead(profile, 'backfill_annotation_memory', () =>
+      backfillStoredArticleAnnotationMemoryEntries(database, sqliteExecutor(), {
+        includePdf: false,
+      }),
+    );
+  } catch (error) {
+    console.warn('[reading-memory] backfill annotation memory entries failed', { error });
+  }
+}
+
+function backfillArticleAnnotationMemory(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
+  try {
+    backfillStoredArticleAnnotationMemoryEntries(getDatabase(), sqliteExecutor(), {
+      articleIds: [article.id],
+      includePdf: true,
+    });
+  } catch (error) {
+    console.warn('[reading-memory] backfill article annotation memory entries failed', {
+      articleId: article.id,
+      error,
+    });
+  }
 }
 
 function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[]): DesktopStore {

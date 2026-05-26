@@ -5,6 +5,7 @@ import type {
   Comment,
   EpubBookIndex,
   FocusCoReadingRoutePayload,
+  ReadingMemoryView,
   TextAnchor,
 } from '@yomitomo/shared';
 import {
@@ -164,6 +165,37 @@ export const epubEvaluationCases: EpubEvaluationCase[] = [
     userQuestion: '@林知微 前面怎么定义约束？',
     requiredEvidence: ['约束不是外部障碍'],
   }),
+  selectionAnnotationCase({
+    id: 'selection-memory-business-medium',
+    title: '历史批注记忆：社科/商业中章',
+    description: '助手需要把同篇文章已有的用户批注作为背景，但仍然锚定当前选区。',
+    book: epubEvaluationBooks.socialBusiness,
+    chapterLength: 'medium',
+    exact: '目标观点讨论选择压力',
+    requiredEvidence: ['组织复杂度的前置证据'],
+    readingMemoryView: historicalAnnotationMemoryView(
+      epubEvaluationBooks.socialBusiness,
+      '企业会更早暴露流程、激励和产品选择上的压力',
+      '用户曾把这里标记为组织复杂度的前置证据。',
+      'selection',
+    ),
+  }),
+  threadReplyCase({
+    id: 'thread-memory-theory-medium',
+    title: '历史讨论记忆：哲学/理论中章',
+    description: '助手回复当前 thread 时应参考同篇文章早先讨论，但不把旧讨论当成当前问题。',
+    book: epubEvaluationBooks.theory,
+    chapterLength: 'medium',
+    exact: '第二节把自由定义为可被检验的约束选择',
+    userQuestion: '@林知微 这里为什么说是可被检验？',
+    requiredEvidence: ['选择必须能被理由说明'],
+    readingMemoryView: historicalCommentMemoryView(
+      epubEvaluationBooks.theory,
+      '作者先把自由从任意行动中剥离出来',
+      '早先讨论结论：选择必须能被理由说明，才不是任意偏好。',
+      'selection_thread',
+    ),
+  }),
   threadReplyCase({
     id: 'thread-cross-chapter-fiction-ultra',
     title: '跨章节回响：小说超长章',
@@ -244,6 +276,7 @@ function selectionAnnotationCase(input: {
   chapterLength: EpubEvaluationChapterLength;
   exact: string;
   requiredEvidence: string[];
+  readingMemoryView?: ReadingMemoryView;
 }): EpubEvaluationCase {
   const anchor = textAnchor(input.book, input.exact);
   const payload: AgentAnnotatePayload = {
@@ -251,6 +284,7 @@ function selectionAnnotationCase(input: {
     agentUsername: agent.username,
     targetAnchor: anchor,
     article: articleInput(input.book),
+    readingMemoryView: input.readingMemoryView,
   };
 
   return {
@@ -280,6 +314,7 @@ function threadReplyCase(input: {
   userQuestion: string;
   requiredEvidence: string[];
   p1MayFail?: boolean;
+  readingMemoryView?: ReadingMemoryView;
 }): EpubEvaluationCase {
   const anchor = textAnchor(input.book, input.exact);
   const originalComment = comment('comment-original', 'ai', '这句是理解后文的入口。');
@@ -290,6 +325,7 @@ function threadReplyCase(input: {
     article: articleInput(input.book),
     annotation: annotation('annotation-thread', anchor, [originalComment, userComment]),
     userComment,
+    readingMemoryView: input.readingMemoryView,
   };
 
   return {
@@ -411,6 +447,84 @@ function articleInput(book: EpubEvaluationBookFixture) {
     url: book.url,
     text: book.text,
     ebookIndex: book.ebookIndex,
+  };
+}
+
+function historicalAnnotationMemoryView(
+  book: EpubEvaluationBookFixture,
+  exact: string,
+  note: string,
+  viewType: ReadingMemoryView['viewType'],
+): ReadingMemoryView {
+  const anchor = textAnchor(book, exact);
+  return memoryView(book, viewType, {
+    id: `annotation_memory_${book.id}_${anchor.start}`,
+    kind: 'reader_signal',
+    sourceType: 'annotation',
+    sourceAnnotationId: `annotation_${book.id}_${anchor.start}`,
+    anchor,
+    payload: {
+      annotation: {
+        author: 'user',
+        exact,
+        note,
+      },
+    },
+  });
+}
+
+function historicalCommentMemoryView(
+  book: EpubEvaluationBookFixture,
+  exact: string,
+  content: string,
+  viewType: ReadingMemoryView['viewType'],
+): ReadingMemoryView {
+  const anchor = textAnchor(book, exact);
+  return memoryView(book, viewType, {
+    id: `comment_memory_${book.id}_${anchor.start}`,
+    kind: 'trace',
+    sourceType: 'comment',
+    sourceAnnotationId: `annotation_${book.id}_${anchor.start}`,
+    sourceCommentId: `comment_${book.id}_${anchor.start}`,
+    anchor,
+    payload: {
+      comment: {
+        author: 'user',
+        content,
+      },
+    },
+  });
+}
+
+function memoryView(
+  book: EpubEvaluationBookFixture,
+  viewType: ReadingMemoryView['viewType'],
+  input: Pick<
+    ReadingMemoryView['entries'][number]['entry'],
+    'id' | 'kind' | 'sourceType' | 'sourceAnnotationId' | 'sourceCommentId' | 'anchor' | 'payload'
+  >,
+): ReadingMemoryView {
+  return {
+    articleId: book.id,
+    viewType,
+    viewKey: `${book.id}:${viewType}:${input.id}`,
+    entries: [
+      {
+        source: 'structured',
+        entry: {
+          articleId: book.id,
+          scope: 'segment',
+          visibility: 'default',
+          payloadVersion: 1,
+          sourceEntryIds: [],
+          createdAt: now,
+          updatedAt: now,
+          ...input,
+        },
+      },
+    ],
+    sourceEntryIds: [input.id],
+    updatedAt: now,
   };
 }
 

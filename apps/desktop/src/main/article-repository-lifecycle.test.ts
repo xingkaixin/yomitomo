@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from './db/migrations';
 import {
+  backfillArticleAnnotationMemoryEntries,
   deleteAnnotationRowsWithMemoryLifecycle,
   deleteArticleRowsWithMemoryLifecycle,
   deleteCommentRowsWithMemoryLifecycle,
@@ -201,6 +202,78 @@ describe('article memory lifecycle', () => {
         executor: database,
       }).map((entry) => entry.id),
     ).toEqual(['comment_memory_comment_1']);
+    expect(
+      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).find(
+        (entry) => entry.id === 'comment_memory_comment_1',
+      )?.payload,
+    ).toMatchObject({
+      content: 'assistant thread memory',
+    });
+  });
+
+  it('backfills existing web annotations idempotently and leaves PDFs for lazy fill', () => {
+    const database = lifecycleDatabase();
+    insertArticle(database, 'web_article');
+    insertArticle(database, 'pdf_article');
+    const articles = [
+      {
+        id: 'web_article',
+        sourceType: 'web' as const,
+        annotations: [
+          annotation({
+            id: 'web_annotation',
+            comments: [
+              {
+                id: 'web_comment',
+                author: 'user',
+                content: 'web comment memory',
+                createdAt: '2026-05-26T00:10:00.000Z',
+              },
+            ],
+          }),
+        ],
+      },
+      {
+        id: 'pdf_article',
+        sourceType: 'pdf' as const,
+        annotations: [
+          annotation({
+            id: 'pdf_annotation',
+            comments: [
+              {
+                id: 'pdf_comment',
+                author: 'user',
+                content: 'pdf comment memory',
+                createdAt: '2026-05-26T00:10:00.000Z',
+              },
+            ],
+          }),
+        ],
+      },
+    ];
+
+    const first = backfillArticleAnnotationMemoryEntries(articles, database, { includePdf: false });
+    const second = backfillArticleAnnotationMemoryEntries(articles, database, {
+      includePdf: false,
+    });
+
+    expect(first).toEqual({ articleCount: 1, annotationCount: 1, entryCount: 2 });
+    expect(second).toEqual({ articleCount: 1, annotationCount: 1, entryCount: 2 });
+    expect(
+      readReadingMemoryEntries({ articleId: 'web_article', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['annotation_memory_web_annotation', 'comment_memory_web_comment']);
+    expect(readReadingMemoryEntries({ articleId: 'pdf_article', executor: database })).toEqual([]);
+
+    const pdf = backfillArticleAnnotationMemoryEntries(articles, database, { includePdf: true });
+
+    expect(pdf).toEqual({ articleCount: 2, annotationCount: 2, entryCount: 4 });
+    expect(
+      readReadingMemoryEntries({ articleId: 'pdf_article', executor: database }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(['annotation_memory_pdf_annotation', 'comment_memory_pdf_comment']);
   });
 });
 
@@ -269,7 +342,11 @@ VALUES (?, 'https://example.com/book', 'https://example.com/book', 'Book', 'hash
     .run(id, '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
 }
 
-function insertAnnotation(database: ReadingMemorySqliteExecutor, id: string) {
+function insertAnnotation(
+  database: ReadingMemorySqliteExecutor,
+  id: string,
+  articleId = 'article_1',
+) {
   database
     .prepare(
       `
@@ -282,10 +359,10 @@ INSERT INTO annotations (
   created_at,
   updated_at
 )
-VALUES (?, 'article_1', '{}', 'user', '#f4c95d', ?, ?)
+VALUES (?, ?, '{"start":10,"end":14,"exact":"目标句子"}', 'user', '#f4c95d', ?, ?)
 `,
     )
-    .run(id, '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
+    .run(id, articleId, '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
 }
 
 function insertComment(
