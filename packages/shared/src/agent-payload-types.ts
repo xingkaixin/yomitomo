@@ -2,6 +2,7 @@ import type { AgentAnnotationDensity, AgentReadingIntent, PublicAgent } from './
 import type { Annotation, AnnotationType, Comment } from './annotation-types';
 import type { TextAnchor } from './anchor-types';
 import type { EbookMetadata, EpubBookIndex } from './ebook-types';
+import type { ReadingMemoryView } from './reading-memory-entry-types';
 import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from './reader-context-types';
 
 export type AgentMessagePayload = {
@@ -48,6 +49,7 @@ export type AgentAnnotatePayload = {
   instruction?: string;
   annotations?: Annotation[];
   readingMemory?: ReadingMemory;
+  readingMemoryView?: ReadingMemoryView;
   readingPlan?: AgentReadingPlanItem[];
   targetAnchor?: TextAnchor;
   readerProgress?: ReaderProgress;

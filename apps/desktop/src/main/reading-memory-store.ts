@@ -1,4 +1,11 @@
-import type { ReadingMemoryEntry, TextAnchor } from '@yomitomo/shared';
+import type {
+  MemoryViewType,
+  ReaderProgress,
+  ReadingMemoryEntry,
+  ReadingMemoryView,
+  TextAnchor,
+  TextRange,
+} from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
   applySupersededEntryFilter,
@@ -34,6 +41,19 @@ export type SearchReadingMemoryEntriesOptions = {
   articleId: string;
   query: string;
   limit?: number;
+  executor?: ReadingMemorySqliteExecutor;
+};
+
+export type BuildReadingMemoryViewOptions = {
+  articleId: string;
+  viewType: Extract<MemoryViewType, 'selection' | 'segment' | 'chapter'>;
+  chapterId?: string;
+  segmentId?: string;
+  textRange?: TextRange;
+  query?: string;
+  readerProgress?: ReaderProgress;
+  structuredLimit?: number;
+  ftsLimit?: number;
   executor?: ReadingMemorySqliteExecutor;
 };
 
@@ -161,6 +181,57 @@ LIMIT ?
     const entry = byId.get(id);
     return entry ? [entry] : [];
   });
+}
+
+export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {
+  const executor = options.executor || defaultExecutor();
+  const structuredLimit = normalizeLimit(options.structuredLimit, 12, 50);
+  const ftsLimit = normalizeLimit(options.ftsLimit, 5, 20);
+  const structured = readReadingMemoryEntries({
+    articleId: options.articleId,
+    includeDeleted: false,
+    executor,
+  })
+    .filter((entry) => structuredMemoryViewEntry(entry, options))
+    .toSorted(memoryViewEntryOrder)
+    .slice(-structuredLimit);
+
+  const entries: ReadingMemoryView['entries'] = structured.map((entry) => ({
+    entry,
+    source: 'structured',
+  }));
+  const seenIds = new Set(structured.map((entry) => entry.id));
+  const seenProvenance = new Set(structured.map(memoryEntryProvenanceKey));
+
+  const query = options.query?.trim();
+  if (query) {
+    for (const entry of searchReadingMemoryEntries({
+      articleId: options.articleId,
+      query,
+      limit: ftsLimit * 3,
+      executor,
+    })) {
+      if (entries.length >= structured.length + ftsLimit) break;
+      if (seenIds.has(entry.id)) continue;
+      if (!memoryEntryAllowedByProgress(entry, options.readerProgress)) continue;
+      if (!memoryEntryAllowedForView(entry, options)) continue;
+
+      const provenanceKey = memoryEntryProvenanceKey(entry);
+      if (seenProvenance.has(provenanceKey)) continue;
+      seenIds.add(entry.id);
+      seenProvenance.add(provenanceKey);
+      entries.push({ entry, source: 'fts' as const });
+    }
+  }
+
+  return {
+    articleId: options.articleId,
+    viewType: options.viewType,
+    viewKey: memoryViewKey(options),
+    entries,
+    sourceEntryIds: entries.map((item) => item.entry.id),
+    updatedAt: latestMemoryEntryUpdatedAt(entries.map((item) => item.entry)),
+  };
 }
 
 export function softDeleteReadingMemoryEntriesBySource(
@@ -402,6 +473,107 @@ function sourceWhereClause(options: SoftDeleteReadingMemoryEntriesBySourceOption
     values.push(options.sourceType, options.sourceId);
   }
   return { where: clauses.join(' OR '), values };
+}
+
+function structuredMemoryViewEntry(
+  entry: ReadingMemoryEntry,
+  options: BuildReadingMemoryViewOptions,
+) {
+  if (!memoryEntryAllowedForView(entry, options)) return false;
+  return memoryEntryAllowedByProgress(entry, options.readerProgress);
+}
+
+function memoryEntryAllowedForView(
+  entry: ReadingMemoryEntry,
+  options: BuildReadingMemoryViewOptions,
+) {
+  if (entry.kind !== 'summary' && entry.kind !== 'trace' && entry.kind !== 'correction') {
+    return false;
+  }
+
+  if (options.viewType === 'selection') {
+    if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
+    if (!options.textRange || !entry.textRange) return true;
+    return rangesNear(entry.textRange, options.textRange, 2400);
+  }
+
+  if (options.viewType === 'segment') {
+    if (entry.scope !== 'segment' && entry.scope !== 'chapter' && entry.scope !== 'reader') {
+      return false;
+    }
+    if (options.chapterId && entry.chapterId && entry.chapterId !== options.chapterId) return false;
+    if (!options.textRange || !entry.textRange) return true;
+    return entry.textRange.textEnd <= options.textRange.textEnd;
+  }
+
+  if (options.viewType === 'chapter') {
+    if (entry.scope !== 'chapter' && entry.scope !== 'segment' && entry.scope !== 'reader') {
+      return false;
+    }
+    return !options.chapterId || !entry.chapterId || entry.chapterId === options.chapterId;
+  }
+
+  return false;
+}
+
+function memoryEntryAllowedByProgress(
+  entry: ReadingMemoryEntry,
+  progress: ReaderProgress | undefined,
+) {
+  if (!progress) return true;
+  if (entry.chapterId && progress.readChapterIds.includes(entry.chapterId)) return true;
+  if (entry.chapterId && entry.chapterId !== progress.currentChapterId) return false;
+  if (progress.readUntilTextOffset === undefined || !entry.textRange) return true;
+  return entry.textRange.textEnd <= progress.readUntilTextOffset;
+}
+
+function memoryViewEntryOrder(left: ReadingMemoryEntry, right: ReadingMemoryEntry) {
+  const leftStart = left.textRange?.textStart ?? Number.MAX_SAFE_INTEGER;
+  const rightStart = right.textRange?.textStart ?? Number.MAX_SAFE_INTEGER;
+  if (leftStart !== rightStart) return leftStart - rightStart;
+  if (left.updatedAt !== right.updatedAt) return left.updatedAt.localeCompare(right.updatedAt);
+  return left.id.localeCompare(right.id);
+}
+
+function rangesNear(left: TextRange, right: TextRange, distance: number) {
+  if (left.textEnd < right.textStart) return right.textStart - left.textEnd <= distance;
+  if (right.textEnd < left.textStart) return left.textStart - right.textEnd <= distance;
+  return true;
+}
+
+function memoryEntryProvenanceKey(entry: ReadingMemoryEntry) {
+  return [
+    entry.sourceType,
+    entry.sourceId || '',
+    entry.sourceTaskId || '',
+    entry.supersedesEntryId || '',
+    entry.sourceEntryIds.join(','),
+    entry.chapterId || '',
+    entry.segmentId || '',
+    entry.textRange?.textStart ?? '',
+    entry.textRange?.textEnd ?? '',
+  ].join(':');
+}
+
+function memoryViewKey(options: BuildReadingMemoryViewOptions) {
+  return [
+    options.viewType,
+    options.chapterId || '',
+    options.segmentId || '',
+    options.textRange?.textStart ?? '',
+    options.textRange?.textEnd ?? '',
+  ].join(':');
+}
+
+function latestMemoryEntryUpdatedAt(entries: ReadingMemoryEntry[]) {
+  return entries.reduce((latest, entry) => {
+    if (!latest || entry.updatedAt > latest) return entry.updatedAt;
+    return latest;
+  }, '');
+}
+
+function normalizeLimit(value: number | undefined, fallback: number, max: number) {
+  return Math.max(1, Math.min(value || fallback, max));
 }
 
 function rowToReadingMemoryEntry(row: unknown): ReadingMemoryEntry | null {

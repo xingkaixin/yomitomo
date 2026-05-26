@@ -5,6 +5,7 @@ import { migrations } from './db/migrations';
 import {
   appendReadingMemoryCorrection,
   appendReadingMemoryEntries,
+  buildReadingMemoryView,
   deleteReadingMemoryForArticle,
   readReadingMemoryEntries,
   rebuildReadingMemoryFts,
@@ -215,6 +216,56 @@ describe('reading memory store', () => {
         executor: database,
       }).map((item) => item.kind),
     ).toEqual(['correction']);
+  });
+
+  it('builds segment memory views with structured entries and scoped FTS results', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'prior_summary',
+          textRange: { textStart: 50, textEnd: 70 },
+          payload: { summary: 'prior motif memory', keyTerms: ['motif'] },
+        }),
+        entry({
+          id: 'fts_note',
+          textRange: { textStart: 0, textEnd: 40 },
+          segmentId: 'segment_2',
+          payload: { summary: 'lantern clue memory', keyTerms: ['lantern'] },
+        }),
+        entry({
+          id: 'future_summary',
+          textRange: { textStart: 130, textEnd: 160 },
+          segmentId: 'segment_3',
+          payload: { summary: 'future spoiler lantern', keyTerms: ['lantern'] },
+        }),
+      ],
+      database,
+    );
+
+    const view = buildReadingMemoryView({
+      articleId: 'article_1',
+      viewType: 'segment',
+      chapterId: 'chapter_1',
+      segmentId: 'segment_2',
+      textRange: { textStart: 80, textEnd: 100 },
+      query: 'lantern',
+      structuredLimit: 1,
+      readerProgress: {
+        currentChapterId: 'chapter_1',
+        currentSegmentId: 'segment_2',
+        readChapterIds: [],
+        readUntilTextOffset: 100,
+      },
+      executor: database,
+    });
+
+    expect(view.viewType).toBe('segment');
+    expect(view.entries.map((item) => [item.entry.id, item.source])).toEqual([
+      ['prior_summary', 'structured'],
+      ['fts_note', 'fts'],
+    ]);
+    expect(view.sourceEntryIds).toEqual(['prior_summary', 'fts_note']);
   });
 });
 

@@ -48,6 +48,7 @@ export type ContextSourceType =
   | 'segment_trace'
   | 'next_preview'
   | 'chapter_trace'
+  | 'memory_view'
   | 'dedup';
 
 export type ContextSourceLabel = {
@@ -303,6 +304,7 @@ export type SegmentAnnotationContext = BaseReadingContext & {
   task: 'chapter_segment_annotation';
   currentSegment: SegmentText;
   retrievedEvidence: RelatedPassage[];
+  memoryViewBlocks?: SourceLabeledContextBlock[];
   previousMemory?: SegmentMemory;
   previousTrace?: SegmentTraceMemory;
   nextPreview?: string;
