@@ -13,6 +13,7 @@ export type AgentMessagePayload = {
   reviewTargetCommentId?: string;
   agentRoster?: PublicAgent[];
   readerProgress?: ReaderProgress;
+  readingMemoryView?: ReadingMemoryView;
   spoilerPolicy?: SpoilerPolicy;
   article: {
     id?: string;

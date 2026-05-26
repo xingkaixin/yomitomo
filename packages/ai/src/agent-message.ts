@@ -16,6 +16,7 @@ import {
   readingIntentSystemPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
+import { memoryViewContextBlocks } from './reading-view-assembler';
 
 export async function runAgentStream(
   provider: LlmProvider,
@@ -143,6 +144,7 @@ export function buildAgentPrompt(
     ? `\n\n读者对你的具体要求：${payload.instruction}`
     : '';
   const threadContextPrompt = selectionThreadPromptBlock(payload, context);
+  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
 
   if (payload.reviewTargetCommentId) {
     return buildAgentThoughtReviewPrompt(
@@ -162,7 +164,7 @@ export function buildAgentPrompt(
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。`;
 }
 
 function buildAgentThoughtReviewPrompt(
@@ -186,12 +188,27 @@ function buildAgentThoughtReviewPrompt(
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
 
-  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n${reviewTask}`;
+  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n${reviewTask}`;
 }
 
 function selectionThreadPromptBlock(payload: AgentMessagePayload, context: ReadingContextBundle) {
   const threadContext = buildSelectionThreadContext(payload, context);
   return threadContext ? selectionThreadContextPrompt(threadContext) : '';
+}
+
+function threadMemoryViewPromptBlock(payload: AgentMessagePayload) {
+  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
+  if (blocks.length === 0) return '';
+  return `\n\nthread memory_view：\n${JSON.stringify(
+    blocks.map((block) => ({
+      id: block.id,
+      source: block.source,
+      text: block.text,
+    })),
+    null,
+    2,
+  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- 当前批注讨论和刚刚触发你的读者评论优先级更高。\n- 如果 memory_view 与当前 thread 无关，忽略它。`;
 }
 
 function buildAgentSelfInstruction(

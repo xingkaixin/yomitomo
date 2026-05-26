@@ -105,6 +105,7 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
         text: message.text,
         source: message.source,
       })),
+      ...(context.memoryViewBlocks || []),
       ...context.retrievedEvidence.map((passage) => ({
         id: passage.id,
         text: passage.text,

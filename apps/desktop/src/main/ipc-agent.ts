@@ -13,6 +13,7 @@ import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
+  agentMessagePayloadWithReadingMemoryView,
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
 
@@ -69,10 +70,15 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       providerTaskForAgent(agent),
     );
-    const comment = await runAgent(provider, agent, {
-      ...payload,
-      agentRoster: publicCommentAgents(store.agents),
+    const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+      payload: {
+        ...payload,
+        agentRoster: publicCommentAgents(store.agents),
+      },
+      logInfo: context.logInfo,
+      logError: context.logError,
     });
+    const comment = await runAgent(provider, agent, payloadWithMemory);
     return {
       ...comment,
       id: makeId('comment'),
@@ -146,19 +152,19 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           pending: true,
         };
         event.sender.send(channel, { type: 'start', comment });
-        await runAgentStream(
-          provider,
-          agent,
-          {
+        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+          payload: {
             ...input.payload,
             agentRoster: publicCommentAgents(store.agents),
             readingIntent: input.payload.readingIntent || comment.readingIntent,
           },
-          (delta) => {
-            comment.content += delta;
-            event.sender.send(channel, { type: 'delta', delta });
-          },
-        );
+          logInfo: context.logInfo,
+          logError: context.logError,
+        });
+        await runAgentStream(provider, agent, payloadWithMemory, (delta) => {
+          comment.content += delta;
+          event.sender.send(channel, { type: 'delta', delta });
+        });
         event.sender.send(channel, {
           type: 'done',
           comment: { ...comment, pending: false },

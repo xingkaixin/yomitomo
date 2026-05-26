@@ -3,6 +3,7 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
+  AgentMessagePayload,
   ReadingMemoryEntry,
   EpubBookIndex,
 } from '@yomitomo/shared';
@@ -17,6 +18,7 @@ vi.mock('./reading-memory-store', () => memoryStore);
 
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
+  agentMessagePayloadWithReadingMemoryView,
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
 
@@ -177,6 +179,68 @@ describe('agent reading memory persistence', () => {
     expect(payload.readingMemory).toBe(legacyMemory);
   });
 
+  it('attaches a selection thread memory view for comment replies', () => {
+    const logInfo = vi.fn();
+    memoryStore.buildReadingMemoryView.mockReturnValue({
+      articleId: 'article_1',
+      viewType: 'selection_thread',
+      viewKey: 'selection_thread:::2:6',
+      entries: [
+        {
+          source: 'structured',
+          entry: memoryEntry({
+            id: 'comment_memory_comment_1',
+            kind: 'reader_signal',
+            scope: 'reader',
+            textRange: { textStart: 2, textEnd: 6 },
+            sourceType: 'comment',
+            sourceCommentId: 'comment_1',
+            payload: { source: 'comment', author: 'user', content: '既有读者讨论' },
+          }),
+        },
+      ],
+      sourceEntryIds: ['comment_memory_comment_1'],
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    });
+
+    const payload = agentMessagePayloadWithReadingMemoryView({
+      payload: messagePayload({
+        instruction: '继续解释',
+      }),
+      logInfo,
+      logError: vi.fn(),
+    });
+
+    expect(memoryStore.buildReadingMemoryView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'article_1',
+        viewType: 'selection_thread',
+        textRange: { textStart: 2, textEnd: 6 },
+        query: expect.stringContaining('用户追问'),
+        performanceLogger: logInfo,
+      }),
+    );
+    expect(payload.readingMemoryView?.viewType).toBe('selection_thread');
+  });
+
+  it('keeps comment reply payload unchanged when thread memory read fails', () => {
+    const logError = vi.fn();
+    memoryStore.buildReadingMemoryView.mockImplementationOnce(() => {
+      throw new Error('view failed');
+    });
+    const input = messagePayload();
+
+    const payload = agentMessagePayloadWithReadingMemoryView({
+      payload: input,
+      logError,
+    });
+
+    expect(payload).toBe(input);
+    expect(logError).toHaveBeenCalledWith('reading_memory.read_failed', expect.any(Error), {
+      articleId: 'article_1',
+    });
+  });
+
   it('falls back to legacy annotate payload memory when entry read fails', () => {
     const logError = vi.fn();
     memoryStore.readReadingMemoryEntries.mockImplementationOnce(() => {
@@ -319,6 +383,41 @@ function annotatePayload(overrides: Partial<AgentAnnotatePayload> = {}): AgentAn
       updatedAt: '2026-05-26T00:00:00.000Z',
       textSummaries: [],
       readingTraces: [],
+    },
+    ...overrides,
+  };
+}
+
+function messagePayload(overrides: Partial<AgentMessagePayload> = {}): AgentMessagePayload {
+  return {
+    agentId: 'agent_1',
+    agentUsername: 'assistant',
+    article: {
+      id: 'article_1',
+      title: '文章',
+      url: 'https://example.com',
+      text: '前文目标句子后文。',
+    },
+    annotation: {
+      id: 'annotation_1',
+      anchor: {
+        start: 2,
+        end: 6,
+        exact: '目标句子',
+        prefix: '前文',
+        suffix: '后文',
+      },
+      author: 'user',
+      color: '#f4c95d',
+      comments: [],
+      createdAt: '2026-05-26T00:00:00.000Z',
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    },
+    userComment: {
+      id: 'comment_1',
+      author: 'user',
+      content: '用户追问',
+      createdAt: '2026-05-26T00:01:00.000Z',
     },
     ...overrides,
   };

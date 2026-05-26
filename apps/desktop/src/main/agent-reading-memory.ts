@@ -1,4 +1,9 @@
-import type { Agent, AgentAnnotatePayload, AgentAnnotateResult } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentAnnotatePayload,
+  AgentAnnotateResult,
+  AgentMessagePayload,
+} from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
   readingMemoryAnchorCheckpointEntries,
@@ -32,6 +37,27 @@ export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
     return {
       ...input.payload,
       readingMemory: memory || input.payload.readingMemory,
+      readingMemoryView,
+    };
+  } catch (error) {
+    input.logError('reading_memory.read_failed', error, { articleId });
+    return input.payload;
+  }
+}
+
+export function agentMessagePayloadWithReadingMemoryView(input: {
+  payload: AgentMessagePayload;
+  logInfo?: (event: string, data?: Record<string, unknown>) => void;
+  logError: (event: string, error: unknown, data?: Record<string, unknown>) => void;
+}): AgentMessagePayload {
+  const articleId = input.payload.article.id;
+  if (!articleId) return input.payload;
+
+  try {
+    const readingMemoryView = selectionThreadMemoryView(input.payload, articleId, input.logInfo);
+    if (!readingMemoryView || readingMemoryView.entries.length === 0) return input.payload;
+    return {
+      ...input.payload,
       readingMemoryView,
     };
   } catch (error) {
@@ -124,7 +150,44 @@ function selectionAnnotateMemoryView(
   });
 }
 
-function ebookLocationForRange(payload: AgentAnnotatePayload, textRange: { textEnd: number }) {
+function selectionThreadMemoryView(
+  payload: AgentMessagePayload,
+  articleId: string,
+  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
+) {
+  const textRange = anchorTextRange(payload.annotation.anchor);
+  const location = textRange ? ebookLocationForRange(payload, textRange) : undefined;
+  return buildReadingMemoryView({
+    articleId,
+    viewType: 'selection_thread',
+    chapterId: location?.chapterId,
+    segmentId: location?.segmentId,
+    textRange,
+    query: [
+      payload.annotation.anchor.exact,
+      payload.userComment.content,
+      payload.readingIntent || '',
+      payload.instruction || '',
+    ]
+      .join(' ')
+      .trim(),
+    readerProgress:
+      location && textRange
+        ? {
+            currentChapterId: location.chapterId,
+            currentSegmentId: location.segmentId,
+            readChapterIds: location.readChapterIds,
+            readUntilTextOffset: textRange.textEnd,
+          }
+        : payload.readerProgress,
+    performanceLogger: logInfo,
+  });
+}
+
+function ebookLocationForRange(
+  payload: Pick<AgentAnnotatePayload | AgentMessagePayload, 'article'>,
+  textRange: { textEnd: number },
+) {
   const index = payload.article.ebookIndex;
   if (!index) return undefined;
   const segment = index.segments.find(

@@ -78,7 +78,13 @@ export type ReadingMemoryEntry = {
   deletionReason?: string;
 };
 
-export type MemoryViewType = 'selection' | 'segment' | 'chapter' | 'agent' | 'legacy';
+export type MemoryViewType =
+  | 'selection'
+  | 'selection_thread'
+  | 'segment'
+  | 'chapter'
+  | 'agent'
+  | 'legacy';
 
 export type ReadingMemoryViewEntrySource = 'structured' | 'fts';
 
