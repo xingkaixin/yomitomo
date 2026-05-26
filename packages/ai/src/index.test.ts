@@ -1,7 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Agent, AgentMessagePayload, LlmProvider, PublicAgent } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentMessagePayload,
+  LlmProvider,
+  PublicAgent,
+  ReadingMemoryEntry,
+} from '@yomitomo/shared';
 import { readingPartnerSoul } from '@yomitomo/shared';
-import { buildEpubBookIndex, createEpubTextAnchor, epubIndexText } from '@yomitomo/core';
+import {
+  buildEpubBookIndex,
+  createEpubTextAnchor,
+  epubIndexText,
+  readingMemoryCorrectionEntry,
+  readingMemoryFromEntries,
+} from '@yomitomo/core';
 import {
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
@@ -1418,6 +1430,93 @@ describe('agent annotations', () => {
     expect(annotationPrompts[1]).toContain('summary/trace 不能当作原文事实证据');
   });
 
+  it('feeds correction projection instead of superseded trace into segment context', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一段核心判断可以讨论。', '第二段展开这个判断的后果。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({
+      articleId: 'book-1',
+      chapters,
+      maxSegmentTextLength: 12,
+      minSegmentTextLength: 1,
+    });
+    const text = epubIndexText(chapters);
+    const chapter = ebookIndex.chapters[0]!;
+    const wrongTrace = memoryEntry({
+      id: 'wrong_trace',
+      articleId: 'book-1',
+      kind: 'trace',
+      segmentId: ebookIndex.segments[0]!.id,
+      payload: { items: [traceItem('旧判断不应再出现')] },
+    });
+    const correction = readingMemoryCorrectionEntry({
+      id: 'correction_1',
+      articleId: 'book-1',
+      targetEntry: wrongTrace,
+      reason: '旧判断不成立',
+      replacement: '应理解为人物在试探环境',
+      createdAt: '2026-05-26T01:00:00.000Z',
+    });
+    const annotationPrompts: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      const body = JSON.parse(String(init?.body)) as { messages?: Array<{ content?: string }> };
+      const prompt = body.messages?.[1]?.content || '';
+      if (prompt.includes('请更新当前 segment 的最小阅读记忆')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      segmentSummary: { summary: '当前段摘要。', keyTerms: [] },
+                      segmentTrace: { items: [] },
+                    }),
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      annotationPrompts.push(prompt);
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+          status: 200,
+        }),
+      );
+    });
+
+    await runAgentAnnotateWithMemory(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingMemory: readingMemoryFromEntries([wrongTrace, correction!]),
+      readingPlan: [
+        {
+          sectionId: chapter.id,
+          sectionTitle: chapter.title,
+          sectionStart: chapter.textStart,
+          sectionEnd: chapter.textEnd,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(annotationPrompts[1]).not.toContain('旧判断不应再出现');
+    expect(annotationPrompts[1]).toContain('correction：旧判断不成立');
+    expect(annotationPrompts[1]).toContain('应理解为人物在试探环境');
+  });
+
   it('feeds prior chunk memory into later chunks of one overlong segment', async () => {
     const chapters = [
       {
@@ -1564,3 +1663,34 @@ describe('agent annotations', () => {
     expect(result.readingMemory).toBeUndefined();
   });
 });
+
+function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
+  return {
+    id: 'entry_1',
+    articleId: 'book-1',
+    kind: 'trace',
+    scope: 'segment',
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: 'chapter-1',
+    segmentId: 'chapter-1-segment-0',
+    textRange: { textStart: 0, textEnd: 10 },
+    sourceType: 'ai_task',
+    sourceTaskId: 'task_1',
+    sourceEntryIds: [],
+    payload: { items: [traceItem('memory')] },
+    createdAt: '2026-05-26T00:00:00.000Z',
+    updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+function traceItem(content: string) {
+  return {
+    type: 'agent_observation' as const,
+    content,
+    evidenceAnchors: [],
+    confidence: 'medium' as const,
+    createdFromTask: 'chapter_segment_annotation',
+  };
+}
