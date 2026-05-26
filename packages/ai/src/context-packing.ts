@@ -156,6 +156,7 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
       text: passage.text,
       source: passage.source,
     })),
+    ...(context.memoryViewBlocks || []),
     ...(context.previousMemory ? [segmentMemoryBlock(context.previousMemory)] : []),
     ...(context.previousTrace
       ? [

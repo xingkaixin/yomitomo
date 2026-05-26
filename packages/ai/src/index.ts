@@ -25,6 +25,7 @@ export {
   type PackReadingContextOptions,
   type TokenEstimator,
 } from './context-packing';
+export { memoryViewContextBlocks } from './reading-view-assembler';
 export {
   buildSelectionAnnotationContext,
   buildSelectionThreadContext,

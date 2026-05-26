@@ -25,6 +25,7 @@ import {
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
 import { logAiInfo } from './logger';
+import { memoryViewContextBlocks } from './reading-view-assembler';
 import { relatedPassagesFromReadingContext } from './related-passages';
 
 const SEGMENT_CONTEXT_TOKEN_BUDGET = 9000;
@@ -205,6 +206,7 @@ function buildSegmentAnnotationContext(input: {
       blockTypeOrder: [
         'segment',
         'retrieved_evidence',
+        'memory_view',
         'segment_memory',
         'segment_trace',
         'next_preview',
@@ -213,6 +215,7 @@ function buildSegmentAnnotationContext(input: {
       ],
       reserveTokensByType: {
         retrieved_evidence: 1200,
+        memory_view: 900,
         segment_memory: 800,
         segment_trace: 700,
         next_preview: 500,
@@ -225,6 +228,7 @@ function buildSegmentAnnotationContext(input: {
       allowedSourceTypes: [
         'segment',
         'retrieved_evidence',
+        'memory_view',
         'segment_memory',
         'segment_trace',
         'next_preview',
@@ -245,6 +249,7 @@ function buildSegmentAnnotationContext(input: {
       },
     },
     retrievedEvidence: relatedPassagesFromReadingContext(index, readingContext),
+    memoryViewBlocks: memoryViewContextBlocks(payload.readingMemoryView),
     previousMemory: previousSegmentMemory(
       index,
       payload.article.text,

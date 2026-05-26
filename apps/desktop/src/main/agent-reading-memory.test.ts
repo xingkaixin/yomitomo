@@ -4,10 +4,12 @@ import type {
   AgentAnnotatePayload,
   AgentAnnotateResult,
   ReadingMemoryEntry,
+  EpubBookIndex,
 } from '@yomitomo/shared';
 
 const memoryStore = vi.hoisted(() => ({
   appendReadingMemoryEntries: vi.fn(),
+  buildReadingMemoryView: vi.fn(),
   readReadingMemoryEntries: vi.fn(),
 }));
 
@@ -21,6 +23,7 @@ import {
 describe('agent reading memory persistence', () => {
   beforeEach(() => {
     memoryStore.appendReadingMemoryEntries.mockReset();
+    memoryStore.buildReadingMemoryView.mockReset();
     memoryStore.readReadingMemoryEntries.mockReset();
   });
 
@@ -56,6 +59,55 @@ describe('agent reading memory persistence', () => {
     expect(payload.readingMemory?.textSummaries.map((summary) => summary.summary)).toEqual([
       'entries 摘要',
     ]);
+  });
+
+  it('attaches a segment memory view for EPUB co-reading payloads', () => {
+    memoryStore.readReadingMemoryEntries.mockReturnValue([
+      memoryEntry({
+        id: 'entry_summary',
+        payload: { summary: 'entries 摘要', keyTerms: ['entries'] },
+      }),
+    ]);
+    memoryStore.buildReadingMemoryView.mockReturnValue({
+      articleId: 'article_1',
+      viewType: 'segment',
+      viewKey: 'segment:chapter_1:segment_1:0:100',
+      entries: [],
+      sourceEntryIds: [],
+      updatedAt: '2026-05-26T00:00:00.000Z',
+    });
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({
+        article: {
+          ...annotatePayload().article,
+          ebookIndex: ebookIndex(),
+        },
+        readingPlan: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '章节',
+            sectionStart: 0,
+            sectionEnd: 100,
+            sectionSummary: '灯笼线索',
+            sectionTag: 'clue',
+          },
+        ],
+      }),
+      logError: vi.fn(),
+    });
+
+    expect(memoryStore.buildReadingMemoryView).toHaveBeenCalledWith(
+      expect.objectContaining({
+        articleId: 'article_1',
+        viewType: 'segment',
+        chapterId: 'chapter_1',
+        segmentId: 'segment_1',
+        textRange: { textStart: 0, textEnd: 100 },
+        query: expect.stringContaining('灯笼线索'),
+      }),
+    );
+    expect(payload.readingMemoryView?.viewType).toBe('segment');
   });
 
   it('keeps legacy annotate payload memory when no entries exist', () => {
@@ -276,5 +328,55 @@ function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}) {
     createdAt: '2026-05-26T00:00:00.000Z',
     updatedAt: '2026-05-26T00:00:00.000Z',
     ...overrides,
+  };
+}
+
+function ebookIndex(): EpubBookIndex {
+  return {
+    version: 1,
+    articleId: 'article_1',
+    textLength: 160,
+    chapters: [
+      {
+        id: 'chapter_1',
+        title: '第一章',
+        href: '',
+        indexInBook: 0,
+        textStart: 0,
+        textEnd: 160,
+        textLength: 160,
+        previewStart: '',
+        previewEnd: '',
+        segmentIds: ['segment_1'],
+        paragraphIds: ['paragraph_1'],
+      },
+    ],
+    segments: [
+      {
+        id: 'segment_1',
+        chapterId: 'chapter_1',
+        indexInChapter: 0,
+        textStart: 0,
+        textEnd: 160,
+        textLength: 160,
+        previewStart: '',
+        previewEnd: '',
+        paragraphIds: ['paragraph_1'],
+      },
+    ],
+    paragraphs: [
+      {
+        id: 'paragraph_1',
+        chapterId: 'chapter_1',
+        segmentId: 'segment_1',
+        indexInChapter: 0,
+        indexInSegment: 0,
+        textStart: 0,
+        textEnd: 160,
+        textLength: 160,
+        previewStart: '',
+        previewEnd: '',
+      },
+    ],
   };
 }

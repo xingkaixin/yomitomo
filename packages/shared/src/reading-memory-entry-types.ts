@@ -80,6 +80,23 @@ export type ReadingMemoryEntry = {
 
 export type MemoryViewType = 'selection' | 'segment' | 'chapter' | 'agent' | 'legacy';
 
+export type ReadingMemoryViewEntrySource = 'structured' | 'fts';
+
+export type ReadingMemoryViewEntry = {
+  entry: ReadingMemoryEntry;
+  source: ReadingMemoryViewEntrySource;
+  score?: number;
+};
+
+export type ReadingMemoryView = {
+  articleId: string;
+  viewType: MemoryViewType;
+  viewKey: string;
+  entries: ReadingMemoryViewEntry[];
+  sourceEntryIds: string[];
+  updatedAt: string;
+};
+
 export type ReadingMemoryProjection = {
   id: string;
   articleId: string;
