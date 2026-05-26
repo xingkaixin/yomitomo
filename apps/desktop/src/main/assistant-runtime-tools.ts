@@ -18,7 +18,6 @@ import {
   selectionThreadSpoilerPolicy,
 } from '@yomitomo/core';
 import {
-  readReadingMemoryEntries,
   searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
 } from './reading-memory-store';
