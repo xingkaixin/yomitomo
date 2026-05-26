@@ -3,6 +3,8 @@ import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import {
   activeReadingMemoryEntries,
   normalizeReadingMemoryEntry,
+  readingMemoryAnchorCheckpointEntries,
+  readingMemoryCorrectionEntry,
   readingMemoryEntriesFromMemoryDelta,
   readingMemoryFromEntries,
   readingMemoryEntrySearchText,
@@ -219,6 +221,73 @@ describe('reading memory entries', () => {
     ]);
 
     expect(memory?.textSummaries.map((summary) => summary.summary)).toEqual(['新摘要']);
+  });
+
+  it('creates anchor checkpoint entries for memory facts', () => {
+    const checkpoints = readingMemoryAnchorCheckpointEntries({
+      articleText: '前文。目标句子在这里。后文。',
+      sourceTaskId: 'task_1',
+      createdAt: '2026-05-26T00:00:00.000Z',
+      entries: [
+        entry({
+          id: 'summary_1',
+          textRange: { textStart: 3, textEnd: 11 },
+        }),
+      ],
+    });
+
+    expect(checkpoints).toMatchObject([
+      {
+        id: 'task_1_anchor_0',
+        kind: 'anchor',
+        articleId: 'article_1',
+        sourceEntryIds: ['summary_1'],
+        anchor: {
+          exact: '目标句子在这里。',
+          start: 3,
+          end: 11,
+        },
+        payload: {
+          label: 'summary:segment',
+        },
+      },
+    ]);
+  });
+
+  it('projects correction entries while excluding the superseded fact', () => {
+    const old = entry({
+      id: 'old_trace',
+      kind: 'trace',
+      payload: { items: [traceItem('旧判断')] },
+    });
+    const correction = readingMemoryCorrectionEntry({
+      id: 'correction_1',
+      articleId: 'article_1',
+      targetEntry: old,
+      reason: '旧判断不成立',
+      replacement: '应理解为人物在试探环境',
+      createdAt: '2026-05-26T01:00:00.000Z',
+      anchor: {
+        exact: '目标句子',
+        prefix: '',
+        suffix: '',
+        start: 3,
+        end: 7,
+      },
+    });
+
+    expect(correction).toMatchObject({
+      kind: 'correction',
+      sourceType: 'correction',
+      sourceEntryIds: ['old_trace'],
+      supersedesEntryId: 'old_trace',
+    });
+
+    const memory = readingMemoryFromEntries([old, correction!]);
+
+    expect(
+      memory?.readingTraces.flatMap((trace) => trace.items.map((item) => item.content)),
+    ).toEqual(['correction：旧判断不成立；replacement：应理解为人物在试探环境']);
   });
 });
 

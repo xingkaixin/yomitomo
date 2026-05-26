@@ -1,6 +1,10 @@
 import type { Agent, AgentAnnotatePayload, AgentAnnotateResult } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import { readingMemoryEntriesFromMemoryDelta, readingMemoryFromEntries } from '@yomitomo/core';
+import {
+  readingMemoryAnchorCheckpointEntries,
+  readingMemoryEntriesFromMemoryDelta,
+  readingMemoryFromEntries,
+} from '@yomitomo/core';
 import { appendReadingMemoryEntries, readReadingMemoryEntries } from './reading-memory-store';
 
 export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
@@ -35,16 +39,27 @@ export function saveAgentAnnotateReadingMemoryEntries(input: {
   if (!articleId || !next) return;
 
   try {
+    const sourceTaskId = makeId('reading_memory_task');
+    const createdAt = input.now || new Date().toISOString();
     const entries = readingMemoryEntriesFromMemoryDelta({
       articleId,
       agentId: input.agent.id,
-      sourceTaskId: makeId('reading_memory_task'),
-      createdAt: input.now || new Date().toISOString(),
+      sourceTaskId,
+      createdAt,
       current: input.payload.readingMemory,
       next,
     });
     if (entries.length === 0) return;
-    appendReadingMemoryEntries(entries);
+    appendReadingMemoryEntries([
+      ...entries,
+      ...readingMemoryAnchorCheckpointEntries({
+        articleText: input.payload.article.text,
+        ebookIndex: input.payload.article.ebookIndex,
+        sourceTaskId,
+        createdAt,
+        entries,
+      }),
+    ]);
   } catch (error) {
     input.logError('reading_memory.write_failed', error, {
       articleId,

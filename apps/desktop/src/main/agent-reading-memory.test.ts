@@ -88,7 +88,7 @@ describe('agent reading memory persistence', () => {
     });
   });
 
-  it('appends changed reading memory entries for article-scoped annotate results', () => {
+  it('appends changed reading memory entries and anchor checkpoints', () => {
     const logError = vi.fn();
 
     saveAgentAnnotateReadingMemoryEntries({
@@ -116,6 +116,22 @@ describe('agent reading memory persistence', () => {
         scope: 'chapter',
         agentId: 'agent_1',
         sourceType: 'ai_task',
+      },
+      {
+        articleId: 'article_1',
+        kind: 'anchor',
+        scope: 'segment',
+        agentId: 'agent_1',
+        sourceType: 'ai_task',
+        sourceEntryIds: [entries?.[0]?.id],
+      },
+      {
+        articleId: 'article_1',
+        kind: 'anchor',
+        scope: 'chapter',
+        agentId: 'agent_1',
+        sourceType: 'ai_task',
+        sourceEntryIds: [entries?.[1]?.id],
       },
     ]);
     expect(entries?.[0]?.sourceTaskId).toMatch(/^reading_memory_task_/);
@@ -190,7 +206,7 @@ function annotatePayload(overrides: Partial<AgentAnnotatePayload> = {}): AgentAn
       id: 'article_1',
       title: '文章',
       url: 'https://example.com',
-      text: '正文',
+      text: '正文'.repeat(80),
     },
     readingMemory: {
       updatedAt: '2026-05-26T00:00:00.000Z',

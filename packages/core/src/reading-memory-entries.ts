@@ -1,4 +1,5 @@
 import type {
+  EpubBookIndex,
   ReadingMemory,
   ReadingMemoryEntry,
   ReadingMemoryEntryKind,
@@ -6,9 +7,12 @@ import type {
   ReadingMemorySourceType,
   ReadingMemoryVisibility,
   ReadingTrace,
+  TextAnchor,
   TextSummary,
   TextRange,
 } from '@yomitomo/shared';
+import { createTextAnchor } from '@yomitomo/shared';
+import { createEpubTextAnchor } from './ebook-index';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
@@ -109,6 +113,101 @@ export function readingMemoryEntriesFromMemoryDelta(input: {
   return entries;
 }
 
+export function readingMemoryAnchorCheckpointEntries(input: {
+  articleText: string;
+  ebookIndex?: EpubBookIndex;
+  sourceTaskId: string;
+  createdAt: string;
+  entries: ReadingMemoryEntry[];
+}): ReadingMemoryEntry[] {
+  const checkpoints: ReadingMemoryEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of input.entries) {
+    if (!entry.textRange) continue;
+    const anchor = anchorForEntry(input.articleText, input.ebookIndex, entry.textRange);
+    if (!anchor) continue;
+    const key = [
+      entry.articleId,
+      entry.scope,
+      entry.chapterId || '',
+      entry.segmentId || '',
+      anchor.start,
+      anchor.end,
+      anchor.quoteHash || anchor.exact,
+    ].join(':');
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    checkpoints.push({
+      id: `${input.sourceTaskId}_anchor_${checkpoints.length}`,
+      articleId: entry.articleId,
+      kind: 'anchor',
+      scope: entry.scope,
+      visibility: 'default',
+      payloadVersion: 1,
+      chapterId: entry.chapterId || anchor.chapterId,
+      segmentId: entry.segmentId || anchor.segmentId,
+      paragraphId: entry.paragraphId || anchor.paragraphId,
+      textRange: entry.textRange,
+      agentId: entry.agentId,
+      sourceType: entry.sourceType,
+      sourceId: entry.sourceId,
+      sourceAnnotationId: entry.sourceAnnotationId,
+      sourceCommentId: entry.sourceCommentId,
+      sourceTaskId: entry.sourceTaskId,
+      sourceEntryIds: [entry.id],
+      anchor,
+      payload: {
+        anchor,
+        label: `${entry.kind}:${entry.scope}`,
+      },
+      createdAt: input.createdAt,
+      updatedAt: input.createdAt,
+    });
+  }
+
+  return checkpoints;
+}
+
+export function readingMemoryCorrectionEntry(input: {
+  id: string;
+  articleId: string;
+  targetEntry: ReadingMemoryEntry;
+  reason: string;
+  replacement?: unknown;
+  createdAt: string;
+  readerId?: string;
+  anchor?: TextAnchor;
+}): ReadingMemoryEntry | null {
+  const reason = input.reason.trim();
+  if (!reason) return null;
+  return {
+    id: input.id,
+    articleId: input.articleId,
+    kind: 'correction',
+    scope: input.targetEntry.scope,
+    visibility: 'default',
+    payloadVersion: 1,
+    chapterId: input.targetEntry.chapterId,
+    segmentId: input.targetEntry.segmentId,
+    paragraphId: input.targetEntry.paragraphId,
+    textRange: input.targetEntry.textRange,
+    readerId: input.readerId,
+    sourceType: 'correction',
+    sourceId: input.id,
+    sourceEntryIds: [input.targetEntry.id],
+    supersedesEntryId: input.targetEntry.id,
+    anchor: input.anchor || input.targetEntry.anchor,
+    payload: {
+      reason,
+      replacement: input.replacement,
+    },
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}
+
 export function readingMemoryFromEntries(entries: ReadingMemoryEntry[]): ReadingMemory | undefined {
   const activeEntries = activeReadingMemoryEntries(entries);
   if (activeEntries.length === 0) return undefined;
@@ -120,7 +219,7 @@ export function readingMemoryFromEntries(entries: ReadingMemoryEntry[]): Reading
     return summary ? [summary] : [];
   });
   const readingTraces = activeEntries.flatMap((entry) => {
-    const trace = readingTraceFromEntry(entry);
+    const trace = readingTraceFromEntry(entry) || correctionTraceFromEntry(entry);
     if (trace) projectedEntries.push(entry);
     return trace ? [trace] : [];
   });
@@ -168,6 +267,19 @@ function compactSearchText(text: string) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
+function anchorForEntry(
+  articleText: string,
+  ebookIndex: EpubBookIndex | undefined,
+  range: TextRange,
+): TextAnchor | null {
+  if (range.textStart < 0 || range.textEnd > articleText.length) return null;
+  if (range.textEnd <= range.textStart) return null;
+  const anchor = ebookIndex
+    ? createEpubTextAnchor(ebookIndex, articleText, range.textStart, range.textEnd)
+    : createTextAnchor(articleText, range.textStart, range.textEnd);
+  return anchor.exact.trim() ? anchor : null;
+}
+
 function textSummaryFromEntry(entry: ReadingMemoryEntry): TextSummary | null {
   if (entry.kind !== 'summary') return null;
   if (!entry.textRange) return null;
@@ -208,6 +320,40 @@ function readingTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
   };
 }
 
+function correctionTraceFromEntry(entry: ReadingMemoryEntry): ReadingTrace | null {
+  if (entry.kind !== 'correction') return null;
+  if (
+    entry.scope !== 'segment' &&
+    entry.scope !== 'chapter' &&
+    entry.scope !== 'agent' &&
+    entry.scope !== 'reader'
+  ) {
+    return null;
+  }
+  if (!isCorrectionPayload(entry.payload)) return null;
+  const replacementText =
+    entry.payload.replacement === undefined
+      ? ''
+      : `；replacement：${stringifyCorrectionReplacement(entry.payload.replacement)}`;
+  return {
+    scope: entry.scope,
+    chapterId: entry.chapterId,
+    segmentId: entry.segmentId,
+    sourceRange: entry.textRange,
+    agentId: entry.agentId,
+    items: [
+      {
+        type: 'reader_interest',
+        content: `correction：${entry.payload.reason}${replacementText}`,
+        evidenceAnchors: entry.anchor ? [entry.anchor] : [],
+        confidence: 'high',
+        createdFromTask: 'memory_correction',
+      },
+    ],
+    updatedAt: entry.updatedAt,
+  };
+}
+
 function isSummaryPayload(payload: ReadingMemoryEntry['payload']): payload is {
   summary: string;
   keyTerms: string[];
@@ -227,6 +373,23 @@ function isTracePayload(payload: ReadingMemoryEntry['payload']): payload is {
 } {
   if (!isRecord(payload)) return false;
   return Array.isArray((payload as Record<string, unknown>).items);
+}
+
+function isCorrectionPayload(payload: ReadingMemoryEntry['payload']): payload is {
+  reason: string;
+  replacement?: unknown;
+} {
+  if (!isRecord(payload)) return false;
+  return typeof (payload as Record<string, unknown>).reason === 'string';
+}
+
+function stringifyCorrectionReplacement(value: unknown) {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
