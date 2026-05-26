@@ -62,6 +62,7 @@ export async function runAgentAnnotate(
   const now = new Date().toISOString();
   const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
   const annotations: Annotation[] = [];
+  const deduper = createAnnotationThoughtDeduper(payload);
 
   for (const suggestion of suggestions) {
     if (annotations.length >= maxAnnotations) break;
@@ -78,7 +79,16 @@ export async function runAgentAnnotate(
       now,
       { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
     );
-    if (annotation) annotations.push(annotation);
+    if (!annotation) continue;
+    if (!deduper.accept(annotation)) {
+      logAiInfo('agent.annotate.skip', {
+        agent: agent.username,
+        reason: 'duplicate_existing_thought',
+        exactPreview: annotation.anchor.exact.slice(0, 120),
+      });
+      continue;
+    }
+    annotations.push(annotation);
   }
 
   return annotations;
@@ -121,6 +131,7 @@ export async function runAgentAnnotateStream(
   const context = buildAgentAnnotateContextBundle(payload);
   const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
   const annotations: Annotation[] = [];
+  const deduper = createAnnotationThoughtDeduper(payload);
   let annotationCount = 0;
   const flushJson = (json: string) => {
     if (annotationCount >= maxAnnotations) return;
@@ -151,17 +162,25 @@ export async function runAgentAnnotateStream(
         new Date().toISOString(),
         { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
       );
-      if (annotation) {
-        annotationCount += 1;
-        annotations.push(annotation);
-        onAnnotation(annotation);
-      } else {
+      if (!annotation) {
         logAiInfo('agent.annotate.skip', {
           agent: agent.username,
           reason: 'exact_not_found',
           exactPreview: exact.slice(0, 120),
         });
+        return;
       }
+      if (!deduper.accept(annotation)) {
+        logAiInfo('agent.annotate.skip', {
+          agent: agent.username,
+          reason: 'duplicate_existing_thought',
+          exactPreview: exact.slice(0, 120),
+        });
+        return;
+      }
+      annotationCount += 1;
+      annotations.push(annotation);
+      onAnnotation(annotation);
     } catch (error) {
       logAiError('agent.annotate.ndjson_parse_error', error, {
         agent: agent.username,
@@ -275,6 +294,122 @@ function annotationBudgetText(payload: AgentAnnotatePayload, context?: ReadingCo
     .join('\n');
 }
 
+function createAnnotationThoughtDeduper(payload: AgentAnnotatePayload) {
+  if (payload.targetAnchor || !payload.readingPlan?.length) {
+    return { accept: () => true };
+  }
+
+  const accepted = (payload.annotations || []).flatMap((annotation) => {
+    const item = annotationThoughtDedupItem(payload.article.text, annotation);
+    return item ? [item] : [];
+  });
+
+  return {
+    accept(annotation: Annotation) {
+      const item = annotationThoughtDedupItem(payload.article.text, annotation);
+      if (!item) return true;
+      if (accepted.some((existing) => annotationThoughtsDuplicate(existing, item))) return false;
+      accepted.push(item);
+      return true;
+    },
+  };
+}
+
+type AnnotationThoughtDedupItem = {
+  exactKey: string;
+  textStart: number;
+  textEnd: number;
+  comments: string[];
+};
+
+function annotationThoughtDedupItem(
+  articleText: string,
+  annotation: Annotation,
+): AnnotationThoughtDedupItem | null {
+  const textStart =
+    integerValue(annotation.anchor.textStartInBook) ?? integerValue(annotation.anchor.start);
+  const textEnd =
+    integerValue(annotation.anchor.textEndInBook) ?? integerValue(annotation.anchor.end);
+  if (textStart === null || textEnd === null || textEnd <= textStart) return null;
+
+  const comments = annotation.comments
+    .map((comment) => normalizeThoughtText(comment.content))
+    .filter((comment) => comment.length >= 12);
+  return {
+    exactKey: normalizeThoughtText(
+      annotation.anchor.exact || articleText.slice(textStart, textEnd),
+    ),
+    textStart,
+    textEnd,
+    comments,
+  };
+}
+
+function annotationThoughtsDuplicate(
+  left: AnnotationThoughtDedupItem,
+  right: AnnotationThoughtDedupItem,
+) {
+  if (!sameAnnotationAnchor(left, right)) return false;
+  if (left.comments.length === 0 || right.comments.length === 0)
+    return left.exactKey === right.exactKey;
+
+  return left.comments.some((leftComment) =>
+    right.comments.some((rightComment) => thoughtTextsSimilar(leftComment, rightComment)),
+  );
+}
+
+function sameAnnotationAnchor(
+  left: Pick<AnnotationThoughtDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
+  right: Pick<AnnotationThoughtDedupItem, 'exactKey' | 'textStart' | 'textEnd'>,
+) {
+  if (left.exactKey && left.exactKey === right.exactKey) return true;
+  return textRangeDistance(left, right) <= 16;
+}
+
+function thoughtTextsSimilar(left: string, right: string) {
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const shorter = left.length < right.length ? left : right;
+  const longer = left.length < right.length ? right : left;
+  if (shorter.length >= 24 && longer.includes(shorter)) return true;
+  return diceCoefficient(characterBigrams(left), characterBigrams(right)) >= 0.58;
+}
+
+function characterBigrams(text: string) {
+  if (text.length <= 1) return new Set(text ? [text] : []);
+  const grams = new Set<string>();
+  for (let index = 0; index < text.length - 1; index += 1) {
+    grams.add(text.slice(index, index + 2));
+  }
+  return grams;
+}
+
+function diceCoefficient(left: Set<string>, right: Set<string>) {
+  if (left.size === 0 || right.size === 0) return 0;
+  let overlap = 0;
+  for (const item of left) {
+    if (right.has(item)) overlap += 1;
+  }
+  return (2 * overlap) / (left.size + right.size);
+}
+
+function normalizeThoughtText(text: string) {
+  return text.replace(/[\s"'“”‘’`，。！？、；：,.!?;:—\-（）()[\]{}]/g, '').toLowerCase();
+}
+
+function textRangeDistance(
+  left: Pick<AnnotationThoughtDedupItem, 'textStart' | 'textEnd'>,
+  right: Pick<AnnotationThoughtDedupItem, 'textStart' | 'textEnd'>,
+) {
+  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
+  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
+  return left.textStart - right.textEnd;
+}
+
+function integerValue(value: number | undefined): number | null {
+  return Number.isInteger(value) && value !== undefined ? value : null;
+}
+
 function readingPlanPrompt(payload: AgentAnnotatePayload, context: ReadingContextBundle) {
   if (!payload.readingPlan?.length) return '';
 
@@ -340,7 +475,7 @@ function articleSectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
     })),
     null,
     2,
-  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解本轮 section 的相关背景。\n- 批注 exact 仍必须来自编排列表里的 sectionText，不能从 memory_view 里选择锚点。\n- 如果 memory_view 与本轮 section 无关，忽略它。`;
+  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解本轮 section 的相关背景。\n- 批注 exact 仍必须来自编排列表里的 sectionText，不能从 memory_view 里选择锚点。\n- 如果同一原文位置已有相同或高度相似的想法，不要重复输出；只有能提供明显不同的新角度时才继续批注。\n- 如果 memory_view 与本轮 section 无关，忽略它。`;
 }
 
 function agentAnnotationOutputLimit(
@@ -365,7 +500,7 @@ function buildAgentAnnotatePrompt(
     const memoryViewPrompt = articleSectionMemoryViewPromptBlock(payload);
     const readingIntentOutputLine =
       '- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作';
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n只返回 JSON，不要输出 Markdown。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请返回 JSON 数组。每个元素包含：\n- exact：必须是对应章节中的原文连续片段，逐字一致\n- prefix：exact 前方 10-40 个字，来自文章原文\n- suffix：exact 后方 10-40 个字，来自文章原文\n- type：只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n- comment：结合章节内容、读者留言和你的角色判断写给读者的批注评论\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型含义：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n选择标准：跳过已被已有批注或 memory_view 充分覆盖的原文位置；不要用不同措辞重复同一个想法。\n\n只返回 JSON，不要输出 Markdown。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
@@ -395,7 +530,7 @@ function buildAgentAnnotateStreamPrompt(
     const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
     const budgetNotice = formatBudgetNotice([article.report]);
     const memoryViewPrompt = articleSectionMemoryViewPromptBlock(payload);
-    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${planPrompt}${memoryViewPrompt}${spoilerScopePrompt(context)}\n\n请用 NDJSON 返回批注。每一行都是一个完整 JSON 对象，格式为：{"exact":"对应章节中的原文连续片段","prefix":"exact 前方 10-40 个字","suffix":"exact 后方 10-40 个字","type":"key_point","readingIntent":"explain","comment":"结合章节内容、读者留言和角色判断写成的批注评论"}\n\n批注密度：${annotationDensityInstruction(agent.annotationDensity, annotationBudgetText(payload, context))}\n\n类型只允许：\n- key_point：关键判断或强论点\n- assumption：前提、漏洞、可挑战处\n- concept：概念解释需求\n- question：值得追问的问题\n- quote：金句或可复用表达\n\n要求：\n- exact 必须来自对应 sectionText 的连续原文，逐字一致\n- prefix 和 suffix 必须来自 exact 周围的文章原文，用于区分重复文本\n- readingIntent：章节 readingIntent 有值时必须等于该值；章节 readingIntent 为空时，从 explain、decompose、challenge、question、connect 中选择最符合本条批注的动作\n- 跳过已被已有批注或 memory_view 充分覆盖的原文位置；不要用不同措辞重复同一个想法\n- 每发现一条值得批注的内容，就立刻输出一行 JSON\n- 只输出 NDJSON，不要输出 Markdown，不要输出数组。`;
   }
   if (payload.targetAnchor) {
     const readingIntentOutputLine = payload.readingIntent
