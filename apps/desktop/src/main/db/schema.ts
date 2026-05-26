@@ -1,4 +1,12 @@
-import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  type AnySQLiteColumn,
+} from 'drizzle-orm/sqlite-core';
 
 export const userProfiles = sqliteTable('user_profiles', {
   id: text('id').primaryKey(),
@@ -170,6 +178,85 @@ export const comments = sqliteTable(
   (table) => [
     index('comments_annotation_id_idx').on(table.annotationId),
     index('comments_created_at_idx').on(table.createdAt),
+  ],
+);
+
+export const readingMemoryEntries = sqliteTable(
+  'reading_memory_entries',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    scope: text('scope').notNull(),
+    visibility: text('visibility').notNull().default('default'),
+    payloadVersion: integer('payload_version').notNull().default(1),
+    chapterId: text('chapter_id'),
+    segmentId: text('segment_id'),
+    paragraphId: text('paragraph_id'),
+    textStart: integer('text_start'),
+    textEnd: integer('text_end'),
+    agentId: text('agent_id'),
+    readerId: text('reader_id'),
+    sourceType: text('source_type').notNull(),
+    sourceId: text('source_id'),
+    sourceAnnotationId: text('source_annotation_id'),
+    sourceCommentId: text('source_comment_id'),
+    sourceTaskId: text('source_task_id'),
+    sourceEntryIds: text('source_entry_ids', { mode: 'json' }).notNull(),
+    supersedesEntryId: text('supersedes_entry_id').references(
+      (): AnySQLiteColumn => readingMemoryEntries.id,
+      { onDelete: 'set null' },
+    ),
+    anchor: text('anchor', { mode: 'json' }),
+    payload: text('payload', { mode: 'json' }).notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    deletedAt: text('deleted_at'),
+    deletionReason: text('deletion_reason'),
+  },
+  (table) => [
+    index('reading_memory_article_idx').on(table.articleId, table.createdAt),
+    index('reading_memory_location_idx').on(
+      table.articleId,
+      table.chapterId,
+      table.segmentId,
+      table.textStart,
+    ),
+    index('reading_memory_source_idx').on(table.articleId, table.sourceType, table.sourceId),
+    index('reading_memory_annotation_source_idx').on(table.articleId, table.sourceAnnotationId),
+    index('reading_memory_comment_source_idx').on(table.articleId, table.sourceCommentId),
+    index('reading_memory_active_kind_idx').on(
+      table.articleId,
+      table.kind,
+      table.scope,
+      table.visibility,
+      table.deletedAt,
+    ),
+  ],
+);
+
+export const readingMemoryProjections = sqliteTable(
+  'reading_memory_projections',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    viewType: text('view_type').notNull(),
+    viewKey: text('view_key').notNull(),
+    payload: text('payload', { mode: 'json' }).notNull(),
+    sourceEntryIds: text('source_entry_ids', { mode: 'json' }).notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('reading_memory_projection_article_idx').on(table.articleId),
+    uniqueIndex('reading_memory_projection_key_idx').on(
+      table.articleId,
+      table.viewType,
+      table.viewKey,
+    ),
   ],
 );
 

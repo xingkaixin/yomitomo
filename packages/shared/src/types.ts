@@ -8,6 +8,7 @@ export * from './ebook-types';
 export * from './pdf-types';
 export * from './weread-types';
 export * from './reader-context-types';
+export * from './reading-memory-entry-types';
 export * from './article-types';
 export * from './store-types';
 export * from './agent-payload-types';

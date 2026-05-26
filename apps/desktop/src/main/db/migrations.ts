@@ -507,4 +507,81 @@ CREATE INDEX IF NOT EXISTS weread_reading_stats_fetched_at_idx
 ON weread_reading_stats(fetched_at);
 `,
   },
+  {
+    id: '0035_reading_memory_tape',
+    sql: `
+CREATE TABLE IF NOT EXISTS reading_memory_entries (
+  id TEXT PRIMARY KEY NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  scope TEXT NOT NULL,
+  visibility TEXT NOT NULL DEFAULT 'default',
+  payload_version INTEGER NOT NULL DEFAULT 1,
+  chapter_id TEXT,
+  segment_id TEXT,
+  paragraph_id TEXT,
+  text_start INTEGER,
+  text_end INTEGER,
+  agent_id TEXT,
+  reader_id TEXT,
+  source_type TEXT NOT NULL,
+  source_id TEXT,
+  source_annotation_id TEXT,
+  source_comment_id TEXT,
+  source_task_id TEXT,
+  source_entry_ids TEXT NOT NULL DEFAULT '[]',
+  supersedes_entry_id TEXT REFERENCES reading_memory_entries(id) ON DELETE SET NULL,
+  anchor TEXT,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT,
+  deletion_reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_article_idx
+ON reading_memory_entries(article_id, created_at);
+
+CREATE INDEX IF NOT EXISTS reading_memory_location_idx
+ON reading_memory_entries(article_id, chapter_id, segment_id, text_start);
+
+CREATE INDEX IF NOT EXISTS reading_memory_source_idx
+ON reading_memory_entries(article_id, source_type, source_id);
+
+CREATE INDEX IF NOT EXISTS reading_memory_annotation_source_idx
+ON reading_memory_entries(article_id, source_annotation_id);
+
+CREATE INDEX IF NOT EXISTS reading_memory_comment_source_idx
+ON reading_memory_entries(article_id, source_comment_id);
+
+CREATE INDEX IF NOT EXISTS reading_memory_active_kind_idx
+ON reading_memory_entries(article_id, kind, scope, visibility, deleted_at);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS reading_memory_entry_fts
+USING fts5(
+  entry_id UNINDEXED,
+  article_id UNINDEXED,
+  kind UNINDEXED,
+  scope UNINDEXED,
+  search_text,
+  tokenize = 'unicode61'
+);
+
+CREATE TABLE IF NOT EXISTS reading_memory_projections (
+  id TEXT PRIMARY KEY NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  view_type TEXT NOT NULL,
+  view_key TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  source_entry_ids TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS reading_memory_projection_article_idx
+ON reading_memory_projections(article_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS reading_memory_projection_key_idx
+ON reading_memory_projections(article_id, view_type, view_key);
+`,
+  },
 ];
