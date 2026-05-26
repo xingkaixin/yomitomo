@@ -255,6 +255,8 @@ function App() {
   } = useDesktopStoreState();
   const {
     deleteArticle,
+    deleteArticleAnnotation,
+    deleteArticleComment,
     readArticle,
     saveArticle,
     updateArticle,
@@ -500,6 +502,8 @@ function App() {
               openArticleId={pendingOpenArticleId}
               userProfile={store.user}
               onDeleteArticle={deleteArticle}
+              onDeleteArticleAnnotation={deleteArticleAnnotation}
+              onDeleteArticleComment={deleteArticleComment}
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onImportArticleUrl={importArticleUrl}
               onImportEbookFile={importEbookFile}

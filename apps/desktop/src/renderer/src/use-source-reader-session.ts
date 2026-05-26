@@ -49,6 +49,12 @@ type UseSourceReaderSessionOptions = {
   onAnnotationsApplied?: (change: SourceAnnotationsChange) => void;
   onAnnotationsSaved?: (change: SourceAnnotationsChange) => void;
   onBeforeDeleteAnnotation?: (annotationId: string) => void;
+  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onDeleteArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    commentId: string,
+  ) => Promise<void> | void;
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   setStatusMessage?: (message: string) => void;
@@ -163,6 +169,8 @@ export function useSourceReaderSession({
   onAnnotationsApplied,
   onAnnotationsSaved,
   onBeforeDeleteAnnotation,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
   setStatusMessage,
@@ -203,6 +211,8 @@ export function useSourceReaderSession({
       }
     },
     onOpenAnnotation,
+    onDeleteArticleAnnotation,
+    onDeleteArticleComment,
     onSaveArticle,
     onAnnotationsApplied,
     onAnnotationsSaved,

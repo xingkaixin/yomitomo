@@ -44,6 +44,7 @@ export type SoftDeleteReadingMemoryEntriesBySourceOptions = {
   deletedAt?: string;
   deletionReason: string;
   executor?: ReadingMemorySqliteExecutor;
+  useTransaction?: boolean;
 };
 
 export function appendReadingMemoryEntry(
@@ -59,7 +60,7 @@ export function appendReadingMemoryEntries(
 ) {
   if (entries.length === 0) return;
   const database = executor || defaultExecutor();
-  withTransaction(database, () => {
+  withReadingMemoryTransaction(database, () => {
     const articleIds = new Set<string>();
     for (const entry of entries) {
       appendReadingMemoryEntryInTransaction(database, entry);
@@ -128,7 +129,7 @@ export function softDeleteReadingMemoryEntriesBySource(
   const { where, values } = sourceWhereClause(options);
   if (!where) return 0;
 
-  return withTransaction(executor, () => {
+  const run = () => {
     const ids = executor
       .prepare(
         `
@@ -157,19 +158,23 @@ WHERE article_id = ?
     deleteFtsRows(executor, ids);
     deleteProjectionRows(executor, options.articleId);
     return ids.length;
-  });
+  };
+  return options.useTransaction === false ? run() : withReadingMemoryTransaction(executor, run);
 }
 
 export function deleteReadingMemoryForArticle(
   articleId: string,
   executor?: ReadingMemorySqliteExecutor,
+  options: { useTransaction?: boolean } = {},
 ) {
   const database = executor || defaultExecutor();
-  withTransaction(database, () => {
+  const run = () => {
     database.prepare('DELETE FROM reading_memory_entry_fts WHERE article_id = ?').run(articleId);
     database.prepare('DELETE FROM reading_memory_projections WHERE article_id = ?').run(articleId);
     database.prepare('DELETE FROM reading_memory_entries WHERE article_id = ?').run(articleId);
-  });
+  };
+  if (options.useTransaction === false) run();
+  else withReadingMemoryTransaction(database, run);
 }
 
 export function rebuildReadingMemoryFts(
@@ -177,7 +182,7 @@ export function rebuildReadingMemoryFts(
   executor?: ReadingMemorySqliteExecutor,
 ) {
   const database = executor || defaultExecutor();
-  withTransaction(database, () => {
+  withReadingMemoryTransaction(database, () => {
     if (articleId) {
       database.prepare('DELETE FROM reading_memory_entry_fts WHERE article_id = ?').run(articleId);
     } else database.prepare('DELETE FROM reading_memory_entry_fts').run();
@@ -390,7 +395,10 @@ function rowToReadingMemoryEntry(row: unknown): ReadingMemoryEntry | null {
   });
 }
 
-function withTransaction<T>(executor: ReadingMemorySqliteExecutor, callback: () => T): T {
+export function withReadingMemoryTransaction<T>(
+  executor: ReadingMemorySqliteExecutor,
+  callback: () => T,
+): T {
   executor.exec('BEGIN IMMEDIATE');
   try {
     const result = callback();

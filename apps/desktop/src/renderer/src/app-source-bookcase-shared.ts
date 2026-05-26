@@ -493,6 +493,12 @@ export type SourceBookcaseProps = {
   userProfile: UserProfile;
   onFocusedAnnotation: () => void;
   onClose: () => void;
+  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onDeleteArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    commentId: string,
+  ) => Promise<void> | void;
   onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleReadingProgress: (

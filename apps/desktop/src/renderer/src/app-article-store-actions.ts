@@ -83,6 +83,34 @@ export function useAppArticleStoreActions({
     [applyStore, storeRef],
   );
 
+  const deleteArticleAnnotation = useCallback(
+    async (articleId: string, annotationId: string) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
+
+      const patch = await desktop.deleteArticleAnnotation(articleId, annotationId);
+      if (!patch) return;
+      const nextStore = applyArticleStorePatch(storeRef.current, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
+    },
+    [applyStore, storeRef],
+  );
+
+  const deleteArticleComment = useCallback(
+    async (articleId: string, annotationId: string, commentId: string) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
+
+      const patch = await desktop.deleteArticleComment(articleId, annotationId, commentId);
+      if (!patch) return;
+      const nextStore = applyArticleStorePatch(storeRef.current, patch);
+      storeRef.current = nextStore;
+      applyStore(nextStore);
+    },
+    [applyStore, storeRef],
+  );
+
   const saveArticleReadingProgress = useCallback(
     async (articleId: string, progress: ArticleReadingProgress) => {
       const desktop = window.yomitomoDesktop;
@@ -180,6 +208,8 @@ export function useAppArticleStoreActions({
 
   return {
     deleteArticle,
+    deleteArticleAnnotation,
+    deleteArticleComment,
     readArticle,
     saveArticle,
     updateArticle,

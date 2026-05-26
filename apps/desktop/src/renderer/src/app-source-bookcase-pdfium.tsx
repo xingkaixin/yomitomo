@@ -177,6 +177,8 @@ export function PdfiumBookcase({
   selectedAnnotationId,
   userProfile,
   onClose,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -410,6 +412,8 @@ export function PdfiumBookcase({
                         userProfile={userProfile}
                         onClose={onClose}
                         onCloseToc={() => setTocOpen(false)}
+                        onDeleteArticleAnnotation={onDeleteArticleAnnotation}
+                        onDeleteArticleComment={onDeleteArticleComment}
                         onSetAgentAnnotateOpen={setAgentAnnotateOpen}
                         onSetAnnotationNavigation={setAnnotationNavigation}
                         onSetAnnotationNavigator={(navigator) => {
@@ -460,6 +464,8 @@ function PdfiumDocument({
   userProfile,
   onClose,
   onCloseToc,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -486,6 +492,8 @@ function PdfiumDocument({
   userProfile: SourceBookcaseProps['userProfile'];
   onClose: SourceBookcaseProps['onClose'];
   onCloseToc: () => void;
+  onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
+  onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
   onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
@@ -699,6 +707,8 @@ function PdfiumDocument({
     ignoreStaleArticleUpdates: true,
     getArticleText: currentArticleText,
     onOpenAnnotation,
+    onDeleteArticleAnnotation,
+    onDeleteArticleComment,
     onSaveArticle,
     setStatusMessage,
     userProfile,
