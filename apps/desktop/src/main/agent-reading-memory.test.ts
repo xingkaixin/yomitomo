@@ -1,17 +1,91 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Agent, AgentAnnotatePayload, AgentAnnotateResult } from '@yomitomo/shared';
+import type {
+  Agent,
+  AgentAnnotatePayload,
+  AgentAnnotateResult,
+  ReadingMemoryEntry,
+} from '@yomitomo/shared';
 
 const memoryStore = vi.hoisted(() => ({
   appendReadingMemoryEntries: vi.fn(),
+  readReadingMemoryEntries: vi.fn(),
 }));
 
 vi.mock('./reading-memory-store', () => memoryStore);
 
-import { saveAgentAnnotateReadingMemoryEntries } from './agent-reading-memory';
+import {
+  agentAnnotatePayloadWithReadingMemoryEntries,
+  saveAgentAnnotateReadingMemoryEntries,
+} from './agent-reading-memory';
 
 describe('agent reading memory persistence', () => {
   beforeEach(() => {
     memoryStore.appendReadingMemoryEntries.mockReset();
+    memoryStore.readReadingMemoryEntries.mockReset();
+  });
+
+  it('uses memory entries before legacy annotate payload memory', () => {
+    memoryStore.readReadingMemoryEntries.mockReturnValue([
+      memoryEntry({
+        id: 'entry_summary',
+        payload: { summary: 'entries 摘要', keyTerms: ['entries'] },
+      }),
+    ]);
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({
+        readingMemory: {
+          updatedAt: '2026-05-26T00:00:00.000Z',
+          textSummaries: [
+            {
+              scope: 'segment',
+              chapterId: 'chapter_1',
+              segmentId: 'segment_1',
+              sourceRange: { textStart: 0, textEnd: 100 },
+              summary: '旧 JSON 摘要',
+              keyTerms: ['旧'],
+              updatedAt: '2026-05-26T00:00:00.000Z',
+            },
+          ],
+          readingTraces: [],
+        },
+      }),
+      logError: vi.fn(),
+    });
+
+    expect(payload.readingMemory?.textSummaries.map((summary) => summary.summary)).toEqual([
+      'entries 摘要',
+    ]);
+  });
+
+  it('keeps legacy annotate payload memory when no entries exist', () => {
+    memoryStore.readReadingMemoryEntries.mockReturnValue([]);
+    const legacyMemory = annotatePayload().readingMemory;
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({ readingMemory: legacyMemory }),
+      logError: vi.fn(),
+    });
+
+    expect(payload.readingMemory).toBe(legacyMemory);
+  });
+
+  it('falls back to legacy annotate payload memory when entry read fails', () => {
+    const logError = vi.fn();
+    memoryStore.readReadingMemoryEntries.mockImplementationOnce(() => {
+      throw new Error('read failed');
+    });
+    const legacyMemory = annotatePayload().readingMemory;
+
+    const payload = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload: annotatePayload({ readingMemory: legacyMemory }),
+      logError,
+    });
+
+    expect(payload.readingMemory).toBe(legacyMemory);
+    expect(logError).toHaveBeenCalledWith('reading_memory.read_failed', expect.any(Error), {
+      articleId: 'article_1',
+    });
   });
 
   it('appends changed reading memory entries for article-scoped annotate results', () => {
@@ -108,7 +182,7 @@ function annotationAgent(): Agent {
   };
 }
 
-function annotatePayload(): AgentAnnotatePayload {
+function annotatePayload(overrides: Partial<AgentAnnotatePayload> = {}): AgentAnnotatePayload {
   return {
     agentId: 'agent_1',
     agentUsername: 'assistant',
@@ -123,6 +197,7 @@ function annotatePayload(): AgentAnnotatePayload {
       textSummaries: [],
       readingTraces: [],
     },
+    ...overrides,
   };
 }
 
@@ -161,5 +236,29 @@ function annotateResult(): AgentAnnotateResult {
         },
       ],
     },
+  };
+}
+
+function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}) {
+  return {
+    id: 'entry_1',
+    articleId: 'article_1',
+    kind: 'summary' as const,
+    scope: 'segment' as const,
+    visibility: 'default' as const,
+    payloadVersion: 1,
+    chapterId: 'chapter_1',
+    segmentId: 'segment_1',
+    textRange: { textStart: 0, textEnd: 100 },
+    sourceType: 'ai_task' as const,
+    sourceTaskId: 'task_1',
+    sourceEntryIds: [],
+    payload: {
+      summary: 'entries 摘要',
+      keyTerms: ['entries'],
+    },
+    createdAt: '2026-05-26T00:00:00.000Z',
+    updatedAt: '2026-05-26T00:00:00.000Z',
+    ...overrides,
   };
 }

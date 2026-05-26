@@ -11,7 +11,10 @@ import type {
 import { agentPersonalityName, makeId } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
-import { saveAgentAnnotateReadingMemoryEntries } from './agent-reading-memory';
+import {
+  agentAnnotatePayloadWithReadingMemoryEntries,
+  saveAgentAnnotateReadingMemoryEntries,
+} from './agent-reading-memory';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation:metadata', async (_event, payload) => {
@@ -180,10 +183,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       'readingAssistant',
     );
-    const result = await runAgentAnnotateWithMemory(provider, agent, payload);
+    const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
+      payload,
+      logError: context.logError,
+    });
+    const result = await runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
     saveAgentAnnotateReadingMemoryEntries({
       agent,
-      payload,
+      payload: payloadWithMemory,
       result,
       logError: context.logError,
     });
@@ -217,10 +224,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         );
         const annotations: ArticleRecord['annotations'] = [];
         event.sender.send(channel, { type: 'start' });
+        const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
+          payload: input.payload,
+          logError: context.logError,
+        });
         const result = await runAgentAnnotateStream(
           provider,
           agent,
-          input.payload,
+          payloadWithMemory,
           (annotation) => {
             annotations.push(annotation);
             event.sender.send(channel, { type: 'item', annotation });
@@ -228,7 +239,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         );
         saveAgentAnnotateReadingMemoryEntries({
           agent,
-          payload: input.payload,
+          payload: payloadWithMemory,
           result,
           logError: context.logError,
         });
