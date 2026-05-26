@@ -40,6 +40,17 @@ export type ArticleImportResult =
   | { status: 'duplicate'; article: ArticleRecord }
   | { status: 'imported'; article: ArticleRecord; patch: ArticleUpsertPatch };
 
+export type ArticleAnnotationDeleteInput = {
+  articleId: string;
+  annotationId: string;
+};
+
+export type ArticleCommentDeleteInput = {
+  articleId: string;
+  annotationId: string;
+  commentId: string;
+};
+
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
 
 export type DataManagementPaths = {
@@ -135,6 +146,14 @@ export type DesktopIpcInvokeMap = {
   'article:delete': {
     args: [id: string];
     result: ArticleDeletePatch;
+  };
+  'article:delete-annotation': {
+    args: [input: ArticleAnnotationDeleteInput];
+    result: ArticleUpsertPatch | null;
+  };
+  'article:delete-comment': {
+    args: [input: ArticleCommentDeleteInput];
+    result: ArticleUpsertPatch | null;
   };
   'article:get': {
     args: [id: string];

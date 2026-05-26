@@ -106,6 +106,8 @@ function HookProbe({
   onApi,
   onBeforeDeleteAnnotation,
   onCommentSaved,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle = vi.fn(),
   onAnnotationsApplied,
@@ -121,6 +123,10 @@ function HookProbe({
     comment: AnnotationComment;
     mentionedAgents: PublicAgent[];
   }) => void;
+  onDeleteArticleAnnotation?: Parameters<
+    typeof useSourceAnnotations
+  >[0]['onDeleteArticleAnnotation'];
+  onDeleteArticleComment?: Parameters<typeof useSourceAnnotations>[0]['onDeleteArticleComment'];
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle?: (article: ArticleRecord) => Promise<void> | void;
   onAnnotationsApplied?: Parameters<typeof useSourceAnnotations>[0]['onAnnotationsApplied'];
@@ -133,6 +139,8 @@ function HookProbe({
     ignoreStaleArticleUpdates,
     onBeforeDeleteAnnotation,
     onCommentSaved,
+    onDeleteArticleAnnotation,
+    onDeleteArticleComment,
     onOpenAnnotation,
     onSaveArticle,
     onAnnotationsApplied,
@@ -243,6 +251,7 @@ describe('useSourceAnnotations', () => {
   it('delegates delete cleanup', async () => {
     let api: SourceAnnotationsApi | null = null;
     const onBeforeDeleteAnnotation = vi.fn();
+    const onDeleteArticleAnnotation = vi.fn();
     const onSaveArticle = vi.fn();
     const target = annotation('question_1', {
       comments: [comment({ id: 'comment_1' })],
@@ -255,6 +264,7 @@ describe('useSourceAnnotations', () => {
           api = nextApi;
         }}
         onBeforeDeleteAnnotation={onBeforeDeleteAnnotation}
+        onDeleteArticleAnnotation={onDeleteArticleAnnotation}
         onSaveArticle={onSaveArticle}
       />,
     );
@@ -264,11 +274,14 @@ describe('useSourceAnnotations', () => {
     });
 
     expect(onBeforeDeleteAnnotation).toHaveBeenCalledWith('question_1');
+    expect(onDeleteArticleAnnotation).toHaveBeenCalledWith('article_1', 'question_1');
+    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('');
   });
 
   it('deletes a comment thread while keeping the annotation', async () => {
     let api: SourceAnnotationsApi | null = null;
+    const onDeleteArticleComment = vi.fn();
     const onOpenAnnotation = vi.fn();
     const onSaveArticle = vi.fn();
     const target = annotation('question_1', {
@@ -285,6 +298,7 @@ describe('useSourceAnnotations', () => {
         onApi={(nextApi) => {
           api = nextApi;
         }}
+        onDeleteArticleComment={onDeleteArticleComment}
         onOpenAnnotation={onOpenAnnotation}
         onSaveArticle={onSaveArticle}
       />,
@@ -294,8 +308,8 @@ describe('useSourceAnnotations', () => {
       await api?.deleteComment('question_1', 'thought_1');
     });
 
-    const savedArticle = onSaveArticle.mock.calls[0]![0] as ArticleRecord;
-    expect(savedArticle.annotations[0]?.comments.map((item) => item.id)).toEqual(['thought_2']);
+    expect(onDeleteArticleComment).toHaveBeenCalledWith('article_1', 'question_1', 'thought_1');
+    expect(onSaveArticle).not.toHaveBeenCalled();
     expect(screen.getByTestId('annotations').textContent).toBe('question_1');
     expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
   });

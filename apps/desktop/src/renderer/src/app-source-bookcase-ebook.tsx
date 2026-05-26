@@ -89,6 +89,8 @@ export function EbookBookcase({
   userProfile,
   onFocusedAnnotation,
   onClose,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -223,6 +225,8 @@ export function EbookBookcase({
       }
     },
     onOpenAnnotation: openAnnotation,
+    onDeleteArticleAnnotation,
+    onDeleteArticleComment,
     onSaveArticle,
     setStatusMessage,
     userProfile,

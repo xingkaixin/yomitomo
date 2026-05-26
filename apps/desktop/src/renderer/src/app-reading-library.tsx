@@ -41,6 +41,8 @@ export function ReadingLibrary({
   userProfile,
   onArticleOpened,
   onDeleteArticle,
+  onDeleteArticleAnnotation,
+  onDeleteArticleComment,
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
@@ -58,6 +60,12 @@ export function ReadingLibrary({
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
+  onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onDeleteArticleComment?: (
+    articleId: string,
+    annotationId: string,
+    commentId: string,
+  ) => Promise<void> | void;
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -333,6 +341,8 @@ export function ReadingLibrary({
                 userProfile={userProfile}
                 onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
                 onClose={openLibraryShelf}
+                onDeleteArticleAnnotation={onDeleteArticleAnnotation}
+                onDeleteArticleComment={onDeleteArticleComment}
                 onOpenAnnotation={setSelectedAnnotationId}
                 onSaveArticle={saveSelectedArticle}
                 onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}

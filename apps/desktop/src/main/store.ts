@@ -5,13 +5,17 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleUpsertPatch,
   DesktopStore,
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { buildAgentRecord, ensurePresetAgents, upsertAgent } from './agent-repository';
 import {
-  deleteArticleRows,
+  buildArticleUpsertPatch,
+  deleteAnnotationRowsWithMemoryLifecycle,
+  deleteArticleRowsWithMemoryLifecycle,
+  deleteCommentRowsWithMemoryLifecycle,
   findArticleByIdentityRows,
   readArticleCoverRows,
   readArticleRows,
@@ -33,10 +37,12 @@ import {
   upsertProvider,
   type SaveProviderInput,
 } from './provider-repository';
+import type { ReadingMemorySqliteExecutor } from './reading-memory-store';
 import {
   closeDatabase as closeStoreDatabase,
   configureStoreDatabaseSeeder,
   getDatabase,
+  getSqliteExecutor,
   purgeSqliteFiles,
   type StoreDatabase,
   type StoreReadProfileEntry,
@@ -328,7 +334,30 @@ export async function saveArticleReadingProgress(
 }
 
 export async function deleteArticle(id: string) {
-  return deleteArticleRows(getDatabase(), id);
+  return deleteArticleRowsWithMemoryLifecycle(sqliteExecutor(), id);
+}
+
+export async function deleteArticleAnnotation(input: {
+  articleId: string;
+  annotationId: string;
+}): Promise<ArticleUpsertPatch | null> {
+  deleteAnnotationRowsWithMemoryLifecycle(sqliteExecutor(), input);
+  const article = readArticleSummaryRows(getDatabase(), input.articleId);
+  return article ? buildArticleUpsertPatch(article) : null;
+}
+
+export async function deleteArticleComment(input: {
+  articleId: string;
+  annotationId: string;
+  commentId: string;
+}): Promise<ArticleUpsertPatch | null> {
+  deleteCommentRowsWithMemoryLifecycle(sqliteExecutor(), input);
+  const article = readArticleSummaryRows(getDatabase(), input.articleId);
+  return article ? buildArticleUpsertPatch(article) : null;
+}
+
+function sqliteExecutor() {
+  return getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
 }
 
 function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[]): DesktopStore {

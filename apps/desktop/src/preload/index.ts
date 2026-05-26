@@ -33,6 +33,8 @@ import type {
 
 export type {
   AppInfo,
+  ArticleAnnotationDeleteInput,
+  ArticleCommentDeleteInput,
   ArticleImportResult,
   DataManagementPathKind,
   DataManagementPaths,
@@ -104,6 +106,10 @@ const api = {
   getArticle: (id: string) => invokeDesktopIpc('article:get', id),
   getArticleCover: (id: string) => invokeDesktopIpc('article:get-cover', id),
   saveArticle: (article: ArticleRecord) => invokeDesktopIpc('article:save', article),
+  deleteArticleAnnotation: (articleId: string, annotationId: string) =>
+    invokeDesktopIpc('article:delete-annotation', { articleId, annotationId }),
+  deleteArticleComment: (articleId: string, annotationId: string, commentId: string) =>
+    invokeDesktopIpc('article:delete-comment', { articleId, annotationId, commentId }),
   saveArticleReadingProgress: (articleId: string, progress: ArticleReadingProgress) =>
     invokeDesktopIpc('article:reading-progress', {
       articleId,

@@ -17,6 +17,12 @@ import {
   type StoreReadProfileEntry,
 } from './store-db';
 import {
+  deleteReadingMemoryForArticle,
+  softDeleteReadingMemoryEntriesBySource,
+  withReadingMemoryTransaction,
+  type ReadingMemorySqliteExecutor,
+} from './reading-memory-store';
+import {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
   rowToAnnotation,
@@ -167,8 +173,109 @@ export function buildArticleReadingProgressPatch(
 }
 
 export function deleteArticleRows(database: StoreDatabase, id: string): ArticleDeletePatch {
+  deleteReadingMemoryForArticle(id);
   database.delete(schema.articles).where(eq(schema.articles.id, id)).run();
   return { articleId: id };
+}
+
+export function deleteArticleRowsWithMemoryLifecycle(
+  executor: ReadingMemorySqliteExecutor,
+  articleId: string,
+): ArticleDeletePatch {
+  withReadingMemoryTransaction(executor, () => {
+    deleteReadingMemoryForArticle(articleId, executor, { useTransaction: false });
+    executor.prepare('DELETE FROM articles WHERE id = ?').run(articleId);
+  });
+  return { articleId };
+}
+
+export function deleteAnnotationRowsWithMemoryLifecycle(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; annotationId: string; deletedAt?: string },
+) {
+  return withReadingMemoryTransaction(executor, () => {
+    const deletedMemoryCount = softDeleteReadingMemoryEntriesBySource({
+      articleId: input.articleId,
+      sourceAnnotationId: input.annotationId,
+      deletedAt: input.deletedAt,
+      deletionReason: 'annotation_deleted',
+      executor,
+      useTransaction: false,
+    });
+    const result = executor
+      .prepare('DELETE FROM annotations WHERE article_id = ? AND id = ?')
+      .run(input.articleId, input.annotationId) as { changes?: number };
+    return { deletedAnnotationCount: result.changes || 0, deletedMemoryCount };
+  });
+}
+
+export function deleteCommentRowsWithMemoryLifecycle(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; annotationId: string; commentId: string; deletedAt?: string },
+) {
+  return withReadingMemoryTransaction(executor, () => {
+    const commentIds = deletedCommentThreadIds(executor, input.annotationId, input.commentId);
+    let deletedMemoryCount = 0;
+    let deletedCommentCount = 0;
+
+    for (const commentId of commentIds) {
+      deletedMemoryCount += softDeleteReadingMemoryEntriesBySource({
+        articleId: input.articleId,
+        sourceCommentId: commentId,
+        deletedAt: input.deletedAt,
+        deletionReason: 'comment_deleted',
+        executor,
+        useTransaction: false,
+      });
+      const result = executor
+        .prepare(
+          `
+DELETE FROM comments
+WHERE id = ?
+  AND annotation_id = ?
+  AND EXISTS (
+    SELECT 1 FROM annotations
+    WHERE annotations.id = comments.annotation_id
+      AND annotations.article_id = ?
+  )
+`,
+        )
+        .run(commentId, input.annotationId, input.articleId) as { changes?: number };
+      deletedCommentCount += result.changes || 0;
+    }
+
+    return { deletedCommentCount, deletedMemoryCount };
+  });
+}
+
+function deletedCommentThreadIds(
+  executor: ReadingMemorySqliteExecutor,
+  annotationId: string,
+  commentId: string,
+) {
+  const rows = executor
+    .prepare(
+      `
+SELECT id, reply_to AS replyTo
+FROM comments
+WHERE annotation_id = ?
+`,
+    )
+    .all(annotationId) as Array<{ id: string; replyTo?: string | null }>;
+  const deletedIds = new Set([commentId]);
+  let expanded = true;
+  while (expanded) {
+    expanded = false;
+    for (const row of rows) {
+      if (!row.replyTo || !deletedIds.has(row.replyTo) || deletedIds.has(row.id)) continue;
+      deletedIds.add(row.id);
+      expanded = true;
+    }
+  }
+  return rows
+    .map((row) => row.id)
+    .filter((id) => deletedIds.has(id))
+    .toSorted();
 }
 
 export function readArticleSummaryRowsForStore(
