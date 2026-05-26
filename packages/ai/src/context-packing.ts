@@ -81,6 +81,7 @@ export function collectReadingContextBlocks(context: ReadingTaskContext) {
     return [
       selectionBlock(context, context.selection),
       ...context.localWindow.blocks,
+      ...(context.memoryViewBlocks || []),
       ...context.retrievedEvidence.map((passage) => ({
         id: passage.id,
         text: passage.text,

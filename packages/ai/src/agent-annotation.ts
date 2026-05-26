@@ -39,6 +39,7 @@ import {
   readingIntentSystemPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
+import { memoryViewContextBlocks } from './reading-view-assembler';
 
 export async function runAgentAnnotate(
   provider: LlmProvider,
@@ -312,6 +313,21 @@ function selectionAnnotationPromptBlock(
   return selectionContext ? selectionAnnotationContextPrompt(selectionContext) : '';
 }
 
+function selectionMemoryViewPromptBlock(payload: AgentAnnotatePayload) {
+  if (payload.article.ebookIndex) return '';
+  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
+  if (blocks.length === 0) return '';
+  return `\n\nselection memory_view：\n${JSON.stringify(
+    blocks.map((block) => ({
+      id: block.id,
+      source: block.source,
+      text: block.text,
+    })),
+    null,
+    2,
+  )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为理解读者/助手已有关注点的背景。\n- 批注锚点仍必须保持为目标选区本身，不能扩展到 memory_view 里的其他句子。\n- 如果 memory_view 与目标选区无关，忽略它。`;
+}
+
 function agentAnnotationOutputLimit(
   agent: Agent,
   payload: AgentAnnotatePayload,
@@ -344,7 +360,7 @@ function buildAgentAnnotatePrompt(
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
     const contextPrompt = payload.article.ebookIndex
       ? `${selectionAnnotationPromptBlock(payload, agent, context)}${spoilerScopePrompt(context)}`
-      : '';
+      : selectionMemoryViewPromptBlock(payload);
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 JSON 数组，数组中放 1 个元素。元素包含：\n- exact：必须等于目标选区原文，逐字一致\n- type：使用本轮批注类型；未指定时只允许 key_point、assumption、concept、question、quote\n${readingIntentOutputLine}\n${commentOutputLine}\n\n只返回 JSON，不要输出 Markdown。`;
   }
   const article = budgetArticleText(provider, 'agent-annotate', context.articleText);
@@ -373,7 +389,7 @@ function buildAgentAnnotateStreamPrompt(
       : '- comment：按读者指导和你的角色判断写给读者的批注评论';
     const contextPrompt = payload.article.ebookIndex
       ? `${selectionAnnotationPromptBlock(payload, agent, context)}${spoilerScopePrompt(context)}`
-      : '';
+      : selectionMemoryViewPromptBlock(payload);
     return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${contextPrompt}\n\n目标选区：\n${payload.targetAnchor.exact}${readingIntentPromptLine(payload)}${annotationTypePromptLine(payload)}${instructionPromptLine(payload)}\n\n请针对目标选区返回 1 行 NDJSON，格式为：{"exact":"目标选区原文","type":"key_point","readingIntent":"explain","comment":"批注评论"}\n\n要求：\n- exact 必须等于目标选区原文，逐字一致\n- type 使用本轮批注类型；未指定时从 key_point、assumption、concept、question、quote 中选择\n${readingIntentOutputLine}\n${commentOutputLine}\n- 只输出 1 个 JSON 对象，不要输出 Markdown，不要输出数组。`;
   }
   const article = budgetArticleText(provider, 'agent-annotate', context.articleText);

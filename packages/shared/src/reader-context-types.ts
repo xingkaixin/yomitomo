@@ -280,6 +280,7 @@ export type SelectionAnnotationContext = BaseReadingContext & {
   task: 'selection_annotation';
   selection: TextAnchor;
   localWindow: ParagraphWindow;
+  memoryViewBlocks?: SourceLabeledContextBlock[];
   nearbyAnnotations: AnnotationSummary[];
   retrievedEvidence: RelatedPassage[];
   chapterMemory?: ChapterMemory;
