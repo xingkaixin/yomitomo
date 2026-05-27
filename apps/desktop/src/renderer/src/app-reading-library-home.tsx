@@ -32,7 +32,12 @@ import {
   librarySourceForArticle,
   type LibrarySource,
 } from './app-reading-library-utils';
-import { ArticleBook } from './app-article-book';
+import {
+  ArticleBook,
+  BookCoverFrame,
+  nativeBookCoverStyle,
+  useNativeCoverRatio,
+} from './app-article-book';
 import { urlHost } from './app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
@@ -487,14 +492,17 @@ function formatWeReadDuration(value: number) {
 }
 
 export function WeReadCover({ book }: { book: WeReadBook }) {
+  const { ratio, updateRatio } = useNativeCoverRatio(book.cover);
+
   return (
-    <span className="weread-book-cover" aria-hidden="true">
-      {book.cover ? (
-        <img alt="" src={book.cover} loading="lazy" />
-      ) : (
-        <span>{book.title.slice(0, 6)}</span>
-      )}
-    </span>
+    <BookCoverFrame
+      className="weread-book-cover"
+      imageUrl={book.cover}
+      nativeCover={Boolean(book.cover)}
+      style={nativeBookCoverStyle(ratio)}
+      title={book.cover ? undefined : book.title.slice(0, 6)}
+      onImageLoad={updateRatio}
+    />
   );
 }
 
