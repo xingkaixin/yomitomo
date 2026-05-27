@@ -53,7 +53,7 @@ export const readerConversationStyles = `
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar{pointer-events:none}
 .reader-notes{padding:0 16px 32px;scroll-padding-top:80px}
 .reader-notes-header{margin:0 -16px 14px;padding:14px 16px;background:rgba(250,247,240,.98);box-shadow:0 8px 18px rgba(40,35,29,.05)}
-.reader-note{scroll-margin-top:86px;border-left-width:4px;border-radius:18px 18px 18px 7px;padding:14px;background:rgba(255,253,248,.96);box-shadow:0 14px 36px rgba(55,42,24,.12)}
+.reader-note{scroll-margin-top:86px;border:1px solid rgba(40,35,29,.1);border-radius:18px;padding:14px;background:rgba(255,253,248,.96);box-shadow:0 4px 24px rgba(40,35,29,.12)}
 .reader-note-action-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;min-width:0}
 .reader-note-action-row time{margin-left:auto;color:#9a8f83;font-size:11px;font-weight:760;white-space:nowrap}
 .reader-note-anchor{display:grid;gap:8px}
@@ -420,7 +420,7 @@ export const readerConversationStyles = `
 .reader-note-quote{display:grid;width:100%;gap:5px;padding:0;border:0;background:transparent;color:var(--reader-ink);cursor:pointer;font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);text-align:left;text-decoration:none}
 .reader-note-quote:hover .reader-note-quote-text{color:var(--reader-red)}
 .reader-note-quote-mark{display:block;color:var(--reader-note-accent);font-family:var(--font-reader-serif, Georgia, Cambria, "Times New Roman", serif);font-size:28px;font-style:normal;font-weight:900;line-height:.78}
-.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:italic;font-weight:760;line-height:1.62;text-wrap:pretty;transition:color .14s ease}
+.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68;text-wrap:pretty;transition:color .14s ease}
 .reader-thought-author-stack{display:inline-flex;min-width:0;align-items:center}
 .reader-thought-author-avatar{display:grid;width:25px;height:25px;place-items:center;border-radius:999px;background:transparent}
 .reader-thought-author-avatar+.reader-thought-author-avatar{margin-left:-8px}
@@ -460,7 +460,7 @@ export const readerConversationStyles = `
 .reader-thought-summary-meta strong{display:block;overflow:hidden;color:var(--reader-ink);font-size:13px;font-weight:880;line-height:1.18;text-overflow:ellipsis;white-space:nowrap}
 .reader-thought-time{color:#8d8378;font-size:11px;font-weight:760;font-variant-numeric:tabular-nums;line-height:1.1;white-space:nowrap}
 .reader-thought-summary .reader-comment-markdown{color:#3f352c}
-.reader-thought-summary .reader-markdown-content,.reader-thought-summary .reader-markdown-content p{font-size:13px;font-weight:720;line-height:1.62}
+.reader-thought-summary .reader-markdown-content,.reader-thought-summary .reader-markdown-content p{font-size:13px;font-weight:520;line-height:1.68}
 .reader-thought-footer{position:relative;z-index:1;display:flex;min-height:44px;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;overflow:visible;padding:8px 14px;border-top:1px solid rgba(40,35,29,.1);background:rgba(250,246,238,.76)}
 .reader-replies-toggle,.reader-replies-label{display:inline-flex;align-items:center;gap:6px;height:28px;border:0;background:transparent;color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:12px;font-weight:820;font-variant-numeric:tabular-nums;padding:0}
 .reader-replies-toggle{cursor:pointer;transition:color .14s ease}

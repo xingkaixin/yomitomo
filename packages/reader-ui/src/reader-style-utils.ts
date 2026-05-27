@@ -23,10 +23,10 @@ export function hashString(value: string) {
 export function noteStyle(color: string, active: boolean): React.CSSProperties {
   const accent = color || '#f4c95d';
   return {
-    borderColor: alphaColor(accent, active ? 0.82 : 0.38),
+    borderColor: alphaColor(accent, active ? 0.78 : 0.42),
     boxShadow: active
-      ? `0 0 0 3px ${alphaColor(accent, 0.18)}, 0 10px 34px rgba(55,42,24,.08)`
-      : undefined,
+      ? `0 0 0 3px ${alphaColor(accent, 0.16)}, 0 4px 24px rgba(40,35,29,.15), 0 8px 26px ${alphaColor(accent, 0.1)}`
+      : `0 4px 24px rgba(40,35,29,.12), 0 8px 24px ${alphaColor(accent, 0.07)}`,
   };
 }
 
