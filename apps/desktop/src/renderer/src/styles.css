@@ -12224,6 +12224,7 @@ button.license-package-row:hover {
   align-items: center;
   gap: 18px;
   min-height: 112px;
+  min-width: 0;
   border-bottom: 1px solid hsl(var(--border) / 0.74);
   background: transparent;
   cursor: pointer;
@@ -13234,12 +13235,19 @@ button.license-package-row:hover {
 .library-ebook-list-copy {
   display: grid;
   min-width: 0;
+  overflow: hidden;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
 }
 
+.library-ebook-list-source {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .library-ebook-list-source span {
   display: block;
+  max-width: 100%;
   overflow: hidden;
   color: hsl(var(--muted-foreground));
   font-size: 11px;
@@ -13253,6 +13261,7 @@ button.license-package-row:hover {
 
 .library-ebook-list-main {
   min-width: 0;
+  overflow: hidden;
 }
 
 .library-ebook-list-item h3 {
@@ -13262,7 +13271,9 @@ button.license-package-row:hover {
   -webkit-line-clamp: 2;
   font-size: clamp(22px, 2vw, 30px);
   line-height: 1.16;
+  overflow-wrap: anywhere;
   white-space: normal;
+  word-break: break-word;
 }
 
 .library-ebook-list-meta {
@@ -13270,6 +13281,7 @@ button.license-package-row:hover {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
+  overflow: hidden;
   white-space: normal;
 }
 
