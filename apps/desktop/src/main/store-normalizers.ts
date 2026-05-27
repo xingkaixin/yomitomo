@@ -23,6 +23,8 @@ import type {
   FocusCoReadingPlan,
   LlmProvider,
   PdfMetadata,
+  PdfRect,
+  PdfTextAnchor,
   ProviderPresetId,
   ProviderType,
   ReasoningEffort,
@@ -602,7 +604,7 @@ function normalizeAnnotationAuthor(value: unknown): AnnotationAuthor {
 
 function normalizeTextAnchor(value: unknown): TextAnchor {
   const anchor = value && typeof value === 'object' ? recordValue(value) : {};
-  return {
+  const textAnchor: TextAnchor = {
     exact: stringValue(anchor.exact),
     prefix: stringValue(anchor.prefix),
     suffix: stringValue(anchor.suffix),
@@ -629,6 +631,43 @@ function normalizeTextAnchor(value: unknown): TextAnchor {
         : normalizeNonNegativeInteger(anchor.textEndInBook),
     quoteHash: stringValue(anchor.quoteHash) || undefined,
   };
+  if (anchor.kind !== 'pdf-text') return textAnchor;
+
+  const pdfAnchor: PdfTextAnchor = {
+    ...textAnchor,
+    kind: 'pdf-text',
+    pageIndex: normalizeNonNegativeInteger(anchor.pageIndex),
+    pageWidth: normalizePositiveNumber(anchor.pageWidth),
+    pageHeight: normalizePositiveNumber(anchor.pageHeight),
+    rects: normalizePdfRects(anchor.rects),
+  };
+  return pdfAnchor;
+}
+
+function normalizePdfRects(value: unknown): PdfRect[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const rect = recordValue(item);
+    return [
+      {
+        x: normalizeFiniteNumber(rect.x),
+        y: normalizeFiniteNumber(rect.y),
+        width: normalizeFiniteNumber(rect.width),
+        height: normalizeFiniteNumber(rect.height),
+      },
+    ];
+  });
+}
+
+function normalizePositiveNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+function normalizeFiniteNumber(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function normalizeFocusCoReadingPlan(value: unknown): FocusCoReadingPlan | undefined {

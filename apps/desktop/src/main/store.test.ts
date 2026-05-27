@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Annotation, ArticleSummaryRecord, Comment } from '@yomitomo/shared';
+import {
+  createPdfTextAnchor,
+  isPdfTextAnchor,
+  type Annotation,
+  type ArticleSummaryRecord,
+  type Comment,
+} from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
@@ -39,7 +45,7 @@ import {
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from './store';
-import { rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
+import { rowToAnnotation, rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {
@@ -373,6 +379,36 @@ describe('desktop store articles', () => {
       'store-batch-annotation-1',
       'store-batch-annotation-2',
     ]);
+  });
+
+  it('preserves PDF annotation anchors when reading rows', () => {
+    const pdfAnchor = createPdfTextAnchor({
+      pageText: '第一页 PDF 正文',
+      pageIndex: 2,
+      start: 4,
+      end: 7,
+      pageWidth: 612,
+      pageHeight: 792,
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    });
+    const rows = buildArticleChildRows({
+      id: 'pdf-article',
+      annotations: [{ ...annotationRecord('pdf-annotation', []), anchor: pdfAnchor }],
+    });
+
+    const annotation = rowToAnnotation(
+      rows.annotationRows[0]! as Parameters<typeof rowToAnnotation>[0],
+      [],
+    );
+
+    expect(isPdfTextAnchor(annotation.anchor)).toBe(true);
+    expect(annotation.anchor).toMatchObject({
+      kind: 'pdf-text',
+      pageIndex: 2,
+      pageWidth: 612,
+      pageHeight: 792,
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+    });
   });
 
   it('finds existing import articles by id before url identity', () => {
