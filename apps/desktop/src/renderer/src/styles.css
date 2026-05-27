@@ -14693,6 +14693,19 @@ button.license-package-row:hover {
   box-shadow: inset 0 1px 0 hsl(var(--background) / 0.84);
 }
 
+.source-reader-shell .reader-composer-actions .reader-composer-cancel,
+.source-ebook-reader-shell .reader-composer-actions .reader-composer-cancel,
+.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel {
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-composer-actions .reader-composer-cancel:hover,
+.source-ebook-reader-shell .reader-composer-actions .reader-composer-cancel:hover,
+.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel:hover {
+  background: hsl(0 0% 0% / 0.085);
+}
+
 .source-reader-shell .reader-inline-composer-panel,
 .source-ebook-reader-shell .reader-inline-composer-panel,
 .source-pdf-reader-shell .reader-inline-composer-panel {

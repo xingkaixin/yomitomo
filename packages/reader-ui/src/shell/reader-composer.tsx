@@ -2,8 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AtSign } from 'lucide-react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { Kbd } from '../components/ui/kbd';
-import { AvatarBadge, SubmitShortcutKeys } from '../shared/reader-component-primitives';
+import {
+  AvatarBadge,
+  ReaderTooltip,
+  ShortcutTooltipContent,
+  SubmitShortcutTooltipContent,
+} from '../shared/reader-component-primitives';
 import {
   escapeRegExp,
   matchesAgentMentionQuery,
@@ -192,14 +196,24 @@ export function Composer({
               ))
             : null}
         </div>
-        <button className="reader-composer-cancel" type="button" onClick={onCancel}>
-          <Kbd className="reader-kbd">Esc</Kbd>
-          <span>取消</span>
-        </button>
-        <button type="button" onClick={save}>
-          <SubmitShortcutKeys shortcut={messageSendShortcut} shortcutModifier={shortcutModifier} />
-          <span>发布</span>
-        </button>
+        <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="取消" />}>
+          <button className="reader-composer-cancel" type="button" onClick={onCancel}>
+            <span>取消</span>
+          </button>
+        </ReaderTooltip>
+        <ReaderTooltip
+          content={
+            <SubmitShortcutTooltipContent
+              label="发布"
+              shortcut={messageSendShortcut}
+              shortcutModifier={shortcutModifier}
+            />
+          }
+        >
+          <button type="button" onClick={save}>
+            <span>发布</span>
+          </button>
+        </ReaderTooltip>
       </div>
     </div>
   );

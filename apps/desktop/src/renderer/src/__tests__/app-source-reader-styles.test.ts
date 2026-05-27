@@ -20,4 +20,11 @@ describe('source reader annotation styles', () => {
     expect(styles).toContain('background: transparent;');
     expect(styles).toContain('border-radius: 0;');
   });
+
+  it('keeps composer cancel buttons neutral in embedded readers', () => {
+    expect(styles).toContain(
+      '.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel',
+    );
+    expect(styles).toContain('background: hsl(0 0% 0% / 0.055);');
+  });
 });

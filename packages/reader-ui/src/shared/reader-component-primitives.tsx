@@ -11,10 +11,12 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
+import type React from 'react';
 import type { AgentReadingIntent, AnnotationType, MessageSendShortcut } from '@yomitomo/shared';
 import { agentReadingIntentLabel, agentReadingIntentOptions } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
 import { Kbd } from '../components/ui/kbd';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { messageSendShortcutKeys } from '../reader-shortcuts';
 
 const readingIntentIcons: Record<AgentReadingIntent, LucideIcon> = {
@@ -124,6 +126,68 @@ export function SubmitShortcutKeys({
         </Kbd>
       ))}
     </>
+  );
+}
+
+export function ShortcutKeys({ keys }: { keys: string[] }) {
+  return (
+    <>
+      {keys.map((key) => (
+        <Kbd className={key.length === 1 ? 'reader-kbd reader-kbd-symbol' : 'reader-kbd'} key={key}>
+          {key}
+        </Kbd>
+      ))}
+    </>
+  );
+}
+
+export function ShortcutTooltipContent({ label, keys }: { label: string; keys: string[] }) {
+  return (
+    <span className="reader-shortcut-tooltip">
+      <span>{label}</span>
+      <span className="reader-shortcut-tooltip-keys">
+        <ShortcutKeys keys={keys} />
+      </span>
+    </span>
+  );
+}
+
+export function SubmitShortcutTooltipContent({
+  label = '快捷键',
+  shortcut,
+  shortcutModifier,
+}: {
+  label?: string;
+  shortcut: MessageSendShortcut;
+  shortcutModifier: string;
+}) {
+  return (
+    <ShortcutTooltipContent
+      keys={messageSendShortcutKeys(shortcut, shortcutModifier)}
+      label={label}
+    />
+  );
+}
+
+export function ReaderTooltip({
+  children,
+  content,
+  disabled = false,
+  side = 'top',
+}: {
+  children: React.ReactElement;
+  content: React.ReactNode;
+  disabled?: boolean;
+  side?: React.ComponentPropsWithoutRef<typeof TooltipContent>['side'];
+}) {
+  if (disabled) return children;
+  return (
+    <TooltipProvider delayDuration={360} skipDelayDuration={80}>
+      <Tooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent side={side}>{content}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

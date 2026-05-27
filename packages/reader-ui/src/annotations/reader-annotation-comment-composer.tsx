@@ -2,7 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { getMentionQuery } from '@yomitomo/core';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
-import { AvatarBadge, SubmitShortcutKeys } from '../shared/reader-component-primitives';
+import {
+  AvatarBadge,
+  ReaderTooltip,
+  SubmitShortcutTooltipContent,
+} from '../shared/reader-component-primitives';
 import { matchesAgentMentionQuery, mentionDraftWithAgent } from '../reader-mention-utils';
 import { isMessageSendShortcutEvent } from '../reader-shortcuts';
 
@@ -202,15 +206,24 @@ export function AnnotationCommentComposer({
             </div>
           ) : null}
         </div>
-        <button
-          className="reader-add-comment"
-          type="button"
-          aria-label={submitLabel}
-          onClick={submit}
+        <ReaderTooltip
+          content={
+            <SubmitShortcutTooltipContent
+              label={submitLabel}
+              shortcut={messageSendShortcut}
+              shortcutModifier={shortcutModifier}
+            />
+          }
         >
-          <SubmitShortcutKeys shortcut={messageSendShortcut} shortcutModifier={shortcutModifier} />
-          <span>{submitLabel}</span>
-        </button>
+          <button
+            className="reader-add-comment"
+            type="button"
+            aria-label={submitLabel}
+            onClick={submit}
+          >
+            <span>{submitLabel}</span>
+          </button>
+        </ReaderTooltip>
       </div>
     </>
   );

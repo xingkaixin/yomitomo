@@ -17,7 +17,11 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
-import { AvatarBadge, SubmitShortcutKeys } from '../shared/reader-component-primitives';
+import {
+  AvatarBadge,
+  ReaderTooltip,
+  SubmitShortcutTooltipContent,
+} from '../shared/reader-component-primitives';
 import {
   filterFocusMessagesForAgents,
   focusMessageFromDraft,
@@ -715,18 +719,25 @@ export function AgentAnnotateMenu({
                             </button>
                           ))}
                         </div>
-                        <button
-                          type="button"
+                        <ReaderTooltip
+                          content={
+                            <SubmitShortcutTooltipContent
+                              label="留言"
+                              shortcut={messageSendShortcut}
+                              shortcutModifier={shortcutModifier}
+                            />
+                          }
                           disabled={sectionAgents.length === 0}
-                          onClick={() => addSectionMessage(section.id)}
                         >
-                          <SubmitShortcutKeys
-                            shortcut={messageSendShortcut}
-                            shortcutModifier={shortcutModifier}
-                          />
-                          <MessageSquarePlus size={15} />
-                          留言
-                        </button>
+                          <button
+                            type="button"
+                            disabled={sectionAgents.length === 0}
+                            onClick={() => addSectionMessage(section.id)}
+                          >
+                            <MessageSquarePlus size={15} />
+                            留言
+                          </button>
+                        </ReaderTooltip>
                       </div>
                     </div>
                   </div>

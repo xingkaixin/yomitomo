@@ -13,7 +13,7 @@ import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '
 import { renderMarkdown, reviewOpinionLabelTone } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { ReadingCompletionBurst } from '../agent/reader-agent-reading-dock';
-import { AvatarBadge } from '../shared/reader-component-primitives';
+import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
@@ -638,9 +638,11 @@ function avatarColorStyle(color: string): React.CSSProperties {
 
 function ReaderRelativeTime({ className, value }: { className?: string; value: string }) {
   return (
-    <time className={className} dateTime={value} title={formatTime(value)}>
-      {formatRelativeTime(value)}
-    </time>
+    <ReaderTooltip content={formatTime(value)}>
+      <time className={className} dateTime={value} tabIndex={0}>
+        {formatRelativeTime(value)}
+      </time>
+    </ReaderTooltip>
   );
 }
 

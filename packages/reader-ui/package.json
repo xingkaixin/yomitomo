@@ -27,6 +27,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
     "lucide-react": "^1.16.0",

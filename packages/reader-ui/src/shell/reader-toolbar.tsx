@@ -5,6 +5,7 @@ import type {
   AnnotationNavigationState,
   ReaderArticle,
 } from './reader-app-view-types';
+import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export type ReaderToolbarProps = {
   agentAnnotateOpen: boolean;
@@ -74,26 +75,28 @@ export function ReaderToolbar({
         </button>
         {showAnnotationNavigation ? (
           <div className="reader-annotation-nav" aria-label="批注快捷选择">
-            <button
-              aria-label="上一个批注"
-              className="reader-icon-button"
-              disabled={!annotationNavigation.previousId}
-              title="上一个批注"
-              type="button"
-              onClick={() => onNavigateAnnotation('previous')}
-            >
-              <ChevronUp size={17} />
-            </button>
-            <button
-              aria-label="下一个批注"
-              className="reader-icon-button"
-              disabled={!annotationNavigation.nextId}
-              title="下一个批注"
-              type="button"
-              onClick={() => onNavigateAnnotation('next')}
-            >
-              <ChevronDown size={17} />
-            </button>
+            <ReaderTooltip content="上一个批注" disabled={!annotationNavigation.previousId}>
+              <button
+                aria-label="上一个批注"
+                className="reader-icon-button"
+                disabled={!annotationNavigation.previousId}
+                type="button"
+                onClick={() => onNavigateAnnotation('previous')}
+              >
+                <ChevronUp size={17} />
+              </button>
+            </ReaderTooltip>
+            <ReaderTooltip content="下一个批注" disabled={!annotationNavigation.nextId}>
+              <button
+                aria-label="下一个批注"
+                className="reader-icon-button"
+                disabled={!annotationNavigation.nextId}
+                type="button"
+                onClick={() => onNavigateAnnotation('next')}
+              >
+                <ChevronDown size={17} />
+              </button>
+            </ReaderTooltip>
           </div>
         ) : null}
         <button
