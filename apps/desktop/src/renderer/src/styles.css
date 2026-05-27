@@ -13903,11 +13903,23 @@ button.license-package-row:hover {
   color: hsl(var(--foreground));
 }
 
+.source-reader-shell .reader-focus-agent-menu,
+.source-ebook-reader-shell .reader-focus-agent-menu {
+  right: auto;
+  width: 176px;
+  max-width: min(176px, calc(100% - 16px));
+  border-color: hsl(var(--border) / 0.92);
+  box-shadow:
+    0 20px 48px hsl(0 0% 0% / 0.18),
+    0 4px 12px hsl(0 0% 0% / 0.08);
+}
+
 .source-reader-shell .reader-focus-toolbar,
 .source-reader-shell .reader-plan-action-bar,
 .source-reader-shell .reader-focus-progress,
 .source-reader-shell .reader-focus-section-card,
 .source-reader-shell .reader-focus-add-menu,
+.source-reader-shell .reader-focus-message-agent-menu,
 .source-reader-shell .reader-plan-add-menu,
 .source-reader-shell .reader-focus-message,
 .source-reader-shell .reader-focus-empty,
@@ -13916,6 +13928,7 @@ button.license-package-row:hover {
 .source-ebook-reader-shell .reader-focus-progress,
 .source-ebook-reader-shell .reader-focus-section-card,
 .source-ebook-reader-shell .reader-focus-add-menu,
+.source-ebook-reader-shell .reader-focus-message-agent-menu,
 .source-ebook-reader-shell .reader-plan-add-menu,
 .source-ebook-reader-shell .reader-focus-message,
 .source-ebook-reader-shell .reader-focus-empty {
@@ -13935,18 +13948,18 @@ button.license-package-row:hover {
 .source-reader-shell .reader-focus-add,
 .source-reader-shell .reader-focus-agent-chip,
 .source-reader-shell .reader-focus-assigned-chip,
-.source-reader-shell .reader-focus-card-agents i,
 .source-reader-shell .reader-focus-card-agents .reader-focus-message-count,
 .source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
 .source-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
 .source-reader-shell .reader-agent-annotate-menu .reader-plan-action,
 .source-reader-shell .reader-agent-annotate-menu .reader-plan-add > button,
 .source-ebook-reader-shell .reader-focus-add,
 .source-ebook-reader-shell .reader-focus-agent-chip,
 .source-ebook-reader-shell .reader-focus-assigned-chip,
-.source-ebook-reader-shell .reader-focus-card-agents i,
 .source-ebook-reader-shell .reader-focus-card-agents .reader-focus-message-count,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-action,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-add > button {
@@ -13966,6 +13979,7 @@ button.license-package-row:hover {
   .reader-focus-message-footer
   > button:hover:not(:disabled),
 .source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button:hover,
 .source-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
 .source-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
 .source-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover,
@@ -13978,6 +13992,10 @@ button.license-package-row:hover {
   .reader-focus-message-footer
   > button:hover:not(:disabled),
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agent-menu
+  button:hover,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
 .source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover {
@@ -14222,6 +14240,7 @@ button.license-package-row:hover {
 .source-pdf-reader-shell .reader-focus-progress,
 .source-pdf-reader-shell .reader-focus-section-card,
 .source-pdf-reader-shell .reader-focus-add-menu,
+.source-pdf-reader-shell .reader-focus-message-agent-menu,
 .source-pdf-reader-shell .reader-plan-add-menu,
 .source-pdf-reader-shell .reader-focus-message,
 .source-pdf-reader-shell .reader-focus-empty,
@@ -14254,9 +14273,9 @@ button.license-package-row:hover {
 .source-pdf-reader-shell .reader-focus-add,
 .source-pdf-reader-shell .reader-focus-agent-chip,
 .source-pdf-reader-shell .reader-focus-assigned-chip,
-.source-pdf-reader-shell .reader-focus-card-agents i,
 .source-pdf-reader-shell .reader-focus-card-agents .reader-focus-message-count,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-action,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-add > button {
@@ -14287,12 +14306,23 @@ button.license-package-row:hover {
   .reader-focus-message-footer
   > button:hover:not(:disabled),
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button:hover,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
 .source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover {
   border-color: hsl(var(--foreground) / 0.32);
   background: hsl(0 0% 0% / 0.045);
   color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-agent-menu {
+  right: auto;
+  width: 176px;
+  max-width: min(176px, calc(100% - 16px));
+  border-color: hsl(var(--border) / 0.92);
+  box-shadow:
+    0 20px 48px hsl(0 0% 0% / 0.18),
+    0 4px 12px hsl(0 0% 0% / 0.08);
 }
 
 .source-pdf-reader-shell .reader-focus-plan,

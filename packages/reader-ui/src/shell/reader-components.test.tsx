@@ -71,10 +71,12 @@ const userProfile: UserProfile = {
 };
 
 function renderAgentAnnotateMenu({
+  agents = [agent('agent_1', '林知微'), agent('agent_2', '周砚')],
   focusCoReadingPlan,
   onSaveFocusCoReadingPlan = vi.fn((_: FocusCoReadingPlan) => undefined),
   readingSections = [section()],
 }: {
+  agents?: PublicAgent[];
   focusCoReadingPlan?: FocusCoReadingPlan;
   onSaveFocusCoReadingPlan?: (plan: FocusCoReadingPlan) => void | Promise<void>;
   readingSections?: ReaderReadingSection[];
@@ -83,7 +85,7 @@ function renderAgentAnnotateMenu({
   return render(
     <AgentAnnotateMenu
       articleId={articleId}
-      agents={[agent('agent_1', '林知微'), agent('agent_2', '周砚')]}
+      agents={agents}
       annotatingAgents={[]}
       focusCoReadingPlan={focusCoReadingPlan}
       messageSendShortcut="enter"
@@ -241,6 +243,80 @@ describe('AgentAnnotateMenu add agent menus', () => {
     renderAgentAnnotateMenu();
 
     expect(getClearPlanButton().disabled).toBe(true);
+  });
+
+  it('renders every assigned section agent as stacked summary avatars', () => {
+    const focusAgents = [
+      agent('agent_1', '林知微'),
+      agent('agent_2', '周砚'),
+      agent('agent_3', '许问渠'),
+      agent('agent_4', '陈砚书'),
+    ];
+    const { container } = renderAgentAnnotateMenu({
+      agents: focusAgents,
+      focusCoReadingPlan: {
+        id: 'focus_1',
+        articleId: 'article_1',
+        selectedAgentIds: focusAgents.map((item) => item.id),
+        sections: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '引文',
+            sectionStart: 0,
+            sectionEnd: 20,
+            agentIds: focusAgents.map((item) => item.id),
+            messages: [],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    expect(container.querySelectorAll('.reader-focus-avatar-stack-item')).toHaveLength(4);
+    expect(container.querySelector('.reader-focus-avatar-stack')?.textContent).not.toContain('+');
+  });
+
+  it('keeps focus message mention shortcuts compact behind a more menu', () => {
+    const focusAgents = [
+      agent('agent_1', '林知微'),
+      agent('agent_2', '周砚'),
+      agent('agent_3', '许问渠'),
+      agent('agent_4', '陈砚书'),
+    ];
+    const { container } = renderAgentAnnotateMenu({
+      agents: focusAgents,
+      focusCoReadingPlan: {
+        id: 'focus_1',
+        articleId: 'article_1',
+        selectedAgentIds: focusAgents.map((item) => item.id),
+        sections: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '引文',
+            sectionStart: 0,
+            sectionEnd: 20,
+            agentIds: focusAgents.map((item) => item.id),
+            messages: [],
+          },
+        ],
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /引文/ }));
+
+    expect(container.querySelectorAll('.reader-focus-message-agent')).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: '更多可 @ 助手，2 个' }));
+
+    expect(container.querySelectorAll('.reader-focus-message-agent-menu button')).toHaveLength(2);
+    expect(container.querySelector('.reader-focus-message-agent-menu')?.textContent).toContain(
+      '许问渠',
+    );
+    expect(container.querySelector('.reader-focus-message-agent-menu')?.textContent).toContain(
+      '陈砚书',
+    );
   });
 });
 
