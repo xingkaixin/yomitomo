@@ -55,22 +55,6 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     );
     return planAgentMentionRoute(provider, payload);
   });
-  handleDesktopIpc('focus-co-reading:route', async (_event, payload) => {
-    const { planFocusCoReadingRoute } = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
-    const provider = await taskProvider(
-      context,
-      store.providers,
-      store.settings,
-      'readingAssistant',
-    );
-    const selected = new Set(payload.selectedAgentIds);
-    const agents = store.agents.filter(
-      (agent) => agent.kind === 'annotation' && agent.enabled && selected.has(agent.id),
-    );
-    return planFocusCoReadingRoute(provider, payload, agents);
-  });
   handleDesktopIpc('agent:comment', async (_event, payload) => {
     const ai = await context.getAiModule();
     const { readStore } = await context.getStoreModule();

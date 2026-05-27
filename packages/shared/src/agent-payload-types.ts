@@ -1,7 +1,7 @@
 import type { AgentAnnotationDensity, AgentReadingIntent, PublicAgent } from './agent-types';
 import type { Annotation, AnnotationType, Comment } from './annotation-types';
 import type { TextAnchor } from './anchor-types';
-import type { EbookMetadata, EpubBookIndex } from './ebook-types';
+import type { EpubBookIndex } from './ebook-types';
 import type { ReadingMemoryView } from './reading-memory-entry-types';
 import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from './reader-context-types';
 
@@ -67,50 +67,6 @@ export type AgentAnnotatePayload = {
 export type AgentAnnotateResult = {
   annotations: Annotation[];
   readingMemory?: ReadingMemory;
-};
-
-export type FocusCoReadingRouteSectionInput = {
-  sectionId: string;
-  sectionTitle: string;
-  sectionStart: number;
-  sectionEnd: number;
-};
-
-export type FocusCoReadingRouteChapterSummaryInput = {
-  chapterId?: string;
-  sectionId?: string;
-  summary?: string;
-  tag?: string;
-};
-
-export type FocusCoReadingRoutePayload = {
-  selectedAgentIds: string[];
-  sections: FocusCoReadingRouteSectionInput[];
-  chapterSummaries?: FocusCoReadingRouteChapterSummaryInput[];
-  readerGoal?: string;
-  article: {
-    title: string;
-    url: string;
-    byline?: string;
-    text: string;
-    ebookIndex?: EpubBookIndex;
-    ebookMetadata?: EbookMetadata;
-  };
-  readerProgress?: ReaderProgress;
-  spoilerPolicy?: SpoilerPolicy;
-};
-
-export type FocusCoReadingRouteSection = {
-  sectionId: string;
-  summary?: string;
-  tag?: string;
-  targetDensity?: AgentAnnotationDensity;
-  needsFurtherPlanning?: boolean;
-  agentIds: string[];
-};
-
-export type FocusCoReadingRouteResult = {
-  sections: FocusCoReadingRouteSection[];
 };
 
 export type AnnotationMetadataPayload = {

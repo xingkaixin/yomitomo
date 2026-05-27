@@ -5,12 +5,10 @@ import type {
   AgentReadingPlanItem,
   Annotation,
   Comment as AnnotationComment,
-  FocusCoReadingPlan,
   PublicAgent,
 } from '@yomitomo/shared';
 import {
   createTextAnchor,
-  makeId,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
 } from '@yomitomo/shared';
@@ -42,7 +40,6 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
-import { buildReaderReadingSections } from '@yomitomo/reader-ui/reader-reading-sections';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   buildTocAnnotationStats,
@@ -193,7 +190,6 @@ export function WebSourceBookcase({
     setStatusMessage,
     userProfile,
   });
-  const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
@@ -241,13 +237,6 @@ export function WebSourceBookcase({
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
   );
-  const readingSections = useMemo(
-    () =>
-      articleRef.current && article
-        ? buildReaderReadingSections(articleRef.current, tocItems, article.title)
-        : [],
-    [article, tocItems],
-  );
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
@@ -293,7 +282,6 @@ export function WebSourceBookcase({
   useEffect(() => {
     setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
-    setAgentAnnotateOpen(false);
     setStatusMessage('');
   }, [article?.id]);
 
@@ -573,92 +561,6 @@ export function WebSourceBookcase({
     return activeId;
   }
 
-  async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
-    await onUpdateArticle(plan.articleId, (targetArticle) => {
-      const nextArticle = {
-        ...targetArticle,
-        focusCoReadingPlan: plan,
-        updatedAt: new Date().toISOString(),
-      };
-      if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
-      return nextArticle;
-    });
-  }
-
-  async function planFocusCoReading(selectedAgentIds: string[]) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    if (!desktop || !currentArticle) throw new Error('无法规划聚焦共读');
-
-    setStatusMessage('正在规划聚焦共读');
-    try {
-      const route = await desktop.planFocusCoReadingRoute({
-        selectedAgentIds,
-        sections: readingSections.map((section) => ({
-          sectionId: section.id,
-          sectionTitle: section.title,
-          sectionStart: section.start,
-          sectionEnd: section.end,
-        })),
-        chapterSummaries: currentArticle.focusCoReadingPlan?.sections.flatMap((section) =>
-          section.summary || section.tag
-            ? [
-                {
-                  sectionId: section.sectionId,
-                  summary: section.summary,
-                  tag: section.tag,
-                },
-              ]
-            : [],
-        ),
-        article: promptArticle(currentArticle, currentArticleText()),
-      });
-      const now = new Date().toISOString();
-      const routeBySection = new Map(route.sections.map((section) => [section.sectionId, section]));
-      const previousSections = new Map(
-        currentArticle.focusCoReadingPlan?.sections.map((section) => [section.sectionId, section]),
-      );
-      const sections = readingSections.flatMap((section) => {
-        const routed = routeBySection.get(section.id);
-        const previous = previousSections.get(section.id);
-        const agentIds = (routed?.agentIds || []).filter((agentId) =>
-          selectedAgentIds.includes(agentId),
-        );
-        const messages = previous?.messages || [];
-        if (agentIds.length === 0 && messages.length === 0 && !routed?.summary && !routed?.tag) {
-          return [];
-        }
-        return [
-          {
-            sectionId: section.id,
-            sectionTitle: section.title,
-            sectionStart: section.start,
-            sectionEnd: section.end,
-            summary: routed?.summary,
-            tag: routed?.tag,
-            targetDensity: routed?.targetDensity,
-            needsFurtherPlanning: routed?.needsFurtherPlanning,
-            agentIds,
-            messages,
-          },
-        ];
-      });
-      const plan: FocusCoReadingPlan = {
-        id: currentArticle.focusCoReadingPlan?.id || makeId('focus_co_reading'),
-        articleId: currentArticle.id,
-        selectedAgentIds,
-        sections,
-        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
-        createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
-        updatedAt: now,
-      };
-      await saveFocusCoReadingPlan(plan);
-      return plan;
-    } finally {
-      setStatusMessage('');
-    }
-  }
-
   function startAgentAnnotationPlayback(
     agent: PublicAgent,
     readingPlan: AgentReadingPlanItem[],
@@ -806,12 +708,10 @@ export function WebSourceBookcase({
       <ReaderAppView
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
-        agentAnnotateOpen={agentAnnotateOpen}
         agentDockCompleting={agentDockCompleting}
         agentDockItems={agentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
-        annotatingAgents={annotatingAgentIds}
         annotationTotals={annotationTotals}
         annotations={annotations}
         articleContent={
@@ -831,14 +731,12 @@ export function WebSourceBookcase({
         embedded
         extracted={readerArticle}
         filteredAnnotations={annotations}
-        focusCoReadingPlan={article.focusCoReadingPlan}
         highlightChoice={highlightChoice}
         noteRefs={noteRefs}
         notesRef={railRef}
         pendingAnnotationAgents={pendingAnnotationAgents}
         readerSettings={readerSettings}
         reviewAgents={reviewAgents}
-        readingSections={readingSections}
         selectionAction={selectionAction}
         settingsOpen={settingsOpen}
         messageSendShortcut={sendShortcut}
@@ -854,14 +752,12 @@ export function WebSourceBookcase({
         virtualCursors={virtualCursors}
         onAddComment={addComment}
         onAnnotationLayoutChange={recalculateActiveConnection}
-        onCancelAgentAnnotateMenu={() => setAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
         onClearSelection={clearSelection}
         onClose={onClose}
         onCloseFloatingPanels={() => {
           setSettingsOpen(false);
-          setAgentAnnotateOpen(false);
         }}
         onCloseHighlightChoice={() => setHighlightChoice(null)}
         onCloseResponsivePanels={() => {
@@ -877,26 +773,13 @@ export function WebSourceBookcase({
         onHighlightClick={handleHighlightClick}
         onMouseUp={handleArticleMouseUp}
         onOpenComposer={openComposer}
-        onPlanFocusCoReading={planFocusCoReading}
         onRequestAnnotationReview={requestAnnotationReview}
-        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={(annotationId) => {
           openAnnotation(annotationId);
           scrollToAnnotation(annotationId);
         }}
-        onStartAgentReadingPlan={(agent, readingPlan) => {
-          setAgentAnnotateOpen(false);
-          void requestAgentAnnotations(agent, { readingPlan });
-        }}
-        onToggleAgentAnnotate={() => {
-          setSettingsOpen(false);
-          setAgentAnnotateOpen((open) => !open);
-        }}
-        onToggleSettings={() => {
-          setAgentAnnotateOpen(false);
-          setSettingsOpen((open) => !open);
-        }}
+        onToggleSettings={() => setSettingsOpen((open) => !open)}
         onToggleToc={() => setTocOpen((open) => !open)}
         onUpdateReaderSettings={updateReaderSettings}
       />

@@ -16,8 +16,6 @@ import type {
   ArticleUpsertPatch,
   Comment,
   DesktopStore,
-  FocusCoReadingRoutePayload,
-  FocusCoReadingRouteResult,
   LlmProvider,
   ProviderModel,
   UserProfile,
@@ -261,10 +259,6 @@ export type DesktopIpcInvokeMap = {
   'pdf:read-file': {
     args: [articleId: string];
     result: ArrayBuffer;
-  };
-  'focus-co-reading:route': {
-    args: [payload: FocusCoReadingRoutePayload];
-    result: FocusCoReadingRouteResult;
   };
   'log:clear': {
     args: [];

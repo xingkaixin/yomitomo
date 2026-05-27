@@ -520,7 +520,8 @@ function nextTocBoundary(
   if (!item) return textLength;
   const start = starts[index] ?? 0;
   for (let nextIndex = index + 1; nextIndex < tocItems.length; nextIndex += 1) {
-    if (tocItems[nextIndex]!.depth > item.depth) continue;
+    const nextItem = tocItems[nextIndex];
+    if (!nextItem || nextItem.depth > item.depth) continue;
     const nextStart = starts[nextIndex] ?? textLength;
     if (nextStart > start) return nextStart;
   }

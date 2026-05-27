@@ -121,7 +121,7 @@ ${JSON.stringify(actions, null, 2)}
 
 directives 每个元素字段：
 - agentUsername：必须来自被 @ 的助手列表
-- action：只能是允许动作之一。comment 表示在用户想法下回复；create_thought 表示围绕目标选区或章节创建一条新的助手想法。
+- action：只能是允许动作之一。comment 表示在用户想法下回复；create_thought 表示围绕目标选区或章节创建一条新的助手批注。
 - instruction：只写这个助手需要执行的具体指令，去掉 @ 称呼
 - readingIntent：当用户明确要求解释、拆解、挑战、追问或联系全文时填写对应 value；动作由助手角色自行判断时省略
 

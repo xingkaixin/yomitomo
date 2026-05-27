@@ -38,21 +38,6 @@ describe('reader embedded styles', () => {
     );
   });
 
-  it('keeps focus co-reading mention menus compact and lifted', () => {
-    expect(readerConversationStyles).toContain(
-      '.reader-focus-agent-menu{right:auto;bottom:calc(100% + 8px);z-index:24;width:176px;',
-    );
-    expect(readerConversationStyles).toContain(
-      '.reader-agent-annotate-menu:has(.reader-focus-agent-menu),.reader-focus-card-list:has(.reader-focus-agent-menu),.reader-focus-section-card:has(.reader-focus-agent-menu){overflow:visible}',
-    );
-    expect(readerConversationStyles).toContain(
-      '.reader-focus-message-input:has(.reader-focus-agent-menu){position:relative;z-index:30;overflow:visible}',
-    );
-    expect(readerConversationStyles).toContain(
-      'box-shadow:0 18px 44px rgba(40,35,29,.18),0 3px 10px rgba(40,35,29,.08)',
-    );
-  });
-
   it('uses shared stacked assistant avatars and neutral selection surfaces', () => {
     expect(readerConversationStyles).toContain(
       '.reader-agent-avatar-stack-item{position:relative;display:grid;flex:0 0 auto;width:28px;min-width:28px;max-width:28px;height:28px;',

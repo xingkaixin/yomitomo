@@ -141,7 +141,7 @@ export function buildAgentCoReadingRuntimePayload(
   const context = buildAgentAnnotateContextBundle(runtimePayload);
   const primaryComment = candidate.comments[0]?.content || '';
   return {
-    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 复核聚焦共读已经生成的一条候选批注。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 action JSON，type 为 \`add_annotation\` 或 \`no_action\`，不要返回普通 JSON 数组或自然语言正文。`,
+    system: `${buildAgentAnnotateSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 复核定向阅读流程已经生成的一条候选批注。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 action JSON，type 为 \`add_annotation\` 或 \`no_action\`，不要返回普通 JSON 数组或自然语言正文。`,
     user: `${buildAgentAnnotatePrompt(provider, runtimePayload, agent, context)}\n\n候选批注：\n${JSON.stringify(
       {
         exact: candidate.anchor.exact,
@@ -486,7 +486,7 @@ function readingPlanPrompt(payload: AgentAnnotatePayload, context: ReadingContex
     };
   });
 
-  return `\n\n本轮聚焦共读编排：\n${JSON.stringify(plan, null, 2)}\n\n编排要求：\n- 你只能使用本轮提供的可用原文范围理解上下文。\n- 只在编排列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
+  return `\n\n本轮定向阅读范围：\n${JSON.stringify(plan, null, 2)}\n\n范围要求：\n- 你只能使用本轮提供的可用原文范围理解上下文。\n- 只在列表里的 sectionText 内选择批注片段。\n- sectionSummary 和 sectionTag 用于帮助你快速定位章节重点。\n- readerMessages 是读者给本章节或给你的留言，请作为阅读关注点。\n- readingIntent 为空时，你根据原文、留言和角色卡自行选择每条批注的 readingIntent。\n- readingIntent 有值时，每条批注使用该章节对应的 readingIntent。\n- 输出的 exact 必须来自对应 sectionText 的连续原文。\n- 没有讨论价值的章节可以不输出。`;
 }
 
 function selectionAnnotationPromptBlock(

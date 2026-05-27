@@ -32,12 +32,12 @@ function ebookArticle(
         fileName: 'book.epub',
         fileSize: 1024,
       },
-      chapters: chapters.map((chapter) => ({
-        id: chapter.id,
-        title: chapter.title,
-        href: chapter.href,
+      chapters: chapters.map((item) => ({
+        id: item.id,
+        title: item.title,
+        href: item.href,
         html: '<p>正文</p>',
-        textLength: chapter.textLength,
+        textLength: item.textLength,
       })),
       index: {
         version: 1,

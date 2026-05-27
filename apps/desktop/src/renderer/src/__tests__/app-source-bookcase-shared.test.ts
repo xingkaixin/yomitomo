@@ -111,7 +111,7 @@ describe('articleWithMergedAgentAnnotation', () => {
       {
         id: 'comment-1',
         author: 'ai',
-        content: '助手想法',
+        content: '助手评论',
         agentId: 'agent_lin',
         agentUsername: 'lin',
         agentNickname: 'lin',
