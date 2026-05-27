@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgentAnnotateMenu } from '../agent/reader-agent-annotate-menu';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
+import { Composer } from './reader-composer';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
 import type { ReaderReadingSection } from '../reader-types';
@@ -240,6 +241,30 @@ describe('AgentAnnotateMenu add agent menus', () => {
     renderAgentAnnotateMenu();
 
     expect(getClearPlanButton().disabled).toBe(true);
+  });
+});
+
+describe('Composer shortcut labels', () => {
+  it('keeps cancel and publish shortcuts out of visible button labels', () => {
+    const { container } = render(
+      <Composer
+        agents={[agent('agent_1', '林知微')]}
+        composer={{ x: 0, y: 0 }}
+        messageSendShortcut="enter"
+        shortcutModifier="⌘"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    const publishButton = screen.getByRole('button', { name: '发布' });
+
+    expect(cancelButton.textContent).toBe('取消');
+    expect(publishButton.textContent).toBe('发布');
+    expect(cancelButton.querySelector('.reader-kbd')).toBeNull();
+    expect(publishButton.querySelector('.reader-kbd')).toBeNull();
+    expect(container.querySelector('.reader-tooltip-content')).toBeNull();
   });
 });
 
@@ -860,7 +885,7 @@ describe('AnnotationCard', () => {
         />,
       );
 
-      fireEvent.click(screen.getAllByRole('button', { name: '打开想法操作' })[0]!);
+      fireEvent.click(screen.getAllByRole('button', { name: '打开想法操作' })[0]);
       fireEvent.pointerDown(screen.getByRole('button', { name: '长按删除想法' }), {
         pointerId: 1,
       });

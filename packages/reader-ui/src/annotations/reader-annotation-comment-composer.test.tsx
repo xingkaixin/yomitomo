@@ -44,7 +44,7 @@ function renderComposer(onSubmit = vi.fn(), agents = testAgents()) {
   const scrollIntoView = vi.fn();
   Element.prototype.scrollIntoView = scrollIntoView;
 
-  render(
+  const view = render(
     <AnnotationCommentComposer
       agents={agents}
       messageSendShortcut="enter"
@@ -55,6 +55,7 @@ function renderComposer(onSubmit = vi.fn(), agents = testAgents()) {
   );
 
   return {
+    container: view.container,
     onSubmit,
     scrollIntoView,
     textarea: screen.getByLabelText('留言内容') as HTMLTextAreaElement,
@@ -121,5 +122,14 @@ describe('AnnotationCommentComposer', () => {
 
     expect(onSubmit).toHaveBeenCalledWith('这是一条留言');
     expect(textarea.value).toBe('');
+  });
+
+  it('keeps submit shortcuts out of the visible button label', () => {
+    const { container } = renderComposer();
+
+    const submitButton = screen.getByRole('button', { name: '发送' });
+    expect(submitButton.textContent).toBe('发送');
+    expect(submitButton.querySelector('.reader-kbd')).toBeNull();
+    expect(container.querySelector('.reader-tooltip-content')).toBeNull();
   });
 });

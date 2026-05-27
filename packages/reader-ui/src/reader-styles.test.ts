@@ -30,6 +30,14 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('styles shortcut tooltips and keeps composer cancel neutral', () => {
+    expect(readerConversationStyles).toContain('.reader-tooltip-content{');
+    expect(readerConversationStyles).toContain('.reader-shortcut-tooltip{');
+    expect(readerConversationStyles).toContain(
+      '.reader-composer-actions .reader-composer-cancel{background:rgba(40,35,29,.08);color:var(--reader-ink)}',
+    );
+  });
+
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
       '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68',
