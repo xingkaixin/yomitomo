@@ -3,13 +3,11 @@
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AgentAnnotateMenu } from '../agent/reader-agent-annotate-menu';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
 import { Composer } from './reader-composer';
 import { ReaderTocPanel } from './reader-toc-panel';
-import type { Annotation, FocusCoReadingPlan, PublicAgent, UserProfile } from '@yomitomo/shared';
-import type { ReaderReadingSection } from '../reader-types';
+import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 
 const now = '2026-05-12T08:00:00.000Z';
 
@@ -34,33 +32,6 @@ function agent(id: string, nickname: string): PublicAgent {
   };
 }
 
-function getClearPlanButton() {
-  const element = screen.getByRole('button', { name: '清空编排' });
-  if (!(element instanceof HTMLButtonElement)) throw new Error('expected clear plan button');
-  return element;
-}
-
-function section(overrides: Partial<ReaderReadingSection> = {}): ReaderReadingSection {
-  return {
-    id: 'section_1',
-    title: '引文',
-    start: 0,
-    end: 20,
-    ...overrides,
-  };
-}
-
-function plan(articleId: string): FocusCoReadingPlan {
-  return {
-    id: 'focus_1',
-    articleId,
-    selectedAgentIds: [],
-    sections: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 const userProfile: UserProfile = {
   id: 'user-1',
   nickname: 'Kevin',
@@ -69,35 +40,6 @@ const userProfile: UserProfile = {
   annotationColor: '#f4c95d',
   updatedAt: now,
 };
-
-function renderAgentAnnotateMenu({
-  agents = [agent('agent_1', '林知微'), agent('agent_2', '周砚')],
-  focusCoReadingPlan,
-  onSaveFocusCoReadingPlan = vi.fn((_: FocusCoReadingPlan) => undefined),
-  readingSections = [section()],
-}: {
-  agents?: PublicAgent[];
-  focusCoReadingPlan?: FocusCoReadingPlan;
-  onSaveFocusCoReadingPlan?: (plan: FocusCoReadingPlan) => void | Promise<void>;
-  readingSections?: ReaderReadingSection[];
-} = {}) {
-  const articleId = 'article_1';
-  return render(
-    <AgentAnnotateMenu
-      articleId={articleId}
-      agents={agents}
-      annotatingAgents={[]}
-      focusCoReadingPlan={focusCoReadingPlan}
-      messageSendShortcut="enter"
-      readingSections={readingSections}
-      shortcutModifier="⌘"
-      onCancel={vi.fn()}
-      onPlanFocusCoReading={vi.fn(async () => plan(articleId))}
-      onSaveFocusCoReadingPlan={onSaveFocusCoReadingPlan}
-      onStartAgentPlan={vi.fn()}
-    />,
-  );
-}
 
 function annotation(overrides: Partial<Annotation> = {}): Annotation {
   return {
@@ -131,186 +73,6 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
     ...overrides,
   };
 }
-
-describe('AgentAnnotateMenu add agent menus', () => {
-  it('closes the plan add menu on outside pointer down', () => {
-    renderAgentAnnotateMenu();
-
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]);
-    expect(screen.getByRole('button', { name: /林知微/ })).toBeTruthy();
-
-    fireEvent.pointerDown(document.body);
-
-    expect(screen.queryByRole('button', { name: /林知微/ })).toBeNull();
-  });
-
-  it('closes the section add menu on outside pointer down', () => {
-    renderAgentAnnotateMenu();
-
-    fireEvent.click(screen.getByRole('button', { name: /引文/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]);
-    expect(screen.getByRole('button', { name: /林知微/ })).toBeTruthy();
-
-    fireEvent.pointerDown(document.body);
-
-    expect(screen.queryByRole('button', { name: /林知微/ })).toBeNull();
-  });
-
-  it('keeps the plan add control before selected agents', () => {
-    const { container } = renderAgentAnnotateMenu();
-
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: /林知微/ }));
-
-    const addControl = container.querySelector(
-      '.reader-focus-agent-picker > .reader-focus-add-wrap',
-    );
-    const selectedAgent = container.querySelector(
-      '.reader-focus-agent-picker > .reader-focus-agent-chip',
-    );
-
-    expect(
-      Boolean(
-        addControl!.compareDocumentPosition(selectedAgent!) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true);
-  });
-
-  it('keeps the section add control before assigned agents', () => {
-    const { container } = renderAgentAnnotateMenu();
-
-    fireEvent.click(screen.getByRole('button', { name: /引文/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]);
-    fireEvent.click(screen.getByRole('button', { name: /林知微/ }));
-
-    const addControl = container.querySelector(
-      '.reader-focus-assigned-list > .reader-focus-add-wrap',
-    );
-    const assignedAgent = container.querySelector(
-      '.reader-focus-assigned-list > .reader-focus-assigned-chip',
-    );
-
-    expect(
-      Boolean(
-        addControl!.compareDocumentPosition(assignedAgent!) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true);
-  });
-
-  it('clears only section agent assignments', () => {
-    const onSaveFocusCoReadingPlan = vi.fn();
-    renderAgentAnnotateMenu({
-      focusCoReadingPlan: {
-        id: 'focus_1',
-        articleId: 'article_1',
-        selectedAgentIds: ['agent_1'],
-        sections: [
-          {
-            sectionId: 'section_1',
-            sectionTitle: '引文',
-            sectionStart: 0,
-            sectionEnd: 20,
-            agentIds: ['agent_1'],
-            messages: [
-              {
-                id: 'message_1',
-                content: '@林知微 重点看这里',
-                agentIds: ['agent_1'],
-                createdAt: now,
-              },
-            ],
-          },
-        ],
-        createdAt: now,
-        updatedAt: now,
-      },
-      onSaveFocusCoReadingPlan,
-    });
-
-    const clearButton = getClearPlanButton();
-    expect(clearButton.disabled).toBe(false);
-
-    fireEvent.click(clearButton);
-
-    const savedPlan = onSaveFocusCoReadingPlan.mock.calls[0]?.[0];
-    if (!savedPlan) throw new Error('expected focus co-reading plan to be saved');
-    expect(savedPlan.selectedAgentIds).toEqual(['agent_1']);
-    expect(savedPlan.sections).toEqual([]);
-    expect(getClearPlanButton().disabled).toBe(true);
-  });
-
-  it('disables clearing when no sections have assigned agents', () => {
-    renderAgentAnnotateMenu();
-
-    expect(getClearPlanButton().disabled).toBe(true);
-  });
-
-  it('renders every assigned section agent as stacked summary avatars', () => {
-    const focusAgents = [
-      agent('agent_1', '林知微'),
-      agent('agent_2', '周砚'),
-      agent('agent_3', '许问渠'),
-      agent('agent_4', '陈砚书'),
-    ];
-    const { container } = renderAgentAnnotateMenu({
-      agents: focusAgents,
-      focusCoReadingPlan: {
-        id: 'focus_1',
-        articleId: 'article_1',
-        selectedAgentIds: focusAgents.map((item) => item.id),
-        sections: [
-          {
-            sectionId: 'section_1',
-            sectionTitle: '引文',
-            sectionStart: 0,
-            sectionEnd: 20,
-            agentIds: focusAgents.map((item) => item.id),
-            messages: [],
-          },
-        ],
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
-
-    expect(container.querySelectorAll('.reader-focus-avatar-stack-item')).toHaveLength(4);
-    expect(container.querySelector('.reader-focus-avatar-stack')?.textContent).not.toContain('+');
-  });
-
-  it('shows every focus message mention shortcut as stacked avatars', () => {
-    const focusAgents = [
-      agent('agent_1', '林知微'),
-      agent('agent_2', '周砚'),
-      agent('agent_3', '许问渠'),
-      agent('agent_4', '陈砚书'),
-    ];
-    const { container } = renderAgentAnnotateMenu({
-      agents: focusAgents,
-      focusCoReadingPlan: {
-        id: 'focus_1',
-        articleId: 'article_1',
-        selectedAgentIds: focusAgents.map((item) => item.id),
-        sections: [
-          {
-            sectionId: 'section_1',
-            sectionTitle: '引文',
-            sectionStart: 0,
-            sectionEnd: 20,
-            agentIds: focusAgents.map((item) => item.id),
-            messages: [],
-          },
-        ],
-        createdAt: now,
-        updatedAt: now,
-      },
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /引文/ }));
-
-    expect(container.querySelectorAll('.reader-focus-message-agent')).toHaveLength(4);
-    expect(screen.queryByRole('button', { name: /更多可 @ 助手/ })).toBeNull();
-  });
-});
 
 describe('Composer shortcut labels', () => {
   it('keeps cancel and publish shortcuts out of visible button labels', () => {
@@ -609,14 +371,14 @@ describe('AnnotationCard', () => {
               ...baseComment,
               id: 'comment-agent-1',
               author: 'ai',
-              content: '第一个助手想法',
+              content: '第一个助手评论',
               agentId: 'agent-1',
             },
             {
               ...baseComment,
               id: 'comment-agent-2',
               author: 'ai',
-              content: '第二个助手想法',
+              content: '第二个助手评论',
               agentId: 'agent-2',
             },
           ],
@@ -635,8 +397,8 @@ describe('AnnotationCard', () => {
     );
 
     expect(screen.getByLabelText('2 条想法')).toBeTruthy();
-    expect(screen.getByText('第一个助手想法')).toBeTruthy();
-    expect(screen.getByText('第二个助手想法')).toBeTruthy();
+    expect(screen.getByText('第一个助手评论')).toBeTruthy();
+    expect(screen.getByText('第二个助手评论')).toBeTruthy();
   });
 
   it('opens the thought list and new top-level thought after it is added', async () => {

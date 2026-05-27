@@ -151,12 +151,10 @@ function sameAnnotationNavigation(
 export function ReaderAppView({
   activeConnection,
   activeId,
-  agentAnnotateOpen,
   agentDockCompleting,
   agentDockItems,
   agentTheaterBoxes,
   agents,
-  annotatingAgents,
   annotationTotals,
   annotations,
   articleContent,
@@ -173,13 +171,11 @@ export function ReaderAppView({
   embedded = false,
   extracted,
   filteredAnnotations,
-  focusCoReadingPlan,
   highlightChoice,
   noteRefs,
   notesRef,
   readerSettings,
   reviewAgents = [],
-  readingSections,
   selectionAction,
   settingsOpen,
   messageSendShortcut,
@@ -195,7 +191,6 @@ export function ReaderAppView({
   userProfile,
   virtualCursors,
   onAddComment,
-  onCancelAgentAnnotateMenu,
   onCancelComposer,
   onClose,
   onClearActiveAnnotation,
@@ -214,14 +209,10 @@ export function ReaderAppView({
   onCloseResponsivePanels,
   onOpenComposer,
   onCopySelection,
-  onPlanFocusCoReading,
-  onSaveFocusCoReadingPlan,
-  onStartAgentReadingPlan,
   onDeleteComment,
   onScrollToHeading,
   onScrollToHighlight,
   onToggleToc,
-  onToggleAgentAnnotate,
   onToggleSettings,
   onUpdateReaderSettings,
 }: ReaderAppViewProps) {
@@ -253,26 +244,23 @@ export function ReaderAppView({
       onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ??
       emptyAnnotationNavigation,
   );
-  const { handleReaderPointerDownCapture, toggleAgentAnnotate, toggleSettings } =
-    useReaderShellInteractions({
-      activeId,
-      agentAnnotateOpen,
-      composer,
-      highlightChoice,
-      selectionAction,
-      selectionActionShortcuts,
-      settingsOpen,
-      visibleAnnotationIds,
-      onCancelComposer,
-      onClearActiveAnnotation,
-      onClearSelection,
-      onCloseFloatingPanels,
-      onCloseHighlightChoice,
-      onCopySelection,
-      onOpenComposer,
-      onToggleAgentAnnotate,
-      onToggleSettings,
-    });
+  const { handleReaderPointerDownCapture, toggleSettings } = useReaderShellInteractions({
+    activeId,
+    composer,
+    highlightChoice,
+    selectionAction,
+    selectionActionShortcuts,
+    settingsOpen,
+    visibleAnnotationIds,
+    onCancelComposer,
+    onClearActiveAnnotation,
+    onClearSelection,
+    onCloseFloatingPanels,
+    onCloseHighlightChoice,
+    onCopySelection,
+    onOpenComposer,
+    onToggleSettings,
+  });
   const hasToc = tocItems.length > 0;
 
   React.useEffect(() => {
@@ -336,11 +324,8 @@ export function ReaderAppView({
       onPointerDownCapture={handleReaderPointerDownCapture}
     >
       <ReaderToolbar
-        agentAnnotateOpen={agentAnnotateOpen}
-        annotatingAgentsCount={annotatingAgents.length}
         annotationNavigation={annotationNavigation}
         extracted={extracted}
-        hasAgents={agents.length > 0}
         hasToc={hasToc}
         settingsOpen={settingsOpen}
         showAnnotationNavigation={Boolean(onResolveAnnotationNavigation && onNavigateAnnotation)}
@@ -348,26 +333,13 @@ export function ReaderAppView({
         toolbarArticleAction={toolbarArticleAction}
         onClose={onClose}
         onNavigateAnnotation={navigateAnnotation}
-        onToggleAgentAnnotate={toggleAgentAnnotate}
         onToggleSettings={toggleSettings}
         onToggleToc={onToggleToc}
       />
 
       <ReaderFloatingPanels
-        agentAnnotateOpen={agentAnnotateOpen}
-        agents={agents}
-        annotatingAgents={annotatingAgents}
-        articleId={articleId}
-        focusCoReadingPlan={focusCoReadingPlan}
-        messageSendShortcut={messageSendShortcut}
         readerSettings={readerSettings}
-        readingSections={readingSections}
         settingsOpen={settingsOpen}
-        shortcutModifier={shortcutModifier}
-        onCancelAgentAnnotateMenu={onCancelAgentAnnotateMenu}
-        onPlanFocusCoReading={onPlanFocusCoReading}
-        onSaveFocusCoReadingPlan={onSaveFocusCoReadingPlan}
-        onStartAgentReadingPlan={onStartAgentReadingPlan}
         onUpdateReaderSettings={onUpdateReaderSettings}
       />
 

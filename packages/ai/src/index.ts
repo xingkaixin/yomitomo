@@ -96,7 +96,6 @@ export {
 export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures';
 export { setAiLogger, type AiLogger } from './logger';
 export { extractJsonObjects } from './json';
-export { parseFocusCoReadingRouteResult, planFocusCoReadingRoute } from './focus-route';
 export {
   inferAnnotationMetadata,
   parseAgentMentionInstructions,

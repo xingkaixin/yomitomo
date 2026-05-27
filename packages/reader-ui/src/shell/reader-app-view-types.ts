@@ -1,8 +1,6 @@
 import type React from 'react';
 import type {
-  AgentReadingPlanItem,
   Annotation,
-  FocusCoReadingPlan,
   MessageSendShortcut,
   PublicAgent,
   SelectionActionShortcuts,
@@ -17,7 +15,6 @@ import type {
   ActiveConnection,
   AgentDockItem,
   HighlightChoiceAction,
-  ReaderReadingSection,
   ReaderSettings,
   VirtualCursorState,
 } from '../reader-types';
@@ -56,12 +53,10 @@ export type AnnotationNavigationState = {
 export type ReaderAppViewProps = {
   activeConnection: ActiveConnection | null;
   activeId: string | null;
-  agentAnnotateOpen: boolean;
   agentDockCompleting: boolean;
   agentDockItems: AgentDockItem[];
   agentTheaterBoxes: HighlightBox[];
   agents: PublicAgent[];
-  annotatingAgents: string[];
   annotationTotals: { annotations: number; comments: number };
   annotations: Annotation[];
   articleContent?: React.ReactNode;
@@ -78,13 +73,11 @@ export type ReaderAppViewProps = {
   embedded?: boolean;
   extracted: ReaderArticle;
   filteredAnnotations: Annotation[];
-  focusCoReadingPlan?: FocusCoReadingPlan;
   highlightChoice: HighlightChoice | null;
   noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
   notesRef: React.RefObject<HTMLElement | null>;
   readerSettings: ReaderSettings;
   reviewAgents?: PublicAgent[];
-  readingSections: ReaderReadingSection[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
   messageSendShortcut: MessageSendShortcut;
@@ -100,7 +93,6 @@ export type ReaderAppViewProps = {
   userProfile: UserProfile;
   virtualCursors: VirtualCursorState[];
   onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
-  onCancelAgentAnnotateMenu: () => void;
   onCancelComposer: () => void;
   onClose: () => void;
   onClearActiveAnnotation: () => void;
@@ -126,13 +118,9 @@ export type ReaderAppViewProps = {
   onCloseResponsivePanels: () => void;
   onOpenComposer: (action: SelectionAction) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
-  onPlanFocusCoReading: (selectedAgentIds: string[]) => Promise<FocusCoReadingPlan>;
-  onSaveFocusCoReadingPlan: (plan: FocusCoReadingPlan) => void | Promise<void>;
-  onStartAgentReadingPlan: (agent: PublicAgent, readingPlan: AgentReadingPlanItem[]) => void;
   onScrollToHeading: (item: TocItem) => void;
   onScrollToHighlight: (annotationId: string) => void;
   onToggleToc: () => void;
-  onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
   onUpdateReaderSettings: (settings: ReaderSettings) => void | Promise<void>;
 };

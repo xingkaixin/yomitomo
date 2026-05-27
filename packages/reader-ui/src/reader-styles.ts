@@ -177,6 +177,7 @@ export const readerConversationStyles = `
 .reader-agent-annotate-actions button:active:not(:disabled){transform:scale(.96)}
 .reader-agent-annotate-actions button:last-child{background:var(--reader-ink);color:#fff}
 .reader-agent-annotate-actions button:disabled{cursor:not-allowed;opacity:.48}
+.reader-agent-empty{display:grid;min-height:220px;place-items:center;border:1px dashed rgba(40,35,29,.14);border-radius:16px;color:var(--reader-muted);font-size:13px;font-weight:760}
 .reader-agent-annotate-popover{position:fixed;inset:0;z-index:200;display:grid;place-items:center;width:auto;padding:34px;pointer-events:none}
 .reader-agent-annotate-scrim{position:fixed;inset:0;border:0;background:rgba(40,35,29,.2);backdrop-filter:blur(10px);pointer-events:auto}
 .reader-agent-annotate-popover .reader-agent-annotate-menu{position:relative;z-index:1;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;width:min(1180px,calc(100vw - 56px));height:min(860px,calc(100vh - 48px));max-height:min(860px,calc(100vh - 48px));margin:0;padding:18px;border:1px solid rgba(40,35,29,.12);border-radius:20px;background:rgba(255,253,248,.98);box-shadow:0 28px 90px rgba(40,35,29,.24);overflow:hidden;pointer-events:auto}

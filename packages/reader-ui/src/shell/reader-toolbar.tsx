@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, ChevronDown, ChevronUp, List, Settings2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, List, Settings2, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
@@ -8,11 +8,8 @@ import type {
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export type ReaderToolbarProps = {
-  agentAnnotateOpen: boolean;
-  annotatingAgentsCount: number;
   annotationNavigation: AnnotationNavigationState;
   extracted: ReaderArticle;
-  hasAgents: boolean;
   hasToc: boolean;
   settingsOpen: boolean;
   showAnnotationNavigation: boolean;
@@ -20,17 +17,13 @@ export type ReaderToolbarProps = {
   toolbarArticleAction?: React.ReactNode;
   onClose: () => void;
   onNavigateAnnotation: (direction: AnnotationNavigationDirection) => void;
-  onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
   onToggleToc: () => void;
 };
 
 export function ReaderToolbar({
-  agentAnnotateOpen,
-  annotatingAgentsCount,
   annotationNavigation,
   extracted,
-  hasAgents,
   hasToc,
   settingsOpen,
   showAnnotationNavigation,
@@ -38,7 +31,6 @@ export function ReaderToolbar({
   toolbarArticleAction,
   onClose,
   onNavigateAnnotation,
-  onToggleAgentAnnotate,
   onToggleSettings,
   onToggleToc,
 }: ReaderToolbarProps) {
@@ -99,18 +91,6 @@ export function ReaderToolbar({
             </ReaderTooltip>
           </div>
         ) : null}
-        <button
-          className={
-            agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
-          }
-          data-reader-popover-anchor
-          type="button"
-          disabled={!hasAgents}
-          onClick={onToggleAgentAnnotate}
-        >
-          <Bot size={18} />
-          {annotatingAgentsCount > 0 ? '共读中' : '聚焦共读'}
-        </button>
         <button
           className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
           data-reader-popover-anchor

@@ -25,7 +25,6 @@ const activeAnnotationPreserveSelector = [
 
 export type UseReaderShellInteractionsOptions = {
   activeId: string | null;
-  agentAnnotateOpen: boolean;
   composer: PendingComposer | null;
   highlightChoice: HighlightChoice | null;
   selectionAction: SelectionAction | null;
@@ -39,19 +38,16 @@ export type UseReaderShellInteractionsOptions = {
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onOpenComposer: (action: SelectionAction) => void;
-  onToggleAgentAnnotate: () => void;
   onToggleSettings: () => void;
 };
 
 export type ReaderShellInteractions = {
   handleReaderPointerDownCapture: (event: React.PointerEvent<HTMLDivElement>) => void;
-  toggleAgentAnnotate: () => void;
   toggleSettings: () => void;
 };
 
 export function useReaderShellInteractions({
   activeId,
-  agentAnnotateOpen,
   composer,
   highlightChoice,
   selectionAction,
@@ -65,7 +61,6 @@ export function useReaderShellInteractions({
   onCloseHighlightChoice,
   onCopySelection,
   onOpenComposer,
-  onToggleAgentAnnotate,
   onToggleSettings,
 }: UseReaderShellInteractionsOptions): ReaderShellInteractions {
   React.useEffect(() => {
@@ -105,10 +100,6 @@ export function useReaderShellInteractions({
     };
   }, [composer, onCopySelection, onOpenComposer, selectionAction, selectionActionShortcuts]);
 
-  const toggleAgentAnnotate = React.useCallback(() => {
-    onToggleAgentAnnotate();
-  }, [onToggleAgentAnnotate]);
-
   const toggleSettings = React.useCallback(() => {
     onToggleSettings();
   }, [onToggleSettings]);
@@ -118,7 +109,7 @@ export function useReaderShellInteractions({
       if (!(event.target instanceof Element)) return;
       const target = event.target;
 
-      if (settingsOpen || agentAnnotateOpen) {
+      if (settingsOpen) {
         if (!target.closest('[data-reader-floating-panel],[data-reader-popover-anchor]')) {
           onCloseFloatingPanels();
         }
@@ -144,7 +135,6 @@ export function useReaderShellInteractions({
     },
     [
       activeId,
-      agentAnnotateOpen,
       composer,
       highlightChoice,
       onCancelComposer,
@@ -158,7 +148,6 @@ export function useReaderShellInteractions({
 
   return {
     handleReaderPointerDownCapture,
-    toggleAgentAnnotate,
     toggleSettings,
   };
 }

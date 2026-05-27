@@ -2,8 +2,6 @@ import type {
   AgentAnnotatePayload,
   AgentMessagePayload,
   Annotation,
-  FocusCoReadingRoutePayload,
-  FocusCoReadingRouteResult,
   TextRange,
 } from '@yomitomo/shared';
 import { locateEpubTextAnchor } from '@yomitomo/core';
@@ -20,7 +18,6 @@ export const epubEvaluationChapterLengths = ['short', 'medium', 'ultra_long'] as
 export const epubEvaluationTaskTypes = [
   'selection_annotation',
   'selection_thread_reply',
-  'chapter_route',
   'segment_annotation',
 ] as const;
 
@@ -62,10 +59,6 @@ export type EpubEvaluationTaskInput =
   | {
       taskType: 'selection_thread_reply';
       payload: AgentMessagePayload;
-    }
-  | {
-      taskType: 'chapter_route';
-      payload: FocusCoReadingRoutePayload;
     }
   | {
       taskType: 'segment_annotation';
@@ -118,7 +111,6 @@ export type EpubEvaluationRun = {
   annotations?: Annotation[];
   segmentOutputs?: EpubEvaluationSegmentOutput[];
   toolLoopDecisions?: EpubEvaluationToolLoopDecision[];
-  route?: FocusCoReadingRouteResult;
   replyText?: string;
   manualScores?: EpubEvaluationManualScores;
   failureLabels?: EpubEvaluationFailureLabel[];

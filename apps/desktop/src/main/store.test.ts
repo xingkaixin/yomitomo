@@ -396,8 +396,28 @@ describe('desktop store articles', () => {
       annotations: [{ ...annotationRecord('pdf-annotation', []), anchor: pdfAnchor }],
     });
 
+    const annotationRow = rows.annotationRows[0];
+    if (!annotationRow) throw new Error('expected annotation row');
     const annotation = rowToAnnotation(
-      rows.annotationRows[0]! as Parameters<typeof rowToAnnotation>[0],
+      {
+        ...annotationRow,
+        annotationType: annotationRow.annotationType ?? null,
+        readingIntent: annotationRow.readingIntent ?? null,
+        whyHere: annotationRow.whyHere ?? null,
+        confidence: annotationRow.confidence ?? null,
+        moveType: annotationRow.moveType ?? null,
+        shouldShow: annotationRow.shouldShow ?? null,
+        agentId: annotationRow.agentId ?? null,
+        agentUsername: annotationRow.agentUsername ?? null,
+        agentNickname: annotationRow.agentNickname ?? null,
+        agentAvatar: annotationRow.agentAvatar ?? null,
+        agentAnnotationColor: annotationRow.agentAnnotationColor ?? null,
+        userId: annotationRow.userId ?? null,
+        userUsername: annotationRow.userUsername ?? null,
+        userNickname: annotationRow.userNickname ?? null,
+        userAvatar: annotationRow.userAvatar ?? null,
+        userAnnotationColor: annotationRow.userAnnotationColor ?? null,
+      },
       [],
     );
 

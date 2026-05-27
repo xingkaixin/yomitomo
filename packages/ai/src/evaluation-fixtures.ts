@@ -4,7 +4,6 @@ import type {
   Annotation,
   Comment,
   EpubBookIndex,
-  FocusCoReadingRoutePayload,
   ReadingMemoryView,
   TextAnchor,
 } from '@yomitomo/shared';
@@ -207,14 +206,14 @@ export const epubEvaluationCases: EpubEvaluationCase[] = [
     requiredEvidence: ['渡桥的灯不是为了照亮路面'],
     p1MayFail: true,
   }),
-  chapterRouteCase({
-    id: 'route-technical-medium',
-    title: '章节路由：技术书中章',
-    description: '路由只看 descriptor、preview 和已有摘要，不应假装读完整章正文。',
+  segmentAnnotationCase({
+    id: 'segment-point-technical-medium',
+    title: '自动批注选点：技术书中章',
+    description: 'segment-level generation 应能在技术章节中选择边界、恢复和成本相关的位置。',
     book: epubEvaluationBooks.technical,
     chapterLength: 'medium',
     chapterId: 'technical-medium',
-    requiredEvidence: ['失败恢复', '成本控制'],
+    acceptableAnchorExacts: ['调度器先把任务拆成可重试的步骤'],
   }),
   segmentAnnotationCase({
     id: 'segment-point-business-ultra',
@@ -346,43 +345,6 @@ function threadReplyCase(input: {
     allowedFailureLabels: input.p1MayFail
       ? ['retrieval_missing', 'context_insufficient', 'summary_drift']
       : ['context_insufficient', 'summary_drift'],
-  };
-}
-
-function chapterRouteCase(input: {
-  id: string;
-  title: string;
-  description: string;
-  book: EpubEvaluationBookFixture;
-  chapterLength: EpubEvaluationChapterLength;
-  chapterId: string;
-  requiredEvidence: string[];
-}): EpubEvaluationCase {
-  const payload: FocusCoReadingRoutePayload = {
-    selectedAgentIds: [agent.id],
-    article: articleInput(input.book),
-    sections: input.book.ebookIndex.chapters.map((chapter) => ({
-      sectionId: chapter.id,
-      sectionTitle: chapter.title,
-      sectionStart: chapter.textStart,
-      sectionEnd: chapter.textEnd,
-    })),
-  };
-  const chapter = chapterById(input.book, input.chapterId);
-
-  return {
-    id: input.id,
-    title: input.title,
-    description: input.description,
-    bookType: input.book.bookType,
-    chapterLength: input.chapterLength,
-    controls: [...epubEvaluationControlGroups],
-    input: { taskType: 'chapter_route', payload },
-    expected: {
-      requiredEvidence: input.requiredEvidence,
-      metricRange: { textStart: chapter.textStart, textEnd: chapter.textEnd },
-    },
-    allowedFailureLabels: ['context_insufficient', 'persona_homogenization'],
   };
 }
 

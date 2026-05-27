@@ -31,7 +31,6 @@ const highlightChoice: HighlightChoice = {
 
 function ShellProbe({
   activeId = null,
-  agentAnnotateOpen = false,
   composer = null,
   settingsOpen = false,
   visibleAnnotationIds = new Set<string>(),
@@ -42,12 +41,10 @@ function ShellProbe({
   onCloseHighlightChoice = vi.fn(),
   onCopySelection = vi.fn(),
   onOpenComposer = vi.fn(),
-  onToggleAgentAnnotate = vi.fn(),
   onToggleSettings = vi.fn(),
 }: Partial<Parameters<typeof useReaderShellInteractions>[0]>) {
   const shell = useReaderShellInteractions({
     activeId,
-    agentAnnotateOpen,
     composer,
     highlightChoice,
     selectionAction,
@@ -61,7 +58,6 @@ function ShellProbe({
     onCloseHighlightChoice,
     onCopySelection,
     onOpenComposer,
-    onToggleAgentAnnotate,
     onToggleSettings,
   });
 
@@ -125,7 +121,6 @@ describe('useReaderShellInteractions', () => {
     function Probe() {
       const shell = useReaderShellInteractions({
         activeId: null,
-        agentAnnotateOpen: false,
         composer: null,
         highlightChoice,
         selectionAction,
@@ -139,7 +134,6 @@ describe('useReaderShellInteractions', () => {
         onCloseHighlightChoice: vi.fn(),
         onCopySelection: vi.fn(),
         onOpenComposer: vi.fn(),
-        onToggleAgentAnnotate: vi.fn(),
         onToggleSettings: vi.fn(),
       });
 

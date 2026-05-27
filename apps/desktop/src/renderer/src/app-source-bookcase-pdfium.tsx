@@ -29,7 +29,6 @@ import {
 import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
 import {
-  Bot,
   ZoomIn,
   ZoomOut,
   ChevronLeft,
@@ -43,7 +42,6 @@ import { FontCharset, type PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
-  makeId,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
   type AgentReadingPlanItem,
@@ -51,7 +49,6 @@ import {
   type Comment as AnnotationComment,
   type Annotation,
   type ArticleRecord,
-  type FocusCoReadingPlan,
   type PublicAgent,
 } from '@yomitomo/shared';
 import {
@@ -88,7 +85,6 @@ import {
   mentionDirectivesForAgent,
   planSelectionMentionRoute,
   promptArticle,
-  publicAnnotationAgents,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
   type SourceBookcaseProps,
@@ -101,7 +97,6 @@ import notoSansScRegularUrl from './assets/fonts/NotoSansSC-Regular.ttf?url';
 import {
   buildPdfTextDocument,
   pdfiumAgentAnnotationRequestOptions,
-  pdfReaderReadingSections,
   pdfiumAnchorForReadingPlanStart,
   pdfiumAnchorReadingPosition,
   pdfiumAnnotationBoxes,
@@ -186,7 +181,6 @@ export function PdfiumBookcase({
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [agentAnnotateOpen, setAgentAnnotateOpen] = useState(false);
   const [annotationNavigation, setAnnotationNavigation] = useState<PdfAnnotationNavigationState>({
     previousId: null,
     nextId: null,
@@ -194,7 +188,6 @@ export function PdfiumBookcase({
   const navigateAnnotationRef = useRef<(annotationId: string) => void>(() => undefined);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
   if (!openTraceRef.current || openTraceRef.current.articleId !== article.id) {
     openTraceRef.current = pdfOpenTrace(article.id);
     recordedOpenPhasesRef.current = new Set();
@@ -356,22 +349,6 @@ export function PdfiumBookcase({
               <ChevronDown size={17} />
             </button>
           </div>
-          <button
-            aria-label="聚焦共读"
-            aria-pressed={agentAnnotateOpen}
-            className={
-              agentAnnotateOpen ? 'reader-agent-annotate is-active' : 'reader-agent-annotate'
-            }
-            disabled={annotationAgents.length === 0}
-            type="button"
-            onClick={() => {
-              setTocOpen(false);
-              setAgentAnnotateOpen((open) => !open);
-            }}
-          >
-            <Bot size={16} />
-            <span>聚焦共读</span>
-          </button>
         </div>
       </header>
       <div className="pdf-reader-main pdfium-spike-main">
@@ -392,7 +369,6 @@ export function PdfiumBookcase({
                   {({ isLoaded, isError, documentState }) =>
                     isLoaded ? (
                       <PdfiumDocument
-                        agentAnnotateOpen={agentAnnotateOpen}
                         agents={agents}
                         annotations={articleAnnotations}
                         article={article}
@@ -412,7 +388,6 @@ export function PdfiumBookcase({
                         onCloseToc={() => setTocOpen(false)}
                         onDeleteArticleAnnotation={onDeleteArticleAnnotation}
                         onDeleteArticleComment={onDeleteArticleComment}
-                        onSetAgentAnnotateOpen={setAgentAnnotateOpen}
                         onSetAnnotationNavigation={setAnnotationNavigation}
                         onSetAnnotationNavigator={(navigator) => {
                           navigateAnnotationRef.current = navigator;
@@ -446,7 +421,6 @@ export function PdfiumBookcase({
 }
 
 function PdfiumDocument({
-  agentAnnotateOpen,
   agents,
   annotations: articleAnnotations,
   article,
@@ -468,13 +442,11 @@ function PdfiumDocument({
   onSaveArticle,
   onSaveArticleReadingProgress,
   onSetTocItems,
-  onSetAgentAnnotateOpen,
   onSetAnnotationNavigation,
   onSetAnnotationNavigator,
   onToggleToc,
   onUpdateArticle,
 }: {
-  agentAnnotateOpen: boolean;
   agents: SourceBookcaseProps['agents'];
   annotations: SourceBookcaseProps['annotations'];
   article: PdfArticleRecord;
@@ -496,7 +468,6 @@ function PdfiumDocument({
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
   onSetTocItems: (items: TocItem[]) => void;
-  onSetAgentAnnotateOpen: React.Dispatch<React.SetStateAction<boolean>>;
   onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
   onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
   onToggleToc: () => void;
@@ -762,10 +733,6 @@ function PdfiumDocument({
     }),
     [annotations],
   );
-  const pdfReadingSections = useMemo(
-    () => (pdfTextDocument ? pdfReaderReadingSections(pdfTextDocument, tocItems, pageCount) : []),
-    [pageCount, pdfTextDocument, tocItems],
-  );
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,
@@ -855,13 +822,12 @@ function PdfiumDocument({
     lastSavedPageRef.current = initialPageIndexRef.current;
     restoredInitialPageRef.current = false;
     pageTextCacheRef.current = new Map();
-    onSetAgentAnnotateOpen(false);
     setCurrentPage(initialPageIndexRef.current + 1);
     setRestoringInitialPage(initialPageIndexRef.current > 0);
     setPdfFirstPageReady(false);
     setPdfTextDocument(null);
     clearAgentAnnotationPlayback();
-  }, [article.id, article.pdf.metadata.pageCount, onSetAgentAnnotateOpen]);
+  }, [article.id, article.pdf.metadata.pageCount]);
 
   useEffect(() => {
     if (!scrollCapability) return;
@@ -1632,93 +1598,6 @@ function PdfiumDocument({
     }
   }
 
-  async function saveFocusCoReadingPlan(plan: FocusCoReadingPlan) {
-    await onUpdateArticle(plan.articleId, (targetArticle) => {
-      const nextArticle = {
-        ...targetArticle,
-        focusCoReadingPlan: plan,
-        updatedAt: new Date().toISOString(),
-      };
-      if (isCurrentArticle(plan.articleId)) latestArticleRef.current = nextArticle;
-      return nextArticle;
-    });
-  }
-
-  async function planFocusCoReading(selectedAgentIds: string[]) {
-    const desktop = window.yomitomoDesktop;
-    const currentArticle = latestArticleRef.current;
-    const textDocument = pdfTextDocument;
-    if (!desktop || !currentArticle || !textDocument) throw new Error('无法规划 PDF 聚焦共读');
-
-    setStatusMessage('正在规划聚焦共读');
-    try {
-      const route = await desktop.planFocusCoReadingRoute({
-        selectedAgentIds,
-        sections: pdfReadingSections.map((section) => ({
-          sectionId: section.id,
-          sectionTitle: section.title,
-          sectionStart: section.start,
-          sectionEnd: section.end,
-        })),
-        chapterSummaries: currentArticle.focusCoReadingPlan?.sections.flatMap((section) =>
-          section.summary || section.tag
-            ? [
-                {
-                  sectionId: section.sectionId,
-                  summary: section.summary,
-                  tag: section.tag,
-                },
-              ]
-            : [],
-        ),
-        article: promptArticle(currentArticle, textDocument.text),
-      });
-      const now = new Date().toISOString();
-      const routeBySection = new Map(route.sections.map((section) => [section.sectionId, section]));
-      const previousSections = new Map(
-        currentArticle.focusCoReadingPlan?.sections.map((section) => [section.sectionId, section]),
-      );
-      const sections = pdfReadingSections.flatMap((section) => {
-        const routed = routeBySection.get(section.id);
-        const previous = previousSections.get(section.id);
-        const agentIds = (routed?.agentIds || []).filter((agentId) =>
-          selectedAgentIds.includes(agentId),
-        );
-        const messages = previous?.messages || [];
-        if (agentIds.length === 0 && messages.length === 0 && !routed?.summary && !routed?.tag) {
-          return [];
-        }
-        return [
-          {
-            sectionId: section.id,
-            sectionTitle: section.title,
-            sectionStart: section.start,
-            sectionEnd: section.end,
-            summary: routed?.summary,
-            tag: routed?.tag,
-            targetDensity: routed?.targetDensity,
-            needsFurtherPlanning: routed?.needsFurtherPlanning,
-            agentIds,
-            messages,
-          },
-        ];
-      });
-      const plan: FocusCoReadingPlan = {
-        id: currentArticle.focusCoReadingPlan?.id || makeId('focus_co_reading'),
-        articleId: currentArticle.id,
-        selectedAgentIds,
-        sections,
-        readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
-        createdAt: currentArticle.focusCoReadingPlan?.createdAt || now,
-        updatedAt: now,
-      };
-      await saveFocusCoReadingPlan(plan);
-      return plan;
-    } finally {
-      setStatusMessage('');
-    }
-  }
-
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
     if (latestArticleRef.current?.id === articleId) {
@@ -1873,12 +1752,10 @@ function PdfiumDocument({
       <ReaderAppView
         activeConnection={activeConnection}
         activeId={selectedAnnotationId}
-        agentAnnotateOpen={agentAnnotateOpen}
         agentDockCompleting={agentDockCompleting}
         agentDockItems={agentDockItems}
         agentTheaterBoxes={agentTheaterBoxes}
         agents={annotationAgents}
-        annotatingAgents={[]}
         annotationTotals={annotationTotals}
         annotations={annotations}
         annotationRailLayoutOverride={annotationRailLayout}
@@ -1939,8 +1816,6 @@ function PdfiumDocument({
         pendingAnnotationAgents={pendingAnnotationAgents}
         readerSettings={defaultReaderSettings}
         reviewAgents={reviewAgents}
-        focusCoReadingPlan={article.focusCoReadingPlan}
-        readingSections={pdfReadingSections}
         selectionAction={selectionAction}
         selectionActionShortcuts={actionShortcuts}
         settingsOpen={false}
@@ -1954,13 +1829,11 @@ function PdfiumDocument({
         virtualCursors={virtualCursors}
         onAddComment={addComment}
         onAnnotationLayoutChange={handleAnnotationLayoutChange}
-        onCancelAgentAnnotateMenu={() => onSetAgentAnnotateOpen(false)}
         onCancelComposer={cancelComposer}
         onClearActiveAnnotation={() => onOpenAnnotation(null)}
         onClearSelection={clearSelection}
         onClose={onClose}
         onCloseFloatingPanels={() => {
-          onSetAgentAnnotateOpen(false);
           onCloseToc();
         }}
         onCloseHighlightChoice={() => setHighlightChoice(null)}
@@ -1973,19 +1846,9 @@ function PdfiumDocument({
         onHighlightClick={handleHighlightClick}
         onMouseUp={() => undefined}
         onOpenComposer={openComposer}
-        onPlanFocusCoReading={planFocusCoReading}
         onRequestAnnotationReview={requestAnnotationReview}
-        onSaveFocusCoReadingPlan={saveFocusCoReadingPlan}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={scrollToAnnotation}
-        onStartAgentReadingPlan={(agent, readingPlan) => {
-          onSetAgentAnnotateOpen(false);
-          void requestAgentAnnotations(agent, { readingPlan });
-        }}
-        onToggleAgentAnnotate={() => {
-          onSetAgentAnnotateOpen((open) => !open);
-          onCloseToc();
-        }}
         onToggleSettings={() => undefined}
         onToggleToc={onToggleToc}
         onUpdateReaderSettings={async () => undefined}

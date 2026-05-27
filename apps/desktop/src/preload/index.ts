@@ -12,7 +12,6 @@ import type {
   ArticleReadingProgress,
   Comment,
   DesktopStore,
-  FocusCoReadingRoutePayload,
   LlmProvider,
   UserProfile,
 } from '@yomitomo/shared';
@@ -85,8 +84,6 @@ const api = {
     invokeDesktopIpc('annotation:metadata', payload),
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
     invokeDesktopIpc('agent:mention-route', payload),
-  planFocusCoReadingRoute: (payload: FocusCoReadingRoutePayload) =>
-    invokeDesktopIpc('focus-co-reading:route', payload),
   getLogPath: () => invokeDesktopIpc('log:path'),
   readLog: () => invokeDesktopIpc('log:read'),
   clearLog: () => invokeDesktopIpc('log:clear'),
