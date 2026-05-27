@@ -491,16 +491,40 @@ export function ebookTocItemsForReader(
   article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> },
 ): TocItem[] {
   const textLength = article.ebook.index?.textLength || 0;
+  const chapters = article.ebook.index?.chapters || [];
+  const tocStarts = tocItems.map((item, index) => {
+    const chapter = ebookChapterForHref(article, item.href) || chapters[index];
+    return chapter?.textStart ?? 0;
+  });
   return tocItems.map((item, index) => {
-    const chapter = ebookChapterForHref(article, item.href) || article.ebook.index?.chapters[index];
+    const chapter = ebookChapterForHref(article, item.href) || chapters[index];
+    const start = chapter?.textStart ?? 0;
+    const nextBoundary = nextTocBoundary(tocItems, tocStarts, index, textLength);
     return {
       index,
       text: item.label,
       depth: item.depth,
-      start: chapter?.textStart ?? 0,
-      end: chapter?.textEnd ?? textLength,
+      start,
+      end: Math.max(chapter?.textEnd ?? start, nextBoundary),
     };
   });
+}
+
+function nextTocBoundary(
+  tocItems: FoliateTocItem[],
+  starts: number[],
+  index: number,
+  textLength: number,
+) {
+  const item = tocItems[index];
+  if (!item) return textLength;
+  const start = starts[index] ?? 0;
+  for (let nextIndex = index + 1; nextIndex < tocItems.length; nextIndex += 1) {
+    if (tocItems[nextIndex]!.depth > item.depth) continue;
+    const nextStart = starts[nextIndex] ?? textLength;
+    if (nextStart > start) return nextStart;
+  }
+  return textLength;
 }
 
 export function ebookChapterForHref(
