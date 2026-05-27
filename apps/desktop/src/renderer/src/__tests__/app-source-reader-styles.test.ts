@@ -33,4 +33,18 @@ describe('source reader annotation styles', () => {
     expect(styles).toContain('width: 176px;');
     expect(styles).toContain('0 20px 48px hsl(0 0% 0% / 0.18)');
   });
+
+  it('keeps stacked assistant avatars round in embedded readers', () => {
+    expect(styles).toContain(
+      '.source-pdf-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item',
+    );
+    expect(styles).toContain('flex: 0 0 auto;');
+    expect(styles).toContain('min-width: 28px;');
+    expect(styles).toContain('border-radius: 999px;');
+    expect(styles).toContain(
+      '.source-pdf-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack)',
+    );
+    expect(styles).toContain('.source-pdf-reader-shell .reader-review-invite {');
+    expect(styles).toContain('background: hsl(var(--card));');
+  });
 });

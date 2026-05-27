@@ -53,6 +53,21 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('uses shared stacked assistant avatars and neutral selection surfaces', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-agent-avatar-stack-item{position:relative;display:grid;flex:0 0 auto;width:28px;min-width:28px;max-width:28px;height:28px;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-comment-agent-tray .reader-agent-avatar-stack,.reader-comment-agent-tray .reader-agent-avatar-stack-item{overflow:visible}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-selection-primary{height:36px;border:1px solid rgba(37,29,22,.09);background:#fff;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer .reader-agent-menu,.reader-comment-box .reader-agent-menu{right:auto;bottom:calc(100% + 8px);width:190px;',
+    );
+  });
+
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
       '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68',
