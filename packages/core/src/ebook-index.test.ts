@@ -152,7 +152,7 @@ describe('locateEpubOffset', () => {
     ];
     const text = epubIndexText(chapters);
     const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-    const paragraph = index.paragraphs[1]!;
+    const paragraph = index.paragraphs[1];
     const anchor = createEpubTextAnchor(index, text, paragraph.textStart, paragraph.textStart + 4);
     const location = locateEpubTextAnchor(index, text, {
       ...anchor,
@@ -277,7 +277,7 @@ describe('locateEpubOffset', () => {
     ];
     const text = epubIndexText(chapters);
     const index = buildEpubBookIndex({ articleId: 'article-1', chapters });
-    const second = index.paragraphs[1]!;
+    const second = index.paragraphs[1];
     const anchor = createEpubTextAnchor(index, text, second.textStart, second.textStart + 4);
 
     expect(

@@ -71,7 +71,7 @@ export async function extractArticleFromDocument(
     };
   }
 
-  const cloned = articleDocument.cloneNode(true) as Document;
+  const cloned = cloneArticleDocument(articleDocument);
   const parsed = new Readability(cloned).parse();
   const fallbackTitle =
     articleDocument.querySelector('h1')?.textContent?.trim() || articleDocument.title || 'Untitled';
@@ -176,7 +176,7 @@ async function extractWithDefuddle(
 ): Promise<ExtractedArticle | null> {
   try {
     const { default: Defuddle } = (await import('defuddle')) as { default: any };
-    const cloned = articleDocument.cloneNode(true) as Document;
+    const cloned = cloneArticleDocument(articleDocument);
     const result = await new Defuddle(cloned, { url: pageUrl }).parseAsync();
     if (!result?.content) return null;
 
@@ -207,6 +207,16 @@ async function extractWithDefuddle(
   } catch {
     return null;
   }
+}
+
+function cloneArticleDocument(articleDocument: Document): Document {
+  const cloned = articleDocument.cloneNode(true);
+  if (isDocumentNode(cloned)) return cloned;
+  throw new Error('Expected cloned article document to be a Document.');
+}
+
+function isDocumentNode(value: Node): value is Document {
+  return value.nodeType === value.DOCUMENT_NODE;
 }
 
 function getCanonicalUrl(articleDocument: Document, pageUrl: string) {

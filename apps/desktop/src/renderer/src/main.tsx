@@ -176,14 +176,10 @@ function preloadIdleModules(articles: ArticleSummaryRecord[]) {
     () => preloadEntries.profileDialog.load(),
     () => preloadEntries.agents.load(),
     () =>
-      preloadEntries.stats
-        .load()
-        .then((module) =>
-          Promise.all([
-            module.preloadReadingStatsFirstPaintData(articles),
-            module.preloadReadingStatsDeferredModules(),
-          ]),
-        ),
+      preloadEntries.stats.load().then((module) => {
+        module.preloadReadingStatsFirstPaintData(articles);
+        return module.preloadReadingStatsDeferredModules();
+      }),
   ];
   scheduleIdlePreloadQueue(tasks);
 }

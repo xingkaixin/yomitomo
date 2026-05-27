@@ -276,5 +276,19 @@ VALUES (?, 'https://example.com/article', 'https://example.com/article', 'Articl
 `,
     )
     .run('article_1', '2026-05-26T00:00:00.000Z', '2026-05-26T00:00:00.000Z');
-  return database as unknown as ReadingMemorySqliteExecutor;
+  return memoryExecutor(database);
+}
+
+function memoryExecutor(database: DatabaseSync): ReadingMemorySqliteExecutor {
+  return {
+    exec: (sql) => database.exec(sql),
+    prepare: (sql) => {
+      const statement = database.prepare(sql);
+      return {
+        run: (...values) => statement.run(...values),
+        get: (...values) => statement.get(...values),
+        all: (...values) => statement.all(...values),
+      };
+    },
+  };
 }

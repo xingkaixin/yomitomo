@@ -136,9 +136,8 @@ export const reviewOpinionLabels: ReviewOpinionLabel[] = [
 export type ReviewOpinionLabelTone = 'support' | 'challenge' | 'supplement';
 
 export function normalizeReviewOpinionLabel(value: unknown): ReviewOpinionLabel | null {
-  return reviewOpinionLabels.includes(value as ReviewOpinionLabel)
-    ? (value as ReviewOpinionLabel)
-    : null;
+  if (typeof value !== 'string') return null;
+  return reviewOpinionLabels.find((label) => label === value) || null;
 }
 
 export function reviewOpinionLabelTone(label: ReviewOpinionLabel): ReviewOpinionLabelTone {

@@ -57,11 +57,11 @@ export function AboutSettings({
     if (typeof desktop?.getAppInfo !== 'function') return;
 
     let mounted = true;
-    desktop.getAppInfo().then((nextInfo) => {
+    void desktop.getAppInfo().then((nextInfo) => {
       if (mounted) setAppInfo(nextInfo);
     });
     if (typeof desktop.getUpdateStatus === 'function') {
-      desktop.getUpdateStatus().then((nextState) => {
+      void desktop.getUpdateStatus().then((nextState) => {
         if (mounted) setUpdateState(nextState);
       });
     }

@@ -186,13 +186,13 @@ export function agentDraftHasChanges(draft: AgentDraft, agent: Agent | null) {
     textField(draft.providerId) !== agent.providerId,
     textField(draft.kind, 'annotation') !== textField(agent.kind, 'annotation'),
     textField(draft.presetId) !== textField(agent.presetId),
-    Boolean(draft.enabled) !== Boolean(agent.enabled),
+    draft.enabled !== agent.enabled,
     textField(draft.nickname).trim() !== agent.nickname,
     textField(draft.username).trim() !== agent.username,
     textField(draft.avatar).trim() !== agent.avatar,
     textField(draft.annotationColor) !== agent.annotationColor,
     textField(draft.annotationDensity, 'medium') !== agent.annotationDensity,
-    Math.abs(Number(temperature) - agent.temperature) > 0.001,
+    Math.abs(temperature - agent.temperature) > 0.001,
     soul.trim() !== agent.soul,
   ].some(Boolean);
 }

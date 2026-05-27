@@ -134,7 +134,7 @@ function defaultAgentProviderId(
     ? settings.readingAssistantProviderId
     : settings?.defaultProviderId && hasProvider(providerRows, settings.defaultProviderId)
       ? settings.defaultProviderId
-      : providerRows[0]!.id;
+      : providerRows[0].id;
 }
 
 function hasProvider(providerRows: Array<Pick<LlmProvider, 'id'>>, providerId: string) {
@@ -146,7 +146,7 @@ function agentRowMatches(row: typeof schema.agents.$inferSelect, agent: Agent) {
     row.id === agent.id &&
     row.kind === agent.kind &&
     row.presetId === (agent.presetId || null) &&
-    Boolean(row.enabled) === agent.enabled &&
+    row.enabled === agent.enabled &&
     row.providerId === agent.providerId &&
     row.nickname === agent.nickname &&
     row.username === agent.username &&

@@ -65,14 +65,14 @@ export function buildAnnotationConnectionPath(
 }
 
 function smoothPathThroughPoints(points: Array<{ x: number; y: number }>) {
-  const first = points[0]!;
+  const first = points[0];
   let path = `M ${formatPathNumber(first.x)} ${formatPathNumber(first.y)}`;
 
   for (let index = 0; index < points.length - 1; index += 1) {
-    const previous = points[Math.max(0, index - 1)]!;
-    const current = points[index]!;
-    const next = points[index + 1]!;
-    const afterNext = points[Math.min(points.length - 1, index + 2)]!;
+    const previous = points[Math.max(0, index - 1)];
+    const current = points[index];
+    const next = points[index + 1];
+    const afterNext = points[Math.min(points.length - 1, index + 2)];
     const control1X = current.x + (next.x - previous.x) / 6;
     const control1Y = current.y + (next.y - previous.y) / 6;
     const control2X = next.x - (afterNext.x - current.x) / 6;

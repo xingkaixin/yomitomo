@@ -15,6 +15,11 @@ import type { AnnotationRailLayout } from '../annotations/reader-annotations';
 import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
+type ReaderAppStyle = React.CSSProperties & {
+  '--reader-font-size': string;
+  '--reader-content-width': string;
+};
+
 export type {
   AnnotationNavigationDirection,
   AnnotationNavigationRequest,
@@ -69,7 +74,9 @@ function useAnnotationRailLayout(
     window.addEventListener('resize', updateLayout);
 
     if (typeof ResizeObserver === 'undefined') {
-      return () => window.removeEventListener('resize', updateLayout);
+      return () => {
+        window.removeEventListener('resize', updateLayout);
+      };
     }
 
     const observer = new ResizeObserver(updateLayout);
@@ -309,6 +316,11 @@ export function ReaderAppView({
     onNavigateAnnotation?.(annotationId, direction);
   }
 
+  const style: ReaderAppStyle = {
+    '--reader-font-size': `${readerSettings.fontSize}px`,
+    '--reader-content-width': `${readerSettings.contentWidth}px`,
+  };
+
   return (
     <div
       className={[
@@ -320,12 +332,7 @@ export function ReaderAppView({
       ]
         .filter(Boolean)
         .join(' ')}
-      style={
-        {
-          '--reader-font-size': `${readerSettings.fontSize}px`,
-          '--reader-content-width': `${readerSettings.contentWidth}px`,
-        } as React.CSSProperties
-      }
+      style={style}
       onPointerDownCapture={handleReaderPointerDownCapture}
     >
       <ReaderToolbar

@@ -474,7 +474,7 @@ describe('ReadingLibrary home', () => {
     );
     renderLibrary([article({ title: '网页文章' })]);
 
-    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]);
 
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
     expect(screen.getAllByText('网页文章').length).toBeGreaterThan(0);

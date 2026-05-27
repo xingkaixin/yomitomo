@@ -22,7 +22,7 @@ export async function readPdfSourceFile(articleId: string) {
   try {
     return await readFile(pdfFilePath(articleId));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (errorCode(error) === 'ENOENT') {
       throw new Error('原始 PDF 文件不存在，请重新导入', { cause: error });
     }
     throw error;
@@ -31,4 +31,8 @@ export async function readPdfSourceFile(articleId: string) {
 
 export async function deletePdfSourceFile(articleId: string) {
   await rm(pdfFilePath(articleId), { force: true });
+}
+
+function errorCode(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error ? error.code : undefined;
 }

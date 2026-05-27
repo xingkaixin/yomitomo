@@ -206,9 +206,9 @@ describe('annotation core', () => {
       '2026-01-02T00:00:00.000Z',
       {
         ebookIndex: index,
-        allowedTextStart: index.paragraphs[1]!.textStart,
-        allowedTextEnd: index.paragraphs[1]!.textEnd,
-        allowedParagraphIds: [index.paragraphs[1]!.id],
+        allowedTextStart: index.paragraphs[1].textStart,
+        allowedTextEnd: index.paragraphs[1].textEnd,
+        allowedParagraphIds: [index.paragraphs[1].id],
       },
     );
 
@@ -389,7 +389,7 @@ describe('annotation core', () => {
         ...base,
         comments: [...base.comments, thought, reply, otherThought],
       }).map((item) => item.id),
-    ).toEqual([base.comments[0]!.id, 'thought', 'other-thought']);
+    ).toEqual([base.comments[0].id, 'thought', 'other-thought']);
   });
 
   it('deletes a comment with its replies while keeping the annotation', () => {

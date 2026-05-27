@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "oxlint .",
+    "lint": "oxlint . --type-aware",
     "lint:fix": "oxlint . --fix",
     "format": "oxfmt --write \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
     "format:check": "oxfmt --check \"**/*.{ts,tsx,js,jsx,json,css,html}\"",
@@ -17,6 +17,6 @@
   },
   "devDependencies": {
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   }
 }

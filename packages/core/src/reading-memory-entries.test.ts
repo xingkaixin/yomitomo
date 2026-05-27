@@ -192,7 +192,7 @@ describe('reading memory entries', () => {
     const memoryEntry = readingMemoryEntryFromComment({
       articleId: 'article_1',
       annotation: source,
-      comment: source.comments[0]!,
+      comment: source.comments[0],
     });
 
     expect(memoryEntry).toMatchObject({
@@ -243,7 +243,7 @@ describe('reading memory entries', () => {
       'annotation_memory_annotation_1',
       'comment_memory_comment_1',
     ]);
-    expect(readingMemoryEntrySearchText(entries[1]!)).toContain('用户补充自己的想法');
+    expect(readingMemoryEntrySearchText(entries[1])).toContain('用户补充自己的想法');
   });
 
   it('skips unchanged memory facts when building delta entries', () => {

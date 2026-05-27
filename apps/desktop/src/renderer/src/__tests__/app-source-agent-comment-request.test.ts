@@ -82,7 +82,7 @@ describe('runSourceAgentCommentRequest', () => {
     const annotationsRef = { current: [targetAnnotation] };
     const applyAnnotations = vi.fn((annotations: Annotation[]) => {
       annotationsRef.current = annotations;
-      return article(annotations[0]!);
+      return article(annotations[0]);
     });
     const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
       annotationsRef.current = annotations;
@@ -139,7 +139,7 @@ describe('runSourceAgentCommentRequest', () => {
     });
 
     expect(applyAnnotations.mock.invocationCallOrder[0]).toBeLessThan(
-      desktop.requestAgentCommentStream.mock.invocationCallOrder[0]!,
+      desktop.requestAgentCommentStream.mock.invocationCallOrder[0],
     );
     expect(annotationsRef.current[0]?.comments).toContainEqual(
       expect.objectContaining({
@@ -162,7 +162,7 @@ describe('runSourceAgentCommentRequest', () => {
     const annotationsRef = { current: [targetAnnotation] };
     const applyAnnotations = vi.fn((annotations: Annotation[]) => {
       annotationsRef.current = annotations;
-      return article(annotations[0]!);
+      return article(annotations[0]);
     });
     const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
       annotationsRef.current = annotations;
@@ -229,7 +229,7 @@ describe('runSourceAgentCommentRequest', () => {
     const annotationsRef = { current: [targetAnnotation] };
     const applyAnnotations = vi.fn((annotations: Annotation[]) => {
       annotationsRef.current = annotations;
-      return article(annotations[0]!);
+      return article(annotations[0]);
     });
     const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
       annotationsRef.current = annotations;
@@ -280,7 +280,7 @@ describe('runSourceAgentCommentRequest', () => {
     const annotationsRef = { current: [targetAnnotation] };
     const applyAnnotations = vi.fn((annotations: Annotation[]) => {
       annotationsRef.current = annotations;
-      return article(annotations[0]!);
+      return article(annotations[0]);
     });
     const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
       annotationsRef.current = annotations;

@@ -8,7 +8,7 @@
     "build": "astro check && astro build && node scripts/write-sitemap-alias.mjs",
     "preview": "astro preview",
     "typecheck": "astro check",
-    "lint": "oxlint src astro.config.mjs content.config.ts postcss.config.js",
+    "lint": "oxlint src astro.config.mjs content.config.ts postcss.config.js --type-aware",
     "lint:fix": "oxlint src astro.config.mjs content.config.ts postcss.config.js --fix",
     "format": "oxfmt --write \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs content.config.ts postcss.config.js package.json tsconfig.json",
     "format:check": "oxfmt --check \"src/**/*.{astro,ts,tsx,js,jsx,css}\" astro.config.mjs content.config.ts postcss.config.js package.json tsconfig.json",
@@ -17,14 +17,16 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.39.2",
-    "astro": "^6.3.4"
+    "astro": "^6.3.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@tailwindcss/postcss": "^4.3.0",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^7.3.2",
-    "vitest": "^4.1.6"
+    "vite": "^7.3.3",
+    "vitest": "^4.1.7"
   }
 }

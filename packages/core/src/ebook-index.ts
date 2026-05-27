@@ -228,8 +228,8 @@ export function createEpubTextAnchorFromQuote(
     let indexInRange = normalizedRange.text.indexOf(normalizedQuote);
 
     while (indexInRange >= 0) {
-      const start = range.start + normalizedRange.map[indexInRange]!;
-      const end = range.start + normalizedRange.map[indexInRange + normalizedQuote.length - 1]! + 1;
+      const start = range.start + normalizedRange.map[indexInRange];
+      const end = range.start + normalizedRange.map[indexInRange + normalizedQuote.length - 1] + 1;
       const score = anchorMatchScore(text, start, end, options);
       if (score > bestScore) {
         bestMatch = { start, end };
@@ -422,7 +422,7 @@ function overlappingRanges<T extends { textStart: number; textEnd: number }>(
   );
 }
 
-function rangesAllowed<T extends { id: string }>(ranges: T[], allowedIds: string[] | undefined) {
+function rangesAllowed(ranges: Array<{ id: string }>, allowedIds: string[] | undefined) {
   if (!allowedIds?.length) return true;
   const allowed = new Set(allowedIds);
   return ranges.length > 0 && ranges.every((item) => allowed.has(item.id));
@@ -515,7 +515,7 @@ function normalizeTextWithMap(value: string) {
   let pendingWhitespace = false;
 
   for (let index = 0; index < value.length; index += 1) {
-    const char = value[index]!;
+    const char = value[index];
     if (/\s/.test(char)) {
       pendingWhitespace = text.length > 0;
       continue;
@@ -561,7 +561,7 @@ function findRange<T extends { textStart: number; textEnd: number }>(items: T[],
 
   while (low <= high) {
     const index = Math.floor((low + high) / 2);
-    const item = items[index]!;
+    const item = items[index];
     if (item.textStart <= offset) {
       candidateIndex = index;
       low = index + 1;
@@ -571,7 +571,7 @@ function findRange<T extends { textStart: number; textEnd: number }>(items: T[],
   }
 
   for (let index = candidateIndex; index >= 0; index -= 1) {
-    const item = items[index]!;
+    const item = items[index];
     if (offset >= item.textStart && offset < item.textEnd) return { item, index };
     if (offset >= item.textStart) return { item, index };
   }

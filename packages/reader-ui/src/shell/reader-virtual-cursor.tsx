@@ -3,10 +3,21 @@ import { AvatarBadge } from '../shared/reader-component-primitives';
 import { cursorColorFromId, cursorSvgId, VIRTUAL_CURSOR_PATH } from '../reader-style-utils';
 import type { VirtualCursorState } from '../reader-types';
 
+type VirtualCursorStyle = React.CSSProperties & {
+  '--cursor-color': string;
+  '--reader-cursor-x': string;
+  '--reader-cursor-y': string;
+};
+
 export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
   const color = cursor.agent?.annotationColor || cursorColorFromId(cursor.id);
   const gradientId = cursorSvgId('reader-cursor-fill', cursor.id);
   const bloomId = cursorSvgId('reader-cursor-bloom', cursor.id);
+  const style: VirtualCursorStyle = {
+    '--cursor-color': color,
+    '--reader-cursor-x': `${cursor.x}px`,
+    '--reader-cursor-y': `${cursor.y}px`,
+  };
   return (
     <div
       className={[
@@ -16,13 +27,7 @@ export function VirtualCursor({ cursor }: { cursor: VirtualCursorState }) {
       ]
         .filter(Boolean)
         .join(' ')}
-      style={
-        {
-          '--cursor-color': color,
-          '--reader-cursor-x': `${cursor.x}px`,
-          '--reader-cursor-y': `${cursor.y}px`,
-        } as React.CSSProperties
-      }
+      style={style}
     >
       <svg
         aria-hidden="true"

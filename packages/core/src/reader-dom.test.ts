@@ -105,7 +105,7 @@ describe('reader DOM highlights', () => {
   it('places the underline below the text rect and uses fill for active state', () => {
     const segment = buildHighlightSegments([
       box({ annotationId: 'annotation_1', color: '#f4c95d', height: 30 }),
-    ])[0]!;
+    ])[0];
 
     expect(highlightSegmentStyle(segment, true)).toMatchObject({
       '--highlight-edge-size': '0px',
@@ -128,7 +128,7 @@ describe('reader DOM highlights', () => {
       box({ annotationId: 'annotation_1', contributorId: 'agent_1', color: '#f4c95d' }),
       box({ annotationId: 'annotation_2', contributorId: 'agent_2', color: '#efa927' }),
       box({ annotationId: 'annotation_3', contributorId: 'user_1', color: '#9f8bd1' }),
-    ])[0]!;
+    ])[0];
 
     expect(highlightSegmentStyle(segment, false)).toMatchObject({
       '--highlight-edge-size': '22px',
@@ -162,7 +162,7 @@ describe('reader DOM toc', () => {
     expect(items[1]?.end).toBe(items[3]?.start);
     expect(items[2]?.end).toBe(items[3]?.start);
     expect(items[3]?.end).toBe(article.textContent?.length);
-    expect(findCurrentTocTarget(article, items[1]!)).toBe(article.querySelector('h2'));
+    expect(findCurrentTocTarget(article, items[1])).toBe(article.querySelector('h2'));
   });
 
   it('infers chapter headings when semantic headings are absent', () => {
@@ -195,7 +195,7 @@ describe('reader DOM toc', () => {
         end: article.textContent?.length,
       },
     ]);
-    expect(findCurrentTocTarget(article, items[0]!)).toBe(article);
+    expect(findCurrentTocTarget(article, items[0])).toBe(article);
     expect(articleTitleTocItems(article, '   ')).toEqual([]);
   });
 });

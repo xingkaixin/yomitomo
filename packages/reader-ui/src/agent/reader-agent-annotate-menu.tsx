@@ -83,7 +83,7 @@ export function AgentAnnotateMenu({
   const focusMessageTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
 
   useEffect(() => {
-    if (!addingPlanAgents && !addingSectionId) return;
+    if (!addingPlanAgents && !addingSectionId) return undefined;
 
     function closeAddMenusOnPointerDown(event: PointerEvent) {
       const clickedAddMenu = event
@@ -98,7 +98,9 @@ export function AgentAnnotateMenu({
     }
 
     window.addEventListener('pointerdown', closeAddMenusOnPointerDown, true);
-    return () => window.removeEventListener('pointerdown', closeAddMenusOnPointerDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', closeAddMenusOnPointerDown, true);
+    };
   }, [addingPlanAgents, addingSectionId]);
 
   useEffect(() => {
@@ -142,11 +144,13 @@ export function AgentAnnotateMenu({
   );
 
   useEffect(() => {
-    if (!planning) return;
+    if (!planning) return undefined;
     const interval = window.setInterval(() => {
       setPlanningProgress((progress) => Math.min(88, progress + 4));
     }, 420);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearInterval(interval);
+    };
   }, [planning]);
 
   function addPlanAgent(agentId: string) {

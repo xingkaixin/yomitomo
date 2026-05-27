@@ -235,8 +235,8 @@ describe('useSourceAnnotations', () => {
       await api?.addComment('question_1', '回答 @lin');
     });
 
-    const savedArticle = onSaveArticle.mock.calls[0]![0] as ArticleRecord;
-    const savedAnnotation = savedArticle.annotations[0]!;
+    const savedArticle = onSaveArticle.mock.calls[0][0] as ArticleRecord;
+    const savedAnnotation = savedArticle.annotations[0];
     expect(savedAnnotation.comments.at(-1)?.content).toBe('回答 @lin');
     expect(onOpenAnnotation).toHaveBeenCalledWith('question_1');
     expect(onCommentSaved).toHaveBeenCalledWith(

@@ -479,7 +479,7 @@ function PdfiumDocument({
   annotations: SourceBookcaseProps['annotations'];
   article: PdfArticleRecord;
   documentId: string;
-  engine: PdfEngine<Blob>;
+  engine: PdfEngine;
   openTrace: PdfOpenTrace;
   messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
   pageCount: number;
@@ -896,7 +896,7 @@ function PdfiumDocument({
       setCurrentPage(pageIndex + 1);
       if (lastSavedPageRef.current === pageIndex) return;
       lastSavedPageRef.current = pageIndex;
-      onSaveArticleReadingProgress(article.id, pdfReadingProgress(pageIndex, pageCount));
+      void onSaveArticleReadingProgress(article.id, pdfReadingProgress(pageIndex, pageCount));
     };
 
     const unsubscribe = scroll.onScroll?.(saveCurrentPage);
@@ -2001,7 +2001,7 @@ function EmbedPdfSelectionBridge({
   onSelection,
 }: {
   documentId: string;
-  engine: PdfEngine<Blob>;
+  engine: PdfEngine;
   onInvalidSelection: (message: string) => void;
   onSelection: (anchor: ReturnType<typeof createPdfTextAnchor> | null) => void;
 }) {

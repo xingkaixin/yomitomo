@@ -286,7 +286,7 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   database.exec(initial.sql);
   database.exec(readingMemory.sql);
   insertArticle(database, 'article_1');
-  return database as unknown as ReadingMemorySqliteExecutor;
+  return memoryExecutor(database);
 }
 
 function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
@@ -427,8 +427,31 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
 }
 
 function countRows(database: ReadingMemorySqliteExecutor, table: string) {
-  const row = database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as {
-    count: number;
+  const count = recordField(
+    database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get(),
+    'count',
+  );
+  return typeof count === 'number' ? count : 0;
+}
+
+function memoryExecutor(database: DatabaseSync): ReadingMemorySqliteExecutor {
+  return {
+    exec: (sql) => database.exec(sql),
+    prepare: (sql) => {
+      const statement = database.prepare(sql);
+      return {
+        run: (...values) => statement.run(...values),
+        get: (...values) => statement.get(...values),
+        all: (...values) => statement.all(...values),
+      };
+    },
   };
-  return row.count;
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

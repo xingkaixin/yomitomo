@@ -31,6 +31,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function requestBodyText(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
 describe('extractJsonObjects', () => {
   it('extracts pretty-printed objects from a stream buffer', () => {
     const result = extractJsonObjects(`{
@@ -206,7 +210,7 @@ describe('agent message prompts', () => {
       personalityName: '梁证言',
     };
     const targetThought = {
-      ...payload.annotation.comments[0]!,
+      ...payload.annotation.comments[0],
       id: 'thought_target',
       content: '这里的判断可能缺少直接证据。',
     };
@@ -783,21 +787,21 @@ describe('agent message prompts', () => {
           {
             sectionId: 'toc-0',
             sectionTitle: '开场',
-            sectionStart: ebookIndex.chapters[0]!.textStart,
-            sectionEnd: ebookIndex.chapters[0]!.textEnd,
+            sectionStart: ebookIndex.chapters[0].textStart,
+            sectionEnd: ebookIndex.chapters[0].textEnd,
           },
           {
             sectionId: 'toc-1',
             sectionTitle: '反驳',
-            sectionStart: ebookIndex.chapters[1]!.textStart,
-            sectionEnd: ebookIndex.chapters[1]!.textEnd,
+            sectionStart: ebookIndex.chapters[1].textStart,
+            sectionEnd: ebookIndex.chapters[1].textEnd,
           },
         ],
       },
       [routeAgent('agent_lin', '林知微')],
     );
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -858,7 +862,7 @@ describe('agent message prompts', () => {
       [routeAgent('agent_lin', '林知微')],
     );
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -920,7 +924,7 @@ describe('agent message prompts', () => {
       [routeAgent('agent_lin', '林知微')],
     );
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -974,7 +978,7 @@ describe('agent message prompts', () => {
       [routeAgent('agent_lin', '林知微')],
     );
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -1051,7 +1055,7 @@ describe('agent annotations', () => {
       },
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     expect(requestBody.messages[1]?.content).toContain('最多 1 条');
@@ -1100,7 +1104,7 @@ describe('agent annotations', () => {
       },
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -1167,7 +1171,7 @@ describe('agent annotations', () => {
       },
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -1224,7 +1228,7 @@ describe('agent annotations', () => {
       },
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -1296,7 +1300,7 @@ describe('agent annotations', () => {
       },
     });
 
-    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
     const prompt = requestBody.messages[1]?.content || '';
@@ -1435,8 +1439,8 @@ describe('agent annotations', () => {
         {
           sectionId: 'chapter-1',
           sectionTitle: '第一章',
-          sectionStart: ebookIndex.chapters[0]!.textStart,
-          sectionEnd: ebookIndex.chapters[0]!.textEnd,
+          sectionStart: ebookIndex.chapters[0].textStart,
+          sectionEnd: ebookIndex.chapters[0].textEnd,
           sectionSummary: '讨论这一章的判断。',
           sectionTag: '判断',
           targetDensity: 'high',
@@ -1451,7 +1455,7 @@ describe('agent annotations', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(segments.length);
-    const firstPrompt = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).messages[1]
+    const firstPrompt = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)).messages[1]
       ?.content as string;
     expect(firstPrompt).toContain('segment-level 上下文');
     expect(firstPrompt).toContain('"segmentId": "chapter-1-segment-1"');
@@ -1488,7 +1492,7 @@ describe('agent annotations', () => {
       minSegmentTextLength: 1,
     });
     const text = epubIndexText(chapters);
-    const chapterOne = ebookIndex.chapters[0]!;
+    const chapterOne = ebookIndex.chapters[0];
     const chapterOneSegmentCount = ebookIndex.segments.filter(
       (segment) => segment.chapterId === chapterOne.id,
     ).length;
@@ -1521,7 +1525,7 @@ describe('agent annotations', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(chapterOneSegmentCount);
     const prompts = fetchMock.mock.calls.map(
-      (call) => JSON.parse(String(call[1]?.body)).messages[1]?.content as string,
+      (call) => JSON.parse(requestBodyText(call[1]?.body)).messages[1]?.content as string,
     );
     expect(prompts.join('\n')).not.toContain('第二章核心内容不应调用。');
   });
@@ -1646,7 +1650,7 @@ describe('agent annotations', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const prompts = fetchMock.mock.calls.map(
-      (call) => JSON.parse(String(call[1]?.body)).messages[1]?.content as string,
+      (call) => JSON.parse(requestBodyText(call[1]?.body)).messages[1]?.content as string,
     );
     expect(prompts[0]).toContain('开头可见。');
     expect(prompts[0]).not.toContain(tail);
@@ -1670,11 +1674,13 @@ describe('agent annotations', () => {
       minSegmentTextLength: 1,
     });
     const text = epubIndexText(chapters);
-    const chapter = ebookIndex.chapters[0]!;
+    const chapter = ebookIndex.chapters[0];
     const annotationPrompts: string[] = [];
     const memoryPrompts: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      const body = JSON.parse(String(init?.body)) as { messages?: Array<{ content?: string }> };
+      const body = JSON.parse(requestBodyText(init?.body)) as {
+        messages?: Array<{ content?: string }>;
+      };
       const prompt = body.messages?.[1]?.content || '';
       if (prompt.includes('请更新当前 segment 的最小阅读记忆')) {
         memoryPrompts.push(prompt);
@@ -1779,12 +1785,12 @@ describe('agent annotations', () => {
       minSegmentTextLength: 1,
     });
     const text = epubIndexText(chapters);
-    const chapter = ebookIndex.chapters[0]!;
+    const chapter = ebookIndex.chapters[0];
     const wrongTrace = memoryEntry({
       id: 'wrong_trace',
       articleId: 'book-1',
       kind: 'trace',
-      segmentId: ebookIndex.segments[0]!.id,
+      segmentId: ebookIndex.segments[0].id,
       payload: { items: [traceItem('旧判断不应再出现')] },
     });
     const correction = readingMemoryCorrectionEntry({
@@ -1797,7 +1803,9 @@ describe('agent annotations', () => {
     });
     const annotationPrompts: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      const body = JSON.parse(String(init?.body)) as { messages?: Array<{ content?: string }> };
+      const body = JSON.parse(requestBodyText(init?.body)) as {
+        messages?: Array<{ content?: string }>;
+      };
       const prompt = body.messages?.[1]?.content || '';
       if (prompt.includes('请更新当前 segment 的最小阅读记忆')) {
         return Promise.resolve(
@@ -1861,11 +1869,13 @@ describe('agent annotations', () => {
     ];
     const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
     const text = epubIndexText(chapters);
-    const chapter = ebookIndex.chapters[0]!;
+    const chapter = ebookIndex.chapters[0];
     const annotationPrompts: string[] = [];
     const memoryPrompts: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
-      const body = JSON.parse(String(init?.body)) as { messages?: Array<{ content?: string }> };
+      const body = JSON.parse(requestBodyText(init?.body)) as {
+        messages?: Array<{ content?: string }>;
+      };
       const prompt = body.messages?.[1]?.content || '';
       if (prompt.includes('请更新当前 segment 的最小阅读记忆')) {
         memoryPrompts.push(prompt);

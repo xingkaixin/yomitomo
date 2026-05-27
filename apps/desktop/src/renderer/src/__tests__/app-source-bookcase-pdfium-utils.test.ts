@@ -50,14 +50,14 @@ describe('app-source-bookcase-pdfium-utils', () => {
         item: tocItems[0],
         pageIndex: 0,
         localStart: 0,
-        start: document.pages[0]!.bodyStart,
-        end: document.pages[1]!.bodyStart,
+        start: document.pages[0].bodyStart,
+        end: document.pages[1].bodyStart,
       },
       {
         item: tocItems[1],
         pageIndex: 1,
         localStart: 0,
-        start: document.pages[1]!.bodyStart,
+        start: document.pages[1].bodyStart,
         end: document.text.length,
       },
     ]);
@@ -65,13 +65,13 @@ describe('app-source-bookcase-pdfium-utils', () => {
       {
         id: 'pdf-bookmark-1-0-0',
         title: '第一章',
-        start: document.pages[0]!.bodyStart,
-        end: document.pages[1]!.bodyStart,
+        start: document.pages[0].bodyStart,
+        end: document.pages[1].bodyStart,
       },
       {
         id: 'pdf-bookmark-2-0-1',
         title: '第二章',
-        start: document.pages[1]!.bodyStart,
+        start: document.pages[1].bodyStart,
         end: document.text.length,
       },
     ]);
@@ -84,14 +84,14 @@ describe('app-source-bookcase-pdfium-utils', () => {
       {
         id: 'pdf-pages-1-5',
         title: '第 1-5 页',
-        start: document.pages[0]!.bodyStart,
-        end: document.pages[4]!.bodyEnd,
+        start: document.pages[0].bodyStart,
+        end: document.pages[4].bodyEnd,
       },
       {
         id: 'pdf-pages-6-6',
         title: '第 6 页',
-        start: document.pages[5]!.bodyStart,
-        end: document.pages[5]!.bodyEnd,
+        start: document.pages[5].bodyStart,
+        end: document.pages[5].bodyEnd,
       },
     ]);
   });
@@ -175,8 +175,8 @@ describe('app-source-bookcase-pdfium-utils', () => {
 
   it('maps reading-plan agent annotations through global PDF text geometry', () => {
     const document = buildPdfTextDocument(['第一页正文', '第二页正文']);
-    const firstPage = document.pages[0]!;
-    const secondPage = document.pages[1]!;
+    const firstPage = document.pages[0];
+    const secondPage = document.pages[1];
     const unsortedPlan = [
       {
         sectionId: 'second',
