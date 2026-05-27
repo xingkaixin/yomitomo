@@ -58,6 +58,7 @@ function ebookArticle(): EbookArticleRecord {
 const article = ebookArticle();
 const annotationAgents: PublicAgent[] = [];
 const onFoliatePointerDown = vi.fn();
+const onFoliatePageTurnKey = vi.fn();
 const onFoliateSelection = vi.fn();
 const onFoliateSelectionShortcut = vi.fn();
 
@@ -110,6 +111,7 @@ function EbookBoxesProbe({
     readerStateStatusRef,
     userProfile,
     onFoliatePointerDown,
+    onFoliatePageTurnKey,
     onFoliateSelection,
     onFoliateSelectionShortcut,
   });
@@ -159,6 +161,41 @@ describe('useEbookReaderBoxes', () => {
       resolvedAnchorCount: 2,
       domTextIndexBuildCount: 1,
     });
+  });
+
+  it('bridges foliate document arrow keys to page turns after selection shortcuts', () => {
+    const doc = foliateDocument('正文');
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    act(() => {
+      requireBoxesState().attachFoliateDocumentListeners(foliateView(doc));
+    });
+
+    doc.body.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowRight' }),
+    );
+
+    expect(onFoliateSelectionShortcut).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnKey).toHaveBeenCalledWith('right');
+  });
+
+  it('does not bridge foliate arrow keys when a selection shortcut handles the event', () => {
+    const doc = foliateDocument('正文');
+    onFoliateSelectionShortcut.mockImplementationOnce((event: KeyboardEvent) => {
+      event.preventDefault();
+    });
+    render(<EbookBoxesProbe view={foliateView(doc)} />);
+
+    act(() => {
+      requireBoxesState().attachFoliateDocumentListeners(foliateView(doc));
+    });
+
+    doc.body.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'ArrowLeft' }),
+    );
+
+    expect(onFoliateSelectionShortcut).toHaveBeenCalledTimes(1);
+    expect(onFoliatePageTurnKey).not.toHaveBeenCalled();
   });
 });
 

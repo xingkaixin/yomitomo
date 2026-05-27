@@ -22,6 +22,10 @@ import {
   recordRendererPerformanceTiming,
   type EbookBookcaseProps,
 } from './app-source-bookcase-shared';
+import {
+  readerPageTurnDirectionFromKeyboardEvent,
+  type ReaderPageTurnDirection,
+} from './use-reader-page-turn-keys';
 
 type UseEbookReaderBoxesInput = {
   annotationAgents: PublicAgent[];
@@ -37,6 +41,7 @@ type UseEbookReaderBoxesInput = {
   readerStateStatusRef: RefObject<'loading' | 'ready' | 'error'>;
   userProfile: UserProfile;
   onFoliatePointerDown: () => void;
+  onFoliatePageTurnKey: (direction: ReaderPageTurnDirection) => void;
   onFoliateSelection: (doc: Document) => void;
   onFoliateSelectionShortcut: (event: KeyboardEvent) => void;
 };
@@ -55,6 +60,7 @@ export function useEbookReaderBoxes({
   readerStateStatusRef,
   userProfile,
   onFoliatePointerDown,
+  onFoliatePageTurnKey,
   onFoliateSelection,
   onFoliateSelectionShortcut,
 }: UseEbookReaderBoxesInput) {
@@ -75,10 +81,12 @@ export function useEbookReaderBoxes({
   const observedFoliateDocsRef = useRef(new WeakSet<Document>());
   const foliateDocCleanupsRef = useRef<Array<() => void>>([]);
   const handleFoliateSelectionRef = useRef(onFoliateSelection);
+  const handleFoliatePageTurnKeyRef = useRef(onFoliatePageTurnKey);
   const handleFoliatePointerDownRef = useRef(onFoliatePointerDown);
   const handleFoliateSelectionShortcutRef = useRef(onFoliateSelectionShortcut);
 
   handleFoliateSelectionRef.current = onFoliateSelection;
+  handleFoliatePageTurnKeyRef.current = onFoliatePageTurnKey;
   handleFoliatePointerDownRef.current = onFoliatePointerDown;
   handleFoliateSelectionShortcutRef.current = onFoliateSelectionShortcut;
 
@@ -380,17 +388,22 @@ export function useEbookReaderBoxes({
       }, 0);
     };
     const handlePointerDown = () => handleFoliatePointerDownRef.current();
-    const handleShortcut = (event: KeyboardEvent) =>
+    const handleKeyDown = (event: KeyboardEvent) => {
       handleFoliateSelectionShortcutRef.current(event);
+      const direction = readerPageTurnDirectionFromKeyboardEvent(event);
+      if (!direction) return;
+      event.preventDefault();
+      handleFoliatePageTurnKeyRef.current(direction);
+    };
 
     doc.addEventListener('mouseup', handleSelection);
     doc.addEventListener('keyup', handleSelection);
-    doc.addEventListener('keydown', handleShortcut);
+    doc.addEventListener('keydown', handleKeyDown);
     doc.addEventListener('pointerdown', handlePointerDown, true);
     foliateDocCleanupsRef.current.push(() => {
       doc.removeEventListener('mouseup', handleSelection);
       doc.removeEventListener('keyup', handleSelection);
-      doc.removeEventListener('keydown', handleShortcut);
+      doc.removeEventListener('keydown', handleKeyDown);
       doc.removeEventListener('pointerdown', handlePointerDown, true);
     });
   }, []);

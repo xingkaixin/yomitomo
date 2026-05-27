@@ -336,6 +336,7 @@ export function EbookBookcase({
     readerStateStatusRef,
     userProfile,
     onFoliatePointerDown: handleFoliatePointerDown,
+    onFoliatePageTurnKey: turnPageFromKeyboard,
     onFoliateSelection: handleFoliateSelection,
     onFoliateSelectionShortcut: handleFoliateSelectionShortcut,
   });
