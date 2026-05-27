@@ -38,6 +38,21 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('keeps focus co-reading mention menus compact and lifted', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-focus-agent-menu{right:auto;bottom:calc(100% + 8px);z-index:24;width:176px;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-agent-annotate-menu:has(.reader-focus-agent-menu),.reader-focus-card-list:has(.reader-focus-agent-menu),.reader-focus-section-card:has(.reader-focus-agent-menu){overflow:visible}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-focus-message-input:has(.reader-focus-agent-menu){position:relative;z-index:30;overflow:visible}',
+    );
+    expect(readerConversationStyles).toContain(
+      'box-shadow:0 18px 44px rgba(40,35,29,.18),0 3px 10px rgba(40,35,29,.08)',
+    );
+  });
+
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
       '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68',

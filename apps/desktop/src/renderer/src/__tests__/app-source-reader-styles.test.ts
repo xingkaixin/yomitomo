@@ -27,4 +27,10 @@ describe('source reader annotation styles', () => {
     );
     expect(styles).toContain('background: hsl(0 0% 0% / 0.055);');
   });
+
+  it('keeps focus co-reading mention menus compact in embedded readers', () => {
+    expect(styles).toContain('.source-pdf-reader-shell .reader-focus-agent-menu {');
+    expect(styles).toContain('width: 176px;');
+    expect(styles).toContain('0 20px 48px hsl(0 0% 0% / 0.18)');
+  });
 });
