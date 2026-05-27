@@ -100,7 +100,9 @@ export function useReaderShellInteractions({
     }
 
     window.addEventListener('keydown', handleSelectionShortcut);
-    return () => window.removeEventListener('keydown', handleSelectionShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleSelectionShortcut);
+    };
   }, [composer, onCopySelection, onOpenComposer, selectionAction, selectionActionShortcuts]);
 
   const toggleAgentAnnotate = React.useCallback(() => {

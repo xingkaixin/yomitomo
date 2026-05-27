@@ -35,9 +35,7 @@ const NEARBY_ANNOTATION_LIMIT = 4;
 const THREAD_CONTEXT_RECENT_LIMIT = 8;
 const THREAD_MESSAGE_MAX_LENGTH = 700;
 
-type SelectionLocation = NonNullable<
-  ReturnType<typeof locateEpubTextAnchor> | ReturnType<typeof locateEpubOffset>
->;
+type SelectionLocation = NonNullable<ReturnType<typeof locateEpubTextAnchor>>;
 
 export function buildSelectionAnnotationContext(
   payload: AgentAnnotatePayload,

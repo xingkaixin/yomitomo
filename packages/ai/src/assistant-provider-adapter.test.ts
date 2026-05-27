@@ -10,6 +10,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function requestBodyText(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
 describe('assistant provider adapter', () => {
   it('parses tool call events from JSON text', () => {
     expect(
@@ -124,7 +128,7 @@ describe('assistant provider adapter', () => {
       type: 'tool_call',
       toolCall: { name: 'get_current_thread' },
     });
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ role: string; content: string }>;
       tools: Array<{
         type: string;
@@ -184,7 +188,7 @@ describe('assistant provider adapter', () => {
       toolResults: [],
     });
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       thinking?: unknown;
     };
     expect(body.thinking).toEqual({ type: 'disabled' });
@@ -239,7 +243,7 @@ describe('assistant provider adapter', () => {
         reason: '已有证据',
       },
     });
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       tools: Array<{ function: { name: string } }>;
     };
     expect(body.tools.map((tool) => tool.function.name)).toContain('reply_to_thread');
@@ -305,7 +309,7 @@ describe('assistant provider adapter', () => {
       ],
     });
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ role: string; content: string }>;
     };
     const toolMessage = body.messages.find((message) => message.role === 'tool')?.content || '';

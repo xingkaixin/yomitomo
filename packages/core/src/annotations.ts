@@ -429,8 +429,8 @@ function agentAnnotationMatchAllowed(
   return annotationRangesAllowed(options.ebookIndex.paragraphs, match, options.allowedParagraphIds);
 }
 
-function annotationRangesAllowed<T extends { id: string; textStart: number; textEnd: number }>(
-  ranges: T[],
+function annotationRangesAllowed(
+  ranges: Array<{ id: string; textStart: number; textEnd: number }>,
   match: { start: number; end: number },
   allowedIds: string[] | undefined,
 ) {
@@ -769,21 +769,10 @@ export function annotationToPublicAgent(annotation: Annotation): PublicAgent | u
 
 export function parseAnnotationSuggestions(content: string): AnnotationSuggestion[] {
   const json = content.match(/\[[\s\S]*\]/)?.[0] || content;
-  const parsed = JSON.parse(json) as Array<{
-    exact?: unknown;
-    prefix?: unknown;
-    suffix?: unknown;
-    context?: unknown;
-    comment?: unknown;
-    type?: unknown;
-    readingIntent?: unknown;
-    moveType?: unknown;
-    whyHere?: unknown;
-    evidenceUsed?: unknown;
-    confidence?: unknown;
-    shouldShow?: unknown;
-  }>;
+  const parsed: unknown = JSON.parse(json);
+  if (!Array.isArray(parsed)) return [];
   return parsed
+    .filter(isAnnotationSuggestionInput)
     .map((item) => {
       const suggestion: AnnotationSuggestion = {
         exact: typeof item.exact === 'string' ? item.exact : '',
@@ -805,6 +794,23 @@ export function parseAnnotationSuggestions(content: string): AnnotationSuggestio
       return suggestion;
     })
     .filter((item) => item.exact.trim().length > 0);
+}
+
+function isAnnotationSuggestionInput(value: unknown): value is {
+  exact?: unknown;
+  prefix?: unknown;
+  suffix?: unknown;
+  context?: unknown;
+  comment?: unknown;
+  type?: unknown;
+  readingIntent?: unknown;
+  moveType?: unknown;
+  whyHere?: unknown;
+  evidenceUsed?: unknown;
+  confidence?: unknown;
+  shouldShow?: unknown;
+} {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function annotationDensityInstruction(density: AgentAnnotationDensity, sourceText = '') {

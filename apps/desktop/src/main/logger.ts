@@ -71,11 +71,20 @@ async function ensureLogFile() {
 
 function logLineTime(line: string) {
   try {
-    const parsed = JSON.parse(line) as { at?: unknown };
-    if (typeof parsed.at !== 'string') return null;
-    const time = new Date(parsed.at).getTime();
+    const parsed = JSON.parse(line) as unknown;
+    const at = recordField(parsed, 'at');
+    if (typeof at !== 'string') return null;
+    const time = new Date(at).getTime();
     return Number.isNaN(time) ? null : time;
   } catch {
     return null;
   }
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

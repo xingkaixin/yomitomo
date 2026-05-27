@@ -22,9 +22,13 @@ export async function readEbookSourceFile(articleId: string) {
   try {
     return await readFile(ebookFilePath(articleId));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+    if (errorCode(error) === 'ENOENT') {
       throw new Error('原始 EPUB 文件不存在，请重新导入', { cause: error });
     }
     throw error;
   }
+}
+
+function errorCode(error: unknown) {
+  return error && typeof error === 'object' && 'code' in error ? error.code : undefined;
 }

@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { callProviderText, streamProviderText } from './provider-client';
 
+function requestBodyText(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
 describe('streamProviderText', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -53,7 +57,7 @@ describe('callProviderText response schema', () => {
       { ...payload(), responseSchema: testResponseSchema() },
     );
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       response_format?: unknown;
     };
     expect(body.response_format).toEqual({
@@ -83,7 +87,7 @@ describe('callProviderText response schema', () => {
       { ...payload(), responseSchema: testResponseSchema() },
     );
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       text?: unknown;
     };
     expect(body.text).toEqual({
@@ -116,7 +120,7 @@ describe('callProviderText response schema', () => {
       { ...payload(), responseSchema: testResponseSchema() },
     );
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+    const body = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       generationConfig?: Record<string, unknown>;
     };
     expect(body.generationConfig?.responseMimeType).toBe('application/json');

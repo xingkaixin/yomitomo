@@ -56,9 +56,9 @@ describe('epub evaluation metrics', () => {
       caseId: evaluationCase.id,
       controlGroup: 'structured_context',
       segmentOutputs: [
-        { segmentId: segmentIds[0]!, annotations: [] },
+        { segmentId: segmentIds[0], annotations: [] },
         {
-          segmentId: segmentIds[1]!,
+          segmentId: segmentIds[1],
           annotations: [valid, duplicate],
           toolLoopDecisions: [
             { status: 'final', actionType: 'add_annotation' },
@@ -66,7 +66,7 @@ describe('epub evaluation metrics', () => {
             { status: 'fallback', failureReason: 'provider_failed' },
           ],
         },
-        { segmentId: segmentIds[2]!, annotations: [invalid] },
+        { segmentId: segmentIds[2], annotations: [invalid] },
       ],
     });
 
@@ -117,13 +117,13 @@ describe('epub evaluation metrics', () => {
         controlGroup: 'structured_context',
         segmentOutputs: [
           {
-            segmentId: segmentIds[0]!,
+            segmentId: segmentIds[0],
             annotations: [
               annotationFromExact(segmentCase, '规模优势不是护城河', 'a-3', 'challenge_argument'),
             ],
           },
           {
-            segmentId: segmentIds[1]!,
+            segmentId: segmentIds[1],
             annotations: [
               annotationFromExact(segmentCase, '第二个可批注点指出', 'a-4', 'ask_question'),
             ],
@@ -132,7 +132,7 @@ describe('epub evaluation metrics', () => {
               { status: 'final', actionType: 'no_action' },
             ],
           },
-          { segmentId: segmentIds[2]!, annotations: [] },
+          { segmentId: segmentIds[2], annotations: [] },
         ],
       },
     ];

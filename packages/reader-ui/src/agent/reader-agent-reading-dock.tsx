@@ -3,6 +3,19 @@ import { AvatarBadge } from '../shared/reader-component-primitives';
 import { cursorColorFromId } from '../reader-style-utils';
 import type { AgentDockItem } from '../reader-types';
 
+type ReaderCompletionParticleStyle = React.CSSProperties & {
+  '--reader-confetti-color': string;
+  '--reader-confetti-delay': string;
+  '--reader-confetti-rotate': string;
+  '--reader-confetti-x': string;
+  '--reader-confetti-y': string;
+};
+
+type ReaderDockItemStyle = React.CSSProperties & {
+  '--agent-color': string;
+  '--reader-dock-delay': string;
+};
+
 const completionBurstParticles = [
   { x: -128, y: -42, rotate: -28, delay: 0, color: '#5EC0E8', shape: 'strip' },
   { x: -94, y: -82, rotate: 36, delay: 18, color: '#54CDA0', shape: 'dot' },
@@ -31,18 +44,10 @@ export function ReadingCompletionBurst() {
         <span className="reader-completion-burst-ring" />
         <span className="reader-completion-burst-ring is-wide" />
         {completionBurstParticles.map((particle, index) => (
-          <span
-            className={`reader-completion-particle is-${particle.shape}`}
+          <CompletionParticle
+            particle={particle}
+            index={index}
             key={`${particle.x}:${particle.y}:${index}`}
-            style={
-              {
-                '--reader-confetti-color': particle.color,
-                '--reader-confetti-delay': `${particle.delay}ms`,
-                '--reader-confetti-rotate': `${particle.rotate}deg`,
-                '--reader-confetti-x': `${particle.x}px`,
-                '--reader-confetti-y': `${particle.y}px`,
-              } as React.CSSProperties
-            }
           />
         ))}
       </div>
@@ -69,16 +74,15 @@ export function AgentReadingDock({
       <div className="reader-agent-dock-list">
         {items.map((item, index) => {
           const color = item.agent.annotationColor || cursorColorFromId(item.agent.id);
+          const style: ReaderDockItemStyle = {
+            '--agent-color': color,
+            '--reader-dock-delay': `${index * 80}ms`,
+          };
           return (
             <div
               className={`reader-agent-dock-item is-${item.state}`}
               key={item.agent.id}
-              style={
-                {
-                  '--agent-color': color,
-                  '--reader-dock-delay': `${index * 80}ms`,
-                } as React.CSSProperties
-              }
+              style={style}
               title={`${item.agent.nickname}${item.state === 'active' ? ' 正在共读' : ' 已完成'}`}
             >
               <AvatarBadge avatar={item.agent.avatar} fallback={item.agent.nickname.slice(0, 1)} />
@@ -90,5 +94,28 @@ export function AgentReadingDock({
         <ReadingCompletionBurst key={completionBurstKey} />
       ) : null}
     </div>
+  );
+}
+
+function CompletionParticle({
+  index,
+  particle,
+}: {
+  index: number;
+  particle: (typeof completionBurstParticles)[number];
+}) {
+  const style: ReaderCompletionParticleStyle = {
+    '--reader-confetti-color': particle.color,
+    '--reader-confetti-delay': `${particle.delay}ms`,
+    '--reader-confetti-rotate': `${particle.rotate}deg`,
+    '--reader-confetti-x': `${particle.x}px`,
+    '--reader-confetti-y': `${particle.y}px`,
+  };
+  return (
+    <span
+      className={`reader-completion-particle is-${particle.shape}`}
+      key={`${particle.x}:${particle.y}:${index}`}
+      style={style}
+    />
   );
 }

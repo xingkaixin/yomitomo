@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
     database
       .prepare('SELECT id FROM __yomitomo_migrations')
       .all()
-      .map((row) => String((row as { id: string }).id)),
+      .map((row) => stringField(recordField(row, 'id'))),
   );
 
   ensureDatabaseCompatibilityTable(database);
@@ -166,4 +166,16 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
 
   const compatibility = databaseReaderCompatibility(applied, readDatabaseReaderLevel(database));
   writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : '';
 }

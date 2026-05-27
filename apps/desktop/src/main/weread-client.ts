@@ -151,9 +151,9 @@ async function requestWeRead(
   });
   if (!response.ok) throw new Error(`微信读书请求失败：HTTP ${response.status}`);
 
-  const data = (await response.json()) as WeReadGatewayResponse;
+  const data = gatewayResponseValue(await response.json());
   if (data.upgrade_info && typeof data.upgrade_info === 'object') {
-    const message = stringValue((data.upgrade_info as Record<string, unknown>).message);
+    const message = stringValue(objectValue(data.upgrade_info)?.message);
     throw new Error(message || '微信读书接口版本需要升级');
   }
   const errcode = numberValue(data.errcode);
@@ -351,9 +351,15 @@ function numberArrayFromResponse(value: unknown) {
 }
 
 function objectValue(value: unknown) {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
+  return isRecord(value) ? value : undefined;
+}
+
+function gatewayResponseValue(value: unknown): WeReadGatewayResponse {
+  return objectValue(value) || {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function arrayValue(value: unknown): Record<string, unknown>[] {

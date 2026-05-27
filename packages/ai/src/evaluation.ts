@@ -102,7 +102,7 @@ export type EpubEvaluationUsage = Partial<{
 
 export type EpubEvaluationToolLoopDecision = {
   status: 'final' | 'fallback' | 'kept_without_runtime';
-  actionType?: 'add_annotation' | 'no_action' | 'reply_to_thread' | string;
+  actionType?: string;
   failureReason?: string;
 };
 
@@ -466,7 +466,7 @@ function duplicateAnnotationRate(evaluationCase: EpubEvaluationCase, annotations
   const duplicateIndexes = new Set<number>();
   for (let leftIndex = 0; leftIndex < annotations.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < annotations.length; rightIndex += 1) {
-      if (annotationsDuplicate(evaluationCase, annotations[leftIndex]!, annotations[rightIndex]!)) {
+      if (annotationsDuplicate(evaluationCase, annotations[leftIndex], annotations[rightIndex])) {
         duplicateIndexes.add(rightIndex);
       }
     }

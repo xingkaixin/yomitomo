@@ -211,15 +211,17 @@ async function waitForRenderedPage(webContents: WebContents, deadline: number) {
 
   while (Date.now() < deadline) {
     await wait(RENDERED_IMPORT_SETTLE_MS);
-    lastPage = (await webContents.executeJavaScript(
-      `({
+    lastPage = renderedPageValue(
+      await webContents.executeJavaScript(
+        `({
         html: document.documentElement.outerHTML,
         text: document.body?.innerText || "",
         title: document.title || "",
         url: location.href
       })`,
-      true,
-    )) as { html?: unknown; text?: unknown; title?: unknown; url?: unknown };
+        true,
+      ),
+    );
     if (!isChallengePage(lastPage)) return lastPage;
   }
 
@@ -232,8 +234,7 @@ async function waitForRenderedPage(webContents: WebContents, deadline: number) {
 function isChallengePage(page: { text?: unknown; title?: unknown }) {
   const text = typeof page.text === 'string' ? page.text : '';
   const title = typeof page.title === 'string' ? page.title : '';
-  const html =
-    typeof (page as { html?: unknown }).html === 'string' ? (page as { html: string }).html : '';
+  const html = stringField(recordField(page, 'html'));
   return (
     title.includes('Just a moment') ||
     title.includes('Protected By') ||
@@ -246,6 +247,29 @@ function isChallengePage(page: { text?: unknown; title?: unknown }) {
     text.includes('雷池') ||
     html.includes('SafeLineChallenge')
   );
+}
+
+function renderedPageValue(value: unknown) {
+  return isRecord(value)
+    ? {
+        html: value.html,
+        text: value.text,
+        title: value.title,
+        url: value.url,
+      }
+    : {};
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : '';
 }
 
 function isChallengeHtml(html: string) {

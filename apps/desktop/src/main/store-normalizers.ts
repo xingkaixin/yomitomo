@@ -4,6 +4,7 @@ import type {
   AgentKind,
   AgentReadingIntent,
   Annotation,
+  AnnotationAuthor,
   AnnotationEvidenceSource,
   AnnotationType,
   AppSettings,
@@ -80,7 +81,7 @@ export const defaultStore: DesktopStore = {
 export function rowToComment(row: typeof schema.comments.$inferSelect): Comment {
   return {
     id: row.id,
-    author: row.author as Comment['author'],
+    author: normalizeAnnotationAuthor(row.author),
     content: row.content,
     createdAt: row.createdAt,
     replyTo: row.replyTo || undefined,
@@ -106,8 +107,8 @@ export function rowToAnnotation(
 ): Annotation {
   return {
     id: row.id,
-    anchor: row.anchor as TextAnchor,
-    author: row.author as Annotation['author'],
+    anchor: normalizeTextAnchor(row.anchor),
+    author: normalizeAnnotationAuthor(row.author),
     annotationType: normalizeAnnotationType(row.annotationType) || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
     moveType: normalizeAnnotationMove(row.moveType) || undefined,
@@ -158,7 +159,7 @@ export function rowToAgent(row: typeof schema.agents.$inferSelect): Agent {
     id: row.id,
     kind: normalizeAgentKind(row.kind) || 'annotation',
     presetId: row.presetId || undefined,
-    enabled: Boolean(row.enabled),
+    enabled: row.enabled,
     providerId: row.providerId,
     nickname: row.nickname,
     username: row.username,
@@ -183,9 +184,7 @@ export function rowToArticle(row: ArticleRow, annotations: Annotation[]): Articl
     contentHtml: row.contentHtml || undefined,
     ebook: rowToEbook(row),
     pdf: rowToPdf(row),
-    focusCoReadingPlan: row.focusCoReadingPlan
-      ? (row.focusCoReadingPlan as FocusCoReadingPlan)
-      : undefined,
+    focusCoReadingPlan: normalizeFocusCoReadingPlan(row.focusCoReadingPlan),
   };
 }
 
@@ -374,7 +373,7 @@ export function normalizeArticleReadingProgress(
   value: unknown,
 ): ArticleReadingProgress | undefined {
   if (!value || typeof value !== 'object') return undefined;
-  const progress = value as Record<string, unknown>;
+  const progress = recordValue(value);
   const pageIndex = Number(progress.pageIndex);
   const pageCount = Number(progress.pageCount);
   const chapterIndex = Number(progress.chapterIndex);
@@ -426,7 +425,7 @@ function normalizePdfRecord(value: ArticleRecord['pdf'] | undefined): ArticleRec
 
 function normalizePdfMetadata(value: unknown): PdfMetadata | undefined {
   if (!value || typeof value !== 'object') return undefined;
-  const metadata = value as Record<string, unknown>;
+  const metadata = recordValue(value);
   const fileName = stringValue(metadata.fileName);
   const fileSize = Number(metadata.fileSize);
   const pageCount = Number(metadata.pageCount);
@@ -448,7 +447,7 @@ function normalizePdfMetadata(value: unknown): PdfMetadata | undefined {
 
 function normalizeEbookMetadata(value: unknown): EbookMetadata | undefined {
   if (!value || typeof value !== 'object') return undefined;
-  const metadata = value as Record<string, unknown>;
+  const metadata = recordValue(value);
   const fileName = stringValue(metadata.fileName);
   const fileSize = Number(metadata.fileSize);
   return {
@@ -465,7 +464,7 @@ function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item, index) => {
     if (!item || typeof item !== 'object') return [];
-    const chapter = item as Record<string, unknown>;
+    const chapter = recordValue(item);
     const html = stringValue(chapter.html);
     const title = stringValue(chapter.title);
     if (!html || !title) return [];
@@ -484,7 +483,7 @@ function normalizeEbookChapters(value: unknown): EbookChapterRecord[] {
 
 function normalizeEpubBookIndex(value: unknown): EpubBookIndex | undefined {
   if (!value || typeof value !== 'object') return undefined;
-  const index = value as Record<string, unknown>;
+  const index = recordValue(value);
   const chapters = normalizeEpubChapterIndexes(index.chapters);
   const segments = normalizeEpubSegmentIndexes(index.segments);
   const paragraphs = normalizeEpubParagraphIndexes(index.paragraphs);
@@ -504,7 +503,7 @@ function normalizeEpubChapterIndexes(value: unknown): EpubChapterIndex[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
-    const chapter = item as Record<string, unknown>;
+    const chapter = recordValue(item);
     const id = stringValue(chapter.id);
     if (!id) return [];
     return [
@@ -529,7 +528,7 @@ function normalizeEpubSegmentIndexes(value: unknown): EpubSegmentIndex[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
-    const segment = item as Record<string, unknown>;
+    const segment = recordValue(item);
     const id = stringValue(segment.id);
     const chapterId = stringValue(segment.chapterId);
     if (!id || !chapterId) return [];
@@ -553,7 +552,7 @@ function normalizeEpubParagraphIndexes(value: unknown): EpubParagraphIndex[] {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return [];
-    const paragraph = item as Record<string, unknown>;
+    const paragraph = recordValue(item);
     const id = stringValue(paragraph.id);
     const chapterId = stringValue(paragraph.chapterId);
     const segmentId = stringValue(paragraph.segmentId);
@@ -588,6 +587,115 @@ function normalizeNonNegativeInteger(value: unknown) {
 
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : '';
+}
+
+function recordValue(value: object): Record<string, unknown> {
+  return Object.entries(value).reduce<Record<string, unknown>>((record, [key, entryValue]) => {
+    record[key] = entryValue;
+    return record;
+  }, {});
+}
+
+function normalizeAnnotationAuthor(value: unknown): AnnotationAuthor {
+  return value === 'ai' ? 'ai' : 'user';
+}
+
+function normalizeTextAnchor(value: unknown): TextAnchor {
+  const anchor = value && typeof value === 'object' ? recordValue(value) : {};
+  return {
+    exact: stringValue(anchor.exact),
+    prefix: stringValue(anchor.prefix),
+    suffix: stringValue(anchor.suffix),
+    start: normalizeNonNegativeInteger(anchor.start),
+    end: normalizeNonNegativeInteger(anchor.end),
+    paragraphId: stringValue(anchor.paragraphId) || undefined,
+    chapterId: stringValue(anchor.chapterId) || undefined,
+    segmentId: stringValue(anchor.segmentId) || undefined,
+    textStartInParagraph:
+      anchor.textStartInParagraph === undefined
+        ? undefined
+        : normalizeNonNegativeInteger(anchor.textStartInParagraph),
+    textEndInParagraph:
+      anchor.textEndInParagraph === undefined
+        ? undefined
+        : normalizeNonNegativeInteger(anchor.textEndInParagraph),
+    textStartInBook:
+      anchor.textStartInBook === undefined
+        ? undefined
+        : normalizeNonNegativeInteger(anchor.textStartInBook),
+    textEndInBook:
+      anchor.textEndInBook === undefined
+        ? undefined
+        : normalizeNonNegativeInteger(anchor.textEndInBook),
+    quoteHash: stringValue(anchor.quoteHash) || undefined,
+  };
+}
+
+function normalizeFocusCoReadingPlan(value: unknown): FocusCoReadingPlan | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const plan = recordValue(value);
+  const id = stringValue(plan.id);
+  const articleId = stringValue(plan.articleId);
+  const createdAt = stringValue(plan.createdAt);
+  const updatedAt = stringValue(plan.updatedAt);
+  const selectedAgentIds = stringArray(plan.selectedAgentIds);
+  const sections = Array.isArray(plan.sections)
+    ? plan.sections.flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const section = recordValue(item);
+        const sectionId = stringValue(section.sectionId);
+        if (!sectionId) return [];
+        const sectionStart = Number(section.sectionStart);
+        const sectionEnd = Number(section.sectionEnd);
+        const messages = Array.isArray(section.messages)
+          ? section.messages.flatMap((message) => {
+              if (!message || typeof message !== 'object') return [];
+              const messageRecord = recordValue(message);
+              const messageId = stringValue(messageRecord.id);
+              const content = stringValue(messageRecord.content);
+              const messageCreatedAt = stringValue(messageRecord.createdAt);
+              return messageId && content && messageCreatedAt
+                ? [
+                    {
+                      id: messageId,
+                      content,
+                      agentId: stringValue(messageRecord.agentId) || undefined,
+                      agentUsername: stringValue(messageRecord.agentUsername) || undefined,
+                      agentNickname: stringValue(messageRecord.agentNickname) || undefined,
+                      agentIds: stringArray(messageRecord.agentIds),
+                      agentUsernames: stringArray(messageRecord.agentUsernames),
+                      agentNicknames: stringArray(messageRecord.agentNicknames),
+                      createdAt: messageCreatedAt,
+                    },
+                  ]
+                : [];
+            })
+          : [];
+        return [
+          {
+            sectionId,
+            sectionTitle: stringValue(section.sectionTitle),
+            sectionStart: Number.isFinite(sectionStart) ? sectionStart : 0,
+            sectionEnd: Number.isFinite(sectionEnd) ? sectionEnd : 0,
+            summary: stringValue(section.summary) || undefined,
+            tag: stringValue(section.tag) || undefined,
+            targetDensity: normalizeAnnotationDensity(section.targetDensity) || undefined,
+            needsFurtherPlanning:
+              typeof section.needsFurtherPlanning === 'boolean'
+                ? section.needsFurtherPlanning
+                : undefined,
+            agentIds: stringArray(section.agentIds),
+            messages,
+          },
+        ];
+      })
+    : [];
+  if (!id || !articleId || !createdAt || !updatedAt) return undefined;
+  return { id, articleId, selectedAgentIds, sections, createdAt, updatedAt };
+}
+
+function isProviderPresetId(value: unknown): value is ProviderPresetId {
+  return providerPresets.some((preset) => preset.id === value);
 }
 
 export function normalizeUser(user: Partial<UserProfile> | undefined): UserProfile {
@@ -665,9 +773,7 @@ export function normalizeProviderModelInputMode(value: unknown) {
 }
 
 export function normalizePresetId(value: unknown): ProviderPresetId | undefined {
-  return providerPresets.some((preset) => preset.id === value)
-    ? (value as ProviderPresetId)
-    : undefined;
+  return isProviderPresetId(value) ? value : undefined;
 }
 
 export function normalizeModelNames(value: unknown): string[] | undefined {

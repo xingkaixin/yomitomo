@@ -301,10 +301,12 @@ export function deleteAnnotationRowsWithMemoryLifecycle(
       executor,
       useTransaction: false,
     });
-    const result = executor
-      .prepare('DELETE FROM annotations WHERE article_id = ? AND id = ?')
-      .run(input.articleId, input.annotationId) as { changes?: number };
-    return { deletedAnnotationCount: result.changes || 0, deletedMemoryCount };
+    const deletedAnnotationCount = runChanges(
+      executor
+        .prepare('DELETE FROM annotations WHERE article_id = ? AND id = ?')
+        .run(input.articleId, input.annotationId),
+    );
+    return { deletedAnnotationCount, deletedMemoryCount };
   });
 }
 
@@ -326,9 +328,10 @@ export function deleteCommentRowsWithMemoryLifecycle(
         executor,
         useTransaction: false,
       });
-      const result = executor
-        .prepare(
-          `
+      deletedCommentCount += runChanges(
+        executor
+          .prepare(
+            `
 DELETE FROM comments
 WHERE id = ?
   AND annotation_id = ?
@@ -338,9 +341,9 @@ WHERE id = ?
       AND annotations.article_id = ?
   )
 `,
-        )
-        .run(commentId, input.annotationId, input.articleId) as { changes?: number };
-      deletedCommentCount += result.changes || 0;
+          )
+          .run(commentId, input.annotationId, input.articleId),
+      );
     }
 
     return { deletedCommentCount, deletedMemoryCount };
@@ -360,19 +363,21 @@ FROM comments
 WHERE annotation_id = ?
 `,
     )
-    .all(annotationId) as Array<{ id: string; replyTo?: string | null }>;
+    .all(annotationId);
   const deletedIds = new Set([commentId]);
   let expanded = true;
   while (expanded) {
     expanded = false;
     for (const row of rows) {
-      if (!row.replyTo || !deletedIds.has(row.replyTo) || deletedIds.has(row.id)) continue;
-      deletedIds.add(row.id);
+      const id = stringField(recordField(row, 'id'));
+      const replyTo = stringField(recordField(row, 'replyTo'));
+      if (!replyTo || !deletedIds.has(replyTo) || deletedIds.has(id)) continue;
+      deletedIds.add(id);
       expanded = true;
     }
   }
   return rows
-    .map((row) => row.id)
+    .map((row) => stringField(recordField(row, 'id')))
     .filter((id) => deletedIds.has(id))
     .toSorted();
 }
@@ -420,19 +425,35 @@ export function readArticleSummaryCounts(
 
   for (const row of annotationCounts) {
     countsByArticle.set(row.articleId, {
-      annotationCount: Number(row.count),
+      annotationCount: row.count,
       commentCount: 0,
     });
   }
 
   for (const row of commentCounts) {
     const counts = countsByArticle.get(row.articleId);
-    if (counts) counts.commentCount = Number(row.count);
-    else
-      countsByArticle.set(row.articleId, { annotationCount: 0, commentCount: Number(row.count) });
+    if (counts) counts.commentCount = row.count;
+    else countsByArticle.set(row.articleId, { annotationCount: 0, commentCount: row.count });
   }
 
   return countsByArticle;
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function runChanges(result: unknown) {
+  const changes = recordField(result, 'changes');
+  return typeof changes === 'number' ? changes : 0;
 }
 
 export function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {

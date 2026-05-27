@@ -18,6 +18,14 @@ import { formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
 
+type AvatarColorStyle = React.CSSProperties & {
+  '--reader-avatar-color': string;
+};
+
+type DeleteHoldStyle = React.CSSProperties & {
+  '--delete-hold-ms': string;
+};
+
 const DELETE_HOLD_MS = 1600;
 
 export function AnnotationCard({
@@ -559,7 +567,7 @@ function PendingAgentThoughts({ agents }: { agents: PublicAgent[] }) {
 
   const label =
     agents.length === 1
-      ? `${agents[0]!.nickname} 正在整理想法`
+      ? `${agents[0].nickname} 正在整理想法`
       : `${agents.length} 位助手正在整理想法`;
 
   return (
@@ -623,7 +631,8 @@ function commentAuthorKey(comment: Annotation['comments'][number], username: str
 }
 
 function avatarColorStyle(color: string): React.CSSProperties {
-  return { '--reader-avatar-color': color } as React.CSSProperties;
+  const style: AvatarColorStyle = { '--reader-avatar-color': color };
+  return style;
 }
 
 function HoldDeleteButton({
@@ -665,7 +674,7 @@ function HoldDeleteButton({
   return (
     <button
       className={[className, holding ? 'is-holding' : ''].filter(Boolean).join(' ')}
-      style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as React.CSSProperties}
+      style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as DeleteHoldStyle}
       type="button"
       aria-label={ariaLabel}
       onClick={(event) => event.preventDefault()}
@@ -1122,7 +1131,9 @@ function CollapsibleMarkdownContent({
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(measure);
     observer.observe(target);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+    };
   }, [content, expanded]);
 
   return (

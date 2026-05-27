@@ -38,7 +38,6 @@ import {
   upsertProvider,
   type SaveProviderInput,
 } from './provider-repository';
-import type { ReadingMemorySqliteExecutor } from './reading-memory-store';
 import {
   closeDatabase as closeStoreDatabase,
   configureStoreDatabaseSeeder,
@@ -54,8 +53,11 @@ import {
   upsertSettings,
   upsertUser,
 } from './settings-repository';
+import type { ReadingMemorySqliteExecutor } from './reading-memory-store';
 import {
   defaultStore,
+  normalizeArticleReadingProgress,
+  normalizeArticleSourceType,
   normalizeStore,
   normalizeUser,
   rowToAgent,
@@ -158,7 +160,7 @@ function seedDefaultStore(database: StoreDatabase) {
     .get();
   if (hasUser) return;
 
-  writeStoreRows(database, defaultStore as WritableDesktopStore);
+  writeStoreRows(database, { ...defaultStore, articles: [] });
 }
 
 export async function readStore(): Promise<DesktopStore> {
@@ -217,7 +219,7 @@ export async function readArticleCover(id: string): Promise<string> {
 type WritableDesktopStore = Omit<DesktopStore, 'articles'> & { articles: ArticleRecord[] };
 
 export async function writeStore(store: WritableDesktopStore): Promise<DesktopStore> {
-  const normalized = normalizeStore(store) as WritableDesktopStore;
+  const normalized = normalizeWritableStore(store);
   const database = getDatabase();
   await migrateProviderApiKeys(database);
   writeStoreRows(database, normalized);
@@ -308,7 +310,7 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
           settings.reviewAssistantProviderId === id
             ? undefined
             : (settings.reviewAssistantProviderId ?? undefined),
-        saveArticleImages: Boolean(settings.saveArticleImages),
+        saveArticleImages: settings.saveArticleImages,
       });
     }
     tx.delete(schema.providers).where(eq(schema.providers.id, id)).run();
@@ -362,8 +364,20 @@ export async function deleteArticleComment(input: {
   return article ? buildArticleUpsertPatch(article) : null;
 }
 
-function sqliteExecutor() {
+function sqliteExecutor(): ReadingMemorySqliteExecutor {
   return getSqliteExecutor() as unknown as ReadingMemorySqliteExecutor;
+}
+
+function normalizeWritableStore(store: WritableDesktopStore): WritableDesktopStore {
+  const normalized = normalizeStore(store);
+  return {
+    ...normalized,
+    articles: store.articles.map((article) => ({
+      ...article,
+      sourceType: normalizeArticleSourceType(article.sourceType),
+      readingProgress: normalizeArticleReadingProgress(article.readingProgress),
+    })),
+  };
 }
 
 function backfillAnnotationMemoryOnce(database: StoreDatabase, profile?: StoreReadProfileEntry[]) {

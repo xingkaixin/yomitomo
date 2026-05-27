@@ -30,7 +30,11 @@ export function isSvgAvatar(value: string) {
 export function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
-    reader.addEventListener('load', () => resolve(String(reader.result || '')), { once: true });
+    reader.addEventListener(
+      'load',
+      () => resolve(typeof reader.result === 'string' ? reader.result : ''),
+      { once: true },
+    );
     reader.addEventListener('error', () => reject(reader.error), { once: true });
     reader.readAsDataURL(file);
   });

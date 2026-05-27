@@ -18,6 +18,11 @@ import type {
   ReaderArticle,
   SelectionAction,
 } from './reader-app-view-types';
+
+type AnnotationRailStyle = React.CSSProperties & {
+  '--reader-empty-left': string;
+  '--reader-note-width': string;
+};
 import {
   buildAnnotationRailItems,
   buildHighlightSegments,
@@ -174,17 +179,17 @@ export function ReaderSurfaceView({
     return index >= 0 ? `打开引文讨论 ${index + 1}` : '打开引文讨论';
   }
 
-  const annotationRailStyle =
+  const annotationRailStyle: AnnotationRailStyle | undefined =
     annotationRailLayout.mode === 'stacked'
       ? undefined
-      : ({
+      : {
           '--reader-empty-left': `${
             annotationRailLayout.mode === 'left'
               ? annotationRailLayout.leftRailLeft
               : annotationRailLayout.rightRailLeft
           }px`,
           '--reader-note-width': `${annotationRailLayout.railWidth}px`,
-        } as React.CSSProperties);
+        };
 
   return (
     <div className="reader-surface-frame">

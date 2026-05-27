@@ -5,10 +5,12 @@ import type {
   WeReadChapter,
   WeReadHighlight,
   WeReadOpenMethod,
+  WeReadReadingStats,
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
   WeReadSettings,
   WeReadThought,
+  WeReadUser,
 } from '@yomitomo/shared';
 import * as schema from './db/schema';
 import { deleteWeReadApiKey, readWeReadApiKey, saveWeReadApiKey } from './provider-secrets';
@@ -418,7 +420,7 @@ function rowToWeReadReadingStatsSnapshot(
         : 'overall',
     periodStart: row.periodStart,
     sourceBaseTime: row.sourceBaseTime ?? undefined,
-    data: row.payload as WeReadReadingStatsSnapshot['data'],
+    data: normalizeWeReadReadingStats(row.payload, row.mode),
     fetchedAt: row.fetchedAt,
   };
 }
@@ -452,7 +454,7 @@ function rowToWeReadThought(row: typeof schema.wereadThoughts.$inferSelect): WeR
     reviewId: row.reviewId,
     bookId: row.bookId,
     userVid: row.userVid ?? undefined,
-    author: (row.author as WeReadThought['author']) || undefined,
+    author: normalizeWeReadUser(row.author),
     chapterUid: row.chapterUid ?? undefined,
     chapterIdx: row.chapterIdx ?? undefined,
     chapterName: row.chapterName || undefined,
@@ -465,6 +467,54 @@ function rowToWeReadThought(row: typeof schema.wereadThoughts.$inferSelect): WeR
 
 function normalizeWeReadOpenMethod(value: unknown): WeReadOpenMethod {
   return value === 'web' ? 'web' : 'deeplink';
+}
+
+function normalizeWeReadUser(value: unknown): WeReadUser | undefined {
+  if (!isRecord(value)) return undefined;
+  return {
+    userVid: numberField(value.userVid),
+    name: stringField(value.name) || undefined,
+    avatar: stringField(value.avatar) || undefined,
+  };
+}
+
+function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeReadReadingStats {
+  const data = isRecord(value) ? value : {};
+  return {
+    mode:
+      mode === 'weekly' || mode === 'monthly' || mode === 'annually' || mode === 'overall'
+        ? mode
+        : 'overall',
+    totalReadTime: numberField(data.totalReadTime) ?? 0,
+    readDays: numberField(data.readDays),
+    dayAverageReadTime: numberField(data.dayAverageReadTime),
+    compare: numberField(data.compare),
+    readRate: numberField(data.readRate),
+    wrReadTime: numberField(data.wrReadTime),
+    wrListenTime: numberField(data.wrListenTime),
+    readStat: [],
+    readTimes: {},
+    readLongest: [],
+    preferCategory: [],
+    preferCategoryWord: stringField(data.preferCategoryWord) || undefined,
+    preferTimeWord: stringField(data.preferTimeWord) || undefined,
+    preferAuthor: stringField(data.preferAuthor) || undefined,
+    preferPublisher: stringField(data.preferPublisher) || undefined,
+    authorCount: numberField(data.authorCount),
+    registTime: numberField(data.registTime),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function numberField(value: unknown) {
+  return typeof value === 'number' ? value : undefined;
 }
 
 function normalizeWeReadStatus(value: unknown): WeReadSettings['status'] {

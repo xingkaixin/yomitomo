@@ -74,7 +74,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('./ebook-storage');
     const file = await readEbookSourceFile(articleId);
-    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
+    return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   });
   handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
@@ -99,10 +99,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const startedAt = performance.now();
     const { readPdfSourceFile } = await import('./pdf-storage');
     const file = await readPdfSourceFile(articleId);
-    const data = file.buffer.slice(
-      file.byteOffset,
-      file.byteOffset + file.byteLength,
-    ) as ArrayBuffer;
+    const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
     context.logInfo('performance.pdf.file_read_main', {
       articleId,
       byteLength: data.byteLength,

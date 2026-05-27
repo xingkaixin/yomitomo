@@ -30,7 +30,12 @@ class MockResizeObserver {
 
   readonly elements = new Set<Element>();
 
-  constructor(readonly callback: ResizeObserverCallback) {
+  constructor(
+    readonly callback: (
+      entries: Array<{ target: Element; contentRect: { height: number } }>,
+      observer: MockResizeObserver,
+    ) => void,
+  ) {
     MockResizeObserver.instances.push(this);
   }
 
@@ -51,8 +56,8 @@ class MockResizeObserver {
       entries.map(({ target, height }) => ({
         target,
         contentRect: { height },
-      })) as ResizeObserverEntry[],
-      this as unknown as ResizeObserver,
+      })),
+      this,
     );
   }
 }
@@ -288,7 +293,7 @@ describe('useReaderAnnotationRail', () => {
     );
 
     expect(onAnnotationLayoutChange).toHaveBeenCalledTimes(1);
-    const observer = MockResizeObserver.instances[0]!;
+    const observer = MockResizeObserver.instances[0];
     const entries = Array.from(observer.elements).map((target, index) => ({
       target,
       height: index === 0 ? 44 : 72,

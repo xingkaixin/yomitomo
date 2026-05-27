@@ -686,7 +686,7 @@ describe('AgentSettings', () => {
   it('keeps disabled agents visible', () => {
     renderAgentSettings({
       agents: [
-        agentSettingsAgents[0]!,
+        agentSettingsAgents[0],
         makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false),
       ],
     });
@@ -825,7 +825,7 @@ describe('ShortcutSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getAllByRole('radio')[1]!);
+    fireEvent.click(screen.getAllByRole('radio')[1]);
 
     expect(onSettingsChange).toHaveBeenCalledWith({ messageSendShortcut: 'mod-enter' });
     expect(screen.getAllByText('⏎').some((element) => element.tagName === 'KBD')).toBe(true);
@@ -853,10 +853,10 @@ describe('ShortcutSettings', () => {
 
     const options = screen.getAllByRole('radio');
 
-    expect(options[0]!.getAttribute('aria-checked')).toBe('false');
-    expect(options[1]!.getAttribute('aria-checked')).toBe('true');
-    expect(within(options[0]!).getByText('当前使用')).toBeTruthy();
-    expect(within(options[1]!).queryByText('当前使用')).toBeNull();
+    expect(options[0].getAttribute('aria-checked')).toBe('false');
+    expect(options[1].getAttribute('aria-checked')).toBe('true');
+    expect(within(options[0]).getByText('当前使用')).toBeTruthy();
+    expect(within(options[1]).queryByText('当前使用')).toBeNull();
   });
 
   it('records single-letter reader action shortcuts', () => {

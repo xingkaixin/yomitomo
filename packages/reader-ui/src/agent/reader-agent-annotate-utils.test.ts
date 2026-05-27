@@ -146,7 +146,7 @@ describe('reader agent annotate utils', () => {
     };
 
     expect(
-      focusSectionToReadingPlanItem(section, agents[0]!).messages?.map((item) => item.content),
+      focusSectionToReadingPlanItem(section, agents[0]).messages?.map((item) => item.content),
     ).toEqual(['所有人都看', '只给林知微']);
   });
 });

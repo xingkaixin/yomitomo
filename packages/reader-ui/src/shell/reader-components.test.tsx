@@ -33,6 +33,12 @@ function agent(id: string, nickname: string): PublicAgent {
   };
 }
 
+function getClearPlanButton() {
+  const element = screen.getByRole('button', { name: '清空编排' });
+  if (!(element instanceof HTMLButtonElement)) throw new Error('expected clear plan button');
+  return element;
+}
+
 function section(overrides: Partial<ReaderReadingSection> = {}): ReaderReadingSection {
   return {
     id: 'section_1',
@@ -127,7 +133,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
   it('closes the plan add menu on outside pointer down', () => {
     renderAgentAnnotateMenu();
 
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]);
     expect(screen.getByRole('button', { name: /林知微/ })).toBeTruthy();
 
     fireEvent.pointerDown(document.body);
@@ -139,7 +145,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
     renderAgentAnnotateMenu();
 
     fireEvent.click(screen.getByRole('button', { name: /引文/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]);
     expect(screen.getByRole('button', { name: /林知微/ })).toBeTruthy();
 
     fireEvent.pointerDown(document.body);
@@ -150,7 +156,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
   it('keeps the plan add control before selected agents', () => {
     const { container } = renderAgentAnnotateMenu();
 
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[0]);
     fireEvent.click(screen.getByRole('button', { name: /林知微/ }));
 
     const addControl = container.querySelector(
@@ -171,7 +177,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
     const { container } = renderAgentAnnotateMenu();
 
     fireEvent.click(screen.getByRole('button', { name: /引文/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '添加助手' })[1]);
     fireEvent.click(screen.getByRole('button', { name: /林知微/ }));
 
     const addControl = container.querySelector(
@@ -218,25 +224,22 @@ describe('AgentAnnotateMenu add agent menus', () => {
       onSaveFocusCoReadingPlan,
     });
 
-    const clearButton = screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement;
+    const clearButton = getClearPlanButton();
     expect(clearButton.disabled).toBe(false);
 
     fireEvent.click(clearButton);
 
-    const savedPlan = onSaveFocusCoReadingPlan.mock.calls[0]?.[0] as FocusCoReadingPlan;
+    const savedPlan = onSaveFocusCoReadingPlan.mock.calls[0]?.[0];
+    if (!savedPlan) throw new Error('expected focus co-reading plan to be saved');
     expect(savedPlan.selectedAgentIds).toEqual(['agent_1']);
     expect(savedPlan.sections).toEqual([]);
-    expect((screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(getClearPlanButton().disabled).toBe(true);
   });
 
   it('disables clearing when no sections have assigned agents', () => {
     renderAgentAnnotateMenu();
 
-    expect((screen.getByRole('button', { name: '清空编排' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    );
+    expect(getClearPlanButton().disabled).toBe(true);
   });
 });
 
@@ -390,7 +393,7 @@ describe('AnnotationCard', () => {
     const target = annotation({
       comments: [
         {
-          ...annotation().comments[0]!,
+          ...annotation().comments[0],
           content: '一个猜测',
         },
       ],
@@ -424,7 +427,7 @@ describe('AnnotationCard', () => {
         annotation={annotation({
           comments: [
             {
-              ...annotation().comments[0]!,
+              ...annotation().comments[0],
               content: '第一行想法\n第二行想法',
             },
           ],
@@ -450,7 +453,7 @@ describe('AnnotationCard', () => {
   });
 
   it('orders top-level thoughts oldest first', () => {
-    const baseComment = annotation().comments[0]!;
+    const baseComment = annotation().comments[0];
     const target = annotation({
       comments: [
         {
@@ -501,7 +504,7 @@ describe('AnnotationCard', () => {
   });
 
   it('treats assistant comments without reply targets as top-level thoughts', () => {
-    const baseComment = annotation().comments[0]!;
+    const baseComment = annotation().comments[0];
     render(
       <AnnotationCard
         active
@@ -546,7 +549,7 @@ describe('AnnotationCard', () => {
   it('opens the thought list and new top-level thought after it is added', async () => {
     const target = annotation();
     const addedComment = {
-      ...target.comments[0]!,
+      ...target.comments[0],
       id: 'comment-2',
       content: '新的想法',
     };
@@ -613,7 +616,7 @@ describe('AnnotationCard', () => {
   });
 
   it('allows multiple reply lists to stay expanded', () => {
-    const baseComment = annotation().comments[0]!;
+    const baseComment = annotation().comments[0];
     const target = annotation({
       comments: [
         {
@@ -659,24 +662,24 @@ describe('AnnotationCard', () => {
     );
 
     const replyToggles = screen.getAllByRole('button', { name: '展开回复列表' });
-    fireEvent.click(replyToggles[0]!);
+    fireEvent.click(replyToggles[0]);
     expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
       1,
     );
 
-    fireEvent.click(replyToggles[1]!);
+    fireEvent.click(replyToggles[1]);
     expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
       2,
     );
 
-    fireEvent.click(screen.getAllByRole('button', { name: '收起回复列表' })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: '收起回复列表' })[0]);
     expect(container.querySelectorAll('.reader-replies-toggle[aria-expanded="true"]')).toHaveLength(
       1,
     );
   });
 
   it('collapses expanded reply lists when the note loses focus', () => {
-    const baseComment = annotation().comments[0]!;
+    const baseComment = annotation().comments[0];
     const target = annotation({
       comments: [
         baseComment,
@@ -756,7 +759,7 @@ describe('AnnotationCard', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
-    fireEvent.change(screen.getAllByLabelText('留言内容')[0]!, {
+    fireEvent.change(screen.getAllByLabelText('留言内容')[0], {
       target: { value: '继续聊' },
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
@@ -830,7 +833,10 @@ describe('AnnotationCard', () => {
 
   it('long-press deletes a top-level thought', () => {
     vi.useFakeTimers();
-    const originalSetPointerCapture = HTMLElement.prototype.setPointerCapture;
+    const originalSetPointerCapture = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'setPointerCapture',
+    );
     HTMLElement.prototype.setPointerCapture = vi.fn();
     const onDeleteComment = vi.fn();
 
@@ -861,7 +867,13 @@ describe('AnnotationCard', () => {
 
       expect(onDeleteComment).toHaveBeenCalledWith('annotation-1', 'comment-1');
     } finally {
-      HTMLElement.prototype.setPointerCapture = originalSetPointerCapture;
+      if (originalSetPointerCapture) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          'setPointerCapture',
+          originalSetPointerCapture,
+        );
+      }
     }
   });
 });

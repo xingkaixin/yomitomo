@@ -50,7 +50,7 @@ async function ensureTraceFile() {
 function parseTraceLine(line: string): AgentRuntimeTraceEntry[] {
   if (!line.trim()) return [];
   try {
-    const parsed = JSON.parse(line) as AgentRuntimeTraceEntry;
+    const parsed = JSON.parse(line) as unknown;
     return isAgentRuntimeTraceEntry(parsed) ? [parsed] : [];
   } catch {
     return [];
@@ -59,7 +59,7 @@ function parseTraceLine(line: string): AgentRuntimeTraceEntry[] {
 
 function isAgentRuntimeTraceEntry(value: unknown): value is AgentRuntimeTraceEntry {
   if (!value || typeof value !== 'object') return false;
-  const entry = value as Partial<AgentRuntimeTraceEntry>;
+  const entry = recordValue(value);
   return (
     typeof entry.id === 'string' &&
     typeof entry.at === 'string' &&
@@ -69,6 +69,10 @@ function isAgentRuntimeTraceEntry(value: unknown): value is AgentRuntimeTraceEnt
     typeof entry.status === 'string' &&
     typeof entry.stepCount === 'number'
   );
+}
+
+function recordValue(value: object): Record<string, unknown> {
+  return value as Record<string, unknown>;
 }
 
 function isTraceTaskType(value: unknown) {

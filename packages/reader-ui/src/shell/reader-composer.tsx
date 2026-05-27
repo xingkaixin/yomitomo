@@ -105,7 +105,7 @@ export function Composer({
 
     if (matchedAgents.length > 0 && event.key === 'Tab') {
       event.preventDefault();
-      insertAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]!);
+      insertAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]);
       return;
     }
 

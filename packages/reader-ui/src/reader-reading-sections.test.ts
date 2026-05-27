@@ -39,7 +39,7 @@ describe('buildReaderReadingSections', () => {
     const sections = buildReaderReadingSections(article, tocItems, '测试文章');
 
     expect(sections.map((section) => section.title)).toEqual(['引文', '第一章', '第二章']);
-    expect(sectionText(article, sections[0]!.start, sections[0]!.end)).toBe(
+    expect(sectionText(article, sections[0].start, sections[0].end)).toBe(
       '导语第一段。 导语第二段。',
     );
   });

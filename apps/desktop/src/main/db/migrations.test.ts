@@ -130,14 +130,14 @@ function tableNames(database: DatabaseSync) {
   return database
     .prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'virtual table')")
     .all()
-    .map((row) => String((row as { name: string }).name));
+    .map((row) => (row as { name: string }).name);
 }
 
 function indexNames(database: DatabaseSync) {
   return database
     .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
     .all()
-    .map((row) => String((row as { name: string }).name));
+    .map((row) => (row as { name: string }).name);
 }
 
 function insertArticle(database: DatabaseSync, id: string) {

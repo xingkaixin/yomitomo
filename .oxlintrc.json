@@ -6,7 +6,9 @@
     "perf": "warn"
   },
   "rules": {
-    "no-await-in-loop": "off"
+    "no-await-in-loop": "off",
+    "typescript/consistent-return": "off",
+    "typescript/no-unsafe-type-assertion": "off"
   },
   "ignorePatterns": [
     "**/node_modules/**",

@@ -76,7 +76,7 @@ export type AnnotationFilterOption<T extends string = string> = {
 };
 
 export type AnnotationFilterFacets = {
-  people: Array<AnnotationFilterOption<string>>;
+  people: Array<AnnotationFilterOption>;
   types: Array<AnnotationFilterOption<AnnotationType>>;
   actions: Array<AnnotationFilterOption<AgentReadingIntent>>;
   resultCount: number;
@@ -145,8 +145,8 @@ export function toggleAnnotationFilterValue(
 ): AnnotationFilterState {
   if (group === 'person') return { ...filter, personIds: toggleString(filter.personIds, value) };
   if (group === 'type')
-    return { ...filter, typeIds: toggleString(filter.typeIds, value) as AnnotationType[] };
-  return { ...filter, actionIds: toggleString(filter.actionIds, value) as AgentReadingIntent[] };
+    return { ...filter, typeIds: toggleString(filter.typeIds, value as AnnotationType) };
+  return { ...filter, actionIds: toggleString(filter.actionIds, value as AgentReadingIntent) };
 }
 
 export function pruneAnnotationFilter(
@@ -395,7 +395,7 @@ function buildPersonFilterOptions(
   agents: PublicAgent[],
   counts: Map<string, number>,
 ) {
-  const people = new Map<string, AnnotationFilterOption<string>>();
+  const people = new Map<string, AnnotationFilterOption>();
   for (const annotation of annotations) {
     const id = annotationPersonFilterId(annotation);
     if (people.has(id)) continue;
@@ -417,10 +417,8 @@ function buildPersonFilterOptions(
   return Array.from(people.values());
 }
 
-function toggleString<T extends string>(values: T[], value: string) {
-  return values.includes(value as T)
-    ? values.filter((item) => item !== value)
-    : [...values, value as T];
+function toggleString<T extends string>(values: T[], value: T) {
+  return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]) {
@@ -498,7 +496,7 @@ function resolveRailGroupSides(
       const leftCost = railSidePlacementCost(group, left, preferredSide, sideBottoms[left]);
       const rightCost = railSidePlacementCost(group, right, preferredSide, sideBottoms[right]);
       return leftCost - rightCost;
-    })[0]!;
+    })[0];
     sideBottoms[side] = Math.max(group.desiredTop, sideBottoms[side] + 18) + group.height;
     sides.push(side);
   }
@@ -528,21 +526,21 @@ function resolveRailGroupTops(
       .map((groupSide, index) => (groupSide === side ? index : -1))
       .filter((index) => index >= 0);
     for (let listIndex = 1; listIndex < indexes.length; listIndex += 1) {
-      const previousIndex = indexes[listIndex - 1]!;
-      const currentIndex = indexes[listIndex]!;
-      const previousBottom = groupTops[previousIndex]! + railGroups[previousIndex]!.height + 18;
-      groupTops[currentIndex] = Math.max(groupTops[currentIndex]!, previousBottom);
+      const previousIndex = indexes[listIndex - 1];
+      const currentIndex = indexes[listIndex];
+      const previousBottom = groupTops[previousIndex] + railGroups[previousIndex].height + 18;
+      groupTops[currentIndex] = Math.max(groupTops[currentIndex], previousBottom);
     }
     for (let listIndex = indexes.length - 2; listIndex >= 0; listIndex -= 1) {
-      const currentIndex = indexes[listIndex]!;
-      const nextIndex = indexes[listIndex + 1]!;
-      const nextTop = groupTops[nextIndex]! - railGroups[currentIndex]!.height - 18;
-      groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex]!, nextTop));
+      const currentIndex = indexes[listIndex];
+      const nextIndex = indexes[listIndex + 1];
+      const nextTop = groupTops[nextIndex] - railGroups[currentIndex].height - 18;
+      groupTops[currentIndex] = Math.max(0, Math.min(groupTops[currentIndex], nextTop));
     }
     if (viewportBottom > 0) {
       for (const index of indexes) {
-        const maxTop = Math.max(0, viewportBottom - railGroups[index]!.height - 18);
-        groupTops[index] = Math.max(0, Math.min(groupTops[index]!, maxTop));
+        const maxTop = Math.max(0, viewportBottom - railGroups[index].height - 18);
+        groupTops[index] = Math.max(0, Math.min(groupTops[index], maxTop));
       }
     }
   }

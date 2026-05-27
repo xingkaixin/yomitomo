@@ -98,6 +98,7 @@ export function createAssistantReadingToolExecutor(input: AssistantReadingToolEx
         case 'check_duplicate_thought':
           return okEvidence(duplicateThoughtEvidence(input, toolCall.input));
       }
+      return { ok: false, failureReason: 'unknown_tool' };
     } catch (error) {
       return {
         ok: false,
@@ -351,7 +352,21 @@ function anchorFromInput(raw: unknown): TextAnchor | undefined {
     typeof anchor.start === 'number' &&
     typeof anchor.end === 'number'
   ) {
-    return anchor as TextAnchor;
+    return {
+      exact: anchor.exact,
+      prefix: anchor.prefix,
+      suffix: anchor.suffix,
+      start: anchor.start,
+      end: anchor.end,
+      paragraphId: stringField(anchor.paragraphId) || undefined,
+      chapterId: stringField(anchor.chapterId) || undefined,
+      segmentId: stringField(anchor.segmentId) || undefined,
+      textStartInParagraph: numberField(anchor.textStartInParagraph),
+      textEndInParagraph: numberField(anchor.textEndInParagraph),
+      textStartInBook: numberField(anchor.textStartInBook),
+      textEndInBook: numberField(anchor.textEndInBook),
+      quoteHash: stringField(anchor.quoteHash) || undefined,
+    };
   }
   return undefined;
 }
@@ -438,4 +453,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringField(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function numberField(value: unknown) {
+  return typeof value === 'number' ? value : undefined;
 }

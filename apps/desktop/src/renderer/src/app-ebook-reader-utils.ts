@@ -668,7 +668,7 @@ function buildNormalizedDomTextIndex(
   while (walker.nextNode()) {
     const node = walker.currentNode as Text;
     for (let offset = 0; offset < node.data.length; offset += 1) {
-      const char = node.data[offset]!;
+      const char = node.data[offset];
       if (/\s/.test(char)) {
         pendingWhitespace = text.length > 0;
         continue;

@@ -34,8 +34,8 @@ describe('segment annotation context', () => {
           {
             sectionId: 'chapter-1',
             sectionTitle: '第一章',
-            sectionStart: ebookIndex.chapters[0]!.textStart,
-            sectionEnd: ebookIndex.chapters[0]!.textEnd,
+            sectionStart: ebookIndex.chapters[0].textStart,
+            sectionEnd: ebookIndex.chapters[0].textEnd,
           },
         ],
         article: {
@@ -68,7 +68,7 @@ describe('segment annotation context', () => {
     ];
     const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
     const text = epubIndexText(chapters);
-    const chapter = ebookIndex.chapters[0]!;
+    const chapter = ebookIndex.chapters[0];
     const tasks = buildSegmentAnnotationTasks(
       {
         agentId: agent.id,

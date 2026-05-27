@@ -182,7 +182,7 @@ export function cursorPositionFromOffset(
     const rect = range?.getClientRects()[0];
     if (!rect || rect.width < 1 || rect.height < 1) continue;
 
-    const offscreen =
+    const offscreen: 'above' | 'below' | null =
       rect.bottom < surfaceRect.top ? 'above' : rect.top > surfaceRect.bottom ? 'below' : null;
     return {
       offset: cursor,
@@ -193,7 +193,7 @@ export function cursorPositionFromOffset(
           : offscreen === 'below'
             ? surfaceRect.bottom - 20
             : rect.top + rect.height / 2,
-      offscreen: offscreen as 'above' | 'below' | null,
+      offscreen: offscreen,
     };
   }
 
@@ -213,8 +213,8 @@ export function rangeHighlightBoxes(
     rects.push(...Array.from(nodeRange.getClientRects()));
   };
 
-  if (range.commonAncestorContainer.nodeType === Node.TEXT_NODE) {
-    const node = range.commonAncestorContainer as Text;
+  if (isTextNode(range.commonAncestorContainer)) {
+    const node = range.commonAncestorContainer;
     if (node.textContent?.trim()) collectNodeRects(node);
   } else {
     const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, {
@@ -225,7 +225,8 @@ export function rangeHighlightBoxes(
     });
 
     while (walker.nextNode()) {
-      collectNodeRects(walker.currentNode as Text);
+      const node = walker.currentNode;
+      if (isTextNode(node)) collectNodeRects(node);
     }
   }
 
@@ -251,7 +252,8 @@ export function rangeFromOffsets(rootElement: HTMLElement, start: number, end: n
   let endOffset = 0;
 
   while (walker.nextNode()) {
-    const node = walker.currentNode as Text;
+    const node = walker.currentNode;
+    if (!isTextNode(node)) continue;
     const nextOffset = currentOffset + node.data.length;
     if (!startNode && start >= currentOffset && start <= nextOffset) {
       startNode = node;
@@ -270,6 +272,10 @@ export function rangeFromOffsets(rootElement: HTMLElement, start: number, end: n
   range.setStart(startNode, startOffset);
   range.setEnd(endNode, endOffset);
   return range;
+}
+
+function isTextNode(node: Node): node is Text {
+  return node.nodeType === Node.TEXT_NODE;
 }
 
 export function isPrimaryTocItem(item: TocItem) {
@@ -308,10 +314,10 @@ function buildLineHighlightSegments(line: HighlightBox[], lineIndex: number): Hi
   let index = 0;
 
   while (index < events.length) {
-    const left = events[index]!.edge;
+    const left = events[index].edge;
     const edgeEvents: HighlightEdgeEvent[] = [];
-    while (index < events.length && events[index]!.edge === left) {
-      edgeEvents.push(events[index]!);
+    while (index < events.length && events[index].edge === left) {
+      edgeEvents.push(events[index]);
       index += 1;
     }
 
@@ -416,7 +422,7 @@ function groupHighlightBoxesByLine(boxes: HighlightBox[]) {
   for (const box of sorted) {
     while (
       firstActiveIndex < groups.length &&
-      box.top - highlightLineAverageTop(groups[firstActiveIndex]!) > 3
+      box.top - highlightLineAverageTop(groups[firstActiveIndex]) > 3
     ) {
       firstActiveIndex += 1;
     }
@@ -449,7 +455,7 @@ function findHighlightLineGroup(
   box: HighlightBox,
 ) {
   for (let index = firstActiveIndex; index < groups.length; index += 1) {
-    const group = groups[index]!;
+    const group = groups[index];
     if (
       Math.abs(box.top - highlightLineAverageTop(group)) <= 3 &&
       Math.abs(box.height - highlightLineAverageHeight(group)) <= 4
@@ -502,7 +508,7 @@ function sameStrings(left: string[], right: string[]) {
 
 function highlightLinePaint(colors: string[]) {
   const safeColors = colors.length > 0 ? colors : ['#f4c95d'];
-  if (safeColors.length === 1) return safeColors[0]!;
+  if (safeColors.length === 1) return safeColors[0];
   const step = 100 / Math.max(1, safeColors.length - 1);
   return `linear-gradient(90deg, ${safeColors
     .map((color, index) => `${color} ${Math.round(index * step)}%`)

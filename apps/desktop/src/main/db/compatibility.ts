@@ -39,10 +39,11 @@ CREATE TABLE IF NOT EXISTS __yomitomo_metadata (
 export function readDatabaseReaderLevel(database: SQLiteDatabase.Database) {
   const row = database
     .prepare('SELECT value FROM __yomitomo_metadata WHERE key = ?')
-    .get(DATABASE_READER_LEVEL_KEY) as { value?: string } | undefined;
+    .get(DATABASE_READER_LEVEL_KEY);
+  const value = recordField(row, 'value');
   if (!row) return null;
 
-  const level = Number(row.value);
+  const level = Number(value);
   if (!Number.isInteger(level) || level < DEFAULT_DATABASE_READER_LEVEL) {
     throw new Error('本地数据库兼容性元数据无效');
   }
@@ -59,7 +60,7 @@ export function readAppliedDatabaseMigrationIds(database: SQLiteDatabase.Databas
   return database
     .prepare('SELECT id FROM __yomitomo_migrations')
     .all()
-    .map((row) => String((row as { id: string }).id));
+    .map((row) => stringField(recordField(row, 'id')));
 }
 
 export function writeDatabaseReaderLevel(database: SQLiteDatabase.Database, readerLevel: number) {
@@ -129,4 +130,16 @@ function databaseTableExists(database: SQLiteDatabase.Database, name: string) {
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
     .get(name);
   return Boolean(row);
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return isRecord(input) ? input[field] : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(value: unknown) {
+  return typeof value === 'string' ? value : '';
 }

@@ -7,16 +7,16 @@
     "dev:worker": "wrangler dev",
     "deploy:cf": "wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "oxlint src",
+    "lint": "oxlint src --type-aware",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt --write \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
     "format:check": "oxfmt --check \"src/**/*.ts\" package.json tsconfig.json wrangler.jsonc",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260521.1",
+    "@cloudflare/workers-types": "^4.20260526.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "wrangler": "^4.93.0"
+    "vitest": "^4.1.7",
+    "wrangler": "^4.94.0"
   }
 }
