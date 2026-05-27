@@ -860,6 +860,7 @@ describe('AnnotationCard', () => {
         />,
       );
 
+      fireEvent.click(screen.getAllByRole('button', { name: '打开想法操作' })[0]!);
       fireEvent.pointerDown(screen.getByRole('button', { name: '长按删除想法' }), {
         pointerId: 1,
       });
