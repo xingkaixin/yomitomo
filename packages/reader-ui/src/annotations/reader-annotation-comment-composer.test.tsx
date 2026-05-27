@@ -64,13 +64,13 @@ function renderComposer(onSubmit = vi.fn(), agents = testAgents()) {
 
 describe('AnnotationCommentComposer', () => {
   it('filters mention candidates and inserts the matched agent with Tab', () => {
-    const { textarea } = renderComposer();
+    const { container, textarea } = renderComposer();
 
     fireEvent.change(textarea, {
       target: { value: '问 @lin', selectionStart: 6, selectionEnd: 6 },
     });
 
-    expect(screen.getByRole('button', { name: /林知微/ })).toBeTruthy();
+    expect(container.querySelector('.reader-agent-menu')?.textContent).toContain('林知微');
 
     fireEvent.keyDown(textarea, { key: 'Tab' });
 

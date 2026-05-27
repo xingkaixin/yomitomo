@@ -5,7 +5,6 @@ import {
   CircleUserRound,
   MessageSquare,
   MessageSquarePlus,
-  MoreHorizontal,
   Sparkles,
   X,
 } from 'lucide-react';
@@ -19,6 +18,7 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
 import {
+  AgentAvatarStack,
   AvatarBadge,
   ReaderTooltip,
   SubmitShortcutTooltipContent,
@@ -85,31 +85,26 @@ export function AgentAnnotateMenu({
   const [planError, setPlanError] = useState('');
   const [addingPlanAgents, setAddingPlanAgents] = useState(false);
   const [addingSectionId, setAddingSectionId] = useState<string | null>(null);
-  const [focusMentionMenuSectionId, setFocusMentionMenuSectionId] = useState<string | null>(null);
   const focusMessageTextareaRefs = useRef(new Map<string, HTMLTextAreaElement>());
 
   useEffect(() => {
-    if (!addingPlanAgents && !addingSectionId && !focusMentionMenuSectionId) return undefined;
+    if (!addingPlanAgents && !addingSectionId) return undefined;
 
     function closeAddMenusOnPointerDown(event: PointerEvent) {
       const clickedAddMenu = event.composedPath().some((target) => {
         if (!(target instanceof HTMLElement)) return false;
-        return (
-          target.classList.contains('reader-focus-add-wrap') ||
-          target.classList.contains('reader-focus-message-agent-more')
-        );
+        return target.classList.contains('reader-focus-add-wrap');
       });
       if (clickedAddMenu) return;
       setAddingPlanAgents(false);
       setAddingSectionId(null);
-      setFocusMentionMenuSectionId(null);
     }
 
     window.addEventListener('pointerdown', closeAddMenusOnPointerDown, true);
     return () => {
       window.removeEventListener('pointerdown', closeAddMenusOnPointerDown, true);
     };
-  }, [addingPlanAgents, addingSectionId, focusMentionMenuSectionId]);
+  }, [addingPlanAgents, addingSectionId]);
 
   useEffect(() => {
     const saved = focusCoReadingPlan?.selectedAgentIds.filter((id) =>
@@ -168,20 +163,12 @@ export function AgentAnnotateMenu({
 
   function togglePlanAddMenu() {
     setAddingSectionId(null);
-    setFocusMentionMenuSectionId(null);
     setAddingPlanAgents((open) => !open);
   }
 
   function toggleSectionAddMenu(sectionId: string) {
     setAddingPlanAgents(false);
-    setFocusMentionMenuSectionId(null);
     setAddingSectionId((openId) => (openId === sectionId ? null : sectionId));
-  }
-
-  function toggleFocusMentionMenu(sectionId: string) {
-    setAddingPlanAgents(false);
-    setAddingSectionId(null);
-    setFocusMentionMenuSectionId((openId) => (openId === sectionId ? null : sectionId));
   }
 
   function closePlanAddMenuOnBlur(event: React.FocusEvent<HTMLDivElement>) {
@@ -196,13 +183,6 @@ export function AgentAnnotateMenu({
       return;
     }
     setAddingSectionId((openId) => (openId === sectionId ? null : openId));
-  }
-
-  function closeFocusMentionMenuOnBlur(event: React.FocusEvent<HTMLDivElement>, sectionId: string) {
-    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
-      return;
-    }
-    setFocusMentionMenuSectionId((openId) => (openId === sectionId ? null : openId));
   }
 
   function removePlanAgent(agentId: string) {
@@ -538,8 +518,6 @@ export function AgentAnnotateMenu({
               (agent) => !plan.agentIds.includes(agent.id),
             );
             const mentionAgents = matchedFocusMentionAgents(section.id, sectionAgents);
-            const visibleMentionAgents = sectionAgents.slice(0, 2);
-            const overflowMentionAgents = sectionAgents.slice(2);
             const expanded = expandedSectionIds.includes(section.id);
             return (
               <article
@@ -567,18 +545,12 @@ export function AgentAnnotateMenu({
                       </small>
                     ) : null}
                     {sectionAgents.length > 0 ? (
-                      <span className="reader-focus-avatar-stack" aria-label="已分配助手">
-                        {sectionAgents.map((agent) => (
-                          <ReaderTooltip content={agent.nickname} key={agent.id}>
-                            <span className="reader-focus-avatar-stack-item">
-                              <AvatarBadge
-                                avatar={agent.avatar}
-                                fallback={agent.nickname.slice(0, 1)}
-                              />
-                            </span>
-                          </ReaderTooltip>
-                        ))}
-                      </span>
+                      <AgentAvatarStack
+                        agents={sectionAgents}
+                        ariaLabel="已分配助手"
+                        className="reader-focus-avatar-stack"
+                        itemClassName="reader-focus-avatar-stack-item"
+                      />
                     ) : (
                       <small>未分配</small>
                     )}
@@ -729,55 +701,14 @@ export function AgentAnnotateMenu({
                       <div className="reader-focus-message-footer">
                         <div className="reader-focus-message-agents">
                           <small>@ 助手</small>
-                          {visibleMentionAgents.map((agent) => (
-                            <button
-                              aria-label={`@${agent.nickname}`}
-                              className="reader-focus-message-agent"
-                              key={agent.id}
-                              type="button"
-                              onClick={() => insertFocusMessageMention(section.id, agent)}
-                            >
-                              <AvatarBadge
-                                avatar={agent.avatar}
-                                fallback={agent.nickname.slice(0, 1)}
-                              />
-                            </button>
-                          ))}
-                          {overflowMentionAgents.length > 0 ? (
-                            <div
-                              className="reader-focus-message-agent-more"
-                              onBlur={(event) => closeFocusMentionMenuOnBlur(event, section.id)}
-                            >
-                              <button
-                                aria-label={`更多可 @ 助手，${overflowMentionAgents.length} 个`}
-                                aria-expanded={focusMentionMenuSectionId === section.id}
-                                type="button"
-                                onClick={() => toggleFocusMentionMenu(section.id)}
-                              >
-                                <MoreHorizontal size={15} />
-                              </button>
-                              {focusMentionMenuSectionId === section.id ? (
-                                <div className="reader-focus-message-agent-menu">
-                                  {overflowMentionAgents.map((agent) => (
-                                    <button
-                                      key={agent.id}
-                                      type="button"
-                                      onMouseDown={(event) => event.preventDefault()}
-                                      onClick={() => {
-                                        insertFocusMessageMention(section.id, agent);
-                                        setFocusMentionMenuSectionId(null);
-                                      }}
-                                    >
-                                      <AvatarBadge
-                                        avatar={agent.avatar}
-                                        fallback={agent.nickname.slice(0, 1)}
-                                      />
-                                      <strong>{agent.nickname}</strong>
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : null}
-                            </div>
+                          {sectionAgents.length > 0 ? (
+                            <AgentAvatarStack
+                              agents={sectionAgents}
+                              ariaLabel="可 @ 助手"
+                              className="reader-focus-message-agent-stack"
+                              itemClassName="reader-focus-message-agent"
+                              onAgentClick={(agent) => insertFocusMessageMention(section.id, agent)}
+                            />
                           ) : null}
                         </div>
                         <ReaderTooltip

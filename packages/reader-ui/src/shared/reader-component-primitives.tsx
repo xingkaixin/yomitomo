@@ -11,8 +11,20 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from 'lucide-react';
-import type React from 'react';
-import type { AgentReadingIntent, AnnotationType, MessageSendShortcut } from '@yomitomo/shared';
+import {
+  useState,
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type MouseEvent,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import type {
+  AgentReadingIntent,
+  AnnotationType,
+  MessageSendShortcut,
+  PublicAgent,
+} from '@yomitomo/shared';
 import { agentReadingIntentLabel, agentReadingIntentOptions } from '@yomitomo/shared';
 import { annotationTypeLabel } from '@yomitomo/core';
 import { Kbd } from '../components/ui/kbd';
@@ -111,6 +123,87 @@ export function AvatarBadge({ avatar, fallback = 'AI' }: { avatar?: string; fall
   return <span className={classes}>{image ? <img alt="" src={value} /> : value}</span>;
 }
 
+type AgentAvatarStackProps = {
+  agents: PublicAgent[];
+  activeAgentIds?: Set<string> | string[];
+  ariaLabel?: string;
+  className?: string;
+  itemClassName?: string;
+  onAgentClick?: (agent: PublicAgent) => void;
+};
+type AgentAvatarStackStyle = CSSProperties & { '--reader-avatar-color': string };
+
+export function AgentAvatarStack({
+  agents,
+  activeAgentIds,
+  ariaLabel,
+  className,
+  itemClassName,
+  onAgentClick,
+}: AgentAvatarStackProps) {
+  const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
+  if (agents.length === 0) return null;
+
+  const activeIds = activeAgentIds instanceof Set ? activeAgentIds : new Set(activeAgentIds || []);
+
+  function revealAgent(event: MouseEvent<HTMLElement>, agentId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    setRevealedAgentId((current) => (current === agentId ? null : agentId));
+  }
+
+  return (
+    <span
+      className={['reader-agent-avatar-stack', className || ''].filter(Boolean).join(' ')}
+      aria-label={ariaLabel || agents.map((agent) => agent.nickname).join('、')}
+    >
+      {agents.map((agent) => {
+        const active = activeIds.has(agent.id);
+        const classes = [
+          'reader-agent-avatar-stack-item',
+          active ? 'is-active' : '',
+          revealedAgentId === agent.id ? 'is-revealed' : '',
+          itemClassName || '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const content = (
+          <>
+            <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+            {revealedAgentId === agent.id ? (
+              <b className="reader-agent-avatar-stack-label">{agent.nickname}</b>
+            ) : null}
+          </>
+        );
+        const style: AgentAvatarStackStyle = { '--reader-avatar-color': agent.annotationColor };
+        const triggerProps = {
+          className: classes,
+          style,
+          onDoubleClick: (event: MouseEvent<HTMLElement>) => revealAgent(event, agent.id),
+        };
+        const trigger = onAgentClick ? (
+          <button
+            {...triggerProps}
+            type="button"
+            aria-label={`@${agent.nickname}`}
+            onClick={() => onAgentClick(agent)}
+          >
+            {content}
+          </button>
+        ) : (
+          <span {...triggerProps}>{content}</span>
+        );
+
+        return (
+          <ReaderTooltip content={agent.nickname} key={agent.id}>
+            {trigger}
+          </ReaderTooltip>
+        );
+      })}
+    </span>
+  );
+}
+
 export function SubmitShortcutKeys({
   shortcut,
   shortcutModifier,
@@ -175,10 +268,10 @@ export function ReaderTooltip({
   disabled = false,
   side = 'top',
 }: {
-  children: React.ReactElement;
-  content: React.ReactNode;
+  children: ReactElement;
+  content: ReactNode;
   disabled?: boolean;
-  side?: React.ComponentPropsWithoutRef<typeof TooltipContent>['side'];
+  side?: ComponentPropsWithoutRef<typeof TooltipContent>['side'];
 }) {
   if (disabled) return children;
   return (

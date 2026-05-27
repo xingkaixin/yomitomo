@@ -3,6 +3,7 @@ import { AtSign } from 'lucide-react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
 import {
+  AgentAvatarStack,
   AvatarBadge,
   ReaderTooltip,
   ShortcutTooltipContent,
@@ -34,7 +35,6 @@ export function Composer({
   const [note, setNote] = useState('');
   const [caretIndex, setCaretIndex] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-  const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionQuery = getMentionQuery(note, caretIndex);
   const matchedAgents =
@@ -159,7 +159,6 @@ export function Composer({
               >
                 <AvatarBadge avatar={agent.avatar} />
                 <strong>{agent.nickname}</strong>
-                <em>@{agent.username}</em>
               </button>
             ))}
           </div>
@@ -170,31 +169,14 @@ export function Composer({
           <span aria-hidden="true">
             <AtSign size={16} />
           </span>
-          {canMentionAgents
-            ? agents.slice(0, 6).map((agent) => (
-                <button
-                  className={
-                    mentionedAgents.some((item) => item.id === agent.id) ? 'is-active' : ''
-                  }
-                  key={agent.id}
-                  type="button"
-                  aria-label={`插入 @${agent.username}`}
-                  title={`${agent.nickname} @${agent.username}`}
-                  onClick={() => insertAgent(agent)}
-                  onDoubleClick={() =>
-                    setRevealedAgentId((current) => (current === agent.id ? null : agent.id))
-                  }
-                >
-                  <AvatarBadge avatar={agent.avatar} />
-                  {revealedAgentId === agent.id ? (
-                    <b>
-                      {agent.nickname}
-                      <em>@{agent.username}</em>
-                    </b>
-                  ) : null}
-                </button>
-              ))
-            : null}
+          {canMentionAgents ? (
+            <AgentAvatarStack
+              agents={agents}
+              activeAgentIds={mentionedAgents.map((agent) => agent.id)}
+              ariaLabel="可 @ 助手"
+              onAgentClick={insertAgent}
+            />
+          ) : null}
         </div>
         <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="取消" />}>
           <button className="reader-composer-cancel" type="button" onClick={onCancel}>

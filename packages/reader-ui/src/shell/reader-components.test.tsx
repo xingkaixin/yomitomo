@@ -277,7 +277,7 @@ describe('AgentAnnotateMenu add agent menus', () => {
     expect(container.querySelector('.reader-focus-avatar-stack')?.textContent).not.toContain('+');
   });
 
-  it('keeps focus message mention shortcuts compact behind a more menu', () => {
+  it('shows every focus message mention shortcut as stacked avatars', () => {
     const focusAgents = [
       agent('agent_1', '林知微'),
       agent('agent_2', '周砚'),
@@ -307,16 +307,8 @@ describe('AgentAnnotateMenu add agent menus', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /引文/ }));
 
-    expect(container.querySelectorAll('.reader-focus-message-agent')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: '更多可 @ 助手，2 个' }));
-
-    expect(container.querySelectorAll('.reader-focus-message-agent-menu button')).toHaveLength(2);
-    expect(container.querySelector('.reader-focus-message-agent-menu')?.textContent).toContain(
-      '许问渠',
-    );
-    expect(container.querySelector('.reader-focus-message-agent-menu')?.textContent).toContain(
-      '陈砚书',
-    );
+    expect(container.querySelectorAll('.reader-focus-message-agent')).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: /更多可 @ 助手/ })).toBeNull();
   });
 });
 

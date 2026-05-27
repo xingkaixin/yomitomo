@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MoreHorizontal } from 'lucide-react';
 import { getMentionQuery } from '@yomitomo/core';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
 import {
+  AgentAvatarStack,
   AvatarBadge,
   ReaderTooltip,
   SubmitShortcutTooltipContent,
@@ -31,13 +31,10 @@ export function AnnotationCommentComposer({
 }) {
   const [draft, setDraft] = useState('');
   const [caretIndex, setCaretIndex] = useState(0);
-  const [agentTrayOpen, setAgentTrayOpen] = useState(false);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const mentionQuery = getMentionQuery(draft, caretIndex);
-  const visibleMentionAgents = suggestedAgents.slice(0, 2);
-  const overflowMentionAgents = suggestedAgents.slice(2);
   const matchedAgents =
     mentionQuery === null
       ? []
@@ -58,7 +55,6 @@ export function AnnotationCommentComposer({
 
   useEffect(() => {
     if (focusRequestKey === undefined) return;
-    setAgentTrayOpen(false);
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, [focusRequestKey]);
 
@@ -72,7 +68,6 @@ export function AnnotationCommentComposer({
     const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
     setDraft(next.content);
     setCaretIndex(next.caretIndex);
-    setAgentTrayOpen(false);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
       textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
@@ -114,12 +109,6 @@ export function AnnotationCommentComposer({
     updateCaret(event.currentTarget);
   }
 
-  function closeAgentTrayOnBlur(event: React.FocusEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-    setAgentTrayOpen(false);
-  }
-
   return (
     <>
       <div className="reader-comment-box">
@@ -152,7 +141,6 @@ export function AnnotationCommentComposer({
               >
                 <AvatarBadge avatar={agent.avatar} />
                 <strong>{agent.nickname}</strong>
-                <em>@{agent.username}</em>
               </button>
             ))}
           </div>
@@ -163,47 +151,12 @@ export function AnnotationCommentComposer({
           <span className="reader-comment-mention-label" aria-hidden="true">
             @
           </span>
-          {visibleMentionAgents.map((agent) => (
-            <button
-              className="reader-comment-agent-avatar"
-              key={agent.id}
-              type="button"
-              aria-label={`插入 @${agent.username}`}
-              title={`${agent.nickname} @${agent.username}`}
-              onClick={() => selectAgent(agent)}
-            >
-              <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-            </button>
-          ))}
-          {overflowMentionAgents.length > 0 ? (
-            <div className="reader-comment-agent-more" onBlur={closeAgentTrayOnBlur}>
-              <button
-                className="reader-comment-agent-more-button"
-                type="button"
-                aria-expanded={agentTrayOpen}
-                aria-label={`更多助手，${overflowMentionAgents.length} 个`}
-                title={`更多助手，${overflowMentionAgents.length} 个`}
-                onClick={() => setAgentTrayOpen((open) => !open)}
-              >
-                <MoreHorizontal size={16} />
-              </button>
-              {agentTrayOpen ? (
-                <div className="reader-comment-agent-more-menu">
-                  {overflowMentionAgents.map((agent) => (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => selectAgent(agent)}
-                    >
-                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                      <strong>{agent.nickname}</strong>
-                      <em>@{agent.username}</em>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+          {suggestedAgents.length > 0 ? (
+            <AgentAvatarStack
+              agents={suggestedAgents}
+              ariaLabel="可 @ 助手"
+              onAgentClick={selectAgent}
+            />
           ) : null}
         </div>
         <ReaderTooltip
