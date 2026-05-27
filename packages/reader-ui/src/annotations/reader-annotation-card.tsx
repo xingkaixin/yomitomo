@@ -5,6 +5,7 @@ import {
   Lightbulb,
   MessageCircle,
   MessageSquarePlus,
+  MoreHorizontal,
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
@@ -14,7 +15,7 @@ import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo
 import { ReadingCompletionBurst } from '../agent/reader-agent-reading-dock';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { AnnotationCommentComposer } from './reader-annotation-comment-composer';
-import { formatTime } from '../reader-date-utils';
+import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
 
@@ -329,15 +330,14 @@ export function AnnotationCard({
           </span>
           <span className="reader-note-meta-copy">
             <strong>{author.nickname}</strong>
+            <ReaderRelativeTime value={annotation.createdAt} />
           </span>
-          <span className="reader-note-time-actions">
-            <time dateTime={annotation.createdAt}>{formatTime(annotation.createdAt)}</time>
-            <HoldDeleteButton
-              ariaLabel="长按删除批注"
-              className="reader-delete-note reader-delete-annotation"
-              onDelete={() => onDelete(annotation.id)}
-            />
-          </span>
+          <DeleteActionMenu
+            ariaLabel="打开批注操作"
+            className="reader-note-action-menu"
+            deleteAriaLabel="长按删除批注"
+            onDelete={() => onDelete(annotation.id)}
+          />
         </div>
         <footer
           className={['reader-note-toolbar', canRequestReview ? 'has-review-action' : '']
@@ -463,6 +463,7 @@ export function AnnotationCard({
                     onCloseReply={() => setReplyToCommentId(null)}
                     onCommentExpandedChange={setCommentExpanded}
                     onDelete={() => deleteComment(thread.root.id)}
+                    onDeleteReply={deleteComment}
                     onOpenReply={() => openReplyComposer(thread.root.id)}
                     onThreadExpandedChange={(nextExpanded) =>
                       setThreadExpanded(thread.root.id, nextExpanded)
@@ -635,6 +636,65 @@ function avatarColorStyle(color: string): React.CSSProperties {
   return style;
 }
 
+function ReaderRelativeTime({ className, value }: { className?: string; value: string }) {
+  return (
+    <time className={className} dateTime={value} title={formatTime(value)}>
+      {formatRelativeTime(value)}
+    </time>
+  );
+}
+
+function DeleteActionMenu({
+  ariaLabel,
+  className,
+  deleteAriaLabel,
+  onDelete,
+}: {
+  ariaLabel: string;
+  className: string;
+  deleteAriaLabel: string;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function closeOnBlur(event: React.FocusEvent<HTMLDivElement>) {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+    setOpen(false);
+  }
+
+  function deleteAndClose() {
+    setOpen(false);
+    onDelete();
+  }
+
+  return (
+    <div
+      className={[className, 'reader-action-menu', open ? 'is-open' : ''].filter(Boolean).join(' ')}
+      onBlur={closeOnBlur}
+    >
+      <button
+        className="reader-action-menu-button"
+        type="button"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open ? (
+        <div className="reader-action-menu-panel t-dropdown is-open" data-origin="top-right">
+          <HoldDeleteButton
+            ariaLabel={deleteAriaLabel}
+            className="reader-delete-note reader-action-delete"
+            onDelete={deleteAndClose}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function HoldDeleteButton({
   ariaLabel,
   className,
@@ -706,6 +766,7 @@ function DiscussionThreadView({
   onCloseReply,
   onCommentExpandedChange,
   onDelete,
+  onDeleteReply,
   onOpenReply,
   onThreadExpandedChange,
 }: {
@@ -724,6 +785,7 @@ function DiscussionThreadView({
   onCloseReply: () => void;
   onCommentExpandedChange: (commentId: string, expanded: boolean) => void;
   onDelete: () => void;
+  onDeleteReply: (commentId: string) => void;
   onOpenReply: () => void;
   onThreadExpandedChange: (expanded: boolean) => void;
 }) {
@@ -753,9 +815,7 @@ function DiscussionThreadView({
           <div className="reader-thought-summary-copy">
             <div className="reader-thought-summary-meta">
               <strong>{author.nickname}</strong>
-              <time className="reader-thought-time" dateTime={thread.root.createdAt}>
-                {formatTime(thread.root.createdAt)}
-              </time>
+              <ReaderRelativeTime className="reader-thought-time" value={thread.root.createdAt} />
             </div>
             <CollapsibleMarkdownContent
               content={thread.root.content}
@@ -767,10 +827,10 @@ function DiscussionThreadView({
             />
           </div>
         </div>
-        <HoldDeleteButton
-          ariaLabel="长按删除想法"
-          className="reader-delete-note reader-delete-thought"
-          iconSize={12}
+        <DeleteActionMenu
+          ariaLabel="打开想法操作"
+          className="reader-thought-action-menu"
+          deleteAriaLabel="长按删除想法"
           onDelete={onDelete}
         />
       </div>
@@ -840,6 +900,7 @@ function DiscussionThreadView({
                   onExpandedChange={(nextExpanded) =>
                     onCommentExpandedChange(comment.id, nextExpanded)
                   }
+                  onDelete={() => onDeleteReply(comment.id)}
                 />
               ))}
             </div>
@@ -974,6 +1035,7 @@ function ThreadComment({
   nested,
   userProfile,
   onExpandedChange,
+  onDelete,
 }: {
   agents: PublicAgent[];
   comment: Annotation['comments'][number];
@@ -981,6 +1043,7 @@ function ThreadComment({
   nested: boolean;
   userProfile: UserProfile;
   onExpandedChange: (expanded: boolean) => void;
+  onDelete?: () => void;
 }) {
   const author = commentPersona(comment, userProfile, agents);
   const reviewLabelTone = comment.reviewLabel ? reviewOpinionLabelTone(comment.reviewLabel) : null;
@@ -993,8 +1056,16 @@ function ThreadComment({
           <strong>
             {author.nickname}
             {comment.reviewLabel ? <ShieldCheck size={12} aria-label="审阅观点" /> : null}
+            <ReaderRelativeTime value={comment.createdAt} />
           </strong>
-          <time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
+          {onDelete ? (
+            <DeleteActionMenu
+              ariaLabel="打开回复操作"
+              className="reader-comment-action-menu"
+              deleteAriaLabel="长按删除回复"
+              onDelete={onDelete}
+            />
+          ) : null}
         </div>
         {comment.reviewLabel && reviewLabelTone ? (
           <span className={`reader-review-label is-${reviewLabelTone}`}>{comment.reviewLabel}</span>

@@ -14177,9 +14177,9 @@ button.license-package-row:hover {
 
 .source-reader-shell .reader-discussion-thread.is-open,
 .source-ebook-reader-shell .reader-discussion-thread.is-open {
-  border-color: hsl(var(--foreground) / 0.42);
+  border-color: hsl(var(--border) / 0.72);
   background: hsl(var(--card));
-  box-shadow: inset 2px 0 0 hsl(var(--foreground));
+  box-shadow: none;
 }
 
 .source-reader-shell .reader-note-comments-panel > header,
@@ -14379,9 +14379,9 @@ button.license-package-row:hover {
 }
 
 .source-pdf-reader-shell .reader-discussion-thread.is-open {
-  border-color: hsl(var(--foreground) / 0.42);
+  border-color: hsl(var(--border) / 0.78);
   background: hsl(var(--card));
-  box-shadow: inset 2px 0 0 hsl(var(--foreground));
+  box-shadow: none;
 }
 
 .source-reader-shell .reader-thought-preview,
@@ -14417,15 +14417,15 @@ button.license-package-row:hover {
 .source-reader-shell .reader-thought-reply-count,
 .source-reader-shell .reader-note-type,
 .source-reader-shell .reader-note-intent,
-.source-reader-shell .reader-comment-author span,
+.source-reader-shell .reader-comment-author > span,
 .source-ebook-reader-shell .reader-thought-reply-count,
 .source-ebook-reader-shell .reader-note-type,
 .source-ebook-reader-shell .reader-note-intent,
-.source-ebook-reader-shell .reader-comment-author span,
+.source-ebook-reader-shell .reader-comment-author > span,
 .source-pdf-reader-shell .reader-thought-reply-count,
 .source-pdf-reader-shell .reader-note-type,
 .source-pdf-reader-shell .reader-note-intent,
-.source-pdf-reader-shell .reader-comment-author span {
+.source-pdf-reader-shell .reader-comment-author > span {
   border-color: hsl(var(--border) / 0.72);
   border-radius: 0;
   background: hsl(0 0% 0% / 0.055);
@@ -14463,12 +14463,13 @@ button.license-package-row:hover {
 .source-reader-shell .reader-thread-replies,
 .source-ebook-reader-shell .reader-thread-replies,
 .source-pdf-reader-shell .reader-thread-replies {
-  border-left-color: hsl(var(--border));
+  border-left: 0;
 }
 
 .source-reader-shell .reader-thread-replies .reader-comment::before,
 .source-ebook-reader-shell .reader-thread-replies .reader-comment::before,
 .source-pdf-reader-shell .reader-thread-replies .reader-comment::before {
+  display: none;
   border-color: hsl(var(--border));
   background: hsl(var(--card));
 }
@@ -14746,8 +14747,32 @@ button.license-package-row:hover {
 }
 
 .source-reader-shell .reader-delete-note,
-.source-ebook-reader-shell .reader-delete-note {
+.source-ebook-reader-shell .reader-delete-note,
+.source-pdf-reader-shell .reader-delete-note {
   color: hsl(3 62% 39%);
+}
+
+.source-reader-shell .reader-action-delete,
+.source-ebook-reader-shell .reader-action-delete,
+.source-pdf-reader-shell .reader-action-delete {
+  background: transparent;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-delete-note > span,
+.source-ebook-reader-shell .reader-delete-note > span,
+.source-pdf-reader-shell .reader-delete-note > span {
+  display: inline;
+  width: auto;
+  height: auto;
+  place-items: normal;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  padding: 0;
 }
 
 .source-reader-shell .reader-article,
