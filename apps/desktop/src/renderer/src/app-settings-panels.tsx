@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Check,
   ChevronRight,
+  DollarSign,
   Database,
   Download,
   Eye,
@@ -18,6 +19,7 @@ import {
   Save,
   Settings,
   Smartphone,
+  Route,
   Trash2,
   Upload,
   X,
@@ -53,6 +55,7 @@ export { AgentForm, AgentSettings } from './app-settings-agent-panel';
 export { ProviderForm } from './app-settings-provider-form';
 export { ProviderSettings } from './app-settings-provider-panel';
 export { UserProfileSettingsDialog } from './app-settings-profile-dialog';
+export { AiTraceSettingsPanel, AgentCostSettingsPanel } from './app-assistant-diagnostics';
 
 export type SettingsSectionKey =
   | 'collection'
@@ -60,6 +63,8 @@ export type SettingsSectionKey =
   | 'weread'
   | 'shortcuts'
   | 'data'
+  | 'aiTrace'
+  | 'agentCosts'
   | 'about';
 
 function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: string) {
@@ -141,12 +146,33 @@ const settingsSections: Array<{
 export function SettingsSectionShell({
   activeSection,
   children,
+  developerModeEnabled = false,
   onSectionChange,
 }: {
   activeSection: SettingsSectionKey;
   children: React.ReactNode;
+  developerModeEnabled?: boolean;
   onSectionChange: (section: SettingsSectionKey) => void;
 }) {
+  const visibleSettingsSections = developerModeEnabled
+    ? [
+        ...settingsSections.slice(0, -1),
+        {
+          key: 'aiTrace' as const,
+          title: '助手调用链路',
+          description: '查看助手执行链路、状态和脱敏 trace。',
+          icon: <Route size={17} />,
+        },
+        {
+          key: 'agentCosts' as const,
+          title: '用量与成本',
+          description: '按分组维度聚合 token 与估算成本。',
+          icon: <DollarSign size={17} />,
+        },
+        settingsSections[settingsSections.length - 1],
+      ]
+    : settingsSections;
+
   return (
     <div className="settings-hub-layout">
       <aside className="settings-section-sidebar">
@@ -160,7 +186,7 @@ export function SettingsSectionShell({
           </div>
         </header>
         <nav className="settings-section-nav" aria-label="设置分类">
-          {settingsSections.map((section) => {
+          {visibleSettingsSections.map((section) => {
             const active = activeSection === section.key;
             return (
               <button

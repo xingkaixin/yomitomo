@@ -73,6 +73,14 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('agent-trace:path', () => getAgentRuntimeTracePath());
   handleDesktopIpc('agent-trace:list', (_event, input) => readAgentRuntimeTraces(input));
   handleDesktopIpc('agent-trace:clear', () => clearAgentRuntimeTraces());
+  handleDesktopIpc('assistant-executions:list', async (_event, input) => {
+    const { queryAssistantExecutionRuns } = await context.getStoreModule();
+    return queryAssistantExecutionRuns(input);
+  });
+  handleDesktopIpc('assistant-executions:summary', async (_event, input) => {
+    const { queryAssistantExecutionSummary } = await context.getStoreModule();
+    return queryAssistantExecutionSummary(input);
+  });
   handleDesktopIpc('updates:get-status', async () => {
     const { getAppUpdateState } = await context.getAppUpdaterModule();
     return getAppUpdateState();

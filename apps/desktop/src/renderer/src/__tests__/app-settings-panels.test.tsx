@@ -11,6 +11,7 @@ import {
   ProviderForm,
   ProviderSettings,
   ShortcutSettings,
+  SettingsSectionShell,
   UserProfileSettingsDialog,
   WeReadSettingsPanel,
 } from '../app-settings-panels';
@@ -39,6 +40,28 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   window.localStorage.clear();
   vi.clearAllMocks();
+});
+
+describe('SettingsSectionShell', () => {
+  it('shows diagnostics sections only in developer mode', () => {
+    const { rerender } = render(
+      <SettingsSectionShell activeSection="about" onSectionChange={vi.fn()}>
+        <div>content</div>
+      </SettingsSectionShell>,
+    );
+
+    expect(screen.queryByText('助手调用链路')).toBeNull();
+    expect(screen.queryByText('用量与成本')).toBeNull();
+
+    rerender(
+      <SettingsSectionShell activeSection="about" developerModeEnabled onSectionChange={vi.fn()}>
+        <div>content</div>
+      </SettingsSectionShell>,
+    );
+
+    expect(screen.getByText('助手调用链路')).toBeTruthy();
+    expect(screen.getByText('用量与成本')).toBeTruthy();
+  });
 });
 
 function installDesktopDataApi() {

@@ -11009,6 +11009,435 @@
   animation: log-refresh-spin 720ms linear infinite;
 }
 
+.diagnostics-panel {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  max-width: 1100px;
+}
+
+.diagnostics-filter-panel {
+  border: 1px solid hsl(var(--border) / 0.56);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--background) / 0.68)),
+    hsl(var(--card));
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.62) inset,
+    0 10px 24px hsl(31 20% 18% / 0.06);
+  padding: 12px;
+}
+
+.diagnostics-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.diagnostics-filter-field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.diagnostics-filter-field > span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.diagnostics-date-field {
+  grid-column: span 2;
+}
+
+.diagnostics-select-trigger,
+.diagnostics-toolbar .diagnostics-date-trigger {
+  height: 44px;
+  border-color: hsl(var(--border) / 0.58);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.86);
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.72) inset,
+    0 5px 12px hsl(31 20% 18% / 0.04);
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.diagnostics-select-trigger:hover,
+.diagnostics-toolbar .diagnostics-date-trigger:hover {
+  border-color: hsl(var(--primary) / 0.32);
+  background: hsl(var(--background));
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.78) inset,
+    0 8px 18px hsl(31 20% 18% / 0.07);
+}
+
+.diagnostics-toolbar .diagnostics-date-trigger {
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+}
+
+.diagnostics-select-content {
+  border-color: hsl(var(--border) / 0.58);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, hsl(var(--popover)), hsl(var(--card) / 0.98)), hsl(var(--popover));
+  box-shadow:
+    0 1px 0 hsl(0 0% 100% / 0.72) inset,
+    0 14px 34px hsl(31 22% 18% / 0.14);
+}
+
+.diagnostics-select-item {
+  min-height: 36px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.diagnostics-select-item[data-highlighted] {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--foreground));
+}
+
+.diagnostics-select-trigger > .diagnostics-agent-identity,
+.diagnostics-select-trigger > .diagnostics-option-label,
+.diagnostics-select-trigger > .diagnostics-provider-identity {
+  display: flex;
+  overflow: hidden;
+  -webkit-box-orient: unset;
+  -webkit-line-clamp: unset;
+}
+
+.diagnostics-provider-select-content {
+  min-width: 240px;
+}
+
+.diagnostics-option-label,
+.diagnostics-provider-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.diagnostics-option-label,
+.diagnostics-provider-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostics-provider-identity {
+  gap: 9px;
+}
+
+.diagnostics-provider-logo {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: 999px;
+  background: hsl(var(--card));
+  box-shadow: 0 2px 6px hsl(31 22% 18% / 0.08);
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 900;
+  object-fit: cover;
+}
+
+.diagnostics-calendar-popover {
+  width: auto;
+  background: hsl(var(--popover));
+  opacity: 1;
+  padding: 0;
+}
+
+.ui-popover-content,
+.ui-select-content {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  opacity: 1;
+}
+
+.diagnostics-refresh {
+  height: 44px;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px hsl(var(--primary) / 0.14);
+}
+
+.diagnostics-refresh.is-loading svg {
+  animation: log-refresh-spin 720ms linear infinite;
+}
+
+.diagnostics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.diagnostics-summary-card {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  border: 1px solid hsl(var(--border) / 0.64);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.38);
+  padding: 12px;
+}
+
+.diagnostics-summary-card span {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.diagnostics-summary-card strong {
+  overflow: hidden;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 920;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostics-summary-card em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+}
+
+.diagnostics-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid hsl(var(--border) / 0.62);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.56);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
+.diagnostics-status.is-error {
+  border-color: hsl(var(--destructive) / 0.3);
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+}
+
+.diagnostics-run-list {
+  display: grid;
+  gap: 8px;
+}
+
+.diagnostics-run-card,
+.diagnostics-table-wrap {
+  overflow: hidden;
+  border: 1px solid hsl(var(--border) / 0.64);
+  border-radius: 8px;
+  background: hsl(var(--background) / 0.36);
+}
+
+.diagnostics-run-header {
+  display: grid;
+  grid-template-columns:
+    12px minmax(150px, 1.4fr) minmax(110px, 0.9fr) minmax(120px, 0.9fr) minmax(170px, 1.25fr)
+    minmax(120px, 1fr) minmax(80px, 0.7fr) minmax(96px, 0.8fr) 20px;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+}
+
+.diagnostics-run-header > span {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostics-agent-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.diagnostics-agent-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.diagnostics-agent-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.diagnostics-agent-copy strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostics-agent-copy em,
+.diagnostics-muted {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+}
+
+.diagnostics-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground));
+}
+
+.diagnostics-status-dot.is-success {
+  background: hsl(152 55% 42%);
+}
+
+.diagnostics-status-dot.is-fallback {
+  background: hsl(36 87% 52%);
+}
+
+.diagnostics-status-dot.is-error {
+  background: hsl(var(--destructive));
+}
+
+.diagnostics-run-details {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid hsl(var(--border) / 0.56);
+  padding: 12px;
+}
+
+.diagnostics-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diagnostics-usage-grid span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid hsl(var(--border) / 0.52);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.48);
+  padding: 9px;
+}
+
+.diagnostics-usage-grid em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+}
+
+.diagnostics-usage-grid strong {
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.diagnostics-step-list {
+  display: grid;
+  gap: 6px;
+}
+
+.diagnostics-step-row {
+  display: grid;
+  grid-template-columns: 48px minmax(100px, 1fr) minmax(120px, 1fr) 80px 90px minmax(140px, 1.3fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid hsl(var(--border) / 0.46);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.42);
+  padding: 8px 10px;
+}
+
+.diagnostics-step-row span,
+.diagnostics-step-row em,
+.diagnostics-step-row strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diagnostics-step-row em {
+  color: hsl(var(--muted-foreground));
+  font-style: normal;
+}
+
+.diagnostics-table-wrap {
+  overflow-x: auto;
+}
+
+.diagnostics-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.diagnostics-table th,
+.diagnostics-table td {
+  border-bottom: 1px solid hsl(var(--border) / 0.46);
+  padding: 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.diagnostics-table th {
+  color: hsl(var(--muted-foreground));
+  font-weight: 900;
+}
+
+.diagnostics-table tr:last-child td {
+  border-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .diagnostics-date-field {
+    grid-column: span 1;
+  }
+}
+
+.calendar-root {
+  --rdp-accent-color: hsl(var(--primary));
+  --rdp-accent-background-color: hsl(var(--primary) / 0.12);
+  background: hsl(var(--popover));
+  color: hsl(var(--foreground));
+}
+
+.calendar-root .rdp-range_start .rdp-day_button,
+.calendar-root .rdp-range_end .rdp-day_button {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.calendar-root .rdp-range_middle .rdp-day_button {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
 .about-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11110,7 +11539,14 @@
 }
 
 .about-developer-toggle {
+  min-height: 48px;
   border-radius: 8px;
+}
+
+.about-developer-card .settings-toggle-main span {
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 900;
 }
 
 .agent-trace-panel {
