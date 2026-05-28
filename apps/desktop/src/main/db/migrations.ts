@@ -660,4 +660,10 @@ CREATE INDEX IF NOT EXISTS model_price_records_updated_at_idx
 ON model_price_records(updated_at);
 `,
   },
+  {
+    id: '0040_theme_setting',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN theme_id TEXT;
+`,
+  },
 ];

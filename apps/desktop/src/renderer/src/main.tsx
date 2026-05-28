@@ -12,14 +12,17 @@ import { SettingsNavButton } from './app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
 import {
   applyAppTheme,
-  defaultTheme,
-  defaultThemeId,
+  readCachedThemeId,
+  resolveAppThemeId,
   themeRegistry,
+  writeCachedThemeId,
   type AppThemeId,
 } from './app-theme';
+import { ThemeSelector } from './app-theme-selector';
 import './styles.css';
 
-applyAppTheme(defaultTheme);
+const startupThemeId = readCachedThemeId();
+applyAppTheme(themeRegistry[startupThemeId]);
 
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
@@ -235,17 +238,14 @@ function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
 }
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
-const themeOptions = Object.entries(themeRegistry).map(([id, theme]) => ({
-  id: id as AppThemeId,
-  name: theme.meta.name,
-}));
 
 function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
-  const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(defaultThemeId);
+  const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
   const [, setPreloadVersion] = useState(0);
+  const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
@@ -275,6 +275,16 @@ function App() {
     refreshStore,
     applyStore,
   } = useDesktopStoreState();
+
+  useEffect(() => {
+    if (!storeLoaded || storeLoadError) return;
+    const storedThemeId = resolveAppThemeId(store.settings.themeId);
+    setActiveThemeId((currentThemeId) =>
+      currentThemeId === storedThemeId ? currentThemeId : storedThemeId,
+    );
+    writeCachedThemeId(storedThemeId);
+  }, [store.settings.themeId, storeLoadError, storeLoaded]);
+
   const {
     deleteArticle,
     deleteArticleAnnotation,
@@ -363,6 +373,17 @@ function App() {
     applyStore(nextStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
+  }
+
+  async function selectTheme(themeId: AppThemeId) {
+    setActiveThemeId(themeId);
+    writeCachedThemeId(themeId);
+    try {
+      const nextStore = await window.yomitomoDesktop.saveSettings({ themeId });
+      applyStore(nextStore);
+    } catch {
+      // Keep the immediate visual choice; a later settings sync can reconcile persistence.
+    }
   }
 
   function startOnboarding() {
@@ -494,7 +515,6 @@ function App() {
 
   return (
     <main className={appShellClassName}>
-      <ThemeValidationSwitcher activeThemeId={activeThemeId} onChange={setActiveThemeId} />
       <header className="app-masthead">
         <div className="app-masthead-title">
           <h1>
@@ -518,6 +538,12 @@ function App() {
           active={activeSetting === 'settings'}
           label="设置"
           onClick={openSettings}
+        />
+        <ThemeSelector
+          activeThemeId={activeThemeId}
+          open={themeDialogOpen}
+          onOpenChange={setThemeDialogOpen}
+          onSelectTheme={(themeId) => void selectTheme(themeId)}
         />
         <button
           aria-label="打开个人设置"
@@ -667,30 +693,6 @@ function App() {
         </Suspense>
       ) : null}
     </main>
-  );
-}
-
-function ThemeValidationSwitcher({
-  activeThemeId,
-  onChange,
-}: {
-  activeThemeId: AppThemeId;
-  onChange: (themeId: AppThemeId) => void;
-}) {
-  return (
-    <div className="theme-validation-switcher" role="group" aria-label="主题验证切换">
-      {themeOptions.map((theme) => (
-        <button
-          aria-pressed={activeThemeId === theme.id}
-          className={activeThemeId === theme.id ? 'is-active' : undefined}
-          key={theme.id}
-          type="button"
-          onClick={() => onChange(theme.id)}
-        >
-          {theme.name}
-        </button>
-      ))}
-    </div>
   );
 }
 

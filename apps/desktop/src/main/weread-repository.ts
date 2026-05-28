@@ -478,7 +478,7 @@ function normalizeWeReadUser(value: unknown): WeReadUser | undefined {
   };
 }
 
-function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeReadReadingStats {
+export function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeReadReadingStats {
   const data = isRecord(value) ? value : {};
   return {
     mode:
@@ -492,12 +492,15 @@ function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeReadReadi
     readRate: numberField(data.readRate),
     wrReadTime: numberField(data.wrReadTime),
     wrListenTime: numberField(data.wrListenTime),
-    readStat: [],
-    readTimes: {},
-    readLongest: [],
-    preferCategory: [],
+    readStat: arrayField(data.readStat).map(normalizeWeReadReadingStatsItem),
+    readTimes: numberRecordField(data.readTimes),
+    readLongest: arrayField(data.readLongest).map(normalizeWeReadReadingStatsBook),
+    preferCategory: arrayField(data.preferCategory).map(normalizeWeReadReadingStatsItem),
     preferCategoryWord: stringField(data.preferCategoryWord) || undefined,
     preferTimeWord: stringField(data.preferTimeWord) || undefined,
+    preferTime: arrayField(data.preferTime)
+      .map(numberField)
+      .filter((item): item is number => item !== undefined),
     preferAuthor: stringField(data.preferAuthor) || undefined,
     preferPublisher: stringField(data.preferPublisher) || undefined,
     authorCount: numberField(data.authorCount),
@@ -505,8 +508,42 @@ function normalizeWeReadReadingStats(value: unknown, mode: unknown): WeReadReadi
   };
 }
 
+function normalizeWeReadReadingStatsItem(value: unknown) {
+  const item = isRecord(value) ? value : {};
+  return {
+    stat: stringField(item.stat),
+    counts: stringField(item.counts),
+  };
+}
+
+function normalizeWeReadReadingStatsBook(value: unknown) {
+  const item = isRecord(value) ? value : {};
+  return {
+    bookId: stringField(item.bookId) || undefined,
+    title: stringField(item.title) || undefined,
+    author: stringField(item.author) || undefined,
+    cover: stringField(item.cover) || undefined,
+    readTime: numberField(item.readTime),
+    finishReadingTime: numberField(item.finishReadingTime),
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function arrayField(value: unknown) {
+  return Array.isArray(value) ? value : [];
+}
+
+function numberRecordField(value: unknown) {
+  const record = isRecord(value) ? value : {};
+  const normalized: Record<string, number> = {};
+  for (const [key, item] of Object.entries(record)) {
+    const number = numberField(item);
+    if (number !== undefined) normalized[key] = number;
+  }
+  return normalized;
 }
 
 function stringField(value: unknown) {

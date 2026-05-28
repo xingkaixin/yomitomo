@@ -46,6 +46,7 @@ import {
   resolveProviderApiKeyStorage,
 } from './store';
 import { rowToAnnotation, rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
+import { normalizeWeReadReadingStats } from './weread-repository';
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {
@@ -59,6 +60,7 @@ describe('desktop store settings', () => {
         },
         {
           defaultProviderId: 'provider_1',
+          themeId: 'ink-paper',
           readingAssistantProviderId: 'provider_1',
           reviewAssistantProviderId: 'provider_1',
           assistantExecutionMode: 'deep_verification',
@@ -72,6 +74,7 @@ describe('desktop store settings', () => {
       ),
     ).toEqual({
       defaultProviderId: undefined,
+      themeId: 'ink-paper',
       readingAssistantProviderId: undefined,
       reviewAssistantProviderId: undefined,
       assistantExecutionMode: 'deep_verification',
@@ -87,6 +90,23 @@ describe('desktop store settings', () => {
   it('defaults assistant execution mode to fast response', () => {
     expect(mergeSettingsForUpsert({}, {})).toMatchObject({
       assistantExecutionMode: 'fast_response',
+    });
+  });
+
+  it('updates the theme id while preserving other settings fields', () => {
+    expect(
+      mergeSettingsForUpsert(
+        { themeId: 'ink-paper' },
+        {
+          themeId: 'default',
+          saveArticleImages: true,
+          messageSendShortcut: 'mod-enter',
+        },
+      ),
+    ).toMatchObject({
+      themeId: 'ink-paper',
+      saveArticleImages: true,
+      messageSendShortcut: 'mod-enter',
     });
   });
 
@@ -197,6 +217,80 @@ describe('desktop store providers', () => {
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
 
     await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-stored');
+  });
+});
+
+describe('desktop store weread reading stats', () => {
+  it('preserves detailed reading stats when normalizing cached snapshots', () => {
+    expect(
+      normalizeWeReadReadingStats(
+        {
+          totalReadTime: 3660,
+          readDays: 3,
+          dayAverageReadTime: 1220,
+          readStat: [
+            { stat: '阅读书籍', counts: '4' },
+            { stat: '阅读时长', counts: '61分钟' },
+          ],
+          readTimes: {
+            '1779638400': 1200,
+            '1779724800': 2460,
+            invalid: 'ignored',
+          },
+          readLongest: [
+            {
+              bookId: 'book_1',
+              title: '自卑与超越',
+              author: '阿德勒',
+              cover: 'https://example.com/book.jpg',
+              readTime: 1800,
+              finishReadingTime: 1779724800,
+            },
+          ],
+          preferCategory: [{ stat: '心理学', counts: '2本' }],
+          preferCategoryWord: '这个周期偏爱心理学',
+          preferTimeWord: '晚上读得更多',
+          preferTime: [20, 21, 'ignored'],
+          authorCount: 2,
+        },
+        'weekly',
+      ),
+    ).toEqual({
+      mode: 'weekly',
+      totalReadTime: 3660,
+      readDays: 3,
+      dayAverageReadTime: 1220,
+      compare: undefined,
+      readRate: undefined,
+      wrReadTime: undefined,
+      wrListenTime: undefined,
+      readStat: [
+        { stat: '阅读书籍', counts: '4' },
+        { stat: '阅读时长', counts: '61分钟' },
+      ],
+      readTimes: {
+        '1779638400': 1200,
+        '1779724800': 2460,
+      },
+      readLongest: [
+        {
+          bookId: 'book_1',
+          title: '自卑与超越',
+          author: '阿德勒',
+          cover: 'https://example.com/book.jpg',
+          readTime: 1800,
+          finishReadingTime: 1779724800,
+        },
+      ],
+      preferCategory: [{ stat: '心理学', counts: '2本' }],
+      preferCategoryWord: '这个周期偏爱心理学',
+      preferTimeWord: '晚上读得更多',
+      preferTime: [20, 21],
+      preferAuthor: undefined,
+      preferPublisher: undefined,
+      authorCount: 2,
+      registTime: undefined,
+    });
   });
 });
 

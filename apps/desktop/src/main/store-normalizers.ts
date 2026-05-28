@@ -243,6 +243,9 @@ function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummary
 
 export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSettings): AppSettings {
   return {
+    themeId: settingsFieldProvided(settings, 'themeId')
+      ? settings.themeId || undefined
+      : existing?.themeId || undefined,
     defaultProviderId: settingsFieldProvided(settings, 'defaultProviderId')
       ? settings.defaultProviderId || undefined
       : existing?.defaultProviderId || undefined,
@@ -322,6 +325,7 @@ export function rowToSettings(
   row: typeof schema.appSettings.$inferSelect | undefined,
 ): AppSettings {
   return {
+    themeId: row?.themeId || undefined,
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
@@ -337,6 +341,7 @@ export function rowToSettings(
 
 function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
+    themeId: settings?.themeId || undefined,
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,

@@ -51,6 +51,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
   const merged = mergeSettingsForUpsert(settings, existing ? rowToSettings(existing) : undefined);
   const row = {
     id: 'default',
+    themeId: merged.themeId || null,
     defaultProviderId: merged.defaultProviderId || null,
     readingAssistantProviderId: merged.readingAssistantProviderId || null,
     reviewAssistantProviderId: merged.reviewAssistantProviderId || null,

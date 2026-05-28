@@ -124,4 +124,5 @@ pnpm build
 - `pnpm dev` 通过 workspace 源码消费 `@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai` 和 `@yomitomo/reader-ui`；改动这些包后，桌面端 Vite watch 链路会重新构建相关代码。
 - UI 图标优先使用 `lucide-react`。
 - 样式优先沿用现有 Tailwind、组件和 CSS 变量。
+- 桌面端新增 UI 必须接入主题变量：核心 surface、文字、边框、阴影、遮罩、强调色和阅读器相关颜色应来自 `AppTheme` 输出的 CSS variables，优先复用现有语义 token；确需新增视觉语义时，先扩展主题契约和默认主题，不要在组件或 CSS 中 ad-hoc 写固定核心色，避免主题切换时出现割裂。
 - 修改 workspace 包名或依赖后运行 `pnpm install --lockfile-only` 更新 lockfile。

@@ -21,8 +21,22 @@ describe('source reader annotation styles', () => {
     expect(styles).toContain('--reader-bg: var(--app-reader-bg);');
     expect(styles).toContain('background: var(--app-reader-note-quote-bg);');
     expect(styles).toContain('background: var(--app-reader-note-bg);');
+    expect(styles).toContain('var(--app-paper-pattern-image),');
+    expect(styles).toContain(
+      'background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);',
+    );
+    expect(styles).toMatch(
+      /\.weread-bookcase \{[\s\S]*background: var\(--app-paper-pattern-image\), var\(--app-paper-pattern-bg\);[\s\S]*background-size: var\(--app-paper-pattern-size\) var\(--app-paper-pattern-size\);/,
+    );
     expect(styles).not.toContain('background: hsl(48 100% 99% / 0.66);');
     expect(styles).not.toContain('background: hsl(48 100% 99% / 0.74);');
+  });
+
+  it('keeps settings item hover and selected borders on theme variables', () => {
+    expect(styles).toContain('border-color: var(--app-interactive-hover-border);');
+    expect(styles).toContain('border-color: var(--app-interactive-selected-border);');
+    expect(styles).not.toContain('border-color: hsl(8 45% 48% / 0.4);');
+    expect(styles).not.toContain('border-color: hsl(3 62% 39% / 0.52);');
   });
 
   it('does not add a left rail when a discussion thread is open', () => {
@@ -38,6 +52,7 @@ describe('source reader annotation styles', () => {
     expect(styles).not.toContain('.source-pdf-reader-shell .reader-comment-author span');
     expect(styles).toContain('.source-pdf-reader-shell .reader-comment-author > span');
     expect(styles).toContain('.source-pdf-reader-shell .reader-delete-note > span {');
+    expect(styles).toContain('color: var(--app-action-danger-bg);');
     expect(styles).toContain('background: transparent;');
     expect(styles).toContain('border-radius: 0;');
   });
