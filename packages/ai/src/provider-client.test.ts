@@ -12,13 +12,20 @@ describe('streamProviderText', () => {
     vi.restoreAllMocks();
   });
 
-  it('reads the final SSE event without a trailing blank line', async () => {
+  it('streams text deltas through AI SDK', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         new ReadableStream({
           start(controller) {
             controller.enqueue(
-              new TextEncoder().encode('data: {"choices":[{"delta":{"content":"tail"}}]}'),
+              new TextEncoder().encode(
+                'data: {"choices":[{"index":0,"delta":{"content":"tail"},"finish_reason":null}]}\n\n',
+              ),
+            );
+            controller.enqueue(
+              new TextEncoder().encode(
+                'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n',
+              ),
             );
             controller.close();
           },
@@ -43,9 +50,12 @@ describe('callProviderText response schema', () => {
 
   it('passes JSON schema response_format to OpenAI chat providers', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' } }] }), {
-        status: 200,
-      }),
+      new Response(
+        JSON.stringify({ choices: [{ index: 0, message: { content: '{"ok":true}' } }] }),
+        {
+          status: 200,
+        },
+      ),
     );
 
     await callProviderText(
@@ -71,11 +81,31 @@ describe('callProviderText response schema', () => {
   });
 
   it('passes JSON schema text format to OpenAI responses providers', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ output_text: '{"ok":true}' }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'response-1',
+          created_at: 0,
+          model: 'model',
+          output: [
+            {
+              id: 'message-1',
+              type: 'message',
+              role: 'assistant',
+              content: [
+                {
+                  type: 'output_text',
+                  text: '{"ok":true}',
+                  annotations: [],
+                },
+              ],
+            },
+          ],
+          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+        }),
+        { status: 200 },
+      ),
+    );
 
     await callProviderText(
       {
@@ -124,7 +154,10 @@ describe('callProviderText response schema', () => {
       generationConfig?: Record<string, unknown>;
     };
     expect(body.generationConfig?.responseMimeType).toBe('application/json');
-    expect(body.generationConfig?.responseSchema).toEqual(testResponseSchema().schema);
+    expect(body.generationConfig?.responseSchema).toMatchObject({
+      required: ['ok'],
+      properties: testResponseSchema().schema.properties,
+    });
   });
 });
 

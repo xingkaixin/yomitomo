@@ -61,6 +61,7 @@ describe('desktop store settings', () => {
           defaultProviderId: 'provider_1',
           readingAssistantProviderId: 'provider_1',
           reviewAssistantProviderId: 'provider_1',
+          assistantExecutionMode: 'deep_verification',
           messageSendShortcut: 'mod-enter',
           selectionActionShortcuts: { copy: 'X', annotate: 'B' },
           saveArticleImages: true,
@@ -73,12 +74,19 @@ describe('desktop store settings', () => {
       defaultProviderId: undefined,
       readingAssistantProviderId: undefined,
       reviewAssistantProviderId: undefined,
+      assistantExecutionMode: 'deep_verification',
       messageSendShortcut: 'mod-enter',
       selectionActionShortcuts: { copy: 'X', annotate: 'B' },
       saveArticleImages: true,
       developerModeEnabled: false,
       logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
+    });
+  });
+
+  it('defaults assistant execution mode to fast response', () => {
+    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
+      assistantExecutionMode: 'fast_response',
     });
   });
 

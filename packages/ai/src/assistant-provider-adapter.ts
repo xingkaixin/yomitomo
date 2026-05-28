@@ -7,7 +7,9 @@ import type {
   AssistantToolResultMessage,
 } from './assistant-runtime';
 import { parseJsonObject } from './json';
-import { callProviderText, type JsonSchema, type TextPayload } from './provider-client';
+import { generateYomitomoText } from './generation-runtime';
+import { type JsonSchema, type TextPayload } from './provider-client';
+import { normalizeAiUsage, type NormalizedAiUsage } from './usage';
 
 export type AssistantProviderAdapterPayload = TextPayload;
 
@@ -33,20 +35,27 @@ export async function callAssistantProviderEvent(
   options: AssistantProviderAdapterOptions = {},
 ): Promise<AssistantProviderEvent> {
   try {
-    const content = await callProviderText(
+    const result = await generateYomitomoText(
       provider,
       { ...payload, responseSchema: assistantProviderEventResponseSchema },
       {
         failOnMaxTokens: options.failOnMaxTokens ?? true,
       },
     );
-    return parseAssistantProviderEvent(content);
+    return withUsage(parseAssistantProviderEvent(result.text), result.usage);
   } catch (error) {
     return {
       type: 'provider_failure',
       reason: error instanceof Error ? error.message : 'provider_failed',
     };
   }
+}
+
+function withUsage<T extends AssistantProviderEvent>(
+  event: T,
+  usage: T['usage'],
+): AssistantProviderEvent {
+  return { ...event, usage };
 }
 
 export function parseAssistantProviderEvent(content: string): AssistantProviderEvent {
@@ -358,6 +367,7 @@ async function callOpenAIChatToolTurn(
   });
   if (!response.ok) throw new Error(await modelListError(response));
   const data = (await response.json()) as {
+    usage?: OpenAIChatUsage;
     choices?: Array<{
       message?: {
         content?: string | null;
@@ -367,6 +377,7 @@ async function callOpenAIChatToolTurn(
     }>;
   };
   const choice = data.choices?.[0];
+  const usage = normalizeOpenAIChatUsage(data.usage);
   if (options.failOnMaxTokens !== false && choice?.finish_reason === 'length') {
     throw new Error(`模型输出达到 max_tokens=${payload.maxTokens}，结构化 JSON 可能已被截断`);
   }
@@ -377,6 +388,7 @@ async function callOpenAIChatToolTurn(
       return {
         type: 'final_action',
         action,
+        usage,
       };
     }
     return {
@@ -386,6 +398,7 @@ async function callOpenAIChatToolTurn(
         name: toolCall.function.name as AssistantToolCall['name'],
         input: parseToolArguments(toolCall.function.arguments),
       },
+      usage,
     };
   }
   const content = choice?.message?.content?.trim();
@@ -394,9 +407,40 @@ async function callOpenAIChatToolTurn(
       type: 'invalid_response',
       reason: 'provider_returned_empty_message',
       raw: choice?.message,
+      usage,
     };
   }
-  return parseAssistantProviderEvent(content);
+  return withUsage(parseAssistantProviderEvent(content), usage);
+}
+
+type OpenAIChatUsage = {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  prompt_tokens_details?: {
+    cached_tokens?: number;
+    cache_write_tokens?: number;
+  };
+  completion_tokens_details?: {
+    reasoning_tokens?: number;
+  };
+};
+
+function normalizeOpenAIChatUsage(
+  usage: OpenAIChatUsage | undefined,
+): NormalizedAiUsage | undefined {
+  if (!usage) return undefined;
+  const normalized = normalizeAiUsage({
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+    reasoningTokens: usage.completion_tokens_details?.reasoning_tokens,
+    cachedInputTokens: usage.prompt_tokens_details?.cached_tokens,
+    inputTokenDetails: {
+      cacheWriteTokens: usage.prompt_tokens_details?.cache_write_tokens,
+    },
+  });
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
 }
 
 function appendToolResultMessages(

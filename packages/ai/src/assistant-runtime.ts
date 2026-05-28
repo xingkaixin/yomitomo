@@ -1,4 +1,5 @@
 import type { TextAnchor } from '@yomitomo/shared';
+import type { NormalizedAiUsage } from './usage';
 
 export type AssistantRuntimeTaskType = 'thread_reply' | 'selection_first' | 'co_reading_section';
 
@@ -89,23 +90,27 @@ export type AssistantToolExecutionResult =
 export type AssistantProviderToolCallEvent = {
   type: 'tool_call';
   toolCall: AssistantToolCall;
+  usage?: NormalizedAiUsage;
 };
 
 export type AssistantProviderFinalActionEvent = {
   type: 'final_action';
   action: unknown;
+  usage?: NormalizedAiUsage;
 };
 
 export type AssistantProviderInvalidResponseEvent = {
   type: 'invalid_response';
   reason: string;
   raw?: unknown;
+  usage?: NormalizedAiUsage;
 };
 
 export type AssistantProviderFailureEvent = {
   type: 'provider_failure';
   reason: string;
   retryable?: boolean;
+  usage?: NormalizedAiUsage;
 };
 
 export type AssistantProviderEvent =
@@ -184,6 +189,7 @@ export type AssistantRuntimeTrace = {
   steps: AssistantRuntimeTraceStep[];
   finalActionType?: AssistantFinalAction['type'];
   failureReason?: string;
+  usage?: NormalizedAiUsage;
 };
 
 export type AssistantRuntimeResult =
@@ -245,6 +251,7 @@ export async function runAssistantToolRuntime(
       toolResults,
       repairReason,
     });
+    trace.usage = addUsage(trace.usage, event.usage);
     repairReason = undefined;
 
     if (event.type === 'tool_call') {
@@ -576,4 +583,25 @@ function hasWritableValue(value: unknown) {
 
 function numberField(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function addUsage(
+  left: NormalizedAiUsage | undefined,
+  right: NormalizedAiUsage | undefined,
+): NormalizedAiUsage | undefined {
+  if (!left && !right) return undefined;
+  return {
+    inputTokens: addUsageField(left?.inputTokens, right?.inputTokens),
+    outputTokens: addUsageField(left?.outputTokens, right?.outputTokens),
+    reasoningTokens: addUsageField(left?.reasoningTokens, right?.reasoningTokens),
+    cachedInputTokens: addUsageField(left?.cachedInputTokens, right?.cachedInputTokens),
+    cacheWriteTokens: addUsageField(left?.cacheWriteTokens, right?.cacheWriteTokens),
+    totalTokens: addUsageField(left?.totalTokens, right?.totalTokens),
+  };
+}
+
+function addUsageField(left: number | undefined, right: number | undefined) {
+  if (left === undefined) return right;
+  if (right === undefined) return left;
+  return left + right;
 }

@@ -21,6 +21,7 @@ import {
 import { budgetArticleText, formatBudgetNotice } from './budget';
 import { logAiError, logAiInfo } from './logger';
 import { callProviderText, streamProviderText } from './provider-client';
+import type { NormalizedAiUsage } from './usage';
 import {
   buildSelectionAnnotationContext,
   selectionAnnotationContextPrompt,
@@ -165,7 +166,7 @@ export async function runAgentAnnotateStream(
   agent: Agent,
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
-): Promise<AgentAnnotateResult> {
+): Promise<AgentAnnotateResult & { usage?: NormalizedAiUsage }> {
   const system = buildAgentAnnotateSystemPrompt(agent, payload);
   const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
   if (segmentTasks.length > 0) {
@@ -245,7 +246,7 @@ export async function runAgentAnnotateStream(
     for (const json of result.objects) flushJson(json);
   };
 
-  await streamProviderText(
+  const generation = await streamProviderText(
     provider,
     {
       system,
@@ -266,7 +267,7 @@ export async function runAgentAnnotateStream(
       line: buffer.trim().slice(0, 500),
     });
   }
-  return { annotations, readingMemory: payload.readingMemory };
+  return { annotations, readingMemory: payload.readingMemory, usage: generation.usage };
 }
 
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {

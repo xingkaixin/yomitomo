@@ -79,8 +79,7 @@ export function articleExternalUrl(article: ArticleRecord) {
 }
 
 export function articleIdentityLine(article: ArticleRecord) {
-  const source = article.siteName || urlHost(article.canonicalUrl || article.url);
-  return [source, article.byline, formatDate(article.updatedAt)].filter(Boolean).join(' / ');
+  return [article.byline, formatDate(article.updatedAt)].filter(Boolean).join(' / ');
 }
 
 export function articleReadingStatsLine(stats: {

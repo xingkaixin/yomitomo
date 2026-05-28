@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Check, KeyRound, Save, ShieldCheck, X } from 'lucide-react';
-import type { AppSettings, LlmProvider } from '@yomitomo/shared';
+import { BookOpen, Check, KeyRound, Save, SearchCheck, ShieldCheck, Zap, X } from 'lucide-react';
+import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
 import { PanelHeader } from './app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -295,6 +295,26 @@ const taskRouteOptions: Array<{
   },
 ];
 
+const assistantExecutionModeOptions: Array<{
+  value: AssistantExecutionMode;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+}> = [
+  {
+    value: 'fast_response',
+    title: '快速回应',
+    description: '优先低延迟和低成本，一次请求完成回应。',
+    icon: <Zap size={18} />,
+  },
+  {
+    value: 'deep_verification',
+    title: '深入查证',
+    description: '允许助手调用阅读工具，多步收集证据后再行动。',
+    icon: <SearchCheck size={18} />,
+  },
+];
+
 function TaskProviderRoutes({
   providers,
   settingsDraft,
@@ -336,6 +356,46 @@ function TaskProviderRoutes({
           当前还没有可选供应商。新增并保存供应商后，这里会开放选择。
         </p>
       ) : null}
+      <div className="task-route-list">
+        <div className="task-route-row">
+          <div className="task-route-copy">
+            <span className="task-route-icon">
+              <SearchCheck size={18} />
+            </span>
+            <div>
+              <strong>助手执行模式</strong>
+              <p>全局影响阅读批注、追问和共读任务。</p>
+            </div>
+          </div>
+          <div className="task-route-mode-group" role="radiogroup" aria-label="助手执行模式">
+            {assistantExecutionModeOptions.map((option) => {
+              const active =
+                (settingsDraft.assistantExecutionMode || 'fast_response') === option.value;
+              return (
+                <button
+                  aria-checked={active}
+                  className={active ? 'task-route-mode is-active' : 'task-route-mode'}
+                  key={option.value}
+                  role="radio"
+                  type="button"
+                  onClick={() => {
+                    const nextDraft = {
+                      ...settingsDraft,
+                      assistantExecutionMode: option.value,
+                    };
+                    onChange(nextDraft);
+                    onSave(nextDraft);
+                  }}
+                >
+                  <span>{option.icon}</span>
+                  <strong>{option.title}</strong>
+                  <em>{option.description}</em>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
       <div className="task-route-list">
         {taskRouteOptions.map((option) => (
           <div className="task-route-row" key={option.key}>

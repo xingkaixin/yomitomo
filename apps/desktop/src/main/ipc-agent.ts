@@ -8,7 +8,8 @@ import type {
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
-import { agentPersonalityName, makeId } from '@yomitomo/shared';
+import type { NormalizedAiUsage } from '@yomitomo/ai';
+import { agentPersonalityName, makeId, normalizeAssistantExecutionMode } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import {
@@ -67,11 +68,13 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       providerTaskForAgent(agent),
     );
+    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
+    const startedAt = performance.now();
     const payloadWithRoster = {
       ...payload,
       agentRoster: publicCommentAgents(store.agents),
     };
-    const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster)
+    const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster, requestedMode)
       ? await runAgentThreadReplyWithToolLoop({
           ai,
           provider,
@@ -79,7 +82,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           payload: payloadWithRoster,
         })
       : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logThreadReplyRuntime(context, runtime);
+    logThreadReplyRuntime(
+      context,
+      runtime,
+      provider,
+      agent,
+      requestedMode,
+      context.elapsedMs(startedAt),
+    );
     const comment =
       runtime.status === 'comment'
         ? runtime.comment
@@ -92,6 +102,18 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
               logError: context.logError,
             }),
           );
+    if (runtime.status !== 'comment') {
+      recordAssistantExecutionRun(context, {
+        agent,
+        provider,
+        taskType: 'thread_reply',
+        requestedMode,
+        effectiveMode: 'fast_response',
+        status: 'success',
+        fallbackReason: requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
+        durationMs: context.elapsedMs(startedAt),
+      });
+    }
     return {
       ...comment,
       id: makeId('comment'),
@@ -147,6 +169,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           store.settings,
           providerTaskForAgent(agent),
         );
+        const requestedMode = normalizeAssistantExecutionMode(
+          store.settings.assistantExecutionMode,
+        );
+        const startedAt = performance.now();
         const comment: Comment = {
           id: makeId('comment'),
           author: 'ai',
@@ -170,7 +196,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agentRoster: publicCommentAgents(store.agents),
           readingIntent: input.payload.readingIntent || comment.readingIntent,
         };
-        const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster)
+        const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster, requestedMode)
           ? await runAgentThreadReplyWithToolLoop({
               ai,
               provider,
@@ -178,7 +204,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
               payload: payloadWithRoster,
             })
           : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-        logThreadReplyRuntime(context, runtime);
+        logThreadReplyRuntime(
+          context,
+          runtime,
+          provider,
+          agent,
+          requestedMode,
+          context.elapsedMs(startedAt),
+        );
         if (runtime.status === 'comment') {
           comment.content = runtime.comment.content;
           event.sender.send(channel, { type: 'delta', delta: comment.content });
@@ -191,6 +224,17 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
             comment.content += delta;
             event.sender.send(channel, { type: 'delta', delta });
+          });
+          recordAssistantExecutionRun(context, {
+            agent,
+            provider,
+            taskType: 'thread_reply',
+            requestedMode,
+            effectiveMode: 'fast_response',
+            status: 'success',
+            fallbackReason:
+              requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
+            durationMs: context.elapsedMs(startedAt),
           });
         }
         event.sender.send(channel, {
@@ -217,12 +261,20 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.settings,
       'readingAssistant',
     );
+    const startedAt = performance.now();
     const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
       payload,
       logInfo: context.logInfo,
       logError: context.logError,
     });
-    const runtimeTaskType = annotateRuntimeTaskType(payloadWithMemory);
+    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
+    const defaultRuntimeTaskType = annotateRuntimeTaskType(payloadWithMemory) || 'annotation';
+    const runtimeTaskType =
+      requestedMode === 'deep_verification'
+        ? defaultRuntimeTaskType === 'annotation'
+          ? undefined
+          : defaultRuntimeTaskType
+        : undefined;
     const runtime =
       runtimeTaskType === 'selection_first'
         ? await runAgentSelectionWithToolLoop({
@@ -249,6 +301,25 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       payload: payloadWithMemory,
       result,
       logError: context.logError,
+    });
+    recordAssistantExecutionRun(context, {
+      agent,
+      provider,
+      taskType: defaultRuntimeTaskType,
+      requestedMode,
+      effectiveMode:
+        requestedMode === 'deep_verification' && runtime.status === 'result'
+          ? 'deep_verification'
+          : 'fast_response',
+      status: 'success',
+      fallbackReason:
+        requestedMode === 'deep_verification' && runtime.status === 'fallback'
+          ? runtime.failureReason
+          : undefined,
+      usage: annotateRuntimeUsage(runtime),
+      durationMs: context.elapsedMs(startedAt),
+      stepCount: annotateRuntimeStepCount(runtime),
+      traceJson: annotateRuntimeTraceJson(runtime),
     });
     return result;
   });
@@ -278,6 +349,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           store.settings,
           'readingAssistant',
         );
+        const startedAt = performance.now();
         const annotations: ArticleRecord['annotations'] = [];
         event.sender.send(channel, { type: 'start' });
         const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
@@ -285,7 +357,16 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           logInfo: context.logInfo,
           logError: context.logError,
         });
-        const runtimeTaskType = annotateRuntimeTaskType(payloadWithMemory);
+        const requestedMode = normalizeAssistantExecutionMode(
+          store.settings.assistantExecutionMode,
+        );
+        const defaultRuntimeTaskType = annotateRuntimeTaskType(payloadWithMemory) || 'annotation';
+        const runtimeTaskType =
+          requestedMode === 'deep_verification'
+            ? defaultRuntimeTaskType === 'annotation'
+              ? undefined
+              : defaultRuntimeTaskType
+            : undefined;
         const runtime =
           runtimeTaskType === 'selection_first'
             ? await runAgentSelectionWithToolLoop({
@@ -321,6 +402,25 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           payload: payloadWithMemory,
           result,
           logError: context.logError,
+        });
+        recordAssistantExecutionRun(context, {
+          agent,
+          provider,
+          taskType: defaultRuntimeTaskType,
+          requestedMode,
+          effectiveMode:
+            requestedMode === 'deep_verification' && runtime.status === 'result'
+              ? 'deep_verification'
+              : 'fast_response',
+          status: 'success',
+          fallbackReason:
+            requestedMode === 'deep_verification' && runtime.status === 'fallback'
+              ? runtime.failureReason
+              : undefined,
+          usage: annotateRuntimeUsage(runtime) || annotateResultUsage(result),
+          durationMs: context.elapsedMs(startedAt),
+          stepCount: annotateRuntimeStepCount(runtime),
+          traceJson: annotateRuntimeTraceJson(runtime),
         });
         event.sender.send(channel, {
           type: 'done',
@@ -394,8 +494,13 @@ function providerTaskForAgent(agent: Agent): ProviderTask {
   return agent.kind === 'review' ? 'reviewAssistant' : 'readingAssistant';
 }
 
-function shouldUseThreadReplyToolLoop(payload: AgentMessagePayload) {
-  return Boolean(payload.article.id) && !payload.reviewTargetCommentId;
+function shouldUseThreadReplyToolLoop(
+  payload: AgentMessagePayload,
+  mode: ReturnType<typeof normalizeAssistantExecutionMode>,
+) {
+  return (
+    mode === 'deep_verification' && Boolean(payload.article.id) && !payload.reviewTargetCommentId
+  );
 }
 
 function shouldUseSelectionFirstToolLoop(payload: AgentAnnotatePayload) {
@@ -414,7 +519,14 @@ function annotateRuntimeTaskType(payload: AgentAnnotatePayload) {
   return undefined;
 }
 
-function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadReplyRuntimeResult) {
+function logThreadReplyRuntime(
+  context: DesktopMainIpcContext,
+  result: ThreadReplyRuntimeResult,
+  provider: LlmProvider,
+  agent: Agent,
+  requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>,
+  durationMs?: number,
+) {
   if (result.status === 'comment') {
     context.logInfo('assistant_runtime.thread_reply', {
       status: 'comment',
@@ -432,6 +544,18 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
       repairUsed: result.runtime.repairUsed,
       trace: result.runtime.trace,
     }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
+    recordAssistantExecutionRun(context, {
+      agent,
+      provider,
+      taskType: 'thread_reply',
+      requestedMode,
+      effectiveMode: 'deep_verification',
+      status: 'success',
+      usage: result.runtime.trace.usage,
+      durationMs,
+      stepCount: result.runtime.trace.steps.length,
+      traceJson: result.runtime.trace,
+    });
     return;
   }
   context.logInfo('assistant_runtime.thread_reply', {
@@ -452,7 +576,76 @@ function logThreadReplyRuntime(context: DesktopMainIpcContext, result: ThreadRep
       repairUsed: result.runtime.repairUsed,
       trace: result.runtime.trace,
     }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
+    recordAssistantExecutionRun(context, {
+      agent,
+      provider,
+      taskType: 'thread_reply',
+      requestedMode,
+      effectiveMode: 'deep_verification',
+      status: 'fallback',
+      fallbackReason: result.failureReason,
+      usage: result.runtime.trace.usage,
+      durationMs,
+      stepCount: result.runtime.trace.steps.length,
+      traceJson: result.runtime.trace,
+    });
   }
+}
+
+function recordAssistantExecutionRun(
+  context: DesktopMainIpcContext,
+  input: Parameters<(typeof import('./store'))['recordAssistantExecutionRun']>[0],
+) {
+  void context
+    .getStoreModule()
+    .then((storeModule) => storeModule.recordAssistantExecutionRun(input))
+    .catch((error) => context.logError('assistant.execution_run_write_failed', error));
+}
+
+function annotateRuntimeStepCount(result: SelectionRuntimeResult | CoReadingRuntimeResult) {
+  if (result.status !== 'result')
+    return 'runtime' in result ? result.runtime?.trace.steps.length || 0 : 0;
+  if ('runtime' in result) return result.runtime.trace.steps.length;
+  return result.traces.length;
+}
+
+function annotateRuntimeTraceJson(result: SelectionRuntimeResult | CoReadingRuntimeResult) {
+  if (result.status !== 'result') return 'runtime' in result ? result.runtime?.trace : undefined;
+  if ('runtime' in result) return result.runtime.trace;
+  return result.traces;
+}
+
+function annotateRuntimeUsage(
+  result: SelectionRuntimeResult | CoReadingRuntimeResult,
+): NormalizedAiUsage | undefined {
+  return 'runtime' in result ? result.runtime?.trace.usage : undefined;
+}
+
+function annotateResultUsage(result: unknown): NormalizedAiUsage | undefined {
+  if (!isRecord(result) || !isRecord(result.usage)) return undefined;
+  return compactUsage({
+    inputTokens: finiteNumber(result.usage.inputTokens),
+    outputTokens: finiteNumber(result.usage.outputTokens),
+    reasoningTokens: finiteNumber(result.usage.reasoningTokens),
+    cachedInputTokens: finiteNumber(result.usage.cachedInputTokens),
+    cacheWriteTokens: finiteNumber(result.usage.cacheWriteTokens),
+    totalTokens: finiteNumber(result.usage.totalTokens),
+  });
+}
+
+function compactUsage(usage: NormalizedAiUsage) {
+  const compacted = Object.fromEntries(
+    Object.entries(usage).filter(([, value]) => value !== undefined),
+  ) as NormalizedAiUsage;
+  return Object.keys(compacted).length > 0 ? compacted : undefined;
+}
+
+function finiteNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function logAnnotateRuntime(

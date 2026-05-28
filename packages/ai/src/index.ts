@@ -95,6 +95,12 @@ export {
 } from './evaluation';
 export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures';
 export { setAiLogger, type AiLogger } from './logger';
+export { type NormalizedAiUsage } from './usage';
+export {
+  generateYomitomoText,
+  streamYomitomoText,
+  type YomitomoTextGenerationResult,
+} from './generation-runtime';
 export { extractJsonObjects } from './json';
 export {
   inferAnnotationMetadata,

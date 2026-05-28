@@ -689,7 +689,6 @@ export function EbookBookcase({
     playbackMode: SourceAgentAnnotationPlaybackMode,
   ) {
     setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
-    setStatusMessage(`${agent.nickname} 正在添加想法`);
     const visibleArticle = isCurrentArticle(articleId);
     if (visibleArticle) startEbookAgentDock(agent);
     if (visibleArticle && playbackMode === 'target' && targetAnchor) {

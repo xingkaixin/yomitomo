@@ -22,6 +22,7 @@ export const appSettings = sqliteTable('app_settings', {
   defaultProviderId: text('default_provider_id'),
   readingAssistantProviderId: text('reading_assistant_provider_id'),
   reviewAssistantProviderId: text('review_assistant_provider_id'),
+  assistantExecutionMode: text('assistant_execution_mode').notNull().default('fast_response'),
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
   selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
   saveArticleImages: integer('save_article_images', { mode: 'boolean' }).notNull().default(false),
@@ -32,6 +33,65 @@ export const appSettings = sqliteTable('app_settings', {
   onboardingCompletedAt: text('onboarding_completed_at'),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const assistantExecutionRuns = sqliteTable(
+  'assistant_execution_runs',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    agentId: text('agent_id').notNull(),
+    agentUsername: text('agent_username'),
+    agentNickname: text('agent_nickname'),
+    taskType: text('task_type').notNull(),
+    requestedMode: text('requested_mode').notNull(),
+    effectiveMode: text('effective_mode').notNull(),
+    providerId: text('provider_id').notNull(),
+    providerName: text('provider_name').notNull(),
+    modelName: text('model_name').notNull(),
+    status: text('status').notNull(),
+    fallbackReason: text('fallback_reason'),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    reasoningTokens: integer('reasoning_tokens'),
+    cachedInputTokens: integer('cached_input_tokens'),
+    cacheWriteTokens: integer('cache_write_tokens'),
+    totalTokens: integer('total_tokens'),
+    estimatedCostMicros: integer('estimated_cost_micros'),
+    currency: text('currency'),
+    durationMs: integer('duration_ms'),
+    stepCount: integer('step_count').notNull().default(0),
+    traceJson: text('trace_json', { mode: 'json' }),
+  },
+  (table) => [
+    index('assistant_execution_runs_agent_idx').on(table.agentId, table.createdAt),
+    index('assistant_execution_runs_provider_model_idx').on(
+      table.providerId,
+      table.modelName,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const modelPriceRecords = sqliteTable(
+  'model_price_records',
+  {
+    id: text('id').primaryKey(),
+    providerId: text('provider_id').notNull(),
+    modelId: text('model_id').notNull(),
+    inputCostPerMillion: real('input_cost_per_million'),
+    outputCostPerMillion: real('output_cost_per_million'),
+    cacheReadCostPerMillion: real('cache_read_cost_per_million'),
+    cacheWriteCostPerMillion: real('cache_write_cost_per_million'),
+    currency: text('currency').notNull().default('USD'),
+    source: text('source').notNull(),
+    fetchedAt: text('fetched_at'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    uniqueIndex('model_price_records_provider_model_idx').on(table.providerId, table.modelId),
+    index('model_price_records_updated_at_idx').on(table.updatedAt),
+  ],
+);
 
 export const providers = sqliteTable('providers', {
   id: text('id').primaryKey(),
