@@ -31,4 +31,13 @@ describe('reading library styles', () => {
       'word-break: break-word;',
     ]);
   });
+
+  it('keeps the weread detail header cover flat', () => {
+    expectRule('.weread-book-cover.is-flat-cover', [
+      'width: var(--book-cover-width);',
+      'height: var(--book-cover-height);',
+    ]);
+    expect(styles).not.toContain('.weread-bookcase-title:hover .article-book-scene');
+    expect(styles).not.toContain('.weread-bookcase-title:hover .article-book-ground-shadow');
+  });
 });

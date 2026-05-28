@@ -3312,6 +3312,30 @@
   --book-cover-height: 94px;
 }
 
+.weread-book-cover.is-flat-cover {
+  width: var(--book-cover-width);
+  height: var(--book-cover-height);
+}
+
+.weread-book-cover.is-flat-cover .article-book-ground-shadow,
+.weread-book-cover.is-flat-cover .article-book-pages,
+.weread-book-cover.is-flat-cover .article-book-back {
+  display: none;
+}
+
+.weread-book-cover.is-flat-cover .article-book-scene {
+  top: 0;
+  left: 0;
+  transform: none;
+}
+
+.weread-book-cover.is-flat-cover .article-book-front {
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.05),
+    0 8px 18px -10px rgb(0 0 0 / 0.28);
+  transform: none;
+}
+
 .weread-bookcase {
   --reader-ink: hsl(var(--foreground));
   --reader-muted: hsl(var(--muted-foreground));
@@ -9324,8 +9348,7 @@
 .library-card:focus-within .article-book-scene,
 .library-bookcase-item:hover .article-book-scene,
 .library-bookcase-item.is-active .article-book-scene,
-.ebook-toolbar-cover:hover .article-book-scene,
-.weread-bookcase-title:hover .article-book-scene {
+.ebook-toolbar-cover:hover .article-book-scene {
   transform: rotateY(var(--book-hover-rotate)) scale(var(--book-hover-scale))
     translateX(var(--book-hover-translate-x));
 }
@@ -9338,8 +9361,7 @@
 .library-card:focus-within .article-book,
 .library-bookcase-item:hover .article-book,
 .library-bookcase-item.is-active .article-book,
-.ebook-toolbar-cover:hover .article-book,
-.weread-bookcase-title:hover .article-book {
+.ebook-toolbar-cover:hover .article-book {
   transform: translateY(-2px);
 }
 
@@ -9351,8 +9373,7 @@
 .library-card:focus-within .article-book-ground-shadow,
 .library-bookcase-item:hover .article-book-ground-shadow,
 .library-bookcase-item.is-active .article-book-ground-shadow,
-.ebook-toolbar-cover:hover .article-book-ground-shadow,
-.weread-bookcase-title:hover .article-book-ground-shadow {
+.ebook-toolbar-cover:hover .article-book-ground-shadow {
   opacity: 0.82;
   transform: translate3d(12px, 2px, -24px) scaleX(1.02);
 }
