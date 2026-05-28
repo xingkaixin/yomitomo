@@ -15,6 +15,11 @@ import {
   insertAssistantExecutionRun,
   type AssistantExecutionRunInput,
 } from './assistant-execution-repository';
+import {
+  listAssistantExecutionRuns,
+  summarizeAssistantExecutions,
+} from './assistant-execution-query-repository';
+import type { AssistantExecutionQueryInput } from '../ipc-contract';
 import { refreshModelsDevPrices } from './model-pricing-repository';
 import {
   backfillStoredArticleAnnotationMemoryEntries,
@@ -247,6 +252,14 @@ export function recordAssistantExecutionRun(input: AssistantExecutionRunInput) {
 
 export function refreshModelPrices() {
   return refreshModelsDevPrices(getDatabase());
+}
+
+export function queryAssistantExecutionRuns(input: AssistantExecutionQueryInput) {
+  return listAssistantExecutionRuns(getDatabase(), input);
+}
+
+export function queryAssistantExecutionSummary(input: AssistantExecutionQueryInput) {
+  return summarizeAssistantExecutions(getDatabase(), input);
 }
 
 export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {

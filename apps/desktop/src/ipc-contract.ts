@@ -100,6 +100,85 @@ export type AgentRuntimeTraceEntry = {
   decisions?: AgentRuntimeTraceDecision[];
 };
 
+export type AssistantExecutionStatus = 'success' | 'fallback' | 'error';
+
+export type AssistantExecutionQueryInput = {
+  from: string;
+  to: string;
+  agentId?: string;
+  providerId?: string;
+  modelName?: string;
+  taskType?: string;
+  status?: AssistantExecutionStatus | 'all';
+  requestedMode?: string;
+  effectiveMode?: string;
+  limit?: number;
+};
+
+export type AssistantExecutionUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+  totalTokens: number;
+};
+
+export type AssistantExecutionSafeStep = {
+  stepIndex: number;
+  eventType: string;
+  toolName?: string;
+  latencyMs: number;
+  resultCount: number;
+  failureReason?: string;
+};
+
+export type AssistantExecutionRun = {
+  id: string;
+  createdAt: string;
+  agentId: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  taskType: string;
+  requestedMode: string;
+  effectiveMode: string;
+  providerId: string;
+  providerName: string;
+  modelName: string;
+  status: AssistantExecutionStatus;
+  fallbackReason?: string;
+  usage: AssistantExecutionUsage;
+  estimatedCostMicros?: number;
+  currency?: string;
+  durationMs?: number;
+  stepCount: number;
+  safeSteps: AssistantExecutionSafeStep[];
+};
+
+export type AssistantExecutionTotals = {
+  runCount: number;
+  successCount: number;
+  fallbackCount: number;
+  errorCount: number;
+  usage: AssistantExecutionUsage;
+  estimatedCostMicros: number;
+  missingCostCount: number;
+  averageDurationMs?: number;
+};
+
+export type AssistantExecutionSummaryGroup = AssistantExecutionTotals & {
+  key: string;
+  label: string;
+};
+
+export type AssistantExecutionSummary = {
+  totals: AssistantExecutionTotals;
+  byAgent: AssistantExecutionSummaryGroup[];
+  byProviderModel: AssistantExecutionSummaryGroup[];
+  byTaskType: AssistantExecutionSummaryGroup[];
+  byMode: AssistantExecutionSummaryGroup[];
+};
+
 export type DatabaseBackupResult = { canceled: true } | { canceled: false; filePath: string };
 
 export type DatabaseRestoreResult =
@@ -187,6 +266,14 @@ export type DesktopIpcInvokeMap = {
   'agent-trace:path': {
     args: [];
     result: string;
+  };
+  'assistant-executions:list': {
+    args: [input: AssistantExecutionQueryInput];
+    result: AssistantExecutionRun[];
+  };
+  'assistant-executions:summary': {
+    args: [input: AssistantExecutionQueryInput];
+    result: AssistantExecutionSummary;
   };
   'annotation:metadata': {
     args: [payload: AnnotationMetadataPayload];

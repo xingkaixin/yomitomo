@@ -26,6 +26,12 @@ const loadDataManagementSettings = () =>
   preloadEntries.settingsPanels
     .load()
     .then((module) => ({ default: module.DataManagementSettings }));
+const loadAiTraceSettingsPanel = () =>
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.AiTraceSettingsPanel }));
+const loadAgentCostSettingsPanel = () =>
+  preloadEntries.settingsPanels
+    .load()
+    .then((module) => ({ default: module.AgentCostSettingsPanel }));
 const loadGeneralSettings = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.GeneralSettings }));
 const loadProviderSettings = () =>
@@ -48,6 +54,8 @@ const ReadingStatsPanel = lazy(loadReadingStatsPanel);
 const OnboardingFlow = lazy(loadOnboardingFlow);
 const AgentSettings = lazy(loadAgentSettings);
 const DataManagementSettings = lazy(loadDataManagementSettings);
+const AiTraceSettingsPanel = lazy(loadAiTraceSettingsPanel);
+const AgentCostSettingsPanel = lazy(loadAgentCostSettingsPanel);
 const GeneralSettings = lazy(loadGeneralSettings);
 const ProviderSettings = lazy(loadProviderSettings);
 const ShortcutSettings = lazy(loadShortcutSettings);
@@ -323,6 +331,15 @@ function App() {
     if (activeSetting !== 'library') setLibraryReaderOpen(false);
   }, [activeSetting]);
 
+  useEffect(() => {
+    if (
+      !store.settings.developerModeEnabled &&
+      (activeSettingsSection === 'aiTrace' || activeSettingsSection === 'agentCosts')
+    ) {
+      setActiveSettingsSection('about');
+    }
+  }, [activeSettingsSection, store.settings.developerModeEnabled]);
+
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
     applyStore(nextStore);
@@ -378,6 +395,13 @@ function App() {
   }
 
   function changeSettingsSection(section: SettingsSectionKey) {
+    if (
+      !store.settings.developerModeEnabled &&
+      (section === 'aiTrace' || section === 'agentCosts')
+    ) {
+      setActiveSettingsSection('about');
+      return;
+    }
     recordStartupTiming('secondary_modules.settings_section_change', {
       section,
       settingsPanelsStatus: preloadEntries.settingsPanels.status,
@@ -441,6 +465,10 @@ function App() {
     settingsPanelsModule?.WeReadSettingsPanel ?? WeReadSettingsPanel;
   const ActiveDataManagementSettings =
     settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
+  const ActiveAiTraceSettingsPanel =
+    settingsPanelsModule?.AiTraceSettingsPanel ?? AiTraceSettingsPanel;
+  const ActiveAgentCostSettingsPanel =
+    settingsPanelsModule?.AgentCostSettingsPanel ?? AgentCostSettingsPanel;
   const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
   const ActiveAboutSettings = settingsAboutModule?.AboutSettings ?? AboutSettings;
   const ActiveUserProfileSettingsDialog =
@@ -521,6 +549,7 @@ function App() {
           {activeSetting === 'settings' ? (
             <ActiveSettingsSectionShell
               activeSection={activeSettingsSection}
+              developerModeEnabled={Boolean(store.settings.developerModeEnabled)}
               onSectionChange={changeSettingsSection}
             >
               {activeSettingsSection === 'collection' ? (
@@ -573,6 +602,12 @@ function App() {
                   settings={store.settings}
                   onStoreUpdated={applyStore}
                 />
+              ) : null}
+              {activeSettingsSection === 'aiTrace' && store.settings.developerModeEnabled ? (
+                <ActiveAiTraceSettingsPanel agents={store.agents} providers={store.providers} />
+              ) : null}
+              {activeSettingsSection === 'agentCosts' && store.settings.developerModeEnabled ? (
+                <ActiveAgentCostSettingsPanel agents={store.agents} providers={store.providers} />
               ) : null}
               {activeSettingsSection === 'about' ? (
                 <ActiveAboutSettings

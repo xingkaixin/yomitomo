@@ -198,7 +198,7 @@ describe('AboutSettings', () => {
 
     render(<AboutSettings settings={{}} onStoreUpdated={onStoreUpdated} />);
 
-    fireEvent.click(screen.getByRole('checkbox', { name: /Trace 面板/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /开发者模式/ }));
 
     await waitFor(() =>
       expect(desktop.saveSettings).toHaveBeenCalledWith({ developerModeEnabled: true }),
@@ -206,25 +206,12 @@ describe('AboutSettings', () => {
     expect(onStoreUpdated).toHaveBeenCalledOnce();
   });
 
-  it('shows and filters agent traces when developer mode is enabled', async () => {
-    const desktop = installDesktopAboutApi();
+  it('does not show the legacy agent trace block in developer mode', () => {
+    installDesktopAboutApi();
 
     render(<AboutSettings settings={{ developerModeEnabled: true }} />);
 
-    expect(await screen.findByText('Agent Trace')).toBeTruthy();
-    expect(await screen.findByText('selection_first')).toBeTruthy();
-
-    fireEvent.change(screen.getByPlaceholderText('agent id'), { target: { value: 'agent_1' } });
-    fireEvent.click(screen.getByRole('button', { name: /刷新/ }));
-
-    await waitFor(() =>
-      expect(desktop.listAgentRuntimeTraces).toHaveBeenLastCalledWith({
-        taskType: 'all',
-        agentId: 'agent_1',
-        articleId: '',
-        failureOnly: false,
-        limit: 100,
-      }),
-    );
+    expect(screen.queryByText('Agent Trace')).toBeNull();
+    expect(screen.getByRole('checkbox', { name: /开发者模式/ })).toBeTruthy();
   });
 });
