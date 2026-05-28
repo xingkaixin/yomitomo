@@ -70,7 +70,7 @@ export function WeReadBookcase({
           返回阅读库
         </button>
         <div className="weread-bookcase-title">
-          <WeReadCover book={detail.book} />
+          <WeReadCover book={detail.book} variant="cover" />
           <div>
             <div className="weread-bookcase-heading">
               <h2>{detail.book.title}</h2>

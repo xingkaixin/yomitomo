@@ -491,12 +491,18 @@ function formatWeReadDuration(value: number) {
   return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
 }
 
-export function WeReadCover({ book }: { book: WeReadBook }) {
+export function WeReadCover({
+  book,
+  variant = 'book',
+}: {
+  book: WeReadBook;
+  variant?: 'book' | 'cover';
+}) {
   const { ratio, updateRatio } = useNativeCoverRatio(book.cover);
 
   return (
     <BookCoverFrame
-      className="weread-book-cover"
+      className={variant === 'cover' ? 'weread-book-cover is-flat-cover' : 'weread-book-cover'}
       imageUrl={book.cover}
       nativeCover={Boolean(book.cover)}
       style={nativeBookCoverStyle(ratio)}
