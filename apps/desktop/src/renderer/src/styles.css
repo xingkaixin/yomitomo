@@ -1310,11 +1310,11 @@
   border: 1px dashed hsl(var(--border) / 0.9);
   border-radius: 7px;
   background: hsl(var(--muted) / 0.14);
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .provider-create-action {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
   font-size: 11px;
   font-weight: 860;
   line-height: 1;
@@ -1836,11 +1836,11 @@
 .agent-list-status-badge.is-pending {
   border-color: hsl(3 62% 39% / 0.22);
   background: hsl(3 62% 39% / 0.08);
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .agent-list-status-badge.is-pending::before {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   box-shadow: 0 0 0 3px hsl(3 62% 39% / 0.12);
 }
 
@@ -3316,7 +3316,7 @@
   --reader-ink: hsl(var(--foreground));
   --reader-muted: hsl(var(--muted-foreground));
   --reader-green: hsl(var(--foreground));
-  --reader-red: hsl(3 62% 39%);
+  --reader-red: var(--app-interactive-link);
   --reader-yellow: hsl(var(--border));
   --reader-yellow-strong: hsl(var(--foreground));
   display: grid;
@@ -3324,7 +3324,8 @@
   height: 100%;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
-  background: hsl(var(--background));
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
 .weread-bookcase-header {
@@ -5064,7 +5065,7 @@
 .library-inline-error {
   flex-basis: 100%;
   margin: -2px 0 0;
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
   font-size: 12px;
   font-weight: 760;
   line-height: 1.45;
@@ -10772,9 +10773,13 @@
 
 .settings-section-nav-item:hover,
 .settings-section-nav-item.is-active {
-  border-color: hsl(8 45% 48% / 0.4);
-  background: hsl(38 44% 90% / 0.72);
+  border-color: var(--app-interactive-hover-border);
+  background: var(--app-interactive-hover-bg);
   box-shadow: 0 10px 26px hsl(31 34% 24% / 0.08);
+}
+
+.settings-section-nav-item.is-active {
+  border-color: var(--app-interactive-selected-border);
 }
 
 .settings-section-nav-item:active {
@@ -12379,7 +12384,7 @@ button.license-package-row:hover {
   width: 20px;
   height: 20px;
   place-items: center;
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   color: hsl(0 0% 100%);
   font-family: var(--font-reader-serif);
   font-size: 14px;
@@ -12440,7 +12445,7 @@ button.license-package-row:hover {
   bottom: 8px;
   width: 2px;
   border-radius: 0;
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
 }
 
 .settings-nav-item:hover,
@@ -12558,7 +12563,7 @@ button.license-package-row:hover {
 .library-kicker {
   display: block;
   margin-bottom: 8px;
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
   font-size: 12px;
   font-weight: 860;
   letter-spacing: 0.12em;
@@ -12650,7 +12655,7 @@ button.license-package-row:hover {
 
 .library-source-tabs button:hover:not(:disabled),
 .library-source-tabs button.is-active {
-  border-color: hsl(3 62% 39%);
+  border-color: var(--app-interactive-link);
   color: hsl(var(--foreground));
 }
 
@@ -12781,9 +12786,8 @@ button.license-package-row:hover {
 
 .library-home-body {
   border-top: 0;
-  background:
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.018) 0 1px, transparent 1px 16px),
-    hsl(var(--card));
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
   padding: 0 26px 20px;
 }
 
@@ -12889,7 +12893,7 @@ button.license-package-row:hover {
 .library-status-badge.is-new {
   border-color: hsl(3 62% 39% / 0.42);
   background: hsl(var(--card));
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .library-status-badge.is-progress,
@@ -12987,7 +12991,7 @@ button.license-package-row:hover {
 
 .library-ebook-copy > span,
 .library-ebook-list-copy > span {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
   font-size: 11px;
   font-weight: 840;
   font-variant-numeric: tabular-nums;
@@ -13126,7 +13130,7 @@ button.license-package-row:hover {
 }
 
 .library-empty svg {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .library-empty h3 {
@@ -13243,9 +13247,8 @@ button.license-package-row:hover {
   --reader-titlebar-mobile-back-left: 12px;
   --reader-titlebar-mobile-padding-left: 62px;
   grid-template-rows: auto auto minmax(0, 1fr);
-  background:
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.014) 0 1px, transparent 1px 16px),
-    hsl(var(--card));
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
 .app-shell.is-darwin {
@@ -13310,7 +13313,7 @@ button.license-package-row:hover {
 }
 
 .app-masthead-title h1 em {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
   font-style: normal;
 }
 
@@ -13354,7 +13357,7 @@ button.license-package-row:hover {
   left: 0;
   width: 100%;
   height: 3px;
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   transform: scaleX(0.36);
   transform-origin: left center;
 }
@@ -13362,19 +13365,19 @@ button.license-package-row:hover {
 .app-section-nav .settings-nav-item:hover,
 .app-section-nav .settings-nav-item.is-active {
   background: transparent;
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .app-section-nav .settings-nav-item.is-active::before {
   transform: scaleX(1);
 }
 
+.app-nav-theme-button,
 .app-nav-profile-button {
   position: relative;
   display: grid;
   width: 40px;
   height: 40px;
-  margin-left: auto;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -13388,19 +13391,31 @@ button.license-package-row:hover {
     transform 150ms ease;
 }
 
+.app-nav-theme-button {
+  margin-left: auto;
+}
+
+.app-nav-profile-button {
+  margin-left: -24px;
+}
+
+.app-nav-theme-button:hover,
+.app-nav-theme-button:focus-visible,
 .app-nav-profile-button:hover,
 .app-nav-profile-button:focus-visible {
-  background-color: hsl(var(--background) / 0.72);
+  background-color: var(--app-interactive-hover-bg);
   box-shadow:
     0 0 0 1px hsl(var(--foreground) / 0.16),
     0 9px 20px hsl(31 34% 24% / 0.1);
   outline: 0;
 }
 
+.app-nav-theme-button:active,
 .app-nav-profile-button:active {
   transform: scale(0.96);
 }
 
+.app-nav-theme-button::after,
 .app-nav-profile-button::after {
   position: absolute;
   top: 50%;
@@ -13408,9 +13423,9 @@ button.license-package-row:hover {
   z-index: 2;
   opacity: 0;
   border-radius: 999px;
-  background: hsl(var(--foreground));
+  background: var(--app-action-primary-bg);
   box-shadow: 0 8px 18px hsl(31 34% 24% / 0.14);
-  color: hsl(var(--card));
+  color: var(--app-action-primary-fg);
   content: attr(data-tooltip);
   font-size: 12px;
   font-weight: 760;
@@ -13424,6 +13439,8 @@ button.license-package-row:hover {
   white-space: nowrap;
 }
 
+.app-nav-theme-button:hover::after,
+.app-nav-theme-button:focus-visible::after,
 .app-nav-profile-button:hover::after,
 .app-nav-profile-button:focus-visible::after {
   opacity: 1;
@@ -13453,53 +13470,278 @@ button.license-package-row:hover {
   transform: scale(1.05);
 }
 
-.theme-validation-switcher {
+.theme-dialog-overlay {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  inset: 0;
   z-index: 320;
-  display: inline-flex;
-  gap: 4px;
-  border: 1px solid hsl(var(--border) / 0.82);
-  border-radius: 999px;
-  background: hsl(var(--card) / 0.88);
-  box-shadow: var(--app-card-shadow);
-  padding: 4px;
+  display: grid;
+  place-items: center;
+  background: var(--app-overlay-scrim);
   -webkit-app-region: no-drag;
+}
+
+.theme-dialog {
+  display: grid;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: auto;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 12px;
+  background: hsl(var(--popover));
+  box-shadow: var(--app-shell-panel-shadow);
+  color: hsl(var(--popover-foreground));
+  padding: 18px;
   backdrop-filter: blur(16px);
 }
 
-.theme-validation-switcher button {
-  min-width: 64px;
-  height: 30px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 780;
-  padding: 0 12px;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    transform 150ms ease;
+.theme-dialog-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
 }
 
-.theme-validation-switcher button:hover,
-.theme-validation-switcher button:focus-visible {
-  background: hsl(var(--accent) / 0.64);
-  color: hsl(var(--accent-foreground));
+.theme-dialog-header > div {
+  display: flex;
+  gap: 12px;
+  min-width: 0;
+}
+
+.theme-dialog-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--app-interactive-badge-border);
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
+}
+
+.theme-dialog h2 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 20px;
+  font-weight: 840;
+  line-height: 1.2;
+}
+
+.theme-dialog p {
+  margin: 5px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.theme-dialog-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--app-action-secondary-border);
+  border-radius: 999px;
+  background: var(--app-action-secondary-bg);
+  color: var(--app-action-secondary-fg);
+  cursor: pointer;
+}
+
+.theme-dialog-close:hover,
+.theme-dialog-close:focus-visible {
+  background: var(--app-action-secondary-hover-bg);
   outline: 0;
 }
 
-.theme-validation-switcher button.is-active {
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
+.theme-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.theme-validation-switcher button:active {
-  transform: scale(0.96);
+.theme-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.9);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 12px;
+  text-align: left;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+.theme-card:hover,
+.theme-card:focus-visible {
+  border-color: var(--app-action-secondary-border);
+  box-shadow: var(--app-subtle-panel-shadow);
+  outline: 0;
+}
+
+.theme-card.is-active {
+  border-color: var(--app-interactive-selected-fg);
+  box-shadow: 0 0 0 3px var(--app-interactive-focus-ring);
+}
+
+.theme-card:active {
+  transform: scale(0.99);
+}
+
+.theme-preview-frame {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--app-action-secondary-border);
+  background: var(--app-shell-background);
+  padding: 8px;
+  aspect-ratio: 1.72;
+}
+
+.theme-preview-shell {
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--app-action-secondary-border);
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+}
+
+.theme-preview-masthead {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid hsl(var(--foreground));
+  background: hsl(var(--card) / 0.84);
+  padding: 10px 12px 8px;
+}
+
+.theme-preview-brand {
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: 20px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.theme-preview-brand em,
+.theme-preview-nav .is-active {
+  color: var(--app-interactive-link);
+  font-style: normal;
+}
+
+.theme-preview-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-preview-actions span {
+  display: block;
+  width: 18px;
+  height: 16px;
+  border: 1px solid var(--app-action-secondary-border);
+  background: var(--app-action-secondary-bg);
+}
+
+.theme-preview-nav {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid hsl(var(--border) / 0.8);
+  background: hsl(var(--card) / 0.78);
+  color: hsl(var(--foreground));
+  font-family: var(--font-reader-serif);
+  font-size: 9px;
+  font-weight: 760;
+  padding: 7px 10px 6px;
+}
+
+.theme-preview-nav .is-active {
+  box-shadow: inset 0 -2px 0 var(--app-interactive-link);
+}
+
+.theme-preview-library {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px;
+}
+
+.theme-preview-book {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid hsl(var(--border) / 0.74);
+  background: hsl(var(--card) / 0.88);
+  padding: 8px;
+}
+
+.theme-preview-cover {
+  display: block;
+  background: var(--app-interactive-badge-bg);
+  box-shadow: inset 0 -2px 0 var(--app-interactive-link);
+}
+
+.theme-preview-cover.is-muted {
+  background: var(--app-action-secondary-hover-bg);
+}
+
+.theme-preview-lines {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.theme-preview-lines span {
+  display: block;
+  height: 7px;
+  background: hsl(var(--foreground));
+}
+
+.theme-preview-lines span:last-child {
+  width: 62%;
+  height: 5px;
+  background: hsl(var(--muted-foreground));
+}
+
+.theme-card-body {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.theme-card-body > span:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.theme-card-body strong {
+  color: hsl(var(--foreground));
+  font-size: 15px;
+  font-weight: 840;
+}
+
+.theme-card-body small {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.theme-card-check {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--app-interactive-badge-border);
+  border-radius: 999px;
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
 }
 
 .settings-content {
@@ -13648,9 +13890,8 @@ button.license-package-row:hover {
 }
 
 .library-home {
-  background:
-    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.014) 0 1px, transparent 1px 16px),
-    hsl(var(--card));
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
 .library-home-header {
@@ -13690,8 +13931,8 @@ button.license-package-row:hover {
 
 .library-home-actions .library-add-trigger:hover,
 .library-home-actions .library-add-trigger:focus-visible {
-  border-color: hsl(3 62% 39%);
-  background: hsl(3 62% 39%);
+  border-color: var(--app-interactive-link);
+  background: var(--app-interactive-link);
   color: hsl(var(--card));
 }
 
@@ -13856,7 +14097,7 @@ button.license-package-row:hover {
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--ebook-progress);
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   content: '';
 }
 
@@ -14159,7 +14400,7 @@ button.license-package-row:hover {
 .library-ebook-dropzone-icon.is-error {
   border-color: hsl(3 62% 39% / 0.68);
   background: hsl(var(--card));
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .library-article-import-submit {
@@ -14172,8 +14413,8 @@ button.license-package-row:hover {
 
 .library-article-import-submit:hover,
 .library-article-import-submit:focus-visible {
-  border-color: hsl(3 62% 39%);
-  background: hsl(3 62% 39%);
+  border-color: var(--app-interactive-link);
+  background: var(--app-interactive-link);
   color: hsl(var(--card));
 }
 
@@ -14191,7 +14432,7 @@ button.license-package-row:hover {
 
 .library-import-dialog.is-duplicate .library-import-progress-track span,
 .library-import-dialog.is-error .library-import-progress-track span {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
 }
 
 .library-article-duplicate-callout {
@@ -14203,7 +14444,7 @@ button.license-package-row:hover {
 }
 
 .library-article-duplicate-callout > svg {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .library-article-duplicate-callout strong {
@@ -14219,8 +14460,8 @@ button.license-package-row:hover {
 
 .library-import-dialog > footer button:hover,
 .library-import-dialog > footer button:focus-visible {
-  border-color: hsl(3 62% 39%);
-  background: hsl(3 62% 39%);
+  border-color: var(--app-interactive-link);
+  background: var(--app-interactive-link);
   color: hsl(var(--card));
   outline: 0;
 }
@@ -14411,11 +14652,8 @@ button.license-package-row:hover {
 
 .source-reader-shell .reader-main,
 .source-ebook-reader-shell .reader-main {
-  background:
-    linear-gradient(90deg, hsl(var(--border) / 0.18) 1px, transparent 1px),
-    linear-gradient(180deg, hsl(var(--border) / 0.16) 1px, transparent 1px),
-    hsl(var(--muted) / 0.34);
-  background-size: 28px 28px;
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
 .source-reader-shell .reader-edge-blur,
@@ -14673,7 +14911,7 @@ button.license-package-row:hover {
 
 .source-reader-shell .reader-focus-plan:hover:not(:disabled),
 .source-ebook-reader-shell .reader-focus-plan:hover:not(:disabled) {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   color: hsl(var(--card));
 }
 
@@ -14995,7 +15233,7 @@ button.license-package-row:hover {
 }
 
 .source-pdf-reader-shell .reader-focus-plan:hover:not(:disabled) {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
   color: hsl(var(--card));
 }
 
@@ -15729,7 +15967,7 @@ button.license-package-row:hover {
 .source-reader-shell .reader-delete-note,
 .source-ebook-reader-shell .reader-delete-note,
 .source-pdf-reader-shell .reader-delete-note {
-  color: hsl(3 62% 39%);
+  color: var(--app-action-danger-bg);
 }
 
 .source-reader-shell .reader-action-delete,
@@ -15813,7 +16051,8 @@ button.license-package-row:hover {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
   min-height: 0;
-  background: var(--app-reader-paper);
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
   padding: 54px 22px 0;
 }
 
@@ -15920,19 +16159,8 @@ button.license-package-row:hover {
   position: relative;
   min-height: 0;
   border: 1px solid var(--app-reader-line);
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--app-reader-line) 48%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--app-reader-line) 44%, transparent) 1px,
-      transparent 1px
-    ),
-    color-mix(in srgb, var(--app-reader-bg) 72%, var(--app-reader-paper));
-  background-size: 28px 28px;
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
 }
 
 .source-pdf-reader-shell .reader-app.is-embedded {
@@ -16319,11 +16547,11 @@ button.license-package-row:hover {
 .stats-goal-steps .is-lit,
 .activity-stamp.status-today,
 .activity-stamp.is-special {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .stats-goal-steps .is-lit {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
 }
 
 .stats-chart-tooltip {
@@ -16368,20 +16596,26 @@ button.license-package-row:hover {
 }
 
 .settings-section-nav-item:hover,
-.settings-section-nav-item.is-active,
 .settings-toggle-card:hover,
 .shortcut-option-card:hover,
-.shortcut-option-card.is-active,
 .selection-shortcut-row:hover,
 .selection-shortcut-row.is-recording {
-  border-color: hsl(3 62% 39% / 0.52);
+  border-color: var(--app-interactive-hover-border);
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.settings-section-nav-item.is-active,
+.shortcut-option-card.is-active,
+.selection-shortcut-row.is-recording {
+  border-color: var(--app-interactive-selected-border);
   background: hsl(var(--card));
   box-shadow: none;
 }
 
 .settings-section-nav-item.is-active .settings-section-nav-icon,
 .settings-section-nav-item.is-active {
-  color: hsl(3 62% 39%);
+  color: var(--app-interactive-link);
 }
 
 .provider-select-trigger,
@@ -16402,12 +16636,12 @@ button.license-package-row:hover {
 .provider-select-item-mark,
 .save-action.is-saved,
 .log-clear-action.is-cleared {
-  background: hsl(3 62% 39%);
+  background: var(--app-interactive-link);
 }
 
 .settings-toggle-card input:checked + .settings-toggle-switch,
 .shortcut-option-card.is-active .shortcut-radio {
-  border-color: hsl(3 62% 39%);
+  border-color: var(--app-interactive-link);
 }
 
 .agent-list-card,
@@ -16431,8 +16665,8 @@ button.license-package-row:hover {
 }
 
 .agent-card-toggle input:checked + .settings-toggle-switch {
-  background: hsl(3 62% 39%);
-  box-shadow: inset 0 0 0 1px hsl(3 62% 39%);
+  background: var(--app-interactive-link);
+  box-shadow: inset 0 0 0 1px var(--app-interactive-link);
 }
 
 @media (max-width: 1120px) {

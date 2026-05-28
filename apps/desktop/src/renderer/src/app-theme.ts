@@ -9,6 +9,7 @@ export type AppTheme = {
     id: string;
     name: string;
     description: string;
+    visible: boolean;
   };
   font: {
     ui: string;
@@ -46,6 +47,26 @@ export type AppTheme = {
     cardShadow: string;
     overlayScrim: string;
   };
+  action: {
+    primary: ThemeControlState;
+    secondary: ThemeControlState;
+    danger: ThemeControlState;
+  };
+  interactive: {
+    link: string;
+    linkHover: string;
+    selectedBackground: string;
+    selectedForeground: string;
+    selectedBorder: string;
+    currentBackground: string;
+    hoverBackground: string;
+    hoverBorder: string;
+    focusRing: string;
+    badgeBackground: string;
+    badgeForeground: string;
+    badgeBorder: string;
+  };
+  paperPattern: PaperPatternTheme;
   dataColor: {
     chart1: string;
     chart2: string;
@@ -56,8 +77,31 @@ export type AppTheme = {
   reader: ReaderTheme;
 };
 
+export type ThemeControlState = {
+  background: string;
+  foreground: string;
+  border: string;
+  hoverBackground: string;
+  activeBackground: string;
+  disabledBackground: string;
+  disabledForeground: string;
+};
+
+export type PaperPatternKind = 'plain' | 'grid' | 'dot' | 'ruled' | 'dash-grid';
+
+export type PaperPatternTheme = {
+  kind: PaperPatternKind;
+  background: string;
+  color: string;
+  secondaryColor?: string;
+  opacity: string;
+  size: string;
+};
+
 export const defaultThemeId = 'default';
 export const beigePaperThemeId = 'beige-paper';
+export const inkPaperThemeId = 'ink-paper';
+const cachedThemeStorageKey = 'yomitomo.themeId';
 
 const defaultReaderTheme: ReaderTheme = {
   background: '#f5f1e8',
@@ -112,8 +156,9 @@ const defaultReaderTheme: ReaderTheme = {
 export const defaultTheme: AppTheme = {
   meta: {
     id: defaultThemeId,
-    name: '报纸风',
+    name: '纸白',
     description: '当前 Yomitomo 桌面端默认视觉，提炼为主题契约的基准主题。',
+    visible: true,
   },
   font: {
     ui: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif",
@@ -151,6 +196,57 @@ export const defaultTheme: AppTheme = {
     subtlePanelShadow: '0 12px 36px hsl(31 34% 24% / 0.05)',
     cardShadow: '0 7px 18px hsl(31 34% 24% / 0.13)',
     overlayScrim: 'rgba(40,35,29,.14)',
+  },
+  action: {
+    primary: {
+      background: 'hsl(0 0% 8%)',
+      foreground: 'hsl(0 0% 98%)',
+      border: 'hsl(0 0% 8%)',
+      hoverBackground: 'hsl(0 0% 14%)',
+      activeBackground: 'hsl(0 0% 4%)',
+      disabledBackground: 'hsl(0 0% 86%)',
+      disabledForeground: 'hsl(0 0% 48%)',
+    },
+    secondary: {
+      background: 'hsl(0 0% 100% / 0.82)',
+      foreground: 'hsl(0 0% 8%)',
+      border: 'hsl(0 0% 78% / 0.86)',
+      hoverBackground: 'hsl(40 30% 92%)',
+      activeBackground: 'hsl(40 24% 86%)',
+      disabledBackground: 'hsl(0 0% 94% / 0.72)',
+      disabledForeground: 'hsl(0 0% 50%)',
+    },
+    danger: {
+      background: 'hsl(3 64% 42%)',
+      foreground: 'hsl(0 0% 98%)',
+      border: 'hsl(3 64% 42%)',
+      hoverBackground: 'hsl(3 64% 36%)',
+      activeBackground: 'hsl(3 64% 30%)',
+      disabledBackground: 'hsl(3 24% 84%)',
+      disabledForeground: 'hsl(3 20% 44%)',
+    },
+  },
+  interactive: {
+    link: 'hsl(3 62% 39%)',
+    linkHover: 'hsl(3 62% 32%)',
+    selectedBackground: 'hsl(4 68% 94%)',
+    selectedForeground: 'hsl(3 62% 36%)',
+    selectedBorder: 'hsl(3 62% 39% / 0.52)',
+    currentBackground: 'hsl(40 30% 94% / 0.82)',
+    hoverBackground: 'hsl(40 34% 94% / 0.74)',
+    hoverBorder: 'hsl(3 62% 39% / 0.4)',
+    focusRing: 'hsl(3 62% 42% / 0.38)',
+    badgeBackground: 'hsl(4 68% 94%)',
+    badgeForeground: 'hsl(3 62% 36%)',
+    badgeBorder: 'hsl(3 62% 42% / 0.22)',
+  },
+  paperPattern: {
+    kind: 'grid',
+    background: 'hsl(0 0% 100%)',
+    color: 'hsl(0 0% 0%)',
+    secondaryColor: 'hsl(0 0% 0%)',
+    opacity: '0.016',
+    size: '16px',
   },
   dataColor: {
     chart1: 'hsl(83 24% 35%)',
@@ -217,6 +313,7 @@ export const beigePaperTheme: AppTheme = {
     id: beigePaperThemeId,
     name: '米色纸',
     description: '用于验证主题契约覆盖范围的米色纸质感主题。',
+    visible: false,
   },
   font: defaultTheme.font,
   palette: {
@@ -251,6 +348,57 @@ export const beigePaperTheme: AppTheme = {
     cardShadow: '0 8px 22px hsl(31 45% 20% / 0.15)',
     overlayScrim: 'rgba(74,50,27,.18)',
   },
+  action: {
+    primary: {
+      background: 'hsl(31 45% 20%)',
+      foreground: 'hsl(39 68% 96%)',
+      border: 'hsl(31 45% 20%)',
+      hoverBackground: 'hsl(31 45% 16%)',
+      activeBackground: 'hsl(31 45% 12%)',
+      disabledBackground: 'hsl(38 34% 76%)',
+      disabledForeground: 'hsl(33 22% 42%)',
+    },
+    secondary: {
+      background: 'hsl(39 69% 96% / 0.86)',
+      foreground: 'hsl(31 39% 14%)',
+      border: 'hsl(36 34% 70% / 0.9)',
+      hoverBackground: 'hsl(38 44% 86%)',
+      activeBackground: 'hsl(37 42% 80%)',
+      disabledBackground: 'hsl(38 36% 84% / 0.7)',
+      disabledForeground: 'hsl(33 20% 46%)',
+    },
+    danger: {
+      background: 'hsl(7 43% 43%)',
+      foreground: 'hsl(39 68% 96%)',
+      border: 'hsl(7 43% 43%)',
+      hoverBackground: 'hsl(7 43% 36%)',
+      activeBackground: 'hsl(7 43% 30%)',
+      disabledBackground: 'hsl(12 28% 78%)',
+      disabledForeground: 'hsl(9 22% 42%)',
+    },
+  },
+  interactive: {
+    link: 'hsl(29 55% 29%)',
+    linkHover: 'hsl(29 55% 23%)',
+    selectedBackground: 'hsl(40 63% 82%)',
+    selectedForeground: 'hsl(29 55% 29%)',
+    selectedBorder: 'hsl(29 55% 29% / 0.52)',
+    currentBackground: 'hsl(39 60% 92% / 0.82)',
+    hoverBackground: 'hsl(38 44% 86% / 0.72)',
+    hoverBorder: 'hsl(29 55% 29% / 0.4)',
+    focusRing: 'hsl(29 55% 35% / 0.36)',
+    badgeBackground: 'hsl(40 63% 82% / 0.64)',
+    badgeForeground: 'hsl(29 55% 29%)',
+    badgeBorder: 'hsl(29 55% 35% / 0.22)',
+  },
+  paperPattern: {
+    kind: 'dash-grid',
+    background: 'hsl(39 69% 96%)',
+    color: 'hsl(31 45% 20%)',
+    secondaryColor: 'hsl(31 45% 20%)',
+    opacity: '0.028',
+    size: '18px',
+  },
   dataColor: {
     chart1: 'hsl(94 25% 34%)',
     chart2: 'hsl(11 45% 45%)',
@@ -261,12 +409,167 @@ export const beigePaperTheme: AppTheme = {
   reader: beigePaperReaderTheme,
 };
 
+const inkPaperReaderTheme: ReaderTheme = {
+  background: '#f5f4ed',
+  paper: '#faf9f5',
+  ink: '#141413',
+  muted: '#6b6a64',
+  line: '#d6d1c4',
+  primary: '#1b365d',
+  accent: '#d6e1ee',
+  accentStrong: '#1b365d',
+  danger: '#b53333',
+  toolbar: {
+    background: 'rgba(250,249,245,.9)',
+    border: 'rgba(27,54,93,.12)',
+    controlBackground: 'rgba(250,249,245,.84)',
+    controlHoverBackground: '#e8e6dc',
+  },
+  toc: {
+    background: 'rgba(232,230,220,.58)',
+    itemHoverBackground: 'rgba(250,249,245,.82)',
+  },
+  note: {
+    background: 'rgba(250,249,245,.9)',
+    border: 'rgba(27,54,93,.12)',
+    shadow: '0 10px 28px rgba(20,20,19,.08)',
+    quoteBackground: 'rgba(214,225,238,.34)',
+    quoteText: '#1b365d',
+  },
+  selectionMenu: {
+    background: 'rgba(20,20,19,.92)',
+    foreground: '#faf9f5',
+    border: 'rgba(27,54,93,.18)',
+    shadow: '0 14px 36px rgba(20,20,19,.24)',
+  },
+  composer: {
+    background: 'rgba(250,249,245,.98)',
+    border: 'rgba(27,54,93,.16)',
+    shadow: '0 24px 64px rgba(20,20,19,.16)',
+  },
+  agentPanel: {
+    background: 'rgba(245,244,237,.94)',
+    border: 'rgba(27,54,93,.14)',
+    hoverBackground: '#e8e6dc',
+  },
+  overlay: {
+    scrim: 'rgba(20,20,19,.16)',
+    edgeBlurTop: 'linear-gradient(to bottom,rgba(245,244,237,.86),rgba(245,244,237,0))',
+    edgeBlurBottom: 'linear-gradient(to top,rgba(245,244,237,.86),rgba(245,244,237,0))',
+  },
+};
+
+export const inkPaperTheme: AppTheme = {
+  meta: {
+    id: inkPaperThemeId,
+    name: '墨纸',
+    description: '暖纸底、淡点阵和墨蓝强调的沉静阅读主题。',
+    visible: true,
+  },
+  font: defaultTheme.font,
+  palette: {
+    background: '48 29% 95%',
+    foreground: '60 3% 8%',
+    card: '48 33% 97%',
+    cardForeground: '60 3% 8%',
+    popover: '48 33% 97%',
+    popoverForeground: '60 3% 8%',
+    primary: '215 55% 24%',
+    primaryForeground: '48 33% 97%',
+    secondary: '48 17% 89%',
+    secondaryForeground: '60 3% 8%',
+    muted: '48 15% 87%',
+    mutedForeground: '50 3% 41%',
+    accent: '213 32% 88%',
+    accentForeground: '215 55% 24%',
+    destructive: '0 55% 45%',
+    destructiveForeground: '48 33% 97%',
+    border: '44 16% 80%',
+    input: '44 16% 80%',
+    ring: '215 55% 24%',
+  },
+  effect: {
+    radius: '0.7rem',
+    resizeDuration: defaultTheme.effect.resizeDuration,
+    resizeEase: defaultTheme.effect.resizeEase,
+    shellBackground:
+      'radial-gradient(circle at 16% 18%, hsl(213 32% 88% / 0.36), transparent 28%), linear-gradient(135deg, hsl(48 29% 95%), hsl(44 23% 90%))',
+    shellPanelShadow: '0 22px 70px hsl(60 3% 8% / 0.1)',
+    subtlePanelShadow: '0 10px 30px hsl(60 3% 8% / 0.055)',
+    cardShadow: '0 7px 18px hsl(60 3% 8% / 0.1)',
+    overlayScrim: 'rgba(20,20,19,.16)',
+  },
+  action: {
+    primary: {
+      background: 'hsl(215 55% 24%)',
+      foreground: 'hsl(48 33% 97%)',
+      border: 'hsl(215 55% 24%)',
+      hoverBackground: 'hsl(215 55% 20%)',
+      activeBackground: 'hsl(215 55% 16%)',
+      disabledBackground: 'hsl(48 14% 82%)',
+      disabledForeground: 'hsl(50 3% 42%)',
+    },
+    secondary: {
+      background: 'hsl(48 17% 89% / 0.88)',
+      foreground: 'hsl(60 3% 8%)',
+      border: 'hsl(44 16% 76%)',
+      hoverBackground: 'hsl(48 17% 84%)',
+      activeBackground: 'hsl(48 16% 79%)',
+      disabledBackground: 'hsl(48 15% 87% / 0.7)',
+      disabledForeground: 'hsl(50 3% 46%)',
+    },
+    danger: {
+      background: 'hsl(0 55% 45%)',
+      foreground: 'hsl(48 33% 97%)',
+      border: 'hsl(0 55% 45%)',
+      hoverBackground: 'hsl(0 55% 38%)',
+      activeBackground: 'hsl(0 55% 32%)',
+      disabledBackground: 'hsl(0 22% 82%)',
+      disabledForeground: 'hsl(0 20% 44%)',
+    },
+  },
+  interactive: {
+    link: 'hsl(215 55% 24%)',
+    linkHover: 'hsl(215 55% 18%)',
+    selectedBackground: 'hsl(213 32% 88%)',
+    selectedForeground: 'hsl(215 55% 24%)',
+    selectedBorder: 'hsl(215 55% 24% / 0.52)',
+    currentBackground: 'hsl(48 33% 97% / 0.82)',
+    hoverBackground: 'hsl(48 17% 89% / 0.72)',
+    hoverBorder: 'hsl(215 55% 24% / 0.4)',
+    focusRing: 'hsl(215 55% 24% / 0.34)',
+    badgeBackground: 'hsl(213 32% 88% / 0.72)',
+    badgeForeground: 'hsl(215 55% 24%)',
+    badgeBorder: 'hsl(215 55% 24% / 0.18)',
+  },
+  paperPattern: {
+    kind: 'dot',
+    background: 'hsl(48 29% 95%)',
+    color: 'hsl(215 55% 24%)',
+    opacity: '0.12',
+    size: '14px',
+  },
+  dataColor: {
+    chart1: 'hsl(215 32% 34%)',
+    chart2: 'hsl(0 48% 44%)',
+    chart3: 'hsl(92 18% 36%)',
+    userAnnotationDefault: '#d6e1ee',
+    readerAgentFallback: '#1b365d',
+  },
+  reader: inkPaperReaderTheme,
+};
+
 export const themeRegistry = {
   [defaultThemeId]: defaultTheme,
+  [inkPaperThemeId]: inkPaperTheme,
   [beigePaperThemeId]: beigePaperTheme,
 } as const satisfies Record<string, AppTheme>;
 
 export type AppThemeId = keyof typeof themeRegistry;
+
+export const visibleThemeIds = (Object.keys(themeRegistry) as AppThemeId[]).filter(
+  (themeId) => themeRegistry[themeId].meta.visible,
+);
 
 export function themeToCssVariables(theme: AppTheme): CssVariableMap {
   return {
@@ -300,6 +603,46 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-subtle-panel-shadow': theme.effect.subtlePanelShadow,
     '--app-card-shadow': theme.effect.cardShadow,
     '--app-overlay-scrim': theme.effect.overlayScrim,
+    '--app-action-primary-bg': theme.action.primary.background,
+    '--app-action-primary-fg': theme.action.primary.foreground,
+    '--app-action-primary-border': theme.action.primary.border,
+    '--app-action-primary-hover-bg': theme.action.primary.hoverBackground,
+    '--app-action-primary-active-bg': theme.action.primary.activeBackground,
+    '--app-action-primary-disabled-bg': theme.action.primary.disabledBackground,
+    '--app-action-primary-disabled-fg': theme.action.primary.disabledForeground,
+    '--app-action-secondary-bg': theme.action.secondary.background,
+    '--app-action-secondary-fg': theme.action.secondary.foreground,
+    '--app-action-secondary-border': theme.action.secondary.border,
+    '--app-action-secondary-hover-bg': theme.action.secondary.hoverBackground,
+    '--app-action-secondary-active-bg': theme.action.secondary.activeBackground,
+    '--app-action-secondary-disabled-bg': theme.action.secondary.disabledBackground,
+    '--app-action-secondary-disabled-fg': theme.action.secondary.disabledForeground,
+    '--app-action-danger-bg': theme.action.danger.background,
+    '--app-action-danger-fg': theme.action.danger.foreground,
+    '--app-action-danger-border': theme.action.danger.border,
+    '--app-action-danger-hover-bg': theme.action.danger.hoverBackground,
+    '--app-action-danger-active-bg': theme.action.danger.activeBackground,
+    '--app-action-danger-disabled-bg': theme.action.danger.disabledBackground,
+    '--app-action-danger-disabled-fg': theme.action.danger.disabledForeground,
+    '--app-interactive-link': theme.interactive.link,
+    '--app-interactive-link-hover': theme.interactive.linkHover,
+    '--app-interactive-selected-bg': theme.interactive.selectedBackground,
+    '--app-interactive-selected-fg': theme.interactive.selectedForeground,
+    '--app-interactive-selected-border': theme.interactive.selectedBorder,
+    '--app-interactive-current-bg': theme.interactive.currentBackground,
+    '--app-interactive-hover-bg': theme.interactive.hoverBackground,
+    '--app-interactive-hover-border': theme.interactive.hoverBorder,
+    '--app-interactive-focus-ring': theme.interactive.focusRing,
+    '--app-interactive-badge-bg': theme.interactive.badgeBackground,
+    '--app-interactive-badge-fg': theme.interactive.badgeForeground,
+    '--app-interactive-badge-border': theme.interactive.badgeBorder,
+    '--app-paper-pattern-bg': theme.paperPattern.background,
+    '--app-paper-pattern-color': theme.paperPattern.color,
+    '--app-paper-pattern-secondary-color':
+      theme.paperPattern.secondaryColor || theme.paperPattern.color,
+    '--app-paper-pattern-opacity': theme.paperPattern.opacity,
+    '--app-paper-pattern-size': theme.paperPattern.size,
+    '--app-paper-pattern-image': paperPatternImage(theme.paperPattern),
     '--chart-1': theme.dataColor.chart1,
     '--chart-2': theme.dataColor.chart2,
     '--chart-3': theme.dataColor.chart3,
@@ -314,5 +657,69 @@ export function applyAppTheme(theme: AppTheme, root: HTMLElement = document.docu
   const variables = themeToCssVariables(theme);
   for (const [name, value] of Object.entries(variables)) {
     root.style.setProperty(name, value);
+  }
+}
+
+export function resolveAppThemeId(value: unknown): AppThemeId {
+  return typeof value === 'string' && value in themeRegistry
+    ? (value as AppThemeId)
+    : defaultThemeId;
+}
+
+export function readCachedThemeId(
+  storage: Storage | undefined = browserLocalStorage(),
+): AppThemeId {
+  if (!storage) return defaultThemeId;
+
+  try {
+    return resolveAppThemeId(storage.getItem(cachedThemeStorageKey));
+  } catch {
+    return defaultThemeId;
+  }
+}
+
+export function writeCachedThemeId(
+  themeId: AppThemeId,
+  storage: Storage | undefined = browserLocalStorage(),
+) {
+  if (!storage) return;
+
+  try {
+    storage.setItem(cachedThemeStorageKey, themeId);
+  } catch {
+    // Theme cache is a startup optimization; settings remain the source of truth.
+  }
+}
+
+function paperPatternImage(pattern: PaperPatternTheme) {
+  const color = colorWithOpacity(pattern.color, pattern.opacity);
+  const secondaryColor = colorWithOpacity(pattern.secondaryColor || pattern.color, pattern.opacity);
+
+  switch (pattern.kind) {
+    case 'plain':
+      return 'none';
+    case 'dot':
+      return `radial-gradient(circle, ${color} 0 1px, transparent 1.35px)`;
+    case 'ruled':
+      return `linear-gradient(180deg, transparent calc(100% - 1px), ${color} 100%)`;
+    case 'dash-grid':
+      return `repeating-linear-gradient(90deg, ${color} 0 1px, transparent 1px 6px, transparent 6px 18px), repeating-linear-gradient(180deg, ${secondaryColor} 0 1px, transparent 1px 6px, transparent 6px 18px)`;
+    case 'grid':
+      return `linear-gradient(90deg, ${color} 1px, transparent 1px), linear-gradient(180deg, ${secondaryColor} 1px, transparent 1px)`;
+  }
+}
+
+function colorWithOpacity(color: string, opacity: string) {
+  if (color.startsWith('hsl(')) {
+    return color.replace(/\)$/, ` / ${opacity})`);
+  }
+  return color;
+}
+
+function browserLocalStorage() {
+  try {
+    return typeof window === 'undefined' ? undefined : window.localStorage;
+  } catch {
+    return undefined;
   }
 }

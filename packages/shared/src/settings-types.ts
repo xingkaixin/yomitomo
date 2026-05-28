@@ -8,6 +8,7 @@ export type SelectionActionShortcuts = {
 };
 
 export type AppSettings = {
+  themeId?: string;
   defaultProviderId?: string;
   readingAssistantProviderId?: string;
   reviewAssistantProviderId?: string;
