@@ -10,7 +10,16 @@ import { useDesktopStoreState } from './app-desktop-store-state';
 import { useSettingsDrafts } from './app-settings-drafts';
 import { SettingsNavButton } from './app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
+import {
+  applyAppTheme,
+  defaultTheme,
+  defaultThemeId,
+  themeRegistry,
+  type AppThemeId,
+} from './app-theme';
 import './styles.css';
+
+applyAppTheme(defaultTheme);
 
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
@@ -226,9 +235,14 @@ function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
 }
 
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
+const themeOptions = Object.entries(themeRegistry).map(([id, theme]) => ({
+  id: id as AppThemeId,
+  name: theme.meta.name,
+}));
 
 function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
+  const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(defaultThemeId);
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
   const [, setPreloadVersion] = useState(0);
@@ -245,6 +259,10 @@ function App() {
     recordStartupTiming('app.mounted');
     requestMainWindow('app.mounted', { storeLoaded: false, storeLoadError: false });
   }, []);
+
+  useEffect(() => {
+    applyAppTheme(themeRegistry[activeThemeId]);
+  }, [activeThemeId]);
 
   useEffect(() => subscribePreloadModules(() => setPreloadVersion((version) => version + 1)), []);
 
@@ -476,6 +494,7 @@ function App() {
 
   return (
     <main className={appShellClassName}>
+      <ThemeValidationSwitcher activeThemeId={activeThemeId} onChange={setActiveThemeId} />
       <header className="app-masthead">
         <div className="app-masthead-title">
           <h1>
@@ -648,6 +667,30 @@ function App() {
         </Suspense>
       ) : null}
     </main>
+  );
+}
+
+function ThemeValidationSwitcher({
+  activeThemeId,
+  onChange,
+}: {
+  activeThemeId: AppThemeId;
+  onChange: (themeId: AppThemeId) => void;
+}) {
+  return (
+    <div className="theme-validation-switcher" role="group" aria-label="主题验证切换">
+      {themeOptions.map((theme) => (
+        <button
+          aria-pressed={activeThemeId === theme.id}
+          className={activeThemeId === theme.id ? 'is-active' : undefined}
+          key={theme.id}
+          type="button"
+          onClick={() => onChange(theme.id)}
+        >
+          {theme.name}
+        </button>
+      ))}
+    </div>
   );
 }
 

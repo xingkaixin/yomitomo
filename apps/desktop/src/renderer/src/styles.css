@@ -88,6 +88,13 @@
     --radius: 0.85rem;
     --resize-dur: 300ms;
     --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --app-shell-background:
+      radial-gradient(circle at 14% 18%, hsl(50 36% 84% / 0.42), transparent 30%),
+      linear-gradient(135deg, hsl(45 38% 93%), hsl(36 32% 88%));
+    --app-shell-panel-shadow: 0 24px 80px hsl(31 34% 24% / 0.12);
+    --app-subtle-panel-shadow: 0 12px 36px hsl(31 34% 24% / 0.05);
+    --app-card-shadow: 0 7px 18px hsl(31 34% 24% / 0.13);
+    --app-overlay-scrim: rgba(40, 35, 29, 0.14);
   }
 
   html,
@@ -155,9 +162,7 @@
   min-height: 0;
   grid-template-rows: 40px minmax(0, 1fr);
   overflow: hidden;
-  background:
-    radial-gradient(circle at 14% 18%, hsl(50 36% 84% / 0.42), transparent 30%),
-    linear-gradient(135deg, hsl(45 38% 93%), hsl(36 32% 88%));
+  background: var(--app-shell-background);
   color: hsl(var(--foreground));
 }
 
@@ -407,7 +412,7 @@
   border-radius: 8px;
   background: hsl(var(--card) / 0.82);
   padding: 14px 10px;
-  box-shadow: 0 24px 80px hsl(31 34% 24% / 0.12);
+  box-shadow: var(--app-shell-panel-shadow);
   overflow: hidden;
 }
 
@@ -416,7 +421,7 @@
   background: hsl(var(--card) / 0.56);
   padding-inline: 6px;
   box-shadow:
-    0 12px 36px hsl(31 34% 24% / 0.05),
+    var(--app-subtle-panel-shadow),
     inset -1px 0 0 hsl(36 30% 72% / 0.24);
 }
 
@@ -529,7 +534,7 @@
     linear-gradient(135deg, transparent 0 84%, hsl(42 34% 82%) 85%),
     repeating-linear-gradient(0deg, transparent 0 23px, hsl(36 26% 76% / 0.36) 24px),
     hsl(43 62% 92%);
-  box-shadow: 0 7px 18px hsl(31 34% 24% / 0.13);
+  box-shadow: var(--app-card-shadow);
   color: hsl(35 22% 28%);
   padding: 13px 14px 14px;
   transform: rotate(-2deg);
@@ -10347,16 +10352,16 @@
   max-width: 520px;
   gap: 12px;
   margin-bottom: 14px;
-  border: 1px solid hsl(var(--border) / 0.72);
+  border: 1px solid var(--app-reader-note-border);
   border-radius: 12px;
-  background: hsl(var(--card) / 0.58);
+  background: var(--app-reader-note-bg);
   padding: 14px;
 }
 
 .annotation-color-preview-text {
   border-radius: 8px;
-  background: hsl(48 100% 99% / 0.66);
-  color: hsl(var(--foreground));
+  background: var(--app-reader-note-quote-bg);
+  color: var(--app-reader-note-quote-text);
   font-family: var(--font-reader-serif);
   font-size: 18px;
   line-height: 1.82;
@@ -10397,14 +10402,14 @@
   gap: 10px;
   border-left: 4px solid var(--annotation-color);
   border-radius: 10px;
-  background: hsl(48 100% 99% / 0.74);
-  box-shadow: 0 8px 20px hsl(31 34% 24% / 0.06);
+  background: var(--app-reader-note-bg);
+  box-shadow: var(--app-reader-note-shadow);
   padding: 11px 12px;
 }
 
 .annotation-color-preview-card strong {
   display: block;
-  color: hsl(var(--foreground));
+  color: var(--app-reader-ink);
   font-size: 13px;
   font-weight: 880;
   line-height: 1.25;
@@ -13448,6 +13453,55 @@ button.license-package-row:hover {
   transform: scale(1.05);
 }
 
+.theme-validation-switcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 320;
+  display: inline-flex;
+  gap: 4px;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 999px;
+  background: hsl(var(--card) / 0.88);
+  box-shadow: var(--app-card-shadow);
+  padding: 4px;
+  -webkit-app-region: no-drag;
+  backdrop-filter: blur(16px);
+}
+
+.theme-validation-switcher button {
+  min-width: 64px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 780;
+  padding: 0 12px;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.theme-validation-switcher button:hover,
+.theme-validation-switcher button:focus-visible {
+  background: hsl(var(--accent) / 0.64);
+  color: hsl(var(--accent-foreground));
+  outline: 0;
+}
+
+.theme-validation-switcher button.is-active {
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.theme-validation-switcher button:active {
+  transform: scale(0.96);
+}
+
 .settings-content {
   min-height: 0;
   overflow: hidden;
@@ -14212,10 +14266,10 @@ button.license-package-row:hover {
   height: 38px;
   align-items: center;
   gap: 7px;
-  border: 1px solid hsl(var(--foreground));
+  border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 0;
-  background: hsl(var(--card));
-  color: hsl(var(--foreground));
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -14236,8 +14290,8 @@ button.license-package-row:hover {
 
 .source-reader-back-button:hover,
 .source-reader-back-button:focus-visible {
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
+  background: var(--app-reader-toolbar-control-hover-bg);
+  color: var(--app-reader-primary);
   outline: 0;
 }
 
@@ -14247,17 +14301,17 @@ button.license-package-row:hover {
 
 .source-reader-shell .reader-app,
 .source-ebook-reader-shell .reader-app {
-  --reader-bg: hsl(var(--card));
-  --reader-paper: hsl(var(--card));
-  --reader-ink: hsl(var(--foreground));
-  --reader-muted: hsl(var(--muted-foreground));
-  --reader-line: hsl(var(--border));
-  --reader-green: hsl(var(--foreground));
-  --reader-red: hsl(3 62% 39%);
-  --reader-yellow: hsl(var(--border));
-  --reader-yellow-strong: hsl(var(--foreground));
+  --reader-bg: var(--app-reader-bg);
+  --reader-paper: var(--app-reader-paper);
+  --reader-ink: var(--app-reader-ink);
+  --reader-muted: var(--app-reader-muted);
+  --reader-line: var(--app-reader-line);
+  --reader-green: var(--app-reader-primary);
+  --reader-red: var(--app-reader-danger);
+  --reader-yellow: var(--app-reader-accent);
+  --reader-yellow-strong: var(--app-reader-accent-strong);
   border-radius: 0;
-  background: hsl(var(--card));
+  background: var(--app-reader-paper);
 }
 
 .source-reader-shell .reader-toolbar,
@@ -15745,27 +15799,27 @@ button.license-package-row:hover {
 }
 
 .source-pdf-reader-shell {
-  --reader-bg: hsl(var(--background));
-  --reader-paper: hsl(var(--card));
-  --reader-ink: hsl(var(--foreground));
-  --reader-muted: hsl(var(--muted-foreground));
-  --reader-line: hsl(var(--border));
-  --reader-green: hsl(var(--foreground));
-  --reader-red: hsl(3 62% 39%);
-  --reader-yellow: hsl(var(--border));
-  --reader-yellow-strong: hsl(var(--foreground));
+  --reader-bg: var(--app-reader-bg);
+  --reader-paper: var(--app-reader-paper);
+  --reader-ink: var(--app-reader-ink);
+  --reader-muted: var(--app-reader-muted);
+  --reader-line: var(--app-reader-line);
+  --reader-green: var(--app-reader-primary);
+  --reader-red: var(--app-reader-danger);
+  --reader-yellow: var(--app-reader-accent);
+  --reader-yellow-strong: var(--app-reader-accent-strong);
   --ebook-content-width: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
   min-height: 0;
-  background: hsl(var(--card));
+  background: var(--app-reader-paper);
   padding: 54px 22px 0;
 }
 
 .pdf-reader-toolbar {
-  border: 1px solid hsl(var(--border) / 0.82);
-  background: hsl(var(--background));
+  border: 1px solid var(--app-reader-toolbar-border);
+  background: var(--app-reader-toolbar-bg);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
@@ -15819,7 +15873,10 @@ button.license-package-row:hover {
   width: 34px;
   height: 34px;
   min-height: 34px;
+  border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 0;
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
   box-shadow: none;
 }
 
@@ -15838,6 +15895,8 @@ button.license-package-row:hover {
 
 .pdf-reader-controls button:hover,
 .pdf-reader-controls button:active {
+  background: var(--app-reader-toolbar-control-hover-bg);
+  color: var(--app-reader-primary);
   transform: none;
   box-shadow: none;
 }
@@ -15860,11 +15919,19 @@ button.license-package-row:hover {
 .pdf-reader-main {
   position: relative;
   min-height: 0;
-  border: 1px solid hsl(var(--border) / 0.82);
+  border: 1px solid var(--app-reader-line);
   background:
-    linear-gradient(90deg, hsl(var(--border) / 0.24) 1px, transparent 1px),
-    linear-gradient(180deg, hsl(var(--border) / 0.22) 1px, transparent 1px),
-    hsl(var(--muted) / 0.42);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--app-reader-line) 48%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--app-reader-line) 44%, transparent) 1px,
+      transparent 1px
+    ),
+    color-mix(in srgb, var(--app-reader-bg) 72%, var(--app-reader-paper));
   background-size: 28px 28px;
 }
 
@@ -15917,10 +15984,10 @@ button.license-package-row:hover {
   z-index: 240;
   display: block;
   width: min(320px, calc(100% - 36px));
-  border: 1px solid hsl(var(--border) / 0.82);
+  border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 8px;
-  background: hsl(var(--background) / 0.96);
-  box-shadow: 0 18px 48px hsl(var(--foreground) / 0.12);
+  background: var(--app-reader-toc-bg);
+  box-shadow: var(--app-reader-selection-menu-shadow);
 }
 
 .pdf-reader-status {
@@ -16010,9 +16077,17 @@ button.license-package-row:hover {
   height: 100%;
   min-height: 100%;
   background:
-    linear-gradient(90deg, hsl(var(--border) / 0.2) 1px, transparent 1px),
-    linear-gradient(180deg, hsl(var(--border) / 0.18) 1px, transparent 1px),
-    hsl(var(--muted) / 0.42);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--app-reader-line) 42%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--app-reader-line) 38%, transparent) 1px,
+      transparent 1px
+    ),
+    color-mix(in srgb, var(--app-reader-bg) 72%, var(--app-reader-paper));
   background-size: 28px 28px;
 }
 
@@ -16038,9 +16113,9 @@ button.license-package-row:hover {
   z-index: 40;
   display: inline-flex;
   align-items: center;
-  border: 1px solid hsl(var(--border) / 0.82);
-  background: hsl(var(--background) / 0.96);
-  color: hsl(var(--foreground));
+  border: 1px solid var(--app-reader-toolbar-border);
+  background: var(--app-reader-toolbar-bg);
+  color: var(--app-reader-ink);
   box-shadow: 0 14px 36px rgb(15 23 42 / 0.12);
 }
 

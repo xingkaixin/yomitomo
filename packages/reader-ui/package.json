@@ -12,6 +12,7 @@
     "./reader-reading-sections": "./src/reader-reading-sections.ts",
     "./reader-settings": "./src/reader-settings.ts",
     "./reader-styles": "./src/reader-styles.ts",
+    "./reader-theme": "./src/reader-theme.ts",
     "./reader-shortcuts": "./src/reader-shortcuts.ts",
     "./reader-types": "./src/reader-types.ts",
     "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",

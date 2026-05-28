@@ -20,13 +20,13 @@ export const sourceReaderTocStyles = `
 }
 .reader-app.has-toc.is-toc-open .reader-toc{
   padding:14px;
-  border:1px solid rgba(150,123,84,.28);
+  border:1px solid var(--app-reader-selection-menu-border);
   border-radius:8px;
-  background:rgba(255,253,248,.72);
+  background:var(--app-reader-toc-bg);
 }
 .reader-toc-title{
   margin:0 0 10px;
-  color:#746d63;
+  color:var(--reader-muted);
   font-size:11px;
   font-weight:900;
   letter-spacing:.12em;
@@ -39,15 +39,15 @@ export const sourceReaderTocStyles = `
   border:0;
   border-radius:8px;
   background:transparent;
-  color:#746d63;
+  color:var(--reader-muted);
   font-size:12px;
   font-weight:820;
   line-height:1.3;
   padding:9px 8px;
 }
 .reader-toc-item:hover{
-  background:rgba(245,239,226,.9);
-  color:#28231d;
+  background:var(--app-reader-toc-item-hover-bg);
+  color:var(--reader-ink);
 }
 .reader-toc-item-main{
   display:grid;

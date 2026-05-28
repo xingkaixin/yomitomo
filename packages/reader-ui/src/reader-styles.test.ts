@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { readerConversationStyles, readerDesktopEmbeddedStyles } from './reader-styles';
+import {
+  readerConversationStyles,
+  readerDesktopEmbeddedStyles,
+  readerStyles,
+} from './reader-styles';
 
 describe('reader embedded styles', () => {
+  it('uses app-provided reader theme variables for core reader surfaces', () => {
+    expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
+    expect(combinedReaderStyles()).toContain('background:var(--app-reader-edge-blur-top)');
+    expect(combinedReaderStyles()).toContain('background:var(--app-reader-scrim)');
+    expect(readerDesktopEmbeddedStyles).toContain('--reader-bg:var(--app-reader-bg)');
+    expect(combinedReaderStyles()).not.toContain('--reader-bg:#f5f1e8');
+    expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
+  });
+
   it('does not render annotation cards with a thicker left rail', () => {
     expect(readerConversationStyles).not.toContain('border-left-width:4px');
     expect(readerConversationStyles).not.toContain('border-radius:18px 18px 18px 7px');
@@ -9,7 +22,7 @@ describe('reader embedded styles', () => {
       '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;border-color:rgba(40,35,29,.16)',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;margin-bottom:14px;border:1px solid rgba(40,35,29,.1);outline:0;background:rgba(255,253,248,.78);box-shadow:none}',
+      '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;margin-bottom:14px;border:1px solid rgba(40,35,29,.1);outline:0;background:var(--reader-paper);box-shadow:none}',
     );
     expect(readerConversationStyles).toContain(
       '.reader-thread-detail{display:grid;max-height:min(46vh,420px);min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;gap:0;padding:0 14px 18px}',
@@ -20,7 +33,7 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).not.toContain('.reader-comment .reader-comment-author span{');
     expect(readerConversationStyles).toContain('.reader-comment .reader-comment-author>span{');
     expect(readerConversationStyles).toContain(
-      '.reader-action-menu-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:36;display:grid;min-width:132px;padding:4px;border:1px solid rgba(40,35,29,.12);border-radius:10px;background:#fff;',
+      '.reader-action-menu-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:36;display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border);border-radius:10px;background:var(--reader-paper);',
     );
     expect(readerConversationStyles).toContain(
       '.reader-action-delete{width:100%;height:32px;justify-content:flex-start;border-radius:7px;background:transparent;box-shadow:none;',
@@ -46,7 +59,7 @@ describe('reader embedded styles', () => {
       '.reader-comment-agent-tray .reader-agent-avatar-stack,.reader-comment-agent-tray .reader-agent-avatar-stack-item{overflow:visible}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-selection-primary{height:36px;border:1px solid rgba(37,29,22,.09);background:#fff;',
+      '.reader-selection-primary{height:36px;border:1px solid rgba(37,29,22,.09);background:var(--reader-paper);',
     );
     expect(readerConversationStyles).toContain(
       '.reader-composer .reader-agent-menu,.reader-comment-box .reader-agent-menu{right:auto;bottom:calc(100% + 8px);width:190px;',
@@ -71,3 +84,7 @@ describe('reader embedded styles', () => {
     );
   });
 });
+
+function combinedReaderStyles() {
+  return readerStyles + readerConversationStyles + readerDesktopEmbeddedStyles;
+}
