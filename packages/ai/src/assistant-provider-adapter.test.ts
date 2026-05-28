@@ -249,6 +249,68 @@ describe('assistant provider adapter', () => {
     expect(body.tools.map((tool) => tool.function.name)).toContain('reply_to_thread');
   });
 
+  it('normalizes OpenAI-compatible usage on native tool events', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 20,
+            total_tokens: 120,
+            prompt_tokens_details: {
+              cached_tokens: 30,
+              cache_write_tokens: 5,
+            },
+            completion_tokens_details: {
+              reasoning_tokens: 7,
+            },
+          },
+          choices: [
+            {
+              message: {
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'get_current_thread',
+                      arguments: '{}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const adapter = createAssistantProviderModelAdapter(provider(), payload());
+
+    const event = await adapter({
+      taskType: 'thread_reply',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      stepIndex: 0,
+      availableTools: [{ name: 'get_current_thread', description: '读取当前 thread' }],
+      evidence: [],
+      toolResults: [],
+    });
+
+    expect(event).toMatchObject({
+      type: 'tool_call',
+      usage: {
+        inputTokens: 100,
+        outputTokens: 20,
+        reasoningTokens: 7,
+        cachedInputTokens: 30,
+        cacheWriteTokens: 5,
+        totalTokens: 120,
+      },
+    });
+  });
+
   it('passes tool evidence text as native tool result messages', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(

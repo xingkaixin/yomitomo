@@ -886,6 +886,50 @@
   text-align: left;
 }
 
+.task-route-mode-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.task-route-mode {
+  display: grid;
+  min-height: 92px;
+  grid-template-rows: auto auto 1fr;
+  gap: 5px;
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.92);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  padding: 10px;
+  text-align: left;
+}
+
+.task-route-mode:hover,
+.task-route-mode.is-active {
+  border-color: hsl(38 62% 52% / 0.72);
+  background: hsl(44 72% 95% / 0.92);
+}
+
+.task-route-mode span {
+  color: hsl(38 58% 42%);
+  line-height: 0;
+}
+
+.task-route-mode strong {
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.task-route-mode em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
 .config-list {
   display: flex;
   min-height: 0;
@@ -3928,6 +3972,10 @@
 
   .task-route-select-trigger {
     width: 100%;
+  }
+
+  .task-route-mode-group {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

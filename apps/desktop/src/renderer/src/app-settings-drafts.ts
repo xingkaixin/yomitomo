@@ -117,10 +117,14 @@ export function useSettingsDrafts({
       (settingsDraft.readingAssistantProviderId || '') !==
         (store.settings.readingAssistantProviderId || '') ||
       (settingsDraft.reviewAssistantProviderId || '') !==
-        (store.settings.reviewAssistantProviderId || ''),
+        (store.settings.reviewAssistantProviderId || '') ||
+      (settingsDraft.assistantExecutionMode || 'fast_response') !==
+        (store.settings.assistantExecutionMode || 'fast_response'),
     [
+      settingsDraft.assistantExecutionMode,
       settingsDraft.readingAssistantProviderId,
       settingsDraft.reviewAssistantProviderId,
+      store.settings.assistantExecutionMode,
       store.settings.readingAssistantProviderId,
       store.settings.reviewAssistantProviderId,
     ],

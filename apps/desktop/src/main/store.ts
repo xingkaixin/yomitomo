@@ -12,6 +12,11 @@ import type {
 import { makeId } from '@yomitomo/shared';
 import { buildAgentRecord, ensurePresetAgents, upsertAgent } from './agent-repository';
 import {
+  insertAssistantExecutionRun,
+  type AssistantExecutionRunInput,
+} from './assistant-execution-repository';
+import { refreshModelsDevPrices } from './model-pricing-repository';
+import {
   backfillStoredArticleAnnotationMemoryEntries,
   buildArticleUpsertPatch,
   deleteAnnotationRowsWithMemoryLifecycle,
@@ -234,6 +239,14 @@ export async function saveUser(input: Partial<UserProfile>): Promise<DesktopStor
 export async function saveSettings(input: AppSettings): Promise<DesktopStore> {
   upsertSettings(getDatabase(), input);
   return readStore();
+}
+
+export function recordAssistantExecutionRun(input: AssistantExecutionRunInput) {
+  insertAssistantExecutionRun(getDatabase(), input);
+}
+
+export function refreshModelPrices() {
+  return refreshModelsDevPrices(getDatabase());
 }
 
 export async function saveProvider(input: SaveProviderInput): Promise<DesktopStore> {

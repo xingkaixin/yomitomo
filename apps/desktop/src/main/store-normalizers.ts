@@ -35,6 +35,7 @@ import {
   normalizeAnnotationConfidence,
   normalizeAnnotationEvidenceSource,
   normalizeAnnotationMove,
+  normalizeAssistantExecutionMode,
   normalizeReviewOpinionLabel,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
@@ -251,6 +252,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     reviewAssistantProviderId: settingsFieldProvided(settings, 'reviewAssistantProviderId')
       ? settings.reviewAssistantProviderId || undefined
       : existing?.reviewAssistantProviderId || undefined,
+    assistantExecutionMode: settingsFieldProvided(settings, 'assistantExecutionMode')
+      ? normalizeAssistantExecutionMode(settings.assistantExecutionMode)
+      : normalizeAssistantExecutionMode(existing?.assistantExecutionMode),
     messageSendShortcut: settingsFieldProvided(settings, 'messageSendShortcut')
       ? normalizeMessageSendShortcut(settings.messageSendShortcut)
       : normalizeMessageSendShortcut(existing?.messageSendShortcut),
@@ -321,6 +325,7 @@ export function rowToSettings(
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
+    assistantExecutionMode: normalizeAssistantExecutionMode(row?.assistantExecutionMode),
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
     saveArticleImages: Boolean(row?.saveArticleImages),
@@ -335,6 +340,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
+    assistantExecutionMode: normalizeAssistantExecutionMode(settings?.assistantExecutionMode),
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
     saveArticleImages: Boolean(settings?.saveArticleImages),

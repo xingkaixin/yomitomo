@@ -54,6 +54,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     defaultProviderId: merged.defaultProviderId || null,
     readingAssistantProviderId: merged.readingAssistantProviderId || null,
     reviewAssistantProviderId: merged.reviewAssistantProviderId || null,
+    assistantExecutionMode: merged.assistantExecutionMode || 'fast_response',
     messageSendShortcut: normalizeMessageSendShortcut(merged.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(merged.selectionActionShortcuts),
     saveArticleImages: Boolean(merged.saveArticleImages),

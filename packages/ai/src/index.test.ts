@@ -694,11 +694,11 @@ describe('agent annotations', () => {
       { exact: '第二句也短', type: 'key_point', comment: '二' },
       { exact: '第三句继续短', type: 'key_point', comment: '三' },
     ]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
+    );
 
     const annotations = await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
@@ -741,11 +741,11 @@ describe('agent annotations', () => {
     const start = text.indexOf('第二章已读论证');
     const anchor = createEpubTextAnchor(ebookIndex, text, start, start + '第二章已读论证'.length);
     const content = JSON.stringify([{ exact: '第二章开头', type: 'key_point', comment: '一' }]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
+    );
 
     const annotations = await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
@@ -772,11 +772,11 @@ describe('agent annotations', () => {
 
   it('includes selection memory view for target annotation prompts', async () => {
     const content = JSON.stringify([{ exact: '目标句子', type: 'question', comment: '一' }]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
+    );
 
     await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
@@ -858,11 +858,11 @@ describe('agent annotations', () => {
     const sectionStart = text.indexOf('第二章开头');
     const sectionEnd = text.indexOf('第二章未读反转');
     const content = JSON.stringify([{ exact: '第二章已读论证', type: 'key_point', comment: '一' }]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
+    );
 
     await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
@@ -896,11 +896,11 @@ describe('agent annotations', () => {
 
   it('includes article-section memory view for non-epub reading plans', async () => {
     const content = JSON.stringify([{ exact: '第二节关键判断', type: 'key_point', comment: '一' }]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
+    );
     const text = '第一节背景。第二节关键判断需要讨论。第三节后续。';
     const sectionStart = text.indexOf('第二节关键判断');
     const sectionEnd = text.indexOf('第三节后续');
@@ -1006,7 +1006,9 @@ describe('agent annotations', () => {
       },
     ]);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
     );
 
     const annotations = await runAgentAnnotate(provider, agent, {
@@ -1083,7 +1085,9 @@ describe('agent annotations', () => {
       const content = contents[callIndex] || '[]';
       callIndex += 1;
       return Promise.resolve(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+          status: 200,
+        }),
       );
     });
 
@@ -1153,7 +1157,7 @@ describe('agent annotations', () => {
     ).length;
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content: '[]' } }] }), {
           status: 200,
         }),
       ),
@@ -1228,7 +1232,9 @@ describe('agent annotations', () => {
       },
     ]);
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+      new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+        status: 200,
+      }),
     );
 
     const annotations = await runAgentAnnotate(provider, agent, {
@@ -1276,13 +1282,13 @@ describe('agent annotations', () => {
         comment: '后续 chunk 也应能生成。',
       },
     ]);
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(() =>
-        Promise.resolve(
-          new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
-        ),
-      );
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+          status: 200,
+        }),
+      ),
+    );
 
     const annotations = await runAgentAnnotate(provider, agent, {
       agentId: agent.id,
@@ -1365,7 +1371,9 @@ describe('agent annotations', () => {
                 segmentTrace: { items: [] },
               });
         return Promise.resolve(
-          new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+          new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+            status: 200,
+          }),
         );
       }
 
@@ -1386,7 +1394,9 @@ describe('agent annotations', () => {
             ])
           : '[]';
       return Promise.resolve(
-        new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+          status: 200,
+        }),
       );
     });
 
@@ -1468,6 +1478,7 @@ describe('agent annotations', () => {
             JSON.stringify({
               choices: [
                 {
+                  index: 0,
                   message: {
                     content: JSON.stringify({
                       segmentSummary: { summary: '当前段摘要。', keyTerms: [] },
@@ -1483,7 +1494,7 @@ describe('agent annotations', () => {
       }
       annotationPrompts.push(prompt);
       return Promise.resolve(
-        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content: '[]' } }] }), {
           status: 200,
         }),
       );
@@ -1560,13 +1571,15 @@ describe('agent annotations', () => {
                 segmentTrace: { items: [] },
               });
         return Promise.resolve(
-          new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 }),
+          new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+            status: 200,
+          }),
         );
       }
 
       annotationPrompts.push(prompt);
       return Promise.resolve(
-        new Response(JSON.stringify({ choices: [{ message: { content: '[]' } }] }), {
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content: '[]' } }] }), {
           status: 200,
         }),
       );
@@ -1620,6 +1633,7 @@ describe('agent annotations', () => {
           JSON.stringify({
             choices: [
               {
+                index: 0,
                 message: {
                   content: JSON.stringify([
                     {

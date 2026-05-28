@@ -569,7 +569,6 @@ export function WebSourceBookcase({
   ) {
     if (!showProgress) return;
     markAgentAnnotating(agent.id, true);
-    setStatusMessage(`${agent.nickname} 正在添加想法`);
     startVirtualReading(agent, readingPlan, playbackMode);
   }
 

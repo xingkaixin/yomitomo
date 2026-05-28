@@ -597,4 +597,67 @@ ON reading_memory_entries(article_id, agent_id, visibility, deleted_at, created_
 ALTER TABLE app_settings ADD COLUMN developer_mode_enabled INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    id: '0038_assistant_execution_runtime',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN assistant_execution_mode TEXT NOT NULL DEFAULT 'fast_response';
+
+CREATE TABLE IF NOT EXISTS assistant_execution_runs (
+  id TEXT PRIMARY KEY NOT NULL,
+  created_at TEXT NOT NULL,
+  agent_id TEXT NOT NULL,
+  agent_username TEXT,
+  agent_nickname TEXT,
+  task_type TEXT NOT NULL,
+  requested_mode TEXT NOT NULL,
+  effective_mode TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  provider_name TEXT NOT NULL,
+  model_name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  fallback_reason TEXT,
+  input_tokens INTEGER,
+  output_tokens INTEGER,
+  reasoning_tokens INTEGER,
+  cached_input_tokens INTEGER,
+  cache_write_tokens INTEGER,
+  total_tokens INTEGER,
+  estimated_cost_micros INTEGER,
+  currency TEXT,
+  duration_ms INTEGER,
+  step_count INTEGER NOT NULL DEFAULT 0,
+  trace_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS assistant_execution_runs_agent_idx
+ON assistant_execution_runs(agent_id, created_at);
+
+CREATE INDEX IF NOT EXISTS assistant_execution_runs_provider_model_idx
+ON assistant_execution_runs(provider_id, model_name, created_at);
+`,
+  },
+  {
+    id: '0039_model_price_records',
+    sql: `
+CREATE TABLE IF NOT EXISTS model_price_records (
+  id TEXT PRIMARY KEY NOT NULL,
+  provider_id TEXT NOT NULL,
+  model_id TEXT NOT NULL,
+  input_cost_per_million REAL,
+  output_cost_per_million REAL,
+  cache_read_cost_per_million REAL,
+  cache_write_cost_per_million REAL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  source TEXT NOT NULL,
+  fetched_at TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS model_price_records_provider_model_idx
+ON model_price_records(provider_id, model_id);
+
+CREATE INDEX IF NOT EXISTS model_price_records_updated_at_idx
+ON model_price_records(updated_at);
+`,
+  },
 ];

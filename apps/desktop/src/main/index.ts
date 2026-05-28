@@ -12,6 +12,7 @@ import { registerArticleIpc } from './ipc-article';
 import { registerProviderIpc } from './ipc-provider';
 import { registerStoreDataIpc } from './ipc-store-data';
 import { registerWeReadIpc } from './ipc-weread';
+import { modelPriceRefreshIntervalMs } from './model-pricing-repository';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -19,6 +20,7 @@ let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app-updater')> | null = null;
 let storeModulePromise: Promise<typeof import('./store')> | null = null;
+let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 
 configureDesktopAppStorage();
 recordStartupTiming('main.module_loaded', {
@@ -87,6 +89,29 @@ function scheduleLogPrune(retentionDays: number | undefined) {
       logError('log.prune_failed', error);
       recordStartupTiming('log.prune_error', { durationMs: elapsedMs(startedAt) });
     });
+}
+
+function scheduleModelPriceRefresh() {
+  const refresh = (reason: string) => {
+    const startedAt = performance.now();
+    void getStoreModule()
+      .then((module) => module.refreshModelPrices())
+      .then((result) => {
+        logInfo('model_pricing.refresh', {
+          reason,
+          refreshed: result.refreshed,
+          recordCount: result.recordCount,
+          resultReason: result.reason,
+          durationMs: elapsedMs(startedAt),
+        });
+      })
+      .catch((error) => {
+        logError('model_pricing.refresh_failed', error, { reason });
+      });
+  };
+  setTimeout(() => refresh('startup'), 5_000);
+  modelPriceRefreshTimer ||= setInterval(() => refresh('interval'), modelPriceRefreshIntervalMs());
+  modelPriceRefreshTimer.unref?.();
 }
 
 async function createWindow() {
@@ -174,6 +199,7 @@ void app.whenReady().then(async () => {
   recordStartupTiming('app.ready');
   if (process.platform === 'darwin' && app.dock) app.dock.setIcon(appIconPath);
   registerIpc();
+  scheduleModelPriceRefresh();
   recordStartupTiming('ipc.registered');
   recordStartupTiming('updater.deferred');
   await createWindow();
