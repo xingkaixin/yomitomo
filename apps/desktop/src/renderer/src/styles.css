@@ -11438,11 +11438,17 @@
   color: hsl(var(--accent-foreground));
 }
 
-.about-grid {
+.about-layout {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  max-width: 980px;
+}
+
+.about-resource-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-  max-width: 980px;
 }
 
 .about-card {
@@ -11458,7 +11464,12 @@
 }
 
 .about-version-card {
-  grid-column: 1 / -1;
+  min-height: 132px;
+}
+
+.about-license-card,
+.about-advanced-card {
+  min-height: 118px;
 }
 
 .about-card-heading {
@@ -11539,14 +11550,91 @@
 }
 
 .about-developer-toggle {
-  min-height: 48px;
-  border-radius: 8px;
+  position: relative;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
 }
 
-.about-developer-card .settings-toggle-main span {
+.about-developer-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.about-developer-toggle input:checked + .settings-toggle-switch {
+  background: hsl(var(--primary));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary));
+}
+
+.about-developer-toggle input:checked + .settings-toggle-switch::after {
+  transform: translateX(18px);
+}
+
+.about-developer-toggle:focus-within {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 2px;
+}
+
+.about-advanced-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid hsl(var(--border) / 0.56);
+}
+
+.about-advanced-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  border-bottom: 1px solid hsl(var(--border) / 0.56);
+  color: hsl(var(--foreground));
+  text-align: left;
+}
+
+.about-advanced-row:last-child {
+  border-bottom: 0;
+}
+
+.about-advanced-row-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid hsl(var(--border) / 0.82);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.about-advanced-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.about-advanced-copy > span {
   color: hsl(var(--foreground));
   font-size: 14px;
   font-weight: 900;
+}
+
+.about-advanced-copy em {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.about-advanced-action {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .agent-trace-panel {
@@ -11933,7 +12021,7 @@ button.license-package-row:hover {
 @media (max-width: 760px) {
   .settings-section-nav,
   .data-management-grid,
-  .about-grid,
+  .about-resource-grid,
   .license-package-detail dl {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -11943,6 +12031,7 @@ button.license-package-row:hover {
   }
 
   .about-version-row,
+  .about-advanced-row,
   .license-package-row {
     grid-template-columns: 28px minmax(0, 1fr);
   }
@@ -11977,6 +12066,7 @@ button.license-package-row:hover {
 
   .about-version-row em,
   .about-version-action,
+  .about-advanced-action,
   .license-package-row em,
   .license-package-row span {
     grid-column: 2;

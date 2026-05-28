@@ -13,6 +13,7 @@ import {
   Play,
   RefreshCw,
   Search,
+  Settings,
   Tag,
   X,
 } from 'lucide-react';
@@ -112,7 +113,7 @@ export function AboutSettings({
         title="关于"
         description="查看版本、更新、文档、反馈和开源许可证。"
       />
-      <div className="about-grid">
+      <div className="about-layout">
         <section className="about-card about-version-card" aria-labelledby="about-version-title">
           <div className="about-card-heading">
             <span>
@@ -152,71 +153,89 @@ export function AboutSettings({
           </div>
         </section>
 
+        <div className="about-resource-grid" aria-label="关于资源与反馈">
+          <AboutActionCard
+            icon={<FileText size={18} />}
+            title="更新记录"
+            description="查看版本发布说明和主要变化。"
+            actionLabel="查看更新记录"
+            onAction={() => openExternal(releasesUrl)}
+          />
+          <AboutActionCard
+            icon={<BookOpen size={18} />}
+            title="GitHub 项目"
+            description="打开源码主页、README 和项目资料。"
+            actionLabel="打开 GitHub"
+            onAction={() => openExternal(githubUrl)}
+          />
+          <AboutActionCard
+            icon={<ExternalLink size={18} />}
+            title="官网"
+            description="打开 Yomitomo 官网入口。"
+            actionLabel="打开官网"
+            onAction={() => openExternal(homepageUrl)}
+          />
+          <AboutActionCard
+            icon={<MessageSquare size={18} />}
+            title="反馈入口"
+            description="提交问题、建议和可复现信息。"
+            actionLabel="提交反馈"
+            onAction={() => openExternal(feedbackUrl)}
+          />
+        </div>
+
         <AboutActionCard
-          icon={<FileText size={18} />}
-          title="更新记录"
-          description="查看版本发布说明和主要变化。"
-          actionLabel="查看更新记录"
-          onAction={() => openExternal(releasesUrl)}
-        />
-        <AboutActionCard
-          icon={<BookOpen size={18} />}
-          title="GitHub 项目"
-          description="打开源码主页、README 和项目资料。"
-          actionLabel="打开 GitHub"
-          onAction={() => openExternal(githubUrl)}
-        />
-        <AboutActionCard
-          icon={<ExternalLink size={18} />}
-          title="官网"
-          description="打开 Yomitomo 官网入口。"
-          actionLabel="打开官网"
-          onAction={() => openExternal(homepageUrl)}
-        />
-        <AboutActionCard
-          icon={<MessageSquare size={18} />}
-          title="反馈入口"
-          description="提交问题、建议和可复现信息。"
-          actionLabel="提交反馈"
-          onAction={() => openExternal(feedbackUrl)}
-        />
-        <AboutActionCard
-          icon={<Play size={18} />}
-          title="Onboarding"
-          description="重新打开最简 onboarding，检查背景、文案和进入按钮。"
-          actionLabel="启动 onboarding"
-          actionIcon={<Play size={15} />}
-          onAction={onStartOnboarding}
-        />
-        <section className="about-card about-developer-card">
-          <div className="about-card-heading">
-            <span>
-              <Bug size={18} />
-            </span>
-            <div>
-              <h3>开发者模式</h3>
-            </div>
-          </div>
-          <label className="settings-toggle-card about-developer-toggle">
-            <span className="settings-toggle-main">
-              <span>开发者模式</span>
-            </span>
-            <input
-              checked={developerModeEnabled}
-              disabled={developerModeSaving}
-              type="checkbox"
-              onChange={toggleDeveloperMode}
-            />
-            <span className="settings-toggle-switch" aria-hidden="true" />
-          </label>
-        </section>
-        <AboutActionCard
+          className="about-license-card"
           icon={<Package size={18} />}
           title="开源许可证"
           description={`Yomitomo 使用 MIT，第三方组件包含 ${thirdPartyPackages.length} 个开源项目。`}
           actionLabel="查看许可证"
           onAction={() => setLicensesOpen(true)}
         />
+
+        <section className="about-card about-advanced-card" aria-labelledby="about-advanced-title">
+          <div className="about-card-heading">
+            <span>
+              <Settings size={18} />
+            </span>
+            <div>
+              <h3 id="about-advanced-title">高级</h3>
+            </div>
+          </div>
+          <div className="about-advanced-list">
+            <AboutAdvancedRow
+              icon={<Play size={18} />}
+              title="重新查看 onboarding"
+              description="重新打开首次引导流程。"
+              action={
+                <Button
+                  className="action-button about-link-action"
+                  type="button"
+                  onClick={onStartOnboarding}
+                >
+                  启动 onboarding
+                  <Play size={15} />
+                </Button>
+              }
+            />
+            <label className="about-advanced-row about-developer-toggle">
+              <span className="about-advanced-row-icon">
+                <Bug size={18} />
+              </span>
+              <span className="about-advanced-copy">
+                <span>开发者模式</span>
+                <em>显示调试入口、内部状态和开发辅助工具。</em>
+              </span>
+              <input
+                checked={developerModeEnabled}
+                disabled={developerModeSaving}
+                type="checkbox"
+                onChange={toggleDeveloperMode}
+              />
+              <span className="settings-toggle-switch" aria-hidden="true" />
+            </label>
+          </div>
+        </section>
       </div>
       {licensesOpen ? <OpenSourceLicensesDialog onClose={() => setLicensesOpen(false)} /> : null}
     </div>
@@ -248,6 +267,7 @@ function VersionRow({
 }
 
 function AboutActionCard({
+  className,
   icon,
   title,
   description,
@@ -255,6 +275,7 @@ function AboutActionCard({
   actionIcon = <ExternalLink size={15} />,
   onAction,
 }: {
+  className?: string;
   icon: React.ReactNode;
   title: string;
   description: string;
@@ -263,7 +284,7 @@ function AboutActionCard({
   onAction: () => void;
 }) {
   return (
-    <section className="about-card">
+    <section className={className ? `about-card ${className}` : 'about-card'}>
       <div className="about-card-heading">
         <span>{icon}</span>
         <div>
@@ -276,6 +297,29 @@ function AboutActionCard({
         {actionIcon}
       </Button>
     </section>
+  );
+}
+
+function AboutAdvancedRow({
+  icon,
+  title,
+  description,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="about-advanced-row">
+      <span className="about-advanced-row-icon">{icon}</span>
+      <span className="about-advanced-copy">
+        <span>{title}</span>
+        <em>{description}</em>
+      </span>
+      <span className="about-advanced-action">{action}</span>
+    </div>
   );
 }
 
