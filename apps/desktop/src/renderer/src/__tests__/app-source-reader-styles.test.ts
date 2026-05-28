@@ -1,9 +1,30 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { sourceEbookReaderStyles } from '../app-source-bookcase-ebook-utils';
+import { sourceReaderTocStyles } from '../app-source-bookcase-web-utils';
 
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 
 describe('source reader annotation styles', () => {
+  it('keeps source reader specific styles on reader theme variables', () => {
+    expect(sourceReaderTocStyles).toContain('background:var(--app-reader-toc-bg);');
+    expect(sourceReaderTocStyles).toContain('color:var(--reader-muted);');
+    expect(sourceReaderTocStyles).not.toContain('background:rgba(255,253,248,.72);');
+    expect(sourceReaderTocStyles).not.toContain('color:#746d63;');
+    expect(sourceEbookReaderStyles).toContain('drop-shadow(0 1px 0 var(--reader-paper))');
+    expect(sourceEbookReaderStyles).not.toContain('drop-shadow(0 1px 0 rgba(255,253,248,.72))');
+  });
+
+  it('keeps PDF and profile preview surfaces on theme variables', () => {
+    expect(styles).toContain('background: var(--app-reader-toolbar-control-bg);');
+    expect(styles).toContain('background: var(--app-reader-toolbar-bg);');
+    expect(styles).toContain('--reader-bg: var(--app-reader-bg);');
+    expect(styles).toContain('background: var(--app-reader-note-quote-bg);');
+    expect(styles).toContain('background: var(--app-reader-note-bg);');
+    expect(styles).not.toContain('background: hsl(48 100% 99% / 0.66);');
+    expect(styles).not.toContain('background: hsl(48 100% 99% / 0.74);');
+  });
+
   it('does not add a left rail when a discussion thread is open', () => {
     expect(styles).not.toContain('box-shadow: inset 2px 0 0 hsl(var(--foreground));');
     expect(styles).toContain(`.source-pdf-reader-shell .reader-discussion-thread.is-open {

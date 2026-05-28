@@ -72,7 +72,7 @@ export const sourceEbookReaderStyles = `
 }
 .source-ebook-reader-shell .reader-highlight.is-active::before{
   opacity:.88;
-  filter:drop-shadow(0 1px 0 rgba(255,253,248,.72)) drop-shadow(0 0 4px rgba(37,29,22,.14));
+  filter:drop-shadow(0 1px 0 var(--reader-paper)) drop-shadow(0 0 4px rgba(37,29,22,.14));
 }
 @media(min-width:1101px){
   .source-ebook-reader-shell .reader-app.has-toc .reader-canvas{
