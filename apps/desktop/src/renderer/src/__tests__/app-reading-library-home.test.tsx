@@ -402,6 +402,12 @@ describe('ReadingLibrary home', () => {
         siteIconUrl: 'https://favicon.im/nooneshappy.com',
         siteName: '站点名称不显示',
         title: '域名文章',
+        readingProgress: {
+          pageIndex: 4,
+          pageCount: 10,
+          progress: 0.4,
+          updatedAt: now,
+        },
       }),
     ]);
 
@@ -412,6 +418,12 @@ describe('ReadingLibrary home', () => {
     expect(
       container.querySelector('.library-web-item-cover .article-book-cover-author')?.textContent,
     ).toBe('nooneshappy.com');
+    expect(container.querySelector('.library-web-item-cover .library-cover-progress')).toBeTruthy();
+    expect(
+      container
+        .querySelector<HTMLElement>('.library-web-item-cover .library-cover-progress')
+        ?.style.getPropertyValue('--ebook-progress'),
+    ).toBe('40%');
     expect(screen.queryByText('站点名称不显示')).toBeNull();
     expect(screen.queryByText('原始作者')).toBeNull();
     expect(container.querySelector('.library-site-icon')).toBeNull();

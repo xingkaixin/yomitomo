@@ -403,6 +403,7 @@ function WebArticleListItem({
     >
       <div className="library-web-item-cover" aria-hidden="true">
         <ArticleBook article={article} />
+        <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
       </div>
       <div className="library-web-item-source">
         <span>{host}</span>
@@ -442,11 +443,7 @@ function LibraryDocumentListItem({
     >
       <div className="library-ebook-cover-column">
         <ArticleBook article={article} />
-        <span
-          className="library-ebook-progress"
-          style={ebookProgressStyle(article)}
-          aria-label="阅读进度"
-        />
+        <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
       </div>
       <div className="library-ebook-list-copy">
         {sourceLabel ? (
@@ -488,11 +485,7 @@ function WeReadBookListItem({
     >
       <div className="library-ebook-cover-column">
         <WeReadCover book={book} />
-        <span
-          className="library-ebook-progress"
-          style={weReadProgressStyle(book)}
-          aria-label="阅读进度"
-        />
+        <LibraryCoverProgress progress={book.readingProgress / 100} />
       </div>
       <div className="library-ebook-list-copy">
         <div className="library-ebook-list-source">
@@ -737,6 +730,16 @@ function articleCounts(article: ArticleSummaryRecord) {
   };
 }
 
+function LibraryCoverProgress({ progress }: { progress: number }) {
+  return (
+    <span
+      className="library-cover-progress library-ebook-progress"
+      style={coverProgressStyle(progress)}
+      aria-label="阅读进度"
+    />
+  );
+}
+
 function webArticleHost(article: ArticleSummaryRecord) {
   return urlHost(article.canonicalUrl || article.url).replace(/^www\./, '') || 'web';
 }
@@ -750,13 +753,8 @@ function formatLibraryShortDate(value: string) {
   }).format(date);
 }
 
-function ebookProgressStyle(article: ArticleSummaryRecord) {
-  const progress = Math.min(1, Math.max(0, article.readingProgress?.progress ?? 0));
-  return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
-}
-
-function weReadProgressStyle(book: WeReadBook) {
-  const progress = Math.min(1, Math.max(0, book.readingProgress / 100));
+function coverProgressStyle(value: number) {
+  const progress = Math.min(1, Math.max(0, value));
   return { '--ebook-progress': `${Math.round(progress * 100)}%` } as React.CSSProperties;
 }
 
