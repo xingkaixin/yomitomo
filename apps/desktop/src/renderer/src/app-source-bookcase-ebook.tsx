@@ -65,6 +65,7 @@ import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from './app-article-book';
+import { articleDisplayTitle } from './app-reading-library-utils';
 import {
   constrainSourceAgentPlanAnnotation,
   useSourceReaderSession,
@@ -856,7 +857,7 @@ export function EbookBookcase({
   const pageLabel = paginationReady ? formatEbookPageLabel(pageInfo, sectionPageCounts) : '';
   const progressTickId = `ebook-progress-ticks-${article.id}`;
   const readerArticle = {
-    title: article.title,
+    title: articleDisplayTitle(article),
     byline: article.byline || article.ebook.metadata.fileName,
     excerpt: statusMessage,
     content: '',

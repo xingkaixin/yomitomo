@@ -4,6 +4,9 @@ export type EbookMetadata = {
   format: EbookFormat;
   fileName: string;
   fileSize: number;
+  originalTitle?: string;
+  displayTitle?: string;
+  titleCleanupVersion?: 1;
   language?: string;
   publisher?: string;
   description?: string;

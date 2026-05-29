@@ -5,6 +5,7 @@ export * from './user-types';
 export * from './anchor-types';
 export * from './annotation-types';
 export * from './ebook-types';
+export * from './ebook-title-cleanup';
 export * from './pdf-types';
 export * from './weread-types';
 export * from './reader-context-types';

@@ -31,6 +31,7 @@ import {
 import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
 import {
   articleAnnotationCount,
+  articleDisplayTitle,
   articleThoughtCount,
   articleMatchesLibrarySearch,
   compareLibraryArticles,
@@ -392,13 +393,14 @@ function WebArticleListItem({
 }) {
   const counts = articleCounts(article);
   const host = webArticleHost(article);
+  const title = articleDisplayTitle(article);
 
   return (
     <article
       className="library-web-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开文章：${article.title}`}
+      aria-label={`打开文章：${title}`}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -410,13 +412,13 @@ function WebArticleListItem({
         <span>{host}</span>
       </div>
       <div className="library-web-item-main">
-        <h3 title={article.title}>{article.title}</h3>
+        <h3 title={title}>{title}</h3>
       </div>
       <div className="library-web-item-meta">
         <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
         <ArticleCountStats counts={counts} />
       </div>
-      <LibraryItemActions title={article.title} onDelete={onDelete} />
+      <LibraryItemActions title={title} onDelete={onDelete} />
     </article>
   );
 }
@@ -432,13 +434,14 @@ function LibraryDocumentListItem({
 }) {
   const counts = articleCounts(article);
   const sourceLabel = libraryDocumentSourceLabel(article);
+  const title = articleDisplayTitle(article);
 
   return (
     <article
       className="library-ebook-list-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开${article.sourceType === 'pdf' ? 'PDF' : '电子书'}：${article.title}`}
+      aria-label={`打开${article.sourceType === 'pdf' ? 'PDF' : '电子书'}：${title}`}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -460,14 +463,14 @@ function LibraryDocumentListItem({
           </div>
         ) : null}
         <div className="library-ebook-list-main">
-          <h3 title={article.title}>{article.title}</h3>
+          <h3 title={title}>{title}</h3>
         </div>
         <div className="library-ebook-list-meta">
           <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
           <ArticleCountStats counts={counts} />
         </div>
       </div>
-      <LibraryItemActions title={article.title} onDelete={onDelete} />
+      <LibraryItemActions title={title} onDelete={onDelete} />
     </article>
   );
 }

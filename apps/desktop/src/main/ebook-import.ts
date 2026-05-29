@@ -10,7 +10,13 @@ import {
   type EpubBookIndexChapterInput,
 } from '@yomitomo/core';
 import { sanitizeArticleContent } from '@yomitomo/core/article-extraction';
-import { hashText, type ArticleRecord, type EbookChapterRecord } from '@yomitomo/shared';
+import {
+  cleanEpubDisplayTitle,
+  EPUB_TITLE_CLEANUP_VERSION,
+  hashText,
+  type ArticleRecord,
+  type EbookChapterRecord,
+} from '@yomitomo/shared';
 
 const MAX_EPUB_BYTES = 80 * 1024 * 1024;
 const EPUB_MIME = 'application/epub+zip';
@@ -54,6 +60,7 @@ type EpubPackage = {
   opfPath: string;
   opfDir: string;
   title: string;
+  metadataTitle?: string;
   creator?: string;
   language?: string;
   publisher?: string;
@@ -99,6 +106,19 @@ export async function articleRecordFromEpubFile(
     manifestItemCount: epub.manifest.length,
     spineItemCount: epub.spineIds.length,
     titleChars: epub.title.length,
+  });
+
+  const titleCleanupStartedAt = performanceStart();
+  const displayTitle = cleanEpubDisplayTitle({
+    metadataTitle: epub.metadataTitle,
+    fileName,
+    creator: epub.creator,
+  });
+  logEpubImportTiming(options.performanceLogger, 'title_cleanup', titleCleanupStartedAt, {
+    fileName,
+    fileSize,
+    metadataTitleChars: epub.metadataTitle?.length || 0,
+    displayTitleChars: displayTitle.length,
   });
 
   const titlesStartedAt = performanceStart();
@@ -190,6 +210,9 @@ export async function articleRecordFromEpubFile(
         format: 'epub',
         fileName,
         fileSize,
+        originalTitle: epub.metadataTitle,
+        displayTitle,
+        titleCleanupVersion: EPUB_TITLE_CLEANUP_VERSION,
         language: epub.language,
         publisher: epub.publisher,
         description: epub.description,
@@ -254,10 +277,12 @@ async function readEpubPackage(zip: JSZip): Promise<EpubPackage> {
         (element) => element.getAttribute('name') === 'cover',
       )?.getAttribute('content') || undefined;
 
+    const metadataTitle = textByLocalName(document, 'title');
     return {
       opfPath: rootfilePath,
       opfDir,
-      title: textByLocalName(document, 'title') || fileTitle(rootfilePath),
+      title: metadataTitle || fileTitle(rootfilePath),
+      metadataTitle,
       creator: textsByLocalName(document, 'creator').join(' & ') || undefined,
       language: textByLocalName(document, 'language'),
       publisher: textByLocalName(document, 'publisher'),
