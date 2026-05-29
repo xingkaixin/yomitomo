@@ -19,6 +19,8 @@ import type { EbookImportProgressCallback, PdfImportProgressCallback } from './a
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
+const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
+const ARTICLE_IMPORT_CLOSE_DELAY_MS = 1200;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -61,12 +63,8 @@ function advanceImportProgress(current: number) {
 
 function articleImportErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : '';
-  if (!message) return '添加网页失败，请稍后重试';
-  if (/网页地址|网页请求|文章保存失败/.test(message)) return message;
-  if (/fetch failed|network|ECONN|ENOTFOUND|ETIMEDOUT|EAI_AGAIN/i.test(message)) {
-    return '无法访问这个网页，请确认链接可打开后再试';
-  }
-  return '添加网页失败，请确认链接内容可公开访问后再试';
+  if (/网页地址/.test(message)) return message;
+  return 'Error';
 }
 
 export function LibraryImportControls({
@@ -131,7 +129,7 @@ export function LibraryImportControls({
               ? '添加电子书'
               : defaultImportType === 'pdf'
                 ? '添加 PDF'
-                : '添加网页'
+                : '添加网页文章'
           }
           className="library-add-trigger"
           type="button"
@@ -154,7 +152,7 @@ export function LibraryImportControls({
         >
           <Plus size={16} />
           {defaultImportType === 'web' ? (
-            <span>添加网页</span>
+            <span>添加网页文章</span>
           ) : defaultImportType === 'ebook' ? (
             <span>添加电子书</span>
           ) : defaultImportType === 'pdf' ? (
@@ -165,7 +163,7 @@ export function LibraryImportControls({
           <div className="library-add-menu-popover" role="menu">
             <button type="button" role="menuitem" onClick={openArticleImportDialog}>
               <Globe2 size={15} />
-              添加网页
+              添加网页文章
             </button>
             <button type="button" role="menuitem" onClick={openEbookImportDialog}>
               <BookText size={15} />
@@ -217,9 +215,20 @@ function ArticleImportDialog({
   const [importMessage, setImportMessage] = useState('');
   const [importArticle, setImportArticle] = useState<ArticleRecord | null>(null);
   const [importProgress, setImportProgress] = useState(0);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [cancelAvailable, setCancelAvailable] = useState(false);
+  const [submittedUrl, setSubmittedUrl] = useState('');
+  const cancelDelayTimerRef = useRef<number | null>(null);
   const importCloseTimerRef = useRef<number | null>(null);
+  const importRequestIdRef = useRef(0);
 
-  useEffect(() => () => clearImportCloseTimer(), []);
+  useEffect(
+    () => () => {
+      clearImportCloseTimer();
+      clearCancelDelayTimer();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (importState !== 'submitting') return;
@@ -234,43 +243,67 @@ function ArticleImportDialog({
   async function submitImport(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     clearImportCloseTimer();
+    clearCancelDelayTimer();
     const url = importUrl.trim();
     if (!url) {
       setImportState('error');
       setImportMessage('请输入网页地址');
       setImportArticle(null);
       setImportProgress(0);
+      setCancelAvailable(false);
       return;
     }
+
+    const requestId = importRequestIdRef.current + 1;
+    importRequestIdRef.current = requestId;
+    setSubmittedUrl(url);
 
     try {
       setImportState('submitting');
       setImportMessage('正在解析网页');
       setImportArticle(null);
       setImportProgress(8);
+      setCancelAvailable(false);
+      cancelDelayTimerRef.current = window.setTimeout(() => {
+        cancelDelayTimerRef.current = null;
+        if (importRequestIdRef.current === requestId) setCancelAvailable(true);
+      }, ARTICLE_IMPORT_CANCEL_DELAY_MS);
       const result = await onImportArticleUrl(url);
+      if (importRequestIdRef.current !== requestId) return;
+      clearCancelDelayTimer();
       setImportArticle(result.article);
       if (result.status === 'duplicate') {
         setImportState('duplicate');
         setImportMessage('这篇文章已在阅读库');
         setImportProgress(100);
+        setCancelAvailable(false);
         return;
       }
 
       setImportProgress(100);
       setImportState('imported');
       setImportMessage('已添加到阅读库');
-      setImportUrl('');
+      setCancelAvailable(false);
+      setInputFocused(false);
       importCloseTimerRef.current = window.setTimeout(() => {
         importCloseTimerRef.current = null;
         onClose();
-      }, 850);
+      }, ARTICLE_IMPORT_CLOSE_DELAY_MS);
     } catch (error) {
+      if (importRequestIdRef.current !== requestId) return;
+      clearCancelDelayTimer();
       setImportState('error');
       setImportMessage(articleImportErrorMessage(error));
       setImportArticle(null);
       setImportProgress(0);
+      setCancelAvailable(false);
     }
+  }
+
+  function clearCancelDelayTimer() {
+    if (cancelDelayTimerRef.current === null) return;
+    window.clearTimeout(cancelDelayTimerRef.current);
+    cancelDelayTimerRef.current = null;
   }
 
   function clearImportCloseTimer() {
@@ -279,13 +312,41 @@ function ArticleImportDialog({
     importCloseTimerRef.current = null;
   }
 
+  function cancelImport() {
+    if (importState !== 'submitting') return;
+    importRequestIdRef.current += 1;
+    clearCancelDelayTimer();
+    clearImportCloseTimer();
+    setImportState('idle');
+    setImportMessage('已取消解析');
+    setImportArticle(null);
+    setImportProgress(0);
+    setCancelAvailable(false);
+  }
+
   function closeImportDialog() {
     if (importState === 'submitting') return;
     clearImportCloseTimer();
+    clearCancelDelayTimer();
     onClose();
   }
 
   const importProgressPercent = Math.round(importProgress);
+  const parsedTitle = importArticle?.title.trim() || '';
+  const showParsedTitle =
+    Boolean(parsedTitle) &&
+    !inputFocused &&
+    (importState === 'imported' || importState === 'duplicate');
+  const articleInputValue = showParsedTitle ? parsedTitle : importUrl;
+  const articleInputTitle = showParsedTitle ? parsedTitle : submittedUrl || importUrl;
+  const importHeaderMessage =
+    importState === 'error'
+      ? '解析失败'
+      : importMessage || '输入文章链接，解析完成后会保存到阅读库。';
+  const importFooterMessage =
+    importState === 'error'
+      ? 'Error'
+      : importMessage || 'Yomitomo 会提取标题、来源、正文和可阅读内容。';
 
   return (
     <div
@@ -307,7 +368,7 @@ function ArticleImportDialog({
         <header>
           <div>
             <strong id="library-article-import-title">添加网页文章</strong>
-            <span>{importMessage || '输入文章链接，解析完成后会保存到阅读库。'}</span>
+            <span>{importHeaderMessage}</span>
           </div>
           <button type="button" aria-label="关闭网页文章导入" onClick={closeImportDialog}>
             <X size={17} />
@@ -320,69 +381,71 @@ function ArticleImportDialog({
             importState === 'imported' ? 'is-imported' : '',
             importState === 'duplicate' ? 'is-duplicate' : '',
             importState === 'error' ? 'is-error' : '',
+            showParsedTitle ? 'has-parsed-title' : '',
           ]
             .filter(Boolean)
             .join(' ')}
         >
-          <span
-            className={[
-              'library-import-status-icon',
-              importState === 'imported' ? 'is-success' : '',
-              importState === 'duplicate' ? 'is-duplicate' : '',
-              importState === 'error' ? 'is-error' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {importState === 'submitting' ? (
-              <LoaderCircle className="is-spinning" size={22} />
-            ) : importState === 'imported' ? (
-              <Check className="library-import-success-icon" size={24} />
-            ) : importState === 'duplicate' ? (
-              <CircleAlert size={24} />
-            ) : importState === 'error' ? (
-              <X size={24} />
-            ) : (
-              <Globe2 size={24} />
-            )}
-          </span>
           <label className="library-article-import-url">
             <span>网页地址</span>
             <span className="library-article-import-input">
-              <Globe2 size={16} />
-              <textarea
+              {showParsedTitle && importState === 'imported' ? (
+                <span className="library-article-import-result-check" aria-hidden="true">
+                  <Check className="library-article-import-result-icon" size={16} />
+                </span>
+              ) : (
+                <Globe2 size={16} />
+              )}
+              <input
                 aria-label="网页地址"
-                disabled={importState === 'submitting'}
+                disabled={importState === 'submitting' || importState === 'imported'}
                 inputMode="url"
                 placeholder="粘贴网页链接，例如 https://example.com/article"
-                rows={4}
-                value={importUrl}
-                wrap="soft"
+                title={articleInputTitle}
+                type="text"
+                value={articleInputValue}
+                onBlur={() => setInputFocused(false)}
                 onChange={(event) => {
                   setImportUrl(event.target.value);
                   if (importState !== 'submitting') {
                     clearImportCloseTimer();
+                    clearCancelDelayTimer();
                     setImportState('idle');
                     setImportMessage('');
                     setImportArticle(null);
                     setImportProgress(0);
+                    setCancelAvailable(false);
                   }
                 }}
+                onFocus={() => setInputFocused(true)}
               />
             </span>
           </label>
-          <Button
-            className="library-article-import-submit"
-            disabled={importState === 'submitting'}
-            type="submit"
-          >
-            {importState === 'submitting' ? (
-              <LoaderCircle className="is-spinning" size={16} />
-            ) : (
-              <Globe2 size={16} />
-            )}
-            {importState === 'submitting' ? '解析中' : '解析添加'}
-          </Button>
+          <span className="library-article-import-actions">
+            <Button
+              className="library-article-import-submit"
+              disabled={importState === 'submitting'}
+              type="submit"
+            >
+              {importState === 'submitting' ? (
+                <LoaderCircle className="is-spinning" size={16} />
+              ) : (
+                <Globe2 size={16} />
+              )}
+              {importState === 'submitting' ? '解析中' : '解析添加'}
+            </Button>
+            {importState === 'submitting' && cancelAvailable ? (
+              <Button
+                className="library-article-import-cancel"
+                type="button"
+                variant="secondary"
+                onClick={cancelImport}
+              >
+                <X size={16} />
+                取消解析
+              </Button>
+            ) : null}
+          </span>
           {importState === 'idle' ? null : (
             <span
               className="library-import-progress"
@@ -414,8 +477,8 @@ function ArticleImportDialog({
           ) : null}
         </div>
         <footer>
-          <span>{importMessage || 'Yomitomo 会提取标题、来源、正文和可阅读内容。'}</span>
-          {importArticle ? (
+          <span>{importFooterMessage}</span>
+          {importArticle && importState === 'duplicate' ? (
             <button
               type="button"
               onClick={() => {
