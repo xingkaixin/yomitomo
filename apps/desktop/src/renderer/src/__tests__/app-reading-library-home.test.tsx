@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
   Annotation,
+  ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
   AppSettings,
@@ -161,6 +162,10 @@ function renderLibrary(
       onProgress?: (progress: number) => void,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
+    onSaveArticleReadingProgress?: (
+      articleId: string,
+      progress: ArticleReadingProgress,
+    ) => Promise<void> | void;
     onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
     settings?: AppSettings;
   } = {},
@@ -181,7 +186,7 @@ function renderLibrary(
           (articles.find((item) => item.id === articleId) as ArticleRecord | undefined) || null)
       }
       onSaveArticle={vi.fn()}
-      onSaveArticleReadingProgress={vi.fn()}
+      onSaveArticleReadingProgress={options.onSaveArticleReadingProgress || vi.fn()}
       onSaveSettings={options.onSaveSettings}
       onUpdateArticle={vi.fn()}
     />,
@@ -378,6 +383,7 @@ describe('ReadingLibrary home', () => {
   it('renders the article domain without site icons', () => {
     const { container } = renderLibrary([
       article({
+        byline: '原始作者',
         annotations: [annotationWithThoughtsAndReply('domain_note'), annotation('domain_mark')],
         canonicalUrl: 'https://nooneshappy.com/posts/1',
         siteIconUrl: 'https://favicon.im/nooneshappy.com',
@@ -386,9 +392,13 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    expect(screen.getByText('nooneshappy.com')).toBeTruthy();
+    expect(screen.getAllByText('nooneshappy.com').length).toBeGreaterThan(1);
     expect(screen.getByLabelText('2 划线，2 想法')).toBeTruthy();
+    expect(
+      container.querySelector('.library-web-item-cover .article-book-cover-author')?.textContent,
+    ).toBe('nooneshappy.com');
     expect(screen.queryByText('站点名称不显示')).toBeNull();
+    expect(screen.queryByText('原始作者')).toBeNull();
     expect(container.querySelector('.library-site-icon')).toBeNull();
   });
 
@@ -532,6 +542,58 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.queryByText('正文')).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
+  });
+
+  it('saves webpage reading progress from the reader scroll position', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    const onSaveArticleReadingProgress = vi.fn();
+    const requestAnimationFrame = vi
+      .fn()
+      .mockImplementation((callback: FrameRequestCallback) => window.setTimeout(callback, 0));
+    const cancelAnimationFrame = vi
+      .fn()
+      .mockImplementation((handle: number) => window.clearTimeout(handle));
+    vi.stubGlobal('requestAnimationFrame', requestAnimationFrame);
+    vi.stubGlobal('cancelAnimationFrame', cancelAnimationFrame);
+    renderLibrary(
+      [
+        article({
+          id: 'web_progress',
+          title: '网页进度文章',
+          contentHtml: '<p>第一段</p><p>第二段</p><p>第三段</p>',
+        }),
+      ],
+      { onSaveArticleReadingProgress },
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '打开文章：网页进度文章' }));
+    expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
+
+    const surface = document.querySelector<HTMLElement>('.reader-surface');
+    expect(surface).toBeTruthy();
+    Object.defineProperties(surface!, {
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 1500 },
+      scrollTop: { configurable: true, value: 300, writable: true },
+    });
+    fireEvent.scroll(surface!);
+
+    await waitFor(() => expect(onSaveArticleReadingProgress).toHaveBeenCalled());
+    expect(onSaveArticleReadingProgress).toHaveBeenLastCalledWith(
+      'web_progress',
+      expect.objectContaining({
+        pageCount: 1000,
+        pageIndex: 300,
+        progress: 0.3,
+      }),
+    );
   });
 
   it('returns to the ebook section after reading an ebook', async () => {

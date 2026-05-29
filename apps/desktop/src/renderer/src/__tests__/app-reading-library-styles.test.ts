@@ -40,4 +40,13 @@ describe('reading library styles', () => {
     expect(styles).not.toContain('.weread-bookcase-title:hover .article-book-scene');
     expect(styles).not.toContain('.weread-bookcase-title:hover .article-book-ground-shadow');
   });
+
+  it('shares book hover motion with web article cards', () => {
+    expect(styles).toContain('.library-web-item:hover .article-book-scene');
+    expect(styles).toContain('.library-web-item:focus-within .article-book-scene');
+    expect(styles).toContain('.library-web-item:hover .article-book');
+    expect(styles).toContain('.library-web-item:focus-within .article-book');
+    expect(styles).toContain('.library-web-item:hover .article-book-ground-shadow');
+    expect(styles).toContain('.library-web-item:focus-within .article-book-ground-shadow');
+  });
 });

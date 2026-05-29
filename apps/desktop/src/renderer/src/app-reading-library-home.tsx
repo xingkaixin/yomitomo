@@ -401,6 +401,9 @@ function WebArticleListItem({
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
+      <div className="library-web-item-cover" aria-hidden="true">
+        <ArticleBook article={article} />
+      </div>
       <div className="library-web-item-source">
         <span>{host}</span>
       </div>
