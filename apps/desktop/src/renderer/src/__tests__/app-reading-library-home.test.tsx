@@ -493,7 +493,7 @@ describe('ReadingLibrary home', () => {
           metadata: {
             format: 'pdf',
             fileName: 'paper.pdf',
-            author: 'PDF 作者',
+            author: 'BASANT MOUNIR; FARIDA MADKOUR; AMIRA ABDEL; JOHN SMITH',
             fileSize: 2048,
             pageCount: 12,
           },
@@ -504,7 +504,9 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
 
     expect(screen.getByText('共 1 份')).toBeTruthy();
-    expect(screen.getAllByText('PDF 作者').length).toBeGreaterThan(0);
+    expect(screen.getByText('Basant Mounir; Farida Madkour et al.')).toBeTruthy();
+    expect(screen.getByText('Basant Mounir et al.')).toBeTruthy();
+    expect(screen.queryByText(/BASANT MOUNIR/)).toBeNull();
     expect(screen.queryByText('paper.pdf')).toBeNull();
     expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
   });

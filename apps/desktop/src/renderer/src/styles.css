@@ -14421,6 +14421,11 @@ button.license-package-row:hover {
   white-space: nowrap;
 }
 
+.library-ebook-list-source.is-pdf-source span {
+  letter-spacing: 0.08em;
+  text-transform: none;
+}
+
 .library-ebook-list-main {
   min-width: 0;
   overflow: hidden;
