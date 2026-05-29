@@ -14257,9 +14257,13 @@ button.license-package-row:hover {
 }
 
 .library-web-item-cover {
+  display: grid;
   grid-row: 1 / 4;
   align-self: center;
   justify-self: start;
+  justify-items: center;
+  gap: 9px;
+  min-width: 0;
 }
 
 .library-web-item-cover .article-book {
@@ -14370,6 +14374,7 @@ button.license-package-row:hover {
   --book-cover-height: 92px;
 }
 
+.library-cover-progress,
 .library-ebook-progress {
   position: relative;
   display: block;
@@ -14377,8 +14382,10 @@ button.license-package-row:hover {
   height: 3px;
   overflow: hidden;
   background: hsl(var(--border) / 0.72);
+  transform: translateX(-10px);
 }
 
+.library-cover-progress::before,
 .library-ebook-progress::before {
   position: absolute;
   inset: 0 auto 0 0;
