@@ -3,6 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { migrations } from './migrations';
 
 describe('reading memory migrations', () => {
+  it('adds a persistent annotation memory backfill marker to app settings', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0005_settings_reading_card',
+      '0042_annotation_memory_backfill_marker',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(columnNames(database, 'app_settings')).toContain('annotation_memory_backfill_version');
+  });
+
   it('creates reading memory tables, indexes, and fts virtual table', () => {
     const database = migratedDatabase();
 
@@ -136,6 +151,13 @@ function tableNames(database: DatabaseSync) {
 function indexNames(database: DatabaseSync) {
   return database
     .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
+    .all()
+    .map((row) => (row as { name: string }).name);
+}
+
+function columnNames(database: DatabaseSync, table: string) {
+  return database
+    .prepare(`PRAGMA table_info(${table})`)
     .all()
     .map((row) => (row as { name: string }).name);
 }

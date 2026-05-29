@@ -116,6 +116,7 @@ export {
 export { buildAgentRecord } from './agent-repository';
 let providerSecretsMigrated = false;
 let annotationMemoryBackfilled = false;
+const annotationMemoryBackfillVersion = 'annotation-memory-v1';
 
 configureStoreDatabaseSeeder(seedDefaultStore);
 
@@ -408,7 +409,10 @@ function normalizeWritableStore(store: WritableDesktopStore): WritableDesktopSto
 
 function backfillAnnotationMemoryOnce(database: StoreDatabase, profile?: StoreReadProfileEntry[]) {
   if (annotationMemoryBackfilled) return;
-  annotationMemoryBackfilled = true;
+  if (isAnnotationMemoryBackfillComplete(database)) {
+    annotationMemoryBackfilled = true;
+    return;
+  }
 
   try {
     measureStoreRead(profile, 'backfill_annotation_memory', () =>
@@ -416,9 +420,31 @@ function backfillAnnotationMemoryOnce(database: StoreDatabase, profile?: StoreRe
         includePdf: false,
       }),
     );
+    markAnnotationMemoryBackfillComplete(database);
+    annotationMemoryBackfilled = true;
   } catch (error) {
     console.warn('[reading-memory] backfill annotation memory entries failed', { error });
   }
+}
+
+function isAnnotationMemoryBackfillComplete(database: StoreDatabase) {
+  const settings = database
+    .select({ version: schema.appSettings.annotationMemoryBackfillVersion })
+    .from(schema.appSettings)
+    .limit(1)
+    .get();
+  return settings?.version === annotationMemoryBackfillVersion;
+}
+
+function markAnnotationMemoryBackfillComplete(database: StoreDatabase) {
+  database
+    .update(schema.appSettings)
+    .set({
+      annotationMemoryBackfillVersion,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(schema.appSettings.id, 'default'))
+    .run();
 }
 
 function backfillArticleAnnotationMemory(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
