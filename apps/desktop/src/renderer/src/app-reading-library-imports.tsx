@@ -19,8 +19,10 @@ import type { EbookImportProgressCallback, PdfImportProgressCallback } from './a
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
+const MAX_BATCH_IMPORT_FILES = 10;
 const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
 const ARTICLE_IMPORT_CLOSE_DELAY_MS = 1200;
+const FILE_IMPORT_CLOSE_DELAY_MS = 1800;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
 export type ArticleImportResult = {
   status: 'imported' | 'duplicate';
@@ -28,18 +30,31 @@ export type ArticleImportResult = {
 };
 
 type FileImportProgressCallback = (progress: number) => void;
+type FileImportItemStatus = 'pending' | 'importing' | 'imported' | 'duplicate' | 'error';
+type FileImportItem = {
+  id: string;
+  fileName: string;
+  progress: number;
+  status: FileImportItemStatus;
+  article?: ArticleRecord;
+  message?: string;
+};
 
 type FileImportDialogConfig = {
+  kind: 'ebook' | 'pdf';
   titleId: string;
   title: string;
   closeLabel: string;
   idleMessage: string;
+  batchIdleMessage: string;
   accept: string;
   inputId: string;
   isValidFileName: (name: string) => boolean;
   maxBytes: number;
+  maxFileCount: number;
   invalidFileMessage: string;
   oversizeMessage: string;
+  tooManyFilesMessage: string;
   duplicateMessage: string;
   errorFallbackMessage: string;
   idleDropTitle: string;
@@ -48,7 +63,6 @@ type FileImportDialogConfig = {
   dropHint: string;
   footerHint: string;
   progressLabel: string;
-  openImportedLabel: string;
   openDuplicateLabel: string;
   onImportFile: (
     file: File,
@@ -65,6 +79,32 @@ function articleImportErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message.trim() : '';
   if (/网页地址/.test(message)) return message;
   return 'Error';
+}
+
+function fileImportItemId(file: File, index: number) {
+  return `${file.name}-${file.size}-${file.lastModified || 0}-${index}`;
+}
+
+function fileImportErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message.trim() : '';
+  return message || fallback;
+}
+
+function articleImportMeta(article: ArticleRecord) {
+  if (article.byline) return article.byline;
+  if (article.sourceType === 'pdf') {
+    const pageCount = article.pdf?.metadata.pageCount;
+    return pageCount ? `${pageCount} 页` : article.pdf?.metadata.fileName;
+  }
+  return article.ebook?.metadata.fileName || article.siteName || '';
+}
+
+function fileImportItemStateLabel(item: FileImportItem) {
+  if (item.status === 'pending') return '等待';
+  if (item.status === 'importing') return `${Math.round(item.progress)}%`;
+  if (item.status === 'duplicate') return '已存在';
+  if (item.status === 'error') return '失败';
+  return '完成';
 }
 
 export function LibraryImportControls({
@@ -167,7 +207,7 @@ export function LibraryImportControls({
             </button>
             <button type="button" role="menuitem" onClick={openEbookImportDialog}>
               <BookText size={15} />
-              ePub 电子书
+              EPUB 电子书
             </button>
             <button type="button" role="menuitem" onClick={openPdfImportDialog}>
               <FileText size={15} />
@@ -512,25 +552,28 @@ function EbookImportDialog({
   return (
     <FileImportDialog
       config={{
+        kind: 'ebook',
         titleId: 'library-ebook-import-title',
-        title: '添加 ePub 电子书',
+        title: '添加 EPUB 电子书',
         closeLabel: '关闭电子书导入',
-        idleMessage: '拖入一本 EPUB，或点击选择本地文件。',
+        idleMessage: `可批量导入 · EPUB · 单本最高 80MB · 最多 ${MAX_BATCH_IMPORT_FILES} 本`,
+        batchIdleMessage: `可批量导入 · EPUB · 单本最高 80MB · 最多 ${MAX_BATCH_IMPORT_FILES} 本`,
         accept: '.epub,application/epub+zip',
         inputId: 'library-ebook-file',
         isValidFileName: (name) => name.toLowerCase().endsWith('.epub'),
         maxBytes: MAX_EBOOK_IMPORT_BYTES,
+        maxFileCount: MAX_BATCH_IMPORT_FILES,
         invalidFileMessage: '请选择 EPUB 文件',
         oversizeMessage: 'EPUB 文件不能超过 80MB',
+        tooManyFilesMessage: `单次最多导入 ${MAX_BATCH_IMPORT_FILES} 本 EPUB`,
         duplicateMessage: '这本电子书已在阅读库',
         errorFallbackMessage: '添加电子书失败',
         idleDropTitle: '拖入 EPUB，或点击选择',
         draggingDropTitle: '松开开始解析',
         importedDropTitle: '导入完成',
-        dropHint: '单次导入一本书 · EPUB · 最高 80MB',
+        dropHint: '可多选或多拖，顺序导入',
         footerHint: '解析完成后会提取标题、作者、封面和章节正文。',
         progressLabel: '电子书导入进度',
-        openImportedLabel: '打开电子书',
         openDuplicateLabel: '打开已有电子书',
         onImportFile: onImportEbookFile,
       }}
@@ -555,25 +598,28 @@ function PdfImportDialog({
   return (
     <FileImportDialog
       config={{
+        kind: 'pdf',
         titleId: 'library-pdf-import-title',
         title: '添加 PDF 文档',
         closeLabel: '关闭 PDF 导入',
-        idleMessage: '拖入一份 PDF，或点击选择本地文件。',
+        idleMessage: `可批量导入 · PDF · 单份最高 120MB · 最多 ${MAX_BATCH_IMPORT_FILES} 份`,
+        batchIdleMessage: `可批量导入 · PDF · 单份最高 120MB · 最多 ${MAX_BATCH_IMPORT_FILES} 份`,
         accept: '.pdf,application/pdf',
         inputId: 'library-pdf-file',
         isValidFileName: (name) => name.toLowerCase().endsWith('.pdf'),
         maxBytes: MAX_PDF_IMPORT_BYTES,
+        maxFileCount: MAX_BATCH_IMPORT_FILES,
         invalidFileMessage: '请选择 PDF 文件',
         oversizeMessage: 'PDF 文件不能超过 120MB',
+        tooManyFilesMessage: `单次最多导入 ${MAX_BATCH_IMPORT_FILES} 份 PDF`,
         duplicateMessage: '这份 PDF 已在阅读库',
         errorFallbackMessage: '添加 PDF 失败',
         idleDropTitle: '拖入 PDF，或点击选择',
         draggingDropTitle: '松开开始解析',
         importedDropTitle: '导入完成',
-        dropHint: '单次导入一份文档 · PDF · 最高 120MB',
+        dropHint: '可多选或多拖，顺序导入',
         footerHint: '解析完成后会保存页数和基础元信息。',
         progressLabel: 'PDF 导入进度',
-        openImportedLabel: '打开 PDF',
         openDuplicateLabel: '打开已有 PDF',
         onImportFile: onImportPdfFile,
       }}
@@ -594,74 +640,117 @@ function FileImportDialog({
 }) {
   const [importState, setImportState] = useState<ArticleImportState>('idle');
   const [importMessage, setImportMessage] = useState('');
-  const [importArticle, setImportArticle] = useState<ArticleRecord | null>(null);
-  const [importProgress, setImportProgress] = useState(0);
+  const [importItems, setImportItems] = useState<FileImportItem[]>([]);
+  const [batchProgress, setBatchProgress] = useState(0);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const importCloseTimerRef = useRef<number | null>(null);
 
   useEffect(() => () => clearImportCloseTimer(), []);
 
-  useEffect(() => {
-    if (importState !== 'submitting') return;
-
-    const timer = window.setInterval(() => {
-      setImportProgress(advanceImportProgress);
-    }, 180);
-
-    return () => window.clearInterval(timer);
-  }, [importState]);
-
-  async function importFile(file: File | undefined) {
-    if (!file) return;
+  async function importFiles(fileList: FileList | File[] | undefined) {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
     clearImportCloseTimer();
-    if (!config.isValidFileName(file.name)) {
+
+    if (files.length > config.maxFileCount) {
       setImportState('error');
-      setImportMessage(config.invalidFileMessage);
-      setImportArticle(null);
-      setImportProgress(0);
-      return;
-    }
-    if (file.size > config.maxBytes) {
-      setImportState('error');
-      setImportMessage(config.oversizeMessage);
-      setImportArticle(null);
-      setImportProgress(0);
+      setImportMessage(config.tooManyFilesMessage);
+      setImportItems([]);
+      setBatchProgress(0);
+      resetInput();
       return;
     }
 
-    try {
-      setImportState('submitting');
-      setImportMessage(`正在解析 ${file.name}`);
-      setImportArticle(null);
-      setImportProgress(4);
-      const result = await config.onImportFile(file, (nextProgress) => {
-        setImportProgress(clampNumber(nextProgress, 0, 100, 4));
-      });
-      setImportArticle(result.article);
-      if (inputRef.current) inputRef.current.value = '';
-      if (result.status === 'duplicate') {
-        setImportState('duplicate');
-        setImportMessage(config.duplicateMessage);
-        setImportProgress(100);
-        return;
+    const initialItems = files.map((file, index): FileImportItem => {
+      if (!config.isValidFileName(file.name)) {
+        return {
+          id: fileImportItemId(file, index),
+          fileName: file.name,
+          progress: 0,
+          status: 'error',
+          message: config.invalidFileMessage,
+        };
+      }
+      if (file.size > config.maxBytes) {
+        return {
+          id: fileImportItemId(file, index),
+          fileName: file.name,
+          progress: 0,
+          status: 'error',
+          message: config.oversizeMessage,
+        };
+      }
+      return {
+        id: fileImportItemId(file, index),
+        fileName: file.name,
+        progress: 0,
+        status: 'pending',
+      };
+    });
+
+    const validEntries = initialItems
+      .map((item, index) => ({ item, file: files[index] }))
+      .filter((entry) => entry.item.status === 'pending');
+
+    setImportItems(initialItems);
+    setBatchProgress(0);
+
+    if (validEntries.length === 0) {
+      setImportState('error');
+      setImportMessage('没有可导入的文件');
+      resetInput();
+      return;
+    }
+
+    setImportState('submitting');
+    setImportMessage(`正在导入 1/${validEntries.length}`);
+
+    let currentItems = initialItems;
+    function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
+      currentItems = currentItems.map((item) =>
+        item.id === itemId ? { ...item, ...patch } : item,
+      );
+      setImportItems(currentItems);
+    }
+
+    let completedCount = 0;
+    for (const entry of validEntries) {
+      const itemId = entry.item.id;
+      const currentIndex = completedCount;
+      setImportMessage(`正在导入 ${currentIndex + 1}/${validEntries.length}`);
+      patchImportItem(itemId, { status: 'importing', progress: 4, message: undefined });
+
+      try {
+        const result = await config.onImportFile(entry.file, (nextProgress) => {
+          const itemProgress = clampNumber(nextProgress, 0, 100, 4);
+          patchImportItem(itemId, { progress: itemProgress });
+          setBatchProgress(((currentIndex + itemProgress / 100) / validEntries.length) * 100);
+        });
+
+        patchImportItem(itemId, {
+          article: result.article,
+          message:
+            result.status === 'duplicate'
+              ? config.duplicateMessage
+              : articleImportMeta(result.article),
+          progress: 100,
+          status: result.status,
+        });
+      } catch (error) {
+        patchImportItem(itemId, {
+          message: fileImportErrorMessage(error, config.errorFallbackMessage),
+          progress: 100,
+          status: 'error',
+        });
       }
 
-      setImportProgress(100);
-      setImportState('imported');
-      setImportMessage('已添加到阅读库');
-      importCloseTimerRef.current = window.setTimeout(() => {
-        importCloseTimerRef.current = null;
-        onClose();
-        setDragging(false);
-      }, 850);
-    } catch (error) {
-      setImportState('error');
-      setImportMessage(error instanceof Error ? error.message : config.errorFallbackMessage);
-      setImportArticle(null);
-      setImportProgress(0);
-      if (inputRef.current) inputRef.current.value = '';
+      completedCount += 1;
+      setBatchProgress((completedCount / validEntries.length) * 100);
     }
+
+    resetInput();
+    finishImportBatch(currentItems);
   }
 
   function clearImportCloseTimer() {
@@ -677,7 +766,70 @@ function FileImportDialog({
     onClose();
   }
 
-  const importProgressPercent = Math.round(importProgress);
+  function resetInput() {
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  function resetImport() {
+    clearImportCloseTimer();
+    setImportState('idle');
+    setImportMessage('');
+    setImportItems([]);
+    setBatchProgress(0);
+    setDragging(false);
+    resetInput();
+  }
+
+  function finishImportBatch(items: FileImportItem[]) {
+    const importedCount = items.filter((item) => item.status === 'imported').length;
+    const duplicateCount = items.filter((item) => item.status === 'duplicate').length;
+    const successCount = importedCount + duplicateCount;
+    const failedCount = items.filter((item) => item.status === 'error').length;
+
+    if (successCount === 0) {
+      setImportState('error');
+      setImportMessage('导入失败');
+      return;
+    }
+
+    if (importedCount === 0) {
+      setImportState(failedCount > 0 ? 'error' : 'duplicate');
+      setImportMessage(
+        failedCount > 0
+          ? `${duplicateCount} 个已存在，${failedCount} 个失败`
+          : duplicateCount === 1
+            ? config.duplicateMessage
+            : `${duplicateCount} 个文件已在阅读库`,
+      );
+      setBatchProgress(100);
+      return;
+    }
+
+    setImportState(failedCount > 0 ? 'error' : 'imported');
+    setImportMessage(
+      failedCount > 0
+        ? `已导入 ${successCount} 个，${failedCount} 个失败`
+        : `已导入 ${successCount} 个文件`,
+    );
+    setBatchProgress(100);
+    importCloseTimerRef.current = window.setTimeout(() => {
+      importCloseTimerRef.current = null;
+      onClose();
+      setDragging(false);
+    }, FILE_IMPORT_CLOSE_DELAY_MS);
+  }
+
+  function importDropTitle() {
+    if (importState === 'imported') return config.importedDropTitle;
+    if (dragging) return config.draggingDropTitle;
+    return config.idleDropTitle;
+  }
+
+  const duplicateArticle =
+    importItems.find((item) => item.status === 'duplicate' && item.article)?.article || null;
+  const showProgress = importState !== 'idle' && importItems.length > 0;
+  const showResults = importItems.length > 0;
+  const importProgressPercent = Math.round(clampNumber(batchProgress, 0, 100, 0));
 
   return (
     <div
@@ -696,7 +848,7 @@ function FileImportDialog({
         <header>
           <div>
             <strong id={config.titleId}>{config.title}</strong>
-            <span>{importMessage || config.idleMessage}</span>
+            <span>{importMessage || config.batchIdleMessage}</span>
           </div>
           <button type="button" aria-label={config.closeLabel} onClick={closeImportDialog}>
             <X size={17} />
@@ -725,16 +877,17 @@ function FileImportDialog({
             event.preventDefault();
             setDragging(false);
             if (importState === 'submitting') return;
-            void importFile(event.dataTransfer.files[0]);
+            void importFiles(event.dataTransfer.files);
           }}
         >
           <input
             accept={config.accept}
             disabled={importState === 'submitting'}
             id={config.inputId}
+            multiple
             ref={inputRef}
             type="file"
-            onChange={(event) => void importFile(event.target.files?.[0])}
+            onChange={(event) => void importFiles(event.target.files || undefined)}
           />
           <span
             className={[
@@ -758,16 +911,10 @@ function FileImportDialog({
             )}
           </span>
           <span className="library-ebook-dropzone-copy">
-            <strong>
-              {importState === 'imported'
-                ? config.importedDropTitle
-                : dragging
-                  ? config.draggingDropTitle
-                  : config.idleDropTitle}
-            </strong>
+            <strong>{importDropTitle()}</strong>
             <em>{config.dropHint}</em>
           </span>
-          {importState === 'idle' ? null : (
+          {showProgress ? (
             <span
               className="library-import-progress"
               role="progressbar"
@@ -786,21 +933,62 @@ function FileImportDialog({
               </span>
               <em>{importProgressPercent}%</em>
             </span>
-          )}
+          ) : null}
         </label>
+        {showResults ? (
+          <div className="library-file-import-results" role="status">
+            {importItems.map((item) => (
+              <article
+                className={[
+                  'library-file-import-result',
+                  `is-${item.status}`,
+                  item.article?.leadImageUrl ? 'has-cover' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                key={item.id}
+              >
+                <span className="library-file-import-cover" aria-hidden="true">
+                  {item.article?.leadImageUrl ? (
+                    <img alt="" src={item.article.leadImageUrl} />
+                  ) : item.status === 'importing' ? (
+                    <LoaderCircle className="is-spinning" size={18} />
+                  ) : item.status === 'error' ? (
+                    <X size={18} />
+                  ) : config.kind === 'pdf' ? (
+                    <FileText size={18} />
+                  ) : (
+                    <BookText size={18} />
+                  )}
+                </span>
+                <span className="library-file-import-result-copy">
+                  <strong>{item.article?.title || item.fileName}</strong>
+                  <em>{item.message || item.fileName}</em>
+                </span>
+                <span className="library-file-import-result-state">
+                  {fileImportItemStateLabel(item)}
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : null}
         <footer>
           <span>{importMessage || config.footerHint}</span>
-          {importArticle ? (
+          {duplicateArticle ? (
             <button
               type="button"
               onClick={() => {
                 clearImportCloseTimer();
                 onClose();
-                onOpenArticle(importArticle);
+                onOpenArticle(duplicateArticle);
               }}
             >
               <ExternalLink size={14} />
-              {importState === 'duplicate' ? config.openDuplicateLabel : config.openImportedLabel}
+              {config.openDuplicateLabel}
+            </button>
+          ) : importState === 'error' ? (
+            <button type="button" onClick={resetImport}>
+              重新选择
             </button>
           ) : null}
         </footer>

@@ -200,7 +200,7 @@ export function ArticleLibraryCard({
             {thoughts} 讨论
           </span>
         </div>
-        <span className="library-source-badge">{isEbook ? 'ePub' : isPdf ? 'PDF' : '网页'}</span>
+        <span className="library-source-badge">{isEbook ? 'EPUB' : isPdf ? 'PDF' : '网页'}</span>
       </footer>
     </article>
   );
