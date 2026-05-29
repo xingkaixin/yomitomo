@@ -1091,7 +1091,7 @@
 }
 
 .provider-card:hover {
-  border-color: hsl(3 62% 39% / 0.32);
+  border-color: var(--app-interactive-hover-border);
   box-shadow: 0 12px 30px hsl(31 22% 28% / 0.12);
   transform: translateY(-1px);
 }
@@ -1221,15 +1221,19 @@
 }
 
 .provider-card-menu button.provider-delete-menu-item {
-  color: hsl(var(--destructive));
+  color: var(--app-action-danger-bg);
 }
 
 .provider-card-menu button.provider-delete-menu-item::before {
   position: absolute;
   inset: 0 auto 0 0;
   width: 0;
-  background: hsl(var(--destructive) / 0.14);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 14%, transparent);
   content: '';
+}
+
+.provider-card-menu button.provider-delete-menu-item:hover {
+  background: color-mix(in srgb, var(--app-action-danger-bg) 8%, transparent);
 }
 
 .provider-card-menu button.provider-delete-menu-item.is-holding-delete::before {
@@ -3332,7 +3336,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid hsl(var(--border) / 0.72);
+  border-bottom: 1px solid var(--app-reader-toolbar-border);
+  background: var(--app-reader-toolbar-bg);
   padding: 14px var(--reader-titlebar-padding-right) 14px var(--reader-titlebar-padding-left);
 }
 
@@ -5621,10 +5626,10 @@
 }
 
 .library-search input:focus {
-  border-color: hsl(79 24% 46% / 0.72);
+  border-color: var(--app-interactive-hover-border);
   background: hsl(45 72% 99% / 0.92);
   box-shadow:
-    0 0 0 3px hsl(79 24% 46% / 0.12),
+    0 0 0 3px var(--app-interactive-focus-ring),
     0 8px 22px hsl(31 34% 24% / 0.08);
 }
 
@@ -7910,8 +7915,8 @@
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  background: hsl(8 36% 46% / 0.07);
-  color: hsl(8 36% 34%);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 7%, transparent);
+  color: var(--app-action-danger-bg);
   font: inherit;
   font-size: 11px;
   font-weight: 850;
@@ -7925,7 +7930,7 @@
   inset: 0 auto 0 0;
   z-index: 0;
   width: 0;
-  background: hsl(5 54% 38% / 0.12);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
   content: '';
 }
 
@@ -7936,8 +7941,8 @@
 }
 
 .source-note-delete:hover {
-  background: hsl(6 54% 92%);
-  color: hsl(5 54% 38%);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
+  color: var(--app-action-danger-bg);
 }
 
 .source-note-delete:active {
@@ -9372,7 +9377,7 @@
   inset: 0 auto 0 0;
   z-index: 0;
   width: 0;
-  background: hsl(5 54% 38% / 0.12);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
   content: '';
 }
 
@@ -9383,8 +9388,8 @@
 }
 
 .library-item-delete:hover {
-  background: hsl(6 54% 92%);
-  color: hsl(5 54% 38%);
+  background: color-mix(in srgb, var(--app-action-danger-bg) 12%, transparent);
+  color: var(--app-action-danger-bg);
 }
 
 .library-item-delete:active {
@@ -12546,9 +12551,9 @@ button.license-package-row:hover {
 }
 
 .library-search input:focus {
-  border-color: hsl(var(--foreground));
+  border-color: var(--app-interactive-hover-border);
   background: hsl(var(--card));
-  box-shadow: 0 0 0 2px hsl(3 62% 39% / 0.12);
+  box-shadow: 0 0 0 2px var(--app-interactive-focus-ring);
 }
 
 .library-add-trigger,

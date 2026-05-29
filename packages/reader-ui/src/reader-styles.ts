@@ -347,8 +347,8 @@ export const readerConversationStyles = `
 .reader-markdown a{color:inherit;text-decoration:underline;text-decoration-color:rgba(37,29,22,.35);text-decoration-thickness:1px;text-underline-offset:.16em}
 .reader-markdown a:hover{color:var(--reader-red);text-decoration-color:currentColor}
 .reader-delete-note{position:relative;display:inline-flex;align-items:center;gap:5px;isolation:isolate;overflow:hidden;justify-content:center;height:40px;border:0;border-radius:999px;background:transparent;color:var(--reader-red);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-weight:850;padding:0 12px;line-height:1;touch-action:none;user-select:none;white-space:nowrap}
-.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:rgba(159,91,80,.14);z-index:0}
-.reader-delete-note:hover{background:rgba(159,91,80,.07)}
+.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:color-mix(in srgb,var(--reader-red) 14%,transparent);z-index:0}
+.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}
 .reader-delete-note svg,.reader-delete-note span{position:relative;z-index:1}
 .reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}
 .reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
