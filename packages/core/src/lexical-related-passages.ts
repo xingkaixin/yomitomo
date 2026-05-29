@@ -43,6 +43,7 @@ export type BuildCurrentChapterLexicalRelatedPassagesInput = {
   excludeParagraphIds?: string[];
   maxPassages?: number;
   neighborParagraphs?: number;
+  lexicalCache?: LexicalRelatedPassageCache;
   performanceLogger?: PerformanceTimingLogger;
 };
 
@@ -50,6 +51,12 @@ type ParagraphDocument = {
   paragraph: EpubParagraphIndex;
   text: string;
   ranges: ReadingContextTextRange[];
+  terms: Map<string, number>;
+  length: number;
+};
+
+type CachedParagraphLexicalDocument = {
+  text: string;
   terms: Map<string, number>;
   length: number;
 };
@@ -63,6 +70,19 @@ type ParagraphWindowLookup = {
   paragraphsByChapterId: Map<string, EpubParagraphIndex[]>;
   paragraphIndexByChapterAndId: Map<string, number>;
 };
+
+type LexicalCacheStats = {
+  hitCount: number;
+  missCount: number;
+};
+
+export type LexicalRelatedPassageCache = {
+  paragraphDocuments: Map<string, CachedParagraphLexicalDocument>;
+};
+
+export function createLexicalRelatedPassageCache(): LexicalRelatedPassageCache {
+  return { paragraphDocuments: new Map() };
+}
 
 export function buildCurrentChapterLexicalRelatedPassages(
   input: BuildCurrentChapterLexicalRelatedPassagesInput,
@@ -100,13 +120,12 @@ export function buildCurrentChapterLexicalRelatedPassages(
   const chapterIds = candidateChapterIds(input, chapter);
   const excluded = new Set(input.excludeParagraphIds || []);
   const paragraphLookup = buildParagraphWindowLookup(input.ebookIndex.paragraphs);
+  const cacheStats: LexicalCacheStats = { hitCount: 0, missCount: 0 };
   const documents = input.ebookIndex.paragraphs.flatMap((paragraph) => {
     if (!chapterIds.has(paragraph.chapterId) || excluded.has(paragraph.id)) return [];
     const ranges = intersectTextRanges(allowedRanges, paragraph);
-    const text = textForRanges(input.articleText, ranges);
-    if (!text) return [];
-    const terms = termCounts(tokenizeLexicalText(text));
-    return terms.size > 0 ? [{ paragraph, text, ranges, terms, length: tokenLength(terms) }] : [];
+    const document = paragraphLexicalDocument(input, paragraph, ranges, cacheStats);
+    return document ? [{ paragraph, ranges, ...document }] : [];
   });
   if (documents.length === 0) {
     logTiming({
@@ -114,6 +133,8 @@ export function buildCurrentChapterLexicalRelatedPassages(
       chapterId: chapter.id,
       allowedRangeCount: allowedRanges.length,
       candidateChapterCount: chapterIds.size,
+      lexicalCacheHitCount: cacheStats.hitCount,
+      lexicalCacheMissCount: cacheStats.missCount,
     });
     return [];
   }
@@ -135,8 +156,42 @@ export function buildCurrentChapterLexicalRelatedPassages(
     candidateParagraphCount: documents.length,
     scoredParagraphCount: scored.length,
     returnedPassageCount: passages.length,
+    lexicalCacheHitCount: cacheStats.hitCount,
+    lexicalCacheMissCount: cacheStats.missCount,
   });
   return passages;
+}
+
+function paragraphLexicalDocument(
+  input: BuildCurrentChapterLexicalRelatedPassagesInput,
+  paragraph: EpubParagraphIndex,
+  ranges: ReadingContextTextRange[],
+  cacheStats: LexicalCacheStats,
+): CachedParagraphLexicalDocument | null {
+  const text = textForRanges(input.articleText, ranges);
+  if (!text) return null;
+  const cacheKey = paragraphLexicalDocumentCacheKey(input.ebookIndex.articleId, paragraph, ranges);
+  const cached = input.lexicalCache?.paragraphDocuments.get(cacheKey);
+  if (cached) {
+    cacheStats.hitCount += 1;
+    return cached;
+  }
+
+  const terms = termCounts(tokenizeLexicalText(text));
+  if (terms.size === 0) return null;
+  const document = { text, terms, length: tokenLength(terms) };
+  input.lexicalCache?.paragraphDocuments.set(cacheKey, document);
+  if (input.lexicalCache) cacheStats.missCount += 1;
+  return document;
+}
+
+function paragraphLexicalDocumentCacheKey(
+  articleId: string,
+  paragraph: EpubParagraphIndex,
+  ranges: ReadingContextTextRange[],
+) {
+  const rangeKey = ranges.map((range) => `${range.textStart}-${range.textEnd}`).join(',');
+  return `${articleId}\u0000${paragraph.id}\u0000${paragraph.textStart}-${paragraph.textEnd}\u0000${rangeKey}`;
 }
 
 function logLexicalRelatedPassagesTiming(

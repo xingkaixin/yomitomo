@@ -19,10 +19,12 @@ import type {
 import {
   buildCurrentChapterLexicalRelatedPassages,
   buildReadingContextBundle,
+  createLexicalRelatedPassageCache,
   performanceElapsedMs,
   performanceStart,
   segmentAnnotationSpoilerPolicy,
   type CreateAgentAnnotationOptions,
+  type LexicalRelatedPassageCache,
   type ReadingContextPassageInput,
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
@@ -50,11 +52,19 @@ export function buildSegmentAnnotationTasks(
 ): SegmentAnnotationTask[] {
   const index = payload.article.ebookIndex;
   if (!index || !payload.readingPlan?.length) return [];
+  const lexicalCache = createLexicalRelatedPassageCache();
 
   return payload.readingPlan.flatMap((planItem) =>
     index.segments.flatMap((segment) =>
       segmentAnnotationRanges(payload, segment, planItem).flatMap((visibleRange) => {
-        const task = buildSegmentAnnotationTask(payload, agent, planItem, segment, visibleRange);
+        const task = buildSegmentAnnotationTask(
+          payload,
+          agent,
+          planItem,
+          segment,
+          visibleRange,
+          lexicalCache,
+        );
         return task ? [task] : [];
       }),
     ),
@@ -67,6 +77,7 @@ export function buildSegmentAnnotationTask(
   planItem: AgentReadingPlanItem,
   segment: EpubSegmentIndex,
   visibleRange?: TextRange,
+  lexicalCache?: LexicalRelatedPassageCache,
 ): SegmentAnnotationTask | null {
   const index = payload.article.ebookIndex;
   if (!index || !rangesOverlap(segment, planItem)) return null;
@@ -92,6 +103,7 @@ export function buildSegmentAnnotationTask(
       segment,
       visibleRange: taskRange,
       allowedParagraphIds,
+      lexicalCache,
     }),
     createOptions: {
       ebookIndex: index,
@@ -160,6 +172,7 @@ function buildSegmentAnnotationContext(input: {
   segment: EpubSegmentIndex;
   visibleRange: TextRange;
   allowedParagraphIds: string[];
+  lexicalCache?: LexicalRelatedPassageCache;
 }): SegmentAnnotationContext {
   const { payload, agent, index, planItem, chapter, segment, visibleRange, allowedParagraphIds } =
     input;
@@ -178,6 +191,7 @@ function buildSegmentAnnotationContext(input: {
       segment,
       visibleRange,
       readerProgress,
+      input.lexicalCache,
     ),
   });
   const memoryViewBlocks = timedMemoryViewBlocks(payload.readingMemoryView, {
@@ -313,6 +327,7 @@ function segmentRelatedPassages(
   segment: EpubSegmentIndex,
   visibleRange: TextRange,
   readerProgress: ReaderProgress,
+  lexicalCache?: LexicalRelatedPassageCache,
 ): ReadingContextPassageInput[] {
   const query = [
     payload.article.text.slice(visibleRange.textStart, visibleRange.textEnd),
@@ -331,6 +346,7 @@ function segmentRelatedPassages(
     excludeParagraphIds: segment.paragraphIds,
     maxPassages: 3,
     neighborParagraphs: 1,
+    lexicalCache,
     performanceLogger: logAiInfo,
   });
   return passages;
