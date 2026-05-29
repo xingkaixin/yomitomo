@@ -697,25 +697,27 @@ function ArticleCountStats({
   };
 }) {
   if (counts.annotations === 0 && counts.comments === 0) return null;
+  const label = libraryCountStatsLabel(counts);
 
   return (
-    <span
-      className="library-count-stats"
-      aria-label={`${counts.annotations} 划线，${counts.comments} 想法`}
-    >
-      <span className="library-count-stat" title="划线">
+    <span className="library-count-stats" aria-label={label} data-tooltip={label}>
+      <span className="library-count-stat">
         <span className="library-count-value">{counts.annotations}</span>
         <Highlighter size={14} aria-hidden="true" />
       </span>
       <span className="library-count-separator" aria-hidden="true">
         ·
       </span>
-      <span className="library-count-stat" title="想法">
+      <span className="library-count-stat">
         <span className="library-count-value">{counts.comments}</span>
         <Lightbulb size={14} aria-hidden="true" />
       </span>
     </span>
   );
+}
+
+function libraryCountStatsLabel(counts: { annotations: number; comments: number }) {
+  return `${counts.annotations} 条划线 · ${counts.comments} 个想法`;
 }
 
 function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: () => void) {

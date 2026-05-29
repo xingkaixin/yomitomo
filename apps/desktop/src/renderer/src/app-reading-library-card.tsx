@@ -36,6 +36,7 @@ export function ArticleLibraryCard({
   const deleteTimerRef = useRef<number | null>(null);
   const annotations = articleAnnotationCount(article);
   const thoughts = articleThoughtCount(article);
+  const statsLabel = `${annotations} 条划线 · ${thoughts} 个想法`;
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
@@ -190,7 +191,7 @@ export function ArticleLibraryCard({
         </div>
       </div>
       <footer className="library-card-footer">
-        <div className="library-card-meta">
+        <div className="library-card-meta" aria-label={statsLabel} data-tooltip={statsLabel}>
           <span>
             <PencilLine size={13} />
             {annotations} 批注

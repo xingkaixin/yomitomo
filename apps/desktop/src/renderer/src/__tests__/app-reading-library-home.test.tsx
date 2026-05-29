@@ -338,7 +338,7 @@ describe('ReadingLibrary home', () => {
       '较新文章',
       '较早文章',
     ]);
-    expect(screen.queryByLabelText('0 划线，0 想法')).toBeNull();
+    expect(screen.queryByLabelText('0 条划线 · 0 个想法')).toBeNull();
     expect(screen.getByRole('button', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
@@ -405,7 +405,9 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.getAllByText('nooneshappy.com').length).toBeGreaterThan(1);
-    expect(screen.getByLabelText('2 划线，2 想法')).toBeTruthy();
+    const stats = screen.getByLabelText('2 条划线 · 2 个想法');
+    expect(stats).toBeTruthy();
+    expect(stats.getAttribute('title')).toBeNull();
     expect(
       container.querySelector('.library-web-item-cover .article-book-cover-author')?.textContent,
     ).toBe('nooneshappy.com');
@@ -453,7 +455,9 @@ describe('ReadingLibrary home', () => {
     expect(screen.queryByRole('button', { name: '列表' })).toBeNull();
     expect(screen.getAllByText('作者名').length).toBeGreaterThan(1);
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(1);
-    expect(screen.getByLabelText('1 划线，1 想法')).toBeTruthy();
+    const stats = screen.getByLabelText('1 条划线 · 1 个想法');
+    expect(stats).toBeTruthy();
+    expect(stats.getAttribute('title')).toBeNull();
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
     await waitFor(() => expect(getArticleCover).toHaveBeenCalledWith('ebook_1'));
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(

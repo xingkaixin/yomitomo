@@ -6227,6 +6227,56 @@
   flex-wrap: wrap;
 }
 
+.library-card-meta[data-tooltip],
+.library-count-stats[data-tooltip] {
+  position: relative;
+}
+
+.library-card-meta[data-tooltip]::after,
+.library-count-stats[data-tooltip]::after {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  min-width: max-content;
+  opacity: 0;
+  border-radius: 999px;
+  background: var(--app-action-primary-bg);
+  box-shadow: 0 8px 18px hsl(31 34% 24% / 0.14);
+  color: var(--app-action-primary-fg);
+  content: attr(data-tooltip);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 7px 10px;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+  white-space: nowrap;
+}
+
+.library-card-meta[data-tooltip]::after {
+  left: 50%;
+  transform: translate(-50%, 4px);
+}
+
+.library-count-stats[data-tooltip]::after {
+  right: 0;
+  transform: translateY(4px);
+}
+
+.library-card-meta[data-tooltip]:hover::after,
+.library-card-meta[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.library-count-stats[data-tooltip]:hover::after,
+.library-count-stats[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .library-card-meta span {
   display: inline-flex;
   align-items: center;
@@ -14386,7 +14436,7 @@ button.license-package-row:hover {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  overflow: hidden;
+  overflow: visible;
   white-space: normal;
 }
 
