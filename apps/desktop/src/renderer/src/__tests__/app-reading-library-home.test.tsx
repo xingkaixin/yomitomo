@@ -205,6 +205,14 @@ function selectImportFile(container: HTMLElement, inputId: string, file: File) {
   fireEvent.change(input!, { target: { files: [file] } });
 }
 
+function deferredImportResult() {
+  let resolve!: (value: { status: 'imported'; article: ArticleRecord }) => void;
+  const promise = new Promise<{ status: 'imported'; article: ArticleRecord }>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
+}
+
 describe('groupLibraryArticles', () => {
   it('groups recent reading by article update time', () => {
     vi.useFakeTimers();
@@ -648,10 +656,10 @@ describe('ReadingLibrary home', () => {
     });
     renderLibrary([duplicate], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('添加网页文章')).toBeTruthy();
-    expect(screen.getByLabelText('网页地址').tagName).toBe('TEXTAREA');
+    expect(within(screen.getByRole('dialog')).getByText('添加网页文章')).toBeTruthy();
+    expect(screen.getByLabelText('网页地址').tagName).toBe('INPUT');
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -667,6 +675,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('已在阅读库中找到这篇文章')).toBeTruthy();
     expect(screen.getByText('无需重复导入，可以直接打开已有文章。')).toBeTruthy();
     expect(screen.getByRole('button', { name: '打开已有文章' })).toBeTruthy();
+    expect(screen.getByDisplayValue('重复文章')).toBeTruthy();
   });
 
   it('auto closes the webpage import dialog after a successful import', async () => {
@@ -677,7 +686,7 @@ describe('ReadingLibrary home', () => {
     });
     renderLibrary([], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
@@ -690,23 +699,50 @@ describe('ReadingLibrary home', () => {
     expect(
       screen.getByRole('progressbar', { name: '网页文章导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
+    expect(screen.getByDisplayValue('新导入文章')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开文章' })).toBeNull();
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 1200 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 2000 });
+  });
+
+  it('delays webpage import cancellation and ignores late results', async () => {
+    const imported = article({ id: 'article_late', title: '晚到文章' });
+    const deferred = deferredImportResult();
+    const onImportArticleUrl = vi.fn().mockReturnValue(deferred.promise);
+    renderLibrary([], { onImportArticleUrl });
+
+    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
+    fireEvent.change(screen.getByLabelText('网页地址'), {
+      target: { value: 'https://example.com/slow' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
+
+    expect(screen.queryByRole('button', { name: '取消解析' })).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: '取消解析' }));
+    expect(screen.getAllByText('已取消解析').length).toBeGreaterThan(0);
+
+    deferred.resolve({ status: 'imported', article: imported });
+    await waitFor(() => {
+      expect(screen.queryByDisplayValue('晚到文章')).toBeNull();
+    });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByDisplayValue('https://example.com/slow')).toBeTruthy();
   });
 
   it('shows webpage import errors inside the dialog', async () => {
     const onImportArticleUrl = vi.fn().mockRejectedValue(new Error('fetch failed'));
     renderLibrary([], { onImportArticleUrl });
 
-    fireEvent.click(screen.getByRole('button', { name: '添加网页' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
       target: { value: 'https://example.com/post' },
     });
     fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
 
-    expect(
-      (await screen.findAllByText('无法访问这个网页，请确认链接可打开后再试')).length,
-    ).toBeGreaterThan(0);
+    expect(await screen.findByText('解析失败')).toBeTruthy();
+    expect(screen.getByText('Error')).toBeTruthy();
+    expect(screen.queryByText('无法访问这个网页，请确认链接可打开后再试')).toBeNull();
+    expect(screen.queryByText(/fetch failed/)).toBeNull();
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 

@@ -5166,7 +5166,7 @@
 }
 
 .library-article-import-dialog {
-  width: min(680px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
 }
 
 .library-import-dialog.is-error {
@@ -5228,15 +5228,15 @@
 
 .library-article-import-box {
   display: grid;
-  min-height: 220px;
+  min-height: 146px;
   place-items: center;
-  gap: 14px;
+  gap: 12px;
   border: 1px solid hsl(36 31% 68% / 0.72);
   border-radius: 8px;
   background:
     linear-gradient(135deg, hsl(79 30% 91% / 0.38), hsl(44 70% 98% / 0.8)), hsl(43 58% 96%);
   color: hsl(31 23% 20%);
-  padding: 26px;
+  padding: 20px;
   text-align: center;
   transition:
     background 160ms ease,
@@ -5270,7 +5270,7 @@
 
 .library-article-import-url {
   display: grid;
-  width: min(560px, 100%);
+  width: min(460px, 100%);
   gap: 8px;
   color: hsl(34 18% 42%);
   font-size: 12px;
@@ -5304,28 +5304,28 @@
   pointer-events: none;
 }
 
-.library-article-import-input textarea {
-  min-height: 98px;
+.library-article-import-input input {
+  height: 44px;
   width: 100%;
-  overflow-x: hidden;
+  min-width: 0;
+  overflow: hidden;
   border-color: hsl(36 31% 72% / 0.62);
   border-radius: 8px;
   background: hsl(45 72% 98% / 0.88);
   color: hsl(31 23% 20%);
   font-size: 13px;
   font-weight: 720;
-  line-height: 1.46;
-  overflow-wrap: anywhere;
+  line-height: 1;
   padding: 13px 14px 13px 40px;
-  resize: vertical;
-  word-break: break-word;
+  text-overflow: ellipsis;
   transition:
     border-color 150ms ease,
     box-shadow 150ms ease,
     background 150ms ease;
+  white-space: nowrap;
 }
 
-.library-article-import-input textarea:focus {
+.library-article-import-input input:focus {
   border-color: hsl(79 24% 46% / 0.72);
   background: hsl(45 72% 99% / 0.94);
   box-shadow:
@@ -5334,9 +5334,54 @@
   outline: none;
 }
 
-.library-article-import-input textarea:disabled {
+.library-article-import-input input:disabled {
   cursor: not-allowed;
-  opacity: 0.68;
+  opacity: 0.76;
+}
+
+.library-article-import-result-check {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  color: hsl(124 44% 30%);
+  pointer-events: none;
+  transform-origin: center;
+  animation:
+    article-import-check-fade 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    article-import-check-bob 480ms cubic-bezier(0.34, 1.35, 0.64, 1) forwards;
+}
+
+.library-article-import-result-check svg {
+  position: static;
+  display: block;
+  color: currentColor;
+  overflow: visible;
+}
+
+.library-article-import-result-check svg path {
+  stroke-dasharray: 18;
+  stroke-dashoffset: 18;
+  animation: article-import-check-draw 560ms cubic-bezier(0.22, 1, 0.36, 1) 80ms forwards;
+}
+
+.library-article-import-box.has-parsed-title .library-article-import-input input {
+  color: hsl(31 23% 18%);
+  font-weight: 850;
+  opacity: 1;
+  animation: article-import-title-fade 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.library-article-import-actions {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .library-article-import-submit {
@@ -5345,8 +5390,70 @@
   white-space: nowrap;
 }
 
+.library-article-import-cancel {
+  height: 40px;
+  min-width: 118px;
+  white-space: nowrap;
+}
+
 .library-article-import-submit .is-spinning {
   animation: app-spin 900ms linear infinite;
+}
+
+@keyframes article-import-title-fade {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes article-import-check-fade {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: rotate(32deg) scale(0.84);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes article-import-check-bob {
+  from {
+    translate: 0 6px;
+  }
+
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes article-import-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-article-import-box.has-parsed-title .library-article-import-input input,
+  .library-article-import-result-check,
+  .library-article-import-result-check svg path {
+    animation: none;
+    filter: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+    transform: none;
+  }
 }
 
 .library-article-duplicate-callout {
@@ -14398,7 +14505,7 @@ button.license-package-row:hover {
   color: hsl(var(--muted-foreground));
 }
 
-.library-article-import-input textarea {
+.library-article-import-input input {
   border-color: hsl(var(--border) / 0.92);
   border-radius: 0;
   background: hsl(var(--card));
@@ -14406,7 +14513,7 @@ button.license-package-row:hover {
   box-shadow: none;
 }
 
-.library-article-import-input textarea:focus {
+.library-article-import-input input:focus {
   border-color: hsl(var(--foreground));
   background: hsl(var(--card));
   box-shadow: 0 0 0 2px hsl(3 62% 39% / 0.12);
@@ -14436,7 +14543,8 @@ button.license-package-row:hover {
   color: var(--app-interactive-link);
 }
 
-.library-article-import-submit {
+.library-article-import-submit,
+.library-article-import-cancel {
   border: 1px solid hsl(var(--foreground));
   border-radius: 0;
   background: hsl(var(--foreground));
@@ -14445,7 +14553,9 @@ button.license-package-row:hover {
 }
 
 .library-article-import-submit:hover,
-.library-article-import-submit:focus-visible {
+.library-article-import-submit:focus-visible,
+.library-article-import-cancel:hover,
+.library-article-import-cancel:focus-visible {
   border-color: var(--app-interactive-link);
   background: var(--app-interactive-link);
   color: hsl(var(--card));
@@ -16452,14 +16562,14 @@ button.license-package-row:hover {
   font-weight: 880;
 }
 
-.library-article-import-input textarea {
-  min-height: 126px;
+.library-article-import-input input {
+  height: 44px;
   border: 0;
   background: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 98.5%)), hsl(var(--card));
   box-shadow: inset 0 1px 0 hsl(0 0% 0% / 0.04);
 }
 
-.library-article-import-input textarea::placeholder {
+.library-article-import-input input::placeholder {
   color: hsl(var(--muted-foreground));
   opacity: 0.92;
 }
@@ -16479,7 +16589,7 @@ button.license-package-row:hover {
     inset 0 0 0 1px hsl(0 0% 100% / 0.72);
 }
 
-.library-article-import-input textarea:focus {
+.library-article-import-input input:focus {
   box-shadow: inset 0 1px 0 hsl(0 0% 0% / 0.04);
 }
 
