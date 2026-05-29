@@ -9283,8 +9283,7 @@
 .library-web-item:hover .article-book-scene,
 .library-web-item:focus-within .article-book-scene,
 .library-bookcase-item:hover .article-book-scene,
-.library-bookcase-item.is-active .article-book-scene,
-.ebook-toolbar-cover:hover .article-book-scene {
+.library-bookcase-item.is-active .article-book-scene {
   transform: rotateY(var(--book-hover-rotate)) scale(var(--book-hover-scale))
     translateX(var(--book-hover-translate-x));
 }
@@ -9298,8 +9297,7 @@
 .library-web-item:hover .article-book,
 .library-web-item:focus-within .article-book,
 .library-bookcase-item:hover .article-book,
-.library-bookcase-item.is-active .article-book,
-.ebook-toolbar-cover:hover .article-book {
+.library-bookcase-item.is-active .article-book {
   transform: translateY(-2px);
 }
 
@@ -9312,8 +9310,7 @@
 .library-web-item:hover .article-book-ground-shadow,
 .library-web-item:focus-within .article-book-ground-shadow,
 .library-bookcase-item:hover .article-book-ground-shadow,
-.library-bookcase-item.is-active .article-book-ground-shadow,
-.ebook-toolbar-cover:hover .article-book-ground-shadow {
+.library-bookcase-item.is-active .article-book-ground-shadow {
   opacity: 0.82;
   transform: translate3d(12px, 2px, -24px) scaleX(1.02);
 }
