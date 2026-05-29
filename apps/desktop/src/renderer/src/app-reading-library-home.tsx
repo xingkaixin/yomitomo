@@ -40,6 +40,7 @@ import {
 import {
   ArticleBook,
   BookCoverFrame,
+  formatPdfAuthors,
   nativeBookCoverStyle,
   useNativeCoverRatio,
 } from './app-article-book';
@@ -447,7 +448,14 @@ function LibraryDocumentListItem({
       </div>
       <div className="library-ebook-list-copy">
         {sourceLabel ? (
-          <div className="library-ebook-list-source">
+          <div
+            className={[
+              'library-ebook-list-source',
+              article.sourceType === 'pdf' ? 'is-pdf-source' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <span>{sourceLabel}</span>
           </div>
         ) : null}
@@ -586,7 +594,8 @@ function WeReadItemActions({
 }
 
 function libraryDocumentSourceLabel(article: ArticleSummaryRecord) {
-  if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
+  if (article.sourceType === 'pdf')
+    return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
   return article.byline || article.ebook?.metadata.fileName || '电子书';
 }
 

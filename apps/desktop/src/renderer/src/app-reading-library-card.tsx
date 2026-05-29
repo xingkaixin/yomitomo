@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from './app-utils';
-import { ArticleBook } from './app-article-book';
+import { ArticleBook, formatPdfAuthors } from './app-article-book';
 import {
   articleAnnotationCount,
   articleReadingMinutes,
@@ -208,7 +208,8 @@ export function ArticleLibraryCard({
 }
 
 function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
-  if (article.sourceType === 'pdf') return article.pdf?.metadata.author || '';
+  if (article.sourceType === 'pdf')
+    return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';
   return (

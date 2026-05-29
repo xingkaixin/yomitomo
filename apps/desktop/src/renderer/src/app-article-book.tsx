@@ -24,6 +24,15 @@ type BookCoverFrameProps = {
   onImageError?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
 };
 
+type FormatPdfAuthorsOptions = {
+  maxAuthors: number;
+  maxLength?: number;
+};
+
+type FormatPdfTitleOptions = {
+  compact?: boolean;
+};
+
 const PDF_COVER_PALETTES = [
   { color: '#2b4570', text: '#ffffff' },
   { color: '#2a3d45', text: '#ffffff' },
@@ -199,7 +208,10 @@ function articleBookVisual(
 
   const palette = pdfPalette(article);
   const bylineLabel = pdfAuthorLabel(article);
-  const title = normalizeLabel(article.title);
+  const title =
+    article.sourceType === 'pdf'
+      ? formatPdfDisplayTitle(article.title, { compact: true })
+      : normalizeLabel(article.title);
   const hasCjkTitle = /[\u3400-\u9fff]/.test(title);
   const style: ArticleBookStyle = {
     '--book-author-scale': String(authorScale(bylineLabel)),
@@ -226,12 +238,78 @@ function pdfPalette(article: ArticleSummaryRecord) {
   return PDF_COVER_PALETTES[seed % PDF_COVER_PALETTES.length];
 }
 
+export function formatPdfDisplayTitle(value: string, options: FormatPdfTitleOptions = {}) {
+  const title = normalizeLabel(value);
+  if (!title) return '';
+  const maxLength = options.compact ? 46 : 88;
+  if (Array.from(title).length <= maxLength) return title;
+
+  const separators = [': ', '：', ' - ', ' — ', ' – ', '. '];
+  for (const separator of separators) {
+    const index = title.indexOf(separator);
+    if (index < 4 || index > maxLength) continue;
+    return title.slice(0, index).trim();
+  }
+
+  return `${Array.from(title)
+    .slice(0, maxLength - 1)
+    .join('')
+    .trim()}…`;
+}
+
+export function formatPdfAuthors(value: string, options: FormatPdfAuthorsOptions) {
+  const authors = splitPdfAuthors(value).map(formatPdfAuthorName).filter(Boolean);
+  if (authors.length === 0) return '';
+
+  const maxAuthors = Math.max(1, options.maxAuthors);
+  for (let count = Math.min(maxAuthors, authors.length); count > 0; count -= 1) {
+    const label = pdfAuthorsLabel(authors, count);
+    if (!options.maxLength || Array.from(label).length <= options.maxLength) return label;
+  }
+
+  return pdfAuthorsLabel(authors, 1);
+}
+
 function pdfAuthorLabel(article: ArticleSummaryRecord) {
   if (!article.sourceType || article.sourceType === 'web') {
     return normalizeLabel(urlHostname(article.canonicalUrl) || urlHostname(article.url) || '');
   }
   if (article.sourceType !== 'pdf') return normalizeLabel(article.byline || '');
-  return normalizeLabel(article.pdf?.metadata.author || '');
+  return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 1 });
+}
+
+function splitPdfAuthors(value: string) {
+  return normalizeLabel(value)
+    .split(/\s*(?:;|；|\band\b|&)\s*/i)
+    .map((author) => author.trim())
+    .filter(Boolean);
+}
+
+function formatPdfAuthorName(value: string) {
+  if (hasCjkText(value)) return value;
+  return value
+    .split(/(\s+|-|')/)
+    .map((part) => {
+      if (!/[A-Za-z]/.test(part)) return part;
+      if (/[a-z]/.test(part)) return part;
+      return `${part.charAt(0).toUpperCase()}${part.slice(1).toLowerCase()}`;
+    })
+    .join('');
+}
+
+function pdfAuthorsLabel(authors: string[], count: number) {
+  const visibleAuthors = authors.slice(0, count);
+  const suffix = authors.length > visibleAuthors.length ? pdfAuthorsSuffix(authors[0]) : '';
+  const separator = hasCjkText(authors[0]) ? '、' : '; ';
+  return `${visibleAuthors.join(separator)}${suffix ? ` ${suffix}` : ''}`;
+}
+
+function pdfAuthorsSuffix(firstAuthor: string) {
+  return hasCjkText(firstAuthor) ? '等' : 'et al.';
+}
+
+function hasCjkText(value: string) {
+  return /[\u3400-\u9fff]/.test(value);
 }
 
 function normalizeLabel(value: string) {
