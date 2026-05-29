@@ -3,7 +3,7 @@ import desktopPackage from '../../../desktop/package.json';
 import ProductCarousel, { type ProductCarouselSlide } from '../components/ProductCarousel.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import SiteHeader from '../components/SiteHeader.astro';
-import { githubUrl, wereadApiKeyDocsUrl, youtubeUrl } from '../site-links';
+import { githubUrl, youtubeUrl } from '../site-links';
 import '../styles/global.css';
 
 const siteUrl = 'https://yomitomo.app';
@@ -233,9 +233,6 @@ const productSlides: ProductCarouselSlide[] = [
                   <span>{releaseTag}</span>
                 </p>
                 <h2 id="install-title" class="install-title">下载 Yomitomo</h2>
-                <a class="install-doc-link" href={wereadApiKeyDocsUrl}>
-                  微信读书 API KEY 获取说明
-                </a>
               </div>
               <div class="download-cards">
                 {
@@ -275,7 +272,18 @@ const productSlides: ProductCarouselSlide[] = [
                             aria-label={`下载 Yomitomo ${platform.name} ${option.label} ${releaseTag}`}
                           >
                             <span>{option.label}</span>
-                            <span>{option.extension}</span>
+                            <span class="download-option-meta">
+                              <span>{option.extension}</span>
+                              <svg
+                                class="download-option-icon"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                              >
+                                <path d="M12 15V3"></path>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <path d="m7 10 5 5 5-5"></path>
+                              </svg>
+                            </span>
                           </a>
                         ))}
                       </div>
