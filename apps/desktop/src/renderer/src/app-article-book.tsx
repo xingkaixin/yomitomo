@@ -227,6 +227,9 @@ function pdfPalette(article: ArticleSummaryRecord) {
 }
 
 function pdfAuthorLabel(article: ArticleSummaryRecord) {
+  if (!article.sourceType || article.sourceType === 'web') {
+    return normalizeLabel(urlHostname(article.canonicalUrl) || urlHostname(article.url) || '');
+  }
   if (article.sourceType !== 'pdf') return normalizeLabel(article.byline || '');
   return normalizeLabel(article.pdf?.metadata.author || '');
 }
@@ -248,6 +251,15 @@ function safeHttpUrl(value: string | undefined) {
     return undefined;
   }
   return undefined;
+}
+
+function urlHostname(value: string | undefined) {
+  if (!value) return '';
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return '';
+  }
 }
 
 function stableHash(value: string) {

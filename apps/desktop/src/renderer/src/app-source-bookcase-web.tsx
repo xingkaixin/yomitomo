@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import type {
   AgentReadingPlanItem,
   Annotation,
+  ArticleReadingProgress,
   Comment as AnnotationComment,
   PublicAgent,
 } from '@yomitomo/shared';
@@ -93,12 +94,15 @@ export function WebSourceBookcase({
   onDeleteArticleComment,
   onOpenAnnotation,
   onSaveArticle,
+  onSaveArticleReadingProgress,
   onUpdateArticle,
 }: WebSourceBookcaseProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
+  const lastSavedWebProgressRef = useRef<number | null>(null);
+  const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [statusMessage, setStatusMessage] = useState('');
   const {
@@ -283,7 +287,69 @@ export function WebSourceBookcase({
     setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
     setStatusMessage('');
+    lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
+    restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement || restoredWebProgressArticleRef.current === article.id) return;
+    const savedProgress = normalizeSavedWebProgress(article.readingProgress);
+    if (savedProgress === null || savedProgress <= 0) {
+      restoredWebProgressArticleRef.current = article.id;
+      return;
+    }
+
+    let cancelled = false;
+    const restore = () => {
+      if (cancelled) return;
+      const maxScrollTop = webReaderMaxScrollTop(scrollElement);
+      if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
+      restoredWebProgressArticleRef.current = article.id;
+    };
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(restore);
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [article.id, article.readingProgress]);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    let saveTimer: number | undefined;
+    const saveProgress = () => {
+      const progress = webReaderProgress(scrollElement);
+      if (
+        lastSavedWebProgressRef.current !== null &&
+        Math.abs(progress - lastSavedWebProgressRef.current) < 0.01
+      ) {
+        return;
+      }
+
+      lastSavedWebProgressRef.current = progress;
+      void onSaveArticleReadingProgress(article.id, webReadingProgressSnapshot(progress));
+    };
+    const scheduleSave = () => {
+      if (saveTimer !== undefined) window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(saveProgress, 450);
+    };
+
+    const initialFrame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (webReaderMaxScrollTop(scrollElement) <= 0) saveProgress();
+      });
+    });
+    scrollElement.addEventListener('scroll', scheduleSave, { passive: true });
+    return () => {
+      scrollElement.removeEventListener('scroll', scheduleSave);
+      window.cancelAnimationFrame(initialFrame);
+      if (saveTimer !== undefined) window.clearTimeout(saveTimer);
+    };
+  }, [article.id, onSaveArticleReadingProgress]);
 
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
@@ -784,4 +850,29 @@ export function WebSourceBookcase({
       />
     </section>
   );
+}
+
+function normalizeSavedWebProgress(progress: ArticleReadingProgress | undefined) {
+  if (!progress) return null;
+  if (!Number.isFinite(progress.progress)) return null;
+  return Math.min(1, Math.max(0, progress.progress));
+}
+
+function webReaderMaxScrollTop(scrollElement: HTMLElement) {
+  return Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+}
+
+function webReaderProgress(scrollElement: HTMLElement) {
+  const maxScrollTop = webReaderMaxScrollTop(scrollElement);
+  if (maxScrollTop <= 0) return 1;
+  return Math.min(1, Math.max(0, scrollElement.scrollTop / maxScrollTop));
+}
+
+function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
+  return {
+    pageIndex: Math.min(999, Math.floor(progress * 1000)),
+    pageCount: 1000,
+    progress,
+    updatedAt: new Date().toISOString(),
+  };
 }
