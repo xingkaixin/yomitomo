@@ -27,6 +27,17 @@ import {
 import { packReadingContext } from './context-packing';
 import { relatedPassagesFromReadingContext } from './related-passages';
 import { memoryViewContextBlocks } from './reading-view-assembler';
+import {
+  annotationAuthorLabel,
+  clampInteger,
+  clippedThreadContextComments as clippedThreadContextCommentsByLimit,
+  clipText,
+  commentAuthorLabel,
+  intersectTextRanges,
+  numberValue,
+  rangeAllowed,
+  rangeDistance,
+} from './selection-context-utils';
 
 const SELECTION_PARAGRAPH_WINDOW_SIZE = 2;
 const SELECTION_CONTEXT_TOKEN_BUDGET = 9000;
@@ -474,11 +485,7 @@ function threadContextComments(
 }
 
 function clippedThreadContextComments(comments: Comment[]) {
-  const nonEmpty = comments.filter((comment) => comment.content.trim());
-  if (nonEmpty.length <= THREAD_CONTEXT_RECENT_LIMIT + 1) return nonEmpty;
-  const first = nonEmpty[0];
-  const recent = nonEmpty.slice(-THREAD_CONTEXT_RECENT_LIMIT);
-  return first && !recent.some((comment) => comment.id === first.id) ? [first, ...recent] : recent;
+  return clippedThreadContextCommentsByLimit(comments, THREAD_CONTEXT_RECENT_LIMIT);
 }
 
 function annotationSummaryText(annotation: Annotation) {
@@ -494,20 +501,6 @@ function annotationSummaryText(annotation: Annotation) {
   ].join('\n');
 }
 
-function annotationAuthorLabel(annotation: Annotation) {
-  if (annotation.author === 'ai') {
-    return annotation.agentNickname || annotation.agentUsername || 'AI';
-  }
-  return annotation.userNickname || annotation.userUsername || '读者';
-}
-
-function commentAuthorLabel(comment: Annotation['comments'][number]) {
-  if (comment.author === 'ai') {
-    return comment.agentNickname || comment.agentUsername || 'AI';
-  }
-  return comment.userNickname || comment.userUsername || '读者';
-}
-
 function sourceLabel(
   type: ContextSourceLabel['type'],
   articleId: string,
@@ -520,45 +513,10 @@ function sourceLabel(
   };
 }
 
-function rangeAllowed(
-  range: ReadingContextTextRange,
-  readingContext: ReadingContextBundle | undefined,
-) {
-  return !readingContext || intersectTextRanges(readingContext.textRanges, range).length > 0;
-}
-
-function intersectTextRanges(ranges: ReadingContextTextRange[], target: ReadingContextTextRange) {
-  return ranges.flatMap((range) => {
-    const textStart = Math.max(range.textStart, target.textStart);
-    const textEnd = Math.min(range.textEnd, target.textEnd);
-    return textEnd > textStart ? [{ textStart, textEnd }] : [];
-  });
-}
-
-function rangeDistance(left: ReadingContextTextRange, right: ReadingContextTextRange) {
-  if (left.textStart < right.textEnd && right.textStart < left.textEnd) return 0;
-  if (left.textEnd <= right.textStart) return right.textStart - left.textEnd;
-  return left.textStart - right.textEnd;
-}
-
 function anchorOffset(articleText: string, selection: TextAnchor) {
   return clampInteger(
     numberValue(selection.textStartInBook) ?? selection.start,
     0,
     articleText.length,
   );
-}
-
-function clampInteger(value: number, min: number, max: number) {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, Math.floor(value)));
-}
-
-function numberValue(value: unknown) {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
-}
-
-function clipText(text: string, maxLength: number) {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength)}...`;
 }
