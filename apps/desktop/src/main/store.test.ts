@@ -61,6 +61,7 @@ describe('desktop store settings', () => {
         {
           defaultProviderId: 'provider_1',
           themeId: 'ink-paper',
+          libraryPageSize: 18,
           readingAssistantProviderId: 'provider_1',
           reviewAssistantProviderId: 'provider_1',
           assistantExecutionMode: 'deep_verification',
@@ -75,6 +76,7 @@ describe('desktop store settings', () => {
     ).toEqual({
       defaultProviderId: undefined,
       themeId: 'ink-paper',
+      libraryPageSize: 18,
       readingAssistantProviderId: undefined,
       reviewAssistantProviderId: undefined,
       assistantExecutionMode: 'deep_verification',
@@ -90,6 +92,15 @@ describe('desktop store settings', () => {
   it('defaults assistant execution mode to fast response', () => {
     expect(mergeSettingsForUpsert({}, {})).toMatchObject({
       assistantExecutionMode: 'fast_response',
+    });
+  });
+
+  it('normalizes persisted library page size settings', () => {
+    expect(mergeSettingsForUpsert({ libraryPageSize: 18 }, {})).toMatchObject({
+      libraryPageSize: 18,
+    });
+    expect(mergeSettingsForUpsert({ libraryPageSize: 10 }, { libraryPageSize: 24 })).toMatchObject({
+      libraryPageSize: undefined,
     });
   });
 

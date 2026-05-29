@@ -9,6 +9,7 @@ export type SelectionActionShortcuts = {
 
 export type AppSettings = {
   themeId?: string;
+  libraryPageSize?: number;
   defaultProviderId?: string;
   readingAssistantProviderId?: string;
   reviewAssistantProviderId?: string;

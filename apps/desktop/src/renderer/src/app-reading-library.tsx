@@ -5,6 +5,7 @@ import type {
   ArticleReadingProgress,
   ArticleRecord,
   ArticleSummaryRecord,
+  AppSettings,
   MessageSendShortcut,
   SelectionActionShortcuts,
   UserProfile,
@@ -36,6 +37,7 @@ export function ReadingLibrary({
   agents,
   articles,
   messageSendShortcut,
+  settings,
   selectionActionShortcuts,
   openArticleId,
   userProfile,
@@ -50,11 +52,13 @@ export function ReadingLibrary({
   onReadArticle,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveSettings,
   onUpdateArticle,
 }: {
   agents: Agent[];
   articles: ArticleSummaryRecord[];
   messageSendShortcut?: MessageSendShortcut;
+  settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleId?: string | null;
   userProfile: UserProfile;
@@ -82,6 +86,7 @@ export function ReadingLibrary({
     articleId: string,
     progress: ArticleReadingProgress,
   ) => Promise<void> | void;
+  onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
@@ -296,7 +301,9 @@ export function ReadingLibrary({
     onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
     onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
     onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
+    onSaveSettings: onSaveSettings || (() => undefined),
     onSyncWeRead: () => void syncWeReadLibrary(),
+    settings: settings || {},
     wereadBooks,
     wereadOpenMessage,
     wereadSettings,
