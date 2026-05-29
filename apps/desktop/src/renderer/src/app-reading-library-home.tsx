@@ -13,7 +13,12 @@ import {
   Smartphone,
   Trash2,
 } from 'lucide-react';
-import type { ArticleSummaryRecord, WeReadBook, WeReadSettings } from '@yomitomo/shared';
+import type {
+  AppSettings,
+  ArticleSummaryRecord,
+  WeReadBook,
+  WeReadSettings,
+} from '@yomitomo/shared';
 import { Input } from './components/ui/input';
 import {
   Select,
@@ -66,7 +71,9 @@ export function LibraryHome({
   onOpenArticle,
   onOpenWeReadBook,
   onOpenWeReadExternal,
+  onSaveSettings,
   onSyncWeRead,
+  settings,
   wereadBooks,
   wereadOpenMessage,
   wereadSettings,
@@ -89,14 +96,18 @@ export function LibraryHome({
   onOpenArticle: (article: ArticleSummaryRecord) => void;
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
+  onSaveSettings: (settings: AppSettings) => Promise<void> | void;
   onSyncWeRead: () => void;
+  settings: AppSettings;
   wereadBooks: WeReadBook[];
   wereadOpenMessage: string;
   wereadSettings: WeReadSettings;
   wereadSyncing: boolean;
 }) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(() =>
+    normalizeLibraryPageSize(settings.libraryPageSize),
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const filteredArticles = useMemo(
     () =>
@@ -145,6 +156,10 @@ export function LibraryHome({
   useEffect(() => {
     setPage(1);
   }, [activeSource, pageSize, searchQuery]);
+
+  useEffect(() => {
+    setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));
+  }, [settings.libraryPageSize]);
 
   const activeSourceLabel =
     activeSource === 'web'
@@ -332,8 +347,12 @@ export function LibraryHome({
           <Select
             value={String(pageSize)}
             onValueChange={(value) => {
-              setPageSize(Number(value));
+              const nextPageSize = normalizeLibraryPageSize(Number(value));
+              setPageSize(nextPageSize);
               setPage(1);
+              void Promise.resolve(
+                onSaveSettings({ ...settings, libraryPageSize: nextPageSize }),
+              ).catch(() => setPageSize(normalizeLibraryPageSize(settings.libraryPageSize)));
             }}
           >
             <SelectTrigger className="library-page-size-trigger" aria-label="每页显示数量">
@@ -353,6 +372,12 @@ export function LibraryHome({
       ) : null}
     </section>
   );
+}
+
+function normalizeLibraryPageSize(value: unknown) {
+  return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
+    ? (value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])
+    : 12;
 }
 
 function WebArticleListItem({

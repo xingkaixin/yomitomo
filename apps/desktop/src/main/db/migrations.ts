@@ -666,4 +666,10 @@ ON model_price_records(updated_at);
 ALTER TABLE app_settings ADD COLUMN theme_id TEXT;
 `,
   },
+  {
+    id: '0041_library_page_size_setting',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN library_page_size INTEGER;
+`,
+  },
 ];

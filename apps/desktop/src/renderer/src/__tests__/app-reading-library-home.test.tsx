@@ -7,6 +7,7 @@ import type {
   Annotation,
   ArticleRecord,
   ArticleSummaryRecord,
+  AppSettings,
   UserProfile,
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
@@ -21,6 +22,19 @@ const userProfile: UserProfile = {
   annotationColor: '#f4c95d',
   updatedAt: now,
 };
+
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = () => undefined;
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = () => undefined;
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => undefined;
+}
 
 afterEach(() => {
   vi.useRealTimers();
@@ -147,12 +161,15 @@ function renderLibrary(
       onProgress?: (progress: number) => void,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
+    onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
+    settings?: AppSettings;
   } = {},
 ) {
   return render(
     <ReadingLibrary
       agents={[]}
       articles={articles}
+      settings={options.settings}
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
@@ -165,6 +182,7 @@ function renderLibrary(
       }
       onSaveArticle={vi.fn()}
       onSaveArticleReadingProgress={vi.fn()}
+      onSaveSettings={options.onSaveSettings}
       onUpdateArticle={vi.fn()}
     />,
   );
@@ -306,6 +324,36 @@ describe('ReadingLibrary home', () => {
     expect(screen.queryByLabelText('0 划线，0 想法')).toBeNull();
     expect(screen.getByRole('button', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
+  });
+
+  it('restores and saves the library page size preference', async () => {
+    const onSaveSettings = vi.fn();
+    const articles = Array.from({ length: 20 }, (_, index) =>
+      article({
+        id: `article_${index + 1}`,
+        title: `文章 ${index + 1}`,
+        createdAt: `2026-05-09T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
+      }),
+    );
+
+    renderLibrary(articles, {
+      onSaveSettings,
+      settings: { libraryPageSize: 18, themeId: 'ink-paper' },
+    });
+
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(18);
+
+    fireEvent.pointerDown(screen.getByRole('combobox', { name: '每页显示数量' }), {
+      button: 0,
+      ctrlKey: false,
+      pointerType: 'mouse',
+    });
+    fireEvent.click(await screen.findByRole('option', { name: '每页 24 项' }));
+
+    expect(onSaveSettings).toHaveBeenCalledWith({
+      libraryPageSize: 24,
+      themeId: 'ink-paper',
+    });
   });
 
   it('searches source metadata without reading status filters', () => {

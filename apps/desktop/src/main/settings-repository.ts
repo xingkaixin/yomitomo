@@ -52,6 +52,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
   const row = {
     id: 'default',
     themeId: merged.themeId || null,
+    libraryPageSize: merged.libraryPageSize || null,
     defaultProviderId: merged.defaultProviderId || null,
     readingAssistantProviderId: merged.readingAssistantProviderId || null,
     reviewAssistantProviderId: merged.reviewAssistantProviderId || null,

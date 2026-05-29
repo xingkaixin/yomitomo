@@ -386,6 +386,11 @@ function App() {
     }
   }
 
+  async function saveLibrarySettings(settings: AppSettings) {
+    const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    applyStore(nextStore);
+  }
+
   function startOnboarding() {
     setOnboardingForced(true);
     setOnboardingFlowKey((key) => key + 1);
@@ -567,6 +572,7 @@ function App() {
               agents={store.agents}
               articles={store.articles}
               messageSendShortcut={store.settings.messageSendShortcut}
+              settings={store.settings}
               selectionActionShortcuts={store.settings.selectionActionShortcuts}
               openArticleId={pendingOpenArticleId}
               userProfile={store.user}
@@ -581,6 +587,7 @@ function App() {
               onReadArticle={readArticle}
               onSaveArticle={saveArticle}
               onSaveArticleReadingProgress={saveArticleReadingProgress}
+              onSaveSettings={saveLibrarySettings}
               onUpdateArticle={updateArticle}
             />
           ) : null}

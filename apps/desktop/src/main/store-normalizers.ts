@@ -246,6 +246,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     themeId: settingsFieldProvided(settings, 'themeId')
       ? settings.themeId || undefined
       : existing?.themeId || undefined,
+    libraryPageSize: settingsFieldProvided(settings, 'libraryPageSize')
+      ? normalizeLibraryPageSize(settings.libraryPageSize)
+      : normalizeLibraryPageSize(existing?.libraryPageSize),
     defaultProviderId: settingsFieldProvided(settings, 'defaultProviderId')
       ? settings.defaultProviderId || undefined
       : existing?.defaultProviderId || undefined,
@@ -326,6 +329,7 @@ export function rowToSettings(
 ): AppSettings {
   return {
     themeId: row?.themeId || undefined,
+    libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
@@ -342,6 +346,7 @@ export function rowToSettings(
 function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
     themeId: settings?.themeId || undefined,
+    libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
@@ -357,6 +362,10 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
 
 function normalizeLogRetentionDays(value: unknown) {
   return value === 15 || value === 30 || value === 90 ? value : undefined;
+}
+
+function normalizeLibraryPageSize(value: unknown) {
+  return value === 6 || value === 12 || value === 18 || value === 24 ? value : undefined;
 }
 
 function rowToEbook(row: ArticleRow): ArticleRecord['ebook'] {
