@@ -41,6 +41,15 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain(
       '.reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}',
     );
+    expect(readerConversationStyles).toContain(
+      '.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:color-mix(in srgb,var(--reader-red) 14%,transparent);z-index:0}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}',
+    );
+    expect(readerConversationStyles).not.toContain(
+      '.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:rgba(159,91,80,.14);z-index:0}',
+    );
   });
 
   it('styles shortcut tooltips and keeps composer cancel neutral', () => {
