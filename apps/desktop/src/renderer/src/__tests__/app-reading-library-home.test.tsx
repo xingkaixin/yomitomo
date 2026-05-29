@@ -200,9 +200,13 @@ function fileWithSize(name: string, size: number): File {
 }
 
 function selectImportFile(container: HTMLElement, inputId: string, file: File) {
+  selectImportFiles(container, inputId, [file]);
+}
+
+function selectImportFiles(container: HTMLElement, inputId: string, files: File[]) {
   const input = container.querySelector<HTMLInputElement>(`#${inputId}`);
   expect(input).toBeTruthy();
-  fireEvent.change(input!, { target: { files: [file] } });
+  fireEvent.change(input!, { target: { files } });
 }
 
 function deferredImportResult() {
@@ -753,7 +757,8 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(screen.getByText('添加 ePub 电子书')).toBeTruthy();
+    expect(screen.getByText('添加 EPUB 电子书')).toBeTruthy();
+    expect(screen.getByText('可批量导入 · EPUB · 单本最高 80MB · 最多 10 本')).toBeTruthy();
     expect(screen.getByText('拖入 EPUB，或点击选择')).toBeTruthy();
   });
 
@@ -788,8 +793,64 @@ describe('ReadingLibrary home', () => {
     expect(
       screen.getByRole('progressbar', { name: '电子书导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
-    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: '打开电子书' })).toBeTruthy();
+    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
+    expect(screen.getByText('导入电子书')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
+  });
+
+  it('imports multiple ebook files sequentially', async () => {
+    const importedOne = article({
+      id: 'ebook_imported_one',
+      url: 'ebook://ebook_imported_one',
+      canonicalUrl: 'ebook://ebook_imported_one',
+      sourceType: 'ebook',
+      title: '第一本电子书',
+      ebook: {
+        metadata: {
+          format: 'epub',
+          fileName: 'one.epub',
+          fileSize: 1024,
+        },
+        chapters: [],
+      },
+    });
+    const importedTwo = article({
+      id: 'ebook_imported_two',
+      url: 'ebook://ebook_imported_two',
+      canonicalUrl: 'ebook://ebook_imported_two',
+      sourceType: 'ebook',
+      title: '第二本电子书',
+      ebook: {
+        metadata: {
+          format: 'epub',
+          fileName: 'two.epub',
+          fileSize: 1024,
+        },
+        chapters: [],
+      },
+    });
+    const calls: string[] = [];
+    const onImportEbookFile = vi.fn(async (file: File, onProgress?: (progress: number) => void) => {
+      calls.push(file.name);
+      onProgress?.(100);
+      return {
+        status: 'imported' as const,
+        article: file.name === 'one.epub' ? importedOne : importedTwo,
+      };
+    });
+    const { container } = renderLibrary([], { onImportEbookFile });
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
+    const one = fileWithSize('one.epub', 1024);
+    const two = fileWithSize('two.epub', 1024);
+    selectImportFiles(container, 'library-ebook-file', [one, two]);
+
+    await waitFor(() => expect(onImportEbookFile).toHaveBeenCalledTimes(2));
+    expect(calls).toEqual(['one.epub', 'two.epub']);
+    expect(screen.getByText('第一本电子书')).toBeTruthy();
+    expect(screen.getByText('第二本电子书')).toBeTruthy();
+    expect((await screen.findAllByText('已导入 2 个文件')).length).toBeGreaterThan(0);
   });
 
   it('opens an existing ebook from the duplicate import state', async () => {
@@ -856,7 +917,7 @@ describe('ReadingLibrary home', () => {
     expect(onImportEbookFile).not.toHaveBeenCalled();
   });
 
-  it('imports a PDF file and exposes the imported open action', async () => {
+  it('imports a PDF file with progress feedback', async () => {
     const imported = article({
       id: 'pdf_imported',
       url: 'pdf:pdf_imported',
@@ -888,8 +949,9 @@ describe('ReadingLibrary home', () => {
     expect(
       screen.getByRole('progressbar', { name: 'PDF 导入进度' }).getAttribute('aria-valuenow'),
     ).toBe('100');
-    expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: '打开 PDF' })).toBeTruthy();
+    expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
+    expect(screen.getByText('导入 PDF')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '打开 PDF' })).toBeNull();
   });
 
   it('opens an existing PDF from the duplicate import state', async () => {

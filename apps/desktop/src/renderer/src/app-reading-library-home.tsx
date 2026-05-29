@@ -776,7 +776,7 @@ function emptyLibraryReason({
 }) {
   if (itemsLength === 0) {
     return {
-      description: '从右上角加号添加网页文章或导入 ePub 电子书，阅读库会按类型分开呈现。',
+      description: '从右上角加号添加网页文章或导入 EPUB 电子书，阅读库会按类型分开呈现。',
       icon: <BookOpen size={32} />,
       title: '阅读库还没有内容',
     };
@@ -815,7 +815,7 @@ function emptyLibraryReason({
   }
 
   return {
-    description: '点击加号导入 ePub 文件，电子书会保留封面并显示阅读进度。',
+    description: '点击加号导入 EPUB 文件，电子书会保留封面并显示阅读进度。',
     icon: <BookText size={32} />,
     title: '暂无电子书',
   };
