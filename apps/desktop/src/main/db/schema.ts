@@ -32,6 +32,7 @@ export const appSettings = sqliteTable('app_settings', {
     .notNull()
     .default(false),
   logRetentionDays: integer('log_retention_days'),
+  annotationMemoryBackfillVersion: text('annotation_memory_backfill_version'),
   onboardingCompletedAt: text('onboarding_completed_at'),
   updatedAt: text('updated_at').notNull(),
 });

@@ -672,4 +672,10 @@ ALTER TABLE app_settings ADD COLUMN theme_id TEXT;
 ALTER TABLE app_settings ADD COLUMN library_page_size INTEGER;
 `,
   },
+  {
+    id: '0042_annotation_memory_backfill_marker',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN annotation_memory_backfill_version TEXT;
+`,
+  },
 ];
