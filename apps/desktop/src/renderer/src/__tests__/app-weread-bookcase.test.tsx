@@ -136,6 +136,7 @@ describe('WeReadBookcase', () => {
             noteCount: 0,
             bookmarkCount: 0,
             readingProgress: 12,
+            readingTime: 420,
             updatedAt: '2026-05-20T00:00:00.000Z',
           },
           chapters: [
@@ -161,5 +162,7 @@ describe('WeReadBookcase', () => {
     const wall = screen.getByLabelText('微信读书划线和想法');
     expect(wall.classList.contains('is-empty')).toBe(true);
     expect(screen.getByText('这一章暂无同步到的划线或想法。')).toBeTruthy();
+    expect(screen.getByText('作者 · 累计阅读 7 分钟')).toBeTruthy();
+    expect(screen.queryByText(/% 已读/)).toBeNull();
   });
 });

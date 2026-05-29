@@ -476,7 +476,7 @@ function WeReadBookListItem({
   onOpen: () => void;
   onOpenExternal: () => void;
 }) {
-  const readingTime = book.readingTime ?? book.recordReadingTime;
+  const lastReadAt = formatWeReadLastReadDate(book.lastReadAt);
   return (
     <article
       className="library-ebook-list-item"
@@ -502,7 +502,7 @@ function WeReadBookListItem({
           <h3 title={book.title}>{book.title}</h3>
         </div>
         <div className="library-ebook-list-meta">
-          {readingTime ? <span>阅读 {formatWeReadDuration(readingTime)}</span> : null}
+          {lastReadAt ? <time dateTime={lastReadAt.dateTime}>{lastReadAt.label}</time> : null}
           <ArticleCountStats counts={{ annotations: book.noteCount, comments: book.reviewCount }} />
         </div>
       </div>
@@ -511,12 +511,15 @@ function WeReadBookListItem({
   );
 }
 
-function formatWeReadDuration(value: number) {
-  const minutes = Math.round(value / 60);
-  if (minutes < 60) return `${minutes} 分钟`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
+function formatWeReadLastReadDate(value: number | undefined) {
+  if (!value) return null;
+  const timestamp = value < 1_000_000_000_000 ? value * 1000 : value;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    dateTime: date.toISOString(),
+    label: formatLibraryShortDate(date.toISOString()),
+  };
 }
 
 export function WeReadCover({
