@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Check, Palette, X } from 'lucide-react';
+import { readerBackgroundOptions } from '@yomitomo/reader-ui/reader-settings';
 import {
   themeRegistry,
   themeToCssVariables,
@@ -11,14 +12,18 @@ import {
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
   open: boolean;
+  readerBackgroundColor: string;
   onOpenChange: (open: boolean) => void;
+  onSelectReaderBackground: (backgroundColor: string) => void;
   onSelectTheme: (themeId: AppThemeId) => void;
 };
 
 export function ThemeSelector({
   activeThemeId,
   open,
+  readerBackgroundColor,
   onOpenChange,
+  onSelectReaderBackground,
   onSelectTheme,
 }: ThemeSelectorProps) {
   return (
@@ -78,6 +83,33 @@ export function ThemeSelector({
                 );
               })}
             </div>
+            <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
+              <div>
+                <h3 id="reader-paper-title">阅读器纸张</h3>
+                <p>只影响网页文章、电子书和 PDF 的正文阅读区域。</p>
+              </div>
+              <div className="theme-reader-paper-options">
+                {readerBackgroundOptions.map((option) => (
+                  <button
+                    aria-label={`阅读器纸张：${option.label}`}
+                    aria-pressed={readerBackgroundColor === option.value}
+                    className={
+                      readerBackgroundColor === option.value
+                        ? 'theme-reader-paper-option is-active'
+                        : 'theme-reader-paper-option'
+                    }
+                    key={option.value}
+                    style={{ '--reader-paper-option': option.value } as CSSProperties}
+                    title={option.label}
+                    type="button"
+                    onClick={() => onSelectReaderBackground(option.value)}
+                  >
+                    <span aria-hidden="true" />
+                    <strong>{option.label}</strong>
+                  </button>
+                ))}
+              </div>
+            </section>
           </section>
         </div>
       ) : null}

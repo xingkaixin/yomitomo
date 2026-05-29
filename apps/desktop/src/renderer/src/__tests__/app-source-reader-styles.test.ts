@@ -32,6 +32,13 @@ describe('source reader annotation styles', () => {
     expect(styles).not.toContain('background: hsl(48 100% 99% / 0.74);');
   });
 
+  it('uses the independent reader content background for source readers', () => {
+    expect(styles).toContain('background: var(--reader-content-bg, hsl(var(--card)));');
+    expect(styles).toContain('background: var(--reader-content-bg, white);');
+    expect(styles).toContain('.pdfium-spike-page :where(canvas, img) {');
+    expect(styles).toContain('mix-blend-mode: multiply;');
+  });
+
   it('keeps settings item hover and selected borders on theme variables', () => {
     expect(styles).toContain('border-color: var(--app-interactive-hover-border);');
     expect(styles).toContain('border-color: var(--app-interactive-selected-border);');

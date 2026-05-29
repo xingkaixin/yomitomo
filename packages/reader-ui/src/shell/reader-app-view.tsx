@@ -18,6 +18,7 @@ import { useReaderShellInteractions } from './use-reader-shell-interactions';
 type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
   '--reader-content-width': string;
+  '--reader-content-bg': string;
 };
 
 export type {
@@ -307,6 +308,7 @@ export function ReaderAppView({
   const style: ReaderAppStyle = {
     '--reader-font-size': `${readerSettings.fontSize}px`,
     '--reader-content-width': `${readerSettings.contentWidth}px`,
+    '--reader-content-bg': readerSettings.backgroundColor,
   };
 
   return (

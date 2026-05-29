@@ -81,7 +81,7 @@ function FoliateViewProbe({
 }) {
   latestViewState = useEbookFoliateView({
     article,
-    readerSettings: { fontSize: 18, contentWidth: 720 },
+    readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners,
     onBeforePageTurn,

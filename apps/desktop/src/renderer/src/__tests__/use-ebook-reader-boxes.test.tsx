@@ -92,7 +92,11 @@ function EbookBoxesProbe({
   const pageTurnTraceRef = React.useRef(null);
   const pageInfoSectionIndexRef = React.useRef<number | undefined>(undefined);
   const paginationLayoutKeyRef = React.useRef('');
-  const readerSettingsRef = React.useRef({ fontSize: 18, contentWidth: 720 });
+  const readerSettingsRef = React.useRef({
+    fontSize: 18,
+    contentWidth: 720,
+    backgroundColor: '#fffdf8',
+  });
   const readerStateStatusRef = React.useRef<'loading' | 'ready' | 'error'>('ready');
   annotationsRef.current = annotations;
   viewRef.current = view;
