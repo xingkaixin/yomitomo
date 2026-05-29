@@ -1,4 +1,4 @@
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import { cleanEpubDisplayTitle, type ArticleSummaryRecord } from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from './app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
@@ -26,10 +26,12 @@ export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query
   if (!normalizedQuery) return true;
 
   return [
+    articleDisplayTitle(article),
     article.title,
     article.byline,
     article.siteName,
     article.excerpt,
+    article.ebook?.metadata.originalTitle,
     article.ebook?.metadata.fileName,
     article.pdf?.metadata.fileName,
     urlHost(article.canonicalUrl || article.url),
@@ -45,6 +47,18 @@ export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query
 export function librarySourceForArticle(article: ArticleSummaryRecord): LibrarySource {
   if (article.sourceType === 'ebook' || article.sourceType === 'pdf') return article.sourceType;
   return 'web';
+}
+
+export function articleDisplayTitle(article: ArticleSummaryRecord) {
+  if (article.sourceType !== 'ebook') return article.title;
+  const metadata = article.ebook?.metadata;
+  return (
+    cleanEpubDisplayTitle({
+      metadataTitle: metadata?.originalTitle || article.title || metadata?.displayTitle,
+      fileName: metadata?.fileName,
+      creator: article.byline,
+    }) || article.title
+  );
 }
 
 export function articleMatchesLibraryFilter(article: ArticleSummaryRecord, filter: LibraryFilter) {
@@ -109,7 +123,7 @@ export function compareLibraryArticles(
     return (
       compareTimestampDesc(left.createdAt, right.createdAt) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      left.title.localeCompare(right.title, 'zh-CN')
+      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
     );
   }
 
@@ -117,7 +131,7 @@ export function compareLibraryArticles(
     return (
       articleAnnotationCount(right) - articleAnnotationCount(left) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      left.title.localeCompare(right.title, 'zh-CN')
+      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
     );
   }
 
@@ -125,14 +139,14 @@ export function compareLibraryArticles(
     return (
       articleThoughtCount(right) - articleThoughtCount(left) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
-      left.title.localeCompare(right.title, 'zh-CN')
+      articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
     );
   }
 
   return (
     compareTimestampDesc(left.updatedAt, right.updatedAt) ||
     compareTimestampDesc(left.createdAt, right.createdAt) ||
-    left.title.localeCompare(right.title, 'zh-CN')
+    articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
   );
 }
 

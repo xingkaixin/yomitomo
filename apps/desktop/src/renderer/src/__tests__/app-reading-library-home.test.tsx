@@ -449,6 +449,9 @@ describe('ReadingLibrary home', () => {
             format: 'epub',
             fileName: 'book.epub',
             fileSize: 1024,
+            originalTitle: '电子书标题（名人推荐！荣获大奖！）',
+            displayTitle: '旧展示标题',
+            titleCleanupVersion: 1,
           },
           chapters: [],
         },
@@ -468,6 +471,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.queryByRole('button', { name: '列表' })).toBeNull();
     expect(screen.getAllByText('作者名').length).toBeGreaterThan(1);
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(1);
+    expect(screen.queryByText('电子书标题（名人推荐！荣获大奖！）')).toBeNull();
     const stats = screen.getByLabelText('1 条划线 · 1 个想法');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
@@ -476,6 +480,89 @@ describe('ReadingLibrary home', () => {
     expect(container.querySelector('.article-book-cover-image')?.getAttribute('src')).toBe(
       coverUrl,
     );
+  });
+
+  it('cleans legacy ebook titles in the list when display title is missing', () => {
+    renderLibrary([
+      article({
+        id: 'legacy_ebook',
+        url: 'ebook://legacy_ebook',
+        canonicalUrl: 'ebook://legacy_ebook',
+        sourceType: 'ebook',
+        title: '艾伦·图灵传——如谜的解谜者（87届奥斯卡最佳改编剧本奖《模仿游戏》原著',
+        byline: '安德鲁·霍奇斯',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName: 'turing.epub',
+            fileSize: 1024,
+          },
+          chapters: [],
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+
+    expect(screen.getAllByText('艾伦·图灵传——如谜的解谜者').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/87届奥斯卡/)).toBeNull();
+  });
+
+  it('recleans stale ebook display titles from older cleanup versions', () => {
+    renderLibrary([
+      article({
+        id: 'stale_ebook',
+        url: 'ebook://stale_ebook',
+        canonicalUrl: 'ebook://stale_ebook',
+        sourceType: 'ebook',
+        title: '一个故事的 99种讲法【豆瓣评分9.0近500人标记',
+        byline: '马特·马登',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName: 'story.epub',
+            fileSize: 1024,
+            displayTitle: '一个故事的 99种讲法【豆瓣评分9.0近500人标记',
+            titleCleanupVersion: 1,
+          },
+          chapters: [],
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+
+    expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/豆瓣评分/)).toBeNull();
+  });
+
+  it('cleans real legacy ebook metadata titles with publisher suffixes', () => {
+    renderLibrary([
+      article({
+        id: 'story_99',
+        url: 'ebook://story_99',
+        canonicalUrl: 'ebook://story_99',
+        sourceType: 'ebook',
+        title:
+          '一个故事的99种讲法【豆瓣评分9.0近500人标记，中文读者翘首以盼，风靡欧美的动漫画工作坊经典教科书，呈现讲述同一个故事的99种“脑洞”】浦睿文化出品',
+        byline: '马特·马登',
+        ebook: {
+          metadata: {
+            format: 'epub',
+            fileName:
+              '一个故事的99种讲法【豆瓣评分9.0近500人标记，中文读者翘首以盼，风靡欧美的动漫画工作坊经典教科书，呈现讲述同一个故事的99种“脑洞”】浦睿文化出品 - 马特·马登.epub',
+            fileSize: 1024,
+          },
+          chapters: [],
+        },
+      }),
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+
+    expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/浦睿文化出品/)).toBeNull();
+    expect(screen.queryByText(/豆瓣评分/)).toBeNull();
   });
 
   it('renders PDFs as document rows with metadata', () => {

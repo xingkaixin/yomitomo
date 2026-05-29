@@ -98,6 +98,9 @@ describe('articleRecordFromEpubFile', () => {
     expect(article.title).toBe('测试电子书');
     expect(article.byline).toBe('作者甲 & 作者乙');
     expect(article.leadImageUrl).toBe('data:image/jpeg;base64,/9j/2Q==');
+    expect(article.ebook?.metadata.originalTitle).toBe('测试电子书');
+    expect(article.ebook?.metadata.displayTitle).toBe('测试电子书');
+    expect(article.ebook?.metadata.titleCleanupVersion).toBe(1);
     expect(article.ebook?.metadata.language).toBe('zh-CN');
     expect(article.ebook?.chapters.map((chapter) => chapter.title)).toEqual(['第一章', '第二章']);
     expect(article.contentHtml).toContain('第一章第一段');
@@ -120,6 +123,50 @@ describe('articleRecordFromEpubFile', () => {
       previewStart: '第一章第一段。',
       previewEnd: '第一章第二段。',
     });
+  });
+
+  it('stores cleaned display title without overwriting the original article title', async () => {
+    const zip = new JSZip();
+    zip.file(
+      'META-INF/container.xml',
+      `<?xml version="1.0"?>
+      <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+        <rootfiles>
+          <rootfile full-path="OPS/package.opf" media-type="application/oebps-package+xml"/>
+        </rootfiles>
+      </container>`,
+    );
+    zip.file(
+      'OPS/package.opf',
+      `<?xml version="1.0"?>
+      <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+          <dc:title>消失的13级台阶（罗翔推荐！荣获日本推理小说至高荣誉江户川乱步奖！）</dc:title>
+          <dc:creator>高野和明</dc:creator>
+        </metadata>
+        <manifest>
+          <item id="c1" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+        </manifest>
+        <spine>
+          <itemref idref="c1"/>
+        </spine>
+      </package>`,
+    );
+    zip.file('OPS/chapter.xhtml', '<html><body><p>正文。</p></body></html>');
+
+    const buffer = await zip.generateAsync({ type: 'nodebuffer' });
+    const data = arrayBufferFromBuffer(buffer);
+    const article = await articleRecordFromEpubFile({
+      fileName: 'missing.epub',
+      mimeType: 'application/epub+zip',
+      data,
+    });
+
+    expect(article.title).toBe(
+      '消失的13级台阶（罗翔推荐！荣获日本推理小说至高荣誉江户川乱步奖！）',
+    );
+    expect(article.ebook?.metadata.originalTitle).toBe(article.title);
+    expect(article.ebook?.metadata.displayTitle).toBe('消失的13级台阶');
   });
 
   it('imports malformed chapter and ncx markup with stray close tags', async () => {

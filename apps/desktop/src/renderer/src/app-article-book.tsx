@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import { articleDisplayTitle } from './app-reading-library-utils';
 
 type BookCoverFrameStyle = React.CSSProperties & {
   '--book-color': string;
@@ -211,7 +212,7 @@ function articleBookVisual(
   const title =
     article.sourceType === 'pdf'
       ? formatPdfDisplayTitle(article.title, { compact: true })
-      : normalizeLabel(article.title);
+      : normalizeLabel(articleDisplayTitle(article));
   const hasCjkTitle = /[\u3400-\u9fff]/.test(title);
   const style: ArticleBookStyle = {
     '--book-author-scale': String(authorScale(bylineLabel)),
@@ -233,7 +234,7 @@ function articleBookVisual(
 
 function pdfPalette(article: ArticleSummaryRecord) {
   const seed = stableHash(
-    [article.id, article.canonicalUrl, article.title, article.contentHash].join('|'),
+    [article.id, article.canonicalUrl, articleDisplayTitle(article), article.contentHash].join('|'),
   );
   return PDF_COVER_PALETTES[seed % PDF_COVER_PALETTES.length];
 }

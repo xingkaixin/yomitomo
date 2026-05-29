@@ -12,6 +12,7 @@ import { formatDate, urlHost } from './app-utils';
 import { ArticleBook, formatPdfAuthors } from './app-article-book';
 import {
   articleAnnotationCount,
+  articleDisplayTitle,
   articleReadingMinutes,
   articleSiteIconUrl,
   articleThoughtCount,
@@ -43,6 +44,7 @@ export function ArticleLibraryCard({
   const readingMinutes = articleReadingMinutes(article);
   const siteIconUrl = isEbook || isPdf ? '' : articleSiteIconUrl(article);
   const authorLabel = libraryArticleAuthorLabel(article);
+  const title = articleDisplayTitle(article);
 
   useEffect(
     () => () => {
@@ -85,7 +87,7 @@ export function ArticleLibraryCard({
       className="library-card"
       role="button"
       tabIndex={0}
-      aria-label={`打开文章：${article.title}`}
+      aria-label={`打开文章：${title}`}
       onClick={onOpen}
       onKeyDown={openCardWithKeyboard}
     >
@@ -93,7 +95,7 @@ export function ArticleLibraryCard({
         <button
           className="library-card-open-icon"
           type="button"
-          aria-label={`打开文章：${article.title}`}
+          aria-label={`打开文章：${title}`}
           onClick={(event) => {
             event.stopPropagation();
             onOpen();
@@ -112,7 +114,7 @@ export function ArticleLibraryCard({
           <button
             className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
             type="button"
-            aria-label={`更多操作：${article.title}`}
+            aria-label={`更多操作：${title}`}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             onClick={(event) => {
@@ -133,7 +135,7 @@ export function ArticleLibraryCard({
                 style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
                 type="button"
                 role="menuitem"
-                aria-label={`长按删除文章：${article.title}`}
+                aria-label={`长按删除文章：${title}`}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -164,7 +166,7 @@ export function ArticleLibraryCard({
                 <Clock3 size={13} />约 {readingMinutes} 分钟
               </span>
             </div>
-            <h3 title={article.title}>{article.title}</h3>
+            <h3 title={title}>{title}</h3>
             {authorLabel ? (
               <p className="library-card-author">
                 {isEbook || isPdf ? null : (
