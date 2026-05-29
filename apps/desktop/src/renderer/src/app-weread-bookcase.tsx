@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, ExternalLink, Lightbulb, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import type {
   UserProfile,
   WeReadBookDetail,
@@ -7,10 +7,14 @@ import type {
   WeReadHighlight,
   WeReadThought,
 } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
+import type {
+  ReadonlyAnnotationCardAuthor,
+  ReadonlyAnnotationCardThought,
+} from '@yomitomo/reader-ui/reader-readonly-annotation-card';
+import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { WeReadCover } from './app-reading-library-home';
 
-type WeReadNoteGroup = {
+export type WeReadNoteGroup = {
   key: string;
   chapterUid?: number;
   range?: string;
@@ -21,8 +25,17 @@ type WeReadNoteGroup = {
 
 type WeReadNoteAuthor = {
   avatar?: string;
+  color: string;
   fallback: string;
   name: string;
+};
+
+export type WeReadReadonlyNoteCardModel = {
+  author: ReadonlyAnnotationCardAuthor;
+  createdAt: string;
+  id: string;
+  quote?: string;
+  thoughts: ReadonlyAnnotationCardThought[];
 };
 
 export function WeReadBookcase({
@@ -111,7 +124,12 @@ export function WeReadBookcase({
             </button>
           ))}
         </aside>
-        <main className="weread-note-wall" aria-label="微信读书划线和想法">
+        <main
+          className={['weread-note-wall', visibleGroups.length === 0 ? 'is-empty' : '']
+            .filter(Boolean)
+            .join(' ')}
+          aria-label="微信读书划线和想法"
+        >
           {visibleGroups.length > 0 ? (
             visibleGroups.map((group) => (
               <WeReadNoteCard
@@ -148,108 +166,21 @@ function WeReadNoteCard({
   userProfile: UserProfile;
   onOpenExternal: () => void;
 }) {
-  const quote = group.highlight?.markText || group.thoughts[0]?.abstract || '';
-  const owner = group.thoughts[0]
-    ? thoughtAuthorProfile(group.thoughts[0], userProfile)
-    : fallbackAuthor;
-  const createdAt = timestampDate(group.createTime).toISOString();
+  const model = weReadReadonlyNoteCardModel(group, fallbackAuthor, userProfile);
   return (
-    <article
-      className="reader-note weread-note-card"
-      style={{ '--reader-note-accent': userProfile.annotationColor } as React.CSSProperties}
-    >
-      <div className="reader-note-body">
-        <header className="reader-note-card-header">
-          {quote ? (
-            <button className="reader-note-quote" type="button" onClick={onOpenExternal}>
-              <span className="reader-note-quote-mark" aria-hidden="true">
-                “
-              </span>
-              <span className="reader-note-quote-text">{quote}</span>
-            </button>
-          ) : null}
-        </header>
-        <div className="reader-note-meta">
-          <span
-            className="reader-note-owner"
-            style={{ '--reader-avatar-color': userProfile.annotationColor } as React.CSSProperties}
-            aria-hidden="true"
-          >
-            <AvatarBadge avatar={owner.avatar} fallback={owner.fallback} />
-          </span>
-          <span className="reader-note-meta-copy">
-            <strong>{owner.name}</strong>
-          </span>
-          <span className="reader-note-time-actions">
-            <time dateTime={createdAt}>{formatWeReadDate(group.createTime)}</time>
-          </span>
-        </div>
-        <footer className="reader-note-toolbar weread-note-toolbar">
-          <span className="reader-note-thread-toggle">
-            <span className="reader-note-thread-toggle-main">
-              <span className="reader-comment-count" aria-label={`${group.thoughts.length} 条想法`}>
-                <span>{group.thoughts.length}</span>
-                <Lightbulb size={14} />
-              </span>
-            </span>
-          </span>
-          <button type="button" onClick={onOpenExternal}>
-            <ExternalLink size={13} />
-            定位到批注
-          </button>
-        </footer>
-      </div>
-      {group.thoughts.length > 0 ? (
-        <div className="reader-note-comments-region">
-          <div className="reader-note-comments-panel">
-            <div className="reader-comments">
-              {group.thoughts.map((thought) => (
-                <WeReadThoughtComment
-                  thought={thought}
-                  userProfile={userProfile}
-                  key={thought.reviewId}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function WeReadThoughtComment({
-  thought,
-  userProfile,
-}: {
-  thought: WeReadThought;
-  userProfile: UserProfile;
-}) {
-  const author = thoughtAuthorProfile(thought, userProfile);
-  const createdAt = timestampDate(thought.createTime).toISOString();
-  const html = renderMarkdown(thought.content);
-  return (
-    <div className="reader-comment is-root">
-      <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-      <div className="reader-comment-body">
-        <div className="reader-comment-author">
-          <strong>{author.name}</strong>
-          <time dateTime={createdAt}>{formatWeReadDate(thought.createTime)}</time>
-        </div>
-        <div className="reader-markdown reader-comment-markdown">
-          <div className="reader-markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AvatarBadge({ avatar, fallback }: { avatar?: string; fallback: string }) {
-  const image = avatar && /^(data:image\/|blob:|https?:\/\/|\/)/.test(avatar);
-  return (
-    <span className={['reader-avatar-badge', image ? 'is-image' : ''].filter(Boolean).join(' ')}>
-      {image ? <img alt="" src={avatar} /> : fallback}
-    </span>
+    <ReadonlyAnnotationCard
+      action={{
+        icon: <ExternalLink size={13} />,
+        label: '定位到批注',
+        onClick: onOpenExternal,
+      }}
+      author={model.author}
+      className="weread-note-card"
+      createdAt={model.createdAt}
+      id={model.id}
+      quote={model.quote}
+      thoughts={model.thoughts}
+    />
   );
 }
 
@@ -260,8 +191,34 @@ function thoughtAuthorProfile(
   const name = thought?.author?.name || userProfile.nickname || '我';
   return {
     avatar: thought?.author?.avatar || userProfile.avatar,
+    color: userProfile.annotationColor,
     fallback: name.slice(0, 1) || '我',
     name,
+  };
+}
+
+export function weReadReadonlyNoteCardModel(
+  group: WeReadNoteGroup,
+  fallbackAuthor: WeReadNoteAuthor,
+  userProfile: UserProfile,
+): WeReadReadonlyNoteCardModel {
+  const owner = group.thoughts[0]
+    ? thoughtAuthorProfile(group.thoughts[0], userProfile)
+    : fallbackAuthor;
+  return {
+    author: owner,
+    createdAt: timestampDate(group.createTime).toISOString(),
+    id: group.highlight?.bookmarkId || group.thoughts[0]?.reviewId || group.key,
+    quote: group.highlight?.markText || group.thoughts[0]?.abstract || undefined,
+    thoughts: group.thoughts.map((thought) => {
+      const author = thoughtAuthorProfile(thought, userProfile);
+      return {
+        author,
+        content: thought.content,
+        createdAt: timestampDate(thought.createTime).toISOString(),
+        id: thought.reviewId,
+      };
+    }),
   };
 }
 
@@ -353,14 +310,4 @@ function timestampDate(value: number) {
   const milliseconds = value > 10_000_000_000 ? value : value * 1000;
   const date = new Date(milliseconds);
   return Number.isNaN(date.getTime()) ? new Date(0) : date;
-}
-
-function formatWeReadDate(value: number) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(timestampDate(value));
 }

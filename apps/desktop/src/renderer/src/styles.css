@@ -3442,6 +3442,13 @@
   padding: 18px;
 }
 
+.weread-note-wall.is-empty {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-width: auto;
+  column-gap: 0;
+}
+
 .weread-note-wall .reader-note.weread-note-card {
   display: inline-block;
   width: 100%;
@@ -3570,11 +3577,11 @@
   background: hsl(var(--muted) / 0.42);
 }
 
-.weread-note-toolbar {
+.weread-note-card .reader-readonly-note-toolbar {
   align-items: center;
 }
 
-.weread-note-toolbar .reader-note-thread-toggle {
+.weread-note-card .reader-readonly-note-toolbar .reader-note-thread-toggle {
   display: flex;
   flex: 1 1 auto;
   min-height: 42px;
@@ -3598,7 +3605,7 @@
   white-space: nowrap;
 }
 
-.weread-note-toolbar > button {
+.weread-note-card .reader-readonly-note-toolbar > button {
   display: inline-flex;
   width: auto;
   min-height: 42px;
@@ -3614,7 +3621,7 @@
   padding: 0 14px;
 }
 
-.weread-note-toolbar > button:hover {
+.weread-note-card .reader-readonly-note-toolbar > button:hover {
   background: hsl(var(--muted) / 0.64);
   color: hsl(var(--foreground));
 }
@@ -3673,10 +3680,11 @@
 
 .weread-empty-chapter {
   display: grid;
-  min-height: 180px;
-  place-items: center;
-  border-radius: 8px;
-  background: hsl(var(--muted) / 0.28);
+  min-height: 120px;
+  align-content: start;
+  justify-items: start;
+  padding: 72px 36px 0;
+  background: transparent;
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 760;
