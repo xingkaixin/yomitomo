@@ -50,7 +50,9 @@ vi.mock('../use-ebook-foliate-view', () => ({
       viewRef: { current: mocks.view },
       pageInfoSectionIndexRef: { current: undefined },
       paginationLayoutKeyRef: { current: '' },
-      readerSettingsRef: { current: { fontSize: 18, contentWidth: 720 } },
+      readerSettingsRef: {
+        current: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
+      },
       readerStateStatusRef: { current: 'ready' },
       tocItems: [],
       sectionFractions: [],

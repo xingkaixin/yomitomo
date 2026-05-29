@@ -2,6 +2,15 @@ import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { timestamp } from '@yomitomo/core';
 import type { ReaderSettings } from './reader-types';
 
+export const defaultReaderBackgroundColor = '#fffdf8';
+
+export const readerBackgroundOptions = [
+  { label: '纸白', value: defaultReaderBackgroundColor },
+  { label: '暖米', value: '#f7eddc' },
+  { label: '淡绿', value: '#eef4e8' },
+  { label: '冷灰', value: '#eef1f4' },
+] as const;
+
 export const defaultUserProfile: UserProfile = {
   id: 'user_local',
   nickname: '我',
@@ -14,6 +23,7 @@ export const defaultUserProfile: UserProfile = {
 export const defaultReaderSettings: ReaderSettings = {
   fontSize: 20,
   contentWidth: 860,
+  backgroundColor: defaultReaderBackgroundColor,
 };
 
 export function normalizeUserProfile(user: Partial<UserProfile> | undefined): UserProfile {
@@ -39,4 +49,9 @@ export function isNewerArticleRecord(record: ArticleRecord, current: ArticleReco
 export function clampNumber(value: number | undefined, min: number, max: number, fallback: number) {
   if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
   return Math.min(max, Math.max(min, value));
+}
+
+export function normalizeReaderBackgroundColor(value: string | undefined): string {
+  if (value && readerBackgroundOptions.some((option) => option.value === value)) return value;
+  return defaultReaderSettings.backgroundColor;
 }

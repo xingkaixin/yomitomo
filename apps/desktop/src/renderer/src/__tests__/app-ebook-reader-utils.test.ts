@@ -159,6 +159,7 @@ describe('configureFoliateView', () => {
     configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
       fontSize: 18,
       contentWidth: 720,
+      backgroundColor: '#f7eddc',
     });
 
     expect(renderer.hasAttribute('animated')).toBe(false);
@@ -174,11 +175,14 @@ describe('configureFoliateView', () => {
     configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
       fontSize: 22,
       contentWidth: 720,
+      backgroundColor: '#eef4e8',
     });
 
     const styles = vi.mocked(renderer.setStyles).mock.calls[0]?.[0];
     expect(styles).toContain('font-size: 22px;');
-    expect(styles).toContain('body {\n      font-size: inherit;');
+    expect(styles).toContain('background: #eef4e8;');
+    expect(styles).toContain('body {\n      background: #eef4e8;');
+    expect(styles).toContain('font-size: inherit;');
   });
 });
 

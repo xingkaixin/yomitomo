@@ -11,6 +11,11 @@ import { useSettingsDrafts } from './app-settings-drafts';
 import { SettingsNavButton } from './app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
 import {
+  normalizeDesktopReaderSettings,
+  readDesktopReaderSettings,
+  writeDesktopReaderSettings,
+} from './app-reader-settings';
+import {
   applyAppTheme,
   readCachedThemeId,
   resolveAppThemeId,
@@ -22,6 +27,7 @@ import { ThemeSelector } from './app-theme-selector';
 import './styles.css';
 
 const startupThemeId = readCachedThemeId();
+const startupReaderSettings = readDesktopReaderSettings();
 applyAppTheme(themeRegistry[startupThemeId]);
 
 const rendererModuleLoadedAt = performance.now();
@@ -242,6 +248,9 @@ type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
+  const [readerBackgroundColor, setReaderBackgroundColor] = useState(
+    startupReaderSettings.backgroundColor,
+  );
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
   const [, setPreloadVersion] = useState(0);
@@ -384,6 +393,15 @@ function App() {
     } catch {
       // Keep the immediate visual choice; a later settings sync can reconcile persistence.
     }
+  }
+
+  function selectReaderBackground(backgroundColor: string) {
+    const nextSettings = normalizeDesktopReaderSettings({
+      ...readDesktopReaderSettings(),
+      backgroundColor,
+    });
+    setReaderBackgroundColor(nextSettings.backgroundColor);
+    writeDesktopReaderSettings(nextSettings);
   }
 
   async function saveLibrarySettings(settings: AppSettings) {
@@ -547,7 +565,9 @@ function App() {
         <ThemeSelector
           activeThemeId={activeThemeId}
           open={themeDialogOpen}
+          readerBackgroundColor={readerBackgroundColor}
           onOpenChange={setThemeDialogOpen}
+          onSelectReaderBackground={selectReaderBackground}
           onSelectTheme={(themeId) => void selectTheme(themeId)}
         />
         <button

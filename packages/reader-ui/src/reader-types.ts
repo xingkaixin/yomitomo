@@ -18,6 +18,7 @@ export type ActiveConnection = {
 export type ReaderSettings = {
   fontSize: number;
   contentWidth: number;
+  backgroundColor: string;
 };
 
 export type VirtualCursorState = {

@@ -8,6 +8,11 @@ import {
 describe('reader embedded styles', () => {
   it('uses app-provided reader theme variables for core reader surfaces', () => {
     expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
+    expect(combinedReaderStyles()).toContain('--reader-content-bg');
+    expect(combinedReaderStyles()).toContain(
+      '.reader-article{background:var(--reader-content-bg,var(--reader-paper))}',
+    );
+    expect(combinedReaderStyles()).toContain('.reader-background-options{');
     expect(combinedReaderStyles()).toContain('background:var(--app-reader-edge-blur-top)');
     expect(combinedReaderStyles()).toContain('background:var(--app-reader-scrim)');
     expect(readerDesktopEmbeddedStyles).toContain('--reader-bg:var(--app-reader-bg)');

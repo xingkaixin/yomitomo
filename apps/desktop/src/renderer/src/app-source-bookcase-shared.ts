@@ -16,12 +16,13 @@ import { agentPersonalities, agentPersonalityName } from '@yomitomo/shared';
 import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomitomo/core';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
-import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
-import { clampNumber, defaultReaderSettings } from '@yomitomo/reader-ui/reader-settings';
 import type { ArticleUpdater, PromptArticle } from './app-reading-types';
-
-const DESKTOP_READER_SETTINGS_KEY = 'yomitomo.desktop.readerSettings';
+export {
+  normalizeDesktopReaderSettings,
+  readDesktopReaderSettings,
+  writeDesktopReaderSettings,
+} from './app-reader-settings';
 
 export type SourceSelectionAction = SelectionAction;
 
@@ -86,40 +87,6 @@ function smoothPathThroughPoints(points: Array<{ x: number; y: number }>) {
 
 function formatPathNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
-export function readDesktopReaderSettings(): ReaderSettings {
-  if (typeof window === 'undefined') return defaultReaderSettings;
-
-  try {
-    const raw = window.localStorage.getItem(DESKTOP_READER_SETTINGS_KEY);
-    if (!raw) return defaultReaderSettings;
-    return normalizeDesktopReaderSettings(JSON.parse(raw) as Partial<ReaderSettings>);
-  } catch {
-    return defaultReaderSettings;
-  }
-}
-
-export function normalizeDesktopReaderSettings(settings: Partial<ReaderSettings> | undefined) {
-  return {
-    fontSize: clampNumber(settings?.fontSize, 16, 28, defaultReaderSettings.fontSize),
-    contentWidth: clampNumber(
-      settings?.contentWidth,
-      600,
-      1080,
-      defaultReaderSettings.contentWidth,
-    ),
-  };
-}
-
-export function writeDesktopReaderSettings(settings: ReaderSettings) {
-  if (typeof window === 'undefined') return;
-
-  try {
-    window.localStorage.setItem(DESKTOP_READER_SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    return;
-  }
 }
 
 export function promptArticle(

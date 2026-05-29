@@ -178,11 +178,13 @@ function foliateReaderCss(settings: ReaderSettings) {
     }
 
     html {
+      background: ${settings.backgroundColor};
       color-scheme: light;
       font-size: ${settings.fontSize}px;
     }
 
     body {
+      background: ${settings.backgroundColor};
       font-size: inherit;
       font-family: "Source Serif 4", "Noto Serif SC", "Songti SC", Georgia, serif;
       overflow-wrap: break-word;
