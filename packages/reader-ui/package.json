@@ -7,6 +7,7 @@
     "./reader-app-view": "./src/shell/reader-app-view.tsx",
     "./reader-agent-annotation-playback": "./src/agent/reader-agent-annotation-playback.ts",
     "./reader-annotations": "./src/annotations/reader-annotations.ts",
+    "./reader-readonly-annotation-card": "./src/annotations/reader-readonly-annotation-card.tsx",
     "./reader-animation": "./src/reader-animation.ts",
     "./reader-navigation": "./src/reader-navigation.ts",
     "./reader-reading-sections": "./src/reader-reading-sections.ts",
