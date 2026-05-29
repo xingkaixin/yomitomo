@@ -66,6 +66,9 @@ export function WeReadBookcase({
     const thought = detail.thoughts.find((item) => item.author?.name || item.author?.avatar);
     return thoughtAuthorProfile(thought, userProfile);
   }, [detail.thoughts, userProfile]);
+  const readingTimeLabel = formatWeReadReadingTime(
+    detail.book.readingTime ?? detail.book.recordReadingTime,
+  );
   const visibleGroups = activeChapterUid
     ? groups.filter((group) => group.chapterUid === activeChapterUid)
     : groups;
@@ -98,7 +101,7 @@ export function WeReadBookcase({
               </button>
             </div>
             <p>
-              {detail.book.author || '微信读书'} · {Math.round(detail.book.readingProgress)}% 已读
+              {[detail.book.author || '微信读书', readingTimeLabel].filter(Boolean).join(' · ')}
             </p>
           </div>
         </div>
@@ -153,6 +156,12 @@ export function WeReadBookcase({
       </div>
     </section>
   );
+}
+
+function formatWeReadReadingTime(value: number | undefined) {
+  if (!value) return '';
+  const minutes = Math.max(1, Math.round(value / 60));
+  return `累计阅读 ${minutes} 分钟`;
 }
 
 function WeReadNoteCard({

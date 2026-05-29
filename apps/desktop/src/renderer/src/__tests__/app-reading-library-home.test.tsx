@@ -10,6 +10,7 @@ import type {
   ArticleSummaryRecord,
   AppSettings,
   UserProfile,
+  WeReadBook,
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
 
@@ -494,6 +495,45 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('PDF 作者').length).toBeGreaterThan(0);
     expect(screen.queryByText('paper.pdf')).toBeNull();
     expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
+  });
+
+  it('shows the WeRead last read date instead of reading minutes in the list', async () => {
+    const book: WeReadBook = {
+      bookId: 'weread_1',
+      title: '微信读书标题',
+      author: '微信作者',
+      reviewCount: 1,
+      noteCount: 2,
+      bookmarkCount: 0,
+      readingProgress: 12,
+      readingTime: 420,
+      lastReadAt: Date.parse('2026-05-28T08:00:00.000Z') / 1000,
+      updatedAt: now,
+    };
+    const state = {
+      settings: { configured: true, openMethod: 'deeplink' as const },
+      books: [book],
+    };
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadState: vi.fn().mockResolvedValue(state),
+      syncWeRead: vi.fn().mockResolvedValue(state),
+    });
+
+    renderLibrary([]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /微信读书/ }).getAttribute('aria-disabled')).toBe(
+        'false',
+      );
+    });
+    fireEvent.click(screen.getByRole('button', { name: /微信读书/ }));
+
+    expect(
+      await screen.findByRole('button', { name: '打开微信读书笔记：微信读书标题' }),
+    ).toBeTruthy();
+    expect(screen.getByText('05/28')).toBeTruthy();
+    expect(screen.queryByText(/阅读 7 分钟/)).toBeNull();
+    expect(screen.getByLabelText('2 条划线 · 1 个想法')).toBeTruthy();
   });
 
   it('loads the full article before opening a PDF summary', async () => {
