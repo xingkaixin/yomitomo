@@ -526,12 +526,10 @@
   max-height: 280px;
   gap: 3px;
   overflow: auto;
-  border: 1px solid color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  border: 1px solid var(--app-reader-composer-border);
   border-radius: 12px;
   background: var(--app-reader-paper);
-  box-shadow:
-    0 18px 44px color-mix(in srgb, var(--app-reader-ink) 18%, transparent),
-    0 3px 10px color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+  box-shadow: var(--app-reader-composer-shadow);
   font-size: 12px;
   line-height: 1.2;
   padding: 6px;
@@ -850,7 +848,7 @@
 
 .annotation-layout-control button.is-active {
   background: var(--app-reader-accent-strong);
-  color: white;
+  color: var(--app-reader-paper);
 }
 
 .annotation-discussion-thread-body {
@@ -1327,16 +1325,11 @@
   max-height: 280px;
   gap: 3px;
   overflow: auto;
-  border: 1px solid var(--app-reader-toolbar-border);
+  border: 1px solid var(--app-reader-composer-border);
   border-radius: 12px;
   background: var(--app-reader-paper);
   box-shadow: var(--app-reader-composer-shadow);
   padding: 6px;
-  border-color: color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
-  background: var(--app-reader-paper);
-  box-shadow:
-    0 18px 44px color-mix(in srgb, var(--app-reader-ink) 18%, transparent),
-    0 3px 10px color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
   font-size: 12px;
   line-height: 1.2;
 }
@@ -1362,7 +1355,7 @@
 }
 
 .annotation-sedimentation-quote span {
-  font-family: Georgia, serif;
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
   font-size: 24px;
   font-weight: 800;
   line-height: 1;
@@ -1371,7 +1364,7 @@
 .annotation-sedimentation-quote p {
   min-width: 0;
   margin: 0;
-  font-family: var(--font-serif, Georgia, serif);
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
   font-size: 14px;
   font-weight: 640;
   line-height: 1.6;
@@ -1422,7 +1415,7 @@
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 999px;
   background: var(--app-reader-accent-strong);
-  color: white;
+  color: var(--app-reader-paper);
   font: inherit;
   font-size: 12px;
   font-weight: 740;
@@ -1771,11 +1764,11 @@
 .reader-tooltip-content {
   z-index: 240;
   max-width: min(260px, calc(100vw - 24px));
-  border: 1px solid rgb(255 250 240 / 16%);
+  border: 1px solid color-mix(in srgb, var(--app-reader-paper) 16%, transparent);
   border-radius: 8px;
-  background: #28231d;
-  box-shadow: 0 12px 28px rgb(40 35 29 / 20%);
-  color: #fffaf0;
+  background: var(--app-reader-ink);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--app-reader-ink) 20%, transparent);
+  color: var(--app-reader-paper);
   font-family: var(--font-ui, ui-sans-serif, system-ui, sans-serif);
   font-size: 11px;
   font-weight: 760;
@@ -1806,12 +1799,12 @@
   display: inline-flex;
   height: 20px;
   align-items: center;
-  border: 1px solid rgb(255 250 240 / 24%);
-  border-bottom-color: rgb(255 250 240 / 34%);
+  border: 1px solid color-mix(in srgb, var(--app-reader-paper) 24%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--app-reader-paper) 34%, transparent);
   border-radius: 4px;
-  background: rgb(255 250 240 / 12%);
+  background: color-mix(in srgb, var(--app-reader-paper) 12%, transparent);
   box-shadow: none;
-  color: #fffaf0;
+  color: var(--app-reader-paper);
   font-family: var(--font-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
   font-size: 10px;
   font-weight: 650;
