@@ -27,7 +27,7 @@ describe('reader embedded styles', () => {
       '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;border-color:rgba(40,35,29,.16)',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;margin-bottom:14px;border:1px solid rgba(40,35,29,.1);outline:0;background:var(--reader-paper);box-shadow:none}',
+      '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;margin-bottom:14px;border:1px solid var(--app-reader-note-border);outline:0;background:var(--reader-paper);box-shadow:none}',
     );
     expect(readerConversationStyles).toContain(
       '.reader-thread-detail{display:grid;max-height:min(46vh,420px);min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;gap:0;padding:0 14px 18px}',
@@ -61,7 +61,7 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain('.reader-tooltip-content{');
     expect(readerConversationStyles).toContain('.reader-shortcut-tooltip{');
     expect(readerConversationStyles).toContain(
-      '.reader-composer-actions .reader-composer-cancel{background:rgba(40,35,29,.08);color:var(--reader-ink)}',
+      '.reader-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
     );
   });
 
