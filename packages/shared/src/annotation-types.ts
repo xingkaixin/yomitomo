@@ -23,6 +23,49 @@ export type AnnotationConfidence = 'low' | 'medium' | 'high';
 
 export type ReviewOpinionLabel = '站得住' | '有洞察' | '有异议' | '待验证' | '可深挖' | '有遗漏';
 
+export type AnnotationDistillationStatus = 'unpublished' | 'published';
+
+export type AnnotationDistillationReviewMessage = {
+  id: string;
+  author: AnnotationAuthor;
+  content: string;
+  createdAt: string;
+  agentId?: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentAvatar?: string;
+};
+
+export type AnnotationDistillationReviewSession = {
+  id: string;
+  agentId: string;
+  agentUsername?: string;
+  agentNickname?: string;
+  agentAvatar?: string;
+  messages: AnnotationDistillationReviewMessage[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AnnotationDistillation = {
+  status: AnnotationDistillationStatus;
+  content: string;
+  publishedAt?: string;
+  updatedAt?: string;
+  reviewSessions?: AnnotationDistillationReviewSession[];
+};
+
+export type AnnotationDraftKind = 'discussion_reply' | 'distillation';
+
+export type AnnotationLightweightDraft = {
+  articleId: string;
+  annotationId: string;
+  kind: AnnotationDraftKind;
+  content: string;
+  updatedAt: string;
+  commentId?: string;
+};
+
 export type Comment = {
   id: string;
   author: AnnotationAuthor;
@@ -67,6 +110,7 @@ export type Annotation = {
   userAnnotationColor?: string;
   readingIntent?: AgentReadingIntent;
   comments: Comment[];
+  distillation?: AnnotationDistillation;
   createdAt: string;
   updatedAt: string;
 };

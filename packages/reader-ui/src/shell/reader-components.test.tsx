@@ -75,7 +75,7 @@ function annotation(overrides: Partial<Annotation> = {}): Annotation {
 }
 
 describe('Composer shortcut labels', () => {
-  it('keeps cancel and publish shortcuts out of visible button labels', () => {
+  it('keeps cancel and submit shortcuts out of visible button labels', () => {
     const { container } = render(
       <Composer
         agents={[agent('agent_1', '林知微')]}
@@ -88,13 +88,31 @@ describe('Composer shortcut labels', () => {
     );
 
     const cancelButton = screen.getByRole('button', { name: '取消' });
-    const publishButton = screen.getByRole('button', { name: '发布' });
+    const highlightButton = screen.getByRole('button', { name: '划线' });
 
     expect(cancelButton.textContent).toBe('取消');
-    expect(publishButton.textContent).toBe('发布');
+    expect(highlightButton.textContent).toBe('划线');
     expect(cancelButton.querySelector('.reader-kbd')).toBeNull();
-    expect(publishButton.querySelector('.reader-kbd')).toBeNull();
+    expect(highlightButton.querySelector('.reader-kbd')).toBeNull();
     expect(container.querySelector('.reader-tooltip-content')).toBeNull();
+  });
+
+  it('switches the submit label to publish after text input', () => {
+    render(
+      <Composer
+        agents={[agent('agent_1', '林知微')]}
+        composer={{ x: 0, y: 0 }}
+        messageSendShortcut="enter"
+        shortcutModifier="⌘"
+        onCancel={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('想法内容'), { target: { value: '  我的想法  ' } });
+
+    expect(screen.getByRole('button', { name: '发布' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '划线' })).toBeNull();
   });
 });
 

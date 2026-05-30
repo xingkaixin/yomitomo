@@ -602,6 +602,11 @@ function annotationToRow(articleId: string, annotation: Annotation) {
     userNickname: annotation.userNickname,
     userAvatar: annotation.userAvatar,
     userAnnotationColor: annotation.userAnnotationColor,
+    distillationStatus: annotation.distillation?.status,
+    distillationContent: annotation.distillation?.content,
+    distillationPublishedAt: annotation.distillation?.publishedAt,
+    distillationUpdatedAt: annotation.distillation?.updatedAt,
+    distillationReviewSessions: annotation.distillation?.reviewSessions,
     createdAt: annotation.createdAt,
     updatedAt: annotation.updatedAt,
   };

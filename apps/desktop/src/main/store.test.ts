@@ -494,6 +494,54 @@ describe('desktop store articles', () => {
     ]);
   });
 
+  it('builds annotation distillation rows for published reading assets', () => {
+    const rows = buildArticleChildRows({
+      id: 'store-distillation-article',
+      annotations: [
+        {
+          ...annotationRecord('store-distillation-annotation', []),
+          distillation: {
+            status: 'published',
+            content: '最终沉淀',
+            publishedAt: '2026-05-17T01:00:00.000Z',
+            updatedAt: '2026-05-17T02:00:00.000Z',
+            reviewSessions: [
+              {
+                id: 'review-session-1',
+                agentId: 'review-agent-1',
+                agentNickname: '梁证言',
+                messages: [
+                  {
+                    id: 'review-message-1',
+                    author: 'ai',
+                    content: '这里还可以追问前提。',
+                    createdAt: '2026-05-17T01:30:00.000Z',
+                    agentId: 'review-agent-1',
+                  },
+                ],
+                createdAt: '2026-05-17T01:20:00.000Z',
+                updatedAt: '2026-05-17T01:30:00.000Z',
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    expect(rows.annotationRows[0]).toMatchObject({
+      distillationStatus: 'published',
+      distillationContent: '最终沉淀',
+      distillationPublishedAt: '2026-05-17T01:00:00.000Z',
+      distillationUpdatedAt: '2026-05-17T02:00:00.000Z',
+      distillationReviewSessions: [
+        expect.objectContaining({
+          id: 'review-session-1',
+          agentId: 'review-agent-1',
+        }),
+      ],
+    });
+  });
+
   it('preserves PDF annotation anchors when reading rows', () => {
     const pdfAnchor = createPdfTextAnchor({
       pageText: '第一页 PDF 正文',
@@ -530,6 +578,11 @@ describe('desktop store articles', () => {
         userNickname: annotationRow.userNickname ?? null,
         userAvatar: annotationRow.userAvatar ?? null,
         userAnnotationColor: annotationRow.userAnnotationColor ?? null,
+        distillationStatus: annotationRow.distillationStatus ?? null,
+        distillationContent: annotationRow.distillationContent ?? null,
+        distillationPublishedAt: annotationRow.distillationPublishedAt ?? null,
+        distillationUpdatedAt: annotationRow.distillationUpdatedAt ?? null,
+        distillationReviewSessions: annotationRow.distillationReviewSessions ?? null,
       },
       [],
     );
