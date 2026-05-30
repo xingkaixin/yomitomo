@@ -1,26 +1,29 @@
 import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
-import type { AnnotationDiscussionWindowOpenInput } from '../ipc-contract';
-import { handleDesktopIpc } from './ipc';
-
-type AnnotationDiscussionWindowContext = {
-  openExternalUrl: (value: string) => Promise<void>;
-};
+import type {
+  AnnotationDiscussionWindowOpenInput,
+  AnnotationDiscussionWindowsCloseArticleInput,
+} from '../ipc-contract';
+import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
 
 type DiscussionWindowEntry = {
+  articleId: string;
   window: BrowserWindow;
 };
 
 const discussionWindows = new Map<string, DiscussionWindowEntry>();
 
-export function registerAnnotationDiscussionWindowIpc(context: AnnotationDiscussionWindowContext) {
+export function registerAnnotationDiscussionWindowIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation-discussion:open', (_event, input) =>
     openAnnotationDiscussionWindow(context, input),
+  );
+  handleDesktopIpc('annotation-discussion:close-article', (_event, input) =>
+    closeArticleDiscussionWindows(input),
   );
 }
 
 function openAnnotationDiscussionWindow(
-  context: AnnotationDiscussionWindowContext,
+  context: DesktopMainIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
 ) {
   const key = discussionWindowKey(input.articleId, input.annotationId);
@@ -55,7 +58,10 @@ function openAnnotationDiscussionWindow(
     },
   });
 
-  discussionWindows.set(key, { window });
+  discussionWindows.set(key, {
+    articleId: input.articleId,
+    window,
+  });
 
   window.once('ready-to-show', () => {
     if (window.isDestroyed()) return;
@@ -84,6 +90,23 @@ function openAnnotationDiscussionWindow(
     reused: false,
     windowId: window.id,
   };
+}
+
+function closeArticleDiscussionWindows({
+  articleId,
+}: AnnotationDiscussionWindowsCloseArticleInput) {
+  let closed = 0;
+  for (const [key, entry] of discussionWindows) {
+    if (entry.articleId !== articleId) continue;
+    if (entry.window.isDestroyed()) {
+      discussionWindows.delete(key);
+      continue;
+    }
+    closed += 1;
+    discussionWindows.delete(key);
+    entry.window.close();
+  }
+  return { closed };
 }
 
 function restoreAndFocus(window: BrowserWindow) {

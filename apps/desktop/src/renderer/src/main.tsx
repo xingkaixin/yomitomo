@@ -299,6 +299,7 @@ function App() {
     deleteArticle,
     deleteArticleAnnotation,
     deleteArticleComment,
+    closeArticleDiscussions,
     openArticleDiscussion,
     readArticle,
     saveArticle,
@@ -601,6 +602,7 @@ function App() {
               onDeleteArticle={deleteArticle}
               onDeleteArticleAnnotation={deleteArticleAnnotation}
               onDeleteArticleComment={deleteArticleComment}
+              onCloseArticleDiscussions={closeArticleDiscussions}
               onOpenArticleDiscussion={openArticleDiscussion}
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onImportArticleUrl={importArticleUrl}

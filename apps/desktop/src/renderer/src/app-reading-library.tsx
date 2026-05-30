@@ -42,6 +42,7 @@ export function ReadingLibrary({
   openArticleId,
   userProfile,
   onArticleOpened,
+  onCloseArticleDiscussions,
   onDeleteArticle,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
@@ -64,6 +65,7 @@ export function ReadingLibrary({
   openArticleId?: string | null;
   userProfile: UserProfile;
   onArticleOpened?: (articleId: string) => void;
+  onCloseArticleDiscussions?: (articleId: string) => Promise<void> | void;
   onDeleteArticle: (articleId: string) => Promise<void> | void;
   onDeleteArticleAnnotation?: (articleId: string, annotationId: string) => Promise<void> | void;
   onDeleteArticleComment?: (
@@ -107,6 +109,7 @@ export function ReadingLibrary({
   const [wereadBookSyncing, setWeReadBookSyncing] = useState(false);
   const [wereadOpenMessage, setWeReadOpenMessage] = useState('');
   const articleLoadRef = useRef(0);
+  const selectedArticleIdRef = useRef<string | null>(null);
   const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const annotations = useMemo<Annotation[]>(
@@ -115,6 +118,18 @@ export function ReadingLibrary({
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
+  useEffect(() => {
+    selectedArticleIdRef.current = selectedArticleId;
+  }, [selectedArticleId]);
+
+  useEffect(
+    () => () => {
+      const articleId = selectedArticleIdRef.current;
+      if (articleId) void onCloseArticleDiscussions?.(articleId);
+    },
+    [onCloseArticleDiscussions],
+  );
+
   useEffect(() => {
     if (!selectedArticle) {
       setSelectedAnnotationId(null);
@@ -125,10 +140,11 @@ export function ReadingLibrary({
 
   useEffect(() => {
     if (selectedArticleId && !sortedArticles.some((article) => article.id === selectedArticleId)) {
+      void onCloseArticleDiscussions?.(selectedArticleId);
       setSelectedArticleId(null);
       setSelectedArticle(null);
     }
-  }, [selectedArticleId, sortedArticles]);
+  }, [onCloseArticleDiscussions, selectedArticleId, sortedArticles]);
 
   useEffect(() => {
     if (!openArticleId) return;
@@ -184,6 +200,9 @@ export function ReadingLibrary({
   }
 
   async function openArticle(article: ArticleSummaryRecord) {
+    if (selectedArticleId && selectedArticleId !== article.id) {
+      void onCloseArticleDiscussions?.(selectedArticleId);
+    }
     const loadId = articleLoadRef.current + 1;
     articleLoadRef.current = loadId;
     setLibrarySource(librarySourceForArticle(article));
@@ -198,6 +217,7 @@ export function ReadingLibrary({
   }
 
   async function openWeReadBook(book: WeReadBook) {
+    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
     setLibrarySource('weread');
     setSelectedArticle(null);
     setSelectedArticleId(null);
@@ -215,6 +235,7 @@ export function ReadingLibrary({
   }
 
   function openLibraryShelf() {
+    if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
     setSelectedWeReadBook(null);

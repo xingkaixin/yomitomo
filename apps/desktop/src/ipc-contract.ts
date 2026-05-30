@@ -59,6 +59,14 @@ export type AnnotationDiscussionWindowOpenResult = {
   windowId: number;
 };
 
+export type AnnotationDiscussionWindowsCloseArticleInput = {
+  articleId: string;
+};
+
+export type AnnotationDiscussionWindowsCloseArticleResult = {
+  closed: number;
+};
+
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
 
 export type DataManagementPaths = {
@@ -292,6 +300,10 @@ export type DesktopIpcInvokeMap = {
   'annotation-discussion:open': {
     args: [input: AnnotationDiscussionWindowOpenInput];
     result: AnnotationDiscussionWindowOpenResult;
+  };
+  'annotation-discussion:close-article': {
+    args: [input: AnnotationDiscussionWindowsCloseArticleInput];
+    result: AnnotationDiscussionWindowsCloseArticleResult;
   };
   'app:info': {
     args: [];

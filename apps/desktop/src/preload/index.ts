@@ -40,6 +40,8 @@ export type {
   AgentRuntimeTraceTaskType,
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowOpenResult,
+  AnnotationDiscussionWindowsCloseArticleInput,
+  AnnotationDiscussionWindowsCloseArticleResult,
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
   AssistantExecutionStatus,
@@ -95,6 +97,8 @@ const api = {
     invokeDesktopIpc('annotation:metadata', payload),
   openAnnotationDiscussion: (input: AnnotationDiscussionWindowOpenInput) =>
     invokeDesktopIpc('annotation-discussion:open', input),
+  closeArticleAnnotationDiscussions: (articleId: string) =>
+    invokeDesktopIpc('annotation-discussion:close-article', { articleId }),
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
     invokeDesktopIpc('agent:mention-route', payload),
   getLogPath: () => invokeDesktopIpc('log:path'),

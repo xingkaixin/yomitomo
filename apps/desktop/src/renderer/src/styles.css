@@ -270,8 +270,8 @@
   display: grid;
   min-width: 0;
   min-height: 0;
-  align-content: start;
-  gap: 10px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
   overflow: auto;
   border-right: 1px solid var(--app-reader-line);
   background: var(--app-reader-toc-bg);
@@ -296,18 +296,36 @@
   font-weight: 900;
 }
 
+.annotation-discussion-idea-list {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
 .annotation-discussion-idea {
   display: grid;
   min-width: 0;
-  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 8px;
   background: var(--app-reader-paper);
   color: inherit;
-  padding: 10px;
+  padding: 10px 8px 10px 10px;
   text-align: left;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.annotation-discussion-idea:hover {
+  border-color: var(--app-reader-accent-strong);
+  background: var(--app-reader-note-bg);
 }
 
 .annotation-discussion-idea.is-selected {
@@ -315,7 +333,25 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-reader-accent-strong) 16%, transparent);
 }
 
-.annotation-discussion-idea .reader-avatar-badge {
+.annotation-discussion-idea.is-pending {
+  border-style: dashed;
+}
+
+.annotation-discussion-idea-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.annotation-discussion-idea-main .reader-avatar-badge,
+.annotation-discussion-message .reader-avatar-badge {
   width: 28px;
   height: 28px;
   overflow: hidden;
@@ -323,27 +359,28 @@
   background: var(--app-user-annotation-default);
 }
 
-.annotation-discussion-idea span {
+.annotation-discussion-idea-main span {
   display: grid;
   min-width: 0;
   gap: 4px;
 }
 
-.annotation-discussion-idea strong,
-.annotation-discussion-idea em {
+.annotation-discussion-idea-main strong,
+.annotation-discussion-idea-main em,
+.annotation-discussion-idea-main small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.annotation-discussion-idea strong {
+.annotation-discussion-idea-main strong {
   color: var(--app-reader-ink);
   font-size: 12px;
   font-style: normal;
   font-weight: 900;
 }
 
-.annotation-discussion-idea em,
+.annotation-discussion-idea-main em,
 .annotation-discussion-ideas p {
   margin: 0;
   color: var(--app-reader-muted);
@@ -351,6 +388,51 @@
   font-style: normal;
   font-weight: 720;
   line-height: 1.45;
+}
+
+.annotation-discussion-idea-main small {
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.25;
+}
+
+.annotation-discussion-idea-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.annotation-discussion-idea:hover .annotation-discussion-idea-actions,
+.annotation-discussion-idea:focus-within .annotation-discussion-idea-actions,
+.annotation-discussion-idea.is-selected .annotation-discussion-idea-actions {
+  opacity: 1;
+}
+
+.annotation-discussion-idea-actions button,
+.annotation-discussion-message-bubble header button,
+.annotation-discussion-layout-control button {
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--app-reader-muted);
+  font: inherit;
+}
+
+.annotation-discussion-idea-actions button {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+}
+
+.annotation-discussion-idea-actions button:hover,
+.annotation-discussion-message-bubble header button:hover {
+  border-color: var(--app-reader-toolbar-border);
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
 }
 
 .annotation-discussion-thread {
@@ -362,6 +444,196 @@
   padding: 16px 18px;
 }
 
+.annotation-discussion-thread-actions {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.annotation-discussion-layout-control {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  background: var(--app-reader-toolbar-control-bg);
+}
+
+.annotation-discussion-layout-control button {
+  min-width: 58px;
+  height: 28px;
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 0 9px;
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 860;
+}
+
+.annotation-discussion-layout-control button.is-active {
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+}
+
+.annotation-discussion-thread-body {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.annotation-discussion-thread-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.annotation-discussion-thread-meta span {
+  color: var(--app-reader-accent-strong);
+  font-weight: 900;
+}
+
+.annotation-discussion-messages {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 14px;
+  overflow: auto;
+  padding: 2px 4px 8px;
+}
+
+.annotation-discussion-message {
+  display: grid;
+  max-width: min(680px, 84%);
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: end;
+  gap: 9px;
+}
+
+.annotation-discussion-messages.is-split .annotation-discussion-message.is-user {
+  justify-self: end;
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.annotation-discussion-messages.is-split
+  .annotation-discussion-message.is-user
+  .reader-avatar-badge {
+  order: 2;
+}
+
+.annotation-discussion-messages.is-left-aligned .annotation-discussion-message {
+  justify-self: start;
+  max-width: min(760px, 92%);
+}
+
+.annotation-discussion-message-bubble {
+  min-width: 0;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 8px;
+  background: var(--app-reader-note-bg);
+  padding: 10px 12px;
+}
+
+.annotation-discussion-message.is-user .annotation-discussion-message-bubble {
+  background: var(--app-reader-toolbar-control-bg);
+}
+
+.annotation-discussion-message.is-pending .annotation-discussion-message-bubble {
+  border-style: dashed;
+}
+
+.annotation-discussion-message-bubble header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.annotation-discussion-message-bubble header strong {
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-message-bubble header em {
+  color: var(--app-reader-accent-strong);
+  font-style: normal;
+}
+
+.annotation-discussion-message-bubble header button {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 999px;
+  opacity: 0;
+}
+
+.annotation-discussion-message-bubble:hover header button,
+.annotation-discussion-message-bubble:focus-within header button {
+  opacity: 1;
+}
+
+.annotation-discussion-markdown {
+  color: var(--app-reader-note-quote-text);
+  font-size: 13px;
+  line-height: 1.66;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.annotation-discussion-markdown > :first-child {
+  margin-top: 0;
+}
+
+.annotation-discussion-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.annotation-discussion-markdown p,
+.annotation-discussion-markdown ul,
+.annotation-discussion-markdown ol,
+.annotation-discussion-markdown blockquote,
+.annotation-discussion-markdown pre {
+  margin: 0 0 8px;
+}
+
+.annotation-discussion-markdown ul,
+.annotation-discussion-markdown ol {
+  padding-left: 18px;
+}
+
+.annotation-discussion-markdown code {
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.annotation-discussion-composer-placeholder {
+  border: 1px dashed var(--app-reader-toolbar-border);
+  border-radius: 8px;
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  font-weight: 780;
+  line-height: 1.4;
+  padding: 12px;
+}
+
+.annotation-discussion-reply-empty,
 .annotation-discussion-thread-placeholder,
 .annotation-discussion-empty {
   display: grid;
@@ -373,10 +645,15 @@
   text-align: center;
 }
 
+.annotation-discussion-reply-empty {
+  min-height: 240px;
+}
+
 .annotation-discussion-empty {
   grid-row: 1 / -1;
 }
 
+.annotation-discussion-reply-empty strong,
 .annotation-discussion-thread-placeholder strong,
 .annotation-discussion-empty strong {
   color: var(--app-reader-ink);
@@ -384,6 +661,7 @@
   font-weight: 900;
 }
 
+.annotation-discussion-reply-empty p,
 .annotation-discussion-thread-placeholder p {
   margin: 0;
   max-width: 320px;
