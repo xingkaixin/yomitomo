@@ -59,6 +59,17 @@ export type AnnotationDiscussionWindowOpenResult = {
   windowId: number;
 };
 
+export type AnnotationDiscussionWindowState = {
+  articleId: string;
+  annotationId: string;
+  windowId: number;
+  minimized: boolean;
+};
+
+export type AnnotationDiscussionWindowStateEvent =
+  | { type: 'upsert'; window: AnnotationDiscussionWindowState }
+  | { type: 'remove'; articleId: string; annotationId: string; windowId: number };
+
 export type AnnotationDiscussionWindowsCloseArticleInput = {
   articleId: string;
 };

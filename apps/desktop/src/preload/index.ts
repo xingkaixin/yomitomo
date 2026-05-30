@@ -24,6 +24,7 @@ import type {
   DesktopIpcInvokeResult,
   EbookImportFileInput,
   AnnotationDiscussionWindowOpenInput,
+  AnnotationDiscussionWindowStateEvent,
   AssistantExecutionQueryInput,
   AgentRuntimeTraceListInput,
   PerformanceTimingInput,
@@ -40,6 +41,8 @@ export type {
   AgentRuntimeTraceTaskType,
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowOpenResult,
+  AnnotationDiscussionWindowState,
+  AnnotationDiscussionWindowStateEvent,
   AnnotationDiscussionWindowsCloseArticleInput,
   AnnotationDiscussionWindowsCloseArticleResult,
   AssistantExecutionQueryInput,
@@ -99,6 +102,16 @@ const api = {
     invokeDesktopIpc('annotation-discussion:open', input),
   closeArticleAnnotationDiscussions: (articleId: string) =>
     invokeDesktopIpc('annotation-discussion:close-article', { articleId }),
+  onAnnotationDiscussionWindowState: (
+    callback: (event: AnnotationDiscussionWindowStateEvent) => void,
+  ) => {
+    const listener = (_event: IpcRendererEvent, state: AnnotationDiscussionWindowStateEvent) =>
+      callback(state);
+    ipcRenderer.on('annotation-discussion:window-state', listener);
+    return () => {
+      ipcRenderer.removeListener('annotation-discussion:window-state', listener);
+    };
+  },
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
     invokeDesktopIpc('agent:mention-route', payload),
   getLogPath: () => invokeDesktopIpc('log:path'),

@@ -117,8 +117,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     return {
       ...comment,
       id: makeId('comment'),
-      replyTo:
-        payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id,
+      replyTo: agentMessageReplyTo(payload),
       readingIntent: payload.readingIntent || comment.readingIntent,
     } satisfies Comment;
   });
@@ -183,10 +182,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agentNickname: agent.nickname,
           agentAvatar: agent.avatar,
           agentAnnotationColor: agent.annotationColor,
-          replyTo:
-            input.payload.reviewTargetCommentId ||
-            input.payload.userComment.replyTo ||
-            input.payload.userComment.id,
+          replyTo: agentMessageReplyTo(input.payload),
           readingIntent: input.payload.readingIntent,
           pending: true,
         };
@@ -499,8 +495,16 @@ function shouldUseThreadReplyToolLoop(
   mode: ReturnType<typeof normalizeAssistantExecutionMode>,
 ) {
   return (
-    mode === 'deep_verification' && Boolean(payload.article.id) && !payload.reviewTargetCommentId
+    payload.responseMode !== 'create_thought' &&
+    mode === 'deep_verification' &&
+    Boolean(payload.article.id) &&
+    !payload.reviewTargetCommentId
   );
+}
+
+function agentMessageReplyTo(payload: AgentMessagePayload) {
+  if (payload.responseMode === 'create_thought') return undefined;
+  return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
 }
 
 function shouldUseSelectionFirstToolLoop(payload: AgentAnnotatePayload) {

@@ -28,7 +28,7 @@ export async function runAgentStream(
   const user = buildAgentPrompt(provider, payload, agent);
   await streamProviderText(
     provider,
-    { system, user, maxTokens: 1200, temperature: agent.temperature },
+    { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
     onDelta,
   );
 }
@@ -52,7 +52,7 @@ export async function runAgent(
   const content = await callProviderText(provider, {
     system,
     user,
-    maxTokens: 1200,
+    maxTokens: agentMessageMaxTokens(payload),
     temperature: agent.temperature,
   });
 
@@ -99,6 +99,20 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
     .filter(Boolean)
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
+
+  if (payload.responseMode === 'create_thought') {
+    return `${buildAgentRoleCard(agent)}
+
+你正在为网页阅读器的一条批注添加一条助手想法。你的输出会作为“想法”直接展示在批注旁边，而不是 thread 回复。${readingIntentSystemPrompt(payload)}
+
+输出边界：
+- 只输出一个单纯、可带走的观点或判断框架，围绕原文和用户高亮。
+- 角色卡用于影响你的判断视角、问题敏感度和取舍标准；不要把角色卡写成自我介绍或身份表演。
+- 不要自我介绍，不要寒暄。
+- 不要 @ 用户或其他助手，不要写成对话回复。
+- 不展示思考过程、推导草稿、行动计划或长篇铺垫。
+- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。`;
+  }
 
   if (payload.reviewTargetCommentId) {
     return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。`;
@@ -163,6 +177,10 @@ export function buildAgentPrompt(
   const threadContextPrompt = selectionThreadPromptBlock(payload, context);
   const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
 
+  if (payload.responseMode === 'create_thought') {
+    return buildAgentCreateThoughtPrompt(provider, payload, context, threadContextPrompt);
+  }
+
   if (payload.reviewTargetCommentId) {
     return buildAgentThoughtReviewPrompt(
       provider,
@@ -182,6 +200,46 @@ export function buildAgentPrompt(
   const budgetNotice = formatBudgetNotice([article.report]);
 
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。回复必须回应当前 thread 的原始想法，而不只是回应最新读者评论。`;
+}
+
+function buildAgentCreateThoughtPrompt(
+  provider: LlmProvider,
+  payload: AgentMessagePayload,
+  context: ReadingContextBundle,
+  threadContextPrompt: string,
+) {
+  const readerInstruction = payload.instruction ? `\n\n读者给你的指令：${payload.instruction}` : '';
+  const existingThoughts = formatCreateThoughtContext(payload.annotation);
+  const task = `${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}
+
+用户高亮：
+${payload.annotation.anchor.exact}
+
+已有想法和讨论（仅用于避免重复，不要逐条回应）：
+${existingThoughts}
+
+请输出一条新的批注想法。要求：
+- 直接给最终观点，不展示思考过程。
+- 不要 @ 任何人，不要称呼读者，不要写成回复。
+- 观点应该像一个读者可以带走的判断、分析工具或提醒，而不是必须全盘接受的结论。
+- 保持简短，避免长篇文章、Markdown 标题和 JSON。`;
+
+  if (threadContextPrompt) {
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${threadContextPrompt}\n\n${task}`;
+  }
+
+  const article = budgetArticleText(provider, 'agent-message', context.articleText);
+  const budgetNotice = formatBudgetNotice([article.report]);
+  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}
+
+${budgetNotice}
+
+可用原文范围：
+${article.text}${memoryViewPrompt}
+
+${task}`;
 }
 
 function buildAgentThoughtReviewPrompt(
@@ -240,6 +298,18 @@ function focusedThreadComments(payload: AgentMessagePayload) {
   );
   if (focused.length > 0) return focused;
   return payload.annotation.comments.filter((comment) => comment.content.trim());
+}
+
+function formatCreateThoughtContext(annotation: Annotation) {
+  const comments = annotation.comments.filter((comment) => comment.content.trim());
+  if (comments.length === 0) return '- 暂无';
+  return comments
+    .map((comment) => `- ${formatCommentAuthor(comment)}: ${comment.content}`)
+    .join('\n');
+}
+
+function agentMessageMaxTokens(payload: AgentMessagePayload) {
+  return payload.responseMode === 'create_thought' ? 420 : 1200;
 }
 
 function buildAgentSelfInstruction(

@@ -170,6 +170,35 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('角色卡中的自我介绍、核心气质、判断习惯和输出偏好');
   });
 
+  it('keeps assistant-created thoughts concise and non-dialogic', () => {
+    const thoughtPayload: AgentMessagePayload = {
+      ...payload,
+      responseMode: 'create_thought',
+      instruction: '给一个能带走的判断框架',
+    };
+    const system = buildAgentMessageSystemPrompt(
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
+      thoughtPayload,
+    );
+    const prompt = buildAgentPrompt(provider, thoughtPayload, lin);
+
+    expect(system).toContain('## 角色卡');
+    expect(system).toContain('只输出一个单纯、可带走的观点或判断框架');
+    expect(system).toContain('角色卡用于影响你的判断视角、问题敏感度和取舍标准');
+    expect(system).toContain('不要把角色卡写成自我介绍或身份表演');
+    expect(system).toContain('不要 @ 用户或其他助手');
+    expect(system).toContain('不展示思考过程');
+    expect(prompt).toContain('请输出一条新的批注想法');
+    expect(prompt).toContain('不展示思考过程');
+    expect(prompt).toContain('不要 @ 任何人');
+    expect(prompt).toContain('给一个能带走的判断框架');
+  });
+
   it('includes assistant handles in the discussion context', () => {
     const prompt = buildAgentPrompt(provider, payload, lin);
 
