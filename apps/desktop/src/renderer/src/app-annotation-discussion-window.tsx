@@ -1,15 +1,76 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlignLeft, GitPullRequestDraft, MessageCircle, Pin, PinOff, Trash2 } from 'lucide-react';
-import type { Annotation, ArticleRecord, Comment, UserProfile } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
-import { commentPersona } from '@yomitomo/core';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent,
+  type RefObject,
+  type ReactNode,
+} from 'react';
+import {
+  AlignLeft,
+  ChevronDown,
+  GitPullRequestDraft,
+  MessageCircle,
+  MoreHorizontal,
+  Pin,
+  PinOff,
+  Plus,
+  Send,
+  Trash2,
+  X,
+} from 'lucide-react';
+import type {
+  Agent,
+  Annotation,
+  ArticleRecord,
+  Comment,
+  PublicAgent,
+  UserProfile,
+} from '@yomitomo/shared';
+import { makeId, renderMarkdown } from '@yomitomo/shared';
+import {
+  appendAnnotationComment,
+  commentPersona,
+  createUserComment,
+  findMentionedAgents,
+  getMentionQuery,
+  sortAnnotations,
+  updateAnnotationComment,
+} from '@yomitomo/core';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from './app-theme';
+import { FloatingComposer } from './app-floating-composer';
+import {
+  agentInstructionFromNote,
+  mentionDirectivesForAgent,
+  promptArticle,
+  publicAnnotationAgents,
+} from './app-source-bookcase-shared';
+import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
+import { articlePlainText } from './app-utils';
+import {
+  matchesAgentMentionQuery,
+  mentionDraftWithAgent,
+} from '@yomitomo/reader-ui/reader-mention-utils';
+import {
+  AgentAvatarStack,
+  AvatarBadge,
+  ReaderTooltip,
+  ShortcutTooltipContent,
+  SubmitShortcutTooltipContent,
+} from '@yomitomo/reader-ui/reader-component-primitives';
+import {
+  getShortcutModifier,
+  isMessageSendShortcutEvent,
+} from '@yomitomo/reader-ui/reader-shortcuts';
 
 type DiscussionLayoutMode = 'split' | 'left';
+const DISCUSSION_DELETE_HOLD_MS = 900;
 
 type DiscussionWindowStatus =
   | { type: 'loading' }
-  | { type: 'ready'; article: ArticleRecord; annotation: Annotation }
+  | { type: 'ready'; agents: Agent[]; article: ArticleRecord; annotation: Annotation }
   | { type: 'missing' }
   | { type: 'error'; message: string };
 
@@ -41,13 +102,17 @@ export function AnnotationDiscussionWindowApp() {
       return;
     }
 
-    void window.yomitomoDesktop
-      .getArticle(articleId)
-      .then((article) => {
+    void Promise.all([
+      window.yomitomoDesktop.getArticle(articleId),
+      window.yomitomoDesktop.getState(),
+    ])
+      .then(([article, store]) => {
         if (cancelled) return;
         const annotation = article?.annotations.find((item) => item.id === annotationId);
         setStatus(
-          article && annotation ? { type: 'ready', article, annotation } : { type: 'missing' },
+          article && annotation
+            ? { type: 'ready', agents: store.agents, article, annotation }
+            : { type: 'missing' },
         );
       })
       .catch((error: unknown) => {
@@ -66,6 +131,7 @@ export function AnnotationDiscussionWindowApp() {
   if (status.type === 'ready') {
     return (
       <AnnotationDiscussionShell
+        agents={status.agents}
         article={status.article}
         annotation={status.annotation}
         className={className}
@@ -91,27 +157,49 @@ export function AnnotationDiscussionWindowApp() {
 }
 
 function AnnotationDiscussionShell({
+  agents,
   annotation,
   article,
   className,
 }: {
+  agents: Agent[];
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
 }) {
+  const [currentArticle, setCurrentArticle] = useState(article);
   const [currentAnnotation, setCurrentAnnotation] = useState(annotation);
   const [pinnedThoughtIds, setPinnedThoughtIds] = useState<Set<string>>(() => new Set());
   const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
   const [layoutMode, setLayoutMode] = useState<DiscussionLayoutMode>('split');
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [replyDraft, setReplyDraft] = useState('');
+  const [replyCaretIndex, setReplyCaretIndex] = useState(0);
+  const [newThoughtDraft, setNewThoughtDraft] = useState('');
+  const [newThoughtOpen, setNewThoughtOpen] = useState(false);
+  const [newThoughtMode, setNewThoughtMode] = useState<'self' | 'assistant'>('self');
+  const [newThoughtCaretIndex, setNewThoughtCaretIndex] = useState(0);
+  const [submittingThought, setSubmittingThought] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [sendError, setSendError] = useState('');
   const [removed, setRemoved] = useState(false);
+  const annotationsRef = useRef<Annotation[]>(article.annotations);
+  const currentArticleRef = useRef(article);
 
   useEffect(() => {
+    setCurrentArticle(article);
     setCurrentAnnotation(annotation);
     setRemoved(false);
   }, [annotation]);
 
-  const userProfile = annotationUserProfile(annotation, article);
+  useEffect(() => {
+    annotationsRef.current = currentArticle.annotations;
+    currentArticleRef.current = currentArticle;
+  }, [currentArticle]);
+
+  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const userProfile = annotationUserProfile(currentAnnotation, currentArticle);
   const threads = useMemo(
     () => discussionThreads(currentAnnotation, pinnedThoughtIds),
     [currentAnnotation, pinnedThoughtIds],
@@ -145,10 +233,11 @@ function AnnotationDiscussionShell({
       const nextAnnotation = nextArticle?.annotations.find(
         (item) => item.id === currentAnnotation.id,
       );
-      if (!nextAnnotation) {
+      if (!nextArticle || !nextAnnotation) {
         setRemoved(true);
         return;
       }
+      setCurrentArticle(nextArticle);
       setCurrentAnnotation(nextAnnotation);
       setPinnedThoughtIds((current) => {
         if (!current.has(commentId)) return current;
@@ -159,6 +248,215 @@ function AnnotationDiscussionShell({
     } finally {
       setDeletingCommentId(null);
     }
+  }
+
+  function applyAnnotations(annotations: Annotation[]) {
+    const sortedAnnotations = sortAnnotations(annotations);
+    const nextAnnotation = sortedAnnotations.find((item) => item.id === currentAnnotation.id);
+    if (!nextAnnotation) {
+      setRemoved(true);
+      return null;
+    }
+    const nextArticle = {
+      ...currentArticleRef.current,
+      annotations: sortedAnnotations,
+      updatedAt: new Date().toISOString(),
+    };
+    annotationsRef.current = sortedAnnotations;
+    currentArticleRef.current = nextArticle;
+    setCurrentArticle(nextArticle);
+    setCurrentAnnotation(nextAnnotation);
+    return nextArticle;
+  }
+
+  async function saveAnnotations(annotations: Annotation[]) {
+    const nextArticle = applyAnnotations(annotations);
+    if (!nextArticle) return;
+    await window.yomitomoDesktop.saveArticle(nextArticle);
+  }
+
+  async function submitReply() {
+    const selectedRoot = selectedThread?.root;
+    const trimmed = replyDraft.trim();
+    if (!selectedRoot || !trimmed || sendingReply) return;
+    setSendingReply(true);
+    setSendError('');
+    setReplyDraft('');
+    setReplyCaretIndex(0);
+    try {
+      const userComment = createUserComment(userProfile, trimmed, { replyTo: selectedRoot.id });
+      const nextAnnotations = appendAnnotationComment(
+        annotationsRef.current,
+        currentAnnotation.id,
+        userComment,
+        userComment.createdAt,
+      );
+      const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
+      if (!nextAnnotations || !nextAnnotation) return;
+
+      await saveAnnotations(nextAnnotations);
+      const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
+      const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
+      for (const agent of mentionedAgents) {
+        const latestAnnotation =
+          annotationsRef.current.find((item) => item.id === currentAnnotation.id) || nextAnnotation;
+        await requestAgentReply(agent, latestAnnotation, userComment, instruction);
+      }
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : '回复发送失败');
+    } finally {
+      setSendingReply(false);
+      setStatusMessage('');
+    }
+  }
+
+  async function submitNewThought() {
+    const trimmed = newThoughtDraft.trim();
+    if (!trimmed || submittingThought) return;
+    const mentionedThoughtAgents = findMentionedAgents(trimmed, annotationAgents);
+    if (newThoughtMode === 'assistant' && mentionedThoughtAgents.length === 0) return;
+    setSubmittingThought(true);
+    setSendError('');
+    try {
+      if (newThoughtMode === 'self') {
+        const userComment = createUserComment(userProfile, trimmed);
+        const nextAnnotations = appendAnnotationComment(
+          annotationsRef.current,
+          currentAnnotation.id,
+          userComment,
+          userComment.createdAt,
+        );
+        const nextAnnotation = nextAnnotations?.find((item) => item.id === currentAnnotation.id);
+        if (!nextAnnotations || !nextAnnotation) return;
+
+        await saveAnnotations(nextAnnotations);
+        setSelectedThoughtId(userComment.id);
+
+        const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
+        const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
+        for (const agent of mentionedAgents) {
+          const latestAnnotation =
+            annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
+            nextAnnotation;
+          await requestAgentReply(agent, latestAnnotation, userComment, instruction);
+        }
+      } else {
+        const route = await planAssistantThoughtRoute(trimmed, mentionedThoughtAgents);
+        for (const agent of mentionedThoughtAgents) {
+          const latestAnnotation =
+            annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
+            currentAnnotation;
+          const directive = mentionDirectivesForAgent(route, agent, 'create_thought')[0];
+          const instruction =
+            directive?.instruction ||
+            agentInstructionFromNote(assistantThoughtRouteNote(trimmed, mentionedThoughtAgents), [
+              agent,
+            ]) ||
+            trimmed;
+          await requestAgentThought(agent, latestAnnotation, instruction, directive?.readingIntent);
+        }
+      }
+      closeNewThoughtDialog();
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : '想法添加失败');
+    } finally {
+      setSubmittingThought(false);
+      setStatusMessage('');
+    }
+  }
+
+  async function planAssistantThoughtRoute(note: string, selectedAgents: PublicAgent[]) {
+    const routeNote = assistantThoughtRouteNote(note, selectedAgents);
+    try {
+      return await window.yomitomoDesktop.planAgentMentionRoute({
+        note: routeNote,
+        targetAnchor: currentAnnotation.anchor,
+        agents: selectedAgents,
+        allowedActions: ['create_thought'],
+        article: promptArticle(
+          currentArticleRef.current,
+          discussionArticleText(currentArticleRef.current),
+        ),
+      });
+    } catch {
+      return {
+        createUserThought: false,
+        directives: selectedAgents.map((agent) => ({
+          agentId: agent.id,
+          agentUsername: agent.username,
+          action: 'create_thought' as const,
+          instruction: note,
+        })),
+      };
+    }
+  }
+
+  async function requestAgentReply(
+    agent: PublicAgent,
+    annotationValue: Annotation,
+    userComment: Comment,
+    instruction?: string,
+  ) {
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: annotationValue,
+      userComment,
+      instruction,
+      desktop: window.yomitomoDesktop,
+      currentArticle: currentArticleRef.current,
+      articleText: discussionArticleText(currentArticleRef.current),
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage,
+    });
+  }
+
+  async function requestAgentThought(
+    agent: PublicAgent,
+    annotationValue: Annotation,
+    instruction: string,
+    readingIntent?: Comment['readingIntent'],
+  ) {
+    await runSourceAgentThoughtRequest({
+      agent,
+      annotation: annotationValue,
+      instruction,
+      readingIntent,
+      desktop: window.yomitomoDesktop,
+      currentArticle: currentArticleRef.current,
+      articleText: discussionArticleText(currentArticleRef.current),
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage,
+      onThoughtStart: setSelectedThoughtId,
+    });
+  }
+
+  function openNewThoughtDialog() {
+    setNewThoughtOpen(true);
+    setNewThoughtMode('self');
+    setNewThoughtDraft('');
+    setNewThoughtCaretIndex(0);
+    setSendError('');
+  }
+
+  function closeNewThoughtDialog() {
+    setNewThoughtOpen(false);
+    setNewThoughtDraft('');
+    setNewThoughtCaretIndex(0);
+  }
+
+  function insertAgentMention(agent: PublicAgent) {
+    const mention = `@${agent.username} `;
+    setReplyDraft((current) => {
+      if (current.includes(mention.trim())) return current;
+      const prefix = current.trimEnd();
+      const next = prefix ? `${prefix} ${mention}` : mention;
+      setReplyCaretIndex(next.length);
+      return next;
+    });
   }
 
   function togglePinnedThought(commentId: string) {
@@ -193,6 +491,14 @@ function AnnotationDiscussionShell({
           <header>
             <strong>想法</strong>
             <span>{threads.length}</span>
+            <button
+              className="annotation-discussion-add-thought"
+              type="button"
+              aria-label="添加想法"
+              onClick={openNewThoughtDialog}
+            >
+              <Plus size={14} />
+            </button>
           </header>
           {threads.length > 0 ? (
             <div className="annotation-discussion-idea-list">
@@ -228,6 +534,16 @@ function AnnotationDiscussionShell({
               thread={selectedThread}
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
+              onInsertAgentMention={insertAgentMention}
+              onReplyCaretChange={setReplyCaretIndex}
+              onReplyDraftChange={setReplyDraft}
+              onSubmitReply={() => void submitReply()}
+              replyDraft={replyDraft}
+              replyCaretIndex={replyCaretIndex}
+              annotationAgents={annotationAgents}
+              sendingReply={sendingReply}
+              sendError={sendError}
+              statusMessage={statusMessage}
             />
           ) : (
             <div className="annotation-discussion-thread-placeholder">
@@ -238,6 +554,20 @@ function AnnotationDiscussionShell({
           )}
         </section>
       </section>
+      {newThoughtOpen ? (
+        <AddThoughtDialog
+          agents={annotationAgents}
+          caretIndex={newThoughtCaretIndex}
+          draft={newThoughtDraft}
+          mode={newThoughtMode}
+          submitting={submittingThought}
+          onCancel={closeNewThoughtDialog}
+          onCaretChange={setNewThoughtCaretIndex}
+          onDraftChange={setNewThoughtDraft}
+          onModeChange={setNewThoughtMode}
+          onSubmit={() => void submitNewThought()}
+        />
+      ) : null}
     </main>
   );
 }
@@ -250,6 +580,242 @@ type DiscussionThread = {
   root: Comment;
   updatedAt: string;
 };
+
+function AddThoughtDialog({
+  agents,
+  caretIndex,
+  draft,
+  mode,
+  onCancel,
+  onCaretChange,
+  onDraftChange,
+  onModeChange,
+  onSubmit,
+  submitting,
+}: {
+  agents: PublicAgent[];
+  caretIndex: number;
+  draft: string;
+  mode: 'self' | 'assistant';
+  onCancel: () => void;
+  onCaretChange: (value: number) => void;
+  onDraftChange: (value: string) => void;
+  onModeChange: (value: 'self' | 'assistant') => void;
+  onSubmit: () => void;
+  submitting: boolean;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const shortcutModifier = getShortcutModifier();
+  const mentionQuery = mode === 'assistant' ? getMentionQuery(draft, caretIndex) : null;
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
+  const mentionedAgents = findMentionedAgents(draft, agents);
+  const canSubmit =
+    Boolean(draft.trim()) && !submitting && (mode === 'self' || mentionedAgents.length > 0);
+
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionQuery?.query]);
+
+  useEffect(() => {
+    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
+      setSelectedMentionIndex(0);
+  }, [matchedAgents.length, selectedMentionIndex]);
+
+  useEffect(() => {
+    mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedMentionIndex]);
+
+  useEffect(() => {
+    resizeAddThoughtTextarea();
+  }, [draft, mode]);
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    onCaretChange(element.selectionStart);
+  }
+
+  function resizeAddThoughtTextarea() {
+    const element = textareaRef.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    const maxHeight = 320;
+    const nextHeight = Math.min(element.scrollHeight, maxHeight);
+    element.style.height = `${nextHeight}px`;
+    element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }
+
+  function selectMentionAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(draft, agent.username, mentionQuery);
+    onDraftChange(next.content);
+    onCaretChange(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function insertAgentMention(agent: PublicAgent) {
+    const next = insertMentionAtCaret(draft, agent.username, caretIndex, mentionQuery);
+    onDraftChange(next.content);
+    onCaretChange(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  return (
+    <div className="annotation-discussion-modal-backdrop" role="presentation">
+      <section
+        className="annotation-discussion-add-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="annotation-discussion-add-title"
+      >
+        <header>
+          <Plus size={19} />
+          <h2 id="annotation-discussion-add-title">添加想法</h2>
+          <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="关闭" />}>
+            <button
+              className="annotation-discussion-add-close"
+              type="button"
+              aria-label="关闭添加想法"
+              onClick={onCancel}
+            >
+              <X size={15} />
+            </button>
+          </ReaderTooltip>
+        </header>
+        <FloatingComposer
+          ref={textareaRef}
+          className="annotation-discussion-add-editor"
+          accessory={
+            <div className="annotation-discussion-add-composer-accessory">
+              <div className="annotation-discussion-add-mode" role="tablist" aria-label="添加方式">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'self'}
+                  className={mode === 'self' ? 'is-active' : ''}
+                  onClick={() => onModeChange('self')}
+                >
+                  自己写
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === 'assistant'}
+                  className={mode === 'assistant' ? 'is-active' : ''}
+                  onClick={() => onModeChange('assistant')}
+                >
+                  让助手来
+                </button>
+              </div>
+              {mode === 'assistant' ? (
+                <div className="annotation-discussion-add-agents">
+                  <AgentAvatarStack
+                    agents={agents}
+                    ariaLabel="插入助手提及"
+                    onAgentClick={insertAgentMention}
+                  />
+                </div>
+              ) : null}
+            </div>
+          }
+          mentionMenu={
+            matchedAgents.length > 0 ? (
+              <div className="reader-agent-menu annotation-discussion-mention-menu annotation-discussion-add-mention-menu">
+                {matchedAgents.map((agent, index) => (
+                  <button
+                    className={index === selectedMentionIndex ? 'is-active' : ''}
+                    key={agent.id}
+                    ref={(element) => {
+                      mentionCandidateRefs.current[index] = element;
+                    }}
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectMentionAgent(agent)}
+                  >
+                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                    <span>
+                      <strong>{agent.nickname}</strong>
+                      <em>@{agent.username}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null
+          }
+          submitDisabled={!canSubmit}
+          submitIcon={<Plus size={14} />}
+          submitLabel={submitting ? '添加中' : '添加'}
+          submitTooltip={
+            <SubmitShortcutTooltipContent
+              label="添加"
+              shortcut="mod-enter"
+              shortcutModifier={shortcutModifier}
+            />
+          }
+          textarea={{
+            'aria-label': mode === 'self' ? '想法内容' : '给助手的指令',
+            value: draft,
+            placeholder:
+              mode === 'self' ? '挂在这条划线下的一条想法...' : '告诉助手要写什么想法...',
+            rows: 1,
+            disabled: submitting,
+            autoFocus: true,
+            onChange: (event) => {
+              onDraftChange(event.currentTarget.value);
+              updateCaret(event.currentTarget);
+              requestAnimationFrame(resizeAddThoughtTextarea);
+            },
+            onClick: (event) => updateCaret(event.currentTarget),
+            onKeyDown: (event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                onCancel();
+                return;
+              }
+              if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+                event.preventDefault();
+                setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                return;
+              }
+              if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+                event.preventDefault();
+                setSelectedMentionIndex(
+                  (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                );
+                return;
+              }
+              if (matchedAgents.length > 0 && event.key === 'Tab') {
+                event.preventDefault();
+                const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
+                if (agent) selectMentionAgent(agent);
+                return;
+              }
+              if (isMessageSendShortcutEvent(event, 'mod-enter')) {
+                event.preventDefault();
+                onSubmit();
+              }
+            },
+            onKeyUp: (event) => {
+              if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                return;
+              updateCaret(event.currentTarget);
+            },
+            onSelect: (event) => updateCaret(event.currentTarget),
+          }}
+          onSubmit={onSubmit}
+        />
+      </section>
+    </div>
+  );
+}
 
 function ThoughtListItem({
   isDeleting,
@@ -268,10 +834,12 @@ function ThoughtListItem({
   thread: DiscussionThread;
   userProfile: UserProfile;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const author = commentPersona(thread.root, userProfile, []);
   const itemClassName = [
     'annotation-discussion-idea',
     isSelected ? 'is-selected' : '',
+    thread.isPinned ? 'is-pinned' : '',
     thread.pending ? 'is-pending' : '',
   ]
     .filter(Boolean)
@@ -290,18 +858,58 @@ function ThoughtListItem({
           </small>
         </span>
       </button>
-      <div className="annotation-discussion-idea-actions">
+      <div
+        className="annotation-discussion-idea-actions"
+        onBlur={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          setMenuOpen(false);
+        }}
+      >
         <button
+          className={menuOpen ? 'is-active' : ''}
           type="button"
-          onClick={onPin}
-          aria-label={thread.isPinned ? '取消置顶' : '置顶想法'}
+          aria-label="更多想法操作"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={(event) => {
+            event.stopPropagation();
+            setMenuOpen((current) => !current);
+          }}
         >
-          {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+          <MoreHorizontal size={14} />
         </button>
-        <button type="button" onClick={onDelete} disabled={isDeleting} aria-label="删除想法和回复">
-          <Trash2 size={13} />
-        </button>
+        {menuOpen ? (
+          <div className="annotation-discussion-idea-menu" role="menu">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPin();
+                setMenuOpen(false);
+              }}
+            >
+              {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+              <span>{thread.isPinned ? '取消固定' : '固定置顶'}</span>
+            </button>
+            <LongPressDeleteButton
+              className="annotation-discussion-idea-delete"
+              disabled={isDeleting}
+              label="长按删除想法和回复"
+              onDelete={onDelete}
+              onComplete={() => setMenuOpen(false)}
+            >
+              <Trash2 size={13} />
+              <span>长按删除</span>
+            </LongPressDeleteButton>
+          </div>
+        ) : null}
       </div>
+      {thread.isPinned ? (
+        <span className="annotation-discussion-idea-pin-badge" aria-label="已置顶">
+          <Pin size={10} />
+        </span>
+      ) : null}
     </article>
   );
 }
@@ -336,32 +944,147 @@ function SegmentedLayoutControl({
 }
 
 function DiscussionThreadView({
+  annotationAgents,
   deletingCommentId,
   layoutMode,
   onDelete,
+  onInsertAgentMention,
+  onReplyCaretChange,
+  onReplyDraftChange,
+  onSubmitReply,
+  replyCaretIndex,
+  replyDraft,
+  sendError,
+  sendingReply,
+  statusMessage,
   thread,
   userProfile,
 }: {
+  annotationAgents: PublicAgent[];
   deletingCommentId: string | null;
   layoutMode: DiscussionLayoutMode;
   onDelete: (commentId: string) => void;
+  onInsertAgentMention: (agent: PublicAgent) => void;
+  onReplyCaretChange: (value: number) => void;
+  onReplyDraftChange: (value: string) => void;
+  onSubmitReply: () => void;
+  replyCaretIndex: number;
+  replyDraft: string;
+  sendError: string;
+  sendingReply: boolean;
+  statusMessage: string;
   thread: DiscussionThread;
   userProfile: UserProfile;
 }) {
   const messages = thread.replies;
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [rootThoughtExpanded, setRootThoughtExpanded] = useState(false);
+  const rootThoughtHtml = renderMarkdown(thread.root.content);
+  const mentionQuery = getMentionQuery(replyDraft, replyCaretIndex);
+  const matchedAgents =
+    mentionQuery === null
+      ? []
+      : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
+  const shortcutModifier = getShortcutModifier();
   const className = [
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
 
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionQuery?.query]);
+
+  useEffect(() => {
+    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length)
+      setSelectedMentionIndex(0);
+  }, [matchedAgents.length, selectedMentionIndex]);
+
+  useEffect(() => {
+    mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
+  }, [selectedMentionIndex]);
+
+  useEffect(() => {
+    updateScrollBottomVisibility();
+  }, [messages.length]);
+
+  useEffect(() => {
+    setRootThoughtExpanded(false);
+  }, [thread.root.id]);
+
+  useEffect(() => {
+    resizeReplyTextarea();
+  }, [replyDraft, thread.root.id]);
+
+  function updateCaret(element: HTMLTextAreaElement) {
+    onReplyCaretChange(element.selectionStart);
+  }
+
+  function resizeReplyTextarea() {
+    const element = textareaRef.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    const maxHeight = 168;
+    const nextHeight = Math.min(element.scrollHeight, maxHeight);
+    element.style.height = `${nextHeight}px`;
+    element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }
+
+  function selectMentionAgent(agent: PublicAgent) {
+    const next = mentionDraftWithAgent(replyDraft, agent.username, mentionQuery);
+    onReplyDraftChange(next.content);
+    onReplyCaretChange(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function updateScrollBottomVisibility() {
+    const element = messagesRef.current;
+    if (!element) {
+      setShowScrollBottom(false);
+      return;
+    }
+    const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+    setShowScrollBottom(distance > 56);
+  }
+
+  function scrollMessagesToBottom() {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
+  }
+
   return (
     <div className="annotation-discussion-thread-body">
+      <section
+        className={['annotation-discussion-root-thought', rootThoughtExpanded ? 'is-expanded' : '']
+          .filter(Boolean)
+          .join(' ')}
+        aria-label="想法内容"
+      >
+        <div className="annotation-discussion-root-thought-content">
+          <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
+        </div>
+        <button
+          className="annotation-discussion-root-thought-toggle"
+          type="button"
+          aria-expanded={rootThoughtExpanded}
+          onClick={() => setRootThoughtExpanded((expanded) => !expanded)}
+        >
+          <span>{rootThoughtExpanded ? '收起想法' : '展开想法'}</span>
+          <ChevronDown size={14} />
+        </button>
+      </section>
       <div className="annotation-discussion-thread-meta">
         <time dateTime={thread.root.createdAt}>{formatAbsoluteTime(thread.root.createdAt)}</time>
         {thread.pending ? <span>助手回复中</span> : null}
       </div>
       {messages.length > 0 ? (
-        <div className={className}>
+        <div ref={messagesRef} className={className} onScroll={updateScrollBottomVisibility}>
           {messages.map((message) => (
             <DiscussionMessage
               isDeleting={deletingCommentId === message.id}
@@ -379,8 +1102,110 @@ function DiscussionThreadView({
           <p>这条想法还没有回复。</p>
         </div>
       )}
-      <footer className="annotation-discussion-composer-placeholder">
-        <span>回复输入将在下一阶段接入。</span>
+      <footer className="annotation-discussion-composer">
+        {showScrollBottom ? (
+          <button
+            className="annotation-discussion-scroll-bottom"
+            type="button"
+            aria-label="滚动到底部"
+            onClick={scrollMessagesToBottom}
+          >
+            <ChevronDown size={16} />
+          </button>
+        ) : null}
+        <FloatingComposer
+          ref={textareaRef}
+          className="annotation-discussion-composer-input"
+          accessory={
+            annotationAgents.length > 0 ? (
+              <div className="annotation-discussion-agent-dock" aria-label="可提及助手">
+                <AgentAvatarStack
+                  agents={annotationAgents}
+                  ariaLabel="可提及助手"
+                  onAgentClick={onInsertAgentMention}
+                />
+              </div>
+            ) : undefined
+          }
+          mentionMenu={
+            matchedAgents.length > 0 ? (
+              <div className="reader-agent-menu annotation-discussion-mention-menu">
+                {matchedAgents.map((agent, index) => (
+                  <button
+                    className={index === selectedMentionIndex ? 'is-active' : ''}
+                    key={agent.id}
+                    ref={(element) => {
+                      mentionCandidateRefs.current[index] = element;
+                    }}
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => selectMentionAgent(agent)}
+                  >
+                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                    <span>
+                      <strong>{agent.nickname}</strong>
+                      <em>@{agent.username}</em>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null
+          }
+          status={sendError || statusMessage || (sendingReply ? '正在发送' : '')}
+          submitDisabled={!replyDraft.trim() || sendingReply}
+          submitIcon={<Send size={14} />}
+          submitLabel="回复"
+          submitTooltip={
+            <SubmitShortcutTooltipContent
+              label="回复"
+              shortcut="mod-enter"
+              shortcutModifier={shortcutModifier}
+            />
+          }
+          textarea={{
+            value: replyDraft,
+            placeholder: '回复这条想法，输入 @助手 可邀请助手参与讨论',
+            rows: 1,
+            disabled: sendingReply,
+            onChange: (event) => {
+              onReplyDraftChange(event.currentTarget.value);
+              updateCaret(event.currentTarget);
+              requestAnimationFrame(resizeReplyTextarea);
+            },
+            onClick: (event) => updateCaret(event.currentTarget),
+            onKeyDown: (event) => {
+              if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+                event.preventDefault();
+                setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                return;
+              }
+              if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+                event.preventDefault();
+                setSelectedMentionIndex(
+                  (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                );
+                return;
+              }
+              if (matchedAgents.length > 0 && event.key === 'Tab') {
+                event.preventDefault();
+                const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
+                if (agent) selectMentionAgent(agent);
+                return;
+              }
+              if (isMessageSendShortcutEvent(event, 'mod-enter')) {
+                event.preventDefault();
+                onSubmitReply();
+              }
+            },
+            onKeyUp: (event) => {
+              if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                return;
+              updateCaret(event.currentTarget);
+            },
+            onSelect: (event) => updateCaret(event.currentTarget),
+          }}
+          onSubmit={onSubmitReply}
+        />
       </footer>
     </div>
   );
@@ -415,9 +1240,14 @@ function DiscussionMessage({
           <strong>{author.nickname}</strong>
           <span>{formatRelativeTime(message.createdAt)}</span>
           {message.pending ? <em>回复中</em> : null}
-          <button type="button" onClick={onDelete} disabled={isDeleting} aria-label="删除回复">
+          <LongPressDeleteButton
+            className="annotation-discussion-message-delete"
+            disabled={isDeleting}
+            label="长按删除回复"
+            onDelete={onDelete}
+          >
             <Trash2 size={13} />
-          </button>
+          </LongPressDeleteButton>
         </header>
         <div
           className="annotation-discussion-markdown"
@@ -426,6 +1256,221 @@ function DiscussionMessage({
       </div>
     </article>
   );
+}
+
+function LongPressDeleteButton({
+  children,
+  className,
+  disabled,
+  label,
+  onComplete,
+  onDelete,
+}: {
+  children: ReactNode;
+  className?: string;
+  disabled?: boolean;
+  label: string;
+  onComplete?: () => void;
+  onDelete: () => void;
+}) {
+  const deleteTimerRef = useRef<number | null>(null);
+  const [holding, setHolding] = useState(false);
+
+  useEffect(
+    () => () => {
+      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    },
+    [],
+  );
+
+  function stopHold() {
+    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
+    deleteTimerRef.current = null;
+    setHolding(false);
+  }
+
+  function startHold(event: PointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (disabled || deleteTimerRef.current !== null) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setHolding(true);
+    deleteTimerRef.current = window.setTimeout(() => {
+      deleteTimerRef.current = null;
+      setHolding(false);
+      onDelete();
+      onComplete?.();
+    }, DISCUSSION_DELETE_HOLD_MS);
+  }
+
+  return (
+    <button
+      className={['annotation-discussion-hold-delete', holding ? 'is-holding' : '', className || '']
+        .filter(Boolean)
+        .join(' ')}
+      style={{ '--delete-hold-ms': `${DISCUSSION_DELETE_HOLD_MS}ms` } as CSSProperties}
+      type="button"
+      disabled={disabled}
+      aria-label={label}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onPointerCancel={stopHold}
+      onPointerDown={startHold}
+      onPointerLeave={stopHold}
+      onPointerUp={stopHold}
+    >
+      {children}
+    </button>
+  );
+}
+
+type RunSourceAgentThoughtRequestInput = {
+  agent: PublicAgent;
+  annotation: Annotation;
+  instruction: string;
+  readingIntent?: Comment['readingIntent'];
+  desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
+  currentArticle: ArticleRecord;
+  articleText: string;
+  annotationsRef: RefObject<Annotation[]>;
+  applyAnnotations: (annotations: Annotation[]) => ArticleRecord | null;
+  saveAnnotations: (annotations: Annotation[]) => Promise<void>;
+  setStatusMessage: (message: string) => void;
+  onThoughtStart: (commentId: string) => void;
+};
+
+async function runSourceAgentThoughtRequest({
+  agent,
+  annotation,
+  instruction,
+  readingIntent,
+  desktop,
+  currentArticle,
+  articleText,
+  annotationsRef,
+  applyAnnotations,
+  saveAnnotations,
+  setStatusMessage,
+  onThoughtStart,
+}: RunSourceAgentThoughtRequestInput) {
+  setStatusMessage(`${agent.nickname} 正在添加想法`);
+  const createdAt = new Date().toISOString();
+  const placeholderComment: Comment = {
+    id: makeId('comment'),
+    author: 'ai',
+    content: '',
+    createdAt,
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+    readingIntent: readingIntent || annotation.readingIntent,
+    pending: true,
+  };
+  onThoughtStart(placeholderComment.id);
+
+  const pendingAnnotations = appendAnnotationComment(
+    annotationsRef.current,
+    annotation.id,
+    placeholderComment,
+    createdAt,
+  );
+  if (pendingAnnotations) applyAnnotations(pendingAnnotations);
+
+  const instructionComment: Comment = {
+    id: makeId('comment'),
+    author: 'user',
+    content: instruction,
+    createdAt,
+    readingIntent,
+  };
+  let pendingCommentId = placeholderComment.id;
+  let pendingDelta = '';
+  let pendingFrame = 0;
+  let streamedContent = '';
+
+  const flushDelta = () => {
+    pendingFrame = 0;
+    if (!pendingDelta || !pendingCommentId) return;
+    const delta = pendingDelta;
+    pendingDelta = '';
+    streamedContent += delta;
+    const nextAnnotations = updateAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      pendingCommentId,
+      (comment) => ({ ...comment, content: comment.content + delta }),
+    );
+    if (nextAnnotations) applyAnnotations(nextAnnotations);
+  };
+  const scheduleDeltaFlush = () => {
+    if (pendingFrame) return;
+    pendingFrame = window.requestAnimationFrame(flushDelta);
+  };
+
+  try {
+    const finalComment = await desktop.requestAgentCommentStream(
+      {
+        agentId: agent.id,
+        agentUsername: agent.username,
+        responseMode: 'create_thought',
+        readingIntent: readingIntent || annotation.readingIntent,
+        instruction,
+        article: promptArticle(currentArticle, articleText),
+        annotation,
+        userComment: instructionComment,
+      },
+      (event) => {
+        if (event.type === 'start') {
+          const nextAnnotations = updateAnnotationComment(
+            annotationsRef.current,
+            annotation.id,
+            pendingCommentId,
+            () => ({
+              ...event.comment,
+              id: pendingCommentId,
+              replyTo: undefined,
+              pending: true,
+            }),
+          );
+          if (nextAnnotations) applyAnnotations(nextAnnotations);
+          return;
+        }
+        pendingDelta += event.delta;
+        scheduleDeltaFlush();
+      },
+    );
+
+    if (pendingFrame) {
+      window.cancelAnimationFrame(pendingFrame);
+      flushDelta();
+    }
+    const completedComment = {
+      ...finalComment,
+      id: pendingCommentId,
+      replyTo: undefined,
+      content: finalComment.content || streamedContent,
+      pending: false,
+    };
+    const nextAnnotations = updateAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      pendingCommentId,
+      () => completedComment,
+      completedComment.createdAt,
+    );
+    if (nextAnnotations) await saveAnnotations(nextAnnotations);
+  } finally {
+    if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
+    setStatusMessage('');
+  }
 }
 
 function annotationDiscussionWindowClassName() {
@@ -449,6 +1494,31 @@ function discussionWindowTitle({
 function compactTitleText(value: string) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > 28 ? `${normalized.slice(0, 28)}...` : normalized;
+}
+
+function assistantThoughtRouteNote(note: string, agents: PublicAgent[]) {
+  return `${agents.map((agent) => `@${agent.username}`).join(' ')} ${note}`.trim();
+}
+
+function insertMentionAtCaret(
+  content: string,
+  username: string,
+  caretIndex: number,
+  mentionQuery: ReturnType<typeof getMentionQuery>,
+) {
+  if (mentionQuery) return mentionDraftWithAgent(content, username, mentionQuery);
+
+  const start = Math.max(0, Math.min(caretIndex, content.length));
+  const before = content.slice(0, start);
+  const after = content.slice(start);
+  const prefix = before && !/\s$/u.test(before) ? ' ' : '';
+  const suffix = after && !/^\s/u.test(after) ? ' ' : '';
+  const mention = `${prefix}@${username} ${suffix}`;
+  const nextContent = `${before}${mention}${after}`;
+  return {
+    content: nextContent,
+    caretIndex: before.length + prefix.length + username.length + 2,
+  };
 }
 
 function discussionThreads(
@@ -529,14 +1599,20 @@ function formatAbsoluteTime(value: string) {
   }).format(new Date(value));
 }
 
-function AvatarBadge({ avatar, fallback }: { avatar?: string; fallback: string }) {
-  const value = fallback.slice(0, 2).toUpperCase();
+function discussionArticleText(article: ArticleRecord) {
+  if (article.contentHtml) return articlePlainText(article);
+  if (article.ebook?.chapters.length) {
+    return article.ebook.chapters.map((chapter) => htmlText(chapter.html)).join('\n\n');
+  }
+  return [article.excerpt, article.annotations.map((item) => item.anchor.exact).join('\n')]
+    .filter(Boolean)
+    .join('\n\n');
+}
 
-  return (
-    <span className={['reader-avatar-badge', avatar ? 'is-image' : ''].filter(Boolean).join(' ')}>
-      {avatar ? <img alt="" src={avatar} /> : value}
-    </span>
-  );
+function htmlText(value: string) {
+  const container = document.createElement('div');
+  container.innerHTML = value;
+  return container.textContent?.replace(/\s+/g, ' ').trim() || '';
 }
 
 function annotationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {

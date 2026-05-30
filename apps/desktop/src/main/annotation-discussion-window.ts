@@ -2,12 +2,14 @@ import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
 import type {
   AnnotationDiscussionWindowOpenInput,
+  AnnotationDiscussionWindowStateEvent,
   AnnotationDiscussionWindowsCloseArticleInput,
 } from '../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
 
 type DiscussionWindowEntry = {
   articleId: string;
+  annotationId: string;
   window: BrowserWindow;
 };
 
@@ -60,6 +62,7 @@ function openAnnotationDiscussionWindow(
 
   discussionWindows.set(key, {
     articleId: input.articleId,
+    annotationId: input.annotationId,
     window,
   });
 
@@ -67,10 +70,16 @@ function openAnnotationDiscussionWindow(
     if (window.isDestroyed()) return;
     window.show();
     window.focus();
+    sendWindowState(context, input, window, false);
   });
+  window.on('minimize', () => sendWindowState(context, input, window, true));
+  window.on('restore', () => sendWindowState(context, input, window, false));
+  window.on('show', () => sendWindowState(context, input, window, false));
+  window.on('focus', () => sendWindowState(context, input, window, false));
   window.on('closed', () => {
     const current = discussionWindows.get(key);
     if (current?.window === window) discussionWindows.delete(key);
+    sendWindowStateRemoved(context, input, window.id);
   });
   window.webContents.setWindowOpenHandler(({ url }) => {
     void context.openExternalUrl(url).catch(() => undefined);
@@ -90,6 +99,45 @@ function openAnnotationDiscussionWindow(
     reused: false,
     windowId: window.id,
   };
+}
+
+function sendWindowState(
+  context: DesktopMainIpcContext,
+  input: AnnotationDiscussionWindowOpenInput,
+  window: BrowserWindow,
+  minimized: boolean,
+) {
+  sendStateEvent(context, {
+    type: 'upsert',
+    window: {
+      articleId: input.articleId,
+      annotationId: input.annotationId,
+      windowId: window.id,
+      minimized,
+    },
+  });
+}
+
+function sendWindowStateRemoved(
+  context: DesktopMainIpcContext,
+  input: AnnotationDiscussionWindowOpenInput,
+  windowId: number,
+) {
+  sendStateEvent(context, {
+    type: 'remove',
+    articleId: input.articleId,
+    annotationId: input.annotationId,
+    windowId,
+  });
+}
+
+function sendStateEvent(
+  context: DesktopMainIpcContext,
+  event: AnnotationDiscussionWindowStateEvent,
+) {
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('annotation-discussion:window-state', event);
 }
 
 function closeArticleDiscussionWindows({

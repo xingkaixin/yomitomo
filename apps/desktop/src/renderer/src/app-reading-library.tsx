@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -29,6 +30,7 @@ import {
   type LibrarySort,
   type LibrarySource,
 } from './app-reading-library-utils';
+import type { AnnotationDiscussionWindowState } from '../../ipc-contract';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -108,6 +110,9 @@ export function ReadingLibrary({
   const [wereadSyncing, setWeReadSyncing] = useState(false);
   const [wereadBookSyncing, setWeReadBookSyncing] = useState(false);
   const [wereadOpenMessage, setWeReadOpenMessage] = useState('');
+  const [minimizedDiscussionWindows, setMinimizedDiscussionWindows] = useState<
+    AnnotationDiscussionWindowState[]
+  >([]);
   const articleLoadRef = useRef(0);
   const selectedArticleIdRef = useRef<string | null>(null);
   const didAutoSyncWeReadRef = useRef(false);
@@ -118,6 +123,9 @@ export function ReadingLibrary({
   );
   const selectedAnnotation =
     annotations.find((annotation) => annotation.id === selectedAnnotationId) || null;
+  const currentMinimizedDiscussionWindows = selectedArticle
+    ? minimizedDiscussionWindows.filter((item) => item.articleId === selectedArticle.id)
+    : [];
   useEffect(() => {
     selectedArticleIdRef.current = selectedArticleId;
   }, [selectedArticleId]);
@@ -129,6 +137,26 @@ export function ReadingLibrary({
     },
     [onCloseArticleDiscussions],
   );
+
+  useEffect(() => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.onAnnotationDiscussionWindowState) return;
+    return desktop.onAnnotationDiscussionWindowState((event) => {
+      setMinimizedDiscussionWindows((current) => {
+        if (event.type === 'remove') {
+          return current.filter(
+            (item) =>
+              item.articleId !== event.articleId || item.annotationId !== event.annotationId,
+          );
+        }
+        const next = event.window;
+        const rest = current.filter(
+          (item) => item.articleId !== next.articleId || item.annotationId !== next.annotationId,
+        );
+        return next.minimized ? [...rest, next] : rest;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!selectedArticle) {
@@ -383,6 +411,47 @@ export function ReadingLibrary({
           </div>
         </div>
       )}
+      {selectedArticle && activeShelf === 'source' ? (
+        <AnnotationDiscussionCapsules
+          article={selectedArticle}
+          windows={currentMinimizedDiscussionWindows}
+          onOpen={onOpenArticleDiscussion}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function AnnotationDiscussionCapsules({
+  article,
+  windows,
+  onOpen,
+}: {
+  article: ArticleRecord;
+  windows: AnnotationDiscussionWindowState[];
+  onOpen?: (articleId: string, annotationId: string) => Promise<void> | void;
+}) {
+  if (windows.length === 0) return null;
+
+  return (
+    <div className="annotation-discussion-capsules" aria-label="已最小化的批注讨论">
+      {windows.map((windowState) => {
+        const annotation = article.annotations.find((item) => item.id === windowState.annotationId);
+        const quote = annotation?.anchor.exact.trim() || '批注讨论';
+        return (
+          <button
+            key={`${windowState.articleId}:${windowState.annotationId}`}
+            className="annotation-discussion-capsule"
+            type="button"
+            title={`打开批注讨论：${quote}`}
+            onClick={() => void onOpen?.(windowState.articleId, windowState.annotationId)}
+          >
+            <span className="annotation-discussion-capsule-cursor" aria-hidden="true" />
+            <MessageCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+            <span>{quote}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
