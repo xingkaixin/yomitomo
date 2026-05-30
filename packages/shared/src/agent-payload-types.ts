@@ -8,7 +8,7 @@ import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from './reader-cont
 export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
-  responseMode?: 'thread_reply' | 'create_thought';
+  responseMode?: 'thread_reply' | 'create_thought' | 'distillation_review';
   readingIntent?: AgentReadingIntent;
   instruction?: string;
   reviewTargetCommentId?: string;

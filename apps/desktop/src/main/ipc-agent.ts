@@ -496,6 +496,7 @@ function shouldUseThreadReplyToolLoop(
 ) {
   return (
     payload.responseMode !== 'create_thought' &&
+    payload.responseMode !== 'distillation_review' &&
     mode === 'deep_verification' &&
     Boolean(payload.article.id) &&
     !payload.reviewTargetCommentId
@@ -503,7 +504,8 @@ function shouldUseThreadReplyToolLoop(
 }
 
 function agentMessageReplyTo(payload: AgentMessagePayload) {
-  if (payload.responseMode === 'create_thought') return undefined;
+  if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review')
+    return undefined;
   return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
 }
 

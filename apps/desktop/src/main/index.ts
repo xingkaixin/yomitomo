@@ -7,6 +7,7 @@ import { configureDesktopAppStorage } from './app-environment';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
 import { registerAnnotationDiscussionWindowIpc } from './annotation-discussion-window';
+import { registerAnnotationSedimentationWindowIpc } from './annotation-sedimentation-window';
 import { registerAgentIpc } from './ipc-agent';
 import { registerAppIpc } from './ipc-app';
 import { registerArticleIpc } from './ipc-article';
@@ -219,6 +220,7 @@ function registerIpc() {
   registerProviderIpc(context);
   registerAgentIpc(context);
   registerAnnotationDiscussionWindowIpc(context);
+  registerAnnotationSedimentationWindowIpc(context);
 }
 
 function sendFullStoreUpdated(store: DesktopStore) {

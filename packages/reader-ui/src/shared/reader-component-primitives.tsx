@@ -128,6 +128,7 @@ type AgentAvatarStackProps = {
   activeAgentIds?: Set<string> | string[];
   ariaLabel?: string;
   className?: string;
+  revealLabelOnDoubleClick?: boolean;
   itemClassName?: string;
   onAgentClick?: (agent: PublicAgent) => void;
 };
@@ -138,6 +139,7 @@ export function AgentAvatarStack({
   activeAgentIds,
   ariaLabel,
   className,
+  revealLabelOnDoubleClick = true,
   itemClassName,
   onAgentClick,
 }: AgentAvatarStackProps) {
@@ -147,6 +149,7 @@ export function AgentAvatarStack({
   const activeIds = activeAgentIds instanceof Set ? activeAgentIds : new Set(activeAgentIds || []);
 
   function revealAgent(event: MouseEvent<HTMLElement>, agentId: string) {
+    if (!revealLabelOnDoubleClick) return;
     event.preventDefault();
     event.stopPropagation();
     setRevealedAgentId((current) => (current === agentId ? null : agentId));
@@ -170,7 +173,7 @@ export function AgentAvatarStack({
         const content = (
           <>
             <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-            {revealedAgentId === agent.id ? (
+            {revealLabelOnDoubleClick && revealedAgentId === agent.id ? (
               <b className="reader-agent-avatar-stack-label">{agent.nickname}</b>
             ) : null}
           </>

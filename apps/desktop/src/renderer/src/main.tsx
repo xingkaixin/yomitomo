@@ -24,6 +24,7 @@ import {
   type AppThemeId,
 } from './app-theme';
 import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-window';
+import { AnnotationSedimentationWindowApp } from './app-annotation-sedimentation-window';
 import { ThemeSelector } from './app-theme-selector';
 import './styles.css';
 
@@ -802,7 +803,11 @@ recordStartupTiming('renderer.module_loaded', {
 
 const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
 const RootApp =
-  rendererWindowKind === 'annotation-discussion' ? AnnotationDiscussionWindowApp : App;
+  rendererWindowKind === 'annotation-discussion'
+    ? AnnotationDiscussionWindowApp
+    : rendererWindowKind === 'annotation-sedimentation'
+      ? AnnotationSedimentationWindowApp
+      : App;
 
 createRoot(document.getElementById('root')!).render(<RootApp />);
 recordStartupTiming('react.render_scheduled');

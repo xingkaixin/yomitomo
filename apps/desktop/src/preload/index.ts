@@ -24,6 +24,7 @@ import type {
   DesktopIpcInvokeResult,
   EbookImportFileInput,
   AnnotationDiscussionWindowOpenInput,
+  AnnotationSedimentationWindowOpenInput,
   AnnotationDiscussionWindowStateEvent,
   AssistantExecutionQueryInput,
   AgentRuntimeTraceListInput,
@@ -45,6 +46,8 @@ export type {
   AnnotationDiscussionWindowStateEvent,
   AnnotationDiscussionWindowsCloseArticleInput,
   AnnotationDiscussionWindowsCloseArticleResult,
+  AnnotationSedimentationWindowOpenInput,
+  AnnotationSedimentationWindowOpenResult,
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
   AssistantExecutionStatus,
@@ -100,6 +103,8 @@ const api = {
     invokeDesktopIpc('annotation:metadata', payload),
   openAnnotationDiscussion: (input: AnnotationDiscussionWindowOpenInput) =>
     invokeDesktopIpc('annotation-discussion:open', input),
+  openAnnotationSedimentation: (input: AnnotationSedimentationWindowOpenInput) =>
+    invokeDesktopIpc('annotation-sedimentation:open', input),
   closeArticleAnnotationDiscussions: (articleId: string) =>
     invokeDesktopIpc('annotation-discussion:close-article', { articleId }),
   onAnnotationDiscussionWindowState: (

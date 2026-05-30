@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Lightbulb, MessageCircle, MoreHorizontal, ShieldCheck, Trash2 } from 'lucide-react';
+import { Lightbulb, MessageCircle, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
-import { ReadingCompletionBurst } from '../agent/reader-agent-reading-dock';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
@@ -34,7 +33,6 @@ export function AnnotationCard({
   onDelete,
   onFocus,
   onOpenDiscussion,
-  onRequestReview,
   pendingAgents = [],
 }: {
   active: boolean;
@@ -59,22 +57,11 @@ export function AnnotationCard({
   onFocus: (annotationId: string) => void;
   onOpenDiscussion?: (annotationId: string) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
-  onRequestReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
   pendingAgents?: PublicAgent[];
 }) {
-  const [reviewMenuOpen, setReviewMenuOpen] = useState(false);
-  const [selectedReviewAgentIds, setSelectedReviewAgentIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [reviewingAgentIds, setReviewingAgentIds] = useState<Set<string>>(() => new Set());
-  const [reviewBurstKey, setReviewBurstKey] = useState(0);
-  const [reviewBurstVisible, setReviewBurstVisible] = useState(false);
-  const reviewBurstTimerRef = useRef<number | null>(null);
   const personaAgents = useMemo(() => [...agents, ...reviewAgents], [agents, reviewAgents]);
   const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
-  const canRequestReview =
-    Boolean(onRequestReview) && reviewAgents.length > 0 && discussionThreads.length > 0;
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
   const thoughtAuthors = useMemo(
     () => uniqueThoughtAuthors(discussionThreads, userProfile, personaAgents),
@@ -96,11 +83,7 @@ export function AnnotationCard({
   ]
     .filter(Boolean)
     .join(' ');
-  const toolbarClassName = [
-    'reader-note-toolbar',
-    'reader-note-summary-toolbar',
-    canRequestReview ? 'has-review-action' : '',
-  ]
+  const toolbarClassName = ['reader-note-toolbar', 'reader-note-summary-toolbar']
     .filter(Boolean)
     .join(' ');
   const noteClassName = [
@@ -109,8 +92,6 @@ export function AnnotationCard({
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
-    reviewMenuOpen ? 'has-review-menu' : '',
-    reviewBurstVisible ? 'has-review-burst' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -119,19 +100,6 @@ export function AnnotationCard({
     '--reader-note-accent': author.color || annotation.color,
     ...style,
   } as React.CSSProperties;
-
-  useEffect(
-    () => () => {
-      if (reviewBurstTimerRef.current !== null) window.clearTimeout(reviewBurstTimerRef.current);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (active) return;
-    setReviewMenuOpen(false);
-    setSelectedReviewAgentIds(new Set());
-  }, [active]);
 
   const setNoteElement = useCallback(
     (element: HTMLElement | null) => {
@@ -150,47 +118,6 @@ export function AnnotationCard({
   function openDiscussion() {
     if (!active) onFocus(annotation.id);
     onOpenDiscussion?.(annotation.id);
-  }
-
-  function toggleReviewAgent(agentId: string) {
-    setSelectedReviewAgentIds((current) => {
-      const next = new Set(current);
-      if (next.has(agentId)) next.delete(agentId);
-      else next.add(agentId);
-      return next;
-    });
-  }
-
-  async function requestReview() {
-    if (!onRequestReview || reviewingAgentIds.size > 0) return;
-    const selectedAgents = reviewAgents.filter((agent) => selectedReviewAgentIds.has(agent.id));
-    if (selectedAgents.length === 0) return;
-    if (!active) onFocus(annotation.id);
-    setReviewMenuOpen(false);
-    setReviewingAgentIds(new Set(selectedAgents.map((agent) => agent.id)));
-    try {
-      await onRequestReview(annotation.id, selectedAgents);
-      playReviewBurst();
-    } finally {
-      setReviewingAgentIds(new Set());
-      setSelectedReviewAgentIds(new Set());
-    }
-  }
-
-  function playReviewBurst() {
-    if (reviewBurstTimerRef.current !== null) window.clearTimeout(reviewBurstTimerRef.current);
-    setReviewBurstVisible(true);
-    setReviewBurstKey((key) => key + 1);
-    reviewBurstTimerRef.current = window.setTimeout(() => {
-      reviewBurstTimerRef.current = null;
-      setReviewBurstVisible(false);
-    }, 1800);
-  }
-
-  function closeReviewMenuOnBlur(event: React.FocusEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-    setReviewMenuOpen(false);
   }
 
   return (
@@ -269,78 +196,8 @@ export function AnnotationCard({
             <MessageCircle size={14} />
             <span>进入讨论区</span>
           </button>
-          {canRequestReview ? (
-            <div className="reader-review-invite-wrap" onBlur={closeReviewMenuOnBlur}>
-              <button
-                className={[
-                  'reader-review-invite',
-                  reviewMenuOpen ? 'is-active' : '',
-                  reviewingAgentIds.size > 0 ? 'is-reviewing' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                type="button"
-                aria-expanded={reviewMenuOpen}
-                aria-label={reviewingAgentIds.size > 0 ? '审阅中' : '邀请审阅'}
-                onClick={() => setReviewMenuOpen((open) => !open)}
-              >
-                <ShieldCheck size={14} />
-                <span>{reviewingAgentIds.size > 0 ? '审阅中' : '审阅'}</span>
-                <ReviewingAgentStack agents={reviewAgents} activeAgentIds={reviewingAgentIds} />
-              </button>
-              {reviewMenuOpen ? (
-                <div className="reader-review-menu t-dropdown is-open" data-origin="bottom-right">
-                  {reviewAgents.map((agent) => (
-                    <button
-                      className={selectedReviewAgentIds.has(agent.id) ? 'is-selected' : ''}
-                      key={agent.id}
-                      type="button"
-                      disabled={reviewingAgentIds.size > 0}
-                      aria-pressed={selectedReviewAgentIds.has(agent.id)}
-                      aria-label={`选择${agent.nickname}`}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => toggleReviewAgent(agent.id)}
-                    >
-                      <span className="reader-review-menu-check" aria-hidden="true">
-                        {selectedReviewAgentIds.has(agent.id) ? <ShieldCheck size={13} /> : null}
-                      </span>
-                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                      <span>
-                        <strong>{agent.nickname}</strong>
-                        <em>审阅全部想法</em>
-                      </span>
-                    </button>
-                  ))}
-                  <footer>
-                    <button
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setReviewMenuOpen(false)}
-                    >
-                      取消
-                    </button>
-                    <button
-                      type="button"
-                      disabled={selectedReviewAgentIds.size === 0 || reviewingAgentIds.size > 0}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        void requestReview();
-                      }}
-                    >
-                      审阅
-                    </button>
-                  </footer>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
         </footer>
       </div>
-      {reviewBurstVisible ? (
-        <span className="reader-note-review-burst" aria-hidden="true">
-          <ReadingCompletionBurst key={reviewBurstKey} />
-        </span>
-      ) : null}
     </section>
   );
 }
@@ -401,27 +258,6 @@ function PendingAgentStack({ agents }: { agents: PublicAgent[] }) {
       {agents.length > MAX_FOOTER_AUTHORS ? (
         <span className="reader-pending-agent-more">+{agents.length - MAX_FOOTER_AUTHORS}</span>
       ) : null}
-    </span>
-  );
-}
-
-function ReviewingAgentStack({
-  activeAgentIds,
-  agents,
-}: {
-  activeAgentIds: Set<string>;
-  agents: PublicAgent[];
-}) {
-  const activeAgents = agents.filter((agent) => activeAgentIds.has(agent.id));
-  if (activeAgents.length === 0) return null;
-
-  return (
-    <span className="reader-review-active-avatars" aria-hidden="true">
-      {activeAgents.map((agent) => (
-        <span key={agent.id} style={avatarColorStyle(agent.annotationColor)}>
-          <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-        </span>
-      ))}
     </span>
   );
 }

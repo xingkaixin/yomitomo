@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  AlignLeft,
   ChevronDown,
   GitPullRequestDraft,
   MessageCircle,
@@ -64,8 +63,12 @@ import {
   getShortcutModifier,
   isMessageSendShortcutEvent,
 } from '@yomitomo/reader-ui/reader-shortcuts';
+import {
+  AnnotationLayoutControl,
+  type AnnotationMessageLayoutMode,
+} from './app-annotation-layout-control';
 
-type DiscussionLayoutMode = 'split' | 'left';
+type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_DELETE_HOLD_MS = 900;
 
 type DiscussionWindowStatus =
@@ -442,6 +445,13 @@ function AnnotationDiscussionShell({
     setSendError('');
   }
 
+  function openSedimentationWindow() {
+    void window.yomitomoDesktop.openAnnotationSedimentation({
+      articleId: currentArticle.id,
+      annotationId: currentAnnotation.id,
+    });
+  }
+
   function closeNewThoughtDialog() {
     setNewThoughtOpen(false);
     setNewThoughtDraft('');
@@ -518,13 +528,19 @@ function AnnotationDiscussionShell({
           ) : (
             <p>还没有想法</p>
           )}
+          <footer className="annotation-discussion-sedimentation-entry">
+            <button type="button" onClick={openSedimentationWindow}>
+              <GitPullRequestDraft size={14} />
+              <span>开始沉淀</span>
+            </button>
+          </footer>
         </aside>
         <section className="annotation-discussion-thread">
           <header>
             <strong>讨论区</strong>
             <div className="annotation-discussion-thread-actions">
               <span>{replies} 条回复</span>
-              <SegmentedLayoutControl value={layoutMode} onChange={setLayoutMode} />
+              <AnnotationLayoutControl value={layoutMode} onChange={setLayoutMode} />
             </div>
           </header>
           {selectedThread ? (
@@ -914,35 +930,6 @@ function ThoughtListItem({
   );
 }
 
-function SegmentedLayoutControl({
-  onChange,
-  value,
-}: {
-  onChange: (value: DiscussionLayoutMode) => void;
-  value: DiscussionLayoutMode;
-}) {
-  return (
-    <div className="annotation-discussion-layout-control" aria-label="消息布局">
-      <button
-        className={value === 'split' ? 'is-active' : ''}
-        type="button"
-        onClick={() => onChange('split')}
-      >
-        <GitPullRequestDraft size={13} />
-        左右
-      </button>
-      <button
-        className={value === 'left' ? 'is-active' : ''}
-        type="button"
-        onClick={() => onChange('left')}
-      >
-        <AlignLeft size={13} />
-        左齐
-      </button>
-    </div>
-  );
-}
-
 function DiscussionThreadView({
   annotationAgents,
   deletingCommentId,
@@ -1080,7 +1067,11 @@ function DiscussionThreadView({
         </button>
       </section>
       <div className="annotation-discussion-thread-meta">
-        <time dateTime={thread.root.createdAt}>{formatAbsoluteTime(thread.root.createdAt)}</time>
+        <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
+          <time dateTime={thread.root.createdAt} tabIndex={0}>
+            {formatAbsoluteTime(thread.root.createdAt)}
+          </time>
+        </ReaderTooltip>
         {thread.pending ? <span>助手回复中</span> : null}
       </div>
       {messages.length > 0 ? (
@@ -1238,7 +1229,11 @@ function DiscussionMessage({
       <div className="annotation-discussion-message-bubble">
         <header>
           <strong>{author.nickname}</strong>
-          <span>{formatRelativeTime(message.createdAt)}</span>
+          <ReaderTooltip content={formatAbsoluteTime(message.createdAt)}>
+            <time dateTime={message.createdAt} tabIndex={0}>
+              {formatRelativeTime(message.createdAt)}
+            </time>
+          </ReaderTooltip>
           {message.pending ? <em>回复中</em> : null}
           <LongPressDeleteButton
             className="annotation-discussion-message-delete"
