@@ -10,7 +10,7 @@
     "make:mac-arm": "pnpm run build && electron-builder --config electron-builder.config.cjs --config.directories.output=../../dist/app/mac-arm64 --mac --arm64 --publish never",
     "make:win-x64": "pnpm run build && electron-builder --config electron-builder.config.cjs --config.directories.output=../../dist/app/win-x64 --win --x64 --publish never",
     "db:generate": "drizzle-kit generate",
-    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3 && node scripts/prepare-native-macos.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint . --type-aware",
     "lint:fix": "oxlint . --fix",

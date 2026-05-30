@@ -5,6 +5,9 @@ import type {
   AgentReadingIntent,
   Annotation,
   AnnotationAuthor,
+  AnnotationDistillation,
+  AnnotationDistillationReviewSession,
+  AnnotationDistillationStatus,
   AnnotationEvidenceSource,
   AnnotationType,
   AppSettings,
@@ -131,6 +134,7 @@ export function rowToAnnotation(
     userAvatar: row.userAvatar || undefined,
     userAnnotationColor: row.userAnnotationColor || undefined,
     comments,
+    distillation: normalizeAnnotationDistillation(row),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -623,6 +627,75 @@ function recordValue(value: object): Record<string, unknown> {
 
 function normalizeAnnotationAuthor(value: unknown): AnnotationAuthor {
   return value === 'ai' ? 'ai' : 'user';
+}
+
+function normalizeAnnotationDistillation(
+  row: typeof schema.annotations.$inferSelect,
+): AnnotationDistillation | undefined {
+  const status = normalizeAnnotationDistillationStatus(row.distillationStatus);
+  if (!status && !row.distillationContent) return undefined;
+  return {
+    status: status || 'unpublished',
+    content: row.distillationContent || '',
+    publishedAt: row.distillationPublishedAt || undefined,
+    updatedAt: row.distillationUpdatedAt || undefined,
+    reviewSessions: normalizeAnnotationDistillationReviewSessions(row.distillationReviewSessions),
+  };
+}
+
+function normalizeAnnotationDistillationStatus(
+  value: unknown,
+): AnnotationDistillationStatus | null {
+  return value === 'published' || value === 'unpublished' ? value : null;
+}
+
+function normalizeAnnotationDistillationReviewSessions(
+  value: unknown,
+): AnnotationDistillationReviewSession[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const sessions = value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const session = recordValue(item);
+    const id = stringValue(session.id);
+    const agentId = stringValue(session.agentId);
+    if (!id || !agentId) return [];
+    return [
+      {
+        id,
+        agentId,
+        agentUsername: stringValue(session.agentUsername) || undefined,
+        agentNickname: stringValue(session.agentNickname) || undefined,
+        agentAvatar: stringValue(session.agentAvatar) || undefined,
+        messages: normalizeAnnotationDistillationReviewMessages(session.messages),
+        createdAt: stringValue(session.createdAt),
+        updatedAt: stringValue(session.updatedAt),
+      },
+    ];
+  });
+  return sessions.length > 0 ? sessions : undefined;
+}
+
+function normalizeAnnotationDistillationReviewMessages(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const message = recordValue(item);
+    const id = stringValue(message.id);
+    const content = stringValue(message.content);
+    if (!id || !content) return [];
+    return [
+      {
+        id,
+        author: normalizeAnnotationAuthor(message.author),
+        content,
+        createdAt: stringValue(message.createdAt),
+        agentId: stringValue(message.agentId) || undefined,
+        agentUsername: stringValue(message.agentUsername) || undefined,
+        agentNickname: stringValue(message.agentNickname) || undefined,
+        agentAvatar: stringValue(message.agentAvatar) || undefined,
+      },
+    ];
+  });
 }
 
 function normalizeTextAnchor(value: unknown): TextAnchor {

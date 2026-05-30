@@ -1,24 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AtSign } from 'lucide-react';
 import type { MessageSendShortcut, PublicAgent } from '@yomitomo/shared';
-import { getMentionQuery } from '@yomitomo/core';
 import {
-  AgentAvatarStack,
-  AvatarBadge,
   ReaderTooltip,
   ShortcutTooltipContent,
   SubmitShortcutTooltipContent,
 } from '../shared/reader-component-primitives';
-import {
-  escapeRegExp,
-  matchesAgentMentionQuery,
-  mentionDraftWithAgent,
-} from '../reader-mention-utils';
 import type { PendingComposer } from '../reader-types';
 import { isMessageSendShortcutEvent } from '../reader-shortcuts';
 
 export function Composer({
-  agents,
   composer,
   messageSendShortcut,
   shortcutModifier,
@@ -33,30 +23,9 @@ export function Composer({
   onSave: (note: string) => void;
 }) {
   const [note, setNote] = useState('');
-  const [caretIndex, setCaretIndex] = useState(0);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const mentionQuery = getMentionQuery(note, caretIndex);
-  const matchedAgents =
-    mentionQuery === null
-      ? []
-      : agents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query)).slice(0, 5);
-  const mentionedAgents = agents.filter((agent) =>
-    new RegExp(`(^|\\s)@${escapeRegExp(agent.username)}(?=[\\s，。,.!?！？、;；:]|$)`, 'u').test(
-      note,
-    ),
-  );
-  const canMentionAgents = agents.length > 0;
-
-  useEffect(() => {
-    setSelectedMentionIndex(0);
-  }, [mentionQuery?.query]);
-
-  useEffect(() => {
-    if (matchedAgents.length > 0 && selectedMentionIndex >= matchedAgents.length) {
-      setSelectedMentionIndex(0);
-    }
-  }, [matchedAgents.length, selectedMentionIndex]);
+  const trimmedNote = note.trim();
+  const submitLabel = trimmedNote ? '发布' : '划线';
 
   useEffect(() => {
     function handleCancelShortcut(event: KeyboardEvent) {
@@ -74,20 +43,6 @@ export function Composer({
     onSave(note);
   }
 
-  function updateCaret(element: HTMLTextAreaElement) {
-    setCaretIndex(element.selectionStart);
-  }
-
-  function insertAgent(agent: PublicAgent) {
-    const next = mentionDraftWithAgent(note, agent.username, mentionQuery);
-    setNote(next.content);
-    setCaretIndex(next.caretIndex);
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
-    });
-  }
-
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -95,33 +50,10 @@ export function Composer({
       return;
     }
 
-    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
-      event.preventDefault();
-      setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
-      return;
-    }
-
-    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
-      event.preventDefault();
-      setSelectedMentionIndex((index) => (index - 1 + matchedAgents.length) % matchedAgents.length);
-      return;
-    }
-
-    if (matchedAgents.length > 0 && event.key === 'Tab') {
-      event.preventDefault();
-      insertAgent(matchedAgents[selectedMentionIndex] || matchedAgents[0]);
-      return;
-    }
-
     if (isMessageSendShortcutEvent(event, messageSendShortcut)) {
       event.preventDefault();
       save();
     }
-  }
-
-  function handleKeyUp(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp') return;
-    updateCaret(event.currentTarget);
   }
 
   return (
@@ -136,48 +68,13 @@ export function Composer({
           aria-label="想法内容"
           autoFocus
           ref={textareaRef}
-          placeholder={canMentionAgents ? '写下你的想法，或 @助手一起看这段…' : '写下你的想法…'}
+          placeholder="写下你的想法，留空则只划线…"
           value={note}
-          onChange={(event) => {
-            setNote(event.currentTarget.value);
-            updateCaret(event.currentTarget);
-          }}
-          onClick={(event) => updateCaret(event.currentTarget)}
+          onChange={(event) => setNote(event.currentTarget.value)}
           onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          onSelect={(event) => updateCaret(event.currentTarget)}
         />
-        {matchedAgents.length > 0 ? (
-          <div className="reader-agent-menu">
-            {matchedAgents.map((agent, index) => (
-              <button
-                className={index === selectedMentionIndex ? 'is-active' : ''}
-                key={agent.id}
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertAgent(agent)}
-              >
-                <AvatarBadge avatar={agent.avatar} />
-                <strong>{agent.nickname}</strong>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
       <div className="reader-composer-actions">
-        <div className="reader-composer-agent-tray">
-          <span aria-hidden="true">
-            <AtSign size={16} />
-          </span>
-          {canMentionAgents ? (
-            <AgentAvatarStack
-              agents={agents}
-              activeAgentIds={mentionedAgents.map((agent) => agent.id)}
-              ariaLabel="可 @ 助手"
-              onAgentClick={insertAgent}
-            />
-          ) : null}
-        </div>
         <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="取消" />}>
           <button className="reader-composer-cancel" type="button" onClick={onCancel}>
             <span>取消</span>
@@ -186,14 +83,14 @@ export function Composer({
         <ReaderTooltip
           content={
             <SubmitShortcutTooltipContent
-              label="发布"
+              label={submitLabel}
               shortcut={messageSendShortcut}
               shortcutModifier={shortcutModifier}
             />
           }
         >
           <button type="button" onClick={save}>
-            <span>发布</span>
+            <span>{submitLabel}</span>
           </button>
         </ReaderTooltip>
       </div>

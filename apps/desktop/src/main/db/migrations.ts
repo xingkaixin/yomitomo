@@ -678,4 +678,14 @@ ALTER TABLE app_settings ADD COLUMN library_page_size INTEGER;
 ALTER TABLE app_settings ADD COLUMN annotation_memory_backfill_version TEXT;
 `,
   },
+  {
+    id: '0043_annotation_distillation',
+    sql: `
+ALTER TABLE annotations ADD COLUMN distillation_status TEXT;
+ALTER TABLE annotations ADD COLUMN distillation_content TEXT;
+ALTER TABLE annotations ADD COLUMN distillation_published_at TEXT;
+ALTER TABLE annotations ADD COLUMN distillation_updated_at TEXT;
+ALTER TABLE annotations ADD COLUMN distillation_review_sessions TEXT;
+`,
+  },
 ];
