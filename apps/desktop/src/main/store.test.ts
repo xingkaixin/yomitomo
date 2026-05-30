@@ -430,11 +430,13 @@ describe('desktop store articles', () => {
     const article = rowToArticleSummary(storeSummaryRow(), [], {
       annotationCount: 2,
       commentCount: 1,
+      distillationCount: 1,
     });
 
     expect(article.annotations).toEqual([]);
     expect(article.annotationCount).toBe(2);
     expect(article.commentCount).toBe(1);
+    expect(article.distillationCount).toBe(1);
   });
 
   it('keeps ebook summaries free of full chapter data', () => {

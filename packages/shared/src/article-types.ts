@@ -55,6 +55,7 @@ export type ArticleRecord = {
   annotations: Annotation[];
   annotationCount?: number;
   commentCount?: number;
+  distillationCount?: number;
   focusCoReadingPlan?: FocusCoReadingPlan;
   createdAt: string;
   updatedAt: string;

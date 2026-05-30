@@ -333,10 +333,10 @@ describe('AnnotationCard', () => {
 });
 
 describe('ReaderTocPanel', () => {
-  it('summarizes highlights and thoughts with icon stats', () => {
+  it('summarizes highlights and distillations with icon stats', () => {
     render(
       <ReaderTocPanel
-        annotationTotals={{ annotations: 2, comments: 3 }}
+        annotationTotals={{ annotations: 2, distillations: 3 }}
         hasToc
         tocAnnotationStats={new Map()}
         tocItems={[{ index: 1, text: '引文', depth: 2, start: 0, end: 10 }]}
@@ -345,7 +345,7 @@ describe('ReaderTocPanel', () => {
       />,
     );
 
-    expect(screen.getByLabelText('2 划线，3 想法')).toBeTruthy();
+    expect(screen.getByLabelText('2 划线，3 沉淀')).toBeTruthy();
     expect(screen.queryByText(/批注/)).toBeNull();
     expect(screen.queryByText(/评论/)).toBeNull();
   });

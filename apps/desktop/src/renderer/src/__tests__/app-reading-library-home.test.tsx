@@ -93,44 +93,14 @@ function articleSummary(record: ArticleRecord): ArticleSummaryRecord {
   return summary;
 }
 
-function annotationWithComments(id: string, count: number): Annotation {
+function annotationWithPublishedDistillation(id: string): Annotation {
   return {
     ...annotation(id),
-    comments: Array.from({ length: count }, (_, index) => ({
-      id: `${id}_comment_${index + 1}`,
-      author: 'user',
-      content: `讨论 ${index + 1}`,
-      createdAt: `2026-05-09T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
-    })),
-  };
-}
-
-function annotationWithThoughtsAndReply(id: string): Annotation {
-  const firstThought = {
-    id: `${id}_thought_1`,
-    author: 'user' as const,
-    content: '第一条想法',
-    createdAt: '2026-05-09T12:01:00.000Z',
-  };
-
-  return {
-    ...annotation(id),
-    comments: [
-      firstThought,
-      {
-        id: `${id}_reply_1`,
-        author: 'user' as const,
-        content: '第一条回复',
-        createdAt: '2026-05-09T12:02:00.000Z',
-        replyTo: firstThought.id,
-      },
-      {
-        id: `${id}_thought_2`,
-        author: 'user' as const,
-        content: '第二条想法',
-        createdAt: '2026-05-09T12:03:00.000Z',
-      },
-    ],
+    distillation: {
+      status: 'published',
+      content: `沉淀 ${id}`,
+      publishedAt: '2026-05-09T12:04:00.000Z',
+    },
   };
 }
 
@@ -276,8 +246,14 @@ describe('groupLibraryArticles', () => {
     expect(
       groupLibraryArticles(
         [
-          article({ id: 'two_discussions', annotations: [annotationWithThoughtsAndReply('d1')] }),
-          article({ id: 'no_discussions', annotations: [annotation('d2')] }),
+          article({
+            id: 'two_distillations',
+            annotations: [
+              annotationWithPublishedDistillation('d1'),
+              annotationWithPublishedDistillation('d2'),
+            ],
+          }),
+          article({ id: 'no_distillations', annotations: [annotation('d3')] }),
         ],
         'discussions',
       ).map((group) => ({
@@ -285,8 +261,8 @@ describe('groupLibraryArticles', () => {
         ids: group.articles.map((item) => item.id),
       })),
     ).toEqual([
-      { label: '2 条讨论', ids: ['two_discussions'] },
-      { label: '暂无讨论', ids: ['no_discussions'] },
+      { label: '2 条沉淀', ids: ['two_distillations'] },
+      { label: '暂无沉淀', ids: ['no_distillations'] },
     ]);
   });
 });
@@ -339,7 +315,7 @@ describe('ReadingLibrary home', () => {
       '较新文章',
       '较早文章',
     ]);
-    expect(screen.queryByLabelText('0 条划线 · 0 个想法')).toBeNull();
+    expect(screen.queryByLabelText('0 条划线 · 0 条沉淀')).toBeNull();
     expect(screen.getByRole('button', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
@@ -397,7 +373,10 @@ describe('ReadingLibrary home', () => {
     const { container } = renderLibrary([
       article({
         byline: '原始作者',
-        annotations: [annotationWithThoughtsAndReply('domain_note'), annotation('domain_mark')],
+        annotations: [
+          annotationWithPublishedDistillation('domain_note'),
+          annotationWithPublishedDistillation('domain_mark'),
+        ],
         canonicalUrl: 'https://nooneshappy.com/posts/1',
         siteIconUrl: 'https://favicon.im/nooneshappy.com',
         siteName: '站点名称不显示',
@@ -412,7 +391,7 @@ describe('ReadingLibrary home', () => {
     ]);
 
     expect(screen.getAllByText('nooneshappy.com').length).toBeGreaterThan(1);
-    const stats = screen.getByLabelText('2 条划线 · 2 个想法');
+    const stats = screen.getByLabelText('2 条划线 · 2 条沉淀');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
     expect(
@@ -455,7 +434,7 @@ describe('ReadingLibrary home', () => {
           },
           chapters: [],
         },
-        annotations: [annotationWithComments('ebook_note', 1)],
+        annotations: [annotationWithPublishedDistillation('ebook_note')],
         readingProgress: {
           pageIndex: 4,
           pageCount: 10,
@@ -472,7 +451,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getAllByText('作者名').length).toBeGreaterThan(1);
     expect(screen.getAllByText('电子书标题').length).toBeGreaterThan(1);
     expect(screen.queryByText('电子书标题（名人推荐！荣获大奖！）')).toBeNull();
-    const stats = screen.getByLabelText('1 条划线 · 1 个想法');
+    const stats = screen.getByLabelText('1 条划线 · 1 条沉淀');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
     expect(container.querySelector('.library-ebook-progress')).toBeTruthy();
@@ -634,7 +613,7 @@ describe('ReadingLibrary home', () => {
     ).toBeTruthy();
     expect(screen.getByText('05/28')).toBeTruthy();
     expect(screen.queryByText(/阅读 7 分钟/)).toBeNull();
-    expect(screen.getByLabelText('2 条划线 · 1 个想法')).toBeTruthy();
+    expect(screen.getByLabelText('2 条划线 · 0 条沉淀')).toBeTruthy();
   });
 
   it('loads the full article before opening a PDF summary', async () => {

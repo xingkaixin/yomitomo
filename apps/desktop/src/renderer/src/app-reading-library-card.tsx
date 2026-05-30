@@ -1,21 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  ArrowUpRight,
-  Clock3,
-  MessageSquareText,
-  MoreHorizontal,
-  PencilLine,
-  Trash2,
-} from 'lucide-react';
+import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine, Trash2 } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from './app-utils';
 import { ArticleBook, formatPdfAuthors } from './app-article-book';
 import {
   articleAnnotationCount,
+  articleDistillationCount,
   articleDisplayTitle,
   articleReadingMinutes,
   articleSiteIconUrl,
-  articleThoughtCount,
   formatLibraryRelativeTime,
   libraryArticleStatus,
 } from './app-reading-library-utils';
@@ -36,8 +29,8 @@ export function ArticleLibraryCard({
   const [siteIconFailed, setSiteIconFailed] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
   const annotations = articleAnnotationCount(article);
-  const thoughts = articleThoughtCount(article);
-  const statsLabel = `${annotations} 条划线 · ${thoughts} 个想法`;
+  const distillations = articleDistillationCount(article);
+  const statsLabel = `${annotations} 条划线 · ${distillations} 条沉淀`;
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
@@ -199,8 +192,8 @@ export function ArticleLibraryCard({
             {annotations} 批注
           </span>
           <span>
-            <MessageSquareText size={13} />
-            {thoughts} 讨论
+            <Layers2 size={13} />
+            {distillations} 沉淀
           </span>
         </div>
         <span className="library-source-badge">{isEbook ? 'EPUB' : isPdf ? 'PDF' : '网页'}</span>

@@ -6,7 +6,7 @@ import {
   ChevronRight,
   FileText,
   Highlighter,
-  Lightbulb,
+  Layers2,
   MoreHorizontal,
   RefreshCw,
   Search,
@@ -31,8 +31,8 @@ import {
 import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
 import {
   articleAnnotationCount,
+  articleDistillationCount,
   articleDisplayTitle,
-  articleThoughtCount,
   articleMatchesLibrarySearch,
   compareLibraryArticles,
   librarySourceForArticle,
@@ -507,7 +507,7 @@ function WeReadBookListItem({
         </div>
         <div className="library-ebook-list-meta">
           {lastReadAt ? <time dateTime={lastReadAt.dateTime}>{lastReadAt.label}</time> : null}
-          <ArticleCountStats counts={{ annotations: book.noteCount, comments: book.reviewCount }} />
+          <ArticleCountStats counts={{ annotations: book.noteCount, distillations: 0 }} />
         </div>
       </div>
       <WeReadItemActions title={book.title} onOpenExternal={onOpenExternal} />
@@ -701,10 +701,10 @@ function ArticleCountStats({
 }: {
   counts: {
     annotations: number;
-    comments: number;
+    distillations: number;
   };
 }) {
-  if (counts.annotations === 0 && counts.comments === 0) return null;
+  if (counts.annotations === 0 && counts.distillations === 0) return null;
   const label = libraryCountStatsLabel(counts);
 
   return (
@@ -717,15 +717,15 @@ function ArticleCountStats({
         ·
       </span>
       <span className="library-count-stat">
-        <span className="library-count-value">{counts.comments}</span>
-        <Lightbulb size={14} aria-hidden="true" />
+        <span className="library-count-value">{counts.distillations}</span>
+        <Layers2 size={14} aria-hidden="true" />
       </span>
     </span>
   );
 }
 
-function libraryCountStatsLabel(counts: { annotations: number; comments: number }) {
-  return `${counts.annotations} 条划线 · ${counts.comments} 个想法`;
+function libraryCountStatsLabel(counts: { annotations: number; distillations: number }) {
+  return `${counts.annotations} 条划线 · ${counts.distillations} 条沉淀`;
 }
 
 function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: () => void) {
@@ -738,7 +738,7 @@ function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: (
 function articleCounts(article: ArticleSummaryRecord) {
   return {
     annotations: articleAnnotationCount(article),
-    comments: articleThoughtCount(article),
+    distillations: articleDistillationCount(article),
   };
 }
 
@@ -807,7 +807,7 @@ function emptyLibraryReason({
 
   if (activeSource === 'web') {
     return {
-      description: '点击加号添加网页文章，这一版面会以域名、标题、日期、划线和想法展示。',
+      description: '点击加号添加网页文章，这一版面会以域名、标题、日期、划线和沉淀展示。',
       icon: <FileText size={32} />,
       title: '暂无网页文章',
     };
@@ -823,7 +823,7 @@ function emptyLibraryReason({
 
   if (activeSource === 'weread') {
     return {
-      description: '点击同步拉取微信读书中已有笔记的书籍，列表会展示封面、阅读进度、划线和想法。',
+      description: '点击同步拉取微信读书中已有笔记的书籍，列表会展示封面、阅读进度、划线和沉淀。',
       icon: <Smartphone size={32} />,
       title: '暂无微信读书笔记',
     };

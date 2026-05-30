@@ -421,19 +421,47 @@ export function readArticleSummaryCounts(
       .groupBy(schema.annotations.articleId)
       .all(),
   );
+  const distillationCounts = measureStoreRead(profile, 'count_distillations_by_article', () =>
+    database
+      .select({
+        articleId: schema.annotations.articleId,
+        count: count(),
+      })
+      .from(schema.annotations)
+      .where(eq(schema.annotations.distillationStatus, 'published'))
+      .groupBy(schema.annotations.articleId)
+      .all(),
+  );
   const countsByArticle = new Map<string, ArticleSummaryCounts>();
 
   for (const row of annotationCounts) {
     countsByArticle.set(row.articleId, {
       annotationCount: row.count,
       commentCount: 0,
+      distillationCount: 0,
     });
   }
 
   for (const row of commentCounts) {
     const counts = countsByArticle.get(row.articleId);
     if (counts) counts.commentCount = row.count;
-    else countsByArticle.set(row.articleId, { annotationCount: 0, commentCount: row.count });
+    else
+      countsByArticle.set(row.articleId, {
+        annotationCount: 0,
+        commentCount: row.count,
+        distillationCount: 0,
+      });
+  }
+
+  for (const row of distillationCounts) {
+    const counts = countsByArticle.get(row.articleId);
+    if (counts) counts.distillationCount = row.count;
+    else
+      countsByArticle.set(row.articleId, {
+        annotationCount: 0,
+        commentCount: 0,
+        distillationCount: row.count,
+      });
   }
 
   return countsByArticle;
