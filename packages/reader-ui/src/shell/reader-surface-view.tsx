@@ -68,6 +68,7 @@ export type ReaderSurfaceViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
+  onOpenAnnotationDiscussion?: (annotationId: string) => void;
   onRequestAnnotationReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
   onHighlightClick: (
     annotationId: string,
@@ -148,6 +149,7 @@ export function ReaderSurfaceView({
   onDeleteAnnotation,
   onDeleteComment,
   onFocusAnnotation,
+  onOpenAnnotationDiscussion,
   onRequestAnnotationReview,
   onHighlightClick,
   onMouseUp,
@@ -276,6 +278,7 @@ export function ReaderSurfaceView({
                   onDelete={onDeleteAnnotation}
                   onDeleteComment={onDeleteComment}
                   onFocus={onScrollToHighlight}
+                  onOpenDiscussion={onOpenAnnotationDiscussion}
                   onPrimaryCommentExpandedChange={onPrimaryCommentExpandedChange}
                   onRequestReview={onRequestAnnotationReview}
                   reviewAgents={reviewAgents}

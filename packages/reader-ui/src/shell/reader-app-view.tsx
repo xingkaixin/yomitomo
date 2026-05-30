@@ -199,6 +199,7 @@ export function ReaderAppView({
   onCreateAnnotation,
   onDeleteAnnotation,
   onFocusAnnotation,
+  onOpenAnnotationDiscussion,
   onRequestAnnotationReview,
   onAnnotationLayoutChange,
   onResolveAnnotationNavigation,
@@ -398,6 +399,7 @@ export function ReaderAppView({
           onDeleteAnnotation={onDeleteAnnotation}
           onDeleteComment={onDeleteComment}
           onFocusAnnotation={onFocusAnnotation}
+          onOpenAnnotationDiscussion={onOpenAnnotationDiscussion}
           onHighlightClick={onHighlightClick}
           onMouseUp={onMouseUp}
           onOpenComposer={onOpenComposer}
