@@ -30,7 +30,10 @@ import {
   type LibrarySort,
   type LibrarySource,
 } from './app-reading-library-utils';
-import type { AnnotationDiscussionWindowState } from '../../ipc-contract';
+import type {
+  AnnotationDiscussionWindowState,
+  AnnotationDistillationCommittedEvent,
+} from '../../ipc-contract';
 
 export { groupLibraryArticles };
 export type { LibrarySort };
@@ -113,8 +116,15 @@ export function ReadingLibrary({
   const [minimizedDiscussionWindows, setMinimizedDiscussionWindows] = useState<
     AnnotationDiscussionWindowState[]
   >([]);
+  const [distillationAnimation, setDistillationAnimation] = useState<{
+    annotationId: string;
+    transition: AnnotationDistillationCommittedEvent['transition'];
+    token: number;
+  } | null>(null);
   const articleLoadRef = useRef(0);
   const selectedArticleIdRef = useRef<string | null>(null);
+  const pendingDistillationAnimationRef = useRef<AnnotationDistillationCommittedEvent | null>(null);
+  const distillationAnimationTimerRef = useRef<number | null>(null);
   const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
   const annotations = useMemo<Annotation[]>(
@@ -159,10 +169,28 @@ export function ReadingLibrary({
   }, []);
 
   useEffect(() => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop?.onAnnotationDistillationCommitted) return;
+    return desktop.onAnnotationDistillationCommitted((event) => {
+      void focusCommittedDistillation(event);
+    });
+  }, [onReadArticle]);
+
+  useEffect(
+    () => () => {
+      if (distillationAnimationTimerRef.current !== null) {
+        window.clearTimeout(distillationAnimationTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
     if (!selectedArticle) {
       setSelectedAnnotationId(null);
       return;
     }
+    if (sourceFocusAnnotationId) return;
     setSelectedAnnotationId(null);
   }, [selectedArticle?.id]);
 
@@ -242,6 +270,44 @@ export function ReadingLibrary({
     if (articleLoadRef.current !== loadId || !fullArticle) return;
     setSelectedArticle(fullArticle);
     setActiveShelf('source');
+  }
+
+  async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
+    const fullArticle = await onReadArticle(event.articleId);
+    if (!fullArticle) return;
+    const committedArticle = articleWithCommittedDistillation(fullArticle, event);
+    setLibrarySource(librarySourceForArticle(fullArticle));
+    setSelectedArticleId(fullArticle.id);
+    setSelectedArticle(committedArticle);
+    setSelectedWeReadBook(null);
+    setActiveShelf('source');
+    setSelectedAnnotationId(event.annotationId);
+    setSourceFocusAnnotationId(event.annotationId);
+    pendingDistillationAnimationRef.current = event;
+  }
+
+  function playDistillationAnimation(event: AnnotationDistillationCommittedEvent) {
+    setDistillationAnimation({
+      annotationId: event.annotationId,
+      transition: event.transition,
+      token: Date.now(),
+    });
+    if (distillationAnimationTimerRef.current !== null) {
+      window.clearTimeout(distillationAnimationTimerRef.current);
+    }
+    distillationAnimationTimerRef.current = window.setTimeout(() => {
+      setDistillationAnimation((current) =>
+        current?.annotationId === event.annotationId ? null : current,
+      );
+      distillationAnimationTimerRef.current = null;
+    }, 1700);
+  }
+
+  function handleSourceFocusedAnnotation() {
+    const pendingAnimation = pendingDistillationAnimationRef.current;
+    pendingDistillationAnimationRef.current = null;
+    setSourceFocusAnnotationId(null);
+    if (pendingAnimation) playDistillationAnimation(pendingAnimation);
   }
 
   async function openWeReadBook(book: WeReadBook) {
@@ -392,12 +458,13 @@ export function ReadingLibrary({
                 agents={agents}
                 annotations={annotations}
                 article={selectedArticle}
+                distillationAnimation={distillationAnimation}
                 focusAnnotationId={sourceFocusAnnotationId}
                 messageSendShortcut={messageSendShortcut}
                 selectionActionShortcuts={selectionActionShortcuts}
                 selectedAnnotationId={selectedAnnotation?.id || null}
                 userProfile={userProfile}
-                onFocusedAnnotation={() => setSourceFocusAnnotationId(null)}
+                onFocusedAnnotation={handleSourceFocusedAnnotation}
                 onClose={openLibraryShelf}
                 onDeleteArticleAnnotation={onDeleteArticleAnnotation}
                 onDeleteArticleComment={onDeleteArticleComment}
@@ -454,6 +521,27 @@ function AnnotationDiscussionCapsules({
       })}
     </div>
   );
+}
+
+function articleWithCommittedDistillation(
+  article: ArticleRecord,
+  event: AnnotationDistillationCommittedEvent,
+): ArticleRecord {
+  return {
+    ...article,
+    annotations: article.annotations.map((annotation) => {
+      if (annotation.id !== event.annotationId) return annotation;
+      if (event.distillation) return { ...annotation, distillation: event.distillation };
+      if (!annotation.distillation) return annotation;
+      return {
+        ...annotation,
+        distillation: {
+          ...annotation.distillation,
+          status: event.transition === 'unpublish' ? 'unpublished' : 'published',
+        },
+      };
+    }),
+  };
 }
 
 function articleHasReadableBody(

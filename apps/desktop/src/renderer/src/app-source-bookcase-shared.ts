@@ -453,6 +453,11 @@ export type SourceBookcaseProps = {
   agents: Agent[];
   annotations: Annotation[];
   article: ArticleRecord | null;
+  distillationAnimation?: {
+    annotationId: string;
+    transition: 'publish' | 'update' | 'unpublish';
+    token: number;
+  } | null;
   focusAnnotationId: string | null;
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;

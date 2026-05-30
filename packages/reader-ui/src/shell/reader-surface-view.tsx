@@ -43,6 +43,11 @@ export type ReaderSurfaceViewProps = {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   commentsCloseKey: number;
   composer: PendingComposer | null;
+  distillationAnimation?: {
+    annotationId: string;
+    transition: 'publish' | 'update' | 'unpublish';
+    token: number;
+  } | null;
   exitingAnnotationIds: Set<string>;
   expandedPrimaryCommentIds: Set<string>;
   extracted: ReaderArticle;
@@ -123,6 +128,7 @@ export function ReaderSurfaceView({
   canvasRef,
   commentsCloseKey,
   composer,
+  distillationAnimation,
   exitingAnnotationIds,
   expandedPrimaryCommentIds,
   extracted,
@@ -258,6 +264,11 @@ export function ReaderSurfaceView({
                   active={annotation.id === activeId}
                   agents={agents}
                   annotation={annotation}
+                  distillationAnimation={
+                    distillationAnimation?.annotationId === annotation.id
+                      ? distillationAnimation
+                      : null
+                  }
                   exiting={exitingAnnotationIds.has(annotation.id)}
                   isStackFront={isStackFront}
                   messageSendShortcut={messageSendShortcut}

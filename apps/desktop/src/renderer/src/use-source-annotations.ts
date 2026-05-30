@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type {
   Annotation,
   ArticleRecord,
@@ -78,12 +78,6 @@ export function useSourceAnnotations({
       return;
     }
     latestArticleRef.current = article;
-  }, [article, ignoreStaleArticleUpdates]);
-
-  useEffect(() => {
-    if (!acceptIncomingArticle(article, latestArticleRef.current, ignoreStaleArticleUpdates)) {
-      return;
-    }
     replaceAnnotations(articleAnnotations);
   }, [article, articleAnnotations, ignoreStaleArticleUpdates, replaceAnnotations]);
 

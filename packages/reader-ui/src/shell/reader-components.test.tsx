@@ -219,7 +219,8 @@ describe('AnnotationCard', () => {
     );
 
     expect(screen.getByLabelText('3 条想法，助手处理中')).toBeTruthy();
-    expect(screen.getByText('林知微、周砚等 3 位助手，处理中')).toBeTruthy();
+    expect(screen.getByLabelText('3 条想法，林知微、周砚等 3 位助手，处理中')).toBeTruthy();
+    expect(screen.queryByText('林知微、周砚等 3 位助手，处理中')).toBeNull();
     expect(screen.queryByText('第一个助手评论')).toBeNull();
     expect(screen.queryByText('一个助手回复')).toBeNull();
   });
@@ -249,6 +250,36 @@ describe('AnnotationCard', () => {
 
     expect(screen.queryByRole('button', { name: '邀请审阅' })).toBeNull();
     expect(screen.getByRole('button', { name: '进入讨论区' })).toBeTruthy();
+  });
+
+  it('shows published distillation content on the annotation card', () => {
+    render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation({
+          distillation: {
+            status: 'published',
+            content: '可迁移的沉淀判断',
+            publishedAt: now,
+            updatedAt: now,
+          },
+        })}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded={false}
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={vi.fn()}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('可迁移的沉淀判断')).toBeTruthy();
+    expect(screen.queryByText('需要批注的原文')).toBeNull();
   });
 
   it('keeps long-press delete on the annotation card', () => {

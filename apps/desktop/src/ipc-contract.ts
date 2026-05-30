@@ -6,6 +6,7 @@ import type {
   AgentMentionInstructionPayload,
   AgentMentionRoutePlan,
   AgentReviewPayload,
+  Annotation,
   AnnotationMetadata,
   AnnotationMetadataPayload,
   AppSettings,
@@ -68,6 +69,22 @@ export type AnnotationSedimentationWindowOpenResult = {
   reused: boolean;
   windowId: number;
 };
+
+export type AnnotationDistillationCommitTransition = 'publish' | 'update' | 'unpublish';
+
+export type AnnotationSedimentationCommitInput = {
+  articleId: string;
+  annotationId: string;
+  distillation: Annotation['distillation'];
+  transition: AnnotationDistillationCommitTransition;
+};
+
+export type AnnotationSedimentationCommitResult = {
+  closed: number;
+  minimized: number;
+};
+
+export type AnnotationDistillationCommittedEvent = AnnotationSedimentationCommitInput;
 
 export type AnnotationDiscussionWindowState = {
   articleId: string;
@@ -329,6 +346,10 @@ export type DesktopIpcInvokeMap = {
   'annotation-sedimentation:open': {
     args: [input: AnnotationSedimentationWindowOpenInput];
     result: AnnotationSedimentationWindowOpenResult;
+  };
+  'annotation-sedimentation:commit': {
+    args: [input: AnnotationSedimentationCommitInput];
+    result: AnnotationSedimentationCommitResult;
   };
   'app:info': {
     args: [];

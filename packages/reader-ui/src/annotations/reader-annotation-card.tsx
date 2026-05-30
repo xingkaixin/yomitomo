@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Lightbulb, MessageCircle, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Layers2, Lightbulb, MessageCircle, MoreHorizontal, Trash2 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
@@ -21,6 +21,7 @@ export function AnnotationCard({
   active,
   agents,
   annotation,
+  distillationAnimation,
   exiting = false,
   isStackFront = true,
   noteRef,
@@ -38,6 +39,11 @@ export function AnnotationCard({
   active: boolean;
   agents: PublicAgent[];
   annotation: Annotation;
+  distillationAnimation?: {
+    annotationId: string;
+    transition: 'publish' | 'update' | 'unpublish';
+    token: number;
+  } | null;
   exiting?: boolean;
   isStackFront?: boolean;
   messageSendShortcut: MessageSendShortcut;
@@ -63,16 +69,11 @@ export function AnnotationCard({
   const author = annotationAuthor(annotation, userProfile, personaAgents);
   const discussionThreads = useMemo(() => annotationDiscussionThreads(annotation), [annotation]);
   const visibleThoughtCount = discussionThreads.length + pendingAgents.length;
-  const thoughtAuthors = useMemo(
-    () => uniqueThoughtAuthors(discussionThreads, userProfile, personaAgents),
-    [discussionThreads, personaAgents, userProfile],
-  );
   const assistantParticipants = useMemo(
     () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
     [annotation.comments, personaAgents, userProfile],
   );
   const assistantSummary = assistantParticipationSummary(assistantParticipants, pendingAgents);
-  const assistantSummaryId = `annotation-${annotation.id}-assistant-summary`;
   const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
   const discussionSummaryLabel = `${visibleThoughtCount} 条想法，${assistantSummary}`;
   const summaryBusy = pendingAgents.length > 0;
@@ -89,17 +90,27 @@ export function AnnotationCard({
   const noteClassName = [
     'reader-note',
     active ? 'is-active' : '',
+    annotation.distillation?.status === 'published' ? 'has-distillation' : '',
+    distillationAnimation ? `is-distillation-${distillationAnimation.transition}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
   ]
     .filter(Boolean)
     .join(' ');
+  const distillationContent = annotation.distillation?.content.trim() || '';
+  const displaysDistillation =
+    annotation.distillation?.status === 'published' && distillationContent.length > 0;
   const annotationStyle = {
-    ...noteStyle(author.color, active),
+    ...(displaysDistillation ? {} : noteStyle(author.color, active)),
     '--reader-note-accent': author.color || annotation.color,
     ...style,
   } as React.CSSProperties;
+  const displayedText = displaysDistillation ? distillationContent : annotation.anchor.exact;
+  const distillationPublishedAt =
+    annotation.distillation?.updatedAt ||
+    annotation.distillation?.publishedAt ||
+    annotation.updatedAt;
 
   const setNoteElement = useCallback(
     (element: HTMLElement | null) => {
@@ -127,76 +138,130 @@ export function AnnotationCard({
       data-stack-index={stackIndex}
       data-annotation-id={annotation.id}
       data-rail-side={railSide}
+      data-distillation-animation={distillationAnimation?.token}
       ref={setNoteElement}
       style={annotationStyle}
       onClick={handleCardClick}
     >
       <div className="reader-note-body">
+        {displaysDistillation ? (
+          <svg
+            className="reader-note-distillation-ticket"
+            viewBox="0 0 640 278"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <defs>
+              <filter
+                id={`reader-note-ticket-shadow-${annotation.id}`}
+                x="-8%"
+                y="-10%"
+                width="116%"
+                height="124%"
+                colorInterpolationFilters="sRGB"
+              >
+                <feDropShadow dx="0" dy="10" stdDeviation="10" floodOpacity="0.12" />
+                <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.1" />
+              </filter>
+            </defs>
+            <path
+              filter={`url(#reader-note-ticket-shadow-${annotation.id})`}
+              d="M22,0 H618 A22,22 0 0 1 640,22 V121 A18,18 0 0 0 640,157 V256 A22,22 0 0 1 618,278 H22 A22,22 0 0 1 0,256 V157 A18,18 0 0 0 0,121 V22 A22,22 0 0 1 22,0 Z"
+              fill="var(--reader-note-ticket-fill)"
+              stroke="var(--reader-note-ticket-stroke)"
+              strokeWidth="1.25"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        ) : null}
         <header className="reader-note-card-header">
           <button
             className="reader-note-quote"
             type="button"
             onClick={() => onFocus(annotation.id)}
           >
-            <span className="reader-note-quote-mark" aria-hidden="true">
-              “
-            </span>
-            <span className="reader-note-quote-text">{annotation.anchor.exact}</span>
+            {displaysDistillation ? null : (
+              <span className="reader-note-quote-mark" aria-hidden="true">
+                “
+              </span>
+            )}
+            <span className="reader-note-quote-text">{displayedText}</span>
           </button>
         </header>
-        <div className="reader-note-meta">
-          <span
-            className="reader-note-owner"
-            style={avatarColorStyle(author.color)}
-            aria-hidden="true"
-          >
-            <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
-          </span>
-          <span className="reader-note-meta-copy">
-            <strong>{author.nickname}</strong>
-            <ReaderRelativeTime value={annotation.createdAt} />
-          </span>
-          <DeleteActionMenu
-            ariaLabel="打开批注操作"
-            className="reader-note-action-menu"
-            deleteAriaLabel="长按删除批注"
-            onDelete={() => onDelete(annotation.id)}
-          />
-        </div>
-        <footer className={toolbarClassName}>
-          <div
-            className={summaryClassName}
-            id={thoughtSummaryId}
-            aria-label={discussionSummaryLabel}
-          >
-            <span className="reader-note-thread-toggle-main">
-              <span
-                className="reader-comment-count"
-                aria-label={`${visibleThoughtCount} 条想法${
-                  pendingAgents.length > 0 ? '，助手处理中' : ''
-                }`}
-              >
-                <span>{visibleThoughtCount}</span>
-                <Lightbulb size={14} />
+        {displaysDistillation ? (
+          <>
+            <DeleteActionMenu
+              ariaLabel="打开沉淀操作"
+              className="reader-note-action-menu reader-note-distillation-menu"
+              deleteAriaLabel="长按删除批注"
+              discussionAriaLabel="进入讨论区"
+              onDelete={() => onDelete(annotation.id)}
+              onOpenDiscussion={openDiscussion}
+            />
+            <footer className="reader-note-toolbar reader-note-distillation-footer">
+              <span className="reader-note-distillation-badge" aria-hidden="true">
+                <Layers2 size={16} strokeWidth={1.9} />
               </span>
-              <ThoughtAuthorStack authors={thoughtAuthors} />
-              <PendingAgentStack agents={pendingAgents} />
-            </span>
-            <span className="reader-note-assistant-summary" id={assistantSummaryId}>
-              {assistantSummary}
-            </span>
-          </div>
-          <button
-            className="reader-note-discussion-entry"
-            type="button"
-            aria-label="进入讨论区"
-            aria-describedby={`${thoughtSummaryId} ${assistantSummaryId}`}
-            onClick={openDiscussion}
-          >
-            <MessageCircle size={14} />
-            <span>进入讨论区</span>
-          </button>
-        </footer>
+              <ReaderRelativeTime
+                className="reader-note-distillation-time"
+                value={distillationPublishedAt}
+              />
+            </footer>
+          </>
+        ) : (
+          <>
+            <div className="reader-note-meta">
+              <span
+                className="reader-note-owner"
+                style={avatarColorStyle(author.color)}
+                aria-hidden="true"
+              >
+                <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
+              </span>
+              <span className="reader-note-meta-copy">
+                <strong>{author.nickname}</strong>
+                <ReaderRelativeTime value={annotation.createdAt} />
+              </span>
+              <DeleteActionMenu
+                ariaLabel="打开批注操作"
+                className="reader-note-action-menu"
+                deleteAriaLabel="长按删除批注"
+                onDelete={() => onDelete(annotation.id)}
+              />
+            </div>
+            <footer className={toolbarClassName}>
+              <div
+                className={summaryClassName}
+                id={thoughtSummaryId}
+                aria-label={discussionSummaryLabel}
+              >
+                <span className="reader-note-thread-toggle-main">
+                  <span
+                    className="reader-comment-count"
+                    aria-label={`${visibleThoughtCount} 条想法${
+                      pendingAgents.length > 0 ? '，助手处理中' : ''
+                    }`}
+                  >
+                    <span>{visibleThoughtCount}</span>
+                    <Lightbulb size={14} />
+                  </span>
+                  <ThoughtAuthorStack authors={assistantParticipants} />
+                  <PendingAgentStack agents={pendingAgents} />
+                </span>
+              </div>
+              <button
+                className="reader-note-discussion-entry"
+                type="button"
+                aria-label="进入讨论区"
+                aria-describedby={thoughtSummaryId}
+                onClick={openDiscussion}
+              >
+                <MessageCircle size={14} />
+                <span>进入讨论区</span>
+              </button>
+            </footer>
+          </>
+        )}
       </div>
     </section>
   );
@@ -227,7 +292,6 @@ function ThoughtAuthorStack({ authors }: { authors: ThoughtAuthor[] }) {
           className="reader-thought-author-avatar"
           key={author.key}
           style={avatarColorStyle(author.color)}
-          title={author.nickname}
         >
           <AvatarBadge avatar={author.avatar} fallback={author.fallback} />
         </span>
@@ -250,7 +314,6 @@ function PendingAgentStack({ agents }: { agents: PublicAgent[] }) {
           className="reader-pending-agent-avatar"
           key={agent.id}
           style={avatarColorStyle(agent.annotationColor)}
-          title={`${agent.nickname} 正在整理想法`}
         >
           <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
         </span>
@@ -260,25 +323,6 @@ function PendingAgentStack({ agents }: { agents: PublicAgent[] }) {
       ) : null}
     </span>
   );
-}
-
-function uniqueThoughtAuthors(
-  threads: DiscussionThread[],
-  userProfile: UserProfile,
-  agents: PublicAgent[],
-): ThoughtAuthor[] {
-  const authors: ThoughtAuthor[] = [];
-  const seenKeys = new Set<string>();
-
-  for (const thread of threads) {
-    const persona = commentPersona(thread.root, userProfile, agents);
-    const key = commentAuthorKey(thread.root, persona.username);
-    if (seenKeys.has(key)) continue;
-    seenKeys.add(key);
-    authors.push({ ...persona, key });
-  }
-
-  return authors;
 }
 
 function uniqueAssistantParticipants(
@@ -353,12 +397,16 @@ function DeleteActionMenu({
   ariaLabel,
   className,
   deleteAriaLabel,
+  discussionAriaLabel,
   onDelete,
+  onOpenDiscussion,
 }: {
   ariaLabel: string;
   className: string;
   deleteAriaLabel: string;
+  discussionAriaLabel?: string;
   onDelete: () => void;
+  onOpenDiscussion?: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -371,6 +419,11 @@ function DeleteActionMenu({
   function deleteAndClose() {
     setOpen(false);
     onDelete();
+  }
+
+  function openDiscussionAndClose() {
+    setOpen(false);
+    onOpenDiscussion?.();
   }
 
   return (
@@ -389,6 +442,17 @@ function DeleteActionMenu({
       </button>
       {open ? (
         <div className="reader-action-menu-panel t-dropdown is-open" data-origin="top-right">
+          {onOpenDiscussion ? (
+            <button
+              className="reader-action-menu-item"
+              type="button"
+              aria-label={discussionAriaLabel}
+              onClick={openDiscussionAndClose}
+            >
+              <MessageCircle size={13} />
+              <span>进入讨论区</span>
+            </button>
+          ) : null}
           <HoldDeleteButton
             ariaLabel={deleteAriaLabel}
             className="reader-delete-note reader-action-delete"

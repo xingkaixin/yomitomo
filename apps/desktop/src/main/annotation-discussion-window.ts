@@ -140,6 +140,43 @@ function sendStateEvent(
   mainWindow.webContents.send('annotation-discussion:window-state', event);
 }
 
+export function closeAnnotationDiscussionWindow(
+  context: DesktopMainIpcContext,
+  input: AnnotationDiscussionWindowOpenInput,
+) {
+  const key = discussionWindowKey(input.articleId, input.annotationId);
+  const entry = discussionWindows.get(key);
+  if (!entry) return 0;
+  if (entry.window.isDestroyed()) {
+    discussionWindows.delete(key);
+    sendWindowStateRemoved(context, input, entry.window.id);
+    return 0;
+  }
+  discussionWindows.delete(key);
+  entry.window.close();
+  return 1;
+}
+
+export function minimizeOtherAnnotationDiscussionWindows(
+  context: DesktopMainIpcContext,
+  input: AnnotationDiscussionWindowOpenInput,
+) {
+  let minimized = 0;
+  for (const [key, entry] of discussionWindows) {
+    if (entry.articleId !== input.articleId || entry.annotationId === input.annotationId) continue;
+    if (entry.window.isDestroyed()) {
+      discussionWindows.delete(key);
+      sendWindowStateRemoved(context, entry, entry.window.id);
+      continue;
+    }
+    if (entry.window.isMinimized()) continue;
+    minimized += 1;
+    entry.window.minimize();
+    sendWindowState(context, entry, entry.window, true);
+  }
+  return minimized;
+}
+
 function closeArticleDiscussionWindows({
   articleId,
 }: AnnotationDiscussionWindowsCloseArticleInput) {

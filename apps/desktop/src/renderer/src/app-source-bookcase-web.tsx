@@ -76,6 +76,7 @@ export function WebSourceBookcase({
   agents,
   annotations: articleAnnotations,
   article,
+  distillationAnimation,
   focusAnnotationId,
   messageSendShortcut,
   selectionActionShortcuts,
@@ -395,7 +396,9 @@ export function WebSourceBookcase({
       onFocusedAnnotation();
       return;
     }
-    if (scrollToAnnotation(focusAnnotationId)) onFocusedAnnotation();
+    if (!scrollToAnnotation(focusAnnotationId)) return;
+    const timer = window.setTimeout(onFocusedAnnotation, 520);
+    return () => window.clearTimeout(timer);
   }, [annotations, focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
 
   function openAnnotation(annotationId: string) {
@@ -688,6 +691,7 @@ export function WebSourceBookcase({
         agents={annotationAgents}
         annotationTotals={annotationTotals}
         annotations={annotations}
+        distillationAnimation={distillationAnimation}
         articleContent={
           <div
             className="reader-article-body"

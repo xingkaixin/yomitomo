@@ -531,7 +531,9 @@ function AnnotationDiscussionShell({
           <footer className="annotation-discussion-sedimentation-entry">
             <button type="button" onClick={openSedimentationWindow}>
               <GitPullRequestDraft size={14} />
-              <span>开始沉淀</span>
+              <span>
+                {annotation.distillation?.status === 'published' ? '查看沉淀' : '开始沉淀'}
+              </span>
             </button>
           </footer>
         </aside>

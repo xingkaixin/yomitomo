@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircleQuestion, Send, UploadCloud } from 'lucide-react';
+import { MessageCircleQuestion, RotateCcw, Send, UploadCloud } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -122,7 +122,9 @@ function SedimentationShell({
   const canPublish = Boolean(draft.trim()) && !saving;
   const canReview = activeAgents.length > 0 && !reviewing;
   const sessions = annotation.distillation?.reviewSessions || [];
-  const publishLabel = annotation.distillation?.status === 'published' ? '更新发布' : '发布沉淀';
+  const isPublished = annotation.distillation?.status === 'published';
+  const publishLabel = isPublished ? '更新发布' : '发布沉淀';
+  const canUnpublish = isPublished && !saving;
 
   useEffect(() => {
     setActiveAgentIds((current) => {
@@ -140,6 +142,7 @@ function SedimentationShell({
   async function publishDistillation() {
     const content = draft.trim();
     if (!content) return;
+    const transition = isPublished ? 'update' : 'publish';
     setSaving(true);
     try {
       const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
@@ -154,8 +157,58 @@ function SedimentationShell({
         },
         updatedAt: new Date().toISOString(),
       }));
-      await saveAndRefresh(nextArticle, agents, annotation.id, onStatusChange);
+      const nextAnnotation = await saveAndRefresh(
+        nextArticle,
+        agents,
+        annotation.id,
+        onStatusChange,
+      );
+      const nextDistillation =
+        nextAnnotation?.distillation ||
+        nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
       window.localStorage.removeItem(draftKey);
+      await window.yomitomoDesktop.commitAnnotationSedimentation({
+        articleId: article.id,
+        annotationId: annotation.id,
+        distillation: nextDistillation,
+        transition,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function unpublishDistillation() {
+    if (!isPublished || saving) return;
+    setSaving(true);
+    try {
+      const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
+        ...current,
+        distillation: {
+          ...current.distillation,
+          status: 'unpublished',
+          content: current.distillation?.content || draft.trim(),
+          publishedAt: current.distillation?.publishedAt,
+          updatedAt: new Date().toISOString(),
+          reviewSessions: current.distillation?.reviewSessions,
+        },
+        updatedAt: new Date().toISOString(),
+      }));
+      const nextAnnotation = await saveAndRefresh(
+        nextArticle,
+        agents,
+        annotation.id,
+        onStatusChange,
+      );
+      const nextDistillation =
+        nextAnnotation?.distillation ||
+        nextArticle.annotations.find((item) => item.id === annotation.id)?.distillation;
+      await window.yomitomoDesktop.commitAnnotationSedimentation({
+        articleId: article.id,
+        annotationId: annotation.id,
+        distillation: nextDistillation,
+        transition: 'unpublish',
+      });
     } finally {
       setSaving(false);
     }
@@ -239,24 +292,39 @@ function SedimentationShell({
         <section className="annotation-sedimentation-document" aria-label="沉淀稿件">
           <header>
             <strong>沉淀稿</strong>
-            <ReaderTooltip
-              content={
-                <SubmitShortcutTooltipContent
-                  label={publishLabel}
-                  shortcut={messageSendShortcut}
-                  shortcutModifier={shortcutModifier}
-                />
-              }
-            >
-              <button
-                type="button"
-                disabled={!canPublish}
-                onClick={() => void publishDistillation()}
+            <div className="annotation-sedimentation-document-actions">
+              {isPublished ? (
+                <ReaderTooltip content="取消发布后保留沉淀稿和审阅记录">
+                  <button
+                    className="is-secondary"
+                    type="button"
+                    disabled={!canUnpublish}
+                    onClick={() => void unpublishDistillation()}
+                  >
+                    <RotateCcw size={15} />
+                    <span>取消发布</span>
+                  </button>
+                </ReaderTooltip>
+              ) : null}
+              <ReaderTooltip
+                content={
+                  <SubmitShortcutTooltipContent
+                    label={publishLabel}
+                    shortcut={messageSendShortcut}
+                    shortcutModifier={shortcutModifier}
+                  />
+                }
               >
-                <UploadCloud size={15} />
-                <span>{publishLabel}</span>
-              </button>
-            </ReaderTooltip>
+                <button
+                  type="button"
+                  disabled={!canPublish}
+                  onClick={() => void publishDistillation()}
+                >
+                  <UploadCloud size={15} />
+                  <span>{publishLabel}</span>
+                </button>
+              </ReaderTooltip>
+            </div>
           </header>
           <textarea
             value={draft}
@@ -540,12 +608,13 @@ async function saveAndRefresh(
   agents: Agent[],
   annotationId: string,
   onStatusChange: (status: SedimentationWindowStatus) => void,
-) {
+): Promise<Annotation | null> {
   const patch = await window.yomitomoDesktop.saveArticle(nextArticle);
   const nextFullArticle = await window.yomitomoDesktop.getArticle(patch.article.id);
   const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
-  if (!nextFullArticle || !nextAnnotation) return;
+  if (!nextFullArticle || !nextAnnotation) return null;
   onStatusChange({ type: 'ready', agents, article: nextFullArticle, annotation: nextAnnotation });
+  return nextAnnotation;
 }
 
 function updateAnnotation(

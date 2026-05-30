@@ -348,6 +348,44 @@ describe('useSourceAnnotations', () => {
     expect(screen.getByTestId('annotations').textContent).toBe('local');
   });
 
+  it('replaces local annotations with newer incoming article updates', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));
+
+    let api: SourceAnnotationsApi | null = null;
+    const initialArticle = article({ updatedAt: '2026-05-16T10:00:00.000Z' });
+    const localAnnotation = annotation('local');
+    const remoteAnnotation = annotation('remote');
+    const { rerender } = render(
+      <HookProbe
+        articleRecord={initialArticle}
+        ignoreStaleArticleUpdates
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+      />,
+    );
+
+    act(() => {
+      api?.applyAnnotations([localAnnotation]);
+    });
+
+    rerender(
+      <HookProbe
+        articleRecord={article({
+          updatedAt: '2026-05-16T12:00:01.000Z',
+          annotations: [remoteAnnotation],
+        })}
+        ignoreStaleArticleUpdates
+        onApi={(nextApi) => {
+          api = nextApi;
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('annotations').textContent).toBe('remote');
+  });
+
   it('does not replace local annotations with equal timestamp incoming article updates', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-16T12:00:00.000Z'));

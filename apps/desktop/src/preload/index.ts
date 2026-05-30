@@ -25,6 +25,8 @@ import type {
   EbookImportFileInput,
   AnnotationDiscussionWindowOpenInput,
   AnnotationSedimentationWindowOpenInput,
+  AnnotationSedimentationCommitInput,
+  AnnotationDistillationCommittedEvent,
   AnnotationDiscussionWindowStateEvent,
   AssistantExecutionQueryInput,
   AgentRuntimeTraceListInput,
@@ -48,6 +50,10 @@ export type {
   AnnotationDiscussionWindowsCloseArticleResult,
   AnnotationSedimentationWindowOpenInput,
   AnnotationSedimentationWindowOpenResult,
+  AnnotationSedimentationCommitInput,
+  AnnotationSedimentationCommitResult,
+  AnnotationDistillationCommitTransition,
+  AnnotationDistillationCommittedEvent,
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
   AssistantExecutionStatus,
@@ -105,6 +111,8 @@ const api = {
     invokeDesktopIpc('annotation-discussion:open', input),
   openAnnotationSedimentation: (input: AnnotationSedimentationWindowOpenInput) =>
     invokeDesktopIpc('annotation-sedimentation:open', input),
+  commitAnnotationSedimentation: (input: AnnotationSedimentationCommitInput) =>
+    invokeDesktopIpc('annotation-sedimentation:commit', input),
   closeArticleAnnotationDiscussions: (articleId: string) =>
     invokeDesktopIpc('annotation-discussion:close-article', { articleId }),
   onAnnotationDiscussionWindowState: (
@@ -115,6 +123,16 @@ const api = {
     ipcRenderer.on('annotation-discussion:window-state', listener);
     return () => {
       ipcRenderer.removeListener('annotation-discussion:window-state', listener);
+    };
+  },
+  onAnnotationDistillationCommitted: (
+    callback: (event: AnnotationDistillationCommittedEvent) => void,
+  ) => {
+    const listener = (_event: IpcRendererEvent, event: AnnotationDistillationCommittedEvent) =>
+      callback(event);
+    ipcRenderer.on('annotation-distillation:committed', listener);
+    return () => {
+      ipcRenderer.removeListener('annotation-distillation:committed', listener);
     };
   },
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
