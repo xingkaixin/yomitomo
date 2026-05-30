@@ -428,6 +428,8 @@ export const readerConversationStyles = `
 .reader-action-menu-button:active{transform:scale(.96)}
 .reader-action-menu-button:focus-visible{outline:2px solid rgba(37,29,22,.22);outline-offset:2px}
 .reader-action-menu-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:36;display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border);border-radius:10px;background:var(--reader-paper);box-shadow:0 10px 24px rgba(40,35,29,.12);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);transform-origin:top right}
+.reader-action-menu-item{display:inline-flex;width:100%;height:32px;align-items:center;justify-content:flex-start;gap:7px;border:0;border-radius:7px;background:transparent;color:var(--reader-ink);font:inherit;font-size:12px;font-weight:760;padding:0 9px}
+.reader-action-menu-item:hover{background:rgba(40,35,29,.05)}
 .reader-action-delete{width:100%;height:32px;justify-content:flex-start;border-radius:7px;background:transparent;box-shadow:none;font-size:12px;padding:0 9px}
 .reader-action-delete:hover{background:rgba(40,35,29,.05)}
 .reader-annotation-connection{position:fixed;inset:0;z-index:4;width:100vw;height:100vh;overflow:visible;pointer-events:none}
@@ -436,6 +438,13 @@ export const readerConversationStyles = `
 .reader-note-anchor>span{padding:0;margin:0;background:transparent;border-radius:0}
 .reader-note-card-header{display:block}
 .reader-note-card-header .reader-note-quote{margin-top:0}
+.reader-note.has-distillation{position:relative;overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--reader-paper);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 34%,var(--app-reader-note-border))}
+.reader-note.has-distillation.is-active{border:0;background:transparent;box-shadow:none;--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 44%,var(--app-reader-note-border))}
+.reader-note.has-distillation .reader-note-body{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:visible;min-height:158px;padding:0;background:transparent}
+.reader-note-distillation-ticket{position:absolute;inset:0;z-index:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.reader-note.has-distillation.is-active .reader-note-distillation-ticket{filter:drop-shadow(0 0 0 color-mix(in srgb,var(--reader-note-accent) 26%,transparent)) drop-shadow(0 12px 22px rgba(55,42,24,.14)) drop-shadow(0 5px 14px color-mix(in srgb,var(--reader-note-accent) 14%,transparent))}
+.reader-note.is-distillation-publish .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after,.reader-note.is-distillation-unpublish .reader-note-body::after{content:"";position:absolute;inset:-40% -65%;z-index:2;background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.14) 44%,rgba(255,255,255,.78) 50%,rgba(255,255,255,.16) 56%,transparent 62%);pointer-events:none;transform:translateX(-58%) rotate(10deg);animation:reader-distillation-shimmer 1.05s cubic-bezier(.22,1,.36,1) .26s both}
+.reader-note.has-distillation .reader-note-card-header{position:relative;z-index:1;padding:24px 56px 16px 54px}
 .reader-note-owner{display:grid;width:30px;height:30px;place-items:center;flex:0 0 auto;border:0;border-radius:999px;background:transparent;color:inherit;padding:0}
 .reader-note-owner .reader-avatar-badge{width:30px;height:30px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green))}
 .reader-note-owner .reader-avatar-badge.is-image{background:transparent}
@@ -450,6 +459,13 @@ export const readerConversationStyles = `
 .reader-note-quote:hover .reader-note-quote-text{color:var(--reader-red)}
 .reader-note-quote-mark{display:block;color:var(--reader-note-accent);font-family:var(--font-reader-serif, Georgia, Cambria, "Times New Roman", serif);font-size:28px;font-style:normal;font-weight:900;line-height:.78}
 .reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68;text-wrap:pretty;transition:color .14s ease}
+.reader-note.has-distillation .reader-note-quote-text{font-size:15px;font-weight:700;letter-spacing:.01em;line-height:1.58}
+.reader-note.is-distillation-publish .reader-note-body,.reader-note.is-distillation-unpublish .reader-note-body{transform-origin:center center;will-change:filter;animation:reader-distillation-surface-settle .42s cubic-bezier(.22,1,.36,1) both}
+.reader-note.is-distillation-update .reader-note-quote-text{animation:reader-distillation-fade .82s cubic-bezier(.22,1,.36,1)}
+@keyframes reader-distillation-surface-settle{0%{filter:brightness(1.025) saturate(1.04)}100%{filter:brightness(1) saturate(1)}}
+@keyframes reader-distillation-fade{0%{opacity:.16;transform:translateY(7px);filter:blur(3px)}42%{opacity:.5;filter:blur(1.6px)}100%{opacity:1;transform:translateY(0);filter:blur(0)}}
+@keyframes reader-distillation-shimmer{0%{opacity:0;transform:translateX(-58%) rotate(10deg)}12%{opacity:1}100%{opacity:0;transform:translateX(58%) rotate(10deg)}}
+@media (prefers-reduced-motion: reduce){.reader-note.is-distillation-publish .reader-note-body,.reader-note.is-distillation-unpublish .reader-note-body,.reader-note.is-distillation-update .reader-note-quote-text,.reader-note.is-distillation-publish .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after,.reader-note.is-distillation-unpublish .reader-note-body::after{animation:none;will-change:auto}}
 .reader-thought-author-stack{display:inline-flex;min-width:0;align-items:center}
 .reader-thought-author-avatar{display:grid;width:25px;height:25px;place-items:center;border-radius:999px;background:transparent}
 .reader-thought-author-avatar+.reader-thought-author-avatar{margin-left:-8px}
@@ -463,6 +479,13 @@ export const readerConversationStyles = `
 .reader-pending-agent-avatar .reader-avatar-badge{width:23px;height:23px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green));font-size:10px;filter:saturate(.82);opacity:.78}
 .reader-pending-agent-avatar .reader-avatar-badge.is-image{background:transparent}
 .reader-pending-agent-more{display:grid;min-width:25px;height:25px;place-items:center;margin-left:-8px;border:2px solid var(--reader-paper);border-radius:999px;background:var(--app-reader-agent-panel-hover-bg);color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:10px;font-weight:900;font-variant-numeric:tabular-nums}
+.reader-note-distillation-menu{position:absolute;right:16px;top:16px;z-index:5}
+.reader-note-distillation-menu .reader-action-menu-button{width:32px;height:32px;background:transparent;color:var(--reader-muted)}
+.reader-note-distillation-footer{position:relative;z-index:1;min-height:42px;align-items:center;justify-content:space-between;margin:0;padding:0 48px 0 42px;border-top:0;background:rgba(250,246,238,.72)}
+.reader-note-distillation-footer::before{content:"";position:absolute;left:22px;right:22px;top:0;border-top:1px dashed color-mix(in srgb,var(--reader-note-accent) 24%,rgba(40,35,29,.12));pointer-events:none}
+.reader-note-distillation-badge{display:inline-grid;width:24px;height:24px;place-items:center;border-radius:0;background:transparent;color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-muted));opacity:.9}
+.reader-note-distillation-badge svg{width:18px;height:18px}
+.reader-note-distillation-time{color:#7d705e;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:12px;font-weight:760;font-variant-numeric:tabular-nums}
 .reader-note-comments-region{width:100%;margin-top:0;overflow:visible}
 .reader-note-comments-panel{display:grid;grid-template-rows:auto auto;min-height:0;overflow:visible;gap:0;border-top:1px solid rgba(40,35,29,.1);background:rgba(250,246,238,.86);padding:12px}
 .reader-note-comments-panel>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed rgba(40,35,29,.14);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}

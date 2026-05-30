@@ -70,6 +70,11 @@ export type ReaderAppViewProps = {
   commentsCloseKey: number;
   composer: PendingComposer | null;
   completionBurstKey: number;
+  distillationAnimation?: {
+    annotationId: string;
+    transition: 'publish' | 'update' | 'unpublish';
+    token: number;
+  } | null;
   embedded?: boolean;
   extracted: ReaderArticle;
   filteredAnnotations: Annotation[];

@@ -1,7 +1,14 @@
 import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
-import type { AnnotationSedimentationWindowOpenInput } from '../ipc-contract';
+import type {
+  AnnotationSedimentationCommitInput,
+  AnnotationSedimentationWindowOpenInput,
+} from '../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
+import {
+  closeAnnotationDiscussionWindow,
+  minimizeOtherAnnotationDiscussionWindows,
+} from './annotation-discussion-window';
 
 type SedimentationWindowEntry = {
   articleId: string;
@@ -14,6 +21,9 @@ const sedimentationWindows = new Map<string, SedimentationWindowEntry>();
 export function registerAnnotationSedimentationWindowIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('annotation-sedimentation:open', (_event, input) =>
     openAnnotationSedimentationWindow(context, input),
+  );
+  handleDesktopIpc('annotation-sedimentation:commit', (event, input) =>
+    completeAnnotationSedimentation(context, input, BrowserWindow.fromWebContents(event.sender)),
   );
 }
 
@@ -92,6 +102,74 @@ function restoreAndFocus(window: BrowserWindow) {
   if (window.isMinimized()) window.restore();
   if (!window.isVisible()) window.show();
   window.focus();
+}
+
+function completeAnnotationSedimentation(
+  context: DesktopMainIpcContext,
+  input: AnnotationSedimentationCommitInput,
+  sourceWindow: BrowserWindow | null,
+) {
+  const closedDiscussion = closeAnnotationDiscussionWindow(context, input);
+  const minimized =
+    minimizeOtherAnnotationDiscussionWindows(context, input) +
+    minimizeOtherSedimentationWindows(input);
+  const closedSedimentation = scheduleCloseSedimentationWindow(input, sourceWindow);
+  notifyDistillationCommitted(context, input);
+  restoreMainWindow(context);
+  return {
+    closed: closedDiscussion + closedSedimentation,
+    minimized,
+  };
+}
+
+function scheduleCloseSedimentationWindow(
+  input: AnnotationSedimentationWindowOpenInput,
+  sourceWindow: BrowserWindow | null,
+) {
+  const key = sedimentationWindowKey(input.articleId, input.annotationId);
+  const entry = sedimentationWindows.get(key);
+  const window = entry?.window || sourceWindow;
+  if (!window || window.isDestroyed()) {
+    sedimentationWindows.delete(key);
+    return 0;
+  }
+  sedimentationWindows.delete(key);
+  setTimeout(() => {
+    if (!window.isDestroyed()) window.close();
+  }, 0);
+  return 1;
+}
+
+function minimizeOtherSedimentationWindows(input: AnnotationSedimentationWindowOpenInput) {
+  let minimized = 0;
+  for (const [key, entry] of sedimentationWindows) {
+    if (entry.articleId !== input.articleId || entry.annotationId === input.annotationId) continue;
+    if (entry.window.isDestroyed()) {
+      sedimentationWindows.delete(key);
+      continue;
+    }
+    if (entry.window.isMinimized()) continue;
+    minimized += 1;
+    entry.window.minimize();
+  }
+  return minimized;
+}
+
+function notifyDistillationCommitted(
+  context: DesktopMainIpcContext,
+  input: AnnotationSedimentationCommitInput,
+) {
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('annotation-distillation:committed', input);
+}
+
+function restoreMainWindow(context: DesktopMainIpcContext) {
+  const mainWindow = context.getMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
 }
 
 function loadSedimentationWindow(

@@ -1406,6 +1406,13 @@
   font-weight: 760;
 }
 
+.annotation-sedimentation-document-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .annotation-sedimentation-document header button {
   display: inline-flex;
   min-height: 36px;
@@ -1414,7 +1421,7 @@
   gap: 7px;
   border: 1px solid var(--app-reader-toolbar-border);
   border-radius: 999px;
-  background: var(--app-reader-accent);
+  background: var(--app-reader-accent-strong);
   color: white;
   font: inherit;
   font-size: 12px;
@@ -1423,6 +1430,11 @@
   transition:
     opacity 0.16s ease,
     transform 0.16s ease;
+}
+
+.annotation-sedimentation-document header button.is-secondary {
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
 }
 
 .annotation-sedimentation-document header button:active:not(:disabled) {

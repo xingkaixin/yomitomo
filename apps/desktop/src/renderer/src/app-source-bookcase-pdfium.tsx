@@ -161,10 +161,13 @@ export function PdfiumBookcase({
   agents,
   annotations: articleAnnotations,
   article,
+  distillationAnimation,
+  focusAnnotationId,
   messageSendShortcut,
   selectionActionShortcuts,
   selectedAnnotationId,
   userProfile,
+  onFocusedAnnotation,
   onClose,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
@@ -390,6 +393,8 @@ export function PdfiumBookcase({
                         pageCount={
                           documentState.document?.pageCount || article.pdf.metadata.pageCount
                         }
+                        distillationAnimation={distillationAnimation}
+                        focusAnnotationId={focusAnnotationId}
                         selectedAnnotationId={selectedAnnotationId}
                         selectionActionShortcuts={selectionActionShortcuts}
                         tocItems={tocItems}
@@ -404,6 +409,7 @@ export function PdfiumBookcase({
                         onSetAnnotationNavigator={(navigator) => {
                           navigateAnnotationRef.current = navigator;
                         }}
+                        onFocusedAnnotation={onFocusedAnnotation}
                         onSetTocItems={setTocItems}
                         onToggleToc={() => setTocOpen((open) => !open)}
                         onToggleSettings={() => setSettingsOpen((open) => !open)}
@@ -444,6 +450,8 @@ function PdfiumDocument({
   openTrace,
   messageSendShortcut,
   pageCount,
+  distillationAnimation,
+  focusAnnotationId,
   selectedAnnotationId,
   selectionActionShortcuts,
   settingsOpen,
@@ -461,6 +469,7 @@ function PdfiumDocument({
   onSetTocItems,
   onSetAnnotationNavigation,
   onSetAnnotationNavigator,
+  onFocusedAnnotation,
   onCloseSettings,
   onToggleToc,
   onToggleSettings,
@@ -474,6 +483,8 @@ function PdfiumDocument({
   openTrace: PdfOpenTrace;
   messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
   pageCount: number;
+  distillationAnimation: SourceBookcaseProps['distillationAnimation'];
+  focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
   selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
   selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
   settingsOpen: boolean;
@@ -491,6 +502,7 @@ function PdfiumDocument({
   onSetTocItems: (items: TocItem[]) => void;
   onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
   onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
+  onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
   onCloseSettings: () => void;
   onToggleToc: () => void;
   onToggleSettings: () => void;
@@ -1130,6 +1142,13 @@ function PdfiumDocument({
     return () => onSetAnnotationNavigator(() => undefined);
   }, [onSetAnnotationNavigator, scrollToAnnotation]);
 
+  useEffect(() => {
+    if (!focusAnnotationId) return;
+    scrollToAnnotation(focusAnnotationId);
+    const timer = window.setTimeout(onFocusedAnnotation, 520);
+    return () => window.clearTimeout(timer);
+  }, [focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
+
   function scrollToTocItem(item: TocItem) {
     onCloseToc();
     scroll?.scrollToPage({
@@ -1739,6 +1758,7 @@ function PdfiumDocument({
         commentsCloseKey={commentsCloseKey}
         composer={composer}
         completionBurstKey={completionBurstKey}
+        distillationAnimation={distillationAnimation}
         embedded
         extracted={{
           title: article.pdf.metadata.title || article.title,

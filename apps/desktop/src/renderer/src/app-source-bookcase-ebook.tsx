@@ -64,6 +64,7 @@ export function EbookBookcase({
   agents,
   annotations: articleAnnotations,
   article,
+  distillationAnimation,
   focusAnnotationId,
   messageSendShortcut,
   selectionActionShortcuts,
@@ -754,7 +755,16 @@ export function EbookBookcase({
       onFocusedAnnotation();
       return;
     }
-    void goToAnnotation(focusAnnotationId).then(() => onFocusedAnnotation());
+    let cancelled = false;
+    let timer: number | null = null;
+    void goToAnnotation(focusAnnotationId).then(() => {
+      if (cancelled) return;
+      timer = window.setTimeout(onFocusedAnnotation, 180);
+    });
+    return () => {
+      cancelled = true;
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, [annotations, focusAnnotationId, onFocusedAnnotation]);
 
   const progressPercent = Math.round(progress * 100);
@@ -784,6 +794,7 @@ export function EbookBookcase({
       agents={annotationAgents}
       annotationTotals={annotationTotals}
       annotations={pageAnnotations}
+      distillationAnimation={distillationAnimation}
       articleId={article.id}
       articleRef={articleRef}
       boxes={boxes}

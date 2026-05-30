@@ -169,6 +169,7 @@ export function ReaderAppView({
   commentsCloseKey,
   composer,
   completionBurstKey,
+  distillationAnimation,
   embedded = false,
   extracted,
   filteredAnnotations,
@@ -375,6 +376,7 @@ export function ReaderAppView({
           canvasRef={canvasRef}
           commentsCloseKey={commentsCloseKey}
           composer={composer}
+          distillationAnimation={distillationAnimation}
           exitingAnnotationIds={exitingAnnotationIds}
           expandedPrimaryCommentIds={expandedPrimaryCommentIds}
           extracted={extracted}
