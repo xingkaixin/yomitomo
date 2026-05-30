@@ -4,6 +4,7 @@ import type { TocItem } from './reader-dom';
 export type TocAnnotationStats = {
   count: number;
   colors: string[];
+  distillationCount: number;
 };
 
 export function buildTocAnnotationStats(
@@ -21,10 +22,19 @@ export function buildTocAnnotationStats(
     stats.set(item.index, {
       count: sectionAnnotations.length,
       colors: Array.from(new Set(sectionAnnotations.map(colorForAnnotation))),
+      distillationCount: sectionAnnotations.filter(annotationHasPublishedDistillation).length,
     });
   }
 
   return stats;
+}
+
+export function annotationHasPublishedDistillation(annotation: Annotation) {
+  return annotation.distillation?.status === 'published';
+}
+
+export function articlePublishedDistillationCount(annotations: Annotation[]) {
+  return annotations.filter(annotationHasPublishedDistillation).length;
 }
 
 export function annotationStoredColor(annotation: Annotation) {

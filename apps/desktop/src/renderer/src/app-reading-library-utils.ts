@@ -1,3 +1,4 @@
+import { articlePublishedDistillationCount } from '@yomitomo/core';
 import { cleanEpubDisplayTitle, type ArticleSummaryRecord } from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from './app-utils';
 
@@ -18,7 +19,7 @@ export const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> 
   { value: 'recentAdded', label: '最近添加' },
   { value: 'recentReading', label: '最近阅读' },
   { value: 'annotations', label: '批注最多' },
-  { value: 'discussions', label: '讨论最多' },
+  { value: 'discussions', label: '沉淀最多' },
 ];
 
 export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query: string) {
@@ -137,7 +138,7 @@ export function compareLibraryArticles(
 
   if (sort === 'discussions') {
     return (
-      articleThoughtCount(right) - articleThoughtCount(left) ||
+      articleDistillationCount(right) - articleDistillationCount(left) ||
       compareTimestampDesc(left.updatedAt, right.updatedAt) ||
       articleDisplayTitle(left).localeCompare(articleDisplayTitle(right), 'zh-CN')
     );
@@ -163,11 +164,12 @@ function libraryArticleGroupLabel(article: ArticleSummaryRecord, sort: LibrarySo
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations')
     return formatLibraryCountGroup(articleAnnotationCount(article), '批注');
-  if (sort === 'discussions') return formatLibraryCountGroup(articleThoughtCount(article), '讨论');
+  if (sort === 'discussions')
+    return formatLibraryCountGroup(articleDistillationCount(article), '沉淀');
   return formatLibraryDateGroup(article.updatedAt);
 }
 
-function formatLibraryCountGroup(count: number, unit: '批注' | '讨论') {
+function formatLibraryCountGroup(count: number, unit: '批注' | '沉淀') {
   if (count <= 0) return `暂无${unit}`;
   return `${count} 条${unit}`;
 }
@@ -191,6 +193,10 @@ export function articleThoughtCount(article: ArticleSummaryRecord) {
       0,
     )
   );
+}
+
+export function articleDistillationCount(article: ArticleSummaryRecord) {
+  return article.distillationCount ?? articlePublishedDistillationCount(article.annotations);
 }
 
 export function articleReadingMinutes(article: ArticleSummaryRecord) {

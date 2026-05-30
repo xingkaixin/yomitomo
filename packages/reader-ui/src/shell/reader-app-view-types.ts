@@ -57,7 +57,7 @@ export type ReaderAppViewProps = {
   agentDockItems: AgentDockItem[];
   agentTheaterBoxes: HighlightBox[];
   agents: PublicAgent[];
-  annotationTotals: { annotations: number; comments: number };
+  annotationTotals: { annotations: number; distillations: number };
   annotations: Annotation[];
   articleContent?: React.ReactNode;
   articleId: string;

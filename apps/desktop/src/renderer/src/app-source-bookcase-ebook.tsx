@@ -4,7 +4,7 @@ import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/sh
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
-  annotationThoughtComments,
+  articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
   createUserAnnotation,
   type TocItem,
@@ -352,10 +352,7 @@ export function EbookBookcase({
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
-      comments: annotations.reduce(
-        (count, annotation) => count + annotationThoughtComments(annotation).length,
-        0,
-      ),
+      distillations: articlePublishedDistillationCount(annotations),
     }),
     [annotations],
   );

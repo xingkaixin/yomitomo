@@ -1,9 +1,9 @@
 import type { TocItem } from '@yomitomo/core';
-import { Highlighter, Lightbulb } from 'lucide-react';
+import { Highlighter, Layers2 } from 'lucide-react';
 import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
 
 export type ReaderTocPanelProps = {
-  annotationTotals: { annotations: number; comments: number };
+  annotationTotals: { annotations: number; distillations: number };
   hasToc: boolean;
   tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
   tocItems: TocItem[];
@@ -46,7 +46,9 @@ export function ReaderTocPanel({
                     ))}
                   </span>
                 ) : null}
-                {(stats?.count || 0) > 0 ? <strong>{stats?.count}</strong> : null}
+                {(stats?.distillationCount || 0) > 0 ? (
+                  <strong>{stats?.distillationCount}</strong>
+                ) : null}
               </span>
             </span>
           </button>
@@ -54,7 +56,7 @@ export function ReaderTocPanel({
       })}
       <div
         className="reader-toc-summary"
-        aria-label={`${annotationTotals.annotations} 划线，${annotationTotals.comments} 想法`}
+        aria-label={`${annotationTotals.annotations} 划线，${annotationTotals.distillations} 沉淀`}
       >
         <span className="reader-toc-summary-stat" title="划线">
           <span className="reader-toc-summary-value">{annotationTotals.annotations}</span>
@@ -63,9 +65,9 @@ export function ReaderTocPanel({
         <span className="reader-toc-summary-separator" aria-hidden="true">
           ·
         </span>
-        <span className="reader-toc-summary-stat" title="想法">
-          <span className="reader-toc-summary-value">{annotationTotals.comments}</span>
-          <Lightbulb size={14} aria-hidden="true" />
+        <span className="reader-toc-summary-stat" title="沉淀">
+          <span className="reader-toc-summary-value">{annotationTotals.distillations}</span>
+          <Layers2 size={14} aria-hidden="true" />
         </span>
       </div>
     </aside>

@@ -11,7 +11,12 @@ import {
   type PublicAgent,
   type UserProfile,
 } from '@yomitomo/shared';
-import { annotationColor, type HighlightBox, type TocItem } from '@yomitomo/core';
+import {
+  annotationColor,
+  annotationHasPublishedDistillation,
+  type HighlightBox,
+  type TocItem,
+} from '@yomitomo/core';
 import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
 
 export type PageMetric = {
@@ -755,9 +760,12 @@ export function pdfiumTocAnnotationStats(
   agents: PublicAgent[],
   textDocument: PdfTextDocument | null,
 ) {
-  const drafts = new Map<number, { count: number; colors: Set<string> }>();
+  const drafts = new Map<
+    number,
+    { count: number; colors: Set<string>; distillationCount: number }
+  >();
   for (const item of tocItems) {
-    drafts.set(item.index, { count: 0, colors: new Set() });
+    drafts.set(item.index, { count: 0, colors: new Set(), distillationCount: 0 });
   }
   const ranges = textDocument ? pdfReaderBookmarkRanges(textDocument, tocItems) : [];
   for (const annotation of annotations) {
@@ -770,11 +778,16 @@ export function pdfiumTocAnnotationStats(
     if (!draft) continue;
     draft.count += 1;
     draft.colors.add(annotationColor(annotation, userProfile, agents));
+    if (annotationHasPublishedDistillation(annotation)) draft.distillationCount += 1;
   }
   return new Map(
     Array.from(drafts, ([index, draft]) => [
       index,
-      { count: draft.count, colors: Array.from(draft.colors) },
+      {
+        count: draft.count,
+        colors: Array.from(draft.colors),
+        distillationCount: draft.distillationCount,
+      },
     ]),
   );
 }

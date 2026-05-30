@@ -183,6 +183,7 @@ export function rowToAgent(row: typeof schema.agents.$inferSelect): Agent {
 export type ArticleSummaryCounts = {
   annotationCount: number;
   commentCount: number;
+  distillationCount: number;
 };
 
 export function rowToArticle(row: ArticleRow, annotations: Annotation[]): ArticleRecord {
@@ -229,6 +230,7 @@ function rowToArticleBase(
     annotations,
     annotationCount: counts.annotationCount,
     commentCount: counts.commentCount,
+    distillationCount: counts.distillationCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -242,6 +244,9 @@ function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummary
         count + annotation.comments.filter((comment) => !comment.replyTo).length,
       0,
     ),
+    distillationCount: annotations.filter(
+      (annotation) => annotation.distillation?.status === 'published',
+    ).length,
   };
 }
 

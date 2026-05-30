@@ -54,7 +54,7 @@ import {
 import {
   annotationIdsAtHighlightPoint,
   annotationPrimaryComment,
-  annotationThoughtComments,
+  articlePublishedDistillationCount,
   createUserAnnotation,
   selectionActionPosition,
   type HighlightBox,
@@ -767,10 +767,7 @@ function PdfiumDocument({
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
-      comments: annotations.reduce(
-        (count, annotation) => count + annotationThoughtComments(annotation).length,
-        0,
-      ),
+      distillations: articlePublishedDistillationCount(annotations),
     }),
     [annotations],
   );

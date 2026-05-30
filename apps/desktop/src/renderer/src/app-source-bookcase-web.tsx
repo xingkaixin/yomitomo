@@ -14,7 +14,7 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationPrimaryComment,
-  annotationThoughtComments,
+  articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   findCurrentTocTarget,
@@ -235,10 +235,7 @@ export function WebSourceBookcase({
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
-      comments: annotations.reduce(
-        (count, annotation) => count + annotationThoughtComments(annotation).length,
-        0,
-      ),
+      distillations: articlePublishedDistillationCount(annotations),
     }),
     [annotations],
   );
