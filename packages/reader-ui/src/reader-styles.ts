@@ -386,6 +386,16 @@ export const readerConversationStyles = `
 .reader-note-thread-toggle-main{display:inline-flex;min-width:0;align-items:center;gap:10px}
 .reader-note-thread-toggle-side{display:inline-flex;min-width:0;align-items:center;justify-content:flex-end;color:var(--reader-muted)}
 .reader-note-toolbar.has-review-action .reader-note-thread-toggle{width:auto;flex:1 1 auto}
+.reader-note-summary-toolbar{min-width:0}
+.reader-note-discussion-summary{display:grid;flex:1 1 auto;min-width:0;min-height:54px;align-content:center;gap:3px;padding:9px 12px 9px 16px;color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-note-discussion-summary .reader-note-thread-toggle-main{gap:9px}
+.reader-note-assistant-summary{display:block;min-width:0;overflow:hidden;color:var(--reader-muted);font-size:11px;font-weight:760;line-height:1.25;text-overflow:ellipsis;white-space:nowrap}
+.reader-note-discussion-summary.is-busy .reader-note-assistant-summary{color:var(--reader-ink)}
+.reader-note-discussion-entry{display:inline-flex;flex:0 0 auto;min-width:98px;align-items:center;justify-content:center;gap:6px;border:0;border-left:1px solid rgba(40,35,29,.1);background:var(--reader-paper);color:var(--reader-muted);font:inherit;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:11px;font-weight:860;padding:0 12px;transition:background .14s ease,color .14s ease,transform .14s ease}
+.reader-note-discussion-entry:hover{background:var(--app-reader-agent-panel-hover-bg);color:var(--reader-ink)}
+.reader-note-discussion-entry:active{transform:scale(.98)}
+.reader-note-discussion-entry[aria-disabled="true"]{cursor:default;opacity:.72}
+.reader-note-discussion-entry[aria-disabled="true"]:hover{background:var(--reader-paper);color:var(--reader-muted)}
 .reader-review-invite-wrap{position:relative;display:flex;flex:0 0 auto;align-items:stretch;border-left:1px solid rgba(40,35,29,.1)}
 .reader-review-invite{display:inline-flex;min-width:78px;align-items:center;justify-content:center;gap:5px;border:0;background:var(--reader-paper);color:var(--reader-muted);font:inherit;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:11px;font-weight:860;padding:0 11px;transition:background .14s ease,color .14s ease}
 .reader-review-invite:hover,.reader-review-invite.is-active{background:rgba(40,35,29,.06);color:var(--reader-ink)}
