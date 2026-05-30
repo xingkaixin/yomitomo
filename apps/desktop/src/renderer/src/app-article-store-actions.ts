@@ -118,6 +118,13 @@ export function useAppArticleStoreActions({
     await desktop.openAnnotationDiscussion({ articleId, annotationId });
   }, []);
 
+  const closeArticleDiscussions = useCallback(async (articleId: string) => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    await desktop.closeArticleAnnotationDiscussions(articleId);
+  }, []);
+
   const saveArticleReadingProgress = useCallback(
     async (articleId: string, progress: ArticleReadingProgress) => {
       const desktop = window.yomitomoDesktop;
@@ -217,6 +224,7 @@ export function useAppArticleStoreActions({
     deleteArticle,
     deleteArticleAnnotation,
     deleteArticleComment,
+    closeArticleDiscussions,
     openArticleDiscussion,
     readArticle,
     saveArticle,

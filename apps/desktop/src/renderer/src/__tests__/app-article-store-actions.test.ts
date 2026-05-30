@@ -176,6 +176,31 @@ describe('useAppArticleStoreActions', () => {
     expect(applyStore).not.toHaveBeenCalled();
   });
 
+  it('closes article annotation discussion windows through desktop IPC', async () => {
+    const storeRef: { current: DesktopStore } = { current: emptyStore };
+    const applyStore = vi.fn();
+    const closeArticleAnnotationDiscussions = vi.fn().mockResolvedValue({ closed: 2 });
+    let actions!: ReturnType<typeof useAppArticleStoreActions>;
+
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: { closeArticleAnnotationDiscussions },
+    });
+    render(
+      createElement(function Harness() {
+        actions = useAppArticleStoreActions({ storeRef, applyStore });
+        return null;
+      }),
+    );
+
+    await act(async () => {
+      await actions.closeArticleDiscussions('article-1');
+    });
+
+    expect(closeArticleAnnotationDiscussions).toHaveBeenCalledWith('article-1');
+    expect(applyStore).not.toHaveBeenCalled();
+  });
+
   it('applies the imported ebook patch without a full store result', async () => {
     const firstArticle = makeArticle('article-1');
     const importedArticle = makeArticle('ebook-imported');
