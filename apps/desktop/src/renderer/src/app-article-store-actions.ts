@@ -111,6 +111,13 @@ export function useAppArticleStoreActions({
     [applyStore, storeRef],
   );
 
+  const openArticleDiscussion = useCallback(async (articleId: string, annotationId: string) => {
+    const desktop = window.yomitomoDesktop;
+    if (!desktop) return;
+
+    await desktop.openAnnotationDiscussion({ articleId, annotationId });
+  }, []);
+
   const saveArticleReadingProgress = useCallback(
     async (articleId: string, progress: ArticleReadingProgress) => {
       const desktop = window.yomitomoDesktop;
@@ -210,6 +217,7 @@ export function useAppArticleStoreActions({
     deleteArticle,
     deleteArticleAnnotation,
     deleteArticleComment,
+    openArticleDiscussion,
     readArticle,
     saveArticle,
     updateArticle,

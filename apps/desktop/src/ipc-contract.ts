@@ -49,6 +49,16 @@ export type ArticleCommentDeleteInput = {
   commentId: string;
 };
 
+export type AnnotationDiscussionWindowOpenInput = {
+  articleId: string;
+  annotationId: string;
+};
+
+export type AnnotationDiscussionWindowOpenResult = {
+  reused: boolean;
+  windowId: number;
+};
+
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
 
 export type DataManagementPaths = {
@@ -278,6 +288,10 @@ export type DesktopIpcInvokeMap = {
   'annotation:metadata': {
     args: [payload: AnnotationMetadataPayload];
     result: AnnotationMetadata;
+  };
+  'annotation-discussion:open': {
+    args: [input: AnnotationDiscussionWindowOpenInput];
+    result: AnnotationDiscussionWindowOpenResult;
   };
   'app:info': {
     args: [];

@@ -168,6 +168,7 @@ export function PdfiumBookcase({
   onClose,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
+  onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -407,6 +408,7 @@ export function PdfiumBookcase({
                         onToggleToc={() => setTocOpen((open) => !open)}
                         onToggleSettings={() => setSettingsOpen((open) => !open)}
                         onCloseSettings={() => setSettingsOpen(false)}
+                        onOpenAnnotationDiscussion={onOpenAnnotationDiscussion}
                         onOpenAnnotation={onOpenAnnotation}
                         onSaveArticle={onSaveArticle}
                         onSaveArticleReadingProgress={onSaveArticleReadingProgress}
@@ -452,6 +454,7 @@ function PdfiumDocument({
   onCloseToc,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
+  onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -481,6 +484,7 @@ function PdfiumDocument({
   onCloseToc: () => void;
   onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
   onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
+  onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
   onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
@@ -1777,6 +1781,9 @@ function PdfiumDocument({
         onDeleteAnnotation={deleteAnnotation}
         onDeleteComment={deleteComment}
         onFocusAnnotation={onOpenAnnotation}
+        onOpenAnnotationDiscussion={(annotationId) =>
+          void onOpenAnnotationDiscussion?.(article.id, annotationId)
+        }
         onHighlightClick={handleHighlightClick}
         onMouseUp={() => undefined}
         onOpenComposer={openComposer}

@@ -73,6 +73,7 @@ export function EbookBookcase({
   onClose,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
+  onOpenAnnotationDiscussion,
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
@@ -843,6 +844,9 @@ export function EbookBookcase({
       onDeleteAnnotation={deleteAnnotation}
       onDeleteComment={deleteComment}
       onFocusAnnotation={openAnnotation}
+      onOpenAnnotationDiscussion={(annotationId) =>
+        void onOpenAnnotationDiscussion?.(article.id, annotationId)
+      }
       onGoLeft={goLeft}
       onGoRight={goRight}
       onGoToProgress={goToProgress}

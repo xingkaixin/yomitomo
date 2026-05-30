@@ -45,6 +45,7 @@ export function ReadingLibrary({
   onDeleteArticle,
   onDeleteArticleAnnotation,
   onDeleteArticleComment,
+  onOpenArticleDiscussion,
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
@@ -70,6 +71,7 @@ export function ReadingLibrary({
     annotationId: string,
     commentId: string,
   ) => Promise<void> | void;
+  onOpenArticleDiscussion?: (articleId: string, annotationId: string) => Promise<void> | void;
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -350,6 +352,7 @@ export function ReadingLibrary({
                 onClose={openLibraryShelf}
                 onDeleteArticleAnnotation={onDeleteArticleAnnotation}
                 onDeleteArticleComment={onDeleteArticleComment}
+                onOpenAnnotationDiscussion={onOpenArticleDiscussion}
                 onOpenAnnotation={setSelectedAnnotationId}
                 onSaveArticle={saveSelectedArticle}
                 onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}

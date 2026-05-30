@@ -466,6 +466,7 @@ export type SourceBookcaseProps = {
     annotationId: string,
     commentId: string,
   ) => Promise<void> | void;
+  onOpenAnnotationDiscussion?: (articleId: string, annotationId: string) => Promise<void> | void;
   onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleReadingProgress: (

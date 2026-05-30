@@ -23,6 +23,7 @@ import {
   writeCachedThemeId,
   type AppThemeId,
 } from './app-theme';
+import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-window';
 import { ThemeSelector } from './app-theme-selector';
 import './styles.css';
 
@@ -298,6 +299,7 @@ function App() {
     deleteArticle,
     deleteArticleAnnotation,
     deleteArticleComment,
+    openArticleDiscussion,
     readArticle,
     saveArticle,
     updateArticle,
@@ -599,6 +601,7 @@ function App() {
               onDeleteArticle={deleteArticle}
               onDeleteArticleAnnotation={deleteArticleAnnotation}
               onDeleteArticleComment={deleteArticleComment}
+              onOpenArticleDiscussion={openArticleDiscussion}
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onImportArticleUrl={importArticleUrl}
               onImportEbookFile={importEbookFile}
@@ -794,7 +797,12 @@ recordStartupTiming('renderer.module_loaded', {
   preloadLoadedAt: window.yomitomoDesktop?.startupTiming?.preloadLoadedAt,
   rendererModuleLoadedAt,
 });
-createRoot(document.getElementById('root')!).render(<App />);
+
+const rendererWindowKind = new URLSearchParams(window.location.search).get('window');
+const RootApp =
+  rendererWindowKind === 'annotation-discussion' ? AnnotationDiscussionWindowApp : App;
+
+createRoot(document.getElementById('root')!).render(<RootApp />);
 recordStartupTiming('react.render_scheduled');
 
 function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {

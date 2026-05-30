@@ -1,11 +1,12 @@
 import { performance } from 'node:perf_hooks';
 import { join } from 'node:path';
-import { app, BrowserWindow, shell, type BrowserWindowConstructorOptions } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './logger';
 import { configureDesktopAppStorage } from './app-environment';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import { registerAnnotationDiscussionWindowIpc } from './annotation-discussion-window';
 import { registerAgentIpc } from './ipc-agent';
 import { registerAppIpc } from './ipc-app';
 import { registerArticleIpc } from './ipc-article';
@@ -13,6 +14,7 @@ import { registerProviderIpc } from './ipc-provider';
 import { registerStoreDataIpc } from './ipc-store-data';
 import { registerWeReadIpc } from './ipc-weread';
 import { modelPriceRefreshIntervalMs } from './model-pricing-repository';
+import { windowChromeOptions } from './window-chrome';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = join(__dirname, '../../resources/icon.png');
@@ -171,29 +173,6 @@ async function createWindow() {
   });
 }
 
-function windowChromeOptions(): BrowserWindowConstructorOptions {
-  if (process.platform === 'darwin') {
-    return {
-      titleBarStyle: 'hiddenInset',
-    };
-  }
-
-  if (process.platform === 'win32') {
-    return {
-      titleBarStyle: 'hidden',
-      titleBarOverlay: {
-        color: '#ffffff',
-        symbolColor: '#151515',
-        height: 36,
-      },
-    };
-  }
-
-  return {
-    frame: false,
-  };
-}
-
 void app.whenReady().then(async () => {
   logInfo('app.ready', { logPath: getLogPath() });
   recordStartupTiming('app.ready');
@@ -239,6 +218,7 @@ function registerIpc() {
   registerWeReadIpc(context);
   registerProviderIpc(context);
   registerAgentIpc(context);
+  registerAnnotationDiscussionWindowIpc(context);
 }
 
 function sendFullStoreUpdated(store: DesktopStore) {

@@ -23,6 +23,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
   EbookImportFileInput,
+  AnnotationDiscussionWindowOpenInput,
   AssistantExecutionQueryInput,
   AgentRuntimeTraceListInput,
   PerformanceTimingInput,
@@ -37,6 +38,8 @@ export type {
   AgentRuntimeTraceEntry,
   AgentRuntimeTraceListInput,
   AgentRuntimeTraceTaskType,
+  AnnotationDiscussionWindowOpenInput,
+  AnnotationDiscussionWindowOpenResult,
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
   AssistantExecutionStatus,
@@ -90,6 +93,8 @@ const api = {
     invokeDesktopIpc('provider:list-models', provider),
   inferAnnotationMetadata: (payload: AnnotationMetadataPayload) =>
     invokeDesktopIpc('annotation:metadata', payload),
+  openAnnotationDiscussion: (input: AnnotationDiscussionWindowOpenInput) =>
+    invokeDesktopIpc('annotation-discussion:open', input),
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
     invokeDesktopIpc('agent:mention-route', payload),
   getLogPath: () => invokeDesktopIpc('log:path'),
