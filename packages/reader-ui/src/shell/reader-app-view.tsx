@@ -200,7 +200,6 @@ export function ReaderAppView({
   onDeleteAnnotation,
   onFocusAnnotation,
   onOpenAnnotationDiscussion,
-  onRequestAnnotationReview,
   onAnnotationLayoutChange,
   onResolveAnnotationNavigation,
   onNavigateAnnotation,
@@ -405,7 +404,6 @@ export function ReaderAppView({
           onOpenComposer={onOpenComposer}
           pendingAnnotationAgents={pendingAnnotationAgents}
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
-          onRequestAnnotationReview={onRequestAnnotationReview}
           reviewAgents={reviewAgents}
           onScrollToHighlight={onScrollToHighlight}
         />

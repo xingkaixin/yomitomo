@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
@@ -224,10 +224,9 @@ describe('AnnotationCard', () => {
     expect(screen.queryByText('一个助手回复')).toBeNull();
   });
 
-  it('invites selected review agents to review all thoughts', async () => {
+  it('keeps review entry out of the annotation card', () => {
     const reviewAgent = { ...agent('review_1', '梁证言'), kind: 'review' as const };
     const secondReviewAgent = { ...agent('review_2', '何明衡'), kind: 'review' as const };
-    const onRequestReview = vi.fn(async () => undefined);
 
     render(
       <AnnotationCard
@@ -245,23 +244,11 @@ describe('AnnotationCard', () => {
         onDelete={vi.fn()}
         onFocus={vi.fn()}
         onPrimaryCommentExpandedChange={vi.fn()}
-        onRequestReview={onRequestReview}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '邀请审阅' }));
-    expect(screen.getByRole('button', { name: '审阅' })).toHaveProperty('disabled', true);
-
-    fireEvent.click(screen.getByRole('button', { name: '选择梁证言' }));
-    fireEvent.click(screen.getByRole('button', { name: '选择何明衡' }));
-    fireEvent.click(screen.getByRole('button', { name: '审阅' }));
-
-    await waitFor(() => {
-      expect(onRequestReview).toHaveBeenCalledWith('annotation-1', [
-        reviewAgent,
-        secondReviewAgent,
-      ]);
-    });
+    expect(screen.queryByRole('button', { name: '邀请审阅' })).toBeNull();
+    expect(screen.getByRole('button', { name: '进入讨论区' })).toBeTruthy();
   });
 
   it('keeps long-press delete on the annotation card', () => {

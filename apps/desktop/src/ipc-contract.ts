@@ -59,6 +59,16 @@ export type AnnotationDiscussionWindowOpenResult = {
   windowId: number;
 };
 
+export type AnnotationSedimentationWindowOpenInput = {
+  articleId: string;
+  annotationId: string;
+};
+
+export type AnnotationSedimentationWindowOpenResult = {
+  reused: boolean;
+  windowId: number;
+};
+
 export type AnnotationDiscussionWindowState = {
   articleId: string;
   annotationId: string;
@@ -315,6 +325,10 @@ export type DesktopIpcInvokeMap = {
   'annotation-discussion:close-article': {
     args: [input: AnnotationDiscussionWindowsCloseArticleInput];
     result: AnnotationDiscussionWindowsCloseArticleResult;
+  };
+  'annotation-sedimentation:open': {
+    args: [input: AnnotationSedimentationWindowOpenInput];
+    result: AnnotationSedimentationWindowOpenResult;
   };
   'app:info': {
     args: [];

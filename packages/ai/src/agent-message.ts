@@ -114,6 +114,19 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
 - 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。`;
   }
 
+  if (payload.responseMode === 'distillation_review') {
+    return `${buildAgentRoleCard(agent)}
+
+你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）审阅用户准备沉淀的一段阅读笔记。${readingIntentSystemPrompt(payload)}
+
+审阅边界：
+- 角色卡用于影响你的判断视角、问题敏感度和取舍标准；不要把角色卡写成自我介绍或身份表演。
+- 你不是替用户改写沉淀，也不是直接发布结论。
+- 只给反馈、质疑、补充或可带走的判断框架。
+- 不要 @ 用户，不要寒暄，不要展示思考过程。
+- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。`;
+  }
+
   if (payload.reviewTargetCommentId) {
     return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。`;
   }
@@ -181,6 +194,10 @@ export function buildAgentPrompt(
     return buildAgentCreateThoughtPrompt(provider, payload, context, threadContextPrompt);
   }
 
+  if (payload.responseMode === 'distillation_review') {
+    return buildAgentDistillationReviewPrompt(provider, payload, context, threadContextPrompt);
+  }
+
   if (payload.reviewTargetCommentId) {
     return buildAgentThoughtReviewPrompt(
       provider,
@@ -200,6 +217,48 @@ export function buildAgentPrompt(
   const budgetNotice = formatBudgetNotice([article.report]);
 
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${readerInstruction}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n可提及的读者账号：${userMention}\n\n当前批注讨论：\n${comments}\n\n刚刚触发你的读者评论：\n${formatUserAuthor(payload.userComment)}: ${payload.userComment.content}\n\n请直接给出你作为批注评论的回复。需要提及读者时，使用 ${userMention}。回复必须回应当前 thread 的原始想法，而不只是回应最新读者评论。`;
+}
+
+function buildAgentDistillationReviewPrompt(
+  provider: LlmProvider,
+  payload: AgentMessagePayload,
+  context: ReadingContextBundle,
+  threadContextPrompt: string,
+) {
+  const draft = payload.instruction?.trim() || '用户还没有写沉淀草稿。';
+  const discussion = formatCreateThoughtContext(payload.annotation);
+  const task = `${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}
+
+用户高亮：
+${payload.annotation.anchor.exact}
+
+用户当前沉淀草稿：
+${draft}
+
+已有想法和讨论：
+${discussion}
+
+请审阅这段沉淀。要求：
+- 输出应该帮助用户判断这段沉淀是否值得发布、是否缺证据、是否可以更准确。
+- 如果草稿为空，基于高亮、想法和讨论给出可沉淀方向、风险或反问。
+- 不要替用户完整改写，不要给发布决定，不要输出 Markdown 标题或 JSON。`;
+
+  if (threadContextPrompt) {
+    return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}${threadContextPrompt}\n\n${task}`;
+  }
+
+  const article = budgetArticleText(provider, 'agent-message', context.articleText);
+  const budgetNotice = formatBudgetNotice([article.report]);
+  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+
+  return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}
+
+${budgetNotice}
+
+可用原文范围：
+${article.text}${memoryViewPrompt}
+
+${task}`;
 }
 
 function buildAgentCreateThoughtPrompt(
