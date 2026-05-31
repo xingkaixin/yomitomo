@@ -3,9 +3,11 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
+  AgentDistillationReviewPayload,
   AgentMessagePayload,
   AgentReviewPayload,
   AgentMentionInstructionPayload,
+  AnnotationDistillationReviewMessage,
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
@@ -197,6 +199,39 @@ const api = {
   deleteArticle: (id: string) => invokeDesktopIpc('article:delete', id),
   requestAgentComment: (payload: AgentMessagePayload) => invokeDesktopIpc('agent:comment', payload),
   requestAgentReview: (payload: AgentReviewPayload) => invokeDesktopIpc('agent:review', payload),
+  requestAgentDistillationReview: (payload: AgentDistillationReviewPayload) =>
+    invokeDesktopIpc('agent:distillation-review', payload),
+  requestAgentDistillationReviewStream: (
+    payload: AgentDistillationReviewPayload,
+    onEvent: (
+      event:
+        | { type: 'start'; message: AnnotationDistillationReviewMessage }
+        | { type: 'delta'; delta: string },
+    ) => void,
+  ) => {
+    const requestId = makeRequestId();
+    const channel = `agent:distillation-review:stream:${requestId}`;
+    return new Promise<AnnotationDistillationReviewMessage>((resolve, reject) => {
+      const listener = (
+        _event: IpcRendererEvent,
+        message:
+          | { type: 'start'; message: AnnotationDistillationReviewMessage }
+          | { type: 'delta'; delta: string }
+          | { type: 'done'; message: AnnotationDistillationReviewMessage }
+          | { type: 'error'; message: string },
+      ) => {
+        if (message.type === 'start' || message.type === 'delta') {
+          onEvent(message);
+          return;
+        }
+        ipcRenderer.removeListener(channel, listener);
+        if (message.type === 'done') resolve(message.message);
+        else reject(new Error(message.message));
+      };
+      ipcRenderer.on(channel, listener);
+      ipcRenderer.send('agent:distillation-review:stream', { requestId, payload });
+    });
+  },
   requestAgentCommentStream: (
     payload: AgentMessagePayload,
     onEvent: (

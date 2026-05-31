@@ -111,6 +111,8 @@ export {
 } from './annotation-metadata';
 export {
   buildAgentMessageSystemPrompt,
+  buildAgentCreateThoughtRuntimePayload,
+  buildAgentDistillationReviewRuntimePayload,
   buildAgentThreadReplyRuntimePayload,
   buildAgentPrompt,
   runAgent,

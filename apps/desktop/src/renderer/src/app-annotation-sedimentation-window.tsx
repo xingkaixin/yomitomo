@@ -442,17 +442,18 @@ async function requestAgentReviewRound({
   };
   onOptimisticSession(workingSession);
 
-  const finalComment = await window.yomitomoDesktop.requestAgentCommentStream(
+  const finalMessage = await window.yomitomoDesktop.requestAgentDistillationReviewStream(
     {
       agentId: agent.id,
       agentUsername: agent.username,
-      responseMode: 'distillation_review',
+      reviewMessageId: assistantMessage.id,
       instruction: distillationReviewInstruction(draft, reviewDraft, session),
       article: promptArticle(article, articlePlainText(article)),
       annotation,
       userComment: reviewRequestComment(userMessage, now),
     },
     (event) => {
+      if (event.type === 'start') return;
       if (event.type !== 'delta') return;
       workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
         Object.assign({}, message, { content: `${message.content}${event.delta}` }),
@@ -463,7 +464,7 @@ async function requestAgentReviewRound({
   workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
     Object.assign({}, message, {
       content:
-        finalComment.content ||
+        finalMessage.content ||
         workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
         '',
     }),

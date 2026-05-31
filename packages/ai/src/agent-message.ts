@@ -87,6 +87,42 @@ export function buildAgentThreadReplyRuntimePayload(
   };
 }
 
+export function buildAgentCreateThoughtRuntimePayload(
+  provider: LlmProvider,
+  agent: PromptAgent & { temperature: number },
+  payload: AgentMessagePayload,
+) {
+  const runtimePayload = {
+    ...payload,
+    responseMode: 'create_thought' as const,
+    readingMemoryView: undefined,
+  };
+  return {
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 为当前批注添加顶层助手想法。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`create_thread_thought\` action JSON，不要返回普通自然语言正文。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n\n最终 action 要求：\n- type 必须是 "create_thread_thought"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- thought 是将写入当前批注的顶层助手想法。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么添加这条想法。`,
+    maxTokens: 1200,
+    temperature: agent.temperature,
+  };
+}
+
+export function buildAgentDistillationReviewRuntimePayload(
+  provider: LlmProvider,
+  agent: PromptAgent & { temperature: number },
+  payload: AgentMessagePayload,
+) {
+  const runtimePayload = {
+    ...payload,
+    responseMode: 'distillation_review' as const,
+    readingMemoryView: undefined,
+  };
+  return {
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`review_distillation\` action JSON，不要返回普通自然语言正文。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不替用户完整改写。\n\n最终 action 要求：\n- type 必须是 "review_distillation"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入沉淀审阅会话的助手消息。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么给出这条审阅。`,
+    maxTokens: 1200,
+    temperature: agent.temperature,
+  };
+}
+
 type PromptAgentIdentity = {
   username?: string;
   nickname?: string;

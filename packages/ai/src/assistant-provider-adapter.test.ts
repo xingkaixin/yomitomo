@@ -70,6 +70,40 @@ describe('assistant provider adapter', () => {
     });
   });
 
+  it('normalizes create_thread_thought and review_distillation final actions', () => {
+    expect(
+      parseAssistantProviderEvent(
+        '{"type":"create_thread_thought","annotationId":"annotation_1","thought":"新增想法","reason":"有证据","evidenceIds":[],"confidence":0.7}',
+      ),
+    ).toEqual({
+      type: 'final_action',
+      action: {
+        type: 'create_thread_thought',
+        annotationId: 'annotation_1',
+        thought: '新增想法',
+        reason: '有证据',
+        evidenceIds: [],
+        confidence: 0.7,
+      },
+    });
+
+    expect(
+      parseAssistantProviderEvent(
+        '{"type":"review_distillation","annotationId":"annotation_1","content":"审阅意见","reason":"需要核对","evidenceIds":[],"confidence":0.65}',
+      ),
+    ).toEqual({
+      type: 'final_action',
+      action: {
+        type: 'review_distillation',
+        annotationId: 'annotation_1',
+        content: '审阅意见',
+        reason: '需要核对',
+        evidenceIds: [],
+        confidence: 0.65,
+      },
+    });
+  });
+
   it('classifies non-json responses as invalid provider output', () => {
     expect(parseAssistantProviderEvent('plain text')).toMatchObject({
       type: 'invalid_response',
@@ -247,6 +281,106 @@ describe('assistant provider adapter', () => {
       tools: Array<{ function: { name: string } }>;
     };
     expect(body.tools.map((tool) => tool.function.name)).toContain('reply_to_thread');
+  });
+
+  it('exposes dedicated final action tools for thought and distillation tasks', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                tool_calls: [
+                  {
+                    id: 'call_thought',
+                    type: 'function',
+                    function: {
+                      name: 'create_thread_thought',
+                      arguments:
+                        '{"annotationId":"annotation_1","thought":"新增想法","evidenceIds":[],"confidence":0.8,"reason":"已有证据"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const adapter = createAssistantProviderModelAdapter(provider(), payload());
+
+    const event = await adapter({
+      taskType: 'create_thought',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      stepIndex: 1,
+      availableTools: [{ name: 'get_current_thread', description: '读取当前 thread' }],
+      evidence: [],
+      toolResults: [],
+    });
+
+    expect(event).toMatchObject({
+      type: 'final_action',
+      action: {
+        type: 'create_thread_thought',
+        annotationId: 'annotation_1',
+        thought: '新增想法',
+      },
+    });
+    const firstBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      tools: Array<{ function: { name: string } }>;
+    };
+    expect(firstBody.tools.map((tool) => tool.function.name)).toContain('create_thread_thought');
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                tool_calls: [
+                  {
+                    id: 'call_review',
+                    type: 'function',
+                    function: {
+                      name: 'review_distillation',
+                      arguments:
+                        '{"annotationId":"annotation_1","content":"审阅意见","evidenceIds":[],"confidence":0.8,"reason":"已有证据"}',
+                    },
+                  },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    const reviewEvent = await adapter({
+      taskType: 'distillation_review',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      stepIndex: 1,
+      availableTools: [{ name: 'get_current_thread', description: '读取当前 thread' }],
+      evidence: [],
+      toolResults: [],
+    });
+
+    expect(reviewEvent).toMatchObject({
+      type: 'final_action',
+      action: {
+        type: 'review_distillation',
+        annotationId: 'annotation_1',
+        content: '审阅意见',
+      },
+    });
+    const secondBody = JSON.parse(requestBodyText(fetchMock.mock.calls[1]?.[1]?.body)) as {
+      tools: Array<{ function: { name: string } }>;
+    };
+    expect(secondBody.tools.map((tool) => tool.function.name)).toContain('review_distillation');
   });
 
   it('normalizes OpenAI-compatible usage on native tool events', async () => {

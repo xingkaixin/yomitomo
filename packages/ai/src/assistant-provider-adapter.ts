@@ -93,7 +93,13 @@ export function parseAssistantProviderEvent(content: string): AssistantProviderE
     };
   }
 
-  if (type === 'reply_to_thread' || type === 'add_annotation' || type === 'no_action') {
+  if (
+    type === 'reply_to_thread' ||
+    type === 'add_annotation' ||
+    type === 'create_thread_thought' ||
+    type === 'review_distillation' ||
+    type === 'no_action'
+  ) {
     return {
       type: 'final_action',
       action: parsed,
@@ -225,7 +231,13 @@ const assistantProviderEventResponseSchema = {
         properties: {
           type: {
             type: 'string',
-            enum: ['reply_to_thread', 'add_annotation', 'no_action'],
+            enum: [
+              'reply_to_thread',
+              'add_annotation',
+              'create_thread_thought',
+              'review_distillation',
+              'no_action',
+            ],
           },
           annotationId: { type: ['string', 'null'] },
           content: { type: ['string', 'null'] },
@@ -513,6 +525,8 @@ function finalActionToolDefinitions(
   taskType: AssistantRuntimeTurn['taskType'],
 ): OpenAIChatToolDefinition[] {
   if (taskType === 'thread_reply') return [replyToThreadToolDefinition()];
+  if (taskType === 'create_thought') return [createThreadThoughtToolDefinition()];
+  if (taskType === 'distillation_review') return [reviewDistillationToolDefinition()];
   return [addAnnotationToolDefinition(), noActionToolDefinition()];
 }
 
@@ -561,6 +575,51 @@ function addAnnotationToolDefinition(): OpenAIChatToolDefinition {
   };
 }
 
+function createThreadThoughtToolDefinition(): OpenAIChatToolDefinition {
+  return {
+    type: 'function',
+    function: {
+      name: 'create_thread_thought',
+      description:
+        'Return the final action that appends a top-level assistant thought to the current annotation thread.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['annotationId', 'thought', 'evidenceIds', 'confidence', 'reason'],
+        properties: {
+          annotationId: { type: 'string' },
+          thought: { type: 'string' },
+          evidenceIds: { type: 'array', items: { type: 'string' } },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      } satisfies JsonSchema,
+    },
+  };
+}
+
+function reviewDistillationToolDefinition(): OpenAIChatToolDefinition {
+  return {
+    type: 'function',
+    function: {
+      name: 'review_distillation',
+      description: 'Return the final distillation review message for the current annotation.',
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['annotationId', 'content', 'evidenceIds', 'confidence', 'reason'],
+        properties: {
+          annotationId: { type: 'string' },
+          content: { type: 'string' },
+          evidenceIds: { type: 'array', items: { type: 'string' } },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      } satisfies JsonSchema,
+    },
+  };
+}
+
 function noActionToolDefinition(): OpenAIChatToolDefinition {
   return {
     type: 'function',
@@ -583,7 +642,15 @@ function noActionToolDefinition(): OpenAIChatToolDefinition {
 
 function finalActionFromToolCall(toolCall: OpenAIChatToolCall) {
   const name = toolCall.function.name;
-  if (name !== 'reply_to_thread' && name !== 'add_annotation' && name !== 'no_action') return null;
+  if (
+    name !== 'reply_to_thread' &&
+    name !== 'add_annotation' &&
+    name !== 'create_thread_thought' &&
+    name !== 'review_distillation' &&
+    name !== 'no_action'
+  ) {
+    return null;
+  }
   return {
     type: name,
     ...parseToolArguments(toolCall.function.arguments),
@@ -670,6 +737,32 @@ const assistantFinalActionResponseSchema = {
         properties: {
           type: { const: 'add_annotation' },
           thought: { type: 'string' },
+          evidenceIds: { type: 'array', items: { type: 'string' } },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      },
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['type', 'annotationId', 'thought', 'evidenceIds', 'confidence', 'reason'],
+        properties: {
+          type: { const: 'create_thread_thought' },
+          annotationId: { type: 'string' },
+          thought: { type: 'string' },
+          evidenceIds: { type: 'array', items: { type: 'string' } },
+          confidence: { type: 'number' },
+          reason: { type: 'string' },
+        },
+      },
+      {
+        type: 'object',
+        additionalProperties: false,
+        required: ['type', 'annotationId', 'content', 'evidenceIds', 'confidence', 'reason'],
+        properties: {
+          type: { const: 'review_distillation' },
+          annotationId: { type: 'string' },
+          content: { type: 'string' },
           evidenceIds: { type: 'array', items: { type: 'string' } },
           confidence: { type: 'number' },
           reason: { type: 'string' },

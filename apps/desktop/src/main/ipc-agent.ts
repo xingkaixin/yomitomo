@@ -2,7 +2,9 @@ import { ipcMain } from 'electron';
 import type {
   Agent,
   AgentAnnotatePayload,
+  AgentDistillationReviewPayload,
   AgentMessagePayload,
+  AnnotationDistillationReviewMessage,
   AppSettings,
   ArticleRecord,
   Comment,
@@ -18,7 +20,10 @@ import {
   saveAgentAnnotateReadingMemoryEntries,
 } from './agent-reading-memory';
 import {
+  runAgentCreateThoughtWithToolLoop,
+  runAgentDistillationReviewWithToolLoop,
   runAgentThreadReplyWithToolLoop,
+  type DistillationReviewRuntimeResult,
   type ThreadReplyRuntimeResult,
 } from './agent-thread-runtime';
 import {
@@ -74,20 +79,32 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       ...payload,
       agentRoster: publicCommentAgents(store.agents),
     };
-    const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster, requestedMode)
-      ? await runAgentThreadReplyWithToolLoop({
-          ai,
-          provider,
-          agent,
-          payload: payloadWithRoster,
-        })
-      : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logThreadReplyRuntime(
+    const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
+    const runtime =
+      requestedMode === 'deep_verification'
+        ? taskType === 'thread_reply'
+          ? await runAgentThreadReplyWithToolLoop({
+              ai,
+              provider,
+              agent,
+              payload: payloadWithRoster,
+            })
+          : taskType === 'create_thought'
+            ? await runAgentCreateThoughtWithToolLoop({
+                ai,
+                provider,
+                agent,
+                payload: payloadWithRoster,
+              })
+            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' }
+        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logAgentMessageRuntime(
       context,
       runtime,
       provider,
       agent,
       requestedMode,
+      taskType,
       context.elapsedMs(startedAt),
     );
     const comment =
@@ -106,7 +123,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       recordAssistantExecutionRun(context, {
         agent,
         provider,
-        taskType: 'thread_reply',
+        taskType,
         requestedMode,
         effectiveMode: 'fast_response',
         status: 'success',
@@ -141,6 +158,68 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       comment.id = makeId('comment');
     }
     return comments;
+  });
+  handleDesktopIpc('agent:distillation-review', async (_event, payload) => {
+    const ai = await context.getAiModule();
+    const { readStore } = await context.getStoreModule();
+    const store = await readStore();
+    const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
+    if (!agent) throw new Error(`找不到审阅助手：@${payload.agentUsername}`);
+    const provider = await taskProvider(
+      context,
+      store.providers,
+      store.settings,
+      'reviewAssistant',
+    );
+    const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
+    const startedAt = performance.now();
+    const payloadWithRoster = distillationReviewMessagePayload(payload, store.agents);
+    const runtime =
+      requestedMode === 'deep_verification'
+        ? await runAgentDistillationReviewWithToolLoop({
+            ai,
+            provider,
+            agent,
+            payload: payloadWithRoster,
+          })
+        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+    logAgentMessageRuntime(
+      context,
+      runtime,
+      provider,
+      agent,
+      requestedMode,
+      'distillation_review',
+      context.elapsedMs(startedAt),
+    );
+    const message =
+      runtime.status === 'message'
+        ? runtime.message
+        : commentToDistillationReviewMessage(
+            await ai.runAgent(
+              provider,
+              agent,
+              agentMessagePayloadWithReadingMemoryView({
+                payload: payloadWithRoster,
+                logInfo: context.logInfo,
+                logError: context.logError,
+              }),
+            ),
+            payload.reviewMessageId,
+          );
+    if (runtime.status !== 'message') {
+      recordAssistantExecutionRun(context, {
+        agent,
+        provider,
+        taskType: 'distillation_review',
+        requestedMode,
+        effectiveMode: 'fast_response',
+        status: 'success',
+        fallbackReason: requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
+        durationMs: context.elapsedMs(startedAt),
+      });
+    }
+    return messageWithReviewId(message, payload.reviewMessageId);
   });
   ipcMain.on(
     'agent:comment:stream',
@@ -192,20 +271,32 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agentRoster: publicCommentAgents(store.agents),
           readingIntent: input.payload.readingIntent || comment.readingIntent,
         };
-        const runtime = shouldUseThreadReplyToolLoop(payloadWithRoster, requestedMode)
-          ? await runAgentThreadReplyWithToolLoop({
-              ai,
-              provider,
-              agent,
-              payload: payloadWithRoster,
-            })
-          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-        logThreadReplyRuntime(
+        const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
+        const runtime =
+          requestedMode === 'deep_verification'
+            ? taskType === 'thread_reply'
+              ? await runAgentThreadReplyWithToolLoop({
+                  ai,
+                  provider,
+                  agent,
+                  payload: payloadWithRoster,
+                })
+              : taskType === 'create_thought'
+                ? await runAgentCreateThoughtWithToolLoop({
+                    ai,
+                    provider,
+                    agent,
+                    payload: payloadWithRoster,
+                  })
+                : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' }
+            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logAgentMessageRuntime(
           context,
           runtime,
           provider,
           agent,
           requestedMode,
+          taskType,
           context.elapsedMs(startedAt),
         );
         if (runtime.status === 'comment') {
@@ -224,7 +315,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           recordAssistantExecutionRun(context, {
             agent,
             provider,
-            taskType: 'thread_reply',
+            taskType,
             requestedMode,
             effectiveMode: 'fast_response',
             status: 'success',
@@ -241,6 +332,103 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         event.sender.send(channel, {
           type: 'error',
           message: error instanceof Error ? error.message : '助手回复失败',
+        });
+      }
+    },
+  );
+  ipcMain.on(
+    'agent:distillation-review:stream',
+    async (
+      event,
+      input: {
+        requestId: string;
+        payload: AgentDistillationReviewPayload;
+      },
+    ) => {
+      const channel = `agent:distillation-review:stream:${input.requestId}`;
+      try {
+        const ai = await context.getAiModule();
+        const { readStore } = await context.getStoreModule();
+        const store = await readStore();
+        const agent = findReviewAgent(
+          store.agents,
+          input.payload.agentId,
+          input.payload.agentUsername,
+        );
+        if (!agent) throw new Error(`找不到审阅助手：@${input.payload.agentUsername}`);
+        const provider = await taskProvider(
+          context,
+          store.providers,
+          store.settings,
+          'reviewAssistant',
+        );
+        const requestedMode = normalizeAssistantExecutionMode(
+          store.settings.assistantExecutionMode,
+        );
+        const startedAt = performance.now();
+        const message = {
+          id: input.payload.reviewMessageId || makeId('distillation_review_message'),
+          author: 'ai' as const,
+          content: '',
+          createdAt: new Date().toISOString(),
+          agentId: agent.id,
+          agentUsername: agent.username,
+          agentNickname: agent.nickname,
+          agentAvatar: agent.avatar,
+        };
+        event.sender.send(channel, { type: 'start', message });
+        const payloadWithRoster = distillationReviewMessagePayload(input.payload, store.agents);
+        const runtime =
+          requestedMode === 'deep_verification'
+            ? await runAgentDistillationReviewWithToolLoop({
+                ai,
+                provider,
+                agent,
+                payload: payloadWithRoster,
+              })
+            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+        logAgentMessageRuntime(
+          context,
+          runtime,
+          provider,
+          agent,
+          requestedMode,
+          'distillation_review',
+          context.elapsedMs(startedAt),
+        );
+        if (runtime.status === 'message') {
+          message.content = runtime.message.content;
+          event.sender.send(channel, { type: 'delta', delta: message.content });
+        } else {
+          const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+            payload: payloadWithRoster,
+            logInfo: context.logInfo,
+            logError: context.logError,
+          });
+          await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
+            message.content += delta;
+            event.sender.send(channel, { type: 'delta', delta });
+          });
+          recordAssistantExecutionRun(context, {
+            agent,
+            provider,
+            taskType: 'distillation_review',
+            requestedMode,
+            effectiveMode: 'fast_response',
+            status: 'success',
+            fallbackReason:
+              requestedMode === 'deep_verification' ? runtime.failureReason : undefined,
+            durationMs: context.elapsedMs(startedAt),
+          });
+        }
+        event.sender.send(channel, {
+          type: 'done',
+          message,
+        });
+      } catch (error) {
+        event.sender.send(channel, {
+          type: 'error',
+          message: error instanceof Error ? error.message : '沉淀审阅失败',
         });
       }
     },
@@ -490,17 +678,44 @@ function providerTaskForAgent(agent: Agent): ProviderTask {
   return agent.kind === 'review' ? 'reviewAssistant' : 'readingAssistant';
 }
 
-function shouldUseThreadReplyToolLoop(
-  payload: AgentMessagePayload,
-  mode: ReturnType<typeof normalizeAssistantExecutionMode>,
+function agentMessageRuntimeTaskType(payload: AgentMessagePayload) {
+  if (payload.responseMode === 'create_thought') return 'create_thought';
+  if (payload.responseMode === 'distillation_review') return 'distillation_review';
+  return 'thread_reply';
+}
+
+function distillationReviewMessagePayload(
+  payload: AgentDistillationReviewPayload,
+  agents: Agent[],
+): AgentMessagePayload {
+  return {
+    ...payload,
+    responseMode: 'distillation_review',
+    agentRoster: payload.agentRoster || publicCommentAgents(agents),
+  };
+}
+
+function messageWithReviewId(
+  message: AnnotationDistillationReviewMessage,
+  reviewMessageId: string | undefined,
 ) {
-  return (
-    payload.responseMode !== 'create_thought' &&
-    payload.responseMode !== 'distillation_review' &&
-    mode === 'deep_verification' &&
-    Boolean(payload.article.id) &&
-    !payload.reviewTargetCommentId
-  );
+  return reviewMessageId ? { ...message, id: reviewMessageId } : message;
+}
+
+function commentToDistillationReviewMessage(
+  comment: Comment,
+  reviewMessageId: string | undefined,
+): AnnotationDistillationReviewMessage {
+  return {
+    id: reviewMessageId || comment.id || makeId('distillation_review_message'),
+    author: 'ai',
+    content: comment.content,
+    createdAt: comment.createdAt,
+    agentId: comment.agentId,
+    agentUsername: comment.agentUsername,
+    agentNickname: comment.agentNickname,
+    agentAvatar: comment.agentAvatar,
+  };
 }
 
 function agentMessageReplyTo(payload: AgentMessagePayload) {
@@ -525,26 +740,27 @@ function annotateRuntimeTaskType(payload: AgentAnnotatePayload) {
   return undefined;
 }
 
-function logThreadReplyRuntime(
+function logAgentMessageRuntime(
   context: DesktopMainIpcContext,
-  result: ThreadReplyRuntimeResult,
+  result: ThreadReplyRuntimeResult | DistillationReviewRuntimeResult,
   provider: LlmProvider,
   agent: Agent,
   requestedMode: ReturnType<typeof normalizeAssistantExecutionMode>,
+  taskType: ReturnType<typeof agentMessageRuntimeTaskType>,
   durationMs?: number,
 ) {
-  if (result.status === 'comment') {
-    context.logInfo('assistant_runtime.thread_reply', {
-      status: 'comment',
+  if (result.status === 'comment' || result.status === 'message') {
+    context.logInfo(`assistant_runtime.${taskType}`, {
+      status: result.status,
       stepCount: result.runtime.trace.steps.length,
       finalActionType: result.runtime.trace.finalActionType,
       repairUsed: result.runtime.repairUsed,
     });
     void appendAgentRuntimeTrace({
-      taskType: 'thread_reply',
+      taskType,
       agentId: result.runtime.trace.agentId,
       articleId: result.runtime.trace.articleId,
-      status: 'comment',
+      status: result.status === 'comment' ? 'comment' : 'result',
       finalActionType: result.runtime.trace.finalActionType,
       stepCount: result.runtime.trace.steps.length,
       repairUsed: result.runtime.repairUsed,
@@ -553,7 +769,7 @@ function logThreadReplyRuntime(
     recordAssistantExecutionRun(context, {
       agent,
       provider,
-      taskType: 'thread_reply',
+      taskType,
       requestedMode,
       effectiveMode: 'deep_verification',
       status: 'success',
@@ -564,7 +780,7 @@ function logThreadReplyRuntime(
     });
     return;
   }
-  context.logInfo('assistant_runtime.thread_reply', {
+  context.logInfo(`assistant_runtime.${taskType}`, {
     status: 'fallback',
     failureReason: result.failureReason,
     stepCount: result.runtime?.trace.steps.length,
@@ -572,7 +788,7 @@ function logThreadReplyRuntime(
   });
   if (result.runtime) {
     void appendAgentRuntimeTrace({
-      taskType: 'thread_reply',
+      taskType,
       agentId: result.runtime.trace.agentId,
       articleId: result.runtime.trace.articleId,
       status: 'fallback',
@@ -585,7 +801,7 @@ function logThreadReplyRuntime(
     recordAssistantExecutionRun(context, {
       agent,
       provider,
-      taskType: 'thread_reply',
+      taskType,
       requestedMode,
       effectiveMode: 'deep_verification',
       status: 'fallback',

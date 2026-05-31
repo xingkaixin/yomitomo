@@ -1,7 +1,12 @@
 import type { TextAnchor } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from './usage';
 
-export type AssistantRuntimeTaskType = 'thread_reply' | 'selection_first' | 'co_reading_section';
+export type AssistantRuntimeTaskType =
+  | 'thread_reply'
+  | 'create_thought'
+  | 'distillation_review'
+  | 'selection_first'
+  | 'co_reading_section';
 
 export type AssistantToolName =
   | 'get_current_thread'
@@ -26,6 +31,16 @@ export const DEFAULT_ASSISTANT_RUNTIME_BUDGETS: Record<
     maxSteps: 20,
     maxToolResults: 6,
     maxToolResultCharacters: 2400,
+  },
+  create_thought: {
+    maxSteps: 20,
+    maxToolResults: 8,
+    maxToolResultCharacters: 3200,
+  },
+  distillation_review: {
+    maxSteps: 20,
+    maxToolResults: 8,
+    maxToolResultCharacters: 3200,
   },
   selection_first: {
     maxSteps: 20,
@@ -142,6 +157,22 @@ export type AssistantFinalAction =
       type: 'add_annotation';
       anchor: TextAnchor;
       thought: string;
+      evidenceIds: string[];
+      confidence: number;
+      reason: string;
+    }
+  | {
+      type: 'create_thread_thought';
+      annotationId: string;
+      thought: string;
+      evidenceIds: string[];
+      confidence: number;
+      reason: string;
+    }
+  | {
+      type: 'review_distillation';
+      annotationId: string;
+      content: string;
       evidenceIds: string[];
       confidence: number;
       reason: string;
@@ -436,6 +467,34 @@ export function validateAssistantFinalAction(
     return {
       ok: true,
       action: { type, anchor, thought, evidenceIds, confidence, reason },
+    };
+  }
+
+  if (type === 'create_thread_thought') {
+    const annotationId = stringField(value.annotationId);
+    const thought = stringField(value.thought);
+    if (!annotationId) return { ok: false, reason: 'missing_annotation_id' };
+    if (context.allowedAnnotationIds && !context.allowedAnnotationIds.includes(annotationId)) {
+      return { ok: false, reason: 'annotation_not_allowed' };
+    }
+    if (!thought) return { ok: false, reason: 'missing_thought' };
+    return {
+      ok: true,
+      action: { type, annotationId, thought, evidenceIds, confidence, reason },
+    };
+  }
+
+  if (type === 'review_distillation') {
+    const annotationId = stringField(value.annotationId);
+    const content = stringField(value.content);
+    if (!annotationId) return { ok: false, reason: 'missing_annotation_id' };
+    if (context.allowedAnnotationIds && !context.allowedAnnotationIds.includes(annotationId)) {
+      return { ok: false, reason: 'annotation_not_allowed' };
+    }
+    if (!content) return { ok: false, reason: 'missing_review_content' };
+    return {
+      ok: true,
+      action: { type, annotationId, content, evidenceIds, confidence, reason },
     };
   }
 

@@ -6,7 +6,11 @@ import {
 } from '@yomitomo/ai';
 import type { Agent, AgentMessagePayload, LlmProvider } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import { runAgentThreadReplyWithToolLoop } from './agent-thread-runtime';
+import {
+  runAgentCreateThoughtWithToolLoop,
+  runAgentDistillationReviewWithToolLoop,
+  runAgentThreadReplyWithToolLoop,
+} from './agent-thread-runtime';
 
 describe('agent thread reply tool loop', () => {
   it('returns a thread reply comment from the runtime final action', async () => {
@@ -73,6 +77,83 @@ describe('agent thread reply tool loop', () => {
     expect(result).toEqual({
       status: 'fallback',
       failureReason: 'missing_article_id',
+    });
+  });
+
+  it('returns a top-level thought from the create_thought runtime final action', async () => {
+    const adapter = vi.fn(
+      async (): Promise<AssistantProviderEvent> => ({
+        type: 'final_action',
+        action: {
+          type: 'create_thread_thought',
+          annotationId: 'annotation_1',
+          thought: '这条想法会作为顶层助手想法保存。',
+          evidenceIds: [],
+          confidence: 0.82,
+          reason: '当前批注需要新增想法。',
+        },
+      }),
+    );
+
+    const result = await runAgentCreateThoughtWithToolLoop({
+      ai: {
+        buildAgentCreateThoughtRuntimePayload: vi.fn(() => ({
+          system: 'system',
+          user: 'user',
+          maxTokens: 1200,
+          temperature: 0.4,
+        })),
+        createAssistantProviderModelAdapter: vi.fn(() => adapter),
+        runAssistantToolRuntime,
+      },
+      provider: provider(),
+      agent: agent(),
+      payload: { ...payload(), responseMode: 'create_thought' },
+    });
+
+    expect(result.status).toBe('comment');
+    expect(result.status === 'comment' && result.comment).toMatchObject({
+      author: 'ai',
+      content: '这条想法会作为顶层助手想法保存。',
+    });
+  });
+
+  it('returns a review message from the distillation runtime final action', async () => {
+    const adapter = vi.fn(
+      async (): Promise<AssistantProviderEvent> => ({
+        type: 'final_action',
+        action: {
+          type: 'review_distillation',
+          annotationId: 'annotation_1',
+          content: '这段沉淀还需要补足原文证据。',
+          evidenceIds: [],
+          confidence: 0.82,
+          reason: '当前沉淀稿需要审阅。',
+        },
+      }),
+    );
+
+    const result = await runAgentDistillationReviewWithToolLoop({
+      ai: {
+        buildAgentDistillationReviewRuntimePayload: vi.fn(() => ({
+          system: 'system',
+          user: 'user',
+          maxTokens: 1200,
+          temperature: 0.4,
+        })),
+        createAssistantProviderModelAdapter: vi.fn(() => adapter),
+        runAssistantToolRuntime,
+      },
+      provider: provider(),
+      agent: { ...agent(), kind: 'review' },
+      payload: { ...payload(), responseMode: 'distillation_review' },
+    });
+
+    expect(result.status).toBe('message');
+    expect(result.status === 'message' && result.message).toMatchObject({
+      author: 'ai',
+      content: '这段沉淀还需要补足原文证据。',
+      agentId: 'agent_1',
     });
   });
 });
