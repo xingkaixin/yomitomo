@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, ArticleSummaryRecord } from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
   computeReadingStats,
@@ -27,6 +27,7 @@ function annotation(
     color: '#f4c95d',
     agentNickname: input.agentNickname,
     userNickname: input.userNickname,
+    distillation: input.distillation,
     comments: input.comments || [
       {
         id: `comment-${id}`,
@@ -86,9 +87,30 @@ describe('reading core', () => {
       new Date('2026-05-03T12:00:00.000Z'),
     );
 
-    expect(stats.today).toEqual({ articles: 1, annotations: 2, comments: 2, aiComments: 1 });
-    expect(stats.week).toEqual({ articles: 1, annotations: 2, comments: 2, aiComments: 1 });
-    expect(stats.total).toEqual({ articles: 2, annotations: 3, comments: 3, aiComments: 1 });
+    expect(stats.today).toEqual({
+      articles: 1,
+      annotations: 2,
+      thoughts: 2,
+      comments: 2,
+      aiComments: 1,
+      distillations: 0,
+    });
+    expect(stats.week).toEqual({
+      articles: 1,
+      annotations: 2,
+      thoughts: 2,
+      comments: 2,
+      aiComments: 1,
+      distillations: 0,
+    });
+    expect(stats.total).toEqual({
+      articles: 2,
+      annotations: 3,
+      thoughts: 3,
+      comments: 3,
+      aiComments: 1,
+      distillations: 0,
+    });
   });
 
   it('counts comments by their own created date', () => {
@@ -110,7 +132,14 @@ describe('reading core', () => {
       new Date('2026-05-03T12:00:00.000Z'),
     );
 
-    expect(stats.today).toEqual({ articles: 0, annotations: 0, comments: 1, aiComments: 1 });
+    expect(stats.today).toEqual({
+      articles: 0,
+      annotations: 0,
+      thoughts: 1,
+      comments: 1,
+      aiComments: 1,
+      distillations: 0,
+    });
   });
 
   it('excludes the annotation body from comment totals', () => {
@@ -131,8 +160,67 @@ describe('reading core', () => {
     expect(computeReadingStats([record], new Date('2026-05-03T12:00:00.000Z')).today).toEqual({
       articles: 1,
       annotations: 1,
+      thoughts: 1,
       comments: 0,
       aiComments: 0,
+      distillations: 0,
+    });
+  });
+
+  it('counts published distillations as outcome metrics', () => {
+    const record = article('today', '2026-05-03T08:00:00.000Z', [
+      annotation('a1', 0, '2026-05-02T08:00:00.000Z', {
+        distillation: {
+          status: 'published',
+          content: '可迁移的沉淀',
+          publishedAt: '2026-05-03T09:00:00.000Z',
+        },
+      }),
+      annotation('a2', 10, '2026-05-03T08:00:00.000Z', {
+        distillation: { status: 'unpublished', content: '草稿' },
+      }),
+    ]);
+
+    expect(computeReadingStats([record], new Date('2026-05-03T12:00:00.000Z')).today).toEqual({
+      articles: 1,
+      annotations: 1,
+      thoughts: 1,
+      comments: 1,
+      aiComments: 1,
+      distillations: 1,
+    });
+  });
+
+  it('falls back to summary counts when annotation details are not loaded', () => {
+    const summary: ArticleSummaryRecord = {
+      id: 'summary',
+      url: 'https://example.com/summary',
+      canonicalUrl: 'https://example.com/summary',
+      title: 'Summary',
+      contentHash: 'summary',
+      annotations: [],
+      annotationCount: 9,
+      commentCount: 6,
+      distillationCount: 2,
+      createdAt: '2026-05-02T08:00:00.000Z',
+      updatedAt: '2026-05-03T08:00:00.000Z',
+    };
+
+    expect(computeReadingStats([summary], new Date('2026-05-03T12:00:00.000Z')).today).toEqual({
+      articles: 1,
+      annotations: 9,
+      thoughts: 6,
+      comments: 6,
+      aiComments: 0,
+      distillations: 2,
+    });
+    expect(
+      computeReadingActivityDays([summary], 1, new Date('2026-05-03T12:00:00.000Z'))[0],
+    ).toMatchObject({
+      annotations: 9,
+      thoughts: 6,
+      comments: 6,
+      distillations: 2,
     });
   });
 
@@ -154,6 +242,8 @@ describe('reading core', () => {
       articles: 1,
       annotations: 1,
       comments: 1,
+      thoughts: 1,
+      distillations: 0,
       score: 3,
       level: 4,
     });

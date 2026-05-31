@@ -1,5 +1,6 @@
 import type { Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
-import { annotationThreadComments } from './annotations';
+import { annotationThoughtComments, annotationThreadComments } from './annotations';
+import { annotationHasPublishedDistillation } from './reader-annotations';
 
 export type ReadingStats = {
   today: ReadingStatsPeriod;
@@ -10,8 +11,10 @@ export type ReadingStats = {
 export type ReadingStatsPeriod = {
   articles: number;
   annotations: number;
+  thoughts: number;
   comments: number;
   aiComments: number;
+  distillations: number;
 };
 
 export type ReadingActivityDay = ReadingStatsPeriod & {
@@ -71,6 +74,17 @@ export function computeReadingActivityDays(
       day.articles += 1;
       day.score += 1;
     });
+    if (!articleHasCompleteAnnotationDetails(article)) {
+      addToDay(article.updatedAt, (day) => {
+        const counts = articleSummaryCounts(article);
+        day.annotations += counts.annotations;
+        day.thoughts += counts.thoughts;
+        day.comments += counts.thoughts;
+        day.distillations += counts.distillations;
+        day.score += counts.annotations + counts.thoughts + counts.distillations;
+      });
+      continue;
+    }
     for (const annotation of article.annotations) {
       addToDay(annotation.createdAt, (day) => {
         day.annotations += 1;
@@ -81,6 +95,17 @@ export function computeReadingActivityDays(
           day.comments += 1;
           day.score += 1;
           if (comment.author === 'ai') day.aiComments += 1;
+        });
+      }
+      for (const comment of annotationThoughtComments(annotation)) {
+        addToDay(comment.createdAt, (day) => {
+          day.thoughts += 1;
+        });
+      }
+      if (annotationHasPublishedDistillation(annotation)) {
+        addToDay(distillationActivityDate(annotation), (day) => {
+          day.distillations += 1;
+          day.score += 1;
         });
       }
     }
@@ -110,23 +135,65 @@ function countReadingStats(
 
   return articles.reduce(
     (result, article) => {
+      if (!articleHasCompleteAnnotationDetails(article)) {
+        const counts = inPeriod(article.updatedAt) ? articleSummaryCounts(article) : null;
+        return {
+          articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
+          annotations: result.annotations + (counts?.annotations || 0),
+          thoughts: result.thoughts + (counts?.thoughts || 0),
+          comments: result.comments + (counts?.thoughts || 0),
+          aiComments: result.aiComments,
+          distillations: result.distillations + (counts?.distillations || 0),
+        };
+      }
+
       const annotations = article.annotations.filter((annotation) =>
         inPeriod(annotation.createdAt),
       );
       const comments = article.annotations.flatMap((annotation) =>
         annotationThreadComments(annotation).filter((comment) => inPeriod(comment.createdAt)),
       );
+      const thoughts = article.annotations.flatMap((annotation) =>
+        annotationThoughtComments(annotation).filter((comment) => inPeriod(comment.createdAt)),
+      );
+      const distillations = article.annotations.filter(
+        (annotation) =>
+          annotationHasPublishedDistillation(annotation) &&
+          inPeriod(distillationActivityDate(annotation)),
+      );
 
       return {
         articles: result.articles + (inPeriod(article.updatedAt) ? 1 : 0),
         annotations: result.annotations + annotations.length,
+        thoughts: result.thoughts + thoughts.length,
         comments: result.comments + comments.length,
         aiComments:
           result.aiComments + comments.filter((comment) => comment.author === 'ai').length,
+        distillations: result.distillations + distillations.length,
       };
     },
-    { articles: 0, annotations: 0, comments: 0, aiComments: 0 },
+    { articles: 0, annotations: 0, thoughts: 0, comments: 0, aiComments: 0, distillations: 0 },
   );
+}
+
+function articleHasCompleteAnnotationDetails(article: ArticleSummaryRecord) {
+  return (article.annotationCount ?? article.annotations.length) <= article.annotations.length;
+}
+
+function articleSummaryCounts(article: ArticleSummaryRecord) {
+  return {
+    annotations: article.annotationCount ?? article.annotations.length,
+    thoughts:
+      article.commentCount ??
+      article.annotations.reduce(
+        (count, annotation) =>
+          count + annotation.comments.filter((comment) => !comment.replyTo).length,
+        0,
+      ),
+    distillations:
+      article.distillationCount ??
+      article.annotations.filter(annotationHasPublishedDistillation).length,
+  };
 }
 
 function startOfDay(date: Date) {
@@ -146,11 +213,22 @@ function emptyActivityDay(date: Date): ReadingActivityDay {
     label: `${date.getMonth() + 1}/${date.getDate()}`,
     articles: 0,
     annotations: 0,
+    thoughts: 0,
     comments: 0,
     aiComments: 0,
+    distillations: 0,
     score: 0,
     level: 0,
   };
+}
+
+function distillationActivityDate(annotation: Annotation) {
+  return (
+    annotation.distillation?.publishedAt ||
+    annotation.distillation?.updatedAt ||
+    annotation.updatedAt ||
+    annotation.createdAt
+  );
 }
 
 function dateKey(date: Date) {

@@ -65,7 +65,7 @@ export function UserProfileSettingsDialog({
             </span>
             <div>
               <h2 id="user-profile-dialog-title">个人设置</h2>
-              <p>配置批注和评论中使用的身份信息。</p>
+              <p>配置想法和回复中使用的身份信息。</p>
             </div>
           </div>
         </header>
@@ -79,7 +79,7 @@ export function UserProfileSettingsDialog({
             />
             <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
           </div>
-          <Field id="profile-nickname" description="批注和评论中展示的名称。" label="昵称">
+          <Field id="profile-nickname" description="想法和回复中展示的名称。" label="昵称">
             <Input
               id="profile-nickname"
               name="nickname"

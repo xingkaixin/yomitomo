@@ -13,24 +13,24 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from './components/ui/
 import { chartActivityDescription } from './app-reading-stats-data';
 
 const chartConfig = {
-  articles: {
-    label: '文章',
+  distillations: {
+    label: '沉淀',
     color: 'var(--chart-3)',
   },
-  annotations: {
-    label: '批注',
-    color: 'var(--chart-1)',
-  },
-  comments: {
-    label: '讨论',
+  thoughts: {
+    label: '想法',
     color: 'var(--chart-2)',
+  },
+  annotations: {
+    label: '划线',
+    color: 'var(--chart-1)',
   },
 } satisfies ChartConfig;
 
-type ChartActivityDay = Omit<ReadingActivityDay, 'articles' | 'annotations' | 'comments'> & {
-  articles: number | null;
+type ChartActivityDay = Omit<ReadingActivityDay, 'annotations' | 'thoughts' | 'distillations'> & {
   annotations: number | null;
-  comments: number | null;
+  thoughts: number | null;
+  distillations: number | null;
   recordStatus: 'unstarted' | 'recording';
 };
 
@@ -106,16 +106,16 @@ export function ReadingStatsChart({
         ) : null}
         <div className="stats-chart-legend" aria-hidden="true">
           <span>
-            <i style={{ background: chartConfig.articles.color }} />
-            文章
+            <i style={{ background: chartConfig.distillations.color }} />
+            沉淀
+          </span>
+          <span>
+            <i style={{ background: chartConfig.thoughts.color }} />
+            想法
           </span>
           <span>
             <i style={{ background: chartConfig.annotations.color }} />
-            批注
-          </span>
-          <span>
-            <i style={{ background: chartConfig.comments.color }} />
-            讨论
+            划线
           </span>
         </div>
       </div>
@@ -149,10 +149,22 @@ export function ReadingStatsChart({
           <Line
             activeDot={{ r: 5, strokeWidth: 0 }}
             className="stats-handdrawn-stroke"
-            dataKey="articles"
+            dataKey="distillations"
             dot={false}
-            shape={renderArticlesLine}
-            stroke="var(--color-articles)"
+            shape={renderDistillationsLine}
+            stroke="var(--color-distillations)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={3}
+            type="linear"
+          />
+          <Line
+            activeDot={{ r: 5, strokeWidth: 0 }}
+            className="stats-handdrawn-stroke"
+            dataKey="thoughts"
+            dot={false}
+            shape={renderThoughtsLine}
+            stroke="var(--color-thoughts)"
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={3}
@@ -170,33 +182,21 @@ export function ReadingStatsChart({
             strokeWidth={3}
             type="linear"
           />
-          <Line
-            activeDot={{ r: 5, strokeWidth: 0 }}
-            className="stats-handdrawn-stroke"
-            dataKey="comments"
-            dot={false}
-            shape={renderCommentsLine}
-            stroke="var(--color-comments)"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={3}
-            type="linear"
-          />
         </LineChart>
       </ChartContainer>
     </div>
   );
 }
 
-function renderArticlesLine(props: CurveProps) {
+function renderDistillationsLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={11} />;
 }
 
-function renderAnnotationsLine(props: CurveProps) {
+function renderThoughtsLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={23} />;
 }
 
-function renderCommentsLine(props: CurveProps) {
+function renderAnnotationsLine(props: CurveProps) {
   return <HandDrawnCurve {...props} seed={37} />;
 }
 
@@ -293,9 +293,9 @@ function buildChartData(days: ReadingActivityDay[], startDate: string): ChartAct
     if (day.date < startDate) {
       return {
         ...day,
-        articles: null,
+        distillations: null,
+        thoughts: null,
         annotations: null,
-        comments: null,
         recordStatus: 'unstarted',
       };
     }

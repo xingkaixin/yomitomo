@@ -68,10 +68,10 @@ export function ReaderToolbar({
           <List size={18} />
         </button>
         {showAnnotationNavigation ? (
-          <div className="reader-annotation-nav" aria-label="批注快捷选择">
-            <ReaderTooltip content="上一个批注" disabled={!annotationNavigation.previousId}>
+          <div className="reader-annotation-nav" aria-label="划线快捷选择">
+            <ReaderTooltip content="上一个划线" disabled={!annotationNavigation.previousId}>
               <button
-                aria-label="上一个批注"
+                aria-label="上一个划线"
                 className="reader-icon-button"
                 disabled={!annotationNavigation.previousId}
                 type="button"
@@ -80,9 +80,9 @@ export function ReaderToolbar({
                 <ChevronUp size={17} />
               </button>
             </ReaderTooltip>
-            <ReaderTooltip content="下一个批注" disabled={!annotationNavigation.nextId}>
+            <ReaderTooltip content="下一个划线" disabled={!annotationNavigation.nextId}>
               <button
-                aria-label="下一个批注"
+                aria-label="下一个划线"
                 className="reader-icon-button"
                 disabled={!annotationNavigation.nextId}
                 type="button"

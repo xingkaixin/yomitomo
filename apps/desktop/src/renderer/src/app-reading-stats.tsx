@@ -122,7 +122,7 @@ export function ReadingStatsPanel({
         title="统计"
         description={
           source === 'local'
-            ? '基于本地批注、讨论和阅读记录生成阅读概况。'
+            ? '基于本地划线、想法、沉淀和阅读记录生成阅读概况。'
             : '查询并保存微信读书按周期统计。切换周期只读取本地缓存。'
         }
         action={

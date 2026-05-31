@@ -316,12 +316,12 @@ export function PdfiumBookcase({
           >
             <List size={18} />
           </button>
-          <div className="reader-annotation-nav" aria-label="批注快捷选择">
+          <div className="reader-annotation-nav" aria-label="划线快捷选择">
             <button
-              aria-label="上一个批注"
+              aria-label="上一个划线"
               className="reader-icon-button"
               disabled={!annotationNavigation.previousId}
-              title="上一个批注"
+              title="上一个划线"
               type="button"
               onClick={() => {
                 if (annotationNavigation.previousId) {
@@ -332,10 +332,10 @@ export function PdfiumBookcase({
               <ChevronUp size={17} />
             </button>
             <button
-              aria-label="下一个批注"
+              aria-label="下一个划线"
               className="reader-icon-button"
               disabled={!annotationNavigation.nextId}
-              title="下一个批注"
+              title="下一个划线"
               type="button"
               onClick={() => {
                 if (annotationNavigation.nextId) {

@@ -85,7 +85,7 @@ describe('ReadingStatsPanel', () => {
     expect(screen.getByLabelText('近 70 天伴读活动')).toBeTruthy();
     expect(screen.getByText('70 天伴读地图')).toBeTruthy();
     expect(screen.getAllByLabelText(/伴读旅程尚未开始/)).toHaveLength(69);
-    expect(screen.getAllByLabelText(/条批注/)).toHaveLength(1);
+    expect(screen.getAllByLabelText(/条划线/)).toHaveLength(1);
     await waitFor(() => expect(screen.getAllByTestId('chart-line')).toHaveLength(3));
   });
 

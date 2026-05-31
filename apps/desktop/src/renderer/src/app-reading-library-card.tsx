@@ -189,7 +189,7 @@ export function ArticleLibraryCard({
         <div className="library-card-meta" aria-label={statsLabel} data-tooltip={statsLabel}>
           <span>
             <PencilLine size={13} />
-            {annotations} 批注
+            {annotations} 划线
           </span>
           <span>
             <Layers2 size={13} />
