@@ -1,6 +1,7 @@
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
+import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import jetBrainsMonoBoldUrl from './assets/fonts/JetBrainsMono-Bold.woff2?url';
 import jetBrainsMonoRegularUrl from './assets/fonts/JetBrainsMono-Regular.woff2?url';
@@ -132,6 +133,12 @@ export function closeFoliateView(view: FoliateViewElement | null) {
 }
 
 function foliateReaderCss(settings: ReaderSettings) {
+  const isDarkBackground = readerBackgroundTone(settings.backgroundColor) === 'dark';
+  const colorScheme = isDarkBackground ? 'dark' : 'light';
+  const readerInk = isDarkBackground ? '#e0d9cc' : '#28231d';
+  const readerMuted = isDarkBackground ? '#a39a8b' : '#746d63';
+  const linkUnderline = isDarkBackground ? 'rgba(224, 217, 204, .34)' : 'rgba(40, 35, 29, .36)';
+
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
 
@@ -179,12 +186,14 @@ function foliateReaderCss(settings: ReaderSettings) {
 
     html {
       background: ${settings.backgroundColor};
-      color-scheme: light;
+      color: ${readerInk};
+      color-scheme: ${colorScheme};
       font-size: ${settings.fontSize}px;
     }
 
     body {
       background: ${settings.backgroundColor};
+      color: inherit;
       font-size: inherit;
       font-family: "Source Serif 4", "Noto Serif SC", "Songti SC", Georgia, serif;
       overflow-wrap: break-word;
@@ -216,8 +225,12 @@ function foliateReaderCss(settings: ReaderSettings) {
 
     a {
       color: inherit;
-      text-decoration-color: rgba(40, 35, 29, .36);
+      text-decoration-color: ${linkUnderline};
       text-underline-offset: .16em;
+    }
+
+    figcaption, caption, small {
+      color: ${readerMuted};
     }
 
     aside[epub|type~="endnote"],

@@ -12,6 +12,7 @@ import type {
   ReaderAppViewProps,
 } from './reader-app-view-types';
 import type { AnnotationRailLayout } from '../annotations/reader-annotations';
+import { readerBackgroundTone } from '../reader-settings';
 import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
 import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
@@ -180,6 +181,7 @@ export function ReaderAppView({
   reviewAgents = [],
   selectionAction,
   settingsOpen,
+  showSettings = true,
   messageSendShortcut,
   pendingAnnotationAgents = {},
   selectionActionShortcuts,
@@ -320,6 +322,9 @@ export function ReaderAppView({
         annotationRailLayout.mode === 'stacked' ? 'is-annotation-stacked' : '',
         hasToc ? 'has-toc' : '',
         hasToc && tocOpen ? 'is-toc-open' : '',
+        readerBackgroundTone(readerSettings.backgroundColor) === 'dark'
+          ? 'is-reader-background-dark'
+          : 'is-reader-background-light',
       ]
         .filter(Boolean)
         .join(' ')}
@@ -332,6 +337,7 @@ export function ReaderAppView({
         hasToc={hasToc}
         settingsOpen={settingsOpen}
         showAnnotationNavigation={Boolean(onResolveAnnotationNavigation && onNavigateAnnotation)}
+        showSettings={showSettings}
         tocOpen={tocOpen}
         toolbarArticleAction={toolbarArticleAction}
         onClose={onClose}
@@ -340,11 +346,13 @@ export function ReaderAppView({
         onToggleToc={onToggleToc}
       />
 
-      <ReaderFloatingPanels
-        readerSettings={readerSettings}
-        settingsOpen={settingsOpen}
-        onUpdateReaderSettings={onUpdateReaderSettings}
-      />
+      {showSettings ? (
+        <ReaderFloatingPanels
+          readerSettings={readerSettings}
+          settingsOpen={settingsOpen}
+          onUpdateReaderSettings={onUpdateReaderSettings}
+        />
+      ) : null}
 
       <button
         className="reader-responsive-scrim"

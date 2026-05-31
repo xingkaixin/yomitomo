@@ -1,10 +1,17 @@
 import type { CSSProperties } from 'react';
 import { Check, Palette, X } from 'lucide-react';
-import { readerBackgroundOptions } from '@yomitomo/reader-ui/reader-settings';
 import {
+  defaultReaderBackgroundForTone,
+  readerBackgroundOptions,
+  readerBackgroundTone,
+  type ReaderBackgroundTone,
+} from '@yomitomo/reader-ui/reader-settings';
+import {
+  defaultThemeIdForTone,
   themeRegistry,
   themeToCssVariables,
   visibleThemeIds,
+  type AppThemeTone,
   type AppTheme,
   type AppThemeId,
 } from './app-theme';
@@ -26,6 +33,35 @@ export function ThemeSelector({
   onSelectReaderBackground,
   onSelectTheme,
 }: ThemeSelectorProps) {
+  const activeTone = themeRegistry[activeThemeId].meta.tone;
+  const visibleToneThemeIds = visibleThemeIds.filter(
+    (themeId) => themeRegistry[themeId].meta.tone === activeTone,
+  );
+  const visibleReaderBackgroundOptions = readerBackgroundOptions.filter(
+    (option) => option.tone === activeTone,
+  );
+
+  function selectTone(tone: AppThemeTone) {
+    onSelectTheme(defaultThemeIdForTone(tone));
+    onSelectReaderBackground(defaultReaderBackgroundForTone(tone));
+  }
+
+  function selectTheme(themeId: AppThemeId) {
+    const tone = themeRegistry[themeId].meta.tone;
+    onSelectTheme(themeId);
+    if (readerBackgroundTone(readerBackgroundColor) !== tone) {
+      onSelectReaderBackground(defaultReaderBackgroundForTone(tone));
+    }
+  }
+
+  function selectReaderBackground(backgroundColor: string) {
+    const tone = readerBackgroundTone(backgroundColor);
+    if (tone !== activeTone) {
+      onSelectTheme(defaultThemeIdForTone(tone));
+    }
+    onSelectReaderBackground(backgroundColor);
+  }
+
   return (
     <>
       <button
@@ -70,15 +106,28 @@ export function ThemeSelector({
                 <X aria-hidden="true" size={18} />
               </button>
             </header>
+            <div className="theme-tone-switch" role="group" aria-label="主题分类">
+              {themeToneOptions.map((option) => (
+                <button
+                  aria-pressed={activeTone === option.tone}
+                  className={activeTone === option.tone ? 'is-active' : undefined}
+                  key={option.tone}
+                  type="button"
+                  onClick={() => selectTone(option.tone)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
             <div className="theme-card-grid">
-              {visibleThemeIds.map((themeId) => {
+              {visibleToneThemeIds.map((themeId) => {
                 const theme = themeRegistry[themeId];
                 return (
                   <ThemeCard
                     active={activeThemeId === themeId}
                     key={themeId}
                     theme={theme}
-                    onClick={() => onSelectTheme(themeId)}
+                    onClick={() => selectTheme(themeId)}
                   />
                 );
               })}
@@ -89,7 +138,7 @@ export function ThemeSelector({
                 <p>只影响网页文章、电子书和 PDF 的正文阅读区域。</p>
               </div>
               <div className="theme-reader-paper-options">
-                {readerBackgroundOptions.map((option) => (
+                {visibleReaderBackgroundOptions.map((option) => (
                   <button
                     aria-label={`阅读器纸张：${option.label}`}
                     aria-pressed={readerBackgroundColor === option.value}
@@ -102,10 +151,15 @@ export function ThemeSelector({
                     style={{ '--reader-paper-option': option.value } as CSSProperties}
                     title={option.label}
                     type="button"
-                    onClick={() => onSelectReaderBackground(option.value)}
+                    onClick={() => selectReaderBackground(option.value)}
                   >
-                    <span aria-hidden="true" />
+                    <span aria-hidden="true" className="theme-reader-paper-swatch" />
                     <strong>{option.label}</strong>
+                    <span className="theme-reader-paper-check" aria-hidden="true">
+                      {readerBackgroundColor === option.value ? (
+                        <Check size={15} strokeWidth={2.4} />
+                      ) : null}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -116,6 +170,11 @@ export function ThemeSelector({
     </>
   );
 }
+
+const themeToneOptions: Array<{ label: string; tone: ReaderBackgroundTone }> = [
+  { label: '亮色', tone: 'light' },
+  { label: '暗色', tone: 'dark' },
+];
 
 function ThemeCard({
   active,

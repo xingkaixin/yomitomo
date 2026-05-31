@@ -37,7 +37,6 @@ import {
   ChevronDown,
   List,
   LoaderCircle,
-  Settings,
 } from 'lucide-react';
 import { FontCharset, type PdfEngine } from '@embedpdf/models';
 import {
@@ -67,7 +66,7 @@ import {
   readerDesktopEmbeddedStyles,
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
-import type { ReaderSettings, VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
+import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -80,10 +79,8 @@ import {
   promptArticle,
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-  normalizeDesktopReaderSettings,
-  readDesktopReaderSettings,
+  useDesktopReaderSettings,
   type SourceBookcaseProps,
-  writeDesktopReaderSettings,
 } from './app-source-bookcase-shared';
 import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
@@ -188,7 +185,6 @@ export function PdfiumBookcase({
   const navigateAnnotationRef = useRef<(annotationId: string) => void>(() => undefined);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   if (!openTraceRef.current || openTraceRef.current.articleId !== article.id) {
     openTraceRef.current = pdfOpenTrace(article.id);
     recordedOpenPhasesRef.current = new Set();
@@ -320,19 +316,6 @@ export function PdfiumBookcase({
           >
             <List size={18} />
           </button>
-          <button
-            aria-label="阅读设置"
-            aria-pressed={settingsOpen}
-            className={
-              settingsOpen
-                ? 'reader-icon-button reader-settings-toggle is-active'
-                : 'reader-icon-button reader-settings-toggle'
-            }
-            type="button"
-            onClick={() => setSettingsOpen((open) => !open)}
-          >
-            <Settings size={18} />
-          </button>
           <div className="reader-annotation-nav" aria-label="批注快捷选择">
             <button
               aria-label="上一个批注"
@@ -399,7 +382,6 @@ export function PdfiumBookcase({
                         selectionActionShortcuts={selectionActionShortcuts}
                         tocItems={tocItems}
                         tocOpen={tocOpen}
-                        settingsOpen={settingsOpen}
                         userProfile={userProfile}
                         onClose={onClose}
                         onCloseToc={() => setTocOpen(false)}
@@ -412,8 +394,6 @@ export function PdfiumBookcase({
                         onFocusedAnnotation={onFocusedAnnotation}
                         onSetTocItems={setTocItems}
                         onToggleToc={() => setTocOpen((open) => !open)}
-                        onToggleSettings={() => setSettingsOpen((open) => !open)}
-                        onCloseSettings={() => setSettingsOpen(false)}
                         onOpenAnnotationDiscussion={onOpenAnnotationDiscussion}
                         onOpenAnnotation={onOpenAnnotation}
                         onSaveArticle={onSaveArticle}
@@ -454,7 +434,6 @@ function PdfiumDocument({
   focusAnnotationId,
   selectedAnnotationId,
   selectionActionShortcuts,
-  settingsOpen,
   tocItems,
   tocOpen,
   userProfile,
@@ -470,9 +449,7 @@ function PdfiumDocument({
   onSetAnnotationNavigation,
   onSetAnnotationNavigator,
   onFocusedAnnotation,
-  onCloseSettings,
   onToggleToc,
-  onToggleSettings,
   onUpdateArticle,
 }: {
   agents: SourceBookcaseProps['agents'];
@@ -487,7 +464,6 @@ function PdfiumDocument({
   focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
   selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
   selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
-  settingsOpen: boolean;
   tocItems: TocItem[];
   tocOpen: boolean;
   userProfile: SourceBookcaseProps['userProfile'];
@@ -503,9 +479,7 @@ function PdfiumDocument({
   onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
   onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
   onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
-  onCloseSettings: () => void;
   onToggleToc: () => void;
-  onToggleSettings: () => void;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
 }) {
   const articleRef = useRef<HTMLElement | null>(null);
@@ -539,9 +513,7 @@ function PdfiumDocument({
   const [statusMessage, setStatusMessage] = useState('');
   const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
   const [pdfFirstPageReady, setPdfFirstPageReady] = useState(false);
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
-    readDesktopReaderSettings(),
-  );
+  const [readerSettings, updatePdfReaderSettings] = useDesktopReaderSettings();
   const [restoringInitialPage, setRestoringInitialPage] = useState(
     () => initialPageIndexRef.current > 0,
   );
@@ -729,12 +701,6 @@ function PdfiumDocument({
   );
   const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
-
-  function updatePdfReaderSettings(nextSettings: ReaderSettings) {
-    const normalizedSettings = normalizeDesktopReaderSettings(nextSettings);
-    setReaderSettings(normalizedSettings);
-    writeDesktopReaderSettings(normalizedSettings);
-  }
 
   const {
     temporaryBoxes,
@@ -1772,7 +1738,8 @@ function PdfiumDocument({
         reviewAgents={reviewAgents}
         selectionAction={selectionAction}
         selectionActionShortcuts={actionShortcuts}
-        settingsOpen={settingsOpen}
+        settingsOpen={false}
+        showSettings={false}
         shortcutModifier={shortcutModifier}
         surfaceRef={surfaceRef}
         temporaryBoxes={temporaryBoxes}
@@ -1789,7 +1756,6 @@ function PdfiumDocument({
         onClose={onClose}
         onCloseFloatingPanels={() => {
           onCloseToc();
-          onCloseSettings();
         }}
         onCloseHighlightChoice={() => setHighlightChoice(null)}
         onCloseResponsivePanels={onCloseToc}
@@ -1807,7 +1773,7 @@ function PdfiumDocument({
         onRequestAnnotationReview={requestAnnotationReview}
         onScrollToHeading={scrollToTocItem}
         onScrollToHighlight={scrollToAnnotation}
-        onToggleSettings={onToggleSettings}
+        onToggleSettings={() => undefined}
         onToggleToc={onToggleToc}
         onUpdateReaderSettings={updatePdfReaderSettings}
       />

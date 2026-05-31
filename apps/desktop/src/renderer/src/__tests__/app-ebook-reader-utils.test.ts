@@ -184,6 +184,24 @@ describe('configureFoliateView', () => {
     expect(styles).toContain('body {\n      background: #eef4e8;');
     expect(styles).toContain('font-size: inherit;');
   });
+
+  it('keeps ebook text readable on dark reader paper', () => {
+    const renderer = document.createElement('div') as unknown as HTMLElement & {
+      setStyles: (styles: string | string[]) => void;
+    };
+    renderer.setStyles = vi.fn();
+
+    configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
+      fontSize: 18,
+      contentWidth: 720,
+      backgroundColor: '#242019',
+    });
+
+    const styles = vi.mocked(renderer.setStyles).mock.calls[0]?.[0];
+    expect(styles).toContain('color: #e0d9cc;');
+    expect(styles).toContain('color-scheme: dark;');
+    expect(styles).toContain('body {\n      background: #242019;\n      color: inherit;');
+  });
 });
 
 describe('mappedFoliateRangeRects', () => {

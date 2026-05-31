@@ -13,6 +13,7 @@ export type ReaderToolbarProps = {
   hasToc: boolean;
   settingsOpen: boolean;
   showAnnotationNavigation: boolean;
+  showSettings: boolean;
   tocOpen: boolean;
   toolbarArticleAction?: React.ReactNode;
   onClose: () => void;
@@ -27,6 +28,7 @@ export function ReaderToolbar({
   hasToc,
   settingsOpen,
   showAnnotationNavigation,
+  showSettings,
   tocOpen,
   toolbarArticleAction,
   onClose,
@@ -91,15 +93,17 @@ export function ReaderToolbar({
             </ReaderTooltip>
           </div>
         ) : null}
-        <button
-          className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
-          data-reader-popover-anchor
-          type="button"
-          onClick={onToggleSettings}
-          aria-label="阅读设置"
-        >
-          <Settings2 size={18} />
-        </button>
+        {showSettings ? (
+          <button
+            className={settingsOpen ? 'reader-icon-button is-active' : 'reader-icon-button'}
+            data-reader-popover-anchor
+            type="button"
+            onClick={onToggleSettings}
+            aria-label="阅读设置"
+          >
+            <Settings2 size={18} />
+          </button>
+        ) : null}
         <button className="reader-close" type="button" onClick={onClose} aria-label="关闭阅读器">
           <X size={18} />
         </button>

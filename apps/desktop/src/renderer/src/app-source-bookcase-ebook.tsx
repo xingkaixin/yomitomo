@@ -10,7 +10,6 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
-import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { sleep } from '@yomitomo/reader-ui/reader-animation';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -38,11 +37,9 @@ import {
   articleWithAnnotations,
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
-  normalizeDesktopReaderSettings,
   promptArticle,
-  readDesktopReaderSettings,
+  useDesktopReaderSettings,
   usesOverlayToc,
-  writeDesktopReaderSettings,
   type EbookBookcaseProps,
 } from './app-source-bookcase-shared';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
@@ -230,9 +227,7 @@ export function EbookBookcase({
     canvasRef,
     onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
   });
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
-    readDesktopReaderSettings(),
-  );
+  const [readerSettings, updateEbookReaderSettings] = useDesktopReaderSettings();
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
   const actionShortcuts = useMemo(
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
@@ -430,12 +425,6 @@ export function EbookBookcase({
     if (!tocItem) return;
     if (usesOverlayToc()) setTocOpen(false);
     goToTocItem(tocItem);
-  }
-
-  function updateEbookReaderSettings(nextSettings: ReaderSettings) {
-    const normalizedSettings = normalizeDesktopReaderSettings(nextSettings);
-    setReaderSettings(normalizedSettings);
-    writeDesktopReaderSettings(normalizedSettings);
   }
 
   function handleReaderKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {

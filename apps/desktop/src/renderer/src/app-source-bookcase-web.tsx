@@ -36,7 +36,6 @@ import {
   readerDesktopEmbeddedStyles,
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
-import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   buildTocAnnotationStats,
@@ -51,11 +50,9 @@ import {
   articleWithAnnotations,
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
-  normalizeDesktopReaderSettings,
   promptArticle,
-  readDesktopReaderSettings,
+  useDesktopReaderSettings,
   usesOverlayToc,
-  writeDesktopReaderSettings,
   type WebSourceBookcaseProps,
 } from './app-source-bookcase-shared';
 import { useSourceActiveConnection } from './use-source-active-connection';
@@ -205,9 +202,7 @@ export function WebSourceBookcase({
     canvasRef,
     onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
   });
-  const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() =>
-    readDesktopReaderSettings(),
-  );
+  const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const { boxes, tocItems } = useWebReaderBoxes({
     annotationAgents,
@@ -641,12 +636,6 @@ export function WebSourceBookcase({
       top: Math.max(0, scrollElement.scrollTop + targetRect.top - scrollRect.top - 18),
       behavior: 'smooth',
     });
-  }
-
-  function updateReaderSettings(nextSettings: ReaderSettings) {
-    const normalizedSettings = normalizeDesktopReaderSettings(nextSettings);
-    setReaderSettings(normalizedSettings);
-    writeDesktopReaderSettings(normalizedSettings);
   }
 
   if (!article) {

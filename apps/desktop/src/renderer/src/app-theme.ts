@@ -9,6 +9,7 @@ export type AppTheme = {
     id: string;
     name: string;
     description: string;
+    tone: AppThemeTone;
     visible: boolean;
   };
   font: {
@@ -77,6 +78,8 @@ export type AppTheme = {
   reader: ReaderTheme;
 };
 
+export type AppThemeTone = 'light' | 'dark';
+
 export type ThemeControlState = {
   background: string;
   foreground: string;
@@ -100,6 +103,7 @@ export type PaperPatternTheme = {
 
 export const defaultThemeId = 'default';
 export const beigePaperThemeId = 'beige-paper';
+export const inkBlackThemeId = 'ink-black';
 export const inkPaperThemeId = 'ink-paper';
 const cachedThemeStorageKey = 'yomitomo.themeId';
 
@@ -158,6 +162,7 @@ export const defaultTheme: AppTheme = {
     id: defaultThemeId,
     name: '纸白',
     description: '当前 Yomitomo 桌面端默认视觉，提炼为主题契约的基准主题。',
+    tone: 'light',
     visible: true,
   },
   font: {
@@ -313,6 +318,7 @@ export const beigePaperTheme: AppTheme = {
     id: beigePaperThemeId,
     name: '米色纸',
     description: '用于验证主题契约覆盖范围的米色纸质感主题。',
+    tone: 'light',
     visible: false,
   },
   font: defaultTheme.font,
@@ -409,6 +415,158 @@ export const beigePaperTheme: AppTheme = {
   reader: beigePaperReaderTheme,
 };
 
+const inkBlackReaderTheme: ReaderTheme = {
+  background: '#1a1815',
+  paper: '#242019',
+  ink: '#e0d9cc',
+  muted: '#8c8576',
+  line: '#464139',
+  primary: '#e0844f',
+  accent: '#3d241b',
+  accentStrong: '#e0844f',
+  danger: '#e56f65',
+  toolbar: {
+    background: 'rgba(26,24,21,.88)',
+    border: 'rgba(224,217,204,.1)',
+    controlBackground: 'rgba(36,32,25,.86)',
+    controlHoverBackground: '#302a22',
+  },
+  toc: {
+    background: 'rgba(36,32,25,.62)',
+    itemHoverBackground: 'rgba(48,42,34,.82)',
+  },
+  note: {
+    background: 'rgba(36,32,25,.9)',
+    border: 'rgba(224,217,204,.12)',
+    shadow: '0 18px 44px rgba(0,0,0,.42)',
+    quoteBackground: 'rgba(224,132,79,.16)',
+    quoteText: '#e0d9cc',
+  },
+  selectionMenu: {
+    background: 'rgba(36,32,25,.94)',
+    foreground: '#e0d9cc',
+    border: 'rgba(224,217,204,.14)',
+    shadow: '0 18px 48px rgba(0,0,0,.52)',
+  },
+  composer: {
+    background: 'rgba(36,32,25,.98)',
+    border: 'rgba(224,217,204,.16)',
+    shadow: '0 24px 70px rgba(0,0,0,.58)',
+  },
+  agentPanel: {
+    background: 'rgba(36,32,25,.94)',
+    border: 'rgba(224,217,204,.14)',
+    hoverBackground: '#302a22',
+  },
+  overlay: {
+    scrim: 'rgba(0,0,0,.42)',
+    edgeBlurTop: 'linear-gradient(to bottom,rgba(26,24,21,.9),rgba(26,24,21,0))',
+    edgeBlurBottom: 'linear-gradient(to top,rgba(26,24,21,.9),rgba(26,24,21,0))',
+  },
+};
+
+export const inkBlackTheme: AppTheme = {
+  meta: {
+    id: inkBlackThemeId,
+    name: '墨黑',
+    description: '暖调近黑、松烟纸面和余烬赤陶强调的夜间阅读主题。',
+    tone: 'dark',
+    visible: true,
+  },
+  font: defaultTheme.font,
+  palette: {
+    background: '34 9% 9%',
+    foreground: '40 16% 87%',
+    card: '33 8% 14%',
+    cardForeground: '40 16% 87%',
+    popover: '33 8% 14%',
+    popoverForeground: '40 16% 87%',
+    primary: '8 76% 63%',
+    primaryForeground: '30 14% 10%',
+    secondary: '33 8% 17%',
+    secondaryForeground: '40 16% 87%',
+    muted: '33 8% 17%',
+    mutedForeground: '38 9% 60%',
+    accent: '8 40% 20%',
+    accentForeground: '8 76% 63%',
+    destructive: '6 72% 62%',
+    destructiveForeground: '30 14% 10%',
+    border: '36 7% 27%',
+    input: '36 7% 27%',
+    ring: '8 76% 63%',
+  },
+  effect: {
+    radius: '0.75rem',
+    resizeDuration: defaultTheme.effect.resizeDuration,
+    resizeEase: defaultTheme.effect.resizeEase,
+    shellBackground:
+      'radial-gradient(circle at 16% 18%, hsl(8 76% 63% / 0.14), transparent 28%), linear-gradient(135deg, hsl(34 9% 9%), hsl(30 10% 7%))',
+    shellPanelShadow: '0 26px 70px hsl(0 0% 0% / 0.58)',
+    subtlePanelShadow: '0 12px 30px hsl(0 0% 0% / 0.5)',
+    cardShadow: '0 8px 18px hsl(0 0% 0% / 0.45)',
+    overlayScrim: 'rgba(0,0,0,.42)',
+  },
+  action: {
+    primary: {
+      background: 'hsl(8 76% 63%)',
+      foreground: 'hsl(30 14% 10%)',
+      border: 'hsl(8 76% 63%)',
+      hoverBackground: 'hsl(8 76% 68%)',
+      activeBackground: 'hsl(8 70% 56%)',
+      disabledBackground: 'hsl(36 7% 27%)',
+      disabledForeground: 'hsl(36 8% 45%)',
+    },
+    secondary: {
+      background: 'hsl(33 8% 17% / 0.86)',
+      foreground: 'hsl(40 16% 87%)',
+      border: 'hsl(36 7% 30% / 0.7)',
+      hoverBackground: 'hsl(33 8% 22%)',
+      activeBackground: 'hsl(33 8% 26%)',
+      disabledBackground: 'hsl(33 8% 17% / 0.56)',
+      disabledForeground: 'hsl(36 8% 45%)',
+    },
+    danger: {
+      background: 'hsl(6 72% 62%)',
+      foreground: 'hsl(30 14% 10%)',
+      border: 'hsl(6 72% 62%)',
+      hoverBackground: 'hsl(6 72% 67%)',
+      activeBackground: 'hsl(6 64% 55%)',
+      disabledBackground: 'hsl(6 24% 25%)',
+      disabledForeground: 'hsl(36 8% 45%)',
+    },
+  },
+  interactive: {
+    link: 'hsl(8 76% 63%)',
+    linkHover: 'hsl(8 76% 70%)',
+    selectedBackground: 'hsl(8 40% 20%)',
+    selectedForeground: 'hsl(8 76% 63%)',
+    selectedBorder: 'hsl(8 76% 63% / 0.48)',
+    currentBackground: 'hsl(33 8% 17% / 0.82)',
+    hoverBackground: 'hsl(33 8% 17% / 0.72)',
+    hoverBorder: 'hsl(8 76% 63% / 0.38)',
+    focusRing: 'hsl(8 76% 63% / 0.4)',
+    badgeBackground: 'hsl(8 40% 20%)',
+    badgeForeground: 'hsl(8 76% 63%)',
+    badgeBorder: 'hsl(8 76% 63% / 0.24)',
+  },
+  paperPattern: {
+    kind: 'dash-grid',
+    background: 'hsl(34 9% 9%)',
+    color: 'hsl(40 16% 87%)',
+    secondaryColor: 'hsl(8 76% 63%)',
+    opacity: '0.035',
+    size: '18px',
+  },
+  dataColor: {
+    chart1: 'hsl(140 30% 52%)',
+    chart2: 'hsl(8 56% 60%)',
+    chart3: 'hsl(205 46% 60%)',
+    userAnnotationDefault: '#e0844f',
+    readerAgentFallback: '#e0d9cc',
+  },
+  reader: inkBlackReaderTheme,
+};
+
 const inkPaperReaderTheme: ReaderTheme = {
   background: '#f5f4ed',
   paper: '#faf9f5',
@@ -464,6 +622,7 @@ export const inkPaperTheme: AppTheme = {
     id: inkPaperThemeId,
     name: '墨纸',
     description: '暖纸底、淡点阵和墨蓝强调的沉静阅读主题。',
+    tone: 'light',
     visible: true,
   },
   font: defaultTheme.font,
@@ -562,6 +721,7 @@ export const inkPaperTheme: AppTheme = {
 export const themeRegistry = {
   [defaultThemeId]: defaultTheme,
   [inkPaperThemeId]: inkPaperTheme,
+  [inkBlackThemeId]: inkBlackTheme,
   [beigePaperThemeId]: beigePaperTheme,
 } as const satisfies Record<string, AppTheme>;
 
@@ -570,6 +730,12 @@ export type AppThemeId = keyof typeof themeRegistry;
 export const visibleThemeIds = (Object.keys(themeRegistry) as AppThemeId[]).filter(
   (themeId) => themeRegistry[themeId].meta.visible,
 );
+
+export function defaultThemeIdForTone(tone: AppThemeTone): AppThemeId {
+  return (
+    visibleThemeIds.find((themeId) => themeRegistry[themeId].meta.tone === tone) || defaultThemeId
+  );
+}
 
 export function themeToCssVariables(theme: AppTheme): CssVariableMap {
   return {

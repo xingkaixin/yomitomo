@@ -34,9 +34,19 @@ describe('source reader annotation styles', () => {
 
   it('uses the independent reader content background for source readers', () => {
     expect(styles).toContain('background: var(--reader-content-bg, hsl(var(--card)));');
-    expect(styles).toContain('background: var(--reader-content-bg, white);');
+    expect(styles).toMatch(
+      /\.pdfium-spike-viewport \{[\s\S]*background: var\(--app-paper-pattern-image\), var\(--app-paper-pattern-bg\);[\s\S]*background-size: var\(--app-paper-pattern-size\) var\(--app-paper-pattern-size\);/,
+    );
+    expect(styles).not.toContain('background-size: 28px 28px;');
+    expect(styles).toContain('background: white;');
     expect(styles).toContain('.pdfium-spike-page :where(canvas, img) {');
-    expect(styles).toContain('mix-blend-mode: multiply;');
+    expect(styles).toContain('mix-blend-mode: normal;');
+    expect(styles).toContain(
+      '.source-pdf-reader-shell .reader-app.is-reader-background-light .pdfium-spike-page {',
+    );
+    expect(styles).toMatch(
+      /\.source-pdf-reader-shell\s+\.reader-app\.is-reader-background-light\s+\.pdfium-spike-page\s+:where\(canvas, img\) \{/,
+    );
   });
 
   it('keeps settings item hover and selected borders on theme variables', () => {

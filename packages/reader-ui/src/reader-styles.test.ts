@@ -20,6 +20,21 @@ describe('reader embedded styles', () => {
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
   });
 
+  it('keeps article blockquotes on reader theme tokens', () => {
+    expect(readerStyles).toContain(
+      '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:var(--reader-ink)}',
+    );
+    expect(combinedReaderStyles()).toContain(
+      '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid color-mix(in srgb,var(--reader-red) 28%,transparent);color:var(--reader-ink)}',
+    );
+    expect(readerStyles).not.toContain(
+      '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:#574f45}',
+    );
+    expect(readerStyles).not.toContain(
+      '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid rgba(159,91,80,.28);color:#5d5147}',
+    );
+  });
+
   it('does not render annotation cards with a thicker left rail', () => {
     expect(readerConversationStyles).not.toContain('border-left-width:4px');
     expect(readerConversationStyles).not.toContain('border-radius:18px 18px 18px 7px');

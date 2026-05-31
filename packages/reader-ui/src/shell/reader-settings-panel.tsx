@@ -1,6 +1,5 @@
 import type React from 'react';
-import { CaseSensitive, Maximize2, Minus, Palette, Plus } from 'lucide-react';
-import { readerBackgroundOptions } from '../reader-settings';
+import { CaseSensitive, Maximize2, Minus, Plus } from 'lucide-react';
 import type { ReaderSettings } from '../reader-types';
 
 export function ReaderSettingsPanel({
@@ -32,26 +31,6 @@ export function ReaderSettingsPanel({
           onChange({ ...settings, contentWidth: Math.min(1080, settings.contentWidth + 40) })
         }
       />
-      <div className="reader-setting-row">
-        <div className="reader-setting-label">
-          <Palette size={16} />
-          <span>正文背景</span>
-        </div>
-        <div className="reader-background-options">
-          {readerBackgroundOptions.map((option) => (
-            <button
-              aria-label={`正文背景：${option.label}`}
-              aria-pressed={settings.backgroundColor === option.value}
-              className={settings.backgroundColor === option.value ? 'is-active' : undefined}
-              key={option.value}
-              style={{ '--reader-background-option': option.value } as React.CSSProperties}
-              title={option.label}
-              type="button"
-              onClick={() => onChange({ ...settings, backgroundColor: option.value })}
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

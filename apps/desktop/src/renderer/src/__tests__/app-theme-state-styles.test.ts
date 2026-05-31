@@ -47,6 +47,18 @@ describe('theme state styles', () => {
     expect(searchFocusRules.some((rule) => rule.includes('hsl(3 62% 39% / 0.12)'))).toBe(false);
   });
 
+  it('keeps assistant line cues on theme surfaces', () => {
+    expect(styles).toContain(`.agent-list-line-bubble,
+.agent-list-line-bubble.is-entering,
+.agent-list-line-bubble.is-resting {`);
+    expect(styles).toContain('var(--agent-accent, var(--app-interactive-link)) 28%');
+    expect(styles).toContain('background: hsl(var(--card));');
+    expect(styles).toContain('color: hsl(var(--foreground));');
+    expect(styles).toContain(`.agent-list-line-bubble::after {
+  border-color: inherit;
+  background: hsl(var(--card));`);
+  });
+
   it('keeps the WeRead reader header on reader toolbar tokens', () => {
     expect(styles).toContain(`.weread-bookcase-header {
   display: grid;`);

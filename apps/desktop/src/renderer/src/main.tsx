@@ -1,6 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
+import {
+  defaultReaderBackgroundForTone,
+  readerBackgroundTone,
+} from '@yomitomo/reader-ui/reader-settings';
 
 import type { SettingsSectionKey } from './app-settings-panels';
 import { AvatarImage } from './app-ui';
@@ -31,6 +35,12 @@ import './styles.css';
 const startupThemeId = readCachedThemeId();
 const startupReaderSettings = readDesktopReaderSettings();
 applyAppTheme(themeRegistry[startupThemeId]);
+
+function compatibleReaderBackgroundForTheme(themeId: AppThemeId, backgroundColor: string) {
+  const tone = themeRegistry[themeId].meta.tone;
+  if (readerBackgroundTone(backgroundColor) === tone) return backgroundColor;
+  return defaultReaderBackgroundForTone(tone);
+}
 
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
@@ -251,7 +261,7 @@ function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
   const [readerBackgroundColor, setReaderBackgroundColor] = useState(
-    startupReaderSettings.backgroundColor,
+    compatibleReaderBackgroundForTheme(startupThemeId, startupReaderSettings.backgroundColor),
   );
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
@@ -293,6 +303,19 @@ function App() {
     setActiveThemeId((currentThemeId) =>
       currentThemeId === storedThemeId ? currentThemeId : storedThemeId,
     );
+    const currentReaderSettings = readDesktopReaderSettings();
+    const nextBackgroundColor = compatibleReaderBackgroundForTheme(
+      storedThemeId,
+      currentReaderSettings.backgroundColor,
+    );
+    if (nextBackgroundColor !== currentReaderSettings.backgroundColor) {
+      const nextSettings = normalizeDesktopReaderSettings({
+        ...currentReaderSettings,
+        backgroundColor: nextBackgroundColor,
+      });
+      setReaderBackgroundColor(nextSettings.backgroundColor);
+      writeDesktopReaderSettings(nextSettings);
+    }
     writeCachedThemeId(storedThemeId);
   }, [store.settings.themeId, storeLoadError, storeLoaded]);
 
@@ -391,6 +414,15 @@ function App() {
   async function selectTheme(themeId: AppThemeId) {
     setActiveThemeId(themeId);
     writeCachedThemeId(themeId);
+    const nextBackgroundColor = compatibleReaderBackgroundForTheme(themeId, readerBackgroundColor);
+    if (nextBackgroundColor !== readerBackgroundColor) {
+      const nextSettings = normalizeDesktopReaderSettings({
+        ...readDesktopReaderSettings(),
+        backgroundColor: nextBackgroundColor,
+      });
+      setReaderBackgroundColor(nextSettings.backgroundColor);
+      writeDesktopReaderSettings(nextSettings);
+    }
     try {
       const nextStore = await window.yomitomoDesktop.saveSettings({ themeId });
       applyStore(nextStore);
