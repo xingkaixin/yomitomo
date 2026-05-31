@@ -12,10 +12,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import {
+  useRef,
   useState,
   type ComponentPropsWithoutRef,
   type CSSProperties,
   type MouseEvent,
+  type PointerEvent,
   type ReactElement,
   type ReactNode,
 } from 'react';
@@ -134,6 +136,15 @@ type AgentAvatarStackProps = {
 };
 type AgentAvatarStackStyle = CSSProperties & { '--reader-avatar-color': string };
 
+function readAvatarNumber(name: string, fallback: number) {
+  const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function readAvatarEase(name: string, fallback: string) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 export function AgentAvatarStack({
   agents,
   activeAgentIds,
@@ -143,6 +154,7 @@ export function AgentAvatarStack({
   itemClassName,
   onAgentClick,
 }: AgentAvatarStackProps) {
+  const stackRef = useRef<HTMLSpanElement | null>(null);
   const [revealedAgentId, setRevealedAgentId] = useState<string | null>(null);
   if (agents.length === 0) return null;
 
@@ -155,12 +167,69 @@ export function AgentAvatarStack({
     setRevealedAgentId((current) => (current === agentId ? null : agentId));
   }
 
+  function setAvatarProximity(activeIndex: number | null, phase: 'in' | 'out') {
+    if (!stackRef.current) return;
+
+    const lift = readAvatarNumber('--avatar-lift', -4);
+    const falloff = readAvatarNumber('--avatar-falloff', 0.45);
+    const scale = readAvatarNumber('--avatar-scale', 1.05);
+    const timing =
+      phase === 'out'
+        ? readAvatarEase('--avatar-ease-out', 'cubic-bezier(0.34, 3.85, 0.64, 1)')
+        : readAvatarEase('--avatar-ease-in', 'cubic-bezier(0.22, 1, 0.36, 1)');
+
+    stackRef.current
+      .querySelectorAll<HTMLElement>('.reader-agent-avatar-stack-item')
+      .forEach((element, index) => {
+        element.style.transitionTimingFunction = timing;
+        if (activeIndex === null) {
+          element.style.setProperty('--avatar-shift', '0px');
+          element.style.setProperty('--avatar-scale-active', '1');
+          return;
+        }
+
+        const distance = Math.abs(index - activeIndex);
+        element.style.setProperty(
+          '--avatar-shift',
+          `${(lift * Math.pow(falloff, distance)).toFixed(3)}px`,
+        );
+        element.style.setProperty(
+          '--avatar-scale-active',
+          index === activeIndex ? String(scale) : '1',
+        );
+      });
+  }
+
+  function updateAvatarProximity(event: PointerEvent<HTMLSpanElement>) {
+    if (!stackRef.current) return;
+
+    const items = Array.from(
+      stackRef.current.querySelectorAll<HTMLElement>('.reader-agent-avatar-stack-item'),
+    );
+    if (items.length === 0) return;
+
+    const pointerX = event.clientX;
+    const nearestIndex = items.reduce(
+      (nearest, item, index) => {
+        const rect = item.getBoundingClientRect();
+        const distance = Math.abs(pointerX - (rect.left + rect.width / 2));
+        return distance < nearest.distance ? { index, distance } : nearest;
+      },
+      { index: 0, distance: Number.POSITIVE_INFINITY },
+    ).index;
+
+    setAvatarProximity(nearestIndex, 'in');
+  }
+
   return (
     <span
+      ref={stackRef}
       className={['reader-agent-avatar-stack', className || ''].filter(Boolean).join(' ')}
       aria-label={ariaLabel || agents.map((agent) => agent.nickname).join('、')}
+      onPointerMove={updateAvatarProximity}
+      onPointerLeave={() => setAvatarProximity(null, 'out')}
     >
-      {agents.map((agent) => {
+      {agents.map((agent, index) => {
         const active = activeIds.has(agent.id);
         const classes = [
           'reader-agent-avatar-stack-item',
@@ -183,6 +252,8 @@ export function AgentAvatarStack({
           className: classes,
           style,
           onDoubleClick: (event: MouseEvent<HTMLElement>) => revealAgent(event, agent.id),
+          onFocus: () => setAvatarProximity(index, 'in'),
+          onBlur: () => setAvatarProximity(null, 'out'),
         };
         const trigger = onAgentClick ? (
           <button

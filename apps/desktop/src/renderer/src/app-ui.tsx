@@ -17,6 +17,7 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
     <button
       aria-label={copied ? '已复制' : label}
       className={copied ? 'copy-icon-button is-copied' : 'copy-icon-button'}
+      data-tooltip={copied ? '已复制' : label}
       type="button"
       onClick={copy}
     >

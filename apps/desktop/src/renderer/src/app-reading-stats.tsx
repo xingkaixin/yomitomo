@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'rea
 import { BarChart3, RefreshCcw } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
+import { SegmentedControl } from './components/ui/segmented-control';
 import { PanelHeader } from './app-ui';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
 import {
@@ -134,18 +135,17 @@ export function ReadingStatsPanel({
           ) : null
         }
       />
-      <div className="stats-source-tabs" role="tablist" aria-label="统计来源">
-        <button type="button" aria-pressed={source === 'local'} onClick={() => setSource('local')}>
-          本地阅读
-        </button>
-        <button
-          type="button"
-          aria-pressed={source === 'weread'}
-          onClick={() => setSource('weread')}
-        >
-          微信读书
-        </button>
-      </div>
+      <SegmentedControl
+        aria-label="统计来源"
+        className="stats-source-tabs"
+        role="tablist"
+        value={source}
+        options={[
+          { value: 'local', label: '本地阅读' },
+          { value: 'weread', label: '微信读书' },
+        ]}
+        onValueChange={setSource}
+      />
       {source === 'weread' ? <WeReadReadingStatsPanel /> : null}
       {source === 'local' ? (
         <>
