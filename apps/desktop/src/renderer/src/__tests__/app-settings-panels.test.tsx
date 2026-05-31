@@ -856,7 +856,7 @@ describe('ShortcutSettings', () => {
     expect(screen.getByRole('radio', { name: '⏎ 发送' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: /(?:⌘|Ctrl)\+⏎ 发送/ })).toBeTruthy();
     expect(
-      within(screen.getByLabelText('批注和评论发送快捷键')).getAllByText('当前使用'),
+      within(screen.getByLabelText('想法和回复发送快捷键')).getAllByText('当前使用'),
     ).toHaveLength(1);
     expect(screen.getByText(/你可以随时切换快捷键，设置立即生效/)).toBeTruthy();
     expect(screen.queryByText(/Command|Enter|macOS|Windows/)).toBeNull();

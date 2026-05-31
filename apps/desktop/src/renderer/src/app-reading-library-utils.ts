@@ -18,7 +18,7 @@ export const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string
 export const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> = [
   { value: 'recentAdded', label: '最近添加' },
   { value: 'recentReading', label: '最近阅读' },
-  { value: 'annotations', label: '批注最多' },
+  { value: 'annotations', label: '划线最多' },
   { value: 'discussions', label: '沉淀最多' },
 ];
 
@@ -163,13 +163,13 @@ export function groupLibraryArticles(articles: ArticleSummaryRecord[], sort: Lib
 function libraryArticleGroupLabel(article: ArticleSummaryRecord, sort: LibrarySort) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations')
-    return formatLibraryCountGroup(articleAnnotationCount(article), '批注');
+    return formatLibraryCountGroup(articleAnnotationCount(article), '划线');
   if (sort === 'discussions')
     return formatLibraryCountGroup(articleDistillationCount(article), '沉淀');
   return formatLibraryDateGroup(article.updatedAt);
 }
 
-function formatLibraryCountGroup(count: number, unit: '批注' | '沉淀') {
+function formatLibraryCountGroup(count: number, unit: '划线' | '沉淀') {
   if (count <= 0) return `暂无${unit}`;
   return `${count} 条${unit}`;
 }

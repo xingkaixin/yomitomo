@@ -238,9 +238,9 @@ describe('groupLibraryArticles', () => {
         ids: group.articles.map((item) => item.id),
       })),
     ).toEqual([
-      { label: '2 条批注', ids: ['two_annotations'] },
-      { label: '1 条批注', ids: ['one_annotation', 'also_one_annotation'] },
-      { label: '暂无批注', ids: ['no_annotations'] },
+      { label: '2 条划线', ids: ['two_annotations'] },
+      { label: '1 条划线', ids: ['one_annotation', 'also_one_annotation'] },
+      { label: '暂无划线', ids: ['no_annotations'] },
     ]);
 
     expect(

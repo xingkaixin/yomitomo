@@ -81,7 +81,7 @@ export function preloadReadingStatsFirstPaintData(articles: ArticleSummaryRecord
 }
 
 export function periodSummary(stats: ReadingStatsPeriod) {
-  return `${stats.articles} 篇文章 · ${stats.comments} 次讨论 · ${stats.annotations} 条批注 · ${stats.aiComments} 次助手参与`;
+  return `${stats.distillations} 条沉淀 · ${stats.thoughts} 条想法 · ${stats.annotations} 条划线 · ${stats.aiComments} 次助手参与`;
 }
 
 export function nextGoalText(litStampCount: number, remaining: number) {
@@ -93,14 +93,14 @@ export function activityStampLabel(day: ActivityStamp) {
   if (day.status === 'unstarted') return `${day.date}：伴读旅程尚未开始`;
   if (day.status === 'today') return `${day.date}：今天读一篇，盖下第一枚藏书票`;
   const special = day.special ? `，连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date}：${day.annotations} 条批注，${day.comments} 条讨论${special}`;
+  return `${day.date}：${day.distillations} 条沉淀，${day.thoughts} 条想法，${day.annotations} 条划线${special}`;
 }
 
 export function activityStampTitle(day: ActivityStamp) {
   if (day.status === 'unstarted') return `${day.date} · 未开始`;
   if (day.status === 'today') return `${day.date} · 今天读一篇，盖下第一枚藏书票`;
   const special = day.special ? ` · 连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date} · 批注 ${day.annotations} · 讨论 ${day.comments}${special}`;
+  return `${day.date} · 沉淀 ${day.distillations} · 想法 ${day.thoughts} · 划线 ${day.annotations}${special}`;
 }
 
 export function activityMapDescription(
@@ -115,9 +115,9 @@ export function activityMapDescription(
 }
 
 export function chartActivityDescription(recordedDays: number) {
-  if (recordedDays >= 21) return '批注、讨论和阅读趋势';
+  if (recordedDays >= 21) return '沉淀、想法和划线趋势';
   if (recordedDays <= 6) return `已记录 ${recordedDays} 天，正在形成你的伴读节奏`;
-  return `已记录 ${recordedDays} 天，正在形成批注、讨论和阅读趋势`;
+  return `已记录 ${recordedDays} 天，正在形成沉淀、想法和划线趋势`;
 }
 
 function peakActivityDay(days: ReadingActivityDay[], startDate: string) {
@@ -139,7 +139,7 @@ function buildReadingInsights(
   if (activeDays.length === 0) {
     return [
       { id: 'start', text: '今天读完一篇文章后，这里会出现第一条伴读洞察。' },
-      { id: 'trend', text: '批注、讨论和助手参与会一起形成你的阅读趋势。' },
+      { id: 'trend', text: '划线、想法、沉淀和助手参与会一起形成你的阅读趋势。' },
     ];
   }
 
@@ -150,15 +150,20 @@ function buildReadingInsights(
           text: `你在 ${peak.label} 最活跃，产生了 ${dayInteractions(peak)} 次互动。`,
         }
       : { id: 'peak', text: `已记录 ${activeDays.length} 个活跃日，伴读节奏正在成形。` },
-    stats.annotations >= stats.comments
+    stats.distillations > 0
       ? {
           id: 'depth',
-          text: `目前已留下 ${stats.annotations} 条批注，深读痕迹正在累积。`,
+          text: `目前已发布 ${stats.distillations} 条沉淀，可复用的阅读成果正在累积。`,
         }
-      : {
-          id: 'discussion',
-          text: `讨论 ${stats.comments} 次，问题推进是当前主要节奏。`,
-        },
+      : stats.thoughts > 0
+        ? {
+            id: 'discussion',
+            text: `已有 ${stats.thoughts} 条想法，讨论过程正在沉淀前积累材料。`,
+          }
+        : {
+            id: 'highlight',
+            text: `目前已留下 ${stats.annotations} 条划线，深读痕迹正在累积。`,
+          },
     stats.aiComments > 0
       ? {
           id: 'ai',
@@ -169,7 +174,7 @@ function buildReadingInsights(
 }
 
 function dayInteractions(day: ReadingActivityDay) {
-  return day.articles + day.annotations + day.comments + day.aiComments;
+  return day.articles + day.annotations + day.thoughts + day.distillations + day.aiComments;
 }
 
 function buildActivityStamps(days: ReadingActivityDay[], startDate: string): ActivityStamp[] {
@@ -210,6 +215,7 @@ function firstActivityDate(articles: ArticleSummaryRecord[]) {
     visit(article.updatedAt);
     for (const annotation of article.annotations) {
       visit(annotation.createdAt);
+      visit(annotation.distillation?.publishedAt || annotation.distillation?.updatedAt);
       for (const comment of annotation.comments) visit(comment.createdAt);
     }
   }

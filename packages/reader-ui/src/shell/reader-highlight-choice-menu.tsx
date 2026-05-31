@@ -26,8 +26,8 @@ export function HighlightChoiceMenu({
   return (
     <div className="reader-highlight-choice-menu" style={{ left: action.x, top: action.y }}>
       <header>
-        <strong>选择批注</strong>
-        <button type="button" onClick={onCancel} aria-label="关闭批注选择">
+        <strong>选择划线</strong>
+        <button type="button" onClick={onCancel} aria-label="关闭划线选择">
           <X size={14} />
         </button>
       </header>

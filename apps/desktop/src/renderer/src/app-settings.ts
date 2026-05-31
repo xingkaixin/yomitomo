@@ -50,7 +50,7 @@ export const agentKindOptions: Array<{
   label: string;
   description: string;
 }> = [
-  { value: 'annotation', label: '阅读助手', description: '参与阅读器批注和评论讨论' },
+  { value: 'annotation', label: '阅读助手', description: '参与阅读器想法和回复讨论' },
   { value: 'review', label: '审核助手', description: '复核阅读材料、证据和论证质量' },
 ];
 

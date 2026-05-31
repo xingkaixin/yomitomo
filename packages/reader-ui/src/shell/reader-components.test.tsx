@@ -312,8 +312,8 @@ describe('AnnotationCard', () => {
         />,
       );
 
-      fireEvent.click(screen.getByRole('button', { name: '打开批注操作' }));
-      fireEvent.pointerDown(screen.getByRole('button', { name: '长按删除批注' }), {
+      fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
+      fireEvent.pointerDown(screen.getByRole('button', { name: '长按删除划线' }), {
         pointerId: 1,
       });
       vi.advanceTimersByTime(1600);

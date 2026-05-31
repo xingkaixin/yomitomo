@@ -193,7 +193,7 @@ export function AnnotationCard({
             <DeleteActionMenu
               ariaLabel="打开沉淀操作"
               className="reader-note-action-menu reader-note-distillation-menu"
-              deleteAriaLabel="长按删除批注"
+              deleteAriaLabel="长按删除划线"
               discussionAriaLabel="进入讨论区"
               onDelete={() => onDelete(annotation.id)}
               onOpenDiscussion={openDiscussion}
@@ -223,9 +223,9 @@ export function AnnotationCard({
                 <ReaderRelativeTime value={annotation.createdAt} />
               </span>
               <DeleteActionMenu
-                ariaLabel="打开批注操作"
+                ariaLabel="打开划线操作"
                 className="reader-note-action-menu"
-                deleteAriaLabel="长按删除批注"
+                deleteAriaLabel="长按删除划线"
                 onDelete={() => onDelete(annotation.id)}
               />
             </div>

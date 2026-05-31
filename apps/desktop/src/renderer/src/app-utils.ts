@@ -87,7 +87,7 @@ export function articleReadingStatsLine(stats: {
   comments: number;
   aiContributions: number;
 }) {
-  return `${stats.annotations} 批注 · ${stats.comments} 评论 · ${stats.aiContributions} 助手建议`;
+  return `${stats.annotations} 划线 · ${stats.comments} 想法 · ${stats.aiContributions} 助手参与`;
 }
 
 export function articlePlainText(article: ArticleRecord | ArticleSummaryRecord) {

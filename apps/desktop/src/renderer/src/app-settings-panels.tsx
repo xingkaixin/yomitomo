@@ -126,7 +126,7 @@ const settingsSections: Array<{
   {
     key: 'shortcuts',
     title: '快捷键',
-    description: '配置批注、评论等应用快捷键。',
+    description: '配置划线、想法和回复等应用快捷键。',
     icon: <Keyboard size={17} />,
   },
   {
@@ -725,9 +725,9 @@ export function ShortcutSettings({
       <section className="shortcut-settings-card" aria-labelledby="shortcut-message-send-title">
         <header className="shortcut-settings-card-header">
           <h3 id="shortcut-message-send-title">消息发送</h3>
-          <p>用于阅读器里的批注发布和评论发送。</p>
+          <p>用于阅读器里的想法发布和回复发送。</p>
         </header>
-        <div aria-label="批注和评论发送快捷键" className="shortcut-option-list" role="radiogroup">
+        <div aria-label="想法和回复发送快捷键" className="shortcut-option-list" role="radiogroup">
           {messageSendShortcutOptions.map((option) => {
             const active = selectedShortcut === option.value;
             const current = savedShortcut === option.value;
