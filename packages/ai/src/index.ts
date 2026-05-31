@@ -28,8 +28,10 @@ export {
 export { memoryViewContextBlocks } from './reading-view-assembler';
 export {
   DEFAULT_ASSISTANT_RUNTIME_BUDGETS,
+  runAssistantAiSdkToolRuntime,
   runAssistantToolRuntime,
   validateAssistantFinalAction,
+  type AssistantAiSdkRuntimeOptions,
   type AssistantEvidence,
   type AssistantEvidenceProvenance,
   type AssistantFinalAction,
@@ -41,6 +43,7 @@ export {
   type AssistantRuntimeBudget,
   type AssistantRuntimeOptions,
   type AssistantRuntimeResult,
+  type AssistantRuntimeStreamEvent,
   type AssistantRuntimeTaskType,
   type AssistantRuntimeTrace,
   type AssistantRuntimeTraceStep,
@@ -51,13 +54,6 @@ export {
   type AssistantToolEvidenceInput,
   type AssistantToolName,
 } from './assistant-runtime';
-export {
-  callAssistantProviderEvent,
-  createAssistantProviderModelAdapter,
-  parseAssistantProviderEvent,
-  type AssistantProviderAdapterOptions,
-  type AssistantProviderAdapterPayload,
-} from './assistant-provider-adapter';
 export {
   buildSelectionAnnotationContext,
   buildSelectionThreadContext,

@@ -80,8 +80,8 @@ export function buildAgentThreadReplyRuntimePayload(
     readingMemoryView: undefined,
   };
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`reply_to_thread\` action JSON，不要返回普通自然语言正文。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n\n最终 action 要求：\n- type 必须是 "reply_to_thread"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入 thread 的回复正文。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么这样回复。`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入 thread 的回复正文，不要输出 JSON。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出回复正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -98,8 +98,8 @@ export function buildAgentCreateThoughtRuntimePayload(
     readingMemoryView: undefined,
   };
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 为当前批注添加顶层助手想法。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`create_thread_thought\` action JSON，不要返回普通自然语言正文。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n\n最终 action 要求：\n- type 必须是 "create_thread_thought"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- thought 是将写入当前批注的顶层助手想法。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么添加这条想法。`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 为当前批注添加顶层助手想法。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入当前批注的顶层助手想法，不要输出 JSON。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出顶层助手想法正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -116,8 +116,8 @@ export function buildAgentDistillationReviewRuntimePayload(
     readingMemoryView: undefined,
   };
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。最终回答只能是一个 \`review_distillation\` action JSON，不要返回普通自然语言正文。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不替用户完整改写。\n\n最终 action 要求：\n- type 必须是 "review_distillation"。\n- annotationId 必须是 "${payload.annotation.id}"。\n- content 是将写入沉淀审阅会话的助手消息。\n- evidenceIds 只能引用本轮工具返回的 evidence id；没有历史证据时不要编造历史断言。\n- confidence 使用 0 到 1 的数字。\n- reason 用一句话说明你为什么给出这条审阅。`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入沉淀审阅会话的助手消息，不要输出 JSON。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不替用户完整改写。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出沉淀审阅正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
