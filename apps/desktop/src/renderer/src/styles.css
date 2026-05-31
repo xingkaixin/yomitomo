@@ -5307,9 +5307,10 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid var(--app-reader-toolbar-border);
-  background: var(--app-reader-toolbar-bg);
+  border-bottom: 1px solid hsl(var(--foreground));
+  background: hsl(var(--card));
   padding: 14px var(--reader-titlebar-padding-right) 14px var(--reader-titlebar-padding-left);
+  -webkit-app-region: no-drag;
 }
 
 .weread-bookcase-title {
@@ -5318,6 +5319,7 @@
   align-items: center;
   gap: 12px;
   perspective: 920px;
+  -webkit-app-region: drag;
 }
 
 .weread-bookcase-title .weread-book-cover {
@@ -5353,6 +5355,11 @@
 .weread-bookcase-actions {
   display: flex;
   gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.weread-bookcase-header button {
+  -webkit-app-region: no-drag;
 }
 
 .weread-bookcase-body {
@@ -17147,6 +17154,8 @@ button.license-package-row:hover {
   -webkit-app-region: no-drag;
 }
 
+.source-reader-shell .reader-toolbar-article,
+.source-ebook-reader-shell .reader-toolbar-article,
 .source-reader-shell .reader-toolbar-article-copy,
 .source-ebook-reader-shell .reader-toolbar-article-copy {
   -webkit-app-region: drag;
@@ -17155,7 +17164,9 @@ button.license-package-row:hover {
 .source-reader-shell .reader-toolbar-actions,
 .source-ebook-reader-shell .reader-toolbar-actions,
 .source-reader-shell .reader-toolbar-article-action,
-.source-ebook-reader-shell .reader-toolbar-article-action {
+.source-ebook-reader-shell .reader-toolbar-article-action,
+.source-reader-shell .reader-toolbar button,
+.source-ebook-reader-shell .reader-toolbar button {
   -webkit-app-region: no-drag;
 }
 
@@ -18637,14 +18648,15 @@ button.license-package-row:hover {
 }
 
 .pdf-reader-toolbar {
-  border: 1px solid var(--app-reader-toolbar-border);
-  background: var(--app-reader-toolbar-bg);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 16px;
   align-items: center;
+  border-bottom: 1px solid hsl(var(--foreground));
+  background: hsl(var(--card));
   padding: 12px calc(var(--reader-titlebar-padding-right) + 18px) 12px
     var(--reader-titlebar-padding-left);
+  -webkit-app-region: no-drag;
 }
 
 .source-pdf-reader-shell .source-reader-back-button {
@@ -18657,6 +18669,7 @@ button.license-package-row:hover {
   display: grid;
   gap: 3px;
   min-width: 0;
+  -webkit-app-region: drag;
 }
 
 .pdf-reader-title strong,
@@ -18680,6 +18693,7 @@ button.license-package-row:hover {
 .pdf-reader-controls {
   display: flex;
   align-items: center;
+  -webkit-app-region: no-drag;
 }
 
 .pdf-reader-controls {
@@ -18722,6 +18736,7 @@ button.license-package-row:hover {
 
 .pdf-reader-controls button {
   border-radius: 0;
+  -webkit-app-region: no-drag;
 }
 
 .pdf-reader-controls .reader-agent-annotate {
