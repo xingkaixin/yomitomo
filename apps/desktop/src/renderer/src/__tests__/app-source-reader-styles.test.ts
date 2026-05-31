@@ -17,7 +17,11 @@ describe('source reader annotation styles', () => {
 
   it('keeps PDF and profile preview surfaces on theme variables', () => {
     expect(styles).toContain('background: var(--app-reader-toolbar-control-bg);');
-    expect(styles).toContain('background: var(--app-reader-toolbar-bg);');
+    expect(styles).toMatch(
+      /\.pdf-reader-toolbar \{[\s\S]*border-bottom: 1px solid hsl\(var\(--foreground\)\);[\s\S]*background: hsl\(var\(--card\)\);[\s\S]*-webkit-app-region: no-drag;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(/\.pdf-reader-title \{[\s\S]*-webkit-app-region: drag;[\s\S]*\}/);
+    expect(styles).toMatch(/\.pdf-reader-controls \{[\s\S]*-webkit-app-region: no-drag;[\s\S]*\}/);
     expect(styles).toContain('--reader-bg: var(--app-reader-bg);');
     expect(styles).toContain('background: var(--app-reader-note-quote-bg);');
     expect(styles).toContain('background: var(--app-reader-note-bg);');

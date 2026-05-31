@@ -59,11 +59,15 @@ describe('theme state styles', () => {
   background: hsl(var(--card));`);
   });
 
-  it('keeps the WeRead reader header on reader toolbar tokens', () => {
+  it('keeps the WeRead reader header aligned with source reader chrome', () => {
     expect(styles).toContain(`.weread-bookcase-header {
   display: grid;`);
-    expect(styles).toContain('border-bottom: 1px solid var(--app-reader-toolbar-border);');
-    expect(styles).toContain('background: var(--app-reader-toolbar-bg);');
+    expect(styles).toContain('border-bottom: 1px solid hsl(var(--foreground));');
+    expect(styles).toContain('background: hsl(var(--card));');
+    expect(styles).toMatch(/\.weread-bookcase-title \{[\s\S]*-webkit-app-region: drag;[\s\S]*\}/);
+    expect(styles).toMatch(
+      /\.weread-bookcase-header button \{[\s\S]*-webkit-app-region: no-drag;[\s\S]*\}/,
+    );
   });
 
   it('keeps distillation status and primary entry on theme tokens', () => {
