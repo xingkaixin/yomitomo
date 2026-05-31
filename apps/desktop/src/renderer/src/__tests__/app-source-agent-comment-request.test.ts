@@ -218,6 +218,77 @@ describe('runSourceAgentCommentRequest', () => {
     expect(saveAnnotations).toHaveBeenCalled();
   });
 
+  it('keeps deep runtime progress while applying streamed reply deltas', async () => {
+    const rootComment = comment();
+    const targetAnnotation = annotation([rootComment]);
+    const annotationsRef = { current: [targetAnnotation] };
+    const applyAnnotations = vi.fn((annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+      return article(annotations[0]);
+    });
+    const saveAnnotations = vi.fn(async (annotations: Annotation[]) => {
+      annotationsRef.current = annotations;
+    });
+    const pendingAgentComment = {
+      id: 'comment_agent',
+      author: 'ai' as const,
+      content: '',
+      createdAt: now,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      pending: true,
+    };
+    const desktop = {
+      requestAgentCommentStream: vi.fn(async (_payload, onEvent) => {
+        onEvent({ type: 'start', comment: pendingAgentComment });
+        onEvent({
+          type: 'progress',
+          progress: {
+            type: 'step',
+            step: { id: 'get_current_thread', label: '读取当前讨论', status: 'active' },
+          },
+        });
+        onEvent({
+          type: 'progress',
+          progress: {
+            type: 'step',
+            step: { id: 'get_current_thread', label: '读取当前讨论', status: 'done' },
+          },
+        });
+        onEvent({ type: 'delta', delta: '我先看了讨论。' });
+        return {
+          ...pendingAgentComment,
+          content: '我先看了讨论。',
+          pending: false,
+        };
+      }),
+    };
+
+    await runSourceAgentCommentRequest({
+      agent,
+      annotation: targetAnnotation,
+      userComment: rootComment,
+      desktop,
+      currentArticle: article(targetAnnotation),
+      articleText: '正文',
+      annotationsRef,
+      applyAnnotations,
+      saveAnnotations,
+      setStatusMessage: vi.fn(),
+    });
+
+    expect(annotationsRef.current[0]?.comments).toContainEqual(
+      expect.objectContaining({
+        id: 'comment_agent',
+        content: '我先看了讨论。',
+        assistantProgress: {
+          steps: [{ id: 'get_current_thread', label: '读取当前讨论', status: 'done' }],
+        },
+      }),
+    );
+  });
+
   it('does not restore a streaming reply after its thought is deleted', async () => {
     const rootComment = comment();
     const replyComment = comment({

@@ -688,4 +688,10 @@ ALTER TABLE annotations ADD COLUMN distillation_updated_at TEXT;
 ALTER TABLE annotations ADD COLUMN distillation_review_sessions TEXT;
 `,
   },
+  {
+    id: '0044_comment_assistant_progress',
+    sql: `
+ALTER TABLE comments ADD COLUMN assistant_progress TEXT;
+`,
+  },
 ];

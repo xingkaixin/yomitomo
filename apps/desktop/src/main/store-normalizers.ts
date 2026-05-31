@@ -8,6 +8,8 @@ import type {
   AnnotationDistillation,
   AnnotationDistillationReviewSession,
   AnnotationDistillationStatus,
+  AssistantRuntimeProgressSummary,
+  AssistantRuntimeProgressStepStatus,
   AnnotationEvidenceSource,
   AnnotationType,
   AppSettings,
@@ -98,6 +100,7 @@ export function rowToComment(row: typeof schema.comments.$inferSelect): Comment 
     agentAnnotationColor: row.agentAnnotationColor || undefined,
     readingIntent: normalizeAgentReadingIntent(row.readingIntent) || undefined,
     reviewLabel: normalizeReviewOpinionLabel(row.reviewLabel) || undefined,
+    assistantProgress: normalizeAssistantRuntimeProgress(row.assistantProgress),
     userId: row.userId || undefined,
     userUsername: row.userUsername || undefined,
     userNickname: row.userNickname || undefined,
@@ -698,9 +701,40 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
         agentUsername: stringValue(message.agentUsername) || undefined,
         agentNickname: stringValue(message.agentNickname) || undefined,
         agentAvatar: stringValue(message.agentAvatar) || undefined,
+        assistantProgress: normalizeAssistantRuntimeProgress(message.assistantProgress),
       },
     ];
   });
+}
+
+function normalizeAssistantRuntimeProgress(
+  value: unknown,
+): AssistantRuntimeProgressSummary | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const progress = recordValue(value);
+  const steps = Array.isArray(progress.steps)
+    ? progress.steps.flatMap((item) => {
+        if (!item || typeof item !== 'object') return [];
+        const step = recordValue(item);
+        const id = stringValue(step.id);
+        const label = stringValue(step.label);
+        const status = normalizeAssistantRuntimeProgressStepStatus(step.status);
+        if (!id || !label || !status) return [];
+        return [{ id, label, status }];
+      })
+    : [];
+  const fallbackMessage = stringValue(progress.fallbackMessage);
+  if (steps.length === 0 && !fallbackMessage) return undefined;
+  return {
+    steps,
+    fallbackMessage: fallbackMessage || undefined,
+  };
+}
+
+function normalizeAssistantRuntimeProgressStepStatus(
+  value: unknown,
+): AssistantRuntimeProgressStepStatus | null {
+  return value === 'active' || value === 'done' || value === 'failed' ? value : null;
 }
 
 function normalizeTextAnchor(value: unknown): TextAnchor {

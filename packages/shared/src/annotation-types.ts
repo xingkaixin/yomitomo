@@ -25,6 +25,23 @@ export type ReviewOpinionLabel = '站得住' | '有洞察' | '有异议' | '待�
 
 export type AnnotationDistillationStatus = 'unpublished' | 'published';
 
+export type AssistantRuntimeProgressStepStatus = 'active' | 'done' | 'failed';
+
+export type AssistantRuntimeProgressStep = {
+  id: string;
+  label: string;
+  status: AssistantRuntimeProgressStepStatus;
+};
+
+export type AssistantRuntimeProgressSummary = {
+  steps: AssistantRuntimeProgressStep[];
+  fallbackMessage?: string;
+};
+
+export type AssistantRuntimeProgressEvent =
+  | { type: 'step'; step: AssistantRuntimeProgressStep }
+  | { type: 'fallback'; message: string };
+
 export type AnnotationDistillationReviewMessage = {
   id: string;
   author: AnnotationAuthor;
@@ -34,6 +51,7 @@ export type AnnotationDistillationReviewMessage = {
   agentUsername?: string;
   agentNickname?: string;
   agentAvatar?: string;
+  assistantProgress?: AssistantRuntimeProgressSummary;
 };
 
 export type AnnotationDistillationReviewSession = {
@@ -85,6 +103,7 @@ export type Comment = {
   readingIntent?: AgentReadingIntent;
   reviewLabel?: ReviewOpinionLabel;
   pending?: boolean;
+  assistantProgress?: AssistantRuntimeProgressSummary;
 };
 
 export type Annotation = {

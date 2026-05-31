@@ -9,6 +9,7 @@ import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './app-source-bookcase-shared';
+import { applyAssistantRuntimeProgress } from './app-assistant-runtime-progress';
 
 type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;
@@ -144,6 +145,34 @@ export async function runSourceAgentCommentRequest({
           return;
         }
 
+        if (event.type === 'progress') {
+          const placeholderId = pendingCommentId;
+          if (!placeholderId) return;
+          const nextAnnotations = updateAnnotationComment(
+            annotationsRef.current,
+            annotation.id,
+            placeholderId,
+            (comment) => {
+              const nextComment = {
+                ...comment,
+                assistantProgress: applyAssistantRuntimeProgress(
+                  comment.assistantProgress,
+                  event.progress,
+                ),
+              };
+              pendingComment = nextComment;
+              return nextComment;
+            },
+          );
+          if (
+            nextAnnotations &&
+            hasAnnotationComment(nextAnnotations, annotation.id, pendingCommentId)
+          ) {
+            applyAnnotations(nextAnnotations);
+          }
+          return;
+        }
+
         pendingDelta += event.delta;
         scheduleDeltaFlush();
       },
@@ -156,6 +185,11 @@ export async function runSourceAgentCommentRequest({
       ...finalComment,
       id: finalComment.id || pendingCommentId,
       replyTo: replyTargetId,
+      assistantProgress:
+        finalComment.assistantProgress ||
+        annotationsRef.current
+          .find((item) => item.id === annotation.id)
+          ?.comments.find((comment) => comment.id === pendingCommentId)?.assistantProgress,
       pending: false,
     };
     const nextAnnotations = updateAnnotationComment(

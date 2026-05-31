@@ -1168,6 +1168,266 @@
   padding: 1px 4px;
 }
 
+.annotation-discussion-add-run {
+  position: relative;
+  min-height: 244px;
+  overflow: hidden;
+  border-radius: 0 0 16px 16px;
+  padding: 34px 28px 32px;
+}
+
+.annotation-discussion-add-run .reader-completion-burst {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.annotation-discussion-add-run .reader-completion-burst-center {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 1px;
+  height: 1px;
+  transform: scale(0.76);
+  transform-origin: center;
+}
+
+.annotation-discussion-add-run .reader-completion-burst-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 148px;
+  height: 148px;
+  border: 1px solid color-mix(in srgb, var(--app-reader-accent-strong) 30%, transparent);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.18);
+  animation: reader-completion-ring 1.18s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.annotation-discussion-add-run .reader-completion-burst-ring.is-wide {
+  width: 236px;
+  height: 236px;
+  border-color: color-mix(in srgb, var(--app-reader-primary) 22%, transparent);
+  animation-delay: 0.12s;
+}
+
+.annotation-discussion-add-run .reader-completion-particle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--reader-confetti-color);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-reader-ink) 12%, transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2) rotate(var(--reader-confetti-rotate));
+  animation: reader-completion-pop 1.52s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--reader-confetti-delay);
+}
+
+.annotation-discussion-add-run .reader-completion-particle.is-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+
+.annotation-discussion-add-run .reader-completion-particle.is-spark {
+  width: 4px;
+  height: 16px;
+  border-radius: 999px;
+}
+
+.annotation-discussion-add-run-agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 22px;
+}
+
+.annotation-discussion-add-run-agent {
+  display: grid;
+  width: 150px;
+  min-width: 0;
+  justify-items: center;
+  gap: 8px;
+  color: var(--app-reader-muted);
+  text-align: center;
+}
+
+.annotation-discussion-add-run-avatar {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 2px solid var(--app-reader-paper);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--app-reader-ink) 14%, transparent);
+}
+
+.annotation-discussion-add-run-avatar .reader-avatar-badge {
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-avatar {
+  animation: annotation-discussion-add-agent-hop 0.92s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  animation-delay: var(--agent-run-delay);
+}
+
+.annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar,
+.annotation-discussion-add-run-agent.is-failed .annotation-discussion-add-run-avatar {
+  animation: none;
+  opacity: 0.82;
+}
+
+.annotation-discussion-add-run-agent > strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-add-run-agent .assistant-runtime-progress {
+  justify-items: center;
+  margin-top: 0;
+}
+
+.assistant-runtime-progress {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 9px;
+  color: color-mix(in srgb, var(--app-reader-muted) 86%, transparent);
+  font-size: 9px;
+  font-weight: 590;
+  line-height: 1.15;
+}
+
+.annotation-discussion-root-thought-content > .assistant-runtime-progress {
+  font-size: 9px;
+  font-weight: 590;
+  line-height: 1.15;
+}
+
+.assistant-runtime-progress ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assistant-runtime-progress li,
+.assistant-runtime-progress p {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  max-width: 170px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--app-reader-ink) 7%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-ink) 2.5%, transparent);
+  padding: 1px 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-runtime-progress span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-runtime-progress svg {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+}
+
+.assistant-runtime-progress li.is-done {
+  color: var(--app-reader-primary);
+}
+
+.assistant-runtime-progress li.is-failed,
+.assistant-runtime-progress p {
+  color: var(--app-reader-danger);
+}
+
+.assistant-runtime-progress li.is-active svg {
+  animation: assistant-runtime-progress-spin 0.88s linear infinite;
+}
+
+@keyframes assistant-runtime-progress-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes annotation-discussion-add-agent-hop {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-9px) scale(1.04);
+  }
+  70% {
+    transform: translateY(0) scale(0.99);
+  }
+}
+
+@keyframes reader-completion-ring {
+  12% {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+@keyframes reader-completion-pop {
+  0% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate(-50%, -50%) scale(0.2) rotate(var(--reader-confetti-rotate));
+  }
+  16% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translate(var(--reader-confetti-x), var(--reader-confetti-y))
+      scale(1) rotate(calc(var(--reader-confetti-rotate) + 110deg));
+  }
+  100% {
+    opacity: 0;
+    filter: blur(1px);
+    transform: translate(-50%, -50%)
+      translate(var(--reader-confetti-x), calc(var(--reader-confetti-y) + 42px)) scale(0.86)
+      rotate(calc(var(--reader-confetti-rotate) + 180deg));
+  }
+}
+
 .annotation-discussion-composer {
   position: relative;
   display: grid;

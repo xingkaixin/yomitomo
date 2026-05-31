@@ -68,9 +68,50 @@ import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
+import {
+  applyAssistantRuntimeProgress,
+  AssistantRuntimeProgressList,
+} from './app-assistant-runtime-progress';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_DELETE_HOLD_MS = 900;
+
+type AddThoughtAgentRunStatus = 'active' | 'done' | 'failed';
+
+type AddThoughtAgentRun = {
+  agent: PublicAgent;
+  progress?: Comment['assistantProgress'];
+  status: AddThoughtAgentRunStatus;
+};
+
+type CompletionParticleStyle = CSSProperties & {
+  '--reader-confetti-color': string;
+  '--reader-confetti-delay': string;
+  '--reader-confetti-rotate': string;
+  '--reader-confetti-x': string;
+  '--reader-confetti-y': string;
+};
+
+const completionBurstParticles = [
+  { x: -128, y: -42, rotate: -28, delay: 0, color: '#5EC0E8', shape: 'strip' },
+  { x: -94, y: -82, rotate: 36, delay: 18, color: '#54CDA0', shape: 'dot' },
+  { x: -58, y: -112, rotate: -74, delay: 34, color: '#F4C95D', shape: 'spark' },
+  { x: -18, y: -96, rotate: 12, delay: 8, color: '#DBEEEF', shape: 'strip' },
+  { x: 28, y: -116, rotate: 74, delay: 28, color: '#D683B2', shape: 'dot' },
+  { x: 74, y: -88, rotate: -32, delay: 12, color: '#5EC0E8', shape: 'spark' },
+  { x: 118, y: -52, rotate: 18, delay: 42, color: '#F4C95D', shape: 'strip' },
+  { x: 142, y: -8, rotate: -62, delay: 58, color: '#54CDA0', shape: 'dot' },
+  { x: 104, y: 34, rotate: 44, delay: 24, color: '#D683B2', shape: 'strip' },
+  { x: 72, y: 74, rotate: -18, delay: 48, color: '#DBEEEF', shape: 'spark' },
+  { x: 24, y: 92, rotate: 84, delay: 68, color: '#54CDA0', shape: 'dot' },
+  { x: -24, y: 82, rotate: -42, delay: 38, color: '#5EC0E8', shape: 'strip' },
+  { x: -78, y: 58, rotate: 26, delay: 62, color: '#F4C95D', shape: 'spark' },
+  { x: -116, y: 12, rotate: -86, delay: 44, color: '#D683B2', shape: 'dot' },
+  { x: -148, y: -6, rotate: 54, delay: 72, color: '#DBEEEF', shape: 'strip' },
+  { x: 0, y: -142, rotate: 0, delay: 52, color: '#F4C95D', shape: 'spark' },
+  { x: 154, y: -72, rotate: 92, delay: 82, color: '#5EC0E8', shape: 'strip' },
+  { x: -154, y: -76, rotate: -96, delay: 86, color: '#54CDA0', shape: 'strip' },
+] as const;
 
 type DiscussionWindowStatus =
   | { type: 'loading' }
@@ -184,6 +225,8 @@ function AnnotationDiscussionShell({
   const [newThoughtMode, setNewThoughtMode] = useState<'self' | 'assistant'>('self');
   const [newThoughtCaretIndex, setNewThoughtCaretIndex] = useState(0);
   const [submittingThought, setSubmittingThought] = useState(false);
+  const [addThoughtAgentRuns, setAddThoughtAgentRuns] = useState<AddThoughtAgentRun[]>([]);
+  const [addThoughtCelebrating, setAddThoughtCelebrating] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [sendError, setSendError] = useState('');
@@ -344,6 +387,13 @@ function AnnotationDiscussionShell({
           await requestAgentReply(agent, latestAnnotation, userComment, instruction);
         }
       } else {
+        setAddThoughtCelebrating(false);
+        setAddThoughtAgentRuns(
+          mentionedThoughtAgents.map((agent) => ({
+            agent,
+            status: 'active',
+          })),
+        );
         const route = await planAssistantThoughtRoute(trimmed, mentionedThoughtAgents);
         for (const agent of mentionedThoughtAgents) {
           const latestAnnotation =
@@ -356,8 +406,23 @@ function AnnotationDiscussionShell({
               agent,
             ]) ||
             trimmed;
-          await requestAgentThought(agent, latestAnnotation, instruction, directive?.readingIntent);
+          await requestAgentThought(
+            agent,
+            latestAnnotation,
+            instruction,
+            directive?.readingIntent,
+            {
+              onComplete: () => updateAddThoughtAgentRun(agent.id, { status: 'done' }),
+              onError: () => updateAddThoughtAgentRun(agent.id, { status: 'failed' }),
+              onProgress: (progress) =>
+                updateAddThoughtAgentRun(agent.id, (current) => ({
+                  progress: applyAssistantRuntimeProgress(current.progress, progress),
+                })),
+            },
+          );
         }
+        setAddThoughtCelebrating(true);
+        await waitForMilliseconds(1000);
       }
       closeNewThoughtDialog();
     } catch (error) {
@@ -420,6 +485,7 @@ function AnnotationDiscussionShell({
     annotationValue: Annotation,
     instruction: string,
     readingIntent?: Comment['readingIntent'],
+    lifecycle?: RunSourceAgentThoughtLifecycle,
   ) {
     await runSourceAgentThoughtRequest({
       agent,
@@ -434,7 +500,26 @@ function AnnotationDiscussionShell({
       saveAnnotations,
       setStatusMessage,
       onThoughtStart: setSelectedThoughtId,
+      lifecycle,
     });
+  }
+
+  function updateAddThoughtAgentRun(
+    agentId: string,
+    update:
+      | Partial<Pick<AddThoughtAgentRun, 'progress' | 'status'>>
+      | ((current: AddThoughtAgentRun) => Partial<Pick<AddThoughtAgentRun, 'progress' | 'status'>>),
+  ) {
+    setAddThoughtAgentRuns((runs) =>
+      runs.map((run) =>
+        run.agent.id === agentId
+          ? {
+              ...run,
+              ...(typeof update === 'function' ? update(run) : update),
+            }
+          : run,
+      ),
+    );
   }
 
   function openNewThoughtDialog() {
@@ -456,6 +541,8 @@ function AnnotationDiscussionShell({
     setNewThoughtOpen(false);
     setNewThoughtDraft('');
     setNewThoughtCaretIndex(0);
+    setAddThoughtAgentRuns([]);
+    setAddThoughtCelebrating(false);
   }
 
   function togglePinnedThought(commentId: string) {
@@ -574,6 +661,8 @@ function AnnotationDiscussionShell({
           caretIndex={newThoughtCaretIndex}
           draft={newThoughtDraft}
           mode={newThoughtMode}
+          runningAgents={addThoughtAgentRuns}
+          celebrating={addThoughtCelebrating}
           submitting={submittingThought}
           onCancel={closeNewThoughtDialog}
           onCaretChange={setNewThoughtCaretIndex}
@@ -598,6 +687,7 @@ type DiscussionThread = {
 function AddThoughtDialog({
   agents,
   caretIndex,
+  celebrating,
   draft,
   mode,
   onCancel,
@@ -605,10 +695,12 @@ function AddThoughtDialog({
   onDraftChange,
   onModeChange,
   onSubmit,
+  runningAgents,
   submitting,
 }: {
   agents: PublicAgent[];
   caretIndex: number;
+  celebrating: boolean;
   draft: string;
   mode: 'self' | 'assistant';
   onCancel: () => void;
@@ -616,6 +708,7 @@ function AddThoughtDialog({
   onDraftChange: (value: string) => void;
   onModeChange: (value: 'self' | 'assistant') => void;
   onSubmit: () => void;
+  runningAgents: AddThoughtAgentRun[];
   submitting: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -704,129 +797,201 @@ function AddThoughtDialog({
             </button>
           </ReaderTooltip>
         </header>
-        <FloatingComposer
-          ref={textareaRef}
-          className="annotation-discussion-add-editor"
-          accessory={
-            <div className="annotation-discussion-add-composer-accessory">
-              <div className="annotation-discussion-add-mode" role="tablist" aria-label="添加方式">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === 'self'}
-                  className={mode === 'self' ? 'is-active' : ''}
-                  onClick={() => onModeChange('self')}
+        {submitting && mode === 'assistant' ? (
+          <AddThoughtAssistantRunPanel celebrating={celebrating} runs={runningAgents} />
+        ) : (
+          <FloatingComposer
+            ref={textareaRef}
+            className="annotation-discussion-add-editor"
+            accessory={
+              <div className="annotation-discussion-add-composer-accessory">
+                <div
+                  className="annotation-discussion-add-mode"
+                  role="tablist"
+                  aria-label="添加方式"
                 >
-                  自己写
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === 'assistant'}
-                  className={mode === 'assistant' ? 'is-active' : ''}
-                  onClick={() => onModeChange('assistant')}
-                >
-                  让助手来
-                </button>
-              </div>
-              {mode === 'assistant' ? (
-                <div className="annotation-discussion-add-agents">
-                  <AgentAvatarStack
-                    agents={agents}
-                    ariaLabel="插入助手提及"
-                    onAgentClick={insertAgentMention}
-                  />
-                </div>
-              ) : null}
-            </div>
-          }
-          mentionMenu={
-            matchedAgents.length > 0 ? (
-              <div className="reader-agent-menu annotation-discussion-mention-menu annotation-discussion-add-mention-menu">
-                {matchedAgents.map((agent, index) => (
                   <button
-                    className={index === selectedMentionIndex ? 'is-active' : ''}
-                    key={agent.id}
-                    ref={(element) => {
-                      mentionCandidateRefs.current[index] = element;
-                    }}
                     type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => selectMentionAgent(agent)}
+                    role="tab"
+                    aria-selected={mode === 'self'}
+                    className={mode === 'self' ? 'is-active' : ''}
+                    onClick={() => onModeChange('self')}
                   >
-                    <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                    <span>
-                      <strong>{agent.nickname}</strong>
-                      <em>@{agent.username}</em>
-                    </span>
+                    自己写
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={mode === 'assistant'}
+                    className={mode === 'assistant' ? 'is-active' : ''}
+                    onClick={() => onModeChange('assistant')}
+                  >
+                    让助手来
+                  </button>
+                </div>
+                {mode === 'assistant' ? (
+                  <div className="annotation-discussion-add-agents">
+                    <AgentAvatarStack
+                      agents={agents}
+                      ariaLabel="插入助手提及"
+                      onAgentClick={insertAgentMention}
+                    />
+                  </div>
+                ) : null}
               </div>
-            ) : null
-          }
-          submitDisabled={!canSubmit}
-          submitIcon={<Plus size={14} />}
-          submitLabel={submitting ? '添加中' : '添加'}
-          submitTooltip={
-            <SubmitShortcutTooltipContent
-              label="添加"
-              shortcut="mod-enter"
-              shortcutModifier={shortcutModifier}
-            />
-          }
-          textarea={{
-            'aria-label': mode === 'self' ? '想法内容' : '给助手的指令',
-            value: draft,
-            placeholder:
-              mode === 'self' ? '挂在这条划线下的一条想法...' : '告诉助手要写什么想法...',
-            rows: 1,
-            disabled: submitting,
-            autoFocus: true,
-            onChange: (event) => {
-              onDraftChange(event.currentTarget.value);
-              updateCaret(event.currentTarget);
-              requestAnimationFrame(resizeAddThoughtTextarea);
-            },
-            onClick: (event) => updateCaret(event.currentTarget),
-            onKeyDown: (event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                onCancel();
-                return;
-              }
-              if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
-                event.preventDefault();
-                setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
-                return;
-              }
-              if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
-                event.preventDefault();
-                setSelectedMentionIndex(
-                  (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
-                );
-                return;
-              }
-              if (matchedAgents.length > 0 && event.key === 'Tab') {
-                event.preventDefault();
-                const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
-                if (agent) selectMentionAgent(agent);
-                return;
-              }
-              if (isMessageSendShortcutEvent(event, 'mod-enter')) {
-                event.preventDefault();
-                onSubmit();
-              }
-            },
-            onKeyUp: (event) => {
-              if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
-                return;
-              updateCaret(event.currentTarget);
-            },
-            onSelect: (event) => updateCaret(event.currentTarget),
-          }}
-          onSubmit={onSubmit}
-        />
+            }
+            mentionMenu={
+              matchedAgents.length > 0 ? (
+                <div className="reader-agent-menu annotation-discussion-mention-menu annotation-discussion-add-mention-menu">
+                  {matchedAgents.map((agent, index) => (
+                    <button
+                      className={index === selectedMentionIndex ? 'is-active' : ''}
+                      key={agent.id}
+                      ref={(element) => {
+                        mentionCandidateRefs.current[index] = element;
+                      }}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectMentionAgent(agent)}
+                    >
+                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
+                      <span>
+                        <strong>{agent.nickname}</strong>
+                        <em>@{agent.username}</em>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null
+            }
+            submitDisabled={!canSubmit}
+            submitIcon={<Plus size={14} />}
+            submitLabel={submitting ? '添加中' : '添加'}
+            submitTooltip={
+              <SubmitShortcutTooltipContent
+                label="添加"
+                shortcut="mod-enter"
+                shortcutModifier={shortcutModifier}
+              />
+            }
+            textarea={{
+              'aria-label': mode === 'self' ? '想法内容' : '给助手的指令',
+              value: draft,
+              placeholder:
+                mode === 'self' ? '挂在这条划线下的一条想法...' : '告诉助手要写什么想法...',
+              rows: 1,
+              disabled: submitting,
+              autoFocus: true,
+              onChange: (event) => {
+                onDraftChange(event.currentTarget.value);
+                updateCaret(event.currentTarget);
+                requestAnimationFrame(resizeAddThoughtTextarea);
+              },
+              onClick: (event) => updateCaret(event.currentTarget),
+              onKeyDown: (event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  onCancel();
+                  return;
+                }
+                if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                  return;
+                }
+                if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setSelectedMentionIndex(
+                    (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                  );
+                  return;
+                }
+                if (matchedAgents.length > 0 && event.key === 'Tab') {
+                  event.preventDefault();
+                  const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
+                  if (agent) selectMentionAgent(agent);
+                  return;
+                }
+                if (isMessageSendShortcutEvent(event, 'mod-enter')) {
+                  event.preventDefault();
+                  onSubmit();
+                }
+              },
+              onKeyUp: (event) => {
+                if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                  return;
+                updateCaret(event.currentTarget);
+              },
+              onSelect: (event) => updateCaret(event.currentTarget),
+            }}
+            onSubmit={onSubmit}
+          />
+        )}
       </section>
+    </div>
+  );
+}
+
+function AddThoughtAssistantRunPanel({
+  celebrating,
+  runs,
+}: {
+  celebrating: boolean;
+  runs: AddThoughtAgentRun[];
+}) {
+  return (
+    <div className="annotation-discussion-add-run" aria-label="助手添加想法进度">
+      {celebrating ? <ReadingCompletionBurst /> : null}
+      <div className="annotation-discussion-add-run-agents">
+        {runs.map((run, index) => (
+          <div
+            className={`annotation-discussion-add-run-agent is-${run.status}`}
+            key={run.agent.id}
+          >
+            <div
+              className="annotation-discussion-add-run-avatar"
+              style={{ '--agent-run-delay': `${index * 90}ms` } as CSSProperties}
+            >
+              <AvatarBadge avatar={run.agent.avatar} fallback={run.agent.nickname.slice(0, 1)} />
+            </div>
+            <strong>{run.agent.nickname}</strong>
+            <AssistantRuntimeProgressList progress={run.progress} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReadingCompletionBurst() {
+  return (
+    <div className="reader-completion-burst" aria-hidden="true">
+      <div className="reader-completion-burst-center">
+        <span className="reader-completion-burst-ring" />
+        <span className="reader-completion-burst-ring is-wide" />
+        {completionBurstParticles.map((particle, index) => {
+          const style: CompletionParticleStyle = {
+            '--reader-confetti-color': particle.color,
+            '--reader-confetti-delay': `${particle.delay}ms`,
+            '--reader-confetti-rotate': `${particle.rotate}deg`,
+            '--reader-confetti-x': `${particle.x}px`,
+            '--reader-confetti-y': `${particle.y}px`,
+          };
+          return (
+            <span
+              className={[
+                'reader-completion-particle',
+                particle.shape === 'dot' ? 'is-dot' : '',
+                particle.shape === 'spark' ? 'is-spark' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              key={`${particle.x}:${particle.y}:${index}`}
+              style={style}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1125,6 +1290,7 @@ function DiscussionThreadView({
       >
         <section className="annotation-discussion-root-thought" aria-label="想法内容">
           <div className="annotation-discussion-root-thought-content">
+            <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
             <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
           </div>
           <div className="annotation-discussion-thread-meta">
@@ -1310,6 +1476,7 @@ function DiscussionMessage({
             <Trash2 size={13} />
           </LongPressDeleteButton>
         </header>
+        <AssistantRuntimeProgressList progress={message.assistantProgress} />
         <div
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{ __html: html }}
@@ -1404,6 +1571,13 @@ type RunSourceAgentThoughtRequestInput = {
   saveAnnotations: (annotations: Annotation[]) => Promise<void>;
   setStatusMessage: (message: string) => void;
   onThoughtStart: (commentId: string) => void;
+  lifecycle?: RunSourceAgentThoughtLifecycle;
+};
+
+type RunSourceAgentThoughtLifecycle = {
+  onComplete?: () => void;
+  onError?: () => void;
+  onProgress?: (progress: Parameters<typeof applyAssistantRuntimeProgress>[1]) => void;
 };
 
 async function runSourceAgentThoughtRequest({
@@ -1419,6 +1593,7 @@ async function runSourceAgentThoughtRequest({
   saveAnnotations,
   setStatusMessage,
   onThoughtStart,
+  lifecycle,
 }: RunSourceAgentThoughtRequestInput) {
   setStatusMessage(`${agent.nickname} 正在添加想法`);
   const createdAt = new Date().toISOString();
@@ -1504,6 +1679,23 @@ async function runSourceAgentThoughtRequest({
           if (nextAnnotations) applyAnnotations(nextAnnotations);
           return;
         }
+        if (event.type === 'progress') {
+          lifecycle?.onProgress?.(event.progress);
+          const nextAnnotations = updateAnnotationComment(
+            annotationsRef.current,
+            annotation.id,
+            pendingCommentId,
+            (comment) => ({
+              ...comment,
+              assistantProgress: applyAssistantRuntimeProgress(
+                comment.assistantProgress,
+                event.progress,
+              ),
+            }),
+          );
+          if (nextAnnotations) applyAnnotations(nextAnnotations);
+          return;
+        }
         pendingDelta += event.delta;
         scheduleDeltaFlush();
       },
@@ -1518,6 +1710,11 @@ async function runSourceAgentThoughtRequest({
       id: pendingCommentId,
       replyTo: undefined,
       content: finalComment.content || streamedContent,
+      assistantProgress:
+        finalComment.assistantProgress ||
+        annotationsRef.current
+          .find((item) => item.id === annotation.id)
+          ?.comments.find((comment) => comment.id === pendingCommentId)?.assistantProgress,
       pending: false,
     };
     const nextAnnotations = updateAnnotationComment(
@@ -1528,6 +1725,10 @@ async function runSourceAgentThoughtRequest({
       completedComment.createdAt,
     );
     if (nextAnnotations) await saveAnnotations(nextAnnotations);
+    lifecycle?.onComplete?.();
+  } catch (error) {
+    lifecycle?.onError?.();
+    throw error;
   } finally {
     if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
     setStatusMessage('');
@@ -1554,6 +1755,12 @@ function discussionWindowTitle({
 
 function compactTitleText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function waitForMilliseconds(duration: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, duration);
+  });
 }
 
 function assistantThoughtRouteNote(note: string, agents: PublicAgent[]) {

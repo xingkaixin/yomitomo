@@ -29,6 +29,10 @@ import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
+import {
+  applyAssistantRuntimeProgress,
+  AssistantRuntimeProgressList,
+} from './app-assistant-runtime-progress';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
@@ -454,6 +458,18 @@ async function requestAgentReviewRound({
     },
     (event) => {
       if (event.type === 'start') return;
+      if (event.type === 'progress') {
+        workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
+          Object.assign({}, message, {
+            assistantProgress: applyAssistantRuntimeProgress(
+              message.assistantProgress,
+              event.progress,
+            ),
+          }),
+        );
+        onOptimisticSession(workingSession);
+        return;
+      }
       if (event.type !== 'delta') return;
       workingSession = updateSessionMessage(workingSession, assistantMessage.id, (message) =>
         Object.assign({}, message, { content: `${message.content}${event.delta}` }),
@@ -548,6 +564,7 @@ function ReviewTimelineMessage({
             </time>
           </ReaderTooltip>
         </header>
+        <AssistantRuntimeProgressList progress={message.assistantProgress} />
         <div
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{
