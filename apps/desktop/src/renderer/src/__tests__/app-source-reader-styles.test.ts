@@ -47,6 +47,9 @@ describe('source reader annotation styles', () => {
     expect(styles).toMatch(
       /\.source-pdf-reader-shell\s+\.reader-app\.is-reader-background-light\s+\.pdfium-spike-page\s+:where\(canvas, img\) \{/,
     );
+    expect(styles).not.toMatch(
+      /\.source-pdf-reader-shell\s+\.reader-app\.is-reader-background-dark\s+\.pdfium-spike-page\s+:where\(canvas, img\)/,
+    );
   });
 
   it('keeps settings item hover and selected borders on theme variables', () => {

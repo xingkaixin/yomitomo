@@ -30,6 +30,7 @@ describe('ThemeSelector', () => {
     expect(screen.getByRole('button', { name: '阅读器纸张：纸白' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '阅读器纸张：淡绿' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '阅读器纸张：松烟' })).toBeNull();
+    expect(screen.queryByText('PDF 将保留原始页面颜色')).toBeNull();
 
     const preview = document.querySelector('.theme-preview-frame') as HTMLElement | null;
     expect(preview?.style.getPropertyValue('--app-paper-pattern-image')).toBeTruthy();
@@ -132,6 +133,7 @@ describe('ThemeSelector', () => {
     );
 
     expect(screen.queryByRole('button', { name: '阅读器纸张：纸白' })).toBeNull();
+    expect(screen.getByText('PDF 将保留原始页面颜色')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：松烟' }));
 
     expect(onSelectReaderBackground).toHaveBeenCalledWith('#242019');
