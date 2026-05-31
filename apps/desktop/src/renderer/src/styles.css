@@ -235,23 +235,24 @@
 
 .annotation-discussion-quote {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
+  min-width: 0;
+  gap: 7px;
   border-bottom: 1px solid var(--app-reader-line);
   background: var(--app-reader-note-bg);
   padding: 14px 22px 16px;
 }
 
-.annotation-discussion-quote span {
+.annotation-discussion-quote strong {
   color: var(--app-reader-accent-strong);
-  font-family: var(--font-reader-serif);
-  font-size: 28px;
+  font-size: 12px;
   font-weight: 900;
-  line-height: 0.9;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
 }
 
 .annotation-discussion-quote p {
   display: -webkit-box;
+  min-width: 0;
   margin: 0;
   overflow: hidden;
   -webkit-box-orient: vertical;
@@ -630,8 +631,9 @@
 }
 
 .annotation-discussion-idea.is-selected {
-  border-color: var(--app-reader-accent-strong);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-reader-accent-strong) 16%, transparent);
+  border-color: var(--app-reader-toolbar-border);
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 7%, var(--app-reader-paper));
+  box-shadow: inset 4px 0 0 var(--app-reader-accent-strong);
 }
 
 .annotation-discussion-idea.is-pending {
@@ -877,28 +879,30 @@
 .annotation-discussion-thread-body {
   display: grid;
   min-height: 0;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 12px;
   padding-top: 12px;
+}
+
+.annotation-discussion-thread-scroll {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 14px;
+  overflow: auto;
+  padding: 2px 6px 10px 2px;
 }
 
 .annotation-discussion-root-thought {
   display: grid;
   min-width: 0;
-  gap: 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--app-reader-line) 72%, transparent);
+  gap: 10px;
   color: var(--app-reader-ink);
-  padding: 0 2px 10px;
+  padding: 0 2px;
 }
 
 .annotation-discussion-root-thought-content {
   max-width: min(860px, 100%);
-  max-height: 48px;
-  overflow: hidden;
-}
-
-.annotation-discussion-root-thought.is-expanded .annotation-discussion-root-thought-content {
-  max-height: none;
 }
 
 .annotation-discussion-root-thought-content > div {
@@ -907,12 +911,6 @@
   line-height: 1.7;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.annotation-discussion-root-thought:not(.is-expanded) .annotation-discussion-root-thought-content {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .annotation-discussion-root-thought :first-child {
@@ -931,31 +929,6 @@
   margin: 0 0 8px;
 }
 
-.annotation-discussion-root-thought-toggle {
-  display: inline-flex;
-  width: fit-content;
-  align-items: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  color: var(--app-reader-muted);
-  font-size: 12px;
-  font-weight: 820;
-  padding: 0;
-}
-
-.annotation-discussion-root-thought-toggle:hover {
-  color: var(--app-reader-ink);
-}
-
-.annotation-discussion-root-thought-toggle svg {
-  transition: transform 140ms ease;
-}
-
-.annotation-discussion-root-thought.is-expanded .annotation-discussion-root-thought-toggle svg {
-  transform: rotate(180deg);
-}
-
 .annotation-discussion-thread-meta {
   display: flex;
   align-items: center;
@@ -971,13 +944,38 @@
   font-weight: 900;
 }
 
+.annotation-discussion-thread-divider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 840;
+}
+
+.annotation-discussion-thread-divider::before,
+.annotation-discussion-thread-divider::after {
+  height: 1px;
+  background: color-mix(in srgb, var(--app-reader-line) 72%, transparent);
+  content: '';
+}
+
+.annotation-discussion-thread-divider span {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--app-reader-line) 84%, transparent);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  line-height: 1;
+  padding: 5px 10px;
+}
+
 .annotation-discussion-messages {
   display: grid;
   min-height: 0;
   align-content: start;
   gap: 22px;
-  overflow: auto;
-  padding: 2px 6px 10px 2px;
+  padding: 0;
 }
 
 .annotation-discussion-message {
@@ -1810,6 +1808,19 @@
   font-weight: 780;
   line-height: 1.4;
   color: var(--app-reader-muted);
+}
+
+.annotation-discussion-composer-input .floating-composer-status {
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% + 6px);
+  min-height: 0;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  box-shadow: var(--app-subtle-panel-shadow);
+  color: var(--app-reader-muted);
+  padding: 4px 9px;
 }
 
 @media (max-width: 900px) {

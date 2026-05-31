@@ -75,4 +75,15 @@ describe('theme state styles', () => {
     expect(styles).toContain('.annotation-sedimentation-status.is-draft {');
     expect(styles).toContain('color: var(--app-reader-muted);');
   });
+
+  it('keeps discussion selection and separators on reader theme tokens', () => {
+    expect(styles).toContain('.annotation-discussion-idea.is-selected {');
+    expect(styles).toContain('box-shadow: inset 4px 0 0 var(--app-reader-accent-strong);');
+    expect(styles).toContain('.annotation-discussion-thread-divider::before,');
+    expect(styles).toContain(
+      'background: color-mix(in srgb, var(--app-reader-line) 72%, transparent);',
+    );
+    expect(styles).toContain('.annotation-discussion-thread-scroll {');
+    expect(styles).toContain('overflow: auto;');
+  });
 });
