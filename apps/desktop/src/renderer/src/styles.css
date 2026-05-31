@@ -16003,6 +16003,14 @@ button.license-package-row:hover {
   color: var(--app-interactive-badge-fg);
 }
 
+.theme-reader-paper-note {
+  margin: -2px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
 .settings-content {
   min-height: 0;
   overflow: hidden;

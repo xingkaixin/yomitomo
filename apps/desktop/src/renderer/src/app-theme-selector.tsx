@@ -163,6 +163,9 @@ export function ThemeSelector({
                   </button>
                 ))}
               </div>
+              {activeTone === 'dark' ? (
+                <p className="theme-reader-paper-note">PDF 将保留原始页面颜色</p>
+              ) : null}
             </section>
           </section>
         </div>
