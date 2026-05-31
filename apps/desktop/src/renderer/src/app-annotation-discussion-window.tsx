@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -209,7 +210,6 @@ function AnnotationDiscussionShell({
   );
   const selectedThread =
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
-  const replies = currentAnnotation.comments.length - threads.length;
 
   useEffect(() => {
     if (!threads.length) {
@@ -491,8 +491,11 @@ function AnnotationDiscussionShell({
 
   return (
     <main className={className}>
-      <section className="annotation-discussion-quote" aria-label="批注引文">
-        <span aria-hidden="true">“</span>
+      <section
+        className="annotation-discussion-quote"
+        aria-labelledby="annotation-discussion-quote-title"
+      >
+        <strong id="annotation-discussion-quote-title">正在讨论的划线</strong>
         <p>{currentAnnotation.anchor.exact}</p>
       </section>
 
@@ -547,7 +550,6 @@ function AnnotationDiscussionShell({
           <header>
             <strong>讨论区</strong>
             <div className="annotation-discussion-thread-actions">
-              <span>{replies} 条回复</span>
               <AnnotationLayoutControl value={layoutMode} onChange={setLayoutMode} />
             </div>
           </header>
@@ -972,19 +974,25 @@ function DiscussionThreadView({
   userProfile: UserProfile;
 }) {
   const messages = thread.replies;
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const threadScrollRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
+  const scrollFrameRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const [rootThoughtExpanded, setRootThoughtExpanded] = useState(false);
   const rootThoughtHtml = renderMarkdown(thread.root.content);
+  const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
+  const messagesVersion = messages
+    .map((message) => `${message.id}:${message.content}:${message.pending ? 'pending' : 'ready'}`)
+    .join('|');
   const mentionQuery = getMentionQuery(replyDraft, replyCaretIndex);
   const matchedAgents =
     mentionQuery === null
       ? []
       : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
   const shortcutModifier = getShortcutModifier();
+  const composerStatus = sendError || statusMessage || (sendingReply ? '正在发送' : '');
   const className = [
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
@@ -1003,17 +1011,34 @@ function DiscussionThreadView({
     mentionCandidateRefs.current[selectedMentionIndex]?.scrollIntoView?.({ block: 'nearest' });
   }, [selectedMentionIndex]);
 
-  useEffect(() => {
-    updateScrollBottomVisibility();
-  }, [messages.length]);
-
-  useEffect(() => {
-    setRootThoughtExpanded(false);
+  useLayoutEffect(() => {
+    shouldStickToBottomRef.current = true;
+    scheduleScrollToBottom('auto');
   }, [thread.root.id]);
+
+  useLayoutEffect(() => {
+    if (!shouldStickToBottomRef.current) {
+      updateScrollBottomVisibility();
+      return;
+    }
+    scheduleScrollToBottom('auto');
+  }, [messagesVersion, rootVersion, thread.root.id]);
+
+  useEffect(
+    () => () => {
+      cancelScheduledScroll();
+    },
+    [],
+  );
 
   useEffect(() => {
     resizeReplyTextarea();
   }, [replyDraft, thread.root.id]);
+
+  useEffect(() => {
+    if (sendingReply) return;
+    textareaRef.current?.focus();
+  }, [sendingReply]);
 
   function updateCaret(element: HTMLTextAreaElement) {
     onReplyCaretChange(element.selectionStart);
@@ -1024,7 +1049,8 @@ function DiscussionThreadView({
     if (!element) return;
     element.style.height = 'auto';
     const maxHeight = 168;
-    const nextHeight = Math.min(element.scrollHeight, maxHeight);
+    const minHeight = 40;
+    const nextHeight = Math.max(minHeight, Math.min(element.scrollHeight, maxHeight));
     element.style.height = `${nextHeight}px`;
     element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
   }
@@ -1040,74 +1066,101 @@ function DiscussionThreadView({
   }
 
   function updateScrollBottomVisibility() {
-    const element = messagesRef.current;
+    const element = threadScrollRef.current;
     if (!element) {
       setShowScrollBottom(false);
       return;
     }
     const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
-    setShowScrollBottom(distance > 56);
+    const atBottom = distance <= 56;
+    if (!atBottom) cancelScheduledScroll();
+    shouldStickToBottomRef.current = atBottom;
+    setShowScrollBottom(!atBottom);
   }
 
-  function scrollMessagesToBottom() {
-    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: 'smooth' });
+  function scheduleScrollToBottom(behavior: ScrollBehavior) {
+    cancelScheduledScroll();
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      if (!shouldStickToBottomRef.current) return;
+      scrollDiscussionToBottom(behavior);
+      scrollFrameRef.current = window.requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        if (shouldStickToBottomRef.current) scrollDiscussionToBottom(behavior);
+      });
+    });
+  }
+
+  function cancelScheduledScroll() {
+    if (scrollFrameRef.current === null) return;
+    window.cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = null;
+  }
+
+  function scrollDiscussionToBottom(behavior: ScrollBehavior = 'smooth') {
+    const element = threadScrollRef.current;
+    if (!element) return;
+    shouldStickToBottomRef.current = true;
+    element.scrollTo({ top: element.scrollHeight, behavior });
+    setShowScrollBottom(false);
+  }
+
+  function handleSubmitReply() {
+    updateScrollBottomVisibility();
+    onSubmitReply();
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   return (
     <div className="annotation-discussion-thread-body">
-      <section
-        className={['annotation-discussion-root-thought', rootThoughtExpanded ? 'is-expanded' : '']
-          .filter(Boolean)
-          .join(' ')}
-        aria-label="想法内容"
+      <div
+        ref={threadScrollRef}
+        className="annotation-discussion-thread-scroll"
+        onScroll={updateScrollBottomVisibility}
       >
-        <div className="annotation-discussion-root-thought-content">
-          <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
+        <section className="annotation-discussion-root-thought" aria-label="想法内容">
+          <div className="annotation-discussion-root-thought-content">
+            <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
+          </div>
+          <div className="annotation-discussion-thread-meta">
+            <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
+              <time dateTime={thread.root.createdAt} tabIndex={0}>
+                {formatAbsoluteTime(thread.root.createdAt)}
+              </time>
+            </ReaderTooltip>
+            {thread.pending ? <span>助手回复中</span> : null}
+          </div>
+        </section>
+        <div className="annotation-discussion-thread-divider" role="separator">
+          <span>讨论展开</span>
         </div>
-        <button
-          className="annotation-discussion-root-thought-toggle"
-          type="button"
-          aria-expanded={rootThoughtExpanded}
-          onClick={() => setRootThoughtExpanded((expanded) => !expanded)}
-        >
-          <span>{rootThoughtExpanded ? '收起想法' : '展开想法'}</span>
-          <ChevronDown size={14} />
-        </button>
-      </section>
-      <div className="annotation-discussion-thread-meta">
-        <ReaderTooltip content={formatAbsoluteTime(thread.root.createdAt)}>
-          <time dateTime={thread.root.createdAt} tabIndex={0}>
-            {formatAbsoluteTime(thread.root.createdAt)}
-          </time>
-        </ReaderTooltip>
-        {thread.pending ? <span>助手回复中</span> : null}
+        {messages.length > 0 ? (
+          <div className={className}>
+            {messages.map((message) => (
+              <DiscussionMessage
+                isDeleting={deletingCommentId === message.id}
+                key={message.id}
+                message={message}
+                userProfile={userProfile}
+                onDelete={() => onDelete(message.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="annotation-discussion-reply-empty">
+            <MessageCircle size={24} />
+            <strong>当前没有讨论</strong>
+            <p>这条想法还没有回复。</p>
+          </div>
+        )}
       </div>
-      {messages.length > 0 ? (
-        <div ref={messagesRef} className={className} onScroll={updateScrollBottomVisibility}>
-          {messages.map((message) => (
-            <DiscussionMessage
-              isDeleting={deletingCommentId === message.id}
-              key={message.id}
-              message={message}
-              userProfile={userProfile}
-              onDelete={() => onDelete(message.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="annotation-discussion-reply-empty">
-          <MessageCircle size={24} />
-          <strong>当前没有讨论</strong>
-          <p>这条想法还没有回复。</p>
-        </div>
-      )}
       <footer className="annotation-discussion-composer">
         {showScrollBottom ? (
           <button
             className="annotation-discussion-scroll-bottom"
             type="button"
             aria-label="滚动到底部"
-            onClick={scrollMessagesToBottom}
+            onClick={() => scrollDiscussionToBottom('smooth')}
           >
             <ChevronDown size={16} />
           </button>
@@ -1150,7 +1203,7 @@ function DiscussionThreadView({
               </div>
             ) : null
           }
-          status={sendError || statusMessage || (sendingReply ? '正在发送' : '')}
+          status={composerStatus || undefined}
           submitDisabled={!replyDraft.trim() || sendingReply}
           submitIcon={<Send size={14} />}
           submitLabel="回复"
@@ -1193,7 +1246,7 @@ function DiscussionThreadView({
               }
               if (isMessageSendShortcutEvent(event, 'mod-enter')) {
                 event.preventDefault();
-                onSubmitReply();
+                handleSubmitReply();
               }
             },
             onKeyUp: (event) => {
@@ -1203,7 +1256,7 @@ function DiscussionThreadView({
             },
             onSelect: (event) => updateCaret(event.currentTarget),
           }}
-          onSubmit={onSubmitReply}
+          onSubmit={handleSubmitReply}
         />
       </footer>
     </div>
@@ -1495,8 +1548,7 @@ function discussionWindowTitle({
 }
 
 function compactTitleText(value: string) {
-  const normalized = value.replace(/\s+/g, ' ').trim();
-  return normalized.length > 28 ? `${normalized.slice(0, 28)}...` : normalized;
+  return value.replace(/\s+/g, ' ').trim();
 }
 
 function assistantThoughtRouteNote(note: string, agents: PublicAgent[]) {
