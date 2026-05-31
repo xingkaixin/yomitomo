@@ -419,6 +419,66 @@ describe('assistant final action validation', () => {
     });
   });
 
+  it('accepts create_thread_thought for an allowed annotation', () => {
+    const result = validateAssistantFinalAction(
+      {
+        type: 'create_thread_thought',
+        annotationId: 'annotation_1',
+        thought: '这条想法可以沉淀为一个判断框架。',
+        evidenceIds: [],
+        confidence: 0.78,
+        reason: '当前 thread 有足够讨论价值。',
+      },
+      {
+        articleId: 'article_1',
+        evidenceIds: new Set(),
+        allowedAnnotationIds: ['annotation_1'],
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      action: {
+        type: 'create_thread_thought',
+        annotationId: 'annotation_1',
+        thought: '这条想法可以沉淀为一个判断框架。',
+        evidenceIds: [],
+        confidence: 0.78,
+        reason: '当前 thread 有足够讨论价值。',
+      },
+    });
+  });
+
+  it('accepts review_distillation for an allowed annotation', () => {
+    const result = validateAssistantFinalAction(
+      {
+        type: 'review_distillation',
+        annotationId: 'annotation_1',
+        content: '这个沉淀缺少原文证据，可以先补出判断边界。',
+        evidenceIds: [],
+        confidence: 0.81,
+        reason: '沉淀稿需要审阅意见。',
+      },
+      {
+        articleId: 'article_1',
+        evidenceIds: new Set(),
+        allowedAnnotationIds: ['annotation_1'],
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      action: {
+        type: 'review_distillation',
+        annotationId: 'annotation_1',
+        content: '这个沉淀缺少原文证据，可以先补出判断边界。',
+        evidenceIds: [],
+        confidence: 0.81,
+        reason: '沉淀稿需要审阅意见。',
+      },
+    });
+  });
+
   it('rejects reply actions for annotations outside the host allowlist', () => {
     const result = validateAssistantFinalAction(
       {

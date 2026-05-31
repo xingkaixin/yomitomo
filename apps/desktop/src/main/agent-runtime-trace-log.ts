@@ -76,7 +76,13 @@ function recordValue(value: object): Record<string, unknown> {
 }
 
 function isTraceTaskType(value: unknown) {
-  return value === 'thread_reply' || value === 'selection_first' || value === 'co_reading_section';
+  return (
+    value === 'thread_reply' ||
+    value === 'create_thought' ||
+    value === 'distillation_review' ||
+    value === 'selection_first' ||
+    value === 'co_reading_section'
+  );
 }
 
 function traceMatchesFilters(entry: AgentRuntimeTraceEntry, input: AgentRuntimeTraceListInput) {

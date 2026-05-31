@@ -620,6 +620,8 @@ function useDiagnosticsOptions(
         { value: 'selection_first', label: 'selection_first' },
         { value: 'co_reading_section', label: 'co_reading_section' },
         { value: 'thread_reply', label: 'thread_reply' },
+        { value: 'create_thought', label: 'create_thought' },
+        { value: 'distillation_review', label: 'distillation_review' },
         ...runs.map((run) => ({ value: run.taskType, label: run.taskType })),
       ]),
       modes: [

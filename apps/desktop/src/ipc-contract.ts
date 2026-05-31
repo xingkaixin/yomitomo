@@ -2,11 +2,13 @@ import type {
   Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
+  AgentDistillationReviewPayload,
   AgentMessagePayload,
   AgentMentionInstructionPayload,
   AgentMentionRoutePlan,
   AgentReviewPayload,
   Annotation,
+  AnnotationDistillationReviewMessage,
   AnnotationMetadata,
   AnnotationMetadataPayload,
   AppSettings,
@@ -113,7 +115,12 @@ export type DataManagementPaths = {
   databaseFile: string;
 };
 
-export type AgentRuntimeTraceTaskType = 'thread_reply' | 'selection_first' | 'co_reading_section';
+export type AgentRuntimeTraceTaskType =
+  | 'thread_reply'
+  | 'create_thought'
+  | 'distillation_review'
+  | 'selection_first'
+  | 'co_reading_section';
 
 export type AgentRuntimeTraceStatus =
   | 'comment'
@@ -298,6 +305,10 @@ export type DesktopIpcInvokeMap = {
   'agent:delete': {
     args: [id: string];
     result: DesktopStore;
+  };
+  'agent:distillation-review': {
+    args: [payload: AgentDistillationReviewPayload];
+    result: AnnotationDistillationReviewMessage;
   };
   'agent:mention-route': {
     args: [payload: AgentMentionInstructionPayload];

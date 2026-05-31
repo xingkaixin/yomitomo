@@ -27,6 +27,11 @@ export type AgentMessagePayload = {
   userComment: Comment;
 };
 
+export type AgentDistillationReviewPayload = Omit<AgentMessagePayload, 'responseMode'> & {
+  responseMode?: 'distillation_review';
+  reviewMessageId?: string;
+};
+
 export type AgentReviewPayload = {
   agentId?: string;
   agentUsername: string;
