@@ -4,7 +4,10 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
-import { AnnotationDiscussionWindowApp } from '../app-annotation-discussion-window';
+import {
+  AnnotationDiscussionWindowApp,
+  insertMentionAtSelection,
+} from '../app-annotation-discussion-window';
 
 const now = '2026-05-31T06:00:00.000Z';
 
@@ -162,6 +165,22 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(
       document.querySelector('.annotation-discussion-composer .floating-composer-status'),
     ).toBeNull();
+  });
+});
+
+describe('insertMentionAtSelection', () => {
+  it('inserts a mention at the caret instead of appending it', () => {
+    expect(insertMentionAtSelection('开头 结尾', 'zhou', 3, 3, null)).toEqual({
+      content: '开头 @zhou 结尾',
+      caretIndex: 9,
+    });
+  });
+
+  it('replaces the selected text and keeps the caret after the inserted mention', () => {
+    expect(insertMentionAtSelection('请 顾行简 看这里', 'zhou', 2, 5, null)).toEqual({
+      content: '请 @zhou 看这里',
+      caretIndex: 8,
+    });
   });
 });
 

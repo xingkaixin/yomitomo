@@ -6726,29 +6726,123 @@
   left: 18px;
   z-index: 90;
   display: flex;
-  max-width: min(360px, calc(100% - 36px));
+  width: min(360px, calc(100% - 36px));
   flex-direction: column;
-  gap: 8px;
   pointer-events: none;
 }
 
-.annotation-discussion-capsule {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+.annotation-discussion-capsules.is-expanded {
+  gap: 8px;
+}
+
+.annotation-discussion-capsules-header,
+.annotation-discussion-capsules-toggle {
+  display: flex;
   align-items: center;
-  max-width: 100%;
   height: 36px;
   gap: 8px;
-  padding: 0 14px 0 12px;
   border: 1px solid var(--app-reader-toolbar-border);
-  border-radius: 999px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--app-reader-paper) 94%, transparent);
   box-shadow: var(--app-reader-composer-shadow);
   color: var(--app-reader-ink);
   font-size: 13px;
-  font-weight: 560;
-  line-height: 1;
+  font-weight: 650;
   pointer-events: auto;
+}
+
+.annotation-discussion-capsules-header {
+  padding: 0 8px 0 12px;
+}
+
+.annotation-discussion-capsules-toggle {
+  width: max-content;
+  max-width: 100%;
+  padding: 0 12px;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.annotation-discussion-capsules-toggle:hover {
+  border-color: var(--app-reader-accent-strong);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  transform: translateY(-1px);
+}
+
+.annotation-discussion-capsules-toggle:focus-visible,
+.annotation-discussion-capsules-collapse:focus-visible,
+.annotation-discussion-capsule:focus-visible {
+  outline: 2px solid var(--app-reader-accent-strong);
+  outline-offset: 2px;
+}
+
+.annotation-discussion-capsules-header strong,
+.annotation-discussion-capsules-toggle strong {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.annotation-discussion-capsules-collapse {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  place-items: center;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-reader-paper) 86%, transparent);
+  color: var(--app-reader-muted);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.annotation-discussion-capsules-collapse:hover {
+  border-color: var(--app-reader-accent-strong);
+  color: var(--app-reader-ink);
+}
+
+.annotation-discussion-capsule-list {
+  display: flex;
+  max-height: 256px;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  pointer-events: auto;
+  scrollbar-width: thin;
+}
+
+.annotation-discussion-capsule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: start;
+  max-width: 100%;
+  min-height: 58px;
+  gap: 6px 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-reader-paper) 94%, transparent);
+  box-shadow: none;
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  font-weight: 560;
+  line-height: 1.25;
+  pointer-events: auto;
+  text-align: left;
   transition:
     transform 160ms ease,
     border-color 160ms ease,
@@ -6757,22 +6851,78 @@
 
 .annotation-discussion-capsule:hover {
   border-color: var(--app-reader-accent-strong);
-  box-shadow: 0 14px 28px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--app-reader-ink) 10%, transparent);
   transform: translateY(-1px);
 }
 
-.annotation-discussion-capsule span:last-child {
+.annotation-discussion-capsule.is-replying {
+  border-color: color-mix(
+    in srgb,
+    var(--app-reader-accent-strong) 68%,
+    var(--app-reader-toolbar-border)
+  );
+}
+
+.annotation-discussion-capsule-title {
+  grid-row: 1;
   overflow: hidden;
+  min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.annotation-discussion-capsule-cursor {
-  width: 2px;
-  height: 16px;
+.annotation-discussion-capsule-summary {
+  display: flex;
+  grid-row: 2;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.annotation-discussion-capsule-meta {
+  overflow: hidden;
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-capsule-assistants {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.annotation-discussion-capsule-assistants img,
+.annotation-discussion-capsule-assistants > span {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid var(--app-reader-paper);
   border-radius: 999px;
-  background: var(--app-reader-accent-strong);
-  animation: annotation-discussion-capsule-blink 1.1s steps(2, start) infinite;
+  background: var(--app-reader-toolbar-surface);
+  box-shadow: 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-muted);
+  font-size: 11px;
+  font-weight: 700;
+  object-fit: cover;
+}
+
+.annotation-discussion-capsule-assistants img + img,
+.annotation-discussion-capsule-assistants img + span,
+.annotation-discussion-capsule-assistants span + img,
+.annotation-discussion-capsule-assistants span + span {
+  margin-left: -8px;
+}
+
+.annotation-discussion-capsule-replying {
+  margin-left: auto;
+  color: var(--app-reader-accent-strong);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .library-home {
@@ -10924,18 +11074,6 @@
 
   to {
     transform: translateX(0);
-  }
-}
-
-@keyframes annotation-discussion-capsule-blink {
-  0%,
-  48% {
-    opacity: 1;
-  }
-
-  49%,
-  100% {
-    opacity: 0.18;
   }
 }
 

@@ -458,17 +458,6 @@ function AnnotationDiscussionShell({
     setNewThoughtCaretIndex(0);
   }
 
-  function insertAgentMention(agent: PublicAgent) {
-    const mention = `@${agent.username} `;
-    setReplyDraft((current) => {
-      if (current.includes(mention.trim())) return current;
-      const prefix = current.trimEnd();
-      const next = prefix ? `${prefix} ${mention}` : mention;
-      setReplyCaretIndex(next.length);
-      return next;
-    });
-  }
-
   function togglePinnedThought(commentId: string) {
     setPinnedThoughtIds((current) => {
       const next = new Set(current);
@@ -560,7 +549,6 @@ function AnnotationDiscussionShell({
               thread={selectedThread}
               userProfile={userProfile}
               onDelete={(commentId) => void deleteComment(commentId)}
-              onInsertAgentMention={insertAgentMention}
               onReplyCaretChange={setReplyCaretIndex}
               onReplyDraftChange={setReplyDraft}
               onSubmitReply={() => void submitReply()}
@@ -945,7 +933,6 @@ function DiscussionThreadView({
   deletingCommentId,
   layoutMode,
   onDelete,
-  onInsertAgentMention,
   onReplyCaretChange,
   onReplyDraftChange,
   onSubmitReply,
@@ -961,7 +948,6 @@ function DiscussionThreadView({
   deletingCommentId: string | null;
   layoutMode: DiscussionLayoutMode;
   onDelete: (commentId: string) => void;
-  onInsertAgentMention: (agent: PublicAgent) => void;
   onReplyCaretChange: (value: number) => void;
   onReplyDraftChange: (value: string) => void;
   onSubmitReply: () => void;
@@ -1057,6 +1043,25 @@ function DiscussionThreadView({
 
   function selectMentionAgent(agent: PublicAgent) {
     const next = mentionDraftWithAgent(replyDraft, agent.username, mentionQuery);
+    onReplyDraftChange(next.content);
+    onReplyCaretChange(next.caretIndex);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.caretIndex, next.caretIndex);
+    });
+  }
+
+  function insertAgentMention(agent: PublicAgent) {
+    const element = textareaRef.current;
+    const selectionStart = element?.selectionStart ?? replyCaretIndex;
+    const selectionEnd = element?.selectionEnd ?? selectionStart;
+    const next = insertMentionAtSelection(
+      replyDraft,
+      agent.username,
+      selectionStart,
+      selectionEnd,
+      mentionQuery,
+    );
     onReplyDraftChange(next.content);
     onReplyCaretChange(next.caretIndex);
     requestAnimationFrame(() => {
@@ -1174,7 +1179,7 @@ function DiscussionThreadView({
                 <AgentAvatarStack
                   agents={annotationAgents}
                   ariaLabel="可提及助手"
-                  onAgentClick={onInsertAgentMention}
+                  onAgentClick={insertAgentMention}
                 />
               </div>
             ) : undefined
@@ -1561,18 +1566,31 @@ function insertMentionAtCaret(
   caretIndex: number,
   mentionQuery: ReturnType<typeof getMentionQuery>,
 ) {
-  if (mentionQuery) return mentionDraftWithAgent(content, username, mentionQuery);
+  return insertMentionAtSelection(content, username, caretIndex, caretIndex, mentionQuery);
+}
 
-  const start = Math.max(0, Math.min(caretIndex, content.length));
+export function insertMentionAtSelection(
+  content: string,
+  username: string,
+  selectionStart: number,
+  selectionEnd: number,
+  mentionQuery: ReturnType<typeof getMentionQuery>,
+) {
+  if (selectionStart === selectionEnd && mentionQuery)
+    return mentionDraftWithAgent(content, username, mentionQuery);
+
+  const start = Math.max(0, Math.min(selectionStart, selectionEnd, content.length));
+  const end = Math.max(start, Math.min(Math.max(selectionStart, selectionEnd), content.length));
   const before = content.slice(0, start);
-  const after = content.slice(start);
+  const after = content.slice(end);
   const prefix = before && !/\s$/u.test(before) ? ' ' : '';
-  const suffix = after && !/^\s/u.test(after) ? ' ' : '';
-  const mention = `${prefix}@${username} ${suffix}`;
+  const suffix = after ? (/^\s/u.test(after) ? '' : ' ') : ' ';
+  const mention = `${prefix}@${username}${suffix}`;
   const nextContent = `${before}${mention}${after}`;
+  const caretPadding = suffix === '' && /^\s/u.test(after) ? 1 : 0;
   return {
     content: nextContent,
-    caretIndex: before.length + prefix.length + username.length + 2,
+    caretIndex: before.length + mention.length + caretPadding,
   };
 }
 
