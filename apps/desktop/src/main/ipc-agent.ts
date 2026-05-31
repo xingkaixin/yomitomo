@@ -5,11 +5,13 @@ import type {
   AgentDistillationReviewPayload,
   AgentMessagePayload,
   AnnotationDistillationReviewMessage,
+  AssistantRuntimeProgressEvent,
   AppSettings,
   ArticleRecord,
   Comment,
   LlmProvider,
 } from '@yomitomo/shared';
+import type { AssistantRuntimeStreamEvent, AssistantToolName } from '@yomitomo/ai';
 import type { NormalizedAiUsage } from '@yomitomo/ai';
 import { agentPersonalityName, makeId, normalizeAssistantExecutionMode } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
@@ -267,6 +269,12 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           comment.content += delta;
           event.sender.send(channel, { type: 'delta', delta });
         };
+        const streamRuntimeProgress = (runtimeEvent: AssistantRuntimeStreamEvent) => {
+          const progressEvent = runtimeProgressEvent(runtimeEvent);
+          if (!progressEvent) return;
+          applyRuntimeProgress(comment, progressEvent);
+          event.sender.send(channel, { type: 'progress', progress: progressEvent });
+        };
         const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
         const runtime =
           requestedMode === 'deep_verification'
@@ -279,6 +287,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                   onRuntimeEvent: (runtimeEvent) => {
                     if (runtimeEvent.type === 'text_delta') {
                       streamRuntimeTextDelta(runtimeEvent.delta);
+                    } else {
+                      streamRuntimeProgress(runtimeEvent);
                     }
                   },
                 })
@@ -291,6 +301,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                     onRuntimeEvent: (runtimeEvent) => {
                       if (runtimeEvent.type === 'text_delta') {
                         streamRuntimeTextDelta(runtimeEvent.delta);
+                      } else {
+                        streamRuntimeProgress(runtimeEvent);
                       }
                     },
                   })
@@ -390,6 +402,12 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           message.content += delta;
           event.sender.send(channel, { type: 'delta', delta });
         };
+        const streamRuntimeProgress = (runtimeEvent: AssistantRuntimeStreamEvent) => {
+          const progressEvent = runtimeProgressEvent(runtimeEvent);
+          if (!progressEvent) return;
+          applyRuntimeProgress(message, progressEvent);
+          event.sender.send(channel, { type: 'progress', progress: progressEvent });
+        };
         const runtime =
           requestedMode === 'deep_verification'
             ? await runAgentDistillationReviewWithToolLoop({
@@ -400,6 +418,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                 onRuntimeEvent: (runtimeEvent) => {
                   if (runtimeEvent.type === 'text_delta') {
                     streamRuntimeTextDelta(runtimeEvent.delta);
+                  } else {
+                    streamRuntimeProgress(runtimeEvent);
                   }
                 },
               })
@@ -671,6 +691,70 @@ function agentMessageReplyTo(payload: AgentMessagePayload) {
   if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review')
     return undefined;
   return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
+}
+
+function runtimeProgressEvent(
+  event: AssistantRuntimeStreamEvent,
+): AssistantRuntimeProgressEvent | null {
+  if (event.type === 'tool_call') {
+    return {
+      type: 'step',
+      step: {
+        id: event.toolName,
+        label: runtimeToolProgressLabel(event.toolName),
+        status: 'active',
+      },
+    };
+  }
+  if (event.type === 'tool_result') {
+    return {
+      type: 'step',
+      step: {
+        id: event.toolName,
+        label: runtimeToolProgressLabel(event.toolName),
+        status: event.ok ? 'done' : 'failed',
+      },
+    };
+  }
+  if (event.type === 'fallback') {
+    return { type: 'fallback', message: '深入探索未完成，已切换快速回复' };
+  }
+  return null;
+}
+
+function applyRuntimeProgress(
+  target: Comment | AnnotationDistillationReviewMessage,
+  event: AssistantRuntimeProgressEvent,
+) {
+  const current = target.assistantProgress || { steps: [] };
+  if (event.type === 'fallback') {
+    target.assistantProgress = { ...current, fallbackMessage: event.message };
+    return;
+  }
+  const steps = current.steps.filter((step) => step.id !== event.step.id);
+  target.assistantProgress = {
+    ...current,
+    steps: [...steps, event.step],
+  };
+}
+
+function runtimeToolProgressLabel(toolName: AssistantToolName) {
+  switch (toolName) {
+    case 'get_current_thread':
+      return '读取当前讨论';
+    case 'get_anchor_context':
+      return '查看高亮附近原文';
+    case 'search_article_passages':
+      return '检索相关原文';
+    case 'search_article_memory':
+      return '查找文章内已有记忆';
+    case 'search_own_memory':
+      return '回看这位助手的既有判断';
+    case 'search_other_agents_memory':
+      return '参考其他助手的相关想法';
+    case 'check_duplicate_thought':
+      return '检查是否重复已有想法';
+  }
 }
 
 function logAgentMessageRuntime(

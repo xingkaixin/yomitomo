@@ -655,6 +655,7 @@ function commentRowsForAnnotation(annotation: Annotation) {
     agentAnnotationColor: comment.agentAnnotationColor,
     readingIntent: comment.readingIntent,
     reviewLabel: comment.reviewLabel,
+    assistantProgress: comment.assistantProgress,
     userId: comment.userId,
     userUsername: comment.userUsername,
     userNickname: comment.userNickname,

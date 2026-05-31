@@ -8,6 +8,7 @@ import type {
   AgentReviewPayload,
   AgentMentionInstructionPayload,
   AnnotationDistillationReviewMessage,
+  AssistantRuntimeProgressEvent,
   AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
@@ -206,7 +207,8 @@ const api = {
     onEvent: (
       event:
         | { type: 'start'; message: AnnotationDistillationReviewMessage }
-        | { type: 'delta'; delta: string },
+        | { type: 'delta'; delta: string }
+        | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
     ) => void,
   ) => {
     const requestId = makeRequestId();
@@ -217,10 +219,11 @@ const api = {
         message:
           | { type: 'start'; message: AnnotationDistillationReviewMessage }
           | { type: 'delta'; delta: string }
+          | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
           | { type: 'done'; message: AnnotationDistillationReviewMessage }
           | { type: 'error'; message: string },
       ) => {
-        if (message.type === 'start' || message.type === 'delta') {
+        if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
           onEvent(message);
           return;
         }
@@ -235,7 +238,10 @@ const api = {
   requestAgentCommentStream: (
     payload: AgentMessagePayload,
     onEvent: (
-      event: { type: 'start'; comment: Comment } | { type: 'delta'; delta: string },
+      event:
+        | { type: 'start'; comment: Comment }
+        | { type: 'delta'; delta: string }
+        | { type: 'progress'; progress: AssistantRuntimeProgressEvent },
     ) => void,
   ) => {
     const requestId = makeRequestId();
@@ -246,10 +252,11 @@ const api = {
         message:
           | { type: 'start'; comment: Comment }
           | { type: 'delta'; delta: string }
+          | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
           | { type: 'done'; comment: Comment }
           | { type: 'error'; message: string },
       ) => {
-        if (message.type === 'start' || message.type === 'delta') {
+        if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
           onEvent(message);
           return;
         }

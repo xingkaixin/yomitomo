@@ -45,7 +45,12 @@ import {
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from './store';
-import { rowToAnnotation, rowToArticleSummary, type ArticleSummaryRow } from './store-normalizers';
+import {
+  rowToAnnotation,
+  rowToArticleSummary,
+  rowToComment,
+  type ArticleSummaryRow,
+} from './store-normalizers';
 import { normalizeWeReadReadingStats } from './weread-repository';
 
 describe('desktop store settings', () => {
@@ -467,7 +472,12 @@ describe('desktop store articles', () => {
       id: 'store-batch-article',
       annotations: [
         annotationRecord('store-batch-annotation-1', [
-          commentRecord('store-batch-comment-1', '第一条评论。'),
+          {
+            ...commentRecord('store-batch-comment-1', '第一条评论。'),
+            assistantProgress: {
+              steps: [{ id: 'get_current_thread', label: '读取当前讨论', status: 'done' }],
+            },
+          },
           commentRecord('store-batch-comment-2', '第二条评论。'),
         ]),
         annotationRecord('store-batch-annotation-2', [
@@ -494,6 +504,35 @@ describe('desktop store articles', () => {
       'store-batch-annotation-1',
       'store-batch-annotation-2',
     ]);
+    const firstCommentRow = rows.commentRows[0];
+    if (!firstCommentRow) throw new Error('expected comment row');
+    expect(firstCommentRow.assistantProgress).toEqual({
+      steps: [{ id: 'get_current_thread', label: '读取当前讨论', status: 'done' }],
+    });
+    expect(
+      rowToComment({
+        ...firstCommentRow,
+        replyTo: firstCommentRow.replyTo ?? null,
+        agentId: firstCommentRow.agentId ?? null,
+        agentUsername: firstCommentRow.agentUsername ?? null,
+        agentNickname: firstCommentRow.agentNickname ?? null,
+        agentAvatar: firstCommentRow.agentAvatar ?? null,
+        agentAnnotationColor: firstCommentRow.agentAnnotationColor ?? null,
+        readingIntent: firstCommentRow.readingIntent ?? null,
+        reviewLabel: firstCommentRow.reviewLabel ?? null,
+        assistantProgress: firstCommentRow.assistantProgress ?? null,
+        userId: firstCommentRow.userId ?? null,
+        userUsername: firstCommentRow.userUsername ?? null,
+        userNickname: firstCommentRow.userNickname ?? null,
+        userAvatar: firstCommentRow.userAvatar ?? null,
+        userAnnotationColor: firstCommentRow.userAnnotationColor ?? null,
+        pending: firstCommentRow.pending ?? null,
+      }),
+    ).toMatchObject({
+      assistantProgress: {
+        steps: [{ id: 'get_current_thread', label: '读取当前讨论', status: 'done' }],
+      },
+    });
   });
 
   it('builds annotation distillation rows for published reading assets', () => {
