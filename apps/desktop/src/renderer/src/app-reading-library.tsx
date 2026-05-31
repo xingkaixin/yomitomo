@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { MessageCircle } from 'lucide-react';
+import { ChevronDown, MessageCircle } from 'lucide-react';
 import type {
   Agent,
   Annotation,
@@ -7,6 +7,7 @@ import type {
   ArticleRecord,
   ArticleSummaryRecord,
   AppSettings,
+  Comment,
   MessageSendShortcut,
   SelectionActionShortcuts,
   UserProfile,
@@ -489,7 +490,66 @@ export function ReadingLibrary({
   );
 }
 
-function AnnotationDiscussionCapsules({
+type AnnotationDiscussionCapsuleAssistant = {
+  key: string;
+  name: string;
+  avatar?: string;
+};
+
+export type AnnotationDiscussionCapsuleItem = {
+  articleId: string;
+  annotationId: string;
+  quote: string;
+  ideaCount: number;
+  replyCount: number;
+  assistants: AnnotationDiscussionCapsuleAssistant[];
+  pending: boolean;
+};
+
+export function annotationDiscussionCapsuleItems(
+  article: ArticleRecord,
+  windows: AnnotationDiscussionWindowState[],
+): AnnotationDiscussionCapsuleItem[] {
+  return windows.map((windowState) => {
+    const annotation = article.annotations.find((item) => item.id === windowState.annotationId);
+    const comments = annotation?.comments || [];
+    const ideaCount = comments.filter((comment) => !comment.replyTo).length;
+    const replyCount = comments.length - ideaCount;
+    return {
+      articleId: windowState.articleId,
+      annotationId: windowState.annotationId,
+      quote: annotation?.anchor.exact.trim() || '批注讨论',
+      ideaCount,
+      replyCount,
+      assistants: assistantParticipants(comments),
+      pending: comments.some((comment) => comment.pending),
+    };
+  });
+}
+
+function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsuleAssistant[] {
+  const assistants = new Map<string, AnnotationDiscussionCapsuleAssistant>();
+  for (const comment of comments) {
+    if (comment.author !== 'ai') continue;
+    const key =
+      comment.agentId ||
+      comment.agentUsername ||
+      comment.agentNickname ||
+      comment.agentAvatar ||
+      comment.id;
+    if (assistants.has(key)) continue;
+    const name = comment.agentNickname?.trim() || comment.agentUsername?.trim() || '助手';
+    const avatar = comment.agentAvatar?.trim() || undefined;
+    assistants.set(key, {
+      key,
+      name,
+      avatar,
+    });
+  }
+  return [...assistants.values()];
+}
+
+export function AnnotationDiscussionCapsules({
   article,
   windows,
   onOpen,
@@ -498,28 +558,93 @@ function AnnotationDiscussionCapsules({
   windows: AnnotationDiscussionWindowState[];
   onOpen?: (articleId: string, annotationId: string) => Promise<void> | void;
 }) {
+  const [expandedByUser, setExpandedByUser] = useState(false);
+  const items = useMemo(
+    () => annotationDiscussionCapsuleItems(article, windows),
+    [article, windows],
+  );
+
   if (windows.length === 0) return null;
 
+  const isMany = items.length >= 5;
+  const expanded = !isMany || expandedByUser;
+
+  if (!expanded) {
+    return (
+      <div className="annotation-discussion-capsules is-collapsed" aria-label="已最小化的批注讨论">
+        <button
+          className="annotation-discussion-capsules-toggle"
+          type="button"
+          aria-expanded="false"
+          onClick={() => setExpandedByUser(true)}
+        >
+          <MessageCircle aria-hidden="true" size={16} strokeWidth={1.8} />
+          <span>收起的讨论</span>
+          <strong>{items.length}</strong>
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="annotation-discussion-capsules" aria-label="已最小化的批注讨论">
-      {windows.map((windowState) => {
-        const annotation = article.annotations.find((item) => item.id === windowState.annotationId);
-        const quote = annotation?.anchor.exact.trim() || '批注讨论';
-        return (
+    <section className="annotation-discussion-capsules is-expanded" aria-label="已最小化的批注讨论">
+      <div className="annotation-discussion-capsules-header">
+        <span>收起的讨论</span>
+        <strong>{items.length}</strong>
+        {isMany ? (
           <button
-            key={`${windowState.articleId}:${windowState.annotationId}`}
-            className="annotation-discussion-capsule"
+            className="annotation-discussion-capsules-collapse"
             type="button"
-            title={`打开批注讨论：${quote}`}
-            onClick={() => void onOpen?.(windowState.articleId, windowState.annotationId)}
+            aria-label="折叠收起的讨论"
+            aria-expanded="true"
+            onClick={() => setExpandedByUser(false)}
           >
-            <span className="annotation-discussion-capsule-cursor" aria-hidden="true" />
-            <MessageCircle aria-hidden="true" size={16} strokeWidth={1.8} />
-            <span>{quote}</span>
+            <ChevronDown aria-hidden="true" size={16} strokeWidth={1.8} />
           </button>
-        );
-      })}
-    </div>
+        ) : null}
+      </div>
+      <div className="annotation-discussion-capsule-list">
+        {items.map((item) => (
+          <button
+            key={`${item.articleId}:${item.annotationId}`}
+            className={['annotation-discussion-capsule', item.pending ? 'is-replying' : '']
+              .filter(Boolean)
+              .join(' ')}
+            type="button"
+            title={`打开批注讨论：${item.quote}`}
+            onClick={() => void onOpen?.(item.articleId, item.annotationId)}
+          >
+            <span className="annotation-discussion-capsule-title">{item.quote}</span>
+            <span className="annotation-discussion-capsule-summary">
+              <span className="annotation-discussion-capsule-meta">
+                {item.ideaCount} 想法 · {item.replyCount} 回复
+              </span>
+              {item.assistants.length ? (
+                <span className="annotation-discussion-capsule-assistants" aria-label="参与助手">
+                  {item.assistants.slice(0, 4).map((assistant) =>
+                    assistant.avatar ? (
+                      <img
+                        key={assistant.key}
+                        src={assistant.avatar}
+                        alt={assistant.name}
+                        title={assistant.name}
+                      />
+                    ) : (
+                      <span key={assistant.key} title={assistant.name}>
+                        {assistant.name.slice(0, 1)}
+                      </span>
+                    ),
+                  )}
+                </span>
+              ) : null}
+              {item.pending ? (
+                <span className="annotation-discussion-capsule-replying">回复中</span>
+              ) : null}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
