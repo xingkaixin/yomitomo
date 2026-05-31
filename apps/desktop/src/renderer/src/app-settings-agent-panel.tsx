@@ -27,6 +27,7 @@ import { ColorPicker } from './app-settings-color-picker';
 import { AvatarImage, Field } from './app-ui';
 import type { SaveState } from './app-types';
 import { Button } from './components/ui/button';
+import { SegmentedControl } from './components/ui/segmented-control';
 
 type AgentFilter = AgentKind;
 type AgentPresenceLine = { enter: string; rest: string };
@@ -414,31 +415,34 @@ function AgentFilterTabs({
   value: AgentFilter;
   onChange: (value: AgentFilter) => void;
 }) {
+  const options = agentFilterOptions.map((option) => {
+    const count = agents.filter((agent) => (agent.kind || 'annotation') === option.value).length;
+    const visibleCount = count || personalitiesForKind(option.value).length;
+    const Icon = option.value === 'annotation' ? BookOpen : ShieldCheck;
+
+    return {
+      value: option.value,
+      ariaLabel: option.label,
+      label: (
+        <>
+          <Icon size={18} />
+          <span>{option.label}</span>
+          <strong>{visibleCount}</strong>
+        </>
+      ),
+    };
+  });
+
   return (
-    <div className="agent-filter-tabs" role="tablist" aria-label="思考模式">
-      {agentFilterOptions.map((option) => {
-        const count = agents.filter(
-          (agent) => (agent.kind || 'annotation') === option.value,
-        ).length;
-        const visibleCount = count || personalitiesForKind(option.value).length;
-        const Icon = option.value === 'annotation' ? BookOpen : ShieldCheck;
-        return (
-          <button
-            aria-label={option.label}
-            aria-selected={value === option.value}
-            className={value === option.value ? 'agent-filter-tab is-active' : 'agent-filter-tab'}
-            key={option.value}
-            role="tab"
-            type="button"
-            onClick={() => onChange(option.value)}
-          >
-            <Icon size={18} />
-            <span>{option.label}</span>
-            <strong>{visibleCount}</strong>
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedControl
+      aria-label="思考模式"
+      className="agent-filter-tabs"
+      optionClassName="agent-filter-tab"
+      role="tablist"
+      value={value}
+      options={options}
+      onValueChange={onChange}
+    />
   );
 }
 

@@ -887,6 +887,7 @@ export function DataManagementSettings({
   const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
   const [retentionSaveError, setRetentionSaveError] = useState('');
   const [lastRetentionDays, setLastRetentionDays] = useState<number | undefined>(undefined);
+  const [hoveredRetentionIndex, setHoveredRetentionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -969,6 +970,11 @@ export function DataManagementSettings({
   }
 
   const activeRetentionDays = settings.logRetentionDays;
+  const activeRetentionIndex = Math.max(
+    logRetentionOptions.findIndex((option) => (activeRetentionDays || undefined) === option.value),
+    0,
+  );
+  const retentionHighlightIndex = hoveredRetentionIndex ?? activeRetentionIndex;
 
   return (
     <div className="settings-panel">
@@ -1025,8 +1031,20 @@ export function DataManagementSettings({
               onRetry={() => void saveLogRetention(lastRetentionDays)}
             />
           </div>
-          <div className="data-retention-options" role="group" aria-label="日志保留时间">
-            {logRetentionOptions.map((option) => {
+          <div
+            className="data-retention-menu"
+            role="group"
+            aria-label="日志保留时间"
+            style={
+              {
+                '--retention-count': logRetentionOptions.length,
+                '--retention-highlight-index': retentionHighlightIndex,
+              } as React.CSSProperties
+            }
+            onMouseLeave={() => setHoveredRetentionIndex(null)}
+          >
+            <span className="data-retention-highlight" aria-hidden="true" />
+            {logRetentionOptions.map((option, index) => {
               const active = (activeRetentionDays || undefined) === option.value;
               const action = `retention:${option.value ?? 'forever'}`;
               return (
@@ -1035,6 +1053,9 @@ export function DataManagementSettings({
                   disabled={busyAction === action}
                   key={option.label}
                   type="button"
+                  onMouseEnter={() => setHoveredRetentionIndex(index)}
+                  onFocus={() => setHoveredRetentionIndex(index)}
+                  onBlur={() => setHoveredRetentionIndex(null)}
                   onClick={() => void saveLogRetention(option.value)}
                 >
                   {active ? <Check size={14} /> : null}
@@ -1132,6 +1153,7 @@ function DataPathRow({
       <button
         aria-label={`打开${label}`}
         className="data-path-open"
+        data-tooltip={`打开${label}`}
         disabled={!path}
         type="button"
         onClick={onOpen}

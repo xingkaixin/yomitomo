@@ -6,6 +6,7 @@ import type {
   WeReadReadingStatsState,
 } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
+import { SegmentedControl } from './components/ui/segmented-control';
 
 const MODE_OPTIONS: Array<{ mode: WeReadReadingStatsMode; label: string }> = [
   { mode: 'weekly', label: '周' },
@@ -68,18 +69,17 @@ export function WeReadReadingStatsPanel() {
   return (
     <section className="weread-stats-panel">
       <div className="weread-stats-toolbar">
-        <div className="stats-chart-switch" role="tablist" aria-label="微信读书统计周期">
-          {MODE_OPTIONS.map((option) => (
-            <button
-              type="button"
-              aria-pressed={mode === option.mode}
-              key={option.mode}
-              onClick={() => changeMode(option.mode)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          aria-label="微信读书统计周期"
+          className="stats-chart-switch"
+          role="tablist"
+          value={mode}
+          options={MODE_OPTIONS.map((option) => ({
+            value: option.mode,
+            label: option.label,
+          }))}
+          onValueChange={changeMode}
+        />
         <div className="weread-stats-period">
           {mode === 'overall' ? null : (
             <button

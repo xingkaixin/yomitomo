@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import type { ReadingActivityDay } from '@yomitomo/core';
 import { ChartContainer, ChartTooltip, type ChartConfig } from './components/ui/chart';
+import { SegmentedControl } from './components/ui/segmented-control';
 import { chartActivityDescription } from './app-reading-stats-data';
 
 const chartConfig = {
@@ -87,22 +88,16 @@ export function ReadingStatsChart({
       </div>
       <div className="stats-chart-toolbar">
         {chartRecordedDays < 21 ? (
-          <div aria-label="趋势范围" className="stats-chart-switch" role="group">
-            <button
-              aria-pressed={effectiveChartMode === 'recorded'}
-              onClick={() => setChartMode('recorded')}
-              type="button"
-            >
-              已记录 {recordedDays} 天
-            </button>
-            <button
-              aria-pressed={effectiveChartMode === 'window'}
-              onClick={() => setChartMode('window')}
-              type="button"
-            >
-              近 21 天
-            </button>
-          </div>
+          <SegmentedControl
+            aria-label="趋势范围"
+            className="stats-chart-switch"
+            value={effectiveChartMode}
+            options={[
+              { value: 'recorded', label: `已记录 ${recordedDays} 天` },
+              { value: 'window', label: '近 21 天' },
+            ]}
+            onValueChange={setChartMode}
+          />
         ) : null}
         <div className="stats-chart-legend" aria-hidden="true">
           <span>
