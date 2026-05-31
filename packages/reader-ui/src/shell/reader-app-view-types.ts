@@ -85,6 +85,7 @@ export type ReaderAppViewProps = {
   reviewAgents?: PublicAgent[];
   selectionAction: SelectionAction | null;
   settingsOpen: boolean;
+  showSettings?: boolean;
   messageSendShortcut: MessageSendShortcut;
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;

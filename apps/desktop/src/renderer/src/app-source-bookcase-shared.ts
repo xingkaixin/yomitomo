@@ -21,6 +21,8 @@ import type { ArticleUpdater, PromptArticle } from './app-reading-types';
 export {
   normalizeDesktopReaderSettings,
   readDesktopReaderSettings,
+  subscribeDesktopReaderSettings,
+  useDesktopReaderSettings,
   writeDesktopReaderSettings,
 } from './app-reader-settings';
 

@@ -4,8 +4,11 @@ import {
   applyAppTheme,
   beigePaperTheme,
   beigePaperThemeId,
+  defaultThemeIdForTone,
   defaultTheme,
   defaultThemeId,
+  inkBlackTheme,
+  inkBlackThemeId,
   inkPaperTheme,
   inkPaperThemeId,
   readCachedThemeId,
@@ -20,21 +23,32 @@ describe('app theme contract', () => {
   it('registers the default and validation themes as complete AppThemes', () => {
     expect(themeRegistry[defaultThemeId]).toBe(defaultTheme);
     expect(themeRegistry[inkPaperThemeId]).toBe(inkPaperTheme);
+    expect(themeRegistry[inkBlackThemeId]).toBe(inkBlackTheme);
     expect(themeRegistry[beigePaperThemeId]).toBe(beigePaperTheme);
     expect(defaultTheme.reader.paper).toBeTruthy();
     expect(inkPaperTheme.reader.paper).toBeTruthy();
+    expect(inkBlackTheme.reader.paper).toBe('#242019');
     expect(beigePaperTheme.reader.paper).toBeTruthy();
     expect(defaultTheme.palette.background).toBeTruthy();
     expect(inkPaperTheme.palette.background).toBeTruthy();
+    expect(inkBlackTheme.palette.background).toBe('34 9% 9%');
     expect(beigePaperTheme.palette.background).toBeTruthy();
     expect(defaultTheme.effect.shellBackground).toBeTruthy();
     expect(inkPaperTheme.effect.shellBackground).toBeTruthy();
+    expect(inkBlackTheme.effect.shellBackground).toBeTruthy();
     expect(beigePaperTheme.effect.shellBackground).toBeTruthy();
+    expect(defaultTheme.meta.tone).toBe('light');
+    expect(inkPaperTheme.meta.tone).toBe('light');
+    expect(inkBlackTheme.meta.tone).toBe('dark');
+    expect(inkBlackTheme.paperPattern.kind).toBe('dash-grid');
+    expect(inkBlackTheme.paperPattern.opacity).not.toBe('0');
   });
 
   it('exposes only user visible themes for the selector', () => {
-    expect(visibleThemeIds).toEqual([defaultThemeId, inkPaperThemeId]);
+    expect(visibleThemeIds).toEqual([defaultThemeId, inkPaperThemeId, inkBlackThemeId]);
     expect(visibleThemeIds).not.toContain(beigePaperThemeId);
+    expect(defaultThemeIdForTone('light')).toBe(defaultThemeId);
+    expect(defaultThemeIdForTone('dark')).toBe(inkBlackThemeId);
   });
 
   it('exports app and reader css variables from each registered theme', () => {

@@ -4,12 +4,26 @@ import type { ReaderSettings } from './reader-types';
 
 export const defaultReaderBackgroundColor = '#fffdf8';
 
+export type ReaderBackgroundTone = 'light' | 'dark';
+
 export const readerBackgroundOptions = [
-  { label: '纸白', value: defaultReaderBackgroundColor },
-  { label: '暖米', value: '#f7eddc' },
-  { label: '淡绿', value: '#eef4e8' },
-  { label: '冷灰', value: '#eef1f4' },
+  { label: '纸白', tone: 'light', value: defaultReaderBackgroundColor },
+  { label: '暖米', tone: 'light', value: '#f7eddc' },
+  { label: '淡绿', tone: 'light', value: '#eef4e8' },
+  { label: '冷灰', tone: 'light', value: '#eef1f4' },
+  { label: '松烟', tone: 'dark', value: '#242019' },
 ] as const;
+
+export function readerBackgroundTone(value: string | undefined): ReaderBackgroundTone {
+  return readerBackgroundOptions.find((option) => option.value === value)?.tone ?? 'light';
+}
+
+export function defaultReaderBackgroundForTone(tone: ReaderBackgroundTone): string {
+  return (
+    readerBackgroundOptions.find((option) => option.tone === tone)?.value ||
+    defaultReaderBackgroundColor
+  );
+}
 
 export const defaultUserProfile: UserProfile = {
   id: 'user_local',
