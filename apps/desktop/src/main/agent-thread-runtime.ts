@@ -27,29 +27,28 @@ export type ThreadReplyRuntimeResult =
     };
 
 export async function runAgentThreadReplyWithToolLoop(input: {
-  ai: Pick<
-    AiModule,
-    | 'buildAgentThreadReplyRuntimePayload'
-    | 'createAssistantProviderModelAdapter'
-    | 'runAssistantToolRuntime'
-  >;
+  ai: Pick<AiModule, 'buildAgentThreadReplyRuntimePayload' | 'runAssistantAiSdkToolRuntime'>;
   provider: LlmProvider;
   agent: Agent;
   payload: AgentMessagePayload;
+  onRuntimeEvent?: Parameters<AiModule['runAssistantAiSdkToolRuntime']>[0]['onEvent'];
 }): Promise<ThreadReplyRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
 
-  const runtime = await input.ai.runAssistantToolRuntime({
+  const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'thread_reply',
     articleId,
     agentId: input.agent.id,
+    provider: input.provider,
+    payload: input.ai.buildAgentThreadReplyRuntimePayload(
+      input.provider,
+      input.agent,
+      input.payload,
+    ),
+    onEvent: input.onRuntimeEvent,
     tools: assistantReadingToolDefinitions,
     allowedAnnotationIds: [input.payload.annotation.id],
-    modelAdapter: input.ai.createAssistantProviderModelAdapter(
-      input.provider,
-      input.ai.buildAgentThreadReplyRuntimePayload(input.provider, input.agent, input.payload),
-    ),
     toolExecutor: createAssistantReadingToolExecutor({
       article: {
         id: articleId,
@@ -97,29 +96,28 @@ export async function runAgentThreadReplyWithToolLoop(input: {
 }
 
 export async function runAgentCreateThoughtWithToolLoop(input: {
-  ai: Pick<
-    AiModule,
-    | 'buildAgentCreateThoughtRuntimePayload'
-    | 'createAssistantProviderModelAdapter'
-    | 'runAssistantToolRuntime'
-  >;
+  ai: Pick<AiModule, 'buildAgentCreateThoughtRuntimePayload' | 'runAssistantAiSdkToolRuntime'>;
   provider: LlmProvider;
   agent: Agent;
   payload: AgentMessagePayload;
+  onRuntimeEvent?: Parameters<AiModule['runAssistantAiSdkToolRuntime']>[0]['onEvent'];
 }): Promise<ThreadReplyRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
 
-  const runtime = await input.ai.runAssistantToolRuntime({
+  const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'create_thought',
     articleId,
     agentId: input.agent.id,
+    provider: input.provider,
+    payload: input.ai.buildAgentCreateThoughtRuntimePayload(
+      input.provider,
+      input.agent,
+      input.payload,
+    ),
+    onEvent: input.onRuntimeEvent,
     tools: assistantReadingToolDefinitions,
     allowedAnnotationIds: [input.payload.annotation.id],
-    modelAdapter: input.ai.createAssistantProviderModelAdapter(
-      input.provider,
-      input.ai.buildAgentCreateThoughtRuntimePayload(input.provider, input.agent, input.payload),
-    ),
     toolExecutor: createAssistantReadingToolExecutor({
       article: {
         id: articleId,
@@ -178,33 +176,28 @@ export type DistillationReviewRuntimeResult =
     };
 
 export async function runAgentDistillationReviewWithToolLoop(input: {
-  ai: Pick<
-    AiModule,
-    | 'buildAgentDistillationReviewRuntimePayload'
-    | 'createAssistantProviderModelAdapter'
-    | 'runAssistantToolRuntime'
-  >;
+  ai: Pick<AiModule, 'buildAgentDistillationReviewRuntimePayload' | 'runAssistantAiSdkToolRuntime'>;
   provider: LlmProvider;
   agent: Agent;
   payload: AgentMessagePayload;
+  onRuntimeEvent?: Parameters<AiModule['runAssistantAiSdkToolRuntime']>[0]['onEvent'];
 }): Promise<DistillationReviewRuntimeResult> {
   const articleId = input.payload.article.id;
   if (!articleId) return { status: 'fallback', failureReason: 'missing_article_id' };
 
-  const runtime = await input.ai.runAssistantToolRuntime({
+  const runtime = await input.ai.runAssistantAiSdkToolRuntime({
     taskType: 'distillation_review',
     articleId,
     agentId: input.agent.id,
+    provider: input.provider,
+    payload: input.ai.buildAgentDistillationReviewRuntimePayload(
+      input.provider,
+      input.agent,
+      input.payload,
+    ),
+    onEvent: input.onRuntimeEvent,
     tools: assistantReadingToolDefinitions,
     allowedAnnotationIds: [input.payload.annotation.id],
-    modelAdapter: input.ai.createAssistantProviderModelAdapter(
-      input.provider,
-      input.ai.buildAgentDistillationReviewRuntimePayload(
-        input.provider,
-        input.agent,
-        input.payload,
-      ),
-    ),
     toolExecutor: createAssistantReadingToolExecutor({
       article: {
         id: articleId,

@@ -26,14 +26,6 @@ import {
   type DistillationReviewRuntimeResult,
   type ThreadReplyRuntimeResult,
 } from './agent-thread-runtime';
-import {
-  runAgentSelectionWithToolLoop,
-  type SelectionRuntimeResult,
-} from './agent-selection-runtime';
-import {
-  runAgentCoReadingHybridWithToolLoop,
-  type CoReadingRuntimeResult,
-} from './agent-co-reading-runtime';
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
@@ -271,6 +263,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agentRoster: publicCommentAgents(store.agents),
           readingIntent: input.payload.readingIntent || comment.readingIntent,
         };
+        const streamRuntimeTextDelta = (delta: string) => {
+          comment.content += delta;
+          event.sender.send(channel, { type: 'delta', delta });
+        };
         const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
         const runtime =
           requestedMode === 'deep_verification'
@@ -280,6 +276,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                   provider,
                   agent,
                   payload: payloadWithRoster,
+                  onRuntimeEvent: (runtimeEvent) => {
+                    if (runtimeEvent.type === 'text_delta') {
+                      streamRuntimeTextDelta(runtimeEvent.delta);
+                    }
+                  },
                 })
               : taskType === 'create_thought'
                 ? await runAgentCreateThoughtWithToolLoop({
@@ -287,6 +288,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                     provider,
                     agent,
                     payload: payloadWithRoster,
+                    onRuntimeEvent: (runtimeEvent) => {
+                      if (runtimeEvent.type === 'text_delta') {
+                        streamRuntimeTextDelta(runtimeEvent.delta);
+                      }
+                    },
                   })
                 : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' }
             : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
@@ -300,8 +306,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           context.elapsedMs(startedAt),
         );
         if (runtime.status === 'comment') {
-          comment.content = runtime.comment.content;
-          event.sender.send(channel, { type: 'delta', delta: comment.content });
+          if (!comment.content) {
+            comment.content = runtime.comment.content;
+            event.sender.send(channel, { type: 'delta', delta: comment.content });
+          }
         } else {
           const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
             payload: payloadWithRoster,
@@ -378,6 +386,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         };
         event.sender.send(channel, { type: 'start', message });
         const payloadWithRoster = distillationReviewMessagePayload(input.payload, store.agents);
+        const streamRuntimeTextDelta = (delta: string) => {
+          message.content += delta;
+          event.sender.send(channel, { type: 'delta', delta });
+        };
         const runtime =
           requestedMode === 'deep_verification'
             ? await runAgentDistillationReviewWithToolLoop({
@@ -385,6 +397,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                 provider,
                 agent,
                 payload: payloadWithRoster,
+                onRuntimeEvent: (runtimeEvent) => {
+                  if (runtimeEvent.type === 'text_delta') {
+                    streamRuntimeTextDelta(runtimeEvent.delta);
+                  }
+                },
               })
             : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
         logAgentMessageRuntime(
@@ -397,8 +414,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           context.elapsedMs(startedAt),
         );
         if (runtime.status === 'message') {
-          message.content = runtime.message.content;
-          event.sender.send(channel, { type: 'delta', delta: message.content });
+          if (!message.content) {
+            message.content = runtime.message.content;
+            event.sender.send(channel, { type: 'delta', delta: message.content });
+          }
         } else {
           const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
             payload: payloadWithRoster,
@@ -452,34 +471,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       logError: context.logError,
     });
     const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
-    const defaultRuntimeTaskType = annotateRuntimeTaskType(payloadWithMemory) || 'annotation';
-    const runtimeTaskType =
-      requestedMode === 'deep_verification'
-        ? defaultRuntimeTaskType === 'annotation'
-          ? undefined
-          : defaultRuntimeTaskType
-        : undefined;
-    const runtime =
-      runtimeTaskType === 'selection_first'
-        ? await runAgentSelectionWithToolLoop({
-            ai,
-            provider,
-            agent,
-            payload: payloadWithMemory,
-          })
-        : runtimeTaskType === 'co_reading_section'
-          ? await runAgentCoReadingHybridWithToolLoop({
-              ai,
-              provider,
-              agent,
-              payload: payloadWithMemory,
-            })
-          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-    logAnnotateRuntime(context, runtime, payloadWithMemory, agent, runtimeTaskType);
-    const result =
-      runtime.status === 'result'
-        ? runtime.result
-        : await ai.runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
+    const result = await ai.runAgentAnnotateWithMemory(provider, agent, payloadWithMemory);
     saveAgentAnnotateReadingMemoryEntries({
       agent,
       payload: payloadWithMemory,
@@ -489,21 +481,13 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     recordAssistantExecutionRun(context, {
       agent,
       provider,
-      taskType: defaultRuntimeTaskType,
+      taskType: 'annotation',
       requestedMode,
-      effectiveMode:
-        requestedMode === 'deep_verification' && runtime.status === 'result'
-          ? 'deep_verification'
-          : 'fast_response',
+      effectiveMode: requestedMode === 'deep_verification' ? 'fast_response' : requestedMode,
       status: 'success',
       fallbackReason:
-        requestedMode === 'deep_verification' && runtime.status === 'fallback'
-          ? runtime.failureReason
-          : undefined,
-      usage: annotateRuntimeUsage(runtime),
+        requestedMode === 'deep_verification' ? 'annotation_runtime_not_applicable' : undefined,
       durationMs: context.elapsedMs(startedAt),
-      stepCount: annotateRuntimeStepCount(runtime),
-      traceJson: annotateRuntimeTraceJson(runtime),
     });
     return result;
   });
@@ -544,43 +528,15 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         const requestedMode = normalizeAssistantExecutionMode(
           store.settings.assistantExecutionMode,
         );
-        const defaultRuntimeTaskType = annotateRuntimeTaskType(payloadWithMemory) || 'annotation';
-        const runtimeTaskType =
-          requestedMode === 'deep_verification'
-            ? defaultRuntimeTaskType === 'annotation'
-              ? undefined
-              : defaultRuntimeTaskType
-            : undefined;
-        const runtime =
-          runtimeTaskType === 'selection_first'
-            ? await runAgentSelectionWithToolLoop({
-                ai,
-                provider,
-                agent,
-                payload: payloadWithMemory,
-              })
-            : runtimeTaskType === 'co_reading_section'
-              ? await runAgentCoReadingHybridWithToolLoop({
-                  ai,
-                  provider,
-                  agent,
-                  payload: payloadWithMemory,
-                })
-              : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
-        logAnnotateRuntime(context, runtime, payloadWithMemory, agent, runtimeTaskType);
-        const result =
-          runtime.status === 'result'
-            ? runtime.result
-            : await ai.runAgentAnnotateStream(provider, agent, payloadWithMemory, (annotation) => {
-                annotations.push(annotation);
-                event.sender.send(channel, { type: 'item', annotation });
-              });
-        if (runtime.status === 'result') {
-          for (const annotation of result.annotations) {
+        const result = await ai.runAgentAnnotateStream(
+          provider,
+          agent,
+          payloadWithMemory,
+          (annotation) => {
             annotations.push(annotation);
             event.sender.send(channel, { type: 'item', annotation });
-          }
-        }
+          },
+        );
         saveAgentAnnotateReadingMemoryEntries({
           agent,
           payload: payloadWithMemory,
@@ -590,21 +546,14 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         recordAssistantExecutionRun(context, {
           agent,
           provider,
-          taskType: defaultRuntimeTaskType,
+          taskType: 'annotation',
           requestedMode,
-          effectiveMode:
-            requestedMode === 'deep_verification' && runtime.status === 'result'
-              ? 'deep_verification'
-              : 'fast_response',
+          effectiveMode: requestedMode === 'deep_verification' ? 'fast_response' : requestedMode,
           status: 'success',
           fallbackReason:
-            requestedMode === 'deep_verification' && runtime.status === 'fallback'
-              ? runtime.failureReason
-              : undefined,
-          usage: annotateRuntimeUsage(runtime) || annotateResultUsage(result),
+            requestedMode === 'deep_verification' ? 'annotation_runtime_not_applicable' : undefined,
+          usage: annotateResultUsage(result),
           durationMs: context.elapsedMs(startedAt),
-          stepCount: annotateRuntimeStepCount(runtime),
-          traceJson: annotateRuntimeTraceJson(runtime),
         });
         event.sender.send(channel, {
           type: 'done',
@@ -724,22 +673,6 @@ function agentMessageReplyTo(payload: AgentMessagePayload) {
   return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
 }
 
-function shouldUseSelectionFirstToolLoop(payload: AgentAnnotatePayload) {
-  return (
-    Boolean(payload.article.id) && Boolean(payload.targetAnchor) && !payload.readingPlan?.length
-  );
-}
-
-function shouldUseCoReadingHybridToolLoop(payload: AgentAnnotatePayload) {
-  return Boolean(payload.article.id) && Boolean(payload.readingPlan?.length);
-}
-
-function annotateRuntimeTaskType(payload: AgentAnnotatePayload) {
-  if (shouldUseSelectionFirstToolLoop(payload)) return 'selection_first';
-  if (shouldUseCoReadingHybridToolLoop(payload)) return 'co_reading_section';
-  return undefined;
-}
-
 function logAgentMessageRuntime(
   context: DesktopMainIpcContext,
   result: ThreadReplyRuntimeResult | DistillationReviewRuntimeResult,
@@ -824,25 +757,6 @@ function recordAssistantExecutionRun(
     .catch((error) => context.logError('assistant.execution_run_write_failed', error));
 }
 
-function annotateRuntimeStepCount(result: SelectionRuntimeResult | CoReadingRuntimeResult) {
-  if (result.status !== 'result')
-    return 'runtime' in result ? result.runtime?.trace.steps.length || 0 : 0;
-  if ('runtime' in result) return result.runtime.trace.steps.length;
-  return result.traces.length;
-}
-
-function annotateRuntimeTraceJson(result: SelectionRuntimeResult | CoReadingRuntimeResult) {
-  if (result.status !== 'result') return 'runtime' in result ? result.runtime?.trace : undefined;
-  if ('runtime' in result) return result.runtime.trace;
-  return result.traces;
-}
-
-function annotateRuntimeUsage(
-  result: SelectionRuntimeResult | CoReadingRuntimeResult,
-): NormalizedAiUsage | undefined {
-  return 'runtime' in result ? result.runtime?.trace.usage : undefined;
-}
-
 function annotateResultUsage(result: unknown): NormalizedAiUsage | undefined {
   if (!isRecord(result) || !isRecord(result.usage)) return undefined;
   return compactUsage({
@@ -868,83 +782,6 @@ function finiteNumber(value: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function logAnnotateRuntime(
-  context: DesktopMainIpcContext,
-  result: SelectionRuntimeResult | CoReadingRuntimeResult,
-  payload: AgentAnnotatePayload,
-  agent: Agent,
-  runtimeTaskType: ReturnType<typeof annotateRuntimeTaskType>,
-) {
-  if ('traces' in result) {
-    context.logInfo('assistant_runtime.co_reading_section', {
-      status: 'result',
-      annotationCount: result.result.annotations.length,
-      decisionCount: result.traces.length,
-      filteredCount: result.traces.filter((trace) => trace.actionType === 'no_action').length,
-      fallbackCount: result.traces.filter((trace) => trace.status === 'fallback').length,
-    });
-    void appendAgentRuntimeTrace({
-      taskType: 'co_reading_section',
-      agentId: agent.id,
-      articleId: payload.article.id || '',
-      status: 'result',
-      stepCount: result.traces.length,
-      annotationCount: result.result.annotations.length,
-      decisionCount: result.traces.length,
-      filteredCount: result.traces.filter((trace) => trace.actionType === 'no_action').length,
-      fallbackCount: result.traces.filter((trace) => trace.status === 'fallback').length,
-      decisions: result.traces,
-    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
-    return;
-  }
-
-  if (result.status === 'result') {
-    context.logInfo('assistant_runtime.selection_first', {
-      status: 'result',
-      annotationCount: result.result.annotations.length,
-      stepCount: result.runtime.trace.steps.length,
-      finalActionType: result.runtime.trace.finalActionType,
-      repairUsed: result.runtime.repairUsed,
-    });
-    void appendAgentRuntimeTrace({
-      taskType: 'selection_first',
-      agentId: result.runtime.trace.agentId,
-      articleId: result.runtime.trace.articleId,
-      status: 'result',
-      finalActionType: result.runtime.trace.finalActionType,
-      stepCount: result.runtime.trace.steps.length,
-      repairUsed: result.runtime.repairUsed,
-      annotationCount: result.result.annotations.length,
-      trace: result.runtime.trace,
-    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
-    return;
-  }
-  const logEvent =
-    runtimeTaskType === 'co_reading_section'
-      ? 'assistant_runtime.co_reading_section'
-      : 'assistant_runtime.selection_first';
-  context.logInfo(logEvent, {
-    status: 'fallback',
-    failureReason: result.failureReason,
-    stepCount: 'runtime' in result ? result.runtime?.trace.steps.length : undefined,
-    finalActionType: 'runtime' in result ? result.runtime?.trace.finalActionType : undefined,
-  });
-  const runtime = 'runtime' in result ? result.runtime : undefined;
-  if (runtime) {
-    void appendAgentRuntimeTrace({
-      taskType: 'selection_first',
-      agentId: runtime.trace.agentId,
-      articleId: runtime.trace.articleId,
-      status: 'fallback',
-      failureReason: result.failureReason,
-      finalActionType: runtime.trace.finalActionType,
-      stepCount: runtime.trace.steps.length,
-      repairUsed: runtime.repairUsed,
-      trace: runtime.trace,
-    }).catch((error) => context.logError('assistant_runtime.trace_write_failed', error));
-  }
 }
 
 function publicCommentAgents(agents: Agent[]) {

@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  runAssistantToolRuntime,
-  type AssistantProviderEvent,
-  type AssistantRuntimeTurn,
-} from '@yomitomo/ai';
+import type { AssistantAiSdkRuntimeOptions, AssistantRuntimeResult } from '@yomitomo/ai';
 import type { Agent, AgentMessagePayload, LlmProvider } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
 import {
@@ -14,24 +10,7 @@ import {
 
 describe('agent thread reply tool loop', () => {
   it('returns a thread reply comment from the runtime final action', async () => {
-    const adapter = vi
-      .fn<(turn: AssistantRuntimeTurn) => Promise<AssistantProviderEvent>>()
-      .mockImplementation(async (turn) => {
-        if (turn.evidence.length === 0) {
-          return { type: 'tool_call', toolCall: { name: 'get_current_thread', input: {} } };
-        }
-        return {
-          type: 'final_action',
-          action: {
-            type: 'reply_to_thread',
-            annotationId: 'annotation_1',
-            content: '我先按当前 thread 的问题回应。',
-            evidenceIds: [turn.evidence[0].id],
-            confidence: 0.82,
-            reason: '当前 thread 已提供足够上下文。',
-          },
-        };
-      });
+    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => threadReplyRuntime());
 
     const result = await runAgentThreadReplyWithToolLoop({
       ai: {
@@ -41,8 +20,7 @@ describe('agent thread reply tool loop', () => {
           maxTokens: 1200,
           temperature: 0.4,
         })),
-        createAssistantProviderModelAdapter: vi.fn(() => adapter),
-        runAssistantToolRuntime,
+        runAssistantAiSdkToolRuntime: runtime,
       },
       provider: provider(),
       agent: agent(),
@@ -56,15 +34,42 @@ describe('agent thread reply tool loop', () => {
       agentId: 'agent_1',
       agentUsername: 'lin',
     });
-    expect(adapter).toHaveBeenCalledTimes(2);
+    expect(runtime).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes runtime stream events through for thread replies', async () => {
+    const onRuntimeEvent = vi.fn();
+    const runtime = vi.fn(
+      async (options: AssistantAiSdkRuntimeOptions): Promise<AssistantRuntimeResult> => {
+        options.onEvent?.({ type: 'text_delta', delta: '流式片段' });
+        return threadReplyRuntime();
+      },
+    );
+
+    await runAgentThreadReplyWithToolLoop({
+      ai: {
+        buildAgentThreadReplyRuntimePayload: vi.fn(() => ({
+          system: 'system',
+          user: 'user',
+          maxTokens: 1200,
+          temperature: 0.4,
+        })),
+        runAssistantAiSdkToolRuntime: runtime,
+      },
+      provider: provider(),
+      agent: agent(),
+      payload: payload(),
+      onRuntimeEvent,
+    });
+
+    expect(onRuntimeEvent).toHaveBeenCalledWith({ type: 'text_delta', delta: '流式片段' });
   });
 
   it('falls back when the article id is missing', async () => {
     const result = await runAgentThreadReplyWithToolLoop({
       ai: {
         buildAgentThreadReplyRuntimePayload: vi.fn(),
-        createAssistantProviderModelAdapter: vi.fn(),
-        runAssistantToolRuntime,
+        runAssistantAiSdkToolRuntime: vi.fn(),
       },
       provider: provider(),
       agent: agent(),
@@ -81,19 +86,7 @@ describe('agent thread reply tool loop', () => {
   });
 
   it('returns a top-level thought from the create_thought runtime final action', async () => {
-    const adapter = vi.fn(
-      async (): Promise<AssistantProviderEvent> => ({
-        type: 'final_action',
-        action: {
-          type: 'create_thread_thought',
-          annotationId: 'annotation_1',
-          thought: '这条想法会作为顶层助手想法保存。',
-          evidenceIds: [],
-          confidence: 0.82,
-          reason: '当前批注需要新增想法。',
-        },
-      }),
-    );
+    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => createThoughtRuntime());
 
     const result = await runAgentCreateThoughtWithToolLoop({
       ai: {
@@ -103,8 +96,7 @@ describe('agent thread reply tool loop', () => {
           maxTokens: 1200,
           temperature: 0.4,
         })),
-        createAssistantProviderModelAdapter: vi.fn(() => adapter),
-        runAssistantToolRuntime,
+        runAssistantAiSdkToolRuntime: runtime,
       },
       provider: provider(),
       agent: agent(),
@@ -119,19 +111,7 @@ describe('agent thread reply tool loop', () => {
   });
 
   it('returns a review message from the distillation runtime final action', async () => {
-    const adapter = vi.fn(
-      async (): Promise<AssistantProviderEvent> => ({
-        type: 'final_action',
-        action: {
-          type: 'review_distillation',
-          annotationId: 'annotation_1',
-          content: '这段沉淀还需要补足原文证据。',
-          evidenceIds: [],
-          confidence: 0.82,
-          reason: '当前沉淀稿需要审阅。',
-        },
-      }),
-    );
+    const runtime = vi.fn(async (): Promise<AssistantRuntimeResult> => reviewRuntime());
 
     const result = await runAgentDistillationReviewWithToolLoop({
       ai: {
@@ -141,8 +121,7 @@ describe('agent thread reply tool loop', () => {
           maxTokens: 1200,
           temperature: 0.4,
         })),
-        createAssistantProviderModelAdapter: vi.fn(() => adapter),
-        runAssistantToolRuntime,
+        runAssistantAiSdkToolRuntime: runtime,
       },
       provider: provider(),
       agent: { ...agent(), kind: 'review' },
@@ -157,6 +136,72 @@ describe('agent thread reply tool loop', () => {
     });
   });
 });
+
+function threadReplyRuntime(): AssistantRuntimeResult {
+  return {
+    status: 'final',
+    action: {
+      type: 'reply_to_thread',
+      annotationId: 'annotation_1',
+      content: '我先按当前 thread 的问题回应。',
+      evidenceIds: [],
+      confidence: 0.82,
+      reason: '当前 thread 已提供足够上下文。',
+    },
+    evidence: [],
+    repairUsed: false,
+    trace: trace('thread_reply', 'reply_to_thread'),
+  };
+}
+
+function createThoughtRuntime(): AssistantRuntimeResult {
+  return {
+    status: 'final',
+    action: {
+      type: 'create_thread_thought',
+      annotationId: 'annotation_1',
+      thought: '这条想法会作为顶层助手想法保存。',
+      evidenceIds: [],
+      confidence: 0.82,
+      reason: '当前批注需要新增想法。',
+    },
+    evidence: [],
+    repairUsed: false,
+    trace: trace('create_thought', 'create_thread_thought'),
+  };
+}
+
+function reviewRuntime(): AssistantRuntimeResult {
+  return {
+    status: 'final',
+    action: {
+      type: 'review_distillation',
+      annotationId: 'annotation_1',
+      content: '这段沉淀还需要补足原文证据。',
+      evidenceIds: [],
+      confidence: 0.82,
+      reason: '当前沉淀稿需要审阅。',
+    },
+    evidence: [],
+    repairUsed: false,
+    trace: trace('distillation_review', 'review_distillation'),
+  };
+}
+
+function trace(
+  taskType: AssistantRuntimeResult['trace']['taskType'],
+  finalActionType: NonNullable<AssistantRuntimeResult['trace']['finalActionType']>,
+): AssistantRuntimeResult['trace'] {
+  return {
+    taskType,
+    agentId: 'agent_1',
+    articleId: 'article_1',
+    startedAt: '2026-05-26T00:00:00.000Z',
+    completedAt: '2026-05-26T00:00:01.000Z',
+    steps: [],
+    finalActionType,
+  };
+}
 
 function provider(): LlmProvider {
   return {
