@@ -123,6 +123,7 @@ function SedimentationShell({
   const canReview = activeAgents.length > 0 && !reviewing;
   const sessions = annotation.distillation?.reviewSessions || [];
   const isPublished = annotation.distillation?.status === 'published';
+  const statusLabel = isPublished ? '已发布' : '草稿';
   const publishLabel = isPublished ? '更新发布' : '发布沉淀';
   const canUnpublish = isPublished && !saving;
 
@@ -291,7 +292,14 @@ function SedimentationShell({
       <section className="annotation-sedimentation-body">
         <section className="annotation-sedimentation-document" aria-label="沉淀稿件">
           <header>
-            <strong>沉淀稿</strong>
+            <div className="annotation-sedimentation-document-title">
+              <strong>沉淀稿</strong>
+              <span
+                className={`annotation-sedimentation-status is-${isPublished ? 'published' : 'draft'}`}
+              >
+                {statusLabel}
+              </span>
+            </div>
             <div className="annotation-sedimentation-document-actions">
               {isPublished ? (
                 <ReaderTooltip content="取消发布后保留沉淀稿和审阅记录">
