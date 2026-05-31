@@ -65,4 +65,14 @@ describe('theme state styles', () => {
     expect(styles).toContain('border-bottom: 1px solid var(--app-reader-toolbar-border);');
     expect(styles).toContain('background: var(--app-reader-toolbar-bg);');
   });
+
+  it('keeps distillation status and primary entry on theme tokens', () => {
+    expect(styles).toContain('.annotation-discussion-sedimentation-entry button.is-primary {');
+    expect(styles).toContain('background: var(--app-action-primary-bg);');
+    expect(styles).toContain('color: var(--app-action-primary-fg);');
+    expect(styles).toContain('.annotation-sedimentation-status.is-published {');
+    expect(styles).toContain('color: var(--app-action-primary-bg);');
+    expect(styles).toContain('.annotation-sedimentation-status.is-draft {');
+    expect(styles).toContain('color: var(--app-reader-muted);');
+  });
 });
