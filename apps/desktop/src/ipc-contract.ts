@@ -38,8 +38,11 @@ export type AppInfo = {
 };
 
 export type ArticleImportResult =
+  | { status: 'canceled' }
   | { status: 'duplicate'; article: ArticleRecord }
   | { status: 'imported'; article: ArticleRecord; patch: ArticleUpsertPatch };
+
+export type ArticleImportUrlInput = string | { url: string; requestId?: string };
 
 export type ArticleAnnotationDeleteInput = {
   articleId: string;
@@ -387,8 +390,12 @@ export type DesktopIpcInvokeMap = {
     result: string;
   };
   'article:import-url': {
-    args: [url: string];
+    args: [input: ArticleImportUrlInput];
     result: ArticleImportResult;
+  };
+  'article:import-url-cancel': {
+    args: [requestId: string];
+    result: boolean;
   };
   'article:reading-progress': {
     args: [input: { articleId: string; progress: ArticleReadingProgress }];

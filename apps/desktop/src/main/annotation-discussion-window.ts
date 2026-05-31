@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
 import type {
   AnnotationDiscussionWindowOpenInput,
@@ -6,6 +5,7 @@ import type {
   AnnotationDiscussionWindowsCloseArticleInput,
 } from '../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
+import { mainPath } from './main-paths';
 
 type DiscussionWindowEntry = {
   articleId: string;
@@ -51,9 +51,9 @@ function openAnnotationDiscussionWindow(
     backgroundColor: '#ffffff',
     hasShadow: true,
     title: discussionWindowInitialTitle(input),
-    icon: join(__dirname, '../../resources/icon.png'),
+    icon: mainPath('../../resources/icon.png'),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: mainPath('../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -216,7 +216,7 @@ function loadDiscussionWindow(
     return window.loadURL(url.toString());
   }
 
-  return window.loadFile(join(__dirname, '../renderer/index.html'), {
+  return window.loadFile(mainPath('../renderer/index.html'), {
     query: route,
   });
 }

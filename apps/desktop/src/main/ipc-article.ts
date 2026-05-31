@@ -31,11 +31,18 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('article:import-url', async (_event, input) => {
     const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
       await context.getStoreModule();
-    const { articleRecordFromUrl, isArticleImportChallengeRecord } =
+    const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
       await import('./article-import');
-    const record = await articleRecordFromUrl(input, {
+    const importInput = articleImportUrlInput(input);
+    const record = await articleRecordFromUrl(importInput.url, {
       inlineImages: readImportSettings().saveArticleImages,
+      requestId: importInput.requestId,
+    }).catch((error: unknown) => {
+      if (isArticleImportCanceledError(error)) return null;
+      throw error;
     });
+    if (!record) return { status: 'canceled' };
+
     const existingArticle = findArticleByIdentity(record);
     const existingFullArticle = existingArticle ? await readArticle(existingArticle.id) : null;
     if (existingFullArticle && !isArticleImportChallengeRecord(existingFullArticle)) {
@@ -51,6 +58,10 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     };
     const patch = await saveArticle(article);
     return { status: 'imported', article, patch };
+  });
+  handleDesktopIpc('article:import-url-cancel', async (_event, requestId) => {
+    const { cancelArticleImport } = await import('./article-import');
+    return cancelArticleImport(requestId);
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
@@ -117,4 +128,8 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     }
     return patch;
   });
+}
+
+function articleImportUrlInput(input: string | { url: string; requestId?: string }) {
+  return typeof input === 'string' ? { url: input, requestId: undefined } : input;
 }

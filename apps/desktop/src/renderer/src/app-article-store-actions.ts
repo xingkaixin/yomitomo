@@ -154,8 +154,10 @@ export function useAppArticleStoreActions({
   );
 
   const importArticleUrl = useCallback(
-    async (url: string) => {
-      const result = await window.yomitomoDesktop.importArticleUrl(url);
+    async (url: string, requestId?: string) => {
+      const result = requestId
+        ? await window.yomitomoDesktop.importArticleUrl(url, requestId)
+        : await window.yomitomoDesktop.importArticleUrl(url);
       if (result.status === 'imported') {
         const nextStore = applyArticleStorePatch(storeRef.current, result.patch);
         storeRef.current = nextStore;
@@ -165,6 +167,10 @@ export function useAppArticleStoreActions({
     },
     [applyStore, storeRef],
   );
+
+  const cancelArticleUrlImport = useCallback((requestId: string) => {
+    return window.yomitomoDesktop.cancelArticleUrlImport(requestId);
+  }, []);
 
   const importEbookFile = useCallback(
     async (file: File, onProgress?: ImportProgressCallback) => {
@@ -231,6 +237,7 @@ export function useAppArticleStoreActions({
     updateArticle,
     saveArticleReadingProgress,
     importArticleUrl,
+    cancelArticleUrlImport,
     importEbookFile,
     importPdfFile,
   };
