@@ -1,41 +1,23 @@
 ---
 title: AI 伴读与助手
-description: 配置阅读助手、审阅助手，并启动专注伴读。
+description: 配置阅读助手、审阅助手，并在划线、讨论和沉淀中调用它们。
 ---
 
-Yomitomo 的 AI 功能围绕原文锚点工作。助手生成的批注会落到具体段落或选区上，方便你回到证据现场继续判断。
+Yomitomo 的 AI 功能围绕原文锚点工作。助手生成的想法、回复和审阅意见会尽量落回具体段落、选区或沉淀稿，方便你回到证据现场继续判断。
 
-<picture>
-  <source
-    srcset="/assets/harness-reader-1600.webp 1600w, /assets/harness-reader-2400.webp 2400w, /assets/harness-reader.webp 4654w"
-    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
-  />
-  <img src="/assets/harness-reader.webp" alt="Yomitomo 共读规划界面" loading="eager" decoding="async" />
-</picture>
+## 在阅读中调用助手
 
-## 专注伴读
+阅读时可以通过三种方式让助手参与：
 
-专注伴读适合精读一个章节或一组段落：
+1. 选中原文后创建划线，让助手基于选区补充想法。
+2. 在划线讨论区输入 `@助手名称`，让指定助手回复当前讨论。
+3. 在沉淀窗口选择审阅助手，让它们围绕沉淀稿给出反馈。
 
-1. 在阅读器中打开专注伴读面板。
-2. 选择一位或多位阅读助手。
-3. 选择要阅读的段落范围。
-4. 设置批注密度。
-5. 启动伴读。
-
-伴读开始后，助手会按段落生成批注，并尽量把批注落回对应原文。
-
-<picture>
-  <source
-    srcset="/assets/pair-read-1600.webp 1600w, /assets/pair-read-2400.webp 2400w, /assets/pair-read.webp 4654w"
-    sizes="(max-width: 760px) calc(100vw - 32px), 640px"
-  />
-  <img src="/assets/pair-read.webp" alt="Yomitomo 共读进行中界面" loading="lazy" decoding="async" />
-</picture>
+助手会尽量把回复落回原文、划线和已有讨论，而不是脱离当前阅读现场生成泛泛总结。
 
 ## 上下文范围
 
-助手生成批注时会参考：
+助手生成想法、回复或审阅意见时会参考：
 
 - 当前段落的完整文本
 - 你已有的批注和讨论
