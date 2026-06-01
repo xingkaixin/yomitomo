@@ -2,11 +2,7 @@ import { X } from 'lucide-react';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor } from '@yomitomo/core';
 import type { HighlightChoiceAction } from '../reader-types';
-import {
-  AnnotationTypeLabelContent,
-  AvatarBadge,
-  ReadingIntentLabelContent,
-} from '../shared/reader-component-primitives';
+import { AvatarBadge } from '../shared/reader-component-primitives';
 
 export function HighlightChoiceMenu({
   action,
@@ -33,7 +29,6 @@ export function HighlightChoiceMenu({
       </header>
       {annotations.map((annotation) => {
         const persona = annotationAuthor(annotation, userProfile, agents);
-        const hasLabels = Boolean(annotation.annotationType || annotation.readingIntent);
         return (
           <button key={annotation.id} type="button" onClick={() => onSelect(annotation.id)}>
             <AvatarBadge avatar={persona.avatar} fallback={persona.fallback} />
@@ -41,21 +36,6 @@ export function HighlightChoiceMenu({
               <strong>{persona.nickname}</strong>
               <em>@{persona.username}</em>
             </span>
-            {hasLabels ? (
-              <b>
-                {annotation.annotationType ? (
-                  <span className="reader-highlight-choice-label">
-                    <AnnotationTypeLabelContent type={annotation.annotationType} />
-                  </span>
-                ) : null}
-                {annotation.annotationType && annotation.readingIntent ? <i>·</i> : null}
-                {annotation.readingIntent ? (
-                  <span className="reader-highlight-choice-label">
-                    <ReadingIntentLabelContent intent={annotation.readingIntent} short />
-                  </span>
-                ) : null}
-              </b>
-            ) : null}
           </button>
         );
       })}

@@ -99,7 +99,6 @@ export {
 } from './generation-runtime';
 export { extractJsonObjects } from './json';
 export {
-  inferAnnotationMetadata,
   parseAgentMentionInstructions,
   parseAgentMentionRoutePlan,
   planAgentMentionInstructions,

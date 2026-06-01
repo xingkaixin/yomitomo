@@ -110,10 +110,6 @@ export const readerConversationStyles = `
 .reader-highlight-choice-menu span{display:grid;gap:2px;min-width:0}
 .reader-highlight-choice-menu span strong{overflow:hidden;font-size:12px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
 .reader-highlight-choice-menu span em{overflow:hidden;color:var(--reader-muted);font-size:11px;font-style:normal;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
-.reader-highlight-choice-menu b{display:inline-flex;align-items:center;gap:3px;min-width:0;border-radius:999px;background:rgba(159,91,80,.07);color:var(--reader-red);font-size:10px;font-weight:850;line-height:1;padding:4px 6px;white-space:nowrap}
-.reader-highlight-choice-menu b i{color:rgba(159,91,80,.55);font-style:normal}
-.reader-highlight-choice-menu .reader-highlight-choice-label{display:inline-flex;align-items:center;gap:3px;min-width:0}
-.reader-highlight-choice-menu .reader-highlight-choice-label .reader-annotation-type-icon,.reader-highlight-choice-menu .reader-highlight-choice-label .reader-reading-intent-icon{width:11px;height:11px}
 .reader-virtual-cursor{left:0;top:0;gap:3px;transform:translate3d(var(--reader-cursor-x,0px),var(--reader-cursor-y,0px),0) translate(-10px,-10px);transition:transform .34s cubic-bezier(.22,1,.36,1);will-change:transform}
 .reader-virtual-pointer{width:48px;height:48px;flex:0 0 auto;overflow:visible;border:0;background:transparent;clip-path:none;filter:drop-shadow(0 5px 8px rgba(40,35,29,.18));transform:none}
 .reader-virtual-bloom{opacity:.95}

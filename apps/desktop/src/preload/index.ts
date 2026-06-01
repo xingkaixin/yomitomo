@@ -9,7 +9,6 @@ import type {
   AgentMentionInstructionPayload,
   AnnotationDistillationReviewMessage,
   AssistantRuntimeProgressEvent,
-  AnnotationMetadataPayload,
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
@@ -114,8 +113,6 @@ const api = {
   testProvider: (provider: Partial<LlmProvider>) => invokeDesktopIpc('provider:test', provider),
   listProviderModels: (provider: Partial<LlmProvider>) =>
     invokeDesktopIpc('provider:list-models', provider),
-  inferAnnotationMetadata: (payload: AnnotationMetadataPayload) =>
-    invokeDesktopIpc('annotation:metadata', payload),
   openAnnotationDiscussion: (input: AnnotationDiscussionWindowOpenInput) =>
     invokeDesktopIpc('annotation-discussion:open', input),
   openAnnotationSedimentation: (input: AnnotationSedimentationWindowOpenInput) =>

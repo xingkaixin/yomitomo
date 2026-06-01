@@ -3,7 +3,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
-  annotationPrimaryComment,
   articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
   createUserAnnotation,
@@ -31,10 +30,8 @@ import {
 } from './app-ebook-reader-utils';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import type { PromptArticle } from './app-reading-types';
 import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';
 import {
-  articleWithAnnotations,
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
   promptArticle,
@@ -507,54 +504,10 @@ export function EbookBookcase({
     const currentComposer = composer;
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
-    const articleContext = promptArticle(currentArticle, currentArticleText());
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
-    if (annotationPrimaryComment(annotation)) {
-      void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
-    }
-  }
-
-  async function inferAnnotationMetadataForAnnotation(
-    articleId: string,
-    annotation: Annotation,
-    articleContext: PromptArticle,
-  ) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-    try {
-      const metadata = await desktop.inferAnnotationMetadata({
-        article: articleContext,
-        anchor: annotation.anchor,
-        note: annotationPrimaryComment(annotation)?.content || '',
-      });
-      await onUpdateArticle(articleId, (targetArticle) => {
-        let found = false;
-        const nextAnnotations = targetArticle.annotations.map((item) => {
-          if (item.id !== annotation.id) return item;
-          found = true;
-          const primaryCommentId = annotationPrimaryComment(item)?.id;
-          return {
-            ...item,
-            annotationType: metadata.annotationType,
-            readingIntent: metadata.readingIntent,
-            comments: item.comments.map((comment) =>
-              comment.id === primaryCommentId
-                ? { ...comment, readingIntent: metadata.readingIntent }
-                : comment,
-            ),
-            updatedAt: new Date().toISOString(),
-          };
-        });
-        return found ? articleWithAnnotations(targetArticle, nextAnnotations) : null;
-      });
-    } catch (error) {
-      if (!isCurrentArticle(articleId)) return;
-      setStatusMessage(error instanceof Error ? error.message : '想法标签生成失败');
-      window.setTimeout(() => setStatusMessage(''), 1800);
-    }
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
