@@ -34,6 +34,7 @@ import type {
   AssistantExecutionQueryInput,
   AgentRuntimeTraceListInput,
   PerformanceTimingInput,
+  ArticleImportUrlInput,
   PdfImportFileInput,
   WeReadOpenTarget,
   WeReadReadingStatsQueryInput,
@@ -67,6 +68,7 @@ export type {
   ArticleAnnotationDeleteInput,
   ArticleCommentDeleteInput,
   ArticleImportResult,
+  ArticleImportUrlInput,
   DataManagementPathKind,
   DataManagementPaths,
   DatabaseBackupResult,
@@ -80,6 +82,10 @@ export type {
 } from '../ipc-contract';
 
 const preloadLoadedAt = performance.now();
+
+function articleImportUrlInput(url: string, requestId?: string): ArticleImportUrlInput {
+  return requestId ? { url, requestId } : url;
+}
 
 const api = {
   platform: process.platform,
@@ -180,7 +186,10 @@ const api = {
       articleId,
       progress,
     }),
-  importArticleUrl: (url: string) => invokeDesktopIpc('article:import-url', url),
+  importArticleUrl: (url: string, requestId?: string) =>
+    invokeDesktopIpc('article:import-url', articleImportUrlInput(url, requestId)),
+  cancelArticleUrlImport: (requestId: string) =>
+    invokeDesktopIpc('article:import-url-cancel', requestId),
   importEbookFile: (input: EbookImportFileInput) => invokeDesktopIpc('ebook:import-file', input),
   readEbookFile: (articleId: string) => invokeDesktopIpc('ebook:read-file', articleId),
   importPdfFile: (input: PdfImportFileInput) => invokeDesktopIpc('pdf:import-file', input),

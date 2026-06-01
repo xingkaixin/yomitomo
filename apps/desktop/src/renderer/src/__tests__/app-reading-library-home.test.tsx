@@ -123,7 +123,11 @@ function renderLibrary(
   options: {
     onImportArticleUrl?: (
       url: string,
-    ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
+      requestId?: string,
+    ) => Promise<
+      { status: 'canceled' } | { status: 'imported' | 'duplicate'; article: ArticleRecord }
+    >;
+    onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
     onImportEbookFile?: (
       file: File,
       onProgress?: (progress: number) => void,
@@ -151,6 +155,7 @@ function renderLibrary(
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportPdfFile={options.onImportPdfFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
+      onCancelArticleImport={options.onCancelArticleImport}
       onReadArticle={
         options.onReadArticle ||
         (async (articleId) =>
@@ -794,7 +799,10 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
 
     await waitFor(() => {
-      expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post');
+      expect(onImportArticleUrl).toHaveBeenCalledWith(
+        'https://example.com/post',
+        'article-import-1',
+      );
     });
     expect((await screen.findAllByText('这篇文章已在阅读库')).length).toBeGreaterThan(0);
     expect(
@@ -821,7 +829,10 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getByRole('button', { name: '解析添加' }));
 
     await waitFor(() => {
-      expect(onImportArticleUrl).toHaveBeenCalledWith('https://example.com/post');
+      expect(onImportArticleUrl).toHaveBeenCalledWith(
+        'https://example.com/post',
+        'article-import-1',
+      );
     });
     expect((await screen.findAllByText('已添加到阅读库')).length).toBeGreaterThan(0);
     expect(
@@ -837,7 +848,8 @@ describe('ReadingLibrary home', () => {
     const imported = article({ id: 'article_late', title: '晚到文章' });
     const deferred = deferredImportResult();
     const onImportArticleUrl = vi.fn().mockReturnValue(deferred.promise);
-    renderLibrary([], { onImportArticleUrl });
+    const onCancelArticleImport = vi.fn();
+    renderLibrary([], { onImportArticleUrl, onCancelArticleImport });
 
     fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
@@ -847,6 +859,7 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.queryByRole('button', { name: '取消解析' })).toBeNull();
     fireEvent.click(await screen.findByRole('button', { name: '取消解析' }));
+    expect(onCancelArticleImport).toHaveBeenCalledWith('article-import-1');
     expect(screen.getAllByText('已取消解析').length).toBeGreaterThan(0);
 
     deferred.resolve({ status: 'imported', article: imported });

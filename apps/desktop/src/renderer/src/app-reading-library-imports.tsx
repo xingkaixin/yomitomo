@@ -24,10 +24,9 @@ const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
 const ARTICLE_IMPORT_CLOSE_DELAY_MS = 1200;
 const FILE_IMPORT_CLOSE_DELAY_MS = 1800;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
-export type ArticleImportResult = {
-  status: 'imported' | 'duplicate';
-  article: ArticleRecord;
-};
+export type ArticleImportResult =
+  | { status: 'canceled' }
+  | { status: 'imported' | 'duplicate'; article: ArticleRecord };
 
 type FileImportProgressCallback = (progress: number) => void;
 type FileImportItemStatus = 'pending' | 'importing' | 'imported' | 'duplicate' | 'error';
@@ -99,6 +98,10 @@ function articleImportMeta(article: ArticleRecord) {
   return article.ebook?.metadata.fileName || article.siteName || '';
 }
 
+function articleImportRequestId(requestId: number) {
+  return `article-import-${requestId}`;
+}
+
 function fileImportItemStateLabel(item: FileImportItem) {
   if (item.status === 'pending') return '等待';
   if (item.status === 'importing') return `${Math.round(item.progress)}%`;
@@ -112,6 +115,7 @@ export function LibraryImportControls({
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
+  onCancelArticleImport,
   onOpenArticle,
 }: {
   defaultImportType?: 'web' | 'ebook' | 'pdf';
@@ -123,7 +127,8 @@ export function LibraryImportControls({
     file: File,
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
-  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
+  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
+  onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -220,6 +225,7 @@ export function LibraryImportControls({
         <ArticleImportDialog
           onClose={() => setArticleImportOpen(false)}
           onImportArticleUrl={onImportArticleUrl}
+          onCancelArticleImport={onCancelArticleImport}
           onOpenArticle={onOpenArticle}
         />
       ) : null}
@@ -244,10 +250,12 @@ export function LibraryImportControls({
 function ArticleImportDialog({
   onClose,
   onImportArticleUrl,
+  onCancelArticleImport,
   onOpenArticle,
 }: {
   onClose: () => void;
-  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
+  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
+  onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
   const [importUrl, setImportUrl] = useState('');
@@ -308,9 +316,17 @@ function ArticleImportDialog({
         cancelDelayTimerRef.current = null;
         if (importRequestIdRef.current === requestId) setCancelAvailable(true);
       }, ARTICLE_IMPORT_CANCEL_DELAY_MS);
-      const result = await onImportArticleUrl(url);
+      const result = await onImportArticleUrl(url, articleImportRequestId(requestId));
       if (importRequestIdRef.current !== requestId) return;
       clearCancelDelayTimer();
+      if (result.status === 'canceled') {
+        setImportState('idle');
+        setImportMessage('已取消解析');
+        setImportArticle(null);
+        setImportProgress(0);
+        setCancelAvailable(false);
+        return;
+      }
       setImportArticle(result.article);
       if (result.status === 'duplicate') {
         setImportState('duplicate');
@@ -354,7 +370,9 @@ function ArticleImportDialog({
 
   function cancelImport() {
     if (importState !== 'submitting') return;
+    const requestId = importRequestIdRef.current;
     importRequestIdRef.current += 1;
+    void onCancelArticleImport?.(articleImportRequestId(requestId));
     clearCancelDelayTimer();
     clearImportCloseTimer();
     setImportState('idle');
@@ -727,6 +745,12 @@ function FileImportDialog({
           patchImportItem(itemId, { progress: itemProgress });
           setBatchProgress(((currentIndex + itemProgress / 100) / validEntries.length) * 100);
         });
+
+        if (result.status === 'canceled') {
+          patchImportItem(itemId, { message: '已取消', progress: 100, status: 'error' });
+          completedCount += 1;
+          continue;
+        }
 
         patchImportItem(itemId, {
           article: result.article,

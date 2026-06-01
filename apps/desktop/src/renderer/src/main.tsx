@@ -330,6 +330,7 @@ function App() {
     updateArticle,
     saveArticleReadingProgress,
     importArticleUrl,
+    cancelArticleUrlImport,
     importEbookFile,
     importPdfFile,
   } = useAppArticleStoreActions({ storeRef, applyStore });
@@ -639,6 +640,7 @@ function App() {
               onOpenArticleDiscussion={openArticleDiscussion}
               onArticleOpened={() => setPendingOpenArticleId(null)}
               onImportArticleUrl={importArticleUrl}
+              onCancelArticleImport={cancelArticleUrlImport}
               onImportEbookFile={importEbookFile}
               onImportPdfFile={importPdfFile}
               onReadingModeChange={setLibraryReaderOpen}

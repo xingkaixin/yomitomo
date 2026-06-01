@@ -1,22 +1,19 @@
+import { basename, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import { BrowserWindow, type WebContents } from 'electron';
-import { JSDOM } from 'jsdom';
-import {
-  articleRecordFromExtractedArticle,
-  extractArticleFromDocument,
-} from '@yomitomo/core/article-extraction';
-import { inlineArticleImages } from '@yomitomo/core/article-images';
 import type { ArticleRecord } from '@yomitomo/shared';
 
 const IMPORT_TIMEOUT_MS = 15_000;
-const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
 const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
 const RENDERED_IMPORT_SETTLE_MS = 1_500;
-const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
 const WECHAT_MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 MicroMessenger/8.0.49';
+const ARTICLE_IMPORT_CANCELED_MESSAGE = '网页解析已取消';
 
 type ArticleImportOptions = {
   inlineImages?: boolean;
+  requestId?: string;
 };
 
 type ArticleHtml = {
@@ -24,27 +21,50 @@ type ArticleHtml = {
   url: string;
 };
 
+type ArticleImportTask = {
+  controller: AbortController;
+};
+
+type ArticleImportWorkerMessage =
+  | { ok: true; article: ArticleRecord }
+  | { ok: false; error?: { message?: string } };
+
+const articleImportTasks = new Map<string, ArticleImportTask>();
+
 export async function articleRecordFromUrl(
   input: string,
   options: ArticleImportOptions = {},
 ): Promise<ArticleRecord> {
-  const url = normalizeImportUrl(input);
-  const page = await fetchArticleHtml(url);
-  const dom = new JSDOM(page.html, { url: page.url });
+  const controller = new AbortController();
+  registerArticleImportTask(options.requestId, controller);
 
   try {
-    let article = await extractArticleFromDocument(dom.window.document, page.url);
-    if (options.inlineImages) {
-      const userAgent = importUserAgent(article.url);
-      article = await inlineArticleImages(article, {
-        articleDocument: dom.window.document,
-        fetcher: (imageUrl) => fetchArticleImageDataUrl(imageUrl, article.url, userAgent),
-      });
-    }
-    return articleRecordFromExtractedArticle(article);
+    const url = normalizeImportUrl(input);
+    throwIfArticleImportCanceled(controller.signal);
+    const page = await fetchArticleHtml(url, controller.signal);
+    throwIfArticleImportCanceled(controller.signal);
+    return await extractArticleRecordInWorker({
+      html: page.html,
+      inlineImages: options.inlineImages === true,
+      signal: controller.signal,
+      url: page.url,
+      userAgent: importUserAgent(page.url),
+    });
   } finally {
-    dom.window.close();
+    unregisterArticleImportTask(options.requestId, controller);
   }
+}
+
+export function cancelArticleImport(requestId: string) {
+  const task = articleImportTasks.get(requestId);
+  if (!task) return false;
+  task.controller.abort();
+  articleImportTasks.delete(requestId);
+  return true;
+}
+
+export function isArticleImportCanceledError(error: unknown) {
+  return error instanceof Error && error.message === ARTICLE_IMPORT_CANCELED_MESSAGE;
 }
 
 export function isArticleImportChallengeRecord(article: ArticleRecord) {
@@ -69,32 +89,35 @@ function normalizeImportUrl(input: string) {
   return url.href;
 }
 
-async function fetchArticleHtml(url: string): Promise<ArticleHtml> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), IMPORT_TIMEOUT_MS);
+async function fetchArticleHtml(url: string, signal: AbortSignal): Promise<ArticleHtml> {
   const userAgent = importUserAgent(url);
 
   try {
-    const response = await fetch(url, {
-      headers: importHeaders(userAgent),
-      redirect: 'follow',
-      signal: controller.signal,
-    });
+    return await withTimeoutSignal(IMPORT_TIMEOUT_MS, signal, async (fetchSignal) => {
+      const response = await fetch(url, {
+        headers: importHeaders(userAgent),
+        redirect: 'follow',
+        signal: fetchSignal,
+      });
 
-    if (!response.ok) {
-      if (shouldLoadWithBrowser(response)) return loadRenderedArticleHtml(url, userAgent);
-      throw new Error(`网页请求失败：${response.status}`);
-    }
-    const html = await response.text();
-    if (isChallengeHtml(html)) return loadRenderedArticleHtml(response.url || url, userAgent);
-    return { html, url: response.url || url };
+      if (!response.ok) {
+        if (shouldLoadWithBrowser(response)) return loadRenderedArticleHtml(url, userAgent, signal);
+        throw new Error(`网页请求失败：${response.status}`);
+      }
+
+      const html = await response.text();
+      if (isChallengeHtml(html)) {
+        return loadRenderedArticleHtml(response.url || url, userAgent, signal);
+      }
+      return { html, url: response.url || url };
+    });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('网页请求超时', { cause: error });
+      throw new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : '网页请求超时', {
+        cause: error,
+      });
     }
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -104,53 +127,6 @@ function importHeaders(userAgent: string | undefined): HeadersInit {
     'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
     ...(userAgent ? { 'user-agent': userAgent } : {}),
   };
-}
-
-async function fetchArticleImageDataUrl(
-  url: string,
-  articleUrl: string,
-  userAgent: string | undefined,
-) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ARTICLE_IMAGE_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      headers: imageHeaders(articleUrl, userAgent),
-      redirect: 'follow',
-      signal: controller.signal,
-    });
-    if (!response.ok) return null;
-
-    const contentType = imageContentType(response.headers.get('content-type'));
-    if (!contentType) return null;
-
-    const contentLength = Number(response.headers.get('content-length') || 0);
-    if (contentLength > MAX_ARTICLE_IMAGE_BYTES) return null;
-
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > MAX_ARTICLE_IMAGE_BYTES) return null;
-
-    return `data:${contentType};base64,${Buffer.from(buffer).toString('base64')}`;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-function imageHeaders(articleUrl: string, userAgent: string | undefined): HeadersInit {
-  return {
-    accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    referer: articleUrl,
-    ...(userAgent ? { 'user-agent': userAgent } : {}),
-  };
-}
-
-function imageContentType(value: string | null) {
-  const contentType = value?.split(';')[0]?.trim().toLowerCase();
-  return contentType?.startsWith('image/') ? contentType : '';
 }
 
 function importUserAgent(url: string) {
@@ -172,6 +148,7 @@ function shouldLoadWithBrowser(response: Response) {
 async function loadRenderedArticleHtml(
   url: string,
   userAgent: string | undefined,
+  signal: AbortSignal,
 ): Promise<ArticleHtml> {
   const browserWindow = new BrowserWindow({
     show: false,
@@ -189,10 +166,15 @@ async function loadRenderedArticleHtml(
   const timeout = setTimeout(() => {
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
   }, RENDERED_IMPORT_TIMEOUT_MS);
+  const abort = () => {
+    if (!browserWindow.isDestroyed()) browserWindow.destroy();
+  };
+  signal.addEventListener('abort', abort, { once: true });
 
   try {
+    throwIfArticleImportCanceled(signal);
     await browserWindow.loadURL(url, userAgent ? { userAgent } : undefined);
-    const page = await waitForRenderedPage(browserWindow.webContents, deadline);
+    const page = await waitForRenderedPage(browserWindow.webContents, deadline, signal);
     if (typeof page.html !== 'string' || !page.html.trim()) {
       throw new Error('网页渲染结果为空');
     }
@@ -201,16 +183,22 @@ async function loadRenderedArticleHtml(
       url: typeof page.url === 'string' && page.url ? page.url : url,
     };
   } finally {
+    signal.removeEventListener('abort', abort);
     clearTimeout(timeout);
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
   }
 }
 
-async function waitForRenderedPage(webContents: WebContents, deadline: number) {
+async function waitForRenderedPage(
+  webContents: WebContents,
+  deadline: number,
+  signal: AbortSignal,
+) {
   let lastPage: { html?: unknown; text?: unknown; title?: unknown; url?: unknown } = {};
 
   while (Date.now() < deadline) {
-    await wait(RENDERED_IMPORT_SETTLE_MS);
+    await wait(RENDERED_IMPORT_SETTLE_MS, signal);
+    throwIfArticleImportCanceled(signal);
     lastPage = renderedPageValue(
       await webContents.executeJavaScript(
         `({
@@ -222,6 +210,7 @@ async function waitForRenderedPage(webContents: WebContents, deadline: number) {
         true,
       ),
     );
+    throwIfArticleImportCanceled(signal);
     if (!isChallengePage(lastPage)) return lastPage;
   }
 
@@ -260,6 +249,102 @@ function renderedPageValue(value: unknown) {
     : {};
 }
 
+function extractArticleRecordInWorker({
+  html,
+  inlineImages,
+  signal,
+  url,
+  userAgent,
+}: {
+  html: string;
+  inlineImages: boolean;
+  signal: AbortSignal;
+  url: string;
+  userAgent?: string;
+}) {
+  return new Promise<ArticleRecord>((resolve, reject) => {
+    throwIfArticleImportCanceled(signal);
+    const worker = new Worker(articleImportWorkerUrl(), {
+      workerData: {
+        html,
+        inlineImages,
+        url,
+        userAgent,
+      },
+    });
+    let settled = false;
+
+    const settle = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', abort);
+      callback();
+    };
+    const abort = () => {
+      void worker.terminate();
+      settle(() => reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+    };
+
+    signal.addEventListener('abort', abort, { once: true });
+    worker.once('message', (message: ArticleImportWorkerMessage) => {
+      void worker.terminate();
+      settle(() => {
+        if (message.ok) resolve(message.article);
+        else reject(new Error(message.error?.message || '网页解析失败'));
+      });
+    });
+    worker.once('error', (error) => {
+      settle(() => reject(error));
+    });
+    worker.once('exit', (code) => {
+      if (code === 0 || settled) return;
+      settle(() => reject(new Error(`网页解析进程退出：${code}`)));
+    });
+  });
+}
+
+function articleImportWorkerUrl() {
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  const relativeWorkerPath =
+    basename(currentDir) === 'chunks'
+      ? '../article-import-worker.js'
+      : './article-import-worker.js';
+  return new URL(relativeWorkerPath, import.meta.url);
+}
+
+function registerArticleImportTask(requestId: string | undefined, controller: AbortController) {
+  if (!requestId) return;
+  articleImportTasks.get(requestId)?.controller.abort();
+  articleImportTasks.set(requestId, { controller });
+}
+
+function unregisterArticleImportTask(requestId: string | undefined, controller: AbortController) {
+  if (!requestId) return;
+  if (articleImportTasks.get(requestId)?.controller === controller) {
+    articleImportTasks.delete(requestId);
+  }
+}
+
+function withTimeoutSignal<T>(
+  timeoutMs: number,
+  parentSignal: AbortSignal,
+  run: (signal: AbortSignal) => Promise<T>,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const abort = () => controller.abort();
+  parentSignal.addEventListener('abort', abort, { once: true });
+
+  return run(controller.signal).finally(() => {
+    parentSignal.removeEventListener('abort', abort);
+    clearTimeout(timeout);
+  });
+}
+
+function throwIfArticleImportCanceled(signal: AbortSignal) {
+  if (signal.aborted) throw new Error(ARTICLE_IMPORT_CANCELED_MESSAGE);
+}
+
 function recordField(input: unknown, field: string): unknown {
   return isRecord(input) ? input[field] : undefined;
 }
@@ -282,6 +367,20 @@ function isChallengeHtml(html: string) {
   );
 }
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function wait(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE));
+      return;
+    }
+    const timeout = setTimeout(() => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE));
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
 }

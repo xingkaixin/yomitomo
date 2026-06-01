@@ -1,5 +1,4 @@
 import { performance } from 'node:perf_hooks';
-import { join } from 'node:path';
 import { app, BrowserWindow, shell } from 'electron';
 import type { DesktopStore } from '@yomitomo/shared';
 import { getLogPath, logError, logInfo, pruneLogFile } from './logger';
@@ -16,9 +15,10 @@ import { registerStoreDataIpc } from './ipc-store-data';
 import { registerWeReadIpc } from './ipc-weread';
 import { modelPriceRefreshIntervalMs } from './model-pricing-repository';
 import { windowChromeOptions } from './window-chrome';
+import { mainPath } from './main-paths';
 
 let mainWindow: BrowserWindow | null = null;
-const appIconPath = join(__dirname, '../../resources/icon.png');
+const appIconPath = mainPath('../../resources/icon.png');
 let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app-updater')> | null = null;
@@ -130,7 +130,7 @@ async function createWindow() {
     title: 'Yomitomo',
     icon: appIconPath,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: mainPath('../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -159,7 +159,7 @@ async function createWindow() {
   } else {
     recordStartupTiming('renderer.load_start', { mode: 'file' });
     preloadStoreModule('renderer.load_start');
-    await browserWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    await browserWindow.loadFile(mainPath('../renderer/index.html'));
   }
   recordStartupTiming('renderer.load_complete');
 

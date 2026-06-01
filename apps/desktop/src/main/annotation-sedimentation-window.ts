@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { BrowserWindow } from 'electron';
 import type {
   AnnotationSedimentationCommitInput,
@@ -9,6 +8,7 @@ import {
   closeAnnotationDiscussionWindow,
   minimizeOtherAnnotationDiscussionWindows,
 } from './annotation-discussion-window';
+import { mainPath } from './main-paths';
 
 type SedimentationWindowEntry = {
   articleId: string;
@@ -54,9 +54,9 @@ function openAnnotationSedimentationWindow(
     backgroundColor: '#ffffff',
     hasShadow: true,
     title: sedimentationWindowInitialTitle(input),
-    icon: join(__dirname, '../../resources/icon.png'),
+    icon: mainPath('../../resources/icon.png'),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: mainPath('../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -188,7 +188,7 @@ function loadSedimentationWindow(
     return window.loadURL(url.toString());
   }
 
-  return window.loadFile(join(__dirname, '../renderer/index.html'), {
+  return window.loadFile(mainPath('../renderer/index.html'), {
     query: route,
   });
 }

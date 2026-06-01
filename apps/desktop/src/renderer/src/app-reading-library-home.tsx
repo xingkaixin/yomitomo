@@ -70,6 +70,7 @@ export function LibraryHome({
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
+  onCancelArticleImport,
   onOpenArticle,
   onOpenWeReadBook,
   onOpenWeReadExternal,
@@ -94,7 +95,8 @@ export function LibraryHome({
     file: File,
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
-  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
+  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
+  onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleSummaryRecord) => void;
   onOpenWeReadBook: (book: WeReadBook) => void;
   onOpenWeReadExternal: (book: WeReadBook) => void;
@@ -241,6 +243,7 @@ export function LibraryHome({
                 onImportEbookFile={onImportEbookFile}
                 onImportPdfFile={onImportPdfFile}
                 onImportArticleUrl={onImportArticleUrl}
+                onCancelArticleImport={onCancelArticleImport}
                 onOpenArticle={onOpenArticle}
               />
             )}

@@ -56,6 +56,7 @@ export function ReadingLibrary({
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
+  onCancelArticleImport,
   onReadingModeChange,
   onReadArticle,
   onSaveArticle,
@@ -88,7 +89,8 @@ export function ReadingLibrary({
     file: File,
     onProgress?: PdfImportProgressCallback,
   ) => Promise<ArticleImportResult>;
-  onImportArticleUrl: (url: string) => Promise<ArticleImportResult>;
+  onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
+  onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onReadingModeChange?: (open: boolean) => void;
   onReadArticle: (articleId: string) => Promise<ArticleRecord | null>;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
@@ -416,6 +418,7 @@ export function ReadingLibrary({
     onImportEbookFile,
     onImportPdfFile,
     onImportArticleUrl,
+    onCancelArticleImport,
     onOpenArticle: (article: ArticleSummaryRecord) => void openArticle(article),
     onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
     onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
