@@ -273,7 +273,7 @@ export function LibraryHome({
             请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。
           </LibraryEmptyState>
         ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
-          <div className="library-ebook-list">
+          <div className="library-list library-ebook-list">
             {pageWeReadBooks.map((book) => (
               <WeReadBookListItem
                 book={book}
@@ -285,7 +285,7 @@ export function LibraryHome({
           </div>
         ) : sourceArticles.length > 0 ? (
           activeSource === 'web' ? (
-            <div className="library-web-grid">
+            <div className="library-list library-web-grid">
               {pageArticles.map((article) => (
                 <WebArticleListItem
                   article={article}
@@ -296,7 +296,7 @@ export function LibraryHome({
               ))}
             </div>
           ) : (
-            <div className="library-ebook-list">
+            <div className="library-list library-ebook-list">
               {pageArticles.map((article) => (
                 <LibraryDocumentListItem
                   article={article}
@@ -400,7 +400,7 @@ function WebArticleListItem({
 
   return (
     <article
-      className="library-web-item"
+      className="library-list-item library-web-item"
       role="button"
       tabIndex={0}
       aria-label={`打开文章：${title}`}
@@ -441,7 +441,7 @@ function LibraryDocumentListItem({
 
   return (
     <article
-      className="library-ebook-list-item"
+      className="library-list-item library-ebook-list-item"
       role="button"
       tabIndex={0}
       aria-label={`打开${article.sourceType === 'pdf' ? 'PDF' : '电子书'}：${title}`}
@@ -490,7 +490,7 @@ function WeReadBookListItem({
   const lastReadAt = formatWeReadLastReadDate(book.lastReadAt);
   return (
     <article
-      className="library-ebook-list-item"
+      className="library-list-item library-ebook-list-item"
       role="button"
       tabIndex={0}
       aria-label={`打开微信读书笔记：${book.title}`}
