@@ -166,6 +166,62 @@ describe('AnnotationDiscussionWindowApp', () => {
       document.querySelector('.annotation-discussion-composer .floating-composer-status'),
     ).toBeNull();
   });
+
+  it('starts assistant thought requests in parallel', async () => {
+    const firstRequest = deferred<Comment>();
+    const secondRequest = deferred<Comment>();
+    const desktop = installDesktopApi(article(annotation()), {
+      agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
+      requestAgentCommentStream: vi.fn((payload) =>
+        payload.agentUsername === 'zhou' ? firstRequest.promise : secondRequest.promise,
+      ),
+    });
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await openAssistantThoughtDialog('@zhou @lin 分别补一条想法');
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(2));
+    expect(
+      desktop.requestAgentCommentStream.mock.calls.map((call) => call[0].agentUsername),
+    ).toEqual(['zhou', 'lin']);
+    firstRequest.resolve(aiComment({ agentUsername: 'zhou' }));
+    secondRequest.resolve(aiComment({ agentUsername: 'lin' }));
+  });
+
+  it('keeps failed assistant thought runs open and retries only the failed agent', async () => {
+    let linAttempts = 0;
+    const desktop = installDesktopApi(article(annotation()), {
+      agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
+      requestAgentCommentStream: vi.fn(async (payload) => {
+        if (payload.agentUsername === 'lin') linAttempts += 1;
+        if (payload.agentUsername === 'lin' && linAttempts === 1) {
+          throw new Error('模型暂时不可用');
+        }
+        return aiComment({
+          agentId: payload.agentId,
+          agentNickname: payload.agentUsername === 'lin' ? '林知' : '周现',
+          agentUsername: payload.agentUsername,
+          content: `${payload.agentUsername} 想法`,
+        });
+      }),
+    });
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await openAssistantThoughtDialog('@zhou @lin 分别补一条想法');
+
+    expect(await screen.findByText('1 位助手已完成，1 位助手失败')).toBeTruthy();
+    expect(screen.getByText('模型暂时不可用')).toBeTruthy();
+    expect(desktop.saveArticle).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: '重试' }));
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(3));
+    expect(desktop.requestAgentCommentStream.mock.calls[2]?.[0].agentUsername).toBe('lin');
+  });
 });
 
 describe('insertMentionAtSelection', () => {
@@ -184,10 +240,33 @@ describe('insertMentionAtSelection', () => {
   });
 });
 
-function installDesktopApi(sourceArticle: ArticleRecord) {
+function installDesktopApi(
+  sourceArticle: ArticleRecord,
+  options: {
+    agents?: Agent[];
+    requestAgentCommentStream?: ReturnType<typeof vi.fn>;
+  } = {},
+) {
   const desktop = {
     getArticle: vi.fn().mockResolvedValue(sourceArticle),
-    getState: vi.fn().mockResolvedValue({ agents: agents() }),
+    getState: vi.fn().mockResolvedValue({ agents: options.agents || agents() }),
+    planAgentMentionRoute: vi.fn(async (payload) => ({
+      createUserThought: false,
+      directives: payload.agents.map((mentionedAgent: Agent) => ({
+        agentId: mentionedAgent.id,
+        agentUsername: mentionedAgent.username,
+        action: 'create_thought' as const,
+      })),
+    })),
+    requestAgentCommentStream:
+      options.requestAgentCommentStream ||
+      vi.fn(async (payload) =>
+        aiComment({
+          agentId: payload.agentId,
+          agentNickname: payload.agentUsername,
+          agentUsername: payload.agentUsername,
+        }),
+      ),
     saveArticle: vi.fn().mockResolvedValue(undefined),
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
@@ -195,6 +274,16 @@ function installDesktopApi(sourceArticle: ArticleRecord) {
     value: desktop,
   });
   return desktop;
+}
+
+async function openAssistantThoughtDialog(value: string) {
+  await screen.findByText('正在讨论的划线');
+  fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+  fireEvent.click(screen.getByRole('tab', { name: '让助手来' }));
+  fireEvent.change(screen.getByPlaceholderText('告诉助手要写什么想法...'), {
+    target: { value },
+  });
+  fireEvent.click(screen.getByRole('button', { name: '添加' }));
 }
 
 function openDiscussionRoute() {
@@ -274,21 +363,44 @@ function discussionComments(): Comment[] {
 }
 
 function agents(): Agent[] {
-  return [
-    {
-      id: 'agent_1',
-      kind: 'annotation',
-      providerId: 'provider_1',
-      nickname: '周现',
-      username: 'zhou',
-      avatar: '',
-      annotationColor: '#f4c95d',
-      annotationDensity: 'medium',
-      temperature: 0.5,
-      soul: '',
-      enabled: true,
-      createdAt: now,
-      updatedAt: now,
-    },
-  ];
+  return [agent()];
+}
+
+function agent(overrides: Partial<Agent> = {}): Agent {
+  return {
+    id: 'agent_1',
+    kind: 'annotation',
+    providerId: 'provider_1',
+    nickname: '周现',
+    username: 'zhou',
+    avatar: '',
+    annotationColor: '#f4c95d',
+    annotationDensity: 'medium',
+    temperature: 0.5,
+    soul: '',
+    enabled: true,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function aiComment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: `comment_${overrides.agentUsername || 'ai'}`,
+    author: 'ai',
+    content: '助手想法',
+    createdAt: now,
+    ...overrides,
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
