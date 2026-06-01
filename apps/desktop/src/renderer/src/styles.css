@@ -509,6 +509,12 @@
   padding: 18px 22px 20px;
 }
 
+.floating-composer.annotation-discussion-add-editor {
+  border: 0;
+  border-radius: 0 0 16px 16px;
+  box-shadow: none;
+}
+
 .annotation-discussion-add-editor .floating-composer-textarea {
   min-height: 150px;
   max-height: 320px;
