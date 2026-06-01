@@ -1669,6 +1669,14 @@
   align-self: end;
 }
 
+.floating-composer-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .floating-composer .annotation-discussion-mention-menu {
   position: absolute;
   left: 0;
@@ -18370,19 +18378,16 @@ button.license-package-row:hover {
 .source-reader-shell .reader-composer,
 .source-reader-shell .reader-composer-header,
 .source-reader-shell .reader-composer textarea,
-.source-reader-shell .reader-composer-actions,
 .source-reader-shell .reader-kbd,
 .source-ebook-reader-shell .reader-note textarea,
 .source-ebook-reader-shell .reader-composer,
 .source-ebook-reader-shell .reader-composer-header,
 .source-ebook-reader-shell .reader-composer textarea,
-.source-ebook-reader-shell .reader-composer-actions,
 .source-ebook-reader-shell .reader-kbd,
 .source-pdf-reader-shell .reader-note textarea,
 .source-pdf-reader-shell .reader-composer,
 .source-pdf-reader-shell .reader-composer-header,
 .source-pdf-reader-shell .reader-composer textarea,
-.source-pdf-reader-shell .reader-composer-actions,
 .source-pdf-reader-shell .reader-kbd {
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
@@ -18455,18 +18460,24 @@ button.license-package-row:hover {
 .source-reader-shell .reader-composer textarea,
 .source-ebook-reader-shell .reader-composer textarea,
 .source-pdf-reader-shell .reader-composer textarea {
-  background: linear-gradient(180deg, hsl(var(--background) / 0.26), hsl(var(--card)) 32%);
-  box-shadow:
-    inset 0 1px 2px hsl(var(--foreground) / 0.05),
-    inset 0 -1px 0 hsl(var(--background) / 0.72);
+  background: transparent;
+  box-shadow: none;
 }
 
-.source-reader-shell .reader-composer-actions,
-.source-ebook-reader-shell .reader-composer-actions,
-.source-pdf-reader-shell .reader-composer-actions {
+.source-reader-shell .reader-composer-editor,
+.source-ebook-reader-shell .reader-composer-editor,
+.source-pdf-reader-shell .reader-composer-editor {
+  border: 0;
   border-radius: 0 0 7px 7px;
-  background: linear-gradient(180deg, hsl(var(--background) / 0.78), hsl(var(--background) / 0.9));
-  box-shadow: inset 0 1px 0 hsl(var(--background) / 0.84);
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-composer .floating-composer-actions,
+.source-ebook-reader-shell .reader-composer .floating-composer-actions,
+.source-pdf-reader-shell .reader-composer .floating-composer-actions {
+  background: transparent;
+  box-shadow: none;
 }
 
 .source-reader-shell .reader-agent-avatar-stack-item,
@@ -18524,7 +18535,7 @@ button.license-package-row:hover {
   .reader-focus-message-agents
   button.reader-agent-avatar-stack-item,
 .source-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item,
 .source-reader-shell .reader-note-footer .reader-comment-agent-tray .reader-agent-avatar-stack-item,
@@ -18541,7 +18552,7 @@ button.license-package-row:hover {
   .reader-focus-message-agents
   button.reader-agent-avatar-stack-item,
 .source-ebook-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item,
 .source-ebook-reader-shell
@@ -18561,7 +18572,7 @@ button.license-package-row:hover {
   .reader-focus-message-agents
   button.reader-agent-avatar-stack-item,
 .source-pdf-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item,
 .source-pdf-reader-shell
@@ -18629,15 +18640,15 @@ button.license-package-row:hover {
 }
 
 .source-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item,
 .source-ebook-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item,
 .source-pdf-reader-shell
-  .reader-composer-actions
+  .floating-composer-actions
   .reader-composer-agent-tray
   .reader-agent-avatar-stack-item {
   width: 28px;
@@ -18689,16 +18700,16 @@ button.license-package-row:hover {
   }
 }
 
-.source-reader-shell .reader-composer-actions .reader-composer-cancel,
-.source-ebook-reader-shell .reader-composer-actions .reader-composer-cancel,
-.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel {
+.source-reader-shell .floating-composer-actions .reader-composer-cancel,
+.source-ebook-reader-shell .floating-composer-actions .reader-composer-cancel,
+.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel {
   background: hsl(0 0% 0% / 0.055);
   color: hsl(var(--foreground));
 }
 
-.source-reader-shell .reader-composer-actions .reader-composer-cancel:hover,
-.source-ebook-reader-shell .reader-composer-actions .reader-composer-cancel:hover,
-.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel:hover {
+.source-reader-shell .floating-composer-actions .reader-composer-cancel:hover,
+.source-ebook-reader-shell .floating-composer-actions .reader-composer-cancel:hover,
+.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel:hover {
   background: hsl(0 0% 0% / 0.085);
 }
 
@@ -18728,7 +18739,7 @@ button.license-package-row:hover {
 .source-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
 .source-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
 .source-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
-.source-reader-shell .reader-composer-actions:has(.reader-agent-avatar-stack),
+.source-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack),
 .source-ebook-reader-shell .reader-note:has(.reader-agent-avatar-stack),
 .source-ebook-reader-shell .reader-note-footer:has(.reader-agent-avatar-stack),
 .source-ebook-reader-shell .reader-note-comments-panel:has(.reader-agent-avatar-stack),
@@ -18737,7 +18748,7 @@ button.license-package-row:hover {
 .source-ebook-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
 .source-ebook-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
 .source-ebook-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
-.source-ebook-reader-shell .reader-composer-actions:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack),
 .source-pdf-reader-shell .reader-note:has(.reader-agent-avatar-stack),
 .source-pdf-reader-shell .reader-note-footer:has(.reader-agent-avatar-stack),
 .source-pdf-reader-shell .reader-note-comments-panel:has(.reader-agent-avatar-stack),
@@ -18746,7 +18757,7 @@ button.license-package-row:hover {
 .source-pdf-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
 .source-pdf-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
 .source-pdf-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
-.source-pdf-reader-shell .reader-composer-actions:has(.reader-agent-avatar-stack) {
+.source-pdf-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack) {
   overflow: visible;
 }
 

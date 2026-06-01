@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
-import { Composer } from './reader-composer';
+import { Composer, measureComposerPosition } from './reader-composer';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 
@@ -113,6 +113,52 @@ describe('Composer shortcut labels', () => {
 
     expect(screen.getByRole('button', { name: '发布' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '划线' })).toBeNull();
+  });
+
+  it('places the composer above the selection when bottom space is insufficient', () => {
+    const canvas = document.createElement('div');
+    const surface = document.createElement('div');
+    const composerElement = document.createElement('div');
+
+    surface.className = 'reader-surface';
+    Object.defineProperty(surface, 'scrollTop', { configurable: true, value: 0 });
+    Object.defineProperty(surface, 'clientHeight', { configurable: true, value: 360 });
+    Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 720 });
+    Object.defineProperty(canvas, 'offsetTop', { configurable: true, value: 0 });
+    Object.defineProperty(composerElement, 'offsetWidth', { configurable: true, value: 520 });
+    Object.defineProperty(composerElement, 'offsetHeight', { configurable: true, value: 220 });
+
+    surface.append(canvas);
+    canvas.append(composerElement);
+
+    expect(measureComposerPosition({ x: 180, y: 330 }, composerElement)).toMatchObject({
+      left: 180,
+      placement: 'above',
+      top: 100,
+    });
+  });
+
+  it('keeps the composer inside the visible reader viewport', () => {
+    const canvas = document.createElement('div');
+    const surface = document.createElement('div');
+    const composerElement = document.createElement('div');
+
+    surface.className = 'reader-surface';
+    Object.defineProperty(surface, 'scrollTop', { configurable: true, value: 140 });
+    Object.defineProperty(surface, 'clientHeight', { configurable: true, value: 300 });
+    Object.defineProperty(canvas, 'clientWidth', { configurable: true, value: 460 });
+    Object.defineProperty(canvas, 'offsetTop', { configurable: true, value: 40 });
+    Object.defineProperty(composerElement, 'offsetWidth', { configurable: true, value: 420 });
+    Object.defineProperty(composerElement, 'offsetHeight', { configurable: true, value: 220 });
+
+    surface.append(canvas);
+    canvas.append(composerElement);
+
+    expect(measureComposerPosition({ x: 440, y: 430 }, composerElement)).toMatchObject({
+      left: 28,
+      placement: 'above',
+      top: 168,
+    });
   });
 });
 

@@ -1,10 +1,11 @@
 import { forwardRef, type ReactNode, type TextareaHTMLAttributes } from 'react';
-import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import { ReaderTooltip } from './reader-component-primitives';
 
 type FloatingComposerProps = {
   accessory?: ReactNode;
   className?: string;
   mentionMenu?: ReactNode;
+  secondaryAction?: ReactNode;
   status?: ReactNode;
   submitDisabled?: boolean;
   submitIcon?: ReactNode;
@@ -20,6 +21,7 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
       accessory,
       className,
       mentionMenu,
+      secondaryAction,
       status,
       submitDisabled,
       submitIcon,
@@ -31,6 +33,9 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
     ref,
   ) {
     const rootClassName = ['floating-composer', className || ''].filter(Boolean).join(' ');
+    const textareaClassName = ['floating-composer-textarea', textarea.className || '']
+      .filter(Boolean)
+      .join(' ');
     const button = (
       <button
         className="floating-composer-submit"
@@ -46,11 +51,18 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
 
     return (
       <div className={rootClassName}>
-        <textarea {...textarea} ref={ref} className="floating-composer-textarea" />
+        <textarea {...textarea} ref={ref} className={textareaClassName} />
         {mentionMenu}
         <div className="floating-composer-bar">
           {accessory || <span aria-hidden="true" />}
-          {submitTooltip ? <ReaderTooltip content={submitTooltip}>{button}</ReaderTooltip> : button}
+          <div className="floating-composer-actions">
+            {secondaryAction}
+            {submitTooltip ? (
+              <ReaderTooltip content={submitTooltip}>{button}</ReaderTooltip>
+            ) : (
+              button
+            )}
+          </div>
         </div>
         {status ? (
           <div className="floating-composer-status" aria-live="polite">

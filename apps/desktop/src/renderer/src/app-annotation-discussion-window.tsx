@@ -41,7 +41,7 @@ import {
   updateAnnotationComment,
 } from '@yomitomo/core';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from './app-theme';
-import { FloatingComposer } from './app-floating-composer';
+import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   agentInstructionFromNote,
   mentionDirectivesForAgent,

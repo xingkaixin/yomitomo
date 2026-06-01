@@ -76,7 +76,22 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain('.reader-tooltip-content{');
     expect(readerConversationStyles).toContain('.reader-shortcut-tooltip{');
     expect(readerConversationStyles).toContain(
-      '.reader-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
+      '.reader-composer .floating-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer{position:absolute;z-index:120;width:min(520px,calc(100vw - 24px));',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer textarea{display:block;min-height:88px;max-height:calc(1.55em * 8 + 28px);',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer-editor{position:relative;display:grid;grid-template-rows:minmax(0,auto) auto;gap:10px;min-width:0;border:0;border-radius:0;background:',
+    );
+    expect(readerConversationStyles).toContain(
+      'background:transparent;font-size:14px;line-height:1.55;padding:0;resize:none}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-composer .floating-composer-actions{display:inline-flex;flex:0 0 auto;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto}',
     );
   });
 
