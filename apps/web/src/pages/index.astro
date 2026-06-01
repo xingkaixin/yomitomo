@@ -141,32 +141,46 @@ const comparisonItems = [
 
 const productSlides: ProductCarouselSlide[] = [
   {
-    title: '网页阅读库',
-    caption: '集中保存文章、批注和讨论，把阅读进度留在本机。',
-    image: '/assets/webpage.webp',
-    alt: 'Yomitomo 阅读库界面',
-    objectPosition: 'center',
+    title: '沉淀阅读判断',
+    caption: '把文章里的关键判断沉淀成想法，再交给阅读助手审阅和讨论。',
+    image: '/assets/carousel/read-distil.webp',
+    alt: 'Yomitomo 沉淀阅读判断界面',
+  },
+  {
+    title: 'PDF 阅读库',
+    caption: '论文和 PDF 按阅读进度、批注和讨论集中管理。',
+    image: '/assets/carousel/pdf-list.webp',
+    alt: 'Yomitomo PDF 阅读库界面',
   },
   {
     title: '电子书阅读库',
-    caption: '网页文章和 EPUB 分开管理，长书也能沉淀批注和讨论。',
-    image: '/assets/epub.webp',
+    caption: '电子书条目和阅读沉淀并列展示，长书也能持续积累。',
+    image: '/assets/carousel/epub-list.webp',
     alt: 'Yomitomo 电子书阅读库界面',
-    objectPosition: 'center',
   },
   {
-    title: '助手界面',
-    caption: '不同视角的阅读助手，组成专属于你的思考团队。',
-    image: '/assets/reader-resume.webp',
-    alt: 'Yomitomo 助手界面',
-    objectPosition: 'center',
+    title: '微信读书同步',
+    caption: '同步微信读书内容，把外部阅读也纳入同一套沉淀流程。',
+    image: '/assets/carousel/weread-list.webp',
+    alt: 'Yomitomo 微信读书列表界面',
   },
   {
-    title: '阅读界面',
-    caption: '划线保留证据位置，想法和评论继续挂在原文旁边。',
-    image: '/assets/read.webp',
-    alt: 'Yomitomo 阅读界面',
-    objectPosition: 'center',
+    title: '网页文章阅读库',
+    caption: '集中保存文章、批注和讨论，把阅读进度留在本机。',
+    image: '/assets/carousel/web-page-list.webp',
+    alt: 'Yomitomo 网页文章阅读库界面',
+  },
+  {
+    title: '原文旁批注',
+    caption: '划线保留证据位置，想法卡片持续挂在原文旁边。',
+    image: '/assets/carousel/read-ann.webp',
+    alt: 'Yomitomo 阅读批注界面',
+  },
+  {
+    title: '批注讨论',
+    caption: '围绕一条划线继续讨论，让想法从记录走向判断。',
+    image: '/assets/carousel/read-discussion.webp',
+    alt: 'Yomitomo 批注讨论界面',
   },
 ];
 ---
@@ -221,7 +235,8 @@ const productSlides: ProductCarouselSlide[] = [
         <div class="page-container min-w-0">
           <div class="hero-inner">
             <h1 class="hero-headline">
-              收藏了 500 篇文章，真正留下来的<mark>判断</mark>有几个？
+              <span>收藏了 500 篇文章，</span>
+              <span class="hero-headline-line">真正留下来的<mark>判断</mark>有几个？</span>
             </h1>
             <p class="hero-sub">
               Yomitomo 把阅读的最小单位从文章变成判断——划线是证据锚点，想法是阅读产出。

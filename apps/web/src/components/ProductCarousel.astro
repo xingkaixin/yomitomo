@@ -4,50 +4,52 @@ export type ProductCarouselSlide = {
   caption: string;
   image: string;
   alt: string;
-  objectPosition?: string;
 };
 
 type Props = {
   slides: ProductCarouselSlide[];
-  autoplayInterval?: number;
 };
 
-const { slides, autoplayInterval = 4200 } = Astro.props;
-
-function responsiveImageSet(image: string) {
-  const match = image.match(/^(.*)\.webp$/);
-  return match ? `${match[1]}-1600.webp 1600w, ${match[1]}-2400.webp 2400w, ${image} 4654w` : undefined;
-}
+const { slides } = Astro.props;
+const loopedSlides = [...slides, ...slides, ...slides];
+const initialSlidePosition = slides.length;
 ---
 
 {
   slides.length > 0 ? (
-    <section
-      class="product-carousel"
-      aria-label="产品介绍图"
-      data-product-carousel
-      data-autoplay-interval={autoplayInterval}
-      style={`--carousel-duration: ${autoplayInterval}ms`}
-    >
-      <div class="product-carousel-frame">
-        {slides.map((slide, index) => (
-          <img
-            class:list={['product-carousel-image', index === 0 && 'is-active']}
-            src={slide.image}
-            srcset={responsiveImageSet(slide.image)}
-            sizes="(max-width: 640px) calc(100vw - 48px), min(980px, calc(100vw - 160px))"
-            alt={slide.alt}
-            style={`object-position: ${slide.objectPosition || 'center'}`}
-            loading={index === 0 ? 'eager' : 'lazy'}
-            decoding={index === 0 ? 'sync' : 'async'}
-            data-title={slide.title}
-            data-caption={slide.caption}
-          />
-        ))}
-        <div class="product-carousel-copy">
-          <span data-carousel-title>{slides[0]?.title}</span>
-          <p data-carousel-caption>{slides[0]?.caption}</p>
-        </div>
+    <section class="product-carousel" aria-label="产品介绍图" data-product-carousel>
+      <div class="product-carousel-viewport" data-carousel-viewport>
+        {loopedSlides.map((slide, position) => {
+          const index = position % slides.length;
+          const isInitial = position === initialSlidePosition;
+
+          return (
+          <figure
+            class:list={['product-carousel-card', isInitial && 'is-active']}
+            aria-label={`查看${slide.title}`}
+            aria-pressed={isInitial}
+            data-carousel-card
+            data-carousel-index={index}
+            data-carousel-position={position}
+            role="button"
+            tabindex="0"
+          >
+            <img
+              class="product-carousel-image"
+              src={slide.image}
+              sizes="(max-width: 640px) 82vw, min(780px, 78vw)"
+              alt={slide.alt}
+              loading={index === 0 ? 'eager' : 'lazy'}
+              decoding={index === 0 ? 'sync' : 'async'}
+              draggable="false"
+            />
+            <figcaption class="product-carousel-copy">
+              <span>{slide.title}</span>
+              <p>{slide.caption}</p>
+            </figcaption>
+          </figure>
+          );
+        })}
       </div>
       <div class="product-carousel-indicators">
         {slides.map((slide, index) => (
@@ -57,9 +59,7 @@ function responsiveImageSet(image: string) {
             aria-label={`查看${slide.title}`}
             aria-pressed={index === 0}
             data-carousel-index={index}
-          >
-            <span class="product-carousel-progress" aria-hidden="true" />
-          </button>
+          />
         ))}
       </div>
     </section>
@@ -70,41 +70,182 @@ function responsiveImageSet(image: string) {
   const carousels = document.querySelectorAll<HTMLElement>('[data-product-carousel]');
 
   for (const carousel of carousels) {
-    const images = Array.from(carousel.querySelectorAll<HTMLImageElement>('.product-carousel-image'));
+    const viewport = carousel.querySelector<HTMLElement>('[data-carousel-viewport]');
+    const cards = Array.from(carousel.querySelectorAll<HTMLElement>('[data-carousel-card]'));
     const buttons = Array.from(
       carousel.querySelectorAll<HTMLButtonElement>('.product-carousel-indicator'),
     );
-    const title = carousel.querySelector<HTMLElement>('[data-carousel-title]');
-    const caption = carousel.querySelector<HTMLElement>('[data-carousel-caption]');
-    const interval = Number(carousel.dataset.autoplayInterval) || 4200;
+    const slideCount = buttons.length;
     let activeIndex = 0;
+    let activePosition = slideCount;
+    let dragStartX = 0;
+    let dragStartScrollLeft = 0;
+    let dragDistance = 0;
+    let isDragging = false;
+    let scrollFrame = 0;
+    let normalizeFrame = 0;
 
-    function setActiveSlide(index: number) {
+    if (!viewport || cards.length === 0 || slideCount === 0) continue;
+    const scrollViewport = viewport;
+
+    function normalizeIndex(index: number) {
+      return ((index % slideCount) + slideCount) % slideCount;
+    }
+
+    function updateActiveSlide(position: number) {
+      const index = normalizeIndex(position);
       activeIndex = index;
-      for (const [imageIndex, image] of images.entries()) {
-        image.classList.toggle('is-active', imageIndex === activeIndex);
+      activePosition = position;
+      for (const [cardIndex, card] of cards.entries()) {
+        const active = cardIndex === activePosition;
+        card.classList.toggle('is-active', active);
+        card.setAttribute('aria-pressed', String(active));
       }
       for (const [buttonIndex, button] of buttons.entries()) {
         const active = buttonIndex === activeIndex;
         button.classList.toggle('is-active', active);
         button.setAttribute('aria-pressed', String(active));
       }
-      const image = images[activeIndex];
-      if (title && image) title.textContent = image.dataset.title || '';
-      if (caption && image) caption.textContent = image.dataset.caption || caption.textContent;
     }
+
+    function getCenteredSlidePosition() {
+      const viewportRect = scrollViewport.getBoundingClientRect();
+      const viewportCenter = viewportRect.left + viewportRect.width / 2;
+      let closestPosition = activePosition;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      for (const [position, card] of cards.entries()) {
+        const cardRect = card.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        const distance = Math.abs(cardCenter - viewportCenter);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestPosition = position;
+        }
+      }
+
+      return closestPosition;
+    }
+
+    function canonicalPosition(position: number) {
+      return slideCount + normalizeIndex(position);
+    }
+
+    function normalizeLoopPosition() {
+      if (isDragging) return;
+      const normalizedPosition = canonicalPosition(activePosition);
+      if (normalizedPosition === activePosition) return;
+      cards[normalizedPosition]?.scrollIntoView({
+        behavior: 'auto',
+        block: 'nearest',
+        inline: 'center',
+      });
+      updateActiveSlide(normalizedPosition);
+    }
+
+    function queueLoopNormalization() {
+      window.clearTimeout(normalizeFrame);
+      normalizeFrame = window.setTimeout(normalizeLoopPosition, 420);
+    }
+
+    function findCenteredSlide() {
+      const closestPosition = getCenteredSlidePosition();
+      if (closestPosition !== activePosition) updateActiveSlide(closestPosition);
+      queueLoopNormalization();
+    }
+
+    function queueActiveSlideUpdate() {
+      window.cancelAnimationFrame(scrollFrame);
+      scrollFrame = window.requestAnimationFrame(findCenteredSlide);
+    }
+
+    function scrollToPosition(position: number, behavior: ScrollBehavior = 'smooth') {
+      cards[position]?.scrollIntoView({
+        behavior,
+        block: 'nearest',
+        inline: 'center',
+      });
+      updateActiveSlide(position);
+      queueLoopNormalization();
+    }
+
+    function nearestPositionForIndex(index: number) {
+      const normalizedIndex = normalizeIndex(index);
+      const candidates = [
+        normalizedIndex,
+        normalizedIndex + slideCount,
+        normalizedIndex + slideCount * 2,
+      ];
+
+      return candidates.reduce((nearest, candidate) =>
+        Math.abs(candidate - activePosition) < Math.abs(nearest - activePosition)
+          ? candidate
+          : nearest,
+      );
+    }
+
+    function scrollToSlide(index: number) {
+      scrollToPosition(nearestPositionForIndex(index));
+    }
+
+    scrollToPosition(activePosition, 'auto');
 
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
         const index = Number(button.dataset.carouselIndex);
-        if (Number.isInteger(index)) setActiveSlide(index);
+        if (Number.isInteger(index)) scrollToSlide(index);
       });
     });
 
-    if (images.length > 1) {
-      window.setInterval(() => {
-        setActiveSlide((activeIndex + 1) % images.length);
-      }, interval);
-    }
+    cards.forEach((card) => {
+      card.addEventListener('click', () => {
+        if (dragDistance > 6) return;
+        const position = Number(card.dataset.carouselPosition);
+        if (Number.isInteger(position)) scrollToPosition(position);
+      });
+      card.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        const position = Number(card.dataset.carouselPosition);
+        if (Number.isInteger(position)) scrollToPosition(position);
+      });
+    });
+
+    scrollViewport.addEventListener('scroll', queueActiveSlideUpdate, { passive: true });
+    scrollViewport.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      isDragging = true;
+      dragStartX = event.clientX;
+      dragDistance = 0;
+      dragStartScrollLeft = scrollViewport.scrollLeft;
+      scrollViewport.classList.add('is-dragging');
+      scrollViewport.setPointerCapture(event.pointerId);
+    });
+    scrollViewport.addEventListener('pointermove', (event) => {
+      if (!isDragging) return;
+      dragDistance = Math.abs(event.clientX - dragStartX);
+      scrollViewport.scrollLeft = dragStartScrollLeft - (event.clientX - dragStartX);
+    });
+    scrollViewport.addEventListener('pointerup', (event) => {
+      isDragging = false;
+      scrollViewport.classList.remove('is-dragging');
+      scrollViewport.releasePointerCapture(event.pointerId);
+      if (dragDistance <= 6) {
+        const targetCard = document
+          .elementFromPoint(event.clientX, event.clientY)
+          ?.closest<HTMLElement>('[data-carousel-card]');
+        const position = Number(targetCard?.dataset.carouselPosition);
+        if (Number.isInteger(position)) {
+          scrollToPosition(position);
+          return;
+        }
+      }
+      scrollToPosition(getCenteredSlidePosition());
+    });
+    scrollViewport.addEventListener('pointercancel', () => {
+      isDragging = false;
+      scrollViewport.classList.remove('is-dragging');
+      scrollToPosition(getCenteredSlidePosition());
+    });
   }
 </script>
