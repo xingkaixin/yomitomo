@@ -271,10 +271,19 @@
 }
 
 .annotation-discussion-layout {
+  --annotation-discussion-ideas-rail-width: 68px;
+  --annotation-discussion-ideas-overlay-width: clamp(260px, 42%, 340px);
+
+  position: relative;
   display: grid;
   min-height: 0;
   grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
   overflow: hidden;
+  transition: grid-template-columns 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.annotation-discussion-layout.is-ideas-collapsed {
+  grid-template-columns: var(--annotation-discussion-ideas-rail-width) minmax(0, 1fr);
 }
 
 .annotation-discussion-ideas {
@@ -287,6 +296,38 @@
   border-right: 1px solid var(--app-reader-line);
   background: var(--app-reader-toc-bg);
   padding: 16px;
+  transition:
+    padding 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 180ms ease;
+}
+
+.annotation-discussion-layout.is-ideas-collapsed .annotation-discussion-ideas {
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 12px 10px;
+}
+
+.annotation-discussion-layout.is-ideas-overlay-open .annotation-discussion-ideas {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 12;
+  width: var(--annotation-discussion-ideas-overlay-width);
+  align-items: stretch;
+  gap: 12px;
+  overflow: auto;
+  border-right: 1px solid var(--app-reader-line);
+  background: var(--app-reader-paper);
+  box-shadow:
+    inset -1px 0 0 var(--app-reader-line),
+    18px 0 46px color-mix(in srgb, var(--app-reader-ink) 16%, transparent);
+  padding: 16px;
+}
+
+.annotation-discussion-layout.is-ideas-overlay-open .annotation-discussion-ideas header {
+  display: grid;
+  grid-template-columns: 40px auto minmax(0, 1fr) 40px;
+  align-items: center;
 }
 
 .annotation-discussion-ideas header,
@@ -305,6 +346,72 @@
   color: var(--app-reader-ink);
   font-size: 13px;
   font-weight: 900;
+}
+
+.annotation-discussion-ideas-toggle {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-muted);
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.annotation-discussion-ideas-toggle:hover {
+  border-color: var(--app-reader-accent-strong);
+  background: var(--app-reader-note-bg);
+  color: var(--app-reader-ink);
+}
+
+.annotation-discussion-ideas-toggle:active {
+  transform: scale(0.96);
+}
+
+.annotation-discussion-ideas-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-ideas header {
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed
+  .annotation-discussion-ideas
+  header
+  strong {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-ideas-count {
+  display: grid;
+  min-width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-ink);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-ideas-toggle {
+  width: 40px;
+  height: 40px;
 }
 
 .annotation-discussion-add-thought {
@@ -330,6 +437,12 @@
 
 .annotation-discussion-add-thought:active {
   transform: scale(0.96);
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-add-thought {
+  width: 40px;
+  height: 40px;
+  margin-left: 0;
 }
 
 .annotation-discussion-modal-backdrop {
@@ -565,10 +678,22 @@
   padding-right: 2px;
 }
 
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-idea-list,
+.annotation-discussion-layout.is-ideas-content-collapsed .annotation-discussion-ideas > p {
+  display: none;
+}
+
 .annotation-discussion-sedimentation-entry {
   margin-top: auto;
   border-top: 1px solid var(--app-reader-toolbar-border);
   padding-top: 12px;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed
+  .annotation-discussion-sedimentation-entry {
+  width: 100%;
+  border-top: 0;
+  padding-top: 0;
 }
 
 .annotation-discussion-sedimentation-entry button {
@@ -619,6 +744,27 @@
 
 .annotation-discussion-sedimentation-entry button:active {
   transform: scale(0.96);
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed
+  .annotation-discussion-sedimentation-entry
+  button {
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+}
+
+.annotation-discussion-layout.is-ideas-content-collapsed
+  .annotation-discussion-sedimentation-entry
+  button
+  span {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .annotation-discussion-idea {
@@ -856,6 +1002,11 @@
   grid-template-rows: auto minmax(0, 1fr);
   background: var(--app-reader-paper);
   padding: 16px 18px;
+}
+
+.annotation-discussion-layout.is-ideas-overlay-open .annotation-discussion-thread {
+  grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 .annotation-discussion-thread-actions {

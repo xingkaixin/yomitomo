@@ -14,6 +14,8 @@ import {
   GitPullRequestDraft,
   MessageCircle,
   MoreHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pin,
   PinOff,
   Plus,
@@ -76,6 +78,7 @@ import {
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_DELETE_HOLD_MS = 900;
+const DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH = 760;
 
 type AddThoughtAgentRunStatus = 'active' | 'done' | 'failed';
 
@@ -220,6 +223,8 @@ function AnnotationDiscussionShell({
   const [currentAnnotation, setCurrentAnnotation] = useState(annotation);
   const [pinnedThoughtIds, setPinnedThoughtIds] = useState<Set<string>>(() => new Set());
   const [selectedThoughtId, setSelectedThoughtId] = useState<string | null>(null);
+  const [ideasCollapsed, setIdeasCollapsed] = useState(false);
+  const [ideasOverlayOpen, setIdeasOverlayOpen] = useState(false);
   const [layoutMode, setLayoutMode] = useState<DiscussionLayoutMode>('split');
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [replyDraft, setReplyDraft] = useState('');
@@ -237,6 +242,11 @@ function AnnotationDiscussionShell({
   const [removed, setRemoved] = useState(false);
   const annotationsRef = useRef<Annotation[]>(article.annotations);
   const currentArticleRef = useRef(article);
+  const discussionLayoutRef = useRef<HTMLElement>(null);
+  const ideasAutoCollapsed = useElementWidthBelow(
+    discussionLayoutRef,
+    DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH,
+  );
 
   useEffect(() => {
     setCurrentArticle(article);
@@ -257,6 +267,22 @@ function AnnotationDiscussionShell({
   );
   const selectedThread =
     threads.find((thread) => thread.root.id === selectedThoughtId) || threads[0] || null;
+  const ideasRailCollapsed = ideasCollapsed || ideasAutoCollapsed;
+  const ideasContentCollapsed = ideasAutoCollapsed ? !ideasOverlayOpen : ideasCollapsed;
+  const ideasOverlayVisible = ideasAutoCollapsed && ideasOverlayOpen;
+  const layoutClassName = [
+    'annotation-discussion-layout',
+    ideasRailCollapsed ? 'is-ideas-collapsed' : '',
+    ideasContentCollapsed ? 'is-ideas-content-collapsed' : '',
+    ideasAutoCollapsed ? 'is-ideas-auto-collapsed' : '',
+    ideasOverlayVisible ? 'is-ideas-overlay-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  useEffect(() => {
+    if (!ideasAutoCollapsed) setIdeasOverlayOpen(false);
+  }, [ideasAutoCollapsed]);
 
   useEffect(() => {
     if (!threads.length) {
@@ -627,6 +653,20 @@ function AnnotationDiscussionShell({
     });
   }
 
+  function toggleIdeasSidebar() {
+    if (ideasAutoCollapsed) {
+      setIdeasOverlayOpen((current) => !current);
+      return;
+    }
+    setIdeasOverlayOpen(false);
+    setIdeasCollapsed((current) => !current);
+  }
+
+  function selectThought(commentId: string) {
+    setSelectedThoughtId(commentId);
+    if (ideasOverlayOpen) setIdeasOverlayOpen(false);
+  }
+
   function closeNewThoughtDialog() {
     setNewThoughtOpen(false);
     setNewThoughtDraft('');
@@ -665,11 +705,20 @@ function AnnotationDiscussionShell({
         <p>{currentAnnotation.anchor.exact}</p>
       </section>
 
-      <section className="annotation-discussion-layout" aria-label="批注讨论窗口">
-        <aside className="annotation-discussion-ideas">
+      <section ref={discussionLayoutRef} className={layoutClassName} aria-label="批注讨论窗口">
+        <aside className="annotation-discussion-ideas" aria-expanded={!ideasContentCollapsed}>
           <header>
+            <button
+              className="annotation-discussion-ideas-toggle"
+              type="button"
+              aria-label={ideasContentCollapsed ? '展开想法列表' : '收起想法列表'}
+              aria-expanded={!ideasContentCollapsed}
+              onClick={toggleIdeasSidebar}
+            >
+              {ideasContentCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+            </button>
             <strong>想法</strong>
-            <span>{threads.length}</span>
+            <span className="annotation-discussion-ideas-count">{threads.length}</span>
             <button
               className="annotation-discussion-add-thought"
               type="button"
@@ -690,7 +739,7 @@ function AnnotationDiscussionShell({
                   userProfile={userProfile}
                   onDelete={() => void deleteComment(thread.root.id)}
                   onPin={() => togglePinnedThought(thread.root.id)}
-                  onSelect={() => setSelectedThoughtId(thread.root.id)}
+                  onSelect={() => selectThought(thread.root.id)}
                 />
               ))}
             </div>
@@ -701,6 +750,9 @@ function AnnotationDiscussionShell({
             <button
               className={annotation.distillation?.status === 'published' ? undefined : 'is-primary'}
               type="button"
+              aria-label={
+                annotation.distillation?.status === 'published' ? '查看沉淀' : '把这些想法沉淀下来'
+              }
               onClick={openSedimentationWindow}
             >
               <GitPullRequestDraft size={14} />
@@ -1902,6 +1954,37 @@ function annotationDiscussionWindowClassName() {
   return ['annotation-discussion-window', `is-${window.yomitomoDesktop.platform ?? 'unknown'}`]
     .filter(Boolean)
     .join(' ');
+}
+
+function useElementWidthBelow(ref: RefObject<HTMLElement | null>, threshold: number) {
+  const [isBelow, setIsBelow] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const updateWidth = (width: number) => {
+      if (width > 0) setIsBelow(width <= threshold);
+    };
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        updateWidth(entry.contentRect.width);
+      });
+      observer.observe(element);
+      updateWidth(element.getBoundingClientRect().width);
+      return () => observer.disconnect();
+    }
+
+    const handleResize = () => updateWidth(element.getBoundingClientRect().width);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [ref, threshold]);
+
+  return isBelow;
 }
 
 function discussionWindowTitle({
