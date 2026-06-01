@@ -4,28 +4,11 @@ import type {
   AgentMentionInstruction,
   AgentMentionInstructionPayload,
   AgentMentionRoutePlan,
-  AnnotationMetadata,
-  AnnotationMetadataPayload,
   LlmProvider,
 } from '@yomitomo/shared';
 import { agentReadingIntentOptions, normalizeAgentReadingIntent } from '@yomitomo/shared';
-import { normalizeAnnotationType } from '@yomitomo/core';
 import { booleanValue, parseJsonArray, parseJsonObject, stringArray, stringValue } from './json';
 import { callProviderText } from './provider-client';
-
-export async function inferAnnotationMetadata(
-  provider: LlmProvider,
-  payload: AnnotationMetadataPayload,
-): Promise<AnnotationMetadata> {
-  const content = await callProviderText(provider, {
-    system:
-      '你是 Yomitomo 阅读器的批注标签器。根据用户选区和批注内容，选择最贴切的批注类型和阅读动作。只返回 JSON。',
-    user: buildAnnotationMetadataPrompt(payload),
-    maxTokens: 240,
-    temperature: 0,
-  });
-  return parseAnnotationMetadata(content);
-}
 
 export async function planAgentMentionInstructions(
   provider: LlmProvider,
@@ -46,37 +29,6 @@ export async function planAgentMentionRoute(
     temperature: 0,
   });
   return parseAgentMentionRoutePlan(content, payload.agents, payload.allowedActions);
-}
-
-function buildAnnotationMetadataPrompt(payload: AnnotationMetadataPayload) {
-  return `文章标题：${payload.article.title}
-文章 URL：${payload.article.url}
-
-用户选区：
-${payload.anchor.exact}
-
-用户批注：
-${payload.note.trim() || '（用户未填写批注）'}
-
-请返回 JSON 对象，字段如下：
-- annotationType：只允许 key_point、assumption、concept、question、quote
-- readingIntent：只允许 explain、decompose、challenge、question、connect
-
-类型含义：
-- key_point：关键判断或强论点
-- assumption：前提、漏洞、可挑战处
-- concept：概念解释需求
-- question：延伸问题
-- quote：金句或可复用表达
-
-阅读动作含义：
-- explain：解释这段在说什么
-- decompose：拆解结构和因果
-- challenge：挑战前提或漏洞
-- question：提出后续问题
-- connect：连接经验、案例或上下文
-
-只返回 JSON，例如 {"annotationType":"key_point","readingIntent":"explain"}。`;
 }
 
 function buildAgentMentionInstructionPrompt(payload: AgentMentionInstructionPayload) {
@@ -137,14 +89,6 @@ directives 每个元素字段：
 - 如果只允许 create_thought，所有 directives 的 action 都必须是 create_thought。
 
 只返回 JSON，例如 {"createUserThought":true,"directives":[{"agentUsername":"林知微","action":"comment","instruction":"解释这个概念","readingIntent":"explain"},{"agentUsername":"周砚","action":"create_thought","instruction":"从反方角度提出一个不同想法","readingIntent":"challenge"}]}。`;
-}
-
-function parseAnnotationMetadata(content: string): AnnotationMetadata {
-  const parsed = parseJsonObject(content);
-  const annotationType = normalizeAnnotationType(parsed.annotationType);
-  const readingIntent = normalizeAgentReadingIntent(parsed.readingIntent);
-  if (!annotationType || !readingIntent) throw new Error('批注标签结果无效');
-  return { annotationType, readingIntent };
 }
 
 export function parseAgentMentionInstructions(

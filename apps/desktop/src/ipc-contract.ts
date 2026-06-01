@@ -9,8 +9,6 @@ import type {
   AgentReviewPayload,
   Annotation,
   AnnotationDistillationReviewMessage,
-  AnnotationMetadata,
-  AnnotationMetadataPayload,
   AppSettings,
   ArticleDeletePatch,
   ArticleReadingProgress,
@@ -344,10 +342,6 @@ export type DesktopIpcInvokeMap = {
   'assistant-executions:summary': {
     args: [input: AssistantExecutionQueryInput];
     result: AssistantExecutionSummary;
-  };
-  'annotation:metadata': {
-    args: [payload: AnnotationMetadataPayload];
-    result: AnnotationMetadata;
   };
   'annotation-discussion:open': {
     args: [input: AnnotationDiscussionWindowOpenInput];

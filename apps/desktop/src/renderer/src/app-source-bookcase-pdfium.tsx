@@ -52,7 +52,6 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
-  annotationPrimaryComment,
   articlePublishedDistillationCount,
   createUserAnnotation,
   selectionActionPosition,
@@ -74,7 +73,6 @@ import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock'
 import { Button } from './components/ui/button';
 import type { PromptArticle } from './app-reading-types';
 import {
-  articleWithAnnotations,
   articleWithMergedAgentAnnotation,
   promptArticle,
   recordRendererPerformanceTiming,
@@ -1467,54 +1465,10 @@ function PdfiumDocument({
     const currentComposer = composer;
     const currentArticle = latestArticleRef.current;
     if (!currentArticle) return;
-    const articleContext = promptArticle(currentArticle, await currentArticleText());
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     onOpenAnnotation(annotation.id);
-
-    if (annotationPrimaryComment(annotation)) {
-      void inferAnnotationMetadataForAnnotation(currentArticle.id, annotation, articleContext);
-    }
-  }
-
-  async function inferAnnotationMetadataForAnnotation(
-    articleId: string,
-    annotation: Annotation,
-    articleContext: PromptArticle,
-  ) {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
-    try {
-      const metadata = await desktop.inferAnnotationMetadata({
-        article: articleContext,
-        anchor: annotation.anchor,
-        note: annotationPrimaryComment(annotation)?.content || '',
-      });
-      await onUpdateArticle(articleId, (targetArticle) => {
-        let found = false;
-        const nextAnnotations = targetArticle.annotations.map((item) => {
-          if (item.id !== annotation.id) return item;
-          found = true;
-          const primaryCommentId = annotationPrimaryComment(item)?.id;
-          return {
-            ...item,
-            annotationType: metadata.annotationType,
-            readingIntent: metadata.readingIntent,
-            comments: item.comments.map((comment) =>
-              comment.id === primaryCommentId
-                ? { ...comment, readingIntent: metadata.readingIntent }
-                : comment,
-            ),
-            updatedAt: new Date().toISOString(),
-          };
-        });
-        return found ? articleWithAnnotations(targetArticle, nextAnnotations) : null;
-      });
-    } catch (error) {
-      if (latestArticleRef.current?.id !== articleId) return;
-      showStatusMessage(error instanceof Error ? error.message : '想法标签生成失败');
-    }
   }
 
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {

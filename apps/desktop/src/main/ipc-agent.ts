@@ -31,18 +31,6 @@ import {
 import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
-  handleDesktopIpc('annotation:metadata', async (_event, payload) => {
-    const { inferAnnotationMetadata } = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
-    const provider = await taskProvider(
-      context,
-      store.providers,
-      store.settings,
-      'readingAssistant',
-    );
-    return inferAnnotationMetadata(provider, payload);
-  });
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
     const { planAgentMentionRoute } = await context.getAiModule();
     const { readStore } = await context.getStoreModule();

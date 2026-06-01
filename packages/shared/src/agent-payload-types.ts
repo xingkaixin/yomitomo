@@ -75,21 +75,6 @@ export type AgentAnnotateResult = {
   readingMemory?: ReadingMemory;
 };
 
-export type AnnotationMetadataPayload = {
-  article: {
-    title: string;
-    url: string;
-    text: string;
-  };
-  anchor: TextAnchor;
-  note: string;
-};
-
-export type AnnotationMetadata = {
-  annotationType: AnnotationType;
-  readingIntent: AgentReadingIntent;
-};
-
 export type AgentReadingPlanItem = {
   sectionId: string;
   sectionTitle: string;
