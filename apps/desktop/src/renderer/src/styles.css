@@ -1182,6 +1182,29 @@
   padding: 34px 28px 32px;
 }
 
+.annotation-discussion-add-run-summary {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin: -8px auto 24px;
+  color: var(--app-reader-muted);
+  text-align: center;
+}
+
+.annotation-discussion-add-run-summary strong {
+  color: var(--app-reader-ink);
+  font-size: 13px;
+  font-weight: 820;
+}
+
+.annotation-discussion-add-run-summary p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .annotation-discussion-add-run .reader-completion-burst {
   position: absolute;
   inset: 0;
@@ -1311,6 +1334,51 @@
 .annotation-discussion-add-run-agent .assistant-runtime-progress {
   justify-items: center;
   margin-top: 0;
+}
+
+.annotation-discussion-add-run-failure {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.annotation-discussion-add-run-failure p {
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  color: var(--app-reader-danger);
+  font-size: 10px;
+  font-weight: 680;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-discussion-add-run-failure button,
+.annotation-discussion-add-run-actions button {
+  border: 1px solid var(--app-reader-border);
+  border-radius: 999px;
+  background: var(--app-reader-paper);
+  color: var(--app-reader-ink);
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.annotation-discussion-add-run-failure button:hover,
+.annotation-discussion-add-run-actions button:hover {
+  background: var(--app-reader-agent-panel-hover-bg);
+}
+
+.annotation-discussion-add-run-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
 }
 
 .assistant-runtime-progress {

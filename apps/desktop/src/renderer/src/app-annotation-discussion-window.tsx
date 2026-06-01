@@ -34,6 +34,7 @@ import {
   appendAnnotationComment,
   commentPersona,
   createUserComment,
+  deleteAnnotationComment,
   findMentionedAgents,
   getMentionQuery,
   sortAnnotations,
@@ -80,7 +81,10 @@ type AddThoughtAgentRunStatus = 'active' | 'done' | 'failed';
 
 type AddThoughtAgentRun = {
   agent: PublicAgent;
+  errorMessage?: string;
+  instruction?: string;
   progress?: Comment['assistantProgress'];
+  readingIntent?: Comment['readingIntent'];
   status: AddThoughtAgentRunStatus;
 };
 
@@ -395,10 +399,7 @@ function AnnotationDiscussionShell({
           })),
         );
         const route = await planAssistantThoughtRoute(trimmed, mentionedThoughtAgents);
-        for (const agent of mentionedThoughtAgents) {
-          const latestAnnotation =
-            annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
-            currentAnnotation;
+        const tasks = mentionedThoughtAgents.map((agent) => {
           const directive = mentionDirectivesForAgent(route, agent, 'create_thought')[0];
           const instruction =
             directive?.instruction ||
@@ -406,23 +407,23 @@ function AnnotationDiscussionShell({
               agent,
             ]) ||
             trimmed;
-          await requestAgentThought(
+          return {
             agent,
-            latestAnnotation,
             instruction,
-            directive?.readingIntent,
-            {
-              onComplete: () => updateAddThoughtAgentRun(agent.id, { status: 'done' }),
-              onError: () => updateAddThoughtAgentRun(agent.id, { status: 'failed' }),
-              onProgress: (progress) =>
-                updateAddThoughtAgentRun(agent.id, (current) => ({
-                  progress: applyAssistantRuntimeProgress(current.progress, progress),
-                })),
-            },
-          );
-        }
-        setAddThoughtCelebrating(true);
-        await waitForMilliseconds(1000);
+            readingIntent: directive?.readingIntent,
+          };
+        });
+        setAddThoughtAgentRuns(
+          tasks.map((task) => ({
+            agent: task.agent,
+            instruction: task.instruction,
+            readingIntent: task.readingIntent,
+            status: 'active',
+          })),
+        );
+        const failedCount = await runAssistantThoughtTasks(tasks);
+        if (failedCount > 0) return;
+        await finishSuccessfulAssistantThoughts();
       }
       closeNewThoughtDialog();
     } catch (error) {
@@ -431,6 +432,93 @@ function AnnotationDiscussionShell({
       setSubmittingThought(false);
       setStatusMessage('');
     }
+  }
+
+  async function retryAddThoughtRuns(agentIds: string[]) {
+    if (submittingThought) return;
+    const tasks = addThoughtAgentRuns
+      .filter(
+        (run) => agentIds.includes(run.agent.id) && run.status === 'failed' && run.instruction,
+      )
+      .map((run) => ({
+        agent: run.agent,
+        instruction: run.instruction || '',
+        readingIntent: run.readingIntent,
+      }));
+    if (tasks.length === 0) return;
+
+    setSubmittingThought(true);
+    setSendError('');
+    setAddThoughtCelebrating(false);
+    setAddThoughtAgentRuns((runs) =>
+      runs.map((run) =>
+        agentIds.includes(run.agent.id)
+          ? { ...run, errorMessage: undefined, progress: undefined, status: 'active' }
+          : run,
+      ),
+    );
+    try {
+      const failedCount = await runAssistantThoughtTasks(tasks);
+      if (failedCount > 0) return;
+      if (
+        addThoughtAgentRuns.every((run) => run.status === 'done' || agentIds.includes(run.agent.id))
+      ) {
+        await finishSuccessfulAssistantThoughts();
+        closeNewThoughtDialog();
+      }
+    } finally {
+      setSubmittingThought(false);
+      setStatusMessage('');
+    }
+  }
+
+  async function runAssistantThoughtTasks(
+    tasks: {
+      agent: PublicAgent;
+      instruction: string;
+      readingIntent?: Comment['readingIntent'];
+    }[],
+  ) {
+    const results = await Promise.all(
+      tasks.map(async (task) => {
+        const latestAnnotation =
+          annotationsRef.current.find((item) => item.id === currentAnnotation.id) ||
+          currentAnnotation;
+        try {
+          await requestAgentThought(
+            task.agent,
+            latestAnnotation,
+            task.instruction,
+            task.readingIntent,
+            {
+              onComplete: () =>
+                updateAddThoughtAgentRun(task.agent.id, {
+                  errorMessage: undefined,
+                  status: 'done',
+                }),
+              onError: () => updateAddThoughtAgentRun(task.agent.id, { status: 'failed' }),
+              onProgress: (progress) =>
+                updateAddThoughtAgentRun(task.agent.id, (current) => ({
+                  progress: applyAssistantRuntimeProgress(current.progress, progress),
+                })),
+            },
+          );
+          return true;
+        } catch (error) {
+          updateAddThoughtAgentRun(task.agent.id, {
+            errorMessage: error instanceof Error ? error.message : '助手添加想法失败',
+            status: 'failed',
+          });
+          return false;
+        }
+      }),
+    );
+    return results.filter((result) => !result).length;
+  }
+
+  async function finishSuccessfulAssistantThoughts() {
+    setAddThoughtCelebrating(true);
+    await waitForMilliseconds(1000);
   }
 
   async function planAssistantThoughtRoute(note: string, selectedAgents: PublicAgent[]) {
@@ -507,8 +595,10 @@ function AnnotationDiscussionShell({
   function updateAddThoughtAgentRun(
     agentId: string,
     update:
-      | Partial<Pick<AddThoughtAgentRun, 'progress' | 'status'>>
-      | ((current: AddThoughtAgentRun) => Partial<Pick<AddThoughtAgentRun, 'progress' | 'status'>>),
+      | Partial<Pick<AddThoughtAgentRun, 'errorMessage' | 'progress' | 'status'>>
+      | ((
+          current: AddThoughtAgentRun,
+        ) => Partial<Pick<AddThoughtAgentRun, 'errorMessage' | 'progress' | 'status'>>),
   ) {
     setAddThoughtAgentRuns((runs) =>
       runs.map((run) =>
@@ -668,6 +758,14 @@ function AnnotationDiscussionShell({
           onCaretChange={setNewThoughtCaretIndex}
           onDraftChange={setNewThoughtDraft}
           onModeChange={setNewThoughtMode}
+          onRetry={(agentId) => void retryAddThoughtRuns([agentId])}
+          onRetryAll={() =>
+            void retryAddThoughtRuns(
+              addThoughtAgentRuns
+                .filter((run) => run.status === 'failed')
+                .map((run) => run.agent.id),
+            )
+          }
           onSubmit={() => void submitNewThought()}
         />
       ) : null}
@@ -694,6 +792,8 @@ function AddThoughtDialog({
   onCaretChange,
   onDraftChange,
   onModeChange,
+  onRetry,
+  onRetryAll,
   onSubmit,
   runningAgents,
   submitting,
@@ -707,6 +807,8 @@ function AddThoughtDialog({
   onCaretChange: (value: number) => void;
   onDraftChange: (value: string) => void;
   onModeChange: (value: 'self' | 'assistant') => void;
+  onRetry: (agentId: string) => void;
+  onRetryAll: () => void;
   onSubmit: () => void;
   runningAgents: AddThoughtAgentRun[];
   submitting: boolean;
@@ -723,6 +825,9 @@ function AddThoughtDialog({
   const mentionedAgents = findMentionedAgents(draft, agents);
   const canSubmit =
     Boolean(draft.trim()) && !submitting && (mode === 'self' || mentionedAgents.length > 0);
+  const showingAssistantRun = mode === 'assistant' && runningAgents.length > 0;
+  const runIsActive = runningAgents.some((run) => run.status === 'active');
+  const canCancel = !showingAssistantRun || !runIsActive;
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -791,14 +896,21 @@ function AddThoughtDialog({
               className="annotation-discussion-add-close"
               type="button"
               aria-label="关闭添加想法"
+              disabled={!canCancel}
               onClick={onCancel}
             >
               <X size={15} />
             </button>
           </ReaderTooltip>
         </header>
-        {submitting && mode === 'assistant' ? (
-          <AddThoughtAssistantRunPanel celebrating={celebrating} runs={runningAgents} />
+        {showingAssistantRun ? (
+          <AddThoughtAssistantRunPanel
+            celebrating={celebrating}
+            runs={runningAgents}
+            onClose={onCancel}
+            onRetry={onRetry}
+            onRetryAll={onRetryAll}
+          />
         ) : (
           <FloatingComposer
             ref={textareaRef}
@@ -934,14 +1046,33 @@ function AddThoughtDialog({
 
 function AddThoughtAssistantRunPanel({
   celebrating,
+  onClose,
+  onRetry,
+  onRetryAll,
   runs,
 }: {
   celebrating: boolean;
+  onClose: () => void;
+  onRetry: (agentId: string) => void;
+  onRetryAll: () => void;
   runs: AddThoughtAgentRun[];
 }) {
+  const activeCount = runs.filter((run) => run.status === 'active').length;
+  const doneCount = runs.filter((run) => run.status === 'done').length;
+  const failedRuns = runs.filter((run) => run.status === 'failed');
+  const settled = activeCount === 0;
+
   return (
     <div className="annotation-discussion-add-run" aria-label="助手添加想法进度">
       {celebrating ? <ReadingCompletionBurst /> : null}
+      {failedRuns.length > 0 && settled ? (
+        <div className="annotation-discussion-add-run-summary">
+          <strong>
+            {doneCount} 位助手已完成，{failedRuns.length} 位助手失败
+          </strong>
+          <p>已完成的想法已保存。关闭后，失败的助手不会继续生成。</p>
+        </div>
+      ) : null}
       <div className="annotation-discussion-add-run-agents">
         {runs.map((run, index) => (
           <div
@@ -956,9 +1087,31 @@ function AddThoughtAssistantRunPanel({
             </div>
             <strong>{run.agent.nickname}</strong>
             <AssistantRuntimeProgressList progress={run.progress} />
+            {run.status === 'failed' ? (
+              <div className="annotation-discussion-add-run-failure">
+                <p>{run.errorMessage || '添加失败'}</p>
+                {settled ? (
+                  <button type="button" onClick={() => onRetry(run.agent.id)}>
+                    重试
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
+      {failedRuns.length > 0 && settled ? (
+        <footer className="annotation-discussion-add-run-actions">
+          {failedRuns.length > 1 ? (
+            <button type="button" onClick={onRetryAll}>
+              全部重试
+            </button>
+          ) : null}
+          <button type="button" onClick={onClose}>
+            不再重试
+          </button>
+        </footer>
+      ) : null}
     </div>
   );
 }
@@ -1727,6 +1880,16 @@ async function runSourceAgentThoughtRequest({
     if (nextAnnotations) await saveAnnotations(nextAnnotations);
     lifecycle?.onComplete?.();
   } catch (error) {
+    if (pendingFrame) {
+      window.cancelAnimationFrame(pendingFrame);
+      pendingFrame = 0;
+    }
+    const nextAnnotations = deleteAnnotationComment(
+      annotationsRef.current,
+      annotation.id,
+      pendingCommentId,
+    );
+    if (nextAnnotations) applyAnnotations(nextAnnotations);
     lifecycle?.onError?.();
     throw error;
   } finally {
