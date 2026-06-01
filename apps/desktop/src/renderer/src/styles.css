@@ -15423,7 +15423,7 @@ button.license-package-row:hover {
 }
 
 .library-web-list,
-.library-ebook-list {
+.library-list {
   display: grid;
   align-content: start;
   min-height: 0;
@@ -15431,8 +15431,7 @@ button.license-package-row:hover {
   border-top: 1px solid hsl(var(--foreground));
 }
 
-.library-web-item,
-.library-ebook-list-item {
+.library-list-item {
   position: relative;
   display: grid;
   align-items: center;
@@ -15803,7 +15802,7 @@ button.license-package-row:hover {
   .library-web-item,
   .library-ebook-list-item {
     grid-template-columns: minmax(0, 1fr);
-    padding-right: 0;
+    padding-right: 68px;
   }
 
   .library-web-item-meta,
@@ -15812,8 +15811,10 @@ button.license-package-row:hover {
   }
 
   .library-item-actions {
-    position: static;
-    justify-self: start;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    justify-self: auto;
     transform: none;
   }
 
@@ -16751,13 +16752,11 @@ button.license-package-row:hover {
   padding: 0 34px 24px;
 }
 
+.library-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .library-web-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
-  align-content: start;
-  min-height: 0;
-  overflow: auto;
-  border-top: 1px solid hsl(var(--foreground));
   border-left: 1px solid hsl(var(--border) / 0.72);
   padding-top: 1px;
 }
@@ -16766,19 +16765,19 @@ button.license-package-row:hover {
   position: relative;
   display: grid;
   min-height: 156px;
-  grid-template-columns: 92px minmax(0, 1fr);
+  grid-template-columns: 120px minmax(0, 1fr);
   grid-template-rows: auto auto auto;
   align-content: start;
   gap: 10px 16px;
   border-right: 1px solid hsl(var(--border) / 0.72);
   border-bottom: 1px solid hsl(var(--border) / 0.72);
-  padding: 28px 26px 20px;
+  padding: 18px 68px 18px 16px;
 }
 
 .library-web-item-cover {
   display: grid;
   grid-row: 1 / 4;
-  align-self: center;
+  align-self: start;
   justify-self: start;
   justify-items: center;
   gap: 9px;
@@ -16800,10 +16799,10 @@ button.license-package-row:hover {
   display: block;
   overflow: hidden;
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 860;
   letter-spacing: 0.16em;
-  line-height: 1.25;
+  line-height: 1;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -16817,9 +16816,11 @@ button.license-package-row:hover {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  font-size: clamp(21px, 1.7vw, 28px);
+  -webkit-line-clamp: 2;
+  font-size: clamp(19px, 1.45vw, 25px);
   line-height: 1.16;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .library-web-item-meta {
@@ -16848,7 +16849,7 @@ button.license-package-row:hover {
 .library-item-actions {
   top: 10px;
   right: 10px;
-  opacity: 0;
+  opacity: 1;
   transform: none;
   transition: opacity 140ms ease;
 }
@@ -16880,7 +16881,7 @@ button.license-package-row:hover {
   grid-template-columns: 126px minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
-  padding: 18px 26px 18px 0;
+  padding: 18px 68px 18px 0;
 }
 
 .library-ebook-cover-column {
@@ -17072,7 +17073,7 @@ button.license-package-row:hover {
   .library-ebook-list-item {
     grid-template-columns: 120px minmax(0, 1fr);
     gap: 16px;
-    padding-right: 0;
+    padding-right: 68px;
   }
 }
 
@@ -19241,7 +19242,6 @@ button.license-package-row:hover {
 }
 
 .library-ebook-list {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-left: 1px solid hsl(var(--border) / 0.72);
 }
 
@@ -19251,7 +19251,7 @@ button.license-package-row:hover {
   align-items: stretch;
   gap: 16px;
   border-right: 1px solid hsl(var(--border) / 0.72);
-  padding: 18px 26px 18px 16px;
+  padding: 18px 68px 18px 16px;
 }
 
 .library-ebook-list-item .article-book {
@@ -19801,7 +19801,7 @@ button.license-package-row:hover {
 }
 
 @media (max-width: 1120px) {
-  .library-ebook-list {
+  .library-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -19852,13 +19852,13 @@ button.license-package-row:hover {
     display: inline;
   }
 
-  .library-ebook-list {
+  .library-list {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .library-ebook-list-item {
     grid-template-columns: 120px minmax(0, 1fr);
-    padding-right: 0;
+    padding-right: 68px;
   }
 }
 
