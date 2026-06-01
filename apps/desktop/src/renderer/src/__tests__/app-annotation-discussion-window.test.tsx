@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
 import {
@@ -24,6 +24,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   window.history.replaceState({}, '', '/');
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('AnnotationDiscussionWindowApp', () => {
@@ -73,6 +74,113 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(await screen.findByText('讨论展开')).toBeTruthy();
     expect(screen.queryByText('展开想法')).toBeNull();
     expect(screen.queryByText('收起想法')).toBeNull();
+  });
+
+  it('collapses and expands the thought sidebar manually', async () => {
+    installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('讨论展开');
+    const layout = discussionLayoutElement();
+    expect(layout.classList.contains('is-ideas-collapsed')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: '收起想法列表' }));
+
+    expect(layout.classList.contains('is-ideas-collapsed')).toBe(true);
+    expect(document.querySelector('.annotation-discussion-ideas-count')?.textContent).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: '展开想法列表' }));
+
+    expect(layout.classList.contains('is-ideas-collapsed')).toBe(false);
+    expect(document.querySelector('.annotation-discussion-idea-list')).toBeTruthy();
+  });
+
+  it('keeps add thought and sedimentation actions available when collapsed', async () => {
+    const desktop = installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('讨论展开');
+    fireEvent.click(screen.getByRole('button', { name: '收起想法列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加想法' }));
+
+    expect(await screen.findByRole('dialog', { name: '添加想法' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '关闭添加想法' }));
+    fireEvent.click(screen.getByRole('button', { name: '把这些想法沉淀下来' }));
+
+    expect(desktop.openAnnotationSedimentation).toHaveBeenCalledWith({
+      articleId: 'article_1',
+      annotationId: 'annotation_1',
+    });
+  });
+
+  it('auto-collapses the thought sidebar when the discussion layout is narrow', async () => {
+    MockResizeObserver.instances = [];
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+    installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('讨论展开');
+    expect(MockResizeObserver.instances).toHaveLength(1);
+
+    act(() => MockResizeObserver.instances[0]?.trigger(720));
+
+    await waitFor(() =>
+      expect(discussionLayoutElement().classList.contains('is-ideas-auto-collapsed')).toBe(true),
+    );
+    expect(discussionLayoutElement().classList.contains('is-ideas-collapsed')).toBe(true);
+    expect(discussionLayoutElement().classList.contains('is-ideas-content-collapsed')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '展开想法列表' }));
+
+    expect(discussionLayoutElement().classList.contains('is-ideas-collapsed')).toBe(true);
+    expect(discussionLayoutElement().classList.contains('is-ideas-overlay-open')).toBe(true);
+    expect(discussionLayoutElement().classList.contains('is-ideas-content-collapsed')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: /这是一条不会再被收起的想法/ }));
+
+    expect(discussionLayoutElement().classList.contains('is-ideas-overlay-open')).toBe(false);
+    expect(discussionLayoutElement().classList.contains('is-ideas-content-collapsed')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: '展开想法列表' }));
+    expect(discussionLayoutElement().classList.contains('is-ideas-overlay-open')).toBe(true);
+
+    act(() => MockResizeObserver.instances[0]?.trigger(920));
+
+    await waitFor(() =>
+      expect(discussionLayoutElement().classList.contains('is-ideas-collapsed')).toBe(false),
+    );
+  });
+
+  it('keeps manual collapse preference after a narrow overlay is opened', async () => {
+    MockResizeObserver.instances = [];
+    vi.stubGlobal('ResizeObserver', MockResizeObserver);
+    installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await screen.findByText('讨论展开');
+    fireEvent.click(screen.getByRole('button', { name: '收起想法列表' }));
+    expect(discussionLayoutElement().classList.contains('is-ideas-collapsed')).toBe(true);
+
+    act(() => MockResizeObserver.instances[0]?.trigger(720));
+    fireEvent.click(screen.getByRole('button', { name: '展开想法列表' }));
+
+    expect(discussionLayoutElement().classList.contains('is-ideas-overlay-open')).toBe(true);
+
+    act(() => MockResizeObserver.instances[0]?.trigger(920));
+
+    await waitFor(() =>
+      expect(discussionLayoutElement().classList.contains('is-ideas-overlay-open')).toBe(false),
+    );
+    expect(discussionLayoutElement().classList.contains('is-ideas-collapsed')).toBe(true);
+    expect(discussionLayoutElement().classList.contains('is-ideas-content-collapsed')).toBe(true);
   });
 
   it('keeps following the bottom after sending when the user has not scrolled up', async () => {
@@ -268,12 +376,47 @@ function installDesktopApi(
         }),
       ),
     saveArticle: vi.fn().mockResolvedValue(undefined),
+    openAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
     configurable: true,
     value: desktop,
   });
   return desktop;
+}
+
+function discussionLayoutElement() {
+  const element = document.querySelector<HTMLElement>('.annotation-discussion-layout');
+  if (!element) throw new Error('Expected discussion layout');
+  return element;
+}
+
+class MockResizeObserver {
+  static instances: MockResizeObserver[] = [];
+
+  private callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    MockResizeObserver.instances.push(this);
+  }
+
+  observe = vi.fn();
+
+  disconnect = vi.fn();
+
+  unobserve = vi.fn();
+
+  trigger(width: number) {
+    this.callback(
+      [
+        {
+          contentRect: { width },
+        } as ResizeObserverEntry,
+      ],
+      this as unknown as ResizeObserver,
+    );
+  }
 }
 
 async function openAssistantThoughtDialog(value: string) {
