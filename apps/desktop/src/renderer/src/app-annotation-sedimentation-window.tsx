@@ -12,7 +12,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId, renderMarkdown } from '@yomitomo/shared';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from './app-theme';
-import { FloatingComposer } from './app-floating-composer';
+import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import { promptArticle, publicReviewAgents } from './app-source-bookcase-shared';
 import { articlePlainText } from './app-utils';
 import {

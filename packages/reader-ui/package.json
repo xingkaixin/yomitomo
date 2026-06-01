@@ -11,6 +11,7 @@
     "./reader-animation": "./src/reader-animation.ts",
     "./reader-navigation": "./src/reader-navigation.ts",
     "./reader-component-primitives": "./src/shared/reader-component-primitives.tsx",
+    "./floating-composer": "./src/shared/floating-composer.tsx",
     "./reader-mention-utils": "./src/reader-mention-utils.ts",
     "./reader-reading-sections": "./src/reader-reading-sections.ts",
     "./reader-settings": "./src/reader-settings.ts",

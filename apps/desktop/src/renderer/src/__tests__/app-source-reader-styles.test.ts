@@ -83,7 +83,7 @@ describe('source reader annotation styles', () => {
 
   it('keeps composer cancel buttons neutral in embedded readers', () => {
     expect(styles).toContain(
-      '.source-pdf-reader-shell .reader-composer-actions .reader-composer-cancel',
+      '.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel',
     );
     expect(styles).toContain('background: hsl(0 0% 0% / 0.055);');
   });
