@@ -16,8 +16,16 @@ module.exports = {
     '!node_modules/**/*.d.ts',
     '!node_modules/**/*.d.mts',
     '!node_modules/**/*.d.cts',
+    '!node_modules/better-sqlite3/deps/**',
+    '!node_modules/better-sqlite3/src/**',
   ],
-  asarUnpack: ['node_modules/better-sqlite3/**'],
+  asar: {
+    smartUnpack: false,
+  },
+  asarUnpack: [
+    'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
+    'node_modules/@napi-rs/**/*.node',
+  ],
   publish: [
     {
       provider: 'github',
