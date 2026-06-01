@@ -1,5 +1,121 @@
 # Changelog
 
+## 0.6.0 - 2026-06-01
+
+### 新功能
+
+- 新增阅读记忆底座，把阅读过程中的段落、选区、线程和批注记忆写入本地存储，并在后续助手生成中优先复用已有判断链路。(#166, #167, #168, #169, #170, #171, #172, #173, #174, #175, #176, #177, #178, #179)
+- AI 助手运行时升级为可追踪的工具调用链路，支持选区动作、线程回复、共读工具循环、调用诊断视图，并将深度运行时迁移到 AI SDK。(#182, #183, #184, #185, #186, #187, #201, #202, #242)
+- 批注讨论升级为独立讨论窗口和沉淀流程，支持助手参与讨论、沉淀稿整理、审阅助手反馈、发布沉淀卡片和沉淀统计。(#225, #226, #227, #228, #229, #230, #231, #232, #235, #236, #237, #238, #241, #243, #248)
+- 桌面端新增主题契约、主题选择器和阅读器纸张背景控制，统一网页文章、EPUB 和 PDF 的阅读视觉，并在暗色纸张下保留 PDF 原始页面颜色。(#204, #205, #210, #211, #233, #234, #239)
+- 阅读库和导入体验支持网页文章封面与进度、批量文件导入、导入对话框打磨、卡片统计提示和 PDF/EPUB 显示元数据清理。(#209, #216, #218, #219, #220, #221, #222, #223, #224)
+
+### 性能
+
+- 缓存 lexical related passages，减少长文和长书共读时的重复关联段落检索。(#215)
+- 优化文章导入流程，避免导入期间阻塞 UI 响应。(#246)
+- 跳过重复的批注记忆回填，避免启动后反复执行同一批历史数据迁移。(#212)
+
+### 修复
+
+- 修复 PDF 批注锚点、列表文本溢出、PDF 暗色纸张颜色、EPUB 方向键翻页和阅读器 header 拖拽回归。(#191, #199, #200, #239, #244)
+- 修复阅读记忆和助手运行时中的重复想法、线程记忆来源和工具调用稳定性问题。(#180, #181, #188)
+- 修复阅读库分页大小持久化、微信读书详情封面、电子书章节笔记计数、电子书 header 封面 hover 和批注元数据隐式推断问题。(#196, #206, #208, #214, #247)
+- 打磨批注卡片、助手头像、批注动作、快捷键 tooltip、封面 hover、关于页、主题纸张和通用 UI 交互。(#190, #192, #193, #194, #195, #203, #245)
+
+### 工程
+
+- 启用 type-aware lint 并更新依赖，抽取 selection context 工具，迁移深度运行时到 AI SDK，减少运行时边界重复逻辑。(#189, #213, #242)
+- 移除 focus co-reading 旧流程，并裁剪桌面端打包产物中的 native module 文件，降低发布包冗余。(#197, #249)
+- 更新用户文档、官网下载区和第三方授权清单，确保官网版本入口与桌面端内置开源许可证信息一致。(#217, #240, #249)
+
+### Changelog Detail
+
+- #249 chore(desktop): trim packaged native module files @xingkaixin
+- #248 feat: run assistant thoughts in parallel @xingkaixin
+- #247 fix: remove implicit annotation metadata inference @xingkaixin
+- #246 fix(desktop): keep article imports responsive @xingkaixin
+- #245 feat(desktop): polish UI interactions @xingkaixin
+- #244 fix(reader): restore header drag behavior @xingkaixin
+- #243 feat(assistant): show deep progress summaries @xingkaixin
+- #242 feat(ai): migrate deep runtime to AI SDK @xingkaixin
+- #241 feat: deepen annotation assistant modes @xingkaixin
+- #240 docs: update user docs after PR 162 @xingkaixin
+- #239 fix: keep PDF pages original on dark paper @xingkaixin
+- #238 feat(desktop): align annotation stats language @xingkaixin
+- #237 feat(desktop): redesign discussion capsules @xingkaixin
+- #236 feat(desktop): refine discussion window flow @xingkaixin
+- #235 feat(desktop): show distillation status @xingkaixin
+- #234 fix(desktop): polish theme paper readers @xingkaixin
+- #233 fix(reader): adapt annotation UI theme tokens @xingkaixin
+- #232 feat(reader): count published sedimentations @xingkaixin
+- #231 feat(reader): publish sedimentation cards @xingkaixin
+- #230 feat: add annotation sedimentation window @xingkaixin
+- #229 feat(desktop): add assistant discussion participation @xingkaixin
+- #228 feat(desktop): add annotation discussion content @xingkaixin
+- #227 feat(desktop): add annotation discussion window @xingkaixin
+- #226 feat(reader): summarize annotation cards @xingkaixin
+- #225 feat(annotation): add lifecycle data foundation @xingkaixin
+- #224 feat(ebook): clean EPUB display titles @xingkaixin
+- #223 feat(library): format PDF display metadata @xingkaixin
+- #222 feat(library): align cover progress bars @xingkaixin
+- #221 feat(library): align stats and weread info @xingkaixin
+- #220 feat(library): add grouped stat tooltips @xingkaixin
+- #219 feat(desktop): support batch file imports @xingkaixin
+- #218 feat(desktop): refine web article import dialog @xingkaixin
+- #217 feat(web): refine download section @xingkaixin
+- #216 feat(weread): refine note index cards @xingkaixin
+- #215 perf(core): cache lexical related passages @xingkaixin
+- #214 fix(desktop): remove ebook header cover hover @xingkaixin
+- #213 refactor(ai): extract selection context utilities @xingkaixin
+- #212 fix(startup): skip repeated annotation memory backfill @xingkaixin
+- #211 feat(reader): add reader paper background controls @xingkaixin
+- #210 fix(theme): use tokens for state colors @xingkaixin
+- #209 feat(reader): add web article covers and progress @xingkaixin
+- #208 fix(library): persist page size setting @xingkaixin
+- #207 chore(desktop): remove pointer cursors from controls @xingkaixin
+- #206 fix(desktop): keep weread detail cover flat @xingkaixin
+- #205 feat(theme): add desktop theme selector @xingkaixin
+- #204 feat(theme): add desktop theme contract @xingkaixin
+- #203 feat(desktop): redesign about settings layout @xingkaixin
+- #202 feat(desktop): add assistant diagnostics views @xingkaixin
+- #201 feat(ai): add assistant execution runtime @xingkaixin
+- #200 fix(desktop): restore ebook arrow page turns @xingkaixin
+- #199 fix(desktop): contain PDF list text overflow @xingkaixin
+- #198 feat(desktop): add book cover hover effects @xingkaixin
+- #197 chore: remove focus co-reading @xingkaixin
+- #196 fix(reader): count ebook notes in logical chapters @xingkaixin
+- #195 feat(reader-ui): unify assistant avatar entries @xingkaixin
+- #194 feat(reader-ui): improve focus assistant UI @xingkaixin
+- #193 feat(reader): move shortcuts into tooltips @xingkaixin
+- #192 feat(reader-ui): refine annotation actions @xingkaixin
+- #191 fix(desktop): preserve PDF annotation anchors @xingkaixin
+- #190 feat(reader-ui): refine annotation card visuals @xingkaixin
+- #189 chore: enable type-aware lint and update deps @xingkaixin
+- #188 fix(ai): stabilize agent tool runtime @xingkaixin
+- #187 feat(desktop): add agent trace panel @xingkaixin
+- #186 feat(desktop): add co-reading tool loop @xingkaixin
+- #185 feat(desktop): route selection actions through tools @xingkaixin
+- #184 feat(desktop): route thread replies through tools @xingkaixin
+- #183 feat(ai): add runtime provider and tools @xingkaixin
+- #182 feat(ai): add assistant tool runtime model @xingkaixin
+- #181 fix(ai): guard thread memory provenance @xingkaixin
+- #180 fix(memory): dedupe repeated co-reading thoughts @xingkaixin
+- #179 feat(memory): backfill annotation memory @xingkaixin
+- #178 feat(memory): add article section memory view @xingkaixin
+- #177 feat(memory): add thread memory view @xingkaixin
+- #176 feat(memory): add selection memory view @xingkaixin
+- #175 feat(memory): sync annotation entries in store @xingkaixin
+- #174 feat: add annotation memory ingestion @xingkaixin
+- #173 feat: clean up memory projection writes @xingkaixin
+- #172 feat: add task memory views @xingkaixin
+- #171 feat: add memory anchors and corrections @xingkaixin
+- #170 feat: wire reading memory lifecycle @xingkaixin
+- #169 feat: prefer reading memory entries @xingkaixin
+- #168 feat: double write reading memory entries @xingkaixin
+- #167 feat: add reading memory store @xingkaixin
+- #166 feat: add reading memory schema foundation @xingkaixin
+
 ## 0.5.0 - 2026-05-26
 
 ### 新功能

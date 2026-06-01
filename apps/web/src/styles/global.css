@@ -172,6 +172,11 @@
     text-wrap: balance;
   }
 
+  .hero-headline-line {
+    display: block;
+    white-space: nowrap;
+  }
+
   .hero-headline mark {
     position: relative;
     background: transparent;
@@ -193,11 +198,12 @@
   }
 
   .hero-sub {
-    max-width: 560px;
+    max-width: none;
     margin: 0 0 clamp(28px, 4vh, 48px);
     color: var(--color-muted);
     font-size: clamp(15px, 1.1vw, 19px);
     line-height: 1.8;
+    white-space: nowrap;
   }
 
   .install-panel {
@@ -291,6 +297,7 @@
   }
 
   .download-option {
+    position: relative;
     display: flex;
     min-height: 44px;
     align-items: center;
@@ -304,7 +311,8 @@
       color 160ms ease;
   }
 
-  .download-option:hover {
+  .download-option:hover,
+  .download-option:focus-visible {
     background: hsl(0 0% 8% / 0.04);
     color: var(--color-accent);
   }
@@ -315,6 +323,31 @@
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.25;
+  }
+
+  .download-option::after {
+    position: absolute;
+    right: 0;
+    bottom: 7px;
+    left: 0;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    content: '';
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 220ms ease;
+  }
+
+  .download-option:hover::after,
+  .download-option:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .download-option::after {
+      transition: none;
+    }
   }
 
   .download-option-meta {
@@ -366,42 +399,82 @@
   }
 
   .product-carousel {
-    max-width: 980px;
+    width: min(100%, 1120px);
     margin-top: clamp(36px, 7vh, 72px);
   }
 
-  .product-carousel-frame {
+  .product-carousel-viewport {
+    display: flex;
+    overflow-x: auto;
+    gap: clamp(16px, 3vw, 28px);
+    margin-inline: calc(clamp(24px, 5vw, 80px) * -1);
+    padding: 18px clamp(24px, 5vw, 80px) 26px;
+    cursor: grab;
+    scroll-padding-inline: clamp(24px, 5vw, 80px);
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    touch-action: pan-y;
+  }
+
+  .product-carousel-viewport::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-carousel-viewport::before,
+  .product-carousel-viewport::after {
+    flex: 0 0 max(0px, calc((100% - min(78vw, 780px)) / 2 - clamp(16px, 3vw, 28px)));
+    content: '';
+  }
+
+  .product-carousel-viewport.is-dragging {
+    cursor: grabbing;
+    scroll-snap-type: none;
+    user-select: none;
+  }
+
+  .product-carousel-card {
     position: relative;
+    width: min(78vw, 780px);
+    flex: 0 0 min(78vw, 780px);
     overflow: hidden;
+    margin: 0;
     border: 1px solid hsl(0 0% 8% / 0.13);
     border-radius: 8px;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 16 / 10;
     background: hsl(42 28% 92%);
     box-shadow:
-      0 32px 70px hsl(0 0% 0% / 0.12),
+      0 24px 48px hsl(0 0% 0% / 0.08),
+      0 1px 0 hsl(0 0% 100% / 0.7) inset;
+    cursor: pointer;
+    opacity: 0.48;
+    scroll-snap-align: center;
+    transform: scale(0.94);
+    transform-origin: center;
+    transition:
+      opacity 220ms ease,
+      transform 220ms ease,
+      box-shadow 220ms ease;
+  }
+
+  .product-carousel-card.is-active {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow:
+      0 32px 70px hsl(0 0% 0% / 0.14),
       0 1px 0 hsl(0 0% 100% / 0.8) inset;
   }
 
   .product-carousel-image {
-    position: absolute;
-    inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    opacity: 0;
-    transform: scale(1.018);
-    transition:
-      opacity 420ms ease,
-      transform 1200ms ease;
-  }
-
-  .product-carousel-image.is-active {
-    opacity: 1;
-    transform: scale(1);
+    object-fit: contain;
+    pointer-events: none;
+    user-select: none;
   }
 
   .product-carousel-copy {
     position: absolute;
+    right: 14px;
     bottom: 14px;
     left: 14px;
     max-width: 360px;
@@ -430,33 +503,27 @@
 
   .product-carousel-indicators {
     display: flex;
+    justify-content: center;
     gap: 8px;
-    margin-top: 14px;
+    margin-top: 4px;
   }
 
   .product-carousel-indicator {
-    position: relative;
-    overflow: hidden;
-    width: 64px;
-    height: 5px;
+    width: 28px;
+    height: 6px;
     border: 0;
     border-radius: 999px;
     background: hsl(0 0% 8% / 0.13);
     cursor: pointer;
     padding: 0;
+    transition:
+      background 160ms ease,
+      width 160ms ease;
   }
 
-  .product-carousel-progress {
-    display: block;
-    width: 100%;
-    height: 100%;
+  .product-carousel-indicator.is-active {
+    width: 48px;
     background: var(--color-accent);
-    transform: scaleX(0);
-    transform-origin: left;
-  }
-
-  .product-carousel-indicator.is-active .product-carousel-progress {
-    animation: carousel-progress var(--carousel-duration) linear forwards;
   }
 
   .section-block {
@@ -535,12 +602,6 @@
   }
 }
 
-@keyframes carousel-progress {
-  to {
-    transform: scaleX(1);
-  }
-}
-
 @keyframes version-pulse {
   0% {
     box-shadow: 0 0 0 0 hsl(3 62% 42% / 0.38);
@@ -587,6 +648,11 @@
     padding-top: clamp(104px, 18vh, 140px);
   }
 
+  .hero-headline-line,
+  .hero-sub {
+    white-space: normal;
+  }
+
   .download-cards {
     grid-template-columns: 1fr;
   }
@@ -595,8 +661,20 @@
     min-height: 168px;
   }
 
-  .product-carousel-frame {
+  .product-carousel-viewport {
+    margin-inline: -24px;
+    padding-inline: 24px;
+  }
+
+  .product-carousel-card {
+    width: 82vw;
+    flex-basis: 82vw;
     aspect-ratio: 4 / 3;
+  }
+
+  .product-carousel-viewport::before,
+  .product-carousel-viewport::after {
+    flex-basis: max(0px, calc((100% - 82vw) / 2 - 16px));
   }
 
   .product-carousel-copy {
@@ -608,6 +686,10 @@
 
   .product-carousel-indicator {
     flex: 1 1 0;
+    width: auto;
+  }
+
+  .product-carousel-indicator.is-active {
     width: auto;
   }
 

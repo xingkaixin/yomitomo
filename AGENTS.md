@@ -22,7 +22,7 @@
 - `apps/web`：Astro 产品官网，包含 landing page、下载入口、SEO 和产品静态图。
 - `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、PDF 和微信读书协议类型。
 - `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑。
-- `packages/ai`：LLM provider 调用、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
+- `packages/ai`：LLM provider 调用、AI SDK 运行时、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
 - `packages/reader-ui`：桌面阅读器 React UI、样式、工具和助手批注队列。
 - `dist/**`：各应用构建产物。
 
@@ -104,7 +104,7 @@ pnpm build
 
 - 新共享类型、provider preset、agent preset、ID/哈希工具、文本锚定、PDF 和微信读书协议类型放在 `packages/shared/src`，再从 `packages/shared/src/index.ts` 导出。
 - 业务逻辑放在 `packages/core/src`，按领域拆分模块，再从 `packages/core/src/index.ts` 导出。
-- AI provider 调用、模型输入预算、AI 生成链路和阅读上下文打包放在 `packages/ai/src`，再从 `packages/ai/src/index.ts` 导出。
+- AI provider 调用、AI SDK 运行时、模型输入预算、AI 生成链路和阅读上下文打包放在 `packages/ai/src`，再从 `packages/ai/src/index.ts` 导出。
 - 桌面端复用的阅读器 UI、样式、工具和 hooks 放在 `packages/reader-ui/src`。
 - 桌面端 renderer 的设置业务和通用展示工具放在 `apps/desktop/src/renderer/src/app-*` 模块。
 - 桌面端持久化路径基于 Electron `app.getPath("userData")`。
