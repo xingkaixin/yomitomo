@@ -27,6 +27,7 @@ import {
 import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from './app-annotation-sedimentation-window';
 import { ThemeSelector } from './app-theme-selector';
+import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-transition';
 import './styles.css';
 
 const startupThemeId = readCachedThemeId();
@@ -276,6 +277,7 @@ function App() {
   const [, setPreloadVersion] = useState(0);
   const [themeDialogOpen, setThemeDialogOpen] = useState(false);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [profileDialogSourceRect, setProfileDialogSourceRect] = useState<DialogSourceRect>();
   const [libraryReaderOpen, setLibraryReaderOpen] = useState(false);
   const [pendingOpenArticleId, setPendingOpenArticleId] = useState<string | null>(null);
   const [onboardingForced, setOnboardingForced] = useState(false);
@@ -486,11 +488,12 @@ function App() {
     setActiveSetting('settings');
   }
 
-  function openProfileDialog() {
+  function openProfileDialog(sourceElement?: Element) {
     recordStartupTiming('secondary_modules.navigation', {
       key: 'profile-dialog',
       status: preloadEntries.profileDialog.status,
     });
+    setProfileDialogSourceRect(sourceElement ? elementDialogSourceRect(sourceElement) : undefined);
     setProfileDialogOpen(true);
   }
 
@@ -624,7 +627,7 @@ function App() {
           className="app-nav-profile-button"
           data-tooltip="个人设置"
           type="button"
-          onClick={openProfileDialog}
+          onClick={(event) => openProfileDialog(event.currentTarget)}
         >
           <AvatarImage
             value={store.user.avatar || ''}
@@ -769,6 +772,7 @@ function App() {
             }}
             saveState={profileSaveState}
             saveError={profileSaveError}
+            sourceRect={profileDialogSourceRect}
           />
         </Suspense>
       ) : null}

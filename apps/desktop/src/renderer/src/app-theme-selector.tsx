@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { Check, Palette, X } from 'lucide-react';
 import {
   defaultReaderBackgroundForTone,
@@ -15,6 +15,11 @@ import {
   type AppTheme,
   type AppThemeId,
 } from './app-theme';
+import {
+  elementDialogSourceRect,
+  useSourceAwareDialogTransition,
+  type DialogSourceRect,
+} from './app-dialog-transition';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
@@ -33,6 +38,8 @@ export function ThemeSelector({
   onSelectReaderBackground,
   onSelectTheme,
 }: ThemeSelectorProps) {
+  const [sourceRect, setSourceRect] = useState<DialogSourceRect | null>(null);
+  const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   const activeTone = themeRegistry[activeThemeId].meta.tone;
   const visibleToneThemeIds = visibleThemeIds.filter(
     (themeId) => themeRegistry[themeId].meta.tone === activeTone,
@@ -69,7 +76,10 @@ export function ThemeSelector({
         className="app-nav-theme-button"
         data-tooltip="主题"
         type="button"
-        onClick={() => onOpenChange(true)}
+        onClick={(event) => {
+          setSourceRect(elementDialogSourceRect(event.currentTarget));
+          onOpenChange(true);
+        }}
       >
         <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
       </button>
@@ -84,8 +94,9 @@ export function ThemeSelector({
           <section
             aria-labelledby="theme-dialog-title"
             aria-modal="true"
-            className="theme-dialog"
+            className="theme-dialog source-aware-dialog"
             role="dialog"
+            style={dialogStyle}
           >
             <header className="theme-dialog-header">
               <div>

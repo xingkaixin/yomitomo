@@ -1263,4 +1263,23 @@ describe('UserProfileSettingsDialog', () => {
 
     expect(onSave).toHaveBeenCalledOnce();
   });
+
+  it('opens from the profile trigger source', () => {
+    render(
+      <UserProfileSettingsDialog
+        draft={defaultUser}
+        canSave
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+        sourceRect={{ x: 680, y: 52, width: 40, height: 40 }}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '个人设置' });
+
+    expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
+    expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
+  });
 });

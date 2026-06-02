@@ -59,6 +59,44 @@ describe('ThemeSelector', () => {
     expect(screen.getByRole('dialog', { name: '主题' })).toBeTruthy();
   });
 
+  it('opens the dialog from the theme trigger source', () => {
+    const { rerender } = render(
+      <ThemeSelector
+        activeThemeId={defaultThemeId}
+        open={false}
+        readerBackgroundColor={defaultReaderBackgroundColor}
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={() => undefined}
+        onSelectTheme={() => undefined}
+      />,
+    );
+
+    const trigger = screen.getByRole('button', { name: '打开主题选择' });
+    trigger.getBoundingClientRect = () =>
+      ({
+        x: 640,
+        y: 48,
+        width: 40,
+        height: 40,
+      }) as DOMRect;
+
+    fireEvent.click(trigger);
+    rerender(
+      <ThemeSelector
+        activeThemeId={defaultThemeId}
+        open
+        readerBackgroundColor={defaultReaderBackgroundColor}
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={() => undefined}
+        onSelectTheme={() => undefined}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '主题' });
+    expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
+    expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
+  });
+
   it('selects the extracted ink black theme', () => {
     const onSelectTheme = vi.fn();
 
