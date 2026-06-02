@@ -32,6 +32,18 @@ describe('inlineArticleImages', () => {
     expect(article.content).toContain('src="https://example.com/images/inline.jpg"');
   });
 
+  it('keeps the original image url when fetching throws', async () => {
+    const article = await inlineArticleImages(articleRecord(), {
+      articleDocument: document,
+      fetcher: async () => {
+        throw new Error('network failed');
+      },
+    });
+
+    expect(article.leadImageUrl).toBe('https://example.com/cover.jpg');
+    expect(article.content).toContain('src="https://example.com/images/inline.jpg"');
+  });
+
   it('prefers lazy image urls over placeholder src values', async () => {
     const fetcher = vi.fn(async () => 'data:image/png;base64,lazy');
 
@@ -71,6 +83,27 @@ describe('inlineArticleImages', () => {
     expect(maxActiveFetches).toBe(4);
     expect(fetcher).toHaveBeenCalledTimes(5);
     expect(article.content).toContain('src="data:image/png;base64,inline-4"');
+  });
+
+  it('dedupes repeated image requests', async () => {
+    const fetcher = vi.fn(async () => 'data:image/png;base64,shared');
+
+    const article = await inlineArticleImages(
+      articleRecord({
+        content: [
+          '<img src="/images/shared.jpg">',
+          '<img data-src="/images/shared.jpg" src="data:image/gif;base64,placeholder">',
+          '<picture><source srcset="/images/shared@2x.jpg 2x"><img src="/images/shared.jpg"></picture>',
+        ].join(''),
+        leadImageUrl: undefined,
+        siteIconUrl: undefined,
+      }),
+      { articleDocument: document, fetcher },
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith('https://example.com/images/shared.jpg');
+    expect(article.content.match(/src="data:image\/png;base64,shared"/g)).toHaveLength(3);
   });
 });
 

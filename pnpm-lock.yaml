@@ -290,6 +290,9 @@ importers:
       dompurify:
         specifier: ^3.4.5
         version: 3.4.5
+      effect:
+        specifier: ^3.21.2
+        version: 3.21.2
     devDependencies:
       typescript:
         specifier: ^6.0.3
