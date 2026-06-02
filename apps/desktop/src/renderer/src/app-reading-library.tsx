@@ -22,11 +22,8 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from './app-reading-types';
-import {
-  LIBRARY_SOURCE_OPTIONS,
-  LibraryHome,
-  type LibrarySourceTransitionDirection,
-} from './app-reading-library-home';
+import { LibraryHome, type LibrarySourceTransitionDirection } from './app-reading-library-home';
+import { enabledLibraryContentSources } from './app-library-content-sources';
 import { WeReadBookcase } from './app-weread-bookcase';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
@@ -118,7 +115,9 @@ export function ReadingLibrary({
   const [selectedArticle, setSelectedArticle] = useState<ArticleRecord | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
-  const [librarySource, setLibrarySource] = useState<LibrarySource>('web');
+  const [librarySource, setLibrarySource] = useState<LibrarySource>(
+    () => enabledLibraryContentSources(settings)[0] || 'web',
+  );
   const [librarySourceTransitionDirection, setLibrarySourceTransitionDirection] =
     useState<LibrarySourceTransitionDirection>('none');
   const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
@@ -144,6 +143,8 @@ export function ReadingLibrary({
   const distillationAnimationTimerRef = useRef<number | null>(null);
   const didAutoSyncWeReadRef = useRef(false);
   const sortedArticles = useMemo<ArticleSummaryRecord[]>(() => sortArticles(articles), [articles]);
+  const enabledSources = useMemo(() => enabledLibraryContentSources(settings), [settings]);
+  const wereadSourceEnabled = enabledSources.includes('weread');
   const annotations = useMemo<Annotation[]>(
     () => (selectedArticle ? sortAnnotations(selectedArticle.annotations) : []),
     [selectedArticle],
@@ -253,7 +254,7 @@ export function ReadingLibrary({
         if (cancelled) return;
         setWeReadSettings(state.settings);
         setWeReadBooks(state.books);
-        if (state.settings.configured && !didAutoSyncWeReadRef.current) {
+        if (wereadSourceEnabled && state.settings.configured && !didAutoSyncWeReadRef.current) {
           didAutoSyncWeReadRef.current = true;
           void syncWeReadLibrary();
         }
@@ -262,7 +263,13 @@ export function ReadingLibrary({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [wereadSourceEnabled]);
+
+  useEffect(() => {
+    if (enabledSources.includes(librarySource)) return;
+    setLibrarySource(enabledSources[0] || 'web');
+    setLibrarySourceTransitionDirection('none');
+  }, [enabledSources, librarySource]);
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
@@ -359,13 +366,13 @@ export function ReadingLibrary({
 
   function changeLibrarySource(nextSource: LibrarySource) {
     setLibrarySourceTransitionDirection(
-      librarySourceTransitionDirectionForChange(librarySource, nextSource),
+      librarySourceTransitionDirectionForChange(librarySource, nextSource, enabledSources),
     );
     setLibrarySource(nextSource);
   }
 
   async function syncWeReadLibrary() {
-    if (!window.yomitomoDesktop) return;
+    if (!window.yomitomoDesktop || !wereadSourceEnabled) return;
     setWeReadSyncing(true);
     try {
       const result = await window.yomitomoDesktop.syncWeRead();
@@ -584,10 +591,11 @@ function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsule
 function librarySourceTransitionDirectionForChange(
   currentSource: LibrarySource,
   nextSource: LibrarySource,
+  sourceOrder: LibrarySource[],
 ): LibrarySourceTransitionDirection {
   if (currentSource === nextSource) return 'none';
-  const currentIndex = LIBRARY_SOURCE_OPTIONS.findIndex((option) => option.value === currentSource);
-  const nextIndex = LIBRARY_SOURCE_OPTIONS.findIndex((option) => option.value === nextSource);
+  const currentIndex = sourceOrder.indexOf(currentSource);
+  const nextIndex = sourceOrder.indexOf(nextSource);
   if (currentIndex < 0 || nextIndex < 0) return 'none';
   return nextIndex > currentIndex ? 'forward' : 'backward';
 }

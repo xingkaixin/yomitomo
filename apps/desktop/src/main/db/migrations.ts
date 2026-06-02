@@ -694,4 +694,10 @@ ALTER TABLE annotations ADD COLUMN distillation_review_sessions TEXT;
 ALTER TABLE comments ADD COLUMN assistant_progress TEXT;
 `,
   },
+  {
+    id: '0045_library_content_sources',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN library_content_sources TEXT;
+`,
+  },
 ];

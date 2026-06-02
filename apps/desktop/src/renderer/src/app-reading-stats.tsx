@@ -1,10 +1,11 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, RefreshCcw } from 'lucide-react';
-import type { ArticleSummaryRecord } from '@yomitomo/shared';
+import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
 import { SegmentedControl } from './components/ui/segmented-control';
 import { PanelHeader } from './app-ui';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
+import { enabledLibraryContentSources } from './app-library-content-sources';
 import {
   activityMapDescription,
   activityStampLabel,
@@ -39,10 +40,12 @@ export function ReadingStatsPanel({
   articles,
   navigationStartedAt,
   onRefresh,
+  settings,
 }: {
   articles: ArticleSummaryRecord[];
   navigationStartedAt?: number;
   onRefresh: () => void;
+  settings?: AppSettings;
 }) {
   const [showDeferredContent, setShowDeferredContent] = useState(false);
   const [source, setSource] = useState<'local' | 'weread'>('local');
@@ -52,6 +55,17 @@ export function ReadingStatsPanel({
   const recordedChartReadyRef = useRef<number | undefined>(undefined);
   const recordedReadyRef = useRef<number | undefined>(undefined);
   const data = useMemo(() => getReadingStatsViewData(articles), [articles]);
+  const wereadStatsEnabled = enabledLibraryContentSources(settings).includes('weread');
+  const sourceOptions = wereadStatsEnabled
+    ? [
+        { value: 'local' as const, label: '本地阅读' },
+        { value: 'weread' as const, label: '微信读书' },
+      ]
+    : [{ value: 'local' as const, label: '本地阅读' }];
+
+  useEffect(() => {
+    if (!wereadStatsEnabled && source === 'weread') setSource('local');
+  }, [source, wereadStatsEnabled]);
 
   useEffect(() => {
     setShowDeferredContent(false);
@@ -140,10 +154,7 @@ export function ReadingStatsPanel({
         className="stats-source-tabs"
         role="tablist"
         value={source}
-        options={[
-          { value: 'local', label: '本地阅读' },
-          { value: 'weread', label: '微信读书' },
-        ]}
+        options={sourceOptions}
         onValueChange={setSource}
       />
       {source === 'weread' ? <WeReadReadingStatsPanel /> : null}

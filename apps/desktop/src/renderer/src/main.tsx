@@ -667,6 +667,7 @@ function App() {
             <ActiveReadingStatsPanel
               articles={store.articles}
               navigationStartedAt={statsNavigationStartedAt}
+              settings={store.settings}
               onRefresh={refreshStore}
             />
           ) : null}

@@ -125,6 +125,27 @@ describe('ReadingStatsPanel', () => {
     expect(onRefresh).toHaveBeenCalledOnce();
   });
 
+  it('hides the WeRead stats source when the WeRead library source is disabled', () => {
+    render(
+      <ReadingStatsPanel
+        articles={[]}
+        settings={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: true },
+            { id: 'pdf', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    const sourceTabs = screen.getByRole('tablist', { name: '统计来源' });
+    expect(sourceTabs.textContent).toContain('本地阅读');
+    expect(sourceTabs.textContent).not.toContain('微信读书');
+  });
+
   it('records stats loading timing phases', async () => {
     const recordPerformanceTiming = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(window, 'yomitomoDesktop', {

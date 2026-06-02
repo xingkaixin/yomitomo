@@ -273,6 +273,38 @@ describe('groupLibraryArticles', () => {
 });
 
 describe('ReadingLibrary home', () => {
+  it('defaults to the first enabled source preference', () => {
+    renderLibrary(
+      [
+        article({ id: 'web_1', title: '网页文章' }),
+        article({
+          id: 'pdf_1',
+          url: 'file://paper.pdf',
+          canonicalUrl: 'file://paper.pdf',
+          sourceType: 'pdf',
+          title: 'PDF 文档',
+        }),
+      ],
+      {
+        settings: {
+          libraryContentSources: [
+            { id: 'pdf', enabled: true },
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
+        },
+      },
+    );
+
+    expect(
+      within(screen.getByRole('tablist', { name: '阅读库内容类型' }))
+        .getByRole('button', { name: /PDF/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getByText('共 1 份')).toBeTruthy();
+  });
+
   it('keeps library controls in one header row and shows source-specific totals', () => {
     const { container } = renderLibrary([
       article({ id: 'web_1', title: '第一篇网页' }),
@@ -651,6 +683,35 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('05/28')).toBeTruthy();
     expect(screen.queryByText(/阅读 7 分钟/)).toBeNull();
     expect(screen.getByLabelText('2 条划线 · 0 条沉淀')).toBeTruthy();
+  });
+
+  it('hides disabled content source tabs and does not auto-sync hidden WeRead', async () => {
+    const state = {
+      settings: { configured: true, openMethod: 'deeplink' as const },
+      books: [],
+    };
+    const syncWeRead = vi.fn().mockResolvedValue(state);
+    vi.stubGlobal('yomitomoDesktop', {
+      getWeReadState: vi.fn().mockResolvedValue(state),
+      syncWeRead,
+    });
+
+    renderLibrary([], {
+      settings: {
+        libraryContentSources: [
+          { id: 'ebook', enabled: true },
+          { id: 'web', enabled: false },
+          { id: 'pdf', enabled: false },
+          { id: 'weread', enabled: false },
+        ],
+      },
+    });
+
+    const sourceTabs = within(screen.getByRole('tablist', { name: '阅读库内容类型' }));
+    expect(sourceTabs.queryByRole('button', { name: /网页文章/ })).toBeNull();
+    expect(sourceTabs.getByRole('button', { name: /电子书/ })).toBeTruthy();
+    expect(sourceTabs.queryByRole('button', { name: /微信读书/ })).toBeNull();
+    await waitFor(() => expect(syncWeRead).not.toHaveBeenCalled());
   });
 
   it('loads the full article before opening a PDF summary', async () => {

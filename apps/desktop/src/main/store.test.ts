@@ -67,6 +67,12 @@ describe('desktop store settings', () => {
           defaultProviderId: 'provider_1',
           themeId: 'ink-paper',
           libraryPageSize: 18,
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: false },
+            { id: 'pdf', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
           readingAssistantProviderId: 'provider_1',
           reviewAssistantProviderId: 'provider_1',
           assistantExecutionMode: 'deep_verification',
@@ -82,6 +88,12 @@ describe('desktop store settings', () => {
       defaultProviderId: undefined,
       themeId: 'ink-paper',
       libraryPageSize: 18,
+      libraryContentSources: [
+        { id: 'web', enabled: true },
+        { id: 'ebook', enabled: false },
+        { id: 'pdf', enabled: true },
+        { id: 'weread', enabled: false },
+      ],
       readingAssistantProviderId: undefined,
       reviewAssistantProviderId: undefined,
       assistantExecutionMode: 'deep_verification',
@@ -97,6 +109,17 @@ describe('desktop store settings', () => {
   it('defaults assistant execution mode to fast response', () => {
     expect(mergeSettingsForUpsert({}, {})).toMatchObject({
       assistantExecutionMode: 'fast_response',
+    });
+  });
+
+  it('defaults library content sources to the current source order', () => {
+    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
+      libraryContentSources: [
+        { id: 'web', enabled: true },
+        { id: 'ebook', enabled: true },
+        { id: 'pdf', enabled: true },
+        { id: 'weread', enabled: true },
+      ],
     });
   });
 
