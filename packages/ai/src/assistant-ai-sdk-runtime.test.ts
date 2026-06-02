@@ -157,6 +157,59 @@ describe('assistant AI SDK tool runtime', () => {
       failureReason: 'evidence_article_mismatch:article_2',
     });
   });
+
+  it('falls back when the provider stream fails before yielding text', async () => {
+    streamTextImpl = () => {
+      throw new Error('provider offline');
+    };
+    const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
+
+    const result = await runAssistantAiSdkToolRuntime({
+      taskType: 'thread_reply',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      provider: provider(),
+      payload: { system: 'system', user: 'user', maxTokens: 1200 },
+      allowedAnnotationIds: ['annotation_1'],
+      tools: [{ name: 'get_current_thread' }],
+      toolExecutor: vi.fn(),
+    });
+
+    expect(result).toMatchObject({
+      status: 'fallback',
+      failureReason: 'provider offline',
+    });
+  });
+
+  it('falls back when a tool executor throws during streaming', async () => {
+    streamTextImpl = (options) => ({
+      textStream: (async function* () {
+        await options.tools.get_current_thread.execute({}, { toolCallId: 'call_thread' });
+        yield '不会到达这里';
+      })(),
+      finishReason: Promise.resolve('stop'),
+      totalUsage: Promise.resolve({}),
+    });
+    const { runAssistantAiSdkToolRuntime } = await import('./assistant-runtime');
+
+    const result = await runAssistantAiSdkToolRuntime({
+      taskType: 'thread_reply',
+      articleId: 'article_1',
+      agentId: 'agent_1',
+      provider: provider(),
+      payload: { system: 'system', user: 'user', maxTokens: 1200 },
+      allowedAnnotationIds: ['annotation_1'],
+      tools: [{ name: 'get_current_thread' }],
+      toolExecutor: vi.fn(async () => {
+        throw new Error('tool database unavailable');
+      }),
+    });
+
+    expect(result).toMatchObject({
+      status: 'fallback',
+      failureReason: 'tool database unavailable',
+    });
+  });
 });
 
 function provider(): LlmProvider {
