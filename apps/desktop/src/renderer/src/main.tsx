@@ -13,11 +13,13 @@ import { SettingsNavButton } from './app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
 import {
   normalizeDesktopReaderSettings,
+  readDesktopReaderBackgroundsByTone,
   readDesktopReaderSettings,
   writeDesktopReaderSettings,
 } from './app-reader-settings';
 import {
   applyAppTheme,
+  readCachedThemeIdsByTone,
   readCachedThemeId,
   resolveAppThemeId,
   themeRegistry,
@@ -31,7 +33,9 @@ import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-tra
 import './styles.css';
 
 const startupThemeId = readCachedThemeId();
+const startupThemeIdsByTone = readCachedThemeIdsByTone();
 const startupReaderSettings = readDesktopReaderSettings();
+const startupReaderBackgroundsByTone = readDesktopReaderBackgroundsByTone();
 applyAppTheme(themeRegistry[startupThemeId]);
 
 function compatibleReaderBackgroundForTheme(
@@ -269,8 +273,12 @@ type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 function App() {
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
+  const [themeIdsByTone, setThemeIdsByTone] = useState(startupThemeIdsByTone);
   const [readerBackgroundColor, setReaderBackgroundColor] = useState(
     compatibleReaderBackgroundForTheme(startupThemeId, startupReaderSettings.backgroundColor),
+  );
+  const [readerBackgroundsByTone, setReaderBackgroundsByTone] = useState(
+    startupReaderBackgroundsByTone,
   );
   const [activeSettingsSection, setActiveSettingsSection] =
     useState<SettingsSectionKey>('collection');
@@ -313,6 +321,10 @@ function App() {
     setActiveThemeId((currentThemeId) =>
       currentThemeId === storedThemeId ? currentThemeId : storedThemeId,
     );
+    setThemeIdsByTone((currentThemeIds) => ({
+      ...currentThemeIds,
+      [themeRegistry[storedThemeId].meta.tone]: storedThemeId,
+    }));
     const currentReaderSettings = readDesktopReaderSettings();
     const nextBackgroundColor = compatibleReaderBackgroundForTheme(
       storedThemeId,
@@ -324,6 +336,10 @@ function App() {
         backgroundColor: nextBackgroundColor,
       });
       setReaderBackgroundColor(nextSettings.backgroundColor);
+      setReaderBackgroundsByTone((currentBackgrounds) => ({
+        ...currentBackgrounds,
+        [readerBackgroundTone(nextSettings.backgroundColor)]: nextSettings.backgroundColor,
+      }));
       writeDesktopReaderSettings(nextSettings);
     }
     writeCachedThemeId(storedThemeId);
@@ -422,12 +438,17 @@ function App() {
     return nextStore;
   }
 
-  async function selectTheme(themeId: AppThemeId) {
+  async function selectTheme(themeId: AppThemeId, preferredReaderBackgroundColor?: string) {
+    const themeTone = themeRegistry[themeId].meta.tone;
     setActiveThemeId(themeId);
+    setThemeIdsByTone((currentThemeIds) => ({
+      ...currentThemeIds,
+      [themeTone]: themeId,
+    }));
     writeCachedThemeId(themeId);
     const nextBackgroundColor = compatibleReaderBackgroundForTheme(
       themeId,
-      readerBackgroundColor,
+      preferredReaderBackgroundColor || readerBackgroundColor,
       activeThemeId,
     );
     if (nextBackgroundColor !== readerBackgroundColor) {
@@ -436,6 +457,10 @@ function App() {
         backgroundColor: nextBackgroundColor,
       });
       setReaderBackgroundColor(nextSettings.backgroundColor);
+      setReaderBackgroundsByTone((currentBackgrounds) => ({
+        ...currentBackgrounds,
+        [readerBackgroundTone(nextSettings.backgroundColor)]: nextSettings.backgroundColor,
+      }));
       writeDesktopReaderSettings(nextSettings);
     }
     try {
@@ -452,6 +477,10 @@ function App() {
       backgroundColor,
     });
     setReaderBackgroundColor(nextSettings.backgroundColor);
+    setReaderBackgroundsByTone((currentBackgrounds) => ({
+      ...currentBackgrounds,
+      [readerBackgroundTone(nextSettings.backgroundColor)]: nextSettings.backgroundColor,
+    }));
     writeDesktopReaderSettings(nextSettings);
   }
 
@@ -618,9 +647,11 @@ function App() {
           activeThemeId={activeThemeId}
           open={themeDialogOpen}
           readerBackgroundColor={readerBackgroundColor}
+          readerBackgroundsByTone={readerBackgroundsByTone}
+          themeIdsByTone={themeIdsByTone}
           onOpenChange={setThemeDialogOpen}
           onSelectReaderBackground={selectReaderBackground}
-          onSelectTheme={(themeId) => void selectTheme(themeId)}
+          onSelectTheme={(themeId, backgroundColor) => void selectTheme(themeId, backgroundColor)}
         />
         <button
           aria-label="打开个人设置"

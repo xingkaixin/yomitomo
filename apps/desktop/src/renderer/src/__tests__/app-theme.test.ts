@@ -14,11 +14,14 @@ import {
   inkPaperTheme,
   inkPaperThemeId,
   readCachedThemeId,
+  readCachedThemeIdsByTone,
   resolveAppThemeId,
+  resolveAppThemeIdForTone,
   themeRegistry,
   themeToCssVariables,
   visibleThemeIds,
   writeCachedThemeId,
+  writeCachedThemeIdForTone,
 } from '../app-theme';
 
 describe('app theme contract', () => {
@@ -115,5 +118,28 @@ describe('app theme contract', () => {
     expect(resolveAppThemeId('missing')).toBe(defaultThemeId);
     writeCachedThemeId(inkPaperThemeId, storage);
     expect(readCachedThemeId(storage)).toBe(inkPaperThemeId);
+  });
+
+  it('remembers the last selected theme for each tone', () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+    } as Storage;
+
+    writeCachedThemeIdForTone(inkPaperThemeId, storage);
+    writeCachedThemeIdForTone(duskIndigoThemeId, storage);
+
+    expect(readCachedThemeIdsByTone(storage)).toEqual({
+      light: inkPaperThemeId,
+      dark: duskIndigoThemeId,
+    });
+  });
+
+  it('falls back to tone defaults for invalid theme history', () => {
+    expect(resolveAppThemeIdForTone(duskIndigoThemeId, 'light')).toBe(defaultThemeId);
+    expect(resolveAppThemeIdForTone(inkPaperThemeId, 'dark')).toBe(inkBlackThemeId);
   });
 });

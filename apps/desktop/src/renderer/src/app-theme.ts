@@ -107,6 +107,7 @@ export const inkBlackThemeId = 'ink-black';
 export const duskIndigoThemeId = 'dusk-indigo';
 export const inkPaperThemeId = 'ink-paper';
 const cachedThemeStorageKey = 'yomitomo.themeId';
+const cachedThemeIdsByToneStorageKey = 'yomitomo.themeIdsByTone';
 
 const defaultReaderTheme: ReaderTheme = {
   background: '#f5f1e8',
@@ -891,6 +892,11 @@ export function defaultThemeIdForTone(tone: AppThemeTone): AppThemeId {
   );
 }
 
+export function resolveAppThemeIdForTone(value: unknown, tone: AppThemeTone): AppThemeId {
+  const themeId = resolveAppThemeId(value);
+  return themeRegistry[themeId].meta.tone === tone ? themeId : defaultThemeIdForTone(tone);
+}
+
 export function themeToCssVariables(theme: AppTheme): CssVariableMap {
   return {
     '--font-ui': theme.font.ui,
@@ -1006,9 +1012,61 @@ export function writeCachedThemeId(
 
   try {
     storage.setItem(cachedThemeStorageKey, themeId);
+    writeCachedThemeIdForTone(themeId, storage);
   } catch {
     // Theme cache is a startup optimization; settings remain the source of truth.
   }
+}
+
+export function readCachedThemeIdsByTone(
+  storage: Storage | undefined = browserLocalStorage(),
+): Record<AppThemeTone, AppThemeId> {
+  if (!storage) return defaultThemeIdsByTone();
+
+  try {
+    return normalizeThemeIdsByTone(
+      JSON.parse(storage.getItem(cachedThemeIdsByToneStorageKey) || '{}'),
+    );
+  } catch {
+    return defaultThemeIdsByTone();
+  }
+}
+
+export function readCachedThemeIdForTone(
+  tone: AppThemeTone,
+  storage: Storage | undefined = browserLocalStorage(),
+): AppThemeId {
+  return readCachedThemeIdsByTone(storage)[tone];
+}
+
+export function writeCachedThemeIdForTone(
+  themeId: AppThemeId,
+  storage: Storage | undefined = browserLocalStorage(),
+) {
+  if (!storage) return;
+
+  try {
+    const tone = themeRegistry[themeId].meta.tone;
+    const nextThemeIds = { ...readCachedThemeIdsByTone(storage), [tone]: themeId };
+    storage.setItem(cachedThemeIdsByToneStorageKey, JSON.stringify(nextThemeIds));
+  } catch {
+    // Theme cache is a startup optimization; settings remain the source of truth.
+  }
+}
+
+function defaultThemeIdsByTone(): Record<AppThemeTone, AppThemeId> {
+  return {
+    light: defaultThemeIdForTone('light'),
+    dark: defaultThemeIdForTone('dark'),
+  };
+}
+
+function normalizeThemeIdsByTone(value: unknown): Record<AppThemeTone, AppThemeId> {
+  const input = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return {
+    light: resolveAppThemeIdForTone(input.light, 'light'),
+    dark: resolveAppThemeIdForTone(input.dark, 'dark'),
+  };
 }
 
 function paperPatternImage(pattern: PaperPatternTheme) {
