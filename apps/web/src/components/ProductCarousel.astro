@@ -135,11 +135,7 @@ const initialSlidePosition = slides.length;
       if (isDragging) return;
       const normalizedPosition = canonicalPosition(activePosition);
       if (normalizedPosition === activePosition) return;
-      cards[normalizedPosition]?.scrollIntoView({
-        behavior: 'auto',
-        block: 'nearest',
-        inline: 'center',
-      });
+      scrollToCenteredCard(normalizedPosition, 'auto');
       updateActiveSlide(normalizedPosition);
     }
 
@@ -159,12 +155,22 @@ const initialSlidePosition = slides.length;
       scrollFrame = window.requestAnimationFrame(findCenteredSlide);
     }
 
+    function scrollToCenteredCard(position: number, behavior: ScrollBehavior) {
+      const card = cards[position];
+      if (!card) return;
+
+      const viewportRect = scrollViewport.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const targetLeft =
+        scrollViewport.scrollLeft +
+        (cardRect.left + cardRect.width / 2) -
+        (viewportRect.left + viewportRect.width / 2);
+
+      scrollViewport.scrollTo({ left: Math.max(0, targetLeft), behavior });
+    }
+
     function scrollToPosition(position: number, behavior: ScrollBehavior = 'smooth') {
-      cards[position]?.scrollIntoView({
-        behavior,
-        block: 'nearest',
-        inline: 'center',
-      });
+      scrollToCenteredCard(position, behavior);
       updateActiveSlide(position);
       queueLoopNormalization();
     }
