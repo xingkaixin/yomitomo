@@ -1704,6 +1704,61 @@ describe('agent annotations', () => {
     ]);
     expect(result.readingMemory).toBeUndefined();
   });
+
+  it('keeps annotations when reading memory parsing fails', async () => {
+    const chapters = [
+      {
+        id: 'chapter-1',
+        title: '第一章',
+        paragraphs: ['第一段核心判断可以讨论。'],
+      },
+    ];
+    const ebookIndex = buildEpubBookIndex({ articleId: 'book-1', chapters });
+    const text = epubIndexText(chapters);
+    let callIndex = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      callIndex += 1;
+      const content =
+        callIndex === 2
+          ? '不是 JSON'
+          : JSON.stringify([
+              {
+                exact: '第一段核心判断',
+                type: 'key_point',
+                comment: '这个判断后面要看证据。',
+              },
+            ]);
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ index: 0, message: { content } }] }), {
+          status: 200,
+        }),
+      );
+    });
+
+    const result = await runAgentAnnotateWithMemory(provider, agent, {
+      agentId: agent.id,
+      agentUsername: agent.username,
+      readingPlan: [
+        {
+          sectionId: 'chapter-1',
+          sectionTitle: '第一章',
+          sectionStart: 0,
+          sectionEnd: text.length,
+        },
+      ],
+      article: {
+        title: '长书',
+        url: 'ebook://book-1',
+        text,
+        ebookIndex,
+      },
+    });
+
+    expect(result.annotations.map((annotation) => annotation.anchor.exact)).toEqual([
+      '第一段核心判断',
+    ]);
+    expect(result.readingMemory).toBeUndefined();
+  });
 });
 
 function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
