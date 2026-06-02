@@ -93,4 +93,37 @@ describe('reading library styles', () => {
       /@media \(max-width: 760px\) \{[\s\S]*\.library-ebook-list-item \{[\s\S]*padding-right: 0;[\s\S]*\}/,
     );
   });
+
+  it('defines direction-aware reading library transitions with reduced motion support', () => {
+    expect(styles).toContain('--page-slide-dur: 200ms;');
+    expectRule(
+      ".library-bookcase-screen[data-route-transition='enter-source'] .library-shelf-content",
+      [
+        'animation: library-route-source-enter var(--page-slide-dur) var(--page-slide-ease) both;',
+        'will-change: opacity, transform, filter;',
+      ],
+    );
+    expectRule(
+      ".library-bookcase-screen[data-route-transition='enter-library'] .library-shelf-content",
+      [
+        'animation: library-route-library-enter var(--page-slide-dur) var(--page-slide-ease) both;',
+        'will-change: opacity, transform, filter;',
+      ],
+    );
+    expectRule(".library-home-body[data-source-transition='forward'] .library-source-panel", [
+      'animation: library-source-panel-forward var(--page-slide-dur) var(--page-slide-ease) both;',
+    ]);
+    expectRule(".library-home-body[data-source-transition='backward'] .library-source-panel", [
+      'animation: library-source-panel-backward var(--page-slide-dur) var(--page-slide-ease) both;',
+    ]);
+    expectRule(".library-source-panel[data-page-transition='forward'] .library-page-panel", [
+      'animation: library-page-panel-forward var(--page-slide-dur) var(--page-slide-ease) both;',
+    ]);
+    expectRule(".library-source-panel[data-page-transition='backward'] .library-page-panel", [
+      'animation: library-page-panel-backward var(--page-slide-dur) var(--page-slide-ease) both;',
+    ]);
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.library-bookcase-screen\[data-route-transition\] \.library-shelf-content,[\s\S]*\.library-home-body\[data-source-transition\] \.library-source-panel,[\s\S]*\.library-source-panel\[data-page-transition\] \.library-page-panel \{[\s\S]*animation: none !important;[\s\S]*will-change: auto;[\s\S]*\}/,
+    );
+  });
 });
