@@ -1,11 +1,77 @@
 import type { LlmProvider } from '@yomitomo/shared';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { callProviderText, streamProviderText } from './provider-client';
+import { callProviderText, listProviderModels, streamProviderText } from './provider-client';
 
 function requestBodyText(value: unknown) {
   return typeof value === 'string' ? value : '';
 }
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status });
+}
+
+describe('listProviderModels', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('lists and dedupes OpenAI compatible models', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({
+        data: [
+          { id: 'model-a', name: 'Model A' },
+          { id: 'model-a', name: 'Duplicate' },
+          { id: '', name: 'Blank' },
+        ],
+      }),
+    );
+
+    await expect(listProviderModels(provider())).resolves.toEqual([
+      { id: 'model-a', name: 'Model A' },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/v1/models', {
+      headers: { Authorization: 'Bearer key' },
+    });
+  });
+
+  it('rejects with a typed network error message', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
+
+    await expect(listProviderModels(provider())).rejects.toThrow('模型服务请求失败：offline');
+  });
+
+  it('rejects with provider HTTP error details', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('bad credentials', { status: 401 }),
+    );
+
+    await expect(listProviderModels(provider())).rejects.toThrow(
+      '模型服务请求失败：401 bad credentials',
+    );
+  });
+
+  it('normalizes Anthropic context errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('input context length exceeds maximum tokens', { status: 400 }),
+    );
+
+    await expect(
+      listProviderModels({
+        ...provider(),
+        type: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+      }),
+    ).rejects.toThrow('模型上下文超限：请换用更大上下文模型，缩小文章范围，或减少批注证据后重试。');
+  });
+
+  it('rejects with a response decode error when JSON parsing fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('not json', { status: 200 }));
+
+    await expect(listProviderModels(provider())).rejects.toThrow('模型服务响应解析失败');
+  });
+});
 
 describe('streamProviderText', () => {
   afterEach(() => {
@@ -49,14 +115,11 @@ describe('callProviderText response schema', () => {
   });
 
   it('passes JSON schema response_format to OpenAI chat providers', async () => {
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({ choices: [{ index: 0, message: { content: '{"ok":true}' } }] }),
-        {
-          status: 200,
-        },
-      ),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        jsonResponse({ choices: [{ index: 0, message: { content: '{"ok":true}' } }] }),
+      );
 
     await callProviderText(
       {
@@ -82,29 +145,26 @@ describe('callProviderText response schema', () => {
 
   it('passes JSON schema text format to OpenAI responses providers', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          id: 'response-1',
-          created_at: 0,
-          model: 'model',
-          output: [
-            {
-              id: 'message-1',
-              type: 'message',
-              role: 'assistant',
-              content: [
-                {
-                  type: 'output_text',
-                  text: '{"ok":true}',
-                  annotations: [],
-                },
-              ],
-            },
-          ],
-          usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
-        }),
-        { status: 200 },
-      ),
+      jsonResponse({
+        id: 'response-1',
+        created_at: 0,
+        model: 'model',
+        output: [
+          {
+            id: 'message-1',
+            type: 'message',
+            role: 'assistant',
+            content: [
+              {
+                type: 'output_text',
+                text: '{"ok":true}',
+                annotations: [],
+              },
+            ],
+          },
+        ],
+        usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+      }),
     );
 
     await callProviderText(
@@ -132,12 +192,9 @@ describe('callProviderText response schema', () => {
 
   it('passes responseSchema to Gemini generation config', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
-        }),
-        { status: 200 },
-      ),
+      jsonResponse({
+        candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
+      }),
     );
 
     await callProviderText(
@@ -158,6 +215,14 @@ describe('callProviderText response schema', () => {
       required: ['ok'],
       properties: testResponseSchema().schema.properties,
     });
+  });
+
+  it('rejects with the empty model response error from the Effect boundary', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
+    );
+
+    await expect(callProviderText(provider(), payload())).rejects.toThrow('模型返回为空');
   });
 });
 

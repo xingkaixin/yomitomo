@@ -1,5 +1,6 @@
 import type { LlmProvider, ProviderModel } from '@yomitomo/shared';
 import { providerPresets } from '@yomitomo/shared';
+import { Effect } from 'effect';
 import { normalizeAnthropicError } from './budget';
 import { geminiBaseUrl, openAIBaseUrl } from './ai-sdk-provider-adapter';
 import { generateYomitomoText, streamYomitomoText } from './generation-runtime';
@@ -36,11 +37,30 @@ export type TextPayload = {
   responseSchema?: ResponseSchema;
 };
 
+type ProviderClientError = ProviderHttpError | ProviderNetworkError | ProviderResponseDecodeError;
+
+class ProviderNetworkError extends Error {
+  readonly _tag = 'ProviderNetworkError';
+
+  constructor(cause: unknown) {
+    super(`模型服务请求失败：${errorMessage(cause)}`);
+  }
+}
+
+class ProviderHttpError extends Error {
+  readonly _tag = 'ProviderHttpError';
+}
+
+class ProviderResponseDecodeError extends Error {
+  readonly _tag = 'ProviderResponseDecodeError';
+
+  constructor(cause: unknown) {
+    super(`模型服务响应解析失败：${errorMessage(cause)}`);
+  }
+}
+
 export async function listProviderModels(provider: Partial<LlmProvider>): Promise<ProviderModel[]> {
-  const normalized = normalizeProvider(provider);
-  if (normalized.type === 'gemini') return listGeminiModels(normalized);
-  if (normalized.type === 'anthropic') return listAnthropicModels(normalized);
-  return listOpenAICompatibleModels(normalized);
+  return Effect.runPromise(listProviderModelsEffect(normalizeProvider(provider)));
 }
 
 export async function callProviderText(
@@ -79,56 +99,86 @@ function normalizeProvider(provider: Partial<LlmProvider>): LlmProvider {
   };
 }
 
-async function listOpenAICompatibleModels(provider: LlmProvider) {
-  const response = await fetch(`${openAIBaseUrl(provider.baseUrl)}/models`, {
-    headers: bearerHeaders(provider),
-  });
-  if (!response.ok) throw new Error(await modelListError(response));
-  const data = (await response.json()) as { data?: Array<{ id?: string; name?: string }> };
-  return modelList(
-    data.data?.map((model) => ({
-      id: model.id || '',
-      name: model.name || model.id || '',
-    })),
-    provider,
-  );
+function listProviderModelsEffect(provider: LlmProvider) {
+  if (provider.type === 'gemini') return listGeminiModelsEffect(provider);
+  if (provider.type === 'anthropic') return listAnthropicModelsEffect(provider);
+  return listOpenAICompatibleModelsEffect(provider);
 }
 
-async function listAnthropicModels(provider: LlmProvider) {
-  const response = await fetch(`${trimSlash(provider.baseUrl)}/v1/models`, {
-    headers: {
-      'anthropic-version': '2023-06-01',
-      'x-api-key': provider.apiKey,
-    },
+function listOpenAICompatibleModelsEffect(
+  provider: LlmProvider,
+): Effect.Effect<ProviderModel[], ProviderClientError> {
+  return Effect.gen(function* () {
+    const response = yield* fetchProviderModels(`${openAIBaseUrl(provider.baseUrl)}/models`, {
+      headers: bearerHeaders(provider),
+    });
+    if (!response.ok) {
+      const message = yield* modelListErrorEffect(response);
+      return yield* Effect.fail(new ProviderHttpError(message));
+    }
+    const data = yield* responseJsonEffect<{
+      data?: Array<{ id?: string; name?: string }>;
+    }>(response);
+    return modelList(
+      data.data?.map((model) => ({
+        id: model.id || '',
+        name: model.name || model.id || '',
+      })),
+      provider,
+    );
   });
-  if (!response.ok)
-    throw new Error(normalizeAnthropicError(response.status, await response.text()));
-  const data = (await response.json()) as {
-    data?: Array<{ id?: string; display_name?: string }>;
-  };
-  return modelList(
-    data.data?.map((model) => ({
-      id: model.id || '',
-      name: model.display_name || model.id || '',
-    })),
-    provider,
-  );
 }
 
-async function listGeminiModels(provider: LlmProvider) {
+function listAnthropicModelsEffect(
+  provider: LlmProvider,
+): Effect.Effect<ProviderModel[], ProviderClientError> {
+  return Effect.gen(function* () {
+    const response = yield* fetchProviderModels(`${trimSlash(provider.baseUrl)}/v1/models`, {
+      headers: {
+        'anthropic-version': '2023-06-01',
+        'x-api-key': provider.apiKey,
+      },
+    });
+    if (!response.ok) {
+      const text = yield* responseTextEffect(response);
+      return yield* Effect.fail(
+        new ProviderHttpError(normalizeAnthropicError(response.status, text)),
+      );
+    }
+    const data = yield* responseJsonEffect<{
+      data?: Array<{ id?: string; display_name?: string }>;
+    }>(response);
+    return modelList(
+      data.data?.map((model) => ({
+        id: model.id || '',
+        name: model.display_name || model.id || '',
+      })),
+      provider,
+    );
+  });
+}
+
+function listGeminiModelsEffect(
+  provider: LlmProvider,
+): Effect.Effect<ProviderModel[], ProviderClientError> {
   const url = `${geminiBaseUrl(provider.baseUrl)}/models?key=${encodeURIComponent(provider.apiKey)}`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(await modelListError(response));
-  const data = (await response.json()) as {
-    models?: Array<{ name?: string; displayName?: string }>;
-  };
-  return modelList(
-    data.models?.map((model) => {
-      const id = (model.name || '').replace(/^models\//, '');
-      return { id, name: model.displayName || id };
-    }),
-    provider,
-  );
+  return Effect.gen(function* () {
+    const response = yield* fetchProviderModels(url);
+    if (!response.ok) {
+      const message = yield* modelListErrorEffect(response);
+      return yield* Effect.fail(new ProviderHttpError(message));
+    }
+    const data = yield* responseJsonEffect<{
+      models?: Array<{ name?: string; displayName?: string }>;
+    }>(response);
+    return modelList(
+      data.models?.map((model) => {
+        const id = (model.name || '').replace(/^models\//, '');
+        return { id, name: model.displayName || id };
+      }),
+      provider,
+    );
+  });
 }
 
 function modelList(models: ProviderModel[] | undefined, provider: LlmProvider) {
@@ -151,9 +201,39 @@ function dedupeModels(models: ProviderModel[]) {
   });
 }
 
-async function modelListError(response: Response) {
-  const text = await response.text();
-  return `模型服务请求失败：${response.status} ${text.slice(0, 400)}`;
+function fetchProviderModels(
+  url: string,
+  init?: RequestInit,
+): Effect.Effect<Response, ProviderNetworkError> {
+  return Effect.tryPromise({
+    try: () => fetch(url, init),
+    catch: (error) => new ProviderNetworkError(error),
+  });
+}
+
+function responseJsonEffect<T>(response: Response): Effect.Effect<T, ProviderResponseDecodeError> {
+  return Effect.tryPromise({
+    try: () => response.json() as Promise<T>,
+    catch: (error) => new ProviderResponseDecodeError(error),
+  });
+}
+
+function responseTextEffect(response: Response) {
+  return Effect.tryPromise({
+    try: () => response.text(),
+    catch: (error) => new ProviderResponseDecodeError(error),
+  });
+}
+
+function modelListErrorEffect(response: Response) {
+  return Effect.gen(function* () {
+    const text = yield* responseTextEffect(response);
+    return `模型服务请求失败：${response.status} ${text.slice(0, 400)}`;
+  });
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function trimSlash(value: string) {
