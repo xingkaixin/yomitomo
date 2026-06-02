@@ -10,72 +10,76 @@ import type {
   WeReadThought,
   WeReadUser,
 } from '@yomitomo/shared';
+import { Effect } from 'effect';
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway';
 export const WEREAD_SKILL_VERSION = '1.0.3';
 
 type WeReadGatewayResponse = Record<string, unknown>;
+type WeReadClientError =
+  | WeReadApiError
+  | WeReadGatewayDecodeError
+  | WeReadHttpError
+  | WeReadNetworkError
+  | WeReadUpgradeError;
+
+class WeReadHttpError extends Error {
+  readonly _tag = 'WeReadHttpError';
+
+  constructor(readonly status: number) {
+    super(`微信读书请求失败：HTTP ${status}`);
+  }
+}
+
+class WeReadNetworkError extends Error {
+  readonly _tag = 'WeReadNetworkError';
+
+  constructor(cause: unknown) {
+    super(`微信读书请求失败：${errorMessage(cause)}`);
+  }
+}
+
+class WeReadGatewayDecodeError extends Error {
+  readonly _tag = 'WeReadGatewayDecodeError';
+
+  constructor(cause: unknown) {
+    super(`微信读书响应解析失败：${errorMessage(cause)}`);
+  }
+}
+
+class WeReadUpgradeError extends Error {
+  readonly _tag = 'WeReadUpgradeError';
+
+  constructor(message: string) {
+    super(message || '微信读书接口版本需要升级');
+  }
+}
+
+class WeReadApiError extends Error {
+  readonly _tag = 'WeReadApiError';
+
+  constructor(
+    readonly errcode: number,
+    message: string,
+  ) {
+    super(message || `微信读书接口返回错误：${errcode}`);
+  }
+}
 
 export async function testWeReadConnection(apiKey: string) {
-  await requestWeRead(apiKey, '/user/notebooks', { count: 1 });
+  await Effect.runPromise(requestWeReadEffect(apiKey, '/user/notebooks', { count: 1 }));
   return { ok: true, message: '微信读书 API 已连通' };
 }
 
 export async function fetchWeReadNotebooks(apiKey: string) {
-  const books: WeReadBook[] = [];
-  let lastSort: number | undefined;
-
-  for (let page = 0; page < 50; page += 1) {
-    const response = await requestWeRead(apiKey, '/user/notebooks', {
-      count: 100,
-      ...(lastSort ? { lastSort } : {}),
-    });
-    const pageBooks = arrayValue(response.books).map((item) => notebookBookFromResponse(item));
-    books.push(...pageBooks.filter(hasWeReadNotebookContent));
-    if (response.hasMore !== 1 || pageBooks.length === 0) break;
-    lastSort = pageBooks.at(-1)?.sort;
-    if (!lastSort) break;
-  }
-
-  return books.toSorted(
-    (left, right) =>
-      (right.lastReadAt || right.sort || 0) - (left.lastReadAt || left.sort || 0) ||
-      right.updatedAt.localeCompare(left.updatedAt),
-  );
+  return Effect.runPromise(fetchWeReadNotebooksEffect(apiKey));
 }
 
 export async function fetchWeReadBookDetail(
   apiKey: string,
   bookId: string,
 ): Promise<WeReadBookDetail> {
-  const [info, chaptersResponse, progressResponse, bookmarksResponse, thoughtsResponse] =
-    await Promise.all([
-      requestWeRead(apiKey, '/book/info', { bookId }),
-      requestWeRead(apiKey, '/book/chapterinfo', { bookId }),
-      requestWeRead(apiKey, '/book/getprogress', { bookId }),
-      requestWeRead(apiKey, '/book/bookmarklist', { bookId }),
-      fetchWeReadThoughts(apiKey, bookId),
-    ]);
-
-  const chapters = arrayValue(chaptersResponse.chapters).map((item) =>
-    chapterFromResponse(bookId, item),
-  );
-  const chapterIndexByUid = new Map(
-    chapters.map((chapter) => [chapter.chapterUid, chapter.chapterIdx]),
-  );
-  const highlights = arrayValue(bookmarksResponse.updated)
-    .map((item) => highlightFromResponse(bookId, item, chapterIndexByUid))
-    .filter(isValidWeReadHighlight);
-  const thoughts = thoughtsResponse
-    .map((item) => thoughtFromResponse(bookId, item, chapterIndexByUid))
-    .filter(isValidWeReadThought);
-  const book = withValidContentCounts(
-    mergeBookInfo(notebookBookFromResponse({ bookId, book: info }), progressResponse),
-    highlights,
-    thoughts,
-  );
-
-  return { book, chapters, highlights, thoughts };
+  return Effect.runPromise(fetchWeReadBookDetailEffect(apiKey, bookId));
 }
 
 export async function fetchWeReadReadingStats(
@@ -83,11 +87,7 @@ export async function fetchWeReadReadingStats(
   mode: WeReadReadingStatsMode,
   baseTime?: number,
 ): Promise<WeReadReadingStats> {
-  const response = await requestWeRead(apiKey, '/readdata/detail', {
-    mode,
-    ...(mode === 'overall' || baseTime === undefined ? {} : { baseTime }),
-  });
-  return readingStatsFromResponse(mode, response);
+  return Effect.runPromise(fetchWeReadReadingStatsEffect(apiKey, mode, baseTime));
 }
 
 export function mergeWeReadNotebookBook(
@@ -112,53 +112,146 @@ export function hasValidWeReadBookDetailContent(detail: WeReadBookDetail) {
   return detail.highlights.length + detail.thoughts.length > 0;
 }
 
-async function fetchWeReadThoughts(apiKey: string, bookId: string) {
-  const thoughts: Record<string, unknown>[] = [];
-  let synckey = 0;
+function fetchWeReadNotebooksEffect(apiKey: string) {
+  return Effect.gen(function* () {
+    const books: WeReadBook[] = [];
+    let lastSort: number | undefined;
 
-  for (let page = 0; page < 50; page += 1) {
-    const response = await requestWeRead(apiKey, '/review/list/mine', {
-      bookid: bookId,
-      count: 100,
-      ...(synckey ? { synckey } : {}),
-    });
-    thoughts.push(...arrayValue(response.reviews));
-    if (response.hasMore !== 1) break;
-    const nextSynckey = numberValue(response.synckey);
-    if (!nextSynckey || nextSynckey === synckey) break;
-    synckey = nextSynckey;
-  }
+    for (let page = 0; page < 50; page += 1) {
+      const response = yield* requestWeReadEffect(apiKey, '/user/notebooks', {
+        count: 100,
+        ...(lastSort ? { lastSort } : {}),
+      });
+      const pageBooks = arrayValue(response.books).map((item) => notebookBookFromResponse(item));
+      books.push(...pageBooks.filter(hasWeReadNotebookContent));
+      if (response.hasMore !== 1 || pageBooks.length === 0) break;
+      lastSort = pageBooks.at(-1)?.sort;
+      if (!lastSort) break;
+    }
 
-  return thoughts;
+    return books.toSorted(
+      (left, right) =>
+        (right.lastReadAt || right.sort || 0) - (left.lastReadAt || left.sort || 0) ||
+        right.updatedAt.localeCompare(left.updatedAt),
+    );
+  });
 }
 
-async function requestWeRead(
+function fetchWeReadBookDetailEffect(apiKey: string, bookId: string) {
+  return Effect.gen(function* () {
+    const [info, chaptersResponse, progressResponse, bookmarksResponse, thoughtsResponse] =
+      yield* Effect.all(
+        [
+          requestWeReadEffect(apiKey, '/book/info', { bookId }),
+          requestWeReadEffect(apiKey, '/book/chapterinfo', { bookId }),
+          requestWeReadEffect(apiKey, '/book/getprogress', { bookId }),
+          requestWeReadEffect(apiKey, '/book/bookmarklist', { bookId }),
+          fetchWeReadThoughtsEffect(apiKey, bookId),
+        ],
+        { concurrency: 'unbounded' },
+      );
+
+    const chapters = arrayValue(chaptersResponse.chapters).map((item) =>
+      chapterFromResponse(bookId, item),
+    );
+    const chapterIndexByUid = new Map(
+      chapters.map((chapter) => [chapter.chapterUid, chapter.chapterIdx]),
+    );
+    const highlights = arrayValue(bookmarksResponse.updated)
+      .map((item) => highlightFromResponse(bookId, item, chapterIndexByUid))
+      .filter(isValidWeReadHighlight);
+    const thoughts = thoughtsResponse
+      .map((item) => thoughtFromResponse(bookId, item, chapterIndexByUid))
+      .filter(isValidWeReadThought);
+    const book = withValidContentCounts(
+      mergeBookInfo(notebookBookFromResponse({ bookId, book: info }), progressResponse),
+      highlights,
+      thoughts,
+    );
+
+    return { book, chapters, highlights, thoughts };
+  });
+}
+
+function fetchWeReadReadingStatsEffect(
+  apiKey: string,
+  mode: WeReadReadingStatsMode,
+  baseTime?: number,
+) {
+  return Effect.gen(function* () {
+    const response = yield* requestWeReadEffect(apiKey, '/readdata/detail', {
+      mode,
+      ...(mode === 'overall' || baseTime === undefined ? {} : { baseTime }),
+    });
+    return readingStatsFromResponse(mode, response);
+  });
+}
+
+function fetchWeReadThoughtsEffect(apiKey: string, bookId: string) {
+  return Effect.gen(function* () {
+    const thoughts: Record<string, unknown>[] = [];
+    let synckey = 0;
+
+    for (let page = 0; page < 50; page += 1) {
+      const response = yield* requestWeReadEffect(apiKey, '/review/list/mine', {
+        bookid: bookId,
+        count: 100,
+        ...(synckey ? { synckey } : {}),
+      });
+      thoughts.push(...arrayValue(response.reviews));
+      if (response.hasMore !== 1) break;
+      const nextSynckey = numberValue(response.synckey);
+      if (!nextSynckey || nextSynckey === synckey) break;
+      synckey = nextSynckey;
+    }
+
+    return thoughts;
+  });
+}
+
+function requestWeReadEffect(
   apiKey: string,
   apiName: string,
   params: Record<string, unknown> = {},
-): Promise<WeReadGatewayResponse> {
-  const response = await fetch(WEREAD_GATEWAY_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      api_name: apiName,
-      skill_version: WEREAD_SKILL_VERSION,
-      ...params,
-    }),
-  });
-  if (!response.ok) throw new Error(`微信读书请求失败：HTTP ${response.status}`);
+): Effect.Effect<WeReadGatewayResponse, WeReadClientError> {
+  return Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () =>
+        fetch(WEREAD_GATEWAY_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            api_name: apiName,
+            skill_version: WEREAD_SKILL_VERSION,
+            ...params,
+          }),
+        }),
+      catch: (error) => new WeReadNetworkError(error),
+    });
+    if (!response.ok) return yield* Effect.fail(new WeReadHttpError(response.status));
 
-  const data = gatewayResponseValue(await response.json());
-  if (data.upgrade_info && typeof data.upgrade_info === 'object') {
-    const message = stringValue(objectValue(data.upgrade_info)?.message);
-    throw new Error(message || '微信读书接口版本需要升级');
-  }
-  const errcode = numberValue(data.errcode);
-  if (errcode) throw new Error(stringValue(data.errmsg) || `微信读书接口返回错误：${errcode}`);
-  return data;
+    const value = yield* Effect.tryPromise({
+      try: () => response.json() as Promise<unknown>,
+      catch: (error) => new WeReadGatewayDecodeError(error),
+    });
+    const data = gatewayResponseValue(value);
+    if (data.upgrade_info && typeof data.upgrade_info === 'object') {
+      const message = stringValue(objectValue(data.upgrade_info)?.message);
+      return yield* Effect.fail(new WeReadUpgradeError(message));
+    }
+    const errcode = numberValue(data.errcode);
+    if (errcode) {
+      return yield* Effect.fail(new WeReadApiError(errcode, stringValue(data.errmsg)));
+    }
+    return data;
+  });
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function notebookBookFromResponse(item: Record<string, unknown>): WeReadBook {
