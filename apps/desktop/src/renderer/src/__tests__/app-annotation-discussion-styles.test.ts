@@ -19,6 +19,20 @@ describe('annotation discussion styles', () => {
     );
   });
 
+  it('tilts add thought assistant avatars without layout movement while running', () => {
+    expect(styles).toMatch(
+      /\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-avatar \{[\s\S]*animation: annotation-discussion-add-agent-sway 1\.08s ease-in-out infinite;[\s\S]*will-change: transform;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /@keyframes annotation-discussion-add-agent-sway \{[\s\S]*transform: rotate\(-6deg\);[\s\S]*transform: rotate\(6deg\);[\s\S]*\}/,
+    );
+    expect(styles).not.toContain('annotation-discussion-add-agent-hop');
+    expect(styles).not.toMatch(/@keyframes annotation-discussion-add-agent-sway \{[^@]*translateY/);
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-avatar \{[\s\S]*animation: none;[\s\S]*transform: rotate\(0deg\);[\s\S]*will-change: auto;[\s\S]*\}/,
+    );
+  });
+
   it('keeps the discussion idea sidebar usable when collapsed', () => {
     expect(styles).toMatch(
       /\.annotation-discussion-layout\.is-ideas-collapsed \{[\s\S]*grid-template-columns: var\(--annotation-discussion-ideas-rail-width\) minmax\(0, 1fr\);[\s\S]*\}/,

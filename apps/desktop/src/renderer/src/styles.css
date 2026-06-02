@@ -1464,6 +1464,7 @@
   border-radius: 999px;
   background: var(--app-reader-paper);
   box-shadow: 0 8px 22px color-mix(in srgb, var(--app-reader-ink) 14%, transparent);
+  transform-origin: center 58%;
 }
 
 .annotation-discussion-add-run-avatar .reader-avatar-badge {
@@ -1474,14 +1475,16 @@
 }
 
 .annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-avatar {
-  animation: annotation-discussion-add-agent-hop 0.92s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  animation: annotation-discussion-add-agent-sway 1.08s ease-in-out infinite;
   animation-delay: var(--agent-run-delay);
+  will-change: transform;
 }
 
 .annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar,
 .annotation-discussion-add-run-agent.is-failed .annotation-discussion-add-run-avatar {
   animation: none;
   opacity: 0.82;
+  transform: rotate(0deg);
 }
 
 .annotation-discussion-add-run-agent > strong {
@@ -1619,16 +1622,23 @@
   }
 }
 
-@keyframes annotation-discussion-add-agent-hop {
-  0%,
+@keyframes annotation-discussion-add-agent-sway {
+  0% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
   100% {
-    transform: translateY(0) scale(1);
+    transform: rotate(-6deg);
   }
-  45% {
-    transform: translateY(-9px) scale(1.04);
-  }
-  70% {
-    transform: translateY(0) scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-avatar {
+    animation: none;
+    transform: rotate(0deg);
+    will-change: auto;
   }
 }
 
