@@ -245,6 +245,37 @@
   font-family: var(--font-ui);
 }
 
+.source-aware-dialog {
+  transform-origin: var(--dialog-source-origin-x, 50%) var(--dialog-source-origin-y, 50%);
+  animation: source-aware-dialog-enter var(--modal-open-dur, 250ms)
+    var(--modal-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes source-aware-dialog-enter {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate3d(var(--dialog-source-shift-x, 0), var(--dialog-source-shift-y, 0), 0)
+      scale(var(--modal-scale, 0.96));
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .source-aware-dialog {
+    animation: none;
+    filter: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+
 .annotation-discussion-window,
 .annotation-sedimentation-window {
   transform-origin: var(--annotation-window-origin-x, 50%) var(--annotation-window-origin-y, 50%);

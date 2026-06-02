@@ -7,6 +7,7 @@ import type { SaveState } from './app-types';
 import { ColorPicker } from './app-settings-color-picker';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
+import { useSourceAwareDialogTransition, type DialogSourceRect } from './app-dialog-transition';
 
 export function UserProfileSettingsDialog({
   draft,
@@ -16,6 +17,7 @@ export function UserProfileSettingsDialog({
   onSave,
   saveError,
   saveState,
+  sourceRect,
 }: {
   draft: UserDraft;
   canSave: boolean;
@@ -24,7 +26,9 @@ export function UserProfileSettingsDialog({
   onSave: () => void;
   saveError?: string;
   saveState: SaveState;
+  sourceRect?: DialogSourceRect;
 }) {
+  const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
   const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
     ? draft.annotationColor || userAnnotationColors[0]
@@ -55,8 +59,9 @@ export function UserProfileSettingsDialog({
       <section
         aria-labelledby="user-profile-dialog-title"
         aria-modal="true"
-        className="user-profile-dialog"
+        className="user-profile-dialog source-aware-dialog"
         role="dialog"
+        style={dialogStyle}
       >
         <header>
           <div className="user-profile-dialog-heading">

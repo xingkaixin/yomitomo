@@ -11,6 +11,15 @@ function ruleBodies(selector: string) {
 }
 
 describe('theme state styles', () => {
+  it('defines source-aware home dialog motion with reduced motion support', () => {
+    expect(styles).toContain(`.source-aware-dialog {
+  transform-origin: var(--dialog-source-origin-x, 50%) var(--dialog-source-origin-y, 50%);`);
+    expect(styles).toContain('animation: source-aware-dialog-enter var(--modal-open-dur, 250ms)');
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.source-aware-dialog \{[\s\S]*animation: none;[\s\S]*will-change: auto;[\s\S]*\}/,
+    );
+  });
+
   it('keeps provider card interaction states on theme tokens', () => {
     expect(styles).toContain(`.provider-card:hover {
   border-color: var(--app-interactive-hover-border);`);
