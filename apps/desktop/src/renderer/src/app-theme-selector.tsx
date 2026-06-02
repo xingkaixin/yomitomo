@@ -25,15 +25,19 @@ type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
   open: boolean;
   readerBackgroundColor: string;
+  readerBackgroundsByTone?: Record<ReaderBackgroundTone, string>;
+  themeIdsByTone?: Record<AppThemeTone, AppThemeId>;
   onOpenChange: (open: boolean) => void;
   onSelectReaderBackground: (backgroundColor: string) => void;
-  onSelectTheme: (themeId: AppThemeId) => void;
+  onSelectTheme: (themeId: AppThemeId, readerBackgroundColor?: string) => void;
 };
 
 export function ThemeSelector({
   activeThemeId,
   open,
   readerBackgroundColor,
+  readerBackgroundsByTone = defaultReaderBackgroundsByTone,
+  themeIdsByTone = defaultThemeIdsByTone,
   onOpenChange,
   onSelectReaderBackground,
   onSelectTheme,
@@ -49,8 +53,8 @@ export function ThemeSelector({
   );
 
   function selectTone(tone: AppThemeTone) {
-    onSelectTheme(defaultThemeIdForTone(tone));
-    onSelectReaderBackground(defaultReaderBackgroundForTone(tone));
+    onSelectTheme(themeIdsByTone[tone], readerBackgroundsByTone[tone]);
+    onSelectReaderBackground(readerBackgroundsByTone[tone]);
   }
 
   function selectTheme(themeId: AppThemeId) {
@@ -64,7 +68,7 @@ export function ThemeSelector({
   function selectReaderBackground(backgroundColor: string) {
     const tone = readerBackgroundTone(backgroundColor);
     if (tone !== activeTone) {
-      onSelectTheme(defaultThemeIdForTone(tone));
+      onSelectTheme(themeIdsByTone[tone], backgroundColor);
     }
     onSelectReaderBackground(backgroundColor);
   }
@@ -189,6 +193,16 @@ const themeToneOptions: Array<{ label: string; tone: ReaderBackgroundTone }> = [
   { label: '亮色', tone: 'light' },
   { label: '暗色', tone: 'dark' },
 ];
+
+const defaultThemeIdsByTone: Record<AppThemeTone, AppThemeId> = {
+  light: defaultThemeIdForTone('light'),
+  dark: defaultThemeIdForTone('dark'),
+};
+
+const defaultReaderBackgroundsByTone: Record<ReaderBackgroundTone, string> = {
+  light: defaultReaderBackgroundForTone('light'),
+  dark: defaultReaderBackgroundForTone('dark'),
+};
 
 function ThemeCard({
   active,

@@ -152,8 +152,31 @@ describe('ThemeSelector', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '暗色' }));
 
-    expect(onSelectTheme).toHaveBeenCalledWith(inkBlackThemeId);
+    expect(onSelectTheme).toHaveBeenCalledWith(inkBlackThemeId, '#242019');
     expect(onSelectReaderBackground).toHaveBeenCalledWith('#242019');
+  });
+
+  it('restores remembered theme and paper choices when switching tone', () => {
+    const onSelectReaderBackground = vi.fn();
+    const onSelectTheme = vi.fn();
+
+    render(
+      <ThemeSelector
+        activeThemeId={inkPaperThemeId}
+        open
+        readerBackgroundColor="#eef4e8"
+        readerBackgroundsByTone={{ light: '#eef4e8', dark: '#171a21' }}
+        themeIdsByTone={{ light: inkPaperThemeId, dark: duskIndigoThemeId }}
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={onSelectReaderBackground}
+        onSelectTheme={onSelectTheme}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '暗色' }));
+
+    expect(onSelectTheme).toHaveBeenCalledWith(duskIndigoThemeId, '#171a21');
+    expect(onSelectReaderBackground).toHaveBeenCalledWith('#171a21');
   });
 
   it('selects the independent reader paper background', () => {
