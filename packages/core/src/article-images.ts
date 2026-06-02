@@ -1,4 +1,5 @@
 import type { ExtractedArticle } from './article-extraction';
+import { Deferred, Effect, Fiber } from 'effect';
 
 const MAX_INLINE_IMAGES = 40;
 const MAX_INLINE_IMAGE_DATA_CHARS = 10_000_000;
@@ -15,99 +16,154 @@ export async function inlineArticleImages(
   article: ExtractedArticle,
   options: ArticleImageInlineOptions,
 ): Promise<ExtractedArticle> {
-  const inliner = imageInliner(article.canonicalUrl || article.url, options.fetcher);
-  return {
-    ...article,
-    siteIconUrl: (await inliner.inlineUrl(article.siteIconUrl)) || article.siteIconUrl,
-    leadImageUrl: (await inliner.inlineUrl(article.leadImageUrl)) || article.leadImageUrl,
-    content: await inlineHtmlImages(article.content, options.articleDocument, inliner),
-  };
+  return Effect.runPromise(inlineArticleImagesEffect(article, options));
 }
 
-async function inlineHtmlImages(
-  html: string,
-  articleDocument: Document,
-  inliner: ReturnType<typeof imageInliner>,
-): Promise<string> {
-  const container = articleDocument.createElement('div');
-  container.innerHTML = html;
-
-  const images = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
-  for (let index = 0; index < images.length; index += INLINE_IMAGE_CONCURRENCY) {
-    await Promise.all(
-      images.slice(index, index + INLINE_IMAGE_CONCURRENCY).map(async (image) => {
-        const sourceUrl = imageSourceUrl(image, inliner.baseUrl);
-        if (sourceUrl) image.setAttribute('src', sourceUrl);
-        const dataUrl = await inliner.inlineUrl(sourceUrl);
-        if (!dataUrl) return;
-
-        image.setAttribute('src', dataUrl);
-        removeExternalImageHints(image);
-        image
-          .closest('picture')
-          ?.querySelectorAll('source')
-          .forEach((source) => source.remove());
-      }),
+function inlineArticleImagesEffect(article: ExtractedArticle, options: ArticleImageInlineOptions) {
+  return Effect.gen(function* () {
+    const inliner = yield* imageInlinerEffect(article.canonicalUrl || article.url, options.fetcher);
+    const siteIconUrl = yield* inliner.inlineUrl(article.siteIconUrl);
+    const leadImageUrl = yield* inliner.inlineUrl(article.leadImageUrl);
+    const content = yield* inlineHtmlImagesEffect(
+      article.content,
+      options.articleDocument,
+      inliner,
     );
-  }
 
-  return container.innerHTML;
+    return {
+      ...article,
+      siteIconUrl: siteIconUrl || article.siteIconUrl,
+      leadImageUrl: leadImageUrl || article.leadImageUrl,
+      content,
+    };
+  });
 }
 
-function imageInliner(baseUrl: string, fetcher: ImageFetcher) {
-  const fetchedByUrl = new Map<string, Promise<string | null>>();
-  const committedByUrl = new Map<string, string | null>();
-  let imageCount = 0;
-  let dataChars = 0;
-  let commitQueue = Promise.resolve();
+function inlineHtmlImagesEffect(html: string, articleDocument: Document, inliner: EffectInliner) {
+  return Effect.gen(function* () {
+    const container = articleDocument.createElement('div');
+    container.innerHTML = html;
 
-  function fetchDataUrl(url: string) {
-    const cached = fetchedByUrl.get(url);
-    if (cached) return cached;
-    const pending = fetcher(url).then((dataUrl) =>
-      dataUrl?.startsWith('data:image/') ? dataUrl : null,
+    const images = Array.from(container.querySelectorAll<HTMLImageElement>('img'));
+    yield* Effect.all(
+      images.map((image) =>
+        Effect.gen(function* () {
+          const sourceUrl = imageSourceUrl(image, inliner.baseUrl);
+          if (sourceUrl) image.setAttribute('src', sourceUrl);
+          const dataUrl = yield* inliner.inlineUrl(sourceUrl);
+          if (!dataUrl) return;
+
+          image.setAttribute('src', dataUrl);
+          removeExternalImageHints(image);
+          image
+            .closest('picture')
+            ?.querySelectorAll('source')
+            .forEach((source) => source.remove());
+        }),
+      ),
+      { concurrency: INLINE_IMAGE_CONCURRENCY, discard: true },
     );
-    fetchedByUrl.set(url, pending);
-    return pending;
-  }
 
-  function inlineUrl(value: string | undefined) {
-    const url = normalizeHttpImageUrl(value, baseUrl);
-    if (!url) return Promise.resolve(null);
-    if (url.startsWith('data:image/')) return Promise.resolve(url);
-    if (committedByUrl.has(url)) return Promise.resolve(committedByUrl.get(url) || null);
-    if (imageCount >= MAX_INLINE_IMAGES) return Promise.resolve(null);
+    return container.innerHTML;
+  });
+}
 
-    const dataUrlPromise = fetchDataUrl(url);
-    const result = commitQueue.then(async () => {
-      if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
+type EffectInliner = Effect.Effect.Success<ReturnType<typeof imageInlinerEffect>>;
+type FetchEntry = Deferred.Deferred<string | null>;
 
-      const dataUrl = await dataUrlPromise;
-      if (!dataUrl) {
-        committedByUrl.set(url, null);
-        return null;
-      }
-      if (
-        imageCount >= MAX_INLINE_IMAGES ||
-        dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS
-      ) {
-        committedByUrl.set(url, null);
-        return null;
-      }
+function imageInlinerEffect(baseUrl: string, fetcher: ImageFetcher) {
+  return Effect.gen(function* () {
+    const fetchSemaphore = yield* Effect.makeSemaphore(INLINE_IMAGE_CONCURRENCY);
+    const fetchMapMutex = yield* Effect.makeSemaphore(1);
+    const commitTurnMutex = yield* Effect.makeSemaphore(1);
+    const fetchedByUrl = new Map<string, FetchEntry>();
+    const committedByUrl = new Map<string, string | null>();
+    let imageCount = 0;
+    let dataChars = 0;
+    let commitTail = yield* Deferred.make<void>();
+    yield* Deferred.succeed(commitTail, undefined);
 
-      imageCount += 1;
-      dataChars += dataUrl.length;
-      committedByUrl.set(url, dataUrl);
-      return dataUrl;
-    });
-    commitQueue = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return result;
-  }
+    function inlineUrl(value: string | undefined) {
+      return Effect.gen(function* () {
+        const url = normalizeHttpImageUrl(value, baseUrl);
+        if (!url) return null;
+        if (url.startsWith('data:image/')) return url;
+        if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
+        if (imageCount >= MAX_INLINE_IMAGES) return null;
 
-  return { baseUrl, inlineUrl };
+        const dataUrlFiber = yield* Effect.fork(fetchDataUrl(url));
+        const turn = yield* reserveCommitTurn();
+        return yield* Effect.gen(function* () {
+          yield* Deferred.await(turn.previous);
+          if (committedByUrl.has(url)) return committedByUrl.get(url) || null;
+
+          const dataUrl = yield* Fiber.join(dataUrlFiber);
+          if (!dataUrl) {
+            committedByUrl.set(url, null);
+            return null;
+          }
+          if (
+            imageCount >= MAX_INLINE_IMAGES ||
+            dataChars + dataUrl.length > MAX_INLINE_IMAGE_DATA_CHARS
+          ) {
+            committedByUrl.set(url, null);
+            return null;
+          }
+
+          imageCount += 1;
+          dataChars += dataUrl.length;
+          committedByUrl.set(url, dataUrl);
+          return dataUrl;
+        }).pipe(Effect.ensuring(Deferred.succeed(turn.next, undefined)));
+      });
+    }
+
+    function reserveCommitTurn() {
+      return Effect.gen(function* () {
+        const next = yield* Deferred.make<void>();
+        return yield* commitTurnMutex.withPermits(1)(
+          Effect.sync(() => {
+            const previous = commitTail;
+            commitTail = next;
+            return { previous, next };
+          }),
+        );
+      });
+    }
+
+    function fetchDataUrl(url: string) {
+      return Effect.gen(function* () {
+        const created = yield* Deferred.make<string | null>();
+        const entry = yield* fetchMapMutex.withPermits(1)(
+          Effect.sync(() => {
+            const existing = fetchedByUrl.get(url);
+            if (existing) return { deferred: existing, shouldFetch: false };
+            fetchedByUrl.set(url, created);
+            return { deferred: created, shouldFetch: true };
+          }),
+        );
+
+        if (entry.shouldFetch) {
+          yield* Deferred.complete(entry.deferred, fetcherDataUrl(url));
+        }
+        return yield* Deferred.await(entry.deferred);
+      });
+    }
+
+    function fetcherDataUrl(url: string) {
+      return fetchSemaphore.withPermits(1)(
+        Effect.tryPromise({
+          try: () => fetcher(url),
+          catch: () => null,
+        }).pipe(
+          Effect.map((dataUrl) => (dataUrl?.startsWith('data:image/') ? dataUrl : null)),
+          Effect.catchAll(() => Effect.succeed(null)),
+        ),
+      );
+    }
+
+    return { baseUrl, inlineUrl };
+  });
 }
 
 function imageSourceUrl(image: HTMLImageElement, baseUrl: string) {
