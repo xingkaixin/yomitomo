@@ -1,5 +1,6 @@
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
+import { Effect } from 'effect';
 import * as schema from './db/schema';
 import type { StoreDatabase, StoreExecutor } from './store-db';
 
@@ -57,18 +58,32 @@ export function estimateAssistantRunCostMicros(
 }
 
 export async function refreshModelsDevPrices(database: StoreDatabase) {
-  if (!shouldRefreshModelPrices(database)) {
-    backfillAssistantExecutionRunCosts(database);
-    return { refreshed: false, recordCount: 0, reason: 'fresh_cache' as const };
-  }
+  return Effect.runPromise(refreshModelsDevPricesEffect(database));
+}
 
-  const fetchedAt = new Date().toISOString();
-  const records = normalizeModelsDevPriceRecords(await fetchModelsDevCatalogue(), fetchedAt);
-  database.transaction((tx) => {
-    for (const record of records) upsertModelPriceRecord(tx, record);
-    backfillAssistantExecutionRunCosts(tx);
+function refreshModelsDevPricesEffect(database: StoreDatabase) {
+  return Effect.gen(function* () {
+    const shouldRefresh = yield* Effect.sync(() => shouldRefreshModelPrices(database));
+    if (!shouldRefresh) {
+      yield* Effect.sync(() => backfillAssistantExecutionRunCosts(database));
+      return { refreshed: false, recordCount: 0, reason: 'fresh_cache' as const };
+    }
+
+    const fetchedAt = new Date().toISOString();
+    const records = normalizeModelsDevPriceRecords(
+      yield* fetchModelsDevCatalogueEffect(),
+      fetchedAt,
+    );
+    yield* Effect.try({
+      try: () =>
+        database.transaction((tx) => {
+          for (const record of records) upsertModelPriceRecord(tx, record);
+          backfillAssistantExecutionRunCosts(tx);
+        }),
+      catch: (error) => error,
+    });
+    return { refreshed: true, recordCount: records.length, reason: 'updated' as const };
   });
-  return { refreshed: true, recordCount: records.length, reason: 'updated' as const };
 }
 
 export function modelPriceRefreshIntervalMs() {
@@ -87,16 +102,31 @@ function shouldRefreshModelPrices(database: StoreExecutor) {
   return !Number.isFinite(fetchedAt) || Date.now() - fetchedAt >= MODEL_PRICE_STALE_MS;
 }
 
-async function fetchModelsDevCatalogue() {
+function fetchModelsDevCatalogueEffect() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), MODELS_DEV_TIMEOUT_MS);
-  try {
-    const response = await fetch(MODELS_DEV_URL, { signal: controller.signal });
-    if (!response.ok) throw new Error(`models.dev 返回 ${response.status}`);
-    return (await response.json()) as Record<string, ModelsDevProvider>;
-  } finally {
-    clearTimeout(timeout);
+  return Effect.gen(function* () {
+    const response = yield* Effect.tryPromise({
+      try: () => fetch(MODELS_DEV_URL, { signal: controller.signal }),
+      catch: (error) => modelsDevFetchError(error),
+    });
+    if (!response.ok) {
+      return yield* Effect.fail(new Error(`models.dev 返回 ${response.status}`));
+    }
+    return yield* Effect.tryPromise({
+      try: () => response.json() as Promise<Record<string, ModelsDevProvider>>,
+      catch: (error) => new Error(`models.dev 响应解析失败：${errorMessage(error)}`),
+    });
+  }).pipe(Effect.ensuring(Effect.sync(() => clearTimeout(timeout))));
+}
+
+function modelsDevFetchError(error: unknown) {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return new Error('models.dev 请求超时', {
+      cause: error,
+    });
   }
+  return new Error(`models.dev 请求失败：${errorMessage(error)}`, { cause: error });
 }
 
 function normalizeModelsDevPriceRecords(
@@ -309,4 +339,8 @@ function numberField(value: unknown) {
 
 function stringField(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
