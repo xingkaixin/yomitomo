@@ -51,7 +51,7 @@ import { LibraryImportControls, type ArticleImportResult } from './app-reading-l
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const ARTICLE_DELETE_HOLD_MS = 1400;
 
-const LIBRARY_SOURCE_OPTIONS: Array<{
+export const LIBRARY_SOURCE_OPTIONS: Array<{
   value: LibrarySource;
   label: string;
 }> = [
@@ -64,6 +64,7 @@ const LIBRARY_SOURCE_OPTIONS: Array<{
 export function LibraryHome({
   activeSource,
   articles,
+  sourceTransitionDirection = 'none',
   onActiveSourceChange,
   sortedArticles,
   onDeleteArticle,
@@ -84,6 +85,7 @@ export function LibraryHome({
 }: {
   activeSource: LibrarySource;
   articles: ArticleSummaryRecord[];
+  sourceTransitionDirection?: LibrarySourceTransitionDirection;
   onActiveSourceChange: (source: LibrarySource) => void;
   sortedArticles: ArticleSummaryRecord[];
   onDeleteArticle: (articleId: string) => Promise<void>;
@@ -109,6 +111,8 @@ export function LibraryHome({
   wereadSyncing: boolean;
 }) {
   const [page, setPage] = useState(1);
+  const [pageTransitionDirection, setPageTransitionDirection] =
+    useState<LibrarySourceTransitionDirection>('none');
   const [pageSize, setPageSize] = useState(() =>
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
@@ -154,10 +158,15 @@ export function LibraryHome({
   }, [page, pageCount]);
 
   useEffect(() => {
-    setPage((current) => Math.min(current, pageCount));
+    setPage((current) => {
+      const nextPage = Math.min(current, pageCount);
+      if (nextPage !== current) setPageTransitionDirection('none');
+      return nextPage;
+    });
   }, [pageCount]);
 
   useEffect(() => {
+    setPageTransitionDirection('none');
     setPage(1);
   }, [activeSource, pageSize, searchQuery]);
 
@@ -267,51 +276,59 @@ export function LibraryHome({
       <div className="library-toolbar" aria-label="阅读库工具栏">
         <span>最近添加 · 降序</span>
       </div>
-      <div className="library-home-body">
-        {activeSource === 'weread' && !wereadSettings.configured ? (
-          <LibraryEmptyState icon={<Smartphone size={32} />} title="需要配置微信读书">
-            请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。
-          </LibraryEmptyState>
-        ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
-          <div className="library-list library-ebook-list">
-            {pageWeReadBooks.map((book) => (
-              <WeReadBookListItem
-                book={book}
-                key={book.bookId}
-                onOpen={() => onOpenWeReadBook(book)}
-                onOpenExternal={() => onOpenWeReadExternal(book)}
-              />
-            ))}
+      <div className="library-home-body" data-source-transition={sourceTransitionDirection}>
+        <div
+          className="library-source-panel"
+          data-page-transition={pageTransitionDirection}
+          key={activeSource}
+        >
+          <div className="library-page-panel" key={`${activeSource}-${page}`}>
+            {activeSource === 'weread' && !wereadSettings.configured ? (
+              <LibraryEmptyState icon={<Smartphone size={32} />} title="需要配置微信读书">
+                请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。
+              </LibraryEmptyState>
+            ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
+              <div className="library-list library-ebook-list">
+                {pageWeReadBooks.map((book) => (
+                  <WeReadBookListItem
+                    book={book}
+                    key={book.bookId}
+                    onOpen={() => onOpenWeReadBook(book)}
+                    onOpenExternal={() => onOpenWeReadExternal(book)}
+                  />
+                ))}
+              </div>
+            ) : sourceArticles.length > 0 ? (
+              activeSource === 'web' ? (
+                <div className="library-list library-web-grid">
+                  {pageArticles.map((article) => (
+                    <WebArticleListItem
+                      article={article}
+                      key={article.id}
+                      onDelete={() => void onDeleteArticle(article.id)}
+                      onOpen={() => onOpenArticle(article)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="library-list library-ebook-list">
+                  {pageArticles.map((article) => (
+                    <LibraryDocumentListItem
+                      article={article}
+                      key={article.id}
+                      onDelete={() => void onDeleteArticle(article.id)}
+                      onOpen={() => onOpenArticle(article)}
+                    />
+                  ))}
+                </div>
+              )
+            ) : (
+              <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
+                {emptyReason.description}
+              </LibraryEmptyState>
+            )}
           </div>
-        ) : sourceArticles.length > 0 ? (
-          activeSource === 'web' ? (
-            <div className="library-list library-web-grid">
-              {pageArticles.map((article) => (
-                <WebArticleListItem
-                  article={article}
-                  key={article.id}
-                  onDelete={() => void onDeleteArticle(article.id)}
-                  onOpen={() => onOpenArticle(article)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="library-list library-ebook-list">
-              {pageArticles.map((article) => (
-                <LibraryDocumentListItem
-                  article={article}
-                  key={article.id}
-                  onDelete={() => void onDeleteArticle(article.id)}
-                  onOpen={() => onOpenArticle(article)}
-                />
-              ))}
-            </div>
-          )
-        ) : (
-          <LibraryEmptyState icon={emptyReason.icon} title={emptyReason.title}>
-            {emptyReason.description}
-          </LibraryEmptyState>
-        )}
+        </div>
       </div>
       {activeItemsLength > 0 ? (
         <footer
@@ -324,7 +341,7 @@ export function LibraryHome({
                 type="button"
                 aria-label="上一页"
                 disabled={page === 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                onClick={() => changePage(Math.max(1, page - 1))}
               >
                 <ChevronLeft size={16} />
               </button>
@@ -334,7 +351,7 @@ export function LibraryHome({
                   type="button"
                   aria-current={pageNumber === page ? 'page' : undefined}
                   key={pageNumber}
-                  onClick={() => setPage(pageNumber)}
+                  onClick={() => changePage(pageNumber)}
                 >
                   {pageNumber}
                 </button>
@@ -343,7 +360,7 @@ export function LibraryHome({
                 type="button"
                 aria-label="下一页"
                 disabled={page === pageCount}
-                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                onClick={() => changePage(Math.min(pageCount, page + 1))}
               >
                 <ChevronRight size={16} />
               </button>
@@ -353,6 +370,7 @@ export function LibraryHome({
             value={String(pageSize)}
             onValueChange={(value) => {
               const nextPageSize = normalizeLibraryPageSize(Number(value));
+              setPageTransitionDirection('none');
               setPageSize(nextPageSize);
               setPage(1);
               void Promise.resolve(
@@ -377,7 +395,18 @@ export function LibraryHome({
       ) : null}
     </section>
   );
+
+  function changePage(nextPage: number) {
+    if (nextPage === page) {
+      setPageTransitionDirection('none');
+      return;
+    }
+    setPageTransitionDirection(nextPage > page ? 'forward' : 'backward');
+    setPage(nextPage);
+  }
 }
+
+export type LibrarySourceTransitionDirection = 'backward' | 'forward' | 'none';
 
 function normalizeLibraryPageSize(value: unknown) {
   return LIBRARY_PAGE_SIZE_OPTIONS.includes(value as (typeof LIBRARY_PAGE_SIZE_OPTIONS)[number])

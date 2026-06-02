@@ -306,8 +306,17 @@ describe('ReadingLibrary home', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
 
+    expect(
+      container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
+    ).toBe('forward');
     expect(screen.getByText('共 1 本')).toBeTruthy();
     expect(screen.queryByText(/电子书 · 共/)).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /网页文章/ }));
+
+    expect(
+      container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
+    ).toBe('backward');
   });
 
   it('renders webpage articles sorted by recent added time', () => {
@@ -353,6 +362,29 @@ describe('ReadingLibrary home', () => {
       libraryPageSize: 24,
       themeId: 'ink-paper',
     });
+  });
+
+  it('marks pagination direction when moving between library pages', () => {
+    const articles = Array.from({ length: 14 }, (_, index) =>
+      article({
+        id: `paged_article_${index + 1}`,
+        title: `分页文章 ${index + 1}`,
+        createdAt: `2026-05-09T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
+      }),
+    );
+    const { container } = renderLibrary(articles);
+
+    fireEvent.click(screen.getByRole('button', { name: '下一页' }));
+
+    expect(
+      container.querySelector('.library-source-panel')?.getAttribute('data-page-transition'),
+    ).toBe('forward');
+
+    fireEvent.click(screen.getByRole('button', { name: '上一页' }));
+
+    expect(
+      container.querySelector('.library-source-panel')?.getAttribute('data-page-transition'),
+    ).toBe('backward');
   });
 
   it('searches source metadata without reading status filters', () => {
@@ -676,11 +708,17 @@ describe('ReadingLibrary home', () => {
     fireEvent.click(screen.getAllByRole('button', { name: '打开文章：网页文章' })[0]);
 
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
+    expect(
+      document.querySelector('.library-bookcase-screen')?.getAttribute('data-route-transition'),
+    ).toBe('enter-source');
     expect(screen.getAllByText('网页文章').length).toBeGreaterThan(0);
     expect(screen.getByText('正文')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
 
+    expect(
+      document.querySelector('.library-bookcase-screen')?.getAttribute('data-route-transition'),
+    ).toBe('enter-library');
     expect(screen.queryByText('正文')).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
   });

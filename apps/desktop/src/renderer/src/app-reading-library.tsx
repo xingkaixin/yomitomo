@@ -22,7 +22,11 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from './app-reading-types';
-import { LibraryHome } from './app-reading-library-home';
+import {
+  LIBRARY_SOURCE_OPTIONS,
+  LibraryHome,
+  type LibrarySourceTransitionDirection,
+} from './app-reading-library-home';
 import { WeReadBookcase } from './app-weread-bookcase';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
@@ -107,11 +111,16 @@ export function ReadingLibrary({
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
   const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
+  const [routeTransition, setRouteTransition] = useState<'enter-library' | 'enter-source' | 'none'>(
+    'none',
+  );
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<ArticleRecord | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [sourceFocusAnnotationId, setSourceFocusAnnotationId] = useState<string | null>(null);
   const [librarySource, setLibrarySource] = useState<LibrarySource>('web');
+  const [librarySourceTransitionDirection, setLibrarySourceTransitionDirection] =
+    useState<LibrarySourceTransitionDirection>('none');
   const [wereadBooks, setWeReadBooks] = useState<WeReadBook[]>([]);
   const [wereadSettings, setWeReadSettings] = useState<WeReadSettings>({
     configured: false,
@@ -277,6 +286,7 @@ export function ReadingLibrary({
     const fullArticle = articleHasReadableBody(article) ? article : await onReadArticle(article.id);
     if (articleLoadRef.current !== loadId || !fullArticle) return;
     setSelectedArticle(fullArticle);
+    setRouteTransition('enter-source');
     setActiveShelf('source');
   }
 
@@ -288,6 +298,7 @@ export function ReadingLibrary({
     setSelectedArticleId(fullArticle.id);
     setSelectedArticle(committedArticle);
     setSelectedWeReadBook(null);
+    setRouteTransition('enter-source');
     setActiveShelf('source');
     setSelectedAnnotationId(event.annotationId);
     setSourceFocusAnnotationId(event.annotationId);
@@ -333,6 +344,7 @@ export function ReadingLibrary({
         : await syncWeReadBook(book.bookId);
     if (!detail) return;
     setSelectedWeReadBook(detail);
+    setRouteTransition('enter-source');
     setActiveShelf('source');
   }
 
@@ -340,8 +352,16 @@ export function ReadingLibrary({
     if (selectedArticleId) void onCloseArticleDiscussions?.(selectedArticleId);
     setSelectedAnnotationId(null);
     setSourceFocusAnnotationId(null);
-    setSelectedWeReadBook(null);
+    setLibrarySourceTransitionDirection('none');
+    setRouteTransition('enter-library');
     setActiveShelf('library');
+  }
+
+  function changeLibrarySource(nextSource: LibrarySource) {
+    setLibrarySourceTransitionDirection(
+      librarySourceTransitionDirectionForChange(librarySource, nextSource),
+    );
+    setLibrarySource(nextSource);
   }
 
   async function syncWeReadLibrary() {
@@ -417,7 +437,8 @@ export function ReadingLibrary({
   const libraryHomeProps = {
     activeSource: librarySource,
     articles,
-    onActiveSourceChange: setLibrarySource,
+    sourceTransitionDirection: librarySourceTransitionDirection,
+    onActiveSourceChange: changeLibrarySource,
     sortedArticles,
     onDeleteArticle: deleteLibraryArticle,
     onImportEbookFile,
@@ -441,7 +462,10 @@ export function ReadingLibrary({
   }
 
   return (
-    <div className={`library-bookcase-screen is-${activeShelf}-expanded`}>
+    <div
+      className={`library-bookcase-screen is-${activeShelf}-expanded`}
+      data-route-transition={routeTransition}
+    >
       {activeShelf === 'library' ? (
         <div className="library-shelf is-expanded is-library-bookcase is-drawn-from-bookmark">
           <div className="library-shelf-content">
@@ -555,6 +579,17 @@ function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsule
     });
   }
   return [...assistants.values()];
+}
+
+function librarySourceTransitionDirectionForChange(
+  currentSource: LibrarySource,
+  nextSource: LibrarySource,
+): LibrarySourceTransitionDirection {
+  if (currentSource === nextSource) return 'none';
+  const currentIndex = LIBRARY_SOURCE_OPTIONS.findIndex((option) => option.value === currentSource);
+  const nextIndex = LIBRARY_SOURCE_OPTIONS.findIndex((option) => option.value === nextSource);
+  if (currentIndex < 0 || nextIndex < 0) return 'none';
+  return nextIndex > currentIndex ? 'forward' : 'backward';
 }
 
 export function AnnotationDiscussionCapsules({
