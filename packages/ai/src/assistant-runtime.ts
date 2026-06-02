@@ -1,5 +1,6 @@
 import { jsonSchema, stepCountIs, streamText, type JSONSchema7 } from 'ai';
 import type { LlmProvider, TextAnchor } from '@yomitomo/shared';
+import { Effect } from 'effect';
 import { createYomitomoLanguageModel, supportsProviderTools } from './ai-sdk-provider-adapter';
 import type { NormalizedAiUsage } from './usage';
 import { normalizeAiUsage } from './usage';
@@ -318,9 +319,31 @@ class AssistantRuntimeFailure extends Error {
   }
 }
 
+class AssistantRuntimeProviderFailure extends Error {
+  readonly _tag = 'AssistantRuntimeProviderFailure';
+
+  constructor(cause: unknown) {
+    super(errorMessage(cause) || 'provider_failed');
+  }
+}
+
+class AssistantRuntimeToolFailure extends Error {
+  readonly _tag = 'AssistantRuntimeToolFailure';
+
+  constructor(cause: unknown) {
+    super(errorMessage(cause) || 'tool_execution_failed');
+  }
+}
+
 export async function runAssistantAiSdkToolRuntime(
   options: AssistantAiSdkRuntimeOptions,
 ): Promise<AssistantRuntimeResult> {
+  return Effect.runPromise(runAssistantAiSdkToolRuntimeEffect(options));
+}
+
+function runAssistantAiSdkToolRuntimeEffect(
+  options: AssistantAiSdkRuntimeOptions,
+): Effect.Effect<AssistantRuntimeResult> {
   const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
   const now = options.now || (() => new Date().toISOString());
   const trace: AssistantRuntimeTrace = {
@@ -337,7 +360,9 @@ export async function runAssistantAiSdkToolRuntime(
   let nextStepIndex = 0;
 
   if (!supportsProviderTools(options.provider)) {
-    return emitFallback(options, trace, evidence, 'provider_tools_unsupported', false, now);
+    return Effect.succeed(
+      emitFallback(options, trace, evidence, 'provider_tools_unsupported', false, now),
+    );
   }
 
   const adapter = createYomitomoLanguageModel(options.provider);
@@ -360,8 +385,8 @@ export async function runAssistantAiSdkToolRuntime(
     ]),
   ) as Record<string, AiSdkToolShape>;
 
-  try {
-    const result = streamText({
+  return Effect.gen(function* () {
+    const result = yield* aiSdkStreamTextEffect({
       model: adapter.model,
       system: options.payload.system,
       prompt: options.payload.user,
@@ -380,14 +405,11 @@ export async function runAssistantAiSdkToolRuntime(
             }
           : undefined,
     });
-    let text = '';
-    for await (const delta of result.textStream) {
-      text += delta;
-      options.onEvent?.({ type: 'text_delta', delta });
-    }
-
-    const finishReason = await result.finishReason;
-    trace.usage = normalizeAiUsage(await result.totalUsage);
+    const text = yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent);
+    const finishReason = yield* promiseEffect(result.finishReason, AssistantRuntimeProviderFailure);
+    trace.usage = normalizeAiUsage(
+      yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure),
+    );
     if (finishReason === 'length') {
       return emitFallback(
         options,
@@ -421,21 +443,19 @@ export async function runAssistantAiSdkToolRuntime(
     trace.finalActionType = validation.action.type;
     options.onEvent?.({ type: 'done', usage: trace.usage, trace });
     return {
-      status: 'final',
+      status: 'final' as const,
       action: validation.action,
       evidence,
       trace,
       repairUsed: false,
     };
-  } catch (error) {
-    const failureReason =
-      error instanceof AssistantRuntimeFailure
-        ? error.failureReason
-        : error instanceof Error
-          ? error.message
-          : 'provider_failed';
-    return emitFallback(options, trace, evidence, failureReason, false, now);
-  }
+  }).pipe(
+    Effect.catchAll((error) =>
+      Effect.succeed(
+        emitFallback(options, trace, evidence, assistantRuntimeFailureReason(error), false, now),
+      ),
+    ),
+  );
 }
 
 function firstRequiredRuntimeToolName(tools: AssistantToolDefinition[]) {
@@ -445,175 +465,240 @@ function firstRequiredRuntimeToolName(tools: AssistantToolDefinition[]) {
   return tools[0].name;
 }
 
+function aiSdkStreamTextEffect(input: Parameters<typeof streamText>[0]) {
+  return Effect.try({
+    try: () => streamText(input),
+    catch: (error) => new AssistantRuntimeProviderFailure(error),
+  });
+}
+
+function consumeRuntimeTextStreamEffect(
+  textStream: AsyncIterable<string>,
+  onEvent?: (event: AssistantRuntimeStreamEvent) => void,
+) {
+  return Effect.tryPromise({
+    try: async () => {
+      let text = '';
+      for await (const delta of textStream) {
+        text += delta;
+        onEvent?.({ type: 'text_delta', delta });
+      }
+      return text;
+    },
+    catch: (error) => new AssistantRuntimeProviderFailure(error),
+  });
+}
+
+function promiseEffect<T, E extends Error>(
+  promise: PromiseLike<T>,
+  ErrorClass: new (cause: unknown) => E,
+) {
+  return Effect.tryPromise({
+    try: () => Promise.resolve(promise),
+    catch: (error) => new ErrorClass(error),
+  });
+}
+
+function modelAdapterEffect(
+  modelAdapter: AssistantRuntimeOptions['modelAdapter'],
+  turn: AssistantRuntimeTurn,
+) {
+  return Effect.tryPromise({
+    try: () => modelAdapter(turn),
+    catch: (error) => new AssistantRuntimeProviderFailure(error),
+  });
+}
+
+function toolExecutorEffect(
+  toolExecutor: AssistantRuntimeOptions['toolExecutor'],
+  toolCall: AssistantToolCall,
+) {
+  return Effect.tryPromise({
+    try: () => toolExecutor(toolCall),
+    catch: (error) => new AssistantRuntimeToolFailure(error),
+  });
+}
+
 export async function runAssistantToolRuntime(
   options: AssistantRuntimeOptions,
 ): Promise<AssistantRuntimeResult> {
-  const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
-  const now = options.now || (() => new Date().toISOString());
-  const trace: AssistantRuntimeTrace = {
-    taskType: options.taskType,
-    agentId: options.agentId,
-    articleId: options.articleId,
-    startedAt: now(),
-    steps: [],
-  };
-  const toolsByName = new Map(options.tools.map((tool) => [tool.name, tool]));
-  const evidence: AssistantEvidence[] = [];
-  const toolResults: AssistantToolResultMessage[] = [];
-  let repairReason: string | undefined;
-  let repairUsed = false;
+  return Effect.runPromise(runAssistantToolRuntimeEffect(options));
+}
 
-  for (let stepIndex = 0; stepIndex < budget.maxSteps; stepIndex += 1) {
-    const startedAt = performance.now();
-    const event = await options.modelAdapter({
+function runAssistantToolRuntimeEffect(
+  options: AssistantRuntimeOptions,
+): Effect.Effect<
+  AssistantRuntimeResult,
+  AssistantRuntimeProviderFailure | AssistantRuntimeToolFailure
+> {
+  return Effect.gen(function* () {
+    const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
+    const now = options.now || (() => new Date().toISOString());
+    const trace: AssistantRuntimeTrace = {
       taskType: options.taskType,
-      articleId: options.articleId,
       agentId: options.agentId,
-      stepIndex,
-      availableTools: options.tools,
-      evidence,
-      toolResults,
-      repairReason,
-    });
-    trace.usage = addUsage(trace.usage, event.usage);
-    repairReason = undefined;
+      articleId: options.articleId,
+      startedAt: now(),
+      steps: [],
+    };
+    const toolsByName = new Map(options.tools.map((tool) => [tool.name, tool]));
+    const evidence: AssistantEvidence[] = [];
+    const toolResults: AssistantToolResultMessage[] = [];
+    let repairReason: string | undefined;
+    let repairUsed = false;
 
-    if (event.type === 'tool_call') {
-      const toolCallId = event.toolCall.id || `tool_call_${stepIndex}`;
-      const tool = toolsByName.get(event.toolCall.name);
-      const invalidReason =
-        tool?.validateInput?.(event.toolCall.input) ||
-        (!tool ? `unknown_tool:${event.toolCall.name}` : null);
-      if (invalidReason) {
+    for (let stepIndex = 0; stepIndex < budget.maxSteps; stepIndex += 1) {
+      const startedAt = performance.now();
+      const event = yield* modelAdapterEffect(options.modelAdapter, {
+        taskType: options.taskType,
+        articleId: options.articleId,
+        agentId: options.agentId,
+        stepIndex,
+        availableTools: options.tools,
+        evidence,
+        toolResults,
+        repairReason,
+      });
+      trace.usage = addUsage(trace.usage, event.usage);
+      repairReason = undefined;
+
+      if (event.type === 'tool_call') {
+        const toolCallId = event.toolCall.id || `tool_call_${stepIndex}`;
+        const tool = toolsByName.get(event.toolCall.name);
+        const invalidReason =
+          tool?.validateInput?.(event.toolCall.input) ||
+          (!tool ? `unknown_tool:${event.toolCall.name}` : null);
+        if (invalidReason) {
+          toolResults.push({
+            toolCallId,
+            toolName: event.toolCall.name,
+            ok: false,
+            failureReason: invalidReason,
+            evidenceIds: [],
+            evidence: [],
+          });
+          trace.steps.push(
+            traceStep(stepIndex, event, startedAt, {
+              failureReason: invalidReason,
+            }),
+          );
+          const repair = requestRepair(invalidReason, repairUsed);
+          if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
+          repairUsed = true;
+          repairReason = repair.reason;
+          continue;
+        }
+
+        const result = yield* toolExecutorEffect(options.toolExecutor, event.toolCall);
+        if (!result.ok) {
+          trace.steps.push(
+            traceStep(stepIndex, event, startedAt, {
+              failureReason: result.failureReason,
+            }),
+          );
+          return fallback(trace, evidence, result.failureReason, repairUsed, now);
+        }
+
+        const invalidEvidence = (result.evidence || []).find(
+          (item) => item.provenance.articleId !== options.articleId,
+        );
+        if (invalidEvidence) {
+          const failureReason = `evidence_article_mismatch:${invalidEvidence.provenance.articleId}`;
+          trace.steps.push(
+            traceStep(stepIndex, event, startedAt, {
+              failureReason,
+            }),
+          );
+          return fallback(trace, evidence, failureReason, repairUsed, now);
+        }
+
+        const nextEvidence = (result.evidence || [])
+          .slice(0, budget.maxToolResults)
+          .map((item, index) =>
+            normalizeEvidence(item, {
+              id: `evidence_${stepIndex}_${index}`,
+              toolCallId,
+              toolName: event.toolCall.name,
+              maxCharacters: budget.maxToolResultCharacters,
+            }),
+          );
+        evidence.push(...nextEvidence);
         toolResults.push({
           toolCallId,
           toolName: event.toolCall.name,
-          ok: false,
-          failureReason: invalidReason,
-          evidenceIds: [],
-          evidence: [],
+          ok: true,
+          summary: result.summary,
+          evidenceIds: nextEvidence.map((item) => item.id),
+          evidence: nextEvidence,
         });
         trace.steps.push(
           traceStep(stepIndex, event, startedAt, {
-            failureReason: invalidReason,
+            resultCount: nextEvidence.length,
+            evidenceIds: nextEvidence.map((item) => item.id),
+            evidenceSummaries: nextEvidence.map((item) => ({
+              id: item.id,
+              summary: item.summary,
+              provenance: item.provenance,
+            })),
           }),
         );
-        const repair = requestRepair(invalidReason, repairUsed);
-        if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
-        repairUsed = true;
-        repairReason = repair.reason;
         continue;
       }
 
-      const result = await options.toolExecutor(event.toolCall);
-      if (!result.ok) {
-        trace.steps.push(
-          traceStep(stepIndex, event, startedAt, {
-            failureReason: result.failureReason,
-          }),
-        );
-        return fallback(trace, evidence, result.failureReason, repairUsed, now);
+      if (event.type === 'final_action') {
+        const validation = validateAssistantFinalAction(event.action, {
+          articleId: options.articleId,
+          evidenceIds: new Set(evidence.map((item) => item.id)),
+          allowedAnnotationIds: options.allowedAnnotationIds,
+          addAnnotationAnchor: options.addAnnotationAnchor,
+        });
+        if (!validation.ok) {
+          trace.steps.push(
+            traceStep(stepIndex, event, startedAt, {
+              failureReason: validation.reason,
+            }),
+          );
+          const repair = requestRepair(validation.reason, repairUsed);
+          if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
+          repairUsed = true;
+          repairReason = repair.reason;
+          continue;
+        }
+
+        trace.steps.push(traceStep(stepIndex, event, startedAt));
+        trace.completedAt = now();
+        trace.finalActionType = validation.action.type;
+        return {
+          status: 'final',
+          action: validation.action,
+          evidence,
+          trace,
+          repairUsed,
+        };
       }
 
-      const invalidEvidence = (result.evidence || []).find(
-        (item) => item.provenance.articleId !== options.articleId,
-      );
-      if (invalidEvidence) {
-        const failureReason = `evidence_article_mismatch:${invalidEvidence.provenance.articleId}`;
+      if (event.type === 'provider_failure') {
         trace.steps.push(
           traceStep(stepIndex, event, startedAt, {
-            failureReason,
+            failureReason: event.reason,
           }),
         );
-        return fallback(trace, evidence, failureReason, repairUsed, now);
+        return fallback(trace, evidence, event.reason, repairUsed, now);
       }
 
-      const nextEvidence = (result.evidence || [])
-        .slice(0, budget.maxToolResults)
-        .map((item, index) =>
-          normalizeEvidence(item, {
-            id: `evidence_${stepIndex}_${index}`,
-            toolCallId,
-            toolName: event.toolCall.name,
-            maxCharacters: budget.maxToolResultCharacters,
-          }),
-        );
-      evidence.push(...nextEvidence);
-      toolResults.push({
-        toolCallId,
-        toolName: event.toolCall.name,
-        ok: true,
-        summary: result.summary,
-        evidenceIds: nextEvidence.map((item) => item.id),
-        evidence: nextEvidence,
-      });
-      trace.steps.push(
-        traceStep(stepIndex, event, startedAt, {
-          resultCount: nextEvidence.length,
-          evidenceIds: nextEvidence.map((item) => item.id),
-          evidenceSummaries: nextEvidence.map((item) => ({
-            id: item.id,
-            summary: item.summary,
-            provenance: item.provenance,
-          })),
-        }),
-      );
-      continue;
-    }
-
-    if (event.type === 'final_action') {
-      const validation = validateAssistantFinalAction(event.action, {
-        articleId: options.articleId,
-        evidenceIds: new Set(evidence.map((item) => item.id)),
-        allowedAnnotationIds: options.allowedAnnotationIds,
-        addAnnotationAnchor: options.addAnnotationAnchor,
-      });
-      if (!validation.ok) {
-        trace.steps.push(
-          traceStep(stepIndex, event, startedAt, {
-            failureReason: validation.reason,
-          }),
-        );
-        const repair = requestRepair(validation.reason, repairUsed);
-        if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
-        repairUsed = true;
-        repairReason = repair.reason;
-        continue;
-      }
-
-      trace.steps.push(traceStep(stepIndex, event, startedAt));
-      trace.completedAt = now();
-      trace.finalActionType = validation.action.type;
-      return {
-        status: 'final',
-        action: validation.action,
-        evidence,
-        trace,
-        repairUsed,
-      };
-    }
-
-    if (event.type === 'provider_failure') {
       trace.steps.push(
         traceStep(stepIndex, event, startedAt, {
           failureReason: event.reason,
         }),
       );
-      return fallback(trace, evidence, event.reason, repairUsed, now);
+      const repair = requestRepair(event.reason, repairUsed);
+      if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
+      repairUsed = true;
+      repairReason = repair.reason;
     }
 
-    trace.steps.push(
-      traceStep(stepIndex, event, startedAt, {
-        failureReason: event.reason,
-      }),
-    );
-    const repair = requestRepair(event.reason, repairUsed);
-    if (!repair.ok) return fallback(trace, evidence, repair.reason, repairUsed, now);
-    repairUsed = true;
-    repairReason = repair.reason;
-  }
-
-  return fallback(trace, evidence, 'step_limit_exceeded', repairUsed, now);
+    return fallback(trace, evidence, 'step_limit_exceeded', repairUsed, now);
+  });
 }
 
 export function validateAssistantFinalAction(
@@ -858,6 +943,16 @@ function addUsageField(left: number | undefined, right: number | undefined) {
   return left + right;
 }
 
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function assistantRuntimeFailureReason(error: unknown) {
+  if (error instanceof AssistantRuntimeFailure) return error.failureReason;
+  if (error instanceof Error) return error.message;
+  return 'provider_failed';
+}
+
 function aiSdkTool(
   toolDefinition: AssistantToolDefinition,
   context: {
@@ -901,7 +996,7 @@ function aiSdkTool(
         throw new AssistantRuntimeFailure(invalidReason);
       }
 
-      const result = await context.toolExecutor(toolCall);
+      const result = await Effect.runPromise(toolExecutorEffect(context.toolExecutor, toolCall));
       if (!result.ok) {
         context.trace.steps.push(
           aiSdkTraceStep(stepIndex, toolCall, startedAt, {
