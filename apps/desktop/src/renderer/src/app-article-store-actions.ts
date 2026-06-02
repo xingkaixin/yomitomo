@@ -9,6 +9,7 @@ import type {
   ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
+import type { WindowAnimationSourceRect } from '../../ipc-contract';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;
@@ -111,12 +112,19 @@ export function useAppArticleStoreActions({
     [applyStore, storeRef],
   );
 
-  const openArticleDiscussion = useCallback(async (articleId: string, annotationId: string) => {
-    const desktop = window.yomitomoDesktop;
-    if (!desktop) return;
+  const openArticleDiscussion = useCallback(
+    async (articleId: string, annotationId: string, sourceRect?: WindowAnimationSourceRect) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
 
-    await desktop.openAnnotationDiscussion({ articleId, annotationId });
-  }, []);
+      await desktop.openAnnotationDiscussion({
+        articleId,
+        annotationId,
+        ...(sourceRect ? { sourceRect } : {}),
+      });
+    },
+    [],
+  );
 
   const closeArticleDiscussions = useCallback(async (articleId: string) => {
     const desktop = window.yomitomoDesktop;

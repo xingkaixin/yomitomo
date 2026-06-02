@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { MessageCircleQuestion, RotateCcw, Send, UploadCloud } from 'lucide-react';
 import type {
   Agent,
@@ -33,6 +33,7 @@ import {
   applyAssistantRuntimeProgress,
   AssistantRuntimeProgressList,
 } from './app-assistant-runtime-progress';
+import { useSourceAwareWindowTransition } from './app-window-transition';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
@@ -47,6 +48,7 @@ export function AnnotationSedimentationWindowApp() {
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<SedimentationWindowStatus>({ type: 'loading' });
+  const windowTransition = useSourceAwareWindowTransition(params);
 
   useEffect(() => {
     const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
@@ -95,15 +97,34 @@ export function AnnotationSedimentationWindowApp() {
     };
   }, [annotationId, articleId]);
 
-  if (status.type !== 'ready') return <SedimentationEmptyState status={status} />;
-  return <SedimentationShell status={status} onStatusChange={setStatus} />;
+  if (status.type !== 'ready') {
+    return (
+      <SedimentationEmptyState
+        status={status}
+        className={windowTransition.className}
+        style={windowTransition.style}
+      />
+    );
+  }
+  return (
+    <SedimentationShell
+      status={status}
+      style={windowTransition.style}
+      className={windowTransition.className}
+      onStatusChange={setStatus}
+    />
+  );
 }
 
 function SedimentationShell({
+  className,
   status,
+  style,
   onStatusChange,
 }: {
+  className: string;
   status: Extract<SedimentationWindowStatus, { type: 'ready' }>;
+  style: CSSProperties;
   onStatusChange: (status: SedimentationWindowStatus) => void;
 }) {
   const { agents, article, annotation } = status;
@@ -288,7 +309,10 @@ function SedimentationShell({
   }
 
   return (
-    <main className={sedimentationWindowClassName()}>
+    <main
+      className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
+      style={style}
+    >
       <section className="annotation-sedimentation-quote" aria-label="批注引文">
         <span aria-hidden="true">“</span>
         <p>{annotation.anchor.exact}</p>
@@ -615,12 +639,19 @@ function reviewTimelineMessages(
 }
 
 function SedimentationEmptyState({
+  className,
   status,
+  style,
 }: {
+  className: string;
   status: Exclude<SedimentationWindowStatus, { type: 'ready' }>;
+  style: CSSProperties;
 }) {
   return (
-    <main className={sedimentationWindowClassName()}>
+    <main
+      className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
+      style={style}
+    >
       <section className="annotation-sedimentation-empty">
         <strong>{status.type === 'loading' ? '正在加载沉淀窗口' : '无法打开沉淀窗口'}</strong>
         <p>{status.type === 'error' ? status.message : '这条批注或文章不存在。'}</p>

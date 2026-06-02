@@ -216,7 +216,15 @@ describe('AnnotationCard', () => {
     fireEvent.click(screen.getByRole('button', { name: '进入讨论区' }));
 
     expect(onFocus).toHaveBeenCalledWith('annotation-1');
-    expect(onOpenDiscussion).toHaveBeenCalledWith('annotation-1');
+    expect(onOpenDiscussion).toHaveBeenCalledWith(
+      'annotation-1',
+      expect.objectContaining({
+        height: expect.any(Number),
+        width: expect.any(Number),
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
+    );
   });
 
   it('shows participating assistant summary from thoughts, replies and pending work', () => {

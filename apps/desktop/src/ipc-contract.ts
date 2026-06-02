@@ -53,9 +53,17 @@ export type ArticleCommentDeleteInput = {
   commentId: string;
 };
 
+export type WindowAnimationSourceRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type AnnotationDiscussionWindowOpenInput = {
   articleId: string;
   annotationId: string;
+  sourceRect?: WindowAnimationSourceRect;
 };
 
 export type AnnotationDiscussionWindowOpenResult = {
@@ -66,6 +74,7 @@ export type AnnotationDiscussionWindowOpenResult = {
 export type AnnotationSedimentationWindowOpenInput = {
   articleId: string;
   annotationId: string;
+  sourceRect?: WindowAnimationSourceRect;
 };
 
 export type AnnotationSedimentationWindowOpenResult = {

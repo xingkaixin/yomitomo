@@ -1718,8 +1718,8 @@ function PdfiumDocument({
         onDeleteAnnotation={deleteAnnotation}
         onDeleteComment={deleteComment}
         onFocusAnnotation={onOpenAnnotation}
-        onOpenAnnotationDiscussion={(annotationId) =>
-          void onOpenAnnotationDiscussion?.(article.id, annotationId)
+        onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
+          void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
         }
         onHighlightClick={handleHighlightClick}
         onMouseUp={() => undefined}

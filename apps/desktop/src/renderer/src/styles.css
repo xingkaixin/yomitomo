@@ -239,6 +239,68 @@
   font-family: var(--font-ui);
 }
 
+.annotation-discussion-window,
+.annotation-sedimentation-window {
+  transform-origin: var(--annotation-window-origin-x, 50%) var(--annotation-window-origin-y, 50%);
+  animation: annotation-source-window-enter 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity, filter;
+}
+
+.annotation-discussion-window.is-source-closing,
+.annotation-sedimentation-window.is-source-closing {
+  animation: annotation-source-window-close 150ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes annotation-source-window-enter {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate3d(
+        var(--annotation-window-shift-x, 0),
+        var(--annotation-window-shift-y, 0),
+        0
+      )
+      scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes annotation-source-window-close {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translate3d(
+        var(--annotation-window-shift-x, 0),
+        var(--annotation-window-shift-y, 0),
+        0
+      )
+      scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annotation-discussion-window,
+  .annotation-sedimentation-window,
+  .annotation-discussion-window.is-source-closing,
+  .annotation-sedimentation-window.is-source-closing {
+    animation: none;
+    filter: none;
+    transform: none;
+    will-change: auto;
+  }
+}
+
 .annotation-discussion-quote {
   display: grid;
   min-width: 0;

@@ -794,8 +794,8 @@ export function EbookBookcase({
       onDeleteAnnotation={deleteAnnotation}
       onDeleteComment={deleteComment}
       onFocusAnnotation={openAnnotation}
-      onOpenAnnotationDiscussion={(annotationId) =>
-        void onOpenAnnotationDiscussion?.(article.id, annotationId)
+      onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
+        void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
       }
       onGoLeft={goLeft}
       onGoRight={goRight}

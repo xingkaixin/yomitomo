@@ -18,6 +18,7 @@ import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
 import type { ArticleUpdater, PromptArticle } from './app-reading-types';
+import type { WindowAnimationSourceRect } from '../../ipc-contract';
 export {
   normalizeDesktopReaderSettings,
   readDesktopReaderSettings,
@@ -473,7 +474,11 @@ export type SourceBookcaseProps = {
     annotationId: string,
     commentId: string,
   ) => Promise<void> | void;
-  onOpenAnnotationDiscussion?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onOpenAnnotationDiscussion?: (
+    articleId: string,
+    annotationId: string,
+    sourceRect?: WindowAnimationSourceRect,
+  ) => Promise<void> | void;
   onOpenAnnotation: (annotationId: string | null) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   onSaveArticleReadingProgress: (

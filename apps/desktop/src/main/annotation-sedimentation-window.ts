@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type {
   AnnotationSedimentationCommitInput,
   AnnotationSedimentationWindowOpenInput,
@@ -9,6 +9,12 @@ import {
   minimizeOtherAnnotationDiscussionWindows,
 } from './annotation-discussion-window';
 import { mainPath } from './main-paths';
+import {
+  appendWindowAnimationSourceSearchParams,
+  installWindowCloseAnimation,
+  windowAnimationSourceFromInput,
+  windowAnimationSourceQuery,
+} from './window-animation-source';
 
 type SedimentationWindowEntry = {
   articleId: string;
@@ -19,8 +25,8 @@ type SedimentationWindowEntry = {
 const sedimentationWindows = new Map<string, SedimentationWindowEntry>();
 
 export function registerAnnotationSedimentationWindowIpc(context: DesktopMainIpcContext) {
-  handleDesktopIpc('annotation-sedimentation:open', (_event, input) =>
-    openAnnotationSedimentationWindow(context, input),
+  handleDesktopIpc('annotation-sedimentation:open', (event, input) =>
+    openAnnotationSedimentationWindow(context, input, event),
   );
   handleDesktopIpc('annotation-sedimentation:commit', (event, input) =>
     completeAnnotationSedimentation(context, input, BrowserWindow.fromWebContents(event.sender)),
@@ -30,6 +36,7 @@ export function registerAnnotationSedimentationWindowIpc(context: DesktopMainIpc
 function openAnnotationSedimentationWindow(
   context: DesktopMainIpcContext,
   input: AnnotationSedimentationWindowOpenInput,
+  event: IpcMainInvokeEvent,
 ) {
   const key = sedimentationWindowKey(input.articleId, input.annotationId);
   const existing = sedimentationWindows.get(key);
@@ -68,6 +75,7 @@ function openAnnotationSedimentationWindow(
     annotationId: input.annotationId,
     window,
   });
+  installWindowCloseAnimation(window);
 
   window.once('ready-to-show', () => {
     if (window.isDestroyed()) return;
@@ -82,13 +90,15 @@ function openAnnotationSedimentationWindow(
     void context.openExternalUrl(url).catch(() => undefined);
     return { action: 'deny' };
   });
-  window.webContents.on('will-navigate', (event, url) => {
+  window.webContents.on('will-navigate', (navigationEvent, url) => {
     if (isSameRendererNavigation(window.webContents.getURL(), url)) return;
-    event.preventDefault();
+    navigationEvent.preventDefault();
     void context.openExternalUrl(url).catch(() => undefined);
   });
 
-  void loadSedimentationWindow(window, input).catch(() => {
+  const animationSource = windowAnimationSourceFromInput(event, window, input.sourceRect);
+
+  void loadSedimentationWindow(window, input, animationSource).catch(() => {
     if (!window.isDestroyed()) window.close();
   });
 
@@ -175,6 +185,7 @@ function restoreMainWindow(context: DesktopMainIpcContext) {
 function loadSedimentationWindow(
   window: BrowserWindow,
   { annotationId, articleId }: AnnotationSedimentationWindowOpenInput,
+  animationSource?: ReturnType<typeof windowAnimationSourceFromInput>,
 ) {
   const route = {
     window: 'annotation-sedimentation',
@@ -185,11 +196,15 @@ function loadSedimentationWindow(
   if (process.env.ELECTRON_RENDERER_URL) {
     const url = new URL(process.env.ELECTRON_RENDERER_URL);
     for (const [key, value] of Object.entries(route)) url.searchParams.set(key, value);
+    appendWindowAnimationSourceSearchParams(url.searchParams, animationSource);
     return window.loadURL(url.toString());
   }
 
   return window.loadFile(mainPath('../renderer/index.html'), {
-    query: route,
+    query: {
+      ...route,
+      ...windowAnimationSourceQuery(animationSource),
+    },
   });
 }
 

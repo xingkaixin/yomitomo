@@ -141,6 +141,13 @@ const api = {
       ipcRenderer.removeListener('annotation-distillation:committed', listener);
     };
   },
+  onAnnotationWindowClosing: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('annotation-window:closing', listener);
+    return () => {
+      ipcRenderer.removeListener('annotation-window:closing', listener);
+    };
+  },
   planAgentMentionRoute: (payload: AgentMentionInstructionPayload) =>
     invokeDesktopIpc('agent:mention-route', payload),
   getLogPath: () => invokeDesktopIpc('log:path'),
