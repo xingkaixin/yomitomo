@@ -18,6 +18,7 @@ import {
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
 } from '@yomitomo/core';
+import { Effect } from 'effect';
 import { budgetArticleText, formatBudgetNotice } from './budget';
 import { logAiError, logAiInfo } from './logger';
 import { callProviderText, streamProviderText } from './provider-client';
@@ -47,52 +48,62 @@ export async function runAgentAnnotate(
   agent: Agent,
   payload: AgentAnnotatePayload,
 ): Promise<Annotation[]> {
-  const system = buildAgentAnnotateSystemPrompt(agent, payload);
-  const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
-  if (segmentTasks.length > 0) {
-    return runAgentSegmentAnnotate(provider, agent, payload, system, segmentTasks);
-  }
-  const context = buildAgentAnnotateContextBundle(payload);
-  const content = await callProviderText(provider, {
-    system,
-    user: buildAgentAnnotatePrompt(provider, payload, agent, context),
-    maxTokens: 4000,
-    temperature: agent.temperature,
-  });
-  const suggestions = parseAnnotationSuggestions(content);
-  const now = new Date().toISOString();
-  const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
-  const annotations: Annotation[] = [];
-  const deduper = createAnnotationThoughtDeduper(payload);
+  return Effect.runPromise(runAgentAnnotateEffect(provider, agent, payload));
+}
 
-  for (const suggestion of suggestions) {
-    if (annotations.length >= maxAnnotations) break;
-    if (suggestion.shouldShow === false) continue;
-    const annotation = createAgentAnnotation(
-      agent,
-      payload.article.text,
-      {
-        ...suggestion,
-        ...targetAnchorSuggestion(payload),
-        annotationType: payload.annotationType || suggestion.annotationType,
-        readingIntent: payload.readingIntent || suggestion.readingIntent,
-      },
-      now,
-      { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
-    );
-    if (!annotation) continue;
-    if (!deduper.accept(annotation)) {
-      logAiInfo('agent.annotate.skip', {
-        agent: agent.username,
-        reason: 'duplicate_existing_thought',
-        exactPreview: annotation.anchor.exact.slice(0, 120),
-      });
-      continue;
+function runAgentAnnotateEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+) {
+  return Effect.gen(function* () {
+    const system = buildAgentAnnotateSystemPrompt(agent, payload);
+    const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
+    if (segmentTasks.length > 0) {
+      return yield* runSegmentAnnotateEffect(provider, agent, payload, system, segmentTasks);
     }
-    annotations.push(annotation);
-  }
+    const context = buildAgentAnnotateContextBundle(payload);
+    const content = yield* callProviderTextEffect(provider, {
+      system,
+      user: buildAgentAnnotatePrompt(provider, payload, agent, context),
+      maxTokens: 4000,
+      temperature: agent.temperature,
+    });
+    const suggestions = parseAnnotationSuggestions(content);
+    const now = new Date().toISOString();
+    const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
+    const annotations: Annotation[] = [];
+    const deduper = createAnnotationThoughtDeduper(payload);
 
-  return annotations;
+    for (const suggestion of suggestions) {
+      if (annotations.length >= maxAnnotations) break;
+      if (suggestion.shouldShow === false) continue;
+      const annotation = createAgentAnnotation(
+        agent,
+        payload.article.text,
+        {
+          ...suggestion,
+          ...targetAnchorSuggestion(payload),
+          annotationType: payload.annotationType || suggestion.annotationType,
+          readingIntent: payload.readingIntent || suggestion.readingIntent,
+        },
+        now,
+        { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
+      );
+      if (!annotation) continue;
+      if (!deduper.accept(annotation)) {
+        logAiInfo('agent.annotate.skip', {
+          agent: agent.username,
+          reason: 'duplicate_existing_thought',
+          exactPreview: annotation.anchor.exact.slice(0, 120),
+        });
+        continue;
+      }
+      annotations.push(annotation);
+    }
+
+    return annotations;
+  });
 }
 
 export async function runAgentAnnotateWithMemory(
@@ -100,15 +111,31 @@ export async function runAgentAnnotateWithMemory(
   agent: Agent,
   payload: AgentAnnotatePayload,
 ): Promise<AgentAnnotateResult> {
-  const system = buildAgentAnnotateSystemPrompt(agent, payload);
-  const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
-  if (segmentTasks.length > 0) {
-    return runAgentSegmentAnnotateWithMemory(provider, agent, payload, system, segmentTasks);
-  }
-  return {
-    annotations: await runAgentAnnotate(provider, agent, payload),
-    readingMemory: payload.readingMemory,
-  };
+  return Effect.runPromise(runAgentAnnotateWithMemoryEffect(provider, agent, payload));
+}
+
+function runAgentAnnotateWithMemoryEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+) {
+  return Effect.gen(function* () {
+    const system = buildAgentAnnotateSystemPrompt(agent, payload);
+    const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
+    if (segmentTasks.length > 0) {
+      return yield* runSegmentAnnotateWithMemoryEffect(
+        provider,
+        agent,
+        payload,
+        system,
+        segmentTasks,
+      );
+    }
+    return {
+      annotations: yield* runAgentAnnotateEffect(provider, agent, payload),
+      readingMemory: payload.readingMemory,
+    };
+  });
 }
 
 export function buildAgentSelectionRuntimePayload(
@@ -167,107 +194,188 @@ export async function runAgentAnnotateStream(
   payload: AgentAnnotatePayload,
   onAnnotation: (annotation: Annotation) => void,
 ): Promise<AgentAnnotateResult & { usage?: NormalizedAiUsage }> {
-  const system = buildAgentAnnotateSystemPrompt(agent, payload);
-  const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
-  if (segmentTasks.length > 0) {
-    return runAgentSegmentAnnotateStreamWithMemory(
-      provider,
-      agent,
-      payload,
-      system,
-      segmentTasks,
-      onAnnotation,
-    );
-  }
-  const context = buildAgentAnnotateContextBundle(payload);
-  const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
-  const annotations: Annotation[] = [];
-  const deduper = createAnnotationThoughtDeduper(payload);
-  let annotationCount = 0;
-  const flushJson = (json: string) => {
-    if (annotationCount >= maxAnnotations) return;
-    try {
-      const parsed = JSON.parse(json) as {
-        exact?: unknown;
-        prefix?: unknown;
-        suffix?: unknown;
-        context?: unknown;
-        comment?: unknown;
-        type?: unknown;
-        readingIntent?: unknown;
-      };
-      const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
-      const annotation = createAgentAnnotation(
+  return Effect.runPromise(runAgentAnnotateStreamEffect(provider, agent, payload, onAnnotation));
+}
+
+function runAgentAnnotateStreamEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  onAnnotation: (annotation: Annotation) => void,
+) {
+  return Effect.gen(function* () {
+    const system = buildAgentAnnotateSystemPrompt(agent, payload);
+    const segmentTasks = buildSegmentAnnotationTasks(payload, agent);
+    if (segmentTasks.length > 0) {
+      return yield* runSegmentAnnotateStreamWithMemoryEffect(
+        provider,
         agent,
-        payload.article.text,
-        {
-          exact,
-          prefix: typeof parsed.prefix === 'string' ? parsed.prefix : undefined,
-          suffix: typeof parsed.suffix === 'string' ? parsed.suffix : undefined,
-          context: typeof parsed.context === 'string' ? parsed.context : undefined,
-          comment: typeof parsed.comment === 'string' ? parsed.comment : '',
-          annotationType: payload.annotationType || normalizeAnnotationType(parsed.type),
-          readingIntent: payload.readingIntent || normalizeAgentReadingIntent(parsed.readingIntent),
-          ...targetAnchorSuggestion(payload),
-        },
-        new Date().toISOString(),
-        { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
+        payload,
+        system,
+        segmentTasks,
+        onAnnotation,
       );
-      if (!annotation) {
-        logAiInfo('agent.annotate.skip', {
+    }
+    const context = buildAgentAnnotateContextBundle(payload);
+    const maxAnnotations = agentAnnotationOutputLimit(agent, payload, context);
+    const annotations: Annotation[] = [];
+    const deduper = createAnnotationThoughtDeduper(payload);
+    let annotationCount = 0;
+    const flushJson = (json: string) => {
+      if (annotationCount >= maxAnnotations) return;
+      try {
+        const parsed = JSON.parse(json) as {
+          exact?: unknown;
+          prefix?: unknown;
+          suffix?: unknown;
+          context?: unknown;
+          comment?: unknown;
+          type?: unknown;
+          readingIntent?: unknown;
+        };
+        const exact = typeof parsed.exact === 'string' ? parsed.exact : '';
+        const annotation = createAgentAnnotation(
+          agent,
+          payload.article.text,
+          {
+            exact,
+            prefix: typeof parsed.prefix === 'string' ? parsed.prefix : undefined,
+            suffix: typeof parsed.suffix === 'string' ? parsed.suffix : undefined,
+            context: typeof parsed.context === 'string' ? parsed.context : undefined,
+            comment: typeof parsed.comment === 'string' ? parsed.comment : '',
+            annotationType: payload.annotationType || normalizeAnnotationType(parsed.type),
+            readingIntent:
+              payload.readingIntent || normalizeAgentReadingIntent(parsed.readingIntent),
+            ...targetAnchorSuggestion(payload),
+          },
+          new Date().toISOString(),
+          { ebookIndex: payload.article.ebookIndex, performanceLogger: logAiInfo },
+        );
+        if (!annotation) {
+          logAiInfo('agent.annotate.skip', {
+            agent: agent.username,
+            reason: 'exact_not_found',
+            exactPreview: exact.slice(0, 120),
+          });
+          return;
+        }
+        if (!deduper.accept(annotation)) {
+          logAiInfo('agent.annotate.skip', {
+            agent: agent.username,
+            reason: 'duplicate_existing_thought',
+            exactPreview: exact.slice(0, 120),
+          });
+          return;
+        }
+        annotationCount += 1;
+        annotations.push(annotation);
+        onAnnotation(annotation);
+      } catch (error) {
+        logAiError('agent.annotate.ndjson_parse_error', error, {
           agent: agent.username,
-          reason: 'exact_not_found',
-          exactPreview: exact.slice(0, 120),
+          line: json.slice(0, 500),
         });
-        return;
       }
-      if (!deduper.accept(annotation)) {
-        logAiInfo('agent.annotate.skip', {
-          agent: agent.username,
-          reason: 'duplicate_existing_thought',
-          exactPreview: exact.slice(0, 120),
-        });
-        return;
-      }
-      annotationCount += 1;
-      annotations.push(annotation);
-      onAnnotation(annotation);
-    } catch (error) {
-      logAiError('agent.annotate.ndjson_parse_error', error, {
+    };
+    let buffer = '';
+    const flushBuffer = () => {
+      const result = extractJsonObjects(buffer);
+      buffer = result.rest;
+      for (const json of result.objects) flushJson(json);
+    };
+
+    const generation = yield* streamProviderTextEffect(
+      provider,
+      {
+        system,
+        user: buildAgentAnnotateStreamPrompt(provider, payload, agent, context),
+        maxTokens: 4000,
+        temperature: agent.temperature,
+      },
+      (delta) => {
+        buffer += delta;
+        flushBuffer();
+      },
+    );
+
+    flushBuffer();
+    if (hasIncompleteJson(buffer)) {
+      logAiInfo('agent.annotate.incomplete_json', {
         agent: agent.username,
-        line: json.slice(0, 500),
+        line: buffer.trim().slice(0, 500),
       });
     }
-  };
-  let buffer = '';
-  const flushBuffer = () => {
-    const result = extractJsonObjects(buffer);
-    buffer = result.rest;
-    for (const json of result.objects) flushJson(json);
-  };
+    return { annotations, readingMemory: payload.readingMemory, usage: generation.usage };
+  });
+}
 
-  const generation = await streamProviderText(
-    provider,
-    {
-      system,
-      user: buildAgentAnnotateStreamPrompt(provider, payload, agent, context),
-      maxTokens: 4000,
-      temperature: agent.temperature,
-    },
-    (delta) => {
-      buffer += delta;
-      flushBuffer();
-    },
-  );
+function callProviderTextEffect(
+  provider: LlmProvider,
+  payload: Parameters<typeof callProviderText>[1],
+) {
+  return Effect.tryPromise({
+    try: () => callProviderText(provider, payload),
+    catch: (error) => error,
+  });
+}
 
-  flushBuffer();
-  if (hasIncompleteJson(buffer)) {
-    logAiInfo('agent.annotate.incomplete_json', {
-      agent: agent.username,
-      line: buffer.trim().slice(0, 500),
-    });
-  }
-  return { annotations, readingMemory: payload.readingMemory, usage: generation.usage };
+function streamProviderTextEffect(
+  provider: LlmProvider,
+  payload: Parameters<typeof streamProviderText>[1],
+  onDelta: Parameters<typeof streamProviderText>[2],
+) {
+  return Effect.tryPromise({
+    try: () => streamProviderText(provider, payload, onDelta),
+    catch: (error) => error,
+  });
+}
+
+function runSegmentAnnotateEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  system: string,
+  segmentTasks: Parameters<typeof runAgentSegmentAnnotate>[4],
+) {
+  return Effect.tryPromise({
+    try: () => runAgentSegmentAnnotate(provider, agent, payload, system, segmentTasks),
+    catch: (error) => error,
+  });
+}
+
+function runSegmentAnnotateWithMemoryEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  system: string,
+  segmentTasks: Parameters<typeof runAgentSegmentAnnotateWithMemory>[4],
+) {
+  return Effect.tryPromise({
+    try: () => runAgentSegmentAnnotateWithMemory(provider, agent, payload, system, segmentTasks),
+    catch: (error) => error,
+  });
+}
+
+function runSegmentAnnotateStreamWithMemoryEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  system: string,
+  segmentTasks: Parameters<typeof runAgentSegmentAnnotateStreamWithMemory>[4],
+  onAnnotation: Parameters<typeof runAgentSegmentAnnotateStreamWithMemory>[5],
+) {
+  return Effect.tryPromise({
+    try: () =>
+      runAgentSegmentAnnotateStreamWithMemory(
+        provider,
+        agent,
+        payload,
+        system,
+        segmentTasks,
+        onAnnotation,
+      ),
+    catch: (error) => error,
+  });
 }
 
 function annotationTypePromptLine(payload: AgentAnnotatePayload) {

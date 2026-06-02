@@ -10,6 +10,7 @@ import type {
 } from '@yomitomo/shared';
 import { normalizeAnnotationConfidence, normalizeTraceItemType } from '@yomitomo/shared';
 import { createEpubTextAnchor, mergeReadingMemory } from '@yomitomo/core';
+import { Effect } from 'effect';
 import type { SegmentAnnotationTask } from './segment-annotation-context';
 import { logAiError } from './logger';
 import { callProviderText } from './provider-client';
@@ -23,22 +24,39 @@ export async function generateSegmentReadingMemoryUpdate(
   task: SegmentAnnotationTask,
   annotations: Annotation[],
 ): Promise<ReadingMemory | undefined> {
-  try {
-    const content = await callProviderText(provider, {
+  return Effect.runPromise(
+    generateSegmentReadingMemoryUpdateEffect(provider, agent, payload, task, annotations),
+  );
+}
+
+function generateSegmentReadingMemoryUpdateEffect(
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentAnnotatePayload,
+  task: SegmentAnnotationTask,
+  annotations: Annotation[],
+) {
+  return Effect.gen(function* () {
+    const content = yield* callProviderTextEffect(provider, {
       system:
         '你是 Yomitomo 的内部阅读记忆压缩器。你的任务是把当前 segment 的原文摘要和阅读过程 trace 分开保存，供后续共读上下文压缩使用。只返回 JSON。',
       user: buildSegmentReadingMemoryPrompt(agent, task, annotations),
       maxTokens: MEMORY_SUMMARY_MAX_TOKENS,
       temperature: 0,
     });
-    return parseSegmentReadingMemoryUpdate(content, payload, task, agent, annotations);
-  } catch (error) {
-    logAiError('agent.segment_memory.update_failed', error, {
-      agent: agent.username,
-      segmentId: task.segment.id,
+    return yield* Effect.try({
+      try: () => parseSegmentReadingMemoryUpdate(content, payload, task, agent, annotations),
+      catch: (error) => error,
     });
-    return undefined;
-  }
+  }).pipe(
+    Effect.catchAll((error) => {
+      logAiError('agent.segment_memory.update_failed', error, {
+        agent: agent.username,
+        segmentId: task.segment.id,
+      });
+      return Effect.succeed(undefined);
+    }),
+  );
 }
 
 function buildSegmentReadingMemoryPrompt(
@@ -283,6 +301,16 @@ function parseJsonObject(value: string): Record<string, unknown> {
     }
     throw new Error('阅读记忆结果不是有效 JSON');
   }
+}
+
+function callProviderTextEffect(
+  provider: LlmProvider,
+  payload: Parameters<typeof callProviderText>[1],
+) {
+  return Effect.tryPromise({
+    try: () => callProviderText(provider, payload),
+    catch: (error) => error,
+  });
 }
 
 function objectValue(value: unknown): Record<string, unknown> {
