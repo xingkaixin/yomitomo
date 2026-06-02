@@ -1,10 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
-import {
-  defaultReaderBackgroundForTone,
-  readerBackgroundTone,
-} from '@yomitomo/reader-ui/reader-settings';
+import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 
 import type { SettingsSectionKey } from './app-settings-panels';
 import { AvatarImage } from './app-ui';
@@ -36,10 +33,21 @@ const startupThemeId = readCachedThemeId();
 const startupReaderSettings = readDesktopReaderSettings();
 applyAppTheme(themeRegistry[startupThemeId]);
 
-function compatibleReaderBackgroundForTheme(themeId: AppThemeId, backgroundColor: string) {
+function compatibleReaderBackgroundForTheme(
+  themeId: AppThemeId,
+  backgroundColor: string,
+  previousThemeId?: AppThemeId,
+) {
   const tone = themeRegistry[themeId].meta.tone;
-  if (readerBackgroundTone(backgroundColor) === tone) return backgroundColor;
-  return defaultReaderBackgroundForTone(tone);
+  if (readerBackgroundTone(backgroundColor) !== tone) return themeRegistry[themeId].reader.paper;
+  if (
+    previousThemeId &&
+    previousThemeId !== themeId &&
+    backgroundColor === themeRegistry[previousThemeId].reader.paper
+  ) {
+    return themeRegistry[themeId].reader.paper;
+  }
+  return backgroundColor;
 }
 
 const rendererModuleLoadedAt = performance.now();
@@ -415,7 +423,11 @@ function App() {
   async function selectTheme(themeId: AppThemeId) {
     setActiveThemeId(themeId);
     writeCachedThemeId(themeId);
-    const nextBackgroundColor = compatibleReaderBackgroundForTheme(themeId, readerBackgroundColor);
+    const nextBackgroundColor = compatibleReaderBackgroundForTheme(
+      themeId,
+      readerBackgroundColor,
+      activeThemeId,
+    );
     if (nextBackgroundColor !== readerBackgroundColor) {
       const nextSettings = normalizeDesktopReaderSettings({
         ...readDesktopReaderSettings(),

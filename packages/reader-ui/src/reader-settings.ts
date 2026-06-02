@@ -12,6 +12,7 @@ export const readerBackgroundOptions = [
   { label: '淡绿', tone: 'light', value: '#eef4e8' },
   { label: '冷灰', tone: 'light', value: '#eef1f4' },
   { label: '松烟', tone: 'dark', value: '#242019' },
+  { label: '黛蓝', tone: 'dark', value: '#171a21' },
 ] as const;
 
 export function readerBackgroundTone(value: string | undefined): ReaderBackgroundTone {

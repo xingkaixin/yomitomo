@@ -104,6 +104,7 @@ export type PaperPatternTheme = {
 export const defaultThemeId = 'default';
 export const beigePaperThemeId = 'beige-paper';
 export const inkBlackThemeId = 'ink-black';
+export const duskIndigoThemeId = 'dusk-indigo';
 export const inkPaperThemeId = 'ink-paper';
 const cachedThemeStorageKey = 'yomitomo.themeId';
 
@@ -567,6 +568,158 @@ export const inkBlackTheme: AppTheme = {
   reader: inkBlackReaderTheme,
 };
 
+const duskIndigoReaderTheme: ReaderTheme = {
+  background: '#12141b',
+  paper: '#171a21',
+  ink: '#dbe2eb',
+  muted: '#94a0ad',
+  line: '#3c404e',
+  primary: '#ef7e58',
+  accent: '#36211f',
+  accentStrong: '#ef7e58',
+  danger: '#f06d5d',
+  toolbar: {
+    background: 'hsl(228 19% 9% / 0.88)',
+    border: 'hsl(222 13% 27% / 0.82)',
+    controlBackground: 'hsl(223 15% 15% / 0.86)',
+    controlHoverBackground: 'hsl(221 15% 19%)',
+  },
+  toc: {
+    background: 'hsl(223 15% 15% / 0.62)',
+    itemHoverBackground: 'hsl(221 15% 19% / 0.82)',
+  },
+  note: {
+    background: 'hsl(223 15% 15% / 0.9)',
+    border: 'hsl(222 13% 27% / 0.86)',
+    shadow: '0 18px 44px hsl(228 40% 3% / 0.52)',
+    quoteBackground: 'hsl(8 32% 16% / 0.72)',
+    quoteText: '#dbe2eb',
+  },
+  selectionMenu: {
+    background: 'hsl(223 15% 15% / 0.94)',
+    foreground: '#dbe2eb',
+    border: 'hsl(222 13% 31% / 0.78)',
+    shadow: '0 18px 48px hsl(228 40% 3% / 0.58)',
+  },
+  composer: {
+    background: 'hsl(223 15% 15% / 0.98)',
+    border: 'hsl(222 13% 31% / 0.84)',
+    shadow: '0 24px 70px hsl(228 45% 3% / 0.62)',
+  },
+  agentPanel: {
+    background: 'hsl(221 15% 19% / 0.9)',
+    border: 'hsl(222 13% 31% / 0.78)',
+    hoverBackground: 'hsl(221 15% 23%)',
+  },
+  overlay: {
+    scrim: 'hsl(228 40% 3% / 0.5)',
+    edgeBlurTop: 'linear-gradient(to bottom,hsl(228 19% 9% / 0.9),hsl(228 19% 9% / 0))',
+    edgeBlurBottom: 'linear-gradient(to top,hsl(228 19% 9% / 0.9),hsl(228 19% 9% / 0))',
+  },
+};
+
+export const duskIndigoTheme: AppTheme = {
+  meta: {
+    id: duskIndigoThemeId,
+    name: '黛蓝',
+    description: '冷调靛青夜色、月白正文和赤陶余烬强调的暗色阅读主题。',
+    tone: 'dark',
+    visible: true,
+  },
+  font: defaultTheme.font,
+  palette: {
+    background: '228 19% 9%',
+    foreground: '214 24% 89%',
+    card: '223 15% 15%',
+    cardForeground: '214 24% 89%',
+    popover: '223 15% 15%',
+    popoverForeground: '214 24% 89%',
+    primary: '10 78% 64%',
+    primaryForeground: '225 20% 11%',
+    secondary: '221 15% 19%',
+    secondaryForeground: '214 24% 89%',
+    muted: '221 15% 19%',
+    mutedForeground: '216 13% 63%',
+    accent: '8 38% 21%',
+    accentForeground: '10 78% 64%',
+    destructive: '6 74% 64%',
+    destructiveForeground: '225 20% 11%',
+    border: '222 13% 27%',
+    input: '222 13% 27%',
+    ring: '10 78% 64%',
+  },
+  effect: {
+    radius: '0.75rem',
+    resizeDuration: defaultTheme.effect.resizeDuration,
+    resizeEase: defaultTheme.effect.resizeEase,
+    shellBackground:
+      'radial-gradient(circle at 16% 18%, hsl(10 78% 64% / 0.12), transparent 28%), linear-gradient(135deg, hsl(228 19% 9%), hsl(230 22% 7%))',
+    shellPanelShadow: '0 32px 70px hsl(228 45% 2% / 0.68), 0 1px 0 hsl(220 40% 100% / 0.06) inset',
+    subtlePanelShadow: '0 12px 30px hsl(228 40% 3% / 0.55)',
+    cardShadow: '0 1px 0 hsl(220 40% 100% / 0.05) inset, 0 8px 18px hsl(228 40% 3% / 0.5)',
+    overlayScrim: 'hsl(228 40% 3% / 0.5)',
+  },
+  action: {
+    primary: {
+      background: 'hsl(10 78% 64%)',
+      foreground: 'hsl(225 20% 11%)',
+      border: 'hsl(10 78% 64%)',
+      hoverBackground: 'hsl(10 78% 69%)',
+      activeBackground: 'hsl(10 70% 57%)',
+      disabledBackground: 'hsl(222 13% 27%)',
+      disabledForeground: 'hsl(219 11% 47%)',
+    },
+    secondary: {
+      background: 'hsl(221 15% 19% / 0.86)',
+      foreground: 'hsl(214 24% 89%)',
+      border: 'hsl(222 13% 31% / 0.7)',
+      hoverBackground: 'hsl(221 15% 23%)',
+      activeBackground: 'hsl(221 15% 27%)',
+      disabledBackground: 'hsl(221 15% 19% / 0.56)',
+      disabledForeground: 'hsl(219 11% 47%)',
+    },
+    danger: {
+      background: 'hsl(6 74% 64%)',
+      foreground: 'hsl(225 20% 11%)',
+      border: 'hsl(6 74% 64%)',
+      hoverBackground: 'hsl(6 74% 69%)',
+      activeBackground: 'hsl(6 66% 57%)',
+      disabledBackground: 'hsl(6 24% 26%)',
+      disabledForeground: 'hsl(219 11% 47%)',
+    },
+  },
+  interactive: {
+    link: 'hsl(10 78% 64%)',
+    linkHover: 'hsl(10 78% 71%)',
+    selectedBackground: 'hsl(8 38% 21%)',
+    selectedForeground: 'hsl(10 78% 64%)',
+    selectedBorder: 'hsl(10 78% 64% / 0.48)',
+    currentBackground: 'hsl(221 15% 19% / 0.82)',
+    hoverBackground: 'hsl(221 15% 19% / 0.72)',
+    hoverBorder: 'hsl(10 78% 64% / 0.38)',
+    focusRing: 'hsl(10 78% 64% / 0.4)',
+    badgeBackground: 'hsl(8 38% 21%)',
+    badgeForeground: 'hsl(10 78% 64%)',
+    badgeBorder: 'hsl(10 78% 64% / 0.24)',
+  },
+  paperPattern: {
+    kind: 'dash-grid',
+    background: 'hsl(228 19% 9%)',
+    color: 'hsl(214 24% 89%)',
+    secondaryColor: 'hsl(10 78% 64%)',
+    opacity: '0.032',
+    size: '18px',
+  },
+  dataColor: {
+    chart1: 'hsl(190 40% 56%)',
+    chart2: 'hsl(10 58% 62%)',
+    chart3: 'hsl(225 50% 66%)',
+    userAnnotationDefault: '#f5aa5c',
+    readerAgentFallback: '#dbe2eb',
+  },
+  reader: duskIndigoReaderTheme,
+};
+
 const inkPaperReaderTheme: ReaderTheme = {
   background: '#f5f4ed',
   paper: '#faf9f5',
@@ -722,6 +875,7 @@ export const themeRegistry = {
   [defaultThemeId]: defaultTheme,
   [inkPaperThemeId]: inkPaperTheme,
   [inkBlackThemeId]: inkBlackTheme,
+  [duskIndigoThemeId]: duskIndigoTheme,
   [beigePaperThemeId]: beigePaperTheme,
 } as const satisfies Record<string, AppTheme>;
 
