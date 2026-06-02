@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
+  normalizeLibraryContentSources,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
   selectionActionShortcutsConflict,
@@ -82,8 +83,18 @@ export function useSettingsDrafts({
     [store.user, userDraft],
   );
   const settingsHasChanges = useMemo(
-    () => Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages),
-    [settingsDraft.saveArticleImages, store.settings.saveArticleImages],
+    () =>
+      Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
+      libraryContentSourcesChanged(
+        settingsDraft.libraryContentSources,
+        store.settings.libraryContentSources,
+      ),
+    [
+      settingsDraft.libraryContentSources,
+      settingsDraft.saveArticleImages,
+      store.settings.libraryContentSources,
+      store.settings.saveArticleImages,
+    ],
   );
   const draftSelectionActionShortcuts = useMemo(
     () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
@@ -342,6 +353,13 @@ export function useSettingsDrafts({
     saveProviderRoutes,
     testProvider,
   };
+}
+
+function libraryContentSourcesChanged(left: unknown, right: unknown) {
+  return (
+    JSON.stringify(normalizeLibraryContentSources(left)) !==
+    JSON.stringify(normalizeLibraryContentSources(right))
+  );
 }
 
 function settingsSaveErrorMessage(error: unknown) {

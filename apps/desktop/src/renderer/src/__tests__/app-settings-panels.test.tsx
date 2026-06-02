@@ -805,6 +805,206 @@ describe('GeneralSettings', () => {
 
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
   });
+
+  it('saves content source preferences and prevents disabling the final source', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: true },
+            { id: 'pdf', enabled: false },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    fireEvent.pointerDown(ebookItem, {
+      button: 0,
+      clientX: 130,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(window, {
+      clientX: 130,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        libraryContentSources: [
+          { id: 'web', enabled: true },
+          { id: 'ebook', enabled: false },
+          { id: 'pdf', enabled: false },
+          { id: 'weread', enabled: false },
+        ],
+      }),
+    );
+
+    cleanup();
+    render(
+      <GeneralSettings
+        settingsDraft={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: false },
+            { id: 'pdf', enabled: false },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        canSave={false}
+        onSettingsChange={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '切换网页文章入口' }).getAttribute('aria-disabled'),
+    ).toBe('true');
+  });
+
+  it('keeps a re-enabled content source in the current board position', () => {
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: false },
+            { id: 'pdf', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        canSave={false}
+        onSettingsChange={vi.fn()}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    fireEvent.pointerDown(ebookItem, {
+      button: 0,
+      clientX: 130,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(window, {
+      clientX: 130,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        libraryContentSources: [
+          { id: 'web', enabled: true },
+          { id: 'ebook', enabled: true },
+          { id: 'pdf', enabled: true },
+          { id: 'weread', enabled: false },
+        ],
+      }),
+    );
+  });
+
+  it('reorders disabled content sources by dragging cards', () => {
+    const onSave = vi.fn();
+    const { container } = render(
+      <GeneralSettings
+        settingsDraft={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: false },
+            { id: 'pdf', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        canSave={false}
+        onSettingsChange={vi.fn()}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-library-source-card]'));
+    const cardRects = [
+      { left: 0, right: 100 },
+      { left: 110, right: 210 },
+      { left: 220, right: 320 },
+      { left: 330, right: 430 },
+    ];
+    cards.forEach((card, index) => {
+      const rect = cardRects[index];
+      card.getBoundingClientRect = () =>
+        ({
+          bottom: 100,
+          height: 100,
+          left: rect.left,
+          right: rect.right,
+          top: 0,
+          width: 100,
+          x: rect.left,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    });
+
+    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    fireEvent.pointerDown(ebookItem, {
+      button: 0,
+      clientX: 130,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(window, {
+      clientX: 340,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+
+    expect(
+      Array.from(container.querySelectorAll<HTMLElement>('[data-library-source-card]')).map(
+        (item) => item.dataset.librarySourceCard,
+      ),
+    ).toEqual(['web', 'pdf', 'ebook', 'weread']);
+    expect(
+      container.querySelector('.library-content-source-menu-item.is-floating-drag'),
+    ).toBeTruthy();
+
+    fireEvent.pointerUp(window, {
+      clientX: 340,
+      clientY: 50,
+      isPrimary: true,
+      pointerId: 1,
+    });
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        libraryContentSources: [
+          { id: 'web', enabled: true },
+          { id: 'pdf', enabled: true },
+          { id: 'ebook', enabled: false },
+          { id: 'weread', enabled: false },
+        ],
+      }),
+    );
+  });
 });
 
 describe('WeReadSettingsPanel', () => {

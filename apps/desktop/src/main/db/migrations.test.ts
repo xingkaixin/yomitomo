@@ -3,6 +3,21 @@ import { describe, expect, it } from 'vitest';
 import { migrations } from './migrations';
 
 describe('reading memory migrations', () => {
+  it('adds library content source preferences to app settings', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of [
+      '0001_initial',
+      '0005_settings_reading_card',
+      '0045_library_content_sources',
+    ]) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(columnNames(database, 'app_settings')).toContain('library_content_sources');
+  });
+
   it('adds a persistent annotation memory backfill marker to app settings', () => {
     const database = new DatabaseSync(':memory:');
     for (const id of [

@@ -21,6 +21,7 @@ export const appSettings = sqliteTable('app_settings', {
   id: text('id').primaryKey(),
   themeId: text('theme_id'),
   libraryPageSize: integer('library_page_size'),
+  libraryContentSources: text('library_content_sources', { mode: 'json' }),
   defaultProviderId: text('default_provider_id'),
   readingAssistantProviderId: text('reading_assistant_provider_id'),
   reviewAssistantProviderId: text('review_assistant_provider_id'),

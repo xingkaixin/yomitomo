@@ -45,21 +45,12 @@ import {
   nativeBookCoverStyle,
   useNativeCoverRatio,
 } from './app-article-book';
+import { libraryContentSourceOptions } from './app-library-content-sources';
 import { urlHost } from './app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
 const ARTICLE_DELETE_HOLD_MS = 1400;
-
-export const LIBRARY_SOURCE_OPTIONS: Array<{
-  value: LibrarySource;
-  label: string;
-}> = [
-  { value: 'web', label: '网页文章' },
-  { value: 'ebook', label: '电子书' },
-  { value: 'pdf', label: 'PDF' },
-  { value: 'weread', label: '微信读书' },
-];
 
 export function LibraryHome({
   activeSource,
@@ -117,6 +108,7 @@ export function LibraryHome({
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const sourceOptions = useMemo(() => libraryContentSourceOptions(settings), [settings]);
   const filteredArticles = useMemo(
     () =>
       sortedArticles
@@ -203,7 +195,7 @@ export function LibraryHome({
       <header className="library-home-header">
         <div className="library-home-header-main">
           <div className="library-source-tabs" role="tablist" aria-label="阅读库内容类型">
-            {LIBRARY_SOURCE_OPTIONS.map((option) => (
+            {sourceOptions.map((option) => (
               <button
                 aria-pressed={activeSource === option.value}
                 aria-disabled={option.value === 'weread' && !wereadSettings.configured}

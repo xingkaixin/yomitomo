@@ -41,6 +41,7 @@ import {
   normalizeAnnotationEvidenceSource,
   normalizeAnnotationMove,
   normalizeAssistantExecutionMode,
+  normalizeLibraryContentSources,
   normalizeReviewOpinionLabel,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
@@ -261,6 +262,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     libraryPageSize: settingsFieldProvided(settings, 'libraryPageSize')
       ? normalizeLibraryPageSize(settings.libraryPageSize)
       : normalizeLibraryPageSize(existing?.libraryPageSize),
+    libraryContentSources: settingsFieldProvided(settings, 'libraryContentSources')
+      ? normalizeLibraryContentSources(settings.libraryContentSources)
+      : normalizeLibraryContentSources(existing?.libraryContentSources),
     defaultProviderId: settingsFieldProvided(settings, 'defaultProviderId')
       ? settings.defaultProviderId || undefined
       : existing?.defaultProviderId || undefined,
@@ -342,6 +346,7 @@ export function rowToSettings(
   return {
     themeId: row?.themeId || undefined,
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
+    libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
@@ -359,6 +364,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
     themeId: settings?.themeId || undefined,
     libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
+    libraryContentSources: normalizeLibraryContentSources(settings?.libraryContentSources),
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,

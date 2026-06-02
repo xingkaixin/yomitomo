@@ -1,5 +1,9 @@
 import type { AppSettings, UserProfile } from '@yomitomo/shared';
-import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
+import {
+  normalizeLibraryContentSources,
+  normalizeMessageSendShortcut,
+  normalizeSelectionActionShortcuts,
+} from '@yomitomo/shared';
 import * as schema from './db/schema';
 import { type StoreExecutor } from './store-db';
 import {
@@ -53,6 +57,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     id: 'default',
     themeId: merged.themeId || null,
     libraryPageSize: merged.libraryPageSize || null,
+    libraryContentSources: normalizeLibraryContentSources(merged.libraryContentSources),
     defaultProviderId: merged.defaultProviderId || null,
     readingAssistantProviderId: merged.readingAssistantProviderId || null,
     reviewAssistantProviderId: merged.reviewAssistantProviderId || null,
