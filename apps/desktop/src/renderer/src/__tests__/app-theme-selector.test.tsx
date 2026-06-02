@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultReaderBackgroundColor } from '@yomitomo/reader-ui/reader-settings';
 import { ThemeSelector } from '../app-theme-selector';
-import { defaultThemeId, inkBlackThemeId, inkPaperThemeId } from '../app-theme';
+import { defaultThemeId, duskIndigoThemeId, inkBlackThemeId, inkPaperThemeId } from '../app-theme';
 
 afterEach(cleanup);
 
@@ -78,6 +78,25 @@ describe('ThemeSelector', () => {
     expect(onSelectTheme).toHaveBeenCalledWith(inkBlackThemeId);
   });
 
+  it('selects the extracted dusk indigo theme', () => {
+    const onSelectTheme = vi.fn();
+
+    render(
+      <ThemeSelector
+        activeThemeId={duskIndigoThemeId}
+        open
+        readerBackgroundColor="#171a21"
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={() => undefined}
+        onSelectTheme={onSelectTheme}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /冷调靛青夜色/ }));
+
+    expect(onSelectTheme).toHaveBeenCalledWith(duskIndigoThemeId);
+  });
+
   it('switches the visible theme and paper category together', () => {
     const onSelectReaderBackground = vi.fn();
     const onSelectTheme = vi.fn();
@@ -137,5 +156,24 @@ describe('ThemeSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：松烟' }));
 
     expect(onSelectReaderBackground).toHaveBeenCalledWith('#242019');
+  });
+
+  it('selects the dusk indigo reader paper background within the dark category', () => {
+    const onSelectReaderBackground = vi.fn();
+
+    render(
+      <ThemeSelector
+        activeThemeId={duskIndigoThemeId}
+        open
+        readerBackgroundColor="#171a21"
+        onOpenChange={() => undefined}
+        onSelectReaderBackground={onSelectReaderBackground}
+        onSelectTheme={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '阅读器纸张：黛蓝' }));
+
+    expect(onSelectReaderBackground).toHaveBeenCalledWith('#171a21');
   });
 });
