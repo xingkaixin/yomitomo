@@ -685,8 +685,8 @@ export function WebSourceBookcase({
         onDeleteAnnotation={deleteAnnotation}
         onDeleteComment={deleteComment}
         onFocusAnnotation={openAnnotation}
-        onOpenAnnotationDiscussion={(annotationId) =>
-          void onOpenAnnotationDiscussion?.(article.id, annotationId)
+        onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
+          void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
         }
         onNavigateAnnotation={navigateAnnotation}
         onResolveAnnotationNavigation={resolveAnnotationNavigation}

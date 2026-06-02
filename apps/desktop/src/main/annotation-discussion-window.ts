@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type {
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowStateEvent,
@@ -6,6 +6,12 @@ import type {
 } from '../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
 import { mainPath } from './main-paths';
+import {
+  appendWindowAnimationSourceSearchParams,
+  installWindowCloseAnimation,
+  windowAnimationSourceFromInput,
+  windowAnimationSourceQuery,
+} from './window-animation-source';
 
 type DiscussionWindowEntry = {
   articleId: string;
@@ -16,8 +22,8 @@ type DiscussionWindowEntry = {
 const discussionWindows = new Map<string, DiscussionWindowEntry>();
 
 export function registerAnnotationDiscussionWindowIpc(context: DesktopMainIpcContext) {
-  handleDesktopIpc('annotation-discussion:open', (_event, input) =>
-    openAnnotationDiscussionWindow(context, input),
+  handleDesktopIpc('annotation-discussion:open', (event, input) =>
+    openAnnotationDiscussionWindow(context, input, event),
   );
   handleDesktopIpc('annotation-discussion:close-article', (_event, input) =>
     closeArticleDiscussionWindows(input),
@@ -27,6 +33,7 @@ export function registerAnnotationDiscussionWindowIpc(context: DesktopMainIpcCon
 function openAnnotationDiscussionWindow(
   context: DesktopMainIpcContext,
   input: AnnotationDiscussionWindowOpenInput,
+  event: IpcMainInvokeEvent,
 ) {
   const key = discussionWindowKey(input.articleId, input.annotationId);
   const existing = discussionWindows.get(key);
@@ -65,6 +72,7 @@ function openAnnotationDiscussionWindow(
     annotationId: input.annotationId,
     window,
   });
+  installWindowCloseAnimation(window);
 
   window.once('ready-to-show', () => {
     if (window.isDestroyed()) return;
@@ -85,13 +93,15 @@ function openAnnotationDiscussionWindow(
     void context.openExternalUrl(url).catch(() => undefined);
     return { action: 'deny' };
   });
-  window.webContents.on('will-navigate', (event, url) => {
+  window.webContents.on('will-navigate', (navigationEvent, url) => {
     if (isSameRendererNavigation(window.webContents.getURL(), url)) return;
-    event.preventDefault();
+    navigationEvent.preventDefault();
     void context.openExternalUrl(url).catch(() => undefined);
   });
 
-  void loadDiscussionWindow(window, input).catch(() => {
+  const animationSource = windowAnimationSourceFromInput(event, window, input.sourceRect);
+
+  void loadDiscussionWindow(window, input, animationSource).catch(() => {
     if (!window.isDestroyed()) window.close();
   });
 
@@ -203,6 +213,7 @@ function restoreAndFocus(window: BrowserWindow) {
 function loadDiscussionWindow(
   window: BrowserWindow,
   { annotationId, articleId }: AnnotationDiscussionWindowOpenInput,
+  animationSource?: ReturnType<typeof windowAnimationSourceFromInput>,
 ) {
   const route = {
     window: 'annotation-discussion',
@@ -213,11 +224,15 @@ function loadDiscussionWindow(
   if (process.env.ELECTRON_RENDERER_URL) {
     const url = new URL(process.env.ELECTRON_RENDERER_URL);
     for (const [key, value] of Object.entries(route)) url.searchParams.set(key, value);
+    appendWindowAnimationSourceSearchParams(url.searchParams, animationSource);
     return window.loadURL(url.toString());
   }
 
   return window.loadFile(mainPath('../renderer/index.html'), {
-    query: route,
+    query: {
+      ...route,
+      ...windowAnimationSourceQuery(animationSource),
+    },
   });
 }
 

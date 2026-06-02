@@ -11,6 +11,7 @@ import type {
   AnnotationRailLayout,
   buildTocAnnotationStats,
 } from '../annotations/reader-annotations';
+import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import type {
   ActiveConnection,
   AgentDockItem,
@@ -107,7 +108,7 @@ export type ReaderAppViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
-  onOpenAnnotationDiscussion?: (annotationId: string) => void;
+  onOpenAnnotationDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
   onRequestAnnotationReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
   onAnnotationLayoutChange?: () => void;
   onResolveAnnotationNavigation?: (

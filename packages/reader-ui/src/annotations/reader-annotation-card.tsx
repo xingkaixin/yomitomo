@@ -15,6 +15,13 @@ type DeleteHoldStyle = React.CSSProperties & {
   '--delete-hold-ms': string;
 };
 
+export type ReaderWindowSourceRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 const DELETE_HOLD_MS = 1600;
 
 export function AnnotationCard({
@@ -61,7 +68,7 @@ export function AnnotationCard({
   onDelete: (annotationId: string) => void;
   onDeleteComment?: (annotationId: string, commentId: string) => void;
   onFocus: (annotationId: string) => void;
-  onOpenDiscussion?: (annotationId: string) => void;
+  onOpenDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   pendingAgents?: PublicAgent[];
 }) {
@@ -126,9 +133,9 @@ export function AnnotationCard({
     onFocus(annotation.id);
   }
 
-  function openDiscussion() {
+  function openDiscussion(sourceElement: Element) {
     if (!active) onFocus(annotation.id);
-    onOpenDiscussion?.(annotation.id);
+    onOpenDiscussion?.(annotation.id, elementWindowSourceRect(sourceElement));
   }
 
   return (
@@ -254,7 +261,7 @@ export function AnnotationCard({
                 type="button"
                 aria-label="进入讨论区"
                 aria-describedby={thoughtSummaryId}
-                onClick={openDiscussion}
+                onClick={(event) => openDiscussion(event.currentTarget)}
               >
                 <MessageCircle size={14} />
                 <span>进入讨论区</span>
@@ -406,7 +413,7 @@ function DeleteActionMenu({
   deleteAriaLabel: string;
   discussionAriaLabel?: string;
   onDelete: () => void;
-  onOpenDiscussion?: () => void;
+  onOpenDiscussion?: (sourceElement: Element) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -421,9 +428,9 @@ function DeleteActionMenu({
     onDelete();
   }
 
-  function openDiscussionAndClose() {
+  function openDiscussionAndClose(sourceElement: Element) {
     setOpen(false);
-    onOpenDiscussion?.();
+    onOpenDiscussion?.(sourceElement);
   }
 
   return (
@@ -447,7 +454,7 @@ function DeleteActionMenu({
               className="reader-action-menu-item"
               type="button"
               aria-label={discussionAriaLabel}
-              onClick={openDiscussionAndClose}
+              onClick={(event) => openDiscussionAndClose(event.currentTarget)}
             >
               <MessageCircle size={13} />
               <span>进入讨论区</span>
@@ -553,4 +560,14 @@ function compareCommentsOldestFirst(
 function commentTime(comment: Annotation['comments'][number]) {
   const time = Date.parse(comment.createdAt);
   return Number.isNaN(time) ? 0 : time;
+}
+
+function elementWindowSourceRect(element: Element): ReaderWindowSourceRect {
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+  };
 }

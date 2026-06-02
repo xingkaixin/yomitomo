@@ -34,6 +34,7 @@ import {
 import type {
   AnnotationDiscussionWindowState,
   AnnotationDistillationCommittedEvent,
+  WindowAnimationSourceRect,
 } from '../../ipc-contract';
 
 export { groupLibraryArticles };
@@ -80,7 +81,11 @@ export function ReadingLibrary({
     annotationId: string,
     commentId: string,
   ) => Promise<void> | void;
-  onOpenArticleDiscussion?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onOpenArticleDiscussion?: (
+    articleId: string,
+    annotationId: string,
+    sourceRect?: WindowAnimationSourceRect,
+  ) => Promise<void> | void;
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -559,7 +564,11 @@ export function AnnotationDiscussionCapsules({
 }: {
   article: ArticleRecord;
   windows: AnnotationDiscussionWindowState[];
-  onOpen?: (articleId: string, annotationId: string) => Promise<void> | void;
+  onOpen?: (
+    articleId: string,
+    annotationId: string,
+    sourceRect?: WindowAnimationSourceRect,
+  ) => Promise<void> | void;
 }) {
   const [expandedByUser, setExpandedByUser] = useState(false);
   const items = useMemo(

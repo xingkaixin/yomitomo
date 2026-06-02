@@ -114,6 +114,12 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(desktop.openAnnotationSedimentation).toHaveBeenCalledWith({
       articleId: 'article_1',
       annotationId: 'annotation_1',
+      sourceRect: expect.objectContaining({
+        height: expect.any(Number),
+        width: expect.any(Number),
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
     });
   });
 

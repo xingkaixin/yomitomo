@@ -75,6 +75,7 @@ import {
   applyAssistantRuntimeProgress,
   AssistantRuntimeProgressList,
 } from './app-assistant-runtime-progress';
+import { elementWindowSourceRect, useSourceAwareWindowTransition } from './app-window-transition';
 
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_DELETE_HOLD_MS = 900;
@@ -132,6 +133,8 @@ export function AnnotationDiscussionWindowApp() {
   const annotationId = params.get('annotationId') || '';
   const [status, setStatus] = useState<DiscussionWindowStatus>({ type: 'loading' });
   const className = annotationDiscussionWindowClassName();
+  const windowTransition = useSourceAwareWindowTransition(params);
+  const windowClassName = [className, windowTransition.className].filter(Boolean).join(' ');
 
   useEffect(() => {
     const syncTheme = () => applyAppTheme(themeRegistry[readCachedThemeId()]);
@@ -186,7 +189,8 @@ export function AnnotationDiscussionWindowApp() {
         agents={status.agents}
         article={status.article}
         annotation={status.annotation}
-        className={className}
+        className={windowClassName}
+        style={windowTransition.style}
       />
     );
   }
@@ -199,7 +203,7 @@ export function AnnotationDiscussionWindowApp() {
         : status.message;
 
   return (
-    <main className={className}>
+    <main className={windowClassName} style={windowTransition.style}>
       <section className="annotation-discussion-empty" aria-busy={status.type === 'loading'}>
         <MessageCircle size={24} />
         <strong>{message}</strong>
@@ -213,11 +217,13 @@ function AnnotationDiscussionShell({
   annotation,
   article,
   className,
+  style,
 }: {
   agents: Agent[];
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
+  style: CSSProperties;
 }) {
   const [currentArticle, setCurrentArticle] = useState(article);
   const [currentAnnotation, setCurrentAnnotation] = useState(annotation);
@@ -646,10 +652,11 @@ function AnnotationDiscussionShell({
     setSendError('');
   }
 
-  function openSedimentationWindow() {
+  function openSedimentationWindow(sourceElement: Element) {
     void window.yomitomoDesktop.openAnnotationSedimentation({
       articleId: currentArticle.id,
       annotationId: currentAnnotation.id,
+      sourceRect: elementWindowSourceRect(sourceElement),
     });
   }
 
@@ -686,7 +693,7 @@ function AnnotationDiscussionShell({
 
   if (removed) {
     return (
-      <main className={className}>
+      <main className={className} style={style}>
         <section className="annotation-discussion-empty">
           <MessageCircle size={24} />
           <strong>这条批注已删除</strong>
@@ -696,7 +703,7 @@ function AnnotationDiscussionShell({
   }
 
   return (
-    <main className={className}>
+    <main className={className} style={style}>
       <section
         className="annotation-discussion-quote"
         aria-labelledby="annotation-discussion-quote-title"
@@ -753,7 +760,7 @@ function AnnotationDiscussionShell({
               aria-label={
                 annotation.distillation?.status === 'published' ? '查看沉淀' : '把这些想法沉淀下来'
               }
-              onClick={openSedimentationWindow}
+              onClick={(event) => openSedimentationWindow(event.currentTarget)}
             >
               <GitPullRequestDraft size={14} />
               <span>

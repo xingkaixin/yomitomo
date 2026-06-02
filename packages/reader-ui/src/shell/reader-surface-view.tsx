@@ -8,6 +8,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
+import type { ReaderWindowSourceRect } from '../annotations/reader-annotation-card';
 import { Composer } from './reader-composer';
 import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
@@ -73,7 +74,7 @@ export type ReaderSurfaceViewProps = {
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
-  onOpenAnnotationDiscussion?: (annotationId: string) => void;
+  onOpenAnnotationDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
   onHighlightClick: (
     annotationId: string,
     event: React.MouseEvent<HTMLButtonElement>,
