@@ -23,6 +23,8 @@ const MAX_BATCH_IMPORT_FILES = 10;
 const ARTICLE_IMPORT_CANCEL_DELAY_MS = 650;
 const ARTICLE_IMPORT_CLOSE_DELAY_MS = 1200;
 const FILE_IMPORT_CLOSE_DELAY_MS = 1800;
+const EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS = 3200;
+const EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE = 7;
 type ArticleImportState = 'idle' | 'submitting' | 'imported' | 'duplicate' | 'error';
 export type ArticleImportResult =
   | { status: 'canceled' }
@@ -37,6 +39,15 @@ type FileImportItem = {
   status: FileImportItemStatus;
   article?: ArticleRecord;
   message?: string;
+};
+
+type ImportedBookCelebrationItem = {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  position: number;
+  lift: number;
+  order: number;
 };
 
 type FileImportDialogConfig = {
@@ -102,12 +113,47 @@ function articleImportRequestId(requestId: number) {
   return `article-import-${requestId}`;
 }
 
+function coverPlaceholderTitle(title: string) {
+  const compactTitle = title.trim();
+  return compactTitle.length > 4 ? `${compactTitle.slice(0, 4)}...` : compactTitle;
+}
+
 function fileImportItemStateLabel(item: FileImportItem) {
   if (item.status === 'pending') return '等待';
   if (item.status === 'importing') return `${Math.round(item.progress)}%`;
   if (item.status === 'duplicate') return '已存在';
   if (item.status === 'error') return '失败';
   return '完成';
+}
+
+function importedBookCelebrationItems(items: FileImportItem[]): ImportedBookCelebrationItem[] {
+  const successItems = items.filter(
+    (item) => (item.status === 'imported' || item.status === 'duplicate') && item.article,
+  );
+  const visibleItems = successItems.slice(0, EBOOK_IMPORT_CELEBRATION_MAX_VISIBLE);
+  const center = (visibleItems.length - 1) / 2;
+  const centerOrder = centerFirstOrder(visibleItems.length);
+
+  return visibleItems.map((item, index) => ({
+    id: item.id,
+    title: item.article?.title || item.fileName,
+    coverUrl: item.article?.leadImageUrl,
+    position: index - center,
+    lift: Math.abs(index - center) * 7,
+    order: centerOrder.get(index) || 0,
+  }));
+}
+
+function centerFirstOrder(count: number) {
+  const indexes = Array.from({ length: count }, (_, index) => index);
+  const center = (count - 1) / 2;
+  indexes.sort((left, right) => {
+    const leftDistance = Math.abs(left - center);
+    const rightDistance = Math.abs(right - center);
+    if (leftDistance !== rightDistance) return leftDistance - rightDistance;
+    return left - right;
+  });
+  return new Map(indexes.map((index, order) => [index, order]));
 }
 
 export function LibraryImportControls({
@@ -836,11 +882,18 @@ function FileImportDialog({
         : `已导入 ${successCount} 个文件`,
     );
     setBatchProgress(100);
-    importCloseTimerRef.current = window.setTimeout(() => {
-      importCloseTimerRef.current = null;
-      onClose();
-      setDragging(false);
-    }, FILE_IMPORT_CLOSE_DELAY_MS);
+    if (failedCount === 0) {
+      importCloseTimerRef.current = window.setTimeout(
+        () => {
+          importCloseTimerRef.current = null;
+          onClose();
+          setDragging(false);
+        },
+        config.kind === 'ebook'
+          ? EBOOK_IMPORT_CELEBRATION_CLOSE_DELAY_MS
+          : FILE_IMPORT_CLOSE_DELAY_MS,
+      );
+    }
   }
 
   function importDropTitle() {
@@ -851,6 +904,17 @@ function FileImportDialog({
 
   const duplicateArticle =
     importItems.find((item) => item.status === 'duplicate' && item.article)?.article || null;
+  const celebrationItems = config.kind === 'ebook' ? importedBookCelebrationItems(importItems) : [];
+  const hiddenCelebrationCount = Math.max(
+    0,
+    importItems.filter(
+      (item) => (item.status === 'imported' || item.status === 'duplicate') && item.article,
+    ).length - celebrationItems.length,
+  );
+  const showCelebration =
+    config.kind === 'ebook' &&
+    celebrationItems.length > 0 &&
+    (importState === 'imported' || importState === 'error');
   const showProgress = importState !== 'idle' && importItems.length > 0;
   const showResults = importItems.length > 0;
   const importProgressPercent = Math.round(clampNumber(batchProgress, 0, 100, 0));
@@ -959,6 +1023,43 @@ function FileImportDialog({
             </span>
           ) : null}
         </label>
+        {showCelebration ? (
+          <div
+            className="library-ebook-import-celebration"
+            role="status"
+            aria-label="已导入的电子书封面"
+          >
+            <div className="library-ebook-import-cover-stack" aria-hidden="true">
+              {celebrationItems.map((item) => (
+                <span
+                  className={['library-ebook-import-cover-card', item.coverUrl ? 'has-cover' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  key={item.id}
+                  style={
+                    {
+                      '--ebook-import-cover-position': item.position,
+                      '--ebook-import-cover-lift': `${item.lift}px`,
+                      '--ebook-import-cover-order': item.order,
+                      '--ebook-import-cover-z': celebrationItems.length - item.order,
+                    } as React.CSSProperties
+                  }
+                >
+                  {item.coverUrl ? (
+                    <img alt="" src={item.coverUrl} />
+                  ) : (
+                    <span className="library-ebook-import-cover-placeholder">
+                      {coverPlaceholderTitle(item.title)}
+                    </span>
+                  )}
+                </span>
+              ))}
+              {hiddenCelebrationCount > 0 ? (
+                <span className="library-ebook-import-cover-more">+{hiddenCelebrationCount}</span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
         {showResults ? (
           <div className="library-file-import-results" role="status">
             {importItems.map((item) => (
