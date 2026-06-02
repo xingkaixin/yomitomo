@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { BrowserWindow, type WebContents } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
+import { Effect } from 'effect';
 
 const IMPORT_TIMEOUT_MS = 15_000;
 const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
@@ -35,24 +36,31 @@ export async function articleRecordFromUrl(
   input: string,
   options: ArticleImportOptions = {},
 ): Promise<ArticleRecord> {
+  return Effect.runPromise(articleRecordFromUrlEffect(input, options));
+}
+
+function articleRecordFromUrlEffect(input: string, options: ArticleImportOptions) {
   const controller = new AbortController();
   registerArticleImportTask(options.requestId, controller);
 
-  try {
-    const url = normalizeImportUrl(input);
-    throwIfArticleImportCanceled(controller.signal);
-    const page = await fetchArticleHtml(url, controller.signal);
-    throwIfArticleImportCanceled(controller.signal);
-    return await extractArticleRecordInWorker({
+  return Effect.gen(function* () {
+    const url = yield* Effect.try({
+      try: () => normalizeImportUrl(input),
+      catch: (error) => error,
+    });
+    yield* throwIfArticleImportCanceledEffect(controller.signal);
+    const page = yield* fetchArticleHtmlEffect(url, controller.signal);
+    yield* throwIfArticleImportCanceledEffect(controller.signal);
+    return yield* extractArticleRecordInWorkerEffect({
       html: page.html,
       inlineImages: options.inlineImages === true,
       signal: controller.signal,
       url: page.url,
       userAgent: importUserAgent(page.url),
     });
-  } finally {
-    unregisterArticleImportTask(options.requestId, controller);
-  }
+  }).pipe(
+    Effect.ensuring(Effect.sync(() => unregisterArticleImportTask(options.requestId, controller))),
+  );
 }
 
 export function cancelArticleImport(requestId: string) {
@@ -89,36 +97,47 @@ function normalizeImportUrl(input: string) {
   return url.href;
 }
 
-async function fetchArticleHtml(url: string, signal: AbortSignal): Promise<ArticleHtml> {
+function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
   const userAgent = importUserAgent(url);
 
-  try {
-    return await withTimeoutSignal(IMPORT_TIMEOUT_MS, signal, async (fetchSignal) => {
-      const response = await fetch(url, {
-        headers: importHeaders(userAgent),
-        redirect: 'follow',
-        signal: fetchSignal,
+  return withTimeoutSignalEffect(IMPORT_TIMEOUT_MS, signal, (fetchSignal) =>
+    Effect.gen(function* () {
+      const response = yield* Effect.tryPromise({
+        try: () =>
+          fetch(url, {
+            headers: importHeaders(userAgent),
+            redirect: 'follow',
+            signal: fetchSignal,
+          }),
+        catch: (error) => articleFetchError(error, signal),
       });
 
       if (!response.ok) {
-        if (shouldLoadWithBrowser(response)) return loadRenderedArticleHtml(url, userAgent, signal);
-        throw new Error(`网页请求失败：${response.status}`);
+        if (shouldLoadWithBrowser(response)) {
+          return yield* loadRenderedArticleHtmlEffect(url, userAgent, signal);
+        }
+        return yield* Effect.fail(new Error(`网页请求失败：${response.status}`));
       }
 
-      const html = await response.text();
+      const html = yield* Effect.tryPromise({
+        try: () => response.text(),
+        catch: (error) => articleFetchError(error, signal),
+      });
       if (isChallengeHtml(html)) {
-        return loadRenderedArticleHtml(response.url || url, userAgent, signal);
+        return yield* loadRenderedArticleHtmlEffect(response.url || url, userAgent, signal);
       }
       return { html, url: response.url || url };
+    }),
+  );
+}
+
+function articleFetchError(error: unknown, signal: AbortSignal) {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : '网页请求超时', {
+      cause: error,
     });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : '网页请求超时', {
-        cause: error,
-      });
-    }
-    throw error;
   }
+  return error;
 }
 
 function importHeaders(userAgent: string | undefined): HeadersInit {
@@ -143,6 +162,17 @@ function shouldLoadWithBrowser(response: Response) {
     (status >= 400 && status < 500 && status !== 400 && status !== 404) ||
     response.headers.get('cf-mitigated') === 'challenge'
   );
+}
+
+function loadRenderedArticleHtmlEffect(
+  url: string,
+  userAgent: string | undefined,
+  signal: AbortSignal,
+) {
+  return Effect.tryPromise({
+    try: () => loadRenderedArticleHtml(url, userAgent, signal),
+    catch: (error) => error,
+  });
 }
 
 async function loadRenderedArticleHtml(
@@ -249,7 +279,7 @@ function renderedPageValue(value: unknown) {
     : {};
 }
 
-function extractArticleRecordInWorker({
+function extractArticleRecordInWorkerEffect({
   html,
   inlineImages,
   signal,
@@ -262,43 +292,72 @@ function extractArticleRecordInWorker({
   url: string;
   userAgent?: string;
 }) {
-  return new Promise<ArticleRecord>((resolve, reject) => {
-    throwIfArticleImportCanceled(signal);
-    const worker = new Worker(articleImportWorkerUrl(), {
-      workerData: {
-        html,
-        inlineImages,
-        url,
-        userAgent,
-      },
-    });
+  return Effect.async<ArticleRecord, Error>((resume, effectSignal) => {
+    if (signal.aborted) {
+      resume(Effect.fail(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+      return;
+    }
+
+    let worker: Worker;
+    try {
+      worker = new Worker(articleImportWorkerUrl(), {
+        workerData: {
+          html,
+          inlineImages,
+          url,
+          userAgent,
+        },
+      });
+    } catch (error) {
+      resume(Effect.fail(errorFromUnknown(error, '网页解析失败')));
+      return;
+    }
+
     let settled = false;
 
-    const settle = (callback: () => void) => {
+    const cleanup = () => {
+      signal.removeEventListener('abort', abort);
+      effectSignal.removeEventListener('abort', interrupt);
+    };
+    const settle = (effect: Effect.Effect<ArticleRecord, Error>) => {
       if (settled) return;
       settled = true;
-      signal.removeEventListener('abort', abort);
-      callback();
+      cleanup();
+      resume(effect);
     };
     const abort = () => {
       void worker.terminate();
-      settle(() => reject(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+      settle(Effect.fail(new Error(ARTICLE_IMPORT_CANCELED_MESSAGE)));
+    };
+    const interrupt = () => {
+      void worker.terminate();
+      cleanup();
     };
 
     signal.addEventListener('abort', abort, { once: true });
+    effectSignal.addEventListener('abort', interrupt, { once: true });
     worker.once('message', (message: ArticleImportWorkerMessage) => {
       void worker.terminate();
-      settle(() => {
-        if (message.ok) resolve(message.article);
-        else reject(new Error(message.error?.message || '网页解析失败'));
-      });
+      settle(
+        message.ok
+          ? Effect.succeed(message.article)
+          : Effect.fail(new Error(message.error?.message || '网页解析失败')),
+      );
     });
     worker.once('error', (error) => {
-      settle(() => reject(error));
+      void worker.terminate();
+      settle(Effect.fail(errorFromUnknown(error, '网页解析失败')));
     });
     worker.once('exit', (code) => {
       if (code === 0 || settled) return;
-      settle(() => reject(new Error(`网页解析进程退出：${code}`)));
+      settle(Effect.fail(new Error(`网页解析进程退出：${code}`)));
+    });
+
+    return Effect.sync(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      void worker.terminate();
     });
   });
 }
@@ -341,8 +400,31 @@ function withTimeoutSignal<T>(
   });
 }
 
+function withTimeoutSignalEffect<T>(
+  timeoutMs: number,
+  parentSignal: AbortSignal,
+  run: (signal: AbortSignal) => Effect.Effect<T, unknown>,
+) {
+  return Effect.tryPromise({
+    try: () =>
+      withTimeoutSignal(timeoutMs, parentSignal, (signal) => Effect.runPromise(run(signal))),
+    catch: (error) => error,
+  });
+}
+
 function throwIfArticleImportCanceled(signal: AbortSignal) {
   if (signal.aborted) throw new Error(ARTICLE_IMPORT_CANCELED_MESSAGE);
+}
+
+function throwIfArticleImportCanceledEffect(signal: AbortSignal) {
+  return Effect.try({
+    try: () => throwIfArticleImportCanceled(signal),
+    catch: (error) => error,
+  });
+}
+
+function errorFromUnknown(error: unknown, fallback: string) {
+  return error instanceof Error ? error : new Error(fallback);
 }
 
 function recordField(input: unknown, field: string): unknown {
