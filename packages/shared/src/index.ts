@@ -14,6 +14,8 @@ export * from './text-anchor';
 
 export * from './markdown';
 
+export * from './release-note';
+
 export {
   agentPersonalities,
   agentPersonalitiesForKind,

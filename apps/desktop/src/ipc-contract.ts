@@ -19,6 +19,7 @@ import type {
   DesktopStore,
   LlmProvider,
   ProviderModel,
+  UserFacingReleaseNote,
   UserProfile,
   WeReadBook,
   WeReadBookDetail,
@@ -507,6 +508,14 @@ export type DesktopIpcInvokeMap = {
   'updates:install': {
     args: [];
     result: AppUpdateState;
+  };
+  'updates:simulate-available': {
+    args: [];
+    result: AppUpdateState;
+  };
+  'release-notes:get': {
+    args: [input: { version: string; source: 'local' | 'remote' }];
+    result: UserFacingReleaseNote | null;
   };
   'url:open': {
     args: [url: string];

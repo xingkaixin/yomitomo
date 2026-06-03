@@ -49,6 +49,7 @@ export function AboutSettings({
 }) {
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
   const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
+  const [devResetDone, setDevResetDone] = useState(false);
   const [licensesOpen, setLicensesOpen] = useState(false);
   const [developerModeSaving, setDeveloperModeSaving] = useState(false);
 
@@ -102,6 +103,23 @@ export function AboutSettings({
     }
   }
 
+  // 开发用：开发环境没有真实更新链路，把 lastSeenVersion 重置为旧值，
+  // 重启后即可命中「更新后弹窗」判定，预览 B 场景效果。
+  async function handleSimulateUpdate() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.saveSettings !== 'function') return;
+    const nextStore = await desktop.saveSettings({ ...settings, lastSeenVersion: '0.0.0' });
+    onStoreUpdated(nextStore);
+    setDevResetDone(true);
+  }
+
+  // 开发用：注入「发现新版本」状态，即时弹出更新前弹窗（A 场景），无需重启。
+  async function handleSimulatePreUpdate() {
+    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+    if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
+    await desktop.simulateUpdateAvailable();
+  }
+
   const updateCopy = updateStateCopy(updateState);
   const updateButton = updateAction(updateState);
   const developerModeEnabled = Boolean(settings.developerModeEnabled);
@@ -150,6 +168,21 @@ export function AboutSettings({
             >
               {updateCopy}
             </p>
+            {developerModeEnabled ? (
+              <div className="about-update-dev">
+                <Button className="action-button" type="button" onClick={handleSimulateUpdate}>
+                  模拟版本更新（更新后弹窗）
+                </Button>
+                <Button className="action-button" type="button" onClick={handleSimulatePreUpdate}>
+                  模拟发现新版本（更新前弹窗）
+                </Button>
+                <p className="about-update-status">
+                  {devResetDone
+                    ? '已重置更新标记，重启应用即可预览「已更新」弹窗。'
+                    : '开发用：「更新后」重置标记后重启预览；「更新前」点击即时弹出。'}
+                </p>
+              </div>
+            ) : null}
           </div>
         </section>
 

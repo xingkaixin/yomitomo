@@ -1,0 +1,187 @@
+/* 更新弹窗（RD-479）。全部颜色取自 AppTheme CSS 变量，随主题切换。 */
+.update-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--app-overlay-scrim);
+  backdrop-filter: blur(3px);
+}
+
+.update-dialog {
+  width: min(92vw, 460px);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: calc(var(--radius) + 0.4rem);
+  overflow: hidden;
+  box-shadow: var(--app-shell-panel-shadow);
+}
+
+.update-dialog-cover {
+  position: relative;
+  aspect-ratio: 2.4 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 24px;
+  background-color: hsl(var(--muted));
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid hsl(var(--border) / 0.6);
+}
+
+.update-dialog-badge {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-version {
+  font-size: 30px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.update-dialog-tagline {
+  margin-top: 6px;
+  font-size: 13px;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-body {
+  padding: 20px 24px 4px;
+}
+
+.update-dialog-lead {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  max-height: 38vh;
+  overflow-y: auto;
+}
+
+.update-dialog-item {
+  display: flex;
+  gap: 12px;
+}
+
+.update-dialog-tag {
+  flex: none;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 1px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+
+.update-dialog-tag.is-new {
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.update-dialog-tag.is-changed {
+  background: var(--app-interactive-badge-bg);
+  color: var(--app-interactive-badge-fg);
+}
+
+.update-dialog-tag.is-fixed {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-tag.is-deprecated {
+  background: hsl(var(--destructive) / 0.14);
+  color: hsl(var(--destructive));
+}
+
+.update-dialog-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.update-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: hsl(var(--foreground));
+}
+
+.update-dialog-desc {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px 22px;
+}
+
+.update-dialog-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 0.1rem);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  transition:
+    filter 0.15s ease,
+    background 0.15s ease;
+}
+
+.update-dialog-button.is-primary {
+  background: var(--app-action-primary-bg);
+  color: var(--app-action-primary-fg);
+  border-color: var(--app-action-primary-border);
+}
+
+.update-dialog-button.is-primary:hover {
+  background: var(--app-action-primary-hover-bg);
+}
+
+.update-dialog-button.is-primary:disabled {
+  background: var(--app-action-primary-disabled-bg);
+  color: var(--app-action-primary-disabled-fg);
+}
+
+.update-dialog-button.is-ghost {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.update-dialog-button.is-ghost:hover {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+.update-dialog-button.is-ghost:disabled {
+  opacity: 0.6;
+}
