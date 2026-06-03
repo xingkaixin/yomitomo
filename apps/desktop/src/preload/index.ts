@@ -180,6 +180,8 @@ const api = {
   openUrl: (url: string) => invokeDesktopIpc('url:open', url),
   getArticle: (id: string) => invokeDesktopIpc('article:get', id),
   getArticleCover: (id: string) => invokeDesktopIpc('article:get-cover', id),
+  getArticleSiteIcon: (id: string) => invokeDesktopIpc('article:get-site-icon', id),
+  getPdfThumbnail: (id: string) => invokeDesktopIpc('pdf:get-thumbnail', id),
   saveArticle: (article: ArticleRecord) => invokeDesktopIpc('article:save', article),
   deleteArticleAnnotation: (articleId: string, annotationId: string) =>
     invokeDesktopIpc('article:delete-annotation', { articleId, annotationId }),

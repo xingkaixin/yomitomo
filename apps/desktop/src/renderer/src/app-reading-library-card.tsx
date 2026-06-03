@@ -2,13 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine, Trash2 } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from './app-utils';
-import { ArticleBook, formatPdfAuthors } from './app-article-book';
+import { ArticleBook, formatPdfAuthors, useArticleSiteIcon } from './app-article-book';
 import {
   articleAnnotationCount,
   articleDistillationCount,
   articleDisplayTitle,
   articleReadingMinutes,
-  articleSiteIconUrl,
   formatLibraryRelativeTime,
   libraryArticleStatus,
 } from './app-reading-library-utils';
@@ -35,7 +34,7 @@ export function ArticleLibraryCard({
   const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
   const readingMinutes = articleReadingMinutes(article);
-  const siteIconUrl = isEbook || isPdf ? '' : articleSiteIconUrl(article);
+  const siteIconUrl = useArticleSiteIcon(article.id, !isEbook && !isPdf) || '';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
 

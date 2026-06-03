@@ -392,6 +392,10 @@ export type DesktopIpcInvokeMap = {
     args: [id: string];
     result: string;
   };
+  'article:get-site-icon': {
+    args: [id: string];
+    result: string;
+  };
   'article:import-url': {
     args: [input: ArticleImportUrlInput];
     result: ArticleImportResult;
@@ -439,6 +443,10 @@ export type DesktopIpcInvokeMap = {
   'pdf:read-file': {
     args: [articleId: string];
     result: ArrayBuffer;
+  };
+  'pdf:get-thumbnail': {
+    args: [articleId: string];
+    result: string;
   };
   'log:clear': {
     args: [];

@@ -70,51 +70,6 @@ export function articleMatchesLibraryFilter(article: ArticleSummaryRecord, filte
   return true;
 }
 
-export function articleSiteIconUrl(article: ArticleSummaryRecord) {
-  const iconUrl = safeLibraryImageUrl(article.siteIconUrl);
-  if (iconUrl) return withFaviconThrowErrorParam(iconUrl);
-
-  const host = articleHost(article);
-  return host ? faviconServiceUrl(host) : '';
-}
-
-function articleHost(article: ArticleSummaryRecord) {
-  try {
-    const url = new URL(article.canonicalUrl || article.url);
-    return url.hostname.replace(/^www\./, '');
-  } catch {
-    return '';
-  }
-}
-
-export function safeLibraryImageUrl(value: string | undefined) {
-  if (!value) return '';
-  if (value.startsWith('data:image/')) return value;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
-  } catch {
-    return '';
-  }
-}
-
-function faviconServiceUrl(host: string) {
-  const url = new URL(`https://favicon.im/${encodeURIComponent(host)}`);
-  url.searchParams.set('throw-error-on-404', 'true');
-  return url.href;
-}
-
-function withFaviconThrowErrorParam(value: string) {
-  try {
-    const url = new URL(value);
-    if (url.hostname !== 'favicon.im') return value;
-    url.searchParams.set('throw-error-on-404', 'true');
-    return url.href;
-  } catch {
-    return value;
-  }
-}
-
 export function compareLibraryArticles(
   left: ArticleSummaryRecord,
   right: ArticleSummaryRecord,

@@ -5,7 +5,7 @@ import {
   articleRecordFromExtractedArticle,
   extractArticleFromDocument,
 } from '@yomitomo/core/article-extraction';
-import { inlineArticleImages } from '@yomitomo/core/article-images';
+import { inlineArticleFavicon, inlineArticleImages } from '@yomitomo/core/article-images';
 
 const ARTICLE_IMAGE_TIMEOUT_MS = 10_000;
 const MAX_ARTICLE_IMAGE_BYTES = 2_000_000;
@@ -30,11 +30,16 @@ async function extractArticleRecord(input: unknown) {
 
   try {
     let article = await extractArticleFromDocument(dom.window.document, data.url);
+    const fetcher = (imageUrl: string) =>
+      fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent);
     if (data.inlineImages) {
       article = await inlineArticleImages(article, {
         articleDocument: dom.window.document,
-        fetcher: (imageUrl) => fetchArticleImageDataUrl(imageUrl, article.url, data.userAgent),
+        fetcher,
       });
+    } else {
+      // 不内联正文图片时也单独把 favicon 落成 data URI，展示离线可用。
+      article = await inlineArticleFavicon(article, fetcher);
     }
     return articleRecordFromExtractedArticle(article);
   } finally {

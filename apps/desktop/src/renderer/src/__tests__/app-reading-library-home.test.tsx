@@ -463,9 +463,9 @@ describe('ReadingLibrary home', () => {
     const stats = screen.getByLabelText('2 条划线 · 2 条沉淀');
     expect(stats).toBeTruthy();
     expect(stats.getAttribute('title')).toBeNull();
-    expect(
-      container.querySelector('.library-web-item-cover .article-book-cover-author')?.textContent,
-    ).toBe('nooneshappy.com');
+    expect(container.querySelector('.library-web-item-cover .web-cover-domain')?.textContent).toBe(
+      'nooneshappy.com',
+    );
     expect(container.querySelector('.library-web-item-cover .library-cover-progress')).toBeTruthy();
     expect(
       container
@@ -640,7 +640,6 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.getByText('共 1 份')).toBeTruthy();
     expect(screen.getByText('Basant Mounir; Farida Madkour et al.')).toBeTruthy();
-    expect(screen.getByText('Basant Mounir et al.')).toBeTruthy();
     expect(screen.queryByText(/BASANT MOUNIR/)).toBeNull();
     expect(screen.queryByText('paper.pdf')).toBeNull();
     expect(screen.getByRole('button', { name: '打开PDF：PDF 标题' })).toBeTruthy();
