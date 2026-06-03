@@ -6,17 +6,20 @@ import {
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
 } from '@yomitomo/core';
-import { budgetArticleText, formatBudgetNotice } from './budget';
-import { logAiInfo } from './logger';
-import { callProviderText, streamProviderText } from './provider-client';
+import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
+import { logAiInfo } from '../logger';
+import { callProviderText, streamProviderText } from '../provider/provider-client';
 import { buildAgentRoleCard, type PromptAgent } from './agent-role-card';
-import { buildSelectionThreadContext, selectionThreadContextPrompt } from './selection-context';
+import {
+  buildSelectionThreadContext,
+  selectionThreadContextPrompt,
+} from '../context/selection-context';
 import {
   readingIntentPromptLine,
   readingIntentSystemPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
-import { memoryViewContextBlocks } from './reading-view-assembler';
+import { memoryViewContextBlocks } from '../context/reading-view-assembler';
 
 export async function runAgentStream(
   provider: LlmProvider,

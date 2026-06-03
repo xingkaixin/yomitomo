@@ -15,16 +15,16 @@ import {
   type AnnotationSuggestion,
 } from '@yomitomo/core';
 import { Effect } from 'effect';
-import { extractJsonObjects, hasIncompleteJson } from './json';
-import { logAiError, logAiInfo } from './logger';
-import { callProviderText, streamProviderText } from './provider-client';
+import { extractJsonObjects, hasIncompleteJson } from '../json';
+import { logAiError, logAiInfo } from '../logger';
+import { callProviderText, streamProviderText } from '../provider/provider-client';
 import { generateSegmentReadingMemoryUpdate } from './reading-memory';
 import {
   buildSegmentAnnotationTask,
   segmentAnnotationContextPrompt,
   type SegmentAnnotationTask,
 } from './segment-annotation-context';
-import { instructionPromptLine, readingIntentPromptLine } from './agent-runtime-prompts';
+import { instructionPromptLine, readingIntentPromptLine } from '../agent/agent-runtime-prompts';
 
 export async function runAgentSegmentAnnotate(
   provider: LlmProvider,

@@ -12,8 +12,8 @@ import { normalizeAnnotationConfidence, normalizeTraceItemType } from '@yomitomo
 import { createEpubTextAnchor, mergeReadingMemory } from '@yomitomo/core';
 import { Effect } from 'effect';
 import type { SegmentAnnotationTask } from './segment-annotation-context';
-import { logAiError } from './logger';
-import { callProviderText } from './provider-client';
+import { logAiError } from '../logger';
+import { callProviderText } from '../provider/provider-client';
 
 const MEMORY_SUMMARY_MAX_TOKENS = 1400;
 

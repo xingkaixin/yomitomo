@@ -28,7 +28,7 @@ import {
   type ReadingContextPassageInput,
 } from '@yomitomo/core';
 import { packReadingContext } from './context-packing';
-import { logAiInfo } from './logger';
+import { logAiInfo } from '../logger';
 import { memoryViewContextBlocks } from './reading-view-assembler';
 import { relatedPassagesFromReadingContext } from './related-passages';
 

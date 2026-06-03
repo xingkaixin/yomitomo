@@ -1,5 +1,5 @@
 import type { LlmProvider } from '@yomitomo/shared';
-import { callProviderText } from './provider-client';
+import { callProviderText } from './provider/provider-client';
 
 export {
   budgetArticleText,
@@ -7,14 +7,14 @@ export {
   normalizeAnthropicError,
   type ModelBudgetReport,
   type ModelInputTask,
-} from './budget';
+} from './provider/budget';
 export {
   callProviderText,
   listProviderModels,
   streamProviderText,
   type GenerateOptions,
   type TextPayload,
-} from './provider-client';
+} from './provider/provider-client';
 export {
   collectReadingContextBlocks,
   packReadingContext,
@@ -24,8 +24,8 @@ export {
   type PackedReadingContext,
   type PackReadingContextOptions,
   type TokenEstimator,
-} from './context-packing';
-export { memoryViewContextBlocks } from './reading-view-assembler';
+} from './context/context-packing';
+export { memoryViewContextBlocks } from './context/reading-view-assembler';
 export {
   DEFAULT_ASSISTANT_RUNTIME_BUDGETS,
   runAssistantAiSdkToolRuntime,
@@ -53,13 +53,13 @@ export {
   type AssistantToolExecutionResult,
   type AssistantToolEvidenceInput,
   type AssistantToolName,
-} from './assistant-runtime';
+} from './assistant/assistant-runtime';
 export {
   buildSelectionAnnotationContext,
   buildSelectionThreadContext,
   selectionAnnotationContextPrompt,
   selectionThreadContextPrompt,
-} from './selection-context';
+} from './context/selection-context';
 export {
   aggregateEpubEvaluation,
   epubEvaluationBookTypes,
@@ -88,22 +88,22 @@ export {
   type EpubEvaluationUsage,
   type EpubPhaseOneCheck,
   type EpubPhaseOneCriteria,
-} from './evaluation';
-export { epubEvaluationBooks, epubEvaluationCases } from './evaluation-fixtures';
+} from './evaluation/evaluation';
+export { epubEvaluationBooks, epubEvaluationCases } from './evaluation/evaluation-fixtures';
 export { setAiLogger, type AiLogger } from './logger';
-export { type NormalizedAiUsage } from './usage';
+export { type NormalizedAiUsage } from './provider/usage';
 export {
   generateYomitomoText,
   streamYomitomoText,
   type YomitomoTextGenerationResult,
-} from './generation-runtime';
+} from './provider/generation-runtime';
 export { extractJsonObjects } from './json';
 export {
   parseAgentMentionInstructions,
   parseAgentMentionRoutePlan,
   planAgentMentionInstructions,
   planAgentMentionRoute,
-} from './annotation-metadata';
+} from './agent/annotation-metadata';
 export {
   buildAgentMessageSystemPrompt,
   buildAgentCreateThoughtRuntimePayload,
@@ -112,15 +112,15 @@ export {
   buildAgentPrompt,
   runAgent,
   runAgentStream,
-} from './agent-message';
+} from './agent/agent-message';
 export {
   buildAgentCoReadingRuntimePayload,
   buildAgentSelectionRuntimePayload,
   runAgentAnnotate,
   runAgentAnnotateStream,
   runAgentAnnotateWithMemory,
-} from './agent-annotation';
-export { runAgentReview } from './agent-review';
+} from './agent/agent-annotation';
+export { runAgentReview } from './agent/agent-review';
 
 export async function testProvider(
   provider: LlmProvider,

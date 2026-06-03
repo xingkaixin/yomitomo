@@ -19,29 +19,29 @@ import {
   type ReadingContextBundle,
 } from '@yomitomo/core';
 import { Effect } from 'effect';
-import { budgetArticleText, formatBudgetNotice } from './budget';
-import { logAiError, logAiInfo } from './logger';
-import { callProviderText, streamProviderText } from './provider-client';
-import type { NormalizedAiUsage } from './usage';
+import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
+import { logAiError, logAiInfo } from '../logger';
+import { callProviderText, streamProviderText } from '../provider/provider-client';
+import type { NormalizedAiUsage } from '../provider/usage';
 import {
   buildSelectionAnnotationContext,
   selectionAnnotationContextPrompt,
-} from './selection-context';
-import { buildSegmentAnnotationTasks } from './segment-annotation-context';
-import { extractJsonObjects, hasIncompleteJson } from './json';
+} from '../context/selection-context';
+import { buildSegmentAnnotationTasks } from '../context/segment-annotation-context';
+import { extractJsonObjects, hasIncompleteJson } from '../json';
 import { buildAgentRoleCard } from './agent-role-card';
 import {
   runAgentSegmentAnnotate,
   runAgentSegmentAnnotateStreamWithMemory,
   runAgentSegmentAnnotateWithMemory,
-} from './segment-annotation-runner';
+} from '../context/segment-annotation-runner';
 import {
   instructionPromptLine,
   readingIntentPromptLine,
   readingIntentSystemPrompt,
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
-import { memoryViewContextBlocks } from './reading-view-assembler';
+import { memoryViewContextBlocks } from '../context/reading-view-assembler';
 
 export async function runAgentAnnotate(
   provider: LlmProvider,
