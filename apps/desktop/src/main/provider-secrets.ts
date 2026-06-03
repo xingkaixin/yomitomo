@@ -1,4 +1,4 @@
-import { getDesktopAppProfile } from './app-environment';
+import { getDesktopAppProfile } from './app/app-environment';
 
 type KeyringModule = typeof import('@napi-rs/keyring');
 

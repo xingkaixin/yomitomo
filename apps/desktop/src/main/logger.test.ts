@@ -14,7 +14,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { getLogPath, pruneLogFile } from './logger';
+import { getLogPath, pruneLogFile } from './app/logger';
 
 describe('desktop logger retention', () => {
   beforeEach(async () => {

@@ -32,7 +32,7 @@ describe('provider secrets keyring', () => {
     state.moduleLoads = 0;
     state.passwords = new Map();
     vi.resetModules();
-    vi.doMock('./app-environment', () => ({
+    vi.doMock('./app/app-environment', () => ({
       getDesktopAppProfile: () => ({
         environment: 'development',
         keychainService: state.keychainService,

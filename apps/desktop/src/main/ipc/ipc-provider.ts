@@ -1,6 +1,6 @@
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
-import { pruneLogFile } from './logger';
+import { pruneLogFile } from '../app/logger';
 
 export function registerProviderIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('user:save', async (_event, input) => {

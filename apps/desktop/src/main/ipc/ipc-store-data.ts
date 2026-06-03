@@ -1,13 +1,13 @@
 import { performance } from 'node:perf_hooks';
-import type { DesktopStoreGetResult } from '../app-store-errors';
+import type { DesktopStoreGetResult } from '../../app-store-errors';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import {
   clearAgentRuntimeTraces,
   getAgentRuntimeTracePath,
   readAgentRuntimeTraces,
-} from './agent-runtime-trace-log';
-import { clearLogFile, getLogPath, readLogFile } from './logger';
+} from '../agent-runtime-trace-log';
+import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
 export function registerStoreDataIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('store:get', async (): Promise<DesktopStoreGetResult> => {
@@ -50,19 +50,19 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
     }
   });
   handleDesktopIpc('data:paths', async () => {
-    const { getDataManagementPaths } = await import('./data-management');
+    const { getDataManagementPaths } = await import('../data-management');
     return getDataManagementPaths();
   });
   handleDesktopIpc('data:open-path', async (_event, kind) => {
-    const { openDataManagementPath } = await import('./data-management');
+    const { openDataManagementPath } = await import('../data-management');
     return openDataManagementPath(kind);
   });
   handleDesktopIpc('data:database-backup', async () => {
-    const { backupDatabaseWithDialog } = await import('./data-management');
+    const { backupDatabaseWithDialog } = await import('../data-management');
     return backupDatabaseWithDialog(context.getMainWindow());
   });
   handleDesktopIpc('data:database-restore', async () => {
-    const { restoreDatabaseWithDialog } = await import('./data-management');
+    const { restoreDatabaseWithDialog } = await import('../data-management');
     const result = await restoreDatabaseWithDialog(context.getMainWindow());
     if (!result.canceled) context.sendFullStoreUpdated(result.store);
     return result;
@@ -102,7 +102,7 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
     return simulateUpdateAvailable();
   });
   handleDesktopIpc('release-notes:get', async (_event, input) => {
-    const { getReleaseNote } = await import('./release-notes');
+    const { getReleaseNote } = await import('../app/release-notes');
     return getReleaseNote(input.version, input.source);
   });
 }

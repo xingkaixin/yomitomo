@@ -2,13 +2,13 @@ import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type {
   AnnotationSedimentationCommitInput,
   AnnotationSedimentationWindowOpenInput,
-} from '../ipc-contract';
-import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
+} from '../../ipc-contract';
+import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
 import {
   closeAnnotationDiscussionWindow,
   minimizeOtherAnnotationDiscussionWindows,
 } from './annotation-discussion-window';
-import { mainPath } from './main-paths';
+import { mainPath } from '../app/main-paths';
 import {
   appendWindowAnimationSourceSearchParams,
   installWindowCloseAnimation,

@@ -1,5 +1,5 @@
 import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import type { WindowAnimationSourceRect } from '../ipc-contract';
+import type { WindowAnimationSourceRect } from '../../ipc-contract';
 
 const WINDOW_CLOSE_ANIMATION_MS = 150;
 

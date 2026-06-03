@@ -1,5 +1,5 @@
 import { performance } from 'node:perf_hooks';
-import type { EbookImportFileInput, PdfImportFileInput } from '../ipc-contract';
+import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 
@@ -36,7 +36,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
       await context.getStoreModule();
     const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
-      await import('./article-import');
+      await import('../article-import');
     const importInput = articleImportUrlInput(input);
     const record = await articleRecordFromUrl(importInput.url, {
       inlineImages: readImportSettings().saveArticleImages,
@@ -64,13 +64,13 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return { status: 'imported', article, patch };
   });
   handleDesktopIpc('article:import-url-cancel', async (_event, requestId) => {
-    const { cancelArticleImport } = await import('./article-import');
+    const { cancelArticleImport } = await import('../article-import');
     return cancelArticleImport(requestId);
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
-    const { articleRecordFromEpubFile } = await import('./ebook-import');
-    const { saveEbookSourceFile } = await import('./ebook-storage');
+    const { articleRecordFromEpubFile } = await import('../ebook-import');
+    const { saveEbookSourceFile } = await import('../ebook-storage');
     const record = await articleRecordFromEpubFile(input, { performanceLogger: context.logInfo });
     const existingArticle = findArticleByIdentity(record);
     if (existingArticle) {
@@ -87,15 +87,15 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return { status: 'imported', article: record, patch };
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
-    const { readEbookSourceFile } = await import('./ebook-storage');
+    const { readEbookSourceFile } = await import('../ebook-storage');
     const file = await readEbookSourceFile(articleId);
     return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   });
   handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
-    const { articleRecordFromPdfFile } = await import('./pdf-import');
-    const { savePdfSourceFile } = await import('./pdf-storage');
-    const { savePdfThumbnail } = await import('./pdf-thumbnail-storage');
+    const { articleRecordFromPdfFile } = await import('../pdf-import');
+    const { savePdfSourceFile } = await import('../pdf-storage');
+    const { savePdfThumbnail } = await import('../pdf-thumbnail-storage');
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
     const existingArticle = findArticleByIdentity(record);
     if (existingArticle) {
@@ -114,13 +114,13 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     return { status: 'imported', article: record, patch };
   });
   handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
-    const { readPdfThumbnailDataUrl, savePdfThumbnail } = await import('./pdf-thumbnail-storage');
+    const { readPdfThumbnailDataUrl, savePdfThumbnail } = await import('../pdf-thumbnail-storage');
     const cached = await readPdfThumbnailDataUrl(articleId);
     if (cached) return cached;
 
     // 存量 PDF 首次可见时懒生成：从源文件渲染一次并缓存，之后永久命中。
-    const { readPdfSourceFile } = await import('./pdf-storage');
-    const { renderPdfThumbnailFromBuffer } = await import('./pdf-import');
+    const { readPdfSourceFile } = await import('../pdf-storage');
+    const { renderPdfThumbnailFromBuffer } = await import('../pdf-import');
     const file = await readPdfSourceFile(articleId).catch(() => null);
     if (!file) return '';
     const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
@@ -131,7 +131,7 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('pdf:read-file', async (_event, articleId) => {
     const startedAt = performance.now();
-    const { readPdfSourceFile } = await import('./pdf-storage');
+    const { readPdfSourceFile } = await import('../pdf-storage');
     const file = await readPdfSourceFile(articleId);
     const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
     context.logInfo('performance.pdf.file_read_main', {
@@ -146,8 +146,8 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const article = await readArticle(id);
     const patch = await deleteArticle(id);
     if (article?.sourceType === 'pdf') {
-      const { deletePdfSourceFile } = await import('./pdf-storage');
-      const { deletePdfThumbnail } = await import('./pdf-thumbnail-storage');
+      const { deletePdfSourceFile } = await import('../pdf-storage');
+      const { deletePdfThumbnail } = await import('../pdf-thumbnail-storage');
       await deletePdfSourceFile(id);
       await deletePdfThumbnail(id);
     }

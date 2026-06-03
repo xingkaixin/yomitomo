@@ -4,7 +4,7 @@ import electronUpdater, {
   type UpdateDownloadedEvent,
   type UpdateInfo,
 } from 'electron-updater';
-import type { AppUpdateState } from '../app-update-types';
+import type { AppUpdateState } from '../../app-update-types';
 import { logError, logInfo } from './logger';
 
 const { autoUpdater } = electronUpdater;
