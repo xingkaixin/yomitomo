@@ -9,6 +9,7 @@ export * from './ebook-title-cleanup';
 export * from './pdf-types';
 export * from './weread-types';
 export * from './reader-context-types';
+export * from './reading-memory-types';
 export * from './reading-memory-entry-types';
 export * from './article-types';
 export * from './store-types';
