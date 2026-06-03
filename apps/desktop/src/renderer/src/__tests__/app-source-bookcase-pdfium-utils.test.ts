@@ -4,9 +4,12 @@ import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitom
 import type { TocItem } from '@yomitomo/core';
 import {
   buildPdfTextDocument,
+  clampPageIndex,
   pdfiumAgentAnnotationRequestOptions,
+  pdfiumAnnotationRailLayout,
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
+  pdfPageProgressPercent,
   pdfReaderBookmarkRanges,
   pdfReaderReadingSections,
   pdfiumAnnotationNavigationState,
@@ -16,6 +19,71 @@ import {
 } from '../app-source-bookcase-pdfium-utils';
 
 describe('app-source-bookcase-pdfium-utils', () => {
+  it('clamps PDF page indexes and derives slider progress percent', () => {
+    expect(clampPageIndex(Number.NaN, 10)).toBe(0);
+    expect(clampPageIndex(-4, 10)).toBe(0);
+    expect(clampPageIndex(4.8, 10)).toBe(4);
+    expect(clampPageIndex(99, 10)).toBe(9);
+    expect(clampPageIndex(3, 0)).toBe(0);
+
+    expect(pdfPageProgressPercent(1, 1)).toBe(100);
+    expect(pdfPageProgressPercent(1, 5)).toBe(0);
+    expect(pdfPageProgressPercent(3, 5)).toBe(50);
+    expect(pdfPageProgressPercent(9, 5)).toBe(100);
+  });
+
+  it('places PDF annotation rail on the available page side', () => {
+    const canvas = {
+      getBoundingClientRect: () => ({ width: 1000 }),
+    } as HTMLDivElement;
+    const pageMetrics = {
+      0: {
+        left: 320,
+        top: 10,
+        width: 400,
+        height: 600,
+        clipLeft: 0,
+        clipTop: 0,
+        clipRight: 1000,
+        clipBottom: 700,
+      },
+    };
+
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640)).toMatchObject({
+      articleCenterX: 520,
+      leftRailLeft: 40,
+      mode: 'both',
+      railWidth: 260,
+      rightRailLeft: 740,
+      viewportHeight: 640,
+    });
+  });
+
+  it('falls back to stacked annotation rail layout when side space is tight', () => {
+    const canvas = {
+      getBoundingClientRect: () => ({ width: 520 }),
+    } as HTMLDivElement;
+    const pageMetrics = {
+      0: {
+        left: 40,
+        top: 10,
+        width: 450,
+        height: 600,
+        clipLeft: 0,
+        clipTop: 0,
+        clipRight: 520,
+        clipBottom: 700,
+      },
+    };
+
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640)).toMatchObject({
+      articleCenterX: 265,
+      mode: 'stacked',
+      railWidth: 0,
+      viewportHeight: 640,
+    });
+  });
+
   it('builds a searchable PDF text document with page offsets', () => {
     const document = buildPdfTextDocument(['第一页正文', '第二页正文']);
 
