@@ -9,7 +9,7 @@ import type {
   SpoilerPolicy,
   TextAnchor,
 } from '@yomitomo/shared';
-import { locateEpubOffset, locateEpubTextAnchor } from './ebook-index';
+import { locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
 
 export const selectionAnnotationSpoilerPolicy: SpoilerPolicy = {
   allowedScope: 'current-chapter-so-far',

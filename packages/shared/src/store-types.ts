@@ -1,6 +1,6 @@
-import type { Agent } from './agent-types';
-import type { ArticleSummaryRecord } from './article-types';
-import type { LlmProvider } from './provider-types';
+import type { Agent } from './agents/agent-types';
+import type { ArticleSummaryRecord } from './sources/article-types';
+import type { LlmProvider } from './providers/provider-types';
 import type { AppSettings } from './settings-types';
 import type { UserProfile } from './user-types';
 

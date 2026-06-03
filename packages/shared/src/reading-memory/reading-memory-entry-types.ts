@@ -1,5 +1,5 @@
-import type { TextAnchor } from './anchor-types';
-import type { TextRange, TraceItem } from './reader-context-types';
+import type { TextAnchor } from '../anchor-types';
+import type { TextRange, TraceItem } from '../reader-context-types';
 
 export type ReadingMemoryEntryKind =
   | 'summary'

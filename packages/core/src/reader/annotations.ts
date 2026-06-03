@@ -14,12 +14,12 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { createTextAnchor, makeId } from '@yomitomo/shared';
-import { createEpubTextAnchor } from './ebook-index';
+import { createEpubTextAnchor } from '../epub/ebook-index';
 import {
   performanceElapsedMs,
   performanceStart,
   type PerformanceTimingLogger,
-} from './performance';
+} from '../performance';
 
 export type AnnotationSuggestion = {
   exact: string;

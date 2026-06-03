@@ -1,5 +1,5 @@
-import type { AnnotationConfidence } from './annotation-types';
-import type { TextAnchor } from './anchor-types';
+import type { AnnotationConfidence } from '../annotation-types';
+import type { TextAnchor } from '../anchor-types';
 
 export type TextRange = {
   textStart: number;

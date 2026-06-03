@@ -5,8 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./article-extraction": "./src/article-extraction.ts",
-    "./article-images": "./src/article-images.ts"
+    "./article-extraction": "./src/articles/article-extraction.ts",
+    "./article-images": "./src/articles/article-images.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json --noEmit",

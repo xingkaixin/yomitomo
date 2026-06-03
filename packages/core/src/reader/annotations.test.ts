@@ -21,7 +21,7 @@ import {
   replaceMentionQuery,
   updateAnnotationComment,
 } from './annotations';
-import { buildEpubBookIndex, epubIndexText } from './ebook-index';
+import { buildEpubBookIndex, epubIndexText } from '../epub/ebook-index';
 
 const user: UserProfile = {
   id: 'user-1',

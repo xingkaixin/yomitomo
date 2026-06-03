@@ -2,9 +2,9 @@ export * from './types';
 
 export * from './shortcuts';
 
-export * from './providers';
+export * from './providers/providers';
 
-export * from './agents';
+export * from './agents/agents';
 
 export * from './trace';
 
@@ -14,7 +14,7 @@ export * from './text-anchor';
 
 export * from './markdown';
 
-export * from './release-note';
+export * from './release-notes/release-note';
 
 export {
   agentPersonalities,
@@ -22,6 +22,6 @@ export {
   annotationAgentPersonalities,
   reviewAgentPersonalities,
   readingPartnerSoul,
-} from './agent-presets';
+} from './agents/agent-presets';
 
-export { readingPartnerSoul as defaultAgentSoul } from './agent-presets';
+export { readingPartnerSoul as defaultAgentSoul } from './agents/agent-presets';

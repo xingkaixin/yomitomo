@@ -8,7 +8,7 @@ import type {
   AnnotationMove,
   AnnotationType,
   ReviewOpinionLabel,
-} from './types';
+} from '../types';
 
 export const agentReadingIntentOptions: Array<{
   value: AgentReadingIntent;

@@ -14,7 +14,7 @@ import type {
   TextRange,
 } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import { createEpubTextAnchor } from './ebook-index';
+import { createEpubTextAnchor } from '../epub/ebook-index';
 
 const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
