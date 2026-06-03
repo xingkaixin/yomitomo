@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildEpubBookIndex, epubIndexText, type EpubBookIndexChapterInput } from './ebook-index';
+import {
+  buildEpubBookIndex,
+  epubIndexText,
+  type EpubBookIndexChapterInput,
+} from '../epub/ebook-index';
 import {
   buildReadingContextBundle,
   selectionAnnotationSpoilerPolicy,

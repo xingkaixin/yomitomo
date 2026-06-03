@@ -1,4 +1,4 @@
-import type { AgentReadingIntent } from './agent-types';
+import type { AgentReadingIntent } from './agents/agent-types';
 import type { TextAnchor } from './anchor-types';
 
 export type AnnotationAuthor = 'user' | 'ai';

@@ -1,9 +1,9 @@
-import type { AgentReadingIntent } from './agent-types';
+import type { AgentReadingIntent } from './agents/agent-types';
 import type { AnnotationAuthor } from './annotation-types';
-import type { ArticleSourceType } from './article-types';
+import type { ArticleSourceType } from './sources/article-types';
 import type { TextAnchor } from './anchor-types';
-import type { EpubBookIndex } from './ebook-types';
-import type { TextRange } from './reading-memory-types';
+import type { EpubBookIndex } from './sources/ebook-types';
+import type { TextRange } from './reading-memory/reading-memory-types';
 
 export type {
   ReadingMemory,
@@ -14,7 +14,7 @@ export type {
   TextSummaryScope,
   TraceItem,
   TraceItemType,
-} from './reading-memory-types';
+} from './reading-memory/reading-memory-types';
 
 export type SpoilerAllowedScope =
   | 'current-selection'

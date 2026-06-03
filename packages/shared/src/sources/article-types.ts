@@ -1,8 +1,8 @@
-import type { AgentAnnotationDensity } from './agent-types';
-import type { Annotation } from './annotation-types';
+import type { AgentAnnotationDensity } from '../agents/agent-types';
+import type { Annotation } from '../annotation-types';
 import type { EbookRecord, EbookSummaryRecord } from './ebook-types';
 import type { PdfRecord } from './pdf-types';
-import type { ReadingMemory } from './reading-memory-types';
+import type { ReadingMemory } from '../reading-memory/reading-memory-types';
 
 export type ArticleSourceType = 'web' | 'ebook' | 'pdf';
 

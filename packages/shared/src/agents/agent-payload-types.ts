@@ -1,9 +1,9 @@
 import type { AgentAnnotationDensity, AgentReadingIntent, PublicAgent } from './agent-types';
-import type { Annotation, AnnotationType, Comment } from './annotation-types';
-import type { TextAnchor } from './anchor-types';
-import type { EpubBookIndex } from './ebook-types';
-import type { ReadingMemoryView } from './reading-memory-entry-types';
-import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from './reader-context-types';
+import type { Annotation, AnnotationType, Comment } from '../annotation-types';
+import type { TextAnchor } from '../anchor-types';
+import type { EpubBookIndex } from '../sources/ebook-types';
+import type { ReadingMemoryView } from '../reading-memory/reading-memory-entry-types';
+import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from '../reader-context-types';
 
 export type AgentMessagePayload = {
   agentId?: string;

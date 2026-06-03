@@ -8,7 +8,7 @@ import type {
   TextAnchor,
   TextRange,
 } from '@yomitomo/shared';
-import { createEpubTextAnchor, locateEpubOffset, locateEpubTextAnchor } from './ebook-index';
+import { createEpubTextAnchor, locateEpubOffset, locateEpubTextAnchor } from '../epub/ebook-index';
 import {
   buildReadingContextBundle,
   type ReadingContextPassageInput,
@@ -18,7 +18,7 @@ import {
   performanceElapsedMs,
   performanceStart,
   type PerformanceTimingLogger,
-} from './performance';
+} from '../performance';
 
 const DEFAULT_RELATED_PASSAGE_LIMIT = 4;
 const DEFAULT_NEIGHBOR_PARAGRAPHS = 1;
