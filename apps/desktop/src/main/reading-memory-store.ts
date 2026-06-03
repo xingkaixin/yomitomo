@@ -106,6 +106,12 @@ export type AppendReadingMemoryCorrectionOptions = {
   executor?: ReadingMemorySqliteExecutor;
 };
 
+type ReadingMemoryWriteStatements = {
+  insertEntry: SqliteStatement;
+  upsertEntry: SqliteStatement;
+  insertFts: SqliteStatement;
+};
+
 export function appendReadingMemoryEntry(
   entry: ReadingMemoryEntry,
   executor?: ReadingMemorySqliteExecutor,
@@ -121,8 +127,9 @@ export function appendReadingMemoryEntries(
   const database = executor || defaultExecutor();
   withReadingMemoryTransaction(database, () => {
     const articleIds = new Set<string>();
+    const statements = prepareReadingMemoryWriteStatements(database);
     for (const entry of entries) {
-      appendReadingMemoryEntryInTransaction(database, entry);
+      appendReadingMemoryEntryInTransaction(database, entry, statements);
       articleIds.add(entry.articleId);
     }
     for (const articleId of articleIds) deleteProjectionRows(database, articleId);
@@ -138,10 +145,23 @@ export function upsertReadingMemoryEntries(
   const database = executor || defaultExecutor();
   const run = () => {
     const articleIds = new Set<string>();
-    for (const entry of entries) {
-      upsertReadingMemoryEntryInTransaction(database, entry);
+    const activeEntries: ReadingMemoryEntry[] = [];
+    const statements = prepareReadingMemoryWriteStatements(database);
+    const normalizedEntries = entries.map((input) => {
+      const entry = normalizeReadingMemoryEntry(input);
+      if (!entry) throw new Error('阅读记忆 entry 无效');
+      return entry;
+    });
+    deleteFtsRows(
+      database,
+      normalizedEntries.map((entry) => entry.id),
+    );
+    for (const entry of normalizedEntries) {
+      statements.upsertEntry.run(...readingMemoryEntrySqlValues(entry));
       articleIds.add(entry.articleId);
+      if (!entry.deletedAt) activeEntries.push(entry);
     }
+    for (const entry of activeEntries) upsertFtsRow(database, entry, statements);
     for (const articleId of articleIds) deleteProjectionRows(database, articleId);
   };
   if (options.useTransaction === false) run();
@@ -248,8 +268,9 @@ LIMIT ?
     return fallback;
   }
 
-  const entries = readReadingMemoryEntries({
+  const entries = readReadingMemoryEntriesByIds({
     articleId: options.articleId,
+    ids,
     agentId: options.agentId,
     excludeAgentId: options.excludeAgentId,
     requireAgentId: options.requireAgentId,
@@ -289,17 +310,47 @@ function searchReadingMemoryEntriesBySubstring(
     .slice(0, limit);
 }
 
+function readReadingMemoryEntriesByIds(
+  options: Pick<
+    SearchReadingMemoryEntriesOptions,
+    'articleId' | 'agentId' | 'excludeAgentId' | 'requireAgentId' | 'visibility' | 'executor'
+  > & { ids: string[] },
+) {
+  const ids = uniqueStrings(options.ids);
+  if (ids.length === 0) return [];
+  const executor = options.executor || defaultExecutor();
+  const { where, values } = readingMemoryWhereClause({
+    articleId: options.articleId,
+    agentId: options.agentId,
+    excludeAgentId: options.excludeAgentId,
+    requireAgentId: options.requireAgentId,
+    visibility: options.visibility,
+  });
+  const placeholders = questionMarks(ids.length);
+  const rows = executor
+    .prepare(
+      `
+SELECT *
+FROM reading_memory_entries
+${where}
+  AND (id IN (${placeholders}) OR supersedes_entry_id IN (${placeholders}))
+ORDER BY created_at ASC, id ASC
+`,
+    )
+    .all(...values, ...ids, ...ids);
+  const entries = rows.flatMap((row) => {
+    const entry = rowToReadingMemoryEntry(row);
+    return entry ? [entry] : [];
+  });
+  return applySupersededEntryFilter(entries);
+}
+
 export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): ReadingMemoryView {
   const startedAt = performance.now();
   const executor = options.executor || defaultExecutor();
   const structuredLimit = normalizeLimit(options.structuredLimit, 12, 50);
   const ftsLimit = normalizeLimit(options.ftsLimit, 5, 20);
-  const structured = readReadingMemoryEntries({
-    articleId: options.articleId,
-    includeDeleted: false,
-    performanceLogger: options.performanceLogger,
-    executor,
-  })
+  const structured = readStructuredMemoryViewCandidates(options, executor)
     .filter((entry) => structuredMemoryViewEntry(entry, options))
     .toSorted(memoryViewEntryOrder)
     .slice(-structuredLimit);
@@ -350,6 +401,40 @@ export function buildReadingMemoryView(options: BuildReadingMemoryViewOptions): 
     entryCount: entries.length,
   });
   return view;
+}
+
+function readStructuredMemoryViewCandidates(
+  options: BuildReadingMemoryViewOptions,
+  executor: ReadingMemorySqliteExecutor,
+) {
+  const startedAt = performance.now();
+  const candidate = structuredMemoryViewCandidateClause(options);
+  const rows = executor
+    .prepare(
+      `
+SELECT *
+FROM reading_memory_entries
+WHERE article_id = ?
+  AND deleted_at IS NULL
+  AND ((${candidate.where}) OR supersedes_entry_id IS NOT NULL)
+ORDER BY created_at ASC, id ASC
+`,
+    )
+    .all(options.articleId, ...candidate.values);
+  const entries = rows.flatMap((row) => {
+    const entry = rowToReadingMemoryEntry(row);
+    return entry ? [entry] : [];
+  });
+  const result = applySupersededEntryFilter(entries);
+  logReadingMemoryTiming(options.performanceLogger, 'entry_query', startedAt, {
+    articleId: options.articleId,
+    viewType: options.viewType,
+    chapterId: options.chapterId,
+    segmentId: options.segmentId,
+    includeDeleted: false,
+    entryCount: result.length,
+  });
+  return result;
 }
 
 export function softDeleteReadingMemoryEntriesBySource(
@@ -430,12 +515,25 @@ function defaultExecutor(): ReadingMemorySqliteExecutor {
 function appendReadingMemoryEntryInTransaction(
   executor: ReadingMemorySqliteExecutor,
   input: ReadingMemoryEntry,
+  statements = prepareReadingMemoryWriteStatements(executor),
 ) {
   const entry = normalizeReadingMemoryEntry(input);
   if (!entry) throw new Error('阅读记忆 entry 无效');
-  executor
-    .prepare(
-      `
+  statements.insertEntry.run(...readingMemoryEntrySqlValues(entry));
+  if (!entry.deletedAt) upsertFtsRow(executor, entry, statements);
+}
+
+function prepareReadingMemoryWriteStatements(
+  executor: ReadingMemorySqliteExecutor,
+): ReadingMemoryWriteStatements {
+  return {
+    insertEntry: executor.prepare(READING_MEMORY_INSERT_SQL),
+    upsertEntry: executor.prepare(READING_MEMORY_UPSERT_SQL),
+    insertFts: executor.prepare(READING_MEMORY_FTS_INSERT_SQL),
+  };
+}
+
+const READING_MEMORY_INSERT_SQL = `
 INSERT INTO reading_memory_entries (
   id,
   article_id,
@@ -465,21 +563,9 @@ INSERT INTO reading_memory_entries (
   deletion_reason
 )
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`,
-    )
-    .run(...readingMemoryEntrySqlValues(entry));
-  if (!entry.deletedAt) upsertFtsRow(executor, entry);
-}
+`;
 
-function upsertReadingMemoryEntryInTransaction(
-  executor: ReadingMemorySqliteExecutor,
-  input: ReadingMemoryEntry,
-) {
-  const entry = normalizeReadingMemoryEntry(input);
-  if (!entry) throw new Error('阅读记忆 entry 无效');
-  executor
-    .prepare(
-      `
+const READING_MEMORY_UPSERT_SQL = `
 INSERT INTO reading_memory_entries (
   id,
   article_id,
@@ -535,29 +621,34 @@ ON CONFLICT(id) DO UPDATE SET
   updated_at = excluded.updated_at,
   deleted_at = excluded.deleted_at,
   deletion_reason = excluded.deletion_reason
-`,
-    )
-    .run(...readingMemoryEntrySqlValues(entry));
-  deleteFtsRows(executor, [entry.id]);
-  if (!entry.deletedAt) upsertFtsRow(executor, entry);
-}
+`;
 
-function upsertFtsRow(executor: ReadingMemorySqliteExecutor, entry: ReadingMemoryEntry) {
-  const searchText = readingMemoryEntrySearchText(entry);
-  if (!searchText) return;
-  executor
-    .prepare(
-      `
+const READING_MEMORY_FTS_INSERT_SQL = `
 INSERT INTO reading_memory_entry_fts (entry_id, article_id, kind, scope, search_text)
 VALUES (?, ?, ?, ?, ?)
-`,
-    )
-    .run(entry.id, entry.articleId, entry.kind, entry.scope, searchText);
+`;
+
+function upsertFtsRow(
+  executor: ReadingMemorySqliteExecutor,
+  entry: ReadingMemoryEntry,
+  statements?: Pick<ReadingMemoryWriteStatements, 'insertFts'>,
+) {
+  const searchText = readingMemoryEntrySearchText(entry);
+  if (!searchText) return;
+  const statement = statements?.insertFts || executor.prepare(READING_MEMORY_FTS_INSERT_SQL);
+  statement.run(entry.id, entry.articleId, entry.kind, entry.scope, searchText);
 }
 
 function deleteFtsRows(executor: ReadingMemorySqliteExecutor, entryIds: string[]) {
-  const statement = executor.prepare('DELETE FROM reading_memory_entry_fts WHERE entry_id = ?');
-  for (const id of entryIds) statement.run(id);
+  const ids = uniqueStrings(entryIds);
+  if (ids.length === 0) return;
+  for (const chunk of chunks(ids, 200)) {
+    executor
+      .prepare(
+        `DELETE FROM reading_memory_entry_fts WHERE entry_id IN (${questionMarks(chunk.length)})`,
+      )
+      .run(...chunk);
+  }
 }
 
 function deleteProjectionRows(executor: ReadingMemorySqliteExecutor, articleId: string) {
@@ -594,6 +685,85 @@ ORDER BY created_at ASC, id ASC
     const entry = rowToReadingMemoryEntry(row);
     return entry ? [entry] : [];
   });
+}
+
+function structuredMemoryViewCandidateClause(options: BuildReadingMemoryViewOptions) {
+  const clauses = [`kind IN ('summary', 'trace', 'correction', 'reader_signal')`];
+  const values: SqliteValue[] = [];
+
+  if (options.viewType === 'selection' || options.viewType === 'selection_thread') {
+    addOptionalChapterClause(clauses, values, options.chapterId);
+    addNearTextRangeClause(clauses, values, options.textRange, 2400);
+  } else if (options.viewType === 'article_section') {
+    addNearTextRangeClause(clauses, values, options.textRange, 2400);
+  } else if (options.viewType === 'segment') {
+    clauses.push(`scope IN ('segment', 'chapter', 'reader')`);
+    addOptionalChapterClause(clauses, values, options.chapterId);
+    if (options.textRange) {
+      clauses.push('(text_start IS NULL OR text_end IS NULL OR text_end <= ?)');
+      values.push(options.textRange.textEnd);
+    }
+  } else if (options.viewType === 'chapter') {
+    clauses.push(`scope IN ('chapter', 'segment', 'reader')`);
+    addOptionalChapterClause(clauses, values, options.chapterId);
+  } else {
+    clauses.push('0');
+  }
+
+  addProgressClause(clauses, values, options.readerProgress);
+  return { where: clauses.join('\n    AND '), values };
+}
+
+function addOptionalChapterClause(
+  clauses: string[],
+  values: SqliteValue[],
+  chapterId: string | undefined,
+) {
+  if (!chapterId) return;
+  clauses.push('(chapter_id IS NULL OR chapter_id = ?)');
+  values.push(chapterId);
+}
+
+function addNearTextRangeClause(
+  clauses: string[],
+  values: SqliteValue[],
+  textRange: TextRange | undefined,
+  distance: number,
+) {
+  if (!textRange) return;
+  clauses.push('(text_start IS NULL OR text_end IS NULL OR (text_end >= ? AND text_start <= ?))');
+  values.push(textRange.textStart - distance, textRange.textEnd + distance);
+}
+
+function addProgressClause(
+  clauses: string[],
+  values: SqliteValue[],
+  progress: ReaderProgress | undefined,
+) {
+  if (!progress) return;
+  const readChapterIds = uniqueStrings(progress.readChapterIds);
+  const chapterClauses = ['chapter_id IS NULL', 'chapter_id = ?'];
+  const chapterValues: SqliteValue[] = [progress.currentChapterId];
+  if (readChapterIds.length > 0) {
+    chapterClauses.unshift(`chapter_id IN (${questionMarks(readChapterIds.length)})`);
+    chapterValues.unshift(...readChapterIds);
+  }
+  clauses.push(`(${chapterClauses.join(' OR ')})`);
+  values.push(...chapterValues);
+  if (progress.readUntilTextOffset !== undefined) {
+    const offsetClauses = ['text_start IS NULL', 'text_end IS NULL', 'text_end <= ?'];
+    const offsetValues: SqliteValue[] = [progress.readUntilTextOffset];
+    if (readChapterIds.length > 0) {
+      offsetClauses.unshift(`chapter_id IN (${questionMarks(readChapterIds.length)})`);
+      offsetValues.unshift(...readChapterIds);
+    }
+    clauses.push(
+      `(
+        ${offsetClauses.join('\n        OR ')}
+      )`,
+    );
+    values.push(...offsetValues);
+  }
 }
 
 function structuredMemoryViewEntry(
@@ -740,6 +910,22 @@ function stringValue(value: unknown) {
 
 function recordField(input: unknown, field: string): unknown {
   return isRecord(input) ? input[field] : undefined;
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function chunks<T>(values: T[], size: number) {
+  const result: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    result.push(values.slice(index, index + size));
+  }
+  return result;
+}
+
+function questionMarks(count: number) {
+  return Array.from({ length: count }, () => '?').join(', ');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
