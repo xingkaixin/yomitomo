@@ -3,7 +3,7 @@ import {
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
 } from '../bookcase/app-source-bookcase-shared';
-import notoSansScRegularUrl from './assets/fonts/NotoSansSC-Regular.ttf?url';
+import notoSansScRegularUrl from '../../assets/fonts/NotoSansSC-Regular.ttf?url';
 
 export type PdfOpenTrace = {
   articleId: string;
