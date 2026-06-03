@@ -2,7 +2,7 @@ import type { AgentAnnotationDensity } from './agent-types';
 import type { Annotation } from './annotation-types';
 import type { EbookRecord, EbookSummaryRecord } from './ebook-types';
 import type { PdfRecord } from './pdf-types';
-import type { ReadingMemory } from './reader-context-types';
+import type { ReadingMemory } from './reading-memory-types';
 
 export type ArticleSourceType = 'web' | 'ebook' | 'pdf';
 

@@ -11,6 +11,7 @@
 - 语言：TypeScript，ESM
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS
 - 官网：Astro 6、React 19、Vite 7、Tailwind CSS
+- 下载服务：Cloudflare Workers、Wrangler
 - Workspace 包：`@yomitomo/desktop`、`@yomitomo/web`、`@yomitomo/shared`、`@yomitomo/core`、`@yomitomo/ai`、`@yomitomo/reader-ui`
 - 测试：Vitest
 - Lint：Turbo 调度各 workspace package 的 oxlint
@@ -20,6 +21,7 @@
 
 - `apps/desktop`：Electron 桌面端，包含 main、preload、renderer。
 - `apps/web`：Astro 产品官网，包含 landing page、下载入口、SEO 和产品静态图。
+- `apps/download`：Cloudflare Worker 下载服务，处理安装包下载入口和跳转。
 - `packages/shared`：共享类型、ID/哈希工具、文本锚定逻辑、PDF 和微信读书协议类型。
 - `packages/core`：业务核心逻辑，包括批注、评论、阅读统计、EPUB/PDF 索引和阅读器 DOM 纯逻辑。
 - `packages/ai`：LLM provider 调用、AI SDK 运行时、模型输入预算、AI 批注和 EPUB/PDF 阅读上下文。
@@ -55,6 +57,10 @@ pnpm --filter @yomitomo/desktop test
 pnpm --filter @yomitomo/web dev
 pnpm --filter @yomitomo/web build
 pnpm --filter @yomitomo/web test
+
+pnpm --filter @yomitomo/download dev:worker
+pnpm --filter @yomitomo/download deploy:cf
+pnpm --filter @yomitomo/download test
 
 pnpm --filter @yomitomo/shared build
 pnpm --filter @yomitomo/shared test

@@ -3,7 +3,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { Effect } from 'effect';
 import { createYomitomoLanguageModel } from './ai-sdk-provider-adapter';
 import { logAiInfo } from './logger';
-import type { GenerateOptions, TextPayload } from './provider-client';
+import type { GenerateOptions, TextPayload } from './provider-client-types';
 import { normalizeAiUsage, type NormalizedAiUsage } from './usage';
 
 export type YomitomoTextGenerationResult = {
