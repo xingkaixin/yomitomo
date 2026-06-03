@@ -3,9 +3,9 @@ import type {
   AnnotationDiscussionWindowOpenInput,
   AnnotationDiscussionWindowStateEvent,
   AnnotationDiscussionWindowsCloseArticleInput,
-} from '../ipc-contract';
-import { handleDesktopIpc, type DesktopMainIpcContext } from './ipc';
-import { mainPath } from './main-paths';
+} from '../../ipc-contract';
+import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
+import { mainPath } from '../app/main-paths';
 import {
   appendWindowAnimationSourceSearchParams,
   installWindowCloseAnimation,

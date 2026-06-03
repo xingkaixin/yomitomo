@@ -20,15 +20,15 @@ import {
   agentAnnotatePayloadWithReadingMemoryEntries,
   agentMessagePayloadWithReadingMemoryView,
   saveAgentAnnotateReadingMemoryEntries,
-} from './agent-reading-memory';
+} from '../agent-reading-memory';
 import {
   runAgentCreateThoughtWithToolLoop,
   runAgentDistillationReviewWithToolLoop,
   runAgentThreadReplyWithToolLoop,
   type DistillationReviewRuntimeResult,
   type ThreadReplyRuntimeResult,
-} from './agent-thread-runtime';
-import { appendAgentRuntimeTrace } from './agent-runtime-trace-log';
+} from '../agent-thread-runtime';
+import { appendAgentRuntimeTrace } from '../agent-runtime-trace-log';
 
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
@@ -821,7 +821,7 @@ function logAgentMessageRuntime(
 
 function recordAssistantExecutionRun(
   context: DesktopMainIpcContext,
-  input: Parameters<(typeof import('./store'))['recordAssistantExecutionRun']>[0],
+  input: Parameters<(typeof import('../store'))['recordAssistantExecutionRun']>[0],
 ) {
   void context
     .getStoreModule()

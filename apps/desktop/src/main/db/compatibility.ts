@@ -1,31 +1,13 @@
 import type SQLiteDatabase from 'better-sqlite3';
 
+import { DatabaseTooNewError } from './errors';
 import { migrations, type DatabaseMigration } from './migrations';
 
 const DEFAULT_DATABASE_READER_LEVEL = 1;
 export const SUPPORTED_DATABASE_READER_LEVEL = 2;
 export const DATABASE_READER_LEVEL_KEY = 'database_reader_level';
 
-export class DatabaseTooNewError extends Error {
-  readonly code = 'DATABASE_TOO_NEW';
-  readonly requiredReaderLevel: number;
-  readonly supportedReaderLevel: number;
-  readonly unknownMigrationIds: string[];
-
-  constructor(options: {
-    requiredReaderLevel: number;
-    supportedReaderLevel: number;
-    unknownMigrationIds?: string[];
-  }) {
-    super(
-      `这份本地数据库需要 reader level ${options.requiredReaderLevel}，当前应用只支持到 ${options.supportedReaderLevel}。`,
-    );
-    this.name = 'DatabaseTooNewError';
-    this.requiredReaderLevel = options.requiredReaderLevel;
-    this.supportedReaderLevel = options.supportedReaderLevel;
-    this.unknownMigrationIds = options.unknownMigrationIds || [];
-  }
-}
+export { DatabaseTooNewError } from './errors';
 
 export function ensureDatabaseCompatibilityTable(database: SQLiteDatabase.Database) {
   database.exec(`

@@ -21,7 +21,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
     const key = apiKey?.trim() || (await store.readStoredWeReadApiKey());
     if (!key) return { ok: false, message: '请先配置微信读书 API Key' };
     try {
-      const { testWeReadConnection } = await import('./weread-client');
+      const { testWeReadConnection } = await import('../weread-client');
       const result = await testWeReadConnection(key);
       await store.saveWeReadTestResult(true, result.message);
       return result;
@@ -40,7 +40,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
       fetchWeReadNotebooks,
       hasValidWeReadBookDetailContent,
       mergeWeReadNotebookBook,
-    } = await import('./weread-client');
+    } = await import('../weread-client');
     const books = await fetchWeReadNotebooks(apiKey);
     const details = [];
     for (const book of books) {
@@ -56,7 +56,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
     const store = await context.getStoreModule();
     const apiKey = await store.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
-    const { fetchWeReadBookDetail } = await import('./weread-client');
+    const { fetchWeReadBookDetail } = await import('../weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
     return store.saveWeReadBookDetail(detail);
   });
@@ -77,7 +77,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
     const store = await context.getStoreModule();
     const apiKey = await store.readStoredWeReadApiKey();
     if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
-    const { fetchWeReadReadingStats } = await import('./weread-client');
+    const { fetchWeReadReadingStats } = await import('../weread-client');
     const sourceBaseTime =
       input.mode === 'overall' ? undefined : Math.floor((input.baseTime ?? Date.now()) / 1000);
     const periodStart = getWeReadStatsPeriodStart(input.mode, sourceBaseTime);

@@ -1,17 +1,17 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { DesktopStore } from '@yomitomo/shared';
-import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
+import type { DesktopStoreLoadErrorInfo } from '../../app-store-errors';
 import type {
   DesktopIpcInvokeArgs,
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
-} from '../ipc-contract';
+} from '../../ipc-contract';
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
-  getStoreModule: () => Promise<typeof import('./store')>;
+  getStoreModule: () => Promise<typeof import('../store')>;
   getAiModule: () => Promise<typeof import('@yomitomo/ai')>;
-  getAppUpdaterModule: () => Promise<typeof import('./app-updater')>;
+  getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;
   sendFullStoreUpdated: (store: DesktopStore) => void;
   recordStartupTiming: (event: string, data?: Record<string, unknown>) => void;
@@ -19,8 +19,8 @@ export interface DesktopMainIpcContext {
   scheduleLogPrune: (retentionDays: number | undefined) => void;
   storeLoadErrorInfo: (error: unknown) => Promise<DesktopStoreLoadErrorInfo>;
   elapsedMs: (startedAt: number) => number;
-  logInfo: typeof import('./logger').logInfo;
-  logError: typeof import('./logger').logError;
+  logInfo: typeof import('../app/logger').logInfo;
+  logError: typeof import('../app/logger').logError;
   openExternalUrl: (value: string) => Promise<void>;
 }
 

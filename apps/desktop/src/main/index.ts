@@ -1,27 +1,28 @@
 import { performance } from 'node:perf_hooks';
 import { app, BrowserWindow, shell } from 'electron';
 import type { DesktopStore } from '@yomitomo/shared';
-import { getLogPath, logError, logInfo, pruneLogFile } from './logger';
-import { configureDesktopAppStorage } from './app-environment';
+import { getLogPath, logError, logInfo, pruneLogFile } from './app/logger';
+import { configureDesktopAppStorage } from './app/app-environment';
 import type { AppUpdateState } from '../app-update-types';
 import type { DesktopStoreLoadErrorInfo } from '../app-store-errors';
-import { registerAnnotationDiscussionWindowIpc } from './annotation-discussion-window';
-import { registerAnnotationSedimentationWindowIpc } from './annotation-sedimentation-window';
-import { registerAgentIpc } from './ipc-agent';
-import { registerAppIpc } from './ipc-app';
-import { registerArticleIpc } from './ipc-article';
-import { registerProviderIpc } from './ipc-provider';
-import { registerStoreDataIpc } from './ipc-store-data';
-import { registerWeReadIpc } from './ipc-weread';
+import { DatabaseTooNewError } from './db/errors';
+import { registerAnnotationDiscussionWindowIpc } from './windows/annotation-discussion-window';
+import { registerAnnotationSedimentationWindowIpc } from './windows/annotation-sedimentation-window';
+import { registerAgentIpc } from './ipc/ipc-agent';
+import { registerAppIpc } from './ipc/ipc-app';
+import { registerArticleIpc } from './ipc/ipc-article';
+import { registerProviderIpc } from './ipc/ipc-provider';
+import { registerStoreDataIpc } from './ipc/ipc-store-data';
+import { registerWeReadIpc } from './ipc/ipc-weread';
 import { modelPriceRefreshIntervalMs } from './model-pricing-repository';
-import { windowChromeOptions } from './window-chrome';
-import { mainPath } from './main-paths';
+import { windowChromeOptions } from './windows/window-chrome';
+import { mainPath } from './app/main-paths';
 
 let mainWindow: BrowserWindow | null = null;
 const appIconPath = mainPath('../../resources/icon.png');
 let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
-let appUpdaterModulePromise: Promise<typeof import('./app-updater')> | null = null;
+let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
 let storeModulePromise: Promise<typeof import('./store')> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 
@@ -43,7 +44,7 @@ async function getAiModule() {
 }
 
 async function getAppUpdaterModule() {
-  appUpdaterModulePromise ||= import('./app-updater');
+  appUpdaterModulePromise ||= import('./app/app-updater');
   const module = await appUpdaterModulePromise;
   module.configureAppUpdater(sendUpdateStatusUpdated);
   return module;
@@ -228,7 +229,6 @@ function sendFullStoreUpdated(store: DesktopStore) {
 }
 
 async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadErrorInfo> {
-  const { DatabaseTooNewError } = await import('./db/compatibility');
   if (error instanceof DatabaseTooNewError) {
     return {
       code: 'DATABASE_TOO_NEW',

@@ -22,7 +22,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-import { configureDesktopAppStorage, getDesktopAppProfile } from './app-environment';
+import { configureDesktopAppStorage, getDesktopAppProfile } from './app/app-environment';
 
 describe('desktop app environment', () => {
   it('uses isolated resources in development', () => {
