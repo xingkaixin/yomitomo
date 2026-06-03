@@ -173,6 +173,43 @@ describe('reading memory store', () => {
     ).toEqual(['other_entry']);
   });
 
+  it('maps FTS hits by id without reading every article entry', () => {
+    const database = recordingExecutor(memoryDatabase());
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'matching_entry',
+          payload: { summary: 'needle memory', keyTerms: ['needle'] },
+        }),
+        entry({
+          id: 'unrelated_entry',
+          payload: { summary: 'unrelated memory', keyTerms: ['unrelated'] },
+        }),
+      ],
+      database,
+    );
+    database.sqlLog.length = 0;
+
+    expect(
+      searchReadingMemoryEntries({
+        articleId: 'article_1',
+        query: 'needle',
+        executor: database,
+      }).map((item) => item.id),
+    ).toEqual(['matching_entry']);
+
+    expect(database.sqlLog).toEqual(
+      expect.arrayContaining([expect.stringMatching(/FROM reading_memory_entries[\s\S]+id IN/)]),
+    );
+    expect(database.sqlLog).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(
+          /FROM reading_memory_entries[\s\S]+WHERE article_id = \?\s+AND deleted_at IS NULL\s+ORDER BY created_at ASC, id ASC/,
+        ),
+      ]),
+    );
+  });
+
   it('soft-deletes source entries and removes their FTS rows', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
@@ -410,6 +447,39 @@ describe('reading memory store', () => {
     );
   });
 
+  it('honors superseding corrections outside the view candidate range', () => {
+    const database = memoryDatabase();
+    appendReadingMemoryEntries(
+      [
+        entry({
+          id: 'superseded_note',
+          textRange: { textStart: 80, textEnd: 100 },
+          payload: { summary: 'obsolete nearby memory', keyTerms: ['obsolete'] },
+        }),
+        entry({
+          id: 'distant_correction',
+          kind: 'correction',
+          scope: 'book',
+          textRange: { textStart: 9000, textEnd: 9020 },
+          supersedesEntryId: 'superseded_note',
+          sourceType: 'correction',
+          payload: { reason: '用户修正', replacement: 'replacement memory' },
+        }),
+      ],
+      database,
+    );
+
+    const view = buildReadingMemoryView({
+      articleId: 'article_1',
+      viewType: 'selection',
+      chapterId: 'chapter_1',
+      textRange: { textStart: 90, textEnd: 95 },
+      executor: database,
+    });
+
+    expect(view.entries.map((item) => item.entry.id)).toEqual([]);
+  });
+
   it('builds article section memory views by article text range', () => {
     const database = memoryDatabase();
     appendReadingMemoryEntries(
@@ -459,6 +529,18 @@ function memoryDatabase(): ReadingMemorySqliteExecutor {
   database.exec(readingMemory.sql);
   insertArticle(database, 'article_1');
   return database as unknown as ReadingMemorySqliteExecutor;
+}
+
+function recordingExecutor(executor: ReadingMemorySqliteExecutor) {
+  const sqlLog: string[] = [];
+  return {
+    sqlLog,
+    exec: executor.exec.bind(executor),
+    prepare(sql: string) {
+      sqlLog.push(sql);
+      return executor.prepare(sql);
+    },
+  } as ReadingMemorySqliteExecutor & { sqlLog: string[] };
 }
 
 function entry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
