@@ -210,20 +210,24 @@ export function backfillStoredArticleAnnotationMemoryEntries(
     return emptyAnnotationMemoryBackfillResult();
   }
 
-  const rows = database
+  const articleRows = database
     .select({ id: schema.articles.id, sourceType: schema.articles.sourceType })
     .from(schema.articles)
     .where(options.articleIds ? inArray(schema.articles.id, options.articleIds) : undefined)
-    .all();
-  const articles: Array<Pick<ArticleRecord, 'id' | 'sourceType' | 'annotations'>> = [];
+    .all()
+    .filter((row) => options.includePdf || row.sourceType !== 'pdf');
+  const articleIds = articleRows.map((row) => row.id);
+  const annotationRows = readAnnotationRowsForArticles(database, articleIds);
+  const annotationIds = annotationRows.map((row) => row.id);
+  const commentRows = readCommentRowsForAnnotations(database, annotationIds);
+  const annotationsByArticle = groupAnnotationsByArticle(annotationRows, commentRows);
+  const articles = articleRows.map((row) => ({
+    id: row.id,
+    sourceType: normalizeArticleSourceType(row.sourceType),
+    annotations: sortByCreatedAt(annotationsByArticle.get(row.id) || []),
+  }));
 
-  for (const row of rows) {
-    if (!options.includePdf && row.sourceType === 'pdf') continue;
-    const article = readArticleRows(database, row.id);
-    if (article) articles.push(article);
-  }
-
-  return backfillArticleAnnotationMemoryEntries(articles, executor, options);
+  return backfillArticleAnnotationMemoryEntries(articles, executor, { includePdf: true });
 }
 
 export function backfillArticleAnnotationMemoryEntries(
@@ -460,23 +464,32 @@ function writeArticleRowsInTransaction(database: StoreDatabase, article: Article
 }
 
 function readArticleAnnotations(database: StoreDatabase, articleId: string) {
-  const annotationRows = database
-    .select()
-    .from(schema.annotations)
-    .where(eq(schema.annotations.articleId, articleId))
-    .all();
+  const annotationRows = readAnnotationRowsForArticles(database, [articleId]);
   const annotationIds = annotationRows.map((row) => row.id);
-  const commentRows =
-    annotationIds.length > 0
-      ? database
-          .select()
-          .from(schema.comments)
-          .where(inArray(schema.comments.annotationId, annotationIds))
-          .all()
-      : [];
+  const commentRows = readCommentRowsForAnnotations(database, annotationIds);
   return sortByCreatedAt(
     groupAnnotationsByArticle(annotationRows, commentRows).get(articleId) || [],
   );
+}
+
+function readAnnotationRowsForArticles(database: StoreDatabase, articleIds: string[]) {
+  return articleIds.length > 0
+    ? database
+        .select()
+        .from(schema.annotations)
+        .where(inArray(schema.annotations.articleId, articleIds))
+        .all()
+    : [];
+}
+
+function readCommentRowsForAnnotations(database: StoreDatabase, annotationIds: string[]) {
+  return annotationIds.length > 0
+    ? database
+        .select()
+        .from(schema.comments)
+        .where(inArray(schema.comments.annotationId, annotationIds))
+        .all()
+    : [];
 }
 
 function groupAnnotationsByArticle(

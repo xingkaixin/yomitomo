@@ -106,6 +106,8 @@ describe('article memory lifecycle', () => {
     insertAnnotation(database, 'annotation_1');
     insertComment(database, 'annotation_1', 'comment_1');
     insertComment(database, 'annotation_1', 'reply_1', 'comment_1');
+    insertComment(database, 'annotation_1', 'reply_2', 'reply_1');
+    insertComment(database, 'annotation_1', 'sibling_1');
     appendReadingMemoryEntries(
       [
         memoryEntry({
@@ -129,6 +131,20 @@ describe('article memory lifecycle', () => {
           sourceCommentId: 'reply_1',
           payload: { items: [traceItem('reply source memory')] },
         }),
+        memoryEntry({
+          id: 'nested_reply_entry',
+          kind: 'trace',
+          sourceType: 'comment',
+          sourceCommentId: 'reply_2',
+          payload: { items: [traceItem('nested reply source memory')] },
+        }),
+        memoryEntry({
+          id: 'sibling_entry',
+          kind: 'trace',
+          sourceType: 'comment',
+          sourceCommentId: 'sibling_1',
+          payload: { items: [traceItem('sibling source memory')] },
+        }),
       ],
       database,
     );
@@ -140,13 +156,13 @@ describe('article memory lifecycle', () => {
       deletedAt: '2026-05-26T01:00:00.000Z',
     });
 
-    expect(result).toEqual({ deletedCommentCount: 2, deletedMemoryCount: 2 });
-    expect(countRows(database, 'comments')).toBe(0);
+    expect(result).toEqual({ deletedCommentCount: 3, deletedMemoryCount: 3 });
+    expect(commentIds(database)).toEqual(['sibling_1']);
     expect(
       readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
         (entry) => entry.id,
       ),
-    ).toEqual(['annotation_entry']);
+    ).toEqual(['annotation_entry', 'sibling_entry']);
   });
 
   it('syncs annotation and comment memory entries from the main store model', () => {
@@ -285,8 +301,9 @@ function lifecycleDatabase(): ReadingMemorySqliteExecutor {
   if (!initial || !readingMemory) throw new Error('missing migrations for test');
   database.exec(initial.sql);
   database.exec(readingMemory.sql);
-  insertArticle(database, 'article_1');
-  return memoryExecutor(database);
+  const executor = memoryExecutor(database);
+  insertArticle(executor, 'article_1');
+  return executor;
 }
 
 function memoryEntry(overrides: Partial<ReadingMemoryEntry> = {}): ReadingMemoryEntry {
@@ -432,6 +449,13 @@ function countRows(database: ReadingMemorySqliteExecutor, table: string) {
     'count',
   );
   return typeof count === 'number' ? count : 0;
+}
+
+function commentIds(database: ReadingMemorySqliteExecutor) {
+  return database
+    .prepare('SELECT id FROM comments ORDER BY id')
+    .all()
+    .map((row) => recordField(row, 'id'));
 }
 
 function memoryExecutor(database: DatabaseSync): ReadingMemorySqliteExecutor {
