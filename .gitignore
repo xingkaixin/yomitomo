@@ -23,7 +23,7 @@ assets/*.mp4
 
 # temp
 .temp
-
+outputs
 
 # agent
 .agents
