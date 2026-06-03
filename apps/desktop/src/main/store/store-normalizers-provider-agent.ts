@@ -8,7 +8,7 @@ import type {
   ReasoningEffort,
 } from '@yomitomo/shared';
 import { providerPresets } from '@yomitomo/shared';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 
 export function rowToProvider(row: typeof schema.providers.$inferSelect): LlmProvider {
   const presetId = normalizePresetId(row.presetId || undefined);

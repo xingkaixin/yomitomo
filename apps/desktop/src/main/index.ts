@@ -14,7 +14,7 @@ import { registerArticleIpc } from './ipc/ipc-article';
 import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
-import { modelPriceRefreshIntervalMs } from './model-pricing-repository';
+import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
 
@@ -23,7 +23,7 @@ const appIconPath = mainPath('../../resources/icon.png');
 let aiModulePromise: Promise<typeof import('@yomitomo/ai')> | null = null;
 let aiLoggerConfigured = false;
 let appUpdaterModulePromise: Promise<typeof import('./app/app-updater')> | null = null;
-let storeModulePromise: Promise<typeof import('./store')> | null = null;
+let storeModulePromise: Promise<typeof import('./store/store')> | null = null;
 let modelPriceRefreshTimer: NodeJS.Timeout | null = null;
 
 configureDesktopAppStorage();
@@ -51,7 +51,7 @@ async function getAppUpdaterModule() {
 }
 
 function getStoreModule() {
-  storeModulePromise ||= import('./store');
+  storeModulePromise ||= import('./store/store');
   return storeModulePromise;
 }
 

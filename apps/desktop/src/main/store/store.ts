@@ -10,17 +10,17 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import { buildAgentRecord, ensurePresetAgents, upsertAgent } from './agent-repository';
+import { buildAgentRecord, ensurePresetAgents, upsertAgent } from '../agents/agent-repository';
 import {
   insertAssistantExecutionRun,
   type AssistantExecutionRunInput,
-} from './assistant-execution-repository';
+} from '../assistant/assistant-execution-repository';
 import {
   listAssistantExecutionRuns,
   summarizeAssistantExecutions,
-} from './assistant-execution-query-repository';
-import type { AssistantExecutionQueryInput } from '../ipc-contract';
-import { refreshModelsDevPrices } from './model-pricing-repository';
+} from '../assistant/assistant-execution-query-repository';
+import type { AssistantExecutionQueryInput } from '../../ipc-contract';
+import { refreshModelsDevPrices } from '../providers/model-pricing-repository';
 import {
   backfillStoredArticleAnnotationMemoryEntries,
   buildArticleUpsertPatch,
@@ -39,9 +39,9 @@ import {
   saveArticleRows,
   writeArticleRows,
   type ArticleIdentity,
-} from './articles/article-repository';
-import * as schema from './db/schema';
-import { providerApiKeyRef, saveProviderApiKey } from './provider-secrets';
+} from '../articles/article-repository';
+import * as schema from '../db/schema';
+import { providerApiKeyRef, saveProviderApiKey } from '../providers/provider-secrets';
 import {
   buildProviderRecord,
   deleteProviderSecret,
@@ -49,7 +49,7 @@ import {
   resolveProviderApiKeyStorage,
   upsertProvider,
   type SaveProviderInput,
-} from './provider-repository';
+} from '../providers/provider-repository';
 import {
   closeDatabase as closeStoreDatabase,
   configureStoreDatabaseSeeder,
@@ -65,7 +65,7 @@ import {
   upsertSettings,
   upsertUser,
 } from './settings-repository';
-import type { ReadingMemorySqliteExecutor } from './reading-memory-store';
+import type { ReadingMemorySqliteExecutor } from '../reading-memory/reading-memory-store';
 import {
   defaultStore,
   normalizeArticleReadingProgress,
@@ -91,7 +91,7 @@ export {
   saveWeReadReadingStatsSnapshot,
   saveWeReadSettings,
   saveWeReadTestResult,
-} from './weread/weread-repository';
+} from '../weread/weread-repository';
 
 export { mergeSettingsForUpsert } from './store-normalizers';
 export {
@@ -99,7 +99,7 @@ export {
   buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
-} from './articles/article-repository';
+} from '../articles/article-repository';
 export {
   backupDatabaseFile,
   getDataDirectoryPath,
@@ -114,8 +114,8 @@ export {
   resolveProviderApiKeyStorage,
   type ProviderApiKeyStorage,
   type SaveProviderInput,
-} from './provider-repository';
-export { buildAgentRecord } from './agent-repository';
+} from '../providers/provider-repository';
+export { buildAgentRecord } from '../agents/agent-repository';
 let providerSecretsMigrated = false;
 let annotationMemoryBackfilled = false;
 const annotationMemoryBackfillVersion = 'annotation-memory-v1';
@@ -236,7 +236,7 @@ export async function ensureArticleSiteIcon(id: string): Promise<string> {
   if (raw.startsWith('data:image/')) return raw;
   if (!/^https?:\/\//i.test(raw)) return '';
 
-  const { fetchFaviconDataUrl } = await import('./articles/article-favicon');
+  const { fetchFaviconDataUrl } = await import('../articles/article-favicon');
   const dataUrl = await fetchFaviconDataUrl(raw);
   if (!dataUrl) return '';
   updateArticleSiteIconRows(database, id, dataUrl);

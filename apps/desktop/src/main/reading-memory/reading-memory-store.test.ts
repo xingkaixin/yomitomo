@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it, vi } from 'vitest';
 import type { ReadingMemoryEntry } from '@yomitomo/shared';
-import { migrations } from './db/migrations';
+import { migrations } from '../db/migrations';
 import {
   appendReadingMemoryCorrection,
   appendReadingMemoryEntries,

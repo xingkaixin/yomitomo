@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 import { refreshModelsDevPrices } from './model-pricing-repository';
-import type { StoreDatabase } from './store-db';
+import type { StoreDatabase } from '../store/store-db';
 
 type ModelPriceRow = typeof schema.modelPriceRecords.$inferSelect;
 type AssistantRunRow = typeof schema.assistantExecutionRuns.$inferSelect;

@@ -18,12 +18,12 @@ import {
   type StoreDatabase,
   type StoreExecutor,
   type StoreReadProfileEntry,
-} from '../store-db';
+} from '../store/store-db';
 import {
   deleteReadingMemoryForArticle,
   upsertReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from '../reading-memory-store';
+} from '../reading-memory/reading-memory-store';
 import { buildArticleChildRows } from './article-repository-child-rows';
 export { buildArticleChildRows } from './article-repository-child-rows';
 export {
@@ -41,7 +41,7 @@ import {
   sortByCreatedAt,
   type ArticleSummaryCounts,
   type ArticleSummaryRow,
-} from '../store-normalizers';
+} from '../store/store-normalizers';
 
 const INSERT_BATCH_SIZE = 32;
 

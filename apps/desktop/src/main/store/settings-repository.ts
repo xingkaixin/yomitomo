@@ -4,7 +4,7 @@ import {
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
 } from '@yomitomo/shared';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 import { type StoreExecutor } from './store-db';
 import {
   defaultUser,

@@ -19,7 +19,7 @@ import {
   getDatabasePath,
   readStore,
   replaceDatabaseFile,
-} from './store';
+} from './store/store';
 import { getLogPath } from './app/logger';
 
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';

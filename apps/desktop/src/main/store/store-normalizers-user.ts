@@ -1,5 +1,5 @@
 import type { UserProfile } from '@yomitomo/shared';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 
 export const defaultUser: UserProfile = {
   id: 'user_local',

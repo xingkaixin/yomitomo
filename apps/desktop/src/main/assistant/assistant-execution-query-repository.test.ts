@@ -3,7 +3,7 @@ import {
   assistantExecutionRunDto,
   summarizeAssistantExecutionRows,
 } from './assistant-execution-query-repository';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 
 type AssistantExecutionRow = typeof schema.assistantExecutionRuns.$inferSelect;
 

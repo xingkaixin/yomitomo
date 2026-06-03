@@ -8,9 +8,9 @@ import type {
   AssistantExecutionSummaryGroup,
   AssistantExecutionTotals,
   AssistantExecutionUsage,
-} from '../ipc-contract';
-import * as schema from './db/schema';
-import type { StoreExecutor } from './store-db';
+} from '../../ipc-contract';
+import * as schema from '../db/schema';
+import type { StoreExecutor } from '../store/store-db';
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;

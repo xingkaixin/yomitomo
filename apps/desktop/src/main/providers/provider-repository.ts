@@ -1,15 +1,15 @@
 import { eq } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { makeId, providerPresets } from '@yomitomo/shared';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 import { deleteProviderApiKey, readProviderApiKey, saveProviderApiKey } from './provider-secrets';
-import { getDatabase, type StoreExecutor } from './store-db';
+import { getDatabase, type StoreExecutor } from '../store/store-db';
 import {
   normalizeModelNames,
   normalizePresetId,
   normalizeProviderModelInputMode,
   normalizeProviderType,
-} from './store-normalizers';
+} from '../store/store-normalizers';
 
 const defaultProviderPreset = providerPresets.find((preset) => preset.id === 'deepseek');
 

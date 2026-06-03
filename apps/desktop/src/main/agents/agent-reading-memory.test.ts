@@ -14,7 +14,7 @@ const memoryStore = vi.hoisted(() => ({
   readReadingMemoryEntries: vi.fn(),
 }));
 
-vi.mock('./reading-memory-store', () => memoryStore);
+vi.mock('../reading-memory/reading-memory-store', () => memoryStore);
 
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,

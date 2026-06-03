@@ -2,7 +2,7 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app } from 'electron';
 import { makeId } from '@yomitomo/shared';
-import type { AgentRuntimeTraceEntry, AgentRuntimeTraceListInput } from '../ipc-contract';
+import type { AgentRuntimeTraceEntry, AgentRuntimeTraceListInput } from '../../ipc-contract';
 
 const TRACE_FILE_NAME = 'yomitomo-agent-trace.jsonl';
 const DEFAULT_TRACE_LIMIT = 100;

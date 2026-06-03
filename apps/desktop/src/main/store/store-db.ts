@@ -11,9 +11,9 @@ import {
   migrationReaderLevel,
   readDatabaseReaderLevel,
   writeDatabaseReaderLevel,
-} from './db/compatibility';
-import { migrations } from './db/migrations';
-import * as schema from './db/schema';
+} from '../db/compatibility';
+import { migrations } from '../db/migrations';
+import * as schema from '../db/schema';
 
 const DB_FILE_NAME = 'yomitomo.sqlite';
 
