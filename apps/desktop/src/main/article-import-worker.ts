@@ -17,12 +17,24 @@ type ArticleImportWorkerData = {
   userAgent?: string;
 };
 
-void extractArticleRecord(workerData).then(
-  // oxlint-disable-next-line unicorn/require-post-message-target-origin
-  (article) => parentPort?.postMessage({ ok: true, article }),
-  // oxlint-disable-next-line unicorn/require-post-message-target-origin
-  (error) => parentPort?.postMessage({ ok: false, error: workerError(error) }),
-);
+type ArticleImportWorkerPort = {
+  postMessage(message: unknown): void;
+};
+
+if (parentPort) {
+  void postArticleImportWorkerResult(workerData, parentPort);
+}
+
+async function postArticleImportWorkerResult(input: unknown, port: ArticleImportWorkerPort) {
+  try {
+    const article = await extractArticleRecord(input);
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    port.postMessage({ ok: true, article });
+  } catch (error) {
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin
+    port.postMessage({ ok: false, error: workerError(error) });
+  }
+}
 
 async function extractArticleRecord(input: unknown) {
   const data = articleImportWorkerData(input);
@@ -121,3 +133,10 @@ function stringField(value: unknown) {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+
+export const articleImportWorkerTestApi = {
+  extractArticleRecord,
+  fetchArticleImageDataUrl,
+  postArticleImportWorkerResult,
+  workerError,
+};
