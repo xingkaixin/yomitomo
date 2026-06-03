@@ -9,7 +9,7 @@ import type {
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
-  getStoreModule: () => Promise<typeof import('../store')>;
+  getStoreModule: () => Promise<typeof import('../store/store')>;
   getAiModule: () => Promise<typeof import('@yomitomo/ai')>;
   getAppUpdaterModule: () => Promise<typeof import('../app/app-updater')>;
   getAppVersion: () => string;

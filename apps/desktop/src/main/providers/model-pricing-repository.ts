@@ -1,8 +1,8 @@
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { LlmProvider } from '@yomitomo/shared';
 import { Effect } from 'effect';
-import * as schema from './db/schema';
-import type { StoreDatabase, StoreExecutor } from './store-db';
+import * as schema from '../db/schema';
+import type { StoreDatabase, StoreExecutor } from '../store/store-db';
 
 const MODELS_DEV_URL = 'https://models.dev/api.json';
 const MODELS_DEV_TIMEOUT_MS = 15_000;

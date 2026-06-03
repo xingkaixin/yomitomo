@@ -39,7 +39,7 @@ import {
   normalizeSelectionActionShortcuts,
   providerPresets,
 } from '@yomitomo/shared';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 import { defaultUser, normalizeUser } from './store-normalizers-user';
 import {
   normalizeAgentKind,

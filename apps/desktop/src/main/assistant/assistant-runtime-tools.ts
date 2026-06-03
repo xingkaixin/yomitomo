@@ -20,7 +20,7 @@ import {
 import {
   searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from './reading-memory-store';
+} from '../reading-memory/reading-memory-store';
 
 const DEFAULT_TOOL_LIMIT = 6;
 const ANCHOR_CONTEXT_RADIUS = 700;

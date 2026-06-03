@@ -6,11 +6,11 @@ import {
   assistantReadingToolDefinitions,
   createAssistantReadingToolExecutor,
 } from './assistant-runtime-tools';
-import { migrations } from './db/migrations';
+import { migrations } from '../db/migrations';
 import {
   appendReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from './reading-memory-store';
+} from '../reading-memory/reading-memory-store';
 
 describe('assistant runtime reading tools', () => {
   it('returns current thread evidence with provenance', async () => {

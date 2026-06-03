@@ -14,7 +14,7 @@ import {
   readingMemoryCorrectionEntry,
   readingMemoryEntrySearchText,
 } from '@yomitomo/core';
-import { getSqliteExecutor } from './store-db';
+import { getSqliteExecutor } from '../store/store-db';
 import {
   readingMemoryFtsQuery,
   readingMemoryWhereClause,

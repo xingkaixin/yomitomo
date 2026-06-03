@@ -14,7 +14,7 @@ import {
   appendReadingMemoryEntries,
   buildReadingMemoryView,
   readReadingMemoryEntries,
-} from './reading-memory-store';
+} from '../reading-memory/reading-memory-store';
 
 export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
   payload: AgentAnnotatePayload;

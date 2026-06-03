@@ -1,14 +1,14 @@
 import type { Agent, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import { agentPersonalities, makeId } from '@yomitomo/shared';
 import { presetAgentAvatars } from './agent-avatars';
-import * as schema from './db/schema';
-import { type StoreDatabase, type StoreExecutor } from './store-db';
+import * as schema from '../db/schema';
+import { type StoreDatabase, type StoreExecutor } from '../store/store-db';
 import {
   normalizeAgentKind,
   normalizeAgentUsername,
   normalizeAnnotationDensity,
   normalizeTemperature,
-} from './store-normalizers';
+} from '../store/store-normalizers';
 
 export function buildAgentRecord(
   input: Partial<Agent>,

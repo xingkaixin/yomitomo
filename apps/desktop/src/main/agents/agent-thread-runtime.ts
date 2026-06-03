@@ -10,7 +10,7 @@ import type {
 import {
   assistantReadingToolDefinitions,
   createAssistantReadingToolExecutor,
-} from './assistant-runtime-tools';
+} from '../assistant/assistant-runtime-tools';
 
 type AiModule = typeof import('@yomitomo/ai');
 

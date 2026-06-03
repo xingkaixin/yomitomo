@@ -1,8 +1,8 @@
 import type { Agent, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import * as schema from './db/schema';
-import type { StoreExecutor } from './store-db';
-import { estimateAssistantRunCostMicros } from './model-pricing-repository';
+import * as schema from '../db/schema';
+import type { StoreExecutor } from '../store/store-db';
+import { estimateAssistantRunCostMicros } from '../providers/model-pricing-repository';
 
 export type AssistantExecutionRunStatus = 'success' | 'fallback' | 'error';
 

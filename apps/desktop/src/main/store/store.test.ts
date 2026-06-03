@@ -18,7 +18,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-vi.mock('./provider-secrets', () => {
+vi.mock('../providers/provider-secrets', () => {
   return {
     providerApiKeyRef: testState.providerApiKeyRef,
     saveProviderApiKey: async (providerId: string, apiKey: string) => {
@@ -51,7 +51,7 @@ import {
   rowToComment,
   type ArticleSummaryRow,
 } from './store-normalizers';
-import { normalizeWeReadReadingStats } from './weread/weread-repository';
+import { normalizeWeReadReadingStats } from '../weread/weread-repository';
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {

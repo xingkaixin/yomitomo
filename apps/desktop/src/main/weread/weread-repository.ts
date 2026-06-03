@@ -13,8 +13,12 @@ import type {
   WeReadUser,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
-import { deleteWeReadApiKey, readWeReadApiKey, saveWeReadApiKey } from '../provider-secrets';
-import { getDatabase, type StoreExecutor } from '../store-db';
+import {
+  deleteWeReadApiKey,
+  readWeReadApiKey,
+  saveWeReadApiKey,
+} from '../providers/provider-secrets';
+import { getDatabase, type StoreExecutor } from '../store/store-db';
 
 const WEREAD_ACCOUNT_ID = 'default';
 const WEREAD_SKILL_VERSION = '1.0.3';

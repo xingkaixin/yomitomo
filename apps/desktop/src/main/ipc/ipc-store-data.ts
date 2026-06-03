@@ -6,7 +6,7 @@ import {
   clearAgentRuntimeTraces,
   getAgentRuntimeTracePath,
   readAgentRuntimeTraces,
-} from '../agent-runtime-trace-log';
+} from '../agents/agent-runtime-trace-log';
 import { clearLogFile, getLogPath, readLogFile } from '../app/logger';
 
 export function registerStoreDataIpc(context: DesktopMainIpcContext) {

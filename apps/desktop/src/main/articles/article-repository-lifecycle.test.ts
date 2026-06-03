@@ -14,7 +14,7 @@ import {
   readReadingMemoryEntries,
   searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from '../reading-memory-store';
+} from '../reading-memory/reading-memory-store';
 
 describe('article memory lifecycle', () => {
   it('deletes article memory entries, projections, and FTS rows with the article', () => {
