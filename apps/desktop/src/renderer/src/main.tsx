@@ -71,18 +71,14 @@ const loadDataManagementSettings = () =>
     .then((module) => ({ default: module.DataManagementSettings }));
 const loadAiTraceSettingsPanel = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.AiTraceSettingsPanel }));
-const loadAgentCostSettingsPanel = () =>
-  preloadEntries.settingsPanels
-    .load()
-    .then((module) => ({ default: module.AgentCostSettingsPanel }));
 const loadGeneralSettings = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.GeneralSettings }));
 const loadProviderSettings = () =>
   preloadEntries.settingsProvider.load().then((module) => ({ default: module.ProviderSettings }));
 const loadShortcutSettings = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.ShortcutSettings }));
-const loadWeReadSettingsPanel = () =>
-  preloadEntries.settingsPanels.load().then((module) => ({ default: module.WeReadSettingsPanel }));
+const loadDataSourcesPanel = () =>
+  preloadEntries.settingsPanels.load().then((module) => ({ default: module.DataSourcesPanel }));
 const loadSettingsSectionShell = () =>
   preloadEntries.settingsPanels.load().then((module) => ({ default: module.SettingsSectionShell }));
 const loadUserProfileSettingsDialog = () =>
@@ -98,11 +94,10 @@ const OnboardingFlow = lazy(loadOnboardingFlow);
 const AgentSettings = lazy(loadAgentSettings);
 const DataManagementSettings = lazy(loadDataManagementSettings);
 const AiTraceSettingsPanel = lazy(loadAiTraceSettingsPanel);
-const AgentCostSettingsPanel = lazy(loadAgentCostSettingsPanel);
 const GeneralSettings = lazy(loadGeneralSettings);
 const ProviderSettings = lazy(loadProviderSettings);
 const ShortcutSettings = lazy(loadShortcutSettings);
-const WeReadSettingsPanel = lazy(loadWeReadSettingsPanel);
+const DataSourcesPanel = lazy(loadDataSourcesPanel);
 const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
@@ -423,10 +418,7 @@ function App() {
   }, [activeSetting]);
 
   useEffect(() => {
-    if (
-      !store.settings.developerModeEnabled &&
-      (activeSettingsSection === 'aiTrace' || activeSettingsSection === 'agentCosts')
-    ) {
+    if (!store.settings.developerModeEnabled && activeSettingsSection === 'aiTrace') {
       setActiveSettingsSection('about');
     }
   }, [activeSettingsSection, store.settings.developerModeEnabled]);
@@ -538,10 +530,7 @@ function App() {
   }
 
   function changeSettingsSection(section: SettingsSectionKey) {
-    if (
-      !store.settings.developerModeEnabled &&
-      (section === 'aiTrace' || section === 'agentCosts')
-    ) {
+    if (!store.settings.developerModeEnabled && section === 'aiTrace') {
       setActiveSettingsSection('about');
       return;
     }
@@ -604,14 +593,11 @@ function App() {
     settingsPanelsModule?.SettingsSectionShell ?? SettingsSectionShell;
   const ActiveGeneralSettings = settingsPanelsModule?.GeneralSettings ?? GeneralSettings;
   const ActiveShortcutSettings = settingsPanelsModule?.ShortcutSettings ?? ShortcutSettings;
-  const ActiveWeReadSettingsPanel =
-    settingsPanelsModule?.WeReadSettingsPanel ?? WeReadSettingsPanel;
+  const ActiveDataSourcesPanel = settingsPanelsModule?.DataSourcesPanel ?? DataSourcesPanel;
   const ActiveDataManagementSettings =
     settingsPanelsModule?.DataManagementSettings ?? DataManagementSettings;
   const ActiveAiTraceSettingsPanel =
     settingsPanelsModule?.AiTraceSettingsPanel ?? AiTraceSettingsPanel;
-  const ActiveAgentCostSettingsPanel =
-    settingsPanelsModule?.AgentCostSettingsPanel ?? AgentCostSettingsPanel;
   const ActiveProviderSettings = settingsProviderModule?.ProviderSettings ?? ProviderSettings;
   const ActiveAboutSettings = settingsAboutModule?.AboutSettings ?? AboutSettings;
   const ActiveUserProfileSettingsDialog =
@@ -699,6 +685,7 @@ function App() {
           ) : null}
           {activeSetting === 'stats' ? (
             <ActiveReadingStatsPanel
+              agents={store.agents}
               articles={store.articles}
               navigationStartedAt={statsNavigationStartedAt}
               settings={store.settings}
@@ -744,7 +731,7 @@ function App() {
                   onTest={testProvider}
                 />
               ) : null}
-              {activeSettingsSection === 'weread' ? <ActiveWeReadSettingsPanel /> : null}
+              {activeSettingsSection === 'dataSources' ? <ActiveDataSourcesPanel /> : null}
               {activeSettingsSection === 'shortcuts' ? (
                 <ActiveShortcutSettings
                   savedSettings={store.settings}
@@ -764,9 +751,6 @@ function App() {
               ) : null}
               {activeSettingsSection === 'aiTrace' && store.settings.developerModeEnabled ? (
                 <ActiveAiTraceSettingsPanel agents={store.agents} providers={store.providers} />
-              ) : null}
-              {activeSettingsSection === 'agentCosts' && store.settings.developerModeEnabled ? (
-                <ActiveAgentCostSettingsPanel agents={store.agents} providers={store.providers} />
               ) : null}
               {activeSettingsSection === 'about' ? (
                 <ActiveAboutSettings

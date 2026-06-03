@@ -1,9 +1,10 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, RefreshCcw } from 'lucide-react';
-import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
+import type { Agent, AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from './components/ui/button';
 import { SegmentedControl } from './components/ui/segmented-control';
 import { PanelHeader } from './app-ui';
+import { AiUsagePanel } from './app-assistant-diagnostics';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
 import { enabledLibraryContentSources } from './app-library-content-sources';
 import {
@@ -37,17 +38,20 @@ export function preloadReadingStatsDeferredModules() {
 }
 
 export function ReadingStatsPanel({
+  agents = [],
   articles,
   navigationStartedAt,
   onRefresh,
   settings,
 }: {
+  agents?: Agent[];
   articles: ArticleSummaryRecord[];
   navigationStartedAt?: number;
   onRefresh: () => void;
   settings?: AppSettings;
 }) {
   const [showDeferredContent, setShowDeferredContent] = useState(false);
+  const [view, setView] = useState<'reading' | 'usage'>('reading');
   const [source, setSource] = useState<'local' | 'weread'>('local');
   const recordedNavigationStartRef = useRef<number | undefined>(undefined);
   const recordedDeferredStartRef = useRef<number | undefined>(undefined);
@@ -136,12 +140,14 @@ export function ReadingStatsPanel({
         icon={<BarChart3 size={20} />}
         title="统计"
         description={
-          source === 'local'
-            ? '基于本地划线、想法、沉淀和阅读记录生成阅读概况。'
-            : '查询并保存微信读书按周期统计。切换周期只读取本地缓存。'
+          view === 'usage'
+            ? '助手的预估花费、token 与调用概览，了解用量去向。'
+            : source === 'local'
+              ? '基于本地划线、想法、沉淀和阅读记录生成阅读概况。'
+              : '查询并保存微信读书按周期统计。切换周期只读取本地缓存。'
         }
         action={
-          source === 'local' ? (
+          view === 'reading' && source === 'local' ? (
             <Button type="button" variant="secondary" onClick={onRefresh}>
               <RefreshCcw size={16} />
               刷新
@@ -150,40 +156,58 @@ export function ReadingStatsPanel({
         }
       />
       <SegmentedControl
-        aria-label="统计来源"
-        className="stats-source-tabs"
+        aria-label="统计视图"
+        className="stats-view-tabs"
         role="tablist"
-        value={source}
-        options={sourceOptions}
-        onValueChange={setSource}
+        value={view}
+        options={viewOptions}
+        onValueChange={setView}
       />
-      {source === 'weread' ? <WeReadReadingStatsPanel /> : null}
-      {source === 'local' ? (
+      {view === 'usage' ? <AiUsagePanel agents={agents} /> : null}
+      {view === 'reading' ? (
         <>
-          <StatsFirstPaintOverview data={data} />
-          {showDeferredContent ? (
+          <SegmentedControl
+            aria-label="统计来源"
+            className="stats-source-tabs"
+            role="tablist"
+            value={source}
+            options={sourceOptions}
+            onValueChange={setSource}
+          />
+          {source === 'weread' ? <WeReadReadingStatsPanel /> : null}
+          {source === 'local' ? (
             <>
-              <section className="stats-visual-grid">
-                <Suspense fallback={<StatsChartSkeleton />}>
-                  <ReadingStatsChart
-                    activityDays={data.activityDays}
-                    activityStartDate={data.activityStartDate}
-                    onReady={recordChartReady}
-                    recordedDays={data.recordedDays}
-                  />
-                </Suspense>
-                <StatsActivityCard data={data} />
-              </section>
-              <StatsInsights data={data} onReady={recordContentReady} />
+              <StatsFirstPaintOverview data={data} />
+              {showDeferredContent ? (
+                <>
+                  <section className="stats-visual-grid">
+                    <Suspense fallback={<StatsChartSkeleton />}>
+                      <ReadingStatsChart
+                        activityDays={data.activityDays}
+                        activityStartDate={data.activityStartDate}
+                        onReady={recordChartReady}
+                        recordedDays={data.recordedDays}
+                      />
+                    </Suspense>
+                    <StatsActivityCard data={data} />
+                  </section>
+                  <StatsInsights data={data} onReady={recordContentReady} />
+                </>
+              ) : (
+                <StatsDeferredSkeleton />
+              )}
             </>
-          ) : (
-            <StatsDeferredSkeleton />
-          )}
+          ) : null}
         </>
       ) : null}
     </div>
   );
 }
+
+const viewOptions = [
+  { value: 'reading' as const, label: '阅读' },
+  { value: 'usage' as const, label: '助手用量' },
+];
 
 function StatsFirstPaintOverview({ data }: { data: ReadingStatsViewData }) {
   return (

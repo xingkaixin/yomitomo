@@ -1,9 +1,9 @@
 ---
 title: 获取微信读书 API KEY
-description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomitomo 的微信读书设置中。
+description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomitomo 的「数据来源 > 微信读书」设置中。
 ---
 
-微信读书同步需要先创建微信读书 API KEY。创建后，把 key 粘贴到 Yomitomo 的「设置 > 微信读书」并保存。
+微信读书同步需要先创建微信读书 API KEY。创建后，把 key 粘贴到 Yomitomo 的「设置 > 数据来源 > 微信读书」并保存。
 
 ## 网页端获取
 
@@ -11,7 +11,7 @@ description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomit
 2. 点击「快速配置」。
 3. 登录微信读书。
 4. 在「获取 API Key」区域创建 API KEY；如果之前已经创建，直接复制已有 key。
-5. 回到 Yomitomo，在「设置 > 微信读书」中粘贴并保存。
+5. 回到 Yomitomo，在「设置 > 数据来源 > 微信读书」中粘贴并保存。
 
 <picture>
   <img
@@ -39,7 +39,7 @@ description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomit
 4. 在设置页下滑找到「微信读书 Skill」。
 5. 进入「微信读书 Skill」后，下滑到「获取 API Key」区域。
 6. 创建 API KEY；如果之前已经创建，直接复制已有 key。
-7. 回到 Yomitomo，在「设置 > 微信读书」中粘贴并保存。
+7. 回到 Yomitomo，在「设置 > 数据来源 > 微信读书」中粘贴并保存。
 
 <picture>
   <img
@@ -70,4 +70,4 @@ description: 通过网页或微信读书 App 获取 API KEY，并保存到 Yomit
 
 ## 保存到 Yomitomo
 
-在 Yomitomo 中进入「设置 > 微信读书」，把复制的 API KEY 粘贴到 API Key 输入框，点击「保存」。保存后可以点击「测试连接」确认 key 可用。
+在 Yomitomo 中进入「设置 > 数据来源 > 微信读书」，把复制的 API KEY 粘贴到 API Key 输入框，点击「保存」。保存后可以点击「测试连接」确认 key 可用。
