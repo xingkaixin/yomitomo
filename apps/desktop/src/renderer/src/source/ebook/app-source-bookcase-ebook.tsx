@@ -46,11 +46,11 @@ import { useEbookSelection } from './use-ebook-selection';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
-} from '../../use-reader-page-turn-keys';
+} from '../../shell/use-reader-page-turn-keys';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
-import { ArticleBook } from '../../app-article-book';
+import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import {
   constrainSourceAgentPlanAnnotation,

@@ -6,8 +6,8 @@ import type {
   LibraryContentSourcePreference,
 } from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from '../app-types';
-import { Field, PanelHeader } from '../app-ui';
+import type { SaveState } from '../shell/app-types';
+import { Field, PanelHeader } from '../shell/app-ui';
 import {
   allLibraryContentSourceOptions,
   libraryContentSourcePreferences,

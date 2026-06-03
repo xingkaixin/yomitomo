@@ -24,8 +24,8 @@ import tangJianCover from '../assets/reviewer-profiles/tang-jian-cover.webp';
 import xiaGuiningCover from '../assets/reviewer-profiles/xia-guining-cover.webp';
 import yeTinglanCover from '../assets/reviewer-profiles/ye-tinglan-cover.webp';
 import { ColorPicker } from './app-settings-color-picker';
-import { AvatarImage, Field } from '../app-ui';
-import type { SaveState } from '../app-types';
+import { AvatarImage, Field } from '../shell/app-ui';
+import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 

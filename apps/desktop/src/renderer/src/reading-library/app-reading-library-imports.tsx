@@ -15,7 +15,10 @@ import {
 import type { ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { Button } from '../components/ui/button';
-import type { EbookImportProgressCallback, PdfImportProgressCallback } from '../app-reading-types';
+import type {
+  EbookImportProgressCallback,
+  PdfImportProgressCallback,
+} from '../shell/app-reading-types';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;

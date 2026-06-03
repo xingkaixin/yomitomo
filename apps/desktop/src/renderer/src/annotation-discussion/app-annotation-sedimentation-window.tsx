@@ -11,10 +11,10 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId, renderMarkdown } from '@yomitomo/shared';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from './theme/app-theme';
+import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
-import { promptArticle, publicReviewAgents } from './source/bookcase/app-source-bookcase-shared';
-import { articlePlainText } from './app-utils';
+import { promptArticle, publicReviewAgents } from '../source/bookcase/app-source-bookcase-shared';
+import { articlePlainText } from '../shell/app-utils';
 import {
   AgentAvatarStack,
   AvatarBadge,
@@ -32,8 +32,8 @@ import {
 import {
   applyAssistantRuntimeProgress,
   AssistantRuntimeProgressList,
-} from './app-assistant-runtime-progress';
-import { useSourceAwareWindowTransition } from './app-window-transition';
+} from '../shell/app-assistant-runtime-progress';
+import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }

@@ -59,7 +59,7 @@ import { useSourceSelectionComposer } from '../bookcase/use-source-selection-com
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
-} from '../../use-reader-page-turn-keys';
+} from '../../shell/use-reader-page-turn-keys';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import {
   pdfiumAgentAnnotationRequestOptions,

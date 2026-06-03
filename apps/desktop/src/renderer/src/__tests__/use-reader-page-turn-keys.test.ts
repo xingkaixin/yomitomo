@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isEditableKeyboardTarget,
   readerPageTurnDirectionFromKeyboardEvent,
-} from '../use-reader-page-turn-keys';
+} from '../shell/use-reader-page-turn-keys';
 
 function keyEvent(key: string, target: EventTarget | null = document.body) {
   return {

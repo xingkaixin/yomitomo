@@ -9,7 +9,7 @@ import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './app-source-bookcase-shared';
-import { applyAssistantRuntimeProgress } from '../../app-assistant-runtime-progress';
+import { applyAssistantRuntimeProgress } from '../../shell/app-assistant-runtime-progress';
 
 type RunSourceAgentCommentRequestInput = {
   agent: PublicAgent;

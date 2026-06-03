@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPdfAuthors } from '../app-article-book';
+import { formatPdfAuthors } from '../shell/app-article-book';
 
 describe('PDF display metadata', () => {
   it('shows one English author with et al. on PDF covers', () => {

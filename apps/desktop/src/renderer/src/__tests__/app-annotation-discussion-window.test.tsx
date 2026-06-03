@@ -7,7 +7,7 @@ import type { Agent, Annotation, ArticleRecord, Comment } from '@yomitomo/shared
 import {
   AnnotationDiscussionWindowApp,
   insertMentionAtSelection,
-} from '../app-annotation-discussion-window';
+} from '../annotation-discussion/app-annotation-discussion-window';
 
 const now = '2026-05-31T06:00:00.000Z';
 

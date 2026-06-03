@@ -4,8 +4,8 @@ import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord } from '@yomitomo/shared';
-import { AnnotationDiscussionWindowApp } from '../app-annotation-discussion-window';
-import { AnnotationSedimentationWindowApp } from '../app-annotation-sedimentation-window';
+import { AnnotationDiscussionWindowApp } from '../annotation-discussion/app-annotation-discussion-window';
+import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
 
 const now = '2026-05-31T06:00:00.000Z';
 

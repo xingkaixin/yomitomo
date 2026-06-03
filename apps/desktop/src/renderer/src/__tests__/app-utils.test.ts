@@ -12,7 +12,7 @@ import {
   isSvgAvatar,
   parseLogEntries,
   urlHost,
-} from '../app-utils';
+} from '../shell/app-utils';
 
 const now = '2026-05-04T00:00:00.000Z';
 

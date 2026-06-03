@@ -13,20 +13,23 @@ import {
   findMentionedAgents,
   sortAnnotations,
 } from '@yomitomo/core';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from './theme/app-theme';
+import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import {
   agentInstructionFromNote,
   mentionDirectivesForAgent,
   promptArticle,
   publicAnnotationAgents,
-} from './source/bookcase/app-source-bookcase-shared';
-import { runSourceAgentCommentRequest } from './source/bookcase/app-source-agent-comment-request';
+} from '../source/bookcase/app-source-bookcase-shared';
+import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
 import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
-import { applyAssistantRuntimeProgress } from './app-assistant-runtime-progress';
-import { elementWindowSourceRect, useSourceAwareWindowTransition } from './app-window-transition';
+import { applyAssistantRuntimeProgress } from '../shell/app-assistant-runtime-progress';
+import {
+  elementWindowSourceRect,
+  useSourceAwareWindowTransition,
+} from '../shell/app-window-transition';
 import {
   annotationUserProfile,
   assistantThoughtRouteNote,

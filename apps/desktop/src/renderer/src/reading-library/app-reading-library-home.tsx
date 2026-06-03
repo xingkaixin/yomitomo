@@ -28,7 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import type { EbookImportProgressCallback, PdfImportProgressCallback } from '../app-reading-types';
+import type {
+  EbookImportProgressCallback,
+  PdfImportProgressCallback,
+} from '../shell/app-reading-types';
 import {
   articleAnnotationCount,
   articleDistillationCount,
@@ -44,9 +47,9 @@ import {
   formatPdfAuthors,
   nativeBookCoverStyle,
   useNativeCoverRatio,
-} from '../app-article-book';
+} from '../shell/app-article-book';
 import { libraryContentSourceOptions } from './app-library-content-sources';
-import { urlHost } from '../app-utils';
+import { urlHost } from '../shell/app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;

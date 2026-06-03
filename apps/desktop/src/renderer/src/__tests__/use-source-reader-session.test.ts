@@ -12,7 +12,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { createTextAnchor } from '@yomitomo/shared';
-import type { PromptArticle } from '../app-reading-types';
+import type { PromptArticle } from '../shell/app-reading-types';
 import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,

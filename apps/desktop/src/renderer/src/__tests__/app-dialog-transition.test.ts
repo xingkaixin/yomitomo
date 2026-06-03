@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import { elementDialogSourceRect, sourceAwareDialogStyle } from '../app-dialog-transition';
+import { elementDialogSourceRect, sourceAwareDialogStyle } from '../shell/app-dialog-transition';
 
 describe('source-aware dialog transition', () => {
   it('derives origin and shift from the trigger center', () => {

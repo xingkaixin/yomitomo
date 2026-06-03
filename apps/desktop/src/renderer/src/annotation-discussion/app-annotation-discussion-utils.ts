@@ -7,7 +7,7 @@ import type {
 } from '@yomitomo/shared';
 import type { getMentionQuery } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
-import { articlePlainText } from './app-utils';
+import { articlePlainText } from '../shell/app-utils';
 
 export type DiscussionThread = {
   isPinned: boolean;

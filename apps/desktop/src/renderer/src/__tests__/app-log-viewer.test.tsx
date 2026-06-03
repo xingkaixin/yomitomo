@@ -4,7 +4,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppUpdateState } from '../../../app-update-types';
-import { AboutSettings } from '../app-log-viewer';
+import { AboutSettings } from '../shell/app-log-viewer';
 
 afterEach(() => {
   cleanup();

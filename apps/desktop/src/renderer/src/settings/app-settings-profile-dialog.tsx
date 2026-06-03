@@ -1,13 +1,16 @@
 import React from 'react';
 import { Check, Save, Upload, User } from 'lucide-react';
 import { sanitizeUsernameInput, userAnnotationColors, type UserDraft } from './app-settings';
-import { readFileAsDataUrl } from '../app-utils';
-import { AvatarImage, Field } from '../app-ui';
-import type { SaveState } from '../app-types';
+import { readFileAsDataUrl } from '../shell/app-utils';
+import { AvatarImage, Field } from '../shell/app-ui';
+import type { SaveState } from '../shell/app-types';
 import { ColorPicker } from './app-settings-color-picker';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { useSourceAwareDialogTransition, type DialogSourceRect } from '../app-dialog-transition';
+import {
+  useSourceAwareDialogTransition,
+  type DialogSourceRect,
+} from '../shell/app-dialog-transition';
 
 export function UserProfileSettingsDialog({
   draft,

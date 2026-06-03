@@ -17,13 +17,13 @@ import {
   Tag,
   X,
 } from 'lucide-react';
-import thirdPartyNoticesRaw from '../../../../../THIRD_PARTY_NOTICES.md?raw';
+import thirdPartyNoticesRaw from '../../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { PanelHeader } from './app-ui';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
-import type { AppInfo } from '../../preload';
-import type { AppUpdateState } from '../../app-update-types';
+import type { AppInfo } from '../../../preload';
+import type { AppUpdateState } from '../../../app-update-types';
 
 type LicensePackage = {
   name: string;

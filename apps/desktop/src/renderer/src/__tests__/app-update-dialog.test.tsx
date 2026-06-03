@@ -3,7 +3,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReleaseNoteHighlight } from '@yomitomo/shared';
-import { UpdateReleaseDialogView } from '../app-update-dialog';
+import { UpdateReleaseDialogView } from '../shell/app-update-dialog';
 
 beforeEach(() => {
   vi.stubGlobal('matchMedia', (query: string) => ({

@@ -17,7 +17,7 @@ import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomito
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
-import type { ArticleUpdater, PromptArticle } from '../../app-reading-types';
+import type { ArticleUpdater, PromptArticle } from '../../shell/app-reading-types';
 import type { WindowAnimationSourceRect } from '../../../../ipc-contract';
 export {
   normalizeDesktopReaderSettings,

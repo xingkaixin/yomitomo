@@ -12,7 +12,7 @@ import {
   applyArticleDeletePatch,
   applyArticleReadingProgressPatch,
   useAppArticleStoreActions,
-} from '../app-article-store-actions';
+} from '../shell/app-article-store-actions';
 
 afterEach(() => {
   cleanup();

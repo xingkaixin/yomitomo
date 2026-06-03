@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Clipboard, ExternalLink } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl, isImageAvatar, isSvgAvatar } from './app-utils';
-import { Label } from './components/ui/label';
+import { Label } from '../components/ui/label';
 
 export function CopyIconButton({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
