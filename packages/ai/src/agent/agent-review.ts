@@ -11,11 +11,11 @@ import {
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
 } from '@yomitomo/core';
-import { budgetArticleText, formatBudgetNotice } from './budget';
-import { logAiInfo } from './logger';
+import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
+import { logAiInfo } from '../logger';
 import { buildAgentRoleCard } from './agent-role-card';
-import { parseJsonArray, stringValue } from './json';
-import { callProviderText } from './provider-client';
+import { parseJsonArray, stringValue } from '../json';
+import { callProviderText } from '../provider/provider-client';
 import { spoilerScopePrompt } from './agent-runtime-prompts';
 
 type ReviewThought = {

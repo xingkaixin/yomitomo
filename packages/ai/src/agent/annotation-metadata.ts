@@ -7,8 +7,8 @@ import type {
   LlmProvider,
 } from '@yomitomo/shared';
 import { agentReadingIntentOptions, normalizeAgentReadingIntent } from '@yomitomo/shared';
-import { booleanValue, parseJsonArray, parseJsonObject, stringArray, stringValue } from './json';
-import { callProviderText } from './provider-client';
+import { booleanValue, parseJsonArray, parseJsonObject, stringArray, stringValue } from '../json';
+import { callProviderText } from '../provider/provider-client';
 
 export async function planAgentMentionInstructions(
   provider: LlmProvider,

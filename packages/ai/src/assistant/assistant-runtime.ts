@@ -1,9 +1,12 @@
 import { jsonSchema, stepCountIs, streamText, type JSONSchema7 } from 'ai';
 import type { LlmProvider, TextAnchor } from '@yomitomo/shared';
 import { Effect } from 'effect';
-import { createYomitomoLanguageModel, supportsProviderTools } from './ai-sdk-provider-adapter';
-import type { NormalizedAiUsage } from './usage';
-import { normalizeAiUsage } from './usage';
+import {
+  createYomitomoLanguageModel,
+  supportsProviderTools,
+} from '../provider/ai-sdk-provider-adapter';
+import type { NormalizedAiUsage } from '../provider/usage';
+import { normalizeAiUsage } from '../provider/usage';
 
 export type AssistantRuntimeTaskType =
   | 'thread_reply'
