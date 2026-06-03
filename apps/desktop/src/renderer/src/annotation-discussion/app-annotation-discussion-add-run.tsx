@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Comment, PublicAgent } from '@yomitomo/shared';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
-import { AssistantRuntimeProgressList } from './app-assistant-runtime-progress';
+import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 
 export type AddThoughtAgentRunStatus = 'active' | 'done' | 'failed';
 

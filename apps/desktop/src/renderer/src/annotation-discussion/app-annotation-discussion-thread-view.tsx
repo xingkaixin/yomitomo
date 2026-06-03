@@ -19,7 +19,7 @@ import {
   isMessageSendShortcutEvent,
 } from '@yomitomo/reader-ui/reader-shortcuts';
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
-import { AssistantRuntimeProgressList } from './app-assistant-runtime-progress';
+import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import {
   formatAbsoluteTime,
   insertMentionAtSelection,

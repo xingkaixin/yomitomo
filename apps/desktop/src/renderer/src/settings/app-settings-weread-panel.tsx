@@ -12,9 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import type { WeReadOpenMethod, WeReadSettings } from '@yomitomo/shared';
-import { Field, PanelHeader } from '../app-ui';
+import { Field, PanelHeader } from '../shell/app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from '../app-types';
+import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 

@@ -21,10 +21,10 @@ import type {
   ArticleUpdater,
   EbookImportProgressCallback,
   PdfImportProgressCallback,
-} from '../app-reading-types';
+} from '../shell/app-reading-types';
 import { LibraryHome, type LibrarySourceTransitionDirection } from './app-reading-library-home';
 import { enabledLibraryContentSources } from './app-library-content-sources';
-import { WeReadBookcase } from '../app-weread-bookcase';
+import { WeReadBookcase } from '../shell/app-weread-bookcase';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
   groupLibraryArticles,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
-import { Field } from '../app-ui';
+import { Field } from '../shell/app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useProviderModelFetch } from './app-settings-provider-model-fetch';
 import { ProviderModelFields } from './app-settings-provider-model-fields';

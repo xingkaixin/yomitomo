@@ -12,7 +12,7 @@ import {
   runSourceAgentAnnotationRequest,
   withoutAnnotationId,
 } from '../source/bookcase/app-source-agent-request';
-import type { PromptArticle } from '../app-reading-types';
+import type { PromptArticle } from '../shell/app-reading-types';
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {

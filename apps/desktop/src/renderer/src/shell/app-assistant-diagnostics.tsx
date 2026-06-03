@@ -9,13 +9,13 @@ import type {
   AssistantExecutionSummary,
   AssistantExecutionSummaryGroup,
   AssistantExecutionTotals,
-} from '../../preload';
+} from '../../../preload';
 import { AvatarImage, PanelHeader } from './app-ui';
-import { providerLogoMap } from './settings/app-settings-provider-assets';
-import { Button } from './components/ui/button';
-import { Calendar } from './components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger } from './components/ui/select';
+import { providerLogoMap } from '../settings/app-settings-provider-assets';
+import { Button } from '../components/ui/button';
+import { Calendar } from '../components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger } from '../components/ui/select';
 
 type DiagnosticsProps = {
   agents: Agent[];

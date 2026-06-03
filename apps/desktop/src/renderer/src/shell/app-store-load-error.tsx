@@ -1,5 +1,5 @@
 import { Database, ExternalLink, RefreshCw } from 'lucide-react';
-import type { DesktopStoreLoadErrorInfo } from '../../app-store-errors';
+import type { DesktopStoreLoadErrorInfo } from '../../../app-store-errors';
 
 import { CopyIconButton } from './app-ui';
 

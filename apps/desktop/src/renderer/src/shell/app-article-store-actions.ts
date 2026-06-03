@@ -9,7 +9,7 @@ import type {
   ArticleUpsertPatch,
   DesktopStore,
 } from '@yomitomo/shared';
-import type { WindowAnimationSourceRect } from '../../ipc-contract';
+import type { WindowAnimationSourceRect } from '../../../ipc-contract';
 
 type DesktopStoreRef = { current: DesktopStore };
 type ApplyStore = (nextStore: DesktopStore) => DesktopStore;

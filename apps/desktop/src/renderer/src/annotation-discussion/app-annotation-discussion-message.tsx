@@ -3,7 +3,7 @@ import type { Comment, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
-import { AssistantRuntimeProgressList } from './app-assistant-runtime-progress';
+import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
 import { LongPressDeleteButton } from './app-annotation-discussion-thread-list';
 

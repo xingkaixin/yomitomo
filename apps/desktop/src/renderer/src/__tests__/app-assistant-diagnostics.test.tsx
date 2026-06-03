@@ -4,7 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
-import { AiUsagePanel, AiTraceSettingsPanel } from '../app-assistant-diagnostics';
+import { AiUsagePanel, AiTraceSettingsPanel } from '../shell/app-assistant-diagnostics';
 
 afterEach(() => {
   cleanup();

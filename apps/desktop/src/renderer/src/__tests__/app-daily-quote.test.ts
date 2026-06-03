@@ -5,7 +5,7 @@ import {
   collectDailyQuoteCandidates,
   formatDailyQuoteDate,
   selectDailyQuote,
-} from '../app-daily-quote';
+} from '../shell/app-daily-quote';
 
 const now = new Date('2026-05-08T10:00:00.000+08:00');
 

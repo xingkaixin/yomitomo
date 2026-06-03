@@ -41,9 +41,9 @@ import {
   readerAnnotationScrollTop,
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
-import { OpenArticleButton } from '../../app-ui';
+import { OpenArticleButton } from '../../shell/app-ui';
 import { type SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
-import { articleIdentityLine } from '../../app-utils';
+import { articleIdentityLine } from '../../shell/app-utils';
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,

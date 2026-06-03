@@ -3,7 +3,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '@yomitomo/shared';
-import { WeReadBookcase, weReadReadonlyNoteCardModel } from '../app-weread-bookcase';
+import { WeReadBookcase, weReadReadonlyNoteCardModel } from '../shell/app-weread-bookcase';
 
 const userProfile: UserProfile = {
   id: 'user_1',

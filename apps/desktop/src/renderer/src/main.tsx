@@ -4,13 +4,13 @@ import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
-import { AvatarImage } from './app-ui';
-import { useAppAgentActions } from './app-agent-actions';
-import { useAppArticleStoreActions } from './app-article-store-actions';
-import { useDesktopStoreState } from './app-desktop-store-state';
+import { AvatarImage } from './shell/app-ui';
+import { useAppAgentActions } from './shell/app-agent-actions';
+import { useAppArticleStoreActions } from './shell/app-article-store-actions';
+import { useDesktopStoreState } from './shell/app-desktop-store-state';
 import { useSettingsDrafts } from './settings/app-settings-drafts';
 import { SettingsNavButton } from './settings/app-settings-nav-button';
-import { StoreLoadErrorScreen } from './app-store-load-error';
+import { StoreLoadErrorScreen } from './shell/app-store-load-error';
 import {
   normalizeDesktopReaderSettings,
   readDesktopReaderBackgroundsByTone,
@@ -26,11 +26,11 @@ import {
   writeCachedThemeId,
   type AppThemeId,
 } from './theme/app-theme';
-import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-window';
-import { AnnotationSedimentationWindowApp } from './app-annotation-sedimentation-window';
+import { AnnotationDiscussionWindowApp } from './annotation-discussion/app-annotation-discussion-window';
+import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-annotation-sedimentation-window';
 import { ThemeSelector } from './theme/app-theme-selector';
-import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-transition';
-import { UpdateReleaseDialog } from './app-update-dialog';
+import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dialog-transition';
+import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import './styles.css';
 
 const startupThemeId = readCachedThemeId();
@@ -65,7 +65,7 @@ const loadReadingStatsModule = () => preloadEntries.stats.load();
 const loadReadingStatsPanel = () =>
   loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
 const loadOnboardingFlow = () =>
-  import('./app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
+  import('./shell/app-onboarding').then((module) => ({ default: module.OnboardingFlow }));
 const loadAgentSettings = () =>
   preloadEntries.agents.load().then((module) => ({ default: module.AgentSettings }));
 const loadDataManagementSettings = () =>
@@ -109,7 +109,7 @@ type ReadingStatsModule = typeof import('./reading-stats/app-reading-stats');
 type AgentSettingsModule = typeof import('./settings/app-settings-agent-panel');
 type SettingsPanelsModule = typeof import('./settings/app-settings-panels');
 type SettingsProviderModule = typeof import('./settings/app-settings-provider-panel');
-type SettingsAboutModule = typeof import('./app-log-viewer');
+type SettingsAboutModule = typeof import('./shell/app-log-viewer');
 type ProfileDialogModule = typeof import('./settings/app-settings-profile-dialog');
 
 type PreloadStatus = 'not-started' | 'scheduled' | 'loading' | 'ready' | 'failed';
@@ -211,7 +211,7 @@ const preloadEntries = {
   ),
   settingsAbout: createPreloadEntry<SettingsAboutModule>(
     'settings-about',
-    () => import('./app-log-viewer'),
+    () => import('./shell/app-log-viewer'),
   ),
   profileDialog: createPreloadEntry<ProfileDialogModule>(
     'profile-dialog',

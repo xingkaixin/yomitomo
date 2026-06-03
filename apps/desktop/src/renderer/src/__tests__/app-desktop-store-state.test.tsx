@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 
 import { emptyStore } from '../settings/app-settings';
-import { useDesktopStoreState } from '../app-desktop-store-state';
+import { useDesktopStoreState } from '../shell/app-desktop-store-state';
 
 afterEach(() => {
   cleanup();

@@ -1,6 +1,6 @@
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import { cleanEpubDisplayTitle, type ArticleSummaryRecord } from '@yomitomo/shared';
-import { articlePlainText, formatDate, urlHost } from '../app-utils';
+import { articlePlainText, formatDate, urlHost } from '../shell/app-utils';
 
 export type LibraryFilter = 'all' | 'new' | 'progress' | 'done';
 

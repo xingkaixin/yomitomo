@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
-import { Button } from './components/ui/button';
-import onboardingBackground from './assets/onboarding/onboarding-background.webp';
+import { Button } from '../components/ui/button';
+import onboardingBackground from '../assets/onboarding/onboarding-background.webp';
 
 type OnboardingCopyBlock = {
   id: string;

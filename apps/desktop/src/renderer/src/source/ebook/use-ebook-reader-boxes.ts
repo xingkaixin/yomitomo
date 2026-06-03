@@ -25,7 +25,7 @@ import {
 import {
   readerPageTurnDirectionFromKeyboardEvent,
   type ReaderPageTurnDirection,
-} from '../../use-reader-page-turn-keys';
+} from '../../shell/use-reader-page-turn-keys';
 
 type UseEbookReaderBoxesInput = {
   annotationAgents: PublicAgent[];

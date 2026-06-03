@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import type { WindowAnimationSourceRect } from '../../ipc-contract';
+import type { WindowAnimationSourceRect } from '../../../ipc-contract';
 
 type SourceAwareWindowStyle = CSSProperties & {
   '--annotation-window-origin-x': string;
