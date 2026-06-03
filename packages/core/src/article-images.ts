@@ -19,6 +19,17 @@ export async function inlineArticleImages(
   return Effect.runPromise(inlineArticleImagesEffect(article, options));
 }
 
+// favicon 极小，导入期无条件下载内联成 data URI，保证展示离线可用、无第三方请求。
+export async function inlineArticleFavicon(
+  article: ExtractedArticle,
+  fetcher: ImageFetcher,
+): Promise<ExtractedArticle> {
+  if (!article.siteIconUrl || article.siteIconUrl.startsWith('data:image/')) return article;
+  const dataUrl = await fetcher(article.siteIconUrl).catch(() => null);
+  if (!dataUrl?.startsWith('data:image/')) return article;
+  return { ...article, siteIconUrl: dataUrl };
+}
+
 function inlineArticleImagesEffect(article: ExtractedArticle, options: ArticleImageInlineOptions) {
   return Effect.gen(function* () {
     const inliner = yield* imageInlinerEffect(article.canonicalUrl || article.url, options.fetcher);

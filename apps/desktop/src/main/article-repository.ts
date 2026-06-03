@@ -140,6 +140,24 @@ export function readArticleCoverRows(database: StoreDatabase, id: string): strin
   );
 }
 
+export function readArticleSiteIconRawRows(database: StoreDatabase, id: string): string {
+  return (
+    database
+      .select({ siteIconUrl: schema.articles.siteIconUrl })
+      .from(schema.articles)
+      .where(eq(schema.articles.id, id))
+      .get()?.siteIconUrl || ''
+  );
+}
+
+export function updateArticleSiteIconRows(
+  database: StoreDatabase,
+  id: string,
+  siteIconUrl: string,
+) {
+  database.update(schema.articles).set({ siteIconUrl }).where(eq(schema.articles.id, id)).run();
+}
+
 export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpsertPatch> {
   writeArticleRowsInTransaction(getDatabase(), input);
   trySyncArticleAnnotationMemoryEntries(input);

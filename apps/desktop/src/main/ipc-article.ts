@@ -12,6 +12,10 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { readArticleCover } = await context.getStoreModule();
     return readArticleCover(id);
   });
+  handleDesktopIpc('article:get-site-icon', async (_event, id) => {
+    const { ensureArticleSiteIcon } = await context.getStoreModule();
+    return ensureArticleSiteIcon(id);
+  });
   handleDesktopIpc('article:save', async (_event, input) => {
     const { saveArticle } = await context.getStoreModule();
     return saveArticle(input);
@@ -91,11 +95,13 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
     const { articleRecordFromPdfFile } = await import('./pdf-import');
     const { savePdfSourceFile } = await import('./pdf-storage');
-    const record = await articleRecordFromPdfFile(input);
+    const { savePdfThumbnail } = await import('./pdf-thumbnail-storage');
+    const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
     const existingArticle = findArticleByIdentity(record);
     if (existingArticle) {
       const existingFullArticle = await readArticle(existingArticle.id);
       await savePdfSourceFile(existingArticle.id, input.data);
+      if (thumbnail) await savePdfThumbnail(existingArticle.id, thumbnail);
       return {
         status: 'duplicate',
         article: existingFullArticle || record,
@@ -103,8 +109,25 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     }
 
     await savePdfSourceFile(record.id, input.data);
+    if (thumbnail) await savePdfThumbnail(record.id, thumbnail);
     const patch = await saveArticle(record);
     return { status: 'imported', article: record, patch };
+  });
+  handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
+    const { readPdfThumbnailDataUrl, savePdfThumbnail } = await import('./pdf-thumbnail-storage');
+    const cached = await readPdfThumbnailDataUrl(articleId);
+    if (cached) return cached;
+
+    // 存量 PDF 首次可见时懒生成：从源文件渲染一次并缓存，之后永久命中。
+    const { readPdfSourceFile } = await import('./pdf-storage');
+    const { renderPdfThumbnailFromBuffer } = await import('./pdf-import');
+    const file = await readPdfSourceFile(articleId).catch(() => null);
+    if (!file) return '';
+    const data = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+    const thumbnail = await renderPdfThumbnailFromBuffer(data);
+    if (!thumbnail) return '';
+    await savePdfThumbnail(articleId, thumbnail);
+    return `data:image/jpeg;base64,${thumbnail.toString('base64')}`;
   });
   handleDesktopIpc('pdf:read-file', async (_event, articleId) => {
     const startedAt = performance.now();
@@ -124,7 +147,9 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const patch = await deleteArticle(id);
     if (article?.sourceType === 'pdf') {
       const { deletePdfSourceFile } = await import('./pdf-storage');
+      const { deletePdfThumbnail } = await import('./pdf-thumbnail-storage');
       await deletePdfSourceFile(id);
+      await deletePdfThumbnail(id);
     }
     return patch;
   });

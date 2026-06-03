@@ -29,6 +29,8 @@ import {
   deleteCommentRowsWithMemoryLifecycle,
   findArticleByIdentityRows,
   readArticleCoverRows,
+  readArticleSiteIconRawRows,
+  updateArticleSiteIconRows,
   readArticleRows,
   readArticleSummaryCounts,
   readArticleSummaryRows,
@@ -225,6 +227,20 @@ export function findArticleByIdentity(identity: ArticleIdentity): ArticleIdentit
 
 export async function readArticleCover(id: string): Promise<string> {
   return readArticleCoverRows(getDatabase(), id);
+}
+
+// 返回本地化的 data URI favicon；存量文章首次访问时按需回填（一次性、非热路径），之后永久命中。
+export async function ensureArticleSiteIcon(id: string): Promise<string> {
+  const database = getDatabase();
+  const raw = readArticleSiteIconRawRows(database, id);
+  if (raw.startsWith('data:image/')) return raw;
+  if (!/^https?:\/\//i.test(raw)) return '';
+
+  const { fetchFaviconDataUrl } = await import('./article-favicon');
+  const dataUrl = await fetchFaviconDataUrl(raw);
+  if (!dataUrl) return '';
+  updateArticleSiteIconRows(database, id, dataUrl);
+  return dataUrl;
 }
 
 type WritableDesktopStore = Omit<DesktopStore, 'articles'> & { articles: ArticleRecord[] };

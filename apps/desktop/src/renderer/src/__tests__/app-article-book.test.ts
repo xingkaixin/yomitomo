@@ -1,30 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { formatPdfAuthors, formatPdfDisplayTitle } from '../app-article-book';
+import { formatPdfAuthors } from '../app-article-book';
 
 describe('PDF display metadata', () => {
-  it('trims compact PDF cover titles at subtitle separators', () => {
-    expect(
-      formatPdfDisplayTitle(
-        'MATCHA: Matching Text via Contrastive Semantic Alignment for Long Research Papers',
-        { compact: true },
-      ),
-    ).toBe('MATCHA');
-  });
-
-  it('keeps short PDF titles unchanged', () => {
-    expect(formatPdfDisplayTitle('Code as Agent Harness', { compact: true })).toBe(
-      'Code as Agent Harness',
-    );
-  });
-
-  it('falls back to an ellipsis when a long title has no useful separator', () => {
-    expect(
-      formatPdfDisplayTitle('Externalization in LLM Agents A Unified Framework for Tool Use', {
-        compact: true,
-      }),
-    ).toBe('Externalization in LLM Agents A Unified Frame…');
-  });
-
   it('shows one English author with et al. on PDF covers', () => {
     expect(formatPdfAuthors('BASANT MOUNIR; FARIDA MADKOUR; AMIRA ABDEL', { maxAuthors: 1 })).toBe(
       'Basant Mounir et al.',

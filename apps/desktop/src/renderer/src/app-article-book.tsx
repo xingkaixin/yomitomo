@@ -30,10 +30,6 @@ type FormatPdfAuthorsOptions = {
   maxLength?: number;
 };
 
-type FormatPdfTitleOptions = {
-  compact?: boolean;
-};
-
 const PDF_COVER_PALETTES = [
   { color: '#2b4570', text: '#ffffff' },
   { color: '#2a3d45', text: '#ffffff' },
@@ -47,12 +43,20 @@ const PDF_COVER_PALETTES = [
 const NATIVE_COVER_SHELL = '#151515';
 const DEFAULT_NATIVE_RATIO = 0.72;
 const articleCoverCache = new Map<string, string | null>();
+const pdfThumbnailCache = new Map<string, string | null>();
+const siteIconCache = new Map<string, string | null>();
 
 export function ArticleBook({ article }: { article: ArticleSummaryRecord }) {
-  const coverUrl = useArticleCover(article);
+  if (article.sourceType === 'pdf') return <PdfCover article={article} />;
+  if (article.sourceType !== 'ebook') return <WebCover article={article} />;
+  return <EbookBook article={article} />;
+}
+
+function EbookBook({ article }: { article: ArticleSummaryRecord }) {
+  const coverUrl = useEbookCover(article);
   const [coverRatio, setCoverRatio] = useState<number | null>(null);
   const visual = useMemo(
-    () => articleBookVisual(article, coverUrl, coverRatio),
+    () => ebookBookVisual(article, coverUrl, coverRatio),
     [article, coverRatio, coverUrl],
   );
 
@@ -128,6 +132,138 @@ export function BookCoverFrame({
   );
 }
 
+// PDF 封面：第一页缩略图，hover 滑入阅读器工具栏（当前阅读进度页码 / 缩放）。
+function PdfCover({ article }: { article: ArticleSummaryRecord }) {
+  const thumbnail = usePdfThumbnail(article.id);
+  const pageCount = article.pdf?.metadata.pageCount ?? article.readingProgress?.pageCount ?? 0;
+  const currentPage = pageCount
+    ? Math.min((article.readingProgress?.pageIndex ?? 0) + 1, pageCount)
+    : 0;
+
+  return (
+    <span aria-hidden="true" className="article-book is-flat-cover is-pdf-cover">
+      <span className="article-cover-card">
+        <span className="pdf-cover-bar">
+          <span>{pageCount ? `${currentPage} / ${pageCount}` : '–'}</span>
+          <span className="pdf-cover-bar-zoom">100%</span>
+        </span>
+        {thumbnail ? (
+          <img className="pdf-cover-page" alt="" loading="lazy" src={thumbnail} />
+        ) : (
+          <span className="pdf-cover-fallback" />
+        )}
+      </span>
+    </span>
+  );
+}
+
+// 网页封面：白底卡片，favicon + 域名 + 标题，hover 滑入浏览器栏。
+function WebCover({ article }: { article: ArticleSummaryRecord }) {
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const faviconUrl = useArticleSiteIcon(article.id);
+  const domain = articleDomain(article);
+  const title = normalizeLabel(articleDisplayTitle(article));
+  const letter = (domain || title || '·').charAt(0).toUpperCase();
+
+  useEffect(() => {
+    setFaviconFailed(false);
+  }, [faviconUrl]);
+
+  return (
+    <span aria-hidden="true" className="article-book is-flat-cover is-web-cover">
+      <span className="article-cover-card">
+        <span className="web-cover-chrome">
+          <i />
+          <i />
+          <i />
+          <span className="web-cover-chrome-url" />
+        </span>
+        <span className="web-cover-body">
+          <span className="web-cover-fav">
+            {faviconUrl && !faviconFailed ? (
+              <img alt="" src={faviconUrl} onError={() => setFaviconFailed(true)} />
+            ) : (
+              <span className="web-cover-fav-letter">{letter}</span>
+            )}
+          </span>
+          {domain ? <span className="web-cover-domain">{domain}</span> : null}
+          <strong className="web-cover-title">{title}</strong>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function usePdfThumbnail(articleId: string) {
+  const [thumbnail, setThumbnail] = useState<string | undefined>(
+    () => pdfThumbnailCache.get(articleId) || undefined,
+  );
+
+  useEffect(() => {
+    const cached = pdfThumbnailCache.get(articleId);
+    if (cached !== undefined) {
+      setThumbnail(cached || undefined);
+      return;
+    }
+
+    const request = window.yomitomoDesktop?.getPdfThumbnail?.(articleId);
+    if (!request) return;
+
+    let cancelled = false;
+    void request
+      .then((value) => {
+        const next = value || null;
+        pdfThumbnailCache.set(articleId, next);
+        if (!cancelled) setThumbnail(next || undefined);
+      })
+      .catch(() => {
+        pdfThumbnailCache.set(articleId, null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId]);
+
+  return thumbnail;
+}
+
+// 懒加载本地 favicon（data URI）：摘要不携带 siteIconUrl 以避免全量快照膨胀，按需读取并缓存。
+export function useArticleSiteIcon(articleId: string, enabled = true) {
+  const [iconUrl, setIconUrl] = useState<string | undefined>(
+    () => siteIconCache.get(articleId) || undefined,
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    const cached = siteIconCache.get(articleId);
+    if (cached !== undefined) {
+      setIconUrl(cached || undefined);
+      return;
+    }
+
+    const request = window.yomitomoDesktop?.getArticleSiteIcon?.(articleId);
+    if (!request) return;
+
+    let cancelled = false;
+    void request
+      .then((value) => {
+        const next = value || null;
+        siteIconCache.set(articleId, next);
+        if (!cancelled) setIconUrl(next || undefined);
+      })
+      .catch(() => {
+        siteIconCache.set(articleId, null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [articleId, enabled]);
+
+  return iconUrl;
+}
+
 export function useNativeCoverRatio(imageUrl: string | undefined) {
   const [ratio, setRatio] = useState<number | null>(null);
   const lastImageUrlRef = useRef<string | undefined>(imageUrl);
@@ -154,13 +290,13 @@ export function nativeBookCoverStyle(ratio: number | null): BookCoverFrameStyle 
   };
 }
 
-function useArticleCover(article: ArticleSummaryRecord) {
+function useEbookCover(article: ArticleSummaryRecord) {
   const directCoverUrl = safeHttpUrl(article.leadImageUrl);
   const [coverUrl, setCoverUrl] = useState<string | undefined>(directCoverUrl);
 
   useEffect(() => {
     const nextDirectCoverUrl = safeHttpUrl(article.leadImageUrl);
-    if (nextDirectCoverUrl || article.sourceType !== 'ebook') {
+    if (nextDirectCoverUrl) {
       setCoverUrl(nextDirectCoverUrl);
       return;
     }
@@ -186,17 +322,17 @@ function useArticleCover(article: ArticleSummaryRecord) {
     return () => {
       cancelled = true;
     };
-  }, [article.id, article.leadImageUrl, article.sourceType]);
+  }, [article.id, article.leadImageUrl]);
 
   return coverUrl;
 }
 
-function articleBookVisual(
+function ebookBookVisual(
   article: ArticleSummaryRecord,
   coverUrl: string | undefined,
   coverRatio: number | null,
 ) {
-  if (article.sourceType === 'ebook' && coverUrl) {
+  if (coverUrl) {
     return {
       className: undefined,
       imageUrl: coverUrl,
@@ -208,11 +344,8 @@ function articleBookVisual(
   }
 
   const palette = pdfPalette(article);
-  const bylineLabel = pdfAuthorLabel(article);
-  const title =
-    article.sourceType === 'pdf'
-      ? formatPdfDisplayTitle(article.title, { compact: true })
-      : normalizeLabel(articleDisplayTitle(article));
+  const title = normalizeLabel(articleDisplayTitle(article));
+  const bylineLabel = normalizeLabel(article.byline || '');
   const hasCjkTitle = /[\u3400-\u9fff]/.test(title);
   const style: ArticleBookStyle = {
     '--book-author-scale': String(authorScale(bylineLabel)),
@@ -223,7 +356,7 @@ function articleBookVisual(
   };
 
   return {
-    className: article.sourceType === 'pdf' ? 'is-pdf-cover' : 'is-generated-cover',
+    className: 'is-generated-cover',
     imageUrl: undefined,
     nativeCover: false,
     style,
@@ -239,25 +372,6 @@ function pdfPalette(article: ArticleSummaryRecord) {
   return PDF_COVER_PALETTES[seed % PDF_COVER_PALETTES.length];
 }
 
-export function formatPdfDisplayTitle(value: string, options: FormatPdfTitleOptions = {}) {
-  const title = normalizeLabel(value);
-  if (!title) return '';
-  const maxLength = options.compact ? 46 : 88;
-  if (Array.from(title).length <= maxLength) return title;
-
-  const separators = [': ', '：', ' - ', ' — ', ' – ', '. '];
-  for (const separator of separators) {
-    const index = title.indexOf(separator);
-    if (index < 4 || index > maxLength) continue;
-    return title.slice(0, index).trim();
-  }
-
-  return `${Array.from(title)
-    .slice(0, maxLength - 1)
-    .join('')
-    .trim()}…`;
-}
-
 export function formatPdfAuthors(value: string, options: FormatPdfAuthorsOptions) {
   const authors = splitPdfAuthors(value).map(formatPdfAuthorName).filter(Boolean);
   if (authors.length === 0) return '';
@@ -269,14 +383,6 @@ export function formatPdfAuthors(value: string, options: FormatPdfAuthorsOptions
   }
 
   return pdfAuthorsLabel(authors, 1);
-}
-
-function pdfAuthorLabel(article: ArticleSummaryRecord) {
-  if (!article.sourceType || article.sourceType === 'web') {
-    return normalizeLabel(urlHostname(article.canonicalUrl) || urlHostname(article.url) || '');
-  }
-  if (article.sourceType !== 'pdf') return normalizeLabel(article.byline || '');
-  return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 1 });
 }
 
 function splitPdfAuthors(value: string) {
@@ -318,6 +424,10 @@ function normalizeLabel(value: string) {
     .replace(/^www\./, '')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function articleDomain(article: ArticleSummaryRecord) {
+  return normalizeLabel(urlHostname(article.canonicalUrl) || urlHostname(article.url) || '');
 }
 
 function safeHttpUrl(value: string | undefined) {
