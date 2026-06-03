@@ -44,35 +44,16 @@ export function deleteCommentRowsWithMemoryLifecycle(
 ) {
   return withReadingMemoryTransaction(executor, () => {
     const commentIds = deletedCommentThreadIds(executor, input.annotationId, input.commentId);
-    let deletedMemoryCount = 0;
-    let deletedCommentCount = 0;
-
-    for (const commentId of commentIds) {
-      deletedMemoryCount += softDeleteReadingMemoryEntriesBySource({
-        articleId: input.articleId,
-        sourceCommentId: commentId,
-        deletedAt: input.deletedAt,
-        deletionReason: 'comment_deleted',
-        executor,
-        useTransaction: false,
-      });
-      deletedCommentCount += runChanges(
-        executor
-          .prepare(
-            `
-DELETE FROM comments
-WHERE id = ?
-  AND annotation_id = ?
-  AND EXISTS (
-    SELECT 1 FROM annotations
-    WHERE annotations.id = comments.annotation_id
-      AND annotations.article_id = ?
-  )
-`,
-          )
-          .run(commentId, input.annotationId, input.articleId),
-      );
-    }
+    const deletedMemoryCount = softDeleteCommentMemoryEntries(executor, {
+      articleId: input.articleId,
+      commentIds,
+      deletedAt: input.deletedAt,
+    });
+    const deletedCommentCount = deleteCommentsByIds(executor, {
+      articleId: input.articleId,
+      annotationId: input.annotationId,
+      commentIds,
+    });
 
     return { deletedCommentCount, deletedMemoryCount };
   });
@@ -92,22 +73,108 @@ WHERE annotation_id = ?
 `,
     )
     .all(annotationId);
-  const deletedIds = new Set([commentId]);
-  let expanded = true;
-  while (expanded) {
-    expanded = false;
-    for (const row of rows) {
-      const id = stringField(recordField(row, 'id'));
-      const replyTo = stringField(recordField(row, 'replyTo'));
-      if (!replyTo || !deletedIds.has(replyTo) || deletedIds.has(id)) continue;
-      deletedIds.add(id);
-      expanded = true;
-    }
+  const childrenByParent = new Map<string, string[]>();
+  const existingIds = new Set<string>();
+
+  for (const row of rows) {
+    const id = stringField(recordField(row, 'id'));
+    const replyTo = stringField(recordField(row, 'replyTo'));
+    if (!id) continue;
+    existingIds.add(id);
+    if (!replyTo) continue;
+    const children = childrenByParent.get(replyTo) || [];
+    children.push(id);
+    childrenByParent.set(replyTo, children);
   }
-  return rows
+
+  if (!existingIds.has(commentId)) return [];
+
+  const deletedIds = new Set<string>();
+  const queue = [commentId];
+  for (let index = 0; index < queue.length; index += 1) {
+    const id = queue[index];
+    if (deletedIds.has(id)) continue;
+    deletedIds.add(id);
+    queue.push(...(childrenByParent.get(id) || []));
+  }
+  return [...deletedIds].toSorted();
+}
+
+function softDeleteCommentMemoryEntries(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; commentIds: string[]; deletedAt?: string },
+) {
+  if (input.commentIds.length === 0) return 0;
+
+  const deletedAt = input.deletedAt || new Date().toISOString();
+  const placeholders = sqlPlaceholders(input.commentIds);
+  const ids = executor
+    .prepare(
+      `
+SELECT id
+FROM reading_memory_entries
+WHERE article_id = ?
+  AND deleted_at IS NULL
+  AND source_comment_id IN (${placeholders})
+`,
+    )
+    .all(input.articleId, ...input.commentIds)
     .map((row) => stringField(recordField(row, 'id')))
-    .filter((id) => deletedIds.has(id))
-    .toSorted();
+    .filter(Boolean);
+  if (ids.length === 0) return 0;
+
+  executor
+    .prepare(
+      `
+UPDATE reading_memory_entries
+SET deleted_at = ?, deletion_reason = 'comment_deleted', updated_at = ?
+WHERE article_id = ?
+  AND deleted_at IS NULL
+  AND source_comment_id IN (${placeholders})
+`,
+    )
+    .run(deletedAt, deletedAt, input.articleId, ...input.commentIds);
+  executor
+    .prepare(
+      `
+DELETE FROM reading_memory_entry_fts
+WHERE article_id = ?
+  AND entry_id IN (${sqlPlaceholders(ids)})
+`,
+    )
+    .run(input.articleId, ...ids);
+  executor
+    .prepare('DELETE FROM reading_memory_projections WHERE article_id = ?')
+    .run(input.articleId);
+  return ids.length;
+}
+
+function deleteCommentsByIds(
+  executor: ReadingMemorySqliteExecutor,
+  input: { articleId: string; annotationId: string; commentIds: string[] },
+) {
+  if (input.commentIds.length === 0) return 0;
+
+  return runChanges(
+    executor
+      .prepare(
+        `
+DELETE FROM comments
+WHERE id IN (${sqlPlaceholders(input.commentIds)})
+  AND annotation_id = ?
+  AND EXISTS (
+    SELECT 1 FROM annotations
+    WHERE annotations.id = comments.annotation_id
+      AND annotations.article_id = ?
+  )
+`,
+      )
+      .run(...input.commentIds, input.annotationId, input.articleId),
+  );
+}
+
+function sqlPlaceholders(values: unknown[]) {
+  return values.map(() => '?').join(', ');
 }
 
 function recordField(input: unknown, field: string): unknown {
