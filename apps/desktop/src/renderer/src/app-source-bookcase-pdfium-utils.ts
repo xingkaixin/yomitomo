@@ -6,6 +6,8 @@ import {
   resolveTextAnchor,
   type AgentReadingPlanItem,
   type Annotation,
+  type ArticleReadingProgress,
+  type ArticleRecord,
   type PdfRect,
   type PdfTextAnchor,
   type PublicAgent,
@@ -17,7 +19,12 @@ import {
   type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
+import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
+import type { PromptArticle } from './app-reading-types';
 import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
+import { promptArticle } from './app-source-bookcase-shared';
+
+type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 
 export type PageMetric = {
   left: number;
@@ -54,6 +61,98 @@ export type PdfAnnotationNavigationState = {
   previousId: string | null;
   nextId: string | null;
 };
+
+export function pdfiumAnnotationAgentName(annotation: Annotation) {
+  return annotation.agentNickname || annotation.agentUsername || '助手';
+}
+
+export function pdfiumAnnotationRailLayout(
+  pageMetrics: Record<number, PageMetric>,
+  canvas: HTMLDivElement | null,
+  viewportHeight: number,
+): AnnotationRailLayout | undefined {
+  const canvasWidth = canvas?.getBoundingClientRect().width ?? 0;
+  if (canvasWidth <= 0) return undefined;
+
+  const pageMetric = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
+  if (!pageMetric) return undefined;
+
+  const gap = 20;
+  const minimumRailWidth = 220;
+  const maximumRailWidth = 420;
+  const articleLeft = Math.max(0, Math.round(pageMetric.left));
+  const articleRight = Math.min(canvasWidth, Math.round(pageMetric.left + pageMetric.width));
+  const leftSpace = articleLeft;
+  const rightSpace = Math.max(0, Math.round(canvasWidth - articleRight));
+  const leftAvailable = leftSpace >= minimumRailWidth + gap;
+  const rightAvailable = rightSpace >= minimumRailWidth + gap;
+
+  if (!leftAvailable && !rightAvailable) {
+    return {
+      articleCenterX: Math.round((articleLeft + articleRight) / 2),
+      leftRailLeft: 0,
+      mode: 'stacked',
+      railWidth: 0,
+      rightRailLeft: Math.round(articleRight + gap),
+      viewportHeight,
+    };
+  }
+
+  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
+  const usableSpace =
+    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
+  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
+  return {
+    articleCenterX: Math.round((articleLeft + articleRight) / 2),
+    leftRailLeft: Math.round(articleLeft - gap - railWidth),
+    mode,
+    railWidth: Math.round(railWidth),
+    rightRailLeft: Math.round(articleRight + gap),
+    viewportHeight,
+  };
+}
+
+export function pdfiumPromptArticle(
+  article: ArticleRecord,
+  anchor: Annotation['anchor'] | undefined,
+  pageText: string,
+): PromptArticle {
+  const articleContext = promptArticle(article, pageText);
+  const pageLabel = anchor && isPdfTextAnchor(anchor) ? `第 ${anchor.pageIndex + 1} 页\n` : '';
+  return {
+    ...articleContext,
+    text: `${pageLabel}${pageText}`,
+  };
+}
+
+export function normalizeInitialPageIndex(article: PdfArticleRecord) {
+  return clampPageIndex(article.readingProgress?.pageIndex ?? 0, article.pdf.metadata.pageCount);
+}
+
+export function clampPageIndex(pageIndex: number, pageCount: number) {
+  if (!Number.isFinite(pageIndex)) return 0;
+  return Math.max(0, Math.min(Math.max(0, pageCount - 1), Math.trunc(pageIndex)));
+}
+
+export function pageProgress(pageIndex: number, pageCount: number) {
+  if (pageCount <= 1) return 1;
+  return pageIndex / (pageCount - 1);
+}
+
+export function pdfPageProgressPercent(pageNumber: number, pageCount: number) {
+  return Number(
+    (pageProgress(clampPageIndex(pageNumber - 1, pageCount), pageCount) * 100).toFixed(2),
+  );
+}
+
+export function pdfReadingProgress(pageIndex: number, pageCount: number): ArticleReadingProgress {
+  return {
+    pageIndex,
+    pageCount,
+    progress: pageProgress(pageIndex, pageCount),
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export function pdfiumAnnotationBoxes(
   annotations: Annotation[],

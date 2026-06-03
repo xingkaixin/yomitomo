@@ -14,41 +14,21 @@ import {
   PagePointerProvider,
 } from '@embedpdf/plugin-interaction-manager/react';
 import { RenderLayer, RenderPluginPackage } from '@embedpdf/plugin-render/react';
-import {
-  Scroller,
-  ScrollPluginPackage,
-  useScroll,
-  useScrollCapability,
-} from '@embedpdf/plugin-scroll/react';
-import { BookmarkPluginPackage, useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
-import {
-  SelectionLayer,
-  SelectionPluginPackage,
-  useSelectionCapability,
-} from '@embedpdf/plugin-selection/react';
+import { Scroller, ScrollPluginPackage } from '@embedpdf/plugin-scroll/react';
+import { BookmarkPluginPackage } from '@embedpdf/plugin-bookmark/react';
+import { SelectionLayer, SelectionPluginPackage } from '@embedpdf/plugin-selection/react';
 import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
-import {
-  ZoomIn,
-  ZoomOut,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
-  ChevronDown,
-  List,
-  LoaderCircle,
-} from 'lucide-react';
-import { FontCharset, type PdfEngine } from '@embedpdf/models';
+import { LoaderCircle } from 'lucide-react';
+import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
   type AgentReadingPlanItem,
-  type ArticleReadingProgress,
   type Annotation,
   type ArticleRecord,
-  type PublicAgent,
 } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
@@ -65,17 +45,11 @@ import {
   readerDesktopEmbeddedStyles,
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
-import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
-import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
 import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
-import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
-import { Button } from './components/ui/button';
-import type { PromptArticle } from './app-reading-types';
 import {
   articleWithMergedAgentAnnotation,
   promptArticle,
-  recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
   useDesktopReaderSettings,
   type SourceBookcaseProps,
@@ -84,73 +58,45 @@ import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
 import { useSourceReaderSession } from './use-source-reader-session';
-import notoSansScRegularUrl from './assets/fonts/NotoSansSC-Regular.ttf?url';
 import {
-  buildPdfTextDocument,
   pdfiumAgentAnnotationRequestOptions,
   pdfiumAnchorForReadingPlanStart,
-  pdfiumAnchorReadingPosition,
   pdfiumAnnotationBoxes,
   pdfiumAnnotationIsVisible,
-  pdfiumAnnotationNavigationState,
   pdfiumMapReadingPlanAgentAnnotation,
   pdfiumMapTargetAgentAnnotation,
   pdfiumAnnotationTheaterBoxes,
   pdfiumVisibleAnnotations,
-  pdfiumBookmarkTocItems,
+  pdfiumAnnotationAgentName,
+  pdfiumAnnotationRailLayout,
+  pdfiumPromptArticle,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
-  rectToPdfRect,
-  samePageMetrics,
-  type PageMetric,
   type PdfAnnotationNavigationState,
   type PdfTextDocument,
 } from './app-source-bookcase-pdfium-utils';
+import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
+import {
+  pdfOpenTrace,
+  pdfiumFontFallback,
+  recordPdfOpenTiming,
+  recordPdfOpenTimingOnce,
+  type PdfOpenTrace,
+} from './app-source-bookcase-pdfium-open-trace';
+import {
+  PdfiumBookcaseToolbar,
+  PdfiumDocumentFloatingToolbar,
+} from './app-source-bookcase-pdfium-shell';
+import { usePdfiumPageMetrics } from './app-source-bookcase-pdfium-page-metrics';
+import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-reading';
+import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
+import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
+import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumLoadedDocument = NonNullable<
   NonNullable<ReturnType<typeof useDocumentState>>['document']
 >;
-
-type PdfOpenTrace = {
-  articleId: string;
-  startedAt: number;
-};
-
-const pdfiumFontFallback = {
-  fonts: {
-    [FontCharset.GB2312]: notoSansScRegularUrl,
-    [FontCharset.CHINESEBIG5]: notoSansScRegularUrl,
-  },
-};
-
-function pdfOpenTrace(articleId: string): PdfOpenTrace {
-  return { articleId, startedAt: performance.now() };
-}
-
-function recordPdfOpenTiming(
-  trace: PdfOpenTrace,
-  phase: string,
-  data: Record<string, unknown> = {},
-) {
-  recordRendererPerformanceTiming('pdf.open', {
-    articleId: trace.articleId,
-    elapsedMs: rendererPerformanceElapsedMs(trace.startedAt),
-    phase,
-    ...data,
-  });
-}
-
-function recordPdfOpenTimingOnce(
-  recordedPhases: { current: Set<string> },
-  trace: PdfOpenTrace,
-  phase: string,
-  data: Record<string, unknown> = {},
-) {
-  if (recordedPhases.current.has(phase)) return;
-  recordedPhases.current.add(phase);
-  recordPdfOpenTiming(trace, phase, data);
-}
 
 export function PdfiumBookcase({
   agents,
@@ -288,64 +234,16 @@ export function PdfiumBookcase({
 
   return (
     <section className="source-bookcase source-pdf-reader-shell source-pdfium-spike-shell">
-      <header className="pdf-reader-toolbar">
-        <button className="source-reader-back-button" type="button" onClick={onClose}>
-          <ChevronLeft size={16} />
-          <span>返回阅读库</span>
-        </button>
-        <div className="pdf-reader-title">
-          <strong title={article.pdf.metadata.title || article.title}>
-            {article.pdf.metadata.title || article.title}
-          </strong>
-          {article.pdf.metadata.author ? <span>{article.pdf.metadata.author}</span> : null}
-        </div>
-        <div className="pdf-reader-controls" aria-label="PDF 阅读控制">
-          <button
-            aria-label="切换目录"
-            aria-pressed={tocItems.length > 0 && tocOpen}
-            className={
-              tocItems.length > 0 && tocOpen
-                ? 'reader-icon-button reader-toc-toggle is-active'
-                : 'reader-icon-button reader-toc-toggle'
-            }
-            disabled={tocItems.length === 0}
-            type="button"
-            onClick={() => setTocOpen((open) => !open)}
-          >
-            <List size={18} />
-          </button>
-          <div className="reader-annotation-nav" aria-label="划线快捷选择">
-            <button
-              aria-label="上一个划线"
-              className="reader-icon-button"
-              disabled={!annotationNavigation.previousId}
-              title="上一个划线"
-              type="button"
-              onClick={() => {
-                if (annotationNavigation.previousId) {
-                  navigateAnnotationRef.current(annotationNavigation.previousId);
-                }
-              }}
-            >
-              <ChevronUp size={17} />
-            </button>
-            <button
-              aria-label="下一个划线"
-              className="reader-icon-button"
-              disabled={!annotationNavigation.nextId}
-              title="下一个划线"
-              type="button"
-              onClick={() => {
-                if (annotationNavigation.nextId) {
-                  navigateAnnotationRef.current(annotationNavigation.nextId);
-                }
-              }}
-            >
-              <ChevronDown size={17} />
-            </button>
-          </div>
-        </div>
-      </header>
+      <PdfiumBookcaseToolbar
+        author={article.pdf.metadata.author}
+        navigation={annotationNavigation}
+        title={article.pdf.metadata.title || article.title}
+        tocCount={tocItems.length}
+        tocOpen={tocOpen}
+        onClose={onClose}
+        onNavigateAnnotation={(annotationId) => navigateAnnotationRef.current(annotationId)}
+        onToggleToc={() => setTocOpen((open) => !open)}
+      />
       <div className="pdf-reader-main pdfium-spike-main">
         {status ? (
           <div
@@ -485,40 +383,49 @@ function PdfiumDocument({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const notesRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
-  const pageMetricsFrameRef = useRef(0);
-  const pageMetricsRef = useRef<Record<number, PageMetric>>({});
-  const pageTextCacheRef = useRef(new Map<number, Promise<string>>());
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
-  const virtualCursorRef = useRef(new Map<string, VirtualCursorState>());
-  const virtualCursorTimersRef = useRef(new Map<string, number>());
-  const virtualReadingTimersRef = useRef(new Map<string, number>());
-  const virtualReadingStepRef = useRef(new Map<string, number>());
-  const virtualReadingStepSizeRef = useRef(new Map<string, number>());
-  const activeDockAgentIdsRef = useRef(new Set<string>());
-  const dockHadFailureRef = useRef(false);
-  const initialPageIndexRef = useRef(normalizeInitialPageIndex(article));
-  const lastSavedPageRef = useRef(initialPageIndexRef.current);
-  const restoredInitialPageRef = useRef(false);
   const documentState = useDocumentState(documentId);
-  const { provides: scroll } = useScroll(documentId);
-  const { provides: scrollCapability } = useScrollCapability();
   const { provides: zoomControls } = useZoom(documentId);
-  const { provides: bookmark } = useBookmarkCapability();
-  const [pageMetrics, setPageMetrics] = useState<Record<number, PageMetric>>({});
-  const [annotationRailViewportHeight, setAnnotationRailViewportHeight] = useState(0);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  const [pdfTextDocument, setPdfTextDocument] = useState<PdfTextDocument | null>(null);
-  const [pdfFirstPageReady, setPdfFirstPageReady] = useState(false);
   const [readerSettings, updatePdfReaderSettings] = useDesktopReaderSettings();
-  const [restoringInitialPage, setRestoringInitialPage] = useState(
-    () => initialPageIndexRef.current > 0,
-  );
-  const [currentPage, setCurrentPage] = useState(() => initialPageIndexRef.current + 1);
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
-  const [virtualCursors, setVirtualCursors] = useState<VirtualCursorState[]>([]);
+  const {
+    annotationRailViewportHeight,
+    pageMetrics,
+    pageMetricsRef,
+    schedulePageMetricsUpdate,
+    updatePageMetrics,
+  } = usePdfiumPageMetrics({ canvasRef, pageCount });
   const zoom = documentState?.scale || 1;
+  const loadedDocument = documentState?.document ?? undefined;
+  const {
+    currentArticleText,
+    extractPdfiumPageText,
+    markPdfiumFirstPageReady,
+    pdfTextDocument,
+    resetPdfiumTextDocument,
+  } = usePdfiumDocumentText({
+    articleId: article.id,
+    document: loadedDocument,
+    engine,
+    openTrace,
+  });
+  const {
+    currentPage,
+    initialPageNumber,
+    jumpToPdfiumPage,
+    markInitialPageReady,
+    restoringInitialPage,
+    scroll,
+  } = usePdfiumReadingProgress({
+    article,
+    documentId,
+    documentReady: Boolean(loadedDocument),
+    pageCount,
+    onSaveArticleReadingProgress,
+  });
   const {
     addComment,
     annotations,
@@ -687,12 +594,25 @@ function PdfiumDocument({
   const {
     agentDockCompleting,
     agentDockItems,
+    clearAgentAnnotationPlayback,
     completionBurstKey,
-    activateAgentDock,
-    markAgentDockDone,
-    completeAgentDock,
-    clearAgentDock,
-  } = useAgentReadingDock(annotationAgents);
+    finishPdfiumAgentDock,
+    finishPdfiumVirtualCursor,
+    finishPdfiumVirtualReading,
+    pdfiumOffscreenDirection,
+    pdfiumReadingFallbackCursor,
+    startPdfiumAgentDock,
+    startPdfiumVirtualReading,
+    stopPdfiumVirtualReading,
+    updatePdfiumVirtualCursor,
+    virtualCursors,
+  } = usePdfiumVirtualReading({
+    annotationAgents,
+    canvasRef,
+    currentPage,
+    onClearTheaterBoxes: () => setAgentTheaterBoxes([]),
+    pageMetricsRef,
+  });
   const actionShortcuts = useMemo(
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
@@ -745,6 +665,21 @@ function PdfiumDocument({
     surfaceRef,
     userProfile,
   });
+  const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
+    annotations,
+    currentPage,
+    documentId,
+    focusAnnotationId,
+    pageCount,
+    scroll,
+    selectedAnnotationId,
+    onCloseToc,
+    onFocusedAnnotation,
+    onOpenAnnotation,
+    onSetAnnotationNavigation,
+    onSetAnnotationNavigator,
+    onSetTocItems,
+  });
 
   useEffect(() => {
     recordedOpenPhasesRef.current = new Set();
@@ -759,212 +694,24 @@ function PdfiumDocument({
   }, [documentState?.document, openTrace]);
 
   useEffect(() => {
-    if (!bookmark) return;
-    let cancelled = false;
-    bookmark
-      .forDocument(documentId)
-      .getBookmarks()
-      .toPromise()
-      .then(({ bookmarks }) => {
-        if (!cancelled) onSetTocItems(pdfiumBookmarkTocItems(bookmarks, pageCount));
-      })
-      .catch(() => {
-        if (!cancelled) onSetTocItems([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookmark, documentId, onSetTocItems, pageCount]);
-
-  useEffect(() => {
-    const document = documentState?.document;
-    if (!document) {
-      setPdfTextDocument(null);
-      return;
-    }
-    if (!pdfFirstPageReady) return;
-
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      if (cancelled) return;
-      const textExtractStartedAt = performance.now();
-      recordPdfOpenTiming(openTrace, 'text_extract_start', {
-        pageCount: document.pageCount,
-      });
-      Promise.all(document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)))
-        .then((pageTexts) => {
-          if (!cancelled) {
-            setPdfTextDocument(buildPdfTextDocument(pageTexts));
-            recordPdfOpenTiming(openTrace, 'text_extract_done', {
-              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
-              pageCount: pageTexts.length,
-              textChars: pageTexts.reduce((count, text) => count + text.length, 0),
-            });
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setPdfTextDocument(null);
-            recordPdfOpenTiming(openTrace, 'text_extract_error', {
-              durationMs: rendererPerformanceElapsedMs(textExtractStartedAt),
-              pageCount: document.pageCount,
-            });
-          }
-        });
-    }, 120);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [article.id, documentState?.document, openTrace, pdfFirstPageReady]);
-
-  useEffect(() => {
-    initialPageIndexRef.current = normalizeInitialPageIndex(article);
-    lastSavedPageRef.current = initialPageIndexRef.current;
-    restoredInitialPageRef.current = false;
-    pageTextCacheRef.current = new Map();
-    setCurrentPage(initialPageIndexRef.current + 1);
-    setRestoringInitialPage(initialPageIndexRef.current > 0);
-    setPdfFirstPageReady(false);
-    setPdfTextDocument(null);
+    resetPdfiumTextDocument();
     clearAgentAnnotationPlayback();
-  }, [article.id, article.pdf.metadata.pageCount]);
-
-  useEffect(() => {
-    if (!scrollCapability) return;
-
-    const restoreInitialPage = () => {
-      if (restoredInitialPageRef.current) return;
-      const initialPageIndex = initialPageIndexRef.current;
-      restoredInitialPageRef.current = true;
-      if (initialPageIndex <= 0) return;
-
-      scrollCapability.forDocument(documentId).scrollToPage({
-        pageNumber: initialPageIndex + 1,
-        behavior: 'instant',
-      });
-      setCurrentPage(initialPageIndex + 1);
-    };
-
-    const unsubscribe = scrollCapability.onLayoutReady((event) => {
-      if (event.documentId === documentId) restoreInitialPage();
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [documentId, scrollCapability]);
-
-  useEffect(() => {
-    if (!scroll || !documentState?.document) return;
-
-    const saveCurrentPage = () => {
-      const pageIndex = clampPageIndex(scroll.getCurrentPage() - 1, pageCount);
-      setCurrentPage(pageIndex + 1);
-      if (lastSavedPageRef.current === pageIndex) return;
-      lastSavedPageRef.current = pageIndex;
-      void onSaveArticleReadingProgress(article.id, pdfReadingProgress(pageIndex, pageCount));
-    };
-
-    const unsubscribe = scroll.onScroll?.(saveCurrentPage);
-    return () => {
-      unsubscribe?.();
-    };
-  }, [article.id, documentState?.document, onSaveArticleReadingProgress, pageCount, scroll]);
-
-  const updatePageMetrics = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const canvasRect = canvas.getBoundingClientRect();
-    const viewportRect = canvas
-      .querySelector<HTMLElement>('.pdfium-spike-viewport')
-      ?.getBoundingClientRect();
-    const nextViewportHeight = Math.max(0, viewportRect?.height ?? canvasRect.height);
-    setAnnotationRailViewportHeight((current) =>
-      Math.abs(current - nextViewportHeight) < 0.5 ? current : nextViewportHeight,
-    );
-    const nextMetrics: Record<number, PageMetric> = {};
-    for (const page of canvas.querySelectorAll<HTMLElement>('[data-pdfium-page-index]')) {
-      const pageIndex = Number(page.dataset.pdfiumPageIndex);
-      if (!Number.isInteger(pageIndex)) continue;
-      const rect = page.getBoundingClientRect();
-      if (
-        viewportRect &&
-        (rect.bottom < viewportRect.top ||
-          rect.top > viewportRect.bottom ||
-          rect.right < viewportRect.left ||
-          rect.left > viewportRect.right)
-      ) {
-        continue;
-      }
-      nextMetrics[pageIndex] = {
-        left: rect.left - canvasRect.left,
-        top: rect.top - canvasRect.top,
-        width: rect.width,
-        height: rect.height,
-        clipLeft: (viewportRect?.left ?? canvasRect.left) - canvasRect.left,
-        clipTop: (viewportRect?.top ?? canvasRect.top) - canvasRect.top,
-        clipRight: (viewportRect?.right ?? canvasRect.right) - canvasRect.left,
-        clipBottom: (viewportRect?.bottom ?? canvasRect.bottom) - canvasRect.top,
-      };
-    }
-    pageMetricsRef.current = nextMetrics;
-    setPageMetrics((current) => (samePageMetrics(current, nextMetrics) ? current : nextMetrics));
-  }, []);
-
-  const schedulePageMetricsUpdate = useCallback(() => {
-    if (pageMetricsFrameRef.current) return;
-    pageMetricsFrameRef.current = window.requestAnimationFrame(() => {
-      pageMetricsFrameRef.current = 0;
-      updatePageMetrics();
-    });
-  }, [updatePageMetrics]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    schedulePageMetricsUpdate();
-
-    const viewport = canvas.querySelector<HTMLElement>('.pdfium-spike-viewport');
-    viewport?.addEventListener('scroll', schedulePageMetricsUpdate, { passive: true });
-
-    const mutationObserver =
-      typeof MutationObserver === 'undefined'
-        ? null
-        : new MutationObserver(schedulePageMetricsUpdate);
-    mutationObserver?.observe(canvas, { childList: true, subtree: true });
-
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedulePageMetricsUpdate);
-    resizeObserver?.observe(canvas);
-    if (viewport) resizeObserver?.observe(viewport);
-
-    return () => {
-      if (pageMetricsFrameRef.current) {
-        window.cancelAnimationFrame(pageMetricsFrameRef.current);
-        pageMetricsFrameRef.current = 0;
-      }
-      viewport?.removeEventListener('scroll', schedulePageMetricsUpdate);
-      mutationObserver?.disconnect();
-      resizeObserver?.disconnect();
-    };
-  }, [pageCount, schedulePageMetricsUpdate]);
+  }, [article.id, article.pdf.metadata.pageCount, resetPdfiumTextDocument]);
 
   useEffect(() => {
     const visiblePageCount = Object.keys(pageMetrics).length;
     if (visiblePageCount === 0) return;
-    const expectedPageIndex = initialPageIndexRef.current;
+    const expectedPageIndex = initialPageNumber - 1;
     if (expectedPageIndex > 0 && !pageMetrics[expectedPageIndex]) return;
-    setRestoringInitialPage(false);
-    setPdfFirstPageReady(true);
+    markInitialPageReady();
+    markPdfiumFirstPageReady();
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'first_page_ready', {
       visiblePageCount,
     });
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'interactive_ready', {
       visiblePageCount,
     });
-  }, [openTrace, pageMetrics]);
+  }, [initialPageNumber, markInitialPageReady, markPdfiumFirstPageReady, openTrace, pageMetrics]);
 
   useEffect(() => {
     const unsubscribe = scroll?.onScroll?.(() => {
@@ -987,10 +734,6 @@ function PdfiumDocument({
 
   useEffect(() => {
     return () => {
-      if (pageMetricsFrameRef.current) {
-        window.cancelAnimationFrame(pageMetricsFrameRef.current);
-        pageMetricsFrameRef.current = 0;
-      }
       clearAgentAnnotationPlayback();
     };
   }, []);
@@ -998,12 +741,6 @@ function PdfiumDocument({
   useEffect(() => {
     clearAnnotationUiState();
   }, [article.id, clearAnnotationUiState]);
-
-  useEffect(() => {
-    onSetAnnotationNavigation(
-      pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
-    );
-  }, [annotations, currentPage, onSetAnnotationNavigation, selectedAnnotationId]);
 
   const turnPdfPageFromKeyboard = useCallback(
     (direction: ReaderPageTurnDirection) => {
@@ -1085,55 +822,6 @@ function PdfiumDocument({
     recalculateActiveConnection();
   }
 
-  const scrollToAnnotation = useCallback(
-    (annotationId: string) => {
-      onOpenAnnotation(annotationId);
-      const annotation = annotations.find((item) => item.id === annotationId);
-      if (!annotation || !isPdfTextAnchor(annotation.anchor)) return;
-      scroll?.scrollToPage({
-        pageNumber: annotation.anchor.pageIndex + 1,
-        behavior: 'smooth',
-      });
-    },
-    [annotations, onOpenAnnotation, scroll],
-  );
-
-  useEffect(() => {
-    onSetAnnotationNavigator(scrollToAnnotation);
-    return () => onSetAnnotationNavigator(() => undefined);
-  }, [onSetAnnotationNavigator, scrollToAnnotation]);
-
-  useEffect(() => {
-    if (!focusAnnotationId) return;
-    scrollToAnnotation(focusAnnotationId);
-    const timer = window.setTimeout(onFocusedAnnotation, 520);
-    return () => window.clearTimeout(timer);
-  }, [focusAnnotationId, onFocusedAnnotation, scrollToAnnotation]);
-
-  function scrollToTocItem(item: TocItem) {
-    onCloseToc();
-    scroll?.scrollToPage({
-      pageNumber: item.start + 1,
-      behavior: 'smooth',
-    });
-  }
-
-  function handlePageSliderChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const pageNumber = clampPageIndex(Number(event.currentTarget.value) - 1, pageCount) + 1;
-    setCurrentPage(pageNumber);
-    scroll?.scrollToPage({ pageNumber, behavior: 'instant' });
-  }
-
-  async function currentArticleText() {
-    if (pdfTextDocument) return pdfTextDocument.text;
-    const document = documentState?.document;
-    if (!document) return '';
-    const texts = await Promise.all(
-      document.pages.map((_page, pageIndex) => extractPdfiumPageText(pageIndex)),
-    );
-    return buildPdfTextDocument(texts).text;
-  }
-
   function isCurrentArticle(articleId: string) {
     return latestArticleRef.current?.id === articleId;
   }
@@ -1141,229 +829,6 @@ function PdfiumDocument({
   function showStatusMessage(message: string) {
     setStatusMessage(message);
     window.setTimeout(() => setStatusMessage(''), 1800);
-  }
-
-  function updatePdfiumVirtualCursor(cursorId: string, cursor: VirtualCursorState | null) {
-    const timerId = virtualCursorTimersRef.current.get(cursorId);
-    if (timerId !== undefined) {
-      window.clearTimeout(timerId);
-      virtualCursorTimersRef.current.delete(cursorId);
-    }
-    if (cursor) virtualCursorRef.current.set(cursorId, cursor);
-    else virtualCursorRef.current.delete(cursorId);
-    setVirtualCursors(Array.from(virtualCursorRef.current.values()));
-  }
-
-  function finishPdfiumVirtualCursor(cursorId: string) {
-    const cursor = virtualCursorRef.current.get(cursorId);
-    if (!cursor) return;
-    updatePdfiumVirtualCursor(cursorId, { ...cursor, visible: false, leaving: true });
-    const timerId = window.setTimeout(() => {
-      updatePdfiumVirtualCursor(cursorId, null);
-      virtualCursorTimersRef.current.delete(cursorId);
-    }, 320);
-    virtualCursorTimersRef.current.set(cursorId, timerId);
-  }
-
-  function clearAgentAnnotationPlayback() {
-    for (const timerId of virtualCursorTimersRef.current.values()) {
-      window.clearTimeout(timerId);
-    }
-    for (const timerId of virtualReadingTimersRef.current.values()) {
-      window.clearInterval(timerId);
-    }
-    virtualCursorTimersRef.current.clear();
-    virtualReadingTimersRef.current.clear();
-    virtualReadingStepRef.current.clear();
-    virtualReadingStepSizeRef.current.clear();
-    activeDockAgentIdsRef.current.clear();
-    dockHadFailureRef.current = false;
-    clearAgentDock();
-    virtualCursorRef.current.clear();
-    setVirtualCursors([]);
-    setAgentTheaterBoxes([]);
-  }
-
-  function startPdfiumAgentDock(agent: PublicAgent) {
-    activeDockAgentIdsRef.current.add(agent.id);
-    activateAgentDock(agent);
-  }
-
-  function finishPdfiumAgentDock(agentId: string, succeeded: boolean) {
-    if (!activeDockAgentIdsRef.current.has(agentId)) return;
-    markAgentDockDone(agentId);
-    activeDockAgentIdsRef.current.delete(agentId);
-    if (!succeeded) dockHadFailureRef.current = true;
-    if (activeDockAgentIdsRef.current.size > 0) return;
-
-    const shouldCelebrate = !dockHadFailureRef.current;
-    dockHadFailureRef.current = false;
-    completeAgentDock(shouldCelebrate);
-  }
-
-  function startPdfiumVirtualReading(agent: PublicAgent, anchor: Annotation['anchor'] | undefined) {
-    stopPdfiumVirtualReading(agent.id);
-    const readerIndex = virtualReadingTimersRef.current.size;
-    const interval = 170 + Math.floor(Math.random() * 100);
-    const stepSize = 3 + readerIndex * 2 + Math.floor(Math.random() * 5);
-    virtualReadingStepRef.current.set(agent.id, readerIndex * 11);
-    virtualReadingStepSizeRef.current.set(agent.id, stepSize);
-    const tick = () => {
-      const step = virtualReadingStepRef.current.get(agent.id) || 0;
-      virtualReadingStepRef.current.set(
-        agent.id,
-        step + (virtualReadingStepSizeRef.current.get(agent.id) || 4),
-      );
-      const cursor = pdfiumReadingCursor(agent, anchor, step);
-      if (cursor) updatePdfiumVirtualCursor(agent.id, cursor);
-    };
-    tick();
-    virtualReadingTimersRef.current.set(agent.id, window.setInterval(tick, interval));
-  }
-
-  function stopPdfiumVirtualReading(agentId: string) {
-    const timerId = virtualReadingTimersRef.current.get(agentId);
-    if (timerId !== undefined) window.clearInterval(timerId);
-    virtualReadingTimersRef.current.delete(agentId);
-    virtualReadingStepRef.current.delete(agentId);
-    virtualReadingStepSizeRef.current.delete(agentId);
-  }
-
-  function finishPdfiumVirtualReading(agentId: string, suffix = '想法已添加') {
-    stopPdfiumVirtualReading(agentId);
-    const current = virtualCursorRef.current.get(agentId);
-    if (!current) return;
-    updatePdfiumVirtualCursor(agentId, {
-      ...current,
-      x: Math.min(window.innerWidth - 80, current.x + 72),
-      y: Math.max(72, current.y - 42),
-      label: `${current.agent?.nickname || '助手'} ${suffix}`,
-      leaving: true,
-    });
-    const timerId = window.setTimeout(() => {
-      updatePdfiumVirtualCursor(agentId, null);
-      virtualCursorTimersRef.current.delete(agentId);
-    }, 900);
-    virtualCursorTimersRef.current.set(agentId, timerId);
-  }
-
-  function pdfiumReadingCursor(
-    agent: PublicAgent,
-    anchor: Annotation['anchor'] | undefined,
-    step: number,
-  ): VirtualCursorState | null {
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    if (canvasRect && anchor && isPdfTextAnchor(anchor)) {
-      const position = pdfiumAnchorReadingPosition(anchor, pageMetricsRef.current, step);
-      if (position) {
-        return {
-          id: agent.id,
-          visible: true,
-          x: canvasRect.left + position.x,
-          y: canvasRect.top + position.y,
-          label: `${agent.nickname} 正在阅读`,
-          offscreen: null,
-          agent,
-        };
-      }
-    }
-
-    return pdfiumReadingFallbackCursor(
-      agent.id,
-      agent,
-      anchor && isPdfTextAnchor(anchor) ? anchor.pageIndex : undefined,
-      `${agent.nickname} 正在阅读`,
-      step,
-    );
-  }
-
-  function pdfiumReadingFallbackCursor(
-    cursorId: string,
-    agent: PublicAgent | undefined,
-    pageIndex: number | undefined,
-    visibleLabel: string,
-    step: number,
-  ): VirtualCursorState | null {
-    const canvasRect = canvasRef.current?.getBoundingClientRect();
-    const viewportRect = pdfiumViewportRect();
-    if (!canvasRect || !viewportRect) return null;
-
-    const offscreen =
-      pageIndex === undefined ? null : pdfiumOffscreenDirection(pageIndex, pageMetricsRef.current);
-    if (offscreen) {
-      return {
-        id: cursorId,
-        visible: true,
-        x: viewportRect.left + viewportRect.width / 2,
-        y: offscreen === 'above' ? viewportRect.top + 20 : viewportRect.bottom - 20,
-        label: `${agent?.nickname || '助手'} 正在${offscreen === 'above' ? '上方' : '下方'}阅读`,
-        offscreen,
-        agent,
-      };
-    }
-
-    const metric =
-      pageIndex !== undefined ? pageMetricsRef.current[pageIndex] : firstVisiblePdfiumPageMetric();
-    const targetMetric = metric || firstVisiblePdfiumPageMetric();
-    if (!targetMetric) {
-      return {
-        id: cursorId,
-        visible: true,
-        x: viewportRect.left + viewportRect.width / 2,
-        y: viewportRect.top + 48,
-        label: visibleLabel,
-        offscreen: null,
-        agent,
-      };
-    }
-
-    const visibleTop = Math.max(targetMetric.top, targetMetric.clipTop);
-    const visibleBottom = Math.min(targetMetric.top + targetMetric.height, targetMetric.clipBottom);
-    const travelWidth = Math.max(1, targetMetric.width - 128);
-    return {
-      id: cursorId,
-      visible: true,
-      x: canvasRect.left + targetMetric.left + 64 + ((step * 12) % travelWidth),
-      y:
-        canvasRect.top +
-        Math.min(visibleBottom - 24, Math.max(visibleTop + 24, targetMetric.top + 56)),
-      label: visibleLabel,
-      offscreen: null,
-      agent,
-    };
-  }
-
-  function pdfiumViewportRect() {
-    return (
-      canvasRef.current
-        ?.querySelector<HTMLElement>('.pdfium-spike-viewport')
-        ?.getBoundingClientRect() ||
-      canvasRef.current?.getBoundingClientRect() ||
-      null
-    );
-  }
-
-  function firstVisiblePdfiumPageMetric() {
-    return Object.values(pageMetricsRef.current).toSorted((left, right) => left.top - right.top)[0];
-  }
-
-  function pdfiumOffscreenDirection(
-    pageIndex: number,
-    metrics: Record<number, PageMetric>,
-  ): 'above' | 'below' | null {
-    if (metrics[pageIndex]) return null;
-    const visiblePageIndexes = Object.keys(metrics)
-      .map(Number)
-      .filter(Number.isFinite)
-      .toSorted((left, right) => left - right);
-    const firstPageIndex = visiblePageIndexes[0];
-    const lastPageIndex = visiblePageIndexes[visiblePageIndexes.length - 1];
-    if (firstPageIndex === undefined || lastPageIndex === undefined) {
-      return pageIndex + 1 < currentPage ? 'above' : 'below';
-    }
-    if (pageIndex < firstPageIndex) return 'above';
-    if (pageIndex > lastPageIndex) return 'below';
-    return pageIndex + 1 < currentPage ? 'above' : 'below';
   }
 
   function enqueuePdfiumAgentAnnotationPlayback(articleId: string, annotation: Annotation) {
@@ -1489,16 +954,6 @@ function PdfiumDocument({
     });
   }
 
-  async function extractPdfiumPageText(pageIndex: number) {
-    const document = documentState?.document;
-    if (!document) return '';
-    const cached = pageTextCacheRef.current.get(pageIndex);
-    if (cached) return cached;
-    const text = engine.extractText(document, [pageIndex]).toPromise();
-    pageTextCacheRef.current.set(pageIndex, text);
-    return text;
-  }
-
   async function pdfiumPageGeometriesForReadingPlan(
     document: PdfiumLoadedDocument,
     textDocument: PdfTextDocument,
@@ -1546,65 +1001,16 @@ function PdfiumDocument({
       onKeyDown={handleKeyDown}
     >
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}`}</style>
-      <div className="pdfium-spike-floating-toolbar">
-        <Button
-          aria-label="上一页"
-          disabled={currentPage <= 1}
-          size="icon"
-          type="button"
-          variant="ghost"
-          onClick={() => scroll?.scrollToPreviousPage('smooth')}
-        >
-          <ChevronLeft size={16} />
-        </Button>
-        <span>
-          {currentPage} / {pageCount}
-        </span>
-        <input
-          aria-label="快速跳转 PDF 页码"
-          className="ebook-progress-slider pdfium-page-slider"
-          max={pageCount}
-          min="1"
-          step="1"
-          style={
-            {
-              '--ebook-progress-percent': `${pdfPageProgressPercent(currentPage, pageCount)}%`,
-            } as React.CSSProperties
-          }
-          type="range"
-          value={currentPage}
-          onChange={handlePageSliderChange}
-        />
-        <Button
-          aria-label="下一页"
-          disabled={currentPage >= pageCount}
-          size="icon"
-          type="button"
-          variant="ghost"
-          onClick={() => scroll?.scrollToNextPage('smooth')}
-        >
-          <ChevronRight size={16} />
-        </Button>
-        <Button
-          aria-label="缩小"
-          size="icon"
-          type="button"
-          variant="ghost"
-          onClick={() => zoomControls?.zoomOut()}
-        >
-          <ZoomOut size={16} />
-        </Button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <Button
-          aria-label="放大"
-          size="icon"
-          type="button"
-          variant="ghost"
-          onClick={() => zoomControls?.zoomIn()}
-        >
-          <ZoomIn size={16} />
-        </Button>
-      </div>
+      <PdfiumDocumentFloatingToolbar
+        currentPage={currentPage}
+        pageCount={pageCount}
+        zoom={zoom}
+        onNextPage={() => scroll?.scrollToNextPage('smooth')}
+        onPageChange={jumpToPdfiumPage}
+        onPreviousPage={() => scroll?.scrollToPreviousPage('smooth')}
+        onZoomIn={() => zoomControls?.zoomIn()}
+        onZoomOut={() => zoomControls?.zoomOut()}
+      />
       <EmbedPdfSelectionBridge
         documentId={documentId}
         engine={engine}
@@ -1614,7 +1020,7 @@ function PdfiumDocument({
       {restoringInitialPage ? (
         <div className="pdf-reader-status" role="status">
           <LoaderCircle className="is-spinning" size={18} />
-          <span>正在恢复到第 {initialPageIndexRef.current + 1} 页</span>
+          <span>正在恢复到第 {initialPageNumber} 页</span>
         </div>
       ) : null}
       {statusMessage ? (
@@ -1733,181 +1139,4 @@ function PdfiumDocument({
       />
     </section>
   );
-}
-
-function EmbedPdfSelectionBridge({
-  documentId,
-  engine,
-  onInvalidSelection,
-  onSelection,
-}: {
-  documentId: string;
-  engine: PdfEngine;
-  onInvalidSelection: (message: string) => void;
-  onSelection: (anchor: ReturnType<typeof createPdfTextAnchor> | null) => void;
-}) {
-  const documentState = useDocumentState(documentId);
-  const { provides } = useSelectionCapability();
-  const ignoreSelectionClearUntilRef = useRef(0);
-
-  useEffect(() => {
-    if (!provides || !documentState?.document) return;
-    const scope = provides.forDocument(documentId);
-    const document = documentState.document;
-
-    const unsubscribeChange = scope.onSelectionChange((selectionRange) => {
-      if (selectionRange) return;
-      if (performance.now() < ignoreSelectionClearUntilRef.current) {
-        return;
-      }
-      onSelection(null);
-    });
-    const unsubscribeEnd = scope.onEndSelection(() => {
-      const state = scope.getState();
-      const formattedSelections = scope.getFormattedSelection();
-      if (formattedSelections.length > 1) {
-        clearEmbedPdfSelection(scope);
-        onSelection(null);
-        onInvalidSelection('暂不支持跨页划线，请选择单页文本');
-        return;
-      }
-
-      const formatted = formattedSelections[0];
-      if (!formatted) return;
-      const slice = state.slices[formatted.pageIndex];
-      const page = document.pages[formatted.pageIndex];
-      if (!slice || !page) return;
-
-      engine
-        .extractText(document, [formatted.pageIndex])
-        .toPromise()
-        .then((pageText) => {
-          const anchor = createPdfTextAnchor({
-            pageText,
-            pageIndex: formatted.pageIndex,
-            start: slice.start,
-            end: slice.start + slice.count,
-            pageWidth: page.size.width,
-            pageHeight: page.size.height,
-            rects: formatted.segmentRects.map((rect) =>
-              rectToPdfRect(rect, page.size.width, page.size.height),
-            ),
-          });
-          ignoreSelectionClearUntilRef.current = performance.now() + 120;
-          onSelection(anchor.exact.trim() ? anchor : null);
-          clearEmbedPdfSelection(scope);
-        })
-        .catch(() => {
-          onSelection(null);
-        });
-    });
-
-    return () => {
-      unsubscribeChange();
-      unsubscribeEnd();
-    };
-  }, [documentId, documentState?.document, engine, onInvalidSelection, onSelection, provides]);
-
-  return null;
-}
-
-function clearEmbedPdfSelection(scope: unknown) {
-  const selectionScope = scope as {
-    clear?: () => void;
-    clearSelection?: () => void;
-  };
-  selectionScope.clearSelection?.();
-  selectionScope.clear?.();
-}
-
-function pdfiumAnnotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || '助手';
-}
-
-function pdfiumAnnotationRailLayout(
-  pageMetrics: Record<number, PageMetric>,
-  canvas: HTMLDivElement | null,
-  viewportHeight: number,
-): AnnotationRailLayout | undefined {
-  const canvasWidth = canvas?.getBoundingClientRect().width ?? 0;
-  if (canvasWidth <= 0) return undefined;
-
-  const pageMetric = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
-  if (!pageMetric) return undefined;
-
-  const gap = 20;
-  const minimumRailWidth = 220;
-  const maximumRailWidth = 420;
-  const articleLeft = Math.max(0, Math.round(pageMetric.left));
-  const articleRight = Math.min(canvasWidth, Math.round(pageMetric.left + pageMetric.width));
-  const leftSpace = articleLeft;
-  const rightSpace = Math.max(0, Math.round(canvasWidth - articleRight));
-  const leftAvailable = leftSpace >= minimumRailWidth + gap;
-  const rightAvailable = rightSpace >= minimumRailWidth + gap;
-
-  if (!leftAvailable && !rightAvailable) {
-    return {
-      articleCenterX: Math.round((articleLeft + articleRight) / 2),
-      leftRailLeft: 0,
-      mode: 'stacked',
-      railWidth: 0,
-      rightRailLeft: Math.round(articleRight + gap),
-      viewportHeight,
-    };
-  }
-
-  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
-  const usableSpace =
-    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
-  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
-  return {
-    articleCenterX: Math.round((articleLeft + articleRight) / 2),
-    leftRailLeft: Math.round(articleLeft - gap - railWidth),
-    mode,
-    railWidth: Math.round(railWidth),
-    rightRailLeft: Math.round(articleRight + gap),
-    viewportHeight,
-  };
-}
-
-function pdfiumPromptArticle(
-  article: ArticleRecord,
-  anchor: Annotation['anchor'] | undefined,
-  pageText: string,
-): PromptArticle {
-  const articleContext = promptArticle(article, pageText);
-  const pageLabel = anchor && isPdfTextAnchor(anchor) ? `第 ${anchor.pageIndex + 1} 页\n` : '';
-  return {
-    ...articleContext,
-    text: `${pageLabel}${pageText}`,
-  };
-}
-
-function normalizeInitialPageIndex(article: PdfArticleRecord) {
-  return clampPageIndex(article.readingProgress?.pageIndex ?? 0, article.pdf.metadata.pageCount);
-}
-
-function clampPageIndex(pageIndex: number, pageCount: number) {
-  if (!Number.isFinite(pageIndex)) return 0;
-  return Math.max(0, Math.min(Math.max(0, pageCount - 1), Math.trunc(pageIndex)));
-}
-
-function pageProgress(pageIndex: number, pageCount: number) {
-  if (pageCount <= 1) return 1;
-  return pageIndex / (pageCount - 1);
-}
-
-function pdfPageProgressPercent(pageNumber: number, pageCount: number) {
-  return Number(
-    (pageProgress(clampPageIndex(pageNumber - 1, pageCount), pageCount) * 100).toFixed(2),
-  );
-}
-
-function pdfReadingProgress(pageIndex: number, pageCount: number): ArticleReadingProgress {
-  return {
-    pageIndex,
-    pageCount,
-    progress: pageProgress(pageIndex, pageCount),
-    updatedAt: new Date().toISOString(),
-  };
 }
