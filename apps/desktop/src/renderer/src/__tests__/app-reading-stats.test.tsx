@@ -24,7 +24,7 @@ vi.mock('recharts', () => ({
   YAxis: () => <g data-testid="chart-y-axis" />,
 }));
 
-import { ReadingStatsPanel } from '../app-reading-stats';
+import { ReadingStatsPanel } from '../reading-stats/app-reading-stats';
 
 afterEach(() => {
   cleanup();

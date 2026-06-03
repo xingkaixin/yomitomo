@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DesktopStore } from '@yomitomo/shared';
 import { desktopStoreLoadErrorInfo, type DesktopStoreLoadErrorInfo } from '../../app-store-errors';
 
-import { emptyStore } from './app-settings';
+import { emptyStore } from './settings/app-settings';
 
 export function useDesktopStoreState() {
   const [store, setStore] = useState<DesktopStore>(emptyStore);

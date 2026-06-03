@@ -9,8 +9,8 @@ import {
   type CurveProps,
 } from 'recharts';
 import type { ReadingActivityDay } from '@yomitomo/core';
-import { ChartContainer, ChartTooltip, type ChartConfig } from './components/ui/chart';
-import { SegmentedControl } from './components/ui/segmented-control';
+import { ChartContainer, ChartTooltip, type ChartConfig } from '../components/ui/chart';
+import { SegmentedControl } from '../components/ui/segmented-control';
 import { chartActivityDescription } from './app-reading-stats-data';
 
 const chartConfig = {

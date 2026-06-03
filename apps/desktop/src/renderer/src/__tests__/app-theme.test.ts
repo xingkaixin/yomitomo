@@ -22,7 +22,7 @@ import {
   visibleThemeIds,
   writeCachedThemeId,
   writeCachedThemeIdForTone,
-} from '../app-theme';
+} from '../theme/app-theme';
 
 describe('app theme contract', () => {
   it('registers the default and validation themes as complete AppThemes', () => {

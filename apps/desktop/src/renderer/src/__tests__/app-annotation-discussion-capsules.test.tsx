@@ -7,7 +7,7 @@ import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
 import {
   AnnotationDiscussionCapsules,
   annotationDiscussionCapsuleItems,
-} from '../app-reading-library';
+} from '../reading-library/app-reading-library';
 import type { AnnotationDiscussionWindowState } from '../../../ipc-contract';
 
 const now = '2026-05-31T10:00:00.000Z';

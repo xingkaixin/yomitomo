@@ -3,7 +3,7 @@ import {
   enabledLibraryContentSources,
   reorderLibraryContentSource,
   setLibraryContentSourceEnabled,
-} from '../app-library-content-sources';
+} from '../reading-library/app-library-content-sources';
 
 describe('library content source preferences', () => {
   it('defaults to the current library source order', () => {

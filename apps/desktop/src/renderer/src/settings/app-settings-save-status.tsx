@@ -1,5 +1,5 @@
 import { Check, RefreshCw, RotateCcw } from 'lucide-react';
-import type { SaveState } from './app-types';
+import type { SaveState } from '../app-types';
 
 export function AutoSaveStatus({
   error,

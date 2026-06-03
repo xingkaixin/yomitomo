@@ -5,7 +5,7 @@ import {
   readDesktopReaderBackgroundsByTone,
   subscribeDesktopReaderSettings,
   writeDesktopReaderSettings,
-} from '../app-reader-settings';
+} from '../settings/app-reader-settings';
 
 afterEach(() => {
   window.localStorage.clear();

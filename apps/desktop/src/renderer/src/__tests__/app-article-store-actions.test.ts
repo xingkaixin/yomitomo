@@ -5,7 +5,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, ArticleSummaryRecord, DesktopStore } from '@yomitomo/shared';
 
-import { emptyStore } from '../app-settings';
+import { emptyStore } from '../settings/app-settings';
 import {
   applyArticleStorePatch,
   applyArticleUpsertPatch,

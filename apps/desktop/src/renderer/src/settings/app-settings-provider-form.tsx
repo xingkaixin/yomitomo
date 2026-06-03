@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
-import { Field } from './app-ui';
+import { Field } from '../app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useProviderModelFetch } from './app-settings-provider-model-fetch';
 import { ProviderModelFields } from './app-settings-provider-model-fields';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './components/ui/select';
+} from '../components/ui/select';
 
 export function ProviderForm({
   draft,

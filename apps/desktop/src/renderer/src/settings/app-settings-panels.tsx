@@ -32,12 +32,12 @@ import {
 } from '@yomitomo/shared';
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-shortcuts';
 import { messageSendShortcutOptions } from './app-settings';
-import type { DataManagementPathKind, DataManagementPaths } from '../../preload';
-import { CopyIconButton, PanelHeader } from './app-ui';
+import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
+import { CopyIconButton, PanelHeader } from '../app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from './app-types';
-import { Button } from './components/ui/button';
-import { Kbd } from './components/ui/kbd';
+import type { SaveState } from '../app-types';
+import { Button } from '../components/ui/button';
+import { Kbd } from '../components/ui/kbd';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -45,7 +45,7 @@ export { AgentForm, AgentSettings } from './app-settings-agent-panel';
 export { ProviderForm } from './app-settings-provider-form';
 export { ProviderSettings } from './app-settings-provider-panel';
 export { UserProfileSettingsDialog } from './app-settings-profile-dialog';
-export { AiTraceSettingsPanel } from './app-assistant-diagnostics';
+export { AiTraceSettingsPanel } from '../app-assistant-diagnostics';
 
 export type SettingsSectionKey =
   | 'collection'

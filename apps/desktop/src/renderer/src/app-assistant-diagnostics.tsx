@@ -11,7 +11,7 @@ import type {
   AssistantExecutionTotals,
 } from '../../preload';
 import { AvatarImage, PanelHeader } from './app-ui';
-import { providerLogoMap } from './app-settings-provider-assets';
+import { providerLogoMap } from './settings/app-settings-provider-assets';
 import { Button } from './components/ui/button';
 import { Calendar } from './components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover';

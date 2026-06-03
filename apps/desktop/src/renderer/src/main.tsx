@@ -3,20 +3,20 @@ import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 
-import type { SettingsSectionKey } from './app-settings-panels';
+import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AvatarImage } from './app-ui';
 import { useAppAgentActions } from './app-agent-actions';
 import { useAppArticleStoreActions } from './app-article-store-actions';
 import { useDesktopStoreState } from './app-desktop-store-state';
-import { useSettingsDrafts } from './app-settings-drafts';
-import { SettingsNavButton } from './app-settings-nav-button';
+import { useSettingsDrafts } from './settings/app-settings-drafts';
+import { SettingsNavButton } from './settings/app-settings-nav-button';
 import { StoreLoadErrorScreen } from './app-store-load-error';
 import {
   normalizeDesktopReaderSettings,
   readDesktopReaderBackgroundsByTone,
   readDesktopReaderSettings,
   writeDesktopReaderSettings,
-} from './app-reader-settings';
+} from './settings/app-reader-settings';
 import {
   applyAppTheme,
   readCachedThemeIdsByTone,
@@ -25,10 +25,10 @@ import {
   themeRegistry,
   writeCachedThemeId,
   type AppThemeId,
-} from './app-theme';
+} from './theme/app-theme';
 import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from './app-annotation-sedimentation-window';
-import { ThemeSelector } from './app-theme-selector';
+import { ThemeSelector } from './theme/app-theme-selector';
 import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-transition';
 import { UpdateReleaseDialog } from './app-update-dialog';
 import './styles.css';
@@ -58,7 +58,9 @@ function compatibleReaderBackgroundForTheme(
 
 const rendererModuleLoadedAt = performance.now();
 const loadReadingLibrary = () =>
-  import('./app-reading-library').then((module) => ({ default: module.ReadingLibrary }));
+  import('./reading-library/app-reading-library').then((module) => ({
+    default: module.ReadingLibrary,
+  }));
 const loadReadingStatsModule = () => preloadEntries.stats.load();
 const loadReadingStatsPanel = () =>
   loadReadingStatsModule().then((module) => ({ default: module.ReadingStatsPanel }));
@@ -103,12 +105,12 @@ const SettingsSectionShell = lazy(loadSettingsSectionShell);
 const UserProfileSettingsDialog = lazy(loadUserProfileSettingsDialog);
 const AboutSettings = lazy(loadAboutSettings);
 
-type ReadingStatsModule = typeof import('./app-reading-stats');
-type AgentSettingsModule = typeof import('./app-settings-agent-panel');
-type SettingsPanelsModule = typeof import('./app-settings-panels');
-type SettingsProviderModule = typeof import('./app-settings-provider-panel');
+type ReadingStatsModule = typeof import('./reading-stats/app-reading-stats');
+type AgentSettingsModule = typeof import('./settings/app-settings-agent-panel');
+type SettingsPanelsModule = typeof import('./settings/app-settings-panels');
+type SettingsProviderModule = typeof import('./settings/app-settings-provider-panel');
 type SettingsAboutModule = typeof import('./app-log-viewer');
-type ProfileDialogModule = typeof import('./app-settings-profile-dialog');
+type ProfileDialogModule = typeof import('./settings/app-settings-profile-dialog');
 
 type PreloadStatus = 'not-started' | 'scheduled' | 'loading' | 'ready' | 'failed';
 type PreloadKey =
@@ -193,16 +195,19 @@ function createPreloadEntry<TModule>(
 const preloadEntries = {
   agents: createPreloadEntry<AgentSettingsModule>(
     'agents',
-    () => import('./app-settings-agent-panel'),
+    () => import('./settings/app-settings-agent-panel'),
   ),
-  stats: createPreloadEntry<ReadingStatsModule>('stats', () => import('./app-reading-stats')),
+  stats: createPreloadEntry<ReadingStatsModule>(
+    'stats',
+    () => import('./reading-stats/app-reading-stats'),
+  ),
   settingsPanels: createPreloadEntry<SettingsPanelsModule>(
     'settings-panels',
-    () => import('./app-settings-panels'),
+    () => import('./settings/app-settings-panels'),
   ),
   settingsProvider: createPreloadEntry<SettingsProviderModule>(
     'settings-provider',
-    () => import('./app-settings-provider-panel'),
+    () => import('./settings/app-settings-provider-panel'),
   ),
   settingsAbout: createPreloadEntry<SettingsAboutModule>(
     'settings-about',
@@ -210,7 +215,7 @@ const preloadEntries = {
   ),
   profileDialog: createPreloadEntry<ProfileDialogModule>(
     'profile-dialog',
-    () => import('./app-settings-profile-dialog'),
+    () => import('./settings/app-settings-profile-dialog'),
   ),
 };
 

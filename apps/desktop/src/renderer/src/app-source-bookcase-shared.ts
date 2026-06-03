@@ -25,7 +25,7 @@ export {
   subscribeDesktopReaderSettings,
   useDesktopReaderSettings,
   writeDesktopReaderSettings,
-} from './app-reader-settings';
+} from './settings/app-reader-settings';
 
 export type SourceSelectionAction = SelectionAction;
 

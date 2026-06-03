@@ -12,11 +12,11 @@ import {
   X,
 } from 'lucide-react';
 import type { WeReadOpenMethod, WeReadSettings } from '@yomitomo/shared';
-import { Field, PanelHeader } from './app-ui';
+import { Field, PanelHeader } from '../app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from './app-types';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
+import type { SaveState } from '../app-types';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 
 const WEREAD_API_KEY_HELP_URL = 'https://yomitomo.app/docs/weread-api-key/';
 

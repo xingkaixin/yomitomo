@@ -3,13 +3,13 @@ import { createPortal } from 'react-dom';
 import { BookOpen, Check, KeyRound, Save, SearchCheck, ShieldCheck, Zap, X } from 'lucide-react';
 import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
-import { PanelHeader } from './app-ui';
+import { PanelHeader } from '../app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { ProviderForm } from './app-settings-provider-form';
 import { ProviderList } from './app-settings-provider-list';
-import type { SaveState } from './app-types';
+import type { SaveState } from '../app-types';
 import { AutoSaveStatus } from './app-settings-save-status';
-import { Button } from './components/ui/button';
+import { Button } from '../components/ui/button';
 import {
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './components/ui/select';
+} from '../components/ui/select';
 
 type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
 

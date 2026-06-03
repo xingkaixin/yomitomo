@@ -6,13 +6,13 @@ import type {
   LibraryContentSourcePreference,
 } from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
-import type { SaveState } from './app-types';
-import { Field, PanelHeader } from './app-ui';
+import type { SaveState } from '../app-types';
+import { Field, PanelHeader } from '../app-ui';
 import {
   allLibraryContentSourceOptions,
   libraryContentSourcePreferences,
   setLibraryContentSourceEnabled,
-} from './app-library-content-sources';
+} from '../reading-library/app-library-content-sources';
 
 type ContentSourceDragSession = {
   cleanup: () => void;

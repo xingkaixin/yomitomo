@@ -3,8 +3,13 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultReaderBackgroundColor } from '@yomitomo/reader-ui/reader-settings';
-import { ThemeSelector } from '../app-theme-selector';
-import { defaultThemeId, duskIndigoThemeId, inkBlackThemeId, inkPaperThemeId } from '../app-theme';
+import { ThemeSelector } from '../theme/app-theme-selector';
+import {
+  defaultThemeId,
+  duskIndigoThemeId,
+  inkBlackThemeId,
+  inkPaperThemeId,
+} from '../theme/app-theme';
 
 afterEach(cleanup);
 
