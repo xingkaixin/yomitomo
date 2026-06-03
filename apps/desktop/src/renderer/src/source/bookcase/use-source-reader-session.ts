@@ -10,7 +10,7 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
-import type { PromptArticle } from './app-reading-types';
+import type { PromptArticle } from '../../app-reading-types';
 import { publicAnnotationAgents, publicReviewAgents } from './app-source-bookcase-shared';
 import {
   createPendingAgentAnnotation,
@@ -22,7 +22,7 @@ import {
 } from './app-source-agent-request';
 import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
 import { runSourceAgentReviewRequest } from './app-source-agent-review-request';
-import { usePendingAnnotationAgents } from './use-pending-annotation-agents';
+import { usePendingAnnotationAgents } from '../../use-pending-annotation-agents';
 import { useSourceAnnotations } from './use-source-annotations';
 
 type SourceAnnotationsChange = {

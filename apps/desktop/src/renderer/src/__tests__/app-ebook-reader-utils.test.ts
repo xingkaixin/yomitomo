@@ -9,7 +9,7 @@ import {
   ebookTocItemsForReader,
   mappedFoliateRangeRects,
   type FoliateTocItem,
-} from '../app-ebook-reader-utils';
+} from '../source/ebook/app-ebook-reader-utils';
 
 const now = '2026-05-27T00:00:00.000Z';
 

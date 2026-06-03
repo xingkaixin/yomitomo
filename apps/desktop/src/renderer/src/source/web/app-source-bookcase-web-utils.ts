@@ -7,7 +7,7 @@ import {
 import {
   annotationViewportPositions,
   navigationForActiveAnnotation,
-} from './app-source-bookcase-shared';
+} from '../bookcase/app-source-bookcase-shared';
 
 export const sourceReaderTocStyles = `
 @media(min-width:1101px){

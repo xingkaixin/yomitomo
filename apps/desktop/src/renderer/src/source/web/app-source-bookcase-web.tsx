@@ -41,9 +41,9 @@ import {
   readerAnnotationScrollTop,
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
-import { OpenArticleButton } from './app-ui';
-import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';
-import { articleIdentityLine } from './app-utils';
+import { OpenArticleButton } from '../../app-ui';
+import { type SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
+import { articleIdentityLine } from '../../app-utils';
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
@@ -51,9 +51,9 @@ import {
   useDesktopReaderSettings,
   usesOverlayToc,
   type WebSourceBookcaseProps,
-} from './app-source-bookcase-shared';
-import { useSourceActiveConnection } from './use-source-active-connection';
-import { useSourceSelectionComposer } from './use-source-selection-composer';
+} from '../bookcase/app-source-bookcase-shared';
+import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
@@ -64,7 +64,7 @@ import {
 import {
   constrainSourceAgentPlanAnnotation,
   useSourceReaderSession,
-} from './use-source-reader-session';
+} from '../bookcase/use-source-reader-session';
 
 export function WebSourceBookcase({
   agents,

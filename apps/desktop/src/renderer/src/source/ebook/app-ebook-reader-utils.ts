@@ -3,12 +3,12 @@ import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
-import jetBrainsMonoBoldUrl from './assets/fonts/JetBrainsMono-Bold.woff2?url';
-import jetBrainsMonoRegularUrl from './assets/fonts/JetBrainsMono-Regular.woff2?url';
-import notoSerifScRegularUrl from './assets/fonts/NotoSerifSC-Regular.ttf?url';
-import sourceSerif4BoldUrl from './assets/fonts/SourceSerif4-Bold.woff2?url';
-import sourceSerif4ItalicUrl from './assets/fonts/SourceSerif4-Italic.woff2?url';
-import sourceSerif4RegularUrl from './assets/fonts/SourceSerif4-Regular.woff2?url';
+import jetBrainsMonoBoldUrl from '../../assets/fonts/JetBrainsMono-Bold.woff2?url';
+import jetBrainsMonoRegularUrl from '../../assets/fonts/JetBrainsMono-Regular.woff2?url';
+import notoSerifScRegularUrl from '../../assets/fonts/NotoSerifSC-Regular.ttf?url';
+import sourceSerif4BoldUrl from '../../assets/fonts/SourceSerif4-Bold.woff2?url';
+import sourceSerif4ItalicUrl from '../../assets/fonts/SourceSerif4-Italic.woff2?url';
+import sourceSerif4RegularUrl from '../../assets/fonts/SourceSerif4-Regular.woff2?url';
 
 export type FoliateTocSourceItem = {
   label?: unknown;

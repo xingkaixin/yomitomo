@@ -5,7 +5,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { HighlightBox } from '@yomitomo/core';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { useSourceActiveConnection } from '../use-source-active-connection';
+import { useSourceActiveConnection } from '../source/bookcase/use-source-active-connection';
 
 const now = '2026-05-16T12:00:00.000Z';
 

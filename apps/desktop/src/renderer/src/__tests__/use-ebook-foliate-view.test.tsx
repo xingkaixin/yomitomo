@@ -8,13 +8,13 @@ import {
   ebookReadingProgressRestoreTarget,
   ebookReadingProgressSnapshot,
   useEbookFoliateView,
-} from '../use-ebook-foliate-view';
-import type { EbookArticleRecord } from '../app-source-bookcase-shared';
+} from '../source/ebook/use-ebook-foliate-view';
+import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
 import type {
   EbookBoxUpdateReason,
   EbookPageTurnTrace,
   FoliateViewElement,
-} from '../app-ebook-reader-utils';
+} from '../source/ebook/app-ebook-reader-utils';
 
 const now = '2026-05-16T08:00:00.000Z';
 

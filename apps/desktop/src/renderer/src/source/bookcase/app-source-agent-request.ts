@@ -8,7 +8,7 @@ import type {
   ReadingMemory,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
-import type { PromptArticle } from './app-reading-types';
+import type { PromptArticle } from '../../app-reading-types';
 import {
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,

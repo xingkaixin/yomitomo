@@ -20,9 +20,9 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import type { AnnotationRailLayout } from '@yomitomo/reader-ui/reader-annotations';
-import type { PromptArticle } from './app-reading-types';
-import type { SourceAgentAnnotationRequestOptions } from './app-source-agent-request';
-import { promptArticle } from './app-source-bookcase-shared';
+import type { PromptArticle } from '../../app-reading-types';
+import type { SourceAgentAnnotationRequestOptions } from '../bookcase/app-source-agent-request';
+import { promptArticle } from '../bookcase/app-source-bookcase-shared';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 

@@ -11,7 +11,7 @@ import {
   prepareSourceAgentAnnotationRequestInput,
   runSourceAgentAnnotationRequest,
   withoutAnnotationId,
-} from '../app-source-agent-request';
+} from '../source/bookcase/app-source-agent-request';
 import type { PromptArticle } from '../app-reading-types';
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {

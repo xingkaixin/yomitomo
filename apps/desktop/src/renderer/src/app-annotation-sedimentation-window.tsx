@@ -13,7 +13,7 @@ import type {
 import { makeId, renderMarkdown } from '@yomitomo/shared';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from './theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
-import { promptArticle, publicReviewAgents } from './app-source-bookcase-shared';
+import { promptArticle, publicReviewAgents } from './source/bookcase/app-source-bookcase-shared';
 import { articlePlainText } from './app-utils';
 import {
   AgentAvatarStack,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { articleLinkExternalUrl } from '../app-source-bookcase-web-utils';
+import { articleLinkExternalUrl } from '../source/web/app-source-bookcase-web-utils';
 
 const now = '2026-05-16T12:00:00.000Z';
 

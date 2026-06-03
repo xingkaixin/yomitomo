@@ -19,8 +19,8 @@ import {
   mentionDirectivesForAgent,
   promptArticle,
   publicAnnotationAgents,
-} from './app-source-bookcase-shared';
-import { runSourceAgentCommentRequest } from './app-source-agent-comment-request';
+} from './source/bookcase/app-source-bookcase-shared';
+import { runSourceAgentCommentRequest } from './source/bookcase/app-source-agent-comment-request';
 import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,

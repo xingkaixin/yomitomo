@@ -53,11 +53,14 @@ import {
   rendererPerformanceElapsedMs,
   useDesktopReaderSettings,
   type SourceBookcaseProps,
-} from './app-source-bookcase-shared';
-import { useSourceActiveConnection } from './use-source-active-connection';
-import { useSourceSelectionComposer } from './use-source-selection-composer';
-import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
-import { useSourceReaderSession } from './use-source-reader-session';
+} from '../bookcase/app-source-bookcase-shared';
+import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
+import {
+  useReaderPageTurnKeys,
+  type ReaderPageTurnDirection,
+} from '../../use-reader-page-turn-keys';
+import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import {
   pdfiumAgentAnnotationRequestOptions,
   pdfiumAnchorForReadingPlanStart,

@@ -11,7 +11,7 @@ import {
   planSelectionMentionRoute,
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
-} from '../app-source-bookcase-shared';
+} from '../source/bookcase/app-source-bookcase-shared';
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {
