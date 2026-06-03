@@ -3,7 +3,7 @@ import {
   softDeleteReadingMemoryEntriesBySource,
   withReadingMemoryTransaction,
   type ReadingMemorySqliteExecutor,
-} from './reading-memory-store';
+} from '../reading-memory-store';
 
 export function deleteArticleRowsWithMemoryLifecycle(
   executor: ReadingMemorySqliteExecutor,

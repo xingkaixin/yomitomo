@@ -62,7 +62,7 @@ export default defineConfig({
         },
         input: {
           index: resolve(root, 'src/main/index.ts'),
-          'article-import-worker': resolve(root, 'src/main/article-import-worker.ts'),
+          'article-import-worker': resolve(root, 'src/main/articles/article-import-worker.ts'),
         },
         plugins: [electronMainImportMetaCompat()],
       },

@@ -39,7 +39,7 @@ import {
   saveArticleRows,
   writeArticleRows,
   type ArticleIdentity,
-} from './article-repository';
+} from './articles/article-repository';
 import * as schema from './db/schema';
 import { providerApiKeyRef, saveProviderApiKey } from './provider-secrets';
 import {
@@ -91,7 +91,7 @@ export {
   saveWeReadReadingStatsSnapshot,
   saveWeReadSettings,
   saveWeReadTestResult,
-} from './weread-repository';
+} from './weread/weread-repository';
 
 export { mergeSettingsForUpsert } from './store-normalizers';
 export {
@@ -99,7 +99,7 @@ export {
   buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
-} from './article-repository';
+} from './articles/article-repository';
 export {
   backupDatabaseFile,
   getDataDirectoryPath,
@@ -236,7 +236,7 @@ export async function ensureArticleSiteIcon(id: string): Promise<string> {
   if (raw.startsWith('data:image/')) return raw;
   if (!/^https?:\/\//i.test(raw)) return '';
 
-  const { fetchFaviconDataUrl } = await import('./article-favicon');
+  const { fetchFaviconDataUrl } = await import('./articles/article-favicon');
   const dataUrl = await fetchFaviconDataUrl(raw);
   if (!dataUrl) return '';
   updateArticleSiteIconRows(database, id, dataUrl);

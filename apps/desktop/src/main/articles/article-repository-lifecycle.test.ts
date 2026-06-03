@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import type { Annotation, ReadingMemoryEntry } from '@yomitomo/shared';
-import { migrations } from './db/migrations';
+import { migrations } from '../db/migrations';
 import {
   backfillArticleAnnotationMemoryEntries,
   deleteAnnotationRowsWithMemoryLifecycle,
@@ -14,7 +14,7 @@ import {
   readReadingMemoryEntries,
   searchReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from './reading-memory-store';
+} from '../reading-memory-store';
 
 describe('article memory lifecycle', () => {
   it('deletes article memory entries, projections, and FTS rows with the article', () => {
