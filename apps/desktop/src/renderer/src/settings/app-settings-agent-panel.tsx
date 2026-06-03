@@ -11,23 +11,23 @@ import {
   personalitiesForKind,
   type AgentDraft,
 } from './app-settings';
-import chenYanshuCover from './assets/agent-profiles/chen-yanshu-cover.webp';
-import guXingjianCover from './assets/agent-profiles/gu-xingjian-cover.webp';
-import linZhiweiCover from './assets/agent-profiles/lin-zhiwei-cover.webp';
-import shenQingyuanCover from './assets/agent-profiles/shen-qingyuan-cover.webp';
-import xuWenquCover from './assets/agent-profiles/xu-wenqu-cover.webp';
-import zhouYanCover from './assets/agent-profiles/zhou-yan-cover.webp';
-import heMinghengCover from './assets/reviewer-profiles/he-mingheng-cover.webp';
-import liangZhengyanCover from './assets/reviewer-profiles/liang-zhengyan-cover.webp';
-import suDingbaiCover from './assets/reviewer-profiles/su-dingbai-cover.webp';
-import tangJianCover from './assets/reviewer-profiles/tang-jian-cover.webp';
-import xiaGuiningCover from './assets/reviewer-profiles/xia-guining-cover.webp';
-import yeTinglanCover from './assets/reviewer-profiles/ye-tinglan-cover.webp';
+import chenYanshuCover from '../assets/agent-profiles/chen-yanshu-cover.webp';
+import guXingjianCover from '../assets/agent-profiles/gu-xingjian-cover.webp';
+import linZhiweiCover from '../assets/agent-profiles/lin-zhiwei-cover.webp';
+import shenQingyuanCover from '../assets/agent-profiles/shen-qingyuan-cover.webp';
+import xuWenquCover from '../assets/agent-profiles/xu-wenqu-cover.webp';
+import zhouYanCover from '../assets/agent-profiles/zhou-yan-cover.webp';
+import heMinghengCover from '../assets/reviewer-profiles/he-mingheng-cover.webp';
+import liangZhengyanCover from '../assets/reviewer-profiles/liang-zhengyan-cover.webp';
+import suDingbaiCover from '../assets/reviewer-profiles/su-dingbai-cover.webp';
+import tangJianCover from '../assets/reviewer-profiles/tang-jian-cover.webp';
+import xiaGuiningCover from '../assets/reviewer-profiles/xia-guining-cover.webp';
+import yeTinglanCover from '../assets/reviewer-profiles/ye-tinglan-cover.webp';
 import { ColorPicker } from './app-settings-color-picker';
-import { AvatarImage, Field } from './app-ui';
-import type { SaveState } from './app-types';
-import { Button } from './components/ui/button';
-import { SegmentedControl } from './components/ui/segmented-control';
+import { AvatarImage, Field } from '../app-ui';
+import type { SaveState } from '../app-types';
+import { Button } from '../components/ui/button';
+import { SegmentedControl } from '../components/ui/segmented-control';
 
 type AgentFilter = AgentKind;
 type AgentPresenceLine = { enter: string; rest: string };

@@ -8,7 +8,7 @@ import type {
   ReleaseNoteHighlightType,
 } from '@yomitomo/shared';
 import { selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
-import { resolveAppThemeId, themeRegistry } from './app-theme';
+import { resolveAppThemeId, themeRegistry } from './theme/app-theme';
 import coverLighterImage from './assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from './assets/update/updater-cover-darker.webp';
 

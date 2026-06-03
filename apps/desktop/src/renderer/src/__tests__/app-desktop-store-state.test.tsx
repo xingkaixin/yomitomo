@@ -4,7 +4,7 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 
-import { emptyStore } from '../app-settings';
+import { emptyStore } from '../settings/app-settings';
 import { useDesktopStoreState } from '../app-desktop-store-state';
 
 afterEach(() => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LlmProvider } from '@yomitomo/shared';
 
-import { emptyProvider, providerDraftHasChanges } from '../app-settings';
+import { emptyProvider, providerDraftHasChanges } from '../settings/app-settings';
 
 describe('provider defaults', () => {
   it('uses DeepSeek with reasoning disabled for new providers', () => {

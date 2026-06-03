@@ -13,7 +13,7 @@ import {
   findMentionedAgents,
   sortAnnotations,
 } from '@yomitomo/core';
-import { applyAppTheme, readCachedThemeId, themeRegistry } from './app-theme';
+import { applyAppTheme, readCachedThemeId, themeRegistry } from './theme/app-theme';
 import {
   agentInstructionFromNote,
   mentionDirectivesForAgent,

@@ -19,7 +19,7 @@ import type {
   WeReadBook,
   WeReadSettings,
 } from '@yomitomo/shared';
-import { Input } from './components/ui/input';
+import { Input } from '../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -27,8 +27,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './components/ui/select';
-import type { EbookImportProgressCallback, PdfImportProgressCallback } from './app-reading-types';
+} from '../components/ui/select';
+import type { EbookImportProgressCallback, PdfImportProgressCallback } from '../app-reading-types';
 import {
   articleAnnotationCount,
   articleDistillationCount,
@@ -44,9 +44,9 @@ import {
   formatPdfAuthors,
   nativeBookCoverStyle,
   useNativeCoverRatio,
-} from './app-article-book';
+} from '../app-article-book';
 import { libraryContentSourceOptions } from './app-library-content-sources';
-import { urlHost } from './app-utils';
+import { urlHost } from '../app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;

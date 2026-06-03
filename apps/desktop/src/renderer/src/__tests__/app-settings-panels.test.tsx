@@ -14,8 +14,8 @@ import {
   SettingsSectionShell,
   UserProfileSettingsDialog,
   WeReadSettingsPanel,
-} from '../app-settings-panels';
-import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../app-settings';
+} from '../settings/app-settings-panels';
+import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../settings/app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 
 const localStorageStore: Record<string, string> = {};

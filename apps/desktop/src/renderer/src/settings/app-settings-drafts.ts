@@ -15,7 +15,7 @@ import {
   type ProviderDraft,
   type UserDraft,
 } from './app-settings';
-import type { SaveState } from './app-types';
+import type { SaveState } from '../app-types';
 
 type UseSettingsDraftsInput = {
   store: DesktopStore;

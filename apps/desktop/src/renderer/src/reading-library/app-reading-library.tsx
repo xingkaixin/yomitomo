@@ -16,15 +16,15 @@ import type {
   WeReadSettings,
 } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
-import { SourceBookcase } from './app-source-bookcase';
+import { SourceBookcase } from '../app-source-bookcase';
 import type {
   ArticleUpdater,
   EbookImportProgressCallback,
   PdfImportProgressCallback,
-} from './app-reading-types';
+} from '../app-reading-types';
 import { LibraryHome, type LibrarySourceTransitionDirection } from './app-reading-library-home';
 import { enabledLibraryContentSources } from './app-library-content-sources';
-import { WeReadBookcase } from './app-weread-bookcase';
+import { WeReadBookcase } from '../app-weread-bookcase';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
   groupLibraryArticles,
@@ -36,7 +36,7 @@ import type {
   AnnotationDiscussionWindowState,
   AnnotationDistillationCommittedEvent,
   WindowAnimationSourceRect,
-} from '../../ipc-contract';
+} from '../../../ipc-contract';
 
 export { groupLibraryArticles };
 export type { LibrarySort };

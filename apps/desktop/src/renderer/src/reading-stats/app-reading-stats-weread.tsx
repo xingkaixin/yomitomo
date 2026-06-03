@@ -5,8 +5,8 @@ import type {
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
 } from '@yomitomo/shared';
-import { Button } from './components/ui/button';
-import { SegmentedControl } from './components/ui/segmented-control';
+import { Button } from '../components/ui/button';
+import { SegmentedControl } from '../components/ui/segmented-control';
 
 const MODE_OPTIONS: Array<{ mode: WeReadReadingStatsMode; label: string }> = [
   { mode: 'weekly', label: '周' },

@@ -19,7 +19,7 @@ import {
   elementDialogSourceRect,
   useSourceAwareDialogTransition,
   type DialogSourceRect,
-} from './app-dialog-transition';
+} from '../app-dialog-transition';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;

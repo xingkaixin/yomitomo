@@ -2,9 +2,9 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { createPortal } from 'react-dom';
 import { ChevronDown, Keyboard, RefreshCw, Search } from 'lucide-react';
 import type { ProviderDraft } from './app-settings';
-import { Field } from './app-ui';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
+import { Field } from '../app-ui';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 
 export function ProviderModelFields({
   draft,

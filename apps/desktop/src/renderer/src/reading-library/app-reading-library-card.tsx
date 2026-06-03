@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine, Trash2 } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
-import { formatDate, urlHost } from './app-utils';
-import { ArticleBook, formatPdfAuthors, useArticleSiteIcon } from './app-article-book';
+import { formatDate, urlHost } from '../app-utils';
+import { ArticleBook, formatPdfAuthors, useArticleSiteIcon } from '../app-article-book';
 import {
   articleAnnotationCount,
   articleDistillationCount,

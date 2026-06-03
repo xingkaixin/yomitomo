@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
-import { articleDisplayTitle } from './app-reading-library-utils';
+import { articleDisplayTitle } from './reading-library/app-reading-library-utils';
 
 type BookCoverFrameStyle = React.CSSProperties & {
   '--book-color': string;

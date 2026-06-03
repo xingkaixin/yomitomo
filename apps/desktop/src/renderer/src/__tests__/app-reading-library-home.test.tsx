@@ -12,7 +12,7 @@ import type {
   UserProfile,
   WeReadBook,
 } from '@yomitomo/shared';
-import { ReadingLibrary, groupLibraryArticles } from '../app-reading-library';
+import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
 
 const now = '2026-05-09T12:00:00.000Z';
 

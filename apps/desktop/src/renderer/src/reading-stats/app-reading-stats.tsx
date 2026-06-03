@@ -1,12 +1,12 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, RefreshCcw } from 'lucide-react';
 import type { Agent, AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
-import { Button } from './components/ui/button';
-import { SegmentedControl } from './components/ui/segmented-control';
-import { PanelHeader } from './app-ui';
-import { AiUsagePanel } from './app-assistant-diagnostics';
+import { Button } from '../components/ui/button';
+import { SegmentedControl } from '../components/ui/segmented-control';
+import { PanelHeader } from '../app-ui';
+import { AiUsagePanel } from '../app-assistant-diagnostics';
 import { WeReadReadingStatsPanel } from './app-reading-stats-weread';
-import { enabledLibraryContentSources } from './app-library-content-sources';
+import { enabledLibraryContentSources } from '../reading-library/app-library-content-sources';
 import {
   activityMapDescription,
   activityStampLabel,

@@ -12,7 +12,7 @@ import type {
   ReadonlyAnnotationCardThought,
 } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
-import { WeReadCover } from './app-reading-library-home';
+import { WeReadCover } from './reading-library/app-reading-library-home';
 
 export type WeReadNoteGroup = {
   key: string;

@@ -48,7 +48,7 @@ import { useSourceActiveConnection } from './use-source-active-connection';
 import { useSourceSelectionComposer } from './use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from './app-article-book';
-import { articleDisplayTitle } from './app-reading-library-utils';
+import { articleDisplayTitle } from './reading-library/app-reading-library-utils';
 import {
   constrainSourceAgentPlanAnnotation,
   useSourceReaderSession,

@@ -4,8 +4,8 @@ import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 
-import { emptyStore } from '../app-settings';
-import { useSettingsDrafts } from '../app-settings-drafts';
+import { emptyStore } from '../settings/app-settings';
+import { useSettingsDrafts } from '../settings/app-settings-drafts';
 
 afterEach(() => {
   cleanup();
