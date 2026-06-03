@@ -12525,6 +12525,12 @@
     box-shadow 250ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+.article-book.is-pdf-cover .article-cover-card {
+  inset-inline-start: 10px;
+  inset-inline-end: auto;
+  margin-inline: 0;
+}
+
 /* PDF 首页缩略图 / 兜底 */
 .pdf-cover-page {
   position: absolute;
@@ -17781,6 +17787,10 @@ button.license-package-row:hover {
   width: var(--ebook-progress);
   background: var(--app-interactive-link);
   content: '';
+}
+
+.article-book.is-web-cover + .library-cover-progress {
+  transform: none;
 }
 
 .library-ebook-list-copy {
