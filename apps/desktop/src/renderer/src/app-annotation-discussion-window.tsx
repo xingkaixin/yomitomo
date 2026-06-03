@@ -1375,6 +1375,14 @@ function DiscussionThreadView({
   }, [selectedMentionIndex]);
 
   useLayoutEffect(() => {
+    if (messages.length === 0) {
+      cancelScheduledScroll();
+      shouldStickToBottomRef.current = false;
+      const element = threadScrollRef.current;
+      if (element) element.scrollTop = 0;
+      setShowScrollBottom(false);
+      return;
+    }
     shouldStickToBottomRef.current = true;
     scheduleScrollToBottom('auto');
   }, [thread.root.id]);

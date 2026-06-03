@@ -269,6 +269,41 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
+  it('keeps a reply-free thought at the top instead of scrolling to the bottom', async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    });
+    installDesktopApi(article(annotation({ comments: [rootThought()] })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const scrollElement = await discussionScrollElement();
+    await waitFor(() => expect(screen.getByText('当前没有讨论')).toBeTruthy());
+    await flushAnimationFrames();
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollElement.scrollTop).toBe(0);
+  });
+
+  it('scrolls to the latest reply when opening a thought that already has replies', async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    });
+    installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await discussionScrollElement();
+    await waitFor(() =>
+      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' })),
+    );
+  });
+
   it('does not render an empty composer status row before sending', async () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
@@ -435,6 +470,15 @@ async function openAssistantThoughtDialog(value: string) {
   fireEvent.click(screen.getByRole('button', { name: '添加' }));
 }
 
+async function flushAnimationFrames() {
+  await act(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}
+
 function openDiscussionRoute() {
   window.history.replaceState({}, '', '/?articleId=article_1&annotationId=annotation_1');
 }
@@ -486,6 +530,15 @@ function anchor(exact: string): Annotation['anchor'] {
     suffix: '',
     start: 0,
     end: exact.length,
+  };
+}
+
+function rootThought(): Comment {
+  return {
+    id: 'thought_1',
+    author: 'user',
+    content: '这是一条很长的想法'.repeat(20),
+    createdAt: now,
   };
 }
 
