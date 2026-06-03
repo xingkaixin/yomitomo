@@ -11,19 +11,19 @@ import type {
   ReadingMemoryEntry,
 } from '@yomitomo/shared';
 import { readingMemoryEntriesFromAnnotationThread } from '@yomitomo/core';
-import * as schema from './db/schema';
+import * as schema from '../db/schema';
 import {
   getDatabase,
   getSqliteExecutor,
   type StoreDatabase,
   type StoreExecutor,
   type StoreReadProfileEntry,
-} from './store-db';
+} from '../store-db';
 import {
   deleteReadingMemoryForArticle,
   upsertReadingMemoryEntries,
   type ReadingMemorySqliteExecutor,
-} from './reading-memory-store';
+} from '../reading-memory-store';
 import { buildArticleChildRows } from './article-repository-child-rows';
 export { buildArticleChildRows } from './article-repository-child-rows';
 export {
@@ -41,7 +41,7 @@ import {
   sortByCreatedAt,
   type ArticleSummaryCounts,
   type ArticleSummaryRow,
-} from './store-normalizers';
+} from '../store-normalizers';
 
 const INSERT_BATCH_SIZE = 32;
 

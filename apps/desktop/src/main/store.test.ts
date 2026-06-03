@@ -51,7 +51,7 @@ import {
   rowToComment,
   type ArticleSummaryRow,
 } from './store-normalizers';
-import { normalizeWeReadReadingStats } from './weread-repository';
+import { normalizeWeReadReadingStats } from './weread/weread-repository';
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {
