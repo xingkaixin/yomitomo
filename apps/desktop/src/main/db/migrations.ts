@@ -700,4 +700,10 @@ ALTER TABLE comments ADD COLUMN assistant_progress TEXT;
 ALTER TABLE app_settings ADD COLUMN library_content_sources TEXT;
 `,
   },
+  {
+    id: '0046_last_seen_version',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN last_seen_version TEXT;
+`,
+  },
 ];

@@ -35,6 +35,7 @@ export type AppSettings = {
   developerModeEnabled?: boolean;
   logRetentionDays?: number;
   onboardingCompletedAt?: string;
+  lastSeenVersion?: string;
 };
 
 export function normalizeAssistantExecutionMode(value: unknown): AssistantExecutionMode {

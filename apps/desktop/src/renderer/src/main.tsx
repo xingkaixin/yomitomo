@@ -30,6 +30,7 @@ import { AnnotationDiscussionWindowApp } from './app-annotation-discussion-windo
 import { AnnotationSedimentationWindowApp } from './app-annotation-sedimentation-window';
 import { ThemeSelector } from './app-theme-selector';
 import { elementDialogSourceRect, type DialogSourceRect } from './app-dialog-transition';
+import { UpdateReleaseDialog } from './app-update-dialog';
 import './styles.css';
 
 const startupThemeId = readCachedThemeId();
@@ -791,6 +792,14 @@ function App() {
           />
         </Suspense>
       ) : null}
+      <UpdateReleaseDialog
+        store={store}
+        onSaveSettings={async (settings) => {
+          const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+          applyStore(nextStore);
+          return nextStore;
+        }}
+      />
     </main>
   );
 }

@@ -295,6 +295,9 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     onboardingCompletedAt: settingsFieldProvided(settings, 'onboardingCompletedAt')
       ? settings.onboardingCompletedAt || undefined
       : existing?.onboardingCompletedAt || undefined,
+    lastSeenVersion: settingsFieldProvided(settings, 'lastSeenVersion')
+      ? settings.lastSeenVersion || undefined
+      : existing?.lastSeenVersion || undefined,
   };
 }
 
@@ -357,6 +360,7 @@ export function rowToSettings(
     developerModeEnabled: Boolean(row?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(row?.logRetentionDays),
     onboardingCompletedAt: row?.onboardingCompletedAt || undefined,
+    lastSeenVersion: row?.lastSeenVersion || undefined,
   };
 }
 
@@ -375,6 +379,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     developerModeEnabled: Boolean(settings?.developerModeEnabled),
     logRetentionDays: normalizeLogRetentionDays(settings?.logRetentionDays),
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
+    lastSeenVersion: settings?.lastSeenVersion || undefined,
   };
 }
 

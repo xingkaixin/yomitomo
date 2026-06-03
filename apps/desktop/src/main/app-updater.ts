@@ -26,6 +26,10 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
+  if (process.env.YOMITOMO_DEV_UPDATER === '1') {
+    // 开发期验证 A 场景：跳过打包校验，让 checkForUpdates 真正走本地假 feed。
+    autoUpdater.forceDevUpdateConfig = true;
+  }
   autoUpdater.logger = {
     info: (message?: unknown) => logInfo('updater.info', { message: logMessage(message) }),
     warn: (message?: unknown) => logInfo('updater.warn', { message: logMessage(message) }),
@@ -63,6 +67,17 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
 
 export function getAppUpdateState() {
   return supportedState() || updateState;
+}
+
+// 开发用：不走真实检查，直接注入一个「发现新版本」状态并广播，
+// 触发更新前弹窗（A 场景）走与生产一致的 onUpdateStatus 链路。仅开发环境生效。
+export function simulateUpdateAvailable() {
+  if (app.isPackaged) return updateState;
+  return setUpdateState({
+    status: 'available',
+    availableVersion: app.getVersion(),
+    checkedAt: new Date().toISOString(),
+  });
 }
 
 export async function checkForAppUpdates() {
@@ -153,7 +168,7 @@ function supportedState(): AppUpdateState | null {
     };
   }
 
-  if (!app.isPackaged) {
+  if (!app.isPackaged && process.env.YOMITOMO_DEV_UPDATER !== '1') {
     return {
       status: 'unsupported',
       currentVersion: app.getVersion(),

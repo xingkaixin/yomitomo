@@ -68,6 +68,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     developerModeEnabled: Boolean(merged.developerModeEnabled),
     logRetentionDays: merged.logRetentionDays || null,
     onboardingCompletedAt: merged.onboardingCompletedAt || null,
+    lastSeenVersion: merged.lastSeenVersion || null,
     updatedAt: new Date().toISOString(),
   };
   database
