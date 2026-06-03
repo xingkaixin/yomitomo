@@ -1,26 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { addDays, format } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Activity, CalendarIcon, ChevronDown, DollarSign, RefreshCw, Route } from 'lucide-react';
+import { Activity, CalendarIcon, ChevronDown, RefreshCw, Route } from 'lucide-react';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
   AssistantExecutionSummary,
   AssistantExecutionSummaryGroup,
+  AssistantExecutionTotals,
 } from '../../preload';
 import { AvatarImage, PanelHeader } from './app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { Button } from './components/ui/button';
 import { Calendar } from './components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger } from './components/ui/select';
 
 type DiagnosticsProps = {
   agents: Agent[];
@@ -123,15 +118,13 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
   );
 }
 
-export function AgentCostSettingsPanel({ agents, providers }: DiagnosticsProps) {
-  const [filters, setFilters] = useState(defaultFilters);
-  const [summary, setSummary] = useState<AssistantExecutionSummary | null>(null);
-  const [dimension, setDimension] = useState<CostDimension>('byAgent');
+const AI_USAGE_WINDOW_DAYS = 70;
+
+export function AiUsagePanel({ agents }: { agents: Agent[] }) {
+  const [overview, setOverview] = useState<AssistantExecutionTotals | null>(null);
+  const [byAgent, setByAgent] = useState<AssistantExecutionSummaryGroup[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  const groups = summary?.[dimension] || [];
-  const options = useDiagnosticsOptions([], agents, providers);
   const agentById = useAgentMap(agents);
 
   useEffect(() => {
@@ -142,37 +135,87 @@ export function AgentCostSettingsPanel({ agents, providers }: DiagnosticsProps) 
     setBusy(true);
     setError('');
     try {
-      setSummary(await window.yomitomoDesktop.summarizeAssistantExecutions(queryInput(filters)));
+      const summary =
+        await window.yomitomoDesktop.summarizeAssistantExecutions(recentWindowQuery());
+      setOverview(summary.totals);
+      setByAgent(summary.byAgent);
     } catch (nextError) {
-      setError(errorMessage(nextError, '读取用量与成本失败。'));
+      setError(errorMessage(nextError, '读取助手用量失败。'));
     } finally {
       setBusy(false);
     }
   }
 
+  const totals = overview || emptyTotals();
   return (
-    <div className="settings-panel diagnostics-panel">
-      <PanelHeader
-        icon={<DollarSign size={20} />}
-        title="用量与成本"
-        description="按时间范围聚合 token、估算成本、价格缺失记录和平均耗时。"
-      />
-      <DiagnosticsToolbar
-        filters={filters}
-        options={options}
-        busy={busy}
-        extraControl={
-          <DimensionSelect value={dimension} onChange={(value) => setDimension(value)} />
-        }
-        onChange={setFilters}
-        onRefresh={refresh}
-      />
-      <DiagnosticsSummaryCards summary={summary} />
-      {error ? <DiagnosticsStatus status="error" message={error} onRetry={refresh} /> : null}
-      {!error && !busy && groups.length === 0 ? (
-        <DiagnosticsStatus message="当前时间范围没有可聚合的助手执行记录。" />
+    <div className="stats-ai-usage">
+      <div className="stats-ai-usage-bar">
+        <p className="stats-ai-usage-caption">
+          最近 {AI_USAGE_WINDOW_DAYS} 天，基于本地助手执行记录的预估用量，仅供参考，并非实际账单。
+        </p>
+        <Button
+          className={busy ? 'stats-ai-usage-refresh is-loading' : 'stats-ai-usage-refresh'}
+          disabled={busy}
+          type="button"
+          variant="secondary"
+          onClick={refresh}
+        >
+          <RefreshCw size={15} />
+          刷新
+        </Button>
+      </div>
+      <div className="stats-start-overview">
+        <section className="stats-status-card">
+          <span>预估花费</span>
+          <strong>{formatCost(totals.estimatedCostMicros, 'USD')}</strong>
+        </section>
+        <section className="stats-status-card">
+          <span>总 tokens</span>
+          <strong>{formatTokens(totals.usage.totalTokens)}</strong>
+        </section>
+        <section className="stats-status-card">
+          <span>调用次数</span>
+          <strong>{formatNumber(totals.runCount)}</strong>
+        </section>
+      </div>
+      {totals.missingCostCount > 0 ? (
+        <p className="stats-ai-usage-note">
+          另有 {formatNumber(totals.missingCostCount)} 次调用缺少定价数据，未计入预估花费。
+        </p>
       ) : null}
-      <CostGroupsTable groups={groups} agentById={agentById} showAgents={dimension === 'byAgent'} />
+      <section className="stats-ai-usage-agents">
+        <div className="stats-section-heading">
+          <h3>按助手分布</h3>
+          <p>按预估花费排序</p>
+        </div>
+        {error ? (
+          <DiagnosticsStatus status="error" message={error} onRetry={refresh} />
+        ) : byAgent.length === 0 ? (
+          <DiagnosticsStatus
+            message={
+              busy ? '正在读取助手用量…' : `最近 ${AI_USAGE_WINDOW_DAYS} 天没有助手用量记录。`
+            }
+          />
+        ) : (
+          <div className="stats-ai-usage-list">
+            {byAgent.map((group) => (
+              <div className="stats-ai-usage-row" key={group.key}>
+                <AgentIdentity agent={agentById.get(group.key)} fallbackName={group.label} />
+                <div className="stats-ai-usage-metrics">
+                  <span className="stats-ai-usage-metric">
+                    <em>调用</em>
+                    <strong>{formatNumber(group.runCount)}</strong>
+                  </span>
+                  <span className="stats-ai-usage-metric">
+                    <em>预估花费</em>
+                    <strong>{formatCost(group.estimatedCostMicros, 'USD')}</strong>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -292,41 +335,6 @@ function DateRangePicker({
   );
 }
 
-type CostDimension = 'byAgent' | 'byProviderModel' | 'byTaskType' | 'byMode';
-
-function DimensionSelect({
-  value,
-  onChange,
-}: {
-  value: CostDimension;
-  onChange: (value: CostDimension) => void;
-}) {
-  return (
-    <div className="diagnostics-filter-field">
-      <span>分组</span>
-      <Select value={value} onValueChange={(nextValue) => onChange(nextValue as CostDimension)}>
-        <SelectTrigger className="diagnostics-select-trigger" aria-label="聚合维度">
-          <SelectValue placeholder="聚合维度" />
-        </SelectTrigger>
-        <SelectContent className="diagnostics-select-content">
-          <SelectItem className="diagnostics-select-item" value="byAgent">
-            按助手
-          </SelectItem>
-          <SelectItem className="diagnostics-select-item" value="byProviderModel">
-            按 provider/model
-          </SelectItem>
-          <SelectItem className="diagnostics-select-item" value="byTaskType">
-            按任务类型
-          </SelectItem>
-          <SelectItem className="diagnostics-select-item" value="byMode">
-            按执行模式
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
 function FilterSelect({
   label,
   value,
@@ -425,62 +433,6 @@ function UsageCell({ label, value }: { label: string; value: number }) {
       <em>{label}</em>
       <strong>{formatTokens(value)}</strong>
     </span>
-  );
-}
-
-function CostGroupsTable({
-  groups,
-  agentById,
-  showAgents,
-}: {
-  groups: AssistantExecutionSummaryGroup[];
-  agentById: Map<string, Agent>;
-  showAgents: boolean;
-}) {
-  if (groups.length === 0) return null;
-  return (
-    <div className="diagnostics-table-wrap">
-      <table className="diagnostics-table">
-        <thead>
-          <tr>
-            <th>分组</th>
-            <th>runs</th>
-            <th>success/fallback/error</th>
-            <th>input</th>
-            <th>output</th>
-            <th>cached</th>
-            <th>reasoning</th>
-            <th>total</th>
-            <th>cost</th>
-            <th>缺价</th>
-            <th>平均耗时</th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((group) => (
-            <tr key={group.key}>
-              <td>
-                {showAgents ? (
-                  <AgentIdentity agent={agentById.get(group.key)} fallbackName={group.label} />
-                ) : (
-                  group.label
-                )}
-              </td>
-              <td>{formatNumber(group.runCount)}</td>
-              <td>{`${group.successCount}/${group.fallbackCount}/${group.errorCount}`}</td>
-              <td>{formatTokens(group.usage.inputTokens)}</td>
-              <td>{formatTokens(group.usage.outputTokens)}</td>
-              <td>{formatTokens(group.usage.cachedInputTokens)}</td>
-              <td>{formatTokens(group.usage.reasoningTokens)}</td>
-              <td>{formatTokens(group.usage.totalTokens)}</td>
-              <td>{formatCost(group.estimatedCostMicros, 'USD')}</td>
-              <td>{formatNumber(group.missingCostCount)}</td>
-              <td>{formatDuration(group.averageDurationMs)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -669,6 +621,14 @@ function defaultFilters(): DiagnosticsFilters {
 
 function defaultDateRange(): DateRange {
   return { from: addDays(new Date(), -6), to: new Date() };
+}
+
+function recentWindowQuery(): AssistantExecutionQueryInput {
+  return {
+    from: startOfDayIso(addDays(new Date(), -(AI_USAGE_WINDOW_DAYS - 1))),
+    to: endOfDayIso(new Date()),
+    status: 'all',
+  };
 }
 
 function emptyTotals(): AssistantExecutionSummary['totals'] {

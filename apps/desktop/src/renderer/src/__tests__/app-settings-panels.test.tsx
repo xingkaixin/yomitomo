@@ -51,7 +51,6 @@ describe('SettingsSectionShell', () => {
     );
 
     expect(screen.queryByText('助手调用链路')).toBeNull();
-    expect(screen.queryByText('用量与成本')).toBeNull();
 
     rerender(
       <SettingsSectionShell activeSection="about" developerModeEnabled onSectionChange={vi.fn()}>
@@ -60,7 +59,6 @@ describe('SettingsSectionShell', () => {
     );
 
     expect(screen.getByText('助手调用链路')).toBeTruthy();
-    expect(screen.getByText('用量与成本')).toBeTruthy();
   });
 });
 

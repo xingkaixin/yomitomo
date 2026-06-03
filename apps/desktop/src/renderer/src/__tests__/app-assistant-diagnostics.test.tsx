@@ -4,7 +4,7 @@ import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
-import { AgentCostSettingsPanel, AiTraceSettingsPanel } from '../app-assistant-diagnostics';
+import { AiUsagePanel, AiTraceSettingsPanel } from '../app-assistant-diagnostics';
 
 afterEach(() => {
   cleanup();
@@ -151,12 +151,12 @@ describe('assistant diagnostics panels', () => {
     expect(screen.queryByText('无 tool')).toBeNull();
   });
 
-  it('shows token and cost groups', async () => {
+  it('shows ai usage overview and per-agent distribution', async () => {
     const desktop = installDiagnosticsApi();
 
-    render(<AgentCostSettingsPanel agents={agents} providers={providers} />);
+    render(<AiUsagePanel agents={agents} />);
 
-    expect(await screen.findByText('用量与成本')).toBeTruthy();
+    expect(await screen.findByText('按助手分布')).toBeTruthy();
     expect(await screen.findByText('周现')).toBeTruthy();
     expect(screen.getAllByText('$0.00025').length).toBeGreaterThan(0);
     expect(desktop.summarizeAssistantExecutions).toHaveBeenCalledOnce();

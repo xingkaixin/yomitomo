@@ -5314,6 +5314,20 @@
   color: hsl(var(--muted-foreground));
 }
 
+.data-sources-coming-soon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 16px 0 0;
+  border: 1px dashed hsl(var(--border) / 0.72);
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.18);
+  padding: 14px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 760;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-toggle-switch::after {
     transition-duration: 1ms;
@@ -6630,8 +6644,81 @@
   outline-offset: -2px;
 }
 
+.stats-view-tabs {
+  margin: 4px 0 14px;
+}
+
 .stats-source-tabs {
   margin: 4px 0 14px;
+}
+
+.stats-ai-usage {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-ai-usage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.stats-ai-usage-caption {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.stats-ai-usage-note {
+  margin: -4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.stats-ai-usage-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 10px;
+}
+
+.stats-ai-usage-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid hsl(var(--border) / 0.64);
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.66);
+  padding: 12px 14px;
+}
+
+.stats-ai-usage-metrics {
+  display: flex;
+  gap: 14px;
+  padding-left: 39px;
+}
+
+.stats-ai-usage-metric {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.stats-ai-usage-metric em {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.stats-ai-usage-metric strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
 }
 
 .stats-chart-card,

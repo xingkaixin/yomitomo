@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Blocks,
   Check,
   ChevronRight,
-  DollarSign,
   Database,
   Download,
   Eye,
@@ -62,16 +62,15 @@ export { AgentForm, AgentSettings } from './app-settings-agent-panel';
 export { ProviderForm } from './app-settings-provider-form';
 export { ProviderSettings } from './app-settings-provider-panel';
 export { UserProfileSettingsDialog } from './app-settings-profile-dialog';
-export { AiTraceSettingsPanel, AgentCostSettingsPanel } from './app-assistant-diagnostics';
+export { AiTraceSettingsPanel } from './app-assistant-diagnostics';
 
 export type SettingsSectionKey =
   | 'collection'
   | 'models'
-  | 'weread'
+  | 'dataSources'
   | 'shortcuts'
   | 'data'
   | 'aiTrace'
-  | 'agentCosts'
   | 'about';
 
 function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: string) {
@@ -132,9 +131,9 @@ const settingsSections: Array<{
 }> = [
   {
     key: 'collection',
-    title: '采集与保存',
-    description: '管理文章采集时的本地保存行为。',
-    icon: <ImageIcon size={17} />,
+    title: '通用',
+    description: '保存原文图片与阅读库入口显示偏好。',
+    icon: <Settings size={17} />,
   },
   {
     key: 'models',
@@ -143,10 +142,10 @@ const settingsSections: Array<{
     icon: <KeyRound size={17} />,
   },
   {
-    key: 'weread',
-    title: '微信读书',
-    description: '配置 API Key 和默认打开方式。',
-    icon: <Smartphone size={17} />,
+    key: 'dataSources',
+    title: '数据来源',
+    description: '管理微信读书等外部内容来源。',
+    icon: <Blocks size={17} />,
   },
   {
     key: 'shortcuts',
@@ -187,12 +186,6 @@ export function SettingsSectionShell({
           title: '助手调用链路',
           description: '查看助手执行链路、状态和脱敏 trace。',
           icon: <Route size={17} />,
-        },
-        {
-          key: 'agentCosts' as const,
-          title: '用量与成本',
-          description: '按分组维度聚合 token 与估算成本。',
-          icon: <DollarSign size={17} />,
         },
         settingsSections[settingsSections.length - 1],
       ]
@@ -394,8 +387,8 @@ export function GeneralSettings({
     <div className="settings-panel collection-settings-panel">
       <PanelHeader
         icon={<Settings size={20} />}
-        title="采集与保存"
-        description="控制导入文章时的本地保存行为。"
+        title="通用"
+        description="控制导入文章时的本地保存行为与阅读库入口显示。"
         action={
           <AutoSaveStatus
             error={saveError}
@@ -863,6 +856,17 @@ export function WeReadSettingsPanel() {
           </div>
         </Field>
       </div>
+    </div>
+  );
+}
+
+export function DataSourcesPanel() {
+  return (
+    <div className="data-sources-panel">
+      <WeReadSettingsPanel />
+      <p className="data-sources-coming-soon" role="note">
+        更多来源，敬请期待
+      </p>
     </div>
   );
 }
