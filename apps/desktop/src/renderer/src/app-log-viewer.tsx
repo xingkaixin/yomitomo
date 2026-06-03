@@ -38,6 +38,13 @@ const releasesUrl = 'https://github.com/xingkaixin/yomitomo/releases';
 const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 
+// 开发用：注入「发现新版本」状态，即时弹出更新前弹窗（A 场景），无需重启。
+async function handleSimulatePreUpdate() {
+  const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
+  if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
+  await desktop.simulateUpdateAvailable();
+}
+
 export function AboutSettings({
   onStartOnboarding = () => undefined,
   settings = {},
@@ -111,13 +118,6 @@ export function AboutSettings({
     const nextStore = await desktop.saveSettings({ ...settings, lastSeenVersion: '0.0.0' });
     onStoreUpdated(nextStore);
     setDevResetDone(true);
-  }
-
-  // 开发用：注入「发现新版本」状态，即时弹出更新前弹窗（A 场景），无需重启。
-  async function handleSimulatePreUpdate() {
-    const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    if (typeof desktop?.simulateUpdateAvailable !== 'function') return;
-    await desktop.simulateUpdateAvailable();
   }
 
   const updateCopy = updateStateCopy(updateState);
