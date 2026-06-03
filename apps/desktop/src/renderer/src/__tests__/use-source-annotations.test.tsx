@@ -10,7 +10,7 @@ import type {
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
-import { useSourceAnnotations } from '../use-source-annotations';
+import { useSourceAnnotations } from '../source/bookcase/use-source-annotations';
 
 type SourceAnnotationsApi = ReturnType<typeof useSourceAnnotations>;
 

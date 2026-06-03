@@ -12,7 +12,7 @@ import {
 import {
   annotationViewportPositions,
   navigationForActiveAnnotation,
-} from './app-source-bookcase-shared';
+} from '../bookcase/app-source-bookcase-shared';
 
 export const sourceEbookReaderStyles = `
 .source-ebook-reader-shell{

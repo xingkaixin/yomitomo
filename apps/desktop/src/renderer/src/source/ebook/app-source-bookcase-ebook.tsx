@@ -30,7 +30,7 @@ import {
 } from './app-ebook-reader-utils';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import { type SourceAgentAnnotationPlaybackMode } from './app-source-agent-request';
+import { type SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
@@ -38,21 +38,24 @@ import {
   useDesktopReaderSettings,
   usesOverlayToc,
   type EbookBookcaseProps,
-} from './app-source-bookcase-shared';
+} from '../bookcase/app-source-bookcase-shared';
 import { useEbookAgentVirtualReading } from './use-ebook-agent-virtual-reading';
 import { useEbookFoliateView } from './use-ebook-foliate-view';
 import { useEbookReaderBoxes } from './use-ebook-reader-boxes';
 import { useEbookSelection } from './use-ebook-selection';
-import { useReaderPageTurnKeys, type ReaderPageTurnDirection } from './use-reader-page-turn-keys';
-import { useSourceActiveConnection } from './use-source-active-connection';
-import { useSourceSelectionComposer } from './use-source-selection-composer';
+import {
+  useReaderPageTurnKeys,
+  type ReaderPageTurnDirection,
+} from '../../use-reader-page-turn-keys';
+import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
-import { ArticleBook } from './app-article-book';
-import { articleDisplayTitle } from './reading-library/app-reading-library-utils';
+import { ArticleBook } from '../../app-article-book';
+import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import {
   constrainSourceAgentPlanAnnotation,
   useSourceReaderSession,
-} from './use-source-reader-session';
+} from '../bookcase/use-source-reader-session';
 
 export function EbookBookcase({
   agents,

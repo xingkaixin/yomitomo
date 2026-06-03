@@ -17,7 +17,7 @@ import {
   type FoliateRelocateDetail,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
-import type { EbookBookcaseProps } from './app-source-bookcase-shared';
+import type { EbookBookcaseProps } from '../bookcase/app-source-bookcase-shared';
 
 type EbookReaderState = {
   status: 'loading' | 'ready' | 'error';
@@ -256,7 +256,7 @@ export function useEbookFoliateView({
 
     async function openEbook() {
       try {
-        await import('./vendor/foliate-js/view.js');
+        await import('../../vendor/foliate-js/view.js');
         const data = await window.yomitomoDesktop.readEbookFile(article.id);
         if (cancelled) return;
 
@@ -382,7 +382,7 @@ export function useEbookFoliateView({
         await waitForFoliateIdle();
         if (cancelled) return;
 
-        await import('./vendor/foliate-js/view.js');
+        await import('../../vendor/foliate-js/view.js');
         measureView = document.createElement('foliate-view') as FoliateViewElement;
         measureView.className = 'ebook-foliate-view';
         measureHostElement.replaceChildren(measureView);

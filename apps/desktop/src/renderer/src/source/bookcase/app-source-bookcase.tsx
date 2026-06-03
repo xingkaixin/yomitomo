@@ -1,8 +1,8 @@
 import type { ArticleRecord } from '@yomitomo/shared';
-import { EbookBookcase } from './app-source-bookcase-ebook';
-import { PdfBookcase } from './app-source-bookcase-pdf';
+import { EbookBookcase } from '../ebook/app-source-bookcase-ebook';
+import { PdfBookcase } from '../pdfium/app-source-bookcase-pdf';
 import type { EbookArticleRecord, SourceBookcaseProps } from './app-source-bookcase-shared';
-import { WebSourceBookcase } from './app-source-bookcase-web';
+import { WebSourceBookcase } from '../web/app-source-bookcase-web';
 
 export function SourceBookcase(props: SourceBookcaseProps) {
   if (!props.article) {

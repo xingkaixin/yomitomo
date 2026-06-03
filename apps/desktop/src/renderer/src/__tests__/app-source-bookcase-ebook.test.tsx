@@ -5,9 +5,9 @@ import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
-import type { EbookPageTurnTrace } from '../app-ebook-reader-utils';
-import { EbookBookcase } from '../app-source-bookcase-ebook';
-import type { EbookArticleRecord } from '../app-source-bookcase-shared';
+import type { EbookPageTurnTrace } from '../source/ebook/app-ebook-reader-utils';
+import { EbookBookcase } from '../source/ebook/app-source-bookcase-ebook';
+import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
 
 const mocks = vi.hoisted(() => ({
   attachFoliateDocumentListeners: vi.fn(),
@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
     | undefined,
 }));
 
-vi.mock('../app-source-ebook-reader-shell', () => ({
+vi.mock('../source/ebook/app-source-ebook-reader-shell', () => ({
   EbookReaderShell: (props: {
     extracted: { title: string };
     onScrollToHighlight: (annotationId: string) => void;
@@ -41,7 +41,7 @@ vi.mock('../app-source-ebook-reader-shell', () => ({
   },
 }));
 
-vi.mock('../use-ebook-foliate-view', () => ({
+vi.mock('../source/ebook/use-ebook-foliate-view', () => ({
   useEbookFoliateView: (input: { onBeforePageTurn: (trace: EbookPageTurnTrace) => void }) => {
     mocks.foliateViewInput = input;
     return {
@@ -68,7 +68,7 @@ vi.mock('../use-ebook-foliate-view', () => ({
   },
 }));
 
-vi.mock('../use-ebook-reader-boxes', () => ({
+vi.mock('../source/ebook/use-ebook-reader-boxes', () => ({
   useEbookReaderBoxes: () => ({
     boxes: mocks.boxes,
     attachFoliateDocumentListeners: mocks.attachFoliateDocumentListeners,
@@ -79,7 +79,7 @@ vi.mock('../use-ebook-reader-boxes', () => ({
   }),
 }));
 
-vi.mock('../use-ebook-agent-virtual-reading', () => ({
+vi.mock('../source/ebook/use-ebook-agent-virtual-reading', () => ({
   useEbookAgentVirtualReading: () => ({
     agentDockCompleting: false,
     agentDockItems: [],

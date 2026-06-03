@@ -16,13 +16,13 @@ vi.mock('@yomitomo/reader-ui/reader-animation', () => ({
   sleep: mocks.sleep,
 }));
 
-vi.mock('../app-ebook-reader-utils', () => ({
+vi.mock('../source/ebook/app-ebook-reader-utils', () => ({
   foliateRangeHighlightBoxes: mocks.foliateRangeHighlightBoxes,
   mappedFoliateRangeRects: mocks.mappedFoliateRangeRects,
   rangeForEbookAnchorInDocument: mocks.rangeForEbookAnchorInDocument,
 }));
 
-import { playEbookAgentAnnotationPlayback } from '../app-source-ebook-agent-playback';
+import { playEbookAgentAnnotationPlayback } from '../source/ebook/app-source-ebook-agent-playback';
 
 const agent: PublicAgent = {
   id: 'agent_1',

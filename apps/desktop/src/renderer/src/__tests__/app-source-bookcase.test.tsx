@@ -4,21 +4,21 @@ import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
-import { SourceBookcase } from '../app-source-bookcase';
+import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 
-vi.mock('../app-source-bookcase-web', () => ({
+vi.mock('../source/web/app-source-bookcase-web', () => ({
   WebSourceBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
     <div data-testid="web-source-bookcase">{sourceArticle.title}</div>
   ),
 }));
 
-vi.mock('../app-source-bookcase-ebook', () => ({
+vi.mock('../source/ebook/app-source-bookcase-ebook', () => ({
   EbookBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
     <div data-testid="ebook-source-bookcase">{sourceArticle.title}</div>
   ),
 }));
 
-vi.mock('../app-source-bookcase-pdf', () => ({
+vi.mock('../source/pdfium/app-source-bookcase-pdf', () => ({
   PdfBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
     <div data-testid="pdf-source-bookcase">{sourceArticle.title}</div>
   ),

@@ -2,7 +2,7 @@ import { FontCharset } from '@embedpdf/models';
 import {
   recordRendererPerformanceTiming,
   rendererPerformanceElapsedMs,
-} from './app-source-bookcase-shared';
+} from '../bookcase/app-source-bookcase-shared';
 import notoSansScRegularUrl from './assets/fonts/NotoSansSC-Regular.ttf?url';
 
 export type PdfOpenTrace = {

@@ -16,7 +16,7 @@ import {
   pdfiumRectsForTextRange,
   pdfiumVisibleAnnotations,
   primaryPdfiumTocItems,
-} from '../app-source-bookcase-pdfium-utils';
+} from '../source/pdfium/app-source-bookcase-pdfium-utils';
 
 describe('app-source-bookcase-pdfium-utils', () => {
   it('clamps PDF page indexes and derives slider progress percent', () => {

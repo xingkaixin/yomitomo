@@ -16,7 +16,7 @@ import type {
   WeReadSettings,
 } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
-import { SourceBookcase } from '../app-source-bookcase';
+import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import type {
   ArticleUpdater,
   EbookImportProgressCallback,

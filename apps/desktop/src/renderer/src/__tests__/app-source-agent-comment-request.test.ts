@@ -7,7 +7,7 @@ import type {
   Comment as AnnotationComment,
   PublicAgent,
 } from '@yomitomo/shared';
-import { runSourceAgentCommentRequest } from '../app-source-agent-comment-request';
+import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
 
 const now = '2026-05-17T06:00:00.000Z';
 

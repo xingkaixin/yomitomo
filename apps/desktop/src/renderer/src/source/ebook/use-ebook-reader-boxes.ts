@@ -21,11 +21,11 @@ import {
   rendererPerformanceElapsedMs,
   recordRendererPerformanceTiming,
   type EbookBookcaseProps,
-} from './app-source-bookcase-shared';
+} from '../bookcase/app-source-bookcase-shared';
 import {
   readerPageTurnDirectionFromKeyboardEvent,
   type ReaderPageTurnDirection,
-} from './use-reader-page-turn-keys';
+} from '../../use-reader-page-turn-keys';
 
 type UseEbookReaderBoxesInput = {
   annotationAgents: PublicAgent[];

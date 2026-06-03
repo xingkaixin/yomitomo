@@ -17,7 +17,7 @@ import {
   constrainSourceAgentPlanAnnotation,
   type SourceAgentAnnotationAdapter,
   useSourceReaderSession,
-} from '../use-source-reader-session';
+} from '../source/bookcase/use-source-reader-session';
 
 const now = '2026-05-25T00:00:00.000Z';
 

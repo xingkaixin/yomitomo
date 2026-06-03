@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronUp, List } from 'lucide-react';
 import { ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import type React from 'react';
-import { Button } from './components/ui/button';
+import { Button } from '../../components/ui/button';
 import {
   pdfPageProgressPercent,
   type PdfAnnotationNavigationState,

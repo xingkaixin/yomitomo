@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
-import type { SourceBookcaseProps } from './app-source-bookcase-shared';
+import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
 import {
   pdfiumAnnotationNavigationState,
   pdfiumBookmarkTocItems,

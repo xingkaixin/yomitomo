@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { sourceEbookReaderStyles } from '../app-source-bookcase-ebook-utils';
-import { sourceReaderTocStyles } from '../app-source-bookcase-web-utils';
+import { sourceEbookReaderStyles } from '../source/ebook/app-source-bookcase-ebook-utils';
+import { sourceReaderTocStyles } from '../source/web/app-source-bookcase-web-utils';
 
 const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
 

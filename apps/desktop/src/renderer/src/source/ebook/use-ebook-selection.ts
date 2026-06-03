@@ -12,7 +12,10 @@ import {
   type FoliatePageInfo,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
-import type { EbookBookcaseProps, SourceSelectionAction } from './app-source-bookcase-shared';
+import type {
+  EbookBookcaseProps,
+  SourceSelectionAction,
+} from '../bookcase/app-source-bookcase-shared';
 
 type UseEbookSelectionInput = {
   article: EbookBookcaseProps['article'];
