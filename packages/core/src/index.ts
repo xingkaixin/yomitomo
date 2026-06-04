@@ -8,4 +8,5 @@ export * from './reader/reading-context';
 export * from './reader/reader-annotations';
 export * from './reading-memory/reading-memory';
 export * from './reading-memory/reading-memory-entries';
+export * from './reading-memory/reading-memory-view-assembly';
 export * from './reader/reader-dom';
