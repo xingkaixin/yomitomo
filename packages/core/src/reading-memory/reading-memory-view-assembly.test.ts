@@ -45,6 +45,27 @@ describe('reading memory view assembly', () => {
     expect(request?.query).toContain('补充读者疑问');
   });
 
+  it('skips EPUB segment requests when the reading plan does not overlap a segment', () => {
+    const request = readingMemoryViewRequestForAnnotatePayload(
+      annotatePayload({
+        article: {
+          ...annotatePayload().article,
+          ebookIndex: ebookIndex(),
+        },
+        readingPlan: [
+          {
+            sectionId: 'section_1',
+            sectionTitle: '越界章节',
+            sectionStart: 240,
+            sectionEnd: 280,
+          },
+        ],
+      }),
+    );
+
+    expect(request).toBeUndefined();
+  });
+
   it('builds article section requests for non-EPUB reading plans', () => {
     const request = readingMemoryViewRequestForAnnotatePayload(
       annotatePayload({
@@ -113,6 +134,43 @@ describe('reading memory view assembly', () => {
       },
     });
     expect(request?.query).toContain('目标句子');
+  });
+
+  it('keeps selection locations whose textEnd lands on the segment end', () => {
+    const request = readingMemoryViewRequestForMessagePayload(
+      messagePayload({
+        article: {
+          ...messagePayload().article,
+          ebookIndex: ebookIndex(),
+        },
+        annotation: {
+          ...messagePayload().annotation,
+          anchor: {
+            start: 2,
+            end: 6,
+            textStartInBook: 95,
+            textEndInBook: 100,
+            exact: '段末句子',
+            prefix: '前文',
+            suffix: '后文',
+          },
+        },
+      }),
+    );
+
+    expect(request).toMatchObject({
+      articleId: 'article_1',
+      viewType: 'selection_thread',
+      chapterId: 'chapter_1',
+      segmentId: 'segment_1',
+      textRange: { textStart: 95, textEnd: 100 },
+      readerProgress: {
+        currentChapterId: 'chapter_1',
+        currentSegmentId: 'segment_1',
+        readChapterIds: [],
+        readUntilTextOffset: 100,
+      },
+    });
   });
 
   it('builds selection thread requests from annotation anchor and latest user comment', () => {
