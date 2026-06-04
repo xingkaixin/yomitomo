@@ -23,7 +23,12 @@ const mocks = vi.hoisted(() => ({
   setAgentTheaterBoxes: vi.fn(),
   boxes: [] as HighlightBox[],
   readerShellProps: undefined as
-    | { onScrollToHighlight: (annotationId: string) => void }
+    | {
+        readerApp: {
+          actions: { annotation: { onScrollToHighlight: (annotationId: string) => void } };
+          article: { extracted: { title: string } };
+        };
+      }
     | undefined,
   view: null as unknown,
   foliateViewInput: undefined as
@@ -33,11 +38,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../source/ebook/app-source-ebook-reader-shell', () => ({
   EbookReaderShell: (props: {
-    extracted: { title: string };
-    onScrollToHighlight: (annotationId: string) => void;
+    readerApp: {
+      actions: { annotation: { onScrollToHighlight: (annotationId: string) => void } };
+      article: { extracted: { title: string } };
+    };
   }) => {
     mocks.readerShellProps = props;
-    return <div data-testid="ebook-reader-shell">{props.extracted.title}</div>;
+    return <div data-testid="ebook-reader-shell">{props.readerApp.article.extracted.title}</div>;
   },
 }));
 
@@ -312,7 +319,7 @@ describe('EbookBookcase', () => {
     );
 
     act(() => {
-      mocks.readerShellProps?.onScrollToHighlight('note-1');
+      mocks.readerShellProps?.readerApp.actions.annotation.onScrollToHighlight('note-1');
     });
 
     expect(onOpenAnnotation).toHaveBeenCalledWith('note-1');

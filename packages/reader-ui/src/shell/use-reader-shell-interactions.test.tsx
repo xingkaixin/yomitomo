@@ -33,6 +33,7 @@ function ShellProbe({
   activeId = null,
   composer = null,
   settingsOpen = false,
+  selectionAction: currentSelectionAction = selectionAction,
   visibleAnnotationIds = new Set<string>(),
   onCancelComposer = vi.fn(),
   onClearActiveAnnotation = vi.fn(),
@@ -47,7 +48,7 @@ function ShellProbe({
     activeId,
     composer,
     highlightChoice,
-    selectionAction,
+    selectionAction: currentSelectionAction,
     selectionActionShortcuts: { copy: 'x', annotate: 'b' },
     settingsOpen,
     visibleAnnotationIds,
@@ -110,6 +111,22 @@ describe('useReaderShellInteractions', () => {
 
     render(<ShellProbe onClearSelection={onClearSelection} />);
 
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+
+    expect(onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the latest selection action when outside pointer handling changes', () => {
+    const onClearSelection = vi.fn();
+    const { rerender } = render(
+      <ShellProbe selectionAction={null} onClearSelection={onClearSelection} />,
+    );
+
+    fireEvent.pointerDown(screen.getByTestId('outside'));
+
+    expect(onClearSelection).not.toHaveBeenCalled();
+
+    rerender(<ShellProbe selectionAction={selectionAction} onClearSelection={onClearSelection} />);
     fireEvent.pointerDown(screen.getByTestId('outside'));
 
     expect(onClearSelection).toHaveBeenCalledTimes(1);

@@ -143,6 +143,7 @@ export function useReaderShellInteractions({
       onCloseFloatingPanels,
       onCloseHighlightChoice,
       settingsOpen,
+      selectionAction,
     ],
   );
 

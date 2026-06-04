@@ -51,84 +51,139 @@ export type AnnotationNavigationState = {
   nextId: string | null;
 };
 
-export type ReaderAppViewProps = {
-  activeConnection: ActiveConnection | null;
+export type ReaderArticleModel = {
+  content?: React.ReactNode;
+  extracted: ReaderArticle;
+  id: string;
+};
+
+export type ReaderShellRefs = {
+  articleRef: React.RefObject<HTMLElement | null>;
+  canvasRef: React.RefObject<HTMLDivElement | null>;
+  noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  notesRef: React.RefObject<HTMLElement | null>;
+  surfaceRef: React.RefObject<HTMLDivElement | null>;
+};
+
+export type ReaderAnnotationModel = {
   activeId: string | null;
-  agentDockCompleting: boolean;
-  agentDockItems: AgentDockItem[];
-  agentTheaterBoxes: HighlightBox[];
-  agents: PublicAgent[];
+  activeConnection: ActiveConnection | null;
+  railLayoutOverride?: AnnotationRailLayout;
+  railViewportHeight?: number;
   annotationTotals: { annotations: number; distillations: number };
   annotations: Annotation[];
-  articleContent?: React.ReactNode;
-  articleId: string;
-  articleRef: React.RefObject<HTMLElement | null>;
-  annotationRailLayoutOverride?: AnnotationRailLayout;
-  annotationRailViewportHeight?: number;
   autoExpandNewAnnotations?: boolean;
   boxes: HighlightBox[];
-  canvasRef: React.RefObject<HTMLDivElement | null>;
   commentsCloseKey: number;
-  composer: PendingComposer | null;
-  completionBurstKey: number;
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
     token: number;
   } | null;
-  embedded?: boolean;
-  extracted: ReaderArticle;
   filteredAnnotations: Annotation[];
-  highlightChoice: HighlightChoice | null;
-  noteRefs: React.MutableRefObject<Map<string, HTMLElement>>;
-  notesRef: React.RefObject<HTMLElement | null>;
-  readerSettings: ReaderSettings;
+  temporaryBoxes: HighlightBox[];
+};
+
+export type ReaderAgentModel = {
+  agents: PublicAgent[];
+  completionBurstKey: number;
+  dockCompleting: boolean;
+  dockItems: AgentDockItem[];
+  pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   reviewAgents?: PublicAgent[];
+  theaterBoxes: HighlightBox[];
+  virtualCursors: VirtualCursorState[];
+};
+
+export type ReaderSelectionModel = {
+  composer: PendingComposer | null;
+  highlightChoice: HighlightChoice | null;
   selectionAction: SelectionAction | null;
+};
+
+export type ReaderSettingsModel = {
+  messageSendShortcut: MessageSendShortcut;
+  readerSettings: ReaderSettings;
+  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   settingsOpen: boolean;
   showSettings?: boolean;
-  messageSendShortcut: MessageSendShortcut;
-  pendingAnnotationAgents?: Record<string, PublicAgent[]>;
-  selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   shortcutModifier: string;
-  surfaceRef: React.RefObject<HTMLDivElement | null>;
-  temporaryBoxes: HighlightBox[];
-  toolbarArticleAction?: React.ReactNode;
-  tocOpen: boolean;
-  tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
-  tocItems: TocItem[];
-  userProfile: UserProfile;
-  virtualCursors: VirtualCursorState[];
+};
+
+export type ReaderTocModel = {
+  annotationStats: ReturnType<typeof buildTocAnnotationStats>;
+  items: TocItem[];
+  open: boolean;
+};
+
+export type ReaderToolbarModel = {
+  articleAction?: React.ReactNode;
+};
+
+export type ReaderShellOptions = {
+  embedded?: boolean;
+};
+
+export type ReaderAnnotationActions = {
   onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
-  onCancelComposer: () => void;
-  onClose: () => void;
+  onAnnotationLayoutChange?: () => void;
   onClearActiveAnnotation: () => void;
-  onClearSelection: () => void;
   onCreateAnnotation: (note: string) => void | Promise<void>;
   onDeleteAnnotation: (annotationId: string) => void | Promise<void>;
   onDeleteComment: (annotationId: string, commentId: string) => void | Promise<void>;
   onFocusAnnotation: (annotationId: string) => void;
-  onOpenAnnotationDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
-  onRequestAnnotationReview?: (annotationId: string, agents: PublicAgent[]) => void | Promise<void>;
-  onAnnotationLayoutChange?: () => void;
-  onResolveAnnotationNavigation?: (
-    request: AnnotationNavigationRequest,
-  ) => AnnotationNavigationState;
-  onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
   onHighlightClick: (
     annotationId: string,
     event: React.MouseEvent<HTMLButtonElement>,
     annotationIds: string[],
   ) => void;
-  onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
+  onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
+  onOpenAnnotationDiscussion?: (annotationId: string, sourceRect?: ReaderWindowSourceRect) => void;
+  onResolveAnnotationNavigation?: (
+    request: AnnotationNavigationRequest,
+  ) => AnnotationNavigationState;
+  onScrollToHighlight: (annotationId: string) => void;
+};
+
+export type ReaderSelectionActions = {
+  onCancelComposer: () => void;
+  onClearSelection: () => void;
   onCloseHighlightChoice: () => void;
+  onCopySelection: (action: SelectionAction) => void | Promise<void>;
+  onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
+  onOpenComposer: (action: SelectionAction) => void;
+};
+
+export type ReaderShellActions = {
+  onClose: () => void;
   onCloseFloatingPanels: () => void;
   onCloseResponsivePanels: () => void;
-  onOpenComposer: (action: SelectionAction) => void;
-  onCopySelection: (action: SelectionAction) => void | Promise<void>;
-  onScrollToHeading: (item: TocItem) => void;
-  onScrollToHighlight: (annotationId: string) => void;
-  onToggleToc: () => void;
   onToggleSettings: () => void;
   onUpdateReaderSettings: (settings: ReaderSettings) => void | Promise<void>;
+};
+
+export type ReaderTocActions = {
+  onScrollToHeading: (item: TocItem) => void;
+  onToggleToc: () => void;
+};
+
+export type ReaderAppViewActions = {
+  annotation: ReaderAnnotationActions;
+  selection: ReaderSelectionActions;
+  shell: ReaderShellActions;
+  toc: ReaderTocActions;
+};
+
+export type ReaderAppViewProps = {
+  actions: ReaderAppViewActions;
+  agents: ReaderAgentModel;
+  annotations: ReaderAnnotationModel;
+  article: ReaderArticleModel;
+  options?: ReaderShellOptions;
+  refs: ReaderShellRefs;
+  selection: ReaderSelectionModel;
+  settings: ReaderSettingsModel;
+  toc: ReaderTocModel;
+  toolbar?: ReaderToolbarModel;
+  userProfile: UserProfile;
 };

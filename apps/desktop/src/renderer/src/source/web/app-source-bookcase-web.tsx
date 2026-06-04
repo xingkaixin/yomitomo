@@ -93,7 +93,6 @@ export function WebSourceBookcase({
     deleteComment,
     latestArticleRef,
     pendingAnnotationAgents,
-    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -506,86 +505,104 @@ export function WebSourceBookcase({
         {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
       </style>
       <ReaderAppView
-        activeConnection={activeConnection}
-        activeId={selectedAnnotationId}
-        agentDockCompleting={agentDockCompleting}
-        agentDockItems={agentDockItems}
-        agentTheaterBoxes={agentTheaterBoxes}
-        agents={annotationAgents}
-        annotationTotals={annotationTotals}
-        annotations={annotations}
-        distillationAnimation={distillationAnimation}
-        articleContent={
-          <div
-            className="reader-article-body"
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
-            onClick={handleArticleClick}
-          />
-        }
-        articleId={article.id}
-        articleRef={articleRef}
-        boxes={boxes}
-        canvasRef={canvasRef}
-        commentsCloseKey={commentsCloseKey}
-        composer={composer}
-        completionBurstKey={completionBurstKey}
-        embedded
-        extracted={readerArticle}
-        filteredAnnotations={annotations}
-        highlightChoice={highlightChoice}
-        noteRefs={noteRefs}
-        notesRef={railRef}
-        pendingAnnotationAgents={pendingAnnotationAgents}
-        readerSettings={readerSettings}
-        reviewAgents={reviewAgents}
-        selectionAction={selectionAction}
-        settingsOpen={settingsOpen}
-        messageSendShortcut={sendShortcut}
-        selectionActionShortcuts={actionShortcuts}
-        shortcutModifier={shortcutModifier}
-        surfaceRef={scrollRef}
-        temporaryBoxes={temporaryBoxes}
-        toolbarArticleAction={<OpenArticleButton article={article} iconOnly />}
-        tocAnnotationStats={tocStats}
-        tocItems={tocItems}
-        tocOpen={tocOpen}
+        actions={{
+          annotation: {
+            onAddComment: addComment,
+            onAnnotationLayoutChange: recalculateActiveConnection,
+            onClearActiveAnnotation: () => onOpenAnnotation(null),
+            onCreateAnnotation: createAnnotation,
+            onDeleteAnnotation: deleteAnnotation,
+            onDeleteComment: deleteComment,
+            onFocusAnnotation: openAnnotation,
+            onHighlightClick: handleHighlightClick,
+            onNavigateAnnotation: navigateAnnotation,
+            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
+              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
+            onResolveAnnotationNavigation: resolveAnnotationNavigation,
+            onScrollToHighlight: (annotationId) => {
+              openAnnotation(annotationId);
+              scrollToAnnotation(annotationId);
+            },
+          },
+          selection: {
+            onCancelComposer: cancelComposer,
+            onClearSelection: clearSelection,
+            onCloseHighlightChoice: () => setHighlightChoice(null),
+            onCopySelection: copySelection,
+            onMouseUp: handleArticleMouseUp,
+            onOpenComposer: openComposer,
+          },
+          shell: {
+            onClose,
+            onCloseFloatingPanels: () => {
+              setSettingsOpen(false);
+            },
+            onCloseResponsivePanels: () => {
+              setTocOpen(false);
+            },
+            onToggleSettings: () => setSettingsOpen((open) => !open),
+            onUpdateReaderSettings: updateReaderSettings,
+          },
+          toc: {
+            onScrollToHeading: scrollToTocItem,
+            onToggleToc: () => setTocOpen((open) => !open),
+          },
+        }}
+        agents={{
+          agents: annotationAgents,
+          completionBurstKey,
+          dockCompleting: agentDockCompleting,
+          dockItems: agentDockItems,
+          pendingAnnotationAgents,
+          reviewAgents,
+          theaterBoxes: agentTheaterBoxes,
+          virtualCursors,
+        }}
+        annotations={{
+          activeConnection,
+          activeId: selectedAnnotationId,
+          annotationTotals,
+          annotations,
+          boxes,
+          commentsCloseKey,
+          distillationAnimation,
+          filteredAnnotations: annotations,
+          temporaryBoxes,
+        }}
+        article={{
+          content: (
+            <div
+              className="reader-article-body"
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              onClick={handleArticleClick}
+            />
+          ),
+          extracted: readerArticle,
+          id: article.id,
+        }}
+        options={{ embedded: true }}
+        refs={{
+          articleRef,
+          canvasRef,
+          noteRefs,
+          notesRef: railRef,
+          surfaceRef: scrollRef,
+        }}
+        selection={{ composer, highlightChoice, selectionAction }}
+        settings={{
+          messageSendShortcut: sendShortcut,
+          readerSettings,
+          selectionActionShortcuts: actionShortcuts,
+          settingsOpen,
+          shortcutModifier,
+        }}
+        toc={{
+          annotationStats: tocStats,
+          items: tocItems,
+          open: tocOpen,
+        }}
+        toolbar={{ articleAction: <OpenArticleButton article={article} iconOnly /> }}
         userProfile={userProfile}
-        virtualCursors={virtualCursors}
-        onAddComment={addComment}
-        onAnnotationLayoutChange={recalculateActiveConnection}
-        onCancelComposer={cancelComposer}
-        onClearActiveAnnotation={() => onOpenAnnotation(null)}
-        onClearSelection={clearSelection}
-        onClose={onClose}
-        onCloseFloatingPanels={() => {
-          setSettingsOpen(false);
-        }}
-        onCloseHighlightChoice={() => setHighlightChoice(null)}
-        onCloseResponsivePanels={() => {
-          setTocOpen(false);
-        }}
-        onCopySelection={copySelection}
-        onCreateAnnotation={createAnnotation}
-        onDeleteAnnotation={deleteAnnotation}
-        onDeleteComment={deleteComment}
-        onFocusAnnotation={openAnnotation}
-        onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
-          void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
-        }
-        onNavigateAnnotation={navigateAnnotation}
-        onResolveAnnotationNavigation={resolveAnnotationNavigation}
-        onHighlightClick={handleHighlightClick}
-        onMouseUp={handleArticleMouseUp}
-        onOpenComposer={openComposer}
-        onRequestAnnotationReview={requestAnnotationReview}
-        onScrollToHeading={scrollToTocItem}
-        onScrollToHighlight={(annotationId) => {
-          openAnnotation(annotationId);
-          scrollToAnnotation(annotationId);
-        }}
-        onToggleSettings={() => setSettingsOpen((open) => !open)}
-        onToggleToc={() => setTocOpen((open) => !open)}
-        onUpdateReaderSettings={updateReaderSettings}
       />
     </section>
   );
