@@ -109,7 +109,6 @@ export function EbookBookcase({
     latestArticleRef,
     pendingAnnotationAgents,
     replaceAnnotations,
-    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -636,93 +635,115 @@ export function EbookBookcase({
 
   return (
     <EbookReaderShell
-      activeConnection={activeConnection}
-      activeId={selectedAnnotationId}
-      agentDockCompleting={ebookAgentDockCompleting}
-      agentDockItems={ebookAgentDockItems}
-      agentTheaterBoxes={agentTheaterBoxes}
-      agents={annotationAgents}
-      annotationTotals={annotationTotals}
-      annotations={pageAnnotations}
-      distillationAnimation={distillationAnimation}
-      articleId={article.id}
-      articleRef={articleRef}
-      boxes={boxes}
-      canvasRef={canvasRef}
-      commentsCloseKey={commentsCloseKey}
-      composer={composer}
-      completionBurstKey={ebookCompletionBurstKey}
-      embedded
-      extracted={readerArticle}
-      filteredAnnotations={annotations}
-      highlightChoice={highlightChoice}
       measureHostRef={measureHostRef}
-      noteRefs={noteRefs}
-      notesRef={railRef}
       pageLabel={pageLabel}
       paginationReady={paginationReady}
-      pendingAnnotationAgents={pendingAnnotationAgents}
       progress={progress}
       progressPercent={progressPercent}
       progressTickId={progressTickId}
-      readerSettings={readerSettings}
-      reviewAgents={reviewAgents}
+      readerApp={{
+        actions: {
+          annotation: {
+            onAddComment: addComment,
+            onAnnotationLayoutChange: recalculateActiveConnection,
+            onClearActiveAnnotation: () => onOpenAnnotation(null),
+            onCreateAnnotation: createAnnotation,
+            onDeleteAnnotation: deleteAnnotation,
+            onDeleteComment: deleteComment,
+            onFocusAnnotation: openAnnotation,
+            onHighlightClick: handleHighlightClick,
+            onNavigateAnnotation: navigateAnnotation,
+            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
+              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
+            onResolveAnnotationNavigation: resolveAnnotationNavigation,
+            onScrollToHighlight: focusPageAnnotation,
+          },
+          selection: {
+            onCancelComposer: cancelComposer,
+            onClearSelection: clearSelection,
+            onCloseHighlightChoice: () => setHighlightChoice(null),
+            onCopySelection: copySelection,
+            onMouseUp: () => undefined,
+            onOpenComposer: openComposer,
+          },
+          shell: {
+            onClose,
+            onCloseFloatingPanels: () => {
+              setSettingsOpen(false);
+            },
+            onCloseResponsivePanels: () => {
+              setTocOpen(false);
+            },
+            onToggleSettings: () => setSettingsOpen((open) => !open),
+            onUpdateReaderSettings: updateEbookReaderSettings,
+          },
+          toc: {
+            onScrollToHeading: goToReaderTocItem,
+            onToggleToc: () => setTocOpen((open) => !open),
+          },
+        },
+        agents: {
+          agents: annotationAgents,
+          completionBurstKey: ebookCompletionBurstKey,
+          dockCompleting: ebookAgentDockCompleting,
+          dockItems: ebookAgentDockItems,
+          pendingAnnotationAgents,
+          reviewAgents,
+          theaterBoxes: agentTheaterBoxes,
+          virtualCursors,
+        },
+        annotations: {
+          activeConnection,
+          activeId: selectedAnnotationId,
+          annotationTotals,
+          annotations: pageAnnotations,
+          boxes,
+          commentsCloseKey,
+          distillationAnimation,
+          filteredAnnotations: annotations,
+          temporaryBoxes,
+        },
+        article: {
+          extracted: readerArticle,
+          id: article.id,
+        },
+        options: { embedded: true },
+        refs: {
+          articleRef,
+          canvasRef,
+          noteRefs,
+          notesRef: railRef,
+          surfaceRef,
+        },
+        selection: { composer, highlightChoice, selectionAction },
+        settings: {
+          messageSendShortcut: sendShortcut,
+          readerSettings,
+          selectionActionShortcuts: actionShortcuts,
+          settingsOpen,
+          shortcutModifier,
+        },
+        toc: {
+          annotationStats: tocStats,
+          items: readerTocItems,
+          open: tocOpen,
+        },
+        toolbar: {
+          articleAction: (
+            <span className="ebook-toolbar-cover">
+              <ArticleBook article={article} />
+            </span>
+          ),
+        },
+        userProfile,
+      }}
       readerState={readerState}
       sectionFractions={sectionFractions}
-      selectionAction={selectionAction}
-      settingsOpen={settingsOpen}
-      messageSendShortcut={sendShortcut}
-      selectionActionShortcuts={actionShortcuts}
-      shortcutModifier={shortcutModifier}
-      surfaceRef={surfaceRef}
-      temporaryBoxes={temporaryBoxes}
-      toolbarArticleAction={
-        <span className="ebook-toolbar-cover">
-          <ArticleBook article={article} />
-        </span>
-      }
-      tocAnnotationStats={tocStats}
-      tocItems={readerTocItems}
-      tocOpen={tocOpen}
-      userProfile={userProfile}
       viewHostRef={viewHostRef}
-      virtualCursors={virtualCursors}
-      onAddComment={addComment}
-      onAnnotationLayoutChange={recalculateActiveConnection}
-      onCancelComposer={cancelComposer}
-      onClearActiveAnnotation={() => onOpenAnnotation(null)}
-      onClearSelection={clearSelection}
-      onClose={onClose}
-      onCloseFloatingPanels={() => {
-        setSettingsOpen(false);
-      }}
-      onCloseHighlightChoice={() => setHighlightChoice(null)}
-      onCloseResponsivePanels={() => {
-        setTocOpen(false);
-      }}
-      onCopySelection={copySelection}
-      onCreateAnnotation={createAnnotation}
-      onDeleteAnnotation={deleteAnnotation}
-      onDeleteComment={deleteComment}
-      onFocusAnnotation={openAnnotation}
-      onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
-        void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
-      }
       onGoLeft={goLeft}
       onGoRight={goRight}
       onGoToProgress={goToProgress}
-      onHighlightClick={handleHighlightClick}
-      onMouseUp={() => undefined}
-      onNavigateAnnotation={navigateAnnotation}
-      onOpenComposer={openComposer}
       onReaderKeyDown={handleReaderKeyDown}
-      onRequestAnnotationReview={requestAnnotationReview}
-      onResolveAnnotationNavigation={resolveAnnotationNavigation}
-      onScrollToHeading={goToReaderTocItem}
-      onScrollToHighlight={focusPageAnnotation}
-      onToggleSettings={() => setSettingsOpen((open) => !open)}
-      onToggleToc={() => setTocOpen((open) => !open)}
-      onUpdateReaderSettings={updateEbookReaderSettings}
     />
   );
 }

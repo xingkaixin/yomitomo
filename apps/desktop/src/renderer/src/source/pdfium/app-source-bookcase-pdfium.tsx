@@ -434,7 +434,6 @@ function PdfiumDocument({
     deleteComment,
     latestArticleRef,
     pendingAnnotationAgents,
-    requestAnnotationReview,
     reviewAgents,
     saveAnnotations,
   } = useSourceReaderSession({
@@ -914,113 +913,131 @@ function PdfiumDocument({
         </div>
       ) : null}
       <ReaderAppView
-        activeConnection={activeConnection}
-        activeId={selectedAnnotationId}
-        agentDockCompleting={agentDockCompleting}
-        agentDockItems={agentDockItems}
-        agentTheaterBoxes={agentTheaterBoxes}
-        agents={annotationAgents}
-        annotationTotals={annotationTotals}
-        annotations={annotations}
-        annotationRailLayoutOverride={annotationRailLayout}
-        annotationRailViewportHeight={annotationRailViewportHeight}
-        articleContent={
-          <div className="pdfium-spike-canvas">
-            <GlobalPointerProvider documentId={documentId}>
-              <Viewport className="pdfium-spike-viewport" documentId={documentId}>
-                <Scroller
-                  documentId={documentId}
-                  renderPage={({ pageIndex, rotatedWidth, rotatedHeight }) => (
-                    <div
-                      className="pdfium-spike-page-shell"
-                      data-pdfium-page-index={pageIndex}
-                      style={{ width: rotatedWidth, height: rotatedHeight }}
-                    >
-                      <PagePointerProvider
-                        className="pdfium-spike-page"
-                        documentId={documentId}
-                        pageIndex={pageIndex}
+        actions={{
+          annotation: {
+            onAddComment: addComment,
+            onAnnotationLayoutChange: handleAnnotationLayoutChange,
+            onClearActiveAnnotation: () => onOpenAnnotation(null),
+            onCreateAnnotation: createAnnotationFromComposer,
+            onDeleteAnnotation: deleteAnnotation,
+            onDeleteComment: deleteComment,
+            onFocusAnnotation: onOpenAnnotation,
+            onHighlightClick: handleHighlightClick,
+            onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
+              void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
+            onScrollToHighlight: scrollToAnnotation,
+          },
+          selection: {
+            onCancelComposer: cancelComposer,
+            onClearSelection: clearSelection,
+            onCloseHighlightChoice: () => setHighlightChoice(null),
+            onCopySelection: copySelection,
+            onMouseUp: () => undefined,
+            onOpenComposer: openComposer,
+          },
+          shell: {
+            onClose,
+            onCloseFloatingPanels: () => {
+              onCloseToc();
+            },
+            onCloseResponsivePanels: onCloseToc,
+            onToggleSettings: () => undefined,
+            onUpdateReaderSettings: updatePdfReaderSettings,
+          },
+          toc: {
+            onScrollToHeading: scrollToTocItem,
+            onToggleToc,
+          },
+        }}
+        agents={{
+          agents: annotationAgents,
+          completionBurstKey,
+          dockCompleting: agentDockCompleting,
+          dockItems: agentDockItems,
+          pendingAnnotationAgents,
+          reviewAgents,
+          theaterBoxes: agentTheaterBoxes,
+          virtualCursors,
+        }}
+        annotations={{
+          activeConnection,
+          activeId: selectedAnnotationId,
+          annotationTotals,
+          annotations,
+          boxes,
+          commentsCloseKey,
+          distillationAnimation,
+          filteredAnnotations: visiblePdfAnnotations,
+          railLayoutOverride: annotationRailLayout,
+          railViewportHeight: annotationRailViewportHeight,
+          temporaryBoxes,
+        }}
+        article={{
+          content: (
+            <div className="pdfium-spike-canvas">
+              <GlobalPointerProvider documentId={documentId}>
+                <Viewport className="pdfium-spike-viewport" documentId={documentId}>
+                  <Scroller
+                    documentId={documentId}
+                    renderPage={({ pageIndex, rotatedWidth, rotatedHeight }) => (
+                      <div
+                        className="pdfium-spike-page-shell"
+                        data-pdfium-page-index={pageIndex}
+                        style={{ width: rotatedWidth, height: rotatedHeight }}
                       >
-                        <RenderLayer
+                        <PagePointerProvider
+                          className="pdfium-spike-page"
                           documentId={documentId}
                           pageIndex={pageIndex}
-                          style={{ pointerEvents: 'none' }}
-                        />
-                        <SelectionLayer
-                          documentId={documentId}
-                          pageIndex={pageIndex}
-                          textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
-                        />
-                      </PagePointerProvider>
-                    </div>
-                  )}
-                />
-              </Viewport>
-            </GlobalPointerProvider>
-          </div>
-        }
-        articleId={article.id}
-        articleRef={articleRef}
-        boxes={boxes}
-        canvasRef={canvasRef}
-        commentsCloseKey={commentsCloseKey}
-        composer={composer}
-        completionBurstKey={completionBurstKey}
-        distillationAnimation={distillationAnimation}
-        embedded
-        extracted={{
-          title: article.pdf.metadata.title || article.title,
-          byline: article.pdf.metadata.author,
-          content: '',
+                        >
+                          <RenderLayer
+                            documentId={documentId}
+                            pageIndex={pageIndex}
+                            style={{ pointerEvents: 'none' }}
+                          />
+                          <SelectionLayer
+                            documentId={documentId}
+                            pageIndex={pageIndex}
+                            textStyle={{ background: 'rgb(77 155 114 / 0.18)' }}
+                          />
+                        </PagePointerProvider>
+                      </div>
+                    )}
+                  />
+                </Viewport>
+              </GlobalPointerProvider>
+            </div>
+          ),
+          extracted: {
+            title: article.pdf.metadata.title || article.title,
+            byline: article.pdf.metadata.author,
+            content: '',
+          },
+          id: article.id,
         }}
-        filteredAnnotations={visiblePdfAnnotations}
-        highlightChoice={highlightChoice}
-        messageSendShortcut={sendShortcut}
-        noteRefs={noteRefs}
-        notesRef={notesRef}
-        pendingAnnotationAgents={pendingAnnotationAgents}
-        readerSettings={readerSettings}
-        reviewAgents={reviewAgents}
-        selectionAction={selectionAction}
-        selectionActionShortcuts={actionShortcuts}
-        settingsOpen={false}
-        showSettings={false}
-        shortcutModifier={shortcutModifier}
-        surfaceRef={surfaceRef}
-        temporaryBoxes={temporaryBoxes}
-        tocAnnotationStats={tocStats}
-        tocItems={tocItems}
-        tocOpen={tocOpen}
+        options={{ embedded: true }}
+        refs={{
+          articleRef,
+          canvasRef,
+          noteRefs,
+          notesRef,
+          surfaceRef,
+        }}
+        selection={{ composer, highlightChoice, selectionAction }}
+        settings={{
+          messageSendShortcut: sendShortcut,
+          readerSettings,
+          selectionActionShortcuts: actionShortcuts,
+          settingsOpen: false,
+          shortcutModifier,
+          showSettings: false,
+        }}
+        toc={{
+          annotationStats: tocStats,
+          items: tocItems,
+          open: tocOpen,
+        }}
         userProfile={userProfile}
-        virtualCursors={virtualCursors}
-        onAddComment={addComment}
-        onAnnotationLayoutChange={handleAnnotationLayoutChange}
-        onCancelComposer={cancelComposer}
-        onClearActiveAnnotation={() => onOpenAnnotation(null)}
-        onClearSelection={clearSelection}
-        onClose={onClose}
-        onCloseFloatingPanels={() => {
-          onCloseToc();
-        }}
-        onCloseHighlightChoice={() => setHighlightChoice(null)}
-        onCloseResponsivePanels={onCloseToc}
-        onCopySelection={copySelection}
-        onCreateAnnotation={createAnnotationFromComposer}
-        onDeleteAnnotation={deleteAnnotation}
-        onDeleteComment={deleteComment}
-        onFocusAnnotation={onOpenAnnotation}
-        onOpenAnnotationDiscussion={(annotationId, sourceRect) =>
-          void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect)
-        }
-        onHighlightClick={handleHighlightClick}
-        onMouseUp={() => undefined}
-        onOpenComposer={openComposer}
-        onRequestAnnotationReview={requestAnnotationReview}
-        onScrollToHeading={scrollToTocItem}
-        onScrollToHighlight={scrollToAnnotation}
-        onToggleSettings={() => undefined}
-        onToggleToc={onToggleToc}
-        onUpdateReaderSettings={updatePdfReaderSettings}
       />
     </section>
   );

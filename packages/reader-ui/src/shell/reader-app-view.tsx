@@ -6,15 +6,9 @@ import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
-import type {
-  AnnotationNavigationDirection,
-  AnnotationNavigationState,
-  ReaderAppViewProps,
-} from './reader-app-view-types';
-import type { AnnotationRailLayout } from '../annotations/reader-annotations';
+import type { ReaderAppViewProps } from './reader-app-view-types';
 import { readerBackgroundTone } from '../reader-settings';
-import { useReaderAnnotationRail } from '../annotations/use-reader-annotation-rail';
-import { useReaderShellInteractions } from './use-reader-shell-interactions';
+import { useReaderShellState } from './use-reader-shell-state';
 
 type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
@@ -33,195 +27,100 @@ export type {
   SelectionAction,
 } from './reader-app-view-types';
 
-const stackedAnnotationRailLayout: AnnotationRailLayout = {
-  articleCenterX: 0,
-  leftRailLeft: 0,
-  mode: 'stacked',
-  railWidth: 0,
-  rightRailLeft: 0,
-};
-
-const emptyAnnotationNavigation: AnnotationNavigationState = {
-  nextId: null,
-  previousId: null,
-};
-
-function useAnnotationRailLayout(
-  canvasRef: React.RefObject<HTMLDivElement | null>,
-  articleRef: React.RefObject<HTMLElement | null>,
-  articleId: string,
-) {
-  const [layout, setLayout] = React.useState<AnnotationRailLayout>(stackedAnnotationRailLayout);
-
-  React.useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    const article = articleRef.current;
-    if (!canvas || !article) {
-      setLayout((current) =>
-        sameAnnotationRailLayout(current, stackedAnnotationRailLayout)
-          ? current
-          : stackedAnnotationRailLayout,
-      );
-      return;
-    }
-
-    const updateLayout = () => {
-      const nextLayout = measureAnnotationRailLayout(canvas, article);
-      setLayout((current) =>
-        sameAnnotationRailLayout(current, nextLayout) ? current : nextLayout,
-      );
-    };
-
-    updateLayout();
-    window.addEventListener('resize', updateLayout);
-
-    if (typeof ResizeObserver === 'undefined') {
-      return () => {
-        window.removeEventListener('resize', updateLayout);
-      };
-    }
-
-    const observer = new ResizeObserver(updateLayout);
-    observer.observe(canvas);
-    observer.observe(article);
-    return () => {
-      window.removeEventListener('resize', updateLayout);
-      observer.disconnect();
-    };
-  }, [articleId, articleRef, canvasRef]);
-
-  return layout;
-}
-
-function measureAnnotationRailLayout(
-  canvas: HTMLDivElement,
-  article: HTMLElement,
-): AnnotationRailLayout {
-  const canvasRect = canvas.getBoundingClientRect();
-  const articleRect = article.getBoundingClientRect();
-  if (canvasRect.width <= 0 || articleRect.width <= 0) return stackedAnnotationRailLayout;
-
-  const gap = 20;
-  const minimumRailWidth = 280;
-  const maximumRailWidth = 420;
-  const articleLeft = Math.max(0, Math.round(articleRect.left - canvasRect.left));
-  const articleRight = Math.min(canvasRect.width, Math.round(articleRect.right - canvasRect.left));
-  const leftSpace = articleLeft;
-  const rightSpace = Math.max(0, Math.round(canvasRect.width - articleRight));
-  const leftAvailable = leftSpace >= minimumRailWidth + gap;
-  const rightAvailable = rightSpace >= minimumRailWidth + gap;
-  if (!leftAvailable && !rightAvailable) {
-    return {
-      articleCenterX: Math.round((articleLeft + articleRight) / 2),
-      leftRailLeft: 0,
-      mode: 'stacked',
-      railWidth: 0,
-      rightRailLeft: Math.round(articleRight + gap),
-    };
-  }
-
-  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
-  const usableSpace =
-    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
-  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
-  return {
-    articleCenterX: Math.round((articleLeft + articleRight) / 2),
-    leftRailLeft: Math.round(articleLeft - gap - railWidth),
-    mode,
-    railWidth: Math.round(railWidth),
-    rightRailLeft: Math.round(articleRight + gap),
-  };
-}
-
-function sameAnnotationRailLayout(left: AnnotationRailLayout, right: AnnotationRailLayout) {
-  return (
-    left.articleCenterX === right.articleCenterX &&
-    left.leftRailLeft === right.leftRailLeft &&
-    left.mode === right.mode &&
-    left.railWidth === right.railWidth &&
-    left.rightRailLeft === right.rightRailLeft
-  );
-}
-
-function sameAnnotationNavigation(
-  left: AnnotationNavigationState,
-  right: AnnotationNavigationState,
-) {
-  return left.previousId === right.previousId && left.nextId === right.nextId;
-}
-
 export function ReaderAppView({
-  activeConnection,
-  activeId,
-  agentDockCompleting,
-  agentDockItems,
-  agentTheaterBoxes,
-  agents,
-  annotationTotals,
-  annotations,
-  articleContent,
-  articleId,
-  articleRef,
-  annotationRailLayoutOverride,
-  annotationRailViewportHeight,
-  autoExpandNewAnnotations,
-  boxes,
-  canvasRef,
-  commentsCloseKey,
-  composer,
-  completionBurstKey,
-  distillationAnimation,
-  embedded = false,
-  extracted,
-  filteredAnnotations,
-  highlightChoice,
-  noteRefs,
-  notesRef,
-  readerSettings,
-  reviewAgents = [],
-  selectionAction,
-  settingsOpen,
-  showSettings = true,
-  messageSendShortcut,
-  pendingAnnotationAgents = {},
-  selectionActionShortcuts,
-  shortcutModifier,
-  surfaceRef,
-  temporaryBoxes,
-  toolbarArticleAction,
-  tocOpen,
-  tocAnnotationStats,
-  tocItems,
+  actions,
+  agents: agentModel,
+  annotations: annotationModel,
+  article,
+  options,
+  refs,
+  selection,
+  settings,
+  toc,
+  toolbar,
   userProfile,
-  virtualCursors,
-  onAddComment,
-  onCancelComposer,
-  onClose,
-  onClearActiveAnnotation,
-  onClearSelection,
-  onCreateAnnotation,
-  onDeleteAnnotation,
-  onFocusAnnotation,
-  onOpenAnnotationDiscussion,
-  onAnnotationLayoutChange,
-  onResolveAnnotationNavigation,
-  onNavigateAnnotation,
-  onHighlightClick,
-  onMouseUp,
-  onCloseHighlightChoice,
-  onCloseFloatingPanels,
-  onCloseResponsivePanels,
-  onOpenComposer,
-  onCopySelection,
-  onDeleteComment,
-  onScrollToHeading,
-  onScrollToHighlight,
-  onToggleToc,
-  onToggleSettings,
-  onUpdateReaderSettings,
 }: ReaderAppViewProps) {
-  const measuredAnnotationRailLayout = useAnnotationRailLayout(canvasRef, articleRef, articleId);
-  const annotationRailLayout = annotationRailLayoutOverride ?? measuredAnnotationRailLayout;
+  const {
+    annotation: annotationActions,
+    selection: selectionActions,
+    shell,
+    toc: tocActions,
+  } = actions;
+  const {
+    activeConnection,
+    activeId,
+    annotationTotals,
+    annotations,
+    autoExpandNewAnnotations,
+    boxes,
+    commentsCloseKey,
+    distillationAnimation,
+    filteredAnnotations,
+    railLayoutOverride,
+    railViewportHeight,
+    temporaryBoxes,
+  } = annotationModel;
+  const {
+    agents,
+    completionBurstKey,
+    dockCompleting,
+    dockItems,
+    pendingAnnotationAgents = {},
+    reviewAgents = [],
+    theaterBoxes,
+    virtualCursors,
+  } = agentModel;
+  const {
+    messageSendShortcut,
+    readerSettings,
+    selectionActionShortcuts,
+    settingsOpen,
+    shortcutModifier,
+    showSettings = true,
+  } = settings;
+  const { composer, highlightChoice, selectionAction } = selection;
+  const { articleRef, canvasRef, noteRefs, notesRef, surfaceRef } = refs;
+  const { embedded = false } = options ?? {};
+  const tocOpen = toc.open;
+  const tocItems = toc.items;
+  const {
+    annotationNavigation,
+    annotationRail,
+    annotationRailLayout,
+    handleReaderPointerDownCapture,
+    navigateAnnotation,
+    toggleSettings,
+  } = useReaderShellState({
+    activeId,
+    annotationRailLayoutOverride: railLayoutOverride,
+    annotationRailViewportHeight: railViewportHeight,
+    annotations,
+    articleId: article.id,
+    articleRef,
+    autoExpandNewAnnotations,
+    boxes,
+    canvasRef,
+    commentsCloseKey,
+    composer,
+    filteredAnnotations,
+    highlightChoice,
+    noteRefs,
+    selectionAction,
+    selectionActionShortcuts,
+    settingsOpen,
+    surfaceRef,
+    onAnnotationLayoutChange: annotationActions.onAnnotationLayoutChange,
+    onCancelComposer: selectionActions.onCancelComposer,
+    onClearActiveAnnotation: annotationActions.onClearActiveAnnotation,
+    onClearSelection: selectionActions.onClearSelection,
+    onCloseFloatingPanels: shell.onCloseFloatingPanels,
+    onCloseHighlightChoice: selectionActions.onCloseHighlightChoice,
+    onCopySelection: selectionActions.onCopySelection,
+    onNavigateAnnotation: annotationActions.onNavigateAnnotation,
+    onOpenComposer: selectionActions.onOpenComposer,
+    onResolveAnnotationNavigation: annotationActions.onResolveAnnotationNavigation,
+    onToggleSettings: shell.onToggleSettings,
+  });
   const {
     annotationRailItems,
     exitingAnnotationIds,
@@ -230,83 +129,8 @@ export function ReaderAppView({
     setPrimaryCommentExpanded,
     visibleAnnotationIds,
     visibleAnnotations,
-  } = useReaderAnnotationRail({
-    activeId,
-    annotationRailLayout,
-    annotationRailViewportHeight,
-    annotations,
-    articleId,
-    autoExpandNewAnnotations,
-    boxes,
-    commentsCloseKey,
-    filteredAnnotations,
-    noteRefs,
-    onAnnotationLayoutChange,
-  });
-  const [annotationNavigation, setAnnotationNavigation] = React.useState<AnnotationNavigationState>(
-    () =>
-      onResolveAnnotationNavigation?.({ activeId, annotations: visibleAnnotations }) ??
-      emptyAnnotationNavigation,
-  );
-  const { handleReaderPointerDownCapture, toggleSettings } = useReaderShellInteractions({
-    activeId,
-    composer,
-    highlightChoice,
-    selectionAction,
-    selectionActionShortcuts,
-    settingsOpen,
-    visibleAnnotationIds,
-    onCancelComposer,
-    onClearActiveAnnotation,
-    onClearSelection,
-    onCloseFloatingPanels,
-    onCloseHighlightChoice,
-    onCopySelection,
-    onOpenComposer,
-    onToggleSettings,
-  });
+  } = annotationRail;
   const hasToc = tocItems.length > 0;
-
-  React.useEffect(() => {
-    if (!onResolveAnnotationNavigation) {
-      setAnnotationNavigation((current) =>
-        sameAnnotationNavigation(current, emptyAnnotationNavigation)
-          ? current
-          : emptyAnnotationNavigation,
-      );
-      return;
-    }
-    const surface = surfaceRef.current;
-    if (!surface) return;
-
-    let frame = 0;
-    const updateNavigation = () => {
-      const nextNavigation =
-        onResolveAnnotationNavigation({ activeId, annotations: visibleAnnotations }) ??
-        emptyAnnotationNavigation;
-      setAnnotationNavigation((current) =>
-        sameAnnotationNavigation(current, nextNavigation) ? current : nextNavigation,
-      );
-    };
-    const schedule = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(updateNavigation);
-    };
-
-    updateNavigation();
-    surface.addEventListener('scroll', schedule, { passive: true });
-    return () => {
-      window.cancelAnimationFrame(frame);
-      surface.removeEventListener('scroll', schedule);
-    };
-  }, [activeId, onResolveAnnotationNavigation, surfaceRef, visibleAnnotations]);
-
-  function navigateAnnotation(direction: AnnotationNavigationDirection) {
-    const annotationId =
-      direction === 'previous' ? annotationNavigation.previousId : annotationNavigation.nextId;
-    if (!annotationId) return;
-    onNavigateAnnotation?.(annotationId, direction);
-  }
 
   const style: ReaderAppStyle = {
     '--reader-font-size': `${readerSettings.fontSize}px`,
@@ -333,24 +157,26 @@ export function ReaderAppView({
     >
       <ReaderToolbar
         annotationNavigation={annotationNavigation}
-        extracted={extracted}
+        extracted={article.extracted}
         hasToc={hasToc}
         settingsOpen={settingsOpen}
-        showAnnotationNavigation={Boolean(onResolveAnnotationNavigation && onNavigateAnnotation)}
+        showAnnotationNavigation={Boolean(
+          annotationActions.onResolveAnnotationNavigation && annotationActions.onNavigateAnnotation,
+        )}
         showSettings={showSettings}
         tocOpen={tocOpen}
-        toolbarArticleAction={toolbarArticleAction}
-        onClose={onClose}
+        toolbarArticleAction={toolbar?.articleAction}
+        onClose={shell.onClose}
         onNavigateAnnotation={navigateAnnotation}
         onToggleSettings={toggleSettings}
-        onToggleToc={onToggleToc}
+        onToggleToc={tocActions.onToggleToc}
       />
 
       {showSettings ? (
         <ReaderFloatingPanels
           readerSettings={readerSettings}
           settingsOpen={settingsOpen}
-          onUpdateReaderSettings={onUpdateReaderSettings}
+          onUpdateReaderSettings={shell.onUpdateReaderSettings}
         />
       ) : null}
 
@@ -358,27 +184,27 @@ export function ReaderAppView({
         className="reader-responsive-scrim"
         type="button"
         aria-label="关闭侧栏"
-        onClick={onCloseResponsivePanels}
+        onClick={shell.onCloseResponsivePanels}
       />
 
       <main className="reader-main">
         <ReaderTocPanel
           annotationTotals={annotationTotals}
           hasToc={hasToc}
-          tocAnnotationStats={tocAnnotationStats}
+          tocAnnotationStats={toc.annotationStats}
           tocItems={tocItems}
           tocOpen={tocOpen}
-          onScrollToHeading={onScrollToHeading}
+          onScrollToHeading={tocActions.onScrollToHeading}
         />
 
         <ReaderSurfaceView
           activeId={activeId}
-          agentTheaterBoxes={agentTheaterBoxes}
+          agentTheaterBoxes={theaterBoxes}
           annotationRailLayout={annotationRailLayout}
           agents={agents}
           annotationRailItems={annotationRailItems}
           annotations={annotations}
-          articleContent={articleContent}
+          articleContent={article.content}
           articleRef={articleRef}
           boxes={boxes}
           canvasRef={canvasRef}
@@ -387,7 +213,7 @@ export function ReaderAppView({
           distillationAnimation={distillationAnimation}
           exitingAnnotationIds={exitingAnnotationIds}
           expandedPrimaryCommentIds={expandedPrimaryCommentIds}
-          extracted={extracted}
+          extracted={article.extracted}
           highlightChoice={highlightChoice}
           messageSendShortcut={messageSendShortcut}
           noteRefForAnnotation={noteRefForAnnotation}
@@ -400,22 +226,22 @@ export function ReaderAppView({
           userProfile={userProfile}
           visibleAnnotationIds={visibleAnnotationIds}
           visibleAnnotations={visibleAnnotations}
-          onAddComment={onAddComment}
-          onCancelComposer={onCancelComposer}
-          onCloseHighlightChoice={onCloseHighlightChoice}
-          onCopySelection={onCopySelection}
-          onCreateAnnotation={onCreateAnnotation}
-          onDeleteAnnotation={onDeleteAnnotation}
-          onDeleteComment={onDeleteComment}
-          onFocusAnnotation={onFocusAnnotation}
-          onOpenAnnotationDiscussion={onOpenAnnotationDiscussion}
-          onHighlightClick={onHighlightClick}
-          onMouseUp={onMouseUp}
-          onOpenComposer={onOpenComposer}
+          onAddComment={annotationActions.onAddComment}
+          onCancelComposer={selectionActions.onCancelComposer}
+          onCloseHighlightChoice={selectionActions.onCloseHighlightChoice}
+          onCopySelection={selectionActions.onCopySelection}
+          onCreateAnnotation={annotationActions.onCreateAnnotation}
+          onDeleteAnnotation={annotationActions.onDeleteAnnotation}
+          onDeleteComment={annotationActions.onDeleteComment}
+          onFocusAnnotation={annotationActions.onFocusAnnotation}
+          onOpenAnnotationDiscussion={annotationActions.onOpenAnnotationDiscussion}
+          onHighlightClick={annotationActions.onHighlightClick}
+          onMouseUp={selectionActions.onMouseUp}
+          onOpenComposer={selectionActions.onOpenComposer}
           pendingAnnotationAgents={pendingAnnotationAgents}
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
           reviewAgents={reviewAgents}
-          onScrollToHighlight={onScrollToHighlight}
+          onScrollToHighlight={annotationActions.onScrollToHighlight}
         />
       </main>
 
@@ -423,8 +249,8 @@ export function ReaderAppView({
 
       <AgentReadingDock
         completionBurstKey={completionBurstKey}
-        completing={agentDockCompleting}
-        items={agentDockItems}
+        completing={dockCompleting}
+        items={dockItems}
       />
 
       {virtualCursors.map((cursor) =>
