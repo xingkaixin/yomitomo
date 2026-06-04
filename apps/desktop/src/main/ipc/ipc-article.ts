@@ -43,33 +43,29 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('article:import-url', async (_event, input) => {
     const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
       await context.getStoreModule();
+    const { canceledArticleSourceImport, importArticleSource } =
+      await import('../articles/article-source-import');
     const { articleRecordFromUrl, isArticleImportCanceledError, isArticleImportChallengeRecord } =
       await import('../articles/article-import');
     const importInput = articleImportUrlInput(input);
-    const record = await articleRecordFromUrl(importInput.url, {
-      inlineImages: readImportSettings().saveArticleImages,
-      requestId: importInput.requestId,
-    }).catch((error: unknown) => {
-      if (isArticleImportCanceledError(error)) return null;
-      throw error;
-    });
+    const record = await canceledArticleSourceImport(
+      articleRecordFromUrl(importInput.url, {
+        inlineImages: readImportSettings().saveArticleImages,
+        requestId: importInput.requestId,
+      }),
+      isArticleImportCanceledError,
+    );
     if (!record) return { status: 'canceled' };
 
-    const existingArticle = findArticleByIdentity(record);
-    const existingFullArticle = existingArticle ? await readArticle(existingArticle.id) : null;
-    if (existingFullArticle && !isArticleImportChallengeRecord(existingFullArticle)) {
-      return {
-        status: 'duplicate',
-        article: existingFullArticle,
-      };
-    }
-
-    const article = {
-      ...record,
-      createdAt: existingFullArticle?.createdAt || record.createdAt,
-    };
-    const patch = await saveArticle(article);
-    return { status: 'imported', article, patch };
+    return importArticleSource({
+      record,
+      repository: { findArticleByIdentity, readArticle, saveArticle },
+      isDuplicate: (article) => Boolean(article && !isArticleImportChallengeRecord(article)),
+      mergeExistingArticle: (next, existing) => ({
+        ...next,
+        createdAt: existing.createdAt,
+      }),
+    });
   });
   handleDesktopIpc('article:import-url-cancel', async (_event, requestId) => {
     const { cancelArticleImport } = await import('../articles/article-import');
@@ -77,22 +73,15 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('ebook:import-file', async (_event, input: EbookImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
+    const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromEpubFile } = await import('../ebooks/ebook-import');
     const { saveEbookSourceFile } = await import('../ebooks/ebook-storage');
     const record = await articleRecordFromEpubFile(input, { performanceLogger: context.logInfo });
-    const existingArticle = findArticleByIdentity(record);
-    if (existingArticle) {
-      const existingFullArticle = await readArticle(existingArticle.id);
-      await saveEbookSourceFile(existingArticle.id, input.data);
-      return {
-        status: 'duplicate',
-        article: existingFullArticle || record,
-      };
-    }
-
-    await saveEbookSourceFile(record.id, input.data);
-    const patch = await saveArticle(record);
-    return { status: 'imported', article: record, patch };
+    return importArticleSource({
+      record,
+      repository: { findArticleByIdentity, readArticle, saveArticle },
+      saveSourceFile: (articleId) => saveEbookSourceFile(articleId, input.data),
+    });
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
     const { readEbookSourceFile } = await import('../ebooks/ebook-storage');
@@ -101,25 +90,17 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('pdf:import-file', async (_event, input: PdfImportFileInput) => {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
+    const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
     const { savePdfSourceFile } = await import('../pdf/pdf-storage');
     const { savePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
-    const existingArticle = findArticleByIdentity(record);
-    if (existingArticle) {
-      const existingFullArticle = await readArticle(existingArticle.id);
-      await savePdfSourceFile(existingArticle.id, input.data);
-      if (thumbnail) await savePdfThumbnail(existingArticle.id, thumbnail);
-      return {
-        status: 'duplicate',
-        article: existingFullArticle || record,
-      };
-    }
-
-    await savePdfSourceFile(record.id, input.data);
-    if (thumbnail) await savePdfThumbnail(record.id, thumbnail);
-    const patch = await saveArticle(record);
-    return { status: 'imported', article: record, patch };
+    return importArticleSource({
+      record,
+      repository: { findArticleByIdentity, readArticle, saveArticle },
+      saveSourceFile: (articleId) => savePdfSourceFile(articleId, input.data),
+      saveThumbnail: thumbnail ? (articleId) => savePdfThumbnail(articleId, thumbnail) : undefined,
+    });
   });
   handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
     const { readPdfThumbnailDataUrl, savePdfThumbnail } =
