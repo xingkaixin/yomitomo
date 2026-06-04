@@ -7,6 +7,7 @@ import type {
   AgentMessagePayload,
   AgentReviewPayload,
   AgentMentionInstructionPayload,
+  Annotation,
   AnnotationDistillationReviewMessage,
   AssistantRuntimeProgressEvent,
   AppSettings,
@@ -65,7 +66,9 @@ export type {
   AssistantExecutionTotals,
   AssistantExecutionUsage,
   ArticleAnnotationDeleteInput,
+  ArticleAnnotationUpsertInput,
   ArticleCommentDeleteInput,
+  ArticleCommentUpsertInput,
   ArticleImportResult,
   ArticleImportUrlInput,
   DataManagementPathKind,
@@ -186,6 +189,14 @@ const api = {
   getArticleSiteIcon: (id: string) => invokeDesktopIpc('article:get-site-icon', id),
   getPdfThumbnail: (id: string) => invokeDesktopIpc('pdf:get-thumbnail', id),
   saveArticle: (article: ArticleRecord) => invokeDesktopIpc('article:save', article),
+  saveArticleAnnotation: (articleId: string, annotation: Annotation, updatedAt?: string) =>
+    invokeDesktopIpc('article:save-annotation', { articleId, annotation, updatedAt }),
+  saveArticleComment: (
+    articleId: string,
+    annotationId: string,
+    comment: Comment,
+    updatedAt?: string,
+  ) => invokeDesktopIpc('article:save-comment', { articleId, annotationId, comment, updatedAt }),
   deleteArticleAnnotation: (articleId: string, annotationId: string) =>
     invokeDesktopIpc('article:delete-annotation', { articleId, annotationId }),
   deleteArticleComment: (articleId: string, annotationId: string, commentId: string) =>

@@ -286,7 +286,13 @@ function AnnotationDiscussionShell({
   async function saveAnnotations(annotations: Annotation[]) {
     const nextArticle = applyAnnotations(annotations);
     if (!nextArticle) return;
-    await window.yomitomoDesktop.saveArticle(nextArticle);
+    const nextAnnotation = nextArticle.annotations.find((item) => item.id === currentAnnotation.id);
+    if (!nextAnnotation) return;
+    await window.yomitomoDesktop.saveArticleAnnotation(
+      nextArticle.id,
+      nextAnnotation,
+      nextArticle.updatedAt,
+    );
   }
 
   async function submitReply() {
