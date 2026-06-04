@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, isNull, or } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm';
 import type {
   Annotation,
   ArticleDeletePatch,
@@ -89,7 +89,7 @@ export function readArticleSummaryRows(
     .get();
   if (!row) return null;
 
-  return rowToArticleSummary(row, [], readArticleSummaryCounts(database).get(id));
+  return rowToArticleSummary(row, [], readArticleSummaryCountsForArticles(database, [id]).get(id));
 }
 
 export function findArticleByIdentityRows(
@@ -321,17 +321,43 @@ export function readArticleSummaryCounts(
   database: StoreDatabase,
   profile?: StoreReadProfileEntry[],
 ) {
-  const annotationCounts = measureStoreRead(profile, 'count_annotations_by_article', () =>
-    database
-      .select({
-        articleId: schema.annotations.articleId,
-        count: count(),
-      })
-      .from(schema.annotations)
-      .groupBy(schema.annotations.articleId)
-      .all(),
+  return readArticleSummaryCountsInternal(database, profile);
+}
+
+export function readArticleSummaryCountsForArticles(
+  database: StoreDatabase,
+  articleIds: string[],
+  profile?: StoreReadProfileEntry[],
+) {
+  if (articleIds.length === 0) return new Map<string, ArticleSummaryCounts>();
+  return readArticleSummaryCountsInternal(database, profile, {
+    articleIds: Array.from(new Set(articleIds)),
+    profileNameSuffix: '_scoped',
+  });
+}
+
+function readArticleSummaryCountsInternal(
+  database: StoreDatabase,
+  profile?: StoreReadProfileEntry[],
+  scope?: { articleIds: string[]; profileNameSuffix: string },
+) {
+  const articleFilter = scope ? inArray(schema.annotations.articleId, scope.articleIds) : undefined;
+  const profileName = (name: string) => `${name}${scope?.profileNameSuffix || ''}`;
+  const annotationCounts = measureStoreRead(
+    profile,
+    profileName('count_annotations_by_article'),
+    () =>
+      database
+        .select({
+          articleId: schema.annotations.articleId,
+          count: count(),
+        })
+        .from(schema.annotations)
+        .where(articleFilter)
+        .groupBy(schema.annotations.articleId)
+        .all(),
   );
-  const commentCounts = measureStoreRead(profile, 'count_comments_by_article', () =>
+  const commentCounts = measureStoreRead(profile, profileName('count_comments_by_article'), () =>
     database
       .select({
         articleId: schema.annotations.articleId,
@@ -339,20 +365,23 @@ export function readArticleSummaryCounts(
       })
       .from(schema.comments)
       .innerJoin(schema.annotations, eq(schema.comments.annotationId, schema.annotations.id))
-      .where(isNull(schema.comments.replyTo))
+      .where(andConditions(isNull(schema.comments.replyTo), articleFilter))
       .groupBy(schema.annotations.articleId)
       .all(),
   );
-  const distillationCounts = measureStoreRead(profile, 'count_distillations_by_article', () =>
-    database
-      .select({
-        articleId: schema.annotations.articleId,
-        count: count(),
-      })
-      .from(schema.annotations)
-      .where(eq(schema.annotations.distillationStatus, 'published'))
-      .groupBy(schema.annotations.articleId)
-      .all(),
+  const distillationCounts = measureStoreRead(
+    profile,
+    profileName('count_distillations_by_article'),
+    () =>
+      database
+        .select({
+          articleId: schema.annotations.articleId,
+          count: count(),
+        })
+        .from(schema.annotations)
+        .where(andConditions(eq(schema.annotations.distillationStatus, 'published'), articleFilter))
+        .groupBy(schema.annotations.articleId)
+        .all(),
   );
   const countsByArticle = new Map<string, ArticleSummaryCounts>();
 
@@ -387,6 +416,17 @@ export function readArticleSummaryCounts(
   }
 
   return countsByArticle;
+}
+
+function andConditions(...conditions: Array<SQL | undefined>) {
+  return conditions.filter(isSqlCondition).reduce<SQL | undefined>((current, condition) => {
+    if (!current) return condition;
+    return and(current, condition);
+  }, undefined);
+}
+
+function isSqlCondition(condition: SQL | undefined): condition is SQL {
+  return Boolean(condition);
 }
 
 export function writeArticleRows(database: StoreExecutor, article: ArticleRecord) {
