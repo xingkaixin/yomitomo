@@ -2,10 +2,12 @@ import { performance } from 'node:perf_hooks';
 import { eq } from 'drizzle-orm';
 import type {
   Agent,
+  Annotation,
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
   ArticleUpsertPatch,
+  Comment,
   DesktopStore,
   UserProfile,
 } from '@yomitomo/shared';
@@ -37,6 +39,8 @@ import {
   readArticleSummaryRowsForStore,
   saveArticleReadingProgressRows,
   saveArticleRows,
+  upsertAnnotationRows,
+  upsertCommentRows,
   writeArticleRows,
   type ArticleIdentity,
 } from '../articles/article-repository';
@@ -375,6 +379,23 @@ export async function deleteAgent(id: string): Promise<DesktopStore> {
 
 export async function saveArticle(input: ArticleRecord) {
   return saveArticleRows(input);
+}
+
+export async function saveArticleAnnotation(input: {
+  articleId: string;
+  annotation: Annotation;
+  updatedAt?: string;
+}) {
+  return upsertAnnotationRows(getDatabase(), input, sqliteExecutor());
+}
+
+export async function saveArticleComment(input: {
+  articleId: string;
+  annotationId: string;
+  comment: Comment;
+  updatedAt?: string;
+}) {
+  return upsertCommentRows(getDatabase(), input, sqliteExecutor());
 }
 
 export async function saveArticleReadingProgress(

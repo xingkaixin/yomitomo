@@ -48,10 +48,23 @@ export type ArticleAnnotationDeleteInput = {
   annotationId: string;
 };
 
+export type ArticleAnnotationUpsertInput = {
+  articleId: string;
+  annotation: Annotation;
+  updatedAt?: string;
+};
+
 export type ArticleCommentDeleteInput = {
   articleId: string;
   annotationId: string;
   commentId: string;
+};
+
+export type ArticleCommentUpsertInput = {
+  articleId: string;
+  annotationId: string;
+  comment: Comment;
+  updatedAt?: string;
 };
 
 export type WindowAnimationSourceRect = {
@@ -383,6 +396,14 @@ export type DesktopIpcInvokeMap = {
   };
   'article:delete-comment': {
     args: [input: ArticleCommentDeleteInput];
+    result: ArticleUpsertPatch | null;
+  };
+  'article:save-annotation': {
+    args: [input: ArticleAnnotationUpsertInput];
+    result: ArticleUpsertPatch | null;
+  };
+  'article:save-comment': {
+    args: [input: ArticleCommentUpsertInput];
     result: ArticleUpsertPatch | null;
   };
   'article:get': {

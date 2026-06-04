@@ -20,6 +20,14 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { saveArticle } = await context.getStoreModule();
     return saveArticle(input);
   });
+  handleDesktopIpc('article:save-annotation', async (_event, input) => {
+    const { saveArticleAnnotation } = await context.getStoreModule();
+    return saveArticleAnnotation(input);
+  });
+  handleDesktopIpc('article:save-comment', async (_event, input) => {
+    const { saveArticleComment } = await context.getStoreModule();
+    return saveArticleComment(input);
+  });
   handleDesktopIpc('article:delete-annotation', async (_event, input) => {
     const { deleteArticleAnnotation } = await context.getStoreModule();
     return deleteArticleAnnotation(input);

@@ -1,4 +1,4 @@
-import type { Annotation, ArticleRecord } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
 
 export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annotations'>) {
   const annotationRows = article.annotations.map((annotation) =>
@@ -8,7 +8,7 @@ export function buildArticleChildRows(article: Pick<ArticleRecord, 'id' | 'annot
   return { annotationRows, commentRows };
 }
 
-function annotationToRow(articleId: string, annotation: Annotation) {
+export function annotationToRow(articleId: string, annotation: Annotation) {
   return {
     id: annotation.id,
     articleId,
@@ -42,10 +42,14 @@ function annotationToRow(articleId: string, annotation: Annotation) {
   };
 }
 
-function commentRowsForAnnotation(annotation: Annotation) {
-  return annotation.comments.map((comment) => ({
+export function commentRowsForAnnotation(annotation: Annotation) {
+  return annotation.comments.map((comment) => commentToRow(annotation.id, comment));
+}
+
+export function commentToRow(annotationId: string, comment: Comment) {
+  return {
     id: comment.id,
-    annotationId: annotation.id,
+    annotationId,
     author: comment.author,
     content: comment.content,
     createdAt: comment.createdAt,
@@ -64,5 +68,5 @@ function commentRowsForAnnotation(annotation: Annotation) {
     userAvatar: comment.userAvatar,
     userAnnotationColor: comment.userAnnotationColor,
     pending: comment.pending,
-  }));
+  };
 }

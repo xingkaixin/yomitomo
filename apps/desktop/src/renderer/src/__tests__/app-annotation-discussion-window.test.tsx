@@ -225,7 +225,8 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.saveArticle).toHaveBeenCalledOnce());
+    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledOnce());
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
     await waitFor(() => expect(scrollTo).toHaveBeenCalledWith({ top: 1000, behavior: 'auto' }));
     await waitFor(() => expect(document.activeElement).toBe(replyInput));
   });
@@ -265,7 +266,8 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: '回复' }));
 
-    await waitFor(() => expect(desktop.saveArticle).toHaveBeenCalledOnce());
+    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledOnce());
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
@@ -364,7 +366,8 @@ describe('AnnotationDiscussionWindowApp', () => {
 
     expect(await screen.findByText('1 位助手已完成，1 位助手失败')).toBeTruthy();
     expect(screen.getByText('模型暂时不可用')).toBeTruthy();
-    expect(desktop.saveArticle).toHaveBeenCalledTimes(1);
+    expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(1);
+    expect(desktop.saveArticle).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
 
@@ -417,6 +420,7 @@ function installDesktopApi(
         }),
       ),
     saveArticle: vi.fn().mockResolvedValue(undefined),
+    saveArticleAnnotation: vi.fn().mockResolvedValue(undefined),
     openAnnotationSedimentation: vi.fn().mockResolvedValue(undefined),
   };
   Object.defineProperty(window, 'yomitomoDesktop', {
