@@ -6,9 +6,11 @@ import { createRequire } from 'node:module';
 if (process.platform !== 'darwin') process.exit(0);
 
 const require = createRequire(import.meta.url);
+const desktopRoot = dirname(import.meta.dirname);
+const electronNativeRoot = join(desktopRoot, 'electron-native');
 
 const nativeModules = [
-  nativePath('better-sqlite3', 'build/Release/better_sqlite3.node'),
+  electronNativePath('better-sqlite3', 'build/Release/better_sqlite3.node'),
   nativePath('@napi-rs/keyring-darwin-arm64', 'keyring.darwin-arm64.node'),
 ].filter((file) => file && existsSync(file));
 
@@ -25,6 +27,10 @@ function nativePath(packageName, relativePath) {
   } catch {
     return null;
   }
+}
+
+function electronNativePath(packageName, relativePath) {
+  return join(electronNativeRoot, 'node_modules', packageName, relativePath);
 }
 
 function removeXattr(file, name) {

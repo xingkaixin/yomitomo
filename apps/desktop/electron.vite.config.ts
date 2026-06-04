@@ -6,13 +6,7 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 const root = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(root, 'src/renderer');
 const workspaceDeps = ['@yomitomo/ai', '@yomitomo/core', '@yomitomo/shared'];
-const mainExternalDeps = [
-  'electron',
-  'better-sqlite3',
-  '@napi-rs/keyring',
-  'jsdom',
-  '@embedpdf/pdfium',
-];
+const mainExternalDeps = ['electron', '@napi-rs/keyring', 'jsdom', '@embedpdf/pdfium'];
 const commonjsFilename = '__filename';
 const commonjsDirname = '__dirname';
 const commonjsFilenameValue =

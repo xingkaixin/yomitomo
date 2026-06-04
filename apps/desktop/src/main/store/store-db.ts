@@ -3,7 +3,7 @@ import { copyFile, mkdir, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { app } from 'electron';
 import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import SQLiteDatabase from 'better-sqlite3';
+import type SQLiteDatabase from 'better-sqlite3';
 import {
   assertDatabaseReaderCompatible,
   databaseReaderCompatibility,
@@ -14,6 +14,7 @@ import {
 } from '../db/compatibility';
 import { migrations } from '../db/migrations';
 import * as schema from '../db/schema';
+import { loadSQLiteDatabase } from '../native/sqlite';
 
 const DB_FILE_NAME = 'yomitomo.sqlite';
 
@@ -56,6 +57,7 @@ export function getDatabase() {
   const file = databasePath();
   mkdirSync(dirname(file), { recursive: true });
 
+  const SQLiteDatabase = loadSQLiteDatabase();
   sqlite = new SQLiteDatabase(file);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');

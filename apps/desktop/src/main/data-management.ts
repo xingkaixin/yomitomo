@@ -7,7 +7,7 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from 'electron';
-import SQLiteDatabase from 'better-sqlite3';
+import type SQLiteDatabase from 'better-sqlite3';
 import {
   assertDatabaseReaderCompatible,
   readAppliedDatabaseMigrationIds,
@@ -21,6 +21,7 @@ import {
   replaceDatabaseFile,
 } from './store/store';
 import { getLogPath } from './app/logger';
+import { loadSQLiteDatabase } from './native/sqlite';
 
 export type DataManagementPathKind = 'dataDir' | 'logFile' | 'databaseFile';
 
@@ -92,6 +93,7 @@ export async function restoreDatabaseWithDialog(
 
 function validateDatabaseBackupFile(filePath: string) {
   let database: SQLiteDatabase.Database;
+  const SQLiteDatabase = loadSQLiteDatabase();
   try {
     database = new SQLiteDatabase(filePath, { readonly: true, fileMustExist: true });
   } catch (error) {

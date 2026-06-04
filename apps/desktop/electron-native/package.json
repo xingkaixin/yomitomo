@@ -1,0 +1,8 @@
+{
+  "name": "@yomitomo/desktop-electron-native",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "better-sqlite3": "12.10.0"
+  }
+}
