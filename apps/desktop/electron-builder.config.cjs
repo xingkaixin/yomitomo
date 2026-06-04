@@ -16,16 +16,34 @@ module.exports = {
     '!node_modules/**/*.d.ts',
     '!node_modules/**/*.d.mts',
     '!node_modules/**/*.d.cts',
-    '!node_modules/better-sqlite3/deps/**',
-    '!node_modules/better-sqlite3/src/**',
+    '!node_modules/better-sqlite3/**',
+  ],
+  extraResources: [
+    {
+      from: 'electron-native',
+      to: 'electron-native',
+      filter: ['package.json'],
+    },
+    {
+      from: 'electron-native/node_modules',
+      to: 'electron-native/node_modules',
+      filter: [
+        '**/*',
+        '!node_modules/**/*.map',
+        '!**/*.d.ts',
+        '!**/*.d.mts',
+        '!**/*.d.cts',
+        '!better-sqlite3/deps/**',
+        '!better-sqlite3/src/**',
+        '!.pnpm/better-sqlite3@*/node_modules/better-sqlite3/deps/**',
+        '!.pnpm/better-sqlite3@*/node_modules/better-sqlite3/src/**',
+      ],
+    },
   ],
   asar: {
     smartUnpack: false,
   },
-  asarUnpack: [
-    'node_modules/better-sqlite3/build/Release/better_sqlite3.node',
-    'node_modules/@napi-rs/**/*.node',
-  ],
+  asarUnpack: ['node_modules/@napi-rs/**/*.node'],
   publish: [
     {
       provider: 'github',
