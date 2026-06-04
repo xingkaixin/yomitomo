@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
+import type { Annotation } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
   articlePublishedDistillationCount,
@@ -8,7 +8,6 @@ import {
   createUserAnnotation,
   type TocItem,
 } from '@yomitomo/core';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import { sleep } from '@yomitomo/reader-ui/reader-animation';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -28,13 +27,12 @@ import {
   type EbookPageTurnTrace,
   type FoliateViewElement,
 } from './app-ebook-reader-utils';
+import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import { EbookReaderShell } from './app-source-ebook-reader-shell';
 import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playback';
-import { type SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
-  promptArticle,
   useDesktopReaderSettings,
   usesOverlayToc,
   type EbookBookcaseProps,
@@ -52,10 +50,8 @@ import { useSourceSelectionComposer } from '../bookcase/use-source-selection-com
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
-import {
-  constrainSourceAgentPlanAnnotation,
-  useSourceReaderSession,
-} from '../bookcase/use-source-reader-session';
+import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
+import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
 
 export function EbookBookcase({
   agents,
@@ -118,48 +114,28 @@ export function EbookBookcase({
     saveAnnotations,
   } = useSourceReaderSession({
     agents,
-    agentAnnotationAdapter: {
-      getContext: ({ currentArticle, options }) => {
-        const articleId = options.articleId || currentArticle.id;
-        const articleContext =
-          options.article || promptArticle(currentArticle, currentArticleText());
-        return {
-          article: articleContext,
-          articleId,
-          articleText: articleContext.text,
-          visibleArticle: isCurrentArticle(articleId),
-        };
+    agentAnnotationAdapter: createEbookSourceReaderController({
+      appendAgentAnnotationToArticle,
+      currentArticleText,
+      enqueueAgentAnnotationPlayback: (articleId, annotation, options) =>
+        enqueueEbookAgentAnnotationPlayback(articleId, annotation, options),
+      finishAgentDock: (agentId, completed) => finishEbookAgentDock(agentId, completed),
+      finishVirtualReading: (agentId, message) => finishEbookVirtualReading(agentId, message),
+      isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
+      isCurrentArticle,
+      setAgentAnnotating: (agentId, annotating) =>
+        setAnnotatingAgentIds((ids) => {
+          if (annotating) return ids.includes(agentId) ? ids : [...ids, agentId];
+          return ids.filter((id) => id !== agentId);
+        }),
+      setStatusMessage,
+      startAgentDock: (agent) => startEbookAgentDock(agent),
+      startVirtualReading: (agent, targetAnchor) => startEbookVirtualReading(agent, targetAnchor),
+      waitForPlaybackCompletion: async () => {
+        await ebookAgentAnimationQueueRef.current;
+        await sleep(900);
       },
-      isBusy: ({ agent, options }) => !options.articleId && annotatingAgentIds.includes(agent.id),
-      start: ({ agent, context, options, requestInput }) =>
-        startEbookPlayback(
-          agent,
-          context.articleId,
-          options.targetAnchor,
-          requestInput.playbackMode,
-        ),
-      onAnnotation: ({ annotation, context, options, requestInput }) =>
-        handleEbookStreamItem(
-          context.articleId,
-          annotation,
-          requestInput.readingPlan,
-          context.articleText,
-          Boolean(options.targetAnchor),
-        ),
-      onEmpty: async ({ agent, context, options, playback }) => {
-        if (isCurrentArticle(context.articleId)) {
-          finishEmptyEbookPlayback(agent, options.targetAnchor);
-        }
-        await finishEbookPlayback(agent.id, Boolean(playback));
-      },
-      onSuccess: ({ agent, playback }) => finishEbookPlayback(agent.id, Boolean(playback)),
-      finish: ({ agent, context, options, playback, requestFailed }) => {
-        finishEbookRequest(agent, context.articleId, options.targetAnchor, {
-          requestFailed,
-          visibleArticle: Boolean(playback),
-        });
-      },
-    },
+    }),
     annotations: articleAnnotations,
     article,
     clearPendingOnArticleChange: true,
@@ -529,74 +505,6 @@ export function EbookBookcase({
       return result.article;
     });
     return activeId;
-  }
-
-  function startEbookPlayback(
-    agent: PublicAgent,
-    articleId: string,
-    targetAnchor: Annotation['anchor'] | undefined,
-    playbackMode: SourceAgentAnnotationPlaybackMode,
-  ) {
-    setAnnotatingAgentIds((ids) => (ids.includes(agent.id) ? ids : [...ids, agent.id]));
-    const visibleArticle = isCurrentArticle(articleId);
-    if (visibleArticle) startEbookAgentDock(agent);
-    if (visibleArticle && playbackMode === 'target' && targetAnchor) {
-      startEbookVirtualReading(agent, targetAnchor);
-    }
-    return visibleArticle;
-  }
-
-  function handleEbookStreamItem(
-    articleId: string,
-    annotation: Annotation,
-    readingPlan: AgentReadingPlanItem[],
-    articleText: string,
-    revealMissingRange: boolean,
-  ) {
-    const constrainedAnnotation = constrainSourceAgentPlanAnnotation(
-      annotation,
-      readingPlan,
-      articleText,
-    );
-    if (!constrainedAnnotation) return false;
-    if (isCurrentArticle(articleId)) {
-      enqueueEbookAgentAnnotationPlayback(articleId, constrainedAnnotation, {
-        revealMissingRange,
-      });
-      return true;
-    }
-    void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
-    return true;
-  }
-
-  function finishEmptyEbookPlayback(
-    agent: PublicAgent,
-    targetAnchor: Annotation['anchor'] | undefined,
-  ) {
-    if (targetAnchor) finishEbookVirtualReading(agent.id, '没有新想法');
-    setStatusMessage(`${agent.nickname} 暂无新想法`);
-    window.setTimeout(() => setStatusMessage(''), 1400);
-  }
-
-  async function finishEbookPlayback(agentId: string, visibleArticle: boolean) {
-    if (!visibleArticle) return;
-    await ebookAgentAnimationQueueRef.current;
-    await sleep(900);
-    finishEbookAgentDock(agentId, true);
-  }
-
-  function finishEbookRequest(
-    agent: PublicAgent,
-    articleId: string,
-    targetAnchor: Annotation['anchor'] | undefined,
-    options: { requestFailed: boolean; visibleArticle: boolean },
-  ) {
-    if (options.requestFailed && targetAnchor && isCurrentArticle(articleId)) {
-      finishEbookVirtualReading(agent.id, '想法添加失败');
-    }
-    if (options.requestFailed && options.visibleArticle) finishEbookAgentDock(agent.id, false);
-    setAnnotatingAgentIds((ids) => ids.filter((id) => id !== agent.id));
-    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
   }
 
   function handleHighlightClick(

@@ -49,7 +49,6 @@ import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-anima
 import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   articleWithMergedAgentAnnotation,
-  promptArticle,
   rendererPerformanceElapsedMs,
   useDesktopReaderSettings,
   type SourceBookcaseProps,
@@ -62,22 +61,18 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import {
-  pdfiumAgentAnnotationRequestOptions,
-  pdfiumAnchorForReadingPlanStart,
   pdfiumAnnotationBoxes,
   pdfiumAnnotationIsVisible,
-  pdfiumMapReadingPlanAgentAnnotation,
-  pdfiumMapTargetAgentAnnotation,
   pdfiumAnnotationTheaterBoxes,
   pdfiumVisibleAnnotations,
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
-  pdfiumPromptArticle,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
   type PdfAnnotationNavigationState,
   type PdfTextDocument,
 } from './app-source-bookcase-pdfium-utils';
+import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import {
   pdfOpenTrace,
@@ -444,145 +439,32 @@ function PdfiumDocument({
     saveAnnotations,
   } = useSourceReaderSession({
     agents,
-    agentAnnotationAdapter: {
-      resolveOptions: ({ options }) => pdfiumAgentAnnotationRequestOptions(options),
-      getContext: async ({ currentArticle, options }) => {
-        const document = documentState?.document;
-        const articleId = options.articleId || currentArticle.id;
-        if (!document || !articleId) return null;
-
-        if (options.readingPlan?.length && !options.targetAnchor) {
-          const textDocument = pdfTextDocument;
-          if (!textDocument) return null;
-          return {
-            article: promptArticle(currentArticle, textDocument.text),
-            articleId,
-            articleText: textDocument.text,
-            readingMemory: currentArticle.focusCoReadingPlan?.readingMemory,
-            source: { document, kind: 'reading-plan' as const, textDocument },
-            visibleArticle: isCurrentArticle(articleId),
-          };
-        }
-
-        const targetAnchor = options.targetAnchor;
-        const pageIndex =
-          targetAnchor && isPdfTextAnchor(targetAnchor) ? targetAnchor.pageIndex : 0;
-        const page = document.pages[pageIndex];
-        if (!page) return null;
-        const pageText = await extractPdfiumPageText(pageIndex);
-        return {
-          article: options.article || pdfiumPromptArticle(currentArticle, targetAnchor, pageText),
-          articleId,
-          articleText: pageText,
-          showProgress: latestArticleRef.current?.id === articleId,
-          source: { document, kind: 'target' as const, page, pageIndex, pageText, targetAnchor },
-          visibleArticle: latestArticleRef.current?.id === articleId,
-        };
-      },
-      start: async ({ agent, context, requestInput }) => {
-        if (context.source?.kind === 'reading-plan') {
-          const visibleArticle = context.visibleArticle !== false;
-          if (visibleArticle) startPdfiumAgentDock(agent);
-          const pageGeometryByIndex = await pdfiumPageGeometriesForReadingPlan(
-            context.source.document,
-            context.source.textDocument,
-            requestInput.readingPlan,
-          );
-          if (visibleArticle) {
-            startPdfiumVirtualReading(
-              agent,
-              pdfiumAnchorForReadingPlanStart(
-                requestInput.readingPlan,
-                context.source.textDocument,
-                pageGeometryByIndex,
-              ),
-            );
-          }
-          return {
-            acceptedAnnotation: false,
-            kind: 'reading-plan' as const,
-            pageGeometryByIndex,
-            playbackPromise: Promise.resolve(),
-          };
-        }
-
-        if (context.showProgress !== false) {
-          startPdfiumAgentDock(agent);
-          startPdfiumVirtualReading(agent, context.source?.targetAnchor);
-        }
-        const geometry =
-          context.source?.kind === 'target'
-            ? await engine.getPageGeometry(context.source.document, context.source.page).toPromise()
-            : null;
-        return {
-          acceptedAnnotation: false,
-          geometry,
-          kind: 'target' as const,
-          playbackPromise: Promise.resolve(),
-        };
-      },
-      onAnnotation: ({ annotation, context, playback, requestInput }) => {
-        if (context.source?.kind === 'reading-plan' && playback?.kind === 'reading-plan') {
-          const pdfAnnotation = pdfiumMapReadingPlanAgentAnnotation(
-            annotation,
-            requestInput.readingPlan,
-            context.source.textDocument,
-            playback.pageGeometryByIndex,
-          );
-          if (!pdfAnnotation) return false;
-          playback.acceptedAnnotation = true;
-          playback.playbackPromise = enqueuePdfiumAgentAnnotationPlayback(
-            context.articleId,
-            pdfAnnotation,
-          );
-          return true;
-        }
-
-        if (
-          context.source?.kind !== 'target' ||
-          playback?.kind !== 'target' ||
-          !playback.geometry
-        ) {
-          return false;
-        }
-        const pdfAnnotation = pdfiumMapTargetAgentAnnotation({
-          annotation,
-          geometry: playback.geometry,
-          pageHeight: context.source.page.size.height,
-          pageIndex: context.source.pageIndex,
-          pageText: context.source.pageText,
-          pageWidth: context.source.page.size.width,
-        });
-        if (!pdfAnnotation) return false;
-        playback.acceptedAnnotation = true;
-        playback.playbackPromise = enqueuePdfiumAgentAnnotationPlayback(
-          context.articleId,
-          pdfAnnotation,
-        );
-        return true;
-      },
-      onEmpty: ({ agent, context }) => {
-        if (context.source?.kind === 'reading-plan' && context.visibleArticle !== false) {
-          finishPdfiumVirtualReading(agent.id, '没有新想法');
-          setStatusMessage(`${agent.nickname} 暂无新想法`);
-          window.setTimeout(() => setStatusMessage(''), 1400);
-          return;
-        }
-        if (context.showProgress !== false) finishPdfiumVirtualReading(agent.id, '没有新想法');
-      },
-      onSuccess: async ({ playback }) => {
-        if (playback?.acceptedAnnotation) await playback.playbackPromise;
-      },
-      finish: ({ agent, context, requestFailed }) => {
-        const showProgress =
-          context.source?.kind === 'reading-plan'
-            ? context.visibleArticle !== false
-            : context.showProgress !== false;
-        if (!showProgress) return;
-        if (requestFailed) finishPdfiumVirtualReading(agent.id, '想法添加失败');
-        finishPdfiumAgentDock(agent.id, !requestFailed);
-      },
-    },
+    agentAnnotationAdapter: createPdfiumSourceReaderController({
+      enqueueAgentAnnotationPlayback: (articleId, annotation) =>
+        enqueuePdfiumAgentAnnotationPlayback(articleId, annotation),
+      extractPageText: (pageIndex) => extractPdfiumPageText(pageIndex),
+      finishAgentDock: (agentId, succeeded) => finishPdfiumAgentDock(agentId, succeeded),
+      finishVirtualReading: (agentId, suffix) => finishPdfiumVirtualReading(agentId, suffix),
+      getDocument: () => documentState?.document ?? undefined,
+      getPageGeometry: (document, page) =>
+        engine
+          .getPageGeometry(
+            document as PdfiumLoadedDocument,
+            page as PdfiumLoadedDocument['pages'][number],
+          )
+          .toPromise(),
+      getPdfTextDocument: () => pdfTextDocument,
+      isCurrentArticle,
+      pageGeometriesForReadingPlan: (document, textDocument, readingPlan) =>
+        pdfiumPageGeometriesForReadingPlan(
+          document as PdfiumLoadedDocument,
+          textDocument,
+          readingPlan,
+        ),
+      setStatusMessage,
+      startAgentDock: (agent) => startPdfiumAgentDock(agent),
+      startVirtualReading: (agent, anchor) => startPdfiumVirtualReading(agent, anchor),
+    }),
     annotations: articleAnnotations,
     article,
     ignoreStaleArticleUpdates: true,
