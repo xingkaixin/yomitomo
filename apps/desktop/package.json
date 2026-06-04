@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "native:install": "pnpm --dir electron-native install",
     "rebuild:native": "pnpm run native:install && node scripts/rebuild-electron-native.mjs && node scripts/prepare-native-macos.mjs",
+    "native:verify": "pnpm run rebuild:native && node scripts/verify-native-roots.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "oxlint . --type-aware",
     "lint:fix": "oxlint . --fix",

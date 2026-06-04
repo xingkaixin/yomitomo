@@ -73,6 +73,15 @@ corepack prepare pnpm@11.0.8 --activate
 pnpm install
 ```
 
+验证桌面端 native 依赖边界：
+
+```bash
+pnpm --filter @yomitomo/desktop native:verify
+```
+
+升级 Electron 或 `better-sqlite3` 后运行该命令，确认普通 Node/Vitest 与
+Electron 应用分别使用各自的 `better-sqlite3` native root。
+
 ### 运行桌面端
 
 ```bash
