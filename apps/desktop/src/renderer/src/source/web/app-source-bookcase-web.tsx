@@ -1,12 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import type {
-  AgentReadingPlanItem,
-  Annotation,
-  ArticleReadingProgress,
-  PublicAgent,
-} from '@yomitomo/shared';
+import type { Annotation, ArticleReadingProgress } from '@yomitomo/shared';
 import {
   createTextAnchor,
   normalizeMessageSendShortcut,
@@ -29,7 +24,6 @@ import {
   ReaderAppView,
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
-import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
@@ -42,12 +36,9 @@ import {
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
-import { type SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
 import { articleIdentityLine } from '../../shell/app-utils';
 import {
-  articleWithMergedAgentAnnotation,
   defaultTocOpen,
-  promptArticle,
   useDesktopReaderSettings,
   usesOverlayToc,
   type WebSourceBookcaseProps,
@@ -61,10 +52,8 @@ import {
   sourceReaderTocStyles,
   webAnnotationNavigationState,
 } from './app-source-bookcase-web-utils';
-import {
-  constrainSourceAgentPlanAnnotation,
-  useSourceReaderSession,
-} from '../bookcase/use-source-reader-session';
+import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
+import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
 
 export function WebSourceBookcase({
   agents,
@@ -109,60 +98,24 @@ export function WebSourceBookcase({
     saveAnnotations,
   } = useSourceReaderSession({
     agents,
-    agentAnnotationAdapter: {
-      getContext: ({ currentArticle, options }) => {
-        const articleId = options.articleId || currentArticle.id;
-        const articleContext =
-          options.article || promptArticle(currentArticle, currentArticleText());
-        const articleScopedWrite = Boolean(options.articleId);
-        const visibleArticle = isCurrentArticle(articleId);
-        return {
-          article: articleContext,
-          articleId,
-          articleScopedWrite,
-          articleText: articleScopedWrite ? articleContext.text : currentArticleText(),
-          showProgress: !articleScopedWrite || visibleArticle,
-          visibleArticle,
-        };
-      },
-      isBusy: ({ agent, context }) =>
-        !context.articleScopedWrite && annotatingAgentIds.includes(agent.id),
-      start: ({ agent, context, requestInput }) => {
-        startAgentAnnotationPlayback(
-          agent,
-          requestInput.readingPlan,
-          requestInput.playbackMode,
-          context.showProgress !== false,
-        );
-      },
-      onAnnotation: ({ annotation, context, requestInput }) =>
-        handleAgentAnnotationStreamItem(
-          context.articleId,
-          annotation,
-          requestInput.readingPlan,
-          Boolean(context.articleScopedWrite),
-          context.articleText,
-        ),
-      onEmpty: ({ agent, context }) => {
-        if (context.showProgress !== false && isCurrentArticle(context.articleId)) {
-          markVirtualReadingDone(agent.id);
-        }
-        finishEmptyAgentAnnotationPlayback(
-          agent,
-          context.articleId,
-          context.showProgress !== false,
-        );
-      },
-      onSuccess: ({ agent, context }) => {
-        if (context.showProgress !== false && isCurrentArticle(context.articleId)) {
-          markVirtualReadingDone(agent.id);
-          finishVirtualReadingIfIdle(agent.id);
-        }
-      },
-      finish: ({ agent, context }) => {
-        finishAgentAnnotationRequest(agent, context.showProgress !== false);
-      },
-    },
+    agentAnnotationAdapter: createWebSourceReaderController({
+      applyAnnotations: (nextAnnotations) => applyAnnotations(nextAnnotations),
+      currentArticleText,
+      enqueueAgentAnnotation: (annotation) => enqueueAgentAnnotation(annotation),
+      finishVirtualReading: (agentId, message) => finishVirtualReading(agentId, message),
+      finishVirtualReadingIfIdle: (agentId) => finishVirtualReadingIfIdle(agentId),
+      getAnnotations: () => annotationsRef.current,
+      isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
+      isCurrentArticle,
+      markAgentAnnotating: (agentId, annotating) => markAgentAnnotating(agentId, annotating),
+      markVirtualReadingDone: (agentId) => markVirtualReadingDone(agentId),
+      onOpenAnnotation: openAnnotation,
+      onUpdateArticle,
+      processAgentAnnotationQueue: () => processAgentAnnotationQueue(),
+      setStatusMessage,
+      startVirtualReading: (agent, readingPlan, playbackMode) =>
+        startVirtualReading(agent, readingPlan, playbackMode),
+    }),
     annotations: articleAnnotations,
     article,
     clearPendingOnArticleChange: true,
@@ -464,75 +417,6 @@ export function WebSourceBookcase({
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
     openAnnotation(annotation.id);
-  }
-
-  async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
-    let activeId = annotation.id;
-    let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
-    if (isCurrentArticle(articleId)) {
-      const result = mergeAgentAnnotationAsThought(annotationsRef.current, annotation);
-      activeId = result.activeId;
-      currentMerge = result;
-      applyAnnotations(result.annotations);
-      openAnnotation(result.activeId);
-    }
-    await onUpdateArticle(articleId, (targetArticle) => {
-      const result = articleWithMergedAgentAnnotation(targetArticle, annotation, currentMerge);
-      activeId = result.activeId;
-      return result.article;
-    });
-    return activeId;
-  }
-
-  function startAgentAnnotationPlayback(
-    agent: PublicAgent,
-    readingPlan: AgentReadingPlanItem[],
-    playbackMode: SourceAgentAnnotationPlaybackMode,
-    showProgress: boolean,
-  ) {
-    if (!showProgress) return;
-    markAgentAnnotating(agent.id, true);
-    startVirtualReading(agent, readingPlan, playbackMode);
-  }
-
-  function handleAgentAnnotationStreamItem(
-    articleId: string,
-    annotation: Annotation,
-    readingPlan: AgentReadingPlanItem[],
-    articleScopedWrite: boolean,
-    articleText: string,
-  ) {
-    const constrainedAnnotation = constrainSourceAgentPlanAnnotation(
-      annotation,
-      readingPlan,
-      articleText,
-    );
-    if (!constrainedAnnotation) return false;
-    if (articleScopedWrite) {
-      void appendAgentAnnotationToArticle(articleId, constrainedAnnotation);
-      return true;
-    }
-    if (!isCurrentArticle(articleId)) return true;
-    enqueueAgentAnnotation(constrainedAnnotation);
-    void processAgentAnnotationQueue();
-    return true;
-  }
-
-  function finishEmptyAgentAnnotationPlayback(
-    agent: PublicAgent,
-    articleId: string,
-    showProgress: boolean,
-  ) {
-    if (!showProgress || !isCurrentArticle(articleId)) return;
-    finishVirtualReading(agent.id, '没有新想法');
-    setStatusMessage(`${agent.nickname} 暂无新想法`);
-    window.setTimeout(() => setStatusMessage(''), 1400);
-  }
-
-  function finishAgentAnnotationRequest(agent: PublicAgent, showProgress: boolean) {
-    if (!showProgress) return;
-    markAgentAnnotating(agent.id, false);
-    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
   }
 
   function handleHighlightClick(
