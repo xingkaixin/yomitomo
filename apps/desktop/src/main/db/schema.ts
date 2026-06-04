@@ -68,6 +68,7 @@ export const assistantExecutionRuns = sqliteTable(
     traceJson: text('trace_json', { mode: 'json' }),
   },
   (table) => [
+    index('assistant_execution_runs_created_at_idx').on(table.createdAt),
     index('assistant_execution_runs_agent_idx').on(table.agentId, table.createdAt),
     index('assistant_execution_runs_provider_model_idx').on(
       table.providerId,

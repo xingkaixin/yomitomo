@@ -1,4 +1,5 @@
-import { and, desc, eq, gte, lte, type SQL } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
+import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core';
 import type {
   AssistantExecutionQueryInput,
   AssistantExecutionRun,
@@ -21,6 +22,10 @@ type AssistantExecutionTotalsAccumulator = {
   durationCount: number;
   durationSum: number;
 };
+type AssistantExecutionAggregateRow = AssistantExecutionUsage &
+  Omit<AssistantExecutionTotals, 'averageDurationMs' | 'usage'> & {
+    averageDurationMs: number | null;
+  };
 
 export function listAssistantExecutionRuns(
   database: StoreExecutor,
@@ -40,29 +45,25 @@ export function summarizeAssistantExecutions(
   database: StoreExecutor,
   input: AssistantExecutionQueryInput,
 ): AssistantExecutionSummary {
-  const rows = database
-    .select()
-    .from(schema.assistantExecutionRuns)
-    .where(assistantExecutionWhere(input))
-    .all();
+  const where = assistantExecutionWhere(input);
   return {
-    totals: summarizeAssistantExecutionRows(rows),
-    byAgent: groupRows(rows, (row) => ({
-      key: row.agentId,
-      label: agentLabel(row),
-    })),
-    byProviderModel: groupRows(rows, (row) => ({
-      key: `${row.providerId}:${row.modelName}`,
-      label: `${row.providerName} / ${row.modelName}`,
-    })),
-    byTaskType: groupRows(rows, (row) => ({
-      key: row.taskType,
-      label: row.taskType,
-    })),
-    byMode: groupRows(rows, (row) => ({
-      key: row.effectiveMode,
-      label: row.effectiveMode,
-    })),
+    totals: aggregateAssistantExecutionTotals(database, where),
+    byAgent: aggregateAssistantExecutionGroups(database, where, {
+      key: sql<string>`${schema.assistantExecutionRuns.agentId}`,
+      label: agentGroupLabel(),
+    }),
+    byProviderModel: aggregateAssistantExecutionGroups(database, where, {
+      key: sql<string>`${schema.assistantExecutionRuns.providerId} || ':' || ${schema.assistantExecutionRuns.modelName}`,
+      label: sql<string>`${schema.assistantExecutionRuns.providerName} || ' / ' || ${schema.assistantExecutionRuns.modelName}`,
+    }),
+    byTaskType: aggregateAssistantExecutionGroups(database, where, {
+      key: sql<string>`${schema.assistantExecutionRuns.taskType}`,
+      label: sql<string>`${schema.assistantExecutionRuns.taskType}`,
+    }),
+    byMode: aggregateAssistantExecutionGroups(database, where, {
+      key: sql<string>`${schema.assistantExecutionRuns.effectiveMode}`,
+      label: sql<string>`${schema.assistantExecutionRuns.effectiveMode}`,
+    }),
   };
 }
 
@@ -119,34 +120,93 @@ export function summarizeAssistantExecutionRows(
   return finalizeTotals(accumulator);
 }
 
-function groupRows(
-  rows: AssistantExecutionRow[],
-  groupForRow: (
-    row: AssistantExecutionRow,
-  ) => Pick<AssistantExecutionSummaryGroup, 'key' | 'label'>,
+function aggregateAssistantExecutionTotals(database: StoreExecutor, where: SQL | undefined) {
+  const row = database
+    .select(assistantExecutionAggregateSelection())
+    .from(schema.assistantExecutionRuns)
+    .where(where)
+    .get();
+  return totalsFromAggregate(row);
+}
+
+function aggregateAssistantExecutionGroups(
+  database: StoreExecutor,
+  where: SQL | undefined,
+  group: { key: SQL<string>; label: SQL<string> },
 ): AssistantExecutionSummaryGroup[] {
-  const groups = new Map<
-    string,
-    { label: string; accumulator: AssistantExecutionTotalsAccumulator }
-  >();
-  for (const row of rows) {
-    const group = groupForRow(row);
-    const existing = groups.get(group.key);
-    if (existing) addRowToTotals(existing.accumulator, row);
-    else {
-      const accumulator = emptyTotalsAccumulator();
-      addRowToTotals(accumulator, row);
-      groups.set(group.key, { label: group.label, accumulator });
-    }
-  }
-  return Array.from(groups.entries())
-    .map(([key, group]) =>
-      Object.assign(finalizeTotals(group.accumulator), {
-        key,
-        label: group.label,
-      }),
-    )
+  const rows = database
+    .select({
+      key: group.key,
+      label: latestGroupLabel(group.label),
+      ...assistantExecutionAggregateSelection(),
+    })
+    .from(schema.assistantExecutionRuns)
+    .where(where)
+    .groupBy(group.key)
+    .all();
+  return rows
+    .map((row) => Object.assign(totalsFromAggregate(row), { key: row.key, label: row.label }))
     .toSorted((left, right) => right.estimatedCostMicros - left.estimatedCostMicros);
+}
+
+function assistantExecutionAggregateSelection() {
+  return {
+    runCount: count(),
+    successCount: statusCount('success'),
+    fallbackCount: statusCount('fallback'),
+    errorCount: statusCount('error'),
+    inputTokens: sumColumn(schema.assistantExecutionRuns.inputTokens),
+    outputTokens: sumColumn(schema.assistantExecutionRuns.outputTokens),
+    reasoningTokens: sumColumn(schema.assistantExecutionRuns.reasoningTokens),
+    cachedInputTokens: sumColumn(schema.assistantExecutionRuns.cachedInputTokens),
+    cacheWriteTokens: sumColumn(schema.assistantExecutionRuns.cacheWriteTokens),
+    totalTokens: sql<number>`coalesce(sum(coalesce(${schema.assistantExecutionRuns.totalTokens}, coalesce(${schema.assistantExecutionRuns.inputTokens}, 0) + coalesce(${schema.assistantExecutionRuns.outputTokens}, 0) + coalesce(${schema.assistantExecutionRuns.reasoningTokens}, 0) + coalesce(${schema.assistantExecutionRuns.cacheWriteTokens}, 0))), 0)`,
+    estimatedCostMicros: sumColumn(schema.assistantExecutionRuns.estimatedCostMicros),
+    missingCostCount: sql<number>`coalesce(sum(case when ${schema.assistantExecutionRuns.estimatedCostMicros} is null then 1 else 0 end), 0)`,
+    averageDurationMs: sql<number | null>`round(avg(${schema.assistantExecutionRuns.durationMs}))`,
+  };
+}
+
+function statusCount(status: AssistantExecutionStatus) {
+  return sql<number>`coalesce(sum(case when ${schema.assistantExecutionRuns.status} = ${status} then 1 else 0 end), 0)`;
+}
+
+function sumColumn(column: AnySQLiteColumn) {
+  return sql<number>`coalesce(sum(coalesce(${column}, 0)), 0)`;
+}
+
+function totalsFromAggregate(
+  row: AssistantExecutionAggregateRow | undefined,
+): AssistantExecutionTotals {
+  const totals: AssistantExecutionTotals = {
+    runCount: row?.runCount || 0,
+    successCount: row?.successCount || 0,
+    fallbackCount: row?.fallbackCount || 0,
+    errorCount: row?.errorCount || 0,
+    usage: {
+      inputTokens: row?.inputTokens || 0,
+      outputTokens: row?.outputTokens || 0,
+      reasoningTokens: row?.reasoningTokens || 0,
+      cachedInputTokens: row?.cachedInputTokens || 0,
+      cacheWriteTokens: row?.cacheWriteTokens || 0,
+      totalTokens: row?.totalTokens || 0,
+    },
+    estimatedCostMicros: row?.estimatedCostMicros || 0,
+    missingCostCount: row?.missingCostCount || 0,
+  };
+  if (row?.averageDurationMs !== null && row?.averageDurationMs !== undefined) {
+    totals.averageDurationMs = row.averageDurationMs;
+  }
+  return totals;
+}
+
+function agentGroupLabel() {
+  return sql<string>`case when ${schema.assistantExecutionRuns.agentNickname} is not null and ${schema.assistantExecutionRuns.agentNickname} <> '' then ${schema.assistantExecutionRuns.agentNickname} when ${schema.assistantExecutionRuns.agentUsername} is not null and ${schema.assistantExecutionRuns.agentUsername} <> '' then '@' || ${schema.assistantExecutionRuns.agentUsername} else ${schema.assistantExecutionRuns.agentId} end`;
+}
+
+function latestGroupLabel(label: SQL<string>) {
+  const value = sql<string>`${schema.assistantExecutionRuns.createdAt} || char(31) || ${label}`;
+  return sql<string>`substr(max(${value}), instr(max(${value}), char(31)) + 1)`;
 }
 
 function emptyTotals(): AssistantExecutionTotals {
@@ -258,10 +318,6 @@ function safeTraceStep(input: unknown): AssistantExecutionSafeStep | null {
 function normalizeStatus(value: string): AssistantExecutionStatus {
   if (value === 'fallback' || value === 'error') return value;
   return 'success';
-}
-
-function agentLabel(row: AssistantExecutionRow) {
-  return row.agentNickname || (row.agentUsername ? `@${row.agentUsername}` : row.agentId);
 }
 
 function normalizeLimit(value: number | undefined) {
