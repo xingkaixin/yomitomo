@@ -9,6 +9,8 @@ import {
   readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromMemoryDelta,
   readingMemoryFromEntries,
+  readingMemoryViewRequestForAnnotatePayload,
+  readingMemoryViewRequestForMessagePayload,
 } from '@yomitomo/core';
 import {
   appendReadingMemoryEntries,
@@ -30,7 +32,10 @@ export function agentAnnotatePayloadWithReadingMemoryEntries(input: {
       performanceLogger: input.logInfo,
     });
     const memory = readingMemoryFromEntries(entries);
-    const readingMemoryView = agentAnnotateMemoryView(input.payload, articleId, input.logInfo);
+    const viewRequest = readingMemoryViewRequestForAnnotatePayload(input.payload);
+    const readingMemoryView = viewRequest
+      ? buildReadingMemoryView({ ...viewRequest, performanceLogger: input.logInfo })
+      : undefined;
     if (!memory && (!readingMemoryView || readingMemoryView.entries.length === 0)) {
       return input.payload;
     }
@@ -54,7 +59,10 @@ export function agentMessagePayloadWithReadingMemoryView(input: {
   if (!articleId) return input.payload;
 
   try {
-    const readingMemoryView = selectionThreadMemoryView(input.payload, articleId, input.logInfo);
+    const viewRequest = readingMemoryViewRequestForMessagePayload(input.payload);
+    const readingMemoryView = viewRequest
+      ? buildReadingMemoryView({ ...viewRequest, performanceLogger: input.logInfo })
+      : undefined;
     if (!readingMemoryView || readingMemoryView.entries.length === 0) return input.payload;
     return {
       ...input.payload,
@@ -64,197 +72,6 @@ export function agentMessagePayloadWithReadingMemoryView(input: {
     input.logError('reading_memory.read_failed', error, { articleId });
     return input.payload;
   }
-}
-
-function agentAnnotateMemoryView(
-  payload: AgentAnnotatePayload,
-  articleId: string,
-  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
-) {
-  if (payload.targetAnchor) {
-    return selectionAnnotateMemoryView(payload, articleId, logInfo);
-  }
-
-  const index = payload.article.ebookIndex;
-  const firstPlanItem = payload.readingPlan?.[0];
-  if (!firstPlanItem) return undefined;
-  if (!index) return articleSectionMemoryView(payload, articleId, logInfo);
-
-  const segment = index.segments.find(
-    (item) =>
-      item.textStart < firstPlanItem.sectionEnd && item.textEnd > firstPlanItem.sectionStart,
-  );
-  if (!segment) return undefined;
-  const chapter = index.chapters.find((item) => item.id === segment.chapterId);
-  if (!chapter) return undefined;
-  const textRange = {
-    textStart: Math.max(segment.textStart, firstPlanItem.sectionStart),
-    textEnd: Math.min(segment.textEnd, firstPlanItem.sectionEnd),
-  };
-  if (textRange.textEnd <= textRange.textStart) return undefined;
-
-  return buildReadingMemoryView({
-    articleId,
-    viewType: 'segment',
-    chapterId: chapter.id,
-    segmentId: segment.id,
-    textRange,
-    query: [
-      firstPlanItem.sectionSummary || '',
-      firstPlanItem.sectionTag || '',
-      payload.readingIntent || '',
-      payload.instruction || '',
-      ...(firstPlanItem.messages || []).map((message) => message.content),
-    ].join(' '),
-    readerProgress: payload.readerProgress || {
-      currentChapterId: chapter.id,
-      currentSegmentId: segment.id,
-      readChapterIds: index.chapters
-        .filter((item) => item.indexInBook < chapter.indexInBook)
-        .map((item) => item.id),
-      readUntilTextOffset: textRange.textEnd,
-    },
-    performanceLogger: logInfo,
-  });
-}
-
-function articleSectionMemoryView(
-  payload: AgentAnnotatePayload,
-  articleId: string,
-  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
-) {
-  const ranges = (payload.readingPlan || []).flatMap((item) => {
-    const textRange = normalizeTextRange(item.sectionStart, item.sectionEnd);
-    return textRange ? [textRange] : [];
-  });
-  if (ranges.length === 0) return undefined;
-  const textRange = {
-    textStart: Math.min(...ranges.map((range) => range.textStart)),
-    textEnd: Math.max(...ranges.map((range) => range.textEnd)),
-  };
-  return buildReadingMemoryView({
-    articleId,
-    viewType: 'article_section',
-    textRange,
-    query: articleSectionQuery(payload),
-    performanceLogger: logInfo,
-  });
-}
-
-function articleSectionQuery(payload: AgentAnnotatePayload) {
-  const parts = [payload.readingIntent || '', payload.instruction || ''];
-  for (const item of payload.readingPlan || []) {
-    parts.push(item.sectionTitle, item.sectionSummary || '', item.sectionTag || '');
-    for (const message of item.messages || []) parts.push(message.content);
-  }
-  return parts.join(' ').trim();
-}
-
-function selectionAnnotateMemoryView(
-  payload: AgentAnnotatePayload,
-  articleId: string,
-  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
-) {
-  const textRange = anchorTextRange(payload.targetAnchor);
-  const location = textRange ? ebookLocationForRange(payload, textRange) : undefined;
-  return buildReadingMemoryView({
-    articleId,
-    viewType: 'selection',
-    chapterId: location?.chapterId,
-    segmentId: location?.segmentId,
-    textRange,
-    query: [
-      payload.targetAnchor?.exact || '',
-      payload.readingIntent || '',
-      payload.instruction || '',
-    ]
-      .join(' ')
-      .trim(),
-    readerProgress:
-      location && textRange
-        ? {
-            currentChapterId: location.chapterId,
-            currentSegmentId: location.segmentId,
-            readChapterIds: location.readChapterIds,
-            readUntilTextOffset: textRange.textEnd,
-          }
-        : payload.readerProgress,
-    performanceLogger: logInfo,
-  });
-}
-
-function selectionThreadMemoryView(
-  payload: AgentMessagePayload,
-  articleId: string,
-  logInfo: ((event: string, data?: Record<string, unknown>) => void) | undefined,
-) {
-  const textRange = anchorTextRange(payload.annotation.anchor);
-  const location = textRange ? ebookLocationForRange(payload, textRange) : undefined;
-  return buildReadingMemoryView({
-    articleId,
-    viewType: 'selection_thread',
-    chapterId: location?.chapterId,
-    segmentId: location?.segmentId,
-    textRange,
-    query: [
-      payload.annotation.anchor.exact,
-      payload.userComment.content,
-      payload.readingIntent || '',
-      payload.instruction || '',
-    ]
-      .join(' ')
-      .trim(),
-    readerProgress:
-      location && textRange
-        ? {
-            currentChapterId: location.chapterId,
-            currentSegmentId: location.segmentId,
-            readChapterIds: location.readChapterIds,
-            readUntilTextOffset: textRange.textEnd,
-          }
-        : payload.readerProgress,
-    performanceLogger: logInfo,
-  });
-}
-
-function ebookLocationForRange(
-  payload: Pick<AgentAnnotatePayload | AgentMessagePayload, 'article'>,
-  textRange: { textEnd: number },
-) {
-  const index = payload.article.ebookIndex;
-  if (!index) return undefined;
-  const segment = index.segments.find(
-    (item) => item.textStart < textRange.textEnd && item.textEnd >= textRange.textEnd,
-  );
-  if (!segment) return undefined;
-  const chapter = index.chapters.find((item) => item.id === segment.chapterId);
-  if (!chapter) return undefined;
-  return {
-    chapterId: chapter.id,
-    segmentId: segment.id,
-    readChapterIds: index.chapters
-      .filter((item) => item.indexInBook < chapter.indexInBook)
-      .map((item) => item.id),
-  };
-}
-
-function anchorTextRange(anchor: AgentAnnotatePayload['targetAnchor']) {
-  if (!anchor) return undefined;
-  const textStart = integerValue(anchor.textStartInBook) ?? integerValue(anchor.start);
-  const textEnd = integerValue(anchor.textEndInBook) ?? integerValue(anchor.end);
-  return textStart !== null && textEnd !== null && textEnd > textStart
-    ? { textStart, textEnd }
-    : undefined;
-}
-
-function integerValue(value: unknown) {
-  return typeof value === 'number' && Number.isInteger(value) ? value : null;
-}
-
-function normalizeTextRange(textStart: unknown, textEnd: unknown) {
-  const start = integerValue(textStart);
-  const end = integerValue(textEnd);
-  return start !== null && end !== null && end > start ? { textStart: start, textEnd: end } : null;
 }
 
 export function saveAgentAnnotateReadingMemoryEntries(input: {
