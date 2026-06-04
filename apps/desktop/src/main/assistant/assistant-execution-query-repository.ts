@@ -16,6 +16,11 @@ const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
 
 type AssistantExecutionRow = typeof schema.assistantExecutionRuns.$inferSelect;
+type AssistantExecutionTotalsAccumulator = {
+  totals: AssistantExecutionTotals;
+  durationCount: number;
+  durationSum: number;
+};
 
 export function listAssistantExecutionRuns(
   database: StoreExecutor,
@@ -107,25 +112,11 @@ export function assistantExecutionRunDto(row: AssistantExecutionRow): AssistantE
 export function summarizeAssistantExecutionRows(
   rows: AssistantExecutionRow[],
 ): AssistantExecutionTotals {
-  const totals = emptyTotals();
-  let durationCount = 0;
-  let durationSum = 0;
+  const accumulator = emptyTotalsAccumulator();
   for (const row of rows) {
-    totals.runCount += 1;
-    const status = normalizeStatus(row.status);
-    if (status === 'success') totals.successCount += 1;
-    if (status === 'fallback') totals.fallbackCount += 1;
-    if (status === 'error') totals.errorCount += 1;
-    addUsage(totals.usage, rowUsage(row));
-    if (row.estimatedCostMicros === null) totals.missingCostCount += 1;
-    else totals.estimatedCostMicros += row.estimatedCostMicros;
-    if (row.durationMs !== null) {
-      durationCount += 1;
-      durationSum += row.durationMs;
-    }
+    addRowToTotals(accumulator, row);
   }
-  if (durationCount > 0) totals.averageDurationMs = Math.round(durationSum / durationCount);
-  return totals;
+  return finalizeTotals(accumulator);
 }
 
 function groupRows(
@@ -134,16 +125,23 @@ function groupRows(
     row: AssistantExecutionRow,
   ) => Pick<AssistantExecutionSummaryGroup, 'key' | 'label'>,
 ): AssistantExecutionSummaryGroup[] {
-  const groups = new Map<string, { label: string; rows: AssistantExecutionRow[] }>();
+  const groups = new Map<
+    string,
+    { label: string; accumulator: AssistantExecutionTotalsAccumulator }
+  >();
   for (const row of rows) {
     const group = groupForRow(row);
     const existing = groups.get(group.key);
-    if (existing) existing.rows.push(row);
-    else groups.set(group.key, { label: group.label, rows: [row] });
+    if (existing) addRowToTotals(existing.accumulator, row);
+    else {
+      const accumulator = emptyTotalsAccumulator();
+      addRowToTotals(accumulator, row);
+      groups.set(group.key, { label: group.label, accumulator });
+    }
   }
   return Array.from(groups.entries())
     .map(([key, group]) =>
-      Object.assign(summarizeAssistantExecutionRows(group.rows), {
+      Object.assign(finalizeTotals(group.accumulator), {
         key,
         label: group.label,
       }),
@@ -161,6 +159,43 @@ function emptyTotals(): AssistantExecutionTotals {
     estimatedCostMicros: 0,
     missingCostCount: 0,
   };
+}
+
+function emptyTotalsAccumulator(): AssistantExecutionTotalsAccumulator {
+  return {
+    totals: emptyTotals(),
+    durationCount: 0,
+    durationSum: 0,
+  };
+}
+
+function addRowToTotals(
+  accumulator: AssistantExecutionTotalsAccumulator,
+  row: AssistantExecutionRow,
+) {
+  const { totals } = accumulator;
+  totals.runCount += 1;
+  const status = normalizeStatus(row.status);
+  if (status === 'success') totals.successCount += 1;
+  if (status === 'fallback') totals.fallbackCount += 1;
+  if (status === 'error') totals.errorCount += 1;
+  addUsage(totals.usage, rowUsage(row));
+  if (row.estimatedCostMicros === null) totals.missingCostCount += 1;
+  else totals.estimatedCostMicros += row.estimatedCostMicros;
+  if (row.durationMs !== null) {
+    accumulator.durationCount += 1;
+    accumulator.durationSum += row.durationMs;
+  }
+}
+
+function finalizeTotals(
+  accumulator: AssistantExecutionTotalsAccumulator,
+): AssistantExecutionTotals {
+  const { totals } = accumulator;
+  if (accumulator.durationCount > 0) {
+    totals.averageDurationMs = Math.round(accumulator.durationSum / accumulator.durationCount);
+  }
+  return totals;
 }
 
 function emptyUsage(): AssistantExecutionUsage {
