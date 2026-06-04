@@ -8,13 +8,9 @@ import { normalizeAiUsage } from '../provider/usage';
 import {
   DEFAULT_ASSISTANT_RUNTIME_BUDGETS,
   type AssistantAiSdkRuntimeOptions,
-  type AssistantEvidence,
   type AssistantFinalAction,
-  type AssistantRuntimeBudget,
   type AssistantRuntimeResult,
   type AssistantRuntimeStreamEvent,
-  type AssistantRuntimeTrace,
-  type AssistantRuntimeTraceStep,
   type AssistantToolCall,
   type AssistantToolDefinition,
   type AssistantToolExecutionResult,
@@ -26,8 +22,10 @@ import {
   assistantRuntimeFailureReason,
 } from './assistant-runtime-errors';
 import { promiseEffect, toolExecutorEffect } from './assistant-runtime-effects';
-import { validateAssistantFinalAction } from './assistant-runtime-validation';
-import { fallback, normalizeEvidence, sanitizeToolInput } from './assistant-runtime-trace';
+import {
+  createAssistantRuntimeKernel,
+  type AssistantRuntimeKernel,
+} from './assistant-runtime-kernel';
 
 type AiSdkToolShape = {
   description?: string;
@@ -51,22 +49,12 @@ function runAssistantAiSdkToolRuntimeEffect(
 ): Effect.Effect<AssistantRuntimeResult> {
   const budget = { ...DEFAULT_ASSISTANT_RUNTIME_BUDGETS[options.taskType], ...options.budget };
   const now = options.now || (() => new Date().toISOString());
-  const trace: AssistantRuntimeTrace = {
-    taskType: options.taskType,
-    agentId: options.agentId,
-    articleId: options.articleId,
-    startedAt: now(),
-    steps: [],
-  };
-  const evidence: AssistantEvidence[] = [];
-  const toolsByName = new Map(
-    options.tools.map((toolDefinition) => [toolDefinition.name, toolDefinition]),
-  );
+  const kernel = createAssistantRuntimeKernel({ ...options, budget, now });
   let nextStepIndex = 0;
 
   if (!supportsProviderTools(options.provider)) {
     return Effect.succeed(
-      emitFallback(options, trace, evidence, 'provider_tools_unsupported', false, now),
+      emitFallback(options, kernel.finishWithFallback('provider_tools_unsupported')),
     );
   }
 
@@ -75,17 +63,13 @@ function runAssistantAiSdkToolRuntimeEffect(
     options.tools.map((toolDefinition) => [
       toolDefinition.name,
       aiSdkTool(toolDefinition, {
-        articleId: options.articleId,
-        budget,
-        evidence,
+        kernel,
         nextStepIndex: () => nextStepIndex,
         incrementStepIndex: () => {
           nextStepIndex += 1;
         },
         onEvent: options.onEvent,
-        toolsByName,
         toolExecutor: options.toolExecutor,
-        trace,
       }),
     ]),
   ) as Record<string, AiSdkToolShape>;
@@ -112,52 +96,33 @@ function runAssistantAiSdkToolRuntimeEffect(
     });
     const text = yield* consumeRuntimeTextStreamEffect(result.textStream, options.onEvent);
     const finishReason = yield* promiseEffect(result.finishReason, AssistantRuntimeProviderFailure);
-    trace.usage = normalizeAiUsage(
-      yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure),
+    kernel.setUsage(
+      normalizeAiUsage(yield* promiseEffect(result.totalUsage, AssistantRuntimeProviderFailure)),
     );
     if (finishReason === 'length') {
       return emitFallback(
         options,
-        trace,
-        evidence,
-        `model_output_reached_max_tokens:${options.payload.maxTokens}`,
-        false,
-        now,
+        kernel.finishWithFallback(`model_output_reached_max_tokens:${options.payload.maxTokens}`),
       );
     }
 
     const action = finalActionFromText(options, text);
-    const validation = validateAssistantFinalAction(action, {
-      articleId: options.articleId,
-      evidenceIds: new Set(evidence.map((item) => item.id)),
-      allowedAnnotationIds: options.allowedAnnotationIds,
-    });
-    if (!validation.ok) {
-      return emitFallback(options, trace, evidence, validation.reason, false, now);
+    const step = kernel.handleFinalAction(
+      nextStepIndex,
+      { type: 'final_action', action },
+      performance.now(),
+      { repairable: false },
+    );
+    if (step.type === 'fallback') return emitFallback(options, step.result);
+    if (step.type === 'final') {
+      options.onEvent?.({ type: 'done', usage: step.result.trace.usage, trace: step.result.trace });
+      return step.result;
     }
-
-    trace.steps.push({
-      stepIndex: nextStepIndex,
-      eventType: 'final_action',
-      resultCount: 0,
-      evidenceIds: [],
-      evidenceSummaries: [],
-      latencyMs: 0,
-    });
-    trace.completedAt = now();
-    trace.finalActionType = validation.action.type;
-    options.onEvent?.({ type: 'done', usage: trace.usage, trace });
-    return {
-      status: 'final' as const,
-      action: validation.action,
-      evidence,
-      trace,
-      repairUsed: false,
-    };
+    return emitFallback(options, kernel.finishWithFallback(`unexpected_kernel_step:${step.type}`));
   }).pipe(
     Effect.catchAll((error) =>
       Effect.succeed(
-        emitFallback(options, trace, evidence, assistantRuntimeFailureReason(error), false, now),
+        emitFallback(options, kernel.finishWithFallback(assistantRuntimeFailureReason(error))),
       ),
     ),
   );
@@ -197,15 +162,11 @@ function consumeRuntimeTextStreamEffect(
 function aiSdkTool(
   toolDefinition: AssistantToolDefinition,
   context: {
-    articleId: string;
-    budget: AssistantRuntimeBudget;
-    evidence: AssistantEvidence[];
+    kernel: AssistantRuntimeKernel;
     nextStepIndex: () => number;
     incrementStepIndex: () => void;
     onEvent?: (event: AssistantRuntimeStreamEvent) => void;
-    toolsByName: Map<AssistantToolName, AssistantToolDefinition>;
     toolExecutor: (toolCall: AssistantToolCall) => Promise<AssistantToolExecutionResult>;
-    trace: AssistantRuntimeTrace;
   },
 ): AiSdkToolShape {
   return {
@@ -221,89 +182,30 @@ function aiSdkTool(
         input,
       };
       context.onEvent?.({ type: 'tool_call', toolName: toolCall.name, stepIndex });
-      const invalidReason = context.toolsByName.get(toolCall.name)?.validateInput?.(input) || null;
-      if (invalidReason) {
-        context.trace.steps.push(
-          aiSdkTraceStep(stepIndex, toolCall, startedAt, {
-            failureReason: invalidReason,
-          }),
-        );
-        context.onEvent?.({
-          type: 'tool_result',
-          toolName: toolCall.name,
-          stepIndex,
-          ok: false,
-        });
-        throw new AssistantRuntimeFailure(invalidReason);
-      }
-
-      const result = await Effect.runPromise(toolExecutorEffect(context.toolExecutor, toolCall));
-      if (!result.ok) {
-        context.trace.steps.push(
-          aiSdkTraceStep(stepIndex, toolCall, startedAt, {
-            failureReason: result.failureReason,
-          }),
-        );
-        context.onEvent?.({
-          type: 'tool_result',
-          toolName: toolCall.name,
-          stepIndex,
-          ok: false,
-        });
-        throw new AssistantRuntimeFailure(result.failureReason);
-      }
-
-      const invalidEvidence = (result.evidence || []).find(
-        (item) => item.provenance.articleId !== context.articleId,
-      );
-      if (invalidEvidence) {
-        const failureReason = `evidence_article_mismatch:${invalidEvidence.provenance.articleId}`;
-        context.trace.steps.push(
-          aiSdkTraceStep(stepIndex, toolCall, startedAt, {
-            failureReason,
-          }),
-        );
-        context.onEvent?.({
-          type: 'tool_result',
-          toolName: toolCall.name,
-          stepIndex,
-          ok: false,
-        });
-        throw new AssistantRuntimeFailure(failureReason);
-      }
-
-      const nextEvidence = (result.evidence || [])
-        .slice(0, context.budget.maxToolResults)
-        .map((item, index) =>
-          normalizeEvidence(item, {
-            id: `evidence_${stepIndex}_${index}`,
-            toolCallId: toolCall.id || `tool_call_${stepIndex}`,
-            toolName: toolCall.name,
-            maxCharacters: context.budget.maxToolResultCharacters,
-          }),
-        );
-      context.evidence.push(...nextEvidence);
-      context.trace.steps.push(
-        aiSdkTraceStep(stepIndex, toolCall, startedAt, {
-          resultCount: nextEvidence.length,
-          evidenceIds: nextEvidence.map((item) => item.id),
-          evidenceSummaries: nextEvidence.map((item) => ({
-            id: item.id,
-            summary: item.summary,
-            provenance: item.provenance,
-          })),
-        }),
+      const step = await context.kernel.handleToolCall(
+        stepIndex,
+        { type: 'tool_call', toolCall },
+        startedAt,
+        () => Effect.runPromise(toolExecutorEffect(context.toolExecutor, toolCall)),
+        { repairable: false },
       );
       context.onEvent?.({
         type: 'tool_result',
         toolName: toolCall.name,
         stepIndex,
-        ok: true,
+        ok: step.type === 'continue',
       });
+      if (step.type !== 'continue') {
+        const failureReason =
+          step.type === 'fallback'
+            ? step.result.failureReason
+            : `unexpected_kernel_step:${step.type}`;
+        throw new AssistantRuntimeFailure(failureReason);
+      }
       return {
         ok: true,
-        summary: result.summary,
-        evidence: nextEvidence.map((item) => ({
+        summary: step.toolResult.summary,
+        evidence: step.toolResult.evidence.map((item) => ({
           id: item.id,
           toolName: item.toolName,
           summary: item.summary,
@@ -312,30 +214,6 @@ function aiSdkTool(
         })),
       };
     },
-  };
-}
-
-function aiSdkTraceStep(
-  stepIndex: number,
-  toolCall: AssistantToolCall,
-  startedAt: number,
-  data: Partial<
-    Pick<
-      AssistantRuntimeTraceStep,
-      'resultCount' | 'evidenceIds' | 'evidenceSummaries' | 'failureReason'
-    >
-  > = {},
-): AssistantRuntimeTraceStep {
-  return {
-    stepIndex,
-    eventType: 'tool_call',
-    toolName: toolCall.name,
-    sanitizedToolInput: sanitizeToolInput(toolCall.input),
-    resultCount: data.resultCount || 0,
-    evidenceIds: data.evidenceIds || [],
-    evidenceSummaries: data.evidenceSummaries || [],
-    latencyMs: Math.max(0, Math.round(performance.now() - startedAt)),
-    failureReason: data.failureReason,
   };
 }
 
@@ -378,14 +256,10 @@ function finalActionFromText(
 
 function emitFallback(
   options: Pick<AssistantAiSdkRuntimeOptions, 'onEvent'>,
-  trace: AssistantRuntimeTrace,
-  evidence: AssistantEvidence[],
-  failureReason: string,
-  repairUsed: boolean,
-  now: () => string,
+  result: Extract<AssistantRuntimeResult, { status: 'fallback' }>,
 ) {
-  options.onEvent?.({ type: 'fallback', reason: failureReason });
-  return fallback(trace, evidence, failureReason, repairUsed, now);
+  options.onEvent?.({ type: 'fallback', reason: result.failureReason });
+  return result;
 }
 
 function toolInputSchema(name: AssistantToolName) {
