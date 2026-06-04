@@ -706,4 +706,11 @@ ALTER TABLE app_settings ADD COLUMN library_content_sources TEXT;
 ALTER TABLE app_settings ADD COLUMN last_seen_version TEXT;
 `,
   },
+  {
+    id: '0047_assistant_execution_created_at_idx',
+    sql: `
+CREATE INDEX IF NOT EXISTS assistant_execution_runs_created_at_idx
+ON assistant_execution_runs(created_at);
+`,
+  },
 ];

@@ -8,6 +8,21 @@ import * as schema from '../db/schema';
 import type { StoreExecutor } from '../store/store-db';
 
 type AssistantExecutionRow = typeof schema.assistantExecutionRuns.$inferSelect;
+type AggregateRow = {
+  runCount: number;
+  successCount: number;
+  fallbackCount: number;
+  errorCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+  totalTokens: number;
+  estimatedCostMicros: number;
+  missingCostCount: number;
+  averageDurationMs: number | null;
+};
 
 describe('assistant execution query repository', () => {
   it('maps runs with safe trace steps only', () => {
@@ -77,49 +92,7 @@ describe('assistant execution query repository', () => {
   });
 
   it('summarizes groups without changing totals or sort order', () => {
-    const rows = [
-      runRow('run_1', {
-        agentId: 'agent_1',
-        agentUsername: 'zhou',
-        agentNickname: '周现',
-        providerId: 'provider_1',
-        providerName: 'OpenAI',
-        modelName: 'gpt-4.1',
-        taskType: 'selection_first',
-        effectiveMode: 'deep_verification',
-        status: 'success',
-        estimatedCostMicros: 250,
-        durationMs: 1000,
-      }),
-      runRow('run_2', {
-        agentId: 'agent_2',
-        agentUsername: 'li',
-        agentNickname: null,
-        providerId: 'provider_2',
-        providerName: 'Anthropic',
-        modelName: 'claude-sonnet',
-        taskType: 'manual',
-        effectiveMode: 'fast',
-        status: 'fallback',
-        estimatedCostMicros: 600,
-        durationMs: 3000,
-      }),
-      runRow('run_3', {
-        agentId: 'agent_1',
-        agentUsername: 'zhou',
-        agentNickname: '周现',
-        providerId: 'provider_1',
-        providerName: 'OpenAI',
-        modelName: 'gpt-4.1',
-        taskType: 'selection_first',
-        effectiveMode: 'deep_verification',
-        status: 'error',
-        estimatedCostMicros: null,
-        durationMs: null,
-      }),
-    ];
-
-    const summary = summarizeAssistantExecutions(fakeDatabase(rows), {
+    const summary = summarizeAssistantExecutions(fakeSummaryDatabase(), {
       from: '2026-05-28T00:00:00.000Z',
       to: '2026-05-29T00:00:00.000Z',
     });
@@ -133,10 +106,17 @@ describe('assistant execution query repository', () => {
       missingCostCount: 1,
       averageDurationMs: 2000,
     });
+    expect(summary.totals.usage).toMatchObject({
+      inputTokens: 230,
+      outputTokens: 47,
+      reasoningTokens: 3,
+      cacheWriteTokens: 5,
+      totalTokens: 305,
+    });
     expect(summary.byAgent.map((group) => group.key)).toEqual(['agent_2', 'agent_1']);
     expect(summary.byAgent[1]).toMatchObject({
       key: 'agent_1',
-      label: '周现',
+      label: '周现新版',
       runCount: 2,
       successCount: 1,
       errorCount: 1,
@@ -149,19 +129,132 @@ describe('assistant execution query repository', () => {
       label: 'Anthropic / claude-sonnet',
       estimatedCostMicros: 600,
     });
+    expect(summary.byProviderModel[1]).toMatchObject({
+      key: 'provider_1:gpt-4.1',
+      label: 'OpenAI Renamed / gpt-4.1',
+      runCount: 2,
+    });
   });
 });
 
-function fakeDatabase(rows: AssistantExecutionRow[]): StoreExecutor {
+function fakeSummaryDatabase(): StoreExecutor {
+  const groupRows = [
+    [
+      aggregateGroupRow('agent_1', '周现新版', {
+        runCount: 2,
+        successCount: 1,
+        errorCount: 1,
+        inputTokens: 130,
+        outputTokens: 27,
+        reasoningTokens: 3,
+        cacheWriteTokens: 5,
+        totalTokens: 165,
+        estimatedCostMicros: 250,
+        missingCostCount: 1,
+        averageDurationMs: 1000,
+      }),
+      aggregateGroupRow('agent_2', '@li', {
+        runCount: 1,
+        fallbackCount: 1,
+        inputTokens: 100,
+        outputTokens: 20,
+        totalTokens: 140,
+        estimatedCostMicros: 600,
+        averageDurationMs: 3000,
+      }),
+    ],
+    [
+      aggregateGroupRow('provider_1:gpt-4.1', 'OpenAI Renamed / gpt-4.1', {
+        runCount: 2,
+        successCount: 1,
+        errorCount: 1,
+        estimatedCostMicros: 250,
+        missingCostCount: 1,
+      }),
+      aggregateGroupRow('provider_2:claude-sonnet', 'Anthropic / claude-sonnet', {
+        runCount: 1,
+        fallbackCount: 1,
+        estimatedCostMicros: 600,
+      }),
+    ],
+    [
+      aggregateGroupRow('selection_first', 'selection_first', {
+        runCount: 2,
+        successCount: 1,
+        errorCount: 1,
+        estimatedCostMicros: 250,
+        missingCostCount: 1,
+      }),
+      aggregateGroupRow('manual', 'manual', {
+        runCount: 1,
+        fallbackCount: 1,
+        estimatedCostMicros: 600,
+      }),
+    ],
+    [
+      aggregateGroupRow('deep_verification', 'deep_verification', {
+        runCount: 2,
+        successCount: 1,
+        errorCount: 1,
+        estimatedCostMicros: 250,
+        missingCostCount: 1,
+      }),
+      aggregateGroupRow('fast', 'fast', {
+        runCount: 1,
+        fallbackCount: 1,
+        estimatedCostMicros: 600,
+      }),
+    ],
+  ];
   return {
     select: () => ({
       from: () => ({
         where: () => ({
-          all: () => rows,
+          get: () =>
+            aggregateRow({
+              runCount: 3,
+              successCount: 1,
+              fallbackCount: 1,
+              errorCount: 1,
+              inputTokens: 230,
+              outputTokens: 47,
+              reasoningTokens: 3,
+              cacheWriteTokens: 5,
+              totalTokens: 305,
+              estimatedCostMicros: 850,
+              missingCostCount: 1,
+              averageDurationMs: 2000,
+            }),
+          groupBy: () => ({
+            all: () => groupRows.shift() || [],
+          }),
         }),
       }),
     }),
   } as unknown as StoreExecutor;
+}
+
+function aggregateGroupRow(key: string, label: string, overrides: Partial<AggregateRow> = {}) {
+  return { key, label, ...aggregateRow(overrides) };
+}
+
+function aggregateRow(overrides: Partial<AggregateRow> = {}): AggregateRow {
+  return {
+    runCount: 0,
+    successCount: 0,
+    fallbackCount: 0,
+    errorCount: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    reasoningTokens: 0,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    totalTokens: 0,
+    estimatedCostMicros: 0,
+    missingCostCount: 0,
+    averageDurationMs: null,
+    ...overrides,
+  };
 }
 
 function runRow(id: string, overrides: Partial<AssistantExecutionRow> = {}): AssistantExecutionRow {
