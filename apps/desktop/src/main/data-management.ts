@@ -101,7 +101,7 @@ function validateDatabaseBackupFile(filePath: string) {
   }
 
   try {
-    const integrity = database.pragma('integrity_check', { simple: true });
+    const integrity = checkDatabaseIntegrity(database);
     if (integrity !== 'ok') throw new Error('数据库完整性检查失败');
 
     const migrationIds = readAppliedDatabaseMigrationIds(database);
@@ -110,6 +110,14 @@ function validateDatabaseBackupFile(filePath: string) {
     assertDatabaseReaderCompatible(migrationIds, readDatabaseReaderLevelIfPresent(database));
   } finally {
     database.close();
+  }
+}
+
+function checkDatabaseIntegrity(database: SQLiteDatabase.Database) {
+  try {
+    return database.pragma('integrity_check', { simple: true });
+  } catch (error) {
+    throw new Error('请选择有效的 SQLite 数据库文件', { cause: error });
   }
 }
 
