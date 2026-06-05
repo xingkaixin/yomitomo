@@ -740,7 +740,6 @@ function App() {
               {activeSettingsSection === 'dataSources' ? <ActiveDataSourcesPanel /> : null}
               {activeSettingsSection === 'shortcuts' ? (
                 <ActiveShortcutSettings
-                  savedSettings={store.settings}
                   settingsDraft={settingsDraft}
                   canSave={canSaveShortcutSettings}
                   onSettingsChange={updateShortcutSettingsDraft}

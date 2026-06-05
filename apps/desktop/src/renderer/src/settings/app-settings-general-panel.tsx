@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon, Settings } from 'lucide-react';
+import {
+  Book,
+  FileText,
+  Globe,
+  GripVertical,
+  Image as ImageIcon,
+  MessageCircle,
+  MoreHorizontal,
+} from 'lucide-react';
 import type {
   AppSettings,
   LibraryContentSourceId,
@@ -7,7 +15,7 @@ import type {
 } from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
-import { Field, PanelHeader } from '../shell/app-ui';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsToggle } from './app-settings-kit';
 import {
   allLibraryContentSourceOptions,
   libraryContentSourcePreferences,
@@ -30,6 +38,13 @@ type ContentSourceDragFrame = {
   left: number;
   top: number;
   width: number;
+};
+
+const contentSourceIcons: Record<LibraryContentSourceId, React.ReactNode> = {
+  web: <Globe size={18} />,
+  ebook: <Book size={18} />,
+  pdf: <FileText size={18} />,
+  weread: <MessageCircle size={18} />,
 };
 
 export function GeneralSettings({
@@ -159,7 +174,7 @@ export function GeneralSettings({
       sourceMenuRef.current,
       dragPreviewRef.current || dragPreviewPreferences || sourcePreferences,
       session.id,
-      event.clientX,
+      event.clientY,
     );
     if (
       sameLibraryContentSourcePreferences(dragPreviewRef.current || sourcePreferences, nextPreview)
@@ -184,133 +199,123 @@ export function GeneralSettings({
   }
 
   return (
-    <div className="settings-panel collection-settings-panel">
-      <PanelHeader
-        icon={<Settings size={20} />}
-        title="通用"
-        description="控制导入文章时的本地保存行为与阅读库入口显示。"
-        action={
+    <SettingsPage
+      trail={['设置', '通用']}
+      description="控制导入文章时的本地保存行为与阅读库入口显示。"
+    >
+      <SettingsGroup
+        label="采集"
+        aside={
           <AutoSaveStatus
             error={saveError}
             state={saveState}
             onRetry={canSave ? () => onSave() : undefined}
           />
         }
-      />
-      <div className="settings-form-grid max-w-3xl">
-        <Field
-          id="general-save-images"
-          className="col-span-2"
-          description="采集文章时，将正文中的图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
-          label="保存原文图片"
+      >
+        <SettingsRow
+          align="start"
+          leading={<ImageIcon size={20} />}
+          title="采集文章时保存正文图片"
+          description="把正文图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
         >
-          <label className="settings-toggle-card" htmlFor="general-save-images">
-            <span className="settings-toggle-main">
-              <span className="settings-toggle-icon">
-                <ImageIcon size={17} />
-              </span>
-              <span>
-                <strong>采集文章时保存正文图片</strong>
-                <em>
-                  {settingsDraft.saveArticleImages
-                    ? '已开启。新采集文章中的图片会随文章一起保存。'
-                    : '已关闭。文章图片将保留原始链接。'}
-                </em>
-              </span>
-            </span>
-            <input
-              id="general-save-images"
-              type="checkbox"
-              checked={Boolean(settingsDraft.saveArticleImages)}
-              onChange={(event) => {
-                const nextDraft = {
-                  ...settingsDraft,
-                  saveArticleImages: event.target.checked,
-                };
-                onSettingsChange(nextDraft);
-                onSave(nextDraft);
-              }}
-            />
-            <span className="settings-toggle-switch" aria-hidden="true" />
-          </label>
-        </Field>
-        <Field
-          id="library-content-sources"
-          className="library-content-source-card-field col-span-2"
-          label="阅读库入口"
-          description="点按菜单项切换明灭，拖拽菜单项调整在功能菜单里的顺序。"
-        >
-          <div
-            className="library-source-tabs library-content-source-menu"
-            ref={sourceMenuRef}
-            role="list"
-          >
-            {sourceOptions.map((option) => {
-              const disableBlocked = option.enabled && enabledSourceCount <= 1;
-              return (
-                <div
-                  className={[
-                    'library-content-source-menu-item',
-                    option.enabled ? 'is-enabled' : 'is-disabled',
-                    draggedSource === option.value ? 'is-dragging' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  key={option.value}
-                  role="listitem"
-                >
-                  <div
-                    className="library-content-source-menu-button"
-                    data-library-source-card={option.value}
-                    role="button"
-                    tabIndex={0}
-                    aria-disabled={disableBlocked || undefined}
-                    aria-pressed={option.enabled}
-                    aria-label={`切换${option.label}入口`}
-                    onPointerDown={(event) => startContentSourcePointerDrag(event, option.value)}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter' && event.key !== ' ') return;
-                      event.preventDefault();
-                      toggleContentSource(option);
-                    }}
-                  >
-                    <span>{option.label}</span>
-                    <span className="library-content-source-menu-underline" aria-hidden="true" />
-                  </div>
-                </div>
-              );
-            })}
-            {draggedOption && dragFrame ? (
+          <SettingsToggle
+            id="general-save-images"
+            checked={Boolean(settingsDraft.saveArticleImages)}
+            label="采集文章时保存正文图片"
+            onChange={(checked) => {
+              const nextDraft = { ...settingsDraft, saveArticleImages: checked };
+              onSettingsChange(nextDraft);
+              onSave(nextDraft);
+            }}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup label="阅读库入口" note="开关控制是否在功能菜单显示，拖动手柄调整顺序。" flush>
+        <div className="settings-card settings-source-list" ref={sourceMenuRef} role="list">
+          {sourceOptions.map((option) => {
+            const disableBlocked = option.enabled && enabledSourceCount <= 1;
+            return (
               <div
-                aria-hidden="true"
                 className={[
-                  'library-content-source-menu-item',
-                  'is-floating-drag',
-                  draggedOption.enabled ? 'is-enabled' : 'is-disabled',
-                ].join(' ')}
-                style={
-                  {
-                    left: dragFrame.left,
-                    top: dragFrame.top,
-                    width: dragFrame.width,
-                  } as React.CSSProperties
-                }
+                  'settings-source-row',
+                  option.enabled ? 'is-enabled' : 'is-disabled',
+                  draggedSource === option.value ? 'is-dragging' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                data-library-source-card={option.value}
+                key={option.value}
+                role="button"
+                tabIndex={0}
+                aria-disabled={disableBlocked || undefined}
+                aria-pressed={option.enabled}
+                aria-label={`切换${option.label}入口`}
+                onPointerDown={(event) => startContentSourcePointerDrag(event, option.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  toggleContentSource(option);
+                }}
               >
-                <span className="library-content-source-menu-button">
-                  <span>{draggedOption.label}</span>
-                  <span className="library-content-source-menu-underline" aria-hidden="true" />
+                <span className="settings-source-grip" aria-hidden="true">
+                  <GripVertical size={16} />
                 </span>
+                <span className="settings-source-icon" aria-hidden="true">
+                  {contentSourceIcons[option.value]}
+                </span>
+                <span className="settings-source-label">{option.label}</span>
+                <span
+                  className={
+                    option.enabled ? 'settings-source-switch is-on' : 'settings-source-switch'
+                  }
+                  aria-hidden="true"
+                />
               </div>
-            ) : null}
-            <div className="library-content-source-menu-item is-coming-soon" role="listitem">
-              <span className="library-content-source-menu-button" aria-disabled="true">
-                <span>更多类型，敬请期待</span>
-              </span>
-            </div>
+            );
+          })}
+          <div className="settings-source-row is-coming-soon" role="listitem">
+            <span className="settings-source-icon" aria-hidden="true">
+              <MoreHorizontal size={18} />
+            </span>
+            <span className="settings-source-label">更多类型</span>
+            <span className="settings-source-soon">敬请期待</span>
           </div>
-        </Field>
-      </div>
-    </div>
+        </div>
+        {draggedOption && dragFrame ? (
+          <div
+            aria-hidden="true"
+            className={[
+              'settings-source-row',
+              'is-floating-drag',
+              draggedOption.enabled ? 'is-enabled' : 'is-disabled',
+            ].join(' ')}
+            style={
+              {
+                left: dragFrame.left,
+                top: dragFrame.top,
+                width: dragFrame.width,
+              } as React.CSSProperties
+            }
+          >
+            <span className="settings-source-grip" aria-hidden="true">
+              <GripVertical size={16} />
+            </span>
+            <span className="settings-source-icon" aria-hidden="true">
+              {contentSourceIcons[draggedOption.value]}
+            </span>
+            <span className="settings-source-label">{draggedOption.label}</span>
+            <span
+              className={
+                draggedOption.enabled ? 'settings-source-switch is-on' : 'settings-source-switch'
+              }
+              aria-hidden="true"
+            />
+          </div>
+        ) : null}
+      </SettingsGroup>
+    </SettingsPage>
   );
 }
 
@@ -318,16 +323,16 @@ function contentSourcePointerOrder(
   row: HTMLElement | null,
   preferences: LibraryContentSourcePreference[],
   draggedId: LibraryContentSourceId,
-  clientX: number,
+  clientY: number,
 ) {
   if (!row) return preferences;
   const mids = Array.from(row.querySelectorAll<HTMLElement>('[data-library-source-card]'))
     .filter((element) => element.dataset.librarySourceCard !== draggedId)
     .map((element) => {
       const rect = element.getBoundingClientRect();
-      return rect.left + rect.width / 2;
+      return rect.top + rect.height / 2;
     });
-  const targetIndex = mids.filter((mid) => clientX > mid).length;
+  const targetIndex = mids.filter((mid) => clientY > mid).length;
   const currentIndex = preferences.findIndex((preference) => preference.id === draggedId);
   if (currentIndex < 0 || targetIndex === currentIndex) return preferences;
   const next = [...preferences];

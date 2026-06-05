@@ -1,22 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Check,
+  CircleCheck,
   ExternalLink,
   Eye,
   EyeOff,
   Info,
   RefreshCw,
   Save,
-  Smartphone,
   Trash2,
   X,
 } from 'lucide-react';
 import type { WeReadOpenMethod, WeReadSettings } from '@yomitomo/shared';
-import { Field, PanelHeader } from '../shell/app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { SettingsGroup, SettingsPage, SettingsRadioDot } from './app-settings-kit';
 
 const WEREAD_API_KEY_HELP_URL = 'https://yomitomo.app/docs/weread-api-key/';
 
@@ -193,23 +193,26 @@ export function WeReadSettingsPanel() {
           : '测试连接';
 
   return (
-    <div className="settings-panel weread-settings-panel">
-      <PanelHeader
-        icon={<Smartphone size={20} />}
-        title="微信读书"
-        description="同步微信读书中的划线、想法和阅读进度。"
-      />
-      <div className="settings-form-grid max-w-3xl">
-        <Field
-          id="weread-api-key"
-          className="col-span-2"
-          label="API Key"
-          description={
-            settings.configured
-              ? '已保存到系统安全凭据库。输入新 API Key 并保存可替换当前配置。'
-              : 'API Key 会保存到系统安全凭据库，不会明文写入本地数据库。'
-          }
-        >
+    <SettingsPage
+      trail={['设置', '数据来源', '微信读书']}
+      description="同步微信读书中的划线、想法和阅读进度。"
+    >
+      <SettingsGroup
+        label="凭证"
+        padded
+        aside={
+          settings.configured ? (
+            <span className="settings-status-ok">
+              <CircleCheck size={14} />
+              已保存到系统安全凭据库
+            </span>
+          ) : null
+        }
+      >
+        <div className="settings-field">
+          <label className="settings-field-label" htmlFor="weread-api-key">
+            API Key
+          </label>
           <div className="weread-api-key-field">
             <Input
               id="weread-api-key"
@@ -236,101 +239,105 @@ export function WeReadSettingsPanel() {
               {apiKeyVisible ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
-          <div className="weread-api-key-actions">
-            <Button
-              className={
-                saveState === 'saved'
-                  ? 'action-button save-action is-saved'
-                  : 'action-button save-action'
-              }
-              disabled={!canSave}
-              type="button"
-              onClick={saveSettings}
-            >
-              {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
-              {saveLabel}
-            </Button>
-            <Button
-              className={
-                testState === 'testing'
-                  ? 'action-button test-action is-loading'
-                  : testState === 'success'
-                    ? 'action-button test-action is-success'
-                    : testState === 'error'
-                      ? 'action-button test-action is-error'
-                      : 'action-button test-action'
-              }
-              disabled={!canTest}
-              type="button"
-              variant="outline"
-              onClick={testConnection}
-            >
-              {testState === 'success' ? (
-                <Check size={15} />
-              ) : testState === 'error' ? (
-                <X size={15} />
-              ) : (
-                <RefreshCw size={15} />
-              )}
-              {testLabel}
-            </Button>
-            <Button
-              className="action-button weread-remove-action"
-              disabled={!canRemove}
-              type="button"
-              variant="secondary"
-              onClick={removeStoredApiKey}
-            >
-              <Trash2 size={15} />
-              移除
-            </Button>
-          </div>
+        </div>
+        <div className="settings-card-actions weread-api-key-actions">
+          <Button
+            className={
+              saveState === 'saved'
+                ? 'action-button save-action is-saved'
+                : 'action-button save-action'
+            }
+            disabled={!canSave}
+            type="button"
+            onClick={saveSettings}
+          >
+            {saveState === 'saved' ? <Check size={16} /> : <Save size={16} />}
+            {saveLabel}
+          </Button>
+          <Button
+            className={
+              testState === 'testing'
+                ? 'action-button test-action is-loading'
+                : testState === 'success'
+                  ? 'action-button test-action is-success'
+                  : testState === 'error'
+                    ? 'action-button test-action is-error'
+                    : 'action-button test-action'
+            }
+            disabled={!canTest}
+            type="button"
+            variant="outline"
+            onClick={testConnection}
+          >
+            {testState === 'success' ? (
+              <Check size={15} />
+            ) : testState === 'error' ? (
+              <X size={15} />
+            ) : (
+              <RefreshCw size={15} />
+            )}
+            {testLabel}
+          </Button>
+          <Button
+            className="action-button weread-remove-action"
+            disabled={!canRemove}
+            type="button"
+            variant="secondary"
+            onClick={removeStoredApiKey}
+          >
+            <Trash2 size={15} />
+            移除
+          </Button>
           <button className="weread-help-link" type="button" onClick={openWeReadApiKeyHelp}>
             <Info size={15} />
-            如何获取微信读书 API KEY
+            如何获取 API Key
             <ExternalLink size={13} />
           </button>
-          {saveState === 'error' || apiKeyMessage ? (
-            <p className="shortcut-tips is-error">{apiKeyMessage || '保存失败，请重试。'}</p>
-          ) : testState === 'error' && testMessage ? (
-            <p className="shortcut-tips is-error">{testMessage}</p>
-          ) : null}
-        </Field>
-        <Field
-          id="weread-open-method"
-          className="col-span-2"
-          label="默认打开方式"
-          description="网页版打开到章节；App 可打开到对应划线或想法，需本机已安装微信读书。"
-        >
-          <div className="weread-open-method-save-status">
-            <AutoSaveStatus
-              error={openMethodSaveError}
-              state={openMethodSaveState}
-              onRetry={() => void saveOpenMethod(settings.openMethod)}
-            />
-          </div>
-          <div className="weread-open-methods" role="radiogroup" aria-label="微信读书默认打开方式">
-            {wereadOpenMethods.map((option) => (
-              <button
-                aria-checked={settings.openMethod === option.value}
-                className={settings.openMethod === option.value ? 'is-active' : undefined}
-                key={option.value}
-                type="button"
-                role="radio"
-                onClick={() => {
-                  if (settings.openMethod === option.value) return;
-                  void saveOpenMethod(option.value);
-                }}
-              >
-                {settings.openMethod === option.value ? <em>当前使用</em> : null}
+        </div>
+        {saveState === 'error' || apiKeyMessage ? (
+          <p className="settings-error-text">{apiKeyMessage || '保存失败，请重试。'}</p>
+        ) : testState === 'error' && testMessage ? (
+          <p className="settings-error-text">{testMessage}</p>
+        ) : null}
+      </SettingsGroup>
+
+      <SettingsGroup
+        label="默认打开方式"
+        aside={
+          <AutoSaveStatus
+            error={openMethodSaveError}
+            state={openMethodSaveState}
+            onRetry={() => void saveOpenMethod(settings.openMethod)}
+          />
+        }
+        cardProps={{ role: 'radiogroup', 'aria-label': '微信读书默认打开方式' }}
+      >
+        {wereadOpenMethods.map((option) => {
+          const active = settings.openMethod === option.value;
+          return (
+            <button
+              aria-checked={active}
+              className="settings-row settings-row-button"
+              key={option.value}
+              type="button"
+              role="radio"
+              onClick={() => {
+                if (active) return;
+                void saveOpenMethod(option.value);
+              }}
+            >
+              <span className="settings-row-leading">
+                <SettingsRadioDot checked={active} />
+              </span>
+              <div className="settings-row-copy">
                 <strong>{option.label}</strong>
-                <span>{option.description}</span>
-              </button>
-            ))}
-          </div>
-        </Field>
-      </div>
-    </div>
+                <p>{option.description}</p>
+              </div>
+            </button>
+          );
+        })}
+      </SettingsGroup>
+    </SettingsPage>
   );
 }
 

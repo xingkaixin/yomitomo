@@ -7,20 +7,23 @@ import {
   Download,
   ExternalLink,
   FileText,
-  Info,
   MessageSquare,
   Package,
   Play,
   RefreshCw,
   Search,
-  Settings,
   Tag,
   X,
 } from 'lucide-react';
 import thirdPartyNoticesRaw from '../../../../../../THIRD_PARTY_NOTICES.md?raw';
-import { PanelHeader } from './app-ui';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsRow,
+  SettingsToggle,
+} from '../settings/app-settings-kit';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
@@ -124,235 +127,146 @@ export function AboutSettings({
   const updateButton = updateAction(updateState);
   const developerModeEnabled = Boolean(settings.developerModeEnabled);
 
+  const resourceRows: Array<{
+    icon: React.ReactNode;
+    title: string;
+    description: string;
+    label: string;
+    onAction: () => void;
+  }> = [
+    {
+      icon: <FileText size={18} />,
+      title: '更新记录',
+      description: '查看版本发布说明和主要变化。',
+      label: '查看更新记录',
+      onAction: () => openExternal(releasesUrl),
+    },
+    {
+      icon: <BookOpen size={18} />,
+      title: 'GitHub 项目',
+      description: '打开源码主页、README 和项目资料。',
+      label: '打开 GitHub',
+      onAction: () => openExternal(githubUrl),
+    },
+    {
+      icon: <ExternalLink size={18} />,
+      title: '官网',
+      description: '打开 Yomitomo 官网入口。',
+      label: '打开官网',
+      onAction: () => openExternal(homepageUrl),
+    },
+    {
+      icon: <MessageSquare size={18} />,
+      title: '反馈入口',
+      description: '提交问题、建议和可复现信息。',
+      label: '提交反馈',
+      onAction: () => openExternal(feedbackUrl),
+    },
+    {
+      icon: <Package size={18} />,
+      title: '开源许可证',
+      description: `Yomitomo 使用 MIT，第三方组件包含 ${thirdPartyPackages.length} 个开源项目。`,
+      label: '查看许可证',
+      onAction: () => setLicensesOpen(true),
+    },
+  ];
+
   return (
-    <div className="settings-panel">
-      <PanelHeader
-        icon={<Info size={20} />}
-        title="关于"
-        description="查看版本、更新、文档、反馈和开源许可证。"
-      />
-      <div className="about-layout">
-        <section className="about-card about-version-card" aria-labelledby="about-version-title">
-          <div className="about-card-heading">
-            <span>
-              <Tag size={18} />
-            </span>
-            <div>
-              <h3 id="about-version-title">应用版本</h3>
-              <p>当前桌面端版本信息。</p>
-            </div>
-          </div>
-          <div className="about-version-list">
-            <VersionRow
-              label="桌面端"
-              value={formatVersion(appInfo.desktopVersion)}
-              action={
-                <Button
-                  className={
-                    updateButton.busy
-                      ? 'action-button about-update-action is-loading'
-                      : 'action-button about-update-action'
-                  }
-                  disabled={updateButton.disabled}
-                  type="button"
-                  onClick={handleUpdateAction}
-                >
-                  {updateButton.icon}
-                  {updateButton.label}
-                </Button>
-              }
-            />
-            <p
-              className="about-update-status"
-              role={updateState?.status === 'error' ? 'alert' : undefined}
-            >
-              {updateCopy}
+    <SettingsPage trail={['设置', '关于']} description="查看版本、更新、文档、反馈和开源许可证。">
+      <SettingsGroup label="版本">
+        <SettingsRow
+          leading={<Tag size={18} />}
+          title={
+            <>
+              桌面端{' '}
+              <span className="settings-version-tag">{formatVersion(appInfo.desktopVersion)}</span>
+            </>
+          }
+          description={updateCopy}
+        >
+          <Button
+            className={
+              updateButton.busy
+                ? 'action-button about-update-action is-loading'
+                : 'action-button about-update-action'
+            }
+            disabled={updateButton.disabled}
+            type="button"
+            onClick={handleUpdateAction}
+          >
+            {updateButton.icon}
+            {updateButton.label}
+          </Button>
+        </SettingsRow>
+        {import.meta.env.DEV ? (
+          <div className="settings-row about-update-dev">
+            <Button className="action-button" type="button" onClick={handleSimulateUpdate}>
+              模拟版本更新（更新后弹窗）
+            </Button>
+            <Button className="action-button" type="button" onClick={handleSimulatePreUpdate}>
+              模拟发现新版本（更新前弹窗）
+            </Button>
+            <p className="about-update-status">
+              {devResetDone
+                ? '已重置更新标记，重启应用即可预览「已更新」弹窗。'
+                : '开发用：「更新后」重置标记后重启预览；「更新前」点击即时弹出。'}
             </p>
-            {import.meta.env.DEV ? (
-              <div className="about-update-dev">
-                <Button className="action-button" type="button" onClick={handleSimulateUpdate}>
-                  模拟版本更新（更新后弹窗）
-                </Button>
-                <Button className="action-button" type="button" onClick={handleSimulatePreUpdate}>
-                  模拟发现新版本（更新前弹窗）
-                </Button>
-                <p className="about-update-status">
-                  {devResetDone
-                    ? '已重置更新标记，重启应用即可预览「已更新」弹窗。'
-                    : '开发用：「更新后」重置标记后重启预览；「更新前」点击即时弹出。'}
-                </p>
-              </div>
-            ) : null}
           </div>
-        </section>
+        ) : null}
+      </SettingsGroup>
 
-        <div className="about-resource-grid" aria-label="关于资源与反馈">
-          <AboutActionCard
-            icon={<FileText size={18} />}
-            title="更新记录"
-            description="查看版本发布说明和主要变化。"
-            actionLabel="查看更新记录"
-            onAction={() => openExternal(releasesUrl)}
-          />
-          <AboutActionCard
-            icon={<BookOpen size={18} />}
-            title="GitHub 项目"
-            description="打开源码主页、README 和项目资料。"
-            actionLabel="打开 GitHub"
-            onAction={() => openExternal(githubUrl)}
-          />
-          <AboutActionCard
-            icon={<ExternalLink size={18} />}
-            title="官网"
-            description="打开 Yomitomo 官网入口。"
-            actionLabel="打开官网"
-            onAction={() => openExternal(homepageUrl)}
-          />
-          <AboutActionCard
-            icon={<MessageSquare size={18} />}
-            title="反馈入口"
-            description="提交问题、建议和可复现信息。"
-            actionLabel="提交反馈"
-            onAction={() => openExternal(feedbackUrl)}
-          />
-        </div>
-
-        <AboutActionCard
-          className="about-license-card"
-          icon={<Package size={18} />}
-          title="开源许可证"
-          description={`Yomitomo 使用 MIT，第三方组件包含 ${thirdPartyPackages.length} 个开源项目。`}
-          actionLabel="查看许可证"
-          onAction={() => setLicensesOpen(true)}
-        />
-
-        <section className="about-card about-advanced-card" aria-labelledby="about-advanced-title">
-          <div className="about-card-heading">
-            <span>
-              <Settings size={18} />
-            </span>
-            <div>
-              <h3 id="about-advanced-title">高级</h3>
+      <SettingsGroup label="资源">
+        {resourceRows.map((row) => (
+          <button
+            aria-label={row.label}
+            className="settings-row settings-row-button"
+            key={row.title}
+            type="button"
+            onClick={row.onAction}
+          >
+            <span className="settings-row-leading">{row.icon}</span>
+            <div className="settings-row-copy">
+              <strong>{row.title}</strong>
+              <p>{row.description}</p>
             </div>
-          </div>
-          <div className="about-advanced-list">
-            <AboutAdvancedRow
-              icon={<Play size={18} />}
-              title="重新查看 onboarding"
-              description="重新打开首次引导流程。"
-              action={
-                <Button
-                  className="action-button about-link-action"
-                  type="button"
-                  onClick={onStartOnboarding}
-                >
-                  启动 onboarding
-                  <Play size={15} />
-                </Button>
-              }
-            />
-            <label className="about-advanced-row about-developer-toggle">
-              <span className="about-advanced-row-icon">
-                <Bug size={18} />
-              </span>
-              <span className="about-advanced-copy">
-                <span>开发者模式</span>
-                <em>显示调试入口、内部状态和开发辅助工具。</em>
-              </span>
-              <input
-                checked={developerModeEnabled}
-                disabled={developerModeSaving}
-                type="checkbox"
-                onChange={toggleDeveloperMode}
-              />
-              <span className="settings-toggle-switch" aria-hidden="true" />
-            </label>
-          </div>
-        </section>
-      </div>
+            <div className="settings-row-control">
+              <ExternalLink size={16} />
+            </div>
+          </button>
+        ))}
+      </SettingsGroup>
+
+      <SettingsGroup label="高级">
+        <SettingsRow
+          leading={<Play size={18} />}
+          title="重新查看 onboarding"
+          description="重新打开首次引导流程。"
+        >
+          <Button
+            className="action-button about-link-action"
+            type="button"
+            onClick={onStartOnboarding}
+          >
+            启动 onboarding
+            <Play size={15} />
+          </Button>
+        </SettingsRow>
+        <SettingsRow
+          leading={<Bug size={18} />}
+          title="开发者模式"
+          description="显示调试入口、内部状态和开发辅助工具。"
+        >
+          <SettingsToggle
+            checked={developerModeEnabled}
+            disabled={developerModeSaving}
+            label="开发者模式"
+            onChange={toggleDeveloperMode}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
       {licensesOpen ? <OpenSourceLicensesDialog onClose={() => setLicensesOpen(false)} /> : null}
-    </div>
-  );
-}
-
-function VersionRow({
-  label,
-  value,
-  detail,
-  action,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="about-version-row">
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {action ? (
-        <div className="about-version-action">{action}</div>
-      ) : detail ? (
-        <em>{detail}</em>
-      ) : null}
-    </div>
-  );
-}
-
-function AboutActionCard({
-  className,
-  icon,
-  title,
-  description,
-  actionLabel,
-  actionIcon = <ExternalLink size={15} />,
-  onAction,
-}: {
-  className?: string;
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  actionLabel: string;
-  actionIcon?: React.ReactNode;
-  onAction: () => void;
-}) {
-  return (
-    <section className={className ? `about-card ${className}` : 'about-card'}>
-      <div className="about-card-heading">
-        <span>{icon}</span>
-        <div>
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </div>
-      </div>
-      <Button className="action-button about-link-action" type="button" onClick={onAction}>
-        {actionLabel}
-        {actionIcon}
-      </Button>
-    </section>
-  );
-}
-
-function AboutAdvancedRow({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action: React.ReactNode;
-}) {
-  return (
-    <div className="about-advanced-row">
-      <span className="about-advanced-row-icon">{icon}</span>
-      <span className="about-advanced-copy">
-        <span>{title}</span>
-        <em>{description}</em>
-      </span>
-      <span className="about-advanced-action">{action}</span>
-    </div>
+    </SettingsPage>
   );
 }
 

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Blocks,
-  Check,
-  ChevronRight,
+  Book,
   Database,
   Download,
   FileText,
@@ -33,11 +32,18 @@ import {
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-shortcuts';
 import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
-import { CopyIconButton, PanelHeader } from '../shell/app-ui';
+import { CopyIconButton } from '../shell/app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Kbd } from '../components/ui/kbd';
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsRadioDot,
+  SettingsRow,
+  SettingsSegmented,
+} from './app-settings-kit';
 
 export { GeneralSettings } from './app-settings-general-panel';
 export { DataSourcesPanel, WeReadSettingsPanel } from './app-settings-weread-panel';
@@ -56,17 +62,17 @@ export type SettingsSectionKey =
   | 'aiTrace'
   | 'about';
 
-function messageSendShortcutCopy(shortcut: MessageSendShortcut, shortcutName: string) {
+function messageSendShortcutCopy(shortcut: MessageSendShortcut) {
   if (shortcut === 'enter') {
     return {
-      title: '⏎ 发送',
-      description: '按下 ⏎ 即可发送信息，适合习惯及时发送的场景。通过 Shift+⏎ 换行。',
+      title: '回车发送',
+      description: '按下回车即可发送信息，适合习惯即时发送的场景；按 Shift+回车 换行。',
     };
   }
 
   return {
-    title: `${shortcutName} 发送`,
-    description: `按下 ${shortcutName} 发送信息，适合长文本输入，避免误发送。此时通过 ⏎ 会换行。`,
+    title: '组合键发送',
+    description: '按下组合键发送信息，适合长文本输入、避免误发送；此时按回车换行。',
   };
 }
 
@@ -83,9 +89,9 @@ const selectionShortcutRows: Array<{
 
 const logRetentionOptions: Array<{ label: string; value?: number }> = [
   { label: '永久' },
-  { label: '最近 90 天', value: 90 },
-  { label: '最近 30 天', value: 30 },
-  { label: '最近 15 天', value: 15 },
+  { label: '90 天', value: 90 },
+  { label: '30 天', value: 30 },
+  { label: '15 天', value: 15 },
 ];
 
 const settingsSections: Array<{
@@ -157,47 +163,33 @@ export function SettingsSectionShell({
     : settingsSections;
 
   return (
-    <div className="settings-hub-layout">
-      <aside className="settings-section-sidebar">
-        <header className="settings-section-heading">
-          <span>
-            <Settings size={18} />
-          </span>
-          <div>
-            <h2>设置</h2>
-            <p>采集、模型、快捷键、数据和应用信息集中管理。</p>
-          </div>
-        </header>
-        <nav className="settings-section-nav" aria-label="设置分类">
+    <div className="settings-shell">
+      <div className="settings-shell-layout">
+        <nav className="settings-side-nav" aria-label="设置分类">
           {visibleSettingsSections.map((section) => {
             const active = activeSection === section.key;
             return (
               <button
                 aria-current={active ? 'page' : undefined}
-                className={
-                  active ? 'settings-section-nav-item is-active' : 'settings-section-nav-item'
-                }
+                className={active ? 'settings-side-nav-item is-active' : 'settings-side-nav-item'}
+                data-tooltip={section.title}
                 key={section.key}
                 type="button"
                 onClick={() => onSectionChange(section.key)}
               >
-                <span className="settings-section-nav-icon">{section.icon}</span>
-                <span className="settings-section-nav-copy">
-                  <strong>{section.title}</strong>
-                </span>
-                <ChevronRight size={16} />
+                <span className="settings-side-nav-icon">{section.icon}</span>
+                <span className="settings-side-nav-label">{section.title}</span>
               </button>
             );
           })}
         </nav>
-      </aside>
-      <section className="settings-section-content">{children}</section>
+        <section className="settings-shell-content">{children}</section>
+      </div>
     </div>
   );
 }
 
 export function ShortcutSettings({
-  savedSettings,
   settingsDraft,
   canSave,
   onSettingsChange,
@@ -205,7 +197,6 @@ export function ShortcutSettings({
   saveError,
   saveState,
 }: {
-  savedSettings: AppSettings;
   settingsDraft: AppSettings;
   canSave: boolean;
   onSettingsChange: (draft: AppSettings) => void;
@@ -215,15 +206,10 @@ export function ShortcutSettings({
 }) {
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
-  const savedShortcut = normalizeMessageSendShortcut(savedSettings.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
   const selectionShortcuts = React.useMemo(
     () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
     [settingsDraft.selectionActionShortcuts],
-  );
-  const savedSelectionShortcuts = React.useMemo(
-    () => normalizeSelectionActionShortcutDraft(savedSettings.selectionActionShortcuts),
-    [savedSettings.selectionActionShortcuts],
   );
   const hasSelectionShortcutConflict = selectionActionShortcutsConflict(selectionShortcuts);
 
@@ -289,168 +275,122 @@ export function ShortcutSettings({
   }
 
   return (
-    <div className="settings-panel shortcut-settings-panel">
-      <PanelHeader
-        icon={<Keyboard size={20} />}
-        title="快捷键"
-        description="配置应用内常用操作的键盘触发方式。"
-        action={
-          <AutoSaveStatus
-            error={saveError}
-            state={saveState}
-            onRetry={canSave ? () => onSave() : undefined}
-          />
+    <SettingsPage trail={['设置', '快捷键']} description="配置应用内常用操作的键盘触发方式。">
+      <SettingsGroup
+        label="消息发送"
+        aside={
+          <>
+            <span className="settings-hint">用于想法发布和回复发送，切换即时生效</span>
+            <AutoSaveStatus
+              error={saveError}
+              state={saveState}
+              onRetry={canSave ? () => onSave() : undefined}
+            />
+          </>
         }
-      />
-      <section className="shortcut-settings-card" aria-labelledby="shortcut-message-send-title">
-        <header className="shortcut-settings-card-header">
-          <h3 id="shortcut-message-send-title">消息发送</h3>
-          <p>用于阅读器里的想法发布和回复发送。</p>
-        </header>
-        <div aria-label="想法和回复发送快捷键" className="shortcut-option-list" role="radiogroup">
-          {messageSendShortcutOptions.map((option) => {
-            const active = selectedShortcut === option.value;
-            const current = savedShortcut === option.value;
-            const keys = messageSendShortcutKeys(option.value, shortcutModifier);
-            const shortcutName = keys.join('+');
-            const copy = messageSendShortcutCopy(option.value, shortcutName);
+        cardProps={{ role: 'radiogroup', 'aria-label': '想法和回复发送快捷键' }}
+      >
+        {messageSendShortcutOptions.map((option) => {
+          const active = selectedShortcut === option.value;
+          const keys = messageSendShortcutKeys(option.value, shortcutModifier);
+          const copy = messageSendShortcutCopy(option.value);
 
-            return (
-              <button
-                aria-checked={active}
-                aria-label={copy.title}
-                className={active ? 'shortcut-option-card is-active' : 'shortcut-option-card'}
-                key={option.value}
-                role="radio"
-                type="button"
-                onClick={() => {
-                  const nextDraft = { ...settingsDraft, messageSendShortcut: option.value };
-                  onSettingsChange(nextDraft);
-                  onSave(nextDraft);
-                }}
-              >
-                <span className="shortcut-radio" aria-hidden="true" />
-                <span className="shortcut-keyset" aria-hidden="true">
-                  {keys.map((key, index) => (
-                    <React.Fragment key={key}>
-                      {index > 0 ? <span className="shortcut-key-plus">+</span> : null}
-                      <Kbd className="shortcut-keycap">{key}</Kbd>
-                    </React.Fragment>
-                  ))}
-                </span>
-                <span className="shortcut-option-copy">
-                  <strong>{copy.title}</strong>
-                  <span>{copy.description}</span>
-                </span>
-                <span className="shortcut-current-slot">
-                  {current ? (
-                    <span className="shortcut-current-badge">
-                      <Check size={13} />
-                      当前使用
-                    </span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        <p className="shortcut-tips">Tips：你可以随时切换快捷键，设置立即生效。</p>
-      </section>
-      <section className="shortcut-settings-card" aria-labelledby="shortcut-selection-title">
-        <header className="shortcut-settings-card-header">
-          <h3 id="shortcut-selection-title">阅读区选区操作</h3>
-          <p>用于选中文本后的复制和记录想法。</p>
-        </header>
-        <div className="selection-shortcut-list">
-          {selectionShortcutRows.map((row) => {
-            const key = selectionShortcuts[row.action];
-            const savedKey = savedSelectionShortcuts[row.action];
-            const defaultKey = defaultSelectionActionShortcuts[row.action];
-            const modified = key !== defaultKey;
-            const current = key === savedKey;
-            const recording = recordingAction === row.action;
-            const conflict = hasSelectionShortcutConflict;
-            const otherRow = selectionShortcutRows.find((item) => item.action !== row.action)!;
-
-            return (
-              <div
-                className={
-                  conflict
-                    ? 'selection-shortcut-row has-conflict'
-                    : recording
-                      ? 'selection-shortcut-row is-recording'
-                      : 'selection-shortcut-row'
-                }
-                key={row.action}
-              >
-                <div className="selection-shortcut-copy">
-                  <strong>{row.label}</strong>
-                  <span>{row.description}</span>
-                </div>
-                <button
-                  className={
-                    recording ? 'selection-shortcut-key is-recording' : 'selection-shortcut-key'
-                  }
-                  type="button"
-                  aria-label={`设置${row.label}快捷键`}
-                  onClick={() => setRecordingAction(row.action)}
-                >
-                  <Kbd className="shortcut-keycap">{recording ? '...' : key}</Kbd>
-                  <span>{recording ? '按字母键' : '点击修改'}</span>
-                </button>
-                <span className="selection-shortcut-status">
-                  {conflict ? (
-                    <span className="shortcut-conflict-badge" role="alert">
-                      与{otherRow.label}共用 {key}
-                    </span>
-                  ) : current ? (
-                    <span className="shortcut-current-badge">
-                      <Check size={13} />
-                      当前使用
-                    </span>
-                  ) : null}
-                </span>
-                <span className="selection-shortcut-reset-slot">
-                  {modified && !recording ? (
-                    <button
-                      className="selection-shortcut-reset"
-                      type="button"
-                      aria-label={`重置${row.label}为默认 ${defaultKey}`}
-                      onClick={() => resetSelectionShortcut(row.action)}
-                    >
-                      <RefreshCw size={13} />
-                      重置
-                    </button>
-                  ) : null}
-                </span>
+          return (
+            <button
+              aria-checked={active}
+              aria-label={copy.title}
+              className="settings-row settings-row-button"
+              key={option.value}
+              role="radio"
+              type="button"
+              onClick={() => {
+                const nextDraft = { ...settingsDraft, messageSendShortcut: option.value };
+                onSettingsChange(nextDraft);
+                onSave(nextDraft);
+              }}
+            >
+              <span className="settings-row-leading">
+                <SettingsRadioDot checked={active} />
+              </span>
+              <span className="settings-keyset" aria-hidden="true">
+                {keys.map((key, index) => (
+                  <React.Fragment key={key}>
+                    {index > 0 ? <span className="settings-key-plus">+</span> : null}
+                    <Kbd className="settings-keycap">{key}</Kbd>
+                  </React.Fragment>
+                ))}
+              </span>
+              <div className="settings-row-copy">
+                <strong>{copy.title}</strong>
+                <p>{copy.description}</p>
               </div>
-            );
-          })}
-        </div>
-        <p className={hasSelectionShortcutConflict ? 'shortcut-tips is-error' : 'shortcut-tips'}>
-          支持 A-Z 单字母。重复键位会阻止保存。
-        </p>
-      </section>
-      <section className="shortcut-settings-card" aria-labelledby="shortcut-reader-title">
-        <header className="shortcut-settings-card-header">
-          <h3 id="shortcut-reader-title">阅读器翻页</h3>
-          <p>PDF 和电子书阅读时可直接用键盘翻页。</p>
-        </header>
-        <div className="shortcut-readonly-list">
-          <div className="shortcut-readonly-row">
-            <div className="selection-shortcut-copy">
-              <strong>上一页 / 下一页</strong>
-              <span>适用于 PDF 和电子书阅读器。该快捷键为内置说明，不支持自定义。</span>
-            </div>
-            <span className="shortcut-keyset" aria-label="左右方向键">
-              <Kbd className="shortcut-keycap">←</Kbd>
-              <span className="shortcut-key-plus">/</span>
-              <Kbd className="shortcut-keycap">→</Kbd>
-            </span>
-          </div>
-        </div>
-      </section>
-    </div>
+            </button>
+          );
+        })}
+      </SettingsGroup>
+
+      <SettingsGroup
+        label="阅读区选区操作"
+        aside={<span className="settings-hint">支持 A-Z 单字母，重复键位会阻止保存</span>}
+      >
+        {selectionShortcutRows.map((row) => {
+          const key = selectionShortcuts[row.action];
+          const defaultKey = defaultSelectionActionShortcuts[row.action];
+          const modified = key !== defaultKey;
+          const recording = recordingAction === row.action;
+          const conflict = hasSelectionShortcutConflict;
+          const otherRow = selectionShortcutRows.find((item) => item.action !== row.action)!;
+
+          return (
+            <SettingsRow
+              className={conflict ? 'has-conflict' : recording ? 'is-recording' : undefined}
+              key={row.action}
+              title={row.label}
+              description={row.description}
+            >
+              {conflict ? (
+                <span className="shortcut-conflict-badge" role="alert">
+                  与{otherRow.label}共用 {key}
+                </span>
+              ) : null}
+              <button
+                className={recording ? 'settings-key-button is-recording' : 'settings-key-button'}
+                type="button"
+                aria-label={`设置${row.label}快捷键`}
+                onClick={() => setRecordingAction(row.action)}
+              >
+                <Kbd className="settings-keycap">{recording ? '...' : key}</Kbd>
+                <span>{recording ? '按字母键' : '修改'}</span>
+              </button>
+              {modified && !recording ? (
+                <button
+                  className="settings-reset-button"
+                  type="button"
+                  aria-label={`重置${row.label}为默认 ${defaultKey}`}
+                  onClick={() => resetSelectionShortcut(row.action)}
+                >
+                  <RefreshCw size={13} />
+                  重置
+                </button>
+              ) : null}
+            </SettingsRow>
+          );
+        })}
+      </SettingsGroup>
+
+      <SettingsGroup label="阅读器翻页">
+        <SettingsRow
+          leading={<Book size={18} />}
+          title="上一页 / 下一页"
+          description="PDF 和电子书阅读时直接用键盘翻页，内置不可自定义。"
+        >
+          <span className="settings-keyset" aria-label="左右方向键">
+            <Kbd className="settings-keycap is-readonly">←</Kbd>
+            <Kbd className="settings-keycap is-readonly">→</Kbd>
+          </span>
+        </SettingsRow>
+      </SettingsGroup>
+    </SettingsPage>
   );
 }
 
@@ -467,7 +407,6 @@ export function DataManagementSettings({
   const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
   const [retentionSaveError, setRetentionSaveError] = useState('');
   const [lastRetentionDays, setLastRetentionDays] = useState<number | undefined>(undefined);
-  const [hoveredRetentionIndex, setHoveredRetentionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -550,101 +489,58 @@ export function DataManagementSettings({
   }
 
   const activeRetentionDays = settings.logRetentionDays;
-  const activeRetentionIndex = Math.max(
-    logRetentionOptions.findIndex((option) => (activeRetentionDays || undefined) === option.value),
-    0,
-  );
-  const retentionHighlightIndex = hoveredRetentionIndex ?? activeRetentionIndex;
+  const retentionValue = activeRetentionDays || 0;
 
   return (
-    <div className="settings-panel">
-      <PanelHeader
-        icon={<Database size={20} />}
-        title="数据管理"
-        description="查看本地数据位置，管理日志保留，并备份或还原数据库。"
-      />
-      <div className="data-management-grid">
-        <section className="data-management-card" aria-labelledby="data-paths-title">
-          <div className="data-management-card-heading">
-            <span>
-              <FolderOpen size={18} />
-            </span>
-            <div>
-              <h3 id="data-paths-title">本地位置</h3>
-              <p>路径只用于定位文件，不在这里展示日志内容。</p>
-            </div>
-          </div>
-          <div className="data-path-list">
-            <DataPathRow
-              icon={<HardDrive size={16} />}
-              label="数据目录"
-              path={paths?.dataDir || ''}
-              onOpen={() => openPath('dataDir')}
-            />
-            <DataPathRow
-              icon={<FileText size={16} />}
-              label="日志文件"
-              path={paths?.logFile || ''}
-              onOpen={() => openPath('logFile')}
-            />
-            <DataPathRow
-              icon={<Database size={16} />}
-              label="数据库文件"
-              path={paths?.databaseFile || ''}
-              onOpen={() => openPath('databaseFile')}
-            />
-          </div>
-        </section>
+    <SettingsPage
+      trail={['设置', '数据管理']}
+      description="查看本地数据位置，管理日志保留，并备份或还原数据库。"
+    >
+      <SettingsGroup label="本地位置">
+        <DataPathRow
+          icon={<HardDrive size={18} />}
+          label="数据目录"
+          path={paths?.dataDir || ''}
+          onOpen={() => openPath('dataDir')}
+        />
+        <DataPathRow
+          icon={<FileText size={18} />}
+          label="日志文件"
+          path={paths?.logFile || ''}
+          onOpen={() => openPath('logFile')}
+        />
+        <DataPathRow
+          icon={<Database size={18} />}
+          label="数据库文件"
+          path={paths?.databaseFile || ''}
+          onOpen={() => openPath('databaseFile')}
+        />
+      </SettingsGroup>
 
-        <section className="data-management-card" aria-labelledby="log-policy-title">
-          <div className="data-management-card-heading">
-            <span>
-              <FileText size={18} />
-            </span>
-            <div>
-              <h3 id="log-policy-title">日志</h3>
-              <p>只保留排查用日志文件路径、保留时间和清空操作。</p>
-            </div>
+      <div className="settings-group-grid">
+        <SettingsGroup
+          label="日志保留"
+          padded
+          aside={
             <AutoSaveStatus
               error={retentionSaveError}
               state={retentionSaveState}
               onRetry={() => void saveLogRetention(lastRetentionDays)}
             />
-          </div>
-          <div
-            className="data-retention-menu"
-            role="group"
-            aria-label="日志保留时间"
-            style={
-              {
-                '--retention-count': logRetentionOptions.length,
-                '--retention-highlight-index': retentionHighlightIndex,
-              } as React.CSSProperties
-            }
-            onMouseLeave={() => setHoveredRetentionIndex(null)}
-          >
-            <span className="data-retention-highlight" aria-hidden="true" />
-            {logRetentionOptions.map((option, index) => {
-              const active = (activeRetentionDays || undefined) === option.value;
-              const action = `retention:${option.value ?? 'forever'}`;
-              return (
-                <button
-                  className={active ? 'data-retention-option is-active' : 'data-retention-option'}
-                  disabled={busyAction === action}
-                  key={option.label}
-                  type="button"
-                  onMouseEnter={() => setHoveredRetentionIndex(index)}
-                  onFocus={() => setHoveredRetentionIndex(index)}
-                  onBlur={() => setHoveredRetentionIndex(null)}
-                  onClick={() => void saveLogRetention(option.value)}
-                >
-                  {active ? <Check size={14} /> : null}
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="data-management-actions">
+          }
+        >
+          <SettingsSegmented
+            ariaLabel="日志保留时间"
+            block
+            value={retentionValue}
+            options={logRetentionOptions.map((option) => ({
+              label: option.label,
+              value: option.value ?? 0,
+              disabled: busyAction === `retention:${option.value ?? 'forever'}`,
+            }))}
+            onChange={(value) => void saveLogRetention(value === 0 ? undefined : value)}
+          />
+          <div className="settings-card-actions">
             <Button
               className={
                 busyAction === 'clear-log'
@@ -660,22 +556,14 @@ export function DataManagementSettings({
               清空日志
             </Button>
           </div>
-        </section>
+        </SettingsGroup>
 
-        <section className="data-management-card" aria-labelledby="database-tools-title">
-          <div className="data-management-card-heading">
-            <span>
-              <Database size={18} />
-            </span>
-            <div>
-              <h3 id="database-tools-title">数据库</h3>
-              <p>备份当前 SQLite 数据库，或从兼容的数据库文件还原。</p>
-            </div>
+        <SettingsGroup label="数据库" padded>
+          <div className="settings-callout">
+            <Info size={16} />
+            <span>备份不含钥匙串中的模型密钥，也不含单独保存的 EPUB 原文件。</span>
           </div>
-          <p className="data-management-note">
-            数据库备份不包含系统钥匙串中的模型密钥，也不包含单独保存的 EPUB 原文件。
-          </p>
-          <div className="data-management-actions">
+          <div className="settings-card-actions">
             <Button
               className={
                 busyAction === 'backup-db'
@@ -704,10 +592,11 @@ export function DataManagementSettings({
               还原数据库
             </Button>
           </div>
-        </section>
+        </SettingsGroup>
       </div>
+
       {status ? <p className="data-management-status">{status}</p> : null}
-    </div>
+    </SettingsPage>
   );
 }
 
@@ -723,24 +612,23 @@ function DataPathRow({
   onOpen: () => void;
 }) {
   return (
-    <div className="data-path-row">
-      <span className="data-path-icon">{icon}</span>
-      <div>
-        <strong>{label}</strong>
-        <code>{path || '读取中'}</code>
-      </div>
+    <SettingsRow
+      leading={icon}
+      title={label}
+      description={<code className="settings-path">{path || '读取中'}</code>}
+    >
       {path ? <CopyIconButton label={`复制${label}路径`} value={path} /> : null}
       <button
         aria-label={`打开${label}`}
-        className="data-path-open"
+        className="settings-icon-button"
         data-tooltip={`打开${label}`}
         disabled={!path}
         type="button"
         onClick={onOpen}
       >
-        <FolderOpen size={15} />
+        <FolderOpen size={16} />
       </button>
-    </div>
+    </SettingsRow>
   );
 }
 
