@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Check, KeyRound, Save, SearchCheck, ShieldCheck, Zap, X } from 'lucide-react';
+import { BookOpen, Check, Save, ShieldCheck, Zap, X } from 'lucide-react';
 import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
-import { PanelHeader } from '../shell/app-ui';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { ProviderForm } from './app-settings-provider-form';
 import { ProviderList } from './app-settings-provider-list';
 import type { SaveState } from '../shell/app-types';
 import { AutoSaveStatus } from './app-settings-save-status';
+import { SettingsGroup, SettingsPage, SettingsRow, SettingsSegmented } from './app-settings-kit';
 import { Button } from '../components/ui/button';
 import {
   Select,
@@ -162,12 +162,10 @@ export function ProviderSettings({
 
   return (
     <>
-      <div className="settings-panel settings-model-panel">
-        <PanelHeader
-          icon={<KeyRound size={20} />}
-          title="模型与路由"
-          description="为伴读任务分配默认模型，并管理模型服务商配置。"
-        />
+      <SettingsPage
+        trail={['设置', '模型与路由']}
+        description="为伴读任务分配默认模型，并管理模型服务商配置。"
+      >
         <TaskProviderRoutes
           canSave={canSaveRoutes}
           providers={providers}
@@ -177,14 +175,16 @@ export function ProviderSettings({
           onChange={onRouteChange}
           onSave={onRouteSave}
         />
-        <ProviderList
-          providers={providers}
-          usedProviderIds={usedProviderIds}
-          onCreate={createProvider}
-          onDelete={deleteProvider}
-          onEdit={selectProvider}
-        />
-      </div>
+        <SettingsGroup label="模型供应商" flush>
+          <ProviderList
+            providers={providers}
+            usedProviderIds={usedProviderIds}
+            onCreate={createProvider}
+            onDelete={deleteProvider}
+            onEdit={selectProvider}
+          />
+        </SettingsGroup>
+      </SettingsPage>
       {editorDialog}
     </>
   );
@@ -298,21 +298,9 @@ const taskRouteOptions: Array<{
 const assistantExecutionModeOptions: Array<{
   value: AssistantExecutionMode;
   title: string;
-  description: string;
-  icon: React.ReactNode;
 }> = [
-  {
-    value: 'fast_response',
-    title: '快速回应',
-    description: '优先低延迟和低成本，一次请求完成回应。',
-    icon: <Zap size={18} />,
-  },
-  {
-    value: 'deep_verification',
-    title: '深入查证',
-    description: '允许助手调用阅读工具，多步收集证据后再行动。',
-    icon: <SearchCheck size={18} />,
-  },
+  { value: 'fast_response', title: '快速回应' },
+  { value: 'deep_verification', title: '深入查证' },
 ];
 
 function TaskProviderRoutes({
@@ -333,128 +321,92 @@ function TaskProviderRoutes({
   onSave: (draft?: AppSettings) => void;
 }) {
   const hasProviders = providers.length > 0;
+  const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
 
   return (
-    <section className="task-route-panel" aria-labelledby="task-route-title">
-      <div className="task-route-header">
-        <div>
-          <h3 id="task-route-title">任务路由</h3>
-          <p>
-            {hasProviders
-              ? '为不同伴读任务分配默认模型。'
-              : '先新增模型供应商，再为伴读任务分配默认模型。'}
-          </p>
-        </div>
+    <SettingsGroup
+      label="任务路由"
+      note={hasProviders ? undefined : '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'}
+      aside={
         <AutoSaveStatus
           error={saveError}
           state={saveState}
           onRetry={canSave ? () => onSave() : undefined}
         />
-      </div>
-      {!hasProviders ? (
-        <p className="task-route-empty-note">
-          当前还没有可选供应商。新增并保存供应商后，这里会开放选择。
-        </p>
-      ) : null}
-      <div className="task-route-list">
-        <div className="task-route-row">
-          <div className="task-route-copy">
-            <span className="task-route-icon">
-              <SearchCheck size={18} />
-            </span>
-            <div>
-              <strong>助手执行模式</strong>
-              <p>全局影响阅读批注、追问和共读任务。</p>
-            </div>
-          </div>
-          <div className="task-route-mode-group" role="radiogroup" aria-label="助手执行模式">
-            {assistantExecutionModeOptions.map((option) => {
-              const active =
-                (settingsDraft.assistantExecutionMode || 'fast_response') === option.value;
-              return (
-                <button
-                  aria-checked={active}
-                  className={active ? 'task-route-mode is-active' : 'task-route-mode'}
-                  key={option.value}
-                  role="radio"
-                  type="button"
-                  onClick={() => {
-                    const nextDraft = {
-                      ...settingsDraft,
-                      assistantExecutionMode: option.value,
-                    };
-                    onChange(nextDraft);
-                    onSave(nextDraft);
-                  }}
-                >
-                  <span>{option.icon}</span>
-                  <strong>{option.title}</strong>
-                  <em>{option.description}</em>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      <div className="task-route-list">
-        {taskRouteOptions.map((option) => (
-          <div className="task-route-row" key={option.key}>
-            <div className="task-route-copy">
-              <span className="task-route-icon">{option.icon}</span>
-              <div>
-                <strong>{option.title}</strong>
-                <p>
-                  {hasProviders
-                    ? option.description
-                    : `新增供应商后，可把它分配给${option.title}。`}
-                </p>
-              </div>
-            </div>
-            <Select
-              disabled={!hasProviders}
-              value={settingsDraft[option.key] || ''}
-              onValueChange={(providerId) => {
-                const nextDraft = { ...settingsDraft, [option.key]: providerId };
-                onChange(nextDraft);
-                onSave(nextDraft);
-              }}
+      }
+    >
+      <SettingsRow
+        leading={<Zap size={18} />}
+        title="助手执行模式"
+        description="全局影响阅读批注、追问和共读任务。"
+      >
+        <SettingsSegmented
+          ariaLabel="助手执行模式"
+          value={executionMode}
+          options={assistantExecutionModeOptions.map((option) => ({
+            label: option.title,
+            value: option.value,
+          }))}
+          onChange={(value) => {
+            const nextDraft = { ...settingsDraft, assistantExecutionMode: value };
+            onChange(nextDraft);
+            onSave(nextDraft);
+          }}
+        />
+      </SettingsRow>
+      {taskRouteOptions.map((option) => (
+        <SettingsRow
+          key={option.key}
+          leading={option.icon}
+          title={option.title}
+          description={
+            hasProviders ? option.description : `新增供应商后，可把它分配给${option.title}。`
+          }
+        >
+          <Select
+            disabled={!hasProviders}
+            value={settingsDraft[option.key] || ''}
+            onValueChange={(providerId) => {
+              const nextDraft = { ...settingsDraft, [option.key]: providerId };
+              onChange(nextDraft);
+              onSave(nextDraft);
+            }}
+          >
+            <SelectTrigger
+              aria-label={`${option.title}供应商`}
+              className="task-route-select-trigger"
             >
-              <SelectTrigger
-                aria-label={`${option.title}供应商`}
-                className="task-route-select-trigger"
-              >
-                <SelectValue placeholder={hasProviders ? '选择供应商' : '先新增供应商'} />
-              </SelectTrigger>
-              <SelectContent className="theme-select-content provider-select-content">
-                <SelectGroup>
-                  {providers.map((provider) => (
-                    <SelectItem
-                      className="provider-select-item"
-                      key={provider.id}
-                      value={provider.id}
-                    >
-                      <span className="provider-option-content">
-                        <img
-                          className="provider-select-logo"
-                          src={
-                            providerLogoMap[provider.logo || 'anthropic.png'] ||
-                            providerLogoMap['anthropic.png']
-                          }
-                          alt=""
-                        />
-                        <span className="provider-select-item-copy">
-                          <strong>{provider.name}</strong>
-                          <span>{provider.modelName}</span>
-                        </span>
+              <SelectValue placeholder={hasProviders ? '选择供应商' : '先新增供应商'} />
+            </SelectTrigger>
+            <SelectContent className="theme-select-content provider-select-content">
+              <SelectGroup>
+                {providers.map((provider) => (
+                  <SelectItem
+                    className="provider-select-item"
+                    key={provider.id}
+                    value={provider.id}
+                  >
+                    <span className="provider-option-content">
+                      <img
+                        className="provider-select-logo"
+                        src={
+                          providerLogoMap[provider.logo || 'anthropic.png'] ||
+                          providerLogoMap['anthropic.png']
+                        }
+                        alt=""
+                      />
+                      <span className="provider-select-item-copy">
+                        <strong>{provider.name}</strong>
+                        <span>{provider.modelName}</span>
                       </span>
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
-      </div>
-    </section>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </SettingsRow>
+      ))}
+    </SettingsGroup>
   );
 }

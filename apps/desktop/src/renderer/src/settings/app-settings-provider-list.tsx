@@ -19,13 +19,7 @@ export function ProviderList({
   onEdit: (provider: LlmProvider) => void;
 }) {
   return (
-    <section className="provider-card-section" aria-labelledby="provider-card-section-title">
-      <header className="provider-card-section-header">
-        <div>
-          <h3 id="provider-card-section-title">模型供应商</h3>
-          <p>管理可用于阅读理解和深度审阅的模型服务商。</p>
-        </div>
-      </header>
+    <section className="provider-card-section" aria-label="模型供应商">
       <div className="provider-card-grid">
         {providers.map((provider) => (
           <ProviderCard

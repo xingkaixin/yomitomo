@@ -813,10 +813,11 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    const field = container.querySelector('.library-content-source-card-field');
+    const list = container.querySelector('.settings-source-list');
 
-    expect(field).toBeTruthy();
-    expect(field?.textContent).toContain('阅读库入口');
+    expect(list).toBeTruthy();
+    expect(screen.getByText('阅读库入口')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '切换电子书入口' })).toBeTruthy();
   });
 
   it('updates the save images setting', () => {
@@ -972,23 +973,23 @@ describe('GeneralSettings', () => {
 
     const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-library-source-card]'));
     const cardRects = [
-      { left: 0, right: 100 },
-      { left: 110, right: 210 },
-      { left: 220, right: 320 },
-      { left: 330, right: 430 },
+      { top: 0, bottom: 50 },
+      { top: 60, bottom: 110 },
+      { top: 120, bottom: 170 },
+      { top: 180, bottom: 230 },
     ];
     cards.forEach((card, index) => {
       const rect = cardRects[index];
       card.getBoundingClientRect = () =>
         ({
-          bottom: 100,
-          height: 100,
-          left: rect.left,
-          right: rect.right,
-          top: 0,
-          width: 100,
-          x: rect.left,
-          y: 0,
+          bottom: rect.bottom,
+          height: rect.bottom - rect.top,
+          left: 0,
+          right: 300,
+          top: rect.top,
+          width: 300,
+          x: 0,
+          y: rect.top,
           toJSON: () => ({}),
         }) as DOMRect;
     });
@@ -996,14 +997,14 @@ describe('GeneralSettings', () => {
     const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
     fireEvent.pointerDown(ebookItem, {
       button: 0,
-      clientX: 130,
-      clientY: 50,
+      clientX: 50,
+      clientY: 85,
       isPrimary: true,
       pointerId: 1,
     });
     fireEvent.pointerMove(window, {
-      clientX: 340,
-      clientY: 50,
+      clientX: 50,
+      clientY: 150,
       isPrimary: true,
       pointerId: 1,
     });
@@ -1013,13 +1014,11 @@ describe('GeneralSettings', () => {
         (item) => item.dataset.librarySourceCard,
       ),
     ).toEqual(['web', 'pdf', 'ebook', 'weread']);
-    expect(
-      container.querySelector('.library-content-source-menu-item.is-floating-drag'),
-    ).toBeTruthy();
+    expect(container.querySelector('.settings-source-row.is-floating-drag')).toBeTruthy();
 
     fireEvent.pointerUp(window, {
-      clientX: 340,
-      clientY: 50,
+      clientX: 50,
+      clientY: 150,
       isPrimary: true,
       pointerId: 1,
     });
@@ -1069,7 +1068,6 @@ describe('ShortcutSettings', () => {
     const onSettingsChange = vi.fn();
     render(
       <ShortcutSettings
-        savedSettings={{ messageSendShortcut: 'enter' }}
         settingsDraft={{ messageSendShortcut: 'enter' }}
         canSave={false}
         onSettingsChange={onSettingsChange}
@@ -1083,19 +1081,15 @@ describe('ShortcutSettings', () => {
     expect(onSettingsChange).toHaveBeenCalledWith({ messageSendShortcut: 'mod-enter' });
     expect(screen.getAllByText('⏎').some((element) => element.tagName === 'KBD')).toBe(true);
     expect(screen.getByText('消息发送')).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '⏎ 发送' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: /(?:⌘|Ctrl)\+⏎ 发送/ })).toBeTruthy();
-    expect(
-      within(screen.getByLabelText('想法和回复发送快捷键')).getAllByText('当前使用'),
-    ).toHaveLength(1);
-    expect(screen.getByText(/你可以随时切换快捷键，设置立即生效/)).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '回车发送' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '组合键发送' })).toBeTruthy();
+    expect(screen.getByText(/用于想法发布和回复发送，切换即时生效/)).toBeTruthy();
     expect(screen.queryByText(/Command|Enter|macOS|Windows/)).toBeNull();
   });
 
   it('keeps the current badge on the saved shortcut while editing', () => {
     render(
       <ShortcutSettings
-        savedSettings={{ messageSendShortcut: 'enter' }}
         settingsDraft={{ messageSendShortcut: 'mod-enter' }}
         canSave
         onSettingsChange={vi.fn()}
@@ -1108,15 +1102,12 @@ describe('ShortcutSettings', () => {
 
     expect(options[0].getAttribute('aria-checked')).toBe('false');
     expect(options[1].getAttribute('aria-checked')).toBe('true');
-    expect(within(options[0]).getByText('当前使用')).toBeTruthy();
-    expect(within(options[1]).queryByText('当前使用')).toBeNull();
   });
 
   it('records single-letter reader action shortcuts', () => {
     const onSettingsChange = vi.fn();
     render(
       <ShortcutSettings
-        savedSettings={{ messageSendShortcut: 'enter' }}
         settingsDraft={{ messageSendShortcut: 'enter' }}
         canSave={false}
         onSettingsChange={onSettingsChange}
@@ -1138,7 +1129,6 @@ describe('ShortcutSettings', () => {
     const onSettingsChange = vi.fn();
     render(
       <ShortcutSettings
-        savedSettings={{ messageSendShortcut: 'enter' }}
         settingsDraft={{ messageSendShortcut: 'enter' }}
         canSave={false}
         onSettingsChange={onSettingsChange}
@@ -1162,10 +1152,6 @@ describe('ShortcutSettings', () => {
     const onSettingsChange = vi.fn();
     render(
       <ShortcutSettings
-        savedSettings={{
-          messageSendShortcut: 'enter',
-          selectionActionShortcuts: { copy: 'C', annotate: 'A' },
-        }}
         settingsDraft={{
           messageSendShortcut: 'enter',
           selectionActionShortcuts: { copy: 'B', annotate: 'B' },
@@ -1214,7 +1200,7 @@ describe('DataManagementSettings', () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: '最近 15 天' }));
+    fireEvent.click(screen.getByRole('button', { name: '15 天' }));
 
     await waitFor(() =>
       expect(desktop.saveSettings).toHaveBeenCalledWith(

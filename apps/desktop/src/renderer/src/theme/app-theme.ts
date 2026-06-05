@@ -66,6 +66,8 @@ export type AppTheme = {
     badgeBackground: string;
     badgeForeground: string;
     badgeBorder: string;
+    successForeground: string;
+    successBackground: string;
   };
   paperPattern: PaperPatternTheme;
   dataColor: {
@@ -246,6 +248,8 @@ export const defaultTheme: AppTheme = {
     badgeBackground: 'hsl(4 68% 94%)',
     badgeForeground: 'hsl(3 62% 36%)',
     badgeBorder: 'hsl(3 62% 42% / 0.22)',
+    successForeground: 'hsl(142 44% 30%)',
+    successBackground: 'hsl(142 42% 92%)',
   },
   paperPattern: {
     kind: 'grid',
@@ -398,6 +402,8 @@ export const beigePaperTheme: AppTheme = {
     badgeBackground: 'hsl(40 63% 82% / 0.64)',
     badgeForeground: 'hsl(29 55% 29%)',
     badgeBorder: 'hsl(29 55% 35% / 0.22)',
+    successForeground: 'hsl(140 42% 28%)',
+    successBackground: 'hsl(132 40% 88%)',
   },
   paperPattern: {
     kind: 'dash-grid',
@@ -550,6 +556,8 @@ export const inkBlackTheme: AppTheme = {
     badgeBackground: 'hsl(8 40% 20%)',
     badgeForeground: 'hsl(8 76% 63%)',
     badgeBorder: 'hsl(8 76% 63% / 0.24)',
+    successForeground: 'hsl(140 50% 72%)',
+    successBackground: 'hsl(142 32% 18%)',
   },
   paperPattern: {
     kind: 'dash-grid',
@@ -702,6 +710,8 @@ export const duskIndigoTheme: AppTheme = {
     badgeBackground: 'hsl(8 38% 21%)',
     badgeForeground: 'hsl(10 78% 64%)',
     badgeBorder: 'hsl(10 78% 64% / 0.24)',
+    successForeground: 'hsl(140 50% 72%)',
+    successBackground: 'hsl(142 30% 19%)',
   },
   paperPattern: {
     kind: 'dash-grid',
@@ -854,6 +864,8 @@ export const inkPaperTheme: AppTheme = {
     badgeBackground: 'hsl(213 32% 88% / 0.72)',
     badgeForeground: 'hsl(215 55% 24%)',
     badgeBorder: 'hsl(215 55% 24% / 0.18)',
+    successForeground: 'hsl(150 46% 30%)',
+    successBackground: 'hsl(146 40% 90%)',
   },
   paperPattern: {
     kind: 'dot',
@@ -962,6 +974,8 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-interactive-badge-bg': theme.interactive.badgeBackground,
     '--app-interactive-badge-fg': theme.interactive.badgeForeground,
     '--app-interactive-badge-border': theme.interactive.badgeBorder,
+    '--app-interactive-success-fg': theme.interactive.successForeground,
+    '--app-interactive-success-bg': theme.interactive.successBackground,
     '--app-paper-pattern-bg': theme.paperPattern.background,
     '--app-paper-pattern-color': theme.paperPattern.color,
     '--app-paper-pattern-secondary-color':
