@@ -34,6 +34,7 @@ export type AnnotationRailSide = 'left' | 'right' | 'stacked';
 
 export type AnnotationRailLayout = {
   articleCenterX: number;
+  articleWidth?: number;
   leftRailLeft: number;
   mode: 'both' | 'left' | 'right' | 'stacked';
   railWidth: number;

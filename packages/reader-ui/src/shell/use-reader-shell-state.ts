@@ -15,11 +15,16 @@ import { useReaderShellInteractions } from './use-reader-shell-interactions';
 
 export const stackedAnnotationRailLayout: AnnotationRailLayout = {
   articleCenterX: 0,
+  articleWidth: 0,
   leftRailLeft: 0,
   mode: 'stacked',
   railWidth: 0,
   rightRailLeft: 0,
 };
+
+const READER_ANNOTATION_RAIL_GAP = 20;
+const READER_ANNOTATION_RAIL_WIDTH = 360;
+const READER_MIN_ASIDE_ARTICLE_WIDTH = 600;
 
 const emptyAnnotationNavigation: AnnotationNavigationState = {
   nextId: null,
@@ -244,46 +249,87 @@ export function measureAnnotationRailLayout(
   const articleRect = article.getBoundingClientRect();
   if (canvasRect.width <= 0 || articleRect.width <= 0) return stackedAnnotationRailLayout;
 
-  const gap = 20;
-  const minimumRailWidth = 280;
-  const maximumRailWidth = 420;
-  const articleLeft = Math.max(0, Math.round(articleRect.left - canvasRect.left));
-  const articleRight = Math.min(canvasRect.width, Math.round(articleRect.right - canvasRect.left));
-  const leftSpace = articleLeft;
-  const rightSpace = Math.max(0, Math.round(canvasRect.width - articleRight));
-  const leftAvailable = leftSpace >= minimumRailWidth + gap;
-  const rightAvailable = rightSpace >= minimumRailWidth + gap;
-  if (!leftAvailable && !rightAvailable) {
+  const canvasWidth = Math.round(canvasRect.width);
+  const targetArticleWidth = Math.min(
+    readerContentWidth(article) || articleRect.width,
+    canvasWidth,
+  );
+  return annotationRailLayoutForWidth({
+    canvasWidth,
+    targetArticleWidth,
+    railGap: READER_ANNOTATION_RAIL_GAP,
+    railWidth: READER_ANNOTATION_RAIL_WIDTH,
+  });
+}
+
+export function annotationRailLayoutForWidth({
+  canvasWidth,
+  minimumArticleWidth = READER_MIN_ASIDE_ARTICLE_WIDTH,
+  railGap = READER_ANNOTATION_RAIL_GAP,
+  railWidth = READER_ANNOTATION_RAIL_WIDTH,
+  targetArticleWidth,
+}: {
+  canvasWidth: number;
+  minimumArticleWidth?: number;
+  railGap?: number;
+  railWidth?: number;
+  targetArticleWidth: number;
+}): AnnotationRailLayout {
+  if (canvasWidth <= 0 || targetArticleWidth <= 0) return stackedAnnotationRailLayout;
+
+  const articleWidth = Math.min(Math.round(targetArticleWidth), Math.round(canvasWidth));
+  const sideSpace = railWidth + railGap;
+  if (canvasWidth >= articleWidth + sideSpace * 2) {
+    const articleLeft = Math.round((canvasWidth - articleWidth) / 2);
+    const articleRight = articleLeft + articleWidth;
     return {
       articleCenterX: Math.round((articleLeft + articleRight) / 2),
-      leftRailLeft: 0,
-      mode: 'stacked',
-      railWidth: 0,
-      rightRailLeft: Math.round(articleRight + gap),
+      articleWidth,
+      leftRailLeft: Math.round(articleLeft - sideSpace),
+      mode: 'both',
+      railWidth,
+      rightRailLeft: Math.round(articleRight + railGap),
     };
   }
 
-  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
-  const usableSpace =
-    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
-  const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
+  const minimumReadableArticleWidth = Math.min(articleWidth, minimumArticleWidth);
+  if (canvasWidth >= minimumReadableArticleWidth + sideSpace) {
+    const asideArticleWidth = Math.min(articleWidth, canvasWidth - sideSpace);
+    return {
+      articleCenterX: Math.round(asideArticleWidth / 2),
+      articleWidth: Math.round(asideArticleWidth),
+      leftRailLeft: 0,
+      mode: 'right',
+      railWidth,
+      rightRailLeft: Math.round(asideArticleWidth + railGap),
+    };
+  }
+
   return {
-    articleCenterX: Math.round((articleLeft + articleRight) / 2),
-    leftRailLeft: Math.round(articleLeft - gap - railWidth),
-    mode,
-    railWidth: Math.round(railWidth),
-    rightRailLeft: Math.round(articleRight + gap),
+    articleCenterX: Math.round(articleWidth / 2),
+    articleWidth,
+    leftRailLeft: 0,
+    mode: 'stacked',
+    railWidth: 0,
+    rightRailLeft: 0,
   };
 }
 
 export function sameAnnotationRailLayout(left: AnnotationRailLayout, right: AnnotationRailLayout) {
   return (
     left.articleCenterX === right.articleCenterX &&
+    left.articleWidth === right.articleWidth &&
     left.leftRailLeft === right.leftRailLeft &&
     left.mode === right.mode &&
     left.railWidth === right.railWidth &&
     left.rightRailLeft === right.rightRailLeft
   );
+}
+
+function readerContentWidth(article: HTMLElement) {
+  const value = window.getComputedStyle(article).getPropertyValue('--reader-content-width').trim();
+  const width = Number.parseFloat(value);
+  return Number.isFinite(width) && width > 0 ? width : null;
 }
 
 export function sameAnnotationNavigation(

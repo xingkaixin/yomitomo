@@ -84,37 +84,15 @@ export const sourceEbookReaderStyles = `
     margin:0 auto;
   }
 }
-@container reader-surface (max-width:1220px) and (min-width:941px){
-  .source-ebook-reader-shell .reader-app.has-toc .reader-surface{
-    padding-left:28px;
-    padding-right:28px;
-  }
-  .source-ebook-reader-shell .reader-canvas{
-    width:100%;
-    margin:0;
-  }
-  .source-ebook-reader-shell .reader-article{
-    width:min(var(--reader-content-width),calc(100% - 300px));
-    margin:0;
-  }
-  .source-ebook-reader-shell .ebook-reader-content{
-    width:100%;
-    margin:0;
-  }
+.source-ebook-reader-shell .reader-app.is-annotation-right .reader-article{
+  width:min(var(--reader-layout-article-width,var(--reader-content-width)),100%);
+  margin:0;
 }
-@media(max-width:1220px) and (min-width:941px){
-  .source-ebook-reader-shell .reader-app.has-toc .reader-surface{
-    padding-left:28px;
-    padding-right:28px;
-  }
-  .source-ebook-reader-shell .reader-canvas{
-    width:100%;
-    margin:0;
-  }
-  .source-ebook-reader-shell .reader-article{
-    width:min(var(--reader-content-width),calc(100% - 300px));
-    margin:0;
-  }
+.source-ebook-reader-shell .reader-app.is-annotation-right .ebook-reader-content{
+  width:100%;
+  margin:0;
+}
+@media(max-width:940px){
   .source-ebook-reader-shell .ebook-reader-content{
     width:100%;
     margin:0;

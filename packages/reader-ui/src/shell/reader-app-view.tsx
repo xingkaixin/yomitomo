@@ -14,6 +14,7 @@ type ReaderAppStyle = React.CSSProperties & {
   '--reader-font-size': string;
   '--reader-content-width': string;
   '--reader-content-bg': string;
+  '--reader-layout-article-width'?: string;
 };
 
 export type {
@@ -136,6 +137,9 @@ export function ReaderAppView({
     '--reader-font-size': `${readerSettings.fontSize}px`,
     '--reader-content-width': `${readerSettings.contentWidth}px`,
     '--reader-content-bg': readerSettings.backgroundColor,
+    ...(annotationRailLayout.articleWidth
+      ? { '--reader-layout-article-width': `${annotationRailLayout.articleWidth}px` }
+      : {}),
   };
 
   return (
@@ -144,6 +148,7 @@ export function ReaderAppView({
         'reader-app',
         embedded ? 'is-embedded' : '',
         annotationRailLayout.mode === 'stacked' ? 'is-annotation-stacked' : '',
+        annotationRailLayout.mode === 'right' ? 'is-annotation-right' : '',
         hasToc ? 'has-toc' : '',
         hasToc && tocOpen ? 'is-toc-open' : '',
         readerBackgroundTone(readerSettings.backgroundColor) === 'dark'
