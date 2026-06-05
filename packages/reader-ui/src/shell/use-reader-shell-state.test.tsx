@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, UserProfile } from '@yomitomo/shared';
 import {
+  annotationRailLayoutForWidth,
   measureAnnotationRailLayout,
   stackedAnnotationRailLayout,
   useReaderShellState,
@@ -134,21 +135,44 @@ describe('measureAnnotationRailLayout', () => {
   it('uses both rails when both sides have enough room', () => {
     const canvas = elementWithRect(document.createElement('div'), {
       left: 0,
-      right: 1200,
-      width: 1200,
+      right: 1400,
+      width: 1400,
     }) as HTMLDivElement;
     const article = elementWithRect(document.createElement('article'), {
-      left: 420,
-      right: 780,
-      width: 360,
+      left: 300,
+      right: 940,
+      width: 640,
     });
 
     expect(measureAnnotationRailLayout(canvas, article)).toMatchObject({
-      articleCenterX: 600,
+      articleCenterX: 700,
+      articleWidth: 640,
       leftRailLeft: 0,
       mode: 'both',
-      railWidth: 400,
-      rightRailLeft: 800,
+      railWidth: 360,
+      rightRailLeft: 1040,
+    });
+  });
+
+  it('keeps the article left and places annotations on the right when only one rail fits', () => {
+    expect(annotationRailLayoutForWidth({ canvasWidth: 1000, targetArticleWidth: 720 })).toEqual({
+      articleCenterX: 310,
+      articleWidth: 620,
+      leftRailLeft: 0,
+      mode: 'right',
+      railWidth: 360,
+      rightRailLeft: 640,
+    });
+  });
+
+  it('stacks annotations when the article and one rail cannot both fit', () => {
+    expect(annotationRailLayoutForWidth({ canvasWidth: 920, targetArticleWidth: 720 })).toEqual({
+      articleCenterX: 360,
+      articleWidth: 720,
+      leftRailLeft: 0,
+      mode: 'stacked',
+      railWidth: 0,
+      rightRailLeft: 0,
     });
   });
 });
