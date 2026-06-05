@@ -802,6 +802,23 @@ function makeAgent(
 }
 
 describe('GeneralSettings', () => {
+  it('frames library entry controls as a local card', () => {
+    const { container } = render(
+      <GeneralSettings
+        settingsDraft={{}}
+        canSave={false}
+        onSettingsChange={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    const field = container.querySelector('.library-content-source-card-field');
+
+    expect(field).toBeTruthy();
+    expect(field?.textContent).toContain('阅读库入口');
+  });
+
   it('updates the save images setting', () => {
     const onSettingsChange = vi.fn();
     render(
