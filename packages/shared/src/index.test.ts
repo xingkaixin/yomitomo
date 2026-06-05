@@ -83,6 +83,29 @@ describe('agent presets', () => {
     expect(agentPersonalities.every((personality) => personality.defaultEnabled)).toBe(true);
   });
 
+  it('keeps each preset assistant bound to its viewpoint guidance', () => {
+    const guidanceById = new Map([
+      ['reading-partner', '先替作者赢，再替真相赢。'],
+      ['root-reviewer', '把作者当作天才来理解，把作者当作嫌犯来审问。'],
+      ['question-mentor', '像信徒一样进入文本，像叛徒一样离开文本。'],
+      ['insight-editor', '读出作者说了什么，更读出作者用什么代价说成了这件事。'],
+      ['concept-translator', '用考古学家的耐心挖前提，用外科医生的冷静剖结论。'],
+      ['structure-navigator', '把每本书读成一场战争：作者在攻击什么，也在保护什么。'],
+      ['evidence-archivist', '把观点读成一份判决书：证据够不够，罪名准不准，量刑重不重。'],
+      ['reader-advocate', '审阅观点时，既要问它看见了什么，也要问它遮住了什么。'],
+      ['final-copy-editor', '替作者保留锋芒，替读者拆掉幻觉。'],
+      ['logic-auditor', '把观点从金句还原成机器，检查每个齿轮是否咬合。'],
+      ['risk-examiner', '审阅观点，就是检查它的野心和证据是否匹配。'],
+      ['action-calibrator', '把观点放回现实里，让它承担后果。'],
+    ]);
+
+    expect(agentPersonalities).toHaveLength(guidanceById.size);
+    for (const personality of agentPersonalities) {
+      expect(personality.soul).toContain('## 观点指引');
+      expect(personality.soul).toContain(guidanceById.get(personality.id));
+    }
+  });
+
   it('formats reading intent labels with icons', () => {
     expect(agentReadingIntentDisplayLabel('challenge')).toBe('⚔️ 挑战');
   });
