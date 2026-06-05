@@ -5,7 +5,7 @@
 
 ## 技术栈
 
-- 包管理器：`pnpm@11.0.8`
+- 包管理器：`pnpm@11.5.1`
 - Workspace：`pnpm-workspace.yaml`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM

@@ -42,7 +42,7 @@ assets             项目静态资源
 
 ## 技术栈
 
-- 包管理器：`pnpm@11.0.8`
+- 包管理器：`pnpm@11.x`
 - 构建编排：Turbo
 - 语言：TypeScript，ESM
 - 桌面端：Electron 41、electron-vite、React 19、Vite 8、Tailwind CSS 4
@@ -60,12 +60,6 @@ assets             项目静态资源
 - macOS 桌面开发环境
 - Xcode Command Line Tools，供 `better-sqlite3` native rebuild 使用
 
-启用 pnpm：
-
-```bash
-corepack enable
-corepack prepare pnpm@11.0.8 --activate
-```
 
 安装依赖：
 
@@ -152,7 +146,6 @@ pnpm format:check
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm make
 ```
 
 ## 数据

@@ -16,17 +16,17 @@
     "deploy:cf": "pnpm build && wrangler pages deploy dist --project-name yomitomo"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.39.2",
-    "astro": "^6.3.7"
+    "@astrojs/starlight": "^0.39.3",
+    "astro": "^6.4.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@tailwindcss/postcss": "^4.3.0",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^7.3.3",
-    "vitest": "^4.1.7"
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
   }
 }
