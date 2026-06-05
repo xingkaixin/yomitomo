@@ -236,7 +236,7 @@ export function GeneralSettings({
         </Field>
         <Field
           id="library-content-sources"
-          className="col-span-2"
+          className="library-content-source-card-field col-span-2"
           label="阅读库入口"
           description="点按菜单项切换明灭，拖拽菜单项调整在功能菜单里的顺序。"
         >

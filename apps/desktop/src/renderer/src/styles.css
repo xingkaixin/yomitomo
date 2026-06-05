@@ -4270,7 +4270,6 @@
 }
 
 .agent-list-heading blockquote {
-  position: relative;
   width: fit-content;
   max-width: 100%;
   margin: 2px 0 0;
@@ -4278,27 +4277,15 @@
   font-size: 13px;
   font-weight: 680;
   line-height: 1.55;
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: color-mix(in srgb, var(--agent-accent, hsl(8 45% 46%)) 72%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .agent-list-card:not(.is-enabled) .agent-list-heading blockquote {
   color: hsl(31 9% 48%);
-}
-
-.agent-list-heading blockquote::after {
-  position: absolute;
-  right: 0;
-  bottom: -2px;
-  left: 0;
-  height: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--agent-accent, hsl(8 45% 46%)) 72%, transparent);
-  content: '';
-  mask-image: var(--hand-underline-mask);
-  mask-repeat: repeat-x;
-  mask-size: 24px 100%;
-  -webkit-mask-image: var(--hand-underline-mask);
-  -webkit-mask-repeat: repeat-x;
-  -webkit-mask-size: 24px 100%;
 }
 
 .agent-list-role {
@@ -5187,6 +5174,14 @@
 .settings-toggle-card input:focus-visible + .settings-toggle-switch {
   outline: 2px solid hsl(var(--ring) / 0.42);
   outline-offset: 2px;
+}
+
+.library-content-source-card-field {
+  border: 1px solid hsl(var(--border) / 0.78);
+  border-radius: 0;
+  background: hsl(var(--card));
+  padding: 12px 14px 10px;
+  box-shadow: none;
 }
 
 .library-source-tabs.library-content-source-menu {
@@ -15486,6 +15481,7 @@ button.license-package-row:hover {
     grid-template-columns: minmax(0, 1fr);
     align-content: start;
     overflow: auto;
+    padding: 28px 18px 0;
   }
 
   .settings-section-sidebar {
@@ -15506,17 +15502,27 @@ button.license-package-row:hover {
 
   /* 窄屏：子导航改为单行、可横向滚动的下划线标签栏，对齐主导航的视觉语言 */
   .settings-section-nav {
+    position: relative;
     display: flex;
+    width: max-content;
+    max-width: 100%;
     flex-wrap: nowrap;
     align-items: stretch;
     gap: 2px;
     overflow-x: auto;
     overflow-y: hidden;
     border: 0;
-    border-bottom: 1px solid hsl(var(--border) / 0.7);
     background: transparent;
-    padding: 0;
+    padding: 0 0 7px;
     scrollbar-width: none;
+  }
+
+  .settings-section-nav::before {
+    content: '';
+    position: absolute;
+    inset: auto 0 0;
+    height: 1px;
+    background: hsl(var(--border) / 0.7);
   }
 
   .settings-section-nav::-webkit-scrollbar {
@@ -15542,7 +15548,7 @@ button.license-package-row:hover {
   .settings-section-nav-item::after {
     content: '';
     position: absolute;
-    inset: auto 12px -1px;
+    inset: auto 12px 3px;
     height: 2px;
     background: var(--app-interactive-link);
     transform: scaleX(0);
@@ -16067,7 +16073,8 @@ button.license-package-row:hover {
 .settings-panel {
   border: 0;
   border-radius: 0;
-  background: hsl(var(--card));
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.01) 0 1px, transparent 1px 7px), hsl(var(--card));
   box-shadow: none;
 }
 
@@ -20426,6 +20433,16 @@ button.license-package-row:hover {
 }
 
 .settings-panel,
+.settings-hub-layout {
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+}
+
+.settings-section-content {
+  background: transparent;
+}
+
+.settings-panel,
 .settings-section-sidebar,
 .task-route-panel,
 .task-route-empty-note,
@@ -20630,6 +20647,39 @@ button.license-package-row:hover {
     border: 0;
     background: transparent;
     color: var(--app-interactive-link);
+  }
+}
+
+.settings-section-sidebar {
+  border: 0;
+  border-right: 1px solid hsl(var(--border) / 0.72);
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-section-nav-item:hover,
+.settings-section-nav-item.is-active {
+  background: transparent;
+}
+
+.settings-section-nav-item.is-active .settings-section-nav-icon {
+  background: transparent;
+}
+
+@media (min-width: 1181px) {
+  .settings-section-nav-item.is-active {
+    background: transparent;
+  }
+
+  .settings-section-nav-item.is-active .settings-section-nav-icon {
+    border-color: color-mix(in srgb, var(--app-interactive-link) 48%, hsl(var(--border)));
+    background: color-mix(in srgb, var(--app-interactive-link) 8%, transparent);
+  }
+}
+
+@media (max-width: 1180px) {
+  .settings-section-sidebar {
+    border-right: 0;
   }
 }
 
