@@ -61,7 +61,9 @@ export function DiscussionThreadView({
   userProfile: UserProfile;
 }) {
   const messages = thread.replies;
+  const hasReplies = messages.length > 0;
   const threadScrollRef = useRef<HTMLDivElement>(null);
+  const activeThreadIdRef = useRef(thread.root.id);
   const shouldStickToBottomRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,6 +86,7 @@ export function DiscussionThreadView({
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
+  activeThreadIdRef.current = thread.root.id;
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -99,7 +102,7 @@ export function DiscussionThreadView({
   }, [selectedMentionIndex]);
 
   useLayoutEffect(() => {
-    if (messages.length === 0) {
+    if (!hasReplies) {
       cancelScheduledScroll();
       shouldStickToBottomRef.current = false;
       const element = threadScrollRef.current;
@@ -109,15 +112,21 @@ export function DiscussionThreadView({
     }
     shouldStickToBottomRef.current = true;
     scheduleScrollToBottom('auto');
-  }, [thread.root.id]);
+  }, [hasReplies, thread.root.id]);
 
   useLayoutEffect(() => {
+    if (!hasReplies) {
+      cancelScheduledScroll();
+      shouldStickToBottomRef.current = false;
+      updateScrollBottomVisibility();
+      return;
+    }
     if (!shouldStickToBottomRef.current) {
       updateScrollBottomVisibility();
       return;
     }
     scheduleScrollToBottom('auto');
-  }, [messagesVersion, rootVersion, thread.root.id]);
+  }, [hasReplies, messagesVersion, rootVersion, thread.root.id]);
 
   useEffect(
     () => () => {
@@ -180,6 +189,12 @@ export function DiscussionThreadView({
   }
 
   function updateScrollBottomVisibility() {
+    if (!hasReplies) {
+      cancelScheduledScroll();
+      shouldStickToBottomRef.current = false;
+      setShowScrollBottom(false);
+      return;
+    }
     const element = threadScrollRef.current;
     if (!element) {
       setShowScrollBottom(false);
@@ -193,13 +208,17 @@ export function DiscussionThreadView({
   }
 
   function scheduleScrollToBottom(behavior: ScrollBehavior) {
+    if (!hasReplies) return;
+    const scheduledThreadId = thread.root.id;
     cancelScheduledScroll();
     scrollFrameRef.current = window.requestAnimationFrame(() => {
       scrollFrameRef.current = null;
+      if (activeThreadIdRef.current !== scheduledThreadId) return;
       if (!shouldStickToBottomRef.current) return;
       scrollDiscussionToBottom(behavior);
       scrollFrameRef.current = window.requestAnimationFrame(() => {
         scrollFrameRef.current = null;
+        if (activeThreadIdRef.current !== scheduledThreadId) return;
         if (shouldStickToBottomRef.current) scrollDiscussionToBottom(behavior);
       });
     });
@@ -212,6 +231,8 @@ export function DiscussionThreadView({
   }
 
   function scrollDiscussionToBottom(behavior: ScrollBehavior = 'smooth') {
+    if (!hasReplies) return;
+    if (activeThreadIdRef.current !== thread.root.id) return;
     const element = threadScrollRef.current;
     if (!element) return;
     shouldStickToBottomRef.current = true;

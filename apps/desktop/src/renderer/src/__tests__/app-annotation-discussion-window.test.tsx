@@ -306,6 +306,35 @@ describe('AnnotationDiscussionWindowApp', () => {
     );
   });
 
+  it('keeps an assistant-created reply-free thought at the top after success', async () => {
+    const scrollTo = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    });
+    const desktop = installDesktopApi(article(annotation({ comments: discussionComments() })));
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    await waitFor(() =>
+      expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'auto' })),
+    );
+    scrollTo.mockClear();
+
+    await openAssistantThoughtDialog('@zhou 补一条独立想法');
+
+    await waitFor(() => expect(desktop.saveArticleAnnotation).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '添加想法' })).toBeNull(), {
+      timeout: 1800,
+    });
+    await waitFor(() => expect(screen.getAllByText('助手想法').length).toBeGreaterThan(0));
+    await flushAnimationFrames();
+
+    expect(screen.getByText('当前没有讨论')).toBeTruthy();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it('does not render an empty composer status row before sending', async () => {
     installDesktopApi(article(annotation({ comments: discussionComments() })));
     openDiscussionRoute();
