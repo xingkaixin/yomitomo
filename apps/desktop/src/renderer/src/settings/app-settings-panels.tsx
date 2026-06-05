@@ -184,7 +184,6 @@ export function SettingsSectionShell({
                 <span className="settings-section-nav-icon">{section.icon}</span>
                 <span className="settings-section-nav-copy">
                   <strong>{section.title}</strong>
-                  <em>{section.description}</em>
                 </span>
                 <ChevronRight size={16} />
               </button>

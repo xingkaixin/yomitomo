@@ -168,7 +168,7 @@ export function AboutSettings({
             >
               {updateCopy}
             </p>
-            {developerModeEnabled ? (
+            {import.meta.env.DEV ? (
               <div className="about-update-dev">
                 <Button className="action-button" type="button" onClick={handleSimulateUpdate}>
                   模拟版本更新（更新后弹窗）

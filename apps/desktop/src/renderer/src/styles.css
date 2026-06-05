@@ -3402,7 +3402,7 @@
 
 .provider-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(224px, 260px));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
   align-items: start;
 }
@@ -3653,7 +3653,7 @@
 
 @media (max-width: 900px) {
   .provider-card-grid {
-    grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   }
 }
 
@@ -14124,7 +14124,13 @@
 }
 
 .settings-section-content {
+  display: grid;
+  place-items: start center;
   overflow: hidden;
+}
+
+.settings-section-content > * {
+  width: min(100%, 1180px);
 }
 
 .settings-section-heading {
@@ -14180,13 +14186,14 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 11px;
-  align-items: start;
+  align-items: center;
   width: 100%;
   border: 1px solid hsl(var(--border) / 0.44);
   border-radius: 8px;
   background: hsl(var(--background) / 0.32);
   color: hsl(var(--foreground));
-  padding: 11px;
+  min-height: 48px;
+  padding: 8px 10px;
   text-align: left;
   transition:
     background 140ms ease,
@@ -14213,7 +14220,6 @@
 .settings-section-nav-copy {
   display: grid;
   min-width: 0;
-  gap: 5px;
 }
 
 .settings-section-nav-copy strong {
@@ -14223,13 +14229,6 @@
   line-height: 1.25;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.settings-section-nav-copy em {
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  font-style: normal;
-  line-height: 1.42;
 }
 
 .settings-empty-panel {
@@ -15481,7 +15480,7 @@ button.license-package-row:hover {
   white-space: nowrap;
 }
 
-@media (max-width: 1560px) {
+@media (max-width: 1180px) {
   .settings-hub-layout {
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-columns: minmax(0, 1fr);
@@ -15492,11 +15491,97 @@ button.license-package-row:hover {
   .settings-section-sidebar {
     align-self: start;
     overflow: visible;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
   }
 
+  .settings-section-heading {
+    border-bottom: 0;
+    padding-bottom: 2px;
+  }
+
+  /* 窄屏：子导航改为单行、可横向滚动的下划线标签栏，对齐主导航的视觉语言 */
   .settings-section-nav {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    overflow: visible;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 0;
+    border-bottom: 1px solid hsl(var(--border) / 0.7);
+    background: transparent;
+    padding: 0;
+    scrollbar-width: none;
+  }
+
+  .settings-section-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-section-nav-item {
+    position: relative;
+    grid-template-columns: auto auto;
+    gap: 7px;
+    width: auto;
+    flex: 0 0 auto;
+    min-width: 0;
+    min-height: 44px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0 14px;
+    box-shadow: none;
+    white-space: nowrap;
+  }
+
+  .settings-section-nav-item::after {
+    content: '';
+    position: absolute;
+    inset: auto 12px -1px;
+    height: 2px;
+    background: var(--app-interactive-link);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 140ms ease;
+  }
+
+  .settings-section-nav-icon {
+    width: 18px;
+    height: 18px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .settings-section-nav-copy strong {
+    color: inherit;
+    font-size: 13px;
+    font-weight: 760;
+  }
+
+  .settings-section-nav-item > svg {
+    display: none;
+  }
+
+  .settings-section-nav-item:hover,
+  .settings-section-nav-item.is-active {
+    border: 0;
+    background: transparent;
+    color: var(--app-interactive-link);
+    box-shadow: none;
+  }
+
+  .settings-section-nav-item.is-active .settings-section-nav-icon {
+    color: var(--app-interactive-link);
+  }
+
+  .settings-section-nav-item.is-active::after {
+    transform: scaleX(1);
   }
 
   .settings-section-content {
@@ -20439,6 +20524,113 @@ button.license-package-row:hover {
 .settings-section-nav-item.is-active .settings-section-nav-icon,
 .settings-section-nav-item.is-active {
   color: var(--app-interactive-link);
+}
+
+/* 宽屏左侧列表：贯穿整列的连续轨道 + 激活段点亮，导航栏式观感 */
+@media (min-width: 1181px) {
+  .settings-section-nav {
+    position: relative;
+    gap: 0;
+  }
+
+  /* 连续轨道：沿整列左缘贯穿的细线 */
+  .settings-section-nav::before {
+    content: '';
+    position: absolute;
+    inset: 4px auto 4px 0;
+    width: 2px;
+    background: hsl(var(--border) / 0.6);
+  }
+
+  .settings-section-nav-item {
+    position: relative;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding-left: 16px;
+    box-shadow: none;
+  }
+
+  /* 激活段：盖在连续轨道上的强调色，纵向展开 */
+  .settings-section-nav-item::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: var(--app-interactive-link);
+    transform: scaleY(0);
+    transform-origin: center;
+    transition: transform 160ms ease;
+  }
+
+  .settings-section-nav-item:hover {
+    background: hsl(var(--foreground) / 0.035);
+    box-shadow: none;
+  }
+
+  .settings-section-nav-item.is-active {
+    background: var(--app-interactive-badge-bg);
+    box-shadow: none;
+  }
+
+  .settings-section-nav-item.is-active::before {
+    transform: scaleY(1);
+  }
+
+  .settings-section-nav-icon {
+    border-color: transparent;
+    background: hsl(var(--foreground) / 0.05);
+    color: hsl(var(--foreground));
+  }
+
+  .settings-section-nav-item.is-active .settings-section-nav-icon {
+    border-color: var(--app-interactive-link);
+    background: var(--app-interactive-badge-bg);
+    color: var(--app-interactive-link);
+  }
+
+  .settings-section-nav-item > svg {
+    color: hsl(var(--muted-foreground));
+    opacity: 0.6;
+    transition:
+      color 140ms ease,
+      opacity 140ms ease,
+      transform 140ms ease;
+  }
+
+  .settings-section-nav-item:hover > svg {
+    transform: translateX(2px);
+  }
+
+  .settings-section-nav-item.is-active > svg {
+    color: var(--app-interactive-link);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .settings-section-nav {
+    border-color: hsl(var(--border) / 0.86);
+    background: transparent;
+  }
+
+  .settings-section-nav-item {
+    border: 0;
+    background: transparent;
+  }
+
+  .settings-section-nav-icon {
+    border: 0;
+    background: transparent;
+    color: inherit;
+  }
+
+  .settings-section-nav-item:hover,
+  .settings-section-nav-item.is-active {
+    border: 0;
+    background: transparent;
+    color: var(--app-interactive-link);
+  }
 }
 
 .provider-select-trigger,
