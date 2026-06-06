@@ -1,14 +1,9 @@
-import type React from 'react';
 import { useCallback, useEffect } from 'react';
 import { useBookmarkCapability } from '@embedpdf/plugin-bookmark/react';
 import { isPdfTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
 import type { SourceBookcaseProps } from '../bookcase/app-source-bookcase-shared';
-import {
-  pdfiumAnnotationNavigationState,
-  pdfiumBookmarkTocItems,
-  type PdfAnnotationNavigationState,
-} from './app-source-bookcase-pdfium-utils';
+import { pdfiumBookmarkTocItems } from './app-source-bookcase-pdfium-utils';
 
 type PdfiumScroll = {
   scrollToPage: (options: { pageNumber: number; behavior: 'instant' | 'smooth' }) => void;
@@ -16,31 +11,23 @@ type PdfiumScroll = {
 
 export function usePdfiumNavigation({
   annotations,
-  currentPage,
   documentId,
   focusAnnotationId,
   pageCount,
   scroll,
-  selectedAnnotationId,
   onCloseToc,
   onFocusedAnnotation,
   onOpenAnnotation,
-  onSetAnnotationNavigation,
-  onSetAnnotationNavigator,
   onSetTocItems,
 }: {
   annotations: Annotation[];
-  currentPage: number;
   documentId: string;
   focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
   pageCount: number;
   scroll: PdfiumScroll | null | undefined;
-  selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
   onCloseToc: () => void;
   onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
   onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
-  onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
-  onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
   onSetTocItems: (items: TocItem[]) => void;
 }) {
   const { provides: bookmark } = useBookmarkCapability();
@@ -63,12 +50,6 @@ export function usePdfiumNavigation({
     };
   }, [bookmark, documentId, onSetTocItems, pageCount]);
 
-  useEffect(() => {
-    onSetAnnotationNavigation(
-      pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
-    );
-  }, [annotations, currentPage, onSetAnnotationNavigation, selectedAnnotationId]);
-
   const scrollToAnnotation = useCallback(
     (annotationId: string) => {
       onOpenAnnotation(annotationId);
@@ -81,11 +62,6 @@ export function usePdfiumNavigation({
     },
     [annotations, onOpenAnnotation, scroll],
   );
-
-  useEffect(() => {
-    onSetAnnotationNavigator(scrollToAnnotation);
-    return () => onSetAnnotationNavigator(() => undefined);
-  }, [onSetAnnotationNavigator, scrollToAnnotation]);
 
   useEffect(() => {
     if (!focusAnnotationId) return;

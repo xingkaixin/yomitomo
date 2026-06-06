@@ -17053,6 +17053,50 @@ button.license-package-row:hover {
   outline: 0;
 }
 
+.source-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
+.source-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-pdf-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-pdf-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--reader-ink);
+  outline: 0;
+}
+
 .source-reader-shell .reader-main,
 .source-ebook-reader-shell .reader-main {
   background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
@@ -18733,6 +18777,21 @@ button.license-package-row:hover {
   margin: 0 auto;
 }
 
+.source-pdfium-spike-reader .reader-app.is-annotation-right .pdfium-spike-page-shell {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.source-pdfium-spike-reader .reader-app.is-annotation-left .pdfium-spike-page-shell {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.source-pdfium-spike-reader .reader-app.is-annotation-both .pdfium-spike-page-shell {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .pdfium-spike-page {
   position: relative;
   overflow: hidden;
@@ -18796,7 +18855,7 @@ button.license-package-row:hover {
 }
 
 .pdfium-page-slider {
-  width: 116px;
+  width: 92px;
 }
 
 .library-ebook-list {

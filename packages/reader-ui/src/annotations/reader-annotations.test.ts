@@ -339,16 +339,22 @@ describe('reader annotation filters', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
     expect(annotationNavigationForReferenceIndex(annotations, 1)).toEqual({
+      currentIndex: 2,
       previousId: 'first',
       nextId: 'third',
+      totalCount: 3,
     });
     expect(annotationNavigationForReferenceIndex(annotations, 0)).toEqual({
+      currentIndex: 1,
       previousId: null,
       nextId: 'second',
+      totalCount: 3,
     });
     expect(annotationNavigationForReferenceIndex(annotations, 2)).toEqual({
+      currentIndex: 3,
       previousId: 'second',
       nextId: null,
+      totalCount: 3,
     });
   });
 
@@ -356,16 +362,22 @@ describe('reader annotation filters', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
     expect(annotationNavigationForInsertionIndex(annotations, 0)).toEqual({
+      currentIndex: 1,
       previousId: null,
       nextId: 'first',
+      totalCount: 3,
     });
     expect(annotationNavigationForInsertionIndex(annotations, 2)).toEqual({
+      currentIndex: 3,
       previousId: 'second',
       nextId: 'third',
+      totalCount: 3,
     });
     expect(annotationNavigationForInsertionIndex(annotations, 3)).toEqual({
+      currentIndex: 3,
       previousId: 'third',
       nextId: null,
+      totalCount: 3,
     });
   });
 });

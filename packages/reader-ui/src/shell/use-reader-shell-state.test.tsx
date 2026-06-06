@@ -156,17 +156,35 @@ describe('measureAnnotationRailLayout', () => {
 
   it('keeps the article left and places annotations on the right when only one rail fits', () => {
     expect(annotationRailLayoutForWidth({ canvasWidth: 1000, targetArticleWidth: 720 })).toEqual({
-      articleCenterX: 310,
-      articleWidth: 620,
+      articleCenterX: 360,
+      articleWidth: 720,
       leftRailLeft: 0,
       mode: 'right',
-      railWidth: 360,
-      rightRailLeft: 640,
+      railWidth: 260,
+      rightRailLeft: 740,
+    });
+  });
+
+  it('keeps right-side article width responsive to the target width', () => {
+    const wide = annotationRailLayoutForWidth({ canvasWidth: 1100, targetArticleWidth: 820 });
+    const narrow = annotationRailLayoutForWidth({ canvasWidth: 1100, targetArticleWidth: 760 });
+
+    expect(wide).toMatchObject({
+      articleWidth: 820,
+      mode: 'right',
+      railWidth: 260,
+      rightRailLeft: 840,
+    });
+    expect(narrow).toMatchObject({
+      articleWidth: 760,
+      mode: 'right',
+      railWidth: 320,
+      rightRailLeft: 780,
     });
   });
 
   it('stacks annotations when the article and one rail cannot both fit', () => {
-    expect(annotationRailLayoutForWidth({ canvasWidth: 920, targetArticleWidth: 720 })).toEqual({
+    expect(annotationRailLayoutForWidth({ canvasWidth: 780, targetArticleWidth: 720 })).toEqual({
       articleCenterX: 360,
       articleWidth: 720,
       leftRailLeft: 0,
