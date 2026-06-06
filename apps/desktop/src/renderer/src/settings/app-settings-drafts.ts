@@ -113,11 +113,14 @@ export function useSettingsDrafts({
       (settingsDraft.messageSendShortcut || 'enter') !==
         (store.settings.messageSendShortcut || 'enter') ||
       draftSelectionActionShortcuts.copy !== savedSelectionActionShortcuts.copy ||
-      draftSelectionActionShortcuts.annotate !== savedSelectionActionShortcuts.annotate,
+      draftSelectionActionShortcuts.annotate !== savedSelectionActionShortcuts.annotate ||
+      draftSelectionActionShortcuts.ask !== savedSelectionActionShortcuts.ask,
     [
       draftSelectionActionShortcuts.annotate,
+      draftSelectionActionShortcuts.ask,
       draftSelectionActionShortcuts.copy,
       savedSelectionActionShortcuts.annotate,
+      savedSelectionActionShortcuts.ask,
       savedSelectionActionShortcuts.copy,
       settingsDraft.messageSendShortcut,
       store.settings.messageSendShortcut,

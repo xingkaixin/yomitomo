@@ -2,6 +2,7 @@ import { and, count, desc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm
 import type {
   Annotation,
   ArticleDeletePatch,
+  ArticleReaderChatStatePatch,
   ArticleRecord,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
@@ -39,6 +40,7 @@ export {
 import {
   normalizeArticleReadingProgress,
   normalizeArticleSourceType,
+  normalizeReaderChatState,
   rowToAnnotation,
   rowToArticle,
   rowToArticleSummary,
@@ -303,6 +305,32 @@ export function buildArticleReadingProgressPatch(
   return { articleId, readingProgress, updatedAt: readingProgress.updatedAt };
 }
 
+export function saveArticleReaderChatStateRows(
+  database: StoreDatabase,
+  articleId: string,
+  readerChatState: ArticleRecord['readerChatState'],
+): ArticleReaderChatStatePatch {
+  const patch = buildArticleReaderChatStatePatch(articleId, readerChatState);
+  database
+    .update(schema.articles)
+    .set({
+      readerChatState: patch.readerChatState,
+      updatedAt: patch.updatedAt,
+    })
+    .where(eq(schema.articles.id, articleId))
+    .run();
+  return patch;
+}
+
+export function buildArticleReaderChatStatePatch(
+  articleId: string,
+  readerChatState: ArticleRecord['readerChatState'],
+): ArticleReaderChatStatePatch {
+  const normalized = normalizeReaderChatState(readerChatState, articleId);
+  const updatedAt = normalized?.updatedAt || new Date().toISOString();
+  return { type: 'article-reader-chat-state', articleId, readerChatState: normalized, updatedAt };
+}
+
 export function deleteArticleRows(database: StoreDatabase, id: string): ArticleDeletePatch {
   deleteReadingMemoryForArticle(id);
   database.delete(schema.articles).where(eq(schema.articles.id, id)).run();
@@ -457,6 +485,7 @@ export function writeArticleRows(database: StoreExecutor, article: ArticleRecord
       pdfMetadata: article.pdf?.metadata,
       readingProgress: normalizeArticleReadingProgress(article.readingProgress),
       focusCoReadingPlan: article.focusCoReadingPlan,
+      readerChatState: normalizeReaderChatState(article.readerChatState, article.id),
       createdAt: article.createdAt,
       updatedAt: article.updatedAt,
     })
@@ -481,6 +510,7 @@ export function writeArticleRows(database: StoreExecutor, article: ArticleRecord
         pdfMetadata: article.pdf?.metadata,
         readingProgress: normalizeArticleReadingProgress(article.readingProgress),
         focusCoReadingPlan: article.focusCoReadingPlan,
+        readerChatState: normalizeReaderChatState(article.readerChatState, article.id),
         updatedAt: article.updatedAt,
       },
     })

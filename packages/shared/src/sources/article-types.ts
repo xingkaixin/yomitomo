@@ -1,4 +1,5 @@
 import type { AgentAnnotationDensity } from '../agents/agent-types';
+import type { PdfTextAnchor, TextAnchor } from '../anchor-types';
 import type { Annotation } from '../annotation-types';
 import type { EbookRecord, EbookSummaryRecord } from './ebook-types';
 import type { PdfRecord } from './pdf-types';
@@ -18,6 +19,49 @@ export type ArticleReadingProgress = {
 export type ArticleReadingProgressPatch = {
   articleId: string;
   readingProgress: ArticleReadingProgress;
+  updatedAt: string;
+};
+
+export type ReaderQuestionContext = {
+  sourceType: ArticleSourceType;
+  quote: string;
+  title?: string;
+  locationLabel?: string;
+  anchor?: TextAnchor | PdfTextAnchor;
+  nearbyText?: string;
+};
+
+export type ReaderChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  assistantId?: string;
+  context?: ReaderQuestionContext;
+  createdAt: string;
+};
+
+export type ReaderChatSession = {
+  id: string;
+  articleId: string;
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ReaderChatMessage[];
+};
+
+export type ReaderChatState = {
+  articleId: string;
+  activeSessionId: string;
+  selectedAssistantId?: string;
+  sessions: ReaderChatSession[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ArticleReaderChatStatePatch = {
+  type: 'article-reader-chat-state';
+  articleId: string;
+  readerChatState?: ReaderChatState;
   updatedAt: string;
 };
 
@@ -57,13 +101,14 @@ export type ArticleRecord = {
   commentCount?: number;
   distillationCount?: number;
   focusCoReadingPlan?: FocusCoReadingPlan;
+  readerChatState?: ReaderChatState;
   createdAt: string;
   updatedAt: string;
 };
 
 export type ArticleSummaryRecord = Omit<
   ArticleRecord,
-  'contentHtml' | 'ebook' | 'focusCoReadingPlan'
+  'contentHtml' | 'ebook' | 'focusCoReadingPlan' | 'readerChatState'
 > & {
   ebook?: EbookSummaryRecord;
 };

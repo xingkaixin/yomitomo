@@ -11,6 +11,7 @@ import type {
   AnnotationDistillationReviewMessage,
   AppSettings,
   ArticleDeletePatch,
+  ArticleReaderChatStatePatch,
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
@@ -19,6 +20,7 @@ import type {
   DesktopStore,
   LlmProvider,
   ProviderModel,
+  ReaderChatState,
   UserFacingReleaseNote,
   UserProfile,
   WeReadBook,
@@ -65,6 +67,11 @@ export type ArticleCommentUpsertInput = {
   annotationId: string;
   comment: Comment;
   updatedAt?: string;
+};
+
+export type ArticleReaderChatStateSaveInput = {
+  articleId: string;
+  readerChatState?: ReaderChatState;
 };
 
 export type WindowAnimationSourceRect = {
@@ -429,6 +436,10 @@ export type DesktopIpcInvokeMap = {
   'article:reading-progress': {
     args: [input: { articleId: string; progress: ArticleReadingProgress }];
     result: ArticleReadingProgressPatch;
+  };
+  'article:reader-chat-state': {
+    args: [input: ArticleReaderChatStateSaveInput];
+    result: ArticleReaderChatStatePatch;
   };
   'article:save': {
     args: [article: ArticleRecord];

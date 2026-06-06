@@ -713,4 +713,10 @@ CREATE INDEX IF NOT EXISTS assistant_execution_runs_created_at_idx
 ON assistant_execution_runs(created_at);
 `,
   },
+  {
+    id: '0048_article_reader_chat_state',
+    sql: `
+ALTER TABLE articles ADD COLUMN reader_chat_state TEXT;
+`,
+  },
 ];

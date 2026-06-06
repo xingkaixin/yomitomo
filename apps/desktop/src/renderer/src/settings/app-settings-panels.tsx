@@ -85,6 +85,7 @@ const selectionShortcutRows: Array<{
 }> = [
   { action: 'copy', label: '复制', description: '阅读区选中文本后的复制操作。' },
   { action: 'annotate', label: '记录想法', description: '阅读区选中文本后的想法入口。' },
+  { action: 'ask', label: '问一下', description: '阅读区选中文本后的问答入口。' },
 ];
 
 const logRetentionOptions: Array<{ label: string; value?: number }> = [
@@ -211,7 +212,6 @@ export function ShortcutSettings({
     () => normalizeSelectionActionShortcutDraft(settingsDraft.selectionActionShortcuts),
     [settingsDraft.selectionActionShortcuts],
   );
-  const hasSelectionShortcutConflict = selectionActionShortcutsConflict(selectionShortcuts);
 
   useEffect(() => {
     if (!recordingAction) return;
@@ -338,8 +338,10 @@ export function ShortcutSettings({
           const defaultKey = defaultSelectionActionShortcuts[row.action];
           const modified = key !== defaultKey;
           const recording = recordingAction === row.action;
-          const conflict = hasSelectionShortcutConflict;
-          const otherRow = selectionShortcutRows.find((item) => item.action !== row.action)!;
+          const conflictingRow = selectionShortcutRows.find(
+            (item) => item.action !== row.action && selectionShortcuts[item.action] === key,
+          );
+          const conflict = Boolean(conflictingRow);
 
           return (
             <SettingsRow
@@ -350,7 +352,7 @@ export function ShortcutSettings({
             >
               {conflict ? (
                 <span className="shortcut-conflict-badge" role="alert">
-                  与{otherRow.label}共用 {key}
+                  与{conflictingRow?.label || '其他操作'}共用 {key}
                 </span>
               ) : null}
               <button

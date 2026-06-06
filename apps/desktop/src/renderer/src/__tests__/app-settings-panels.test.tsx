@@ -1121,7 +1121,7 @@ describe('ShortcutSettings', () => {
 
     expect(onSettingsChange).toHaveBeenCalledWith({
       messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'X', annotate: 'A' },
+      selectionActionShortcuts: { copy: 'X', annotate: 'A', ask: 'Q' },
     });
   });
 
@@ -1144,7 +1144,28 @@ describe('ShortcutSettings', () => {
     expect(onSettingsChange).toHaveBeenCalledOnce();
     expect(onSettingsChange).toHaveBeenCalledWith({
       messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'C', annotate: 'B' },
+      selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
+    });
+  });
+
+  it('records the ask selection shortcut', () => {
+    const onSettingsChange = vi.fn();
+    render(
+      <ShortcutSettings
+        settingsDraft={{ messageSendShortcut: 'enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '设置问一下快捷键' }));
+    fireEvent.keyDown(window, { key: 'y' });
+
+    expect(onSettingsChange).toHaveBeenCalledWith({
+      messageSendShortcut: 'enter',
+      selectionActionShortcuts: { copy: 'C', annotate: 'A', ask: 'Y' },
     });
   });
 
@@ -1154,7 +1175,7 @@ describe('ShortcutSettings', () => {
       <ShortcutSettings
         settingsDraft={{
           messageSendShortcut: 'enter',
-          selectionActionShortcuts: { copy: 'B', annotate: 'B' },
+          selectionActionShortcuts: { copy: 'B', annotate: 'B', ask: 'Q' },
         }}
         canSave={false}
         onSettingsChange={onSettingsChange}
@@ -1170,7 +1191,7 @@ describe('ShortcutSettings', () => {
 
     expect(onSettingsChange).toHaveBeenCalledWith({
       messageSendShortcut: 'enter',
-      selectionActionShortcuts: { copy: 'C', annotate: 'B' },
+      selectionActionShortcuts: { copy: 'C', annotate: 'B', ask: 'Q' },
     });
   });
 });

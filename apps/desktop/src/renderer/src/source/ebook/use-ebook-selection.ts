@@ -28,6 +28,7 @@ type UseEbookSelectionInput = {
   selectionAction: SourceSelectionAction | null;
   composer: SourceSelectionAction | null;
   clearSelection: () => void;
+  askSelection: (action: SourceSelectionAction) => void;
   copySelection: (action: SourceSelectionAction) => void | Promise<void>;
   openComposer: (action: SourceSelectionAction) => void;
   openSelectionAction: (
@@ -48,6 +49,7 @@ export function useEbookSelection({
   selectionAction,
   composer,
   clearSelection,
+  askSelection,
   copySelection,
   openComposer,
   openSelectionAction,
@@ -136,9 +138,13 @@ export function useEbookSelection({
         void copySelection(activeSelectionAction);
         return;
       }
+      if (shortcut === 'ask') {
+        askSelection(activeSelectionAction);
+        return;
+      }
       openComposer(activeSelectionAction);
     },
-    [actionShortcuts, composer, copySelection, openComposer, selectionAction],
+    [actionShortcuts, askSelection, composer, copySelection, openComposer, selectionAction],
   );
 
   return {

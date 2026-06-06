@@ -33,6 +33,17 @@ describe('reading memory migrations', () => {
     expect(columnNames(database, 'app_settings')).toContain('annotation_memory_backfill_version');
   });
 
+  it('adds article reader chat state storage', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial', '0048_article_reader_chat_state']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+
+    expect(columnNames(database, 'articles')).toContain('reader_chat_state');
+  });
+
   it('creates reading memory tables, indexes, and fts virtual table', () => {
     const database = migratedDatabase();
 

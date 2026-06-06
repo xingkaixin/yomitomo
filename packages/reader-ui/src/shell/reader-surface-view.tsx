@@ -14,6 +14,7 @@ import { EmptyNotes } from './reader-empty-notes';
 import { HighlightChoiceMenu } from './reader-highlight-choice-menu';
 import { SelectionMenu } from './reader-selection-menu';
 import type {
+  ReaderChatModel,
   HighlightChoice,
   PendingComposer,
   ReaderArticle,
@@ -44,6 +45,7 @@ export type ReaderSurfaceViewProps = {
   canvasRef: React.RefObject<HTMLDivElement | null>;
   commentsCloseKey: number;
   composer: PendingComposer | null;
+  chat?: ReaderChatModel;
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
@@ -82,6 +84,7 @@ export type ReaderSurfaceViewProps = {
     annotationIds: string[],
   ) => void;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
+  onAskSelection?: (action: SelectionAction) => void;
   onOpenComposer: (action: SelectionAction) => void;
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   onScrollToHighlight: (annotationId: string) => void;
@@ -130,6 +133,7 @@ export function ReaderSurfaceView({
   canvasRef,
   commentsCloseKey,
   composer,
+  chat,
   distillationAnimation,
   exitingAnnotationIds,
   expandedPrimaryCommentIds,
@@ -160,6 +164,7 @@ export function ReaderSurfaceView({
   onOpenAnnotationDiscussion,
   onHighlightClick,
   onMouseUp,
+  onAskSelection,
   onOpenComposer,
   onPrimaryCommentExpandedChange,
   onScrollToHighlight,
@@ -310,6 +315,7 @@ export function ReaderSurfaceView({
               action={selectionAction}
               shortcuts={selectionActionShortcuts}
               onAnnotate={() => onOpenComposer(selectionAction)}
+              onAsk={chat ? () => onAskSelection?.(selectionAction) : undefined}
               onCopy={() => onCopySelection(selectionAction)}
             />
           ) : null}

@@ -35,6 +35,20 @@ describe('reader embedded styles', () => {
     );
   });
 
+  it('keeps reader chat colors on reader theme tokens', () => {
+    const chatStyles = readerConversationStyles.slice(
+      readerConversationStyles.indexOf('.reader-chat-fab{'),
+      readerConversationStyles.indexOf('.reader-highlight-choice-menu{'),
+    );
+
+    expect(chatStyles).toContain('background:var(--app-reader-chat-panel-bg)');
+    expect(chatStyles).toContain('background:var(--app-reader-chat-user-bubble-bg)');
+    expect(chatStyles).toContain('color:var(--app-reader-chat-user-bubble-fg)');
+    expect(chatStyles).toContain('background:var(--app-reader-chat-assistant-bubble-bg)');
+    expect(chatStyles).toContain('background:var(--app-reader-chat-send-bg)');
+    expect(chatStyles).not.toContain('#fffaf0');
+  });
+
   it('does not render annotation cards with a thicker left rail', () => {
     expect(readerConversationStyles).not.toContain('border-left-width:4px');
     expect(readerConversationStyles).not.toContain('border-radius:18px 18px 18px 7px');

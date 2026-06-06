@@ -1,11 +1,12 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import type { Annotation, ArticleReadingProgress } from '@yomitomo/shared';
+import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   createTextAnchor,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  resolveTextAnchor,
 } from '@yomitomo/shared';
 import {
   articlePublishedDistillationCount,
@@ -59,6 +60,7 @@ import {
 } from './app-source-bookcase-web-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
+import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
 
 export function WebSourceBookcase({
   agents,
@@ -78,6 +80,7 @@ export function WebSourceBookcase({
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveArticleReaderChatState,
   onUpdateArticle,
 }: WebSourceBookcaseProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -177,6 +180,12 @@ export function WebSourceBookcase({
     canvasRef,
     contentHtml,
     userProfile,
+  });
+  const readerChat = useReaderChatSession({
+    agents: annotationAgents,
+    article,
+    getArticleText: currentArticleText,
+    onSaveArticleReaderChatState,
   });
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
@@ -472,6 +481,39 @@ export function WebSourceBookcase({
     openAnnotation(annotation.id);
   }
 
+  function askSelection(action: { anchor: Annotation['anchor'] }) {
+    readerChat.askSelection(readerQuestionContext(action.anchor));
+    clearSelection();
+  }
+
+  function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
+    return {
+      sourceType: article.sourceType || 'web',
+      quote: anchor.exact,
+      title: article.title,
+      anchor,
+      nearbyText: currentArticleText().slice(
+        Math.max(0, anchor.start - 500),
+        Math.min(currentArticleText().length, anchor.end + 500),
+      ),
+    };
+  }
+
+  function revealReaderChatContext(context: ReaderQuestionContext) {
+    const anchor = context.anchor;
+    const articleElement = articleRef.current;
+    const scrollElement = scrollRef.current;
+    if (!anchor || !articleElement || !scrollElement) return;
+
+    const position = resolveTextAnchor(articleElement.textContent || '', anchor);
+    if (!position) return;
+
+    const range = rangeFromOffsets(articleElement, position.start, position.end);
+    if (!range) return;
+
+    scrollReaderSurfaceToRect(scrollElement, range.getBoundingClientRect(), 48);
+  }
+
   function handleHighlightClick(
     annotationId: string,
     event: React.MouseEvent<HTMLButtonElement>,
@@ -591,12 +633,14 @@ export function WebSourceBookcase({
               scrollToAnnotation(annotationId);
             },
           },
+          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
           selection: {
             onCancelComposer: cancelComposer,
             onClearSelection: clearSelection,
             onCloseHighlightChoice: () => setHighlightChoice(null),
             onCopySelection: copySelection,
             onMouseUp: handleArticleMouseUp,
+            onAskSelection: askSelection,
             onOpenComposer: openComposer,
           },
           shell: {
@@ -648,6 +692,7 @@ export function WebSourceBookcase({
           extracted: readerArticle,
           id: article.id,
         }}
+        chat={readerChat.model}
         options={{ embedded: true }}
         refs={{
           articleRef,

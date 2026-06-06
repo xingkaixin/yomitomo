@@ -3,6 +3,8 @@ import type {
   Annotation,
   MessageSendShortcut,
   PublicAgent,
+  ReaderChatState,
+  ReaderQuestionContext,
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
@@ -124,6 +126,15 @@ export type ReaderSelectionModel = {
   selectionAction: SelectionAction | null;
 };
 
+export type ReaderChatModel = {
+  draftContext?: ReaderQuestionContext;
+  error?: string;
+  open: boolean;
+  selectedAssistantId?: string;
+  sending?: boolean;
+  state?: ReaderChatState;
+};
+
 export type ReaderSettingsModel = {
   messageSendShortcut: MessageSendShortcut;
   readerSettings: ReaderSettings;
@@ -176,7 +187,17 @@ export type ReaderSelectionActions = {
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onMouseUp: (event: React.MouseEvent<HTMLElement>) => void;
+  onAskSelection?: (action: SelectionAction) => void;
   onOpenComposer: (action: SelectionAction) => void;
+};
+
+export type ReaderChatActions = {
+  onClearDraftContext?: () => void;
+  onClose: () => void;
+  onOpen: () => void;
+  onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
+  onSelectAssistant?: (assistantId: string) => void;
+  onSubmit: (content: string) => void | Promise<void>;
 };
 
 export type ReaderShellActions = {
@@ -194,6 +215,7 @@ export type ReaderTocActions = {
 
 export type ReaderAppViewActions = {
   annotation: ReaderAnnotationActions;
+  chat?: ReaderChatActions;
   selection: ReaderSelectionActions;
   shell: ReaderShellActions;
   toc: ReaderTocActions;
@@ -204,6 +226,7 @@ export type ReaderAppViewProps = {
   agents: ReaderAgentModel;
   annotations: ReaderAnnotationModel;
   article: ReaderArticleModel;
+  chat?: ReaderChatModel;
   options?: ReaderShellOptions;
   refs: ReaderShellRefs;
   selection: ReaderSelectionModel;

@@ -5,6 +5,7 @@ type FloatingComposerProps = {
   accessory?: ReactNode;
   className?: string;
   mentionMenu?: ReactNode;
+  prefix?: ReactNode;
   secondaryAction?: ReactNode;
   status?: ReactNode;
   submitDisabled?: boolean;
@@ -21,6 +22,7 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
       accessory,
       className,
       mentionMenu,
+      prefix,
       secondaryAction,
       status,
       submitDisabled,
@@ -51,6 +53,7 @@ export const FloatingComposer = forwardRef<HTMLTextAreaElement, FloatingComposer
 
     return (
       <div className={rootClassName}>
+        {prefix}
         <textarea {...textarea} ref={ref} className={textareaClassName} />
         {mentionMenu}
         <div className="floating-composer-bar">

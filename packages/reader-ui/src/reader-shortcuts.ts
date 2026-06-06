@@ -42,7 +42,7 @@ export function isMessageSendShortcutEvent(
   return !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
 }
 
-export type SelectionActionShortcut = 'annotate' | 'copy';
+export type SelectionActionShortcut = 'annotate' | 'ask' | 'copy';
 
 export type SelectionActionShortcutKeyboardEvent = {
   key: string;
@@ -73,6 +73,7 @@ export function selectionActionShortcut(
 
   const key = event.key.toUpperCase();
   const normalizedShortcuts = normalizeSelectionActionShortcuts(shortcuts);
+  if (key === normalizedShortcuts.ask) return 'ask';
   if (key === normalizedShortcuts.annotate) return 'annotate';
   if (key === normalizedShortcuts.copy) return 'copy';
   return null;
