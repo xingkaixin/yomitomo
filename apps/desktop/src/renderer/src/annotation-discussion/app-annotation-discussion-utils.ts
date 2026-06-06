@@ -5,7 +5,7 @@ import type {
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
-import type { getMentionQuery } from '@yomitomo/core';
+import { findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import { articlePlainText } from '../shell/app-utils';
 
@@ -38,6 +38,20 @@ export function waitForMilliseconds(duration: number) {
 
 export function assistantThoughtRouteNote(note: string, agents: PublicAgent[]) {
   return `${agents.map((agent) => `@${agent.username}`).join(' ')} ${note}`.trim();
+}
+
+export function replyTargetAgents(content: string, root: Comment, agents: PublicAgent[]) {
+  const mentionedAgents = findMentionedAgents(content, agents);
+  if (mentionedAgents.length > 0) return mentionedAgents;
+
+  const rootAgent = rootThoughtAgent(root, agents);
+  return rootAgent ? [rootAgent] : [];
+}
+
+export function discussionReplyPlaceholder(root: Comment, agents: PublicAgent[]) {
+  const rootAgent = rootThoughtAgent(root, agents);
+  if (!rootAgent) return '回复这条想法，输入 @助手 可邀请助手参与讨论';
+  return `回复这条助手想法；不 @ 时默认由 ${rootAgent.nickname} 回应，也可 @ 其他助手`;
 }
 
 export function insertMentionAtCaret(
@@ -142,6 +156,15 @@ export function annotationUserProfile(annotation: Annotation, article: ArticleRe
 
 function compactTitleText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function rootThoughtAgent(root: Comment, agents: PublicAgent[]) {
+  if (root.author !== 'ai') return undefined;
+  return agents.find(
+    (agent) =>
+      (root.agentId && agent.id === root.agentId) ||
+      (root.agentUsername && agent.username === root.agentUsername),
+  );
 }
 
 function compareThreads(a: DiscussionThread, b: DiscussionThread) {

@@ -21,6 +21,7 @@ import {
 import type { AnnotationMessageLayoutMode } from './app-annotation-layout-control';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import {
+  discussionReplyPlaceholder,
   formatAbsoluteTime,
   insertMentionAtSelection,
   type DiscussionThread,
@@ -82,6 +83,7 @@ export function DiscussionThreadView({
       : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
   const shortcutModifier = getShortcutModifier();
   const composerStatus = sendError || statusMessage || (sendingReply ? '正在发送' : '');
+  const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
@@ -352,7 +354,7 @@ export function DiscussionThreadView({
           }
           textarea={{
             value: replyDraft,
-            placeholder: '回复这条想法，输入 @助手 可邀请助手参与讨论',
+            placeholder: replyPlaceholder,
             rows: 1,
             disabled: sendingReply,
             onChange: (event) => {
