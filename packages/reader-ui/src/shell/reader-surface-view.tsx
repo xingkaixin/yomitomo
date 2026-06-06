@@ -63,6 +63,7 @@ export type ReaderSurfaceViewProps = {
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
   reviewAgents?: PublicAgent[];
+  searchBoxes?: HighlightBox[];
   userProfile: UserProfile;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
@@ -144,6 +145,7 @@ export function ReaderSurfaceView({
   surfaceRef,
   temporaryBoxes,
   reviewAgents = [],
+  searchBoxes = [],
   userProfile,
   visibleAnnotationIds,
   visibleAnnotations,
@@ -171,6 +173,7 @@ export function ReaderSurfaceView({
     () => buildHighlightSegments(agentTheaterBoxes),
     [agentTheaterBoxes],
   );
+  const searchSegments = React.useMemo(() => buildHighlightSegments(searchBoxes), [searchBoxes]);
   const visibleAnnotationById = React.useMemo(
     () => new Map(visibleAnnotations.map((annotation) => [annotation.id, annotation])),
     [visibleAnnotations],
@@ -250,6 +253,13 @@ export function ReaderSurfaceView({
               >
                 <HighlightDots colors={segment.colors} />
               </div>
+            ))}
+            {searchSegments.map((segment) => (
+              <div
+                className="reader-highlight is-search"
+                key={`search-${segment.id}`}
+                style={highlightSegmentStyle(segment, true) as React.CSSProperties}
+              />
             ))}
           </div>
           <aside

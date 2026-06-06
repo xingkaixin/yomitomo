@@ -53,6 +53,26 @@ export type AnnotationNavigationState = {
   totalCount?: number;
 };
 
+export type ReaderSearchToolbarMatch = {
+  id: string;
+  start: number;
+  end: number;
+  preview: string;
+};
+
+export type ReaderSearchToolbarState = {
+  activeMatchIndex: number;
+  limited: boolean;
+  matches: ReaderSearchToolbarMatch[];
+  open: boolean;
+  query: string;
+  onClose: () => void;
+  onNextMatch: () => void;
+  onOpen: () => void;
+  onPreviousMatch: () => void;
+  onQueryChange: (query: string) => void;
+};
+
 export type ReaderArticleModel = {
   content?: React.ReactNode;
   extracted: ReaderArticle;
@@ -83,6 +103,7 @@ export type ReaderAnnotationModel = {
     token: number;
   } | null;
   filteredAnnotations: Annotation[];
+  searchBoxes?: HighlightBox[];
   temporaryBoxes: HighlightBox[];
 };
 
@@ -121,6 +142,7 @@ export type ReaderTocModel = {
 export type ReaderToolbarModel = {
   articleAction?: React.ReactNode;
   controls?: React.ReactNode;
+  search?: ReaderSearchToolbarState;
 };
 
 export type ReaderShellOptions = {

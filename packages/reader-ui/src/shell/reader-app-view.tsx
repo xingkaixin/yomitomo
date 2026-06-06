@@ -59,6 +59,7 @@ export function ReaderAppView({
     filteredAnnotations,
     railLayoutOverride,
     railViewportHeight,
+    searchBoxes,
     temporaryBoxes,
   } = annotationModel;
   const {
@@ -171,6 +172,7 @@ export function ReaderAppView({
         annotationNavigation={annotationNavigation}
         controls={toolbar?.controls}
         hasToc={hasToc}
+        search={toolbar?.search}
         showAnnotationNavigation={Boolean(
           annotationActions.onResolveAnnotationNavigation && annotationActions.onNavigateAnnotation,
         )}
@@ -228,6 +230,7 @@ export function ReaderAppView({
           selectionAction={selectionAction}
           selectionActionShortcuts={selectionActionShortcuts}
           shortcutModifier={shortcutModifier}
+          searchBoxes={searchBoxes}
           surfaceRef={surfaceRef}
           temporaryBoxes={temporaryBoxes}
           userProfile={userProfile}
