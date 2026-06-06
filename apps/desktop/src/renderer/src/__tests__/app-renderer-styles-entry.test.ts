@@ -25,7 +25,9 @@ describe('renderer styles entry', () => {
     const styles = readRendererStyles();
 
     expect(styles).toContain("@font-face {\n  font-family: 'JetBrains Mono';");
-    expect(styles).toContain("src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');");
+    expect(styles).toContain(
+      "src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');",
+    );
     expect(styles).not.toContain("url('../assets/fonts/");
     expect(styles).toContain('.app-shell {');
     expect(styles).toContain('.annotation-discussion-window {');
