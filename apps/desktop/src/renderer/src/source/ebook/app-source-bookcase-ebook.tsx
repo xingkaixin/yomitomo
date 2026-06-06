@@ -1,7 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Annotation } from '@yomitomo/shared';
+import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
   articlePublishedDistillationCount,
@@ -59,6 +59,7 @@ import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
+import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
 
 export function EbookBookcase({
   agents,
@@ -78,6 +79,7 @@ export function EbookBookcase({
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveArticleReaderChatState,
   onUpdateArticle,
 }: EbookBookcaseProps) {
   const articleRef = useRef<HTMLElement | null>(null);
@@ -215,6 +217,12 @@ export function EbookBookcase({
   });
   const [readerSettings, updateEbookReaderSettings] = useDesktopReaderSettings();
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
+  const readerChat = useReaderChatSession({
+    agents: annotationAgents,
+    article,
+    getArticleText: currentArticleText,
+    onSaveArticleReaderChatState,
+  });
   const searchResult = useMemo(
     () => findReaderSearchMatches(ebookText, searchQuery),
     [ebookText, searchQuery],
@@ -281,6 +289,7 @@ export function EbookBookcase({
     selectionAction,
     composer,
     clearSelection,
+    askSelection,
     copySelection,
     openComposer,
     openSelectionAction,
@@ -527,6 +536,33 @@ export function EbookBookcase({
     openAnnotation(annotation.id);
   }
 
+  function askSelection(action: { anchor: Annotation['anchor'] }) {
+    readerChat.askSelection(readerQuestionContext(action.anchor));
+    clearSelection();
+  }
+
+  function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
+    const chapter = anchor.chapterId
+      ? article.ebook.index?.chapters.find((item) => item.id === anchor.chapterId)
+      : null;
+    return {
+      sourceType: 'ebook',
+      quote: anchor.exact,
+      title: article.title,
+      locationLabel: chapter?.title,
+      anchor,
+      nearbyText: ebookText.slice(
+        Math.max(0, (anchor.textStartInBook ?? anchor.start) - 500),
+        Math.min(ebookText.length, (anchor.textEndInBook ?? anchor.end) + 500),
+      ),
+    };
+  }
+
+  async function revealReaderChatContext(context: ReaderQuestionContext) {
+    if (!context.anchor) return;
+    await goToEbookAnchor(context.anchor);
+  }
+
   async function appendAgentAnnotationToArticle(articleId: string, annotation: Annotation) {
     let activeId = annotation.id;
     let currentMerge: ReturnType<typeof mergeAgentAnnotationAsThought> | null = null;
@@ -584,23 +620,28 @@ export function EbookBookcase({
 
   async function goToAnnotation(annotationId: string) {
     const annotation = annotationsRef.current.find((item) => item.id === annotationId);
+    if (!annotation) return false;
+    return goToEbookAnchor(annotation.anchor);
+  }
+
+  async function goToEbookAnchor(anchor: Annotation['anchor']) {
     const view = viewRef.current;
     const index = article.ebook.index;
-    if (!annotation || !view || !index) return false;
+    if (!view || !index) return false;
 
-    const chapter = annotation.anchor.chapterId
-      ? index.chapters.find((item) => item.id === annotation.anchor.chapterId)
+    const chapter = anchor.chapterId
+      ? index.chapters.find((item) => item.id === anchor.chapterId)
       : null;
     const sectionIndex = chapter ? ebookSectionIndexForChapter(article, view, chapter) : -1;
     if (sectionIndex >= 0) await view.goTo(sectionIndex);
-    else if (typeof annotation.anchor.textStartInBook === 'number' && index.textLength > 0) {
-      await view.goToFraction(annotation.anchor.textStartInBook / index.textLength);
+    else if (typeof anchor.textStartInBook === 'number' && index.textLength > 0) {
+      await view.goToFraction(anchor.textStartInBook / index.textLength);
     }
 
     await waitForFoliateIdle();
     await waitForAnimationFrame();
     const doc = currentFoliateContent(view)?.doc;
-    const range = doc ? rangeForEbookAnchorInDocument(doc, annotation.anchor) : null;
+    const range = doc ? rangeForEbookAnchorInDocument(doc, anchor) : null;
     if (range) await view.renderer?.scrollToAnchor?.(range);
     await waitForAnimationFrame();
     scheduleEbookBoxUpdate('annotation_navigation');
@@ -738,12 +779,14 @@ export function EbookBookcase({
             onResolveAnnotationNavigation: resolveAnnotationNavigation,
             onScrollToHighlight: focusPageAnnotation,
           },
+          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
           selection: {
             onCancelComposer: cancelComposer,
             onClearSelection: clearSelection,
             onCloseHighlightChoice: () => setHighlightChoice(null),
             onCopySelection: copySelection,
             onMouseUp: () => undefined,
+            onAskSelection: askSelection,
             onOpenComposer: openComposer,
           },
           shell: {
@@ -788,6 +831,7 @@ export function EbookBookcase({
           extracted: readerArticle,
           id: article.id,
         },
+        chat: readerChat.model,
         options: { embedded: true },
         refs: {
           articleRef,

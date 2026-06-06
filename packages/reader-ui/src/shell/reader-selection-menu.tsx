@@ -1,4 +1,4 @@
-import { Copy, MessageSquarePlus } from 'lucide-react';
+import { Copy, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import { normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import { Kbd } from '../components/ui/kbd';
@@ -8,11 +8,13 @@ export function SelectionMenu({
   action,
   shortcuts,
   onAnnotate,
+  onAsk,
   onCopy,
 }: {
   action: SelectionMenuAction;
   shortcuts?: Partial<SelectionActionShortcuts>;
   onAnnotate: () => void;
+  onAsk?: () => void;
   onCopy: () => void;
 }) {
   const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
@@ -34,6 +36,13 @@ export function SelectionMenu({
         记录想法
         <Kbd className="reader-kbd">{shortcutKeys.annotate}</Kbd>
       </button>
+      {onAsk ? (
+        <button className="reader-selection-primary" type="button" onClick={onAsk}>
+          <MessageCircleQuestion size={15} strokeWidth={2.2} />
+          问一下
+          <Kbd className="reader-kbd">{shortcutKeys.ask}</Kbd>
+        </button>
+      ) : null}
     </div>
   );
 }

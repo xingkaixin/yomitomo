@@ -63,18 +63,21 @@ describe('message send shortcuts', () => {
 });
 
 describe('selection action shortcuts', () => {
-  it('matches copy and annotate keys', () => {
+  it('matches copy, annotate and ask keys', () => {
     expect(selectionActionShortcut({ key: 'c' })).toBe('copy');
     expect(selectionActionShortcut({ key: 'C' })).toBe('copy');
     expect(selectionActionShortcut({ key: 'a' })).toBe('annotate');
     expect(selectionActionShortcut({ key: 'A' })).toBe('annotate');
+    expect(selectionActionShortcut({ key: 'q' })).toBe('ask');
+    expect(selectionActionShortcut({ key: 'Q' })).toBe('ask');
   });
 
-  it('matches configured copy and annotate keys', () => {
-    const shortcuts = { copy: 'X', annotate: 'B' };
+  it('matches configured copy, annotate and ask keys', () => {
+    const shortcuts = { copy: 'X', annotate: 'B', ask: 'Y' };
 
     expect(selectionActionShortcut({ key: 'x' }, shortcuts)).toBe('copy');
     expect(selectionActionShortcut({ key: 'b' }, shortcuts)).toBe('annotate');
+    expect(selectionActionShortcut({ key: 'y' }, shortcuts)).toBe('ask');
     expect(selectionActionShortcut({ key: 'c' }, shortcuts)).toBe(null);
   });
 

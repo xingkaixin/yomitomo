@@ -5,6 +5,7 @@ import {
   type Annotation,
   type ArticleSummaryRecord,
   type Comment,
+  type ReaderChatState,
 } from '@yomitomo/shared';
 
 const testState = vi.hoisted(() => ({
@@ -38,6 +39,7 @@ import {
   buildArticleReadingProgressPatch,
   buildAgentRecord,
   buildArticleChildRows,
+  buildArticleReaderChatStatePatch,
   buildArticleUpsertPatch,
   buildProviderRecord,
   findArticleInListByIdentity,
@@ -77,7 +79,7 @@ describe('desktop store settings', () => {
           reviewAssistantProviderId: 'provider_1',
           assistantExecutionMode: 'deep_verification',
           messageSendShortcut: 'mod-enter',
-          selectionActionShortcuts: { copy: 'X', annotate: 'B' },
+          selectionActionShortcuts: { copy: 'X', annotate: 'B', ask: 'Q' },
           saveArticleImages: true,
           developerModeEnabled: false,
           logRetentionDays: 30,
@@ -98,7 +100,7 @@ describe('desktop store settings', () => {
       reviewAssistantProviderId: undefined,
       assistantExecutionMode: 'deep_verification',
       messageSendShortcut: 'mod-enter',
-      selectionActionShortcuts: { copy: 'X', annotate: 'B' },
+      selectionActionShortcuts: { copy: 'X', annotate: 'B', ask: 'Q' },
       saveArticleImages: true,
       developerModeEnabled: false,
       logRetentionDays: 30,
@@ -488,6 +490,81 @@ describe('desktop store articles', () => {
         fileSize: 1200,
       },
     });
+  });
+
+  it('keeps reader chat state out of article summaries', () => {
+    const article = rowToArticleSummary(storeSummaryRow(), []);
+
+    expect(Object.hasOwn(article, 'readerChatState')).toBe(false);
+  });
+
+  it('normalizes reader chat state patches', () => {
+    const readerChatState: ReaderChatState = {
+      articleId: 'store-summary-article',
+      activeSessionId: 'session_1',
+      selectedAssistantId: 'agent_reader',
+      createdAt: '2026-06-06T08:00:00.000Z',
+      updatedAt: '2026-06-06T08:05:00.000Z',
+      sessions: [
+        {
+          id: 'session_1',
+          articleId: 'store-summary-article',
+          createdAt: '2026-06-06T08:00:00.000Z',
+          updatedAt: '2026-06-06T08:05:00.000Z',
+          messages: [
+            {
+              id: 'message_1',
+              role: 'user',
+              content: '这里的概念是什么意思？',
+              context: {
+                sourceType: 'pdf',
+                quote: '关键概念',
+                anchor: createPdfTextAnchor({
+                  pageText: '这里有一个关键概念需要解释。',
+                  start: 5,
+                  end: 9,
+                  pageIndex: 2,
+                  pageWidth: 612,
+                  pageHeight: 792,
+                  rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.04 }],
+                }),
+              },
+              createdAt: '2026-06-06T08:01:00.000Z',
+            },
+          ],
+        },
+      ],
+    };
+    const patch = buildArticleReaderChatStatePatch('store-summary-article', readerChatState);
+
+    expect(patch).toEqual({
+      type: 'article-reader-chat-state',
+      articleId: 'store-summary-article',
+      readerChatState,
+      updatedAt: readerChatState.updatedAt,
+    });
+  });
+
+  it('drops reader chat state that belongs to another article', () => {
+    const readerChatState: ReaderChatState = {
+      articleId: 'other-article',
+      activeSessionId: 'session_1',
+      createdAt: '2026-06-06T08:00:00.000Z',
+      updatedAt: '2026-06-06T08:05:00.000Z',
+      sessions: [
+        {
+          id: 'session_1',
+          articleId: 'other-article',
+          createdAt: '2026-06-06T08:00:00.000Z',
+          updatedAt: '2026-06-06T08:05:00.000Z',
+          messages: [],
+        },
+      ],
+    };
+
+    expect(
+      buildArticleReaderChatStatePatch('store-summary-article', readerChatState).readerChatState,
+    ).toBeUndefined();
   });
 
   it('builds child rows for multiple annotations and comments', () => {

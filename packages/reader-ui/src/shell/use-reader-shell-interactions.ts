@@ -37,6 +37,7 @@ export type UseReaderShellInteractionsOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
+  onAskSelection?: (action: SelectionAction) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onOpenComposer: (action: SelectionAction) => void;
   onToggleSettings: () => void;
@@ -60,6 +61,7 @@ export function useReaderShellInteractions({
   onClearSelection,
   onCloseFloatingPanels,
   onCloseHighlightChoice,
+  onAskSelection,
   onCopySelection,
   onOpenComposer,
   onToggleSettings,
@@ -92,6 +94,10 @@ export function useReaderShellInteractions({
         void onCopySelection(activeSelectionAction);
         return;
       }
+      if (shortcut === 'ask' && onAskSelection) {
+        onAskSelection(activeSelectionAction);
+        return;
+      }
       onOpenComposer(activeSelectionAction);
     }
 
@@ -99,7 +105,14 @@ export function useReaderShellInteractions({
     return () => {
       window.removeEventListener('keydown', handleSelectionShortcut);
     };
-  }, [composer, onCopySelection, onOpenComposer, selectionAction, selectionActionShortcuts]);
+  }, [
+    composer,
+    onAskSelection,
+    onCopySelection,
+    onOpenComposer,
+    selectionAction,
+    selectionActionShortcuts,
+  ]);
 
   const toggleSettings = React.useCallback(() => {
     onToggleSettings();

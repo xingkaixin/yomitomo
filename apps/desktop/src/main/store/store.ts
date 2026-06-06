@@ -37,6 +37,7 @@ import {
   readArticleSummaryCounts,
   readArticleSummaryRows,
   readArticleSummaryRowsForStore,
+  saveArticleReaderChatStateRows,
   saveArticleReadingProgressRows,
   saveArticleRows,
   upsertAnnotationRows,
@@ -100,6 +101,7 @@ export {
 export { mergeSettingsForUpsert } from './store-normalizers';
 export {
   buildArticleChildRows,
+  buildArticleReaderChatStatePatch,
   buildArticleReadingProgressPatch,
   buildArticleUpsertPatch,
   findArticleInListByIdentity,
@@ -403,6 +405,13 @@ export async function saveArticleReadingProgress(
   progress: ArticleReadingProgress,
 ) {
   return saveArticleReadingProgressRows(getDatabase(), articleId, progress);
+}
+
+export async function saveArticleReaderChatState(
+  articleId: string,
+  readerChatState: ArticleRecord['readerChatState'],
+) {
+  return saveArticleReaderChatStateRows(getDatabase(), articleId, readerChatState);
 }
 
 export async function deleteArticle(id: string) {

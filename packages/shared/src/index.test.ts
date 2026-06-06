@@ -130,10 +130,13 @@ describe('provider presets', () => {
 
 describe('selection action shortcuts', () => {
   it('normalizes single letter shortcuts', () => {
-    expect(normalizeSelectionActionShortcutDraft({ copy: 'x', annotate: ' z ' })).toEqual({
-      copy: 'X',
-      annotate: 'Z',
-    });
+    expect(normalizeSelectionActionShortcutDraft({ copy: 'x', annotate: ' z ', ask: 'q' })).toEqual(
+      {
+        copy: 'X',
+        annotate: 'Z',
+        ask: 'Q',
+      },
+    );
     expect(normalizeSelectionActionShortcutDraft({ copy: '1', annotate: 'Enter' })).toEqual(
       defaultSelectionActionShortcuts,
     );

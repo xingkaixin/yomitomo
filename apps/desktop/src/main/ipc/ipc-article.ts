@@ -40,6 +40,10 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { saveArticleReadingProgress } = await context.getStoreModule();
     return saveArticleReadingProgress(input.articleId, input.progress);
   });
+  handleDesktopIpc('article:reader-chat-state', async (_event, input) => {
+    const { saveArticleReaderChatState } = await context.getStoreModule();
+    return saveArticleReaderChatState(input.articleId, input.readerChatState);
+  });
   handleDesktopIpc('article:import-url', async (_event, input) => {
     const { findArticleByIdentity, readArticle, readImportSettings, saveArticle } =
       await context.getStoreModule();

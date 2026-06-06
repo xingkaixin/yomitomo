@@ -29,6 +29,7 @@ import {
   type AgentReadingPlanItem,
   type Annotation,
   type ArticleRecord,
+  type ReaderQuestionContext,
 } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
@@ -92,6 +93,7 @@ import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-re
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
+import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumLoadedDocument = NonNullable<
@@ -138,6 +140,7 @@ export function PdfiumBookcase({
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveArticleReaderChatState,
   onUpdateArticle,
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
   const openTraceRef = useRef<PdfOpenTrace | null>(null);
@@ -302,6 +305,7 @@ export function PdfiumBookcase({
                         onOpenAnnotation={onOpenAnnotation}
                         onSaveArticle={onSaveArticle}
                         onSaveArticleReadingProgress={onSaveArticleReadingProgress}
+                        onSaveArticleReaderChatState={onSaveArticleReaderChatState}
                         onUpdateArticle={onUpdateArticle}
                       />
                     ) : isError ? (
@@ -349,6 +353,7 @@ function PdfiumDocument({
   onOpenAnnotation,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveArticleReaderChatState,
   onSetTocItems,
   onFocusedAnnotation,
   onToggleToc,
@@ -377,6 +382,7 @@ function PdfiumDocument({
   onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
+  onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
   onSetTocItems: (items: TocItem[]) => void;
   onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
   onToggleToc: () => void;
@@ -487,6 +493,12 @@ function PdfiumDocument({
     onSaveArticle,
     setStatusMessage,
     userProfile,
+  });
+  const readerChat = useReaderChatSession({
+    agents: annotationAgents,
+    article,
+    getArticleText: currentArticleText,
+    onSaveArticleReaderChatState,
   });
   const {
     agentDockCompleting,
@@ -751,6 +763,10 @@ function PdfiumDocument({
       void copySelection(selectionAction);
       return;
     }
+    if (shortcut === 'ask') {
+      askSelection(selectionAction);
+      return;
+    }
     openComposer(selectionAction);
   }
 
@@ -776,6 +792,33 @@ function PdfiumDocument({
       },
       pdfiumTemporaryBoxes(anchor, metric, userProfile.id),
     );
+  }
+
+  function askSelection(action: { anchor: Annotation['anchor'] }) {
+    readerChat.askSelection(readerQuestionContext(action.anchor));
+    clearSelection();
+  }
+
+  function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
+    return {
+      sourceType: 'pdf',
+      quote: anchor.exact,
+      title: article.title,
+      locationLabel: isPdfTextAnchor(anchor) ? `第 ${anchor.pageIndex + 1} 页` : undefined,
+      anchor,
+      nearbyText: isPdfTextAnchor(anchor)
+        ? pdfTextDocument?.pages.find((page) => page.pageIndex === anchor.pageIndex)?.pageText
+        : undefined,
+    };
+  }
+
+  function revealReaderChatContext(context: ReaderQuestionContext) {
+    const anchor = context.anchor;
+    if (!anchor || !isPdfTextAnchor(anchor)) return;
+    scroll?.scrollToPage({
+      pageNumber: anchor.pageIndex + 1,
+      behavior: 'smooth',
+    });
   }
 
   function handleHighlightClick(
@@ -1080,12 +1123,14 @@ function PdfiumDocument({
               pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
             onScrollToHighlight: scrollToAnnotation,
           },
+          chat: { ...readerChat.actions, onRevealContext: revealReaderChatContext },
           selection: {
             onCancelComposer: cancelComposer,
             onClearSelection: clearSelection,
             onCloseHighlightChoice: () => setHighlightChoice(null),
             onCopySelection: copySelection,
             onMouseUp: () => undefined,
+            onAskSelection: askSelection,
             onOpenComposer: openComposer,
           },
           shell: {
@@ -1169,6 +1214,7 @@ function PdfiumDocument({
           },
           id: article.id,
         }}
+        chat={readerChat.model}
         options={{ embedded: true }}
         refs={{
           articleRef,

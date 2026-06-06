@@ -157,6 +157,7 @@ export const articles = sqliteTable(
     pdfMetadata: text('pdf_metadata', { mode: 'json' }),
     readingProgress: text('reading_progress', { mode: 'json' }),
     focusCoReadingPlan: text('focus_co_reading_plan', { mode: 'json' }),
+    readerChatState: text('reader_chat_state', { mode: 'json' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },

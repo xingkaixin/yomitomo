@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
 import { Composer, measureComposerPosition } from './reader-composer';
+import { ReaderChatPanel } from './reader-chat-panel';
 import { ReaderFloatingToolbar } from './reader-toolbar';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
@@ -160,6 +161,67 @@ describe('Composer shortcut labels', () => {
       placement: 'above',
       top: 168,
     });
+  });
+});
+
+describe('ReaderChatPanel', () => {
+  it('uses avatar assistant selection and keeps quoted context inside the composer', () => {
+    const agents = [agent('agent_1', '林知微'), agent('agent_2', '周砚')];
+
+    const { container } = render(
+      <ReaderChatPanel
+        agents={agents}
+        draftContext={{
+          sourceType: 'web',
+          quote: '这是划线引用',
+          title: '文章',
+        }}
+        messageSendShortcut="enter"
+        open
+        selectedAssistantId="agent_2"
+        shortcutModifier="⌘"
+        state={{
+          articleId: 'article_1',
+          activeSessionId: 'session_1',
+          selectedAssistantId: 'agent_2',
+          sessions: [
+            {
+              id: 'session_1',
+              articleId: 'article_1',
+              createdAt: now,
+              updatedAt: now,
+              messages: [
+                {
+                  id: 'message_1',
+                  role: 'assistant',
+                  assistantId: 'agent_2',
+                  content: '回答内容',
+                  createdAt: now,
+                },
+              ],
+            },
+          ],
+          createdAt: now,
+          updatedAt: now,
+        }}
+        onClose={vi.fn()}
+        onOpen={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.reader-chat-composer .reader-chat-context')).toBeTruthy();
+    expect(screen.getByText('这是划线引用')).toBeTruthy();
+    expect(
+      container.querySelectorAll('.reader-chat-agent-tray .reader-agent-avatar-stack-item'),
+    ).toHaveLength(2);
+    expect(
+      container.querySelector('.reader-chat-agent-tray .reader-agent-avatar-stack-item.is-active'),
+    ).toBeTruthy();
+    expect(screen.getAllByText('周砚')).toHaveLength(1);
+    expect(container.querySelector('.reader-chat-agent-tray')?.textContent).not.toContain('周砚');
+    expect(screen.getByText('回答内容')).toBeTruthy();
+    expect(container.querySelector('.reader-chat-message time')).toBeTruthy();
   });
 });
 
@@ -457,13 +519,15 @@ describe('SelectionMenu', () => {
     render(
       <SelectionMenu
         action={{ x: 10, y: 20 }}
-        shortcuts={{ copy: 'X', annotate: 'B' }}
+        shortcuts={{ copy: 'X', annotate: 'B', ask: 'Y' }}
         onAnnotate={vi.fn()}
+        onAsk={vi.fn()}
         onCopy={vi.fn()}
       />,
     );
 
     expect(screen.getByText('X')).toBeTruthy();
     expect(screen.getByText('B')).toBeTruthy();
+    expect(screen.getByText('Y')).toBeTruthy();
   });
 });

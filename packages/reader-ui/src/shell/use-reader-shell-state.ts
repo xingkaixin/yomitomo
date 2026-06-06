@@ -59,6 +59,7 @@ export type UseReaderShellStateOptions = {
   onClearSelection: () => void;
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
+  onAskSelection?: (action: SelectionAction) => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
   onOpenComposer: (action: SelectionAction) => void;
@@ -95,6 +96,7 @@ export function useReaderShellState({
   onClearSelection,
   onCloseFloatingPanels,
   onCloseHighlightChoice,
+  onAskSelection,
   onCopySelection,
   onNavigateAnnotation,
   onOpenComposer,
@@ -136,6 +138,7 @@ export function useReaderShellState({
     onClearSelection,
     onCloseFloatingPanels,
     onCloseHighlightChoice,
+    onAskSelection,
     onCopySelection,
     onOpenComposer,
     onToggleSettings,

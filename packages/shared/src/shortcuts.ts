@@ -9,6 +9,7 @@ export function normalizeMessageSendShortcut(value: unknown): MessageSendShortcu
 export const defaultSelectionActionShortcuts: SelectionActionShortcuts = {
   copy: 'C',
   annotate: 'A',
+  ask: 'Q',
 };
 
 export function normalizeSelectionActionShortcutKey(value: unknown, fallback: string) {
@@ -28,11 +29,13 @@ export function normalizeSelectionActionShortcutDraft(value: unknown): Selection
       shortcuts?.annotate,
       defaultSelectionActionShortcuts.annotate,
     ),
+    ask: normalizeSelectionActionShortcutKey(shortcuts?.ask, defaultSelectionActionShortcuts.ask),
   };
 }
 
 export function selectionActionShortcutsConflict(shortcuts: SelectionActionShortcuts) {
-  return shortcuts.copy === shortcuts.annotate;
+  const keys = [shortcuts.copy, shortcuts.annotate, shortcuts.ask];
+  return new Set(keys).size !== keys.length;
 }
 
 export function normalizeSelectionActionShortcuts(value: unknown): SelectionActionShortcuts {

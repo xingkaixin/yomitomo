@@ -5,6 +5,7 @@ export type AssistantExecutionMode = 'fast_response' | 'deep_verification';
 export type SelectionActionShortcuts = {
   copy: string;
   annotate: string;
+  ask: string;
 };
 
 export type LibraryContentSourceId = 'web' | 'ebook' | 'pdf' | 'weread';

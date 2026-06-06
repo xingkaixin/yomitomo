@@ -1,6 +1,7 @@
 import React from 'react';
 import { AgentReadingDock } from '../agent/reader-agent-reading-dock';
 import { AnnotationConnection } from '../annotations/reader-annotation-connection';
+import { ReaderChatPanel } from './reader-chat-panel';
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
@@ -33,6 +34,7 @@ export function ReaderAppView({
   agents: agentModel,
   annotations: annotationModel,
   article,
+  chat,
   options,
   refs,
   selection,
@@ -43,6 +45,7 @@ export function ReaderAppView({
 }: ReaderAppViewProps) {
   const {
     annotation: annotationActions,
+    chat: chatActions,
     selection: selectionActions,
     shell,
     toc: tocActions,
@@ -116,6 +119,7 @@ export function ReaderAppView({
     onClearSelection: selectionActions.onClearSelection,
     onCloseFloatingPanels: shell.onCloseFloatingPanels,
     onCloseHighlightChoice: selectionActions.onCloseHighlightChoice,
+    onAskSelection: selectionActions.onAskSelection,
     onCopySelection: selectionActions.onCopySelection,
     onNavigateAnnotation: annotationActions.onNavigateAnnotation,
     onOpenComposer: selectionActions.onOpenComposer,
@@ -218,6 +222,7 @@ export function ReaderAppView({
           boxes={boxes}
           canvasRef={canvasRef}
           commentsCloseKey={commentsCloseKey}
+          chat={chat}
           composer={composer}
           distillationAnimation={distillationAnimation}
           exitingAnnotationIds={exitingAnnotationIds}
@@ -247,6 +252,7 @@ export function ReaderAppView({
           onOpenAnnotationDiscussion={annotationActions.onOpenAnnotationDiscussion}
           onHighlightClick={annotationActions.onHighlightClick}
           onMouseUp={selectionActions.onMouseUp}
+          onAskSelection={selectionActions.onAskSelection}
           onOpenComposer={selectionActions.onOpenComposer}
           pendingAnnotationAgents={pendingAnnotationAgents}
           onPrimaryCommentExpandedChange={setPrimaryCommentExpanded}
@@ -262,6 +268,26 @@ export function ReaderAppView({
         completing={dockCompleting}
         items={dockItems}
       />
+
+      {chat && chatActions ? (
+        <ReaderChatPanel
+          agents={agents}
+          draftContext={chat.draftContext}
+          error={chat.error}
+          messageSendShortcut={messageSendShortcut}
+          open={chat.open}
+          selectedAssistantId={chat.selectedAssistantId}
+          sending={chat.sending}
+          shortcutModifier={shortcutModifier}
+          state={chat.state}
+          onClearDraftContext={chatActions.onClearDraftContext}
+          onClose={chatActions.onClose}
+          onOpen={chatActions.onOpen}
+          onRevealContext={chatActions.onRevealContext}
+          onSelectAssistant={chatActions.onSelectAssistant}
+          onSubmit={chatActions.onSubmit}
+        />
+      ) : null}
 
       {virtualCursors.map((cursor) =>
         cursor.visible ? <VirtualCursor cursor={cursor} key={cursor.id} /> : null,

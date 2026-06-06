@@ -485,6 +485,10 @@ export type SourceBookcaseProps = {
     articleId: string,
     progress: ArticleReadingProgress,
   ) => Promise<void> | void;
+  onSaveArticleReaderChatState?: (
+    articleId: string,
+    readerChatState?: ArticleRecord['readerChatState'],
+  ) => unknown;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 };
 

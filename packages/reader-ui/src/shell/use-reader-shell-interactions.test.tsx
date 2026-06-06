@@ -40,6 +40,7 @@ function ShellProbe({
   onClearSelection = vi.fn(),
   onCloseFloatingPanels = vi.fn(),
   onCloseHighlightChoice = vi.fn(),
+  onAskSelection = vi.fn(),
   onCopySelection = vi.fn(),
   onOpenComposer = vi.fn(),
   onToggleSettings = vi.fn(),
@@ -57,6 +58,7 @@ function ShellProbe({
     onClearSelection,
     onCloseFloatingPanels,
     onCloseHighlightChoice,
+    onAskSelection,
     onCopySelection,
     onOpenComposer,
     onToggleSettings,
@@ -104,6 +106,16 @@ describe('useReaderShellInteractions', () => {
 
     expect(onCopySelection).toHaveBeenCalledWith(selectionAction);
     expect(onOpenComposer).toHaveBeenCalledWith(selectionAction);
+  });
+
+  it('routes the ask selection shortcut', () => {
+    const onAskSelection = vi.fn();
+
+    render(<ShellProbe onAskSelection={onAskSelection} />);
+
+    fireEvent.keyDown(window, { key: 'q' });
+
+    expect(onAskSelection).toHaveBeenCalledWith(selectionAction);
   });
 
   it('clears selection action on outside pointer down', () => {

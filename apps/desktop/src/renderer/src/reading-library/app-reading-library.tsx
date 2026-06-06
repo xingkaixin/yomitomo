@@ -9,6 +9,7 @@ import type {
   AppSettings,
   Comment,
   MessageSendShortcut,
+  ReaderChatState,
   SelectionActionShortcuts,
   UserProfile,
   WeReadBook,
@@ -63,6 +64,7 @@ export function ReadingLibrary({
   onReadArticle,
   onSaveArticle,
   onSaveArticleReadingProgress,
+  onSaveArticleReaderChatState,
   onSaveSettings,
   onUpdateArticle,
 }: {
@@ -104,6 +106,7 @@ export function ReadingLibrary({
     articleId: string,
     progress: ArticleReadingProgress,
   ) => Promise<void> | void;
+  onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
@@ -433,6 +436,22 @@ export function ReadingLibrary({
     await onSaveArticleReadingProgress(articleId, progress);
   }
 
+  async function saveSelectedArticleReaderChatState(
+    articleId: string,
+    readerChatState?: ReaderChatState,
+  ) {
+    setSelectedArticle((current) =>
+      current?.id === articleId
+        ? {
+            ...current,
+            readerChatState,
+            updatedAt: readerChatState?.updatedAt || current.updatedAt,
+          }
+        : current,
+    );
+    await onSaveArticleReaderChatState?.(articleId, readerChatState);
+  }
+
   async function updateSelectedArticle(articleId: string, update: ArticleUpdater) {
     await onUpdateArticle(articleId, (article) => {
       const nextArticle = update(selectedArticle?.id === articleId ? selectedArticle : article);
@@ -512,6 +531,7 @@ export function ReadingLibrary({
                 onOpenAnnotation={setSelectedAnnotationId}
                 onSaveArticle={saveSelectedArticle}
                 onSaveArticleReadingProgress={saveSelectedArticleReadingProgress}
+                onSaveArticleReaderChatState={saveSelectedArticleReaderChatState}
                 onUpdateArticle={updateSelectedArticle}
               />
             ) : null}

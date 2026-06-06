@@ -16,6 +16,7 @@ import type {
   Comment,
   DesktopStore,
   LlmProvider,
+  ReaderChatState,
   UserProfile,
 } from '@yomitomo/shared';
 import type { AppUpdateState } from '../app-update-types';
@@ -71,6 +72,7 @@ export type {
   ArticleCommentUpsertInput,
   ArticleImportResult,
   ArticleImportUrlInput,
+  ArticleReaderChatStateSaveInput,
   DataManagementPathKind,
   DataManagementPaths,
   DatabaseBackupResult,
@@ -205,6 +207,11 @@ const api = {
     invokeDesktopIpc('article:reading-progress', {
       articleId,
       progress,
+    }),
+  saveArticleReaderChatState: (articleId: string, readerChatState?: ReaderChatState) =>
+    invokeDesktopIpc('article:reader-chat-state', {
+      articleId,
+      readerChatState,
     }),
   importArticleUrl: (url: string, requestId?: string) =>
     invokeDesktopIpc('article:import-url', articleImportUrlInput(url, requestId)),

@@ -8,6 +8,7 @@ import type {
   ArticleSummaryRecord,
   ArticleUpsertPatch,
   DesktopStore,
+  ReaderChatState,
 } from '@yomitomo/shared';
 import type { WindowAnimationSourceRect } from '../../../ipc-contract';
 
@@ -161,6 +162,16 @@ export function useAppArticleStoreActions({
     [applyStore, storeRef],
   );
 
+  const saveArticleReaderChatState = useCallback(
+    async (articleId: string, readerChatState?: ReaderChatState) => {
+      const desktop = window.yomitomoDesktop;
+      if (!desktop) return;
+
+      return desktop.saveArticleReaderChatState(articleId, readerChatState);
+    },
+    [],
+  );
+
   const importArticleUrl = useCallback(
     async (url: string, requestId?: string) => {
       const result = requestId
@@ -244,6 +255,7 @@ export function useAppArticleStoreActions({
     saveArticle,
     updateArticle,
     saveArticleReadingProgress,
+    saveArticleReaderChatState,
     importArticleUrl,
     cancelArticleUrlImport,
     importEbookFile,

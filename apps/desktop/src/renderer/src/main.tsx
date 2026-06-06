@@ -356,6 +356,7 @@ function App() {
     saveArticle,
     updateArticle,
     saveArticleReadingProgress,
+    saveArticleReaderChatState,
     importArticleUrl,
     cancelArticleUrlImport,
     importEbookFile,
@@ -685,6 +686,7 @@ function App() {
               onReadArticle={readArticle}
               onSaveArticle={saveArticle}
               onSaveArticleReadingProgress={saveArticleReadingProgress}
+              onSaveArticleReaderChatState={saveArticleReaderChatState}
               onSaveSettings={saveLibrarySettings}
               onUpdateArticle={updateArticle}
             />
