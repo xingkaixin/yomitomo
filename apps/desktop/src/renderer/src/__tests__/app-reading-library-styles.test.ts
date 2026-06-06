@@ -61,6 +61,11 @@ describe('reading library styles', () => {
     expect(styles).not.toContain('padding-block-start: calc(13% + 22px);');
   });
 
+  it('uses a narrower display ratio for PDF covers only', () => {
+    expectRule('.article-book.is-pdf-cover', ['--book-cover-ratio: 0.7;']);
+    expectRule('.article-book', ['--book-cover-ratio: 0.8167;']);
+  });
+
   it('keeps library card action buttons anchored in narrow card layouts', () => {
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
     expectRule('.library-web-item-cover', ['align-self: start;']);

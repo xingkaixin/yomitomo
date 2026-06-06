@@ -2564,6 +2564,10 @@
   transform-style: flat;
 }
 
+.article-book.is-pdf-cover {
+  --book-cover-ratio: 0.7;
+}
+
 .article-cover-card {
   position: absolute;
   inset-block-start: 6px;
