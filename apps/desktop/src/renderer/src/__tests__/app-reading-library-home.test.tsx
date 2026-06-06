@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Annotation,
   ArticleReadingProgress,
@@ -13,6 +13,7 @@ import type {
   WeReadBook,
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const now = '2026-05-09T12:00:00.000Z';
 
@@ -43,6 +44,10 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
 });
 
 function annotation(id: string, createdAt = now): Annotation {

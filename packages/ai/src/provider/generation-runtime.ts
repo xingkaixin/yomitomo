@@ -29,7 +29,7 @@ class GenerationEmptyResponseError extends Error {
   readonly _tag = 'GenerationEmptyResponseError';
 
   constructor() {
-    super('模型返回为空');
+    super('Provider returned an empty response');
   }
 }
 
@@ -37,7 +37,7 @@ class GenerationMaxTokensError extends Error {
   readonly _tag = 'GenerationMaxTokensError';
 
   constructor(maxTokens: number) {
-    super(`模型输出达到 max_tokens=${maxTokens}，结构化 JSON 可能已被截断`);
+    super(`Provider output reached max_tokens=${maxTokens}; structured JSON may be truncated`);
   }
 }
 

@@ -12,11 +12,13 @@ import {
   discussionReplyPlaceholder,
   replyTargetAgents,
 } from '../annotation-discussion/app-annotation-discussion-utils';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 
 const now = '2026-05-31T06:00:00.000Z';
 
 beforeEach(() => {
+  initializeAppI18n('zh-CN');
   Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
     configurable: true,
     value: vi.fn(),

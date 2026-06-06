@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
+import i18next from 'i18next';
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
@@ -121,7 +122,7 @@ export function useEbookAgentVirtualReading({
             visible: true,
             x: rect.left + rect.width,
             y: rect.top + rect.height / 2,
-            label: `${agent.nickname} 正在阅读`,
+            label: i18next.t('source.agentStatus.reading', { name: agent.nickname }),
             offscreen: null,
             agent,
           };
@@ -136,7 +137,7 @@ export function useEbookAgentVirtualReading({
         visible: true,
         x: fallbackRect.left + Math.min(fallbackRect.width - 40, 72 + step * 12),
         y: fallbackRect.top + 56,
-        label: `${agent.nickname} 正在阅读`,
+        label: i18next.t('source.agentStatus.reading', { name: agent.nickname }),
         offscreen: null,
         agent,
       };
@@ -168,7 +169,7 @@ export function useEbookAgentVirtualReading({
   );
 
   const finishVirtualReading = useCallback(
-    (agentId: string, suffix = '想法已添加') => {
+    (agentId: string, suffix = i18next.t('source.agentStatus.thoughtAdded')) => {
       stopVirtualReadingTimer(agentId);
       const current = virtualCursorRef.current.get(agentId);
       if (!current) return;
@@ -176,7 +177,10 @@ export function useEbookAgentVirtualReading({
         ...current,
         x: Math.min(window.innerWidth - 80, current.x + 72),
         y: Math.max(72, current.y - 42),
-        label: `${current.agent?.nickname || '助手'} ${suffix}`,
+        label: i18next.t('source.agentStatus.withSuffix', {
+          name: current.agent?.nickname || i18next.t('common.assistant'),
+          suffix,
+        }),
         leaving: true,
       });
       window.setTimeout(() => updateVirtualCursor(agentId, null), 900);

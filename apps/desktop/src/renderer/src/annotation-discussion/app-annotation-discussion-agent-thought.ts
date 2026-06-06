@@ -1,4 +1,5 @@
 import type { RefObject } from 'react';
+import i18next from 'i18next';
 import type { Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
@@ -46,7 +47,7 @@ export async function runSourceAgentThoughtRequest({
   onThoughtStart,
   lifecycle,
 }: RunSourceAgentThoughtRequestInput) {
-  setStatusMessage(`${agent.nickname} 正在添加想法`);
+  setStatusMessage(i18next.t('discussion.addThought.agentAdding', { name: agent.nickname }));
   const createdAt = new Date().toISOString();
   const placeholderComment: Comment = {
     id: makeId('comment'),

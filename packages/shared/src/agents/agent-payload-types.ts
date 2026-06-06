@@ -4,10 +4,12 @@ import type { TextAnchor } from '../anchor-types';
 import type { EpubBookIndex } from '../sources/ebook-types';
 import type { ReadingMemoryView } from '../reading-memory/reading-memory-entry-types';
 import type { ReaderProgress, ReadingMemory, SpoilerPolicy } from '../reader-context-types';
+import type { UiLanguage } from '../settings-types';
 
 export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
+  uiLanguage?: UiLanguage;
   responseMode?: 'thread_reply' | 'create_thought' | 'distillation_review';
   distillationReviewMode?: 'review' | 'organize_discussion';
   readingIntent?: AgentReadingIntent;
@@ -36,6 +38,7 @@ export type AgentDistillationReviewPayload = Omit<AgentMessagePayload, 'response
 export type AgentReviewPayload = {
   agentId?: string;
   agentUsername: string;
+  uiLanguage?: UiLanguage;
   agentRoster?: PublicAgent[];
   readerProgress?: ReaderProgress;
   spoilerPolicy?: SpoilerPolicy;
@@ -52,6 +55,7 @@ export type AgentReviewPayload = {
 export type AgentAnnotatePayload = {
   agentId?: string;
   agentUsername: string;
+  uiLanguage?: UiLanguage;
   annotationType?: AnnotationType;
   readingIntent?: AgentReadingIntent;
   instruction?: string;

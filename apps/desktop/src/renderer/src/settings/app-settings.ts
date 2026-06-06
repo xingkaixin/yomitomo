@@ -7,6 +7,7 @@ import type {
   MessageSendShortcut,
   UserProfile,
 } from '@yomitomo/shared';
+import i18next from 'i18next';
 import {
   agentPersonalities,
   annotationAgentPersonalities,
@@ -27,6 +28,7 @@ export {
 } from '@yomitomo/shared';
 
 export type ProviderDraft = Partial<LlmProvider> & { removeApiKey?: boolean };
+export type ProviderTestState = { status: 'idle' | 'testing' | 'success' | 'error' };
 export type AgentDraft = Partial<Agent> & { personalityId?: string };
 export type UserDraft = Partial<UserProfile>;
 
@@ -47,22 +49,11 @@ export const userAnnotationColors = ['#f4c95d', '#efa927'];
 
 export const agentKindOptions: Array<{
   value: AgentKind;
-  label: string;
-  description: string;
-}> = [
-  { value: 'annotation', label: '阅读助手', description: '参与阅读器想法和回复讨论' },
-  { value: 'review', label: '审核助手', description: '复核阅读材料、证据和论证质量' },
-];
+}> = [{ value: 'annotation' }, { value: 'review' }];
 
 export const annotationDensityOptions: Array<{
   value: AgentAnnotationDensity;
-  label: string;
-  description: string;
-}> = [
-  { value: 'low', label: '克制', description: '短文最多 1 条' },
-  { value: 'medium', label: '标准', description: '短文最多 1 条，长文最多 5 条' },
-  { value: 'high', label: '积极', description: '短文最多 2 条' },
-];
+}> = [{ value: 'low' }, { value: 'medium' }, { value: 'high' }];
 
 export const messageSendShortcutOptions: Array<{
   value: MessageSendShortcut;
@@ -130,14 +121,14 @@ export function findAgentPersonalityId(soul: string) {
 
 export function agentPersonalityName(agent: Agent) {
   return (
-    agentPersonalities.find((personality) => personality.soul === agent.soul)?.name || '自定义个性'
+    agentPersonalities.find((personality) => personality.soul === agent.soul)?.name ||
+    i18next.t('settings.agents.customPersonality', { defaultValue: 'Custom personality' })
   );
 }
 
 export function agentKindLabel(kind: AgentKind | undefined) {
-  return (
-    agentKindOptions.find((option) => option.value === (kind || 'annotation'))?.label || '阅读助手'
-  );
+  const normalizedKind = kind || 'annotation';
+  return i18next.t(`settings.agents.modes.${normalizedKind}`, { defaultValue: normalizedKind });
 }
 
 export function personalitiesForKind(kind: AgentKind | undefined) {

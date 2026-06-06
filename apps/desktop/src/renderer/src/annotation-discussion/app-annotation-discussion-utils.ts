@@ -7,6 +7,7 @@ import type {
 } from '@yomitomo/shared';
 import { findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
+import i18next from 'i18next';
 import { articlePlainText } from '../shell/app-utils';
 
 export type DiscussionThread = {
@@ -26,8 +27,10 @@ export function discussionWindowTitle({
   annotation: Annotation;
 }) {
   const quote = compactTitleText(annotation.anchor.exact);
-  const articleTitle = compactTitleText(article.title || '未命名文章');
-  return quote ? `批注讨论 - ${quote}` : `批注讨论 - ${articleTitle}`;
+  const articleTitle = compactTitleText(article.title || i18next.t('discussion.untitledArticle'));
+  return quote
+    ? i18next.t('discussion.windowTitle', { title: quote })
+    : i18next.t('discussion.windowTitle', { title: articleTitle });
 }
 
 export function waitForMilliseconds(duration: number) {
@@ -50,8 +53,8 @@ export function replyTargetAgents(content: string, root: Comment, agents: Public
 
 export function discussionReplyPlaceholder(root: Comment, agents: PublicAgent[]) {
   const rootAgent = rootThoughtAgent(root, agents);
-  if (!rootAgent) return '回复这条想法，输入 @助手 可邀请助手参与讨论';
-  return `回复这条助手想法；不 @ 时默认由 ${rootAgent.nickname} 回应，也可 @ 其他助手`;
+  if (!rootAgent) return i18next.t('discussion.replyPlaceholder');
+  return i18next.t('discussion.replyAgentPlaceholder', { name: rootAgent.nickname });
 }
 
 export function insertMentionAtCaret(
@@ -126,10 +129,13 @@ export function formatRelativeTime(value: string) {
   const minute = 60_000;
   const hour = minute * 60;
   const day = hour * 24;
-  if (deltaMs < minute) return '刚刚';
-  if (deltaMs < hour) return `${Math.floor(deltaMs / minute)} 分钟前`;
-  if (deltaMs < day) return `${Math.floor(deltaMs / hour)} 小时前`;
-  if (deltaMs < day * 7) return `${Math.floor(deltaMs / day)} 天前`;
+  if (deltaMs < minute) return i18next.t('discussion.time.justNow');
+  if (deltaMs < hour)
+    return i18next.t('discussion.time.minutesAgo', { count: Math.floor(deltaMs / minute) });
+  if (deltaMs < day)
+    return i18next.t('discussion.time.hoursAgo', { count: Math.floor(deltaMs / hour) });
+  if (deltaMs < day * 7)
+    return i18next.t('discussion.time.daysAgo', { count: Math.floor(deltaMs / day) });
   return formatAbsoluteTime(value);
 }
 
@@ -146,7 +152,7 @@ export function discussionArticleText(article: ArticleRecord) {
 export function annotationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
   return {
     id: annotation.userId || 'user',
-    nickname: annotation.userNickname || '我',
+    nickname: annotation.userNickname || i18next.t('common.me'),
     username: annotation.userUsername || 'user',
     avatar: annotation.userAvatar || '',
     annotationColor: annotation.userAnnotationColor || annotation.color,
@@ -192,7 +198,7 @@ function timestamp(value: string) {
 }
 
 export function formatAbsoluteTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import {
-  agentKindLabel,
   agentPersonalities,
   agentPersonalityName,
   annotationColors,
@@ -39,10 +39,11 @@ type AgentLineCue = {
   text: string;
 };
 
-const agentFilterOptions: Array<{ value: AgentFilter; label: string; agentLabel: string }> = [
-  { value: 'annotation', label: '阅读理解', agentLabel: '阅读助手' },
-  { value: 'review', label: '深度审阅', agentLabel: '审阅助手' },
+const agentFilterOptions: Array<{ value: AgentFilter }> = [
+  { value: 'annotation' },
+  { value: 'review' },
 ];
+type Translate = ReturnType<typeof useTranslation>['t'];
 
 const agentPronunciationMap: Record<string, string> = {
   'reading-partner': 'Lín Zhīwēi',
@@ -147,20 +148,19 @@ function hasAgentRoute(settings: AppSettings, providers: LlmProvider[], filter: 
   return Boolean(providerId && providers.some((provider) => provider.id === providerId));
 }
 
-function routeNoticeCopy(filter: AgentFilter, hasProviders: boolean) {
-  const modeLabel = agentFilterOptions.find((option) => option.value === filter)?.label || '助手';
-
+function routeNoticeCopy(filter: AgentFilter, hasProviders: boolean, t: Translate) {
   if (!hasProviders) {
     return {
-      title: '先连接模型供应商',
-      description:
-        '这些助手资料可以先浏览。要让他们真正参与阅读，需要在模型与路由里添加供应商并分配任务路由。',
+      title: t('settings.agents.routeNotice.noProviderTitle'),
+      description: t('settings.agents.routeNotice.noProviderDescription'),
     };
   }
 
   return {
-    title: `还没有配置${modeLabel}模型路由`,
-    description: '这些助手会先展示在这里。选择模型供应商后，就可以在阅读中使用当前模式。',
+    title: t('settings.agents.routeNotice.noRouteTitle', {
+      mode: t(`settings.agents.modes.${filter}`),
+    }),
+    description: t('settings.agents.routeNotice.noRouteDescription'),
   };
 }
 
@@ -210,13 +210,13 @@ export function AgentSettings({
   onConfigureRoutes: () => void;
   onToggle: (agent: Agent) => void;
 }) {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<AgentFilter>('annotation');
   const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
   const visibleAgents = visibleAgentsForFilter(agents, filter);
   const routeConfigured = hasAgentRoute(settings, providers, filter);
-  const routeNotice = routeConfigured ? null : routeNoticeCopy(filter, providers.length > 0);
-  const currentMode = agentFilterOptions.find((option) => option.value === filter);
-  const emptyKindLabel = currentMode?.agentLabel || agentKindLabel(filter);
+  const routeNotice = routeConfigured ? null : routeNoticeCopy(filter, providers.length > 0, t);
+  const emptyKindLabel = t(`settings.agents.kindLabels.${filter}`);
 
   useEffect(() => {
     if (!lineCue) return;
@@ -243,8 +243,8 @@ export function AgentSettings({
     <div className="settings-panel agent-settings-panel">
       <header className="agent-library-header">
         <div>
-          <h2>今天陪你思考的人</h2>
-          <p>不同模式，不同视角，组成你专属的思考团队。</p>
+          <h2>{t('settings.agents.title')}</h2>
+          <p>{t('settings.agents.subtitle')}</p>
         </div>
       </header>
       <section className="agent-library">
@@ -272,7 +272,7 @@ export function AgentSettings({
               onClick={onConfigureRoutes}
             >
               <Settings2 size={15} />
-              去配置模型与路由
+              {t('settings.agents.configureRoutes')}
             </Button>
           </div>
         ) : null}
@@ -280,8 +280,8 @@ export function AgentSettings({
           {visibleAgents.length === 0 ? (
             <div className="agent-list-empty">
               <Bot size={22} />
-              <strong>还没有{emptyKindLabel}</strong>
-              <p>这里会展示可用于阅读理解和深度审阅的预设助手。</p>
+              <strong>{t('settings.agents.emptyTitle', { kind: emptyKindLabel })}</strong>
+              <p>{t('settings.agents.emptyDescription')}</p>
             </div>
           ) : (
             visibleAgents.map(({ agent, persisted }) => (
@@ -311,6 +311,7 @@ function AgentProfileListCard({
   lineCue: AgentLineCue | null;
   onToggle: (agent: Agent) => void;
 }) {
+  const { t } = useTranslation();
   const personalityName = agentPersonalityName(agent);
   const personality = agentPersonalities.find(
     (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
@@ -322,7 +323,11 @@ function AgentProfileListCard({
   const pronunciation = personality ? agentPronunciationMap[personality.id] : '';
 
   const enabled = canToggle && agent.enabled;
-  const statusLabel = canToggle ? (agent.enabled ? '在场' : '休息中') : '待配置';
+  const statusLabel = canToggle
+    ? agent.enabled
+      ? t('settings.agents.status.present')
+      : t('settings.agents.status.resting')
+    : t('settings.agents.status.pending');
   const statusClassName = !canToggle
     ? 'agent-list-status-badge is-pending'
     : agent.enabled
@@ -358,7 +363,11 @@ function AgentProfileListCard({
               </span>
             ) : null}
             {cover ? (
-              <img className="agent-list-cover" src={cover} alt={`${agent.nickname} 工作照`} />
+              <img
+                className="agent-list-cover"
+                src={cover}
+                alt={t('settings.agents.coverAlt', { name: agent.nickname })}
+              />
             ) : (
               <div className="agent-list-cover is-placeholder">
                 <AvatarImage
@@ -388,9 +397,9 @@ function AgentProfileListCard({
             aria-label={
               canToggle
                 ? agent.enabled
-                  ? `让${agent.nickname}先休息`
-                  : `请${agent.nickname}加入`
-                : `${agent.nickname}需要先配置模型路由`
+                  ? t('settings.agents.toggleRest', { name: agent.nickname })
+                  : t('settings.agents.toggleJoin', { name: agent.nickname })
+                : t('settings.agents.toggleNeedsRoute', { name: agent.nickname })
             }
             type="checkbox"
             checked={canToggle && agent.enabled}
@@ -415,6 +424,7 @@ function AgentFilterTabs({
   value: AgentFilter;
   onChange: (value: AgentFilter) => void;
 }) {
+  const { t } = useTranslation();
   const options = agentFilterOptions.map((option) => {
     const count = agents.filter((agent) => (agent.kind || 'annotation') === option.value).length;
     const visibleCount = count || personalitiesForKind(option.value).length;
@@ -422,11 +432,11 @@ function AgentFilterTabs({
 
     return {
       value: option.value,
-      ariaLabel: option.label,
+      ariaLabel: t(`settings.agents.modes.${option.value}`),
       label: (
         <>
           <Icon size={18} />
-          <span>{option.label}</span>
+          <span>{t(`settings.agents.modes.${option.value}`)}</span>
           <strong>{visibleCount}</strong>
         </>
       ),
@@ -435,7 +445,7 @@ function AgentFilterTabs({
 
   return (
     <SegmentedControl
-      aria-label="思考模式"
+      aria-label={t('settings.agents.modeTabs')}
       className="agent-filter-tabs"
       optionClassName="agent-filter-tab"
       role="tablist"
@@ -490,6 +500,7 @@ export function AgentForm({
   error: string;
   onChange: (draft: AgentDraft) => void;
 }) {
+  const { t } = useTranslation();
   const agentKind = draft.kind || 'annotation';
   const personality =
     agentPersonalities.find((item) => item.id === draft.presetId) ||
@@ -506,19 +517,19 @@ export function AgentForm({
             fallback={draft.nickname?.slice(0, 1) || 'AI'}
           />
           <div>
-            <span>{agentKindLabel(agentKind)}</span>
+            <span>{t(`settings.agents.kindLabels.${agentKind}`)}</span>
             <h4>{personality?.roleTitle || draft.nickname}</h4>
-            <p>{personality?.introduction || '选择左侧预设助手查看介绍。'}</p>
+            <p>{personality?.introduction || t('settings.agents.form.choosePreset')}</p>
           </div>
         </div>
         {personality ? (
           <div className="agent-profile-scenes">
             <div>
-              <strong>工作照提示词</strong>
+              <strong>{t('settings.agents.form.portraitPrompt')}</strong>
               <p>{personality.portraitPrompt}</p>
             </div>
             <div>
-              <strong>工作场景</strong>
+              <strong>{t('settings.agents.form.scene')}</strong>
               <p>{personality.sceneDescription}</p>
             </div>
           </div>
@@ -527,8 +538,8 @@ export function AgentForm({
       <Field
         className="col-span-2"
         id="agent-enabled"
-        description="启用后，这位助手会进入对应的阅读或审核选择列表。"
-        label="启用状态"
+        description={t('settings.agents.form.enabledDescription')}
+        label={t('settings.agents.form.enabled')}
       >
         <button
           aria-pressed={Boolean(draft.enabled)}
@@ -537,13 +548,21 @@ export function AgentForm({
           onClick={() => onChange({ ...draft, enabled: !draft.enabled })}
         >
           {draft.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
-          <span>{draft.enabled ? '已启用' : '未启用'}</span>
+          <span>
+            {draft.enabled
+              ? t('settings.agents.form.enabledOn')
+              : t('settings.agents.form.enabledOff')}
+          </span>
         </button>
       </Field>
       <Field
         id="agent-color"
-        description="这些颜色已按阅读器高亮可见性筛选。"
-        label={agentKind === 'review' ? '标识颜色' : '批注颜色'}
+        description={t('settings.agents.form.colorDescription')}
+        label={
+          agentKind === 'review'
+            ? t('settings.agents.form.reviewColor')
+            : t('settings.agents.form.annotationColor')
+        }
       >
         <ColorPicker
           colors={annotationColors}
@@ -555,8 +574,8 @@ export function AgentForm({
         <Field
           className="col-span-2"
           id="agent-annotation-density"
-          description="决定助手主动批注时的积极程度，会影响提示词和模型采样。"
-          label="批注密度"
+          description={t('settings.agents.form.densityDescription')}
+          label={t('settings.agents.form.density')}
         >
           <div
             aria-describedby="agent-annotation-density-description"
@@ -586,8 +605,8 @@ export function AgentForm({
                 type="button"
                 onClick={() => onChange({ ...draft, annotationDensity: option.value })}
               >
-                <strong>{option.label}</strong>
-                <span>{option.description}</span>
+                <strong>{t(`settings.agents.density.${option.value}.label`)}</strong>
+                <span>{t(`settings.agents.density.${option.value}.description`)}</span>
               </button>
             ))}
           </div>

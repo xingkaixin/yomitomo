@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import i18next from 'i18next';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
@@ -136,7 +137,7 @@ export function useEbookFoliateView({
   const [progress, setProgress] = useState(() => article.readingProgress?.progress ?? 0);
   const [readerState, setReaderState] = useState<EbookReaderState>({
     status: 'loading',
-    message: '正在打开 EPUB。',
+    message: i18next.t('ebookReader.opening'),
   });
   const readerStateStatusRef = useRef<EbookReaderState['status']>(readerState.status);
 
@@ -162,7 +163,7 @@ export function useEbookFoliateView({
     setPaginationLayoutKey('');
     setProgress(article.readingProgress?.progress ?? 0);
     readerStateStatusRef.current = 'loading';
-    setReaderState({ status: 'loading', message: '正在打开 EPUB。' });
+    setReaderState({ status: 'loading', message: i18next.t('ebookReader.opening') });
   }, [article.id, onCleanupFoliateDocumentListeners, pageTurnTraceRef]);
 
   const beginPageTurnTrace = useCallback(
@@ -292,7 +293,7 @@ export function useEbookFoliateView({
         readerStateStatusRef.current = 'error';
         setReaderState({
           status: 'error',
-          message: error instanceof Error ? error.message : 'EPUB 打开失败',
+          message: ebookOpenErrorMessage(error),
         });
       }
     }
@@ -524,6 +525,13 @@ export function useEbookFoliateView({
     goToProgress,
     goToTocItem,
   };
+}
+
+function ebookOpenErrorMessage(error: unknown) {
+  if (!(error instanceof Error) || !error.message) return i18next.t('ebookReader.openFailed');
+  if (error.message === 'EBOOK_SOURCE_FILE_MISSING') return i18next.t('ebookReader.sourceMissing');
+  if (error.message === 'EBOOK_SOURCE_INVALID_ID') return i18next.t('ebookReader.openFailed');
+  return error.message;
 }
 
 async function restoreEbookReadingProgress(

@@ -3,8 +3,10 @@ import { Check, Clipboard, ExternalLink } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl, isImageAvatar, isSvgAvatar } from './app-utils';
 import { Label } from '../components/ui/label';
+import { useTranslation } from 'react-i18next';
 
 export function CopyIconButton({ label, value }: { label: string; value: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -15,9 +17,9 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
 
   return (
     <button
-      aria-label={copied ? '已复制' : label}
+      aria-label={copied ? t('common.copied') : label}
       className={copied ? 'copy-icon-button is-copied' : 'copy-icon-button'}
-      data-tooltip={copied ? '已复制' : label}
+      data-tooltip={copied ? t('common.copied') : label}
       type="button"
       onClick={copy}
     >
@@ -33,6 +35,7 @@ export function OpenArticleButton({
   article: ArticleRecord;
   iconOnly?: boolean;
 }) {
+  const { t } = useTranslation();
   const url = articleExternalUrl(article);
 
   async function open() {
@@ -53,15 +56,15 @@ export function OpenArticleButton({
 
   return (
     <button
-      aria-label="打开原始链接"
+      aria-label={t('common.openOriginalLink')}
       className={iconOnly ? 'open-article-button is-icon-only' : 'open-article-button'}
       disabled={!url}
       type="button"
-      title={url ? '打开原始链接' : '原文链接不可用'}
+      title={url ? t('common.openOriginalLink') : t('common.originalLinkUnavailable')}
       onClick={open}
     >
       <ExternalLink size={16} />
-      {iconOnly ? null : <span>打开原始链接</span>}
+      {iconOnly ? null : <span>{t('common.openOriginalLink')}</span>}
     </button>
   );
 }

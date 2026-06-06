@@ -19,14 +19,14 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:test', async (_event, apiKey) => {
     const store = await context.getStoreModule();
     const key = apiKey?.trim() || (await store.readStoredWeReadApiKey());
-    if (!key) return { ok: false, message: '请先配置微信读书 API Key' };
+    if (!key) return { ok: false, message: 'WEREAD_API_KEY_REQUIRED' };
     try {
       const { testWeReadConnection } = await import('../weread/weread-client');
       const result = await testWeReadConnection(key);
       await store.saveWeReadTestResult(true, result.message);
       return result;
     } catch (error) {
-      const message = error instanceof Error ? error.message : '微信读书连通失败';
+      const message = error instanceof Error ? error.message : 'WEREAD_CONNECTION_FAILED';
       await store.saveWeReadTestResult(false, message);
       return { ok: false, message };
     }
@@ -34,7 +34,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:sync', async () => {
     const store = await context.getStoreModule();
     const apiKey = await store.readStoredWeReadApiKey();
-    if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
+    if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const {
       fetchWeReadBookDetail,
       fetchWeReadNotebooks,
@@ -55,7 +55,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:sync-book', async (_event, bookId) => {
     const store = await context.getStoreModule();
     const apiKey = await store.readStoredWeReadApiKey();
-    if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
+    if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadBookDetail } = await import('../weread/weread-client');
     const detail = await fetchWeReadBookDetail(apiKey, bookId);
     return store.saveWeReadBookDetail(detail);
@@ -76,7 +76,7 @@ export function registerWeReadIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('weread:query-reading-stats', async (_event, input) => {
     const store = await context.getStoreModule();
     const apiKey = await store.readStoredWeReadApiKey();
-    if (!apiKey) throw new Error('请先在设置里配置微信读书 API Key');
+    if (!apiKey) throw new Error('WEREAD_API_KEY_REQUIRED');
     const { fetchWeReadReadingStats } = await import('../weread/weread-client');
     const sourceBaseTime =
       input.mode === 'overall' ? undefined : Math.floor((input.baseTime ?? Date.now()) / 1000);

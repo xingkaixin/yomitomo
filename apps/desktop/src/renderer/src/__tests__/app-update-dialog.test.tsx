@@ -4,8 +4,10 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReleaseNoteHighlight } from '@yomitomo/shared';
 import { UpdateReleaseDialogView } from '../shell/app-update-dialog';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 beforeEach(() => {
+  initializeAppI18n('zh-CN');
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(prefers-reduced-motion: reduce)',
     media: query,

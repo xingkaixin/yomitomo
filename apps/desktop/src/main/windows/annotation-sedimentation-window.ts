@@ -213,7 +213,7 @@ function sedimentationWindowKey(articleId: string, annotationId: string) {
 }
 
 function sedimentationWindowInitialTitle({ annotationId }: AnnotationSedimentationWindowOpenInput) {
-  return `沉淀 - ${annotationId.slice(0, 8)}`;
+  return `Distillation - ${annotationId.slice(0, 8)}`;
 }
 
 function isSameRendererNavigation(currentValue: string, nextValue: string) {

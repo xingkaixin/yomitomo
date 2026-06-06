@@ -719,4 +719,10 @@ ON assistant_execution_runs(created_at);
 ALTER TABLE articles ADD COLUMN reader_chat_state TEXT;
 `,
   },
+  {
+    id: '0049_ui_language_setting',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN ui_language TEXT NOT NULL DEFAULT 'zh-CN';
+`,
+  },
 ];

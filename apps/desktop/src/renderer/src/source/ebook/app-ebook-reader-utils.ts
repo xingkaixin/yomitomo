@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
@@ -495,7 +496,8 @@ export function ebookReaderReadingSections(
   }
   return index.chapters.map((chapter) => ({
     id: chapter.id,
-    title: chapter.title || `第 ${chapter.indexInBook + 1} 章`,
+    title:
+      chapter.title || i18next.t('ebookReader.chapterLabel', { chapter: chapter.indexInBook + 1 }),
     start: chapter.textStart,
     end: chapter.textEnd,
   }));

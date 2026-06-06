@@ -18,8 +18,10 @@ import type {
   HighlightChoice,
   PendingComposer,
   ReaderArticle,
+  ReaderUiLabels,
   SelectionAction,
 } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 
 type AnnotationRailStyle = React.CSSProperties & {
   '--reader-empty-left': string;
@@ -55,6 +57,7 @@ export type ReaderSurfaceViewProps = {
   expandedPrimaryCommentIds: Set<string>;
   extracted: ReaderArticle;
   highlightChoice: HighlightChoice | null;
+  labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
@@ -139,6 +142,7 @@ export function ReaderSurfaceView({
   expandedPrimaryCommentIds,
   extracted,
   highlightChoice,
+  labels = defaultReaderUiLabels,
   messageSendShortcut,
   pendingAnnotationAgents = {},
   noteRefForAnnotation,
@@ -273,7 +277,7 @@ export function ReaderSurfaceView({
             aria-label="引文讨论"
             style={annotationRailStyle}
           >
-            {annotations.length === 0 ? <EmptyNotes /> : null}
+            {annotations.length === 0 ? <EmptyNotes labels={labels} /> : null}
             {annotationRailItems.map(
               ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard
@@ -289,6 +293,7 @@ export function ReaderSurfaceView({
                   isStackFront={isStackFront}
                   messageSendShortcut={messageSendShortcut}
                   key={annotation.id}
+                  labels={labels}
                   noteRef={noteRefForAnnotation(annotation.id)}
                   pendingAgents={pendingAnnotationAgents[annotation.id] || []}
                   primaryCommentExpanded={expandedPrimaryCommentIds.has(annotation.id)}
@@ -313,6 +318,7 @@ export function ReaderSurfaceView({
           {selectionAction && !composer ? (
             <SelectionMenu
               action={selectionAction}
+              labels={labels}
               shortcuts={selectionActionShortcuts}
               onAnnotate={() => onOpenComposer(selectionAction)}
               onAsk={chat ? () => onAskSelection?.(selectionAction) : undefined}
@@ -324,6 +330,7 @@ export function ReaderSurfaceView({
               action={highlightChoice}
               agents={agents}
               annotations={highlightChoiceAnnotations}
+              labels={labels}
               userProfile={userProfile}
               onCancel={onCloseHighlightChoice}
               onSelect={onFocusAnnotation}
@@ -333,6 +340,7 @@ export function ReaderSurfaceView({
             <Composer
               agents={agents}
               composer={composer}
+              labels={labels}
               messageSendShortcut={messageSendShortcut}
               shortcutModifier={shortcutModifier}
               onCancel={onCancelComposer}

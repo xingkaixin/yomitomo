@@ -44,6 +44,7 @@ import {
   normalizeReviewOpinionLabel,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  normalizeUiLanguage,
   providerPresets,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
@@ -240,6 +241,9 @@ function articleCountsFromAnnotations(annotations: Annotation[]): ArticleSummary
 
 export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSettings): AppSettings {
   return {
+    uiLanguage: settingsFieldProvided(settings, 'uiLanguage')
+      ? normalizeUiLanguage(settings.uiLanguage)
+      : normalizeUiLanguage(existing?.uiLanguage),
     themeId: settingsFieldProvided(settings, 'themeId')
       ? settings.themeId || undefined
       : existing?.themeId || undefined,
@@ -331,6 +335,7 @@ export function rowToSettings(
   row: typeof schema.appSettings.$inferSelect | undefined,
 ): AppSettings {
   return {
+    uiLanguage: normalizeUiLanguage(row?.uiLanguage),
     themeId: row?.themeId || undefined,
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),
@@ -350,6 +355,7 @@ export function rowToSettings(
 
 function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
+    uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
     themeId: settings?.themeId || undefined,
     libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(settings?.libraryContentSources),

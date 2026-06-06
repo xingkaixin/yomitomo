@@ -16,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import { useTranslation } from 'react-i18next';
+import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
 
 export function ProviderForm({
   draft,
@@ -26,6 +28,7 @@ export function ProviderForm({
   onChange: (draft: ProviderDraft) => void;
   selectContentClassName?: string;
 }) {
+  const { t } = useTranslation();
   const { fetchModels, clearModelStatus, modelError, modelLoading, modelNotice, visibleModels } =
     useProviderModelFetch(draft, onChange);
 
@@ -36,7 +39,7 @@ export function ProviderForm({
     onChange({
       ...draft,
       presetId: preset.id,
-      name: preset.name,
+      name: providerPresetDisplayName(preset.id, preset.name),
       type: preset.type,
       logo: preset.logo,
       baseUrl: preset.baseUrl,
@@ -58,14 +61,18 @@ export function ProviderForm({
 
   return (
     <div className="settings-form-grid">
-      <Field id="provider-preset" className="col-span-2" label="预设服务商">
+      <Field
+        id="provider-preset"
+        className="col-span-2"
+        label={t('settings.models.presetProvider')}
+      >
         <Select value={draft.presetId || ''} onValueChange={applyPreset}>
           <SelectTrigger
             id="provider-preset"
             aria-labelledby="provider-preset-label"
             className="provider-select-trigger"
           >
-            <SelectValue placeholder="选择服务商" />
+            <SelectValue placeholder={t('settings.models.chooseProviderPreset')} />
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
             <SelectGroup>
@@ -77,7 +84,7 @@ export function ProviderForm({
                       src={providerLogoMap[preset.logo]}
                       alt=""
                     />
-                    {preset.name}
+                    {providerPresetDisplayName(preset.id, preset.name)}
                   </span>
                 </SelectItem>
               ))}
@@ -85,7 +92,7 @@ export function ProviderForm({
           </SelectContent>
         </Select>
       </Field>
-      <Field id="provider-name" label="名称">
+      <Field id="provider-name" label={t('settings.models.providerName')}>
         <Input
           id="provider-name"
           name="provider-name"
@@ -150,6 +157,7 @@ function SecretInput({
   onRevealStoredValue?: () => Promise<string>;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [revealedStoredValue, setRevealedStoredValue] = useState('');
   const [revealLoading, setRevealLoading] = useState(false);
@@ -178,10 +186,10 @@ function SecretInput({
       if (requestId !== revealRequestRef.current) return;
       setRevealedStoredValue(storedValue);
       setVisible(true);
-      if (!storedValue) setRevealError('没有读取到已保存的 Key');
+      if (!storedValue) setRevealError(t('settings.models.noStoredKey'));
     } catch {
       if (requestId !== revealRequestRef.current) return;
-      setRevealError('读取已保存的 Key 失败');
+      setRevealError(t('settings.models.readStoredKeyFailed'));
     } finally {
       if (requestId === revealRequestRef.current) setRevealLoading(false);
     }
@@ -212,7 +220,7 @@ function SecretInput({
           className="pr-12"
           name={id}
           autoComplete="off"
-          placeholder={hasStoredValue ? '已安全保存，输入新 Key 会覆盖' : undefined}
+          placeholder={hasStoredValue ? t('settings.models.apiKeyStoredPlaceholder') : undefined}
           spellCheck={false}
           type={visible ? 'text' : 'password'}
           value={displayValue}
@@ -222,7 +230,7 @@ function SecretInput({
           className="secret-toggle"
           type="button"
           disabled={revealLoading}
-          aria-label={visible ? '隐藏 API Key' : '显示 API Key'}
+          aria-label={visible ? t('settings.models.hideApiKey') : t('settings.models.showApiKey')}
           onClick={toggleVisible}
         >
           {visible ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -232,7 +240,7 @@ function SecretInput({
       {hasStoredValue && !value ? (
         <Button className="secret-remove" type="button" variant="secondary" onClick={onRemove}>
           <Trash2 size={14} />
-          移除已保存的 Key
+          {t('settings.models.removeStoredKey')}
         </Button>
       ) : null}
     </div>

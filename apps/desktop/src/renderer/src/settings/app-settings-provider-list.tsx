@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
+import { useTranslation } from 'react-i18next';
+import { providerDisplayName } from '../i18n/app-i18n-labels';
 
 const DELETE_HOLD_MS = 900;
 
@@ -18,8 +20,9 @@ export function ProviderList({
   onDelete: (id: string) => void;
   onEdit: (provider: LlmProvider) => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <section className="provider-card-section" aria-label="模型供应商">
+    <section className="provider-card-section" aria-label={t('settings.models.listAria')}>
       <div className="provider-card-grid">
         {providers.map((provider) => (
           <ProviderCard
@@ -37,6 +40,7 @@ export function ProviderList({
 }
 
 function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
+  const { t } = useTranslation();
   function createFromKeyboard(event: KeyboardEvent<HTMLElement>) {
     if (event.key !== 'Enter' && event.key !== ' ') return;
     event.preventDefault();
@@ -48,7 +52,7 @@ function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
       className="provider-card provider-create-card"
       role="button"
       tabIndex={0}
-      aria-label="新增模型供应商"
+      aria-label={t('settings.models.addProviderAria')}
       onClick={onCreate}
       onKeyDown={createFromKeyboard}
     >
@@ -57,12 +61,12 @@ function CreateProviderCard({ onCreate }: { onCreate: () => void }) {
           <span className="provider-create-logo">
             <Plus size={18} />
           </span>
-          <h4>添加供应商</h4>
+          <h4>{t('settings.models.addProvider')}</h4>
         </div>
       </header>
       <footer className="provider-card-footer">
-        <span className="provider-card-footnote">配置模型服务商和 API Key</span>
-        <span className="provider-create-action">新增</span>
+        <span className="provider-card-footnote">{t('settings.models.addProviderFootnote')}</span>
+        <span className="provider-create-action">{t('settings.models.add')}</span>
       </footer>
     </article>
   );
@@ -79,12 +83,14 @@ function ProviderCard({
   onDelete: (id: string) => void;
   onEdit: (provider: LlmProvider) => void;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [holdingDelete, setHoldingDelete] = useState(false);
   const cardRef = useRef<HTMLElement | null>(null);
   const deleteTimerRef = useRef<number | null>(null);
   const logo =
     providerLogoMap[provider.logo || 'anthropic.png'] || providerLogoMap['anthropic.png'];
+  const displayName = providerDisplayName(provider);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -128,9 +134,9 @@ function ProviderCard({
       <header className="provider-card-header">
         <div className="provider-card-identity">
           <img className="provider-card-logo" src={logo} alt="" />
-          <h4>{provider.name}</h4>
+          <h4>{displayName}</h4>
         </div>
-        {used ? <span className="provider-used-label">已使用</span> : null}
+        {used ? <span className="provider-used-label">{t('settings.models.used')}</span> : null}
       </header>
       <footer className="provider-card-footer">
         <span className="provider-card-model">{provider.modelName}</span>
@@ -138,7 +144,7 @@ function ProviderCard({
           <button
             className="provider-card-menu-button"
             type="button"
-            aria-label={`打开${provider.name}设置菜单`}
+            aria-label={t('settings.models.openProviderMenu', { name: displayName })}
             onClick={() => setMenuOpen((open) => !open)}
           >
             <Settings2 size={16} />
@@ -147,7 +153,7 @@ function ProviderCard({
             <div className="provider-card-menu" role="menu">
               <button type="button" role="menuitem" onClick={editProvider}>
                 <Pencil size={14} />
-                编辑
+                {t('settings.models.edit')}
               </button>
               <button
                 className={
@@ -167,7 +173,7 @@ function ProviderCard({
                 onKeyUp={clearDeleteTimer}
               >
                 <Trash2 size={14} />
-                长按删除
+                {t('settings.models.holdDelete')}
               </button>
             </div>
           ) : null}

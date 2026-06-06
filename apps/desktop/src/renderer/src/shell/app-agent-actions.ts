@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Agent, DesktopStore } from '@yomitomo/shared';
+import i18next from 'i18next';
 
 type UseAppAgentActionsInput = {
   applyStore: (nextStore: DesktopStore) => DesktopStore;
@@ -26,7 +27,7 @@ export function useAppAgentActions({ applyStore }: UseAppAgentActionsInput) {
         setAgentSaveState('saved');
         window.setTimeout(() => setAgentSaveState('idle'), 800);
       } catch (error) {
-        setAgentSaveError(error instanceof Error ? error.message : '保存失败。');
+        setAgentSaveError(error instanceof Error ? error.message : i18next.t('common.saveFailed'));
         setAgentSaveState('idle');
       }
     },

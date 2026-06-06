@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import i18next from 'i18next';
 import type {
   ArticleDeletePatch,
   ArticleReadingProgress,
@@ -199,7 +200,7 @@ export function useAppArticleStoreActions({
         (progress) => {
           onProgress?.(Math.min(76, Math.round(progress * 76)));
         },
-        '读取 EPUB 文件失败',
+        i18next.t('library.import.ebook.readFailed'),
       );
       onProgress?.(82);
       const result = await window.yomitomoDesktop.importEbookFile({
@@ -226,7 +227,7 @@ export function useAppArticleStoreActions({
         (progress) => {
           onProgress?.(Math.min(76, Math.round(progress * 76)));
         },
-        '读取 PDF 文件失败',
+        i18next.t('library.import.pdf.readFailed'),
       );
       onProgress?.(82);
       const result = await window.yomitomoDesktop.importPdfFile({

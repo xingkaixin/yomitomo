@@ -103,7 +103,9 @@ describe('data management path opening', () => {
   });
 
   it('rejects unknown path kinds', async () => {
-    await expect(openDataManagementPath('unknown' as never)).rejects.toThrow('未知的数据路径');
+    await expect(openDataManagementPath('unknown' as never)).rejects.toThrow(
+      'DATA_MANAGEMENT_UNKNOWN_PATH',
+    );
   });
 });
 
@@ -153,7 +155,9 @@ describe('database restore dialog', () => {
     await writeFile(filePath, 'not a sqlite database');
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow('请选择有效的 SQLite 数据库文件');
+    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+      'DATA_MANAGEMENT_INVALID_SQLITE_DATABASE',
+    );
   });
 
   it('rejects backup files that fail integrity check', async () => {
@@ -167,7 +171,9 @@ describe('database restore dialog', () => {
       close() {}
     };
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow('数据库完整性检查失败');
+    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+      'DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED',
+    );
   });
 
   it('rejects SQLite files without Yomitomo migration metadata', async () => {
@@ -175,7 +181,9 @@ describe('database restore dialog', () => {
     createSqliteFile(filePath);
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow('这不是 Yomitomo 数据库备份文件');
+    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
+      'DATA_MANAGEMENT_NOT_YOMITOMO_BACKUP',
+    );
   });
 
   it('rejects backup files that require a newer database reader level', async () => {
@@ -183,9 +191,7 @@ describe('database restore dialog', () => {
     createYomitomoBackupFile(filePath, { readerLevel: 999 });
     testState.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [filePath] });
 
-    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow(
-      '这份本地数据库需要 reader level 999',
-    );
+    await expect(restoreDatabaseWithDialog(null)).rejects.toThrow('DATABASE_TOO_NEW');
   });
 
   it('restores a valid backup file and returns the refreshed store', async () => {

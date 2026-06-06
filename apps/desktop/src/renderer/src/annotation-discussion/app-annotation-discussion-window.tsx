@@ -7,6 +7,7 @@ import {
   Plus,
 } from 'lucide-react';
 import type { Agent, Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import {
   appendAnnotationComment,
   createUserComment,
@@ -25,7 +26,10 @@ import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
 } from './app-annotation-layout-control';
-import { applyAssistantRuntimeProgress } from '../shell/app-assistant-runtime-progress';
+import {
+  applyAssistantRuntimeProgress,
+  assistantRuntimeErrorMessage,
+} from '../shell/app-assistant-runtime-progress';
 import {
   elementWindowSourceRect,
   useSourceAwareWindowTransition,
@@ -61,6 +65,7 @@ type DiscussionWindowStatus =
   | { type: 'error'; message: string };
 
 export function AnnotationDiscussionWindowApp() {
+  const { t } = useTranslation();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
@@ -80,8 +85,9 @@ export function AnnotationDiscussionWindowApp() {
   }, []);
 
   useEffect(() => {
-    document.title = status.type === 'ready' ? discussionWindowTitle(status) : '批注讨论';
-  }, [status]);
+    document.title =
+      status.type === 'ready' ? discussionWindowTitle(status) : t('discussion.title');
+  }, [status, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +113,7 @@ export function AnnotationDiscussionWindowApp() {
         if (cancelled) return;
         setStatus({
           type: 'error',
-          message: error instanceof Error ? error.message : '讨论窗口加载失败',
+          message: error instanceof Error ? error.message : t('discussion.loadFailed'),
         });
       });
 
@@ -130,9 +136,9 @@ export function AnnotationDiscussionWindowApp() {
 
   const message =
     status.type === 'loading'
-      ? '正在载入批注讨论'
+      ? t('discussion.loading')
       : status.type === 'missing'
-        ? '找不到这条批注讨论'
+        ? t('discussion.missing')
         : status.message;
 
   return (
@@ -158,6 +164,7 @@ function AnnotationDiscussionShell({
   className: string;
   style: CSSProperties;
 }) {
+  const { t } = useTranslation();
   const [currentArticle, setCurrentArticle] = useState(article);
   const [currentAnnotation, setCurrentAnnotation] = useState(annotation);
   const [pinnedThoughtIds, setPinnedThoughtIds] = useState<Set<string>>(() => new Set());
@@ -324,7 +331,7 @@ function AnnotationDiscussionShell({
         await requestAgentReply(agent, latestAnnotation, userComment, instruction);
       }
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : '回复发送失败');
+      setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
     } finally {
       setSendingReply(false);
       setStatusMessage('');
@@ -398,7 +405,7 @@ function AnnotationDiscussionShell({
       }
       closeNewThoughtDialog();
     } catch (error) {
-      setSendError(error instanceof Error ? error.message : '想法添加失败');
+      setSendError(assistantRuntimeErrorMessage(error, 'discussion.addThought.failed'));
     } finally {
       setSubmittingThought(false);
       setStatusMessage('');
@@ -477,7 +484,10 @@ function AnnotationDiscussionShell({
           return true;
         } catch (error) {
           updateAddThoughtAgentRun(task.agent.id, {
-            errorMessage: error instanceof Error ? error.message : '助手添加想法失败',
+            errorMessage: assistantRuntimeErrorMessage(
+              error,
+              'discussion.addThought.assistantFailed',
+            ),
             status: 'failed',
           });
           return false;
@@ -635,7 +645,7 @@ function AnnotationDiscussionShell({
       <main className={className} style={style}>
         <section className="annotation-discussion-empty">
           <MessageCircle size={24} />
-          <strong>这条批注已删除</strong>
+          <strong>{t('discussion.deleted')}</strong>
         </section>
       </main>
     );
@@ -647,28 +657,36 @@ function AnnotationDiscussionShell({
         className="annotation-discussion-quote"
         aria-labelledby="annotation-discussion-quote-title"
       >
-        <strong id="annotation-discussion-quote-title">正在讨论的划线</strong>
+        <strong id="annotation-discussion-quote-title">{t('discussion.quoteTitle')}</strong>
         <p>{currentAnnotation.anchor.exact}</p>
       </section>
 
-      <section ref={discussionLayoutRef} className={layoutClassName} aria-label="批注讨论窗口">
+      <section
+        ref={discussionLayoutRef}
+        className={layoutClassName}
+        aria-label={t('discussion.window')}
+      >
         <aside className="annotation-discussion-ideas" aria-expanded={!ideasContentCollapsed}>
           <header>
             <button
               className="annotation-discussion-ideas-toggle"
               type="button"
-              aria-label={ideasContentCollapsed ? '展开想法列表' : '收起想法列表'}
+              aria-label={
+                ideasContentCollapsed
+                  ? t('discussion.expandThoughts')
+                  : t('discussion.collapseThoughts')
+              }
               aria-expanded={!ideasContentCollapsed}
               onClick={toggleIdeasSidebar}
             >
               {ideasContentCollapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
             </button>
-            <strong>想法</strong>
+            <strong>{t('discussion.thoughts')}</strong>
             <span className="annotation-discussion-ideas-count">{threads.length}</span>
             <button
               className="annotation-discussion-add-thought"
               type="button"
-              aria-label="添加想法"
+              aria-label={t('discussion.addThought.title')}
               onClick={openNewThoughtDialog}
             >
               <Plus size={14} />
@@ -690,29 +708,31 @@ function AnnotationDiscussionShell({
               ))}
             </div>
           ) : (
-            <p>还没有想法</p>
+            <p>{t('discussion.noThoughts')}</p>
           )}
           <footer className="annotation-discussion-sedimentation-entry">
             <button
               className={annotation.distillation?.status === 'published' ? undefined : 'is-primary'}
               type="button"
               aria-label={
-                annotation.distillation?.status === 'published' ? '查看沉淀' : '把这些想法沉淀下来'
+                annotation.distillation?.status === 'published'
+                  ? t('discussion.viewDistillation')
+                  : t('discussion.createDistillation')
               }
               onClick={(event) => openSedimentationWindow(event.currentTarget)}
             >
               <GitPullRequestDraft size={14} />
               <span>
                 {annotation.distillation?.status === 'published'
-                  ? '查看沉淀'
-                  : '把这些想法沉淀下来'}
+                  ? t('discussion.viewDistillation')
+                  : t('discussion.createDistillation')}
               </span>
             </button>
           </footer>
         </aside>
         <section className="annotation-discussion-thread">
           <header>
-            <strong>讨论区</strong>
+            <strong>{t('discussion.thread')}</strong>
             <div className="annotation-discussion-thread-actions">
               <AnnotationLayoutControl value={layoutMode} onChange={setLayoutMode} />
             </div>
@@ -737,8 +757,8 @@ function AnnotationDiscussionShell({
           ) : (
             <div className="annotation-discussion-thread-placeholder">
               <MessageCircle size={22} />
-              <strong>选择想法查看讨论</strong>
-              <p>这条批注的讨论会在这里展开。</p>
+              <strong>{t('discussion.selectThoughtTitle')}</strong>
+              <p>{t('discussion.selectThoughtDescription')}</p>
             </div>
           )}
         </section>

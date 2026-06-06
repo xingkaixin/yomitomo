@@ -7,6 +7,7 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
+import { useTranslation } from 'react-i18next';
 
 type EbookReaderShellProps = {
   readerApp: ReaderAppViewProps;
@@ -26,6 +27,7 @@ export function EbookReaderShell({
   measureHostRef,
   onReaderKeyDown,
 }: EbookReaderShellProps) {
+  const { t } = useTranslation();
   const readerSettings = readerApp.settings.readerSettings;
 
   return (
@@ -36,7 +38,7 @@ export function EbookReaderShell({
         onClick={readerApp.actions.shell.onClose}
       >
         <ChevronLeft size={16} />
-        <span>返回阅读库</span>
+        <span>{t('common.backToLibrary')}</span>
       </button>
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView

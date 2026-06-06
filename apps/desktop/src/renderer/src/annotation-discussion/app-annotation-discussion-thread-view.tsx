@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageCircle, Send } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
@@ -61,10 +62,12 @@ export function DiscussionThreadView({
   thread: DiscussionThread;
   userProfile: UserProfile;
 }) {
+  const { t } = useTranslation();
   const messages = thread.replies;
   const hasReplies = messages.length > 0;
   const threadScrollRef = useRef<HTMLDivElement>(null);
   const activeThreadIdRef = useRef(thread.root.id);
+  const hasRepliesRef = useRef(false);
   const shouldStickToBottomRef = useRef(true);
   const scrollFrameRef = useRef<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -82,13 +85,15 @@ export function DiscussionThreadView({
       ? []
       : annotationAgents.filter((agent) => matchesAgentMentionQuery(agent, mentionQuery.query));
   const shortcutModifier = getShortcutModifier();
-  const composerStatus = sendError || statusMessage || (sendingReply ? '正在发送' : '');
+  const composerStatus =
+    sendError || statusMessage || (sendingReply ? t('discussion.sending') : '');
   const replyPlaceholder = discussionReplyPlaceholder(thread.root, annotationAgents);
   const className = [
     'annotation-discussion-messages',
     layoutMode === 'left' ? 'is-left-aligned' : 'is-split',
   ].join(' ');
   activeThreadIdRef.current = thread.root.id;
+  hasRepliesRef.current = hasReplies;
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -114,6 +119,7 @@ export function DiscussionThreadView({
     }
     shouldStickToBottomRef.current = true;
     scheduleScrollToBottom('auto');
+    return () => cancelScheduledScroll();
   }, [hasReplies, thread.root.id]);
 
   useLayoutEffect(() => {
@@ -128,6 +134,7 @@ export function DiscussionThreadView({
       return;
     }
     scheduleScrollToBottom('auto');
+    return () => cancelScheduledScroll();
   }, [hasReplies, messagesVersion, rootVersion, thread.root.id]);
 
   useEffect(
@@ -216,11 +223,15 @@ export function DiscussionThreadView({
     scrollFrameRef.current = window.requestAnimationFrame(() => {
       scrollFrameRef.current = null;
       if (activeThreadIdRef.current !== scheduledThreadId) return;
+      if (!hasRepliesRef.current) return;
       if (!shouldStickToBottomRef.current) return;
+      const previousScrollHeight = threadScrollRef.current?.scrollHeight ?? 0;
       scrollDiscussionToBottom(behavior);
       scrollFrameRef.current = window.requestAnimationFrame(() => {
         scrollFrameRef.current = null;
         if (activeThreadIdRef.current !== scheduledThreadId) return;
+        if (!hasRepliesRef.current) return;
+        if ((threadScrollRef.current?.scrollHeight ?? 0) === previousScrollHeight) return;
         if (shouldStickToBottomRef.current) scrollDiscussionToBottom(behavior);
       });
     });
@@ -233,7 +244,7 @@ export function DiscussionThreadView({
   }
 
   function scrollDiscussionToBottom(behavior: ScrollBehavior = 'smooth') {
-    if (!hasReplies) return;
+    if (!hasRepliesRef.current) return;
     if (activeThreadIdRef.current !== thread.root.id) return;
     const element = threadScrollRef.current;
     if (!element) return;
@@ -255,7 +266,10 @@ export function DiscussionThreadView({
         className="annotation-discussion-thread-scroll"
         onScroll={updateScrollBottomVisibility}
       >
-        <section className="annotation-discussion-root-thought" aria-label="想法内容">
+        <section
+          className="annotation-discussion-root-thought"
+          aria-label={t('discussion.threadView.rootThought')}
+        >
           <div className="annotation-discussion-root-thought-content">
             <AssistantRuntimeProgressList progress={thread.root.assistantProgress} />
             <div dangerouslySetInnerHTML={{ __html: rootThoughtHtml }} />
@@ -266,11 +280,11 @@ export function DiscussionThreadView({
                 {formatAbsoluteTime(thread.root.createdAt)}
               </time>
             </ReaderTooltip>
-            {thread.pending ? <span>助手回复中</span> : null}
+            {thread.pending ? <span>{t('discussion.threadView.assistantReplying')}</span> : null}
           </div>
         </section>
         <div className="annotation-discussion-thread-divider" role="separator">
-          <span>讨论展开</span>
+          <span>{t('discussion.threadView.expanded')}</span>
         </div>
         {messages.length > 0 ? (
           <div className={className}>
@@ -287,8 +301,8 @@ export function DiscussionThreadView({
         ) : (
           <div className="annotation-discussion-reply-empty">
             <MessageCircle size={24} />
-            <strong>当前没有讨论</strong>
-            <p>这条想法还没有回复。</p>
+            <strong>{t('discussion.threadView.noDiscussionTitle')}</strong>
+            <p>{t('discussion.threadView.noDiscussionDescription')}</p>
           </div>
         )}
       </div>
@@ -297,7 +311,7 @@ export function DiscussionThreadView({
           <button
             className="annotation-discussion-scroll-bottom"
             type="button"
-            aria-label="滚动到底部"
+            aria-label={t('discussion.threadView.scrollBottom')}
             onClick={() => scrollDiscussionToBottom('smooth')}
           >
             <ChevronDown size={16} />
@@ -308,10 +322,13 @@ export function DiscussionThreadView({
           className="annotation-discussion-composer-input"
           accessory={
             annotationAgents.length > 0 ? (
-              <div className="annotation-discussion-agent-dock" aria-label="可提及助手">
+              <div
+                className="annotation-discussion-agent-dock"
+                aria-label={t('discussion.threadView.mentionableAssistants')}
+              >
                 <AgentAvatarStack
                   agents={annotationAgents}
-                  ariaLabel="可提及助手"
+                  ariaLabel={t('discussion.threadView.mentionableAssistants')}
                   onAgentClick={insertAgentMention}
                 />
               </div>
@@ -344,10 +361,10 @@ export function DiscussionThreadView({
           status={composerStatus || undefined}
           submitDisabled={!replyDraft.trim() || sendingReply}
           submitIcon={<Send size={14} />}
-          submitLabel="回复"
+          submitLabel={t('discussion.threadView.reply')}
           submitTooltip={
             <SubmitShortcutTooltipContent
-              label="回复"
+              label={t('discussion.threadView.reply')}
               shortcut="mod-enter"
               shortcutModifier={shortcutModifier}
             />

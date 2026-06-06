@@ -20,6 +20,8 @@ import type {
   UserProfile,
 } from '@yomitomo/shared';
 import { makeId, renderMarkdown } from '@yomitomo/shared';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import { promptArticle, publicReviewAgents } from '../source/bookcase/app-source-bookcase-shared';
@@ -36,6 +38,7 @@ import {
 } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   applyAssistantRuntimeProgress,
+  assistantRuntimeErrorMessage,
   AssistantRuntimeProgressList,
 } from '../shell/app-assistant-runtime-progress';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
@@ -52,6 +55,7 @@ type SedimentationWindowStatus =
   | { type: 'error'; message: string };
 
 export function AnnotationSedimentationWindowApp() {
+  const { t } = useTranslation();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const articleId = params.get('articleId') || '';
   const annotationId = params.get('annotationId') || '';
@@ -69,8 +73,11 @@ export function AnnotationSedimentationWindowApp() {
   }, []);
 
   useEffect(() => {
-    document.title = status.type === 'ready' ? sedimentationWindowTitle(status.annotation) : '沉淀';
-  }, [status]);
+    document.title =
+      status.type === 'ready'
+        ? sedimentationWindowTitle(status.annotation)
+        : t('sedimentation.title');
+  }, [status, t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +103,7 @@ export function AnnotationSedimentationWindowApp() {
         if (cancelled) return;
         setStatus({
           type: 'error',
-          message: error instanceof Error ? error.message : '沉淀窗口加载失败',
+          message: error instanceof Error ? error.message : t('sedimentation.loadFailed'),
         });
       });
 
@@ -135,6 +142,7 @@ function SedimentationShell({
   style: CSSProperties;
   onStatusChange: (status: SedimentationWindowStatus) => void;
 }) {
+  const { t } = useTranslation();
   const { agents, article, annotation } = status;
   const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
   const userProfile = sedimentationUserProfile(annotation, article);
@@ -157,8 +165,10 @@ function SedimentationShell({
   const canReview = activeAgents.length > 0 && !reviewing;
   const sessions = annotation.distillation?.reviewSessions || [];
   const isPublished = annotation.distillation?.status === 'published';
-  const statusLabel = isPublished ? '已发布' : '草稿';
-  const publishLabel = isPublished ? '更新发布' : '发布沉淀';
+  const statusLabel = isPublished
+    ? t('sedimentation.status.published')
+    : t('sedimentation.status.draft');
+  const publishLabel = isPublished ? t('sedimentation.updatePublish') : t('sedimentation.publish');
   const canUnpublish = isPublished && !saving;
 
   useEffect(() => {
@@ -254,7 +264,7 @@ function SedimentationShell({
       const next = new Set(current);
       if (next.has(agent.id)) {
         if (next.size === 1) {
-          setReviewNotice('至少选择一个审阅助手');
+          setReviewNotice(t('sedimentation.selectReviewerRequired'));
           return current;
         }
         next.delete(agent.id);
@@ -316,7 +326,7 @@ function SedimentationShell({
       }
       await saveAndRefresh(workingArticle, agents, annotation.id, onStatusChange);
     } catch (error) {
-      setReviewNotice(error instanceof Error ? error.message : '审阅失败');
+      setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
     } finally {
       setReviewing(false);
     }
@@ -325,8 +335,7 @@ function SedimentationShell({
   function organizeDiscussion() {
     void submitReviewRound({
       reviewMode: 'organize_discussion',
-      reviewDraftOverride:
-        '请整理当前高亮、想法和审阅讨论，生成可直接加入沉淀稿的新增建议。只给新增建议，不要修改或删除现有草稿。',
+      reviewDraftOverride: t('sedimentation.organizeDiscussionInstruction'),
     });
   }
 
@@ -392,15 +401,18 @@ function SedimentationShell({
       className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
       style={style}
     >
-      <section className="annotation-sedimentation-quote" aria-label="批注引文">
+      <section className="annotation-sedimentation-quote" aria-label={t('sedimentation.quote')}>
         <span aria-hidden="true">“</span>
         <p>{annotation.anchor.exact}</p>
       </section>
       <section className="annotation-sedimentation-body">
-        <section className="annotation-sedimentation-document" aria-label="沉淀稿件">
+        <section
+          className="annotation-sedimentation-document"
+          aria-label={t('sedimentation.document')}
+        >
           <header>
             <div className="annotation-sedimentation-document-title">
-              <strong>沉淀稿</strong>
+              <strong>{t('sedimentation.draftTitle')}</strong>
               <span
                 className={`annotation-sedimentation-status is-${isPublished ? 'published' : 'draft'}`}
               >
@@ -409,7 +421,7 @@ function SedimentationShell({
             </div>
             <div className="annotation-sedimentation-document-actions">
               {isPublished ? (
-                <ReaderTooltip content="取消发布后保留沉淀稿和审阅记录">
+                <ReaderTooltip content={t('sedimentation.unpublishTooltip')}>
                   <button
                     className="is-secondary"
                     type="button"
@@ -417,11 +429,11 @@ function SedimentationShell({
                     onClick={() => void unpublishDistillation()}
                   >
                     <RotateCcw size={15} />
-                    <span>取消发布</span>
+                    <span>{t('sedimentation.unpublish')}</span>
                   </button>
                 </ReaderTooltip>
               ) : null}
-              <ReaderTooltip content="让当前审阅助手把讨论整理成可采纳的新增建议">
+              <ReaderTooltip content={t('sedimentation.organizeTooltip')}>
                 <button
                   className="is-secondary"
                   type="button"
@@ -429,7 +441,7 @@ function SedimentationShell({
                   onClick={organizeDiscussion}
                 >
                   <Sparkles size={15} />
-                  <span>整理讨论</span>
+                  <span>{t('sedimentation.organizeDiscussion')}</span>
                 </button>
               </ReaderTooltip>
               <ReaderTooltip
@@ -455,7 +467,7 @@ function SedimentationShell({
           <textarea
             ref={draftTextareaRef}
             value={draft}
-            placeholder="写下你想沉淀的判断、框架、问题或可迁移的提醒..."
+            placeholder={t('sedimentation.draftPlaceholder')}
             onChange={(event) => {
               setDraft(event.target.value);
               recordDraftSelection();
@@ -471,11 +483,14 @@ function SedimentationShell({
           />
         </section>
 
-        <aside className="annotation-sedimentation-review-panel" aria-label="审阅讨论区">
+        <aside
+          className="annotation-sedimentation-review-panel"
+          aria-label={t('sedimentation.reviewPanel')}
+        >
           <header>
             <div>
-              <strong>审阅讨论</strong>
-              <span>{reviewNotice || '选择至少一个审阅助手，然后围绕沉淀稿沟通'}</span>
+              <strong>{t('sedimentation.reviewTitle')}</strong>
+              <span>{reviewNotice || t('sedimentation.reviewHint')}</span>
             </div>
           </header>
           <ReviewSessions
@@ -492,12 +507,12 @@ function SedimentationShell({
               accessory={
                 <div
                   className="annotation-sedimentation-review-composer-accessory"
-                  aria-label="审阅助手"
+                  aria-label={t('sedimentation.reviewAgents')}
                 >
                   <AgentAvatarStack
                     agents={reviewAgents}
                     activeAgentIds={activeAgentIds}
-                    ariaLabel="审阅助手"
+                    ariaLabel={t('sedimentation.reviewAgents')}
                     className={reviewing ? 'is-reviewing' : ''}
                     revealLabelOnDoubleClick={false}
                     onAgentClick={toggleReviewAgent}
@@ -506,17 +521,17 @@ function SedimentationShell({
               }
               submitDisabled={!canReview}
               submitIcon={<Send size={14} />}
-              submitLabel="发送"
+              submitLabel={t('sedimentation.send')}
               submitTooltip={
                 <SubmitShortcutTooltipContent
-                  label="发送审阅请求"
+                  label={t('sedimentation.sendReviewRequest')}
                   shortcut={messageSendShortcut}
                   shortcutModifier={shortcutModifier}
                 />
               }
               textarea={{
                 value: reviewDraft,
-                placeholder: '让已选审阅助手讨论这份沉淀...',
+                placeholder: t('sedimentation.reviewPlaceholder'),
                 rows: 2,
                 onChange: (event) => setReviewDraft(event.target.value),
                 onKeyDown: (event) => {
@@ -637,6 +652,7 @@ function ReviewSessions({
   sessions: AnnotationDistillationReviewSession[];
   userProfile: UserProfile;
 }) {
+  const { t } = useTranslation();
   const messages = reviewTimelineMessages(sessions);
   const listRef = useRef<HTMLElement | null>(null);
   const scrollSignal = messages
@@ -659,8 +675,8 @@ function ReviewSessions({
     return (
       <section className="annotation-sedimentation-review-empty">
         <MessageCircleQuestion size={22} />
-        <strong>还没有审阅讨论</strong>
-        <p>选择审阅助手，直接发送即可开始。</p>
+        <strong>{t('sedimentation.noReviewTitle')}</strong>
+        <p>{t('sedimentation.noReviewDescription')}</p>
       </section>
     );
   }
@@ -673,7 +689,7 @@ function ReviewSessions({
         'annotation-discussion-messages',
         'is-left-aligned',
       ].join(' ')}
-      aria-label="审阅会话"
+      aria-label={t('sedimentation.reviewSessions')}
     >
       {messages.map((message) => (
         <ReviewTimelineMessage
@@ -710,13 +726,16 @@ function ReviewTimelineMessage({
   onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
   userProfile: UserProfile;
 }) {
+  const { t } = useTranslation();
   const { message } = item;
   const isUser = message.author === 'user';
   const avatar = isUser ? userProfile.avatar : message.agentAvatar;
   const nickname = isUser
     ? userProfile.nickname
-    : message.agentNickname || message.agentUsername || '审阅助手';
-  const fallback = isUser ? userProfile.nickname.slice(0, 1) || '我' : nickname.slice(0, 1) || '审';
+    : message.agentNickname || message.agentUsername || t('sedimentation.reviewAssistant');
+  const fallback = isUser
+    ? userProfile.nickname.slice(0, 1) || t('common.me')
+    : nickname.slice(0, 1) || t('sedimentation.reviewAssistantFallback');
   const className = [
     'annotation-discussion-message',
     'annotation-sedimentation-review-message',
@@ -739,7 +758,7 @@ function ReviewTimelineMessage({
         <div
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{
-            __html: renderMarkdown(message.content || '正在审阅...'),
+            __html: renderMarkdown(message.content || t('sedimentation.reviewing')),
           }}
         />
         {!isUser && message.proposals?.length ? (
@@ -769,8 +788,12 @@ function ReviewProposalList({
   onRestore: (messageId: string, proposalId: string) => void | Promise<void>;
   proposals: AnnotationDistillationProposal[];
 }) {
+  const { t } = useTranslation();
   return (
-    <section className="annotation-sedimentation-proposals" aria-label="稿件修改建议">
+    <section
+      className="annotation-sedimentation-proposals"
+      aria-label={t('sedimentation.proposals')}
+    >
       {proposals.map((proposal) => (
         <article
           className={[
@@ -793,7 +816,7 @@ function ReviewProposalList({
               <>
                 <button type="button" onClick={() => void onAccept(messageId, proposal)}>
                   <Check size={14} />
-                  <span>采纳</span>
+                  <span>{t('sedimentation.acceptProposal')}</span>
                 </button>
                 <button
                   className="is-secondary"
@@ -801,7 +824,7 @@ function ReviewProposalList({
                   onClick={() => void onIgnore(messageId, proposal.id)}
                 >
                   <X size={14} />
-                  <span>忽略</span>
+                  <span>{t('sedimentation.ignoreProposal')}</span>
                 </button>
               </>
             ) : null}
@@ -812,11 +835,13 @@ function ReviewProposalList({
                 onClick={() => void onRestore(messageId, proposal.id)}
               >
                 <RotateCcw size={14} />
-                <span>恢复</span>
+                <span>{t('sedimentation.restoreProposal')}</span>
               </button>
             ) : null}
             {proposal.status === 'accepted' ? (
-              <span className="annotation-sedimentation-proposal-state">已采纳</span>
+              <span className="annotation-sedimentation-proposal-state">
+                {t('sedimentation.acceptedProposal')}
+              </span>
             ) : null}
           </div>
         </article>
@@ -826,9 +851,9 @@ function ReviewProposalList({
 }
 
 function proposalKindLabel(kind: AnnotationDistillationProposal['kind']) {
-  if (kind === 'insert') return '新增';
-  if (kind === 'replace') return '修改';
-  return '删除';
+  if (kind === 'insert') return i18next.t('sedimentation.proposalKind.insert');
+  if (kind === 'replace') return i18next.t('sedimentation.proposalKind.replace');
+  return i18next.t('sedimentation.proposalKind.delete');
 }
 
 function proposalPreview(proposal: AnnotationDistillationProposal) {
@@ -886,14 +911,17 @@ function SedimentationEmptyState({
   status: Exclude<SedimentationWindowStatus, { type: 'ready' }>;
   style: CSSProperties;
 }) {
+  const { t } = useTranslation();
   return (
     <main
       className={[sedimentationWindowClassName(), className].filter(Boolean).join(' ')}
       style={style}
     >
       <section className="annotation-sedimentation-empty">
-        <strong>{status.type === 'loading' ? '正在加载沉淀窗口' : '无法打开沉淀窗口'}</strong>
-        <p>{status.type === 'error' ? status.message : '这条批注或文章不存在。'}</p>
+        <strong>
+          {status.type === 'loading' ? t('sedimentation.loading') : t('sedimentation.openFailed')}
+        </strong>
+        <p>{status.type === 'error' ? status.message : t('sedimentation.missing')}</p>
       </section>
     </main>
   );
@@ -988,7 +1016,7 @@ function reviewRequestComment(
   return {
     id: message?.id || makeId('distillation_review_request'),
     author: 'user',
-    content: message?.content || '请基于当前稿件和整条批注讨论，给出审阅意见。',
+    content: message?.content || i18next.t('sedimentation.reviewPrompt.defaultRequest'),
     createdAt: message?.createdAt || createdAt,
   };
 }
@@ -999,12 +1027,24 @@ function distillationReviewInstruction(
   session: AnnotationDistillationReviewSession,
 ) {
   const transcript = session.messages
-    .map((message) => `${message.author === 'user' ? '用户' : '助手'}：${message.content}`)
+    .map((message) =>
+      i18next.t('sedimentation.reviewPrompt.transcriptLine', {
+        role:
+          message.author === 'user'
+            ? i18next.t('sedimentation.reviewPrompt.userRole')
+            : i18next.t('sedimentation.reviewPrompt.assistantRole'),
+        content: message.content,
+      }),
+    )
     .join('\n');
   return [
-    `当前沉淀稿：\n${draft.trim() || '（用户还没有写沉淀稿）'}`,
-    `本轮用户请求：\n${reviewDraft.trim() || '请主动审阅当前沉淀方向。'}`,
-    transcript ? `此前审阅讨论：\n${transcript}` : '',
+    i18next.t('sedimentation.reviewPrompt.currentDraft', {
+      draft: draft.trim() || i18next.t('sedimentation.reviewPrompt.emptyDraft'),
+    }),
+    i18next.t('sedimentation.reviewPrompt.currentRequest', {
+      request: reviewDraft.trim() || i18next.t('sedimentation.reviewPrompt.defaultReviewRequest'),
+    }),
+    transcript ? i18next.t('sedimentation.reviewPrompt.previousDiscussion', { transcript }) : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -1038,7 +1078,9 @@ function sedimentationWindowClassName() {
 
 function sedimentationWindowTitle(annotation: Annotation) {
   const quote = compactTitleText(annotation.anchor.exact);
-  return quote ? `沉淀 - ${quote}` : '沉淀';
+  return quote
+    ? i18next.t('sedimentation.windowTitle', { title: quote })
+    : i18next.t('sedimentation.title');
 }
 
 function compactTitleText(value: string) {
@@ -1056,15 +1098,18 @@ function formatRelativeTime(value: string) {
   const minute = 60_000;
   const hour = minute * 60;
   const day = hour * 24;
-  if (deltaMs < minute) return '刚刚';
-  if (deltaMs < hour) return `${Math.floor(deltaMs / minute)} 分钟前`;
-  if (deltaMs < day) return `${Math.floor(deltaMs / hour)} 小时前`;
-  if (deltaMs < day * 7) return `${Math.floor(deltaMs / day)} 天前`;
+  if (deltaMs < minute) return i18next.t('discussion.time.justNow');
+  if (deltaMs < hour)
+    return i18next.t('discussion.time.minutesAgo', { count: Math.floor(deltaMs / minute) });
+  if (deltaMs < day)
+    return i18next.t('discussion.time.hoursAgo', { count: Math.floor(deltaMs / hour) });
+  if (deltaMs < day * 7)
+    return i18next.t('discussion.time.daysAgo', { count: Math.floor(deltaMs / day) });
   return formatAbsoluteTime(value);
 }
 
 function formatAbsoluteTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
@@ -1075,7 +1120,7 @@ function formatAbsoluteTime(value: string) {
 function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {
   return {
     id: annotation.userId || 'user',
-    nickname: annotation.userNickname || '我',
+    nickname: annotation.userNickname || i18next.t('common.me'),
     username: annotation.userUsername || 'user',
     avatar: annotation.userAvatar || '',
     annotationColor: annotation.userAnnotationColor || annotation.color,

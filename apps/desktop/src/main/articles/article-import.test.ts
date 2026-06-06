@@ -105,12 +105,14 @@ describe('article import', () => {
     expect(cancelArticleImport('import-1')).toBe(false);
   });
 
-  it('maps fetch AbortError to the import timeout message', async () => {
+  it('maps fetch AbortError to the import timeout code', async () => {
     const error = new Error('aborted');
     error.name = 'AbortError';
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(error);
 
-    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow('网页请求超时');
+    await expect(articleRecordFromUrl('https://example.com/post')).rejects.toThrow(
+      'ARTICLE_IMPORT_TIMEOUT',
+    );
     expect(workerMocks.instances).toHaveLength(0);
   });
 
@@ -124,7 +126,7 @@ describe('article import', () => {
     await vi.waitFor(() => expect(workerMocks.instances).toHaveLength(1));
 
     expect(cancelArticleImport('import-cancel')).toBe(true);
-    await expect(pending).rejects.toThrow('网页解析已取消');
+    await expect(pending).rejects.toThrow('ARTICLE_IMPORT_CANCELED');
     expect(workerMocks.instances[0].terminated).toBe(true);
     expect(cancelArticleImport('import-cancel')).toBe(false);
   });

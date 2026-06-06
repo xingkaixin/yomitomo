@@ -9,7 +9,7 @@ function thumbnailDirectory() {
 
 function thumbnailFilePath(articleId: string) {
   const safeId = articleId.replace(/[^a-z0-9_-]/gi, '');
-  if (!safeId) throw new Error('PDF ID 无效');
+  if (!safeId) throw new Error('PDF_THUMBNAIL_INVALID_ID');
   return join(thumbnailDirectory(), `${safeId}.jpg`);
 }
 

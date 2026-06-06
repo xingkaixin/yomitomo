@@ -32,7 +32,7 @@ export async function hydrateProviderApiKey(provider: LlmProvider): Promise<LlmP
     provider.apiKey?.trim() ||
     (await readProviderApiKey(provider.id)) ||
     readLegacyProviderApiKey(provider.id);
-  if (!apiKey) throw new Error(`请先为供应商「${provider.name}」配置 API Key`);
+  if (!apiKey) throw new Error('PROVIDER_API_KEY_REQUIRED');
   return { ...provider, apiKey };
 }
 

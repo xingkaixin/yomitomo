@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Comment, PublicAgent } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 
@@ -56,20 +57,24 @@ export function AddThoughtAssistantRunPanel({
   onRetryAll: () => void;
   runs: AddThoughtAgentRun[];
 }) {
+  const { t } = useTranslation();
   const activeCount = runs.filter((run) => run.status === 'active').length;
   const doneCount = runs.filter((run) => run.status === 'done').length;
   const failedRuns = runs.filter((run) => run.status === 'failed');
   const settled = activeCount === 0;
 
   return (
-    <div className="annotation-discussion-add-run" aria-label="助手添加想法进度">
+    <div className="annotation-discussion-add-run" aria-label={t('discussion.addThought.progress')}>
       {celebrating ? <ReadingCompletionBurst /> : null}
       {failedRuns.length > 0 && settled ? (
         <div className="annotation-discussion-add-run-summary">
           <strong>
-            {doneCount} 位助手已完成，{failedRuns.length} 位助手失败
+            {t('discussion.addThought.runSummary', {
+              done: doneCount,
+              failed: failedRuns.length,
+            })}
           </strong>
-          <p>已完成的想法已保存。关闭后，失败的助手不会继续生成。</p>
+          <p>{t('discussion.addThought.runSummaryDescription')}</p>
         </div>
       ) : null}
       <div className="annotation-discussion-add-run-agents">
@@ -88,10 +93,10 @@ export function AddThoughtAssistantRunPanel({
             <AssistantRuntimeProgressList progress={run.progress} />
             {run.status === 'failed' ? (
               <div className="annotation-discussion-add-run-failure">
-                <p>{run.errorMessage || '添加失败'}</p>
+                <p>{run.errorMessage || t('discussion.addThought.failed')}</p>
                 {settled ? (
                   <button type="button" onClick={() => onRetry(run.agent.id)}>
-                    重试
+                    {t('discussion.retry')}
                   </button>
                 ) : null}
               </div>
@@ -103,11 +108,11 @@ export function AddThoughtAssistantRunPanel({
         <footer className="annotation-discussion-add-run-actions">
           {failedRuns.length > 1 ? (
             <button type="button" onClick={onRetryAll}>
-              全部重试
+              {t('discussion.retryAll')}
             </button>
           ) : null}
           <button type="button" onClick={onClose}>
-            不再重试
+            {t('discussion.stopRetry')}
           </button>
         </footer>
       ) : null}

@@ -10,7 +10,9 @@ import type {
   ReaderQuestionContext,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
+import i18next from 'i18next';
 import { promptArticle } from './app-source-bookcase-shared';
+import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 
 type UseReaderChatSessionInput = {
   agents: PublicAgent[];
@@ -168,12 +170,13 @@ export function useReaderChatSession({
       );
       replaceState(completedState, true);
     } catch (requestError) {
-      const message =
-        requestError instanceof Error ? requestError.message : '问答请求失败，请稍后重试';
+      const message = assistantRuntimeErrorMessage(requestError, 'source.readerChatFailed');
       setError(message);
       const failedState = updateActiveSession(stateRef.current || pendingState, (messages) =>
         messages.map((item) =>
-          item.id === assistantMessage.id ? { ...item, content: `请求失败：${message}` } : item,
+          item.id === assistantMessage.id
+            ? { ...item, content: i18next.t('source.requestFailedWithMessage', { message }) }
+            : item,
         ),
       );
       replaceState(failedState, true);
@@ -218,7 +221,7 @@ function readerChatPayload({
   userMessageId: string;
 }): AgentMessagePayload {
   const anchor = context?.anchor || {
-    exact: article.title || '当前文章',
+    exact: article.title || i18next.t('source.currentArticle'),
     prefix: '',
     suffix: '',
     start: 0,
@@ -246,8 +249,8 @@ function readerChatPayload({
     article: promptArticle(article, articleText),
     annotation,
     instruction: context
-      ? '这是阅读器浮动问答。请围绕用户引用的选区和问题回答，不要把回复写成批注讨论。'
-      : '这是阅读器浮动问答。请围绕当前文章和用户问题回答，不要把回复写成批注讨论。',
+      ? i18next.t('source.readerChatSelectionInstruction')
+      : i18next.t('source.readerChatArticleInstruction'),
     userComment,
   };
 }

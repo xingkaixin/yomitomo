@@ -4,7 +4,7 @@ export type DesktopStoreLoadErrorCode = 'DATABASE_TOO_NEW' | 'DATABASE_UNAVAILAB
 
 export type DesktopStoreLoadErrorInfo = {
   code: DesktopStoreLoadErrorCode;
-  message: string;
+  message?: string;
   detail?: string;
   requiredReaderLevel?: number;
   supportedReaderLevel?: number;
@@ -20,7 +20,7 @@ export class DesktopStoreLoadError extends Error {
   readonly info: DesktopStoreLoadErrorInfo;
 
   constructor(info: DesktopStoreLoadErrorInfo) {
-    super(info.message);
+    super(info.message || info.code);
     this.name = 'DesktopStoreLoadError';
     this.code = info.code;
     this.info = info;
@@ -33,12 +33,9 @@ export function desktopStoreLoadErrorInfo(error: unknown): DesktopStoreLoadError
   if (isDesktopStoreLoadErrorInfo(info)) return info;
 
   const code = (error as { code?: unknown }).code;
-  const message = (error as { message?: unknown }).message;
-  if (
-    (code === 'DATABASE_TOO_NEW' || code === 'DATABASE_UNAVAILABLE') &&
-    typeof message === 'string'
-  ) {
-    return { code, message };
+  if (code === 'DATABASE_TOO_NEW' || code === 'DATABASE_UNAVAILABLE') {
+    const message = (error as { message?: unknown }).message;
+    return { code, ...(typeof message === 'string' ? { message } : {}) };
   }
 
   return null;
@@ -47,8 +44,5 @@ export function desktopStoreLoadErrorInfo(error: unknown): DesktopStoreLoadError
 function isDesktopStoreLoadErrorInfo(value: unknown): value is DesktopStoreLoadErrorInfo {
   if (!value || typeof value !== 'object') return false;
   const code = (value as { code?: unknown }).code;
-  const message = (value as { message?: unknown }).message;
-  return (
-    (code === 'DATABASE_TOO_NEW' || code === 'DATABASE_UNAVAILABLE') && typeof message === 'string'
-  );
+  return code === 'DATABASE_TOO_NEW' || code === 'DATABASE_UNAVAILABLE';
 }

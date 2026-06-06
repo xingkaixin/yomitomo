@@ -70,7 +70,7 @@ export function getDatabase() {
 
 function getSqliteDatabase() {
   getDatabase();
-  if (!sqlite) throw new Error('本地数据库尚未打开');
+  if (!sqlite) throw new Error('DATA_MANAGEMENT_DATABASE_NOT_OPEN');
   return sqlite;
 }
 
@@ -81,7 +81,7 @@ export function getSqliteExecutor() {
 export async function backupDatabaseFile(targetPath: string) {
   const target = resolve(targetPath);
   const source = resolve(databasePath());
-  if (target === source) throw new Error('不能把备份保存到当前数据库文件');
+  if (target === source) throw new Error('DATA_MANAGEMENT_BACKUP_TARGET_IS_CURRENT_DATABASE');
 
   const database = getSqliteDatabase();
   await mkdir(dirname(target), { recursive: true });
@@ -103,7 +103,7 @@ export function closeDatabase() {
 export async function replaceDatabaseFile(sourcePath: string) {
   const source = resolve(sourcePath);
   const target = resolve(databasePath());
-  if (source === target) throw new Error('不能从当前数据库文件还原');
+  if (source === target) throw new Error('DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE');
 
   const backupPath = await safetyBackupPath();
   if (existsSync(target)) await backupDatabaseFile(backupPath);

@@ -5,6 +5,7 @@ import type { ProviderDraft } from './app-settings';
 import { Field } from '../shell/app-ui';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { useTranslation } from 'react-i18next';
 
 export function ProviderModelFields({
   draft,
@@ -25,10 +26,11 @@ export function ProviderModelFields({
   onFetchModels: () => void;
   onUseCustomModel: () => void;
 }) {
+  const { t } = useTranslation();
   const isCustomModel = (draft.modelInputMode || 'list') === 'custom';
 
   return (
-    <Field id="provider-model" label="模型">
+    <Field id="provider-model" label={t('settings.models.model')}>
       <div className="provider-model-field">
         {isCustomModel ? (
           <Input
@@ -58,7 +60,7 @@ export function ProviderModelFields({
           onClick={onUseCustomModel}
         >
           <Keyboard size={15} />
-          自定义
+          {t('settings.models.customModel')}
         </Button>
         <Button
           className="action-button"
@@ -68,7 +70,7 @@ export function ProviderModelFields({
           onClick={onFetchModels}
         >
           <RefreshCw size={15} />
-          {modelLoading ? '获取中' : '获取'}
+          {modelLoading ? t('settings.models.fetchingModel') : t('settings.models.fetchModel')}
         </Button>
       </div>
       {modelNotice ? <p className="field-inline-note">{modelNotice}</p> : null}
@@ -90,6 +92,7 @@ function ProviderModelPicker({
   models: string[];
   onChange: (modelName: string) => void;
 }) {
+  const { t } = useTranslation();
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -187,7 +190,7 @@ function ProviderModelPicker({
         }}
       >
         <span className={selectedModel ? 'provider-model-value' : 'provider-model-placeholder'}>
-          {selectedModel || '选择模型'}
+          {selectedModel || t('settings.models.chooseModel')}
         </span>
         <ChevronDown size={16} />
       </button>
@@ -206,9 +209,9 @@ function ProviderModelPicker({
                 <div className="provider-model-search">
                   <Search size={15} />
                   <Input
-                    aria-label="搜索模型"
+                    aria-label={t('settings.models.searchModel')}
                     autoComplete="off"
-                    placeholder="搜索模型"
+                    placeholder={t('settings.models.searchModel')}
                     ref={searchRef}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
@@ -238,7 +241,7 @@ function ProviderModelPicker({
                 ))}
               </div>
               {filteredModels.length === 0 ? (
-                <p className="provider-model-empty">没有匹配模型</p>
+                <p className="provider-model-empty">{t('settings.models.noMatchedModel')}</p>
               ) : null}
             </div>,
             document.body,

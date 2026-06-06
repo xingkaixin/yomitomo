@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import { articlePublishedDistillationCount } from '@yomitomo/core';
 import { cleanEpubDisplayTitle, type ArticleSummaryRecord } from '@yomitomo/shared';
 import { articlePlainText, formatDate, urlHost } from '../shell/app-utils';
@@ -8,19 +9,23 @@ export type LibrarySource = 'web' | 'ebook' | 'pdf' | 'weread';
 
 export type LibrarySort = 'recentReading' | 'recentAdded' | 'annotations' | 'discussions';
 
-export const LIBRARY_FILTER_OPTIONS: Array<{ value: LibraryFilter; label: string }> = [
-  { value: 'all', label: '全部' },
-  { value: 'new', label: '新收录' },
-  { value: 'progress', label: '进行中' },
-  { value: 'done', label: '已读完' },
-];
+const libraryFilters: LibraryFilter[] = ['all', 'new', 'progress', 'done'];
 
-export const LIBRARY_SORT_OPTIONS: Array<{ value: LibrarySort; label: string }> = [
-  { value: 'recentAdded', label: '最近添加' },
-  { value: 'recentReading', label: '最近阅读' },
-  { value: 'annotations', label: '划线最多' },
-  { value: 'discussions', label: '沉淀最多' },
-];
+const librarySorts: LibrarySort[] = ['recentAdded', 'recentReading', 'annotations', 'discussions'];
+
+export function libraryFilterOptions(): Array<{ value: LibraryFilter; label: string }> {
+  return libraryFilters.map((value) => ({
+    value,
+    label: i18next.t(`library.filters.${value}`),
+  }));
+}
+
+export function librarySortOptions(): Array<{ value: LibrarySort; label: string }> {
+  return librarySorts.map((value) => ({
+    value,
+    label: i18next.t(`library.sort.${value}`),
+  }));
+}
 
 export function articleMatchesLibrarySearch(article: ArticleSummaryRecord, query: string) {
   const normalizedQuery = query.trim().toLocaleLowerCase('zh-CN');
@@ -118,21 +123,23 @@ export function groupLibraryArticles(articles: ArticleSummaryRecord[], sort: Lib
 function libraryArticleGroupLabel(article: ArticleSummaryRecord, sort: LibrarySort) {
   if (sort === 'recentAdded') return formatLibraryDateGroup(article.createdAt);
   if (sort === 'annotations')
-    return formatLibraryCountGroup(articleAnnotationCount(article), '划线');
+    return formatLibraryCountGroup(articleAnnotationCount(article), 'annotations');
   if (sort === 'discussions')
-    return formatLibraryCountGroup(articleDistillationCount(article), '沉淀');
+    return formatLibraryCountGroup(articleDistillationCount(article), 'distillations');
   return formatLibraryDateGroup(article.updatedAt);
 }
 
-function formatLibraryCountGroup(count: number, unit: '划线' | '沉淀') {
-  if (count <= 0) return `暂无${unit}`;
-  return `${count} 条${unit}`;
+function formatLibraryCountGroup(count: number, unit: 'annotations' | 'distillations') {
+  if (count <= 0) return i18next.t(`library.group.empty.${unit}`);
+  return i18next.t(`library.group.count.${unit}`, { count });
 }
 
 export function libraryArticleStatus(article: ArticleSummaryRecord) {
-  if (articleAnnotationCount(article) === 0) return { label: '新收录', tone: 'new' };
-  if ((article.readingProgress?.progress ?? 0) >= 0.98) return { label: '已读完', tone: 'done' };
-  return { label: '进行中', tone: 'progress' };
+  if (articleAnnotationCount(article) === 0)
+    return { label: i18next.t('library.status.new'), tone: 'new' };
+  if ((article.readingProgress?.progress ?? 0) >= 0.98)
+    return { label: i18next.t('library.status.done'), tone: 'done' };
+  return { label: i18next.t('library.status.progress'), tone: 'progress' };
 }
 
 export function articleAnnotationCount(article: ArticleSummaryRecord) {
@@ -169,29 +176,29 @@ export function articleReadingMinutes(article: ArticleSummaryRecord) {
 
 function formatLibraryDateGroup(value: string) {
   const days = localDayDistance(value);
-  if (days <= 0) return '今天';
-  if (days === 1) return '昨天';
-  if (days < 7) return '本周早些时候';
-  return '更早';
+  if (days <= 0) return i18next.t('library.dateGroup.today');
+  if (days === 1) return i18next.t('library.dateGroup.yesterday');
+  if (days < 7) return i18next.t('library.dateGroup.thisWeek');
+  return i18next.t('library.dateGroup.earlier');
 }
 
 export function formatLibraryRelativeTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return formatDate(value);
 
-  const time = new Intl.DateTimeFormat('zh-CN', {
+  const time = new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     hour: '2-digit',
     minute: '2-digit',
   }).format(date);
   const days = localDayDistance(value);
-  if (days <= 0) return `今天 ${time}`;
-  if (days === 1) return `昨天 ${time}`;
+  if (days <= 0) return i18next.t('library.relativeTime.today', { time });
+  if (days === 1) return i18next.t('library.relativeTime.yesterday', { time });
   if (days < 7) return `${weekdayLabel(date)} ${time}`;
   return formatDate(value);
 }
 
 function weekdayLabel(date: Date) {
-  return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()] || '';
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', { weekday: 'short' }).format(date);
 }
 
 function localDayDistance(value: string) {

@@ -2,9 +2,14 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, LlmProvider } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { AiUsagePanel, AiTraceSettingsPanel } from '../shell/app-assistant-diagnostics';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

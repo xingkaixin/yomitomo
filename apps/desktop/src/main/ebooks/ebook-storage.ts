@@ -9,7 +9,7 @@ function ebookDirectory() {
 
 function ebookFilePath(articleId: string) {
   const safeId = articleId.replace(/[^a-z0-9_-]/gi, '');
-  if (!safeId) throw new Error('电子书 ID 无效');
+  if (!safeId) throw new Error('EBOOK_SOURCE_INVALID_ID');
   return join(ebookDirectory(), `${safeId}.epub`);
 }
 
@@ -23,7 +23,7 @@ export async function readEbookSourceFile(articleId: string) {
     return await readFile(ebookFilePath(articleId));
   } catch (error) {
     if (errorCode(error) === 'ENOENT') {
-      throw new Error('原始 EPUB 文件不存在，请重新导入', { cause: error });
+      throw new Error('EBOOK_SOURCE_FILE_MISSING', { cause: error });
     }
     throw error;
   }

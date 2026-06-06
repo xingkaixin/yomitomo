@@ -7,7 +7,8 @@ import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
-import type { ReaderAppViewProps } from './reader-app-view-types';
+import type { ReaderAppViewProps, ReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 import { readerBackgroundTone } from '../reader-settings';
 import { useReaderShellState } from './use-reader-shell-state';
 
@@ -26,6 +27,7 @@ export type {
   PendingComposer,
   ReaderAppViewProps,
   ReaderArticle,
+  ReaderUiLabels,
   SelectionAction,
 } from './reader-app-view-types';
 
@@ -35,6 +37,7 @@ export function ReaderAppView({
   annotations: annotationModel,
   article,
   chat,
+  labels = defaultReaderUiLabels,
   options,
   refs,
   selection,
@@ -168,6 +171,7 @@ export function ReaderAppView({
     >
       <ReaderToolbar
         extracted={article.extracted}
+        labels={labels}
         toolbarArticleAction={toolbar?.articleAction}
         onClose={shell.onClose}
       />
@@ -176,6 +180,7 @@ export function ReaderAppView({
         annotationNavigation={annotationNavigation}
         controls={toolbar?.controls}
         hasToc={hasToc}
+        labels={labels}
         search={toolbar?.search}
         showAnnotationNavigation={Boolean(
           annotationActions.onResolveAnnotationNavigation && annotationActions.onNavigateAnnotation,
@@ -187,6 +192,7 @@ export function ReaderAppView({
 
       {showSettings ? (
         <ReaderFloatingPanels
+          labels={readerSettingsLabels(labels)}
           readerSettings={readerSettings}
           settingsOpen={settingsOpen}
           onUpdateReaderSettings={shell.onUpdateReaderSettings}
@@ -196,7 +202,7 @@ export function ReaderAppView({
       <button
         className="reader-responsive-scrim"
         type="button"
-        aria-label="关闭侧栏"
+        aria-label={labels.closeSidebar}
         onClick={shell.onCloseResponsivePanels}
       />
 
@@ -204,6 +210,7 @@ export function ReaderAppView({
         <ReaderTocPanel
           annotationTotals={annotationTotals}
           hasToc={hasToc}
+          labels={labels}
           tocAnnotationStats={toc.annotationStats}
           tocItems={tocItems}
           tocOpen={tocOpen}
@@ -229,6 +236,7 @@ export function ReaderAppView({
           expandedPrimaryCommentIds={expandedPrimaryCommentIds}
           extracted={article.extracted}
           highlightChoice={highlightChoice}
+          labels={labels}
           messageSendShortcut={messageSendShortcut}
           noteRefForAnnotation={noteRefForAnnotation}
           notesRef={notesRef}
@@ -267,6 +275,7 @@ export function ReaderAppView({
         completionBurstKey={completionBurstKey}
         completing={dockCompleting}
         items={dockItems}
+        labels={labels}
       />
 
       {chat && chatActions ? (
@@ -274,6 +283,7 @@ export function ReaderAppView({
           agents={agents}
           draftContext={chat.draftContext}
           error={chat.error}
+          labels={labels}
           messageSendShortcut={messageSendShortcut}
           open={chat.open}
           selectedAssistantId={chat.selectedAssistantId}
@@ -294,4 +304,11 @@ export function ReaderAppView({
       )}
     </div>
   );
+}
+
+function readerSettingsLabels(labels: ReaderUiLabels) {
+  return {
+    articleWidth: labels.articleWidth,
+    fontSize: labels.fontSize,
+  };
 }

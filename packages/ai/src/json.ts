@@ -67,7 +67,7 @@ export function parseJsonObject(value: string): Record<string, unknown> {
       const parsed = JSON.parse(cleaned.slice(start, end + 1));
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     }
-    throw new Error('审稿结果不是有效 JSON');
+    throw new Error('AI_JSON_OBJECT_PARSE_FAILED');
   }
 }
 
@@ -83,7 +83,7 @@ export function parseJsonArray(value: string): unknown[] {
       const parsed = JSON.parse(cleaned.slice(start, end + 1));
       return Array.isArray(parsed) ? parsed : [];
     }
-    throw new Error('助手任务拆解结果不是有效 JSON');
+    throw new Error('AI_JSON_ARRAY_PARSE_FAILED');
   }
 }
 

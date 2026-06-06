@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment } from '@yomitomo/core';
@@ -26,7 +27,11 @@ export async function runSourceAgentReviewRequest({
   saveAnnotations,
   setStatusMessage,
 }: RunSourceAgentReviewRequestInput) {
-  setStatusMessage(`${agents.map((agent) => agent.nickname).join('、')} 正在审阅`);
+  setStatusMessage(
+    i18next.t('source.agentStatus.reviewing', {
+      name: agents.map((agent) => agent.nickname).join(i18next.t('common.listSeparator')),
+    }),
+  );
   let latestAnnotations = annotationsRef.current;
   let changed = false;
 

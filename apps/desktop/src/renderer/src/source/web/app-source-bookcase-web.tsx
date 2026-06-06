@@ -1,6 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import {
   createTextAnchor,
@@ -42,6 +43,7 @@ import {
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
+import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { articleIdentityLine } from '../../shell/app-utils';
 import {
   defaultTocOpen,
@@ -83,6 +85,7 @@ export function WebSourceBookcase({
   onSaveArticleReaderChatState,
   onUpdateArticle,
 }: WebSourceBookcaseProps) {
+  const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -586,7 +589,7 @@ export function WebSourceBookcase({
   if (!article) {
     return (
       <section className="source-bookcase is-empty">
-        <div className="source-empty">选择一篇文章查看原文</div>
+        <div className="source-empty">{t('reader.emptySource')}</div>
       </section>
     );
   }
@@ -603,12 +606,13 @@ export function WebSourceBookcase({
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
   );
+  const labels = readerUiLabels();
 
   return (
     <section className="source-bookcase source-reader-shell">
       <button className="source-reader-back-button" type="button" onClick={onClose}>
         <ChevronLeft size={16} />
-        <span>返回阅读库</span>
+        <span>{t('common.backToLibrary')}</span>
       </button>
       <style>
         {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
@@ -693,6 +697,7 @@ export function WebSourceBookcase({
           id: article.id,
         }}
         chat={readerChat.model}
+        labels={labels}
         options={{ embedded: true }}
         refs={{
           articleRef,
@@ -719,6 +724,7 @@ export function WebSourceBookcase({
           articleAction: <OpenArticleButton article={article} iconOnly />,
           controls: (
             <ReaderSettingsToolbarControls
+              labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
               settings={readerSettings}
               onChange={updateReaderSettings}
             />

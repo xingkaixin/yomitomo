@@ -879,7 +879,8 @@
   --app-titlebar-mobile-left-padding: 72px;
   --app-titlebar-mobile-right-padding: 18px;
   --reader-titlebar-back-left: 18px;
-  --reader-titlebar-padding-left: 150px;
+  --reader-titlebar-back-max-width: 180px;
+  --reader-titlebar-padding-left: 222px;
   --reader-titlebar-padding-right: 22px;
   --reader-titlebar-mobile-back-left: 12px;
   --reader-titlebar-mobile-padding-left: 62px;
@@ -889,7 +890,7 @@
 
 .app-shell.is-darwin {
   --reader-titlebar-back-left: 78px;
-  --reader-titlebar-padding-left: 210px;
+  --reader-titlebar-padding-left: 282px;
   --reader-titlebar-mobile-back-left: 78px;
   --reader-titlebar-mobile-padding-left: 132px;
 }
@@ -2976,15 +2977,6 @@
     grid-column: 1 / -1;
     justify-content: space-between;
     overflow-x: auto;
-  }
-
-  .source-pdf-reader-shell .source-reader-back-button {
-    width: auto;
-    padding: 0 12px 0 10px;
-  }
-
-  .source-pdf-reader-shell .source-reader-back-button span {
-    display: inline;
   }
 
   .library-list {

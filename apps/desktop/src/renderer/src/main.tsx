@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
+import { normalizeUiLanguage } from '@yomitomo/shared';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
+import { useTranslation } from 'react-i18next';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AvatarImage } from './shell/app-ui';
@@ -31,8 +33,12 @@ import { AnnotationSedimentationWindowApp } from './annotation-discussion/app-an
 import { ThemeSelector } from './theme/app-theme-selector';
 import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dialog-transition';
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
+import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
+import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
 import './styles.css';
 
+const startupUiLanguage = readCachedUiLanguage();
+initializeAppI18n(startupUiLanguage);
 const startupThemeId = readCachedThemeId();
 const startupThemeIdsByTone = readCachedThemeIdsByTone();
 const startupReaderSettings = readDesktopReaderSettings();
@@ -272,6 +278,7 @@ function scheduleIdlePreloadQueue(tasks: Array<() => Promise<unknown>>) {
 type SettingKey = 'library' | 'stats' | 'settings' | 'agents';
 
 function App() {
+  const { t, i18n } = useTranslation();
   const [activeSetting, setActiveSetting] = useState<SettingKey>('library');
   const [activeThemeId, setActiveThemeId] = useState<AppThemeId>(startupThemeId);
   const [themeIdsByTone, setThemeIdsByTone] = useState(startupThemeIdsByTone);
@@ -318,6 +325,9 @@ function App() {
 
   useEffect(() => {
     if (!storeLoaded || storeLoadError) return;
+    const storedUiLanguage = normalizeUiLanguage(store.settings.uiLanguage);
+    writeCachedUiLanguage(storedUiLanguage);
+    changeAppI18nLanguage(storedUiLanguage);
     const storedThemeId = resolveAppThemeId(store.settings.themeId);
     setActiveThemeId((currentThemeId) =>
       currentThemeId === storedThemeId ? currentThemeId : storedThemeId,
@@ -344,7 +354,7 @@ function App() {
       writeDesktopReaderSettings(nextSettings);
     }
     writeCachedThemeId(storedThemeId);
-  }, [store.settings.themeId, storeLoadError, storeLoaded]);
+  }, [store.settings.themeId, store.settings.uiLanguage, storeLoadError, storeLoaded]);
 
   const {
     deleteArticle,
@@ -366,7 +376,6 @@ function App() {
     userDraft,
     settingsDraft,
     providerDraft,
-    selectedProviderId,
     testState,
     profileSaveState,
     generalSaveState,
@@ -432,6 +441,9 @@ function App() {
 
   async function saveOnboardingSettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
+    writeCachedUiLanguage(nextLanguage);
+    changeAppI18nLanguage(nextLanguage);
     applyStore(nextStore);
     if (settings.onboardingCompletedAt) setOnboardingForced(false);
     return nextStore;
@@ -485,6 +497,9 @@ function App() {
 
   async function saveLibrarySettings(settings: AppSettings) {
     const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+    const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
+    writeCachedUiLanguage(nextLanguage);
+    changeAppI18nLanguage(nextLanguage);
     applyStore(nextStore);
   }
 
@@ -575,7 +590,7 @@ function App() {
     );
   }
 
-  const today = new Intl.DateTimeFormat('zh-CN', {
+  const today = new Intl.DateTimeFormat(i18n.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -615,7 +630,7 @@ function App() {
       <header className="app-masthead">
         <div className="app-masthead-title">
           <h1>
-            Yomitomo <em>伴读</em>
+            Yomitomo <em>{t('brandSuffix')}</em>
           </h1>
         </div>
         <time className="app-masthead-date" dateTime={new Date().toISOString()}>
@@ -623,17 +638,25 @@ function App() {
         </time>
       </header>
 
-      <nav className="app-section-nav" aria-label="主导航">
+      <nav className="app-section-nav" aria-label={t('nav.main')}>
         <SettingsNavButton
           active={activeSetting === 'library'}
-          label="阅读库"
+          label={t('nav.library')}
           onClick={() => setActiveSetting('library')}
         />
-        <SettingsNavButton active={activeSetting === 'agents'} label="助手" onClick={openAgents} />
-        <SettingsNavButton active={activeSetting === 'stats'} label="统计" onClick={openStats} />
+        <SettingsNavButton
+          active={activeSetting === 'agents'}
+          label={t('nav.agents')}
+          onClick={openAgents}
+        />
+        <SettingsNavButton
+          active={activeSetting === 'stats'}
+          label={t('nav.stats')}
+          onClick={openStats}
+        />
         <SettingsNavButton
           active={activeSetting === 'settings'}
-          label="设置"
+          label={t('nav.settings')}
           onClick={openSettings}
         />
         <ThemeSelector
@@ -647,16 +670,16 @@ function App() {
           onSelectTheme={(themeId, backgroundColor) => void selectTheme(themeId, backgroundColor)}
         />
         <button
-          aria-label="打开个人设置"
+          aria-label={t('nav.profile')}
           className="app-nav-profile-button"
-          data-tooltip="个人设置"
+          data-tooltip={t('nav.profile')}
           type="button"
           onClick={(event) => openProfileDialog(event.currentTarget)}
         >
           <AvatarImage
             value={store.user.avatar || ''}
             className="app-nav-profile-avatar"
-            fallback={store.user.nickname?.slice(0, 1) || '我'}
+            fallback={store.user.nickname?.slice(0, 1) || t('common.me')}
           />
         </button>
       </nav>
@@ -721,7 +744,6 @@ function App() {
                   draft={providerDraft}
                   settingsDraft={settingsDraft}
                   providers={store.providers}
-                  selectedId={selectedProviderId}
                   testState={testState}
                   canSave={canSaveProvider}
                   canSaveRoutes={canSaveProviderRoutes}
@@ -802,6 +824,9 @@ function App() {
         store={store}
         onSaveSettings={async (settings) => {
           const nextStore = await window.yomitomoDesktop.saveSettings(settings);
+          const nextLanguage = normalizeUiLanguage(nextStore.settings.uiLanguage);
+          writeCachedUiLanguage(nextLanguage);
+          changeAppI18nLanguage(nextLanguage);
           applyStore(nextStore);
           return nextStore;
         }}
@@ -823,11 +848,12 @@ function StartupShell() {
 }
 
 function AppMasthead() {
+  const { t } = useTranslation();
   return (
     <header className="app-masthead">
       <div className="app-masthead-title">
         <h1>
-          Yomitomo <em>伴读</em>
+          Yomitomo <em>{t('brandSuffix')}</em>
         </h1>
       </div>
     </header>
@@ -835,19 +861,20 @@ function AppMasthead() {
 }
 
 function StartupNav() {
+  const { t } = useTranslation();
   return (
-    <nav className="app-section-nav" aria-label="主导航">
+    <nav className="app-section-nav" aria-label={t('nav.main')}>
       <button className="settings-nav-item is-active" disabled type="button">
-        <span>阅读库</span>
+        <span>{t('startup.library')}</span>
       </button>
       <button className="settings-nav-item" disabled type="button">
-        <span>助手</span>
+        <span>{t('startup.agents')}</span>
       </button>
       <button className="settings-nav-item" disabled type="button">
-        <span>统计</span>
+        <span>{t('startup.stats')}</span>
       </button>
       <button className="settings-nav-item" disabled type="button">
-        <span>设置</span>
+        <span>{t('startup.settings')}</span>
       </button>
     </nav>
   );

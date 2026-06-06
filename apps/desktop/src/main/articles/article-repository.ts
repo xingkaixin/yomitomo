@@ -174,7 +174,7 @@ export async function saveArticleRows(input: ArticleRecord): Promise<ArticleUpse
   writeArticleRowsInTransaction(getDatabase(), input);
   trySyncArticleAnnotationMemoryEntries(input);
   const article = readArticleSummaryRows(getDatabase(), input.id);
-  if (!article) throw new Error('文章保存失败');
+  if (!article) throw new Error('ARTICLE_SAVE_FAILED');
   return buildArticleUpsertPatch(article);
 }
 

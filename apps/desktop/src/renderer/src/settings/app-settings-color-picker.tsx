@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function ColorPicker({
   colors,
@@ -9,6 +10,7 @@ export function ColorPicker({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="color-swatches">
       {colors.map((color) => (
@@ -17,7 +19,7 @@ export function ColorPicker({
           key={color}
           style={{ backgroundColor: color }}
           type="button"
-          aria-label={`选择颜色 ${color}`}
+          aria-label={t('settings.profile.chooseColor', { color })}
           onClick={() => onChange(color)}
         >
           {value === color ? <Check size={15} /> : null}

@@ -11,6 +11,7 @@ import { selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
 import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
+import { useTranslation } from 'react-i18next';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
 
@@ -18,13 +19,6 @@ type ActiveReleaseDialog = {
   scene: ReleaseDialogScene;
   version: string;
   highlights: ReleaseNoteHighlight[];
-};
-
-const TYPE_LABEL: Record<ReleaseNoteHighlightType, string> = {
-  new: '新增',
-  changed: '调整',
-  deprecated: '废弃',
-  fixed: '修复',
 };
 
 const TYPE_ICON: Record<ReleaseNoteHighlightType, typeof Sparkles> = {
@@ -140,6 +134,7 @@ export function UpdateReleaseDialogView({
   onPrimary: () => void;
   onSecondary: () => void;
 }) {
+  const { t } = useTranslation();
   const isAfter = scene === 'after-update';
   const hasHighlights = highlights.length > 0;
 
@@ -147,14 +142,14 @@ export function UpdateReleaseDialogView({
     if (isAfter) fireReleaseConfetti();
   }, [isAfter]);
 
-  const badge = isAfter ? '已更新到' : '发现新版本';
+  const badge = isAfter ? t('updateDialog.afterBadge') : t('updateDialog.beforeBadge');
   const lead = isAfter
     ? hasHighlights
-      ? 'Yomitomo 已更新到最新版本，这次为你带来：'
-      : 'Yomitomo 已更新到最新版本。'
+      ? t('updateDialog.afterLeadWithHighlights')
+      : t('updateDialog.afterLead')
     : hasHighlights
-      ? '检测到新版本，本次重点更新：'
-      : '检测到新版本，建议更新到最新体验。';
+      ? t('updateDialog.beforeLeadWithHighlights')
+      : t('updateDialog.beforeLead');
 
   return (
     <div className="update-dialog-overlay" role="presentation" onClick={onSecondary}>
@@ -171,7 +166,7 @@ export function UpdateReleaseDialogView({
         >
           <span className="update-dialog-badge">{badge}</span>
           <span className="update-dialog-version">v{version}</span>
-          <span className="update-dialog-tagline">翻开新的一页</span>
+          <span className="update-dialog-tagline">{t('updateDialog.tagline')}</span>
         </div>
         <div className="update-dialog-body">
           <p className="update-dialog-lead">{lead}</p>
@@ -183,7 +178,7 @@ export function UpdateReleaseDialogView({
                   <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
                     <span className={`update-dialog-tag is-${highlight.type}`}>
                       <Icon size={13} aria-hidden />
-                      {TYPE_LABEL[highlight.type]}
+                      {t(`updateDialog.type.${highlight.type}`)}
                     </span>
                     <span className="update-dialog-text">
                       <span className="update-dialog-title">{highlight.title}</span>
@@ -201,7 +196,7 @@ export function UpdateReleaseDialogView({
           {isAfter ? (
             <button className="update-dialog-button is-primary" type="button" onClick={onPrimary}>
               <PenLine size={16} aria-hidden />
-              开始使用
+              {t('updateDialog.start')}
             </button>
           ) : (
             <>
@@ -211,7 +206,7 @@ export function UpdateReleaseDialogView({
                 disabled={busy}
                 onClick={onSecondary}
               >
-                稍后
+                {t('updateDialog.later')}
               </button>
               <button
                 className="update-dialog-button is-primary"
@@ -220,7 +215,7 @@ export function UpdateReleaseDialogView({
                 onClick={onPrimary}
               >
                 <ArrowUpCircle size={16} aria-hidden />
-                {busy ? '正在下载' : '立即更新'}
+                {busy ? t('updateDialog.downloading') : t('updateDialog.updateNow')}
               </button>
             </>
           )}

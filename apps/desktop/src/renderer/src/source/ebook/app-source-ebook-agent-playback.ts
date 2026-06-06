@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { Annotation, PublicAgent } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
@@ -172,7 +173,10 @@ async function playOffscreenEbookAnnotation({
     visible: true,
     x: surfaceRect.left + surfaceRect.width / 2,
     y: offscreen === 'above' ? surfaceRect.top + 18 : surfaceRect.bottom - 18,
-    label: `${ebookAnnotationAgentName(annotation)} 正在${offscreen === 'above' ? '上方' : '下方'}添加想法`,
+    label: i18next.t('source.agentStatus.addingThoughtOffscreen', {
+      direction: i18next.t(`source.agentStatus.direction.${offscreen}`),
+      name: ebookAnnotationAgentName(annotation),
+    }),
     offscreen,
     agent: cursorAgent,
   });
@@ -213,7 +217,9 @@ async function playVisibleEbookAnnotation({
   lastRect: DOMRect;
   range: Range;
 }) {
-  const label = `${ebookAnnotationAgentName(annotation)} 正在添加想法`;
+  const label = i18next.t('source.agentStatus.addingThought', {
+    name: ebookAnnotationAgentName(annotation),
+  });
   stopEbookVirtualReadingTimer(cursorId);
   updateEbookVirtualCursor(cursorId, {
     id: cursorId,
@@ -254,7 +260,10 @@ async function playVisibleEbookAnnotation({
     visible: true,
     x: lastRect.right,
     y: lastRect.top + lastRect.height / 2,
-    label: `${ebookAnnotationAgentName(annotation)} 想法已添加`,
+    label: i18next.t('source.agentStatus.withSuffix', {
+      name: ebookAnnotationAgentName(annotation),
+      suffix: i18next.t('source.agentStatus.thoughtAdded'),
+    }),
     offscreen: null,
     agent: cursorAgent,
   });
@@ -271,5 +280,5 @@ function ebookAnnotationCursorId(annotation: Annotation, cursorAgent: PublicAgen
 }
 
 function ebookAnnotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || '助手';
+  return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');
 }

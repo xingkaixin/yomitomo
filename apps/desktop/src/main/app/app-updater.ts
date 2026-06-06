@@ -60,7 +60,7 @@ export function configureAppUpdater(notify: (state: AppUpdateState) => void) {
     logError('updater.error', error);
     setUpdateState({
       status: 'error',
-      message: error.message || '更新失败',
+      message: error.message || 'UPDATE_FAILED',
     });
   });
 }
@@ -92,7 +92,7 @@ export async function checkForAppUpdates() {
       logError('updater.check-failed', error);
       return setUpdateState({
         status: 'error',
-        message: errorMessage(error, '检查更新失败'),
+        message: errorMessage(error, 'UPDATE_CHECK_FAILED'),
       });
     })
     .finally(() => {
@@ -109,7 +109,7 @@ export async function downloadAppUpdate() {
   if (updateState.status !== 'available') {
     return setUpdateState({
       status: 'error',
-      message: '请先检查更新',
+      message: 'UPDATE_CHECK_REQUIRED',
     });
   }
 
@@ -134,7 +134,7 @@ export async function downloadAppUpdate() {
       return setUpdateState({
         status: 'error',
         availableVersion: updateState.availableVersion,
-        message: errorMessage(error, '下载更新失败'),
+        message: errorMessage(error, 'UPDATE_DOWNLOAD_FAILED'),
       });
     })
     .finally(() => {
@@ -150,7 +150,7 @@ export function installAppUpdate() {
     return setUpdateState({
       status: 'error',
       availableVersion: updateState.availableVersion,
-      message: '更新尚未下载完成',
+      message: 'UPDATE_NOT_DOWNLOADED',
     });
   }
 
@@ -164,7 +164,7 @@ function supportedState(): AppUpdateState | null {
     return {
       status: 'unsupported',
       currentVersion: app.getVersion(),
-      message: '当前系统暂不支持自动更新',
+      message: 'UPDATE_UNSUPPORTED_PLATFORM',
     };
   }
 

@@ -16,6 +16,7 @@ import { Button } from '../components/ui/button';
 import { Calendar } from '../components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '../components/ui/select';
+import { useTranslation } from 'react-i18next';
 
 type DiagnosticsProps = {
   agents: Agent[];
@@ -33,8 +34,10 @@ type DiagnosticsFilters = {
 };
 
 const allValue = '__all__';
+type Translate = ReturnType<typeof useTranslation>['t'];
 
 export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
+  const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState(defaultFilters);
   const [runs, setRuns] = useState<AssistantExecutionRun[]>([]);
   const [summary, setSummary] = useState<AssistantExecutionSummary | null>(null);
@@ -42,7 +45,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const options = useDiagnosticsOptions(runs, agents, providers);
+  const options = useDiagnosticsOptions(runs, agents, providers, t);
   const agentById = useAgentMap(agents);
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
       setSummary(nextSummary);
       if (expandedId && !nextRuns.some((run) => run.id === expandedId)) setExpandedId('');
     } catch (nextError) {
-      setError(errorMessage(nextError, '读取助手调用链路失败。'));
+      setError(errorMessage(nextError, t('diagnostics.traceReadFailed')));
     } finally {
       setBusy(false);
     }
@@ -72,8 +75,8 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
     <div className="settings-panel diagnostics-panel">
       <PanelHeader
         icon={<Route size={20} />}
-        title="助手调用链路"
-        description="查看助手执行模式、状态、usage、成本估算和脱敏步骤，定位链路问题。"
+        title={t('diagnostics.traceTitle')}
+        description={t('diagnostics.traceDescription')}
       />
       <DiagnosticsToolbar
         filters={filters}
@@ -83,12 +86,12 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
         onChange={setFilters}
         onRefresh={refresh}
       />
-      <DiagnosticsSummaryCards summary={summary} />
+      <DiagnosticsSummaryCards locale={i18n.language} summary={summary} />
       {error ? <DiagnosticsStatus status="error" message={error} onRetry={refresh} /> : null}
       {!error && !busy && runs.length === 0 ? (
-        <DiagnosticsStatus message="当前时间范围没有助手执行记录。" />
+        <DiagnosticsStatus message={t('diagnostics.noRuns')} />
       ) : null}
-      <div className="diagnostics-run-list" aria-label="助手调用链路列表">
+      <div className="diagnostics-run-list" aria-label={t('diagnostics.runList')}>
         {runs.map((run) => (
           <section className="diagnostics-run-card" key={run.id}>
             <button
@@ -106,8 +109,10 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
                 {run.providerName} / {run.modelName}
               </span>
               <span>{statusLabel(run)}</span>
-              <span>{formatTokens(run.usage.totalTokens)}</span>
-              <span>{formatCost(run.estimatedCostMicros, run.currency)}</span>
+              <span>{formatTokens(run.usage.totalTokens, i18n.language)}</span>
+              <span>
+                {formatCost(run.estimatedCostMicros, run.currency, t('diagnostics.missingCost'))}
+              </span>
               <ChevronDown size={16} />
             </button>
             {expandedId === run.id ? <TraceRunDetails run={run} /> : null}
@@ -121,6 +126,7 @@ export function AiTraceSettingsPanel({ agents, providers }: DiagnosticsProps) {
 const AI_USAGE_WINDOW_DAYS = 70;
 
 export function AiUsagePanel({ agents }: { agents: Agent[] }) {
+  const { t, i18n } = useTranslation();
   const [overview, setOverview] = useState<AssistantExecutionTotals | null>(null);
   const [byAgent, setByAgent] = useState<AssistantExecutionSummaryGroup[]>([]);
   const [busy, setBusy] = useState(false);
@@ -140,7 +146,7 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
       setOverview(summary.totals);
       setByAgent(summary.byAgent);
     } catch (nextError) {
-      setError(errorMessage(nextError, '读取助手用量失败。'));
+      setError(errorMessage(nextError, t('diagnostics.usageReadFailed')));
     } finally {
       setBusy(false);
     }
@@ -151,7 +157,7 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
     <div className="stats-ai-usage">
       <div className="stats-ai-usage-bar">
         <p className="stats-ai-usage-caption">
-          最近 {AI_USAGE_WINDOW_DAYS} 天，基于本地助手执行记录的预估用量，仅供参考，并非实际账单。
+          {t('diagnostics.usageCaption', { days: AI_USAGE_WINDOW_DAYS })}
         </p>
         <Button
           className={busy ? 'stats-ai-usage-refresh is-loading' : 'stats-ai-usage-refresh'}
@@ -161,39 +167,45 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
           onClick={refresh}
         >
           <RefreshCw size={15} />
-          刷新
+          {t('diagnostics.refresh')}
         </Button>
       </div>
       <div className="stats-start-overview">
         <section className="stats-status-card">
-          <span>预估花费</span>
-          <strong>{formatCost(totals.estimatedCostMicros, 'USD')}</strong>
+          <span>{t('diagnostics.estimatedCost')}</span>
+          <strong>
+            {formatCost(totals.estimatedCostMicros, 'USD', t('diagnostics.missingCost'))}
+          </strong>
         </section>
         <section className="stats-status-card">
-          <span>总 tokens</span>
-          <strong>{formatTokens(totals.usage.totalTokens)}</strong>
+          <span>{t('diagnostics.totalTokens')}</span>
+          <strong>{formatTokens(totals.usage.totalTokens, i18n.language)}</strong>
         </section>
         <section className="stats-status-card">
-          <span>调用次数</span>
-          <strong>{formatNumber(totals.runCount)}</strong>
+          <span>{t('diagnostics.callCount')}</span>
+          <strong>{formatNumber(totals.runCount, i18n.language)}</strong>
         </section>
       </div>
       {totals.missingCostCount > 0 ? (
         <p className="stats-ai-usage-note">
-          另有 {formatNumber(totals.missingCostCount)} 次调用缺少定价数据，未计入预估花费。
+          {t('diagnostics.missingCostNote', {
+            count: formatNumber(totals.missingCostCount, i18n.language),
+          })}
         </p>
       ) : null}
       <section className="stats-ai-usage-agents">
         <div className="stats-section-heading">
-          <h3>按助手分布</h3>
-          <p>按预估花费排序</p>
+          <h3>{t('diagnostics.byAgent')}</h3>
+          <p>{t('diagnostics.sortByEstimatedCost')}</p>
         </div>
         {error ? (
           <DiagnosticsStatus status="error" message={error} onRetry={refresh} />
         ) : byAgent.length === 0 ? (
           <DiagnosticsStatus
             message={
-              busy ? '正在读取助手用量…' : `最近 ${AI_USAGE_WINDOW_DAYS} 天没有助手用量记录。`
+              busy
+                ? t('diagnostics.loadingUsage')
+                : t('diagnostics.noUsage', { days: AI_USAGE_WINDOW_DAYS })
             }
           />
         ) : (
@@ -203,12 +215,14 @@ export function AiUsagePanel({ agents }: { agents: Agent[] }) {
                 <AgentIdentity agent={agentById.get(group.key)} fallbackName={group.label} />
                 <div className="stats-ai-usage-metrics">
                   <span className="stats-ai-usage-metric">
-                    <em>调用</em>
-                    <strong>{formatNumber(group.runCount)}</strong>
+                    <em>{t('diagnostics.call')}</em>
+                    <strong>{formatNumber(group.runCount, i18n.language)}</strong>
                   </span>
                   <span className="stats-ai-usage-metric">
-                    <em>预估花费</em>
-                    <strong>{formatCost(group.estimatedCostMicros, 'USD')}</strong>
+                    <em>{t('diagnostics.estimatedCost')}</em>
+                    <strong>
+                      {formatCost(group.estimatedCostMicros, 'USD', t('diagnostics.missingCost'))}
+                    </strong>
                   </span>
                 </div>
               </div>
@@ -237,6 +251,7 @@ function DiagnosticsToolbar({
   onChange: (filters: DiagnosticsFilters) => void;
   onRefresh: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="diagnostics-filter-panel">
       <div className="diagnostics-toolbar">
@@ -245,29 +260,29 @@ function DiagnosticsToolbar({
           onChange={(range) => onChange({ ...filters, range })}
         />
         <FilterSelect
-          label="助手"
+          label={t('diagnostics.assistant')}
           value={filters.agentId}
           options={options.agents}
           onChange={(agentId) => onChange({ ...filters, agentId })}
         />
         <FilterSelect
-          label="模型"
+          label={t('diagnostics.model')}
           value={filters.providerModel}
           options={options.providerModels}
           contentClassName="diagnostics-provider-select-content"
           onChange={(providerModel) => onChange({ ...filters, providerModel })}
         />
         <FilterSelect
-          label="任务"
+          label={t('diagnostics.task')}
           value={filters.taskType}
           options={options.taskTypes}
           onChange={(taskType) => onChange({ ...filters, taskType })}
         />
         <FilterSelect
-          label="状态"
+          label={t('diagnostics.status')}
           value={filters.status}
           options={[
-            { value: allValue, label: '全部状态' },
+            { value: allValue, label: t('diagnostics.allStatus') },
             { value: 'success', label: 'success' },
             { value: 'fallback', label: 'fallback' },
             { value: 'error', label: 'error' },
@@ -277,13 +292,13 @@ function DiagnosticsToolbar({
         {showModeFilters ? (
           <>
             <FilterSelect
-              label="请求模式"
+              label={t('diagnostics.requestedMode')}
               value={filters.requestedMode}
               options={options.modes}
               onChange={(requestedMode) => onChange({ ...filters, requestedMode })}
             />
             <FilterSelect
-              label="实际模式"
+              label={t('diagnostics.effectiveMode')}
               value={filters.effectiveMode}
               options={options.modes}
               onChange={(effectiveMode) => onChange({ ...filters, effectiveMode })}
@@ -298,7 +313,7 @@ function DiagnosticsToolbar({
           onClick={onRefresh}
         >
           <RefreshCw size={15} />
-          查询
+          {t('diagnostics.query')}
         </Button>
       </div>
     </div>
@@ -312,14 +327,15 @@ function DateRangePicker({
   value: DateRange;
   onChange: (range: DateRange) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="diagnostics-filter-field diagnostics-date-field">
-      <span>时间范围</span>
+      <span>{t('diagnostics.timeRange')}</span>
       <Popover>
         <PopoverTrigger asChild>
           <Button className="diagnostics-date-trigger" variant="outline" type="button">
             <CalendarIcon size={15} />
-            {dateRangeLabel(value)}
+            {dateRangeLabel(value, t)}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="diagnostics-calendar-popover" align="start">
@@ -368,20 +384,42 @@ function FilterSelect({
   );
 }
 
-function DiagnosticsSummaryCards({ summary }: { summary: AssistantExecutionSummary | null }) {
+function DiagnosticsSummaryCards({
+  locale,
+  summary,
+}: {
+  locale: string;
+  summary: AssistantExecutionSummary | null;
+}) {
+  const { t } = useTranslation();
   const totals = summary?.totals || emptyTotals();
   return (
     <div className="diagnostics-summary-grid">
-      <SummaryCard label="执行数" value={formatNumber(totals.runCount)} />
       <SummaryCard
-        label="状态"
+        label={t('diagnostics.executions')}
+        value={formatNumber(totals.runCount, locale)}
+      />
+      <SummaryCard
+        label={t('diagnostics.status')}
         value={`${totals.successCount} / ${totals.fallbackCount} / ${totals.errorCount}`}
         hint="success / fallback / error"
       />
-      <SummaryCard label="总 tokens" value={formatTokens(totals.usage.totalTokens)} />
-      <SummaryCard label="估算成本" value={formatCost(totals.estimatedCostMicros, 'USD')} />
-      <SummaryCard label="价格缺失" value={formatNumber(totals.missingCostCount)} />
-      <SummaryCard label="平均耗时" value={formatDuration(totals.averageDurationMs)} />
+      <SummaryCard
+        label={t('diagnostics.totalTokens')}
+        value={formatTokens(totals.usage.totalTokens, locale)}
+      />
+      <SummaryCard
+        label={t('diagnostics.estimatedTotalCost')}
+        value={formatCost(totals.estimatedCostMicros, 'USD', t('diagnostics.missingCost'))}
+      />
+      <SummaryCard
+        label={t('diagnostics.missingCost')}
+        value={formatNumber(totals.missingCostCount, locale)}
+      />
+      <SummaryCard
+        label={t('diagnostics.averageDuration')}
+        value={formatDuration(totals.averageDurationMs)}
+      />
     </div>
   );
 }
@@ -397,15 +435,16 @@ function SummaryCard({ label, value, hint }: { label: string; value: string; hin
 }
 
 function TraceRunDetails({ run }: { run: AssistantExecutionRun }) {
+  const { t, i18n } = useTranslation();
   return (
     <div className="diagnostics-run-details">
       <div className="diagnostics-usage-grid">
-        <UsageCell label="input" value={run.usage.inputTokens} />
-        <UsageCell label="output" value={run.usage.outputTokens} />
-        <UsageCell label="cached" value={run.usage.cachedInputTokens} />
-        <UsageCell label="cache write" value={run.usage.cacheWriteTokens} />
-        <UsageCell label="reasoning" value={run.usage.reasoningTokens} />
-        <UsageCell label="total" value={run.usage.totalTokens} />
+        <UsageCell label="input" locale={i18n.language} value={run.usage.inputTokens} />
+        <UsageCell label="output" locale={i18n.language} value={run.usage.outputTokens} />
+        <UsageCell label="cached" locale={i18n.language} value={run.usage.cachedInputTokens} />
+        <UsageCell label="cache write" locale={i18n.language} value={run.usage.cacheWriteTokens} />
+        <UsageCell label="reasoning" locale={i18n.language} value={run.usage.reasoningTokens} />
+        <UsageCell label="total" locale={i18n.language} value={run.usage.totalTokens} />
       </div>
       {run.safeSteps.length > 0 ? (
         <div className="diagnostics-step-list">
@@ -415,23 +454,23 @@ function TraceRunDetails({ run }: { run: AssistantExecutionRun }) {
               <span>{step.eventType}</span>
               <span>{step.toolName || ''}</span>
               <span>{formatDuration(step.latencyMs)}</span>
-              <span>{step.resultCount} results</span>
+              <span>{t('diagnostics.results', { count: step.resultCount })}</span>
               <em>{step.failureReason || ''}</em>
             </div>
           ))}
         </div>
       ) : (
-        <p className="diagnostics-muted">没有可展示的脱敏 trace steps。</p>
+        <p className="diagnostics-muted">{t('diagnostics.noTraceSteps')}</p>
       )}
     </div>
   );
 }
 
-function UsageCell({ label, value }: { label: string; value: number }) {
+function UsageCell({ label, locale, value }: { label: string; locale: string; value: number }) {
   return (
     <span>
       <em>{label}</em>
-      <strong>{formatTokens(value)}</strong>
+      <strong>{formatTokens(value, locale)}</strong>
     </span>
   );
 }
@@ -445,13 +484,14 @@ function DiagnosticsStatus({
   status?: 'error';
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className={status === 'error' ? 'diagnostics-status is-error' : 'diagnostics-status'}>
       <Activity size={16} />
       <span>{message}</span>
       {onRetry ? (
         <Button size="sm" variant="outline" type="button" onClick={onRetry}>
-          重试
+          {t('diagnostics.retry')}
         </Button>
       ) : null}
     </div>
@@ -538,6 +578,7 @@ function useDiagnosticsOptions(
   runs: AssistantExecutionRun[],
   agents: Agent[],
   providers: LlmProvider[],
+  t: Translate,
 ): DiagnosticsOptions {
   return useMemo(() => {
     const providerById = new Map(providers.map((provider) => [provider.id, provider]));
@@ -557,7 +598,7 @@ function useDiagnosticsOptions(
     ]);
     return {
       agents: [
-        { value: allValue, label: '全部助手' },
+        { value: allValue, label: t('diagnostics.allAssistants') },
         ...agents.map((agent) => ({
           value: agent.id,
           label: agent.nickname,
@@ -565,9 +606,9 @@ function useDiagnosticsOptions(
           agent,
         })),
       ],
-      providerModels: [{ value: allValue, label: '全部模型' }, ...providerModels],
+      providerModels: [{ value: allValue, label: t('diagnostics.allModels') }, ...providerModels],
       taskTypes: uniqueOptions([
-        { value: allValue, label: '全部任务' },
+        { value: allValue, label: t('diagnostics.allTasks') },
         { value: 'annotation', label: 'annotation' },
         { value: 'selection_first', label: 'selection_first' },
         { value: 'co_reading_section', label: 'co_reading_section' },
@@ -577,12 +618,12 @@ function useDiagnosticsOptions(
         ...runs.map((run) => ({ value: run.taskType, label: run.taskType })),
       ]),
       modes: [
-        { value: allValue, label: '全部模式' },
+        { value: allValue, label: t('diagnostics.allModes') },
         { value: 'fast_response', label: 'fast_response' },
         { value: 'deep_verification', label: 'deep_verification' },
       ],
     };
-  }, [agents, providers, runs]);
+  }, [agents, providers, runs, t]);
 }
 
 function queryInput(filters: DiagnosticsFilters): AssistantExecutionQueryInput {
@@ -679,8 +720,8 @@ function endOfDayIso(date: Date) {
   return next.toISOString();
 }
 
-function dateRangeLabel(range: DateRange) {
-  if (!range.from) return '选择时间范围';
+function dateRangeLabel(range: DateRange, t: Translate) {
+  if (!range.from) return t('diagnostics.chooseTimeRange');
   if (!range.to) return format(range.from, 'yyyy/MM/dd');
   return `${format(range.from, 'yyyy/MM/dd')} - ${format(range.to, 'yyyy/MM/dd')}`;
 }
@@ -698,18 +739,18 @@ function formatDateTime(value: string) {
   return Number.isNaN(date.getTime()) ? value : format(date, 'yyyy/MM/dd HH:mm');
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('zh-CN').format(value);
+function formatNumber(value: number, locale: string) {
+  return new Intl.NumberFormat(locale).format(value);
 }
 
-function formatTokens(value: number) {
+function formatTokens(value: number, locale: string) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return formatNumber(value);
+  return formatNumber(value, locale);
 }
 
-function formatCost(value: number | undefined, currency: string | undefined) {
-  if (value === undefined) return '价格缺失';
+function formatCost(value: number | undefined, currency: string | undefined, missingLabel: string) {
+  if (value === undefined) return missingLabel;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency || 'USD',

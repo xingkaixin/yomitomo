@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -12,7 +12,12 @@ import {
   runSourceAgentAnnotationRequest,
   withoutAnnotationId,
 } from '../source/bookcase/app-source-agent-request';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import type { PromptArticle } from '../shell/app-reading-types';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {

@@ -9,6 +9,7 @@ import type {
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import type { PromptArticle } from '../../shell/app-reading-types';
+import i18next from 'i18next';
 import {
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
@@ -128,7 +129,7 @@ export function createPendingAgentAnnotation(
       {
         id: makeId('comment'),
         author: 'ai',
-        content: `${agent.nickname} 正在思考`,
+        content: i18next.t('source.agentThinking', { name: agent.nickname }),
         createdAt: now,
         agentId: agent.id,
         agentUsername: agent.username,

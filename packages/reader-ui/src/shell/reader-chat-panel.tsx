@@ -17,6 +17,8 @@ import {
 import { FloatingComposer } from '../shared/floating-composer';
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { isMessageSendShortcutEvent } from '../reader-shortcuts';
+import type { ReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 
 const CHAT_MAX_TEXTAREA_ROWS = 8;
 
@@ -24,6 +26,7 @@ export type ReaderChatPanelProps = {
   agents: PublicAgent[];
   draftContext?: ReaderQuestionContext;
   error?: string;
+  labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
   open: boolean;
   selectedAssistantId?: string;
@@ -42,6 +45,7 @@ export function ReaderChatPanel({
   agents,
   draftContext,
   error,
+  labels = defaultReaderUiLabels,
   messageSendShortcut,
   open,
   selectedAssistantId,
@@ -108,19 +112,24 @@ export function ReaderChatPanel({
 
   if (!open) {
     return (
-      <button className="reader-chat-fab" type="button" aria-label="打开阅读问答" onClick={onOpen}>
+      <button
+        className="reader-chat-fab"
+        type="button"
+        aria-label={labels.openReaderChat}
+        onClick={onOpen}
+      >
         <MessageCircleQuestion size={20} strokeWidth={2.15} />
       </button>
     );
   }
 
   return (
-    <section className="reader-chat-panel" aria-label="阅读问答">
+    <section className="reader-chat-panel" aria-label={labels.readerChatAria}>
       <header className="reader-chat-header">
         <div>
-          <strong>阅读问答</strong>
+          <strong>{labels.readerChat}</strong>
         </div>
-        <button type="button" aria-label="收起阅读问答" onClick={onClose}>
+        <button type="button" aria-label={labels.collapseReaderChat} onClick={onClose}>
           <X size={16} />
         </button>
       </header>
@@ -131,12 +140,13 @@ export function ReaderChatPanel({
             <ReaderChatMessageView
               agents={agents}
               key={message.id}
+              labels={labels}
               message={message}
               onRevealContext={onRevealContext}
             />
           ))
         ) : (
-          <div className="reader-chat-empty">问一个和当前文章有关的问题</div>
+          <div className="reader-chat-empty">{labels.readerChatEmpty}</div>
         )}
         {error ? <div className="reader-chat-error">{error}</div> : null}
       </div>
@@ -146,11 +156,11 @@ export function ReaderChatPanel({
         className="reader-chat-composer"
         accessory={
           agents.length > 0 ? (
-            <div className="reader-chat-agent-tray" aria-label="选择回答助手">
+            <div className="reader-chat-agent-tray" aria-label={labels.readerChatAssistantPicker}>
               <AgentAvatarStack
                 agents={agents}
                 activeAgentIds={selectedAssistant ? [selectedAssistant.id] : []}
-                ariaLabel="选择回答助手"
+                ariaLabel={labels.readerChatAssistantPicker}
                 revealLabelOnDoubleClick={false}
                 onAgentClick={selectAssistant}
               />
@@ -166,12 +176,12 @@ export function ReaderChatPanel({
                 disabled={!draftContext.anchor || !onRevealContext}
                 onClick={() => void onRevealContext?.(draftContext)}
               >
-                {draftContext.locationLabel || draftContext.title || '当前选区'}
+                {draftContext.locationLabel || draftContext.title || labels.currentSelection}
               </button>
               <blockquote>{draftContext.quote}</blockquote>
               {onClearDraftContext ? (
                 <button type="button" onClick={onClearDraftContext}>
-                  清除引用
+                  {labels.readerChatClearQuote}
                 </button>
               ) : null}
             </div>
@@ -179,17 +189,19 @@ export function ReaderChatPanel({
         }
         submitDisabled={!draft.trim() || sending || !selectedAssistant}
         submitIcon={<Send size={15} />}
-        submitLabel={sending ? '发送中' : '发送'}
+        submitLabel={sending ? labels.sending : labels.send}
         submitTooltip={
           <SubmitShortcutTooltipContent
-            label="发送"
+            label={labels.send}
             shortcut={messageSendShortcut}
             shortcutModifier={shortcutModifier}
           />
         }
         textarea={{
-          'aria-label': '阅读问答内容',
-          placeholder: draftContext ? '围绕这段文字提问' : '输入你的问题',
+          'aria-label': labels.readerChatContent,
+          placeholder: draftContext
+            ? labels.readerChatSelectionPlaceholder
+            : labels.readerChatPlaceholder,
           rows: 2,
           value: draft,
           onChange: handleDraftChange,
@@ -203,10 +215,12 @@ export function ReaderChatPanel({
 
 function ReaderChatMessageView({
   agents,
+  labels = defaultReaderUiLabels,
   message,
   onRevealContext,
 }: {
   agents: PublicAgent[];
+  labels?: ReaderUiLabels;
   message: ReaderChatMessage;
   onRevealContext?: (context: ReaderQuestionContext) => void | Promise<void>;
 }) {
@@ -214,10 +228,10 @@ function ReaderChatMessageView({
   const assistant = isAssistant
     ? agents.find((agent) => agent.id === message.assistantId) || null
     : null;
-  const nickname = isAssistant ? assistant?.nickname || '助手' : '我';
+  const nickname = isAssistant ? assistant?.nickname || labels.assistant : labels.me;
   const avatar = isAssistant ? assistant?.avatar : undefined;
-  const fallback = nickname.slice(0, 1) || (isAssistant ? '助' : '我');
-  const html = isAssistant ? renderMarkdown(message.content || '正在回答...') : '';
+  const fallback = nickname.slice(0, 1) || (isAssistant ? labels.assistant.slice(0, 1) : labels.me);
+  const html = isAssistant ? renderMarkdown(message.content || labels.assistantAnswering) : '';
 
   return (
     <article className={`reader-chat-message is-${message.role}`}>

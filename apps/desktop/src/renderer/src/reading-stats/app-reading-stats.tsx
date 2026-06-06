@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BarChart3, RefreshCcw } from 'lucide-react';
 import type { Agent, AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
@@ -50,6 +51,7 @@ export function ReadingStatsPanel({
   onRefresh: () => void;
   settings?: AppSettings;
 }) {
+  const { t } = useTranslation();
   const [showDeferredContent, setShowDeferredContent] = useState(false);
   const [view, setView] = useState<'reading' | 'usage'>('reading');
   const [source, setSource] = useState<'local' | 'weread'>('local');
@@ -62,10 +64,14 @@ export function ReadingStatsPanel({
   const wereadStatsEnabled = enabledLibraryContentSources(settings).includes('weread');
   const sourceOptions = wereadStatsEnabled
     ? [
-        { value: 'local' as const, label: '本地阅读' },
-        { value: 'weread' as const, label: '微信读书' },
+        { value: 'local' as const, label: t('readingStats.sources.local') },
+        { value: 'weread' as const, label: t('readingStats.sources.weread') },
       ]
-    : [{ value: 'local' as const, label: '本地阅读' }];
+    : [{ value: 'local' as const, label: t('readingStats.sources.local') }];
+  const viewOptions = [
+    { value: 'reading' as const, label: t('readingStats.views.reading') },
+    { value: 'usage' as const, label: t('readingStats.views.usage') },
+  ];
 
   useEffect(() => {
     if (!wereadStatsEnabled && source === 'weread') setSource('local');
@@ -138,25 +144,25 @@ export function ReadingStatsPanel({
     <div className="settings-panel">
       <PanelHeader
         icon={<BarChart3 size={20} />}
-        title="统计"
+        title={t('readingStats.title')}
         description={
           view === 'usage'
-            ? '助手的预估花费、token 与调用概览，了解用量去向。'
+            ? t('readingStats.description.usage')
             : source === 'local'
-              ? '基于本地划线、想法、沉淀和阅读记录生成阅读概况。'
-              : '查询并保存微信读书按周期统计。切换周期只读取本地缓存。'
+              ? t('readingStats.description.local')
+              : t('readingStats.description.weread')
         }
         action={
           view === 'reading' && source === 'local' ? (
             <Button type="button" variant="secondary" onClick={onRefresh}>
               <RefreshCcw size={16} />
-              刷新
+              {t('readingStats.refresh')}
             </Button>
           ) : null
         }
       />
       <SegmentedControl
-        aria-label="统计视图"
+        aria-label={t('readingStats.viewTabs')}
         className="stats-view-tabs"
         role="tablist"
         value={view}
@@ -167,7 +173,7 @@ export function ReadingStatsPanel({
       {view === 'reading' ? (
         <>
           <SegmentedControl
-            aria-label="统计来源"
+            aria-label={t('readingStats.sourceTabs')}
             className="stats-source-tabs"
             role="tablist"
             value={source}
@@ -204,50 +210,57 @@ export function ReadingStatsPanel({
   );
 }
 
-const viewOptions = [
-  { value: 'reading' as const, label: '阅读' },
-  { value: 'usage' as const, label: '助手用量' },
-];
-
 function StatsFirstPaintOverview({ data }: { data: ReadingStatsViewData }) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="stats-start-overview">
         <section className="stats-status-card">
-          <span>今日活动</span>
+          <span>{t('readingStats.overview.today')}</span>
           <strong>{periodSummary(data.stats.today)}</strong>
         </section>
         <section className="stats-status-card">
-          <span>已记录 {data.recordedDays} 天</span>
+          <span>{t('readingStats.overview.recordedDays', { count: data.recordedDays })}</span>
           <strong>
-            本周活跃 {data.weekActiveDays} 天，
-            {data.peakDay ? `高峰在 ${data.peakDay.label}` : '今天开始记录'}
+            {data.peakDay
+              ? t('readingStats.overview.weekActiveWithPeak', {
+                  count: data.weekActiveDays,
+                  label: data.peakDay.label,
+                })
+              : t('readingStats.overview.weekActiveStartToday', {
+                  count: data.weekActiveDays,
+                })}
           </strong>
         </section>
         <section className="stats-status-card">
-          <span>下一目标</span>
+          <span>{t('readingStats.overview.nextGoal')}</span>
           <strong>{nextGoalText(data.litStampCount, data.sevenDayRemaining)}</strong>
         </section>
       </div>
-      <div className="stats-total-strip">累计：{periodSummary(data.stats.total)}</div>
+      <div className="stats-total-strip">
+        {t('readingStats.overview.total', { summary: periodSummary(data.stats.total) })}
+      </div>
     </>
   );
 }
 
 function StatsActivityCard({ data }: { data: ReadingStatsViewData }) {
+  const { t } = useTranslation();
   return (
     <div className="stats-activity-card">
       <div className="stats-goal-card">
         <div className="stats-goal-copy">
-          <span>七日章进度</span>
+          <span>{t('readingStats.activity.sevenDayProgress')}</span>
           <strong>
             {data.sevenDayProgress}
             <small>/7</small>
           </strong>
           <p>
             {data.sevenDayProgress >= 7
-              ? '七日章已点亮'
-              : `再读 ${data.sevenDayRemaining} 天点亮七日章`}
+              ? t('readingStats.activity.sevenDayLit')
+              : t('readingStats.activity.sevenDayRemaining', {
+                  count: data.sevenDayRemaining,
+                })}
           </p>
         </div>
         <i className="activity-stamp status-lit level-4 is-special" aria-hidden="true" />
@@ -258,10 +271,14 @@ function StatsActivityCard({ data }: { data: ReadingStatsViewData }) {
         ))}
       </div>
       <div className="stats-map-heading">
-        <h3>{data.hasLitStamp ? '70 天伴读地图' : '从今天开始，收集你的伴读藏书票'}</h3>
+        <h3>
+          {data.hasLitStamp
+            ? t('readingStats.activity.mapTitle')
+            : t('readingStats.activity.mapEmptyTitle')}
+        </h3>
         <p>{activityMapDescription(data.hasLitStamp, data.litStampCount, data.currentStreak)}</p>
       </div>
-      <div className="activity-heatmap is-compact" aria-label="近 70 天伴读活动">
+      <div className="activity-heatmap is-compact" aria-label={t('readingStats.activity.mapAria')}>
         {data.activityStamps.map((day) => (
           <span
             aria-label={activityStampLabel(day)}
@@ -272,18 +289,18 @@ function StatsActivityCard({ data }: { data: ReadingStatsViewData }) {
         ))}
       </div>
       <div className="activity-legend" aria-hidden="true">
-        <span>未开始</span>
+        <span>{t('readingStats.activity.legend.unstarted')}</span>
         <i className="activity-stamp status-unstarted level-0" />
-        <span>少</span>
+        <span>{t('readingStats.activity.legend.low')}</span>
         <i className="activity-stamp status-empty level-0" />
         <i className="activity-stamp status-lit level-1" />
         <i className="activity-stamp status-lit level-2" />
         <i className="activity-stamp status-lit level-3" />
         <i className="activity-stamp status-lit level-4" />
-        <span>多</span>
+        <span>{t('readingStats.activity.legend.high')}</span>
         <span className="activity-legend-special">
           <i className="activity-stamp status-lit level-4 is-special" />
-          <span>七日章</span>
+          <span>{t('readingStats.activity.legend.sevenDay')}</span>
         </span>
       </div>
     </div>
@@ -291,6 +308,7 @@ function StatsActivityCard({ data }: { data: ReadingStatsViewData }) {
 }
 
 function StatsInsights({ data, onReady }: { data: ReadingStatsViewData; onReady: () => void }) {
+  const { t } = useTranslation();
   useEffect(() => {
     onReady();
   }, [onReady]);
@@ -298,8 +316,8 @@ function StatsInsights({ data, onReady }: { data: ReadingStatsViewData; onReady:
   return (
     <section className="stats-insights">
       <div className="stats-section-heading">
-        <h3>伴读洞察</h3>
-        <p>基于本地阅读记录生成</p>
+        <h3>{t('readingStats.insights.title')}</h3>
+        <p>{t('readingStats.insights.description')}</p>
       </div>
       <div className="stats-insight-list">
         {data.insights.map((insight) => (
@@ -324,11 +342,12 @@ function StatsDeferredSkeleton() {
 }
 
 function StatsChartSkeleton() {
+  const { t } = useTranslation();
   return (
     <div className="stats-chart-card stats-chart-skeleton" aria-busy="true">
       <div className="stats-section-heading">
-        <h3>伴读活动趋势</h3>
-        <p>正在准备活动趋势</p>
+        <h3>{t('readingStats.chart.trendTitle')}</h3>
+        <p>{t('readingStats.chart.loading')}</p>
       </div>
       <div className="stats-chart-skeleton-lines" aria-hidden="true">
         <span />

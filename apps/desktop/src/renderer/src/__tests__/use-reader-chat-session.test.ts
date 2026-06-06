@@ -2,11 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, PublicAgent, ReaderChatState } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { useReaderChatSession } from '../source/bookcase/use-reader-chat-session';
 
 const now = '2026-06-06T00:00:00.000Z';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

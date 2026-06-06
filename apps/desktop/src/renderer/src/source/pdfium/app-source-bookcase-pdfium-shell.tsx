@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function PdfiumBookcaseToolbar({
   author,
@@ -9,11 +10,12 @@ export function PdfiumBookcaseToolbar({
   title: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <header className="pdf-reader-toolbar">
       <button className="source-reader-back-button" type="button" onClick={onClose}>
         <ChevronLeft size={16} />
-        <span>返回阅读库</span>
+        <span>{t('common.backToLibrary')}</span>
       </button>
       <div className="pdf-reader-title">
         <strong title={title}>{title}</strong>

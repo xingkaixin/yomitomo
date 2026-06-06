@@ -232,8 +232,6 @@ async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadError
   if (error instanceof DatabaseTooNewError) {
     return {
       code: 'DATABASE_TOO_NEW',
-      message:
-        '这份本地数据库已经被更新版本的 Yomitomo 迁移过。请安装最新版继续使用，或从迁移前备份恢复数据后再打开当前版本。',
       detail: error.message,
       requiredReaderLevel: error.requiredReaderLevel,
       supportedReaderLevel: error.supportedReaderLevel,
@@ -243,7 +241,6 @@ async function storeLoadErrorInfo(error: unknown): Promise<DesktopStoreLoadError
 
   return {
     code: 'DATABASE_UNAVAILABLE',
-    message: '本地数据库加载失败。请查看日志确认原因，避免直接删除数据文件。',
     detail: error instanceof Error ? error.message : undefined,
     logPath: getLogPath(),
   };
@@ -288,7 +285,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function openExternalUrl(value: string) {
   const url = new URL(value);
   if (url.protocol !== 'http:' && url.protocol !== 'https:' && url.protocol !== 'weread:') {
-    throw new Error('仅支持打开 HTTP 链接');
+    throw new Error('Only HTTP, HTTPS, and WeRead links are supported');
   }
   await shell.openExternal(url.toString());
 }

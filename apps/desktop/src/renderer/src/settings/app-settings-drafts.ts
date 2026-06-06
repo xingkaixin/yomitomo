@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import i18next from 'i18next';
 import type { AppSettings, DesktopStore, LlmProvider } from '@yomitomo/shared';
 import {
+  normalizeUiLanguage,
   normalizeLibraryContentSources,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
+import { changeAppI18nLanguage } from '../i18n/app-i18n';
+import { providerPresetDisplayName } from '../i18n/app-i18n-labels';
+import { writeCachedUiLanguage } from '../i18n/app-language-cache';
 
 import {
   defaultUser,
@@ -13,6 +18,7 @@ import {
   providerDraftHasChanges,
   userDraftHasChanges,
   type ProviderDraft,
+  type ProviderTestState,
   type UserDraft,
 } from './app-settings';
 import type { SaveState } from '../shell/app-types';
@@ -30,10 +36,10 @@ export function useSettingsDrafts({
 }: UseSettingsDraftsInput) {
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUser);
   const [settingsDraft, setSettingsDraft] = useState<AppSettings>({});
-  const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProvider);
+  const [providerDraft, setProviderDraft] = useState<ProviderDraft>(() => localizedEmptyProvider());
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerEditorActive, setProviderEditorActive] = useState(false);
-  const [testState, setTestState] = useState('');
+  const [testState, setTestState] = useState<ProviderTestState>({ status: 'idle' });
   const [profileSaveState, setProfileSaveState] = useState<SaveState>('idle');
   const [generalSaveState, setGeneralSaveState] = useState<SaveState>('idle');
   const [shortcutSaveState, setShortcutSaveState] = useState<SaveState>('idle');
@@ -50,16 +56,16 @@ export function useSettingsDrafts({
     setSelectedProviderId(provider.id);
     setProviderDraft(provider);
     setProviderEditorActive(true);
-    setTestState('');
+    setTestState({ status: 'idle' });
     setProviderSaveState('idle');
     setProviderSaveError('');
   }, []);
 
   const createProvider = useCallback(() => {
     setSelectedProviderId(null);
-    setProviderDraft(emptyProvider);
+    setProviderDraft(localizedEmptyProvider());
     setProviderEditorActive(true);
-    setTestState('');
+    setTestState({ status: 'idle' });
     setProviderSaveState('idle');
     setProviderSaveError('');
   }, []);
@@ -84,6 +90,8 @@ export function useSettingsDrafts({
   );
   const settingsHasChanges = useMemo(
     () =>
+      normalizeUiLanguage(settingsDraft.uiLanguage) !==
+        normalizeUiLanguage(store.settings.uiLanguage) ||
       Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
       libraryContentSourcesChanged(
         settingsDraft.libraryContentSources,
@@ -92,8 +100,10 @@ export function useSettingsDrafts({
     [
       settingsDraft.libraryContentSources,
       settingsDraft.saveArticleImages,
+      settingsDraft.uiLanguage,
       store.settings.libraryContentSources,
       store.settings.saveArticleImages,
+      store.settings.uiLanguage,
     ],
   );
   const draftSelectionActionShortcuts = useMemo(
@@ -182,7 +192,7 @@ export function useSettingsDrafts({
 
   const updateProviderDraft = useCallback((draft: ProviderDraft) => {
     setProviderDraft(draft);
-    setTestState('');
+    setTestState({ status: 'idle' });
     setProviderSaveState('idle');
     setProviderSaveError('');
   }, []);
@@ -218,6 +228,7 @@ export function useSettingsDrafts({
       setGeneralSaveError('');
       try {
         const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        syncUiLanguageCache(nextStore.settings);
         applyStore(nextStore);
         setSettingsDraft(nextStore.settings);
         setGeneralSaveState('saved');
@@ -238,6 +249,7 @@ export function useSettingsDrafts({
       setShortcutSaveError('');
       try {
         const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        syncUiLanguageCache(nextStore.settings);
         applyStore(nextStore);
         setSettingsDraft(nextStore.settings);
         setShortcutSaveState('saved');
@@ -259,7 +271,7 @@ export function useSettingsDrafts({
         ? nextStore.providers.find((provider) => provider.id === providerDraft.id)
         : nextStore.providers.at(-1);
       applyStore(nextStore);
-      setTestState('');
+      setTestState({ status: 'idle' });
       if (savedProvider) {
         setSelectedProviderId(savedProvider.id);
         setProviderDraft(savedProvider);
@@ -284,6 +296,7 @@ export function useSettingsDrafts({
       setRouteSaveError('');
       try {
         const nextStore = await window.yomitomoDesktop.saveSettings(draft);
+        syncUiLanguageCache(nextStore.settings);
         applyStore(nextStore);
         setSettingsDraft(nextStore.settings);
         setRouteSaveState('saved');
@@ -306,7 +319,7 @@ export function useSettingsDrafts({
       if (nextProvider) selectProvider(nextProvider);
       if (!nextProvider) {
         setSelectedProviderId(null);
-        setProviderDraft(emptyProvider);
+        setProviderDraft(localizedEmptyProvider());
         setProviderEditorActive(false);
       }
     },
@@ -315,9 +328,13 @@ export function useSettingsDrafts({
 
   const testProvider = useCallback(async (provider: ProviderDraft) => {
     if (!window.yomitomoDesktop) return;
-    setTestState('测试中...');
-    const result = await window.yomitomoDesktop.testProvider(provider);
-    setTestState(result.ok ? `连通成功：${result.message}` : `连通失败：${result.message}`);
+    setTestState({ status: 'testing' });
+    try {
+      const result = await window.yomitomoDesktop.testProvider(provider);
+      setTestState({ status: result.ok ? 'success' : 'error' });
+    } catch {
+      setTestState({ status: 'error' });
+    }
   }, []);
 
   return {
@@ -358,6 +375,14 @@ export function useSettingsDrafts({
   };
 }
 
+function localizedEmptyProvider(): ProviderDraft {
+  if (!emptyProvider.presetId) return emptyProvider;
+  return {
+    ...emptyProvider,
+    name: providerPresetDisplayName(emptyProvider.presetId, emptyProvider.name || 'Provider'),
+  };
+}
+
 function libraryContentSourcesChanged(left: unknown, right: unknown) {
   return (
     JSON.stringify(normalizeLibraryContentSources(left)) !==
@@ -365,7 +390,18 @@ function libraryContentSourcesChanged(left: unknown, right: unknown) {
   );
 }
 
+function syncUiLanguageCache(settings: AppSettings) {
+  const language = normalizeUiLanguage(settings.uiLanguage);
+  writeCachedUiLanguage(language);
+  changeAppI18nLanguage(language);
+}
+
 function settingsSaveErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) return `保存失败：${error.message}`;
-  return '保存失败，请重试。';
+  if (error instanceof Error && error.message) {
+    return i18next.t('settings.models.saveFailedWithMessage', {
+      message: error.message,
+      defaultValue: 'Save failed: {{message}}',
+    });
+  }
+  return i18next.t('settings.models.saveFailed', { defaultValue: 'Save failed. Try again.' });
 }

@@ -5,6 +5,7 @@ import type {
   Comment as AnnotationComment,
   PublicAgent,
 } from '@yomitomo/shared';
+import i18next from 'i18next';
 import { makeId } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment, updateAnnotationComment } from '@yomitomo/core';
@@ -42,7 +43,12 @@ export async function runSourceAgentCommentRequest({
   saveAnnotations,
   setStatusMessage,
 }: RunSourceAgentCommentRequestInput) {
-  setStatusMessage(`${agent.nickname} ${reviewTargetCommentId ? '正在审阅' : '正在回复'}`);
+  setStatusMessage(
+    i18next.t(
+      reviewTargetCommentId ? 'source.agentStatus.reviewing' : 'source.agentStatus.replying',
+      { name: agent.nickname },
+    ),
+  );
   const replyTargetId = reviewTargetCommentId || userComment.replyTo || userComment.id;
   let pendingCommentId = '';
   let pendingDelta = '';

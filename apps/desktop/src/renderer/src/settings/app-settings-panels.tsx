@@ -30,6 +30,7 @@ import {
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
 import { getShortcutModifier, messageSendShortcutKeys } from '@yomitomo/reader-ui/reader-shortcuts';
+import { useTranslation } from 'react-i18next';
 import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
 import { CopyIconButton } from '../shell/app-ui';
@@ -62,17 +63,20 @@ export type SettingsSectionKey =
   | 'aiTrace'
   | 'about';
 
-function messageSendShortcutCopy(shortcut: MessageSendShortcut) {
+function messageSendShortcutCopy(
+  shortcut: MessageSendShortcut,
+  t: ReturnType<typeof useTranslation>['t'],
+) {
   if (shortcut === 'enter') {
     return {
-      title: '回车发送',
-      description: '按下回车即可发送信息，适合习惯即时发送的场景；按 Shift+回车 换行。',
+      title: t('settings.shortcuts.enterTitle'),
+      description: t('settings.shortcuts.enterDescription'),
     };
   }
 
   return {
-    title: '组合键发送',
-    description: '按下组合键发送信息，适合长文本输入、避免误发送；此时按回车换行。',
+    title: t('settings.shortcuts.modEnterTitle'),
+    description: t('settings.shortcuts.modEnterDescription'),
   };
 }
 
@@ -80,61 +84,73 @@ type SelectionShortcutAction = keyof SelectionActionShortcuts;
 
 const selectionShortcutRows: Array<{
   action: SelectionShortcutAction;
-  label: string;
-  description: string;
+  descriptionKey: string;
+  labelKey: string;
 }> = [
-  { action: 'copy', label: '复制', description: '阅读区选中文本后的复制操作。' },
-  { action: 'annotate', label: '记录想法', description: '阅读区选中文本后的想法入口。' },
-  { action: 'ask', label: '问一下', description: '阅读区选中文本后的问答入口。' },
+  {
+    action: 'copy',
+    descriptionKey: 'settings.shortcuts.copyDescription',
+    labelKey: 'settings.shortcuts.copyLabel',
+  },
+  {
+    action: 'annotate',
+    descriptionKey: 'settings.shortcuts.annotateDescription',
+    labelKey: 'settings.shortcuts.annotateLabel',
+  },
+  {
+    action: 'ask',
+    descriptionKey: 'settings.shortcuts.askDescription',
+    labelKey: 'settings.shortcuts.askLabel',
+  },
 ];
 
-const logRetentionOptions: Array<{ label: string; value?: number }> = [
-  { label: '永久' },
-  { label: '90 天', value: 90 },
-  { label: '30 天', value: 30 },
-  { label: '15 天', value: 15 },
+const logRetentionOptions: Array<{ value?: number }> = [
+  {},
+  { value: 90 },
+  { value: 30 },
+  { value: 15 },
 ];
 
 const settingsSections: Array<{
   key: SettingsSectionKey;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
   icon: React.ReactNode;
 }> = [
   {
     key: 'collection',
-    title: '通用',
-    description: '保存原文图片与阅读库入口显示偏好。',
+    titleKey: 'settings.sections.collection',
+    descriptionKey: 'settings.descriptions.collection',
     icon: <Settings size={17} />,
   },
   {
     key: 'models',
-    title: '模型与路由',
-    description: '分配任务模型，并维护模型供应商。',
+    titleKey: 'settings.sections.models',
+    descriptionKey: 'settings.descriptions.models',
     icon: <KeyRound size={17} />,
   },
   {
     key: 'dataSources',
-    title: '数据来源',
-    description: '管理微信读书等外部内容来源。',
+    titleKey: 'settings.sections.dataSources',
+    descriptionKey: 'settings.descriptions.dataSources',
     icon: <Blocks size={17} />,
   },
   {
     key: 'shortcuts',
-    title: '快捷键',
-    description: '配置划线、想法和回复等应用快捷键。',
+    titleKey: 'settings.sections.shortcuts',
+    descriptionKey: 'settings.descriptions.shortcuts',
     icon: <Keyboard size={17} />,
   },
   {
     key: 'data',
-    title: '数据管理',
-    description: '查看路径、清理日志并备份数据库。',
+    titleKey: 'settings.sections.data',
+    descriptionKey: 'settings.descriptions.data',
     icon: <Database size={17} />,
   },
   {
     key: 'about',
-    title: '关于',
-    description: '查看版本、链接和开源许可证。',
+    titleKey: 'settings.sections.about',
+    descriptionKey: 'settings.descriptions.about',
     icon: <Info size={17} />,
   },
 ];
@@ -150,13 +166,14 @@ export function SettingsSectionShell({
   developerModeEnabled?: boolean;
   onSectionChange: (section: SettingsSectionKey) => void;
 }) {
+  const { t } = useTranslation();
   const visibleSettingsSections = developerModeEnabled
     ? [
         ...settingsSections.slice(0, -1),
         {
           key: 'aiTrace' as const,
-          title: '助手调用链路',
-          description: '查看助手执行链路、状态和脱敏 trace。',
+          titleKey: 'settings.sections.aiTrace',
+          descriptionKey: 'settings.descriptions.aiTrace',
           icon: <Route size={17} />,
         },
         settingsSections[settingsSections.length - 1],
@@ -166,20 +183,21 @@ export function SettingsSectionShell({
   return (
     <div className="settings-shell">
       <div className="settings-shell-layout">
-        <nav className="settings-side-nav" aria-label="设置分类">
+        <nav className="settings-side-nav" aria-label={t('settings.navLabel')}>
           {visibleSettingsSections.map((section) => {
             const active = activeSection === section.key;
+            const title = t(section.titleKey);
             return (
               <button
                 aria-current={active ? 'page' : undefined}
                 className={active ? 'settings-side-nav-item is-active' : 'settings-side-nav-item'}
-                data-tooltip={section.title}
+                data-tooltip={title}
                 key={section.key}
                 type="button"
                 onClick={() => onSectionChange(section.key)}
               >
                 <span className="settings-side-nav-icon">{section.icon}</span>
-                <span className="settings-side-nav-label">{section.title}</span>
+                <span className="settings-side-nav-label">{title}</span>
               </button>
             );
           })}
@@ -205,6 +223,7 @@ export function ShortcutSettings({
   saveError?: string;
   saveState: SaveState;
 }) {
+  const { t } = useTranslation();
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
@@ -275,12 +294,15 @@ export function ShortcutSettings({
   }
 
   return (
-    <SettingsPage trail={['设置', '快捷键']} description="配置应用内常用操作的键盘触发方式。">
+    <SettingsPage
+      trail={[t('settings.shortcuts.trailRoot'), t('settings.shortcuts.trailPage')]}
+      description={t('settings.shortcuts.description')}
+    >
       <SettingsGroup
-        label="消息发送"
+        label={t('settings.shortcuts.messageGroup')}
         aside={
           <>
-            <span className="settings-hint">用于想法发布和回复发送，切换即时生效</span>
+            <span className="settings-hint">{t('settings.shortcuts.messageHint')}</span>
             <AutoSaveStatus
               error={saveError}
               state={saveState}
@@ -288,12 +310,12 @@ export function ShortcutSettings({
             />
           </>
         }
-        cardProps={{ role: 'radiogroup', 'aria-label': '想法和回复发送快捷键' }}
+        cardProps={{ role: 'radiogroup', 'aria-label': t('settings.shortcuts.messageAria') }}
       >
         {messageSendShortcutOptions.map((option) => {
           const active = selectedShortcut === option.value;
           const keys = messageSendShortcutKeys(option.value, shortcutModifier);
-          const copy = messageSendShortcutCopy(option.value);
+          const copy = messageSendShortcutCopy(option.value, t);
 
           return (
             <button
@@ -330,10 +352,12 @@ export function ShortcutSettings({
       </SettingsGroup>
 
       <SettingsGroup
-        label="阅读区选区操作"
-        aside={<span className="settings-hint">支持 A-Z 单字母，重复键位会阻止保存</span>}
+        label={t('settings.shortcuts.selectionGroup')}
+        aside={<span className="settings-hint">{t('settings.shortcuts.selectionHint')}</span>}
       >
         {selectionShortcutRows.map((row) => {
+          const rowLabel = t(row.labelKey);
+          const rowDescription = t(row.descriptionKey);
           const key = selectionShortcuts[row.action];
           const defaultKey = defaultSelectionActionShortcuts[row.action];
           const modified = key !== defaultKey;
@@ -341,38 +365,46 @@ export function ShortcutSettings({
           const conflictingRow = selectionShortcutRows.find(
             (item) => item.action !== row.action && selectionShortcuts[item.action] === key,
           );
+          const conflictingLabel = conflictingRow
+            ? t(conflictingRow.labelKey)
+            : t('settings.shortcuts.otherAction');
           const conflict = Boolean(conflictingRow);
 
           return (
             <SettingsRow
               className={conflict ? 'has-conflict' : recording ? 'is-recording' : undefined}
               key={row.action}
-              title={row.label}
-              description={row.description}
+              title={rowLabel}
+              description={rowDescription}
             >
               {conflict ? (
                 <span className="shortcut-conflict-badge" role="alert">
-                  与{conflictingRow?.label || '其他操作'}共用 {key}
+                  {t('settings.shortcuts.conflict', { key, label: conflictingLabel })}
                 </span>
               ) : null}
               <button
                 className={recording ? 'settings-key-button is-recording' : 'settings-key-button'}
                 type="button"
-                aria-label={`设置${row.label}快捷键`}
+                aria-label={t('settings.shortcuts.setShortcut', { label: rowLabel })}
                 onClick={() => setRecordingAction(row.action)}
               >
                 <Kbd className="settings-keycap">{recording ? '...' : key}</Kbd>
-                <span>{recording ? '按字母键' : '修改'}</span>
+                <span>
+                  {recording ? t('settings.shortcuts.recording') : t('settings.shortcuts.edit')}
+                </span>
               </button>
               {modified && !recording ? (
                 <button
                   className="settings-reset-button"
                   type="button"
-                  aria-label={`重置${row.label}为默认 ${defaultKey}`}
+                  aria-label={t('settings.shortcuts.resetShortcut', {
+                    key: defaultKey,
+                    label: rowLabel,
+                  })}
                   onClick={() => resetSelectionShortcut(row.action)}
                 >
                   <RefreshCw size={13} />
-                  重置
+                  {t('settings.shortcuts.reset')}
                 </button>
               ) : null}
             </SettingsRow>
@@ -380,13 +412,13 @@ export function ShortcutSettings({
         })}
       </SettingsGroup>
 
-      <SettingsGroup label="阅读器翻页">
+      <SettingsGroup label={t('settings.shortcuts.pageGroup')}>
         <SettingsRow
           leading={<Book size={18} />}
-          title="上一页 / 下一页"
-          description="PDF 和电子书阅读时直接用键盘翻页，内置不可自定义。"
+          title={t('settings.shortcuts.pageTitle')}
+          description={t('settings.shortcuts.pageDescription')}
         >
-          <span className="settings-keyset" aria-label="左右方向键">
+          <span className="settings-keyset" aria-label={t('settings.shortcuts.arrowKeys')}>
             <Kbd className="settings-keycap is-readonly">←</Kbd>
             <Kbd className="settings-keycap is-readonly">→</Kbd>
           </span>
@@ -403,6 +435,7 @@ export function DataManagementSettings({
   settings: AppSettings;
   onStoreUpdated: (store: DesktopStore) => void;
 }) {
+  const { t } = useTranslation();
   const [paths, setPaths] = useState<DataManagementPaths | null>(null);
   const [busyAction, setBusyAction] = useState('');
   const [status, setStatus] = useState('');
@@ -418,7 +451,7 @@ export function DataManagementSettings({
         if (mounted) setPaths(nextPaths);
       })
       .catch((error) => {
-        if (mounted) setStatus(dataManagementErrorMessage(error));
+        if (mounted) setStatus(dataManagementErrorMessage(error, t));
       });
     return () => {
       mounted = false;
@@ -441,7 +474,11 @@ export function DataManagementSettings({
       const nextStore = await window.yomitomoDesktop.saveSettings(input);
       onStoreUpdated(nextStore);
       setRetentionSaveState('saved');
-      setStatus(days ? `日志将保留最近 ${days} 天。` : '日志将永久保留，直到手动清空。');
+      setStatus(
+        days
+          ? t('settings.data.retentionSavedDays', { count: days })
+          : t('settings.data.retentionSavedForever'),
+      );
       window.setTimeout(() => setRetentionSaveState('idle'), 1200);
     });
   }
@@ -449,14 +486,18 @@ export function DataManagementSettings({
   async function clearLog() {
     await runDataAction('clear-log', async () => {
       await window.yomitomoDesktop.clearLog();
-      setStatus('日志文件已清空。');
+      setStatus(t('settings.data.logCleared'));
     });
   }
 
   async function backupDatabase() {
     await runDataAction('backup-db', async () => {
       const result = await window.yomitomoDesktop.backupDatabase();
-      setStatus(result.canceled ? '已取消数据库备份。' : `数据库已备份到 ${result.filePath}`);
+      setStatus(
+        result.canceled
+          ? t('settings.data.backupCanceled')
+          : t('settings.data.backupDone', { path: result.filePath }),
+      );
     });
   }
 
@@ -464,12 +505,12 @@ export function DataManagementSettings({
     await runDataAction('restore-db', async () => {
       const result = await window.yomitomoDesktop.restoreDatabase();
       if (result.canceled) {
-        setStatus('已取消数据库还原。');
+        setStatus(t('settings.data.restoreCanceled'));
         return;
       }
 
       onStoreUpdated(result.store);
-      setStatus(`数据库已还原。原数据库已备份到 ${result.backupPath}`);
+      setStatus(t('settings.data.restoreDone', { path: result.backupPath }));
     });
   }
 
@@ -479,7 +520,7 @@ export function DataManagementSettings({
     try {
       await task();
     } catch (error) {
-      const message = dataManagementErrorMessage(error);
+      const message = dataManagementErrorMessage(error, t);
       setStatus(message);
       if (action.startsWith('retention:')) {
         setRetentionSaveError(message);
@@ -495,25 +536,25 @@ export function DataManagementSettings({
 
   return (
     <SettingsPage
-      trail={['设置', '数据管理']}
-      description="查看本地数据位置，管理日志保留，并备份或还原数据库。"
+      trail={[t('settings.data.trailRoot'), t('settings.data.trailPage')]}
+      description={t('settings.data.description')}
     >
-      <SettingsGroup label="本地位置">
+      <SettingsGroup label={t('settings.data.localGroup')}>
         <DataPathRow
           icon={<HardDrive size={18} />}
-          label="数据目录"
+          label={t('settings.data.dataDir')}
           path={paths?.dataDir || ''}
           onOpen={() => openPath('dataDir')}
         />
         <DataPathRow
           icon={<FileText size={18} />}
-          label="日志文件"
+          label={t('settings.data.logFile')}
           path={paths?.logFile || ''}
           onOpen={() => openPath('logFile')}
         />
         <DataPathRow
           icon={<Database size={18} />}
-          label="数据库文件"
+          label={t('settings.data.databaseFile')}
           path={paths?.databaseFile || ''}
           onOpen={() => openPath('databaseFile')}
         />
@@ -521,7 +562,7 @@ export function DataManagementSettings({
 
       <div className="settings-group-grid">
         <SettingsGroup
-          label="日志保留"
+          label={t('settings.data.retentionGroup')}
           padded
           aside={
             <AutoSaveStatus
@@ -532,11 +573,14 @@ export function DataManagementSettings({
           }
         >
           <SettingsSegmented
-            ariaLabel="日志保留时间"
+            ariaLabel={t('settings.data.retentionAria')}
             block
+            wrap
             value={retentionValue}
             options={logRetentionOptions.map((option) => ({
-              label: option.label,
+              label: option.value
+                ? t('settings.data.retentionDays', { count: option.value })
+                : t('settings.data.retentionForever'),
               value: option.value ?? 0,
               disabled: busyAction === `retention:${option.value ?? 'forever'}`,
             }))}
@@ -555,15 +599,15 @@ export function DataManagementSettings({
               onClick={() => void clearLog()}
             >
               <Trash2 size={15} />
-              清空日志
+              {t('settings.data.clearLog')}
             </Button>
           </div>
         </SettingsGroup>
 
-        <SettingsGroup label="数据库" padded>
+        <SettingsGroup label={t('settings.data.databaseGroup')} padded>
           <div className="settings-callout">
             <Info size={16} />
-            <span>备份不含钥匙串中的模型密钥，也不含单独保存的 EPUB 原文件。</span>
+            <span>{t('settings.data.backupNote')}</span>
           </div>
           <div className="settings-card-actions">
             <Button
@@ -577,7 +621,7 @@ export function DataManagementSettings({
               onClick={() => void backupDatabase()}
             >
               <Download size={15} />
-              备份数据库
+              {t('settings.data.backupDatabase')}
             </Button>
             <Button
               className={
@@ -591,7 +635,7 @@ export function DataManagementSettings({
               onClick={() => void restoreDatabase()}
             >
               <Upload size={15} />
-              还原数据库
+              {t('settings.data.restoreDatabase')}
             </Button>
           </div>
         </SettingsGroup>
@@ -613,17 +657,18 @@ function DataPathRow({
   path: string;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <SettingsRow
       leading={icon}
       title={label}
-      description={<code className="settings-path">{path || '读取中'}</code>}
+      description={<code className="settings-path">{path || t('settings.data.loading')}</code>}
     >
-      {path ? <CopyIconButton label={`复制${label}路径`} value={path} /> : null}
+      {path ? <CopyIconButton label={t('settings.data.copyPath', { label })} value={path} /> : null}
       <button
-        aria-label={`打开${label}`}
+        aria-label={t('settings.data.openPath', { label })}
         className="settings-icon-button"
-        data-tooltip={`打开${label}`}
+        data-tooltip={t('settings.data.openPath', { label })}
         disabled={!path}
         type="button"
         onClick={onOpen}
@@ -634,6 +679,16 @@ function DataPathRow({
   );
 }
 
-function dataManagementErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : '数据管理操作失败。';
+function dataManagementErrorMessage(error: unknown, t: ReturnType<typeof useTranslation>['t']) {
+  const message = error instanceof Error ? error.message : '';
+  const errorKey = dataManagementErrorKey(message);
+  return errorKey ? t(errorKey) : message || t('settings.data.errorFallback');
+}
+
+function dataManagementErrorKey(message: string) {
+  if (!/^DATA_MANAGEMENT_[A-Z_]+$/.test(message)) return '';
+  return `settings.data.errors.${message
+    .replace(/^DATA_MANAGEMENT_/, '')
+    .toLowerCase()
+    .replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())}`;
 }

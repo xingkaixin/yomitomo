@@ -2,6 +2,8 @@ export type MessageSendShortcut = 'enter' | 'mod-enter';
 
 export type AssistantExecutionMode = 'fast_response' | 'deep_verification';
 
+export type UiLanguage = 'zh-CN' | 'en';
+
 export type SelectionActionShortcuts = {
   copy: string;
   annotate: string;
@@ -23,6 +25,7 @@ export const defaultLibraryContentSourceOrder: LibraryContentSourceId[] = [
 ];
 
 export type AppSettings = {
+  uiLanguage?: UiLanguage;
   themeId?: string;
   libraryPageSize?: number;
   libraryContentSources?: LibraryContentSourcePreference[];
@@ -38,6 +41,10 @@ export type AppSettings = {
   onboardingCompletedAt?: string;
   lastSeenVersion?: string;
 };
+
+export function normalizeUiLanguage(value: unknown): UiLanguage {
+  return value === 'en' ? 'en' : 'zh-CN';
+}
 
 export function normalizeAssistantExecutionMode(value: unknown): AssistantExecutionMode {
   return value === 'deep_verification' ? 'deep_verification' : 'fast_response';

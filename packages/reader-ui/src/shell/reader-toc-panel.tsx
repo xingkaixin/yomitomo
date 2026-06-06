@@ -1,10 +1,13 @@
 import type { TocItem } from '@yomitomo/core';
 import { Highlighter, Layers2 } from 'lucide-react';
 import type { buildTocAnnotationStats } from '../annotations/reader-annotations';
+import type { ReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 
 export type ReaderTocPanelProps = {
   annotationTotals: { annotations: number; distillations: number };
   hasToc: boolean;
+  labels?: ReaderUiLabels;
   tocAnnotationStats: ReturnType<typeof buildTocAnnotationStats>;
   tocItems: TocItem[];
   tocOpen: boolean;
@@ -14,6 +17,7 @@ export type ReaderTocPanelProps = {
 export function ReaderTocPanel({
   annotationTotals,
   hasToc,
+  labels = defaultReaderUiLabels,
   tocAnnotationStats,
   tocItems,
   tocOpen,
@@ -23,9 +27,9 @@ export function ReaderTocPanel({
     <aside
       className={hasToc ? 'reader-toc' : 'reader-toc is-empty'}
       aria-hidden={!hasToc || !tocOpen}
-      aria-label="目录"
+      aria-label={labels.toc}
     >
-      <div className="reader-toc-title">目录</div>
+      <div className="reader-toc-title">{labels.toc}</div>
       {tocItems.map((item) => {
         const stats = tocAnnotationStats.get(item.index);
         return (
@@ -56,16 +60,16 @@ export function ReaderTocPanel({
       })}
       <div
         className="reader-toc-summary"
-        aria-label={`${annotationTotals.annotations} 划线，${annotationTotals.distillations} 沉淀`}
+        aria-label={labels.tocSummary(annotationTotals.annotations, annotationTotals.distillations)}
       >
-        <span className="reader-toc-summary-stat" title="划线">
+        <span className="reader-toc-summary-stat" title={labels.annotations}>
           <span className="reader-toc-summary-value">{annotationTotals.annotations}</span>
           <Highlighter size={14} aria-hidden="true" />
         </span>
         <span className="reader-toc-summary-separator" aria-hidden="true">
           ·
         </span>
-        <span className="reader-toc-summary-stat" title="沉淀">
+        <span className="reader-toc-summary-stat" title={labels.distillations}>
           <span className="reader-toc-summary-value">{annotationTotals.distillations}</span>
           <Layers2 size={14} aria-hidden="true" />
         </span>

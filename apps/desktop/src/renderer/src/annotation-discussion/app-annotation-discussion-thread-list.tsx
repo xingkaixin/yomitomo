@@ -9,6 +9,7 @@ import {
 import { MoreHorizontal, Pin, PinOff, Trash2 } from 'lucide-react';
 import type { UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
+import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { formatRelativeTime, type DiscussionThread } from './app-annotation-discussion-utils';
 
@@ -31,6 +32,7 @@ export function ThoughtListItem({
   thread: DiscussionThread;
   userProfile: UserProfile;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const author = commentPersona(thread.root, userProfile, []);
   const itemClassName = [
@@ -50,8 +52,11 @@ export function ThoughtListItem({
           <strong>{author.nickname}</strong>
           <em>{thread.root.content}</em>
           <small>
-            {formatRelativeTime(thread.updatedAt)} · {thread.replyCount} 条回复
-            {thread.pending ? ' · 处理中' : ''}
+            {t('discussion.replyMeta', {
+              time: formatRelativeTime(thread.updatedAt),
+              count: thread.replyCount,
+            })}
+            {thread.pending ? t('discussion.processingSuffix') : ''}
           </small>
         </span>
       </button>
@@ -65,7 +70,7 @@ export function ThoughtListItem({
         <button
           className={menuOpen ? 'is-active' : ''}
           type="button"
-          aria-label="更多想法操作"
+          aria-label={t('discussion.moreThoughtActions')}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           onClick={(event) => {
@@ -87,23 +92,25 @@ export function ThoughtListItem({
               }}
             >
               {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
-              <span>{thread.isPinned ? '取消固定' : '固定置顶'}</span>
+              <span>
+                {thread.isPinned ? t('discussion.unpinThought') : t('discussion.pinThought')}
+              </span>
             </button>
             <LongPressDeleteButton
               className="annotation-discussion-idea-delete"
               disabled={isDeleting}
-              label="长按删除想法和回复"
+              label={t('discussion.deleteThoughtHold')}
               onDelete={onDelete}
               onComplete={() => setMenuOpen(false)}
             >
               <Trash2 size={13} />
-              <span>长按删除</span>
+              <span>{t('discussion.holdDelete')}</span>
             </LongPressDeleteButton>
           </div>
         ) : null}
       </div>
       {thread.isPinned ? (
-        <span className="annotation-discussion-idea-pin-badge" aria-label="已置顶">
+        <span className="annotation-discussion-idea-pin-badge" aria-label={t('discussion.pinned')}>
           <Pin size={10} />
         </span>
       ) : null}

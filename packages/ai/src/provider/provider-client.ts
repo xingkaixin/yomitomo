@@ -21,7 +21,7 @@ class ProviderNetworkError extends Error {
   readonly _tag = 'ProviderNetworkError';
 
   constructor(cause: unknown) {
-    super(`模型服务请求失败：${errorMessage(cause)}`);
+    super(`Provider request failed: ${errorMessage(cause)}`);
   }
 }
 
@@ -33,7 +33,7 @@ class ProviderResponseDecodeError extends Error {
   readonly _tag = 'ProviderResponseDecodeError';
 
   constructor(cause: unknown) {
-    super(`模型服务响应解析失败：${errorMessage(cause)}`);
+    super(`Provider response parse failed: ${errorMessage(cause)}`);
   }
 }
 
@@ -206,7 +206,7 @@ function responseTextEffect(response: Response) {
 function modelListErrorEffect(response: Response) {
   return Effect.gen(function* () {
     const text = yield* responseTextEffect(response);
-    return `模型服务请求失败：${response.status} ${text.slice(0, 400)}`;
+    return `Provider request failed: ${response.status} ${text.slice(0, 400)}`;
   });
 }
 

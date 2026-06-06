@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { PublicAgent } from '@yomitomo/shared';
 import { findMentionedAgents, getMentionQuery } from '@yomitomo/core';
+import { useTranslation } from 'react-i18next';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -55,6 +56,7 @@ export function AddThoughtDialog({
   runningAgents: AddThoughtAgentRun[];
   submitting: boolean;
 }) {
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
@@ -132,12 +134,14 @@ export function AddThoughtDialog({
       >
         <header>
           <Plus size={19} />
-          <h2 id="annotation-discussion-add-title">添加想法</h2>
-          <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="关闭" />}>
+          <h2 id="annotation-discussion-add-title">{t('discussion.addThought.title')}</h2>
+          <ReaderTooltip
+            content={<ShortcutTooltipContent keys={['Esc']} label={t('discussion.close')} />}
+          >
             <button
               className="annotation-discussion-add-close"
               type="button"
-              aria-label="关闭添加想法"
+              aria-label={t('discussion.addThought.close')}
               disabled={!canCancel}
               onClick={onCancel}
             >
@@ -162,7 +166,7 @@ export function AddThoughtDialog({
                 <div
                   className="annotation-discussion-add-mode"
                   role="tablist"
-                  aria-label="添加方式"
+                  aria-label={t('discussion.addThought.mode')}
                 >
                   <button
                     type="button"
@@ -171,7 +175,7 @@ export function AddThoughtDialog({
                     className={mode === 'self' ? 'is-active' : ''}
                     onClick={() => onModeChange('self')}
                   >
-                    自己写
+                    {t('discussion.addThought.selfMode')}
                   </button>
                   <button
                     type="button"
@@ -180,14 +184,14 @@ export function AddThoughtDialog({
                     className={mode === 'assistant' ? 'is-active' : ''}
                     onClick={() => onModeChange('assistant')}
                   >
-                    让助手来
+                    {t('discussion.addThought.assistantMode')}
                   </button>
                 </div>
                 {mode === 'assistant' ? (
                   <div className="annotation-discussion-add-agents">
                     <AgentAvatarStack
                       agents={agents}
-                      ariaLabel="插入助手提及"
+                      ariaLabel={t('discussion.addThought.insertMention')}
                       onAgentClick={insertAgentMention}
                     />
                   </div>
@@ -220,19 +224,26 @@ export function AddThoughtDialog({
             }
             submitDisabled={!canSubmit}
             submitIcon={<Plus size={14} />}
-            submitLabel={submitting ? '添加中' : '添加'}
+            submitLabel={
+              submitting ? t('discussion.addThought.adding') : t('discussion.addThought.add')
+            }
             submitTooltip={
               <SubmitShortcutTooltipContent
-                label="添加"
+                label={t('discussion.addThought.add')}
                 shortcut="mod-enter"
                 shortcutModifier={shortcutModifier}
               />
             }
             textarea={{
-              'aria-label': mode === 'self' ? '想法内容' : '给助手的指令',
+              'aria-label':
+                mode === 'self'
+                  ? t('discussion.addThought.selfTextarea')
+                  : t('discussion.addThought.assistantTextarea'),
               value: draft,
               placeholder:
-                mode === 'self' ? '挂在这条划线下的一条想法...' : '告诉助手要写什么想法...',
+                mode === 'self'
+                  ? t('discussion.addThought.selfPlaceholder')
+                  : t('discussion.addThought.assistantPlaceholder'),
               rows: 1,
               disabled: submitting,
               autoFocus: true,

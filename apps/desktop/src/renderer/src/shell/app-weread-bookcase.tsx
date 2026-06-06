@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import i18next from 'i18next';
 import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import type {
   UserProfile,
@@ -13,6 +14,7 @@ import type {
 } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { WeReadCover } from '../reading-library/app-reading-library-home';
+import { useTranslation } from 'react-i18next';
 
 export type WeReadNoteGroup = {
   key: string;
@@ -53,7 +55,8 @@ export function WeReadBookcase({
   onOpenExternal: (target: { chapterUid?: number; range?: string; userVid?: number }) => void;
   onSync: () => void;
 }) {
-  const chapters = useChaptersWithCounts(detail);
+  const { t } = useTranslation();
+  const chapters = useChaptersWithCounts(detail, t);
   const [activeChapterUid, setActiveChapterUid] = useState<number | null>(
     chapters.find((chapter) => chapter.count > 0)?.chapterUid ?? chapters[0]?.chapterUid ?? null,
   );
@@ -64,10 +67,11 @@ export function WeReadBookcase({
   );
   const bookAuthor = useMemo(() => {
     const thought = detail.thoughts.find((item) => item.author?.name || item.author?.avatar);
-    return thoughtAuthorProfile(thought, userProfile);
-  }, [detail.thoughts, userProfile]);
+    return thoughtAuthorProfile(thought, userProfile, t('common.me'));
+  }, [detail.thoughts, t, userProfile]);
   const readingTimeLabel = formatWeReadReadingTime(
     detail.book.readingTime ?? detail.book.recordReadingTime,
+    t,
   );
   const visibleGroups = activeChapterUid
     ? groups.filter((group) => group.chapterUid === activeChapterUid)
@@ -79,11 +83,11 @@ export function WeReadBookcase({
         <button
           className="source-reader-back-button"
           type="button"
-          aria-label="返回阅读库"
+          aria-label={t('common.backToLibrary')}
           onClick={onClose}
         >
           <ArrowLeft size={16} />
-          返回阅读库
+          {t('common.backToLibrary')}
         </button>
         <div className="weread-bookcase-title">
           <WeReadCover book={detail.book} variant="cover" />
@@ -93,27 +97,29 @@ export function WeReadBookcase({
               <button
                 className="weread-open-book-button"
                 type="button"
-                aria-label="打开微信读书"
-                title="打开微信读书"
+                aria-label={t('wereadBook.openWeRead')}
+                title={t('wereadBook.openWeRead')}
                 onClick={() => onOpenExternal({})}
               >
                 <ExternalLink size={15} />
               </button>
             </div>
             <p>
-              {[detail.book.author || '微信读书', readingTimeLabel].filter(Boolean).join(' · ')}
+              {[detail.book.author || t('wereadBook.weReadFallback'), readingTimeLabel]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
           </div>
         </div>
         <div className="weread-bookcase-actions">
           <button type="button" disabled={syncing} onClick={onSync}>
             <RefreshCw size={15} />
-            {syncing ? '同步中' : '同步本书'}
+            {syncing ? t('wereadBook.syncing') : t('wereadBook.syncBook')}
           </button>
         </div>
       </header>
       <div className="weread-bookcase-body">
-        <aside className="weread-toc" aria-label="微信读书章节">
+        <aside className="weread-toc" aria-label={t('wereadBook.tocLabel')}>
           {chapters.map((chapter) => (
             <button
               type="button"
@@ -131,7 +137,7 @@ export function WeReadBookcase({
           className={['weread-note-wall', visibleGroups.length === 0 ? 'is-empty' : '']
             .filter(Boolean)
             .join(' ')}
-          aria-label="微信读书划线和想法"
+          aria-label={t('wereadBook.notesLabel')}
         >
           {visibleGroups.length > 0 ? (
             visibleGroups.map((group) => (
@@ -150,7 +156,7 @@ export function WeReadBookcase({
               />
             ))
           ) : (
-            <div className="weread-empty-chapter">这一章暂无同步到的划线或想法。</div>
+            <div className="weread-empty-chapter">{t('wereadBook.emptyChapter')}</div>
           )}
         </main>
       </div>
@@ -158,10 +164,12 @@ export function WeReadBookcase({
   );
 }
 
-function formatWeReadReadingTime(value: number | undefined) {
+type AppT = ReturnType<typeof useTranslation>['t'];
+
+function formatWeReadReadingTime(value: number | undefined, t: AppT) {
   if (!value) return '';
   const minutes = Math.max(1, Math.round(value / 60));
-  return `累计阅读 ${minutes} 分钟`;
+  return t('wereadBook.readingTime', { minutes });
 }
 
 function WeReadNoteCard({
@@ -175,12 +183,13 @@ function WeReadNoteCard({
   userProfile: UserProfile;
   onOpenExternal: () => void;
 }) {
-  const model = weReadReadonlyNoteCardModel(group, fallbackAuthor, userProfile);
+  const { t } = useTranslation();
+  const model = weReadReadonlyNoteCardModel(group, fallbackAuthor, userProfile, t('common.me'));
   return (
     <ReadonlyAnnotationCard
       action={{
         icon: <ExternalLink size={13} />,
-        label: '定位到批注',
+        label: t('wereadBook.locateAnnotation'),
         onClick: onOpenExternal,
       }}
       author={model.author}
@@ -196,12 +205,13 @@ function WeReadNoteCard({
 function thoughtAuthorProfile(
   thought: WeReadThought | undefined,
   userProfile: UserProfile,
+  selfLabel = i18next.t('common.me'),
 ): WeReadNoteAuthor {
-  const name = thought?.author?.name || userProfile.nickname || '我';
+  const name = thought?.author?.name || userProfile.nickname || selfLabel;
   return {
     avatar: thought?.author?.avatar || userProfile.avatar,
     color: userProfile.annotationColor,
-    fallback: name.slice(0, 1) || '我',
+    fallback: name.slice(0, 1) || selfLabel,
     name,
   };
 }
@@ -210,9 +220,10 @@ export function weReadReadonlyNoteCardModel(
   group: WeReadNoteGroup,
   fallbackAuthor: WeReadNoteAuthor,
   userProfile: UserProfile,
+  selfLabel = i18next.t('common.me'),
 ): WeReadReadonlyNoteCardModel {
   const owner = group.thoughts[0]
-    ? thoughtAuthorProfile(group.thoughts[0], userProfile)
+    ? thoughtAuthorProfile(group.thoughts[0], userProfile, selfLabel)
     : fallbackAuthor;
   return {
     author: owner,
@@ -220,7 +231,7 @@ export function weReadReadonlyNoteCardModel(
     id: group.highlight?.bookmarkId || group.thoughts[0]?.reviewId || group.key,
     quote: group.highlight?.markText || group.thoughts[0]?.abstract || undefined,
     thoughts: group.thoughts.map((thought) => {
-      const author = thoughtAuthorProfile(thought, userProfile);
+      const author = thoughtAuthorProfile(thought, userProfile, selfLabel);
       return {
         author,
         content: thought.content,
@@ -231,7 +242,7 @@ export function weReadReadonlyNoteCardModel(
   };
 }
 
-function useChaptersWithCounts(detail: WeReadBookDetail) {
+function useChaptersWithCounts(detail: WeReadBookDetail, t: AppT) {
   return useMemo(() => {
     const counts = new Map<number, number>();
     for (const highlight of detail.highlights) {
@@ -252,14 +263,14 @@ function useChaptersWithCounts(detail: WeReadBookDetail) {
         bookId: detail.book.bookId,
         chapterUid,
         chapterIdx: Number.MAX_SAFE_INTEGER,
-        title: `章节 ${chapterUid}`,
+        title: t('wereadBook.chapterFallback', { chapterUid }),
         level: 1,
         count,
       }));
     return [...known, ...orphanChapters].toSorted(
       (left, right) => left.chapterIdx - right.chapterIdx,
     );
-  }, [detail]);
+  }, [detail, t]);
 }
 
 function groupWeReadNotes(detail: WeReadBookDetail): WeReadNoteGroup[] {

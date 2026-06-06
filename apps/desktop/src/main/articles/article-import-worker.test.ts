@@ -54,7 +54,7 @@ describe('article import worker', () => {
 
     expect(port.postMessage).toHaveBeenCalledWith({
       ok: false,
-      error: { message: '网页导入任务无效' },
+      error: { message: 'ARTICLE_IMPORT_INVALID_TASK' },
     });
     expect(jsdomMocks.closeWindow).not.toHaveBeenCalled();
   });

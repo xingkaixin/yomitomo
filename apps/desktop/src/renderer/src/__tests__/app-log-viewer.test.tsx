@@ -2,9 +2,14 @@
 
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUpdateState } from '../../../app-update-types';
 import { AboutSettings } from '../shell/app-log-viewer';
+import { initializeAppI18n } from '../i18n/app-i18n';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

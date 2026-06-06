@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import type {
   WeReadReadingStatsMode,
@@ -8,14 +10,10 @@ import type {
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 
-const MODE_OPTIONS: Array<{ mode: WeReadReadingStatsMode; label: string }> = [
-  { mode: 'weekly', label: '周' },
-  { mode: 'monthly', label: '月' },
-  { mode: 'annually', label: '年' },
-  { mode: 'overall', label: '累计' },
-];
+const MODES: WeReadReadingStatsMode[] = ['weekly', 'monthly', 'annually', 'overall'];
 
 export function WeReadReadingStatsPanel() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<WeReadReadingStatsMode>('monthly');
   const [periodStart, setPeriodStart] = useState(() => getPeriodStart('monthly'));
   const [state, setState] = useState<WeReadReadingStatsState>({ snapshots: [] });
@@ -37,7 +35,7 @@ export function WeReadReadingStatsPanel() {
         if (!canceled) setState(nextState);
       })
       .catch((error: unknown) => {
-        if (!canceled) setMessage(errorMessage(error, '读取微信读书统计缓存失败'));
+        if (!canceled) setMessage(errorMessage(error, t('readingStats.weread.cacheReadFailed')));
       });
     return () => {
       canceled = true;
@@ -60,7 +58,7 @@ export function WeReadReadingStatsPanel() {
       });
       setState(nextState);
     } catch (error) {
-      setMessage(errorMessage(error, '查询微信读书统计失败'));
+      setMessage(errorMessage(error, t('readingStats.weread.queryFailed')));
     } finally {
       setLoading(false);
     }
@@ -70,13 +68,13 @@ export function WeReadReadingStatsPanel() {
     <section className="weread-stats-panel">
       <div className="weread-stats-toolbar">
         <SegmentedControl
-          aria-label="微信读书统计周期"
+          aria-label={t('readingStats.weread.periodTabs')}
           className="stats-chart-switch"
           role="tablist"
           value={mode}
-          options={MODE_OPTIONS.map((option) => ({
-            value: option.mode,
-            label: option.label,
+          options={MODES.map((modeOption) => ({
+            value: modeOption,
+            label: t(`readingStats.weread.mode.${modeOption}`),
           }))}
           onValueChange={changeMode}
         />
@@ -84,7 +82,7 @@ export function WeReadReadingStatsPanel() {
           {mode === 'overall' ? null : (
             <button
               type="button"
-              aria-label="上一个周期"
+              aria-label={t('readingStats.weread.previousPeriod')}
               onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, -1))}
             >
               <ChevronLeft size={15} />
@@ -94,7 +92,7 @@ export function WeReadReadingStatsPanel() {
           {mode === 'overall' ? null : (
             <button
               type="button"
-              aria-label="下一个周期"
+              aria-label={t('readingStats.weread.nextPeriod')}
               disabled={activePeriodStart >= getPeriodStart(mode)}
               onClick={() => setPeriodStart(shiftPeriod(mode, activePeriodStart, 1))}
             >
@@ -104,7 +102,7 @@ export function WeReadReadingStatsPanel() {
         </div>
         <Button type="button" variant="secondary" disabled={loading} onClick={queryStats}>
           {loading ? <RefreshCw size={16} className="is-spinning" /> : <Search size={16} />}
-          {snapshot ? '重新查询' : queryButtonLabel(mode)}
+          {snapshot ? t('readingStats.weread.queryAgain') : queryButtonLabel(mode)}
         </Button>
       </div>
       {message ? <p className="weread-stats-message is-error">{message}</p> : null}
@@ -112,12 +110,14 @@ export function WeReadReadingStatsPanel() {
         <WeReadStatsSnapshotView snapshot={snapshot} />
       ) : (
         <div className="weread-stats-empty">
-          <h3>尚未查询{periodNoun(mode)}</h3>
-          <p>切换周期只会查看已保存的数据。需要更新时，点击“{queryButtonLabel(mode)}”。</p>
+          <h3>{t('readingStats.weread.emptyTitle', { period: periodNoun(mode) })}</h3>
+          <p>{t('readingStats.weread.emptyDescription', { action: queryButtonLabel(mode) })}</p>
           {latestSnapshot ? (
             <span>
-              最近一次查询：{periodLabel(latestSnapshot.mode, latestSnapshot.periodStart)}，
-              {formatDateTime(latestSnapshot.fetchedAt)}
+              {t('readingStats.weread.latestQuery', {
+                date: formatDateTime(latestSnapshot.fetchedAt),
+                period: periodLabel(latestSnapshot.mode, latestSnapshot.periodStart),
+              })}
             </span>
           ) : null}
         </div>
@@ -127,6 +127,7 @@ export function WeReadReadingStatsPanel() {
 }
 
 function WeReadStatsSnapshotView({ snapshot }: { snapshot: WeReadReadingStatsSnapshot }) {
+  const { t } = useTranslation();
   const data = snapshot.data;
   const readTimes = Object.entries(data.readTimes)
     .map(([key, value]) => ({ key, label: readTimeBucketLabel(snapshot.mode, key), value }))
@@ -142,43 +143,45 @@ function WeReadStatsSnapshotView({ snapshot }: { snapshot: WeReadReadingStatsSna
           <strong>{formatDuration(data.totalReadTime)}</strong>
         </section>
         <section className="stats-status-card">
-          <span>阅读天数</span>
-          <strong>{data.readDays ?? 0} 天</strong>
+          <span>{t('readingStats.weread.readDays')}</span>
+          <strong>{t('readingStats.weread.days', { count: data.readDays ?? 0 })}</strong>
         </section>
         <section className="stats-status-card">
-          <span>日均阅读</span>
+          <span>{t('readingStats.weread.dailyAverage')}</span>
           <strong>{formatDuration(data.dayAverageReadTime || 0)}</strong>
         </section>
       </div>
       <div className="weread-stats-meta">
-        <span>查询于 {formatDateTime(snapshot.fetchedAt)}</span>
+        <span>
+          {t('readingStats.weread.queriedAt', { date: formatDateTime(snapshot.fetchedAt) })}
+        </span>
         {data.preferTimeWord ? <span>{data.preferTimeWord}</span> : null}
         {data.preferCategoryWord ? <span>{data.preferCategoryWord}</span> : null}
       </div>
       <section className="weread-stats-grid">
         <div className="stats-insights weread-stats-card">
           <div className="stats-section-heading">
-            <h3>概览</h3>
-            <p>微信读书返回的周期统计</p>
+            <h3>{t('readingStats.weread.overview')}</h3>
+            <p>{t('readingStats.weread.overviewDescription')}</p>
           </div>
           <div className="weread-stats-kpis">
             {data.readStat.map((item) => (
               <span key={`${item.stat}:${item.counts}`}>
                 <strong>{item.counts}</strong>
-                {item.stat}
+                {wereadStatLabel(item.stat)}
               </span>
             ))}
             {data.authorCount !== undefined ? (
               <span>
                 <strong>{data.authorCount}</strong>
-                位作者
+                {t('readingStats.weread.authors')}
               </span>
             ) : null}
           </div>
         </div>
         <div className="stats-insights weread-stats-card">
           <div className="stats-section-heading">
-            <h3>阅读分布</h3>
+            <h3>{t('readingStats.weread.distribution')}</h3>
             <p>{readTimeBucketDescription(snapshot.mode)}</p>
           </div>
           <div className="weread-stats-bars">
@@ -191,7 +194,7 @@ function WeReadStatsSnapshotView({ snapshot }: { snapshot: WeReadReadingStatsSna
                 </div>
               ))
             ) : (
-              <p>这个周期暂无分时数据。</p>
+              <p>{t('readingStats.weread.noBucketData')}</p>
             )}
           </div>
         </div>
@@ -199,15 +202,15 @@ function WeReadStatsSnapshotView({ snapshot }: { snapshot: WeReadReadingStatsSna
       {data.readLongest.length > 0 ? (
         <section className="stats-insights weread-stats-card">
           <div className="stats-section-heading">
-            <h3>阅读较多的书</h3>
-            <p>来自微信读书统计结果</p>
+            <h3>{t('readingStats.weread.topBooks')}</h3>
+            <p>{t('readingStats.weread.topBooksDescription')}</p>
           </div>
           <div className="weread-stats-book-list">
             {data.readLongest.slice(0, 6).map((book, index) => (
               <article key={`${book.bookId || book.title || index}`}>
                 {book.cover ? <img alt="" src={book.cover} loading="lazy" /> : <span />}
                 <div>
-                  <strong>{book.title || '未命名书籍'}</strong>
+                  <strong>{book.title || t('readingStats.weread.untitledBook')}</strong>
                   <p>
                     {[book.author, formatDuration(book.readTime || 0)].filter(Boolean).join(' · ')}
                   </p>
@@ -225,15 +228,21 @@ function readTimeBucketLabel(mode: WeReadReadingStatsMode, key: string) {
   const timestamp = Number(key);
   if (!Number.isFinite(timestamp)) return key;
   const date = new Date(timestamp * 1000);
-  if (mode === 'overall') return `${date.getFullYear()}年`;
-  if (mode === 'annually') return `${date.getMonth() + 1}月`;
+  if (mode === 'overall')
+    return i18next.t('readingStats.weread.bucket.year', { year: date.getFullYear() });
+  if (mode === 'annually')
+    return i18next.t('readingStats.weread.bucket.month', { month: date.getMonth() + 1 });
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
+function wereadStatLabel(value: string) {
+  return i18next.t(`readingStats.weread.readStat.${value}`, { defaultValue: value });
+}
+
 function readTimeBucketDescription(mode: WeReadReadingStatsMode) {
-  if (mode === 'overall') return '按年份汇总阅读时长';
-  if (mode === 'annually') return '按月份汇总阅读时长';
-  return '按日期汇总阅读时长';
+  if (mode === 'overall') return i18next.t('readingStats.weread.bucket.byYear');
+  if (mode === 'annually') return i18next.t('readingStats.weread.bucket.byMonth');
+  return i18next.t('readingStats.weread.bucket.byDate');
 }
 
 function getPeriodStart(mode: WeReadReadingStatsMode, value = Date.now()) {
@@ -260,41 +269,47 @@ function shiftPeriod(mode: WeReadReadingStatsMode, periodStart: number, amount: 
 }
 
 function periodLabel(mode: WeReadReadingStatsMode, periodStart: number) {
-  if (mode === 'overall') return '累计';
+  if (mode === 'overall') return i18next.t('readingStats.weread.mode.overall');
   const date = new Date(periodStart * 1000);
   if (mode === 'weekly') {
     const end = new Date(date);
     end.setDate(date.getDate() + 6);
-    return `${date.getFullYear()} 年 ${date.getMonth() + 1}/${date.getDate()} - ${end.getMonth() + 1}/${end.getDate()}`;
+    return i18next.t('readingStats.weread.period.weekly', {
+      endDay: end.getDate(),
+      endMonth: end.getMonth() + 1,
+      startDay: date.getDate(),
+      startMonth: date.getMonth() + 1,
+      year: date.getFullYear(),
+    });
   }
-  if (mode === 'monthly') return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`;
-  return `${date.getFullYear()} 年`;
+  if (mode === 'monthly')
+    return i18next.t('readingStats.weread.period.monthly', {
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    });
+  return i18next.t('readingStats.weread.period.annually', { year: date.getFullYear() });
 }
 
 function queryButtonLabel(mode: WeReadReadingStatsMode) {
-  if (mode === 'weekly') return '查询这一周';
-  if (mode === 'monthly') return '查询这一月';
-  if (mode === 'annually') return '查询这一年';
-  return '查询累计';
+  return i18next.t(`readingStats.weread.query.${mode}`);
 }
 
 function periodNoun(mode: WeReadReadingStatsMode) {
-  if (mode === 'weekly') return '这一周';
-  if (mode === 'monthly') return '这一月';
-  if (mode === 'annually') return '这一年';
-  return '累计统计';
+  return i18next.t(`readingStats.weread.periodNoun.${mode}`);
 }
 
 function formatDuration(value: number) {
   const minutes = Math.round(value / 60);
-  if (minutes < 60) return `${minutes} 分钟`;
+  if (minutes < 60) return i18next.t('readingStats.weread.duration.minutes', { count: minutes });
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
+  return rest
+    ? i18next.t('readingStats.weread.duration.hoursMinutes', { hours, minutes: rest })
+    : i18next.t('readingStats.weread.duration.hours', { count: hours });
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',

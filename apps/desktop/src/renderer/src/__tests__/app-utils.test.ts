@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   annotationAuthorProfile,
   articleExternalUrl,
   articlePlainText,
+  articleReadingStatsLine,
   commentAuthorProfile,
   formatLogData,
   isImageAvatar,
@@ -15,6 +17,10 @@ import {
 } from '../shell/app-utils';
 
 const now = '2026-05-04T00:00:00.000Z';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 function article(overrides: Partial<ArticleRecord> = {}): ArticleRecord {
   return {
@@ -73,8 +79,18 @@ describe('app utils', () => {
 
     expect(annotationAuthorProfile(aiAnnotation)).toEqual({ avatar: 'AI', name: '阅读伙伴' });
     expect(commentAuthorProfile(userComment)).toEqual({ avatar: '/avatar.png', name: 'Kevin' });
+    expect(annotationAuthorProfile({ author: 'ai', agentAvatar: '' } as Annotation).name).toBe(
+      '助手',
+    );
+    expect(commentAuthorProfile({ author: 'user', userAvatar: '' } as Comment).name).toBe('我');
     expect(isImageAvatar('/avatar.png')).toBe(true);
     expect(isSvgAvatar('data:image/svg+xml,<svg />')).toBe(true);
+  });
+
+  it('formats localized article reading stats', () => {
+    expect(articleReadingStatsLine({ annotations: 2, comments: 1, aiContributions: 3 })).toBe(
+      '2 划线 · 1 想法 · 3 助手参与',
+    );
   });
 
   it('formats invalid hosts as the original value', () => {

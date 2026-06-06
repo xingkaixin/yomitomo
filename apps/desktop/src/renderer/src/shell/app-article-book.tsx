@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import i18next from 'i18next';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { articleDisplayTitle } from '../reading-library/app-reading-library-utils';
 
@@ -412,7 +413,9 @@ function pdfAuthorsLabel(authors: string[], count: number) {
 }
 
 function pdfAuthorsSuffix(firstAuthor: string) {
-  return hasCjkText(firstAuthor) ? '等' : 'et al.';
+  return hasCjkText(firstAuthor)
+    ? i18next.t('common.cjkEtAl', { defaultValue: 'et al.' })
+    : 'et al.';
 }
 
 function hasCjkText(value: string) {

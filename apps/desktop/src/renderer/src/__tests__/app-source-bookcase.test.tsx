@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 
 vi.mock('../source/web/app-source-bookcase-web', () => ({
@@ -34,6 +35,10 @@ const userProfile: UserProfile = {
   annotationColor: '#f4c95d',
   updatedAt: now,
 };
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
@@ -52,6 +53,7 @@ import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
+import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
@@ -82,6 +84,7 @@ export function EbookBookcase({
   onSaveArticleReaderChatState,
   onUpdateArticle,
 }: EbookBookcaseProps) {
+  const { t } = useTranslation();
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -233,6 +236,7 @@ export function EbookBookcase({
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
   );
+  const labels = readerUiLabels();
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
@@ -832,6 +836,7 @@ export function EbookBookcase({
           id: article.id,
         },
         chat: readerChat.model,
+        labels,
         options: { embedded: true },
         refs: {
           articleRef,
@@ -869,11 +874,11 @@ export function EbookBookcase({
                     : 'reader-floating-control-group is-paginating'
                 }
               >
-                <ReaderTooltip content="上一页" side="bottom">
+                <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
                   <button
                     className="reader-icon-button"
                     type="button"
-                    aria-label="上一页"
+                    aria-label={t('readerControls.previousPage')}
                     disabled={readerState.status !== 'ready' || !paginationReady}
                     onClick={goLeft}
                   >
@@ -882,7 +887,7 @@ export function EbookBookcase({
                 </ReaderTooltip>
                 <span className="reader-floating-value is-wide">{pageLabel}</span>
                 <input
-                  aria-label="快速跳转阅读进度"
+                  aria-label={t('readerControls.jumpEbookProgress')}
                   className="ebook-progress-slider reader-floating-slider"
                   disabled={readerState.status !== 'ready'}
                   list={sectionFractions.length > 0 ? progressTickId : undefined}
@@ -896,11 +901,11 @@ export function EbookBookcase({
                   value={progress}
                   onChange={goToProgress}
                 />
-                <ReaderTooltip content="下一页" side="bottom">
+                <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
                   <button
                     className="reader-icon-button"
                     type="button"
-                    aria-label="下一页"
+                    aria-label={t('readerControls.nextPage')}
                     disabled={readerState.status !== 'ready' || !paginationReady}
                     onClick={goRight}
                   >
@@ -916,6 +921,7 @@ export function EbookBookcase({
                 ) : null}
               </div>
               <ReaderSettingsToolbarControls
+                labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
                 settings={readerSettings}
                 onChange={updateEbookReaderSettings}
               />

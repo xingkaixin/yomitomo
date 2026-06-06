@@ -3,10 +3,12 @@ import { CaseSensitive, Maximize2, Minus, Plus } from 'lucide-react';
 import type { ReaderSettings } from '../reader-types';
 
 export function ReaderSettingsPanel({
+  labels = { articleWidth: '文章宽度', fontSize: '字号' },
   panelProps,
   settings,
   onChange,
 }: {
+  labels?: { articleWidth: string; fontSize: string };
   panelProps?: React.HTMLAttributes<HTMLDivElement>;
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
@@ -15,14 +17,14 @@ export function ReaderSettingsPanel({
     <div className="reader-settings-panel" {...panelProps}>
       <SettingStepper
         icon={<CaseSensitive size={17} />}
-        label="字号"
+        label={labels.fontSize}
         value={`${settings.fontSize}px`}
         onDecrease={() => onChange({ ...settings, fontSize: Math.max(16, settings.fontSize - 1) })}
         onIncrease={() => onChange({ ...settings, fontSize: Math.min(28, settings.fontSize + 1) })}
       />
       <SettingStepper
         icon={<Maximize2 size={16} />}
-        label="文章宽度"
+        label={labels.articleWidth}
         value={`${settings.contentWidth}px`}
         onDecrease={() =>
           onChange({ ...settings, contentWidth: Math.max(600, settings.contentWidth - 40) })

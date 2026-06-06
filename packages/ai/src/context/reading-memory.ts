@@ -299,7 +299,7 @@ function parseJsonObject(value: string): Record<string, unknown> {
       const parsed = JSON.parse(cleaned.slice(start, end + 1));
       return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
     }
-    throw new Error('阅读记忆结果不是有效 JSON');
+    throw new Error('READING_MEMORY_JSON_PARSE_FAILED');
   }
 }
 
