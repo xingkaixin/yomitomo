@@ -2085,6 +2085,11 @@
   -webkit-app-region: drag;
 }
 
+.weread-bookcase-title > div {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .weread-bookcase-title .weread-book-cover {
   --book-depth: clamp(12px, 29cqw, 18px);
   --book-cover-height: 42px;
@@ -2099,6 +2104,8 @@
 }
 
 .weread-bookcase-title h2 {
+  min-width: 0;
+  flex: 1 1 auto;
   margin: 0;
   overflow: hidden;
   color: hsl(var(--foreground));
@@ -2110,13 +2117,17 @@
 
 .weread-bookcase-title p {
   margin: 4px 0 0;
+  overflow: hidden;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weread-bookcase-actions {
   display: flex;
+  flex: 0 0 auto;
   gap: 8px;
   -webkit-app-region: no-drag;
 }

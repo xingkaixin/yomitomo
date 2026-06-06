@@ -879,20 +879,27 @@
   --app-titlebar-mobile-left-padding: 72px;
   --app-titlebar-mobile-right-padding: 18px;
   --reader-titlebar-back-left: 18px;
-  --reader-titlebar-back-max-width: 180px;
-  --reader-titlebar-padding-left: 222px;
+  --reader-titlebar-back-max-width: 156px;
+  --reader-titlebar-adjacent-gap: 14px;
+  --reader-titlebar-padding-left: calc(
+    var(--reader-titlebar-back-left) + var(--reader-titlebar-back-max-width) +
+      var(--reader-titlebar-adjacent-gap)
+  );
   --reader-titlebar-padding-right: 22px;
   --reader-titlebar-mobile-back-left: 12px;
-  --reader-titlebar-mobile-padding-left: 62px;
+  --reader-titlebar-mobile-back-width: 40px;
+  --reader-titlebar-mobile-adjacent-gap: 10px;
+  --reader-titlebar-mobile-padding-left: calc(
+    var(--reader-titlebar-mobile-back-left) + var(--reader-titlebar-mobile-back-width) +
+      var(--reader-titlebar-mobile-adjacent-gap)
+  );
   grid-template-rows: auto auto minmax(0, 1fr);
   background: var(--app-shell-background);
 }
 
 .app-shell.is-darwin {
   --reader-titlebar-back-left: 78px;
-  --reader-titlebar-padding-left: 282px;
   --reader-titlebar-mobile-back-left: 78px;
-  --reader-titlebar-mobile-padding-left: 132px;
 }
 
 .app-shell.is-win32 {

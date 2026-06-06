@@ -41,6 +41,24 @@ describe('reading library styles', () => {
     expect(styles).not.toContain('.weread-bookcase-title:hover .article-book-ground-shadow');
   });
 
+  it('truncates long weread detail titles inside the header', () => {
+    expectRule('.weread-bookcase-title', ['min-width: 0;']);
+    expectRule('.weread-bookcase-title > div', ['min-width: 0;', 'overflow: hidden;']);
+    expectRule('.weread-bookcase-title h2', [
+      'min-width: 0;',
+      'flex: 1 1 auto;',
+      'overflow: hidden;',
+      'text-overflow: ellipsis;',
+      'white-space: nowrap;',
+    ]);
+    expectRule('.weread-bookcase-title p', [
+      'overflow: hidden;',
+      'text-overflow: ellipsis;',
+      'white-space: nowrap;',
+    ]);
+    expectRule('.weread-bookcase-actions', ['flex: 0 0 auto;']);
+  });
+
   it('shares book hover motion with web article cards', () => {
     expect(styles).toContain('.library-web-item:hover .article-book-scene');
     expect(styles).toContain('.library-web-item:focus-within .article-book-scene');
