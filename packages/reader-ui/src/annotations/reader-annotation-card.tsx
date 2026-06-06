@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Layers2, Lightbulb, MessageCircle, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Layers2, Lightbulb, MessageCircle, MoreHorizontal, Quote, Trash2 } from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
@@ -97,7 +97,7 @@ export function AnnotationCard({
   const noteClassName = [
     'reader-note',
     active ? 'is-active' : '',
-    annotation.distillation?.status === 'published' ? 'has-distillation' : '',
+    annotation.distillation?.status === 'published' ? 'has-distillation' : 'has-discussion',
     distillationAnimation ? `is-distillation-${distillationAnimation.transition}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
@@ -154,7 +154,7 @@ export function AnnotationCard({
         {displaysDistillation ? (
           <svg
             className="reader-note-distillation-ticket"
-            viewBox="0 0 640 278"
+            viewBox="0 0 560 340"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
@@ -173,7 +173,7 @@ export function AnnotationCard({
             </defs>
             <path
               filter={`url(#reader-note-ticket-shadow-${annotation.id})`}
-              d="M22,0 H618 A22,22 0 0 1 640,22 V121 A18,18 0 0 0 640,157 V256 A22,22 0 0 1 618,278 H22 A22,22 0 0 1 0,256 V157 A18,18 0 0 0 0,121 V22 A22,22 0 0 1 22,0 Z"
+              d="M16,0 H544 A16,16 0 0 1 560,16 V60 C560,60 544,60 544,76 C544,92 560,92 560,92 V324 A16,16 0 0 1 544,340 H16 A16,16 0 0 1 0,324 V280 C0,280 16,280 16,264 C16,248 0,248 0,248 V16 A16,16 0 0 1 16,0 Z"
               fill="var(--reader-note-ticket-fill)"
               stroke="var(--reader-note-ticket-stroke)"
               strokeWidth="1.25"
@@ -182,6 +182,17 @@ export function AnnotationCard({
           </svg>
         ) : null}
         <header className="reader-note-card-header">
+          {!displaysDistillation ? (
+            <>
+              <span className="reader-note-quote-badge" aria-hidden="true">
+                <Quote size={18} strokeWidth={2.35} />
+              </span>
+              <span className="reader-note-left-line" aria-hidden="true" />
+              <span className="reader-note-background-quote" aria-hidden="true">
+                ”
+              </span>
+            </>
+          ) : null}
           <button
             className="reader-note-quote"
             type="button"

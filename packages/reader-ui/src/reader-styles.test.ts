@@ -112,10 +112,28 @@ describe('reader embedded styles', () => {
 
   it('keeps long annotation text at readable body weights', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:13px;font-style:normal;font-weight:620;line-height:1.68',
+      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72',
     );
     expect(readerConversationStyles).toContain(
       '.reader-thought-summary .reader-markdown-content,.reader-thought-summary .reader-markdown-content p{font-size:13px;font-weight:520;line-height:1.68}',
+    );
+  });
+
+  it('keeps redesigned annotation cards on reader theme tokens', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-discussion .reader-note-quote-badge{',
+    );
+    expect(readerConversationStyles).toContain(
+      'background:color-mix(in srgb,var(--reader-note-accent) 16%,transparent)',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-discussion .reader-note-toolbar{margin:20px -22px 0;border-top:1.5px solid color-mix(in srgb,var(--reader-note-accent) 46%,var(--app-reader-note-border));background:color-mix(in srgb,var(--app-reader-note-bg) 82%,var(--reader-bg))}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note.has-distillation{position:relative;overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--app-reader-note-bg);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 48%,var(--app-reader-note-border))}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-distillation-footer::before{content:"";position:absolute;left:28px;right:28px;top:0;border-top:1.5px dashed color-mix(in srgb,var(--reader-note-accent) 36%,var(--app-reader-note-border));pointer-events:none}',
     );
   });
 
