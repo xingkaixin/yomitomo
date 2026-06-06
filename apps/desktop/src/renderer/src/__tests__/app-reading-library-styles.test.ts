@@ -50,6 +50,17 @@ describe('reading library styles', () => {
     expect(styles).toContain('.library-web-item:focus-within .article-book-ground-shadow');
   });
 
+  it('overlays the web cover chrome without pushing the source metadata down', () => {
+    expectRule('.web-cover-body', ['position: absolute;', 'inset: 0;', 'padding: 13% 12%;']);
+    expectRule('.web-cover-chrome', ['position: absolute;', 'transform: translateY(-100%);']);
+    expect(styles).toMatch(
+      /\.library-web-item:hover \.web-cover-chrome,[\s\S]*\.library-web-item:focus-within \.web-cover-chrome \{[\s\S]*transform: translateY\(0\);[\s\S]*\}/,
+    );
+    expect(styles).not.toContain('.library-web-item:hover .web-cover-body');
+    expect(styles).not.toContain('.library-web-item:focus-within .web-cover-body');
+    expect(styles).not.toContain('padding-block-start: calc(13% + 22px);');
+  });
+
   it('keeps library card action buttons anchored in narrow card layouts', () => {
     expectRule('.library-list', ['grid-template-columns: repeat(3, minmax(0, 1fr));']);
     expectRule('.library-web-item-cover', ['align-self: start;']);

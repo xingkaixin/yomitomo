@@ -2645,7 +2645,6 @@
   flex-direction: column;
   padding: 13% 12%;
   background: hsl(var(--card));
-  transition: padding-block-start 280ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .web-cover-fav {
@@ -2754,18 +2753,10 @@
   transform: translateY(0);
 }
 
-.library-card:hover .web-cover-body,
-.library-card:focus-within .web-cover-body,
-.library-web-item:hover .web-cover-body,
-.library-web-item:focus-within .web-cover-body {
-  padding-block-start: calc(13% + 22px);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .article-cover-card,
   .pdf-cover-bar,
-  .web-cover-chrome,
-  .web-cover-body {
+  .web-cover-chrome {
     transition-duration: 1ms;
   }
 }
