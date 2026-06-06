@@ -25,6 +25,25 @@ export type ReviewOpinionLabel = '站得住' | '有洞察' | '有异议' | '待�
 
 export type AnnotationDistillationStatus = 'unpublished' | 'published';
 
+export type AnnotationDistillationProposalKind = 'insert' | 'replace' | 'delete';
+
+export type AnnotationDistillationProposalStatus = 'pending' | 'accepted' | 'ignored';
+
+export type AnnotationDistillationProposal = {
+  id: string;
+  kind: AnnotationDistillationProposalKind;
+  status: AnnotationDistillationProposalStatus;
+  title: string;
+  rationale?: string;
+  insertAfterText?: string;
+  targetText?: string;
+  replacementText?: string;
+  content?: string;
+  acceptedAt?: string;
+  ignoredAt?: string;
+  updatedAt: string;
+};
+
 export type AssistantRuntimeProgressStepStatus = 'active' | 'done' | 'failed';
 
 export type AssistantRuntimeProgressStep = {
@@ -52,6 +71,7 @@ export type AnnotationDistillationReviewMessage = {
   agentNickname?: string;
   agentAvatar?: string;
   assistantProgress?: AssistantRuntimeProgressSummary;
+  proposals?: AnnotationDistillationProposal[];
 };
 
 export type AnnotationDistillationReviewSession = {

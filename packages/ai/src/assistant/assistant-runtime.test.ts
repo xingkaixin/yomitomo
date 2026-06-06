@@ -472,10 +472,55 @@ describe('assistant final action validation', () => {
         type: 'review_distillation',
         annotationId: 'annotation_1',
         content: '这个沉淀缺少原文证据，可以先补出判断边界。',
+        proposals: [],
         evidenceIds: [],
         confidence: 0.81,
         reason: '沉淀稿需要审阅意见。',
       },
+    });
+  });
+
+  it('normalizes review_distillation proposals', () => {
+    const result = validateAssistantFinalAction(
+      {
+        type: 'review_distillation',
+        annotationId: 'annotation_1',
+        content: '建议把这段沉淀改得更可执行。',
+        proposals: [
+          {
+            kind: 'insert',
+            content: '新增一个可执行判断。',
+            status: 'ignored',
+          },
+          {
+            kind: 'replace',
+            targetText: '旧判断',
+          },
+        ],
+        evidenceIds: [],
+        confidence: 0.81,
+        reason: '沉淀稿需要审阅意见。',
+      },
+      {
+        articleId: 'article_1',
+        evidenceIds: new Set(),
+        allowedAnnotationIds: ['annotation_1'],
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      action: expect.objectContaining({
+        proposals: [
+          expect.objectContaining({
+            id: 'insert_1',
+            kind: 'insert',
+            status: 'pending',
+            title: '新增：新增一个可执行判断。',
+            content: '新增一个可执行判断。',
+          }),
+        ],
+      }),
     });
   });
 

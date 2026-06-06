@@ -3,6 +3,9 @@ import type {
   Annotation,
   AnnotationAuthor,
   AnnotationDistillation,
+  AnnotationDistillationProposal,
+  AnnotationDistillationProposalKind,
+  AnnotationDistillationProposalStatus,
   AnnotationDistillationReviewSession,
   AnnotationDistillationStatus,
   AssistantRuntimeProgressSummary,
@@ -694,9 +697,82 @@ function normalizeAnnotationDistillationReviewMessages(value: unknown) {
         agentNickname: stringValue(message.agentNickname) || undefined,
         agentAvatar: stringValue(message.agentAvatar) || undefined,
         assistantProgress: normalizeAssistantRuntimeProgress(message.assistantProgress),
+        proposals: normalizeAnnotationDistillationProposals(message.proposals),
       },
     ];
   });
+}
+
+function normalizeAnnotationDistillationProposals(
+  value: unknown,
+): AnnotationDistillationProposal[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const proposal = recordValue(item);
+    const id = stringValue(proposal.id);
+    const kind = normalizeAnnotationDistillationProposalKind(proposal.kind);
+    if (!id || !kind) return [];
+
+    const content = stringValue(proposal.content);
+    const targetText = stringValue(proposal.targetText);
+    const replacementText = stringValue(proposal.replacementText);
+    if (!validAnnotationDistillationProposalFields(kind, content, targetText, replacementText)) {
+      return [];
+    }
+
+    return [
+      {
+        id,
+        kind,
+        status: normalizeAnnotationDistillationProposalStatus(proposal.status),
+        title: stringValue(proposal.title) || proposalTitleFallback(kind, content, targetText),
+        rationale: stringValue(proposal.rationale) || undefined,
+        insertAfterText: stringValue(proposal.insertAfterText) || undefined,
+        targetText: targetText || undefined,
+        replacementText: kind === 'replace' ? replacementText : undefined,
+        content: kind === 'insert' ? content : undefined,
+        acceptedAt: stringValue(proposal.acceptedAt) || undefined,
+        ignoredAt: stringValue(proposal.ignoredAt) || undefined,
+        updatedAt: stringValue(proposal.updatedAt),
+      },
+    ];
+  });
+}
+
+function normalizeAnnotationDistillationProposalKind(
+  value: unknown,
+): AnnotationDistillationProposalKind | null {
+  return value === 'insert' || value === 'replace' || value === 'delete' ? value : null;
+}
+
+function normalizeAnnotationDistillationProposalStatus(
+  value: unknown,
+): AnnotationDistillationProposalStatus {
+  return value === 'accepted' || value === 'ignored' || value === 'pending' ? value : 'pending';
+}
+
+function validAnnotationDistillationProposalFields(
+  kind: AnnotationDistillationProposalKind,
+  content: string,
+  targetText: string,
+  replacementText: string,
+) {
+  if (kind === 'insert') return Boolean(content);
+  if (kind === 'replace') return Boolean(targetText && replacementText);
+  return Boolean(targetText);
+}
+
+function proposalTitleFallback(
+  kind: AnnotationDistillationProposalKind,
+  content: string,
+  targetText: string,
+) {
+  const text = kind === 'insert' ? content : targetText;
+  const preview = text.length > 18 ? `${text.slice(0, 18)}...` : text;
+  if (kind === 'insert') return preview ? `新增：${preview}` : '新增内容';
+  if (kind === 'replace') return preview ? `修改：${preview}` : '修改内容';
+  return preview ? `删除：${preview}` : '删除内容';
 }
 
 function normalizeAssistantRuntimeProgress(

@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { MessageCircleQuestion, RotateCcw, Send, UploadCloud } from 'lucide-react';
+import {
+  Check,
+  MessageCircleQuestion,
+  RotateCcw,
+  Send,
+  Sparkles,
+  UploadCloud,
+  X,
+} from 'lucide-react';
 import type {
   Agent,
   Annotation,
+  AnnotationDistillationProposal,
   AnnotationDistillationReviewMessage,
   AnnotationDistillationReviewSession,
   ArticleRecord,
@@ -26,22 +35,21 @@ import {
   isMessageSendShortcutEvent,
 } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
-  AnnotationLayoutControl,
-  type AnnotationMessageLayoutMode,
-} from './app-annotation-layout-control';
-import {
   applyAssistantRuntimeProgress,
   AssistantRuntimeProgressList,
 } from '../shell/app-assistant-runtime-progress';
 import { useSourceAwareWindowTransition } from '../shell/app-window-transition';
+import {
+  applyDistillationProposalToDraft,
+  updateReviewProposalStatus,
+  type DraftSelectionSnapshot,
+} from './app-annotation-sedimentation-proposals';
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
   | { type: 'ready'; agents: Agent[]; article: ArticleRecord; annotation: Annotation }
   | { type: 'missing' }
   | { type: 'error'; message: string };
-
-type ReviewLayoutMode = AnnotationMessageLayoutMode;
 
 export function AnnotationSedimentationWindowApp() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
@@ -136,11 +144,12 @@ function SedimentationShell({
   const activeAgents = reviewAgents.filter((agent) => activeAgentIds.has(agent.id));
   const [draft, setDraft] = useState(() => initialDistillationDraft(article.id, annotation));
   const [reviewDraft, setReviewDraft] = useState('');
-  const [layoutMode, setLayoutMode] = useState<ReviewLayoutMode>('split');
   const [saving, setSaving] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [reviewNotice, setReviewNotice] = useState('');
   const draftKey = distillationDraftKey(article.id, annotation.id);
+  const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const draftSelectionRef = useRef<DraftSelectionSnapshot | null>(null);
   const reviewTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const shortcutModifier = getShortcutModifier();
   const messageSendShortcut = 'mod-enter' as const;
@@ -257,17 +266,22 @@ function SedimentationShell({
     });
   }
 
-  async function submitReviewRound() {
+  async function submitReviewRound(input?: {
+    reviewDraftOverride?: string;
+    reviewMode?: 'review' | 'organize_discussion';
+  }) {
     if (activeAgents.length === 0 || reviewing) return;
     setReviewing(true);
     setReviewNotice('');
+    const effectiveReviewDraft = input?.reviewDraftOverride ?? reviewDraft;
+    if (!input?.reviewDraftOverride) setReviewDraft('');
     try {
       const now = new Date().toISOString();
-      const userMessage = reviewDraft.trim()
+      const userMessage = effectiveReviewDraft.trim()
         ? ({
             id: makeId('distillation_review_message'),
             author: 'user',
-            content: reviewDraft.trim(),
+            content: effectiveReviewDraft.trim(),
             createdAt: now,
           } satisfies AnnotationDistillationReviewMessage)
         : undefined;
@@ -279,7 +293,8 @@ function SedimentationShell({
           article: workingArticle,
           annotation: workingAnnotation,
           draft,
-          reviewDraft,
+          reviewDraft: effectiveReviewDraft,
+          reviewMode: input?.reviewMode || 'review',
           sessions,
           userMessage,
           onOptimisticSession: (session) => {
@@ -300,12 +315,76 @@ function SedimentationShell({
         );
       }
       await saveAndRefresh(workingArticle, agents, annotation.id, onStatusChange);
-      setReviewDraft('');
     } catch (error) {
       setReviewNotice(error instanceof Error ? error.message : '审阅失败');
     } finally {
       setReviewing(false);
     }
+  }
+
+  function organizeDiscussion() {
+    void submitReviewRound({
+      reviewMode: 'organize_discussion',
+      reviewDraftOverride:
+        '请整理当前高亮、想法和审阅讨论，生成可直接加入沉淀稿的新增建议。只给新增建议，不要修改或删除现有草稿。',
+    });
+  }
+
+  function recordDraftSelection() {
+    const textarea = draftTextareaRef.current;
+    if (!textarea) return;
+    draftSelectionRef.current = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd,
+    };
+  }
+
+  async function handleProposalAccept(messageId: string, proposal: AnnotationDistillationProposal) {
+    if (proposal.status !== 'pending') return;
+    const result = applyDistillationProposalToDraft(draft, proposal, draftSelectionRef.current);
+    if (!result.ok) {
+      setReviewNotice(result.reason);
+      return;
+    }
+    setDraft(result.draft);
+    await updateProposalStatus(messageId, proposal.id, 'accepted');
+    setReviewNotice('');
+  }
+
+  async function handleProposalIgnore(messageId: string, proposalId: string) {
+    await updateProposalStatus(messageId, proposalId, 'ignored');
+    setReviewNotice('');
+  }
+
+  async function handleProposalRestore(messageId: string, proposalId: string) {
+    await updateProposalStatus(messageId, proposalId, 'pending');
+    setReviewNotice('');
+  }
+
+  async function updateProposalStatus(
+    messageId: string,
+    proposalId: string,
+    proposalStatus: AnnotationDistillationProposal['status'],
+  ) {
+    const nextSessions = updateReviewProposalStatus(
+      annotation.distillation?.reviewSessions || [],
+      messageId,
+      proposalId,
+      proposalStatus,
+      new Date().toISOString(),
+    );
+    const nextArticle = updateAnnotation(article, annotation.id, (current) => ({
+      ...current,
+      distillation: {
+        status: current.distillation?.status || 'unpublished',
+        content: current.distillation?.content || '',
+        publishedAt: current.distillation?.publishedAt,
+        updatedAt: new Date().toISOString(),
+        reviewSessions: nextSessions,
+      },
+      updatedAt: new Date().toISOString(),
+    }));
+    await saveAndRefresh(nextArticle, agents, annotation.id, onStatusChange);
   }
 
   return (
@@ -342,6 +421,17 @@ function SedimentationShell({
                   </button>
                 </ReaderTooltip>
               ) : null}
+              <ReaderTooltip content="让当前审阅助手把讨论整理成可采纳的新增建议">
+                <button
+                  className="is-secondary"
+                  type="button"
+                  disabled={!canReview}
+                  onClick={organizeDiscussion}
+                >
+                  <Sparkles size={15} />
+                  <span>整理讨论</span>
+                </button>
+              </ReaderTooltip>
               <ReaderTooltip
                 content={
                   <SubmitShortcutTooltipContent
@@ -363,14 +453,21 @@ function SedimentationShell({
             </div>
           </header>
           <textarea
+            ref={draftTextareaRef}
             value={draft}
             placeholder="写下你想沉淀的判断、框架、问题或可迁移的提醒..."
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              recordDraftSelection();
+            }}
+            onClick={recordDraftSelection}
             onKeyDown={(event) => {
               if (!isMessageSendShortcutEvent(event, messageSendShortcut)) return;
               event.preventDefault();
               void publishDistillation();
             }}
+            onKeyUp={recordDraftSelection}
+            onSelect={recordDraftSelection}
           />
         </section>
 
@@ -380,9 +477,14 @@ function SedimentationShell({
               <strong>审阅讨论</strong>
               <span>{reviewNotice || '选择至少一个审阅助手，然后围绕沉淀稿沟通'}</span>
             </div>
-            <AnnotationLayoutControl value={layoutMode} onChange={setLayoutMode} />
           </header>
-          <ReviewSessions sessions={sessions} layoutMode={layoutMode} userProfile={userProfile} />
+          <ReviewSessions
+            sessions={sessions}
+            userProfile={userProfile}
+            onProposalAccept={handleProposalAccept}
+            onProposalIgnore={handleProposalIgnore}
+            onProposalRestore={handleProposalRestore}
+          />
           <footer>
             <FloatingComposer
               ref={reviewTextareaRef}
@@ -438,6 +540,7 @@ async function requestAgentReviewRound({
   annotation,
   draft,
   reviewDraft,
+  reviewMode,
   sessions,
   userMessage,
   onOptimisticSession,
@@ -447,6 +550,7 @@ async function requestAgentReviewRound({
   annotation: Annotation;
   draft: string;
   reviewDraft: string;
+  reviewMode: 'review' | 'organize_discussion';
   sessions: AnnotationDistillationReviewSession[];
   userMessage?: AnnotationDistillationReviewMessage;
   onOptimisticSession: (session: AnnotationDistillationReviewSession) => void;
@@ -475,6 +579,7 @@ async function requestAgentReviewRound({
       agentId: agent.id,
       agentUsername: agent.username,
       reviewMessageId: assistantMessage.id,
+      distillationReviewMode: reviewMode,
       instruction: distillationReviewInstruction(draft, reviewDraft, session),
       article: promptArticle(article, articlePlainText(article)),
       annotation,
@@ -507,6 +612,7 @@ async function requestAgentReviewRound({
         finalMessage.content ||
         workingSession.messages.find((item) => item.id === assistantMessage.id)?.content ||
         '',
+      proposals: finalMessage.proposals || message.proposals || [],
     }),
   );
 
@@ -516,15 +622,39 @@ async function requestAgentReviewRound({
 }
 
 function ReviewSessions({
-  layoutMode,
+  onProposalAccept,
+  onProposalIgnore,
+  onProposalRestore,
   sessions,
   userProfile,
 }: {
-  layoutMode: ReviewLayoutMode;
+  onProposalAccept: (
+    messageId: string,
+    proposal: AnnotationDistillationProposal,
+  ) => void | Promise<void>;
+  onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
+  onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
   sessions: AnnotationDistillationReviewSession[];
   userProfile: UserProfile;
 }) {
   const messages = reviewTimelineMessages(sessions);
+  const listRef = useRef<HTMLElement | null>(null);
+  const scrollSignal = messages
+    .map(
+      (item) => `${item.key}:${item.message.content.length}:${item.message.proposals?.length || 0}`,
+    )
+    .join('|');
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    if (typeof list.scrollTo === 'function') {
+      list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+    } else {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [scrollSignal]);
+
   if (sessions.length === 0) {
     return (
       <section className="annotation-sedimentation-review-empty">
@@ -537,15 +667,23 @@ function ReviewSessions({
 
   return (
     <section
+      ref={listRef}
       className={[
         'annotation-sedimentation-review-list',
         'annotation-discussion-messages',
-        layoutMode === 'split' ? 'is-split' : 'is-left-aligned',
+        'is-left-aligned',
       ].join(' ')}
       aria-label="审阅会话"
     >
       {messages.map((message) => (
-        <ReviewTimelineMessage item={message} key={message.key} userProfile={userProfile} />
+        <ReviewTimelineMessage
+          item={message}
+          key={message.key}
+          userProfile={userProfile}
+          onProposalAccept={onProposalAccept}
+          onProposalIgnore={onProposalIgnore}
+          onProposalRestore={onProposalRestore}
+        />
       ))}
     </section>
   );
@@ -558,9 +696,18 @@ type ReviewTimelineItem = {
 
 function ReviewTimelineMessage({
   item,
+  onProposalAccept,
+  onProposalIgnore,
+  onProposalRestore,
   userProfile,
 }: {
   item: ReviewTimelineItem;
+  onProposalAccept: (
+    messageId: string,
+    proposal: AnnotationDistillationProposal,
+  ) => void | Promise<void>;
+  onProposalIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
+  onProposalRestore: (messageId: string, proposalId: string) => void | Promise<void>;
   userProfile: UserProfile;
 }) {
   const { message } = item;
@@ -595,9 +742,101 @@ function ReviewTimelineMessage({
             __html: renderMarkdown(message.content || '正在审阅...'),
           }}
         />
+        {!isUser && message.proposals?.length ? (
+          <ReviewProposalList
+            messageId={message.id}
+            proposals={message.proposals}
+            onAccept={onProposalAccept}
+            onIgnore={onProposalIgnore}
+            onRestore={onProposalRestore}
+          />
+        ) : null}
       </div>
     </article>
   );
+}
+
+function ReviewProposalList({
+  messageId,
+  onAccept,
+  onIgnore,
+  onRestore,
+  proposals,
+}: {
+  messageId: string;
+  onAccept: (messageId: string, proposal: AnnotationDistillationProposal) => void | Promise<void>;
+  onIgnore: (messageId: string, proposalId: string) => void | Promise<void>;
+  onRestore: (messageId: string, proposalId: string) => void | Promise<void>;
+  proposals: AnnotationDistillationProposal[];
+}) {
+  return (
+    <section className="annotation-sedimentation-proposals" aria-label="稿件修改建议">
+      {proposals.map((proposal) => (
+        <article
+          className={[
+            'annotation-sedimentation-proposal',
+            `is-${proposal.status}`,
+            `is-${proposal.kind}`,
+          ].join(' ')}
+          key={proposal.id}
+        >
+          <div className="annotation-sedimentation-proposal-main">
+            <header>
+              <span>{proposalKindLabel(proposal.kind)}</span>
+              <strong>{proposal.title}</strong>
+            </header>
+            {proposal.rationale ? <p>{proposal.rationale}</p> : null}
+            <blockquote>{proposalPreview(proposal)}</blockquote>
+          </div>
+          <div className="annotation-sedimentation-proposal-actions">
+            {proposal.status === 'pending' ? (
+              <>
+                <button type="button" onClick={() => void onAccept(messageId, proposal)}>
+                  <Check size={14} />
+                  <span>采纳</span>
+                </button>
+                <button
+                  className="is-secondary"
+                  type="button"
+                  onClick={() => void onIgnore(messageId, proposal.id)}
+                >
+                  <X size={14} />
+                  <span>忽略</span>
+                </button>
+              </>
+            ) : null}
+            {proposal.status === 'ignored' ? (
+              <button
+                className="is-secondary"
+                type="button"
+                onClick={() => void onRestore(messageId, proposal.id)}
+              >
+                <RotateCcw size={14} />
+                <span>恢复</span>
+              </button>
+            ) : null}
+            {proposal.status === 'accepted' ? (
+              <span className="annotation-sedimentation-proposal-state">已采纳</span>
+            ) : null}
+          </div>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function proposalKindLabel(kind: AnnotationDistillationProposal['kind']) {
+  if (kind === 'insert') return '新增';
+  if (kind === 'replace') return '修改';
+  return '删除';
+}
+
+function proposalPreview(proposal: AnnotationDistillationProposal) {
+  if (proposal.kind === 'insert') return proposal.content || '';
+  if (proposal.kind === 'replace') {
+    return `${proposal.targetText || ''}\n→\n${proposal.replacementText || ''}`;
+  }
+  return proposal.targetText || '';
 }
 
 function reviewTimelineMessages(

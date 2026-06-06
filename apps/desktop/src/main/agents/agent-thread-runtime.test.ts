@@ -133,6 +133,13 @@ describe('agent thread reply tool loop', () => {
       author: 'ai',
       content: '这段沉淀还需要补足原文证据。',
       agentId: 'agent_1',
+      proposals: [
+        expect.objectContaining({
+          id: 'proposal_1',
+          kind: 'insert',
+          content: '补一条证据边界。',
+        }),
+      ],
     });
   });
 });
@@ -178,6 +185,16 @@ function reviewRuntime(): AssistantRuntimeResult {
       type: 'review_distillation',
       annotationId: 'annotation_1',
       content: '这段沉淀还需要补足原文证据。',
+      proposals: [
+        {
+          id: 'proposal_1',
+          kind: 'insert',
+          status: 'pending',
+          title: '补证据边界',
+          content: '补一条证据边界。',
+          updatedAt: '2026-05-26T00:00:01.000Z',
+        },
+      ],
       evidenceIds: [],
       confidence: 0.82,
       reason: '当前沉淀稿需要审阅。',

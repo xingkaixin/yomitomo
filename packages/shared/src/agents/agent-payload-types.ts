@@ -9,6 +9,7 @@ export type AgentMessagePayload = {
   agentId?: string;
   agentUsername: string;
   responseMode?: 'thread_reply' | 'create_thought' | 'distillation_review';
+  distillationReviewMode?: 'review' | 'organize_discussion';
   readingIntent?: AgentReadingIntent;
   instruction?: string;
   reviewTargetCommentId?: string;

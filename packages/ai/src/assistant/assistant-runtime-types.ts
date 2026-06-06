@@ -1,4 +1,4 @@
-import type { LlmProvider, TextAnchor } from '@yomitomo/shared';
+import type { AnnotationDistillationProposal, LlmProvider, TextAnchor } from '@yomitomo/shared';
 import type { NormalizedAiUsage } from '../provider/usage';
 
 export type AssistantRuntimeTaskType =
@@ -173,6 +173,7 @@ export type AssistantFinalAction =
       type: 'review_distillation';
       annotationId: string;
       content: string;
+      proposals?: AnnotationDistillationProposal[];
       evidenceIds: string[];
       confidence: number;
       reason: string;
