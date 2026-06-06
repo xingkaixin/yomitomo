@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine, Trash2 } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from '../shell/app-utils';
@@ -23,13 +25,14 @@ export function ArticleLibraryCard({
   onDelete: () => void;
   onOpen: () => void;
 }) {
+  const { t } = useTranslation();
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteIconFailed, setSiteIconFailed] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
   const annotations = articleAnnotationCount(article);
   const distillations = articleDistillationCount(article);
-  const statsLabel = `${annotations} 条划线 · ${distillations} 条沉淀`;
+  const statsLabel = t('library.stats.label', { annotations, distillations });
   const isEbook = article.sourceType === 'ebook';
   const isPdf = article.sourceType === 'pdf';
   const status = libraryArticleStatus(article);
@@ -79,7 +82,7 @@ export function ArticleLibraryCard({
       className="library-card"
       role="button"
       tabIndex={0}
-      aria-label={`打开文章：${title}`}
+      aria-label={t('library.actions.openArticle', { title })}
       onClick={onOpen}
       onKeyDown={openCardWithKeyboard}
     >
@@ -87,7 +90,7 @@ export function ArticleLibraryCard({
         <button
           className="library-card-open-icon"
           type="button"
-          aria-label={`打开文章：${title}`}
+          aria-label={t('library.actions.openArticle', { title })}
           onClick={(event) => {
             event.stopPropagation();
             onOpen();
@@ -106,7 +109,7 @@ export function ArticleLibraryCard({
           <button
             className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
             type="button"
-            aria-label={`更多操作：${title}`}
+            aria-label={t('library.actions.more', { title })}
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             onClick={(event) => {
@@ -127,7 +130,7 @@ export function ArticleLibraryCard({
                 style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
                 type="button"
                 role="menuitem"
-                aria-label={`长按删除文章：${title}`}
+                aria-label={t('library.actions.deleteArticleHold', { title })}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -142,7 +145,7 @@ export function ArticleLibraryCard({
                 onPointerUp={stopDeleteHold}
               >
                 <Trash2 size={14} />
-                <span>长按删除</span>
+                <span>{t('library.actions.deleteHoldLabel')}</span>
               </button>
             </div>
           ) : null}
@@ -155,7 +158,8 @@ export function ArticleLibraryCard({
             <div className="library-card-status-row">
               <span className={`library-status-badge is-${status.tone}`}>{status.label}</span>
               <span>
-                <Clock3 size={13} />约 {readingMinutes} 分钟
+                <Clock3 size={13} />
+                {t('library.meta.readingMinutes', { count: readingMinutes })}
               </span>
             </div>
             <h3 title={title}>{title}</h3>
@@ -177,9 +181,13 @@ export function ArticleLibraryCard({
                 <span>{authorLabel}</span>
               </p>
             ) : null}
-            <time dateTime={article.createdAt}>添加于 {formatDate(article.createdAt)}</time>
+            <time dateTime={article.createdAt}>
+              {t('library.meta.addedAt', { date: formatDate(article.createdAt) })}
+            </time>
             <div className="library-card-reading-meta">
-              最近阅读 {formatLibraryRelativeTime(article.updatedAt)}
+              {t('library.meta.recentReading', {
+                time: formatLibraryRelativeTime(article.updatedAt),
+              })}
             </div>
           </div>
         </div>
@@ -188,14 +196,16 @@ export function ArticleLibraryCard({
         <div className="library-card-meta" aria-label={statsLabel} data-tooltip={statsLabel}>
           <span>
             <PencilLine size={13} />
-            {annotations} 划线
+            {t('library.meta.annotations', { count: annotations })}
           </span>
           <span>
             <Layers2 size={13} />
-            {distillations} 沉淀
+            {t('library.meta.distillations', { count: distillations })}
           </span>
         </div>
-        <span className="library-source-badge">{isEbook ? 'EPUB' : isPdf ? 'PDF' : '网页'}</span>
+        <span className="library-source-badge">
+          {isEbook ? 'EPUB' : isPdf ? 'PDF' : t('library.sources.webShort')}
+        </span>
       </footer>
     </article>
   );
@@ -207,6 +217,9 @@ function libraryArticleAuthorLabel(article: ArticleSummaryRecord) {
   if (article.sourceType === 'ebook')
     return article.byline || article.ebook?.metadata.fileName || '';
   return (
-    article.byline || article.siteName || urlHost(article.canonicalUrl || article.url) || '未知作者'
+    article.byline ||
+    article.siteName ||
+    urlHost(article.canonicalUrl || article.url) ||
+    i18next.t('library.meta.unknownAuthor')
   );
 }

@@ -9,9 +9,7 @@ export class DatabaseTooNewError extends Error {
     supportedReaderLevel: number;
     unknownMigrationIds?: string[];
   }) {
-    super(
-      `这份本地数据库需要 reader level ${options.requiredReaderLevel}，当前应用只支持到 ${options.supportedReaderLevel}。`,
-    );
+    super('DATABASE_TOO_NEW');
     this.name = 'DatabaseTooNewError';
     this.requiredReaderLevel = options.requiredReaderLevel;
     this.supportedReaderLevel = options.supportedReaderLevel;

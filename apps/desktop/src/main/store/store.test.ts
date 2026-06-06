@@ -67,6 +67,7 @@ describe('desktop store settings', () => {
         },
         {
           defaultProviderId: 'provider_1',
+          uiLanguage: 'en',
           themeId: 'ink-paper',
           libraryPageSize: 18,
           libraryContentSources: [
@@ -88,6 +89,7 @@ describe('desktop store settings', () => {
       ),
     ).toEqual({
       defaultProviderId: undefined,
+      uiLanguage: 'en',
       themeId: 'ink-paper',
       libraryPageSize: 18,
       libraryContentSources: [
@@ -111,6 +113,12 @@ describe('desktop store settings', () => {
   it('defaults assistant execution mode to fast response', () => {
     expect(mergeSettingsForUpsert({}, {})).toMatchObject({
       assistantExecutionMode: 'fast_response',
+    });
+  });
+
+  it('defaults interface language to Simplified Chinese', () => {
+    expect(mergeSettingsForUpsert({}, {})).toMatchObject({
+      uiLanguage: 'zh-CN',
     });
   });
 

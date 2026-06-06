@@ -39,7 +39,9 @@ describe('listProviderModels', () => {
   it('rejects with a typed network error message', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'));
 
-    await expect(listProviderModels(provider())).rejects.toThrow('模型服务请求失败：offline');
+    await expect(listProviderModels(provider())).rejects.toThrow(
+      'Provider request failed: offline',
+    );
   });
 
   it('rejects with provider HTTP error details', async () => {
@@ -48,7 +50,7 @@ describe('listProviderModels', () => {
     );
 
     await expect(listProviderModels(provider())).rejects.toThrow(
-      '模型服务请求失败：401 bad credentials',
+      'Provider request failed: 401 bad credentials',
     );
   });
 
@@ -63,13 +65,15 @@ describe('listProviderModels', () => {
         type: 'anthropic',
         baseUrl: 'https://api.anthropic.com',
       }),
-    ).rejects.toThrow('模型上下文超限：请换用更大上下文模型，缩小文章范围，或减少批注证据后重试。');
+    ).rejects.toThrow(
+      'Model context limit exceeded. Use a larger-context model, narrow the article scope, or reduce annotation evidence and try again.',
+    );
   });
 
   it('rejects with a response decode error when JSON parsing fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('not json', { status: 200 }));
 
-    await expect(listProviderModels(provider())).rejects.toThrow('模型服务响应解析失败');
+    await expect(listProviderModels(provider())).rejects.toThrow('Provider response parse failed');
   });
 });
 
@@ -222,7 +226,9 @@ describe('callProviderText response schema', () => {
       jsonResponse({ choices: [{ index: 0, message: { content: '' } }] }),
     );
 
-    await expect(callProviderText(provider(), payload())).rejects.toThrow('模型返回为空');
+    await expect(callProviderText(provider(), payload())).rejects.toThrow(
+      'Provider returned an empty response',
+    );
   });
 });
 

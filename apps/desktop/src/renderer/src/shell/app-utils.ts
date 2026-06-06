@@ -4,6 +4,7 @@ import type {
   ArticleSummaryRecord,
   Comment as AnnotationComment,
 } from '@yomitomo/shared';
+import i18next from 'i18next';
 
 export type LogEntry = {
   id: string;
@@ -44,12 +45,12 @@ export function annotationAuthorProfile(annotation: Annotation) {
   if (annotation.author === 'ai') {
     return {
       avatar: annotation.agentAvatar || '',
-      name: annotation.agentNickname || annotation.agentUsername || '助手',
+      name: annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant'),
     };
   }
   return {
     avatar: annotation.userAvatar || '',
-    name: annotation.userNickname || annotation.userUsername || '我',
+    name: annotation.userNickname || annotation.userUsername || i18next.t('common.me'),
   };
 }
 
@@ -57,12 +58,12 @@ export function commentAuthorProfile(comment: AnnotationComment) {
   if (comment.author === 'ai') {
     return {
       avatar: comment.agentAvatar || '',
-      name: comment.agentNickname || comment.agentUsername || '助手',
+      name: comment.agentNickname || comment.agentUsername || i18next.t('common.assistant'),
     };
   }
   return {
     avatar: comment.userAvatar || '',
-    name: comment.userNickname || comment.userUsername || '我',
+    name: comment.userNickname || comment.userUsername || i18next.t('common.me'),
   };
 }
 
@@ -87,7 +88,7 @@ export function articleReadingStatsLine(stats: {
   comments: number;
   aiContributions: number;
 }) {
-  return `${stats.annotations} 划线 · ${stats.comments} 想法 · ${stats.aiContributions} 助手参与`;
+  return i18next.t('common.articleReadingStatsLine', stats);
 }
 
 export function articlePlainText(article: ArticleRecord | ArticleSummaryRecord) {
@@ -113,7 +114,7 @@ export function formatLogData(data: unknown) {
 export function formatDateTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -124,7 +125,7 @@ export function formatDateTime(value: string) {
 export function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

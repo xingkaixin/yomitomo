@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CartesianGrid,
   Line,
@@ -12,21 +13,6 @@ import type { ReadingActivityDay } from '@yomitomo/core';
 import { ChartContainer, ChartTooltip, type ChartConfig } from '../components/ui/chart';
 import { SegmentedControl } from '../components/ui/segmented-control';
 import { chartActivityDescription } from './app-reading-stats-data';
-
-const chartConfig = {
-  distillations: {
-    label: '沉淀',
-    color: 'var(--chart-3)',
-  },
-  thoughts: {
-    label: '想法',
-    color: 'var(--chart-2)',
-  },
-  annotations: {
-    label: '划线',
-    color: 'var(--chart-1)',
-  },
-} satisfies ChartConfig;
 
 type ChartActivityDay = Omit<ReadingActivityDay, 'annotations' | 'thoughts' | 'distillations'> & {
   annotations: number | null;
@@ -61,7 +47,9 @@ export function ReadingStatsChart({
   onReady: () => void;
   recordedDays: number;
 }) {
+  const { t } = useTranslation();
   const [chartMode, setChartMode] = useState<ChartMode>('recorded');
+  const chartConfig = makeChartConfig(t);
   const fullChartData = buildChartData(activityDays.slice(-21), activityStartDate);
   const chartRecordedDays = fullChartData.reduce(
     (count, day) => (day.recordStatus === 'recording' ? count + 1 : count),
@@ -74,7 +62,10 @@ export function ReadingStatsChart({
       : fullChartData;
   const chartUnstartedRange =
     effectiveChartMode === 'window' ? unstartedChartRange(fullChartData) : null;
-  const chartTitle = chartRecordedDays >= 21 ? '近 21 天活动' : '伴读活动趋势';
+  const chartTitle =
+    chartRecordedDays >= 21
+      ? t('readingStats.chart.windowTitle')
+      : t('readingStats.chart.trendTitle');
 
   useEffect(() => {
     onReady();
@@ -89,12 +80,15 @@ export function ReadingStatsChart({
       <div className="stats-chart-toolbar">
         {chartRecordedDays < 21 ? (
           <SegmentedControl
-            aria-label="趋势范围"
+            aria-label={t('readingStats.chart.range')}
             className="stats-chart-switch"
             value={effectiveChartMode}
             options={[
-              { value: 'recorded', label: `已记录 ${recordedDays} 天` },
-              { value: 'window', label: '近 21 天' },
+              {
+                value: 'recorded',
+                label: t('readingStats.chart.recordedDays', { count: recordedDays }),
+              },
+              { value: 'window', label: t('readingStats.chart.window') },
             ]}
             onValueChange={setChartMode}
           />
@@ -102,15 +96,15 @@ export function ReadingStatsChart({
         <div className="stats-chart-legend" aria-hidden="true">
           <span>
             <i style={{ background: chartConfig.distillations.color }} />
-            沉淀
+            {chartConfig.distillations.label}
           </span>
           <span>
             <i style={{ background: chartConfig.thoughts.color }} />
-            想法
+            {chartConfig.thoughts.label}
           </span>
           <span>
             <i style={{ background: chartConfig.annotations.color }} />
-            划线
+            {chartConfig.annotations.label}
           </span>
         </div>
       </div>
@@ -124,7 +118,7 @@ export function ReadingStatsChart({
                 className: 'stats-chart-unstarted-label',
                 offset: 12,
                 position: 'insideTopLeft',
-                value: '尚未开始记录',
+                value: t('readingStats.chart.unstarted'),
               }}
               stroke="none"
               x1={chartUnstartedRange.x1}
@@ -140,7 +134,7 @@ export function ReadingStatsChart({
             minTickGap={16}
           />
           <YAxis axisLine={false} tickLine={false} width={24} />
-          <ChartTooltip content={<StatsChartTooltip />} />
+          <ChartTooltip content={<StatsChartTooltip chartConfig={chartConfig} />} />
           <Line
             activeDot={{ r: 5, strokeWidth: 0 }}
             className="stats-handdrawn-stroke"
@@ -181,6 +175,23 @@ export function ReadingStatsChart({
       </ChartContainer>
     </div>
   );
+}
+
+function makeChartConfig(t: (key: string) => string) {
+  return {
+    distillations: {
+      label: t('readingStats.metrics.distillations'),
+      color: 'var(--chart-3)',
+    },
+    thoughts: {
+      label: t('readingStats.metrics.thoughts'),
+      color: 'var(--chart-2)',
+    },
+    annotations: {
+      label: t('readingStats.metrics.annotations'),
+      color: 'var(--chart-1)',
+    },
+  } satisfies ChartConfig;
 }
 
 function renderDistillationsLine(props: CurveProps) {
@@ -238,13 +249,16 @@ function HandDrawnCurve({
 
 function StatsChartTooltip({
   active,
+  chartConfig,
   label,
   payload,
 }: {
   active?: boolean;
+  chartConfig: ReturnType<typeof makeChartConfig>;
   label?: React.ReactNode;
   payload?: ChartTooltipPayload[];
 }) {
+  const { t } = useTranslation();
   if (!active) return null;
 
   const data = payload?.[0]?.payload;
@@ -252,7 +266,7 @@ function StatsChartTooltip({
     return (
       <div className="stats-chart-tooltip">
         <div className="stats-chart-tooltip-label">{label}</div>
-        <div className="stats-chart-tooltip-empty">尚未开始记录</div>
+        <div className="stats-chart-tooltip-empty">{t('readingStats.chart.unstarted')}</div>
       </div>
     );
   }

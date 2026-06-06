@@ -10,7 +10,7 @@ const RENDERED_IMPORT_TIMEOUT_MS = 20_000;
 const RENDERED_IMPORT_SETTLE_MS = 1_500;
 const WECHAT_MOBILE_USER_AGENT =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 MicroMessenger/8.0.49';
-const ARTICLE_IMPORT_CANCELED_MESSAGE = '网页解析已取消';
+const ARTICLE_IMPORT_CANCELED_MESSAGE = 'ARTICLE_IMPORT_CANCELED';
 
 type ArticleImportOptions = {
   inlineImages?: boolean;
@@ -89,10 +89,10 @@ function normalizeImportUrl(input: string) {
   try {
     url = new URL(candidate);
   } catch {
-    throw new Error('网页地址格式无效');
+    throw new Error('ARTICLE_IMPORT_INVALID_URL');
   }
   if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('网页地址需要使用 http 或 https');
+    throw new Error('ARTICLE_IMPORT_UNSUPPORTED_PROTOCOL');
   }
   return url.href;
 }
@@ -116,7 +116,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
         if (shouldLoadWithBrowser(response)) {
           return yield* loadRenderedArticleHtmlEffect(url, userAgent, signal);
         }
-        return yield* Effect.fail(new Error(`网页请求失败：${response.status}`));
+        return yield* Effect.fail(new Error('ARTICLE_IMPORT_REQUEST_FAILED'));
       }
 
       const html = yield* Effect.tryPromise({
@@ -133,7 +133,7 @@ function fetchArticleHtmlEffect(url: string, signal: AbortSignal) {
 
 function articleFetchError(error: unknown, signal: AbortSignal) {
   if (error instanceof Error && error.name === 'AbortError') {
-    return new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : '网页请求超时', {
+    return new Error(signal.aborted ? ARTICLE_IMPORT_CANCELED_MESSAGE : 'ARTICLE_IMPORT_TIMEOUT', {
       cause: error,
     });
   }
@@ -206,7 +206,7 @@ async function loadRenderedArticleHtml(
     await browserWindow.loadURL(url, userAgent ? { userAgent } : undefined);
     const page = await waitForRenderedPage(browserWindow.webContents, deadline, signal);
     if (typeof page.html !== 'string' || !page.html.trim()) {
-      throw new Error('网页渲染结果为空');
+      throw new Error('ARTICLE_IMPORT_RENDER_EMPTY');
     }
     return {
       html: page.html,
@@ -245,7 +245,7 @@ async function waitForRenderedPage(
   }
 
   if (isChallengePage(lastPage)) {
-    throw new Error('网页被站点防护拦截，需要在内置浏览器中打开后采集');
+    throw new Error('ARTICLE_IMPORT_CHALLENGE_BLOCKED');
   }
   return lastPage;
 }
@@ -309,7 +309,7 @@ function extractArticleRecordInWorkerEffect({
         },
       });
     } catch (error) {
-      resume(Effect.fail(errorFromUnknown(error, '网页解析失败')));
+      resume(Effect.fail(errorFromUnknown(error, 'ARTICLE_IMPORT_PARSE_FAILED')));
       return;
     }
 
@@ -341,16 +341,16 @@ function extractArticleRecordInWorkerEffect({
       settle(
         message.ok
           ? Effect.succeed(message.article)
-          : Effect.fail(new Error(message.error?.message || '网页解析失败')),
+          : Effect.fail(new Error(message.error?.message || 'ARTICLE_IMPORT_PARSE_FAILED')),
       );
     });
     worker.once('error', (error) => {
       void worker.terminate();
-      settle(Effect.fail(errorFromUnknown(error, '网页解析失败')));
+      settle(Effect.fail(errorFromUnknown(error, 'ARTICLE_IMPORT_PARSE_FAILED')));
     });
     worker.once('exit', (code) => {
       if (code === 0 || settled) return;
-      settle(Effect.fail(new Error(`网页解析进程退出：${code}`)));
+      settle(Effect.fail(new Error('ARTICLE_IMPORT_WORKER_EXITED')));
     });
 
     return Effect.sync(() => {

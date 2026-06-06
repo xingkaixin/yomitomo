@@ -3,11 +3,14 @@ import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor } from '@yomitomo/core';
 import type { HighlightChoiceAction } from '../reader-types';
 import { AvatarBadge } from '../shared/reader-component-primitives';
+import type { ReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 
 export function HighlightChoiceMenu({
   action,
   agents,
   annotations,
+  labels = defaultReaderUiLabels,
   userProfile,
   onCancel,
   onSelect,
@@ -15,6 +18,7 @@ export function HighlightChoiceMenu({
   action: HighlightChoiceAction;
   agents: PublicAgent[];
   annotations: Annotation[];
+  labels?: ReaderUiLabels;
   userProfile: UserProfile;
   onCancel: () => void;
   onSelect: (annotationId: string) => void;
@@ -22,8 +26,8 @@ export function HighlightChoiceMenu({
   return (
     <div className="reader-highlight-choice-menu" style={{ left: action.x, top: action.y }}>
       <header>
-        <strong>选择划线</strong>
-        <button type="button" onClick={onCancel} aria-label="关闭划线选择">
+        <strong>{labels.highlightChoice}</strong>
+        <button type="button" onClick={onCancel} aria-label={labels.closeHighlightChoice}>
           <X size={14} />
         </button>
       </header>

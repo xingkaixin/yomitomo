@@ -1,4 +1,5 @@
 import type { PdfBookmarkObject, PdfPageGeometry } from '@embedpdf/models';
+import i18next from 'i18next';
 import {
   createPdfTextAnchor,
   createTextAnchor,
@@ -65,7 +66,7 @@ export type PdfAnnotationNavigationState = {
 };
 
 export function pdfiumAnnotationAgentName(annotation: Annotation) {
-  return annotation.agentNickname || annotation.agentUsername || '助手';
+  return annotation.agentNickname || annotation.agentUsername || i18next.t('common.assistant');
 }
 
 export function pdfiumAnnotationRailLayout(
@@ -123,7 +124,10 @@ export function pdfiumPromptArticle(
   pageText: string,
 ): PromptArticle {
   const articleContext = promptArticle(article, pageText);
-  const pageLabel = anchor && isPdfTextAnchor(anchor) ? `第 ${anchor.pageIndex + 1} 页\n` : '';
+  const pageLabel =
+    anchor && isPdfTextAnchor(anchor)
+      ? `${i18next.t('pdfReader.pageLabel', { page: anchor.pageIndex + 1 })}\n`
+      : '';
   return {
     ...articleContext,
     text: `${pageLabel}${pageText}`,
@@ -344,7 +348,7 @@ export function buildPdfTextDocument(pageTexts: string[]): PdfTextDocument {
   const pages: PdfPageTextIndex[] = [];
   pageTexts.forEach((pageText, pageIndex) => {
     if (pageIndex > 0) text += '\n\n';
-    const header = `第 ${pageIndex + 1} 页\n`;
+    const header = `${i18next.t('pdfReader.pageLabel', { page: pageIndex + 1 })}\n`;
     const textStart = text.length;
     text += header;
     const bodyStart = text.length;
@@ -388,7 +392,9 @@ export function pdfReaderReadingSections(
         startPage,
         endPage,
         `pdf-pages-${startPage + 1}-${endPage}`,
-        startPage + 1 === endPage ? `第 ${endPage} 页` : `第 ${startPage + 1}-${endPage} 页`,
+        startPage + 1 === endPage
+          ? i18next.t('pdfReader.pageLabel', { page: endPage })
+          : i18next.t('pdfReader.pageRange', { end: endPage, start: startPage + 1 }),
       ),
     );
   }

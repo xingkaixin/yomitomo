@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type {
   AppSettings,
   LibraryContentSourceId,
@@ -12,16 +13,19 @@ export type LibraryContentSourceOption = {
   description: string;
 };
 
-export const LIBRARY_CONTENT_SOURCE_OPTIONS: LibraryContentSourceOption[] = [
-  { value: 'web', label: '网页文章', description: '网页采集和粘贴链接导入的文章。' },
-  { value: 'ebook', label: '电子书', description: '本地导入的 EPUB 电子书。' },
-  { value: 'pdf', label: 'PDF', description: '本地导入的 PDF 文档。' },
-  { value: 'weread', label: '微信读书', description: '微信读书同步的划线、想法和进度。' },
-];
+const libraryContentSourceIds: LibrarySource[] = ['web', 'ebook', 'pdf', 'weread'];
 
-const optionById = new Map<LibraryContentSourceId, LibraryContentSourceOption>(
-  LIBRARY_CONTENT_SOURCE_OPTIONS.map((option) => [option.value, option]),
-);
+export function libraryContentSourceOption(id: LibrarySource): LibraryContentSourceOption {
+  return {
+    value: id,
+    label: i18next.t(`library.sources.${id}`),
+    description: i18next.t(`library.sourceDescriptions.${id}`),
+  };
+}
+
+export function libraryContentSourceBaseOptions(): LibraryContentSourceOption[] {
+  return libraryContentSourceIds.map(libraryContentSourceOption);
+}
 
 export function libraryContentSourcePreferences(
   settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
@@ -41,8 +45,8 @@ export function libraryContentSourceOptions(
   settings: Pick<AppSettings, 'libraryContentSources'> | undefined,
 ): LibraryContentSourceOption[] {
   return enabledLibraryContentSources(settings)
-    .map((id) => optionById.get(id))
-    .filter((option): option is LibraryContentSourceOption => Boolean(option));
+    .filter((id): id is LibrarySource => libraryContentSourceIds.includes(id))
+    .map(libraryContentSourceOption);
 }
 
 export function allLibraryContentSourceOptions(
@@ -56,8 +60,8 @@ export function allLibraryContentSourceOptions(
 
   return orderedIds
     .map((id) => {
-      const option = optionById.get(id);
-      if (!option) return null;
+      if (!libraryContentSourceIds.includes(id)) return null;
+      const option = libraryContentSourceOption(id);
       return Object.assign({}, option, {
         enabled: normalized.find((preference) => preference.id === id)?.enabled ?? true,
       });

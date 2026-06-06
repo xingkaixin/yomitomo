@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react';
 import type { Comment, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
+import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
@@ -18,6 +19,7 @@ export function DiscussionMessage({
   onDelete: () => void;
   userProfile: UserProfile;
 }) {
+  const { t } = useTranslation();
   const author = commentPersona(message, userProfile, []);
   const html = renderMarkdown(message.content);
   const className = [
@@ -39,11 +41,11 @@ export function DiscussionMessage({
               {formatRelativeTime(message.createdAt)}
             </time>
           </ReaderTooltip>
-          {message.pending ? <em>回复中</em> : null}
+          {message.pending ? <em>{t('discussion.replying')}</em> : null}
           <LongPressDeleteButton
             className="annotation-discussion-message-delete"
             disabled={isDeleting}
-            label="长按删除回复"
+            label={t('discussion.deleteReplyHold')}
             onDelete={onDelete}
           >
             <Trash2 size={13} />

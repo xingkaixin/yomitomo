@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
 import {
@@ -107,7 +108,8 @@ export function webAnnotationNavigationState({
 export function sourceArticleBodyHtml(article: ArticleRecord) {
   const container = document.createElement('div');
   container.innerHTML =
-    article.contentHtml || `<p>${escapeHtml(article.excerpt || '暂无原文内容')}</p>`;
+    article.contentHtml ||
+    `<p>${escapeHtml(article.excerpt || i18next.t('source.emptyContent'))}</p>`;
   container.querySelectorAll('script, style, link, iframe, object, embed').forEach((element) => {
     element.remove();
   });

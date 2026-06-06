@@ -241,7 +241,7 @@ function discussionWindowKey(articleId: string, annotationId: string) {
 }
 
 function discussionWindowInitialTitle({ annotationId }: AnnotationDiscussionWindowOpenInput) {
-  return `批注讨论 - ${annotationId.slice(0, 8)}`;
+  return `Annotation discussion - ${annotationId.slice(0, 8)}`;
 }
 
 function isSameRendererNavigation(currentValue: string, nextValue: string) {

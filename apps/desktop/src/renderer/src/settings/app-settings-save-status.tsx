@@ -1,9 +1,10 @@
 import { Check, RefreshCw, RotateCcw } from 'lucide-react';
 import type { SaveState } from '../shell/app-types';
+import { useTranslation } from 'react-i18next';
 
 export function AutoSaveStatus({
   error,
-  label = '保存状态',
+  label,
   onRetry,
   state,
 }: {
@@ -12,15 +13,18 @@ export function AutoSaveStatus({
   onRetry?: () => void;
   state: SaveState;
 }) {
+  const { t } = useTranslation();
+  const statusLabel = label ?? t('settings.saveStatus.label');
+
   if (state === 'idle') return null;
 
   if (state === 'error') {
     return (
-      <div className="auto-save-status is-error" role="alert" aria-label={label}>
+      <div className="auto-save-status is-error" role="alert" aria-label={statusLabel}>
         {error ? <span>{error}</span> : null}
         <button type="button" onClick={onRetry}>
           <RotateCcw size={14} />
-          重试
+          {t('settings.saveStatus.retry')}
         </button>
       </div>
     );
@@ -28,12 +32,14 @@ export function AutoSaveStatus({
 
   return (
     <div
-      aria-label={label}
+      aria-label={statusLabel}
       className={state === 'saving' ? 'auto-save-status is-saving' : 'auto-save-status is-saved'}
       role="status"
     >
       {state === 'saving' ? <RefreshCw size={14} /> : <Check size={14} />}
-      <span>{state === 'saving' ? '正在保存' : '已保存'}</span>
+      <span>
+        {state === 'saving' ? t('settings.saveStatus.saving') : t('settings.saveStatus.saved')}
+      </span>
     </div>
   );
 }

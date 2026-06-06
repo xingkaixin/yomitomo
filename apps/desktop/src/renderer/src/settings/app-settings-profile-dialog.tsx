@@ -11,6 +11,7 @@ import {
   useSourceAwareDialogTransition,
   type DialogSourceRect,
 } from '../shell/app-dialog-transition';
+import { useTranslation } from 'react-i18next';
 
 export function UserProfileSettingsDialog({
   draft,
@@ -31,8 +32,14 @@ export function UserProfileSettingsDialog({
   saveState: SaveState;
   sourceRect?: DialogSourceRect;
 }) {
+  const { t } = useTranslation();
   const dialogStyle = useSourceAwareDialogTransition(sourceRect);
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const saveLabel =
+    saveState === 'saving'
+      ? t('settings.profile.saving')
+      : saveState === 'saved'
+        ? t('settings.profile.saved')
+        : t('settings.profile.save');
   const selectedAnnotationColor = userAnnotationColors.includes(draft.annotationColor || '')
     ? draft.annotationColor || userAnnotationColors[0]
     : userAnnotationColors[0];
@@ -72,8 +79,8 @@ export function UserProfileSettingsDialog({
               <User size={19} />
             </span>
             <div>
-              <h2 id="user-profile-dialog-title">个人设置</h2>
-              <p>配置想法和回复中使用的身份信息。</p>
+              <h2 id="user-profile-dialog-title">{t('settings.profile.title')}</h2>
+              <p>{t('settings.profile.description')}</p>
             </div>
           </div>
         </header>
@@ -83,11 +90,15 @@ export function UserProfileSettingsDialog({
             <AvatarImage
               value={draft.avatar || ''}
               className="user-profile-avatar-preview"
-              fallback={draft.nickname?.slice(0, 1) || '我'}
+              fallback={draft.nickname?.slice(0, 1) || t('settings.profile.selfFallback')}
             />
             <ProfileAvatarEditor onChange={(avatar) => onChange({ ...draft, avatar })} />
           </div>
-          <Field id="profile-nickname" description="想法和回复中展示的名称。" label="昵称">
+          <Field
+            id="profile-nickname"
+            description={t('settings.profile.nicknameDescription')}
+            label={t('settings.profile.nickname')}
+          >
             <Input
               id="profile-nickname"
               name="nickname"
@@ -98,8 +109,8 @@ export function UserProfileSettingsDialog({
           </Field>
           <Field
             id="profile-username"
-            description="用于 @ 提及，支持文字、数字、下划线和短横线。"
-            label="用户名"
+            description={t('settings.profile.usernameDescription')}
+            label={t('settings.profile.username')}
           >
             <Input
               id="profile-username"
@@ -112,11 +123,11 @@ export function UserProfileSettingsDialog({
               }
             />
           </Field>
-          <Field className="col-span-2" label="批注颜色">
+          <Field className="col-span-2" label={t('settings.profile.annotationColor')}>
             <AnnotationColorPreview
               avatar={draft.avatar || ''}
               color={selectedAnnotationColor}
-              nickname={draft.nickname || '我'}
+              nickname={draft.nickname || t('settings.profile.selfFallback')}
             />
             <ColorPicker
               colors={userAnnotationColors}
@@ -129,11 +140,11 @@ export function UserProfileSettingsDialog({
         <footer>
           {saveState === 'error' ? (
             <p className="settings-inline-error" role="alert">
-              {saveError || '保存失败，请重试。'}
+              {saveError || t('settings.profile.saveFailed')}
             </p>
           ) : null}
           <Button className="action-button" type="button" variant="secondary" onClick={onClose}>
-            取消
+            {t('settings.profile.cancel')}
           </Button>
           <Button
             className={
@@ -163,6 +174,7 @@ function AnnotationColorPreview({
   color: string;
   nickname: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className="annotation-color-preview"
@@ -170,15 +182,20 @@ function AnnotationColorPreview({
     >
       <div className="annotation-color-preview-text">
         <p>
-          阅读时看到值得保留的句子，
-          <span>可以用下划线轻轻标出来</span>，旁边会留下你的批注。
+          {t('settings.profile.previewTextBefore')}
+          <span>{t('settings.profile.previewTextHighlight')}</span>
+          {t('settings.profile.previewTextAfter')}
         </p>
       </div>
       <div className="annotation-color-preview-card">
-        <AvatarImage value={avatar} className="size-8" fallback={nickname.slice(0, 1) || '我'} />
+        <AvatarImage
+          value={avatar}
+          className="size-8"
+          fallback={nickname.slice(0, 1) || t('settings.profile.selfFallback')}
+        />
         <div>
           <strong>{nickname}</strong>
-          <p>这里值得留一条自己的判断。</p>
+          <p>{t('settings.profile.previewComment')}</p>
         </div>
       </div>
     </div>
@@ -186,6 +203,8 @@ function AnnotationColorPreview({
 }
 
 function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void }) {
+  const { t } = useTranslation();
+
   async function loadFile(file: File | undefined) {
     if (!file) return;
     onChange(await readFileAsDataUrl(file));
@@ -195,7 +214,7 @@ function ProfileAvatarEditor({ onChange }: { onChange: (avatar: string) => void 
     <div className="grid gap-3">
       <label className="upload-button">
         <Upload size={16} />
-        上传头像
+        {t('settings.profile.uploadAvatar')}
         <input
           accept="image/*"
           type="file"

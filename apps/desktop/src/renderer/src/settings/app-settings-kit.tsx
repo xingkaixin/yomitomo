@@ -94,6 +94,7 @@ export function SettingsSegmented<T extends string | number>({
   onChange,
   ariaLabel,
   block = false,
+  wrap = false,
 }: {
   options: Array<{ label: React.ReactNode; value: T; key?: string; disabled?: boolean }>;
   value: T;
@@ -101,13 +102,15 @@ export function SettingsSegmented<T extends string | number>({
   ariaLabel?: string;
   /** block 时填满容器宽度、各选项等分（用于全宽分段） */
   block?: boolean;
+  /** wrap 时允许多行排列，适合选项较多且文案随语言变长的场景 */
+  wrap?: boolean;
 }) {
+  const className = ['settings-segmented', block ? 'is-block' : '', wrap ? 'is-wrapped' : '']
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div
-      className={block ? 'settings-segmented is-block' : 'settings-segmented'}
-      role="group"
-      aria-label={ariaLabel}
-    >
+    <div className={className} role="group" aria-label={ariaLabel}>
       {options.map((option) => {
         const active = option.value === value;
         return (

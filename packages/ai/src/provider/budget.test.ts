@@ -28,7 +28,7 @@ describe('llm input budget', () => {
 
   it('normalizes context overflow errors', () => {
     expect(normalizeAnthropicError(400, 'input context length exceeds maximum tokens')).toBe(
-      '模型上下文超限：请换用更大上下文模型，缩小文章范围，或减少批注证据后重试。',
+      'Model context limit exceeded. Use a larger-context model, narrow the article scope, or reduce annotation evidence and try again.',
     );
   });
 });

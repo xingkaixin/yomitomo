@@ -20,6 +20,12 @@ import {
   useSourceAwareDialogTransition,
   type DialogSourceRect,
 } from '../shell/app-dialog-transition';
+import { useTranslation } from 'react-i18next';
+import {
+  readerPaperDisplayName,
+  themeDisplayDescription,
+  themeDisplayName,
+} from '../i18n/app-i18n-labels';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
@@ -42,6 +48,7 @@ export function ThemeSelector({
   onSelectReaderBackground,
   onSelectTheme,
 }: ThemeSelectorProps) {
+  const { t } = useTranslation();
   const [sourceRect, setSourceRect] = useState<DialogSourceRect | null>(null);
   const dialogStyle = useSourceAwareDialogTransition(sourceRect);
   const activeTone = themeRegistry[activeThemeId].meta.tone;
@@ -76,9 +83,9 @@ export function ThemeSelector({
   return (
     <>
       <button
-        aria-label="打开主题选择"
+        aria-label={t('theme.open')}
         className="app-nav-theme-button"
-        data-tooltip="主题"
+        data-tooltip={t('theme.title')}
         type="button"
         onClick={(event) => {
           setSourceRect(elementDialogSourceRect(event.currentTarget));
@@ -108,12 +115,12 @@ export function ThemeSelector({
                   <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
                 </span>
                 <div>
-                  <h2 id="theme-dialog-title">主题</h2>
-                  <p>选择阅读环境的纸张、墨色和界面风格。</p>
+                  <h2 id="theme-dialog-title">{t('theme.title')}</h2>
+                  <p>{t('theme.description')}</p>
                 </div>
               </div>
               <button
-                aria-label="关闭主题选择"
+                aria-label={t('theme.close')}
                 className="theme-dialog-close"
                 type="button"
                 onClick={() => onOpenChange(false)}
@@ -121,7 +128,7 @@ export function ThemeSelector({
                 <X aria-hidden="true" size={18} />
               </button>
             </header>
-            <div className="theme-tone-switch" role="group" aria-label="主题分类">
+            <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
               {themeToneOptions.map((option) => (
                 <button
                   aria-pressed={activeTone === option.tone}
@@ -130,7 +137,7 @@ export function ThemeSelector({
                   type="button"
                   onClick={() => selectTone(option.tone)}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </button>
               ))}
             </div>
@@ -142,6 +149,7 @@ export function ThemeSelector({
                     active={activeThemeId === themeId}
                     key={themeId}
                     theme={theme}
+                    t={t}
                     onClick={() => selectTheme(themeId)}
                   />
                 );
@@ -149,37 +157,40 @@ export function ThemeSelector({
             </div>
             <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
               <div>
-                <h3 id="reader-paper-title">阅读器纸张</h3>
-                <p>只影响网页文章、电子书和 PDF 的正文阅读区域。</p>
+                <h3 id="reader-paper-title">{t('theme.readerPaperTitle')}</h3>
+                <p>{t('theme.readerPaperDescription')}</p>
               </div>
               <div className="theme-reader-paper-options">
-                {visibleReaderBackgroundOptions.map((option) => (
-                  <button
-                    aria-label={`阅读器纸张：${option.label}`}
-                    aria-pressed={readerBackgroundColor === option.value}
-                    className={
-                      readerBackgroundColor === option.value
-                        ? 'theme-reader-paper-option is-active'
-                        : 'theme-reader-paper-option'
-                    }
-                    key={option.value}
-                    style={{ '--reader-paper-option': option.value } as CSSProperties}
-                    title={option.label}
-                    type="button"
-                    onClick={() => selectReaderBackground(option.value)}
-                  >
-                    <span aria-hidden="true" className="theme-reader-paper-swatch" />
-                    <strong>{option.label}</strong>
-                    <span className="theme-reader-paper-check" aria-hidden="true">
-                      {readerBackgroundColor === option.value ? (
-                        <Check size={15} strokeWidth={2.4} />
-                      ) : null}
-                    </span>
-                  </button>
-                ))}
+                {visibleReaderBackgroundOptions.map((option) => {
+                  const label = readerPaperDisplayName(option.label);
+                  return (
+                    <button
+                      aria-label={t('theme.readerPaperOption', { label })}
+                      aria-pressed={readerBackgroundColor === option.value}
+                      className={
+                        readerBackgroundColor === option.value
+                          ? 'theme-reader-paper-option is-active'
+                          : 'theme-reader-paper-option'
+                      }
+                      key={option.value}
+                      style={{ '--reader-paper-option': option.value } as CSSProperties}
+                      title={label}
+                      type="button"
+                      onClick={() => selectReaderBackground(option.value)}
+                    >
+                      <span aria-hidden="true" className="theme-reader-paper-swatch" />
+                      <strong>{label}</strong>
+                      <span className="theme-reader-paper-check" aria-hidden="true">
+                        {readerBackgroundColor === option.value ? (
+                          <Check size={15} strokeWidth={2.4} />
+                        ) : null}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               {activeTone === 'dark' ? (
-                <p className="theme-reader-paper-note">PDF 将保留原始页面颜色</p>
+                <p className="theme-reader-paper-note">{t('theme.pdfKeepsOriginalColor')}</p>
               ) : null}
             </section>
           </section>
@@ -189,9 +200,12 @@ export function ThemeSelector({
   );
 }
 
-const themeToneOptions: Array<{ label: string; tone: ReaderBackgroundTone }> = [
-  { label: '亮色', tone: 'light' },
-  { label: '暗色', tone: 'dark' },
+const themeToneOptions: Array<{
+  labelKey: 'theme.light' | 'theme.dark';
+  tone: ReaderBackgroundTone;
+}> = [
+  { labelKey: 'theme.light', tone: 'light' },
+  { labelKey: 'theme.dark', tone: 'dark' },
 ];
 
 const defaultThemeIdsByTone: Record<AppThemeTone, AppThemeId> = {
@@ -207,10 +221,12 @@ const defaultReaderBackgroundsByTone: Record<ReaderBackgroundTone, string> = {
 function ThemeCard({
   active,
   theme,
+  t,
   onClick,
 }: {
   active: boolean;
   theme: AppTheme;
+  t: ReturnType<typeof useTranslation>['t'];
   onClick: () => void;
 }) {
   const previewStyle = themeToCssVariables(theme) as CSSProperties;
@@ -226,7 +242,7 @@ function ThemeCard({
         <span className="theme-preview-shell">
           <span className="theme-preview-masthead">
             <span className="theme-preview-brand">
-              Yomitomo <em>伴读</em>
+              Yomitomo <em>{t('brandSuffix')}</em>
             </span>
             <span className="theme-preview-actions">
               <span />
@@ -234,9 +250,9 @@ function ThemeCard({
             </span>
           </span>
           <span className="theme-preview-nav">
-            <span className="is-active">阅读库</span>
-            <span>助手</span>
-            <span>统计</span>
+            <span className="is-active">{t('nav.library')}</span>
+            <span>{t('nav.agents')}</span>
+            <span>{t('nav.stats')}</span>
           </span>
           <span className="theme-preview-library">
             <span className="theme-preview-book">
@@ -258,8 +274,8 @@ function ThemeCard({
       </span>
       <span className="theme-card-body">
         <span>
-          <strong>{theme.meta.name}</strong>
-          <small>{theme.meta.description}</small>
+          <strong>{themeDisplayName(theme.meta.id)}</strong>
+          <small>{themeDisplayDescription(theme.meta.id, theme.meta.description)}</small>
         </span>
         <span className="theme-card-check" aria-hidden="true">
           {active ? <Check size={15} strokeWidth={2.4} /> : null}

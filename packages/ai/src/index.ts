@@ -133,6 +133,6 @@ export async function testProvider(
     });
     return { ok: true, message: content };
   } catch (error) {
-    return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
+    return { ok: false, message: error instanceof Error ? error.message : 'Provider test failed' };
   }
 }

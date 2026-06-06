@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { providerPresets } from '@yomitomo/shared';
 import type { ProviderDraft } from './app-settings';
+import { useTranslation } from 'react-i18next';
 
 export function useProviderModelFetch(
   draft: ProviderDraft,
   onChange: (draft: ProviderDraft) => void,
 ) {
+  const { t } = useTranslation();
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelError, setModelError] = useState('');
@@ -27,8 +29,8 @@ export function useProviderModelFetch(
       setModelError('');
       setModelNotice(
         fallbackModels.length > 0
-          ? '已显示预设模型；填写 API Key 后可获取实时列表'
-          : '填写 API Key 后可获取模型列表',
+          ? t('settings.models.presetModelsWithApiKey')
+          : t('settings.models.apiKeyRequiredForModels'),
       );
       if (fallbackModels.length > 0) {
         onChange({
@@ -49,7 +51,11 @@ export function useProviderModelFetch(
       const models = await window.yomitomoDesktop.listProviderModels(draft);
       const names = models.map((model) => model.id).filter(Boolean);
       setModelOptions(names);
-      setModelNotice(names.length > 0 ? `已获取 ${names.length} 个模型` : '未获取到模型列表');
+      setModelNotice(
+        names.length > 0
+          ? t('settings.models.fetchedModels', { count: names.length })
+          : t('settings.models.noModelsFetched'),
+      );
       if (names.length > 0) {
         onChange({
           ...draft,
@@ -65,8 +71,10 @@ export function useProviderModelFetch(
         });
       }
     } catch (error) {
-      setModelError(error instanceof Error ? error.message : '获取模型列表失败');
-      setModelNotice(fallbackModels.length > 0 ? '已显示预设模型作为候选' : '');
+      setModelError(
+        error instanceof Error ? error.message : t('settings.models.fetchModelsFailed'),
+      );
+      setModelNotice(fallbackModels.length > 0 ? t('settings.models.presetModelsFallback') : '');
     } finally {
       setModelLoading(false);
     }

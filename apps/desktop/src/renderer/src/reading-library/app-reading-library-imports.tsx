@@ -19,6 +19,7 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
+import { useTranslation } from 'react-i18next';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
@@ -88,26 +89,52 @@ function advanceImportProgress(current: number) {
   return Math.min(94, current + Math.max(0.8, (94 - current) * 0.08));
 }
 
-function articleImportErrorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message.trim() : '';
-  if (/网页地址/.test(message)) return message;
-  return 'Error';
+type AppT = ReturnType<typeof useTranslation>['t'];
+
+function articleImportErrorMessage(_error: unknown, t: AppT) {
+  return t('library.import.article.errorTitle');
+}
+
+function isValidArticleImportUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 function fileImportItemId(file: File, index: number) {
   return `${file.name}-${file.size}-${file.lastModified || 0}-${index}`;
 }
 
-function fileImportErrorMessage(error: unknown, fallback: string) {
+function fileImportErrorMessage(error: unknown, fallback: string, t: AppT) {
   const message = error instanceof Error ? error.message.trim() : '';
-  return message || fallback;
+  if (!message) return fallback;
+  const key = fileImportErrorKey(message);
+  return key ? t(key) : message;
 }
 
-function articleImportMeta(article: ArticleRecord) {
+function fileImportErrorKey(code: string) {
+  if (code === 'EBOOK_IMPORT_INVALID_FILE') return 'library.import.ebook.invalidFile';
+  if (code === 'EBOOK_IMPORT_FILE_TOO_LARGE') return 'library.import.ebook.oversize';
+  if (code === 'EBOOK_IMPORT_NO_READABLE_CHAPTERS')
+    return 'library.import.ebook.noReadableChapters';
+  if (code === 'EBOOK_IMPORT_MISSING_CONTAINER') return 'library.import.ebook.missingContainer';
+  if (code === 'EBOOK_IMPORT_MISSING_OPF') return 'library.import.ebook.missingOpf';
+  if (code === 'EBOOK_IMPORT_OPF_UNREADABLE') return 'library.import.ebook.opfUnreadable';
+  if (code === 'PDF_IMPORT_INVALID_FILE') return 'library.import.pdf.invalidFile';
+  if (code === 'PDF_IMPORT_FILE_TOO_LARGE') return 'library.import.pdf.oversize';
+  return '';
+}
+
+function articleImportMeta(article: ArticleRecord, t: AppT) {
   if (article.byline) return article.byline;
   if (article.sourceType === 'pdf') {
     const pageCount = article.pdf?.metadata.pageCount;
-    return pageCount ? `${pageCount} 页` : article.pdf?.metadata.fileName;
+    return pageCount
+      ? t('library.import.meta.pages', { count: pageCount })
+      : article.pdf?.metadata.fileName;
   }
   return article.ebook?.metadata.fileName || article.siteName || '';
 }
@@ -121,12 +148,12 @@ function coverPlaceholderTitle(title: string) {
   return compactTitle.length > 4 ? `${compactTitle.slice(0, 4)}...` : compactTitle;
 }
 
-function fileImportItemStateLabel(item: FileImportItem) {
-  if (item.status === 'pending') return '等待';
+function fileImportItemStateLabel(item: FileImportItem, t: AppT) {
+  if (item.status === 'pending') return t('library.import.itemState.pending');
   if (item.status === 'importing') return `${Math.round(item.progress)}%`;
-  if (item.status === 'duplicate') return '已存在';
-  if (item.status === 'error') return '失败';
-  return '完成';
+  if (item.status === 'duplicate') return t('library.import.itemState.duplicate');
+  if (item.status === 'error') return t('library.import.itemState.error');
+  return t('library.import.itemState.imported');
 }
 
 function importedBookCelebrationItems(items: FileImportItem[]): ImportedBookCelebrationItem[] {
@@ -180,6 +207,7 @@ export function LibraryImportControls({
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
+  const { t } = useTranslation();
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [articleImportOpen, setArticleImportOpen] = useState(false);
   const [ebookImportOpen, setEbookImportOpen] = useState(false);
@@ -220,10 +248,10 @@ export function LibraryImportControls({
           aria-haspopup={defaultImportType ? undefined : 'menu'}
           aria-label={
             defaultImportType === 'ebook'
-              ? '添加电子书'
+              ? t('library.import.addEbook')
               : defaultImportType === 'pdf'
-                ? '添加 PDF'
-                : '添加网页文章'
+                ? t('library.import.addPdf')
+                : t('library.import.addWebArticle')
           }
           className="library-add-trigger"
           type="button"
@@ -246,26 +274,26 @@ export function LibraryImportControls({
         >
           <Plus size={16} />
           {defaultImportType === 'web' ? (
-            <span>添加网页文章</span>
+            <span>{t('library.import.addWebArticle')}</span>
           ) : defaultImportType === 'ebook' ? (
-            <span>添加电子书</span>
+            <span>{t('library.import.addEbook')}</span>
           ) : defaultImportType === 'pdf' ? (
-            <span>添加 PDF</span>
+            <span>{t('library.import.addPdf')}</span>
           ) : null}
         </Button>
         {!defaultImportType && addMenuOpen ? (
           <div className="library-add-menu-popover" role="menu">
             <button type="button" role="menuitem" onClick={openArticleImportDialog}>
               <Globe2 size={15} />
-              添加网页文章
+              {t('library.import.addWebArticle')}
             </button>
             <button type="button" role="menuitem" onClick={openEbookImportDialog}>
               <BookText size={15} />
-              EPUB 电子书
+              {t('library.import.epubEbook')}
             </button>
             <button type="button" role="menuitem" onClick={openPdfImportDialog}>
               <FileText size={15} />
-              PDF 文档
+              {t('library.import.pdfDocument')}
             </button>
           </div>
         ) : null}
@@ -307,6 +335,7 @@ function ArticleImportDialog({
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
+  const { t } = useTranslation();
   const [importUrl, setImportUrl] = useState('');
   const [importState, setImportState] = useState<ArticleImportState>('idle');
   const [importMessage, setImportMessage] = useState('');
@@ -342,9 +371,9 @@ function ArticleImportDialog({
     clearImportCloseTimer();
     clearCancelDelayTimer();
     const url = importUrl.trim();
-    if (!url) {
+    if (!isValidArticleImportUrl(url)) {
       setImportState('error');
-      setImportMessage('请输入网页地址');
+      setImportMessage(t('library.import.article.invalidUrl'));
       setImportArticle(null);
       setImportProgress(0);
       setCancelAvailable(false);
@@ -357,7 +386,7 @@ function ArticleImportDialog({
 
     try {
       setImportState('submitting');
-      setImportMessage('正在解析网页');
+      setImportMessage(t('library.import.article.parsing'));
       setImportArticle(null);
       setImportProgress(8);
       setCancelAvailable(false);
@@ -370,7 +399,7 @@ function ArticleImportDialog({
       clearCancelDelayTimer();
       if (result.status === 'canceled') {
         setImportState('idle');
-        setImportMessage('已取消解析');
+        setImportMessage(t('library.import.article.canceled'));
         setImportArticle(null);
         setImportProgress(0);
         setCancelAvailable(false);
@@ -379,7 +408,7 @@ function ArticleImportDialog({
       setImportArticle(result.article);
       if (result.status === 'duplicate') {
         setImportState('duplicate');
-        setImportMessage('这篇文章已在阅读库');
+        setImportMessage(t('library.import.article.duplicate'));
         setImportProgress(100);
         setCancelAvailable(false);
         return;
@@ -387,7 +416,7 @@ function ArticleImportDialog({
 
       setImportProgress(100);
       setImportState('imported');
-      setImportMessage('已添加到阅读库');
+      setImportMessage(t('library.import.article.imported'));
       setCancelAvailable(false);
       setInputFocused(false);
       importCloseTimerRef.current = window.setTimeout(() => {
@@ -398,7 +427,7 @@ function ArticleImportDialog({
       if (importRequestIdRef.current !== requestId) return;
       clearCancelDelayTimer();
       setImportState('error');
-      setImportMessage(articleImportErrorMessage(error));
+      setImportMessage(articleImportErrorMessage(error, t));
       setImportArticle(null);
       setImportProgress(0);
       setCancelAvailable(false);
@@ -425,7 +454,7 @@ function ArticleImportDialog({
     clearCancelDelayTimer();
     clearImportCloseTimer();
     setImportState('idle');
-    setImportMessage('已取消解析');
+    setImportMessage(t('library.import.article.canceled'));
     setImportArticle(null);
     setImportProgress(0);
     setCancelAvailable(false);
@@ -448,12 +477,10 @@ function ArticleImportDialog({
   const articleInputTitle = showParsedTitle ? parsedTitle : submittedUrl || importUrl;
   const importHeaderMessage =
     importState === 'error'
-      ? '解析失败'
-      : importMessage || '输入文章链接，解析完成后会保存到阅读库。';
+      ? t('library.import.article.errorTitle')
+      : importMessage || t('library.import.article.idleHeader');
   const importFooterMessage =
-    importState === 'error'
-      ? 'Error'
-      : importMessage || 'Yomitomo 会提取标题、来源、正文和可阅读内容。';
+    importState === 'error' ? 'Error' : importMessage || t('library.import.article.idleFooter');
 
   return (
     <div
@@ -465,7 +492,7 @@ function ArticleImportDialog({
       <button
         className="library-import-modal-scrim"
         type="button"
-        aria-label="关闭网页文章导入"
+        aria-label={t('library.import.article.close')}
         onClick={closeImportDialog}
       />
       <form
@@ -474,10 +501,14 @@ function ArticleImportDialog({
       >
         <header>
           <div>
-            <strong id="library-article-import-title">添加网页文章</strong>
+            <strong id="library-article-import-title">{t('library.import.article.title')}</strong>
             <span>{importHeaderMessage}</span>
           </div>
-          <button type="button" aria-label="关闭网页文章导入" onClick={closeImportDialog}>
+          <button
+            type="button"
+            aria-label={t('library.import.article.close')}
+            onClick={closeImportDialog}
+          >
             <X size={17} />
           </button>
         </header>
@@ -494,7 +525,7 @@ function ArticleImportDialog({
             .join(' ')}
         >
           <label className="library-article-import-url">
-            <span>网页地址</span>
+            <span>{t('library.import.article.urlLabel')}</span>
             <span className="library-article-import-input">
               {showParsedTitle && importState === 'imported' ? (
                 <span className="library-article-import-result-check" aria-hidden="true">
@@ -504,10 +535,10 @@ function ArticleImportDialog({
                 <Globe2 size={16} />
               )}
               <input
-                aria-label="网页地址"
+                aria-label={t('library.import.article.urlLabel')}
                 disabled={importState === 'submitting' || importState === 'imported'}
                 inputMode="url"
-                placeholder="粘贴网页链接，例如 https://example.com/article"
+                placeholder={t('library.import.article.placeholder')}
                 title={articleInputTitle}
                 type="text"
                 value={articleInputValue}
@@ -539,7 +570,9 @@ function ArticleImportDialog({
               ) : (
                 <Globe2 size={16} />
               )}
-              {importState === 'submitting' ? '解析中' : '解析添加'}
+              {importState === 'submitting'
+                ? t('library.import.article.parsingButton')
+                : t('library.import.article.parse')}
             </Button>
             {importState === 'submitting' && cancelAvailable ? (
               <Button
@@ -549,7 +582,7 @@ function ArticleImportDialog({
                 onClick={cancelImport}
               >
                 <X size={16} />
-                取消解析
+                {t('library.import.article.cancel')}
               </Button>
             ) : null}
           </span>
@@ -557,7 +590,7 @@ function ArticleImportDialog({
             <span
               className="library-import-progress"
               role="progressbar"
-              aria-label="网页文章导入进度"
+              aria-label={t('library.import.article.progress')}
               aria-valuemax={100}
               aria-valuemin={0}
               aria-valuenow={importProgressPercent}
@@ -577,8 +610,8 @@ function ArticleImportDialog({
             <span className="library-article-duplicate-callout" role="status">
               <CircleAlert size={16} />
               <span>
-                <strong>已在阅读库中找到这篇文章</strong>
-                <em>无需重复导入，可以直接打开已有文章。</em>
+                <strong>{t('library.import.article.duplicateTitle')}</strong>
+                <em>{t('library.import.article.duplicateDescription')}</em>
               </span>
             </span>
           ) : null}
@@ -595,7 +628,9 @@ function ArticleImportDialog({
               }}
             >
               <ExternalLink size={14} />
-              {importState === 'duplicate' ? '打开已有文章' : '打开文章'}
+              {importState === 'duplicate'
+                ? t('library.import.article.openDuplicate')
+                : t('library.import.article.openArticle')}
             </button>
           ) : null}
         </footer>
@@ -616,32 +651,35 @@ function EbookImportDialog({
   ) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <FileImportDialog
       config={{
         kind: 'ebook',
         titleId: 'library-ebook-import-title',
-        title: '添加 EPUB 电子书',
-        closeLabel: '关闭电子书导入',
-        idleMessage: `可批量导入 · EPUB · 单本最高 80MB · 最多 ${MAX_BATCH_IMPORT_FILES} 本`,
-        batchIdleMessage: `可批量导入 · EPUB · 单本最高 80MB · 最多 ${MAX_BATCH_IMPORT_FILES} 本`,
+        title: t('library.import.ebook.title'),
+        closeLabel: t('library.import.ebook.close'),
+        idleMessage: t('library.import.ebook.idle', { count: MAX_BATCH_IMPORT_FILES }),
+        batchIdleMessage: t('library.import.ebook.idle', { count: MAX_BATCH_IMPORT_FILES }),
         accept: '.epub,application/epub+zip',
         inputId: 'library-ebook-file',
         isValidFileName: (name) => name.toLowerCase().endsWith('.epub'),
         maxBytes: MAX_EBOOK_IMPORT_BYTES,
         maxFileCount: MAX_BATCH_IMPORT_FILES,
-        invalidFileMessage: '请选择 EPUB 文件',
-        oversizeMessage: 'EPUB 文件不能超过 80MB',
-        tooManyFilesMessage: `单次最多导入 ${MAX_BATCH_IMPORT_FILES} 本 EPUB`,
-        duplicateMessage: '这本电子书已在阅读库',
-        errorFallbackMessage: '添加电子书失败',
-        idleDropTitle: '拖入 EPUB，或点击选择',
-        draggingDropTitle: '松开开始解析',
-        importedDropTitle: '导入完成',
-        dropHint: '可多选或多拖，顺序导入',
-        footerHint: '解析完成后会提取标题、作者、封面和章节正文。',
-        progressLabel: '电子书导入进度',
-        openDuplicateLabel: '打开已有电子书',
+        invalidFileMessage: t('library.import.ebook.invalidFile'),
+        oversizeMessage: t('library.import.ebook.oversize'),
+        tooManyFilesMessage: t('library.import.ebook.tooManyFiles', {
+          count: MAX_BATCH_IMPORT_FILES,
+        }),
+        duplicateMessage: t('library.import.ebook.duplicate'),
+        errorFallbackMessage: t('library.import.ebook.errorFallback'),
+        idleDropTitle: t('library.import.ebook.idleDropTitle'),
+        draggingDropTitle: t('library.import.ebook.draggingDropTitle'),
+        importedDropTitle: t('library.import.ebook.importedDropTitle'),
+        dropHint: t('library.import.ebook.dropHint'),
+        footerHint: t('library.import.ebook.footerHint'),
+        progressLabel: t('library.import.ebook.progress'),
+        openDuplicateLabel: t('library.import.ebook.openDuplicate'),
         onImportFile: onImportEbookFile,
       }}
       onClose={onClose}
@@ -662,32 +700,35 @@ function PdfImportDialog({
   ) => Promise<ArticleImportResult>;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <FileImportDialog
       config={{
         kind: 'pdf',
         titleId: 'library-pdf-import-title',
-        title: '添加 PDF 文档',
-        closeLabel: '关闭 PDF 导入',
-        idleMessage: `可批量导入 · PDF · 单份最高 120MB · 最多 ${MAX_BATCH_IMPORT_FILES} 份`,
-        batchIdleMessage: `可批量导入 · PDF · 单份最高 120MB · 最多 ${MAX_BATCH_IMPORT_FILES} 份`,
+        title: t('library.import.pdf.title'),
+        closeLabel: t('library.import.pdf.close'),
+        idleMessage: t('library.import.pdf.idle', { count: MAX_BATCH_IMPORT_FILES }),
+        batchIdleMessage: t('library.import.pdf.idle', { count: MAX_BATCH_IMPORT_FILES }),
         accept: '.pdf,application/pdf',
         inputId: 'library-pdf-file',
         isValidFileName: (name) => name.toLowerCase().endsWith('.pdf'),
         maxBytes: MAX_PDF_IMPORT_BYTES,
         maxFileCount: MAX_BATCH_IMPORT_FILES,
-        invalidFileMessage: '请选择 PDF 文件',
-        oversizeMessage: 'PDF 文件不能超过 120MB',
-        tooManyFilesMessage: `单次最多导入 ${MAX_BATCH_IMPORT_FILES} 份 PDF`,
-        duplicateMessage: '这份 PDF 已在阅读库',
-        errorFallbackMessage: '添加 PDF 失败',
-        idleDropTitle: '拖入 PDF，或点击选择',
-        draggingDropTitle: '松开开始解析',
-        importedDropTitle: '导入完成',
-        dropHint: '可多选或多拖，顺序导入',
-        footerHint: '解析完成后会保存页数和基础元信息。',
-        progressLabel: 'PDF 导入进度',
-        openDuplicateLabel: '打开已有 PDF',
+        invalidFileMessage: t('library.import.pdf.invalidFile'),
+        oversizeMessage: t('library.import.pdf.oversize'),
+        tooManyFilesMessage: t('library.import.pdf.tooManyFiles', {
+          count: MAX_BATCH_IMPORT_FILES,
+        }),
+        duplicateMessage: t('library.import.pdf.duplicate'),
+        errorFallbackMessage: t('library.import.pdf.errorFallback'),
+        idleDropTitle: t('library.import.pdf.idleDropTitle'),
+        draggingDropTitle: t('library.import.pdf.draggingDropTitle'),
+        importedDropTitle: t('library.import.pdf.importedDropTitle'),
+        dropHint: t('library.import.pdf.dropHint'),
+        footerHint: t('library.import.pdf.footerHint'),
+        progressLabel: t('library.import.pdf.progress'),
+        openDuplicateLabel: t('library.import.pdf.openDuplicate'),
         onImportFile: onImportPdfFile,
       }}
       onClose={onClose}
@@ -705,6 +746,7 @@ function FileImportDialog({
   onClose: () => void;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
+  const { t } = useTranslation();
   const [importState, setImportState] = useState<ArticleImportState>('idle');
   const [importMessage, setImportMessage] = useState('');
   const [importItems, setImportItems] = useState<FileImportItem[]>([]);
@@ -765,13 +807,13 @@ function FileImportDialog({
 
     if (validEntries.length === 0) {
       setImportState('error');
-      setImportMessage('没有可导入的文件');
+      setImportMessage(t('library.import.noFiles'));
       resetInput();
       return;
     }
 
     setImportState('submitting');
-    setImportMessage(`正在导入 1/${validEntries.length}`);
+    setImportMessage(t('library.import.importing', { current: 1, total: validEntries.length }));
 
     let currentItems = initialItems;
     function patchImportItem(itemId: string, patch: Partial<FileImportItem>) {
@@ -785,7 +827,12 @@ function FileImportDialog({
     for (const entry of validEntries) {
       const itemId = entry.item.id;
       const currentIndex = completedCount;
-      setImportMessage(`正在导入 ${currentIndex + 1}/${validEntries.length}`);
+      setImportMessage(
+        t('library.import.importing', {
+          current: currentIndex + 1,
+          total: validEntries.length,
+        }),
+      );
       patchImportItem(itemId, { status: 'importing', progress: 4, message: undefined });
 
       try {
@@ -796,7 +843,11 @@ function FileImportDialog({
         });
 
         if (result.status === 'canceled') {
-          patchImportItem(itemId, { message: '已取消', progress: 100, status: 'error' });
+          patchImportItem(itemId, {
+            message: t('library.import.canceled'),
+            progress: 100,
+            status: 'error',
+          });
           completedCount += 1;
           continue;
         }
@@ -806,13 +857,13 @@ function FileImportDialog({
           message:
             result.status === 'duplicate'
               ? config.duplicateMessage
-              : articleImportMeta(result.article),
+              : articleImportMeta(result.article, t),
           progress: 100,
           status: result.status,
         });
       } catch (error) {
         patchImportItem(itemId, {
-          message: fileImportErrorMessage(error, config.errorFallbackMessage),
+          message: fileImportErrorMessage(error, config.errorFallbackMessage, t),
           progress: 100,
           status: 'error',
         });
@@ -861,7 +912,7 @@ function FileImportDialog({
 
     if (successCount === 0) {
       setImportState('error');
-      setImportMessage('导入失败');
+      setImportMessage(t('library.import.failed'));
       return;
     }
 
@@ -869,10 +920,13 @@ function FileImportDialog({
       setImportState(failedCount > 0 ? 'error' : 'duplicate');
       setImportMessage(
         failedCount > 0
-          ? `${duplicateCount} 个已存在，${failedCount} 个失败`
+          ? t('library.import.duplicateAndFailed', {
+              duplicates: duplicateCount,
+              failed: failedCount,
+            })
           : duplicateCount === 1
             ? config.duplicateMessage
-            : `${duplicateCount} 个文件已在阅读库`,
+            : t('library.import.duplicateFiles', { count: duplicateCount }),
       );
       setBatchProgress(100);
       return;
@@ -881,8 +935,11 @@ function FileImportDialog({
     setImportState(failedCount > 0 ? 'error' : 'imported');
     setImportMessage(
       failedCount > 0
-        ? `已导入 ${successCount} 个，${failedCount} 个失败`
-        : `已导入 ${successCount} 个文件`,
+        ? t('library.import.importedAndFailed', {
+            failed: failedCount,
+            imported: successCount,
+          })
+        : t('library.import.importedFiles', { count: successCount }),
     );
     setBatchProgress(100);
     if (failedCount === 0) {
@@ -1030,7 +1087,7 @@ function FileImportDialog({
           <div
             className="library-ebook-import-celebration"
             role="status"
-            aria-label="已导入的电子书封面"
+            aria-label={t('library.import.ebook.celebration')}
           >
             <div className="library-ebook-import-cover-stack" aria-hidden="true">
               {celebrationItems.map((item) => (
@@ -1094,7 +1151,7 @@ function FileImportDialog({
                   <em>{item.message || item.fileName}</em>
                 </span>
                 <span className="library-file-import-result-state">
-                  {fileImportItemStateLabel(item)}
+                  {fileImportItemStateLabel(item, t)}
                 </span>
               </article>
             ))}
@@ -1116,7 +1173,9 @@ function FileImportDialog({
             </button>
           ) : importState === 'error' ? (
             <button type="button" onClick={resetImport}>
-              重新选择
+              {config.kind === 'pdf'
+                ? t('library.import.pdf.reselect')
+                : t('library.import.ebook.reselect')}
             </button>
           ) : null}
         </footer>

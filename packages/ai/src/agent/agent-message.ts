@@ -20,6 +20,7 @@ import {
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
 import { memoryViewContextBlocks } from '../context/reading-view-assembler';
+import { responseLanguageSystemPrompt } from './agent-language';
 
 export async function runAgentStream(
   provider: LlmProvider,
@@ -154,7 +155,7 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
 - 不要自我介绍，不要寒暄。
 - 不要 @ 用户或其他助手，不要写成对话回复。
 - 不展示思考过程、推导草稿、行动计划或长篇铺垫。
-- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。`;
+- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
   }
 
   if (payload.responseMode === 'distillation_review') {
@@ -167,14 +168,14 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
 - 你不是替用户改写沉淀，也不是直接发布结论。
 - 只给反馈、质疑、补充或可带走的判断框架。
 - 不要 @ 用户，不要寒暄，不要展示思考过程。
-- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。`;
+- 默认 1 到 3 个短段落；能用一句话说清就不要展开成文章。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
   }
 
   if (payload.reviewTargetCommentId) {
-    return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。`;
+    return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
   }
 
-  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\nthread 参与边界：你不是只回复最新评论者，而是在加入这条批注想法的讨论。必须先考虑原始想法的作者和内容，再回应最新读者评论；读者只 @ 你时，也视为邀请你评论这条原始想法。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。`;
+  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\nthread 参与边界：你不是只回复最新评论者，而是在加入这条批注想法的讨论。必须先考虑原始想法的作者和内容，再回应最新读者评论；读者只 @ 你时，也视为邀请你评论这条原始想法。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
 }
 
 function buildAgentMessageContextBundle(payload: AgentMessagePayload) {

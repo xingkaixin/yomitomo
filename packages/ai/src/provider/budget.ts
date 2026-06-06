@@ -48,9 +48,9 @@ export function normalizeAnthropicError(status: number, body: string) {
       lower.includes('too long') ||
       lower.includes('maximum'))
   ) {
-    return '模型上下文超限：请换用更大上下文模型，缩小文章范围，或减少批注证据后重试。';
+    return 'Model context limit exceeded. Use a larger-context model, narrow the article scope, or reduce annotation evidence and try again.';
   }
-  return `Anthropic 请求失败：${status} ${body.slice(0, 400)}`;
+  return `Anthropic request failed: ${status} ${body.slice(0, 400)}`;
 }
 
 function budgetText(

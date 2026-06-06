@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   assertDatabaseReaderCompatible,
   databaseReaderCompatibility,
+  DatabaseTooNewError,
   migrationReaderLevel,
 } from './compatibility';
 import { migrations } from './migrations';
@@ -44,8 +45,18 @@ describe('database reader compatibility', () => {
 
   it('blocks unknown migrations when older metadata is unavailable', () => {
     expect(() => assertDatabaseReaderCompatible(['0099_future_unknown'], null)).toThrow(
-      /reader level 3/,
+      DatabaseTooNewError,
     );
+    try {
+      assertDatabaseReaderCompatible(['0099_future_unknown'], null);
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'DATABASE_TOO_NEW',
+        requiredReaderLevel: 3,
+        supportedReaderLevel: 2,
+        unknownMigrationIds: ['0099_future_unknown'],
+      });
+    }
   });
 
   it('requires destructive migrations to declare a higher reader level', () => {

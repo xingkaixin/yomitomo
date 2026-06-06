@@ -1,4 +1,5 @@
 import { AlignLeft, GitPullRequestDraft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export type AnnotationMessageLayoutMode = 'split' | 'left';
 
@@ -9,8 +10,9 @@ export function AnnotationLayoutControl({
   onChange: (value: AnnotationMessageLayoutMode) => void;
   value: AnnotationMessageLayoutMode;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="annotation-layout-control" aria-label="消息布局">
+    <div className="annotation-layout-control" aria-label={t('discussion.layout.label')}>
       <button
         className={value === 'split' ? 'is-active' : ''}
         type="button"
@@ -18,7 +20,7 @@ export function AnnotationLayoutControl({
         onClick={() => onChange('split')}
       >
         <GitPullRequestDraft size={13} />
-        左右
+        {t('discussion.layout.split')}
       </button>
       <button
         className={value === 'left' ? 'is-active' : ''}
@@ -27,7 +29,7 @@ export function AnnotationLayoutControl({
         onClick={() => onChange('left')}
       >
         <AlignLeft size={13} />
-        左齐
+        {t('discussion.layout.left')}
       </button>
     </div>
   );

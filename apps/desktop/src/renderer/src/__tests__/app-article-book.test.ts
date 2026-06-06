@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { formatPdfAuthors } from '../shell/app-article-book';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 describe('PDF display metadata', () => {
+  beforeEach(() => {
+    initializeAppI18n('zh-CN');
+  });
+
   it('shows one English author with et al. on PDF covers', () => {
     expect(formatPdfAuthors('BASANT MOUNIR; FARIDA MADKOUR; AMIRA ABDEL', { maxAuthors: 1 })).toBe(
       'Basant Mounir et al.',

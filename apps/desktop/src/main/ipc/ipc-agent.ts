@@ -15,7 +15,12 @@ import type {
 } from '@yomitomo/shared';
 import type { AssistantRuntimeStreamEvent, AssistantToolName } from '@yomitomo/ai';
 import type { NormalizedAiUsage } from '@yomitomo/ai';
-import { agentPersonalityName, makeId, normalizeAssistantExecutionMode } from '@yomitomo/shared';
+import {
+  agentPersonalityName,
+  makeId,
+  normalizeAssistantExecutionMode,
+  normalizeUiLanguage,
+} from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 import {
@@ -50,7 +55,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findCommentAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`找不到助手：@${payload.agentUsername}`);
+    if (!agent) throw new Error(`AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -61,6 +66,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const startedAt = performance.now();
     const payloadWithRoster = {
       ...payload,
+      uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
       agentRoster: publicCommentAgents(store.agents),
     };
     const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
@@ -127,7 +133,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`找不到审阅助手：@${payload.agentUsername}`);
+    if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -136,6 +142,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     );
     const comments = await runAgentReview(provider, agent, {
       ...payload,
+      uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
       agentRoster: publicCommentAgents(store.agents),
     });
     for (const comment of comments) {
@@ -148,7 +155,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`找不到审阅助手：@${payload.agentUsername}`);
+    if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -157,7 +164,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     );
     const requestedMode = normalizeAssistantExecutionMode(store.settings.assistantExecutionMode);
     const startedAt = performance.now();
-    const payloadWithRoster = distillationReviewMessagePayload(payload, store.agents);
+    const payloadWithRoster = distillationReviewMessagePayload(
+      payload,
+      store.agents,
+      store.settings,
+    );
     const runtime =
       requestedMode === 'deep_verification'
         ? await runAgentDistillationReviewWithToolLoop({
@@ -233,7 +244,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`找不到助手：@${input.payload.agentUsername}`);
+        if (!agent) throw new Error(`AGENT_NOT_FOUND:${input.payload.agentUsername}`);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -261,6 +272,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         event.sender.send(channel, { type: 'start', comment });
         const payloadWithRoster = {
           ...input.payload,
+          uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
           agentRoster: publicCommentAgents(store.agents),
           readingIntent: input.payload.readingIntent || comment.readingIntent,
         };
@@ -350,7 +362,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       } catch (error) {
         event.sender.send(channel, {
           type: 'error',
-          message: error instanceof Error ? error.message : '助手回复失败',
+          message: error instanceof Error ? error.message : 'AGENT_REPLY_FAILED',
         });
       }
     },
@@ -374,7 +386,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`找不到审阅助手：@${input.payload.agentUsername}`);
+        if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${input.payload.agentUsername}`);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -396,7 +408,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           agentAvatar: agent.avatar,
         };
         event.sender.send(channel, { type: 'start', message });
-        const payloadWithRoster = distillationReviewMessagePayload(input.payload, store.agents);
+        const payloadWithRoster = distillationReviewMessagePayload(
+          input.payload,
+          store.agents,
+          store.settings,
+        );
         const streamRuntimeTextDelta = (delta: string) => {
           message.content += delta;
           event.sender.send(channel, { type: 'delta', delta });
@@ -474,7 +490,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       } catch (error) {
         event.sender.send(channel, {
           type: 'error',
-          message: error instanceof Error ? error.message : '沉淀审阅失败',
+          message: error instanceof Error ? error.message : 'AGENT_DISTILLATION_REVIEW_FAILED',
         });
       }
     },
@@ -484,7 +500,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`找不到批注助手：@${payload.agentUsername}`);
+    if (!agent) throw new Error(`ANNOTATION_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -493,7 +509,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     );
     const startedAt = performance.now();
     const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
-      payload,
+      payload: {
+        ...payload,
+        uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
+      },
       logInfo: context.logInfo,
       logError: context.logError,
     });
@@ -537,7 +556,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`找不到批注助手：@${input.payload.agentUsername}`);
+        if (!agent) throw new Error(`ANNOTATION_AGENT_NOT_FOUND:${input.payload.agentUsername}`);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -548,7 +567,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         const annotations: ArticleRecord['annotations'] = [];
         event.sender.send(channel, { type: 'start' });
         const payloadWithMemory = agentAnnotatePayloadWithReadingMemoryEntries({
-          payload: input.payload,
+          payload: {
+            ...input.payload,
+            uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
+          },
           logInfo: context.logInfo,
           logError: context.logError,
         });
@@ -590,7 +612,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       } catch (error) {
         event.sender.send(channel, {
           type: 'error',
-          message: error instanceof Error ? error.message : '助手添加想法失败',
+          message: error instanceof Error ? error.message : 'AGENT_ANNOTATION_FAILED',
         });
       }
     },
@@ -614,11 +636,6 @@ const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
   reviewAssistant: 'reviewAssistantProviderId',
 };
 
-const providerTaskLabels: Record<ProviderTask, string> = {
-  readingAssistant: '阅读理解助手',
-  reviewAssistant: '深度审阅助手',
-};
-
 async function taskProvider(
   context: DesktopMainIpcContext,
   providers: LlmProvider[],
@@ -627,7 +644,7 @@ async function taskProvider(
 ): Promise<LlmProvider> {
   const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
   const provider = providers.find((item) => item.id === providerId);
-  if (!provider) throw new Error(`请先在任务路由选择${providerTaskLabels[task]}供应商`);
+  if (!provider) throw new Error(`PROVIDER_ROUTE_REQUIRED:${task}`);
   const { hydrateProviderApiKey } = await context.getStoreModule();
   return hydrateProviderApiKey(provider);
 }
@@ -829,9 +846,11 @@ function stringField(value: unknown) {
 function distillationReviewMessagePayload(
   payload: AgentDistillationReviewPayload,
   agents: Agent[],
+  settings: AppSettings,
 ): AgentMessagePayload {
   return {
     ...payload,
+    uiLanguage: normalizeUiLanguage(settings.uiLanguage),
     responseMode: 'distillation_review',
     agentRoster: payload.agentRoster || publicCommentAgents(agents),
   };
@@ -890,7 +909,7 @@ function runtimeProgressEvent(
     };
   }
   if (event.type === 'fallback') {
-    return { type: 'fallback', message: '深入探索未完成，已切换快速回复' };
+    return { type: 'fallback', message: 'ASSISTANT_RUNTIME_FALLBACK_FAST_RESPONSE' };
   }
   return null;
 }
@@ -914,19 +933,19 @@ function applyRuntimeProgress(
 function runtimeToolProgressLabel(toolName: AssistantToolName) {
   switch (toolName) {
     case 'get_current_thread':
-      return '读取当前讨论';
+      return 'get_current_thread';
     case 'get_anchor_context':
-      return '查看高亮附近原文';
+      return 'get_anchor_context';
     case 'search_article_passages':
-      return '检索相关原文';
+      return 'search_article_passages';
     case 'search_article_memory':
-      return '查找文章内已有记忆';
+      return 'search_article_memory';
     case 'search_own_memory':
-      return '回看这位助手的既有判断';
+      return 'search_own_memory';
     case 'search_other_agents_memory':
-      return '参考其他助手的相关想法';
+      return 'search_other_agents_memory';
     case 'check_duplicate_thought':
-      return '检查是否重复已有想法';
+      return 'check_duplicate_thought';
   }
 }
 

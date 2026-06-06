@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import {
   computeReadingActivityDays,
@@ -35,11 +36,15 @@ export type ReadingStatsViewData = {
   insights: ReadingInsight[];
 };
 
-const statsViewDataCache = new WeakMap<ArticleSummaryRecord[], ReadingStatsViewData>();
+const statsViewDataCache = new WeakMap<
+  ArticleSummaryRecord[],
+  { language: string; data: ReadingStatsViewData }
+>();
 
 export function getReadingStatsViewData(articles: ArticleSummaryRecord[]): ReadingStatsViewData {
+  const language = i18next.language || 'zh-CN';
   const cached = statsViewDataCache.get(articles);
-  if (cached) return cached;
+  if (cached?.language === language) return cached.data;
 
   const stats = computeReadingStats(articles);
   const activityDays = computeReadingActivityDays(articles);
@@ -72,7 +77,7 @@ export function getReadingStatsViewData(articles: ArticleSummaryRecord[]): Readi
     insights: buildReadingInsights(activityDays, activityStartDate, stats.total),
   };
 
-  statsViewDataCache.set(articles, data);
+  statsViewDataCache.set(articles, { language, data });
   return data;
 }
 
@@ -81,26 +86,52 @@ export function preloadReadingStatsFirstPaintData(articles: ArticleSummaryRecord
 }
 
 export function periodSummary(stats: ReadingStatsPeriod) {
-  return `${stats.distillations} 条沉淀 · ${stats.thoughts} 条想法 · ${stats.annotations} 条划线 · ${stats.aiComments} 次助手参与`;
+  return i18next.t('readingStats.summary.period', {
+    aiComments: stats.aiComments,
+    annotations: stats.annotations,
+    distillations: stats.distillations,
+    thoughts: stats.thoughts,
+  });
 }
 
 export function nextGoalText(litStampCount: number, remaining: number) {
-  if (remaining <= 0) return '七日章已点亮，继续收集下一枚藏书票';
-  return `已收集 ${litStampCount} 枚藏书票，再读 ${remaining} 天点亮七日章`;
+  if (remaining <= 0) return i18next.t('readingStats.goals.sevenDayLitNext');
+  return i18next.t('readingStats.goals.sevenDayRemaining', {
+    count: litStampCount,
+    remaining,
+  });
 }
 
 export function activityStampLabel(day: ActivityStamp) {
-  if (day.status === 'unstarted') return `${day.date}：伴读旅程尚未开始`;
-  if (day.status === 'today') return `${day.date}：今天读一篇，盖下第一枚藏书票`;
-  const special = day.special ? `，连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date}：${day.distillations} 条沉淀，${day.thoughts} 条想法，${day.annotations} 条划线${special}`;
+  if (day.status === 'unstarted')
+    return i18next.t('readingStats.activity.label.unstarted', { date: day.date });
+  if (day.status === 'today')
+    return i18next.t('readingStats.activity.label.today', { date: day.date });
+  return i18next.t('readingStats.activity.label.recorded', {
+    annotations: day.annotations,
+    date: day.date,
+    distillations: day.distillations,
+    special: day.special
+      ? i18next.t('readingStats.activity.label.special', { count: day.streak })
+      : '',
+    thoughts: day.thoughts,
+  });
 }
 
 export function activityStampTitle(day: ActivityStamp) {
-  if (day.status === 'unstarted') return `${day.date} · 未开始`;
-  if (day.status === 'today') return `${day.date} · 今天读一篇，盖下第一枚藏书票`;
-  const special = day.special ? ` · 连续 ${day.streak} 天特殊印章` : '';
-  return `${day.date} · 沉淀 ${day.distillations} · 想法 ${day.thoughts} · 划线 ${day.annotations}${special}`;
+  if (day.status === 'unstarted')
+    return i18next.t('readingStats.activity.title.unstarted', { date: day.date });
+  if (day.status === 'today')
+    return i18next.t('readingStats.activity.title.today', { date: day.date });
+  return i18next.t('readingStats.activity.title.recorded', {
+    annotations: day.annotations,
+    date: day.date,
+    distillations: day.distillations,
+    special: day.special
+      ? i18next.t('readingStats.activity.title.special', { count: day.streak })
+      : '',
+    thoughts: day.thoughts,
+  });
 }
 
 export function activityMapDescription(
@@ -108,16 +139,20 @@ export function activityMapDescription(
   litStampCount: number,
   currentStreak: number,
 ) {
-  if (!hasLitStamp) return '今天读一篇，盖下第一枚藏书票。连续 7 天会点亮纪念章。';
+  if (!hasLitStamp) return i18next.t('readingStats.activity.map.empty');
   if (currentStreak > 0 && currentStreak < 7)
-    return `已收集 ${litStampCount} 枚藏书票，再读 ${7 - currentStreak} 天点亮七日章。`;
-  return `已收集 ${litStampCount} 枚藏书票。连续 7 天会点亮纪念章。`;
+    return i18next.t('readingStats.activity.map.remaining', {
+      count: litStampCount,
+      remaining: 7 - currentStreak,
+    });
+  return i18next.t('readingStats.activity.map.collected', { count: litStampCount });
 }
 
 export function chartActivityDescription(recordedDays: number) {
-  if (recordedDays >= 21) return '沉淀、想法和划线趋势';
-  if (recordedDays <= 6) return `已记录 ${recordedDays} 天，正在形成你的伴读节奏`;
-  return `已记录 ${recordedDays} 天，正在形成沉淀、想法和划线趋势`;
+  if (recordedDays >= 21) return i18next.t('readingStats.chart.descriptionMature');
+  if (recordedDays <= 6)
+    return i18next.t('readingStats.chart.descriptionEarly', { count: recordedDays });
+  return i18next.t('readingStats.chart.descriptionBuilding', { count: recordedDays });
 }
 
 function peakActivityDay(days: ReadingActivityDay[], startDate: string) {
@@ -138,8 +173,8 @@ function buildReadingInsights(
 
   if (activeDays.length === 0) {
     return [
-      { id: 'start', text: '今天读完一篇文章后，这里会出现第一条伴读洞察。' },
-      { id: 'trend', text: '划线、想法、沉淀和助手参与会一起形成你的阅读趋势。' },
+      { id: 'start', text: i18next.t('readingStats.insights.start') },
+      { id: 'trend', text: i18next.t('readingStats.insights.trend') },
     ];
   }
 
@@ -147,29 +182,39 @@ function buildReadingInsights(
     peak
       ? {
           id: 'peak',
-          text: `你在 ${peak.label} 最活跃，产生了 ${dayInteractions(peak)} 次互动。`,
+          text: i18next.t('readingStats.insights.peak', {
+            count: dayInteractions(peak),
+            label: peak.label,
+          }),
         }
-      : { id: 'peak', text: `已记录 ${activeDays.length} 个活跃日，伴读节奏正在成形。` },
+      : {
+          id: 'peak',
+          text: i18next.t('readingStats.insights.activeDays', { count: activeDays.length }),
+        },
     stats.distillations > 0
       ? {
           id: 'depth',
-          text: `目前已发布 ${stats.distillations} 条沉淀，可复用的阅读成果正在累积。`,
+          text: i18next.t('readingStats.insights.distillations', {
+            count: stats.distillations,
+          }),
         }
       : stats.thoughts > 0
         ? {
             id: 'discussion',
-            text: `已有 ${stats.thoughts} 条想法，讨论过程正在沉淀前积累材料。`,
+            text: i18next.t('readingStats.insights.thoughts', { count: stats.thoughts }),
           }
         : {
             id: 'highlight',
-            text: `目前已留下 ${stats.annotations} 条划线，深读痕迹正在累积。`,
+            text: i18next.t('readingStats.insights.annotations', {
+              count: stats.annotations,
+            }),
           },
     stats.aiComments > 0
       ? {
           id: 'ai',
-          text: `助手参与 ${stats.aiComments} 次，阅读高峰日的协作更集中。`,
+          text: i18next.t('readingStats.insights.aiComments', { count: stats.aiComments }),
         }
-      : { id: 'ai', text: '完成一次助手讨论后，这里会显示协作趋势。' },
+      : { id: 'ai', text: i18next.t('readingStats.insights.aiEmpty') },
   ];
 }
 

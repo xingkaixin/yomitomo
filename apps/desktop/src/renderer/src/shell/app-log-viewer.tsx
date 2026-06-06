@@ -27,6 +27,7 @@ import {
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
+import { useTranslation } from 'react-i18next';
 
 type LicensePackage = {
   name: string;
@@ -40,6 +41,7 @@ const homepageUrl = 'https://yomitomo.app';
 const releasesUrl = 'https://github.com/xingkaixin/yomitomo/releases';
 const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
+type AppT = ReturnType<typeof useTranslation>['t'];
 
 // 开发用：注入「发现新版本」状态，即时弹出更新前弹窗（A 场景），无需重启。
 async function handleSimulatePreUpdate() {
@@ -57,6 +59,7 @@ export function AboutSettings({
   settings?: AppSettings;
   onStoreUpdated?: (store: DesktopStore) => void;
 }) {
+  const { t } = useTranslation();
   const [appInfo, setAppInfo] = useState<AppInfo>({ desktopVersion: '' });
   const [updateState, setUpdateState] = useState<AppUpdateState | null>(null);
   const [devResetDone, setDevResetDone] = useState(false);
@@ -91,7 +94,7 @@ export function AboutSettings({
 
   async function handleUpdateAction() {
     const desktop = window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop> | undefined;
-    const action = updateAction(updateState);
+    const action = updateAction(updateState, t);
     const method = desktop?.[action.method];
     if (typeof method !== 'function') return;
     const nextState = await method();
@@ -123,8 +126,8 @@ export function AboutSettings({
     setDevResetDone(true);
   }
 
-  const updateCopy = updateStateCopy(updateState);
-  const updateButton = updateAction(updateState);
+  const updateCopy = updateStateCopy(updateState, t);
+  const updateButton = updateAction(updateState, t);
   const developerModeEnabled = Boolean(settings.developerModeEnabled);
 
   const resourceRows: Array<{
@@ -136,50 +139,55 @@ export function AboutSettings({
   }> = [
     {
       icon: <FileText size={18} />,
-      title: '更新记录',
-      description: '查看版本发布说明和主要变化。',
-      label: '查看更新记录',
+      title: t('about.releaseNotes.title'),
+      description: t('about.releaseNotes.description'),
+      label: t('about.releaseNotes.label'),
       onAction: () => openExternal(releasesUrl),
     },
     {
       icon: <BookOpen size={18} />,
-      title: 'GitHub 项目',
-      description: '打开源码主页、README 和项目资料。',
-      label: '打开 GitHub',
+      title: t('about.github.title'),
+      description: t('about.github.description'),
+      label: t('about.github.label'),
       onAction: () => openExternal(githubUrl),
     },
     {
       icon: <ExternalLink size={18} />,
-      title: '官网',
-      description: '打开 Yomitomo 官网入口。',
-      label: '打开官网',
+      title: t('about.website.title'),
+      description: t('about.website.description'),
+      label: t('about.website.label'),
       onAction: () => openExternal(homepageUrl),
     },
     {
       icon: <MessageSquare size={18} />,
-      title: '反馈入口',
-      description: '提交问题、建议和可复现信息。',
-      label: '提交反馈',
+      title: t('about.feedback.title'),
+      description: t('about.feedback.description'),
+      label: t('about.feedback.label'),
       onAction: () => openExternal(feedbackUrl),
     },
     {
       icon: <Package size={18} />,
-      title: '开源许可证',
-      description: `Yomitomo 使用 MIT，第三方组件包含 ${thirdPartyPackages.length} 个开源项目。`,
-      label: '查看许可证',
+      title: t('about.licenses.title'),
+      description: t('about.licenses.description', { count: thirdPartyPackages.length }),
+      label: t('about.licenses.label'),
       onAction: () => setLicensesOpen(true),
     },
   ];
 
   return (
-    <SettingsPage trail={['设置', '关于']} description="查看版本、更新、文档、反馈和开源许可证。">
-      <SettingsGroup label="版本">
+    <SettingsPage
+      trail={[t('about.trailSettings'), t('about.trailAbout')]}
+      description={t('about.description')}
+    >
+      <SettingsGroup label={t('about.versionGroup')}>
         <SettingsRow
           leading={<Tag size={18} />}
           title={
             <>
-              桌面端{' '}
-              <span className="settings-version-tag">{formatVersion(appInfo.desktopVersion)}</span>
+              {t('about.desktop')}{' '}
+              <span className="settings-version-tag">
+                {formatVersion(appInfo.desktopVersion, t)}
+              </span>
             </>
           }
           description={updateCopy}
@@ -201,21 +209,19 @@ export function AboutSettings({
         {import.meta.env.DEV ? (
           <div className="settings-row about-update-dev">
             <Button className="action-button" type="button" onClick={handleSimulateUpdate}>
-              模拟版本更新（更新后弹窗）
+              {t('about.dev.simulateAfter')}
             </Button>
             <Button className="action-button" type="button" onClick={handleSimulatePreUpdate}>
-              模拟发现新版本（更新前弹窗）
+              {t('about.dev.simulateBefore')}
             </Button>
             <p className="about-update-status">
-              {devResetDone
-                ? '已重置更新标记，重启应用即可预览「已更新」弹窗。'
-                : '开发用：「更新后」重置标记后重启预览；「更新前」点击即时弹出。'}
+              {devResetDone ? t('about.dev.resetDone') : t('about.dev.hint')}
             </p>
           </div>
         ) : null}
       </SettingsGroup>
 
-      <SettingsGroup label="资源">
+      <SettingsGroup label={t('about.resourcesGroup')}>
         {resourceRows.map((row) => (
           <button
             aria-label={row.label}
@@ -236,30 +242,30 @@ export function AboutSettings({
         ))}
       </SettingsGroup>
 
-      <SettingsGroup label="高级">
+      <SettingsGroup label={t('about.advancedGroup')}>
         <SettingsRow
           leading={<Play size={18} />}
-          title="重新查看 onboarding"
-          description="重新打开首次引导流程。"
+          title={t('about.onboarding.title')}
+          description={t('about.onboarding.description')}
         >
           <Button
             className="action-button about-link-action"
             type="button"
             onClick={onStartOnboarding}
           >
-            启动 onboarding
+            {t('about.onboarding.action')}
             <Play size={15} />
           </Button>
         </SettingsRow>
         <SettingsRow
           leading={<Bug size={18} />}
-          title="开发者模式"
-          description="显示调试入口、内部状态和开发辅助工具。"
+          title={t('about.developerMode.title')}
+          description={t('about.developerMode.description')}
         >
           <SettingsToggle
             checked={developerModeEnabled}
             disabled={developerModeSaving}
-            label="开发者模式"
+            label={t('about.developerMode.label')}
             onChange={toggleDeveloperMode}
           />
         </SettingsRow>
@@ -271,6 +277,7 @@ export function AboutSettings({
 }
 
 function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [expandedPackage, setExpandedPackage] = useState('');
   const visiblePackages = useMemo(() => {
@@ -308,11 +315,11 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
       >
         <header>
           <div>
-            <h2 id="license-dialog-title">开源许可证</h2>
-            <p>本应用使用了 {thirdPartyPackages.length} 个第三方开源组件。</p>
+            <h2 id="license-dialog-title">{t('about.licenses.title')}</h2>
+            <p>{t('about.licenses.dialogDescription', { count: thirdPartyPackages.length })}</p>
           </div>
           <button
-            aria-label="关闭开源许可证"
+            aria-label={t('about.licenses.close')}
             className="license-dialog-close"
             type="button"
             onClick={onClose}
@@ -324,7 +331,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
         <label className="license-search">
           <Search size={17} />
           <Input
-            placeholder="搜索软件包或许可证..."
+            placeholder={t('about.licenses.searchPlaceholder')}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -335,7 +342,7 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
             <div className="license-package-row">
               <Package size={16} />
               <strong>Yomitomo</strong>
-              <em>源码</em>
+              <em>{t('about.licenses.source')}</em>
               <span>MIT</span>
             </div>
           </article>
@@ -359,15 +366,15 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                   <div className="license-package-detail">
                     <dl>
                       <div>
-                        <dt>软件包</dt>
+                        <dt>{t('about.licenses.package')}</dt>
                         <dd>{item.name}</dd>
                       </div>
                       <div>
-                        <dt>版本</dt>
+                        <dt>{t('about.licenses.version')}</dt>
                         <dd>{item.versions}</dd>
                       </div>
                       <div>
-                        <dt>许可证</dt>
+                        <dt>{t('about.licenses.license')}</dt>
                         <dd>{item.license}</dd>
                       </div>
                     </dl>
@@ -393,11 +400,14 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function formatVersion(version: string) {
-  return version ? `v${version}` : '读取中';
+function formatVersion(version: string, t: AppT) {
+  return version ? `v${version}` : t('about.loading');
 }
 
-function updateAction(state: AppUpdateState | null): {
+function updateAction(
+  state: AppUpdateState | null,
+  t: AppT,
+): {
   label: string;
   method: 'checkForUpdates' | 'downloadUpdate' | 'installUpdate';
   disabled: boolean;
@@ -406,7 +416,7 @@ function updateAction(state: AppUpdateState | null): {
 } {
   if (!state) {
     return {
-      label: '检查更新',
+      label: t('about.updateAction.check'),
       method: 'checkForUpdates',
       disabled: true,
       busy: false,
@@ -416,7 +426,7 @@ function updateAction(state: AppUpdateState | null): {
 
   if (state.status === 'available') {
     return {
-      label: '下载更新',
+      label: t('about.updateAction.download'),
       method: 'downloadUpdate',
       disabled: false,
       busy: false,
@@ -426,7 +436,7 @@ function updateAction(state: AppUpdateState | null): {
 
   if (state.status === 'downloaded') {
     return {
-      label: '重启安装',
+      label: t('about.updateAction.install'),
       method: 'installUpdate',
       disabled: false,
       busy: false,
@@ -437,7 +447,9 @@ function updateAction(state: AppUpdateState | null): {
   const busy = state.status === 'checking' || state.status === 'downloading';
   return {
     label:
-      state.status === 'downloading' ? `${Math.round(state.progress?.percent || 0)}%` : '检查更新',
+      state.status === 'downloading'
+        ? `${Math.round(state.progress?.percent || 0)}%`
+        : t('about.updateAction.check'),
     method: 'checkForUpdates',
     disabled: busy || state.status === 'unsupported',
     busy,
@@ -445,21 +457,42 @@ function updateAction(state: AppUpdateState | null): {
   };
 }
 
-function updateStateCopy(state: AppUpdateState | null) {
-  if (!state) return '正在读取更新状态。';
+function updateStateCopy(state: AppUpdateState | null, t: AppT) {
+  if (!state) return t('about.updateState.loading');
 
-  if (state.status === 'checking') return '正在检查 GitHub Releases 上的新版本。';
+  if (state.status === 'checking') return t('about.updateState.checking');
   if (state.status === 'available') {
-    return `发现 ${formatVersion(state.availableVersion || '')}，可下载安装。`;
+    return t('about.updateState.available', {
+      version: formatVersion(state.availableVersion || '', t),
+    });
   }
-  if (state.status === 'not-available') return '当前已是最新版本。';
+  if (state.status === 'not-available') return t('about.updateState.notAvailable');
   if (state.status === 'downloading') {
-    return `正在下载更新，已完成 ${Math.round(state.progress?.percent || 0)}%。`;
+    return t('about.updateState.downloading', {
+      percent: `${Math.round(state.progress?.percent || 0)}%`,
+    });
   }
-  if (state.status === 'downloaded') return '更新已下载，重启应用后完成安装。';
-  if (state.status === 'error') return state.message || '更新失败，请稍后重试。';
-  if (state.status === 'unsupported') return state.message || '当前环境不支持自动更新。';
-  return '可手动检查 GitHub Releases 上的新版本。';
+  if (state.status === 'downloaded') return t('about.updateState.downloaded');
+  if (state.status === 'error') {
+    return updateStateMessage(state.message, t) || t('about.updateState.error');
+  }
+  if (state.status === 'unsupported') {
+    return updateStateMessage(state.message, t) || t('about.updateState.unsupported');
+  }
+  return t('about.updateState.idle');
+}
+
+function updateStateMessage(message: string | undefined, t: AppT) {
+  if (!message) return '';
+  if (!/^UPDATE_[A-Z_]+$/.test(message)) return message;
+  return t(`about.updateState.errors.${updateStateErrorKey(message)}`, { defaultValue: '' });
+}
+
+function updateStateErrorKey(message: string) {
+  return message
+    .replace(/^UPDATE_/, '')
+    .toLowerCase()
+    .replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
 }
 
 function licensePackageKey(item: LicensePackage) {

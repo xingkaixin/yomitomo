@@ -1,5 +1,6 @@
 import type { Agent, AgentKind, Annotation, ArticleSummaryRecord } from '@yomitomo/shared';
 import { annotationPrimaryComment } from '@yomitomo/core';
+import i18next from 'i18next';
 
 type DailyQuoteSource = 'builtin' | 'user' | 'ai';
 
@@ -45,68 +46,23 @@ type SelectDailyQuoteOptions = {
 const dailyQuoteStorageKey = 'yomitomo:daily-quote';
 const defaultPersonalQuoteThreshold = 12;
 
-export const builtinDailyQuotes = [
-  '把读过的东西留下来，未来的判断才有来处。',
-  '清楚的记录，是未来的自己能接住的线索。',
-  '阅读的收益，常常藏在第二次回看里。',
-  '一个清楚的问题，能照亮一整段材料。',
-  '真正留下来的理解，会改变下一次选择。',
-  '把判断写下来，时间会帮你校准它。',
-  '批注是阅读现场留下的路标。',
-  '思考需要入口，批注就是入口。',
-  '读得慢一点，留下的东西会更硬。',
-  '把注意力放回证据，判断会更稳。',
-  '好句子会让旧问题出现新角度。',
-  '理解从问题开始，记忆从线索留下。',
-  '一条批注，给未来保留一个入口。',
-  '读完能复用，阅读才真正进入生活。',
-  '把模糊处标出来，下一步才清楚。',
-  '知识会散，线索能把它重新聚起来。',
-  '好的阅读，会让你更会提问。',
-  '每次停笔，都是在给理解定锚。',
-  '一个判断的价值，取决于它能否回到证据。',
-  '留下当时的疑问，就是留下继续思考的方向。',
-  '阅读积累的核心，是可回看的判断。',
-  '把灵感写短，才方便日后拿起。',
-  '批注让阅读从经过变成沉淀。',
-  '越具体的记录，越容易在未来复活。',
-  '读书的节奏，可以由问题来带。',
-  '能被复述的理解，才开始真正属于你。',
-  '今天的一句话，可能是下次判断的支点。',
-  '阅读会过去，线索会留下。',
-  '好问题让资料开始回应你。',
-  '把当下的直觉保存下来，未来才有比较。',
-  '思想需要容器，短记录就是最小的容器。',
-  '读到动心处，给它一个清楚的位置。',
-  '理解会逐步完成，也需要回访。',
-  '一条短批注，也能保存一个长思路。',
-  '把材料拆开，判断会自然变清楚。',
-  '阅读的深度，来自反复回到关键处。',
-  '记录让偶然的触动变成可用的素材。',
-  '好的摘录，会替未来节省一次寻找。',
-  '把证据和感受放在一起，记忆会更牢。',
-  '读者的成长，藏在每次校准里。',
-  '让一句话留下，是给未来一次提醒。',
-  '批注越具体，回看时越容易接上。',
-  '当时的判断，日后会成为对话对象。',
-  '可迁移的句子，值得被认真保存。',
-  '把问题留在原处，答案更容易回来。',
-  '阅读训练判断，也整理信息来源。',
-  '好记录会保留当时的上下文。',
-  '每次回看，都是一次新的阅读。',
-  '把重要的句子摘出来，思考就有了抓手。',
-  '真正有用的记录，能在别处继续发光。',
-  '短句适合保存判断，长文适合展开证据。',
-  '阅读留下痕迹，理解才有路径。',
-  '把一个想法写准，比写多更重要。',
-  '好的批注，会把盲区推远一点。',
-  '今天的疑问，可能是明天的主题。',
-  '让材料和判断同框，复盘才有依据。',
-  '一句被保存的话，会改变下一次重读。',
-  '读到关键处停一下，理解会更扎实。',
-  '记录的价值，来自它能被再次使用。',
-  '把过去的思考放在眼前，今天会读得更深。',
-].map((text, index): DailyQuoteCandidate => ({ id: `builtin:${index}`, text, source: 'builtin' }));
+const fallbackBuiltinDailyQuoteTexts = [
+  'Keep what you read, and future judgment has somewhere to begin.',
+] as const;
+
+export function builtinDailyQuotes(): DailyQuoteCandidate[] {
+  const resource = i18next.t('dailyQuote.builtin', {
+    returnObjects: true,
+    defaultValue: fallbackBuiltinDailyQuoteTexts,
+  });
+  const texts = Array.isArray(resource)
+    ? resource.filter((text): text is string => typeof text === 'string' && text.length > 0)
+    : fallbackBuiltinDailyQuoteTexts;
+
+  return texts.map(
+    (text, index): DailyQuoteCandidate => ({ id: `builtin:${index}`, text, source: 'builtin' }),
+  );
+}
 
 export function selectDailyQuote(
   articles: ArticleSummaryRecord[],
@@ -118,10 +74,11 @@ export function selectDailyQuote(
   const personalThreshold = options.personalThreshold ?? defaultPersonalQuoteThreshold;
   const personalCandidates = collectDailyQuoteCandidates(articles);
   const assistantCandidates = collectDailyQuoteAssistants(options.agents || []);
+  const builtins = builtinDailyQuotes();
   const candidates =
     personalCandidates.length >= personalThreshold
-      ? [...personalCandidates, ...builtinDailyQuotes]
-      : builtinDailyQuotes;
+      ? [...personalCandidates, ...builtins]
+      : builtins;
   const today = localDateKey(now);
   const stored = readDailyQuoteState(storage);
   const current = candidates.find((candidate) => candidate.id === stored?.currentId);
@@ -179,7 +136,10 @@ export function collectDailyQuoteAssistants(agents: Agent[]): DailyQuoteAssistan
     .map((agent) => ({
       id: agent.id,
       kind: agent.kind,
-      name: agent.nickname || agent.username || '助手',
+      name:
+        agent.nickname ||
+        agent.username ||
+        i18next.t('common.assistant', { defaultValue: 'Assistant' }),
       avatar: agent.avatar,
     }));
 }
@@ -212,7 +172,9 @@ function dailyQuoteCandidate(annotation: Annotation): DailyQuoteCandidate[] {
       createdAt: annotation.createdAt,
       agentName:
         annotation.author === 'ai'
-          ? annotation.agentNickname || annotation.agentUsername || '助手'
+          ? annotation.agentNickname ||
+            annotation.agentUsername ||
+            i18next.t('common.assistant', { defaultValue: 'Assistant' })
           : undefined,
     },
   ];
@@ -242,7 +204,7 @@ function toDailyQuote(
   assistant?: DailyQuoteAssistant,
 ): DailyQuote {
   return {
-    title: '今日一句',
+    title: i18next.t('dailyQuote.title', { defaultValue: 'Daily quote' }),
     meta: quoteMeta(candidate, now),
     text: candidate.text,
     ...(assistant ? { assistant } : {}),
@@ -253,8 +215,18 @@ function quoteMeta(candidate: DailyQuoteCandidate, now: Date) {
   if (candidate.source === 'builtin' || !candidate.createdAt) return '';
 
   const date = formatDailyQuoteDate(candidate.createdAt, now);
-  if (candidate.source === 'ai') return `来自${candidate.agentName || '助手'} · ${date} 记下`;
-  return `${date} 记下`;
+  if (candidate.source === 'ai') {
+    return i18next.t('dailyQuote.meta.fromAgent', {
+      agentName:
+        candidate.agentName || i18next.t('common.assistant', { defaultValue: 'Assistant' }),
+      date,
+      defaultValue: 'From {{agentName}} · {{date}} saved',
+    });
+  }
+  return i18next.t('dailyQuote.meta.savedOn', {
+    date,
+    defaultValue: '{{date}} saved',
+  });
 }
 
 function pickCandidate(candidates: DailyQuoteCandidate[], random: () => number) {

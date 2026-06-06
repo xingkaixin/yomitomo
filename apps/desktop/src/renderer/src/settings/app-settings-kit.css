@@ -374,6 +374,11 @@
   width: 100%;
 }
 
+.settings-segmented.is-wrapped {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .settings-segmented-option {
   border: 0;
   border-left: 1px solid hsl(var(--border));
@@ -389,12 +394,25 @@
     color 120ms ease;
 }
 
+.settings-segmented.is-wrapped .settings-segmented-option {
+  min-width: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
 .settings-segmented.is-block .settings-segmented-option {
   flex: 1;
   text-align: center;
 }
 
 .settings-segmented-option:first-child {
+  border-left: 0;
+}
+
+.settings-segmented.is-wrapped .settings-segmented-option:nth-child(-n + 2) {
+  border-top: 0;
+}
+
+.settings-segmented.is-wrapped .settings-segmented-option:nth-child(odd) {
   border-left: 0;
 }
 

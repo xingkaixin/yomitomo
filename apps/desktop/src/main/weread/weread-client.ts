@@ -27,7 +27,7 @@ class WeReadHttpError extends Error {
   readonly _tag = 'WeReadHttpError';
 
   constructor(readonly status: number) {
-    super(`微信读书请求失败：HTTP ${status}`);
+    super(`WeRead request failed: HTTP ${status}`);
   }
 }
 
@@ -35,7 +35,7 @@ class WeReadNetworkError extends Error {
   readonly _tag = 'WeReadNetworkError';
 
   constructor(cause: unknown) {
-    super(`微信读书请求失败：${errorMessage(cause)}`);
+    super(`WeRead request failed: ${errorMessage(cause)}`);
   }
 }
 
@@ -43,7 +43,7 @@ class WeReadGatewayDecodeError extends Error {
   readonly _tag = 'WeReadGatewayDecodeError';
 
   constructor(cause: unknown) {
-    super(`微信读书响应解析失败：${errorMessage(cause)}`);
+    super(`Failed to parse WeRead response: ${errorMessage(cause)}`);
   }
 }
 
@@ -51,7 +51,7 @@ class WeReadUpgradeError extends Error {
   readonly _tag = 'WeReadUpgradeError';
 
   constructor(message: string) {
-    super(message || '微信读书接口版本需要升级');
+    super(message || 'WeRead API version needs to be upgraded');
   }
 }
 
@@ -62,13 +62,13 @@ class WeReadApiError extends Error {
     readonly errcode: number,
     message: string,
   ) {
-    super(message || `微信读书接口返回错误：${errcode}`);
+    super(message || `WeRead API returned error: ${errcode}`);
   }
 }
 
 export async function testWeReadConnection(apiKey: string) {
   await Effect.runPromise(requestWeReadEffect(apiKey, '/user/notebooks', { count: 1 }));
-  return { ok: true, message: '微信读书 API 已连通' };
+  return { ok: true, message: 'OK' };
 }
 
 export async function fetchWeReadNotebooks(apiKey: string) {

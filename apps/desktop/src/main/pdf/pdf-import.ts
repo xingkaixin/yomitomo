@@ -30,8 +30,8 @@ export async function articleRecordFromPdfFile(
 ): Promise<PdfImportResult> {
   const fileName = input.fileName.trim() || 'Untitled.pdf';
   const fileSize = input.data.byteLength;
-  if (!isPdfFile(fileName, input.mimeType)) throw new Error('请选择 PDF 文件');
-  if (fileSize > MAX_PDF_BYTES) throw new Error('PDF 文件不能超过 120MB');
+  if (!isPdfFile(fileName, input.mimeType)) throw new Error('PDF_IMPORT_INVALID_FILE');
+  if (fileSize > MAX_PDF_BYTES) throw new Error('PDF_IMPORT_FILE_TOO_LARGE');
 
   const bytes = new Uint8Array(input.data);
   const contentHash = pdfContentHash(bytes);

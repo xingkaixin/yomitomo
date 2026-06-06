@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 function MockResponsiveContainer({ children }: { children?: React.ReactNode }) {
   return <>{children}</>;
@@ -25,6 +26,10 @@ vi.mock('recharts', () => ({
 }));
 
 import { ReadingStatsPanel } from '../reading-stats/app-reading-stats';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

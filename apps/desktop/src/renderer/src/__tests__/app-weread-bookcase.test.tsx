@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UserProfile } from '@yomitomo/shared';
 import { WeReadBookcase, weReadReadonlyNoteCardModel } from '../shell/app-weread-bookcase';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const userProfile: UserProfile = {
   id: 'user_1',
@@ -21,6 +22,10 @@ const fallbackAuthor = {
 };
 
 afterEach(() => cleanup());
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 describe('weReadReadonlyNoteCardModel', () => {
   it('maps a highlight-only group to a read-only quote card', () => {

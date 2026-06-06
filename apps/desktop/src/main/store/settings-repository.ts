@@ -3,6 +3,7 @@ import {
   normalizeLibraryContentSources,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  normalizeUiLanguage,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
 import { type StoreExecutor } from './store-db';
@@ -55,6 +56,7 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
   const merged = mergeSettingsForUpsert(settings, existing ? rowToSettings(existing) : undefined);
   const row = {
     id: 'default',
+    uiLanguage: normalizeUiLanguage(merged.uiLanguage),
     themeId: merged.themeId || null,
     libraryPageSize: merged.libraryPageSize || null,
     libraryContentSources: normalizeLibraryContentSources(merged.libraryContentSources),

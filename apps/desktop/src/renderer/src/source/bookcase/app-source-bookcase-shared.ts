@@ -17,6 +17,7 @@ import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomito
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
 import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reader-navigation';
+import i18next from 'i18next';
 import type { ArticleUpdater, PromptArticle } from '../../shell/app-reading-types';
 import type { WindowAnimationSourceRect } from '../../../../ipc-contract';
 export {
@@ -220,7 +221,7 @@ export function targetAnchorReadingPlan(
   return [
     {
       sectionId: 'target-selection',
-      sectionTitle: '选区',
+      sectionTitle: i18next.t('source.selection'),
       sectionStart: anchor.start,
       sectionEnd: anchor.end,
       ...(readingIntent ? { readingIntent } : {}),

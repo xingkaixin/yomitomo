@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   AgentMentionRoutePlan,
   Annotation,
@@ -12,6 +12,11 @@ import {
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
 } from '../source/bookcase/app-source-bookcase-shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 function agent(overrides: Partial<PublicAgent> = {}): PublicAgent {
   return {

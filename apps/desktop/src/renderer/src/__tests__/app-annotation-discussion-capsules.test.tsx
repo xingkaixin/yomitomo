@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Annotation, ArticleRecord, Comment } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   AnnotationDiscussionCapsules,
   annotationDiscussionCapsuleItems,
@@ -11,6 +12,10 @@ import {
 import type { AnnotationDiscussionWindowState } from '../../../ipc-contract';
 
 const now = '2026-05-31T10:00:00.000Z';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

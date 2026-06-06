@@ -19,6 +19,7 @@ export const userProfiles = sqliteTable('user_profiles', {
 
 export const appSettings = sqliteTable('app_settings', {
   id: text('id').primaryKey(),
+  uiLanguage: text('ui_language').notNull().default('zh-CN'),
   themeId: text('theme_id'),
   libraryPageSize: integer('library_page_size'),
   libraryContentSources: text('library_content_sources', { mode: 'json' }),

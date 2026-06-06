@@ -1,14 +1,16 @@
 import type { ArticleRecord } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import { EbookBookcase } from '../ebook/app-source-bookcase-ebook';
 import { PdfBookcase } from '../pdfium/app-source-bookcase-pdf';
 import type { EbookArticleRecord, SourceBookcaseProps } from './app-source-bookcase-shared';
 import { WebSourceBookcase } from '../web/app-source-bookcase-web';
 
 export function SourceBookcase(props: SourceBookcaseProps) {
+  const { t } = useTranslation();
   if (!props.article) {
     return (
       <section className="source-bookcase is-empty">
-        <div className="source-empty">选择一篇文章查看原文</div>
+        <div className="source-empty">{t('source.empty')}</div>
       </section>
     );
   }

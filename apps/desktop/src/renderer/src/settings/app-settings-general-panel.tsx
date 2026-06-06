@@ -13,9 +13,17 @@ import type {
   LibraryContentSourceId,
   LibraryContentSourcePreference,
 } from '@yomitomo/shared';
+import { normalizeUiLanguage, type UiLanguage } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
-import { SettingsGroup, SettingsPage, SettingsRow, SettingsToggle } from './app-settings-kit';
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsRow,
+  SettingsSegmented,
+  SettingsToggle,
+} from './app-settings-kit';
 import {
   allLibraryContentSourceOptions,
   libraryContentSourcePreferences,
@@ -62,6 +70,8 @@ export function GeneralSettings({
   saveError?: string;
   saveState: SaveState;
 }) {
+  const { t } = useTranslation();
+  const uiLanguage = normalizeUiLanguage(settingsDraft.uiLanguage);
   const sourcePreferences = libraryContentSourcePreferences(settingsDraft);
   const [dragPreviewPreferences, setDragPreviewPreferences] = useState<
     LibraryContentSourcePreference[] | null
@@ -88,6 +98,15 @@ export function GeneralSettings({
     const nextDraft = {
       ...settingsDraft,
       libraryContentSources: nextSources,
+    };
+    onSettingsChange(nextDraft);
+    onSave(nextDraft);
+  }
+
+  function saveUiLanguage(language: UiLanguage) {
+    const nextDraft = {
+      ...settingsDraft,
+      uiLanguage: language,
     };
     onSettingsChange(nextDraft);
     onSave(nextDraft);
@@ -200,11 +219,39 @@ export function GeneralSettings({
 
   return (
     <SettingsPage
-      trail={['设置', '通用']}
-      description="控制导入文章时的本地保存行为与阅读库入口显示。"
+      trail={[t('settings.general.trailRoot'), t('settings.general.trailPage')]}
+      description={t('settings.general.description')}
     >
       <SettingsGroup
-        label="采集"
+        label={t('settings.general.languageGroup')}
+        aside={
+          <AutoSaveStatus
+            error={saveError}
+            state={saveState}
+            onRetry={canSave ? () => onSave() : undefined}
+          />
+        }
+      >
+        <SettingsRow
+          align="start"
+          leading={<Globe size={20} />}
+          title={t('settings.general.languageTitle')}
+          description={t('settings.general.languageDescription')}
+        >
+          <SettingsSegmented
+            ariaLabel={t('settings.general.languageTitle')}
+            value={uiLanguage}
+            options={[
+              { label: t('settings.general.languageZh'), value: 'zh-CN' },
+              { label: t('settings.general.languageEn'), value: 'en' },
+            ]}
+            onChange={saveUiLanguage}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup
+        label={t('settings.general.collectionGroup')}
         aside={
           <AutoSaveStatus
             error={saveError}
@@ -216,13 +263,13 @@ export function GeneralSettings({
         <SettingsRow
           align="start"
           leading={<ImageIcon size={20} />}
-          title="采集文章时保存正文图片"
-          description="把正文图片持久化保存，减少原站图片失效、防盗链或链接变更导致的阅读断裂。"
+          title={t('settings.general.saveImagesTitle')}
+          description={t('settings.general.saveImagesDescription')}
         >
           <SettingsToggle
             id="general-save-images"
             checked={Boolean(settingsDraft.saveArticleImages)}
-            label="采集文章时保存正文图片"
+            label={t('settings.general.saveImagesTitle')}
             onChange={(checked) => {
               const nextDraft = { ...settingsDraft, saveArticleImages: checked };
               onSettingsChange(nextDraft);
@@ -232,10 +279,15 @@ export function GeneralSettings({
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup label="阅读库入口" note="开关控制是否在功能菜单显示，拖动手柄调整顺序。" flush>
+      <SettingsGroup
+        label={t('settings.general.libraryEntrancesGroup')}
+        note={t('settings.general.libraryEntrancesNote')}
+        flush
+      >
         <div className="settings-card settings-source-list" ref={sourceMenuRef} role="list">
           {sourceOptions.map((option) => {
             const disableBlocked = option.enabled && enabledSourceCount <= 1;
+            const sourceLabel = t(`library.sources.${option.value}`);
             return (
               <div
                 className={[
@@ -251,7 +303,7 @@ export function GeneralSettings({
                 tabIndex={0}
                 aria-disabled={disableBlocked || undefined}
                 aria-pressed={option.enabled}
-                aria-label={`切换${option.label}入口`}
+                aria-label={t('settings.general.toggleEntrance', { label: sourceLabel })}
                 onPointerDown={(event) => startContentSourcePointerDrag(event, option.value)}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -265,7 +317,7 @@ export function GeneralSettings({
                 <span className="settings-source-icon" aria-hidden="true">
                   {contentSourceIcons[option.value]}
                 </span>
-                <span className="settings-source-label">{option.label}</span>
+                <span className="settings-source-label">{sourceLabel}</span>
                 <span
                   className={
                     option.enabled ? 'settings-source-switch is-on' : 'settings-source-switch'
@@ -279,8 +331,8 @@ export function GeneralSettings({
             <span className="settings-source-icon" aria-hidden="true">
               <MoreHorizontal size={18} />
             </span>
-            <span className="settings-source-label">更多类型</span>
-            <span className="settings-source-soon">敬请期待</span>
+            <span className="settings-source-label">{t('settings.general.moreTypes')}</span>
+            <span className="settings-source-soon">{t('settings.general.comingSoon')}</span>
           </div>
         </div>
         {draggedOption && dragFrame ? (
@@ -305,7 +357,9 @@ export function GeneralSettings({
             <span className="settings-source-icon" aria-hidden="true">
               {contentSourceIcons[draggedOption.value]}
             </span>
-            <span className="settings-source-label">{draggedOption.label}</span>
+            <span className="settings-source-label">
+              {t(`library.sources.${draggedOption.value}`)}
+            </span>
             <span
               className={
                 draggedOption.enabled ? 'settings-source-switch is-on' : 'settings-source-switch'

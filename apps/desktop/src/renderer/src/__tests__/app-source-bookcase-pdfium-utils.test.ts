@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { PdfPageGeometry } from '@embedpdf/models';
 import { createPdfTextAnchor, createTextAnchor, type Annotation } from '@yomitomo/shared';
 import type { TocItem } from '@yomitomo/core';
+import { initializeAppI18n } from '../i18n/app-i18n';
 import {
   buildPdfTextDocument,
   clampPageIndex,
@@ -19,6 +20,10 @@ import {
 } from '../source/pdfium/app-source-bookcase-pdfium-utils';
 
 describe('app-source-bookcase-pdfium-utils', () => {
+  beforeEach(() => {
+    initializeAppI18n('zh-CN');
+  });
+
   it('clamps PDF page indexes and derives slider progress percent', () => {
     expect(clampPageIndex(Number.NaN, 10)).toBe(0);
     expect(clampPageIndex(-4, 10)).toBe(0);

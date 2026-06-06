@@ -2,6 +2,8 @@ import type React from 'react';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { cursorColorFromId } from '../reader-style-utils';
 import type { AgentDockItem } from '../reader-types';
+import type { ReaderUiLabels } from '../shell/reader-app-view-types';
+import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 
 type ReaderCompletionParticleStyle = React.CSSProperties & {
   '--reader-confetti-color': string;
@@ -59,17 +61,19 @@ export function AgentReadingDock({
   completionBurstKey,
   completing,
   items,
+  labels = defaultReaderUiLabels,
 }: {
   completionBurstKey: number;
   completing: boolean;
   items: AgentDockItem[];
+  labels?: ReaderUiLabels;
 }) {
   if (items.length === 0) return null;
 
   return (
     <div
       className={['reader-agent-dock', completing ? 'is-completing' : ''].filter(Boolean).join(' ')}
-      aria-label="助手共读状态"
+      aria-label={labels.assistantReadingStatus}
     >
       <div className="reader-agent-dock-list">
         {items.map((item, index) => {
@@ -83,7 +87,9 @@ export function AgentReadingDock({
               className={`reader-agent-dock-item is-${item.state}`}
               key={item.agent.id}
               style={style}
-              title={`${item.agent.nickname}${item.state === 'active' ? ' 正在共读' : ' 已完成'}`}
+              title={`${item.agent.nickname} ${
+                item.state === 'active' ? labels.assistantReadingActive : labels.assistantCompleted
+              }`}
             >
               <AvatarBadge avatar={item.agent.avatar} fallback={item.agent.nickname.slice(0, 1)} />
             </div>

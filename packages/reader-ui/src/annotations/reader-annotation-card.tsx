@@ -6,6 +6,8 @@ import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitive
 import { formatRelativeTime, formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
+import type { ReaderUiLabels } from '../shell/reader-app-view-types';
+import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 
 type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
@@ -31,6 +33,7 @@ export function AnnotationCard({
   distillationAnimation,
   exiting = false,
   isStackFront = true,
+  labels = defaultReaderUiLabels,
   noteRef,
   railSide = 'right',
   reviewAgents = [],
@@ -53,6 +56,7 @@ export function AnnotationCard({
   } | null;
   exiting?: boolean;
   isStackFront?: boolean;
+  labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
   noteRef: (element: HTMLElement | null) => void;
   primaryCommentExpanded: boolean;
@@ -80,10 +84,14 @@ export function AnnotationCard({
     () => uniqueAssistantParticipants(annotation.comments, userProfile, personaAgents),
     [annotation.comments, personaAgents, userProfile],
   );
-  const assistantSummary = assistantParticipationSummary(assistantParticipants, pendingAgents);
-  const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
-  const discussionSummaryLabel = `${visibleThoughtCount} 条想法，${assistantSummary}`;
   const summaryBusy = pendingAgents.length > 0;
+  const assistantSummary = assistantParticipationSummary(
+    assistantParticipants,
+    pendingAgents,
+    labels,
+  );
+  const thoughtSummaryId = `annotation-${annotation.id}-thought-summary`;
+  const discussionSummaryLabel = `${labels.thoughtSummary(visibleThoughtCount, false)}，${assistantSummary}`;
   const summaryClassName = [
     'reader-note-discussion-summary',
     summaryBusy ? 'is-busy' : '',
@@ -209,10 +217,11 @@ export function AnnotationCard({
         {displaysDistillation ? (
           <>
             <DeleteActionMenu
-              ariaLabel="打开沉淀操作"
+              ariaLabel={labels.openDistillationActions}
               className="reader-note-action-menu reader-note-distillation-menu"
-              deleteAriaLabel="长按删除划线"
-              discussionAriaLabel="进入讨论区"
+              deleteAriaLabel={labels.deleteHighlight}
+              discussionAriaLabel={labels.enterDiscussion}
+              labels={labels}
               onDelete={() => onDelete(annotation.id)}
               onOpenDiscussion={openDiscussion}
             />
@@ -241,9 +250,10 @@ export function AnnotationCard({
                 <ReaderRelativeTime value={annotation.createdAt} />
               </span>
               <DeleteActionMenu
-                ariaLabel="打开划线操作"
+                ariaLabel={labels.openHighlightActions}
                 className="reader-note-action-menu"
-                deleteAriaLabel="长按删除划线"
+                deleteAriaLabel={labels.deleteHighlight}
+                labels={labels}
                 onDelete={() => onDelete(annotation.id)}
               />
             </div>
@@ -256,26 +266,27 @@ export function AnnotationCard({
                 <span className="reader-note-thread-toggle-main">
                   <span
                     className="reader-comment-count"
-                    aria-label={`${visibleThoughtCount} 条想法${
-                      pendingAgents.length > 0 ? '，助手处理中' : ''
-                    }`}
+                    aria-label={labels.thoughtSummary(
+                      visibleThoughtCount,
+                      pendingAgents.length > 0,
+                    )}
                   >
                     <span>{visibleThoughtCount}</span>
                     <Lightbulb size={14} />
                   </span>
                   <ThoughtAuthorStack authors={assistantParticipants} />
-                  <PendingAgentStack agents={pendingAgents} />
+                  <PendingAgentStack agents={pendingAgents} labels={labels} />
                 </span>
               </div>
               <button
                 className="reader-note-discussion-entry"
                 type="button"
-                aria-label="进入讨论区"
+                aria-label={labels.enterDiscussion}
                 aria-describedby={thoughtSummaryId}
                 onClick={(event) => openDiscussion(event.currentTarget)}
               >
                 <MessageCircle size={14} />
-                <span>进入讨论区</span>
+                <span>{labels.enterDiscussion}</span>
               </button>
             </footer>
           </>
@@ -319,13 +330,19 @@ function ThoughtAuthorStack({ authors }: { authors: ThoughtAuthor[] }) {
   );
 }
 
-function PendingAgentStack({ agents }: { agents: PublicAgent[] }) {
+function PendingAgentStack({
+  agents,
+  labels = defaultReaderUiLabels,
+}: {
+  agents: PublicAgent[];
+  labels?: ReaderUiLabels;
+}) {
   if (agents.length === 0) return null;
 
   return (
     <span
       className="reader-pending-agent-stack"
-      aria-label={`${agents.map((agent) => agent.nickname).join('、')} 正在整理想法`}
+      aria-label={`${agents.map((agent) => agent.nickname).join('、')} ${labels.annotationProcessing}`}
     >
       {agents.slice(0, MAX_FOOTER_AUTHORS).map((agent) => (
         <span
@@ -366,6 +383,7 @@ function uniqueAssistantParticipants(
 function assistantParticipationSummary(
   participants: ThoughtAuthor[],
   pendingAgents: PublicAgent[],
+  labels: ReaderUiLabels,
 ) {
   const names: string[] = [];
   const seenKeys = new Set<string>();
@@ -382,12 +400,7 @@ function assistantParticipationSummary(
     names.push(agent.nickname);
   }
 
-  if (names.length === 0) return '暂无助手参与';
-
-  const visibleNames = names.slice(0, 2).join('、');
-  const suffix = names.length > 2 ? `等 ${names.length} 位助手` : '参与';
-  const pendingSuffix = pendingAgents.length > 0 ? '，处理中' : '';
-  return `${visibleNames}${suffix}${pendingSuffix}`;
+  return labels.assistantParticipationSummary(names, pendingAgents.length > 0);
 }
 
 function commentAuthorKey(comment: Annotation['comments'][number], username: string) {
@@ -416,6 +429,7 @@ function DeleteActionMenu({
   className,
   deleteAriaLabel,
   discussionAriaLabel,
+  labels = defaultReaderUiLabels,
   onDelete,
   onOpenDiscussion,
 }: {
@@ -423,6 +437,7 @@ function DeleteActionMenu({
   className: string;
   deleteAriaLabel: string;
   discussionAriaLabel?: string;
+  labels?: ReaderUiLabels;
   onDelete: () => void;
   onOpenDiscussion?: (sourceElement: Element) => void;
 }) {
@@ -468,12 +483,13 @@ function DeleteActionMenu({
               onClick={(event) => openDiscussionAndClose(event.currentTarget)}
             >
               <MessageCircle size={13} />
-              <span>进入讨论区</span>
+              <span>{labels.enterDiscussion}</span>
             </button>
           ) : null}
           <HoldDeleteButton
             ariaLabel={deleteAriaLabel}
             className="reader-delete-note reader-action-delete"
+            label={labels.holdDelete}
             onDelete={deleteAndClose}
           />
         </div>
@@ -486,11 +502,13 @@ function HoldDeleteButton({
   ariaLabel,
   className,
   iconSize = 13,
+  label = '长按删除',
   onDelete,
 }: {
   ariaLabel: string;
   className: string;
   iconSize?: number;
+  label?: string;
   onDelete: () => void;
 }) {
   const [holding, setHolding] = useState(false);
@@ -532,7 +550,7 @@ function HoldDeleteButton({
       onPointerUp={clearHold}
     >
       <Trash2 size={iconSize} />
-      <span>长按删除</span>
+      <span>{label}</span>
     </button>
   );
 }

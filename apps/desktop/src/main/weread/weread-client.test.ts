@@ -77,7 +77,7 @@ describe('weread client', () => {
   it('rejects with the HTTP error message from the Effect boundary', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({}, 502));
 
-    await expect(testWeReadConnection('secret')).rejects.toThrow('微信读书请求失败：HTTP 502');
+    await expect(testWeReadConnection('secret')).rejects.toThrow('WeRead request failed: HTTP 502');
   });
 
   it('rejects with the gateway business error from the Effect boundary', async () => {

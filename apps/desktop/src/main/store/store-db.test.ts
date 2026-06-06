@@ -55,13 +55,13 @@ afterEach(async () => {
 describe('store database backup and restore', () => {
   it('rejects backing up to the current database file', async () => {
     await expect(backupDatabaseFile(getDatabasePath())).rejects.toThrow(
-      '不能把备份保存到当前数据库文件',
+      'DATA_MANAGEMENT_BACKUP_TARGET_IS_CURRENT_DATABASE',
     );
   });
 
   it('rejects restoring from the current database file', async () => {
     await expect(replaceDatabaseFile(getDatabasePath())).rejects.toThrow(
-      '不能从当前数据库文件还原',
+      'DATA_MANAGEMENT_RESTORE_SOURCE_IS_CURRENT_DATABASE',
     );
   });
 

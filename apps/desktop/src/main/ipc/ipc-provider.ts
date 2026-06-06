@@ -35,10 +35,10 @@ export function registerProviderIpc(context: DesktopMainIpcContext) {
       const { testProvider } = await context.getAiModule();
       const provider = await hydrateProviderInputApiKey(input);
       const apiKey = provider.apiKey?.trim() || '';
-      if (!apiKey) return { ok: false, message: '请先配置 API Key' };
+      if (!apiKey) return { ok: false, message: 'PROVIDER_API_KEY_REQUIRED' };
       return testProvider({
         id: provider.id || 'provider_test',
-        name: provider.name?.trim() || '临时供应商',
+        name: provider.name?.trim() || 'Temporary provider',
         type: provider.type || 'openai-chat',
         presetId: provider.presetId,
         logo: provider.logo,
@@ -53,7 +53,10 @@ export function registerProviderIpc(context: DesktopMainIpcContext) {
         updatedAt: provider.updatedAt || '',
       });
     } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : 'Provider 测试失败' };
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : 'Provider test failed',
+      };
     }
   });
   handleDesktopIpc('provider:list-models', async (_event, input) => {

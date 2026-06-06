@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AgentForm,
   AgentSettings,
@@ -17,6 +17,7 @@ import {
 } from '../settings/app-settings-panels';
 import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../settings/app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const localStorageStore: Record<string, string> = {};
 
@@ -40,6 +41,10 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   window.localStorage.clear();
   vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
 });
 
 describe('SettingsSectionShell', () => {
@@ -393,8 +398,7 @@ describe('ProviderSettings', () => {
           reviewAssistantProviderId: 'provider_2',
         }}
         providers={providers}
-        selectedId="provider_1"
-        testState=""
+        testState={{ status: 'idle' }}
         canSave={false}
         canSaveRoutes={true}
         onChange={vi.fn()}
@@ -428,8 +432,7 @@ describe('ProviderSettings', () => {
         draft={provider}
         settingsDraft={{}}
         providers={[provider]}
-        selectedId={null}
-        testState=""
+        testState={{ status: 'idle' }}
         canSave={false}
         canSaveRoutes={false}
         onChange={vi.fn()}
@@ -461,8 +464,7 @@ describe('ProviderSettings', () => {
         draft={provider}
         settingsDraft={{}}
         providers={[provider]}
-        selectedId="provider_1"
-        testState=""
+        testState={{ status: 'idle' }}
         canSave
         canSaveRoutes={false}
         onChange={vi.fn()}
@@ -502,8 +504,7 @@ describe('ProviderSettings', () => {
         draft={provider}
         settingsDraft={{}}
         providers={[provider]}
-        selectedId={null}
-        testState=""
+        testState={{ status: 'idle' }}
         canSave={false}
         canSaveRoutes={false}
         onChange={vi.fn()}
@@ -543,8 +544,7 @@ describe('ProviderSettings', () => {
         draft={emptyProvider}
         settingsDraft={{}}
         providers={[]}
-        selectedId={null}
-        testState=""
+        testState={{ status: 'idle' }}
         canSave={false}
         canSaveRoutes={false}
         onChange={vi.fn()}
@@ -835,6 +835,25 @@ describe('GeneralSettings', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
 
     expect(onSettingsChange).toHaveBeenCalledWith({ saveArticleImages: true });
+  });
+
+  it('saves the selected interface language', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{ uiLanguage: 'zh-CN' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+
+    expect(onSettingsChange).toHaveBeenCalledWith({ uiLanguage: 'en' });
+    expect(onSave).toHaveBeenCalledWith({ uiLanguage: 'en' });
   });
 
   it('saves content source preferences and prevents disabling the final source', () => {

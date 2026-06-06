@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import i18next from 'i18next';
 import { useDocumentState } from '@embedpdf/core/react';
 import { useSelectionCapability } from '@embedpdf/plugin-selection/react';
 import type { PdfEngine } from '@embedpdf/models';
@@ -38,7 +39,7 @@ export function EmbedPdfSelectionBridge({
       if (formattedSelections.length > 1) {
         clearEmbedPdfSelection(scope);
         onSelection(null);
-        onInvalidSelection('暂不支持跨页划线，请选择单页文本');
+        onInvalidSelection(i18next.t('pdfReader.crossPageSelectionUnsupported'));
         return;
       }
 

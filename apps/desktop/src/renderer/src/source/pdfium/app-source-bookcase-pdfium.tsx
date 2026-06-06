@@ -1,5 +1,7 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { createPluginRegistration } from '@embedpdf/core';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
 import { usePdfiumEngine } from '@embedpdf/engines/react';
@@ -41,6 +43,7 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
+import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
@@ -143,6 +146,7 @@ export function PdfiumBookcase({
   onSaveArticleReaderChatState,
   onUpdateArticle,
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
+  const { t } = useTranslation();
   const openTraceRef = useRef<PdfOpenTrace | null>(null);
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
@@ -208,7 +212,7 @@ export function PdfiumBookcase({
       })
       .catch((error) => {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : 'PDF 读取失败';
+          const message = pdfReadErrorMessage(error);
           setLoadError(message);
           recordPdfOpenTiming(openTrace, 'file_read_error', {
             durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
@@ -250,7 +254,7 @@ export function PdfiumBookcase({
   const status =
     loadError ||
     (engineError ? engineError.message : '') ||
-    (isLoading || !engine || !buffer ? '正在初始化 PDFium' : '');
+    (isLoading || !engine || !buffer ? t('pdfReader.initializing') : '');
 
   return (
     <section className="source-bookcase source-pdf-reader-shell source-pdfium-spike-shell">
@@ -310,7 +314,7 @@ export function PdfiumBookcase({
                       />
                     ) : isError ? (
                       <div className="pdf-reader-status is-error" role="status">
-                        <span>EmbedPDF 文档加载失败</span>
+                        <span>{t('pdfReader.embedLoadFailed')}</span>
                       </div>
                     ) : null
                   }
@@ -318,7 +322,7 @@ export function PdfiumBookcase({
               ) : (
                 <div className="pdf-reader-status" role="status">
                   <LoaderCircle className="is-spinning" size={18} />
-                  <span>正在加载 EmbedPDF 文档</span>
+                  <span>{t('pdfReader.loadingEmbedDocument')}</span>
                 </div>
               )
             }
@@ -327,6 +331,13 @@ export function PdfiumBookcase({
       </div>
     </section>
   );
+}
+
+function pdfReadErrorMessage(error: unknown) {
+  if (!(error instanceof Error) || !error.message) return i18next.t('pdfReader.readFailed');
+  if (error.message === 'PDF_SOURCE_FILE_MISSING') return i18next.t('pdfReader.sourceMissing');
+  if (error.message === 'PDF_SOURCE_INVALID_ID') return i18next.t('pdfReader.readFailed');
+  return error.message;
 }
 
 function PdfiumDocument({
@@ -388,6 +399,7 @@ function PdfiumDocument({
   onToggleToc: () => void;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
 }) {
+  const { t } = useTranslation();
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -526,6 +538,7 @@ function PdfiumDocument({
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
   );
+  const labels = readerUiLabels();
   const searchResult = useMemo(
     () => findReaderSearchMatches(pdfTextDocument?.text || '', searchQuery),
     [pdfTextDocument?.text, searchQuery],
@@ -804,7 +817,9 @@ function PdfiumDocument({
       sourceType: 'pdf',
       quote: anchor.exact,
       title: article.title,
-      locationLabel: isPdfTextAnchor(anchor) ? `第 ${anchor.pageIndex + 1} 页` : undefined,
+      locationLabel: isPdfTextAnchor(anchor)
+        ? i18next.t('pdfReader.pageLabel', { page: anchor.pageIndex + 1 })
+        : undefined,
       anchor,
       nearbyText: isPdfTextAnchor(anchor)
         ? pdfTextDocument?.pages.find((page) => page.pageIndex === anchor.pageIndex)?.pageText
@@ -951,13 +966,18 @@ function PdfiumDocument({
           cursorId,
           cursorAgent,
           annotation.anchor.pageIndex,
-          `${pdfiumAnnotationAgentName(annotation)} 正在添加想法`,
+          i18next.t('source.agentStatus.addingThought', {
+            name: pdfiumAnnotationAgentName(annotation),
+          }),
           0,
         );
         if (cursor) {
           updatePdfiumVirtualCursor(cursorId, {
             ...cursor,
-            label: `${pdfiumAnnotationAgentName(annotation)} 正在${direction === 'above' ? '上方' : '下方'}添加想法`,
+            label: i18next.t('source.agentStatus.addingThoughtOffscreen', {
+              direction: i18next.t(`source.agentStatus.direction.${direction}`),
+              name: pdfiumAnnotationAgentName(annotation),
+            }),
             offscreen: direction,
           });
           await sleep(700);
@@ -968,7 +988,9 @@ function PdfiumDocument({
       return;
     }
 
-    const label = `${pdfiumAnnotationAgentName(annotation)} 正在添加想法`;
+    const label = i18next.t('source.agentStatus.addingThought', {
+      name: pdfiumAnnotationAgentName(annotation),
+    });
     stopPdfiumVirtualReading(cursorId);
     updatePdfiumVirtualCursor(cursorId, {
       id: cursorId,
@@ -1004,7 +1026,10 @@ function PdfiumDocument({
       visible: true,
       x: canvasRect.left + lastBox.left + lastBox.width,
       y: canvasRect.top + lastBox.top + lastBox.height / 2,
-      label: `${pdfiumAnnotationAgentName(annotation)} 想法已添加`,
+      label: i18next.t('source.agentStatus.withSuffix', {
+        name: pdfiumAnnotationAgentName(annotation),
+        suffix: i18next.t('source.agentStatus.thoughtAdded'),
+      }),
       offscreen: null,
       agent: cursorAgent,
     });
@@ -1097,7 +1122,7 @@ function PdfiumDocument({
       {restoringInitialPage ? (
         <div className="pdf-reader-status" role="status">
           <LoaderCircle className="is-spinning" size={18} />
-          <span>正在恢复到第 {initialPageNumber} 页</span>
+          <span>{t('pdfReader.restoringPage', { page: initialPageNumber })}</span>
         </div>
       ) : null}
       {statusMessage ? (
@@ -1215,6 +1240,7 @@ function PdfiumDocument({
           id: article.id,
         }}
         chat={readerChat.model}
+        labels={labels}
         options={{ embedded: true }}
         refs={{
           articleRef,
@@ -1241,9 +1267,9 @@ function PdfiumDocument({
           controls: (
             <>
               <div className="reader-floating-control-group">
-                <ReaderTooltip content="上一页" side="bottom">
+                <ReaderTooltip content={t('readerControls.previousPage')} side="bottom">
                   <button
-                    aria-label="上一页"
+                    aria-label={t('readerControls.previousPage')}
                     className="reader-icon-button"
                     disabled={currentPage <= 1}
                     type="button"
@@ -1256,7 +1282,7 @@ function PdfiumDocument({
                   {currentPage} / {pageCount}
                 </span>
                 <input
-                  aria-label="快速跳转 PDF 页码"
+                  aria-label={t('readerControls.jumpPdfPage')}
                   className="ebook-progress-slider reader-floating-slider pdfium-page-slider"
                   max={pageCount}
                   min="1"
@@ -1270,9 +1296,9 @@ function PdfiumDocument({
                   value={currentPage}
                   onChange={(event) => jumpToPdfiumPage(Number(event.currentTarget.value))}
                 />
-                <ReaderTooltip content="下一页" side="bottom">
+                <ReaderTooltip content={t('readerControls.nextPage')} side="bottom">
                   <button
-                    aria-label="下一页"
+                    aria-label={t('readerControls.nextPage')}
                     className="reader-icon-button"
                     disabled={currentPage >= pageCount}
                     type="button"
@@ -1284,7 +1310,7 @@ function PdfiumDocument({
               </div>
               <ReaderToolbarSliderPopover
                 icon={<ZoomIn size={16} />}
-                label="PDF 缩放"
+                label={t('readerControls.pdfZoom')}
                 max={200}
                 min={50}
                 step={5}

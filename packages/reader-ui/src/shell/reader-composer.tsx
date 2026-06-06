@@ -8,6 +8,8 @@ import {
 import { FloatingComposer } from '../shared/floating-composer';
 import type { PendingComposer } from '../reader-types';
 import { isMessageSendShortcutEvent } from '../reader-shortcuts';
+import type { ReaderUiLabels } from './reader-app-view-types';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 
 const COMPOSER_GAP = 10;
 const COMPOSER_VIEWPORT_PADDING = 12;
@@ -25,6 +27,7 @@ type ComposerPosition = {
 
 export function Composer({
   composer,
+  labels = defaultReaderUiLabels,
   messageSendShortcut,
   shortcutModifier,
   onCancel,
@@ -32,6 +35,7 @@ export function Composer({
 }: {
   agents: PublicAgent[];
   composer: PendingComposer;
+  labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
   shortcutModifier: string;
   onCancel: () => void;
@@ -46,7 +50,7 @@ export function Composer({
   const rootRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const trimmedNote = note.trim();
-  const submitLabel = trimmedNote ? '发布' : '划线';
+  const submitLabel = trimmedNote ? labels.submitThought : labels.submitHighlight;
 
   useLayoutEffect(() => {
     resizeTextarea(textareaRef.current);
@@ -99,16 +103,16 @@ export function Composer({
     >
       <header className="reader-composer-header">
         <div className="reader-composer-title-row">
-          <strong>记录想法</strong>
+          <strong>{labels.recordThought}</strong>
         </div>
       </header>
       <FloatingComposer
         ref={textareaRef}
         className="reader-composer-editor"
         secondaryAction={
-          <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label="取消" />}>
+          <ReaderTooltip content={<ShortcutTooltipContent keys={['Esc']} label={labels.cancel} />}>
             <button className="reader-composer-cancel" type="button" onClick={onCancel}>
-              <span>取消</span>
+              <span>{labels.cancel}</span>
             </button>
           </ReaderTooltip>
         }
@@ -121,9 +125,9 @@ export function Composer({
           />
         }
         textarea={{
-          'aria-label': '想法内容',
+          'aria-label': labels.thoughtContent,
           autoFocus: true,
-          placeholder: '写下你的想法，留空则只划线…',
+          placeholder: labels.thoughtPlaceholder,
           rows: 3,
           value: note,
           onChange: handleNoteChange,

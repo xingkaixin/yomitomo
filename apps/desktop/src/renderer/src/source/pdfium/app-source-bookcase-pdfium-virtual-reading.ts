@@ -1,4 +1,5 @@
 import { useRef, useState, type RefObject } from 'react';
+import i18next from 'i18next';
 import { isPdfTextAnchor, type Annotation, type PublicAgent } from '@yomitomo/shared';
 import type { VirtualCursorState } from '@yomitomo/reader-ui/reader-types';
 import { useAgentReadingDock } from '@yomitomo/reader-ui/use-agent-reading-dock';
@@ -121,7 +122,10 @@ export function usePdfiumVirtualReading({
     virtualReadingStepSizeRef.current.delete(agentId);
   }
 
-  function finishPdfiumVirtualReading(agentId: string, suffix = '想法已添加') {
+  function finishPdfiumVirtualReading(
+    agentId: string,
+    suffix = i18next.t('source.agentStatus.thoughtAdded'),
+  ) {
     stopPdfiumVirtualReading(agentId);
     const current = virtualCursorRef.current.get(agentId);
     if (!current) return;
@@ -129,7 +133,10 @@ export function usePdfiumVirtualReading({
       ...current,
       x: Math.min(window.innerWidth - 80, current.x + 72),
       y: Math.max(72, current.y - 42),
-      label: `${current.agent?.nickname || '助手'} ${suffix}`,
+      label: i18next.t('source.agentStatus.withSuffix', {
+        name: current.agent?.nickname || i18next.t('common.assistant'),
+        suffix,
+      }),
       leaving: true,
     });
     const timerId = window.setTimeout(() => {
@@ -153,7 +160,7 @@ export function usePdfiumVirtualReading({
           visible: true,
           x: canvasRect.left + position.x,
           y: canvasRect.top + position.y,
-          label: `${agent.nickname} 正在阅读`,
+          label: i18next.t('source.agentStatus.reading', { name: agent.nickname }),
           offscreen: null,
           agent,
         };
@@ -164,7 +171,7 @@ export function usePdfiumVirtualReading({
       agent.id,
       agent,
       anchor && isPdfTextAnchor(anchor) ? anchor.pageIndex : undefined,
-      `${agent.nickname} 正在阅读`,
+      i18next.t('source.agentStatus.reading', { name: agent.nickname }),
       step,
     );
   }
@@ -188,7 +195,10 @@ export function usePdfiumVirtualReading({
         visible: true,
         x: viewportRect.left + viewportRect.width / 2,
         y: offscreen === 'above' ? viewportRect.top + 20 : viewportRect.bottom - 20,
-        label: `${agent?.nickname || '助手'} 正在${offscreen === 'above' ? '上方' : '下方'}阅读`,
+        label: i18next.t('source.agentStatus.readingOffscreen', {
+          direction: i18next.t(`source.agentStatus.direction.${offscreen}`),
+          name: agent?.nickname || i18next.t('common.assistant'),
+        }),
         offscreen,
         agent,
       };

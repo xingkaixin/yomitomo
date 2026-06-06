@@ -1,4 +1,5 @@
 import { useCallback, type RefObject } from 'react';
+import i18next from 'i18next';
 import type { SelectionActionShortcuts, UserProfile } from '@yomitomo/shared';
 import { createEpubTextAnchorFromQuote, selectionActionPosition } from '@yomitomo/core';
 import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
@@ -87,7 +88,7 @@ export function useEbookSelection({
             })
           : null;
       if (!anchor?.exact.trim()) {
-        setStatusMessage('无法定位这段选区，请缩短或重新选择');
+        setStatusMessage(i18next.t('ebookReader.selectionLocateFailed'));
         window.setTimeout(() => setStatusMessage(''), 1800);
         selection.removeAllRanges();
         return;

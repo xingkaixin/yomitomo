@@ -53,7 +53,7 @@ export function useDesktopStoreState() {
       setStoreLoadError(
         desktopStoreLoadErrorInfo(error) || {
           code: 'DATABASE_UNAVAILABLE',
-          message: error instanceof Error ? error.message : '本地数据库加载失败。',
+          detail: error instanceof Error ? error.message : undefined,
         },
       );
       setStoreLoaded(false);

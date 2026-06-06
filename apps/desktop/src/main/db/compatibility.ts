@@ -27,7 +27,7 @@ export function readDatabaseReaderLevel(database: SQLiteDatabase.Database) {
 
   const level = Number(value);
   if (!Number.isInteger(level) || level < DEFAULT_DATABASE_READER_LEVEL) {
-    throw new Error('本地数据库兼容性元数据无效');
+    throw new Error('DATABASE_METADATA_INVALID');
   }
   return level;
 }

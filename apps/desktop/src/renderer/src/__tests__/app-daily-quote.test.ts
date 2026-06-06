@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Agent, Annotation, ArticleRecord } from '@yomitomo/shared';
 import {
   builtinDailyQuotes,
@@ -6,6 +6,7 @@ import {
   formatDailyQuoteDate,
   selectDailyQuote,
 } from '../shell/app-daily-quote';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const now = new Date('2026-05-08T10:00:00.000+08:00');
 
@@ -75,16 +76,21 @@ function assistant(overrides: Partial<Agent> = {}): Agent {
 }
 
 describe('daily quote', () => {
+  beforeEach(() => {
+    initializeAppI18n('zh-CN');
+  });
+
   it('keeps the same quote during a day', () => {
     const storage = memoryStorage();
     const first = selectDailyQuote([], { now, random: () => 0, storage });
     const second = selectDailyQuote([], { now, random: () => 0.9, storage });
+    const builtins = builtinDailyQuotes();
 
     expect(first).toEqual(second);
     expect(first).toEqual({
       title: '今日一句',
       meta: '',
-      text: builtinDailyQuotes[0].text,
+      text: builtins[0].text,
     });
   });
 
@@ -98,8 +104,10 @@ describe('daily quote', () => {
       storage,
     });
 
-    expect(first.text).toBe(builtinDailyQuotes[0].text);
-    expect(second.text).toBe(builtinDailyQuotes[1].text);
+    const builtins = builtinDailyQuotes();
+
+    expect(first.text).toBe(builtins[0].text);
+    expect(second.text).toBe(builtins[1].text);
   });
 
   it('keeps the same assistant avatar during a day', () => {

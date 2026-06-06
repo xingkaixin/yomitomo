@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import i18next from 'i18next';
 import type {
   AgentReadingPlanItem,
   Annotation,
@@ -114,15 +115,20 @@ export function createWebSourceReaderController({
     showProgress: boolean,
   ) {
     if (!showProgress || !isCurrentArticle(articleId)) return;
-    finishVirtualReading(agent.id, '没有新想法');
-    setStatusMessage(`${agent.nickname} 暂无新想法`);
+    const message = i18next.t('source.agentStatus.noNewThought');
+    finishVirtualReading(agent.id, message);
+    setStatusMessage(
+      i18next.t('source.agentStatus.noNewThoughtWithName', { name: agent.nickname }),
+    );
     window.setTimeout(() => setStatusMessage(''), 1400);
   }
 
   function finishAgentAnnotationRequest(agent: PublicAgent, showProgress: boolean) {
     if (!showProgress) return;
     markAgentAnnotating(agent.id, false);
-    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
+    setStatusMessage((message) =>
+      message.includes(i18next.t('source.agentStatus.noNewThought')) ? message : '',
+    );
   }
 
   return {

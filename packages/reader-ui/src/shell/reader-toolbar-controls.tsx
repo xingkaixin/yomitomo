@@ -5,9 +5,11 @@ import type { ReaderSettings } from '../reader-types';
 import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export function ReaderSettingsToolbarControls({
+  labels = { articleWidth: '文章宽度', fontSize: '字号' },
   settings,
   onChange,
 }: {
+  labels?: { articleWidth: string; fontSize: string };
   settings: ReaderSettings;
   onChange: (settings: ReaderSettings) => void;
 }) {
@@ -15,7 +17,7 @@ export function ReaderSettingsToolbarControls({
     <>
       <ReaderToolbarSliderPopover
         icon={<CaseSensitive size={17} />}
-        label="字号"
+        label={labels.fontSize}
         max={28}
         min={16}
         step={1}
@@ -25,7 +27,7 @@ export function ReaderSettingsToolbarControls({
       />
       <ReaderToolbarSliderPopover
         icon={<MoveHorizontal size={16} />}
-        label="文章宽度"
+        label={labels.articleWidth}
         max={1080}
         min={600}
         step={40}

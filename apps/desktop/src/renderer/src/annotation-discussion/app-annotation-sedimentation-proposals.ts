@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 import type {
   AnnotationDistillationProposal,
   AnnotationDistillationProposalStatus,
@@ -26,7 +27,8 @@ export function applyDistillationProposalToDraft(
 ): ProposalApplyResult {
   if (proposal.kind === 'insert') {
     const content = proposal.content?.trim();
-    if (!content) return { ok: false, reason: '这条新增建议没有可插入内容' };
+    if (!content)
+      return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingInsertContent') };
     const selectionIndex = validSelectionEnd(draft, selection);
     if (selectionIndex !== null) {
       return { ok: true, draft: insertTextAt(draft, content, selectionIndex) };
@@ -43,7 +45,8 @@ export function applyDistillationProposalToDraft(
   if (proposal.kind === 'replace') {
     const targetText = proposal.targetText?.trim();
     const replacementText = proposal.replacementText?.trim();
-    if (!targetText || !replacementText) return { ok: false, reason: '这条修改建议缺少目标文本' };
+    if (!targetText || !replacementText)
+      return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingReplaceTarget') };
     const match = uniqueTextMatch(draft, targetText);
     if (!match.ok) return { ok: false, reason: match.reason };
     return {
@@ -53,7 +56,8 @@ export function applyDistillationProposalToDraft(
   }
 
   const targetText = proposal.targetText?.trim();
-  if (!targetText) return { ok: false, reason: '这条删除建议缺少目标文本' };
+  if (!targetText)
+    return { ok: false, reason: i18next.t('sedimentation.proposalErrors.missingDeleteTarget') };
   const match = uniqueTextMatch(draft, targetText);
   if (!match.ok) return { ok: false, reason: match.reason };
   return {
@@ -103,9 +107,16 @@ function validSelectionEnd(draft: string, selection: DraftSelectionSnapshot | nu
 
 function uniqueTextMatch(draft: string, text: string) {
   const index = draft.indexOf(text);
-  if (index < 0) return { ok: false as const, reason: '没有在当前草稿中找到目标文本' };
+  if (index < 0)
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+    };
   if (draft.indexOf(text, index + text.length) >= 0) {
-    return { ok: false as const, reason: '目标文本在当前草稿中出现多次，需要手动定位' };
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetAmbiguous'),
+    };
   }
   return { ok: true as const, index, text };
 }

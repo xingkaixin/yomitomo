@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DesktopStore } from '@yomitomo/shared';
 
+import { initializeAppI18n } from '../i18n/app-i18n';
 import { emptyStore } from '../settings/app-settings';
 import { useDesktopStoreState } from '../shell/app-desktop-store-state';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

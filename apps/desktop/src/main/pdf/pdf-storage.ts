@@ -9,7 +9,7 @@ function pdfDirectory() {
 
 function pdfFilePath(articleId: string) {
   const safeId = articleId.replace(/[^a-z0-9_-]/gi, '');
-  if (!safeId) throw new Error('PDF ID 无效');
+  if (!safeId) throw new Error('PDF_SOURCE_INVALID_ID');
   return join(pdfDirectory(), `${safeId}.pdf`);
 }
 
@@ -23,7 +23,7 @@ export async function readPdfSourceFile(articleId: string) {
     return await readFile(pdfFilePath(articleId));
   } catch (error) {
     if (errorCode(error) === 'ENOENT') {
-      throw new Error('原始 PDF 文件不存在，请重新导入', { cause: error });
+      throw new Error('PDF_SOURCE_FILE_MISSING', { cause: error });
     }
     throw error;
   }

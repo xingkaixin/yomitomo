@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BookOpen, Check, Save, ShieldCheck, Zap, X } from 'lucide-react';
 import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
-import type { ProviderDraft } from './app-settings';
+import type { ProviderDraft, ProviderTestState } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { ProviderForm } from './app-settings-provider-form';
 import { ProviderList } from './app-settings-provider-list';
@@ -18,14 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-
-type ProviderTestStatus = 'idle' | 'testing' | 'success' | 'error';
+import { useTranslation } from 'react-i18next';
+import { providerDisplayName } from '../i18n/app-i18n-labels';
 
 export function ProviderSettings({
   draft,
   settingsDraft,
   providers,
-  selectedId,
   testState,
   canSave,
   canSaveRoutes,
@@ -45,8 +44,7 @@ export function ProviderSettings({
   draft: ProviderDraft;
   settingsDraft: AppSettings;
   providers: LlmProvider[];
-  selectedId: string | null;
-  testState: string;
+  testState: ProviderTestState;
   canSave: boolean;
   canSaveRoutes: boolean;
   onChange: (draft: ProviderDraft) => void;
@@ -62,34 +60,20 @@ export function ProviderSettings({
   onSelect: (provider: LlmProvider) => void;
   onTest: (draft: ProviderDraft) => Promise<void> | void;
 }) {
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const { t } = useTranslation();
+  const saveLabel =
+    saveState === 'saving'
+      ? t('settings.models.saving')
+      : saveState === 'saved'
+        ? t('settings.models.saved')
+        : t('settings.models.save');
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
-  const [testStatus, setTestStatus] = useState<ProviderTestStatus>('idle');
+  const testStatus = testState.status;
   const usedProviderIds = new Set(
     [settingsDraft.readingAssistantProviderId, settingsDraft.reviewAssistantProviderId].filter(
       (id): id is string => Boolean(id),
     ),
   );
-
-  useEffect(() => {
-    setTestStatus('idle');
-  }, [selectedId]);
-
-  useEffect(() => {
-    if (!testState) return;
-    if (testState === '测试中...') {
-      setTestStatus('testing');
-      return;
-    }
-    if (testStatus !== 'testing') return;
-    if (testState.startsWith('连通成功')) {
-      setTestStatus('success');
-      return;
-    }
-    if (testState.startsWith('连通失败')) {
-      setTestStatus('error');
-    }
-  }, [testState, testStatus]);
 
   useEffect(() => {
     if (!providerEditorOpen) return;
@@ -118,8 +102,7 @@ export function ProviderSettings({
   }
 
   function testProvider(providerDraft: ProviderDraft) {
-    setTestStatus('testing');
-    void Promise.resolve(onTest(providerDraft)).catch(() => setTestStatus('error'));
+    void Promise.resolve(onTest(providerDraft)).catch(() => undefined);
   }
 
   async function saveProviderAndClose() {
@@ -163,8 +146,8 @@ export function ProviderSettings({
   return (
     <>
       <SettingsPage
-        trail={['设置', '模型与路由']}
-        description="为伴读任务分配默认模型，并管理模型服务商配置。"
+        trail={[t('settings.models.trailRoot'), t('settings.models.trailPage')]}
+        description={t('settings.models.description')}
       >
         <TaskProviderRoutes
           canSave={canSaveRoutes}
@@ -175,7 +158,7 @@ export function ProviderSettings({
           onChange={onRouteChange}
           onSave={onRouteSave}
         />
-        <SettingsGroup label="模型供应商" flush>
+        <SettingsGroup label={t('settings.models.providerGroup')} flush>
           <ProviderList
             providers={providers}
             usedProviderIds={usedProviderIds}
@@ -207,7 +190,7 @@ function ProviderEditorContent({
   saveLabel: string;
   saveError?: string;
   saveState: SaveState;
-  testStatus: ProviderTestStatus;
+  testStatus: ProviderTestState['status'];
   titleId?: string;
   canSave: boolean;
   onChange: (draft: ProviderDraft) => void;
@@ -215,10 +198,15 @@ function ProviderEditorContent({
   onSave: () => Promise<void> | void;
   onTest: (draft: ProviderDraft) => void;
 }) {
+  const { t } = useTranslation();
   const testResultIcon =
     testStatus === 'success' || testStatus === 'error' ? (
       <span
-        aria-label={testStatus === 'success' ? '测试成功' : '测试失败'}
+        aria-label={
+          testStatus === 'success'
+            ? t('settings.models.testSuccess')
+            : t('settings.models.testFailed')
+        }
         className={`provider-test-status is-${testStatus}`}
         key={testStatus}
         role="status"
@@ -231,8 +219,10 @@ function ProviderEditorContent({
     <>
       <div className="detail-pane-header">
         <div>
-          <h3 id={titleId}>{draft.id ? '编辑供应商' : '新增供应商'}</h3>
-          <p>管理模型服务商、API Key、Base URL 和可用模型。</p>
+          <h3 id={titleId}>
+            {draft.id ? t('settings.models.editProvider') : t('settings.models.newProvider')}
+          </h3>
+          <p>{t('settings.models.editorDescription')}</p>
         </div>
         <div className="flex gap-2">
           <span className="provider-test-control">
@@ -243,12 +233,12 @@ function ProviderEditorContent({
               type="button"
               onClick={() => onTest(draft)}
             >
-              {testStatus === 'testing' ? '测试中' : '测试'}
+              {testStatus === 'testing' ? t('settings.models.testing') : t('settings.models.test')}
             </Button>
             {testResultIcon}
           </span>
           <Button className="action-button" type="button" variant="secondary" onClick={onCancel}>
-            取消
+            {t('settings.models.cancel')}
           </Button>
           <Button
             className={
@@ -267,7 +257,7 @@ function ProviderEditorContent({
       </div>
       {saveState === 'error' ? (
         <p className="settings-inline-error" role="alert">
-          {saveError || '保存失败，请重试。'}
+          {saveError || t('settings.models.saveFailed')}
         </p>
       ) : null}
       <ProviderForm draft={draft} onChange={onChange} />
@@ -277,30 +267,30 @@ function ProviderEditorContent({
 
 const taskRouteOptions: Array<{
   key: keyof Pick<AppSettings, 'readingAssistantProviderId' | 'reviewAssistantProviderId'>;
-  title: string;
-  description: string;
+  descriptionKey: string;
   icon: React.ReactNode;
+  titleKey: string;
 }> = [
   {
     key: 'readingAssistantProviderId',
-    title: '阅读理解助手',
-    description: '用于阅读器批注、追问和理解型对话。',
+    titleKey: 'settings.models.readingRouteTitle',
+    descriptionKey: 'settings.models.readingRouteDescription',
     icon: <BookOpen size={18} />,
   },
   {
     key: 'reviewAssistantProviderId',
-    title: '深度审阅助手',
-    description: '用于阅读材料的证据、逻辑和表达复核。',
+    titleKey: 'settings.models.reviewRouteTitle',
+    descriptionKey: 'settings.models.reviewRouteDescription',
     icon: <ShieldCheck size={18} />,
   },
 ];
 
 const assistantExecutionModeOptions: Array<{
   value: AssistantExecutionMode;
-  title: string;
+  titleKey: string;
 }> = [
-  { value: 'fast_response', title: '快速回应' },
-  { value: 'deep_verification', title: '深入查证' },
+  { value: 'fast_response', titleKey: 'settings.models.fastResponse' },
+  { value: 'deep_verification', titleKey: 'settings.models.deepVerification' },
 ];
 
 function TaskProviderRoutes({
@@ -320,13 +310,14 @@ function TaskProviderRoutes({
   onChange: (draft: AppSettings) => void;
   onSave: (draft?: AppSettings) => void;
 }) {
+  const { t } = useTranslation();
   const hasProviders = providers.length > 0;
   const executionMode = settingsDraft.assistantExecutionMode || 'fast_response';
 
   return (
     <SettingsGroup
-      label="任务路由"
-      note={hasProviders ? undefined : '当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'}
+      label={t('settings.models.routeGroup')}
+      note={hasProviders ? undefined : t('settings.models.noProvidersNote')}
       aside={
         <AutoSaveStatus
           error={saveError}
@@ -337,14 +328,14 @@ function TaskProviderRoutes({
     >
       <SettingsRow
         leading={<Zap size={18} />}
-        title="助手执行模式"
-        description="全局影响阅读批注、追问和共读任务。"
+        title={t('settings.models.executionModeTitle')}
+        description={t('settings.models.executionModeDescription')}
       >
         <SettingsSegmented
-          ariaLabel="助手执行模式"
+          ariaLabel={t('settings.models.executionModeAria')}
           value={executionMode}
           options={assistantExecutionModeOptions.map((option) => ({
-            label: option.title,
+            label: t(option.titleKey),
             value: option.value,
           }))}
           onChange={(value) => {
@@ -354,59 +345,73 @@ function TaskProviderRoutes({
           }}
         />
       </SettingsRow>
-      {taskRouteOptions.map((option) => (
-        <SettingsRow
-          key={option.key}
-          leading={option.icon}
-          title={option.title}
-          description={
-            hasProviders ? option.description : `新增供应商后，可把它分配给${option.title}。`
-          }
-        >
-          <Select
-            disabled={!hasProviders}
-            value={settingsDraft[option.key] || ''}
-            onValueChange={(providerId) => {
-              const nextDraft = { ...settingsDraft, [option.key]: providerId };
-              onChange(nextDraft);
-              onSave(nextDraft);
-            }}
+      {taskRouteOptions.map((option) => {
+        const title = t(option.titleKey);
+        return (
+          <SettingsRow
+            key={option.key}
+            leading={option.icon}
+            title={title}
+            description={
+              hasProviders
+                ? t(option.descriptionKey)
+                : t('settings.models.routeNoProviderDescription', { title })
+            }
           >
-            <SelectTrigger
-              aria-label={`${option.title}供应商`}
-              className="task-route-select-trigger"
+            <Select
+              disabled={!hasProviders}
+              value={settingsDraft[option.key] || ''}
+              onValueChange={(providerId) => {
+                const nextDraft = { ...settingsDraft, [option.key]: providerId };
+                onChange(nextDraft);
+                onSave(nextDraft);
+              }}
             >
-              <SelectValue placeholder={hasProviders ? '选择供应商' : '先新增供应商'} />
-            </SelectTrigger>
-            <SelectContent className="theme-select-content provider-select-content">
-              <SelectGroup>
-                {providers.map((provider) => (
-                  <SelectItem
-                    className="provider-select-item"
-                    key={provider.id}
-                    value={provider.id}
-                  >
-                    <span className="provider-option-content">
-                      <img
-                        className="provider-select-logo"
-                        src={
-                          providerLogoMap[provider.logo || 'anthropic.png'] ||
-                          providerLogoMap['anthropic.png']
-                        }
-                        alt=""
-                      />
-                      <span className="provider-select-item-copy">
-                        <strong>{provider.name}</strong>
-                        <span>{provider.modelName}</span>
-                      </span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </SettingsRow>
-      ))}
+              <SelectTrigger
+                aria-label={t('settings.models.providerSelectAria', { title })}
+                className="task-route-select-trigger"
+              >
+                <SelectValue
+                  placeholder={
+                    hasProviders
+                      ? t('settings.models.chooseProvider')
+                      : t('settings.models.addProviderFirst')
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent className="theme-select-content provider-select-content">
+                <SelectGroup>
+                  {providers.map((provider) => {
+                    const displayName = providerDisplayName(provider);
+                    return (
+                      <SelectItem
+                        className="provider-select-item"
+                        key={provider.id}
+                        value={provider.id}
+                      >
+                        <span className="provider-option-content">
+                          <img
+                            className="provider-select-logo"
+                            src={
+                              providerLogoMap[provider.logo || 'anthropic.png'] ||
+                              providerLogoMap['anthropic.png']
+                            }
+                            alt=""
+                          />
+                          <span className="provider-select-item-copy">
+                            <strong>{displayName}</strong>
+                            <span>{provider.modelName}</span>
+                          </span>
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </SettingsRow>
+        );
+      })}
     </SettingsGroup>
   );
 }

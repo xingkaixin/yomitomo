@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import i18next from 'i18next';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageCircle } from 'lucide-react';
 import type {
   Agent,
@@ -577,7 +579,7 @@ export function annotationDiscussionCapsuleItems(
     return {
       articleId: windowState.articleId,
       annotationId: windowState.annotationId,
-      quote: annotation?.anchor.exact.trim() || '批注讨论',
+      quote: annotation?.anchor.exact.trim() || i18next.t('discussion.fallbackQuote'),
       ideaCount,
       replyCount,
       assistants: assistantParticipants(comments),
@@ -597,7 +599,10 @@ function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsule
       comment.agentAvatar ||
       comment.id;
     if (assistants.has(key)) continue;
-    const name = comment.agentNickname?.trim() || comment.agentUsername?.trim() || '助手';
+    const name =
+      comment.agentNickname?.trim() ||
+      comment.agentUsername?.trim() ||
+      i18next.t('common.assistant');
     const avatar = comment.agentAvatar?.trim() || undefined;
     assistants.set(key, {
       key,
@@ -633,6 +638,7 @@ export function AnnotationDiscussionCapsules({
     sourceRect?: WindowAnimationSourceRect,
   ) => Promise<void> | void;
 }) {
+  const { t } = useTranslation();
   const [expandedByUser, setExpandedByUser] = useState(false);
   const items = useMemo(
     () => annotationDiscussionCapsuleItems(article, windows),
@@ -646,7 +652,10 @@ export function AnnotationDiscussionCapsules({
 
   if (!expanded) {
     return (
-      <div className="annotation-discussion-capsules is-collapsed" aria-label="已最小化的批注讨论">
+      <div
+        className="annotation-discussion-capsules is-collapsed"
+        aria-label={t('discussion.capsules.minimized')}
+      >
         <button
           className="annotation-discussion-capsules-toggle"
           type="button"
@@ -654,7 +663,7 @@ export function AnnotationDiscussionCapsules({
           onClick={() => setExpandedByUser(true)}
         >
           <MessageCircle aria-hidden="true" size={16} strokeWidth={1.8} />
-          <span>收起的讨论</span>
+          <span>{t('discussion.capsules.collapsed')}</span>
           <strong>{items.length}</strong>
         </button>
       </div>
@@ -662,15 +671,18 @@ export function AnnotationDiscussionCapsules({
   }
 
   return (
-    <section className="annotation-discussion-capsules is-expanded" aria-label="已最小化的批注讨论">
+    <section
+      className="annotation-discussion-capsules is-expanded"
+      aria-label={t('discussion.capsules.minimized')}
+    >
       <div className="annotation-discussion-capsules-header">
-        <span>收起的讨论</span>
+        <span>{t('discussion.capsules.collapsed')}</span>
         <strong>{items.length}</strong>
         {isMany ? (
           <button
             className="annotation-discussion-capsules-collapse"
             type="button"
-            aria-label="折叠收起的讨论"
+            aria-label={t('discussion.capsules.collapse')}
             aria-expanded="true"
             onClick={() => setExpandedByUser(false)}
           >
@@ -686,16 +698,22 @@ export function AnnotationDiscussionCapsules({
               .filter(Boolean)
               .join(' ')}
             type="button"
-            title={`打开批注讨论：${item.quote}`}
+            title={t('discussion.capsules.open', { quote: item.quote })}
             onClick={() => void onOpen?.(item.articleId, item.annotationId)}
           >
             <span className="annotation-discussion-capsule-title">{item.quote}</span>
             <span className="annotation-discussion-capsule-summary">
               <span className="annotation-discussion-capsule-meta">
-                {item.ideaCount} 想法 · {item.replyCount} 回复
+                {t('discussion.capsules.summary', {
+                  ideas: item.ideaCount,
+                  replies: item.replyCount,
+                })}
               </span>
               {item.assistants.length ? (
-                <span className="annotation-discussion-capsule-assistants" aria-label="参与助手">
+                <span
+                  className="annotation-discussion-capsule-assistants"
+                  aria-label={t('discussion.capsules.assistants')}
+                >
                   {item.assistants.slice(0, 4).map((assistant) =>
                     assistant.avatar ? (
                       <img
@@ -713,7 +731,9 @@ export function AnnotationDiscussionCapsules({
                 </span>
               ) : null}
               {item.pending ? (
-                <span className="annotation-discussion-capsule-replying">回复中</span>
+                <span className="annotation-discussion-capsule-replying">
+                  {t('discussion.replying')}
+                </span>
               ) : null}
             </span>
           </button>
@@ -757,7 +777,7 @@ function articleHasReadableBody(
 function weReadOpenErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : '';
   if (/No application found|weread:/.test(message)) {
-    return '没有找到微信读书 App。请在设置 / 微信读书中改为“使用网页版”，或安装微信读书 App 后再试。';
+    return i18next.t('wereadBook.nativeAppMissing');
   }
-  return message || '打开微信读书失败，请稍后重试。';
+  return message || i18next.t('wereadBook.openFailed');
 }

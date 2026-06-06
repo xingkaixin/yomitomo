@@ -156,6 +156,139 @@ export type ReaderToolbarModel = {
   search?: ReaderSearchToolbarState;
 };
 
+export type ReaderUiLabels = {
+  annotations: string;
+  annotationNavigation: string;
+  annotationProcessing: string;
+  articleWidth: string;
+  askSelection: string;
+  assistant: string;
+  assistantAnswering: string;
+  assistantCompleted: string;
+  assistantParticipationSummary: (names: string[], processing: boolean) => string;
+  assistantReadingActive: string;
+  assistantReadingStatus: string;
+  cancel: string;
+  closeReader: string;
+  closeHighlightChoice: string;
+  closeSearch: string;
+  closeSidebar: string;
+  collapseReaderChat: string;
+  copySelection: string;
+  currentSelection: string;
+  deleteHighlight: string;
+  distillations: string;
+  emptyNotesDescription: string;
+  emptyNotesTitle: string;
+  enterDiscussion: string;
+  fontSize: string;
+  highlightActions: string;
+  highlightChoice: string;
+  holdDelete: string;
+  me: string;
+  nextHighlight: string;
+  nextSearchResult: string;
+  noAssistantParticipation: string;
+  openDistillationActions: string;
+  openHighlightActions: string;
+  openReaderChat: string;
+  previousHighlight: string;
+  previousSearchResult: string;
+  readerChat: string;
+  readerChatAria: string;
+  readerChatAssistantPicker: string;
+  readerChatClearQuote: string;
+  readerChatContent: string;
+  readerChatContextSelection: string;
+  readerChatEmpty: string;
+  readerChatPlaceholder: string;
+  readerChatSelectionPlaceholder: string;
+  readerControls: string;
+  recordThought: string;
+  searchBody: string;
+  searchBodyPlaceholder: string;
+  searchToolbar: string;
+  send: string;
+  sending: string;
+  submitHighlight: string;
+  submitThought: string;
+  thoughtContent: string;
+  thoughtPlaceholder: string;
+  thoughtSummary: (count: number, processing: boolean) => string;
+  toc: string;
+  tocSummary: (annotations: number, distillations: number) => string;
+  toggleToc: string;
+};
+
+export const defaultReaderUiLabels: ReaderUiLabels = {
+  annotations: '划线',
+  annotationNavigation: '划线快捷选择',
+  annotationProcessing: '助手处理中',
+  articleWidth: '文章宽度',
+  askSelection: '问一下',
+  assistant: '助手',
+  assistantAnswering: '正在回答...',
+  assistantCompleted: '已完成',
+  assistantReadingActive: '正在共读',
+  assistantReadingStatus: '助手共读状态',
+  assistantParticipationSummary: (names, processing) => {
+    if (names.length === 0) return '暂无助手参与';
+    const visibleNames = names.slice(0, 2).join('、');
+    const suffix = names.length > 2 ? `等 ${names.length} 位助手` : '参与';
+    return `${visibleNames}${suffix}${processing ? '，处理中' : ''}`;
+  },
+  cancel: '取消',
+  closeReader: '关闭阅读器',
+  closeHighlightChoice: '关闭划线选择',
+  closeSearch: '关闭搜索',
+  closeSidebar: '关闭侧栏',
+  collapseReaderChat: '收起阅读问答',
+  copySelection: '复制',
+  currentSelection: '当前选区',
+  deleteHighlight: '长按删除划线',
+  distillations: '沉淀',
+  emptyNotesDescription: '选中阅读器内的文本后，可以写下想法。高亮和讨论会保存在当前文章下。',
+  emptyNotesTitle: '选择一段文字记录想法',
+  enterDiscussion: '进入讨论区',
+  fontSize: '字号',
+  highlightActions: '打开划线操作',
+  highlightChoice: '选择划线',
+  holdDelete: '长按删除',
+  me: '我',
+  nextHighlight: '下一个划线',
+  nextSearchResult: '下一个搜索结果',
+  noAssistantParticipation: '暂无助手参与',
+  openDistillationActions: '打开沉淀操作',
+  openHighlightActions: '打开划线操作',
+  openReaderChat: '打开阅读问答',
+  previousHighlight: '上一个划线',
+  previousSearchResult: '上一个搜索结果',
+  readerChat: '阅读问答',
+  readerChatAria: '阅读问答',
+  readerChatAssistantPicker: '选择回答助手',
+  readerChatClearQuote: '清除引用',
+  readerChatContent: '阅读问答内容',
+  readerChatContextSelection: '当前选区',
+  readerChatEmpty: '问一个和当前文章有关的问题',
+  readerChatPlaceholder: '输入你的问题',
+  readerChatSelectionPlaceholder: '围绕这段文字提问',
+  readerControls: '阅读控制',
+  recordThought: '记录想法',
+  searchBody: '搜索正文',
+  searchBodyPlaceholder: '搜索正文',
+  searchToolbar: '正文搜索',
+  send: '发送',
+  sending: '发送中',
+  submitHighlight: '划线',
+  submitThought: '发布',
+  thoughtContent: '想法内容',
+  thoughtPlaceholder: '写下你的想法，留空则只划线…',
+  thoughtSummary: (count, processing) => `${count} 条想法${processing ? '，助手处理中' : ''}`,
+  toc: '目录',
+  tocSummary: (annotations, distillations) => `${annotations} 划线，${distillations} 沉淀`,
+  toggleToc: '切换目录',
+};
+
 export type ReaderShellOptions = {
   embedded?: boolean;
 };
@@ -227,6 +360,7 @@ export type ReaderAppViewProps = {
   annotations: ReaderAnnotationModel;
   article: ReaderArticleModel;
   chat?: ReaderChatModel;
+  labels?: ReaderUiLabels;
   options?: ReaderShellOptions;
   refs: ReaderShellRefs;
   selection: ReaderSelectionModel;

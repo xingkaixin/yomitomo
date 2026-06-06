@@ -227,6 +227,22 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('才能说“我之前批注过”“我之前说过”或“其他助手批注过”');
   });
 
+  it('adds the selected interface language to assistant replies', () => {
+    const system = buildAgentMessageSystemPrompt(
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
+      { ...payload, uiLanguage: 'en' },
+    );
+
+    expect(system).toContain('回复语言');
+    expect(system).toContain('English');
+    expect(system).toContain('引用原文、用户名、助手名、代码、JSON 字段名和工具参数保持原样');
+  });
+
   it('builds a thought review prompt with all thoughts and the target thought', () => {
     const reviewer: PublicAgent = {
       ...lin,

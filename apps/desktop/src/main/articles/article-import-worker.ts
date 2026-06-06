@@ -60,11 +60,11 @@ async function extractArticleRecord(input: unknown) {
 }
 
 function articleImportWorkerData(input: unknown): ArticleImportWorkerData {
-  if (!isRecord(input)) throw new Error('网页导入任务无效');
+  if (!isRecord(input)) throw new Error('ARTICLE_IMPORT_INVALID_TASK');
   const html = stringField(input.html);
   const url = stringField(input.url);
   const userAgent = stringField(input.userAgent) || undefined;
-  if (!html || !url) throw new Error('网页导入任务无效');
+  if (!html || !url) throw new Error('ARTICLE_IMPORT_INVALID_TASK');
   return {
     html,
     inlineImages: input.inlineImages === true,
@@ -122,7 +122,7 @@ function imageContentType(value: string | null) {
 
 function workerError(error: unknown) {
   return {
-    message: error instanceof Error ? error.message : '网页解析失败',
+    message: error instanceof Error ? error.message : 'ARTICLE_IMPORT_PARSE_FAILED',
   };
 }
 

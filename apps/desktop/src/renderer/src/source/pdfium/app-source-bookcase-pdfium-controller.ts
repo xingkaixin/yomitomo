@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import i18next from 'i18next';
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import { isPdfTextAnchor } from '@yomitomo/shared';
 import type { PdfPageGeometry } from '@embedpdf/models';
@@ -213,20 +214,24 @@ export function createPdfiumSourceReaderController({
       return true;
     },
     onEmpty: ({ agent, context }) => {
+      const message = i18next.t('source.agentStatus.noNewThought');
       if (context.source?.kind === 'reading-plan' && context.visibleArticle !== false) {
-        finishVirtualReading(agent.id, '没有新想法');
-        setStatusMessage(`${agent.nickname} 暂无新想法`);
+        finishVirtualReading(agent.id, message);
+        setStatusMessage(
+          i18next.t('source.agentStatus.noNewThoughtWithName', { name: agent.nickname }),
+        );
         window.setTimeout(() => setStatusMessage(''), 1400);
         return;
       }
-      if (context.showProgress !== false) finishVirtualReading(agent.id, '没有新想法');
+      if (context.showProgress !== false) finishVirtualReading(agent.id, message);
     },
     onSuccess: async ({ playback }) => {
       if (playback?.acceptedAnnotation) await playback.playbackPromise;
     },
     finish: ({ agent, context, requestFailed }) => {
       if (!shouldShowProgress(context)) return;
-      if (requestFailed) finishVirtualReading(agent.id, '想法添加失败');
+      if (requestFailed)
+        finishVirtualReading(agent.id, i18next.t('source.agentStatus.addThoughtFailed'));
       finishAgentDock(agent.id, !requestFailed);
     },
   };

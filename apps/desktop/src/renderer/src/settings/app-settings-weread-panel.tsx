@@ -17,10 +17,12 @@ import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { SettingsGroup, SettingsPage, SettingsRadioDot } from './app-settings-kit';
+import { useTranslation } from 'react-i18next';
 
 const WEREAD_API_KEY_HELP_URL = 'https://yomitomo.app/docs/weread-api-key/';
 
 export function WeReadSettingsPanel() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<WeReadSettings>({
     configured: false,
     openMethod: 'deeplink',
@@ -69,7 +71,7 @@ export function WeReadSettingsPanel() {
       setSaveState('saved');
       window.setTimeout(() => setSaveState('idle'), 1200);
     } catch (error) {
-      setApiKeyMessage(settingsSaveErrorMessage(error));
+      setApiKeyMessage(settingsSaveErrorMessage(error, t));
       setSaveState('error');
     }
   }
@@ -92,7 +94,7 @@ export function WeReadSettingsPanel() {
       setSaveState('saved');
       window.setTimeout(() => setSaveState('idle'), 1200);
     } catch (error) {
-      setApiKeyMessage(settingsSaveErrorMessage(error));
+      setApiKeyMessage(settingsSaveErrorMessage(error, t));
       setSaveState('error');
     }
   }
@@ -104,12 +106,14 @@ export function WeReadSettingsPanel() {
     try {
       const result = await window.yomitomoDesktop.testWeRead(apiKey);
       setTestState(result.ok ? 'success' : 'error');
-      setTestMessage(result.message);
+      setTestMessage(
+        result.ok ? t('settings.weread.testSuccess') : wereadResultMessage(result.message, t),
+      );
       const state = await window.yomitomoDesktop.getWeReadState();
       setSettings(state.settings);
     } catch (error) {
       setTestState('error');
-      setTestMessage(wereadErrorMessage(error));
+      setTestMessage(wereadErrorMessage(error, t));
     } finally {
       window.setTimeout(() => setTestState('idle'), 1400);
     }
@@ -138,10 +142,10 @@ export function WeReadSettingsPanel() {
       if (requestId !== revealRequestRef.current) return;
       setRevealedStoredApiKey(storedApiKey);
       setApiKeyVisible(true);
-      if (!storedApiKey) setApiKeyMessage('没有读取到已保存的 API Key');
+      if (!storedApiKey) setApiKeyMessage(t('settings.weread.noStoredApiKey'));
     } catch {
       if (requestId !== revealRequestRef.current) return;
-      setApiKeyMessage('读取已保存的 API Key 失败');
+      setApiKeyMessage(t('settings.weread.readStoredApiKeyFailed'));
     } finally {
       if (requestId === revealRequestRef.current) setRevealLoading(false);
     }
@@ -160,7 +164,7 @@ export function WeReadSettingsPanel() {
       window.setTimeout(() => setOpenMethodSaveState('idle'), 1200);
     } catch (error) {
       setSettings((current) => ({ ...current, openMethod: previous }));
-      setOpenMethodSaveError(settingsSaveErrorMessage(error));
+      setOpenMethodSaveError(settingsSaveErrorMessage(error, t));
       setOpenMethodSaveState('error');
     }
   }
@@ -182,36 +186,45 @@ export function WeReadSettingsPanel() {
   const canSave = saveState !== 'saving' && Boolean(apiKey.trim());
   const canTest = testState !== 'testing' && (Boolean(apiKey.trim()) || settings.configured);
   const canRemove = saveState !== 'saving' && settings.configured;
-  const saveLabel = saveState === 'saving' ? '保存中' : saveState === 'saved' ? '已保存' : '保存';
+  const saveLabel =
+    saveState === 'saving'
+      ? t('settings.weread.saving')
+      : saveState === 'saved'
+        ? t('settings.weread.saved')
+        : t('settings.weread.save');
   const testLabel =
     testState === 'testing'
-      ? '测试中'
+      ? t('settings.weread.testing')
       : testState === 'success'
-        ? '测试成功'
+        ? t('settings.weread.testSuccess')
         : testState === 'error'
-          ? '测试失败'
-          : '测试连接';
+          ? t('settings.weread.testFailed')
+          : t('settings.weread.test');
 
   return (
     <SettingsPage
-      trail={['设置', '数据来源', '微信读书']}
-      description="同步微信读书中的划线、想法和阅读进度。"
+      trail={[
+        t('settings.weread.trailRoot'),
+        t('settings.weread.trailDataSources'),
+        t('settings.weread.trailPage'),
+      ]}
+      description={t('settings.weread.description')}
     >
       <SettingsGroup
-        label="凭证"
+        label={t('settings.weread.credentialGroup')}
         padded
         aside={
           settings.configured ? (
             <span className="settings-status-ok">
               <CircleCheck size={14} />
-              已保存到系统安全凭据库
+              {t('settings.weread.savedToKeychain')}
             </span>
           ) : null
         }
       >
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="weread-api-key">
-            API Key
+            {t('settings.weread.apiKeyLabel')}
           </label>
           <div className="weread-api-key-field">
             <Input
@@ -219,7 +232,11 @@ export function WeReadSettingsPanel() {
               className="pr-12"
               type={apiKeyVisible ? 'text' : 'password'}
               value={displayedApiKey}
-              placeholder={settings.configured ? '已配置，输入新 Key 后保存' : 'wrk-...'}
+              placeholder={
+                settings.configured
+                  ? t('settings.weread.configuredPlaceholder')
+                  : t('settings.weread.emptyPlaceholder')
+              }
               autoComplete="off"
               spellCheck={false}
               onChange={(event) => {
@@ -230,7 +247,9 @@ export function WeReadSettingsPanel() {
               }}
             />
             <button
-              aria-label={apiKeyVisible ? '隐藏 API Key' : '显示 API Key'}
+              aria-label={
+                apiKeyVisible ? t('settings.weread.hideApiKey') : t('settings.weread.showApiKey')
+              }
               className="secret-toggle"
               disabled={revealLoading}
               type="button"
@@ -286,23 +305,23 @@ export function WeReadSettingsPanel() {
             onClick={removeStoredApiKey}
           >
             <Trash2 size={15} />
-            移除
+            {t('settings.weread.remove')}
           </Button>
           <button className="weread-help-link" type="button" onClick={openWeReadApiKeyHelp}>
             <Info size={15} />
-            如何获取 API Key
+            {t('settings.weread.help')}
             <ExternalLink size={13} />
           </button>
         </div>
         {saveState === 'error' || apiKeyMessage ? (
-          <p className="settings-error-text">{apiKeyMessage || '保存失败，请重试。'}</p>
+          <p className="settings-error-text">{apiKeyMessage || t('settings.weread.saveFailed')}</p>
         ) : testState === 'error' && testMessage ? (
           <p className="settings-error-text">{testMessage}</p>
         ) : null}
       </SettingsGroup>
 
       <SettingsGroup
-        label="默认打开方式"
+        label={t('settings.weread.openMethodGroup')}
         aside={
           <AutoSaveStatus
             error={openMethodSaveError}
@@ -310,10 +329,12 @@ export function WeReadSettingsPanel() {
             onRetry={() => void saveOpenMethod(settings.openMethod)}
           />
         }
-        cardProps={{ role: 'radiogroup', 'aria-label': '微信读书默认打开方式' }}
+        cardProps={{ role: 'radiogroup', 'aria-label': t('settings.weread.openMethodAria') }}
       >
         {wereadOpenMethods.map((option) => {
           const active = settings.openMethod === option.value;
+          const label = t(option.labelKey);
+          const description = t(option.descriptionKey);
           return (
             <button
               aria-checked={active}
@@ -330,8 +351,8 @@ export function WeReadSettingsPanel() {
                 <SettingsRadioDot checked={active} />
               </span>
               <div className="settings-row-copy">
-                <strong>{option.label}</strong>
-                <p>{option.description}</p>
+                <strong>{label}</strong>
+                <p>{description}</p>
               </div>
             </button>
           );
@@ -342,11 +363,12 @@ export function WeReadSettingsPanel() {
 }
 
 export function DataSourcesPanel() {
+  const { t } = useTranslation();
   return (
     <div className="data-sources-panel">
       <WeReadSettingsPanel />
       <p className="data-sources-coming-soon" role="note">
-        更多来源，敬请期待
+        {t('settings.dataSourcesPanel.comingSoon')}
       </p>
     </div>
   );
@@ -354,26 +376,36 @@ export function DataSourcesPanel() {
 
 const wereadOpenMethods: Array<{
   value: WeReadOpenMethod;
-  label: string;
-  description: string;
+  labelKey: string;
+  descriptionKey: string;
 }> = [
   {
     value: 'deeplink',
-    label: '打开微信读书 App',
-    description: '需要已安装 App，可定位到对应划线或想法。',
+    labelKey: 'settings.weread.deeplinkLabel',
+    descriptionKey: 'settings.weread.deeplinkDescription',
   },
   {
     value: 'web',
-    label: '使用网页版',
-    description: '无需安装 App，只能打开到对应章节。',
+    labelKey: 'settings.weread.webLabel',
+    descriptionKey: 'settings.weread.webDescription',
   },
 ];
 
-function settingsSaveErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) return `保存失败：${error.message}`;
-  return '保存失败，请重试。';
+function settingsSaveErrorMessage(error: unknown, t: ReturnType<typeof useTranslation>['t']) {
+  if (error instanceof Error && error.message) {
+    return t('settings.weread.saveFailedWithMessage', { message: error.message });
+  }
+  return t('settings.weread.saveFailed');
 }
 
-function wereadErrorMessage(error: unknown) {
-  return error instanceof Error && error.message ? error.message : '微信读书连接测试失败';
+function wereadErrorMessage(error: unknown, t: ReturnType<typeof useTranslation>['t']) {
+  return error instanceof Error && error.message
+    ? wereadResultMessage(error.message, t)
+    : t('settings.weread.testFailedFallback');
+}
+
+function wereadResultMessage(message: string, t: ReturnType<typeof useTranslation>['t']) {
+  if (message === 'WEREAD_API_KEY_REQUIRED') return t('settings.weread.apiKeyRequired');
+  if (message === 'WEREAD_CONNECTION_FAILED') return t('settings.weread.testFailedFallback');
+  return message || t('settings.weread.testFailedFallback');
 }

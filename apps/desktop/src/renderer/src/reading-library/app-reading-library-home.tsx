@@ -19,6 +19,7 @@ import type {
   WeReadBook,
   WeReadSettings,
 } from '@yomitomo/shared';
+import { useTranslation } from 'react-i18next';
 import { Input } from '../components/ui/input';
 import {
   Select,
@@ -104,6 +105,7 @@ export function LibraryHome({
   wereadSettings: WeReadSettings;
   wereadSyncing: boolean;
 }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [pageTransitionDirection, setPageTransitionDirection] =
     useState<LibrarySourceTransitionDirection>('none');
@@ -169,66 +171,57 @@ export function LibraryHome({
     setPageSize(normalizeLibraryPageSize(settings.libraryPageSize));
   }, [settings.libraryPageSize]);
 
-  const activeSourceLabel =
-    activeSource === 'web'
-      ? '网页文章'
-      : activeSource === 'ebook'
-        ? '电子书'
-        : activeSource === 'pdf'
-          ? 'PDF'
-          : '微信读书';
-  const footerCountLabel =
-    activeSource === 'web'
-      ? `共 ${sourceArticles.length} 篇`
-      : activeSource === 'ebook'
-        ? `共 ${sourceArticles.length} 本`
-        : activeSource === 'pdf'
-          ? `共 ${sourceArticles.length} 份`
-          : `共 ${filteredWeReadBooks.length} 本`;
+  const activeSourceLabel = t(`library.sources.${activeSource}`);
+  const footerCountLabel = t(`library.total.${activeSource}`, {
+    count: activeSource === 'weread' ? filteredWeReadBooks.length : sourceArticles.length,
+  });
   const emptyReason = emptyLibraryReason({
     activeSource,
     itemsLength: activeSource === 'weread' ? wereadBooks.length : articles.length,
     filteredLength:
       activeSource === 'weread' ? filteredWeReadBooks.length : filteredArticles.length,
     searchQuery,
+    t,
   });
 
   return (
     <section className={`library-home is-${activeSource}`} aria-label={activeSourceLabel}>
       <header className="library-home-header">
         <div className="library-home-header-main">
-          <div className="library-source-tabs" role="tablist" aria-label="阅读库内容类型">
-            {sourceOptions.map((option) => (
-              <button
-                aria-pressed={activeSource === option.value}
-                aria-disabled={option.value === 'weread' && !wereadSettings.configured}
-                className={[
-                  activeSource === option.value ? 'is-active' : '',
-                  option.value === 'weread' && !wereadSettings.configured ? 'is-disabled' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                data-tooltip={
-                  option.value === 'weread' && !wereadSettings.configured
-                    ? '请先到设置 / 微信读书配置 API Key'
-                    : undefined
-                }
-                title={
-                  option.value === 'weread' && !wereadSettings.configured
-                    ? '请先到设置 / 微信读书配置 API Key'
-                    : undefined
-                }
-                key={option.value}
-                type="button"
-                onClick={() => {
-                  if (option.value === 'weread' && !wereadSettings.configured) return;
-                  onActiveSourceChange(option.value);
-                }}
-              >
-                <span>{option.label}</span>
-                <em>{counts[option.value]}</em>
-              </button>
-            ))}
+          <div
+            className="library-source-tabs"
+            role="tablist"
+            aria-label={t('library.sourceTabsLabel')}
+          >
+            {sourceOptions.map((option) => {
+              const disabledReason =
+                option.value === 'weread' && !wereadSettings.configured
+                  ? t('library.weReadSetupTooltip')
+                  : undefined;
+              return (
+                <button
+                  aria-pressed={activeSource === option.value}
+                  aria-disabled={option.value === 'weread' && !wereadSettings.configured}
+                  className={[
+                    activeSource === option.value ? 'is-active' : '',
+                    option.value === 'weread' && !wereadSettings.configured ? 'is-disabled' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  data-tooltip={disabledReason}
+                  title={disabledReason}
+                  key={option.value}
+                  type="button"
+                  onClick={() => {
+                    if (option.value === 'weread' && !wereadSettings.configured) return;
+                    onActiveSourceChange(option.value);
+                  }}
+                >
+                  <span>{t(`library.sources.${option.value}`)}</span>
+                  <em>{counts[option.value]}</em>
+                </button>
+              );
+            })}
           </div>
           <div className="library-home-actions">
             <label className="library-search">
@@ -236,8 +229,8 @@ export function LibraryHome({
               <Input
                 type="search"
                 value={searchQuery}
-                placeholder="搜索标题 / 来源 / 作者"
-                aria-label="搜索文章、作者或来源"
+                placeholder={t('library.searchPlaceholder')}
+                aria-label={t('library.searchLabel')}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
             </label>
@@ -259,7 +252,7 @@ export function LibraryHome({
                 onClick={onSyncWeRead}
               >
                 <RefreshCw size={15} />
-                {wereadSyncing ? '同步中' : '同步'}
+                {wereadSyncing ? t('library.syncing') : t('library.sync')}
               </button>
             ) : null}
             {activeSource === 'weread' && wereadOpenMessage ? (
@@ -268,8 +261,8 @@ export function LibraryHome({
           </div>
         </div>
       </header>
-      <div className="library-toolbar" aria-label="阅读库工具栏">
-        <span>最近添加 · 降序</span>
+      <div className="library-toolbar" aria-label={t('library.toolbarLabel')}>
+        <span>{t('library.toolbarSort')}</span>
       </div>
       <div className="library-home-body" data-source-transition={sourceTransitionDirection}>
         <div
@@ -279,8 +272,11 @@ export function LibraryHome({
         >
           <div className="library-page-panel" key={`${activeSource}-${page}`}>
             {activeSource === 'weread' && !wereadSettings.configured ? (
-              <LibraryEmptyState icon={<Smartphone size={32} />} title="需要配置微信读书">
-                请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。
+              <LibraryEmptyState
+                icon={<Smartphone size={32} />}
+                title={t('library.weReadSetupTitle')}
+              >
+                {t('library.weReadSetupDescription')}
               </LibraryEmptyState>
             ) : activeSource === 'weread' && filteredWeReadBooks.length > 0 ? (
               <div className="library-list library-ebook-list">
@@ -331,10 +327,10 @@ export function LibraryHome({
         >
           <span>{footerCountLabel}</span>
           {pageCount > 1 ? (
-            <div className="library-pagination" aria-label="阅读库分页">
+            <div className="library-pagination" aria-label={t('library.pagination.label')}>
               <button
                 type="button"
-                aria-label="上一页"
+                aria-label={t('library.pagination.previous')}
                 disabled={page === 1}
                 onClick={() => changePage(Math.max(1, page - 1))}
               >
@@ -353,7 +349,7 @@ export function LibraryHome({
               ))}
               <button
                 type="button"
-                aria-label="下一页"
+                aria-label={t('library.pagination.next')}
                 disabled={page === pageCount}
                 onClick={() => changePage(Math.min(pageCount, page + 1))}
               >
@@ -373,14 +369,17 @@ export function LibraryHome({
               ).catch(() => setPageSize(normalizeLibraryPageSize(settings.libraryPageSize)));
             }}
           >
-            <SelectTrigger className="library-page-size-trigger" aria-label="每页显示数量">
+            <SelectTrigger
+              className="library-page-size-trigger"
+              aria-label={t('library.pagination.pageSize')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="theme-select-content">
               <SelectGroup>
                 {LIBRARY_PAGE_SIZE_OPTIONS.map((option) => (
                   <SelectItem value={String(option)} key={option}>
-                    每页 {option} 项
+                    {t('library.pagination.pageSizeOption', { count: option })}
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -418,6 +417,7 @@ function WebArticleListItem({
   onDelete: () => void;
   onOpen: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const counts = articleCounts(article);
   const host = webArticleHost(article);
   const title = articleDisplayTitle(article);
@@ -427,7 +427,7 @@ function WebArticleListItem({
       className="library-list-item library-web-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开文章：${title}`}
+      aria-label={t('library.actions.openArticle', { title })}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -442,7 +442,9 @@ function WebArticleListItem({
         <h3 title={title}>{title}</h3>
       </div>
       <div className="library-web-item-meta">
-        <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
+        <time dateTime={article.createdAt}>
+          {formatLibraryShortDate(article.createdAt, i18n.language)}
+        </time>
         <ArticleCountStats counts={counts} />
       </div>
       <LibraryItemActions title={title} onDelete={onDelete} />
@@ -459,8 +461,9 @@ function LibraryDocumentListItem({
   onDelete: () => void;
   onOpen: () => void;
 }) {
+  const { t, i18n } = useTranslation();
   const counts = articleCounts(article);
-  const sourceLabel = libraryDocumentSourceLabel(article);
+  const sourceLabel = libraryDocumentSourceLabel(article, t('library.fallback.ebook'));
   const title = articleDisplayTitle(article);
 
   return (
@@ -468,7 +471,10 @@ function LibraryDocumentListItem({
       className="library-list-item library-ebook-list-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开${article.sourceType === 'pdf' ? 'PDF' : '电子书'}：${title}`}
+      aria-label={t('library.actions.openDocument', {
+        title,
+        type: article.sourceType === 'pdf' ? 'PDF' : t('library.fallback.ebook'),
+      })}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -493,7 +499,9 @@ function LibraryDocumentListItem({
           <h3 title={title}>{title}</h3>
         </div>
         <div className="library-ebook-list-meta">
-          <time dateTime={article.createdAt}>{formatLibraryShortDate(article.createdAt)}</time>
+          <time dateTime={article.createdAt}>
+            {formatLibraryShortDate(article.createdAt, i18n.language)}
+          </time>
           <ArticleCountStats counts={counts} />
         </div>
       </div>
@@ -511,13 +519,14 @@ function WeReadBookListItem({
   onOpen: () => void;
   onOpenExternal: () => void;
 }) {
-  const lastReadAt = formatWeReadLastReadDate(book.lastReadAt);
+  const { t, i18n } = useTranslation();
+  const lastReadAt = formatWeReadLastReadDate(book.lastReadAt, i18n.language);
   return (
     <article
       className="library-list-item library-ebook-list-item"
       role="button"
       tabIndex={0}
-      aria-label={`打开微信读书笔记：${book.title}`}
+      aria-label={t('library.actions.openWeRead', { title: book.title })}
       onClick={onOpen}
       onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
     >
@@ -527,7 +536,7 @@ function WeReadBookListItem({
       </div>
       <div className="library-ebook-list-copy">
         <div className="library-ebook-list-source">
-          <span>{book.author || '微信读书'}</span>
+          <span>{book.author || t('library.fallback.weread')}</span>
         </div>
         <div className="library-ebook-list-main">
           <h3 title={book.title}>{book.title}</h3>
@@ -542,14 +551,14 @@ function WeReadBookListItem({
   );
 }
 
-function formatWeReadLastReadDate(value: number | undefined) {
+function formatWeReadLastReadDate(value: number | undefined, locale: string) {
   if (!value) return null;
   const timestamp = value < 1_000_000_000_000 ? value * 1000 : value;
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return null;
   return {
     dateTime: date.toISOString(),
-    label: formatLibraryShortDate(date.toISOString()),
+    label: formatLibraryShortDate(date.toISOString(), locale),
   };
 }
 
@@ -581,6 +590,7 @@ function WeReadItemActions({
   title: string;
   onOpenExternal: () => void;
 }) {
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   return (
     <div
@@ -596,7 +606,7 @@ function WeReadItemActions({
         <button
           className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
           type="button"
-          aria-label={`更多操作：${title}`}
+          aria-label={t('library.actions.more', { title })}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           onClick={() => setMenuOpen((current) => !current)}
@@ -614,7 +624,7 @@ function WeReadItemActions({
               }}
             >
               <Smartphone size={14} />
-              <span>打开微信读书</span>
+              <span>{t('library.actions.openWeReadExternal')}</span>
             </button>
           </div>
         ) : null}
@@ -623,13 +633,14 @@ function WeReadItemActions({
   );
 }
 
-function libraryDocumentSourceLabel(article: ArticleSummaryRecord) {
+function libraryDocumentSourceLabel(article: ArticleSummaryRecord, ebookFallback: string) {
   if (article.sourceType === 'pdf')
     return formatPdfAuthors(article.pdf?.metadata.author || '', { maxAuthors: 3, maxLength: 42 });
-  return article.byline || article.ebook?.metadata.fileName || '电子书';
+  return article.byline || article.ebook?.metadata.fileName || ebookFallback;
 }
 
 function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () => void }) {
+  const { t } = useTranslation();
   const [deleteHolding, setDeleteHolding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const deleteTimerRef = useRef<number | null>(null);
@@ -673,7 +684,7 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
         <button
           className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
           type="button"
-          aria-label={`更多操作：${title}`}
+          aria-label={t('library.actions.more', { title })}
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           onClick={() => setMenuOpen((current) => !current)}
@@ -687,7 +698,7 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
               style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
               type="button"
               role="menuitem"
-              aria-label={`长按删除：${title}`}
+              aria-label={t('library.actions.deleteHold', { title })}
               onClick={(event) => event.preventDefault()}
               onContextMenu={(event) => event.preventDefault()}
               onPointerCancel={stopDeleteHold}
@@ -696,7 +707,7 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
               onPointerUp={stopDeleteHold}
             >
               <Trash2 size={14} />
-              <span>长按删除</span>
+              <span>{t('library.actions.deleteHoldLabel')}</span>
             </button>
           </div>
         ) : null}
@@ -731,8 +742,9 @@ function ArticleCountStats({
     distillations: number;
   };
 }) {
+  const { t } = useTranslation();
   if (counts.annotations === 0 && counts.distillations === 0) return null;
-  const label = libraryCountStatsLabel(counts);
+  const label = libraryCountStatsLabel(counts, t);
 
   return (
     <span className="library-count-stats" aria-label={label} data-tooltip={label}>
@@ -751,8 +763,14 @@ function ArticleCountStats({
   );
 }
 
-function libraryCountStatsLabel(counts: { annotations: number; distillations: number }) {
-  return `${counts.annotations} 条划线 · ${counts.distillations} 条沉淀`;
+function libraryCountStatsLabel(
+  counts: { annotations: number; distillations: number },
+  t: ReturnType<typeof useTranslation>['t'],
+) {
+  return t('library.stats.label', {
+    annotations: counts.annotations,
+    distillations: counts.distillations,
+  });
 }
 
 function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: () => void) {
@@ -770,11 +788,12 @@ function articleCounts(article: ArticleSummaryRecord) {
 }
 
 function LibraryCoverProgress({ progress }: { progress: number }) {
+  const { t } = useTranslation();
   return (
     <span
       className="library-cover-progress library-ebook-progress"
       style={coverProgressStyle(progress)}
-      aria-label="阅读进度"
+      aria-label={t('library.actions.progress')}
     />
   );
 }
@@ -783,10 +802,10 @@ function webArticleHost(article: ArticleSummaryRecord) {
   return urlHost(article.canonicalUrl || article.url).replace(/^www\./, '') || 'web';
 }
 
-function formatLibraryShortDate(value: string) {
+function formatLibraryShortDate(value: string, locale: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(locale, {
     month: '2-digit',
     day: '2-digit',
   }).format(date);
@@ -810,55 +829,57 @@ function emptyLibraryReason({
   itemsLength,
   filteredLength,
   searchQuery,
+  t,
 }: {
   activeSource: LibrarySource;
   itemsLength: number;
   filteredLength: number;
   searchQuery: string;
+  t: ReturnType<typeof useTranslation>['t'];
 }) {
   if (itemsLength === 0) {
     return {
-      description: '从右上角加号添加网页文章或导入 EPUB 电子书，阅读库会按类型分开呈现。',
+      description: t('library.empty.libraryDescription'),
       icon: <BookOpen size={32} />,
-      title: '阅读库还没有内容',
+      title: t('library.empty.libraryTitle'),
     };
   }
 
   if (filteredLength === 0 || searchQuery.trim()) {
     return {
-      description: '调整搜索词后继续浏览。',
+      description: t('library.empty.noMatchDescription'),
       icon: <Search size={32} />,
-      title: '暂无匹配内容',
+      title: t('library.empty.noMatchTitle'),
     };
   }
 
   if (activeSource === 'web') {
     return {
-      description: '点击加号添加网页文章，这一版面会以域名、标题、日期、划线和沉淀展示。',
+      description: t('library.empty.webDescription'),
       icon: <FileText size={32} />,
-      title: '暂无网页文章',
+      title: t('library.empty.webTitle'),
     };
   }
 
   if (activeSource === 'pdf') {
     return {
-      description: '点击加号导入 PDF 文件，文档会保留页数和基础信息。',
+      description: t('library.empty.pdfDescription'),
       icon: <FileText size={32} />,
-      title: '暂无 PDF',
+      title: t('library.empty.pdfTitle'),
     };
   }
 
   if (activeSource === 'weread') {
     return {
-      description: '点击同步拉取微信读书中已有笔记的书籍，列表会展示封面、阅读进度、划线和沉淀。',
+      description: t('library.empty.wereadDescription'),
       icon: <Smartphone size={32} />,
-      title: '暂无微信读书笔记',
+      title: t('library.empty.wereadTitle'),
     };
   }
 
   return {
-    description: '点击加号导入 EPUB 文件，电子书会保留封面并显示阅读进度。',
+    description: t('library.empty.ebookDescription'),
     icon: <BookText size={32} />,
-    title: '暂无电子书',
+    title: t('library.empty.ebookTitle'),
   };
 }

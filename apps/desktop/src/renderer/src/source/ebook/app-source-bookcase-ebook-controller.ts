@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
+import i18next from 'i18next';
 import type { AgentReadingPlanItem, Annotation, PublicAgent } from '@yomitomo/shared';
 import type { SourceAgentAnnotationPlaybackMode } from '../bookcase/app-source-agent-request';
 import { promptArticle } from '../bookcase/app-source-bookcase-shared';
@@ -83,8 +84,11 @@ export function createEbookSourceReaderController({
     agent: PublicAgent,
     targetAnchor: Annotation['anchor'] | undefined,
   ) {
-    if (targetAnchor) finishVirtualReading(agent.id, '没有新想法');
-    setStatusMessage(`${agent.nickname} 暂无新想法`);
+    const message = i18next.t('source.agentStatus.noNewThought');
+    if (targetAnchor) finishVirtualReading(agent.id, message);
+    setStatusMessage(
+      i18next.t('source.agentStatus.noNewThoughtWithName', { name: agent.nickname }),
+    );
     window.setTimeout(() => setStatusMessage(''), 1400);
   }
 
@@ -101,11 +105,13 @@ export function createEbookSourceReaderController({
     options: { requestFailed: boolean; visibleArticle: boolean },
   ) {
     if (options.requestFailed && targetAnchor && isCurrentArticle(articleId)) {
-      finishVirtualReading(agent.id, '想法添加失败');
+      finishVirtualReading(agent.id, i18next.t('source.agentStatus.addThoughtFailed'));
     }
     if (options.requestFailed && options.visibleArticle) finishAgentDock(agent.id, false);
     setAgentAnnotating(agent.id, false);
-    setStatusMessage((message) => (message.includes('暂无新想法') ? message : ''));
+    setStatusMessage((message) =>
+      message.includes(i18next.t('source.agentStatus.noNewThought')) ? message : '',
+    );
   }
 
   return {

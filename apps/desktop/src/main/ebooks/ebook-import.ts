@@ -87,8 +87,8 @@ export async function articleRecordFromEpubFile(
   const importStartedAt = performanceStart();
   const fileName = input.fileName.trim() || 'Untitled.epub';
   const fileSize = input.data.byteLength;
-  if (!isEpubFile(fileName, input.mimeType)) throw new Error('请选择 EPUB 文件');
-  if (fileSize > MAX_EPUB_BYTES) throw new Error('EPUB 文件不能超过 80MB');
+  if (!isEpubFile(fileName, input.mimeType)) throw new Error('EBOOK_IMPORT_INVALID_FILE');
+  if (fileSize > MAX_EPUB_BYTES) throw new Error('EBOOK_IMPORT_FILE_TOO_LARGE');
 
   const zipStartedAt = performanceStart();
   const zip = await JSZip.loadAsync(Buffer.from(input.data));
@@ -146,7 +146,7 @@ export async function articleRecordFromEpubFile(
     ),
     textChars: importedChapters.reduce((count, chapter) => count + chapter.textLength, 0),
   });
-  if (importedChapters.length === 0) throw new Error('EPUB 中没有可读取章节');
+  if (importedChapters.length === 0) throw new Error('EBOOK_IMPORT_NO_READABLE_CHAPTERS');
 
   const coverStartedAt = performanceStart();
   const cover = await readCoverImage(zip, epub);
@@ -201,7 +201,7 @@ export async function articleRecordFromEpubFile(
     title: epub.title || fileTitle(fileName),
     byline: epub.creator,
     excerpt: epub.description,
-    siteName: '电子书',
+    siteName: 'EPUB',
     leadImageUrl: cover,
     contentHtml,
     contentHash,
@@ -244,16 +244,16 @@ function logEpubImportTiming(
 
 async function readEpubPackage(zip: JSZip): Promise<EpubPackage> {
   const containerText = await zipText(zip, 'META-INF/container.xml');
-  if (!containerText) throw new Error('EPUB 缺少 container.xml');
+  if (!containerText) throw new Error('EBOOK_IMPORT_MISSING_CONTAINER');
 
   const rootfilePath = readXml(containerText, (document) => {
     const rootfile = elementsByLocalName(document, 'rootfile')[0];
     return normalizeZipPath(rootfile?.getAttribute('full-path') || '');
   });
-  if (!rootfilePath) throw new Error('EPUB 缺少 OPF 包描述');
+  if (!rootfilePath) throw new Error('EBOOK_IMPORT_MISSING_OPF');
 
   const opfText = await zipText(zip, rootfilePath);
-  if (!opfText) throw new Error('无法读取 EPUB 包描述');
+  if (!opfText) throw new Error('EBOOK_IMPORT_OPF_UNREADABLE');
 
   return readXml(opfText, (document) => {
     const opfDir = dirname(rootfilePath) === '.' ? '' : dirname(rootfilePath);

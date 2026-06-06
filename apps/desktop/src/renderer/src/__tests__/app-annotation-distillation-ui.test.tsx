@@ -2,13 +2,18 @@
 
 import React from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, Annotation, ArticleRecord } from '@yomitomo/shared';
 import { AnnotationDiscussionWindowApp } from '../annotation-discussion/app-annotation-discussion-window';
 import { AnnotationSedimentationWindowApp } from '../annotation-discussion/app-annotation-sedimentation-window';
 import { applyDistillationProposalToDraft } from '../annotation-discussion/app-annotation-sedimentation-proposals';
+import { initializeAppI18n } from '../i18n/app-i18n';
 
 const now = '2026-05-31T06:00:00.000Z';
+
+beforeEach(() => {
+  initializeAppI18n('zh-CN');
+});
 
 afterEach(() => {
   cleanup();

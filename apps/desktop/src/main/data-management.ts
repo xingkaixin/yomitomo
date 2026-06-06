@@ -58,7 +58,7 @@ export async function openDataManagementPath(kind: DataManagementPathKind) {
   }
 
   if (kind !== 'logFile' && kind !== 'databaseFile') {
-    throw new Error('未知的数据路径');
+    throw new Error('DATA_MANAGEMENT_UNKNOWN_PATH');
   }
 
   const file = kind === 'logFile' ? paths.logFile : paths.databaseFile;
@@ -97,15 +97,15 @@ function validateDatabaseBackupFile(filePath: string) {
   try {
     database = new SQLiteDatabase(filePath, { readonly: true, fileMustExist: true });
   } catch (error) {
-    throw new Error('请选择有效的 SQLite 数据库文件', { cause: error });
+    throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
   }
 
   try {
     const integrity = checkDatabaseIntegrity(database);
-    if (integrity !== 'ok') throw new Error('数据库完整性检查失败');
+    if (integrity !== 'ok') throw new Error('DATA_MANAGEMENT_DATABASE_INTEGRITY_FAILED');
 
     const migrationIds = readAppliedDatabaseMigrationIds(database);
-    if (!migrationIds) throw new Error('这不是 Yomitomo 数据库备份文件');
+    if (!migrationIds) throw new Error('DATA_MANAGEMENT_NOT_YOMITOMO_BACKUP');
 
     assertDatabaseReaderCompatible(migrationIds, readDatabaseReaderLevelIfPresent(database));
   } finally {
@@ -117,15 +117,15 @@ function checkDatabaseIntegrity(database: SQLiteDatabase.Database) {
   try {
     return database.pragma('integrity_check', { simple: true });
   } catch (error) {
-    throw new Error('请选择有效的 SQLite 数据库文件', { cause: error });
+    throw new Error('DATA_MANAGEMENT_INVALID_SQLITE_DATABASE', { cause: error });
   }
 }
 
 function showSaveDatabaseDialog(parentWindow: BrowserWindow | null) {
   const options: SaveDialogOptions = {
-    title: '备份 Yomitomo 数据库',
+    title: 'Back up Yomitomo database',
     defaultPath: join(app.getPath('documents'), `yomitomo-backup-${backupTimestamp()}.sqlite`),
-    filters: [{ name: 'SQLite 数据库', extensions: ['sqlite', 'db'] }],
+    filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }],
   };
   return parentWindow
     ? dialog.showSaveDialog(parentWindow, options)
@@ -134,10 +134,10 @@ function showSaveDatabaseDialog(parentWindow: BrowserWindow | null) {
 
 function showOpenDatabaseDialog(parentWindow: BrowserWindow | null) {
   const options: OpenDialogOptions = {
-    title: '还原 Yomitomo 数据库',
+    title: 'Restore Yomitomo database',
     defaultPath: dirname(getDatabasePath()),
     properties: ['openFile'],
-    filters: [{ name: 'SQLite 数据库', extensions: ['sqlite', 'db'] }],
+    filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }],
   };
   return parentWindow
     ? dialog.showOpenDialog(parentWindow, options)
