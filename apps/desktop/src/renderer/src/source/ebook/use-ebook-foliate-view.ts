@@ -9,6 +9,7 @@ import {
   flattenFoliateToc,
   recordEbookPageTurnTrace,
   updateKnownSectionPageCount,
+  waitForAnimationFrame,
   waitForFoliateIdle,
   waitForFoliatePageInfo,
   type EbookBoxUpdateReason,
@@ -325,19 +326,39 @@ export function useEbookFoliateView({
   useLayoutEffect(() => {
     const host = viewHostRef.current;
     if (!host) return;
+    let resizeTimer = 0;
 
-    const updateLayoutKey = (reason: EbookBoxUpdateReason) => {
+    const updateLayoutKey = (reason: EbookBoxUpdateReason, scheduleBoxUpdate = true) => {
       const rect = host.getBoundingClientRect();
       const nextLayoutKey = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
       paginationLayoutKeyRef.current = nextLayoutKey;
       setPaginationLayoutKey(nextLayoutKey);
+      if (!scheduleBoxUpdate) return;
       onScheduleEbookBoxUpdate(reason);
     };
 
     updateLayoutKey('layout_measure');
-    const observer = new ResizeObserver(() => updateLayoutKey('resize_observer'));
+    const scheduleResizeBoxUpdate = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        void (async () => {
+          await waitForFoliateIdle();
+          await waitForAnimationFrame();
+          await waitForAnimationFrame();
+          updateLayoutKey('resize_observer');
+        })();
+      }, 80);
+    };
+
+    const observer = new ResizeObserver(() => {
+      updateLayoutKey('resize_observer', false);
+      scheduleResizeBoxUpdate();
+    });
     observer.observe(host);
-    return () => observer.disconnect();
+    return () => {
+      window.clearTimeout(resizeTimer);
+      observer.disconnect();
+    };
   }, [article.id, onScheduleEbookBoxUpdate]);
 
   useEffect(() => {

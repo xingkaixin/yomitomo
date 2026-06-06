@@ -12,6 +12,7 @@ export function usePdfiumPageMetrics({
   const pageMetricsRef = useRef<Record<number, PageMetric>>({});
   const [pageMetrics, setPageMetrics] = useState<Record<number, PageMetric>>({});
   const [annotationRailViewportHeight, setAnnotationRailViewportHeight] = useState(0);
+  const [annotationRailViewportWidth, setAnnotationRailViewportWidth] = useState(0);
 
   const updatePageMetrics = useCallback(() => {
     const canvas = canvasRef.current;
@@ -21,8 +22,12 @@ export function usePdfiumPageMetrics({
       .querySelector<HTMLElement>('.pdfium-spike-viewport')
       ?.getBoundingClientRect();
     const nextViewportHeight = Math.max(0, viewportRect?.height ?? canvasRect.height);
+    const nextViewportWidth = Math.max(0, canvasRect.width);
     setAnnotationRailViewportHeight((current) =>
       Math.abs(current - nextViewportHeight) < 0.5 ? current : nextViewportHeight,
+    );
+    setAnnotationRailViewportWidth((current) =>
+      Math.abs(current - nextViewportWidth) < 0.5 ? current : nextViewportWidth,
     );
     const nextMetrics: Record<number, PageMetric> = {};
     for (const page of canvas.querySelectorAll<HTMLElement>('[data-pdfium-page-index]')) {
@@ -68,6 +73,7 @@ export function usePdfiumPageMetrics({
 
     const viewport = canvas.querySelector<HTMLElement>('.pdfium-spike-viewport');
     viewport?.addEventListener('scroll', schedulePageMetricsUpdate, { passive: true });
+    window.addEventListener('resize', schedulePageMetricsUpdate);
 
     const mutationObserver =
       typeof MutationObserver === 'undefined'
@@ -86,6 +92,7 @@ export function usePdfiumPageMetrics({
         pageMetricsFrameRef.current = 0;
       }
       viewport?.removeEventListener('scroll', schedulePageMetricsUpdate);
+      window.removeEventListener('resize', schedulePageMetricsUpdate);
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();
     };
@@ -102,6 +109,7 @@ export function usePdfiumPageMetrics({
 
   return {
     annotationRailViewportHeight,
+    annotationRailViewportWidth,
     pageMetrics,
     pageMetricsRef,
     schedulePageMetricsUpdate,

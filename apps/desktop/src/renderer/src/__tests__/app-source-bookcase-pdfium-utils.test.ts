@@ -50,11 +50,64 @@ describe('app-source-bookcase-pdfium-utils', () => {
     };
 
     expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640)).toMatchObject({
-      articleCenterX: 520,
-      leftRailLeft: 40,
+      articleCenterX: 500,
+      leftRailLeft: 0,
       mode: 'both',
-      railWidth: 260,
-      rightRailLeft: 740,
+      railWidth: 280,
+      rightRailLeft: 720,
+      viewportHeight: 640,
+    });
+  });
+
+  it('left-aligns PDF pages when only a right annotation rail fits', () => {
+    const canvas = {
+      getBoundingClientRect: () => ({ width: 760 }),
+    } as HTMLDivElement;
+    const pageMetrics = {
+      0: {
+        left: 180,
+        top: 10,
+        width: 500,
+        height: 700,
+        clipLeft: 0,
+        clipTop: 0,
+        clipRight: 760,
+        clipBottom: 720,
+      },
+    };
+
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640)).toMatchObject({
+      articleCenterX: 250,
+      leftRailLeft: 0,
+      mode: 'right',
+      railWidth: 240,
+      rightRailLeft: 520,
+      viewportHeight: 640,
+    });
+  });
+
+  it('uses stable layout page width when deciding PDF rail mode', () => {
+    const canvas = {
+      getBoundingClientRect: () => ({ width: 1000 }),
+    } as HTMLDivElement;
+    const pageMetrics = {
+      0: {
+        left: 0,
+        top: 10,
+        width: 760,
+        height: 700,
+        clipLeft: 0,
+        clipTop: 0,
+        clipRight: 1000,
+        clipBottom: 720,
+      },
+    };
+
+    expect(pdfiumAnnotationRailLayout(pageMetrics, canvas, 640, 1000, 500)).toMatchObject({
+      articleCenterX: 500,
+      mode: 'both',
+      railWidth: 230,
+      rightRailLeft: 770,
       viewportHeight: 640,
     });
   });
@@ -186,12 +239,16 @@ describe('app-source-bookcase-pdfium-utils', () => {
     ];
 
     expect(pdfiumAnnotationNavigationState(annotations, 'middle', 1)).toEqual({
+      currentIndex: 2,
       previousId: 'first',
       nextId: 'late',
+      totalCount: 3,
     });
     expect(pdfiumAnnotationNavigationState(annotations, null, 2)).toEqual({
+      currentIndex: 2,
       previousId: 'first',
       nextId: 'middle',
+      totalCount: 3,
     });
   });
 

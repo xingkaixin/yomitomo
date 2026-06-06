@@ -19,7 +19,7 @@ import { BookmarkPluginPackage } from '@embedpdf/plugin-bookmark/react';
 import { SelectionLayer, SelectionPluginPackage } from '@embedpdf/plugin-selection/react';
 import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
 import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
-import { LoaderCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LoaderCircle, ZoomIn } from 'lucide-react';
 import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
@@ -39,6 +39,8 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
+import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
+import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import {
   readerConversationStyles,
@@ -63,13 +65,14 @@ import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import {
   pdfiumAnnotationBoxes,
   pdfiumAnnotationIsVisible,
+  pdfiumAnnotationNavigationState,
   pdfiumAnnotationTheaterBoxes,
   pdfiumVisibleAnnotations,
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
+  pdfPageProgressPercent,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
-  type PdfAnnotationNavigationState,
   type PdfTextDocument,
 } from './app-source-bookcase-pdfium-utils';
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
@@ -81,10 +84,7 @@ import {
   recordPdfOpenTimingOnce,
   type PdfOpenTrace,
 } from './app-source-bookcase-pdfium-open-trace';
-import {
-  PdfiumBookcaseToolbar,
-  PdfiumDocumentFloatingToolbar,
-} from './app-source-bookcase-pdfium-shell';
+import { PdfiumBookcaseToolbar } from './app-source-bookcase-pdfium-shell';
 import { usePdfiumPageMetrics } from './app-source-bookcase-pdfium-page-metrics';
 import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-reading';
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
@@ -95,6 +95,28 @@ type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']>
 type PdfiumLoadedDocument = NonNullable<
   NonNullable<ReturnType<typeof useDocumentState>>['document']
 >;
+
+function firstVisiblePdfPageWidth(pageMetrics: Record<number, { top: number; width: number }>) {
+  const firstPage = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
+  const width = firstPage?.width ?? 0;
+  return Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
+}
+
+function pdfLayoutDebugEnabled() {
+  try {
+    return (
+      (window as unknown as { yomitomoPdfLayoutDebug?: boolean }).yomitomoPdfLayoutDebug === true ||
+      window.localStorage.getItem('yomitomo:pdf-layout-debug') === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function debugPdfLayout(event: string, details: Record<string, unknown>) {
+  if (!pdfLayoutDebugEnabled()) return;
+  console.info(`[yomitomo:pdf-layout] ${event}`, details);
+}
 
 export function PdfiumBookcase({
   agents,
@@ -120,11 +142,6 @@ export function PdfiumBookcase({
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
   const [loadError, setLoadError] = useState('');
-  const [annotationNavigation, setAnnotationNavigation] = useState<PdfAnnotationNavigationState>({
-    previousId: null,
-    nextId: null,
-  });
-  const navigateAnnotationRef = useRef<(annotationId: string) => void>(() => undefined);
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
   if (!openTraceRef.current || openTraceRef.current.articleId !== article.id) {
@@ -234,13 +251,8 @@ export function PdfiumBookcase({
     <section className="source-bookcase source-pdf-reader-shell source-pdfium-spike-shell">
       <PdfiumBookcaseToolbar
         author={article.pdf.metadata.author}
-        navigation={annotationNavigation}
         title={article.pdf.metadata.title || article.title}
-        tocCount={tocItems.length}
-        tocOpen={tocOpen}
         onClose={onClose}
-        onNavigateAnnotation={(annotationId) => navigateAnnotationRef.current(annotationId)}
-        onToggleToc={() => setTocOpen((open) => !open)}
       />
       <div className="pdf-reader-main pdfium-spike-main">
         {status ? (
@@ -281,10 +293,6 @@ export function PdfiumBookcase({
                         onCloseToc={() => setTocOpen(false)}
                         onDeleteArticleAnnotation={onDeleteArticleAnnotation}
                         onDeleteArticleComment={onDeleteArticleComment}
-                        onSetAnnotationNavigation={setAnnotationNavigation}
-                        onSetAnnotationNavigator={(navigator) => {
-                          navigateAnnotationRef.current = navigator;
-                        }}
                         onFocusedAnnotation={onFocusedAnnotation}
                         onSetTocItems={setTocItems}
                         onToggleToc={() => setTocOpen((open) => !open)}
@@ -340,8 +348,6 @@ function PdfiumDocument({
   onSaveArticle,
   onSaveArticleReadingProgress,
   onSetTocItems,
-  onSetAnnotationNavigation,
-  onSetAnnotationNavigator,
   onFocusedAnnotation,
   onToggleToc,
   onUpdateArticle,
@@ -370,8 +376,6 @@ function PdfiumDocument({
   onSaveArticle: SourceBookcaseProps['onSaveArticle'];
   onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
   onSetTocItems: (items: TocItem[]) => void;
-  onSetAnnotationNavigation: React.Dispatch<React.SetStateAction<PdfAnnotationNavigationState>>;
-  onSetAnnotationNavigator: (navigator: (annotationId: string) => void) => void;
   onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
   onToggleToc: () => void;
   onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
@@ -389,8 +393,11 @@ function PdfiumDocument({
   const [statusMessage, setStatusMessage] = useState('');
   const [readerSettings, updatePdfReaderSettings] = useDesktopReaderSettings();
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
+  const [layoutPageWidth, setLayoutPageWidth] = useState(0);
+  const resetLayoutPageWidthOnNextMetricsRef = useRef(true);
   const {
     annotationRailViewportHeight,
+    annotationRailViewportWidth,
     pageMetrics,
     pageMetricsRef,
     schedulePageMetricsUpdate,
@@ -528,10 +535,60 @@ function PdfiumDocument({
     () => pdfiumVisibleAnnotations(annotations, boxes),
     [annotations, boxes],
   );
+  useEffect(() => {
+    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
+    if (!pageWidth) return;
+    const shouldReset = resetLayoutPageWidthOnNextMetricsRef.current;
+    if (shouldReset) resetLayoutPageWidthOnNextMetricsRef.current = false;
+    setLayoutPageWidth((current) => {
+      const nextWidth = shouldReset || current <= 0 ? pageWidth : Math.min(current, pageWidth);
+      return current === nextWidth ? current : nextWidth;
+    });
+  }, [pageMetrics]);
   const annotationRailLayout = useMemo(
-    () => pdfiumAnnotationRailLayout(pageMetrics, canvasRef.current, annotationRailViewportHeight),
-    [annotationRailViewportHeight, pageMetrics],
+    () =>
+      pdfiumAnnotationRailLayout(
+        pageMetrics,
+        canvasRef.current,
+        annotationRailViewportHeight,
+        annotationRailViewportWidth,
+        layoutPageWidth || undefined,
+      ),
+    [annotationRailViewportHeight, annotationRailViewportWidth, layoutPageWidth, pageMetrics],
   );
+  useEffect(() => {
+    if (!annotationRailLayout) return;
+    schedulePageMetricsUpdate();
+  }, [annotationRailLayout?.mode, schedulePageMetricsUpdate]);
+  useEffect(() => {
+    debugPdfLayout('debug-enabled', {
+      articleId: article.id,
+    });
+  }, [article.id]);
+  useEffect(() => {
+    if (!annotationRailLayout || !pdfLayoutDebugEnabled()) return;
+    const pageWidth = firstVisiblePdfPageWidth(pageMetrics);
+    const noteWidths = Array.from(noteRefs.current.values())
+      .slice(0, 4)
+      .map((note) => Math.round(note.getBoundingClientRect().width));
+    debugPdfLayout('layout', {
+      layoutPageWidth,
+      mode: annotationRailLayout.mode,
+      noteWidths,
+      pageWidth,
+      railWidth: annotationRailLayout.railWidth,
+      rightRailLeft: annotationRailLayout.rightRailLeft,
+      viewportWidth: annotationRailViewportWidth,
+      zoom,
+    });
+  }, [
+    annotationRailLayout,
+    annotationRailViewportWidth,
+    layoutPageWidth,
+    noteRefs,
+    pageMetrics,
+    zoom,
+  ]);
   const annotationTotals = useMemo(
     () => ({
       annotations: annotations.length,
@@ -551,17 +608,13 @@ function PdfiumDocument({
   });
   const { scrollToAnnotation, scrollToTocItem } = usePdfiumNavigation({
     annotations,
-    currentPage,
     documentId,
     focusAnnotationId,
     pageCount,
     scroll,
-    selectedAnnotationId,
     onCloseToc,
     onFocusedAnnotation,
     onOpenAnnotation,
-    onSetAnnotationNavigation,
-    onSetAnnotationNavigator,
     onSetTocItems,
   });
 
@@ -608,6 +661,7 @@ function PdfiumDocument({
 
   useEffect(() => {
     if (!documentState?.scale) return;
+    resetLayoutPageWidthOnNextMetricsRef.current = true;
     schedulePageMetricsUpdate();
   }, [documentState?.scale, schedulePageMetricsUpdate]);
 
@@ -702,7 +756,11 @@ function PdfiumDocument({
   }
 
   function handleAnnotationLayoutChange() {
-    schedulePageMetricsUpdate();
+    debugPdfLayout('annotation-layout-change', {
+      mode: annotationRailLayout?.mode,
+      railWidth: annotationRailLayout?.railWidth,
+      zoom,
+    });
     recalculateActiveConnection();
   }
 
@@ -885,16 +943,6 @@ function PdfiumDocument({
       onKeyDown={handleKeyDown}
     >
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}`}</style>
-      <PdfiumDocumentFloatingToolbar
-        currentPage={currentPage}
-        pageCount={pageCount}
-        zoom={zoom}
-        onNextPage={() => scroll?.scrollToNextPage('smooth')}
-        onPageChange={jumpToPdfiumPage}
-        onPreviousPage={() => scroll?.scrollToPreviousPage('smooth')}
-        onZoomIn={() => zoomControls?.zoomIn()}
-        onZoomOut={() => zoomControls?.zoomOut()}
-      />
       <EmbedPdfSelectionBridge
         documentId={documentId}
         engine={engine}
@@ -923,8 +971,11 @@ function PdfiumDocument({
             onDeleteComment: deleteComment,
             onFocusAnnotation: onOpenAnnotation,
             onHighlightClick: handleHighlightClick,
+            onNavigateAnnotation: (annotationId) => scrollToAnnotation(annotationId),
             onOpenAnnotationDiscussion: (annotationId, sourceRect) =>
               void onOpenAnnotationDiscussion?.(article.id, annotationId, sourceRect),
+            onResolveAnnotationNavigation: () =>
+              pdfiumAnnotationNavigationState(annotations, selectedAnnotationId, currentPage),
             onScrollToHighlight: scrollToAnnotation,
           },
           selection: {
@@ -1036,6 +1087,64 @@ function PdfiumDocument({
           annotationStats: tocStats,
           items: tocItems,
           open: tocOpen,
+        }}
+        toolbar={{
+          controls: (
+            <>
+              <div className="reader-floating-control-group">
+                <ReaderTooltip content="上一页" side="bottom">
+                  <button
+                    aria-label="上一页"
+                    className="reader-icon-button"
+                    disabled={currentPage <= 1}
+                    type="button"
+                    onClick={() => scroll?.scrollToPreviousPage('smooth')}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                </ReaderTooltip>
+                <span className="reader-floating-value is-wide">
+                  {currentPage} / {pageCount}
+                </span>
+                <input
+                  aria-label="快速跳转 PDF 页码"
+                  className="ebook-progress-slider reader-floating-slider pdfium-page-slider"
+                  max={pageCount}
+                  min="1"
+                  step="1"
+                  style={
+                    {
+                      '--ebook-progress-percent': `${pdfPageProgressPercent(currentPage, pageCount)}%`,
+                    } as React.CSSProperties
+                  }
+                  type="range"
+                  value={currentPage}
+                  onChange={(event) => jumpToPdfiumPage(Number(event.currentTarget.value))}
+                />
+                <ReaderTooltip content="下一页" side="bottom">
+                  <button
+                    aria-label="下一页"
+                    className="reader-icon-button"
+                    disabled={currentPage >= pageCount}
+                    type="button"
+                    onClick={() => scroll?.scrollToNextPage('smooth')}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </ReaderTooltip>
+              </div>
+              <ReaderToolbarSliderPopover
+                icon={<ZoomIn size={16} />}
+                label="PDF 缩放"
+                max={200}
+                min={50}
+                step={5}
+                unit="%"
+                value={Math.round(zoom * 100)}
+                onChange={(value) => zoomControls?.requestZoom(value / 100)}
+              />
+            </>
+          ),
         }}
         userProfile={userProfile}
       />

@@ -24,6 +24,7 @@ import {
   ReaderAppView,
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
+import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
@@ -132,7 +133,7 @@ export function WebSourceBookcase({
     userProfile,
   });
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
 
   const {
@@ -593,15 +594,24 @@ export function WebSourceBookcase({
           messageSendShortcut: sendShortcut,
           readerSettings,
           selectionActionShortcuts: actionShortcuts,
-          settingsOpen,
+          settingsOpen: false,
           shortcutModifier,
+          showSettings: false,
         }}
         toc={{
           annotationStats: tocStats,
           items: tocItems,
           open: tocOpen,
         }}
-        toolbar={{ articleAction: <OpenArticleButton article={article} iconOnly /> }}
+        toolbar={{
+          articleAction: <OpenArticleButton article={article} iconOnly />,
+          controls: (
+            <ReaderSettingsToolbarControls
+              settings={readerSettings}
+              onChange={updateReaderSettings}
+            />
+          ),
+        }}
         userProfile={userProfile}
       />
     </section>

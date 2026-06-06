@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Annotation } from '@yomitomo/shared';
 import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
@@ -10,7 +11,9 @@ import {
 } from '@yomitomo/core';
 import { sleep } from '@yomitomo/reader-ui/reader-animation';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
+import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
+import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import {
   currentFoliateContent,
   ebookArticleText,
@@ -636,11 +639,6 @@ export function EbookBookcase({
   return (
     <EbookReaderShell
       measureHostRef={measureHostRef}
-      pageLabel={pageLabel}
-      paginationReady={paginationReady}
-      progress={progress}
-      progressPercent={progressPercent}
-      progressTickId={progressTickId}
       readerApp={{
         actions: {
           annotation: {
@@ -720,8 +718,9 @@ export function EbookBookcase({
           messageSendShortcut: sendShortcut,
           readerSettings,
           selectionActionShortcuts: actionShortcuts,
-          settingsOpen,
+          settingsOpen: false,
           shortcutModifier,
+          showSettings: false,
         },
         toc: {
           annotationStats: tocStats,
@@ -734,15 +733,72 @@ export function EbookBookcase({
               <ArticleBook article={article} />
             </span>
           ),
+          controls: (
+            <>
+              <div
+                className={
+                  paginationReady
+                    ? 'reader-floating-control-group'
+                    : 'reader-floating-control-group is-paginating'
+                }
+              >
+                <ReaderTooltip content="上一页" side="bottom">
+                  <button
+                    className="reader-icon-button"
+                    type="button"
+                    aria-label="上一页"
+                    disabled={readerState.status !== 'ready' || !paginationReady}
+                    onClick={goLeft}
+                  >
+                    <ChevronLeft size={17} />
+                  </button>
+                </ReaderTooltip>
+                <span className="reader-floating-value is-wide">{pageLabel}</span>
+                <input
+                  aria-label="快速跳转阅读进度"
+                  className="ebook-progress-slider reader-floating-slider"
+                  disabled={readerState.status !== 'ready'}
+                  list={sectionFractions.length > 0 ? progressTickId : undefined}
+                  max="1"
+                  min="0"
+                  step="any"
+                  style={
+                    { '--ebook-progress-percent': `${progressPercent}%` } as React.CSSProperties
+                  }
+                  type="range"
+                  value={progress}
+                  onChange={goToProgress}
+                />
+                <ReaderTooltip content="下一页" side="bottom">
+                  <button
+                    className="reader-icon-button"
+                    type="button"
+                    aria-label="下一页"
+                    disabled={readerState.status !== 'ready' || !paginationReady}
+                    onClick={goRight}
+                  >
+                    <ChevronRight size={17} />
+                  </button>
+                </ReaderTooltip>
+                {sectionFractions.length > 0 ? (
+                  <datalist id={progressTickId}>
+                    {sectionFractions.map((fraction, index) => (
+                      <option value={fraction} key={`${index}-${fraction}`} />
+                    ))}
+                  </datalist>
+                ) : null}
+              </div>
+              <ReaderSettingsToolbarControls
+                settings={readerSettings}
+                onChange={updateEbookReaderSettings}
+              />
+            </>
+          ),
         },
         userProfile,
       }}
       readerState={readerState}
-      sectionFractions={sectionFractions}
       viewHostRef={viewHostRef}
-      onGoLeft={goLeft}
-      onGoRight={goRight}
-      onGoToProgress={goToProgress}
       onReaderKeyDown={handleReaderKeyDown}
     />
   );

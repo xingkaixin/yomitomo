@@ -47,8 +47,10 @@ export type AnnotationNavigationRequest = {
 };
 
 export type AnnotationNavigationState = {
+  currentIndex?: number;
   previousId: string | null;
   nextId: string | null;
+  totalCount?: number;
 };
 
 export type ReaderArticleModel = {
@@ -118,6 +120,7 @@ export type ReaderTocModel = {
 
 export type ReaderToolbarModel = {
   articleAction?: React.ReactNode;
+  controls?: React.ReactNode;
 };
 
 export type ReaderShellOptions = {

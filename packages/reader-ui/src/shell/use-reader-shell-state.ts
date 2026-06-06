@@ -23,12 +23,15 @@ export const stackedAnnotationRailLayout: AnnotationRailLayout = {
 };
 
 const READER_ANNOTATION_RAIL_GAP = 20;
+const READER_MIN_ANNOTATION_RAIL_WIDTH = 220;
 const READER_ANNOTATION_RAIL_WIDTH = 360;
 const READER_MIN_ASIDE_ARTICLE_WIDTH = 600;
 
 const emptyAnnotationNavigation: AnnotationNavigationState = {
+  currentIndex: 0,
   nextId: null,
   previousId: null,
+  totalCount: 0,
 };
 
 export type UseReaderShellStateOptions = {
@@ -265,12 +268,14 @@ export function measureAnnotationRailLayout(
 export function annotationRailLayoutForWidth({
   canvasWidth,
   minimumArticleWidth = READER_MIN_ASIDE_ARTICLE_WIDTH,
+  minimumRailWidth = READER_MIN_ANNOTATION_RAIL_WIDTH,
   railGap = READER_ANNOTATION_RAIL_GAP,
   railWidth = READER_ANNOTATION_RAIL_WIDTH,
   targetArticleWidth,
 }: {
   canvasWidth: number;
   minimumArticleWidth?: number;
+  minimumRailWidth?: number;
   railGap?: number;
   railWidth?: number;
   targetArticleWidth: number;
@@ -278,29 +283,43 @@ export function annotationRailLayoutForWidth({
   if (canvasWidth <= 0 || targetArticleWidth <= 0) return stackedAnnotationRailLayout;
 
   const articleWidth = Math.min(Math.round(targetArticleWidth), Math.round(canvasWidth));
-  const sideSpace = railWidth + railGap;
-  if (canvasWidth >= articleWidth + sideSpace * 2) {
+  const fullSideSpace = railWidth + railGap;
+  if (canvasWidth >= articleWidth + fullSideSpace * 2) {
     const articleLeft = Math.round((canvasWidth - articleWidth) / 2);
     const articleRight = articleLeft + articleWidth;
     return {
       articleCenterX: Math.round((articleLeft + articleRight) / 2),
       articleWidth,
-      leftRailLeft: Math.round(articleLeft - sideSpace),
+      leftRailLeft: Math.round(articleLeft - fullSideSpace),
       mode: 'both',
       railWidth,
       rightRailLeft: Math.round(articleRight + railGap),
     };
   }
 
+  const minimumSideSpace = minimumRailWidth + railGap;
+  if (canvasWidth >= articleWidth + minimumSideSpace) {
+    const availableRailWidth = Math.max(minimumRailWidth, canvasWidth - articleWidth - railGap);
+    const rightRailWidth = Math.min(railWidth, availableRailWidth);
+    return {
+      articleCenterX: Math.round(articleWidth / 2),
+      articleWidth,
+      leftRailLeft: 0,
+      mode: 'right',
+      railWidth: Math.round(rightRailWidth),
+      rightRailLeft: Math.round(articleWidth + railGap),
+    };
+  }
+
   const minimumReadableArticleWidth = Math.min(articleWidth, minimumArticleWidth);
-  if (canvasWidth >= minimumReadableArticleWidth + sideSpace) {
-    const asideArticleWidth = Math.min(articleWidth, canvasWidth - sideSpace);
+  if (canvasWidth >= minimumReadableArticleWidth + minimumSideSpace) {
+    const asideArticleWidth = Math.min(articleWidth, canvasWidth - minimumSideSpace);
     return {
       articleCenterX: Math.round(asideArticleWidth / 2),
       articleWidth: Math.round(asideArticleWidth),
       leftRailLeft: 0,
       mode: 'right',
-      railWidth,
+      railWidth: minimumRailWidth,
       rightRailLeft: Math.round(asideArticleWidth + railGap),
     };
   }
@@ -336,5 +355,10 @@ export function sameAnnotationNavigation(
   left: AnnotationNavigationState,
   right: AnnotationNavigationState,
 ) {
-  return left.previousId === right.previousId && left.nextId === right.nextId;
+  return (
+    left.currentIndex === right.currentIndex &&
+    left.previousId === right.previousId &&
+    left.nextId === right.nextId &&
+    left.totalCount === right.totalCount
+  );
 }

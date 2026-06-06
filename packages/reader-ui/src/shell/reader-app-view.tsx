@@ -4,7 +4,7 @@ import { AnnotationConnection } from '../annotations/reader-annotation-connectio
 import { ReaderFloatingPanels } from './reader-floating-panels';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
-import { ReaderToolbar } from './reader-toolbar';
+import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { VirtualCursor } from './reader-virtual-cursor';
 import type { ReaderAppViewProps } from './reader-app-view-types';
 import { readerBackgroundTone } from '../reader-settings';
@@ -90,7 +90,6 @@ export function ReaderAppView({
     annotationRailLayout,
     handleReaderPointerDownCapture,
     navigateAnnotation,
-    toggleSettings,
   } = useReaderShellState({
     activeId,
     annotationRailLayoutOverride: railLayoutOverride,
@@ -147,6 +146,8 @@ export function ReaderAppView({
       className={[
         'reader-app',
         embedded ? 'is-embedded' : '',
+        annotationRailLayout.mode === 'both' ? 'is-annotation-both' : '',
+        annotationRailLayout.mode === 'left' ? 'is-annotation-left' : '',
         annotationRailLayout.mode === 'stacked' ? 'is-annotation-stacked' : '',
         annotationRailLayout.mode === 'right' ? 'is-annotation-right' : '',
         hasToc ? 'has-toc' : '',
@@ -161,19 +162,20 @@ export function ReaderAppView({
       onPointerDownCapture={handleReaderPointerDownCapture}
     >
       <ReaderToolbar
-        annotationNavigation={annotationNavigation}
         extracted={article.extracted}
+        toolbarArticleAction={toolbar?.articleAction}
+        onClose={shell.onClose}
+      />
+
+      <ReaderFloatingToolbar
+        annotationNavigation={annotationNavigation}
+        controls={toolbar?.controls}
         hasToc={hasToc}
-        settingsOpen={settingsOpen}
         showAnnotationNavigation={Boolean(
           annotationActions.onResolveAnnotationNavigation && annotationActions.onNavigateAnnotation,
         )}
-        showSettings={showSettings}
         tocOpen={tocOpen}
-        toolbarArticleAction={toolbar?.articleAction}
-        onClose={shell.onClose}
         onNavigateAnnotation={navigateAnnotation}
-        onToggleSettings={toggleSettings}
         onToggleToc={tocActions.onToggleToc}
       />
 

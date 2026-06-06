@@ -58,8 +58,10 @@ export type PdfPageGeometryEntry = {
 };
 
 export type PdfAnnotationNavigationState = {
+  currentIndex?: number;
   previousId: string | null;
   nextId: string | null;
+  totalCount?: number;
 };
 
 export function pdfiumAnnotationAgentName(annotation: Annotation) {
@@ -70,8 +72,10 @@ export function pdfiumAnnotationRailLayout(
   pageMetrics: Record<number, PageMetric>,
   canvas: HTMLDivElement | null,
   viewportHeight: number,
+  viewportWidth?: number,
+  layoutPageWidth?: number,
 ): AnnotationRailLayout | undefined {
-  const canvasWidth = canvas?.getBoundingClientRect().width ?? 0;
+  const canvasWidth = viewportWidth ?? canvas?.getBoundingClientRect().width ?? 0;
   if (canvasWidth <= 0) return undefined;
 
   const pageMetric = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
@@ -80,14 +84,11 @@ export function pdfiumAnnotationRailLayout(
   const gap = 20;
   const minimumRailWidth = 220;
   const maximumRailWidth = 420;
-  const articleLeft = Math.max(0, Math.round(pageMetric.left));
-  const articleRight = Math.min(canvasWidth, Math.round(pageMetric.left + pageMetric.width));
-  const leftSpace = articleLeft;
-  const rightSpace = Math.max(0, Math.round(canvasWidth - articleRight));
-  const leftAvailable = leftSpace >= minimumRailWidth + gap;
-  const rightAvailable = rightSpace >= minimumRailWidth + gap;
-
-  if (!leftAvailable && !rightAvailable) {
+  const pageWidth = Math.min(canvasWidth, Math.round(layoutPageWidth ?? pageMetric.width));
+  const sideSpace = minimumRailWidth + gap;
+  if (canvasWidth < pageWidth + sideSpace) {
+    const articleLeft = Math.max(0, Math.round(pageMetric.left));
+    const articleRight = Math.min(canvasWidth, Math.round(pageMetric.left + pageMetric.width));
     return {
       articleCenterX: Math.round((articleLeft + articleRight) / 2),
       leftRailLeft: 0,
@@ -98,13 +99,17 @@ export function pdfiumAnnotationRailLayout(
     };
   }
 
-  const mode = leftAvailable && rightAvailable ? 'both' : leftAvailable ? 'left' : 'right';
-  const usableSpace =
-    mode === 'both' ? Math.min(leftSpace, rightSpace) : mode === 'left' ? leftSpace : rightSpace;
+  const hasTwoSidedRails = canvasWidth >= pageWidth + sideSpace * 2;
+  const articleLeft = hasTwoSidedRails ? Math.round((canvasWidth - pageWidth) / 2) : 0;
+  const articleRight = articleLeft + pageWidth;
+  const leftSpace = articleLeft;
+  const rightSpace = Math.max(0, canvasWidth - articleRight);
+  const mode = hasTwoSidedRails ? 'both' : 'right';
+  const usableSpace = hasTwoSidedRails ? Math.min(leftSpace, rightSpace) : rightSpace;
   const railWidth = Math.min(maximumRailWidth, Math.max(minimumRailWidth, usableSpace - gap));
   return {
     articleCenterX: Math.round((articleLeft + articleRight) / 2),
-    leftRailLeft: Math.round(articleLeft - gap - railWidth),
+    leftRailLeft: mode === 'right' ? 0 : Math.round(articleLeft - gap - railWidth),
     mode,
     railWidth: Math.round(railWidth),
     rightRailLeft: Math.round(articleRight + gap),
@@ -220,13 +225,17 @@ export function pdfiumAnnotationNavigationState(
   currentPage: number,
 ): PdfAnnotationNavigationState {
   const ordered = pdfiumNavigableAnnotations(annotations);
-  if (ordered.length === 0) return { previousId: null, nextId: null };
+  if (ordered.length === 0) {
+    return { currentIndex: 0, previousId: null, nextId: null, totalCount: 0 };
+  }
 
   const activeIndex = activeId ? ordered.findIndex((annotation) => annotation.id === activeId) : -1;
   if (activeIndex >= 0) {
     return {
+      currentIndex: activeIndex + 1,
       previousId: ordered[activeIndex - 1]?.id ?? null,
       nextId: ordered[activeIndex + 1]?.id ?? null,
+      totalCount: ordered.length,
     };
   }
 
@@ -237,8 +246,10 @@ export function pdfiumAnnotationNavigationState(
   });
   const boundedIndex = insertionIndex >= 0 ? insertionIndex : ordered.length;
   return {
+    currentIndex: Math.min(ordered.length, boundedIndex + 1),
     previousId: ordered[boundedIndex - 1]?.id ?? null,
     nextId: ordered[boundedIndex]?.id ?? null,
+    totalCount: ordered.length,
   };
 }
 

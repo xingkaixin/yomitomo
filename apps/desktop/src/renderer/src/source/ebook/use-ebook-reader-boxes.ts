@@ -46,6 +46,22 @@ type UseEbookReaderBoxesInput = {
   onFoliateSelectionShortcut: (event: KeyboardEvent) => void;
 };
 
+function ebookLayoutDebugEnabled() {
+  try {
+    return (
+      (window as unknown as { yomitomoEbookLayoutDebug?: boolean }).yomitomoEbookLayoutDebug ===
+        true || window.localStorage.getItem('yomitomo:ebook-layout-debug') === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function debugEbookLayout(event: string, details: Record<string, unknown>) {
+  if (!ebookLayoutDebugEnabled()) return;
+  console.info(`[yomitomo:ebook-layout] ${event}`, details);
+}
+
 export function useEbookReaderBoxes({
   annotationAgents,
   annotationsRef,
@@ -164,6 +180,9 @@ export function useEbookReaderBoxes({
         : '';
       const chapter = ebookChapterForFoliateSection(article, view, sectionIndex);
       const canvasRect = canvasElement.getBoundingClientRect();
+      const firstFrameRect = canvasElement
+        .querySelector<HTMLIFrameElement>('iframe')
+        ?.getBoundingClientRect();
       const readerSettingsSnapshot = readerSettingsRef.current;
       const layoutKey = paginationLayoutKeyRef.current;
       const visibleAnnotations = annotationsRef.current ?? [];
@@ -188,6 +207,8 @@ export function useEbookReaderBoxes({
         ].join('|'),
       );
       const sameInputAsPrevious = lastEbookBoxInputFingerprintRef.current === inputFingerprint;
+      const forceUpdate =
+        schedule?.reasons.includes('resize_observer') || reason === 'resize_observer';
       let skippedChapterCount = 0;
       const searchableAnnotations = visibleAnnotations.filter((annotation) => {
         if (chapter && annotation.anchor.chapterId && annotation.anchor.chapterId !== chapter.id) {
@@ -196,9 +217,25 @@ export function useEbookReaderBoxes({
         }
         return true;
       });
-      if (sameInputAsPrevious) {
+      if (sameInputAsPrevious && !forceUpdate) {
         const previousMetrics = lastEbookBoxMetricsRef.current;
         setEbookBoxLayerHidden(false);
+        debugEbookLayout('boxes-skip', {
+          canvas: {
+            height: Math.round(canvasRect.height),
+            left: Math.round(canvasRect.left),
+            width: Math.round(canvasRect.width),
+          },
+          frame: firstFrameRect
+            ? {
+                height: Math.round(firstFrameRect.height),
+                left: Math.round(firstFrameRect.left),
+                width: Math.round(firstFrameRect.width),
+              }
+            : null,
+          pageInfoKey,
+          reason,
+        });
         recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_skipped_same_input', {
           boxCount: previousMetrics.boxCount,
           pageInfoKey,
@@ -281,6 +318,31 @@ export function useEbookReaderBoxes({
       };
       setBoxes(nextBoxes);
       setEbookBoxLayerHidden(false);
+      debugEbookLayout('boxes-update', {
+        boxCount: nextBoxes.length,
+        canvas: {
+          height: Math.round(canvasRect.height),
+          left: Math.round(canvasRect.left),
+          width: Math.round(canvasRect.width),
+        },
+        firstBox: nextBoxes[0]
+          ? {
+              height: Math.round(nextBoxes[0].height),
+              left: Math.round(nextBoxes[0].left),
+              top: Math.round(nextBoxes[0].top),
+              width: Math.round(nextBoxes[0].width),
+            }
+          : null,
+        frame: firstFrameRect
+          ? {
+              height: Math.round(firstFrameRect.height),
+              left: Math.round(firstFrameRect.left),
+              width: Math.round(firstFrameRect.width),
+            }
+          : null,
+        pageInfoKey,
+        reason,
+      });
       recordEbookPageTurnTrace(pageTurnTrace, 'boxes_update_done', {
         anchorLookupCount,
         boxCount: nextBoxes.length,
@@ -368,6 +430,28 @@ export function useEbookReaderBoxes({
     },
     [updateEbookBoxes],
   );
+
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let resizeTimer = 0;
+    const scheduleCanvasResizeUpdate = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        scheduleEbookBoxUpdate('resize_observer');
+      }, 80);
+    };
+
+    window.addEventListener('resize', scheduleCanvasResizeUpdate);
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleCanvasResizeUpdate);
+    observer?.observe(canvas);
+    return () => {
+      window.clearTimeout(resizeTimer);
+      window.removeEventListener('resize', scheduleCanvasResizeUpdate);
+      observer?.disconnect();
+    };
+  }, [article.id, canvasRef, scheduleEbookBoxUpdate]);
 
   const cleanupFoliateDocumentListeners = useCallback(() => {
     for (const cleanup of foliateDocCleanupsRef.current) cleanup();

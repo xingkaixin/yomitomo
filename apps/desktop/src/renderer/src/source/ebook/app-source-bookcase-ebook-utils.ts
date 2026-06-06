@@ -34,12 +34,17 @@ export const sourceEbookReaderStyles = `
 }
 .source-ebook-reader-shell .ebook-reader-content{
   display:grid;
-  grid-template-rows:auto minmax(0,1fr) auto;
-  gap:12px;
+  grid-template-rows:minmax(0,1fr);
+  gap:0;
   height:100%;
   min-height:0;
   width:min(100%,var(--ebook-content-width));
   margin:0 auto;
+}
+.source-ebook-reader-shell .reader-floating-control-group.is-paginating{
+  pointer-events:none;
+  opacity:.46;
+  filter:blur(1px);
 }
 .source-ebook-reader-shell .reader-canvas,
 .source-ebook-reader-shell .reader-article{
@@ -85,7 +90,7 @@ export const sourceEbookReaderStyles = `
   }
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .reader-article{
-  width:min(var(--reader-layout-article-width,var(--reader-content-width)),100%);
+  width:min(var(--reader-layout-article-width,var(--reader-content-width)),var(--reader-content-width),100%);
   margin:0;
 }
 .source-ebook-reader-shell .reader-app.is-annotation-right .ebook-reader-content{
