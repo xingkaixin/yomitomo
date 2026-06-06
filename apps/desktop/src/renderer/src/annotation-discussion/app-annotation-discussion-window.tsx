@@ -34,6 +34,7 @@ import {
   annotationUserProfile,
   assistantThoughtRouteNote,
   discussionArticleText,
+  replyTargetAgents,
   discussionThreads,
   discussionWindowTitle,
   waitForMilliseconds,
@@ -315,9 +316,9 @@ function AnnotationDiscussionShell({
       if (!nextAnnotations || !nextAnnotation) return;
 
       await saveAnnotations(nextAnnotations);
-      const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
-      const instruction = agentInstructionFromNote(trimmed, mentionedAgents) || undefined;
-      for (const agent of mentionedAgents) {
+      const targetAgents = replyTargetAgents(trimmed, selectedRoot, annotationAgents);
+      const instruction = agentInstructionFromNote(trimmed, targetAgents) || undefined;
+      for (const agent of targetAgents) {
         const latestAnnotation =
           annotationsRef.current.find((item) => item.id === currentAnnotation.id) || nextAnnotation;
         await requestAgentReply(agent, latestAnnotation, userComment, instruction);

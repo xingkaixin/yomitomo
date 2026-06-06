@@ -8,6 +8,11 @@ import {
   AnnotationDiscussionWindowApp,
   insertMentionAtSelection,
 } from '../annotation-discussion/app-annotation-discussion-window';
+import {
+  discussionReplyPlaceholder,
+  replyTargetAgents,
+} from '../annotation-discussion/app-annotation-discussion-utils';
+import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 
 const now = '2026-05-31T06:00:00.000Z';
 
@@ -271,6 +276,74 @@ describe('AnnotationDiscussionWindowApp', () => {
     expect(scrollTo).not.toHaveBeenCalled();
   });
 
+  it('routes unmentioned replies to the assistant that created the root thought', async () => {
+    const desktop = installDesktopApi(
+      article(
+        annotation({
+          comments: [
+            aiComment({
+              id: 'thought_ai',
+              agentId: 'agent_1',
+              agentNickname: '周现',
+              agentUsername: 'zhou',
+            }),
+          ],
+        }),
+      ),
+    );
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const replyInput = await screen.findByPlaceholderText(
+      '回复这条助手想法；不 @ 时默认由 周现 回应，也可 @ 其他助手',
+    );
+    fireEvent.change(replyInput, { target: { value: '我同意这个方向' } });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
+    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+      agentId: 'agent_1',
+      agentUsername: 'zhou',
+      instruction: '我同意这个方向',
+    });
+  });
+
+  it('respects explicit mentions instead of adding the root assistant', async () => {
+    const desktop = installDesktopApi(
+      article(
+        annotation({
+          comments: [
+            aiComment({
+              id: 'thought_ai',
+              agentId: 'agent_1',
+              agentNickname: '周现',
+              agentUsername: 'zhou',
+            }),
+          ],
+        }),
+      ),
+      {
+        agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
+      },
+    );
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/默认由 周现 回应/), {
+      target: { value: '@lin 你怎么看' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
+    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+      agentId: 'agent_2',
+      agentUsername: 'lin',
+      instruction: '你怎么看',
+    });
+  });
+
   it('keeps a reply-free thought at the top instead of scrolling to the bottom', async () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
@@ -418,6 +491,27 @@ describe('insertMentionAtSelection', () => {
       content: '请 @zhou 看这里',
       caretIndex: 8,
     });
+  });
+});
+
+describe('discussion reply targeting', () => {
+  it('falls back to the root assistant by username when id is unavailable', () => {
+    expect(
+      replyTargetAgents(
+        '继续说',
+        aiComment({ agentId: undefined, agentUsername: 'zhou' }),
+        publicAnnotationAgents(agents()),
+      ).map((item) => item.username),
+    ).toEqual(['zhou']);
+  });
+
+  it('keeps user-created thoughts passive until an assistant is mentioned', () => {
+    const publicAgents = publicAnnotationAgents(agents());
+
+    expect(replyTargetAgents('继续说', rootThought(), publicAgents)).toEqual([]);
+    expect(discussionReplyPlaceholder(rootThought(), publicAgents)).toBe(
+      '回复这条想法，输入 @助手 可邀请助手参与讨论',
+    );
   });
 });
 
