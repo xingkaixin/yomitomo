@@ -1,7 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readRendererStyles } from './css-test-utils';
 import { describe, expect, it } from 'vitest';
 
-const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const styles = readRendererStyles();
 
 describe('annotation discussion styles', () => {
   it('keeps the add thought modal editor integrated with the modal shell', () => {

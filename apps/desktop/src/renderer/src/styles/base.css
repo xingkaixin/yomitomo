@@ -1,0 +1,110 @@
+@layer base {
+  :root {
+    --font-ui: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-reader-serif: 'Source Serif 4', 'Noto Serif SC', 'Songti SC', Georgia, serif;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 8%;
+    --primary: 0 0% 8%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 11%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 42%;
+    --accent: 4 68% 94%;
+    --accent-foreground: 3 62% 36%;
+    --destructive: 3 64% 42%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 78%;
+    --input: 0 0% 78%;
+    --ring: 3 62% 42%;
+    --chart-1: hsl(83 24% 35%);
+    --chart-2: hsl(8 45% 46%);
+    --chart-3: hsl(205 30% 38%);
+    --hand-underline-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    --radius: 0.85rem;
+    --resize-dur: 300ms;
+    --resize-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --page-slide-dur: 200ms;
+    --page-fade-dur: 200ms;
+    --page-slide-distance: 10px;
+    --page-blur: 3px;
+    --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --page-fade-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --avatar-lift: -7px;
+    --avatar-dur: 340ms;
+    --avatar-scale: 1.1;
+    --avatar-falloff: 0.62;
+    --avatar-ease-in: cubic-bezier(0.22, 1, 0.36, 1);
+    --avatar-ease-out: cubic-bezier(0.34, 3.85, 0.64, 1);
+    --app-shell-background:
+      radial-gradient(circle at 14% 18%, hsl(50 36% 84% / 0.42), transparent 30%),
+      linear-gradient(135deg, hsl(45 38% 93%), hsl(36 32% 88%));
+    --app-shell-panel-shadow: 0 24px 80px hsl(31 34% 24% / 0.12);
+    --app-subtle-panel-shadow: 0 12px 36px hsl(31 34% 24% / 0.05);
+    --app-card-shadow: 0 7px 18px hsl(31 34% 24% / 0.13);
+    --app-overlay-scrim: rgba(40, 35, 29, 0.14);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    margin: 0;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p,
+  li,
+  blockquote {
+    text-wrap: pretty;
+  }
+}
+
+.item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 18px;
+  background: hsl(var(--background) / 0.52);
+  padding: 14px 15px;
+}
+
+.item-card strong {
+  display: block;
+  font-weight: 900;
+}
+
+.item-card p {
+  margin: 4px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}

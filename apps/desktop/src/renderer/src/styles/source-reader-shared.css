@@ -1,0 +1,1565 @@
+.source-reader-back-button {
+  position: absolute;
+  top: 14px;
+  left: var(--reader-titlebar-back-left);
+  z-index: 60;
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--app-reader-toolbar-border);
+  border-radius: 0;
+  background: var(--app-reader-toolbar-control-bg);
+  color: var(--app-reader-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 860;
+  padding: 0 12px 0 10px;
+  transition:
+    background 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+.source-reader-back-button,
+.source-reader-back-button * {
+  -webkit-app-region: no-drag;
+}
+
+.source-reader-back-button:hover,
+.source-reader-back-button:focus-visible {
+  background: var(--app-reader-toolbar-control-hover-bg);
+  color: var(--app-reader-primary);
+  outline: 0;
+}
+
+.source-reader-back-button:active {
+  transform: scale(0.96);
+}
+
+.source-reader-shell .reader-app,
+.source-ebook-reader-shell .reader-app {
+  --reader-bg: var(--app-reader-bg);
+  --reader-paper: var(--app-reader-paper);
+  --reader-ink: var(--app-reader-ink);
+  --reader-muted: var(--app-reader-muted);
+  --reader-line: var(--app-reader-line);
+  --reader-green: var(--app-reader-primary);
+  --reader-red: var(--app-reader-danger);
+  --reader-yellow: var(--app-reader-accent);
+  --reader-yellow-strong: var(--app-reader-accent-strong);
+  border-radius: 0;
+  background: var(--app-reader-paper);
+}
+
+.source-reader-shell .reader-toolbar,
+.source-ebook-reader-shell .reader-toolbar {
+  position: relative;
+  z-index: 20;
+  min-height: 66px;
+  border-bottom: 1px solid hsl(var(--foreground));
+  background: hsl(var(--card));
+  padding: 12px var(--reader-titlebar-padding-right) 12px var(--reader-titlebar-padding-left);
+  backdrop-filter: none;
+  -webkit-app-region: no-drag;
+}
+
+.source-reader-shell .reader-toolbar-article,
+.source-ebook-reader-shell .reader-toolbar-article,
+.source-reader-shell .reader-toolbar-article-copy,
+.source-ebook-reader-shell .reader-toolbar-article-copy {
+  -webkit-app-region: drag;
+}
+
+.source-reader-shell .reader-toolbar-actions,
+.source-ebook-reader-shell .reader-toolbar-actions,
+.source-reader-shell .reader-toolbar-article-action,
+.source-ebook-reader-shell .reader-toolbar-article-action,
+.source-reader-shell .reader-toolbar button,
+.source-ebook-reader-shell .reader-toolbar button {
+  -webkit-app-region: no-drag;
+}
+
+.source-ebook-reader-shell .reader-toolbar-article-action {
+  order: -1;
+}
+
+.ebook-toolbar-cover {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  perspective: 920px;
+}
+
+.ebook-toolbar-cover .article-book {
+  --book-depth: clamp(12px, 29cqw, 18px);
+  --book-cover-height: 40px;
+}
+
+.source-reader-shell .reader-close,
+.source-ebook-reader-shell .reader-close {
+  display: none;
+}
+
+.source-reader-shell .reader-icon-button,
+.source-ebook-reader-shell .reader-icon-button,
+.source-pdf-reader-shell .reader-icon-button,
+.source-reader-shell .reader-agent-annotate,
+.source-ebook-reader-shell .reader-agent-annotate,
+.source-pdf-reader-shell .reader-agent-annotate,
+.source-reader-shell .reader-toolbar-article-action .open-article-button.is-icon-only,
+.source-ebook-reader-shell .reader-toolbar-article-action .open-article-button.is-icon-only {
+  border-color: hsl(var(--border) / 0.88);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-icon-button:hover,
+.source-reader-shell .reader-icon-button.is-active,
+.source-ebook-reader-shell .reader-icon-button:hover,
+.source-ebook-reader-shell .reader-icon-button.is-active,
+.source-pdf-reader-shell .reader-icon-button:hover,
+.source-pdf-reader-shell .reader-icon-button.is-active,
+.source-reader-shell .reader-agent-annotate:hover,
+.source-reader-shell .reader-agent-annotate.is-active,
+.source-pdf-reader-shell .reader-agent-annotate:hover,
+.source-pdf-reader-shell .reader-agent-annotate.is-active,
+.source-reader-shell .reader-toolbar-article-action .open-article-button.is-icon-only:hover,
+.source-reader-shell .reader-toolbar-article-action .open-article-button.is-icon-only:focus-visible,
+.source-ebook-reader-shell .reader-agent-annotate:hover,
+.source-ebook-reader-shell .reader-agent-annotate.is-active,
+.source-ebook-reader-shell .reader-toolbar-article-action .open-article-button.is-icon-only:hover,
+.source-ebook-reader-shell
+  .reader-toolbar-article-action
+  .open-article-button.is-icon-only:focus-visible {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-annotation-nav .reader-icon-button:hover:not(:disabled),
+.source-reader-shell .reader-annotation-nav .reader-icon-button:focus-visible:not(:disabled),
+.source-ebook-reader-shell .reader-annotation-nav .reader-icon-button:hover:not(:disabled),
+.source-ebook-reader-shell .reader-annotation-nav .reader-icon-button:focus-visible:not(:disabled),
+.source-pdf-reader-shell .reader-annotation-nav .reader-icon-button:hover:not(:disabled),
+.source-pdf-reader-shell .reader-annotation-nav .reader-icon-button:focus-visible:not(:disabled) {
+  border-color: hsl(var(--foreground));
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+  outline: 0;
+}
+
+.source-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button,
+.source-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:hover:not(:disabled),
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button.is-active,
+.source-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button:focus-visible:not(:disabled),
+.source-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-ebook-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled),
+.source-pdf-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:hover:not(:disabled),
+.source-pdf-reader-shell
+  .reader-floating-toolbar
+  .reader-annotation-nav
+  .reader-icon-button:focus-visible:not(:disabled) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--reader-ink);
+  outline: 0;
+}
+
+.source-reader-shell .reader-main,
+.source-ebook-reader-shell .reader-main {
+  background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
+  background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
+}
+
+.source-reader-shell .reader-edge-blur,
+.source-ebook-reader-shell .reader-edge-blur {
+  display: none;
+}
+
+.source-reader-shell .reader-toc,
+.source-reader-shell .reader-notes,
+.source-ebook-reader-shell .reader-toc,
+.source-ebook-reader-shell .reader-notes {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
+.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-toc {
+  z-index: 240;
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-toc-title,
+.source-ebook-reader-shell .reader-toc-title,
+.source-pdf-reader-shell .reader-toc-title {
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-toc-item,
+.source-ebook-reader-shell .reader-toc-item,
+.source-pdf-reader-shell .reader-toc-item {
+  border-radius: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-toc-item:hover,
+.source-ebook-reader-shell .reader-toc-item:hover,
+.source-pdf-reader-shell .reader-toc-item:hover {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-toc-item-main strong,
+.source-ebook-reader-shell .reader-toc-item-main strong,
+.source-pdf-reader-shell .reader-toc-item-main strong {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-toc-markers i,
+.source-ebook-reader-shell .reader-toc-markers i {
+  border-color: hsl(var(--border) / 0.82);
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-toc-summary,
+.source-ebook-reader-shell .reader-toc-summary {
+  border-color: hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-settings-panel,
+.source-ebook-reader-shell .reader-settings-panel {
+  border-color: hsl(var(--border) / 0.86);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 44px hsl(0 0% 0% / 0.12);
+  backdrop-filter: none;
+}
+
+.source-reader-shell .reader-setting-row + .reader-setting-row,
+.source-ebook-reader-shell .reader-setting-row + .reader-setting-row {
+  border-top-color: hsl(var(--border) / 0.72);
+}
+
+.source-reader-shell .reader-setting-label,
+.source-ebook-reader-shell .reader-setting-label {
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-stepper,
+.source-ebook-reader-shell .reader-stepper {
+  border-color: hsl(var(--border) / 0.86);
+  border-radius: 0;
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-stepper button:hover,
+.source-ebook-reader-shell .reader-stepper button:hover {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-agent-annotate-scrim,
+.source-ebook-reader-shell .reader-agent-annotate-scrim {
+  background: hsl(0 0% 0% / 0.32);
+}
+
+.source-reader-shell .reader-agent-annotate-popover .reader-agent-annotate-menu,
+.source-ebook-reader-shell .reader-agent-annotate-popover .reader-agent-annotate-menu {
+  border-color: hsl(var(--border) / 0.86);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: 0 24px 70px hsl(0 0% 0% / 0.2);
+}
+
+.source-reader-shell .reader-agent-annotate-menu,
+.source-reader-shell .reader-agent-menu,
+.source-reader-shell .reader-highlight-choice-menu,
+.source-ebook-reader-shell .reader-agent-annotate-menu,
+.source-ebook-reader-shell .reader-agent-menu,
+.source-ebook-reader-shell .reader-highlight-choice-menu {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: 0 18px 44px hsl(0 0% 0% / 0.12);
+}
+
+.source-reader-shell .reader-agent-annotate-menu button,
+.source-reader-shell .reader-agent-menu button,
+.source-reader-shell .reader-highlight-choice-menu > button,
+.source-ebook-reader-shell .reader-agent-annotate-menu button,
+.source-ebook-reader-shell .reader-agent-menu button,
+.source-ebook-reader-shell .reader-highlight-choice-menu > button {
+  border-radius: 0;
+}
+
+.source-reader-shell .reader-agent-annotate-menu button:hover,
+.source-reader-shell .reader-agent-menu button:hover,
+.source-reader-shell .reader-agent-menu button.is-active,
+.source-reader-shell .reader-highlight-choice-menu > button:hover,
+.source-reader-shell .reader-highlight-choice-menu header button:hover,
+.source-ebook-reader-shell .reader-agent-annotate-menu button:hover,
+.source-ebook-reader-shell .reader-agent-menu button:hover,
+.source-ebook-reader-shell .reader-agent-menu button.is-active,
+.source-ebook-reader-shell .reader-highlight-choice-menu > button:hover,
+.source-ebook-reader-shell .reader-highlight-choice-menu header button:hover {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-focus-agent-menu,
+.source-ebook-reader-shell .reader-focus-agent-menu {
+  right: auto;
+  width: 176px;
+  max-width: min(176px, calc(100% - 16px));
+  border-color: hsl(var(--border) / 0.92);
+  box-shadow:
+    0 20px 48px hsl(0 0% 0% / 0.18),
+    0 4px 12px hsl(0 0% 0% / 0.08);
+}
+
+.source-reader-shell .reader-focus-toolbar,
+.source-reader-shell .reader-plan-action-bar,
+.source-reader-shell .reader-focus-progress,
+.source-reader-shell .reader-focus-section-card,
+.source-reader-shell .reader-focus-add-menu,
+.source-reader-shell .reader-focus-message-agent-menu,
+.source-reader-shell .reader-plan-add-menu,
+.source-reader-shell .reader-focus-message,
+.source-reader-shell .reader-focus-empty,
+.source-ebook-reader-shell .reader-focus-toolbar,
+.source-ebook-reader-shell .reader-plan-action-bar,
+.source-ebook-reader-shell .reader-focus-progress,
+.source-ebook-reader-shell .reader-focus-section-card,
+.source-ebook-reader-shell .reader-focus-add-menu,
+.source-ebook-reader-shell .reader-focus-message-agent-menu,
+.source-ebook-reader-shell .reader-plan-add-menu,
+.source-ebook-reader-shell .reader-focus-message,
+.source-ebook-reader-shell .reader-focus-empty {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-focus-toolbar,
+.source-reader-shell .reader-focus-card-section,
+.source-ebook-reader-shell .reader-focus-toolbar,
+.source-ebook-reader-shell .reader-focus-card-section {
+  background: hsl(var(--muted) / 0.55);
+}
+
+.source-reader-shell .reader-focus-add,
+.source-reader-shell .reader-focus-agent-chip,
+.source-reader-shell .reader-focus-assigned-chip,
+.source-reader-shell .reader-focus-card-agents .reader-focus-message-count,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
+.source-reader-shell .reader-agent-annotate-menu .reader-plan-action,
+.source-reader-shell .reader-agent-annotate-menu .reader-plan-add > button,
+.source-ebook-reader-shell .reader-focus-add,
+.source-ebook-reader-shell .reader-focus-agent-chip,
+.source-ebook-reader-shell .reader-focus-assigned-chip,
+.source-ebook-reader-shell .reader-focus-card-agents .reader-focus-message-count,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-action,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-add > button {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-focus-add:hover,
+.source-reader-shell .reader-focus-agent-chip:hover,
+.source-reader-shell .reader-focus-assigned-chip:hover,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-card-summary:hover,
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-footer
+  > button:hover:not(:disabled),
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button:hover,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
+.source-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
+.source-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover,
+.source-ebook-reader-shell .reader-focus-add:hover,
+.source-ebook-reader-shell .reader-focus-agent-chip:hover,
+.source-ebook-reader-shell .reader-focus-assigned-chip:hover,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-card-summary:hover,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-footer
+  > button:hover:not(:disabled),
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agent-menu
+  button:hover,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover {
+  border-color: hsl(var(--foreground) / 0.32);
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-focus-plan,
+.source-ebook-reader-shell .reader-focus-plan {
+  border-radius: 0;
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-focus-plan:hover:not(:disabled),
+.source-ebook-reader-shell .reader-focus-plan:hover:not(:disabled) {
+  background: var(--app-interactive-link);
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-focus-progress > i,
+.source-ebook-reader-shell .reader-focus-progress > i {
+  background: hsl(var(--border) / 0.55);
+}
+
+.source-reader-shell .reader-focus-progress > i > b,
+.source-ebook-reader-shell .reader-focus-progress > i > b {
+  background: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-focus-section-card.is-open,
+.source-ebook-reader-shell .reader-focus-section-card.is-open {
+  border-color: hsl(var(--foreground) / 0.42);
+}
+
+.source-reader-shell .reader-focus-card-summary > b,
+.source-ebook-reader-shell .reader-focus-card-summary > b {
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-focus-section-card.is-open .reader-focus-card-summary > b,
+.source-ebook-reader-shell .reader-focus-section-card.is-open .reader-focus-card-summary > b {
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-focus-card-title > em,
+.source-reader-shell .reader-focus-message-targets > em,
+.source-ebook-reader-shell .reader-focus-card-title > em,
+.source-ebook-reader-shell .reader-focus-message-targets > em {
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-focus-card-copy small,
+.source-reader-shell .reader-focus-card-agents small,
+.source-reader-shell .reader-focus-card-section > strong,
+.source-reader-shell .reader-focus-message p,
+.source-reader-shell .reader-plan-action-bar > span,
+.source-ebook-reader-shell .reader-focus-card-copy small,
+.source-ebook-reader-shell .reader-focus-card-agents small,
+.source-ebook-reader-shell .reader-focus-card-section > strong,
+.source-ebook-reader-shell .reader-focus-message p,
+.source-ebook-reader-shell .reader-plan-action-bar > span {
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-focus-message-input textarea,
+.source-ebook-reader-shell .reader-focus-message-input textarea {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-focus-message-input textarea:focus,
+.source-reader-shell .reader-focus-message-input textarea:focus-visible,
+.source-ebook-reader-shell .reader-focus-message-input textarea:focus,
+.source-ebook-reader-shell .reader-focus-message-input textarea:focus-visible {
+  border-color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-agent-annotate-actions,
+.source-ebook-reader-shell .reader-agent-annotate-actions {
+  border-top-color: hsl(var(--border) / 0.72);
+}
+
+.source-reader-shell .reader-agent-annotate-actions button,
+.source-ebook-reader-shell .reader-agent-annotate-actions button {
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-agent-annotate-actions button:last-child,
+.source-reader-shell .reader-agent-annotate-menu .reader-focus-message-footer > button,
+.source-reader-shell .reader-add-comment,
+.source-ebook-reader-shell .reader-agent-annotate-actions button:last-child,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-focus-message-footer > button,
+.source-ebook-reader-shell .reader-add-comment {
+  border-radius: 0;
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-note,
+.source-reader-shell .reader-empty,
+.source-ebook-reader-shell .reader-note,
+.source-ebook-reader-shell .reader-empty {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-pdf-reader-shell .reader-note,
+.source-pdf-reader-shell .reader-empty {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-pdf-reader-shell .reader-note.is-active {
+  border-color: hsl(var(--foreground));
+  box-shadow: 0 0 0 1px hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note.is-active,
+.source-ebook-reader-shell .reader-note.is-active {
+  border-color: hsl(var(--foreground));
+  box-shadow: 0 0 0 1px hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-notes-header,
+.source-ebook-reader-shell .reader-notes-header {
+  border-bottom-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.source-reader-shell .reader-notes-title-row span,
+.source-reader-shell .reader-note-tabs [data-slot='tabs-list'],
+.source-reader-shell .reader-note-tabs [data-slot='tabs-trigger'][data-state='active'],
+.source-ebook-reader-shell .reader-notes-title-row span,
+.source-ebook-reader-shell .reader-note-tabs [data-slot='tabs-list'],
+.source-ebook-reader-shell .reader-note-tabs [data-slot='tabs-trigger'][data-state='active'] {
+  border-color: hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-note-quote,
+.source-ebook-reader-shell .reader-note-quote {
+  border-left-color: hsl(var(--border));
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.035);
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-note-quote:hover,
+.source-ebook-reader-shell .reader-note-quote:hover {
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note-owner,
+.source-reader-shell .reader-note-comments-panel,
+.source-reader-shell .reader-discussion-thread,
+.source-reader-shell .reader-thought-summary,
+.source-reader-shell .reader-comments-empty,
+.source-reader-shell .reader-inline-composer-trigger,
+.source-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger,
+.source-reader-shell .reader-comment-agent-tray button,
+.source-reader-shell .reader-comment-agent-tray .reader-comment-mention-label,
+.source-reader-shell .reader-comment-agent-more-menu,
+.source-reader-shell .reader-review-menu,
+.source-ebook-reader-shell .reader-note-owner,
+.source-ebook-reader-shell .reader-note-comments-panel,
+.source-ebook-reader-shell .reader-discussion-thread,
+.source-ebook-reader-shell .reader-thought-summary,
+.source-ebook-reader-shell .reader-comments-empty,
+.source-ebook-reader-shell .reader-inline-composer-trigger,
+.source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger,
+.source-ebook-reader-shell .reader-comment-agent-tray button,
+.source-ebook-reader-shell .reader-comment-agent-tray .reader-comment-mention-label,
+.source-ebook-reader-shell .reader-comment-agent-more-menu,
+.source-ebook-reader-shell .reader-review-menu {
+  border-color: hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-discussion-thread.is-open,
+.source-ebook-reader-shell .reader-discussion-thread.is-open {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-note-comments-panel > header,
+.source-reader-shell .reader-note-toolbar,
+.source-reader-shell .reader-focus-card-section,
+.source-reader-shell .reader-review-menu footer,
+.source-ebook-reader-shell .reader-note-comments-panel > header,
+.source-ebook-reader-shell .reader-note-toolbar,
+.source-ebook-reader-shell .reader-focus-card-section,
+.source-ebook-reader-shell .reader-review-menu footer {
+  border-color: hsl(var(--border) / 0.72);
+}
+
+.source-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover),
+.source-ebook-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover),
+.source-pdf-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover) {
+  z-index: 260;
+  overflow: visible;
+}
+
+.source-reader-shell .reader-app.is-embedded .reader-agent-annotate-popover,
+.source-ebook-reader-shell .reader-app.is-embedded .reader-agent-annotate-popover,
+.source-pdf-reader-shell .reader-app.is-embedded .reader-agent-annotate-popover,
+.source-reader-shell .reader-app.is-embedded .reader-agent-annotate-scrim,
+.source-ebook-reader-shell .reader-app.is-embedded .reader-agent-annotate-scrim,
+.source-pdf-reader-shell .reader-app.is-embedded .reader-agent-annotate-scrim {
+  position: fixed;
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-scrim {
+  background: hsl(0 0% 0% / 0.32);
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-popover .reader-agent-annotate-menu,
+.source-pdf-reader-shell .reader-agent-annotate-menu,
+.source-pdf-reader-shell .reader-agent-menu,
+.source-pdf-reader-shell .reader-highlight-choice-menu,
+.source-pdf-reader-shell .reader-focus-toolbar,
+.source-pdf-reader-shell .reader-plan-action-bar,
+.source-pdf-reader-shell .reader-focus-progress,
+.source-pdf-reader-shell .reader-focus-section-card,
+.source-pdf-reader-shell .reader-focus-add-menu,
+.source-pdf-reader-shell .reader-focus-message-agent-menu,
+.source-pdf-reader-shell .reader-plan-add-menu,
+.source-pdf-reader-shell .reader-focus-message,
+.source-pdf-reader-shell .reader-focus-empty,
+.source-pdf-reader-shell .reader-note-owner,
+.source-pdf-reader-shell .reader-note-comments-panel,
+.source-pdf-reader-shell .reader-discussion-thread,
+.source-pdf-reader-shell .reader-thought-summary,
+.source-pdf-reader-shell .reader-comments-empty,
+.source-pdf-reader-shell .reader-inline-composer-trigger,
+.source-pdf-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger,
+.source-pdf-reader-shell .reader-comment-agent-tray button,
+.source-pdf-reader-shell .reader-comment-agent-tray .reader-comment-mention-label,
+.source-pdf-reader-shell .reader-comment-agent-more-menu,
+.source-pdf-reader-shell .reader-review-menu {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 0;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-popover .reader-agent-annotate-menu {
+  box-shadow: 0 24px 70px hsl(0 0% 0% / 0.2);
+}
+
+.source-pdf-reader-shell .reader-focus-toolbar,
+.source-pdf-reader-shell .reader-focus-card-section {
+  background: hsl(var(--muted) / 0.55);
+}
+
+.source-pdf-reader-shell .reader-focus-add,
+.source-pdf-reader-shell .reader-focus-agent-chip,
+.source-pdf-reader-shell .reader-focus-assigned-chip,
+.source-pdf-reader-shell .reader-focus-card-agents .reader-focus-message-count,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-clear,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-action,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-add > button {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-menu button,
+.source-pdf-reader-shell .reader-agent-menu button,
+.source-pdf-reader-shell .reader-highlight-choice-menu > button {
+  border-radius: 0;
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-menu button:hover,
+.source-pdf-reader-shell .reader-agent-menu button:hover,
+.source-pdf-reader-shell .reader-agent-menu button.is-active,
+.source-pdf-reader-shell .reader-highlight-choice-menu > button:hover,
+.source-pdf-reader-shell .reader-highlight-choice-menu header button:hover,
+.source-pdf-reader-shell .reader-focus-add:hover,
+.source-pdf-reader-shell .reader-focus-agent-chip:hover,
+.source-pdf-reader-shell .reader-focus-assigned-chip:hover,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-card-summary:hover,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-footer
+  > button:hover:not(:disabled),
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agents button:hover,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-agent-menu button:hover,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-clear:hover:not(:disabled),
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-action:hover,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-plan-add > button:hover {
+  border-color: hsl(var(--foreground) / 0.32);
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-agent-menu {
+  right: auto;
+  width: 176px;
+  max-width: min(176px, calc(100% - 16px));
+  border-color: hsl(var(--border) / 0.92);
+  box-shadow:
+    0 20px 48px hsl(0 0% 0% / 0.18),
+    0 4px 12px hsl(0 0% 0% / 0.08);
+}
+
+.source-pdf-reader-shell .reader-focus-plan,
+.source-pdf-reader-shell .reader-agent-annotate-actions button:last-child,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-focus-message-footer > button,
+.source-pdf-reader-shell .reader-add-comment {
+  border-radius: 0;
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-pdf-reader-shell .reader-focus-plan:hover:not(:disabled) {
+  background: var(--app-interactive-link);
+  color: hsl(var(--card));
+}
+
+.source-pdf-reader-shell .reader-focus-progress > i {
+  background: hsl(var(--border) / 0.55);
+}
+
+.source-pdf-reader-shell .reader-focus-progress > i > b {
+  background: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-section-card.is-open {
+  border-color: hsl(var(--foreground) / 0.42);
+}
+
+.source-pdf-reader-shell .reader-focus-card-summary > b,
+.source-pdf-reader-shell .reader-focus-card-title > em,
+.source-pdf-reader-shell .reader-focus-message-targets > em {
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-section-card.is-open .reader-focus-card-summary > b {
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-pdf-reader-shell .reader-focus-card-copy small,
+.source-pdf-reader-shell .reader-focus-card-agents small,
+.source-pdf-reader-shell .reader-focus-card-section > strong,
+.source-pdf-reader-shell .reader-focus-message p,
+.source-pdf-reader-shell .reader-plan-action-bar > span {
+  color: hsl(var(--muted-foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-message-input textarea {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-focus-message-input textarea:focus,
+.source-pdf-reader-shell .reader-focus-message-input textarea:focus-visible {
+  border-color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-actions,
+.source-pdf-reader-shell .reader-note-comments-panel > header,
+.source-pdf-reader-shell .reader-note-toolbar,
+.source-pdf-reader-shell .reader-focus-card-section,
+.source-pdf-reader-shell .reader-review-menu footer {
+  border-color: hsl(var(--border) / 0.72);
+}
+
+.source-pdf-reader-shell .reader-agent-annotate-actions button {
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-note-quote {
+  border-left-color: hsl(var(--border));
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.035);
+  color: hsl(var(--muted-foreground));
+}
+
+.source-pdf-reader-shell .reader-note-quote:hover {
+  color: hsl(var(--foreground));
+}
+
+.source-pdf-reader-shell .reader-discussion-thread.is-open {
+  border-color: hsl(var(--border) / 0.78);
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-thought-preview,
+.source-reader-shell .reader-markdown,
+.source-reader-shell .reader-comment p,
+.source-ebook-reader-shell .reader-thought-preview,
+.source-ebook-reader-shell .reader-markdown,
+.source-ebook-reader-shell .reader-comment p,
+.source-pdf-reader-shell .reader-thought-preview,
+.source-pdf-reader-shell .reader-markdown,
+.source-pdf-reader-shell .reader-comment p {
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note-owner,
+.source-ebook-reader-shell .reader-note-owner,
+.source-pdf-reader-shell .reader-note-owner {
+  border-radius: 999px;
+}
+
+.source-reader-shell .reader-thought-time,
+.source-reader-shell .reader-note-meta time,
+.source-reader-shell .reader-comment-author time,
+.source-ebook-reader-shell .reader-thought-time,
+.source-ebook-reader-shell .reader-note-meta time,
+.source-ebook-reader-shell .reader-comment-author time,
+.source-pdf-reader-shell .reader-thought-time,
+.source-pdf-reader-shell .reader-note-meta time,
+.source-pdf-reader-shell .reader-comment-author time {
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-thought-reply-count,
+.source-reader-shell .reader-note-type,
+.source-reader-shell .reader-note-intent,
+.source-reader-shell .reader-comment-author > span,
+.source-ebook-reader-shell .reader-thought-reply-count,
+.source-ebook-reader-shell .reader-note-type,
+.source-ebook-reader-shell .reader-note-intent,
+.source-ebook-reader-shell .reader-comment-author > span,
+.source-pdf-reader-shell .reader-thought-reply-count,
+.source-pdf-reader-shell .reader-note-type,
+.source-pdf-reader-shell .reader-note-intent,
+.source-pdf-reader-shell .reader-comment-author > span {
+  border-color: hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-inline-composer-trigger:hover,
+.source-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-reader-shell .reader-comment-expand:hover,
+.source-reader-shell .reader-comment-agent-tray button:hover,
+.source-reader-shell .reader-comment-agent-more-menu button:hover,
+.source-reader-shell .reader-comment-toggle:hover,
+.source-reader-shell .reader-review-menu > button:hover,
+.source-reader-shell .reader-review-menu > button.is-selected,
+.source-ebook-reader-shell .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-comment-expand:hover,
+.source-ebook-reader-shell .reader-comment-agent-tray button:hover,
+.source-ebook-reader-shell .reader-comment-agent-more-menu button:hover,
+.source-ebook-reader-shell .reader-comment-toggle:hover,
+.source-ebook-reader-shell .reader-review-menu > button:hover,
+.source-ebook-reader-shell .reader-review-menu > button.is-selected,
+.source-pdf-reader-shell .reader-inline-composer-trigger:hover,
+.source-pdf-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-pdf-reader-shell .reader-comment-expand:hover,
+.source-pdf-reader-shell .reader-comment-agent-tray button:hover,
+.source-pdf-reader-shell .reader-comment-agent-more-menu button:hover,
+.source-pdf-reader-shell .reader-comment-toggle:hover,
+.source-pdf-reader-shell .reader-review-menu > button:hover,
+.source-pdf-reader-shell .reader-review-menu > button.is-selected {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-thread-replies,
+.source-ebook-reader-shell .reader-thread-replies,
+.source-pdf-reader-shell .reader-thread-replies {
+  border-left: 0;
+}
+
+.source-reader-shell .reader-thread-replies .reader-comment::before,
+.source-ebook-reader-shell .reader-thread-replies .reader-comment::before,
+.source-pdf-reader-shell .reader-thread-replies .reader-comment::before {
+  display: none;
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-note,
+.source-ebook-reader-shell .reader-note,
+.source-pdf-reader-shell .reader-note {
+  overflow: hidden;
+  border-radius: 14px;
+  background: hsl(var(--card));
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.07);
+}
+
+.source-reader-shell .reader-note.has-review-burst,
+.source-reader-shell .reader-note.has-review-menu,
+.source-ebook-reader-shell .reader-note.has-review-burst,
+.source-ebook-reader-shell .reader-note.has-review-menu,
+.source-pdf-reader-shell .reader-note.has-review-burst,
+.source-pdf-reader-shell .reader-note.has-review-menu {
+  overflow: visible;
+}
+
+.source-reader-shell .reader-note-body,
+.source-ebook-reader-shell .reader-note-body,
+.source-pdf-reader-shell .reader-note-body {
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-note-quote,
+.source-ebook-reader-shell .reader-note-quote,
+.source-pdf-reader-shell .reader-note-quote {
+  border-left-color: transparent;
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-note-quote-mark,
+.source-ebook-reader-shell .reader-note-quote-mark,
+.source-pdf-reader-shell .reader-note-quote-mark {
+  color: var(--reader-note-accent);
+}
+
+.source-reader-shell .reader-note-toolbar,
+.source-reader-shell .reader-note-comments-panel,
+.source-reader-shell .reader-thought-footer,
+.source-reader-shell .reader-new-thought-composer,
+.source-ebook-reader-shell .reader-note-toolbar,
+.source-ebook-reader-shell .reader-note-comments-panel,
+.source-ebook-reader-shell .reader-thought-footer,
+.source-ebook-reader-shell .reader-new-thought-composer,
+.source-pdf-reader-shell .reader-note-toolbar,
+.source-pdf-reader-shell .reader-note-comments-panel,
+.source-pdf-reader-shell .reader-thought-footer,
+.source-pdf-reader-shell .reader-new-thought-composer {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(0 0% 0% / 0.025);
+}
+
+.source-reader-shell .reader-note-thread-toggle:hover,
+.source-reader-shell .reader-replies-toggle:hover,
+.source-reader-shell .reader-review-invite:hover,
+.source-reader-shell .reader-review-invite.is-active,
+.source-reader-shell .reader-inline-composer-trigger:hover,
+.source-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-note-thread-toggle:hover,
+.source-ebook-reader-shell .reader-replies-toggle:hover,
+.source-ebook-reader-shell .reader-review-invite:hover,
+.source-ebook-reader-shell .reader-review-invite.is-active,
+.source-ebook-reader-shell .reader-inline-composer-trigger:hover,
+.source-ebook-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover,
+.source-pdf-reader-shell .reader-note-thread-toggle:hover,
+.source-pdf-reader-shell .reader-replies-toggle:hover,
+.source-pdf-reader-shell .reader-review-invite:hover,
+.source-pdf-reader-shell .reader-review-invite.is-active,
+.source-pdf-reader-shell .reader-inline-composer-trigger:hover,
+.source-pdf-reader-shell .reader-new-thought-composer .reader-inline-composer-trigger:hover {
+  background: hsl(0 0% 0% / 0.045);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-review-menu footer button,
+.source-ebook-reader-shell .reader-review-menu footer button,
+.source-pdf-reader-shell .reader-review-menu footer button {
+  border-radius: 0;
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-review-menu footer button:last-child,
+.source-ebook-reader-shell .reader-review-menu footer button:last-child,
+.source-pdf-reader-shell .reader-review-menu footer button:last-child {
+  background: hsl(var(--foreground));
+  color: hsl(var(--card));
+}
+
+.source-reader-shell .reader-note-comments-panel,
+.source-ebook-reader-shell .reader-note-comments-panel,
+.source-pdf-reader-shell .reader-note-comments-panel {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-discussion-thread,
+.source-ebook-reader-shell .reader-discussion-thread,
+.source-pdf-reader-shell .reader-discussion-thread {
+  border-radius: 8px;
+}
+
+.source-reader-shell .reader-thought-summary,
+.source-ebook-reader-shell .reader-thought-summary,
+.source-pdf-reader-shell .reader-thought-summary {
+  border-radius: 0;
+  background: transparent;
+}
+
+.source-reader-shell .reader-note-owner .reader-avatar-badge,
+.source-reader-shell .reader-thought-owner .reader-avatar-badge,
+.source-reader-shell .reader-thought-author-avatar .reader-avatar-badge,
+.source-ebook-reader-shell .reader-note-owner .reader-avatar-badge,
+.source-ebook-reader-shell .reader-thought-owner .reader-avatar-badge,
+.source-ebook-reader-shell .reader-thought-author-avatar .reader-avatar-badge,
+.source-pdf-reader-shell .reader-note-owner .reader-avatar-badge,
+.source-pdf-reader-shell .reader-thought-owner .reader-avatar-badge,
+.source-pdf-reader-shell .reader-thought-author-avatar .reader-avatar-badge {
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--reader-avatar-color, hsl(var(--foreground)));
+}
+
+.source-reader-shell .reader-note-owner .reader-avatar-badge.is-image,
+.source-reader-shell .reader-thought-owner .reader-avatar-badge.is-image,
+.source-reader-shell .reader-thought-author-avatar .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-note-owner .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-thought-owner .reader-avatar-badge.is-image,
+.source-ebook-reader-shell .reader-thought-author-avatar .reader-avatar-badge.is-image,
+.source-pdf-reader-shell .reader-note-owner .reader-avatar-badge.is-image,
+.source-pdf-reader-shell .reader-thought-owner .reader-avatar-badge.is-image,
+.source-pdf-reader-shell .reader-thought-author-avatar .reader-avatar-badge.is-image {
+  background: transparent;
+}
+
+.source-reader-shell .reader-comment-markdown.is-collapsed::after,
+.source-reader-shell .reader-note-primary-comment .reader-comment-markdown.is-collapsed::after,
+.source-ebook-reader-shell .reader-comment-markdown.is-collapsed::after,
+.source-ebook-reader-shell
+  .reader-note-primary-comment
+  .reader-comment-markdown.is-collapsed::after,
+.source-pdf-reader-shell .reader-comment-markdown.is-collapsed::after,
+.source-pdf-reader-shell .reader-note-primary-comment .reader-comment-markdown.is-collapsed::after {
+  background: linear-gradient(to bottom, hsl(var(--card) / 0), hsl(var(--card)));
+}
+
+.source-reader-shell .reader-note textarea,
+.source-reader-shell .reader-composer,
+.source-reader-shell .reader-composer-header,
+.source-reader-shell .reader-composer textarea,
+.source-reader-shell .reader-kbd,
+.source-ebook-reader-shell .reader-note textarea,
+.source-ebook-reader-shell .reader-composer,
+.source-ebook-reader-shell .reader-composer-header,
+.source-ebook-reader-shell .reader-composer textarea,
+.source-ebook-reader-shell .reader-kbd,
+.source-pdf-reader-shell .reader-note textarea,
+.source-pdf-reader-shell .reader-composer,
+.source-pdf-reader-shell .reader-composer-header,
+.source-pdf-reader-shell .reader-composer textarea,
+.source-pdf-reader-shell .reader-kbd {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-composer,
+.source-ebook-reader-shell .reader-composer,
+.source-pdf-reader-shell .reader-composer {
+  border-color: hsl(var(--border) / 0.92);
+  border-radius: 8px;
+  box-shadow:
+    0 18px 42px hsl(var(--foreground) / 0.11),
+    0 3px 10px hsl(var(--foreground) / 0.06),
+    inset 0 1px 0 hsl(var(--background) / 0.9);
+}
+
+.source-reader-shell .reader-composer:focus-within,
+.source-ebook-reader-shell .reader-composer:focus-within,
+.source-pdf-reader-shell .reader-composer:focus-within {
+  box-shadow:
+    0 20px 48px hsl(var(--foreground) / 0.12),
+    0 4px 12px hsl(var(--foreground) / 0.06),
+    0 0 0 2px hsl(var(--foreground) / 0.035),
+    inset 0 1px 0 hsl(var(--background) / 0.9);
+}
+
+.source-reader-shell .reader-selection-menu,
+.source-ebook-reader-shell .reader-selection-menu,
+.source-pdf-reader-shell .reader-selection-menu {
+  border-color: hsl(var(--border) / 0.72);
+  background: hsl(var(--card));
+  box-shadow:
+    0 18px 42px hsl(var(--foreground) / 0.14),
+    0 3px 10px hsl(var(--foreground) / 0.06);
+}
+
+.source-reader-shell .reader-selection-primary,
+.source-ebook-reader-shell .reader-selection-primary,
+.source-pdf-reader-shell .reader-selection-primary {
+  border-color: hsl(var(--border) / 0.62);
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-composer .reader-agent-menu,
+.source-reader-shell .reader-comment-box .reader-agent-menu,
+.source-ebook-reader-shell .reader-composer .reader-agent-menu,
+.source-ebook-reader-shell .reader-comment-box .reader-agent-menu,
+.source-pdf-reader-shell .reader-composer .reader-agent-menu,
+.source-pdf-reader-shell .reader-comment-box .reader-agent-menu {
+  right: auto;
+  width: 190px;
+  max-width: min(190px, calc(100% - 16px));
+  box-shadow:
+    0 20px 48px hsl(var(--foreground) / 0.18),
+    0 4px 12px hsl(var(--foreground) / 0.08);
+}
+
+.source-reader-shell .reader-composer-header,
+.source-ebook-reader-shell .reader-composer-header,
+.source-pdf-reader-shell .reader-composer-header {
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background) / 0.68));
+  box-shadow: inset 0 -1px 0 hsl(var(--border) / 0.72);
+}
+
+.source-reader-shell .reader-composer textarea,
+.source-ebook-reader-shell .reader-composer textarea,
+.source-pdf-reader-shell .reader-composer textarea {
+  background: transparent;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-composer-editor,
+.source-ebook-reader-shell .reader-composer-editor,
+.source-pdf-reader-shell .reader-composer-editor {
+  border: 0;
+  border-radius: 0 0 7px 7px;
+  background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-composer .floating-composer-actions,
+.source-ebook-reader-shell .reader-composer .floating-composer-actions,
+.source-pdf-reader-shell .reader-composer .floating-composer-actions {
+  background: transparent;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-agent-avatar-stack-item,
+.source-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item,
+.source-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item,
+.source-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 2px solid hsl(var(--card));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  box-shadow: 0 2px 7px hsl(var(--foreground) / 0.12);
+  line-height: 1;
+  padding: 0;
+  overflow: visible;
+}
+
+.source-reader-shell .reader-agent-avatar-stack,
+.source-reader-shell .reader-focus-card-agents,
+.source-reader-shell .reader-focus-message-agents,
+.source-reader-shell .reader-comment-agent-tray,
+.source-reader-shell .reader-composer-agent-tray,
+.source-ebook-reader-shell .reader-agent-avatar-stack,
+.source-ebook-reader-shell .reader-focus-card-agents,
+.source-ebook-reader-shell .reader-focus-message-agents,
+.source-ebook-reader-shell .reader-comment-agent-tray,
+.source-ebook-reader-shell .reader-composer-agent-tray,
+.source-pdf-reader-shell .reader-agent-avatar-stack,
+.source-pdf-reader-shell .reader-focus-card-agents,
+.source-pdf-reader-shell .reader-focus-message-agents,
+.source-pdf-reader-shell .reader-comment-agent-tray,
+.source-pdf-reader-shell .reader-composer-agent-tray {
+  overflow: visible;
+}
+
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  .reader-agent-avatar-stack-item,
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item,
+.source-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-reader-shell .reader-note-footer .reader-comment-agent-tray .reader-agent-avatar-stack-item,
+.source-reader-shell
+  .reader-inline-composer-panel
+  .reader-comment-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .reader-note-footer
+  .reader-comment-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .reader-inline-composer-panel
+  .reader-comment-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .reader-note-footer
+  .reader-comment-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .reader-inline-composer-panel
+  .reader-comment-agent-tray
+  .reader-agent-avatar-stack-item {
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 30px;
+  border-color: hsl(var(--card));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  box-shadow: 0 2px 7px hsl(var(--foreground) / 0.12);
+  padding: 0;
+  overflow: visible;
+}
+
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:hover,
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:focus-visible,
+.source-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item.is-revealed,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:hover,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:focus-visible,
+.source-ebook-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item.is-revealed,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:hover,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item:focus-visible,
+.source-pdf-reader-shell
+  .reader-agent-annotate-menu
+  .reader-focus-message-agents
+  button.reader-agent-avatar-stack-item.is-revealed {
+  border-color: hsl(var(--card));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 8px 18px hsl(var(--foreground) / 0.16);
+  transform: translateY(-4px) scale(1.12);
+}
+
+.source-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-ebook-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item,
+.source-pdf-reader-shell
+  .floating-composer-actions
+  .reader-composer-agent-tray
+  .reader-agent-avatar-stack-item {
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 28px;
+}
+
+.source-reader-shell .reader-agent-avatar-stack-item:hover,
+.source-reader-shell .reader-agent-avatar-stack-item:focus-visible,
+.source-reader-shell .reader-agent-avatar-stack-item.is-revealed,
+.source-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item:hover,
+.source-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item:hover,
+.source-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item:hover,
+.source-ebook-reader-shell .reader-agent-avatar-stack-item:hover,
+.source-ebook-reader-shell .reader-agent-avatar-stack-item:focus-visible,
+.source-ebook-reader-shell .reader-agent-avatar-stack-item.is-revealed,
+.source-ebook-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item:hover,
+.source-ebook-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item:hover,
+.source-ebook-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item:hover,
+.source-pdf-reader-shell .reader-agent-avatar-stack-item:hover,
+.source-pdf-reader-shell .reader-agent-avatar-stack-item:focus-visible,
+.source-pdf-reader-shell .reader-agent-avatar-stack-item.is-revealed,
+.source-pdf-reader-shell .reader-agent-annotate-menu .reader-agent-avatar-stack-item:hover,
+.source-pdf-reader-shell .reader-comment-agent-tray .reader-agent-avatar-stack-item:hover,
+.source-pdf-reader-shell .reader-composer-agent-tray .reader-agent-avatar-stack-item:hover {
+  background: hsl(var(--card));
+  box-shadow: 0 8px 18px hsl(var(--foreground) / 0.16);
+}
+
+.source-reader-shell .reader-agent-avatar-stack-label,
+.source-ebook-reader-shell .reader-agent-avatar-stack-label,
+.source-pdf-reader-shell .reader-agent-avatar-stack-label {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 8px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  box-shadow: 0 12px 28px hsl(var(--foreground) / 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .source-reader-shell .reader-agent-avatar-stack-item,
+  .source-ebook-reader-shell .reader-agent-avatar-stack-item,
+  .source-pdf-reader-shell .reader-agent-avatar-stack-item,
+  .annotation-sedimentation-review-composer-accessory .reader-agent-avatar-stack-item {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
+.source-reader-shell .floating-composer-actions .reader-composer-cancel,
+.source-ebook-reader-shell .floating-composer-actions .reader-composer-cancel,
+.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel {
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .floating-composer-actions .reader-composer-cancel:hover,
+.source-ebook-reader-shell .floating-composer-actions .reader-composer-cancel:hover,
+.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel:hover {
+  background: hsl(0 0% 0% / 0.085);
+}
+
+.source-reader-shell .reader-review-invite,
+.source-ebook-reader-shell .reader-review-invite,
+.source-pdf-reader-shell .reader-review-invite {
+  background: hsl(var(--card));
+}
+
+.source-reader-shell .reader-inline-composer-panel,
+.source-ebook-reader-shell .reader-inline-composer-panel,
+.source-pdf-reader-shell .reader-inline-composer-panel {
+  border: 1px solid hsl(var(--border) / 0.76);
+  border-radius: 10px;
+  background: hsl(var(--card));
+  box-shadow:
+    0 10px 24px hsl(var(--foreground) / 0.06),
+    inset 0 1px 0 hsl(var(--background) / 0.86);
+  padding: 10px;
+}
+
+.source-reader-shell .reader-note:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-note-footer:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-note-comments-panel:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-discussion-thread:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-thread-detail:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
+.source-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
+.source-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-note:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-note-footer:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-note-comments-panel:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-discussion-thread:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-thread-detail:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
+.source-ebook-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-note:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-note-footer:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-note-comments-panel:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-discussion-thread:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-thread-detail:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-thread-reply-composer:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-new-thought-composer:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .reader-inline-composer-panel:has(.reader-agent-avatar-stack),
+.source-pdf-reader-shell .floating-composer-actions:has(.reader-agent-avatar-stack) {
+  overflow: visible;
+}
+
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea,
+.source-pdf-reader-shell .reader-note-comments-panel .reader-comment-box textarea {
+  border-color: hsl(var(--border) / 0.78);
+  border-radius: 8px;
+  background: linear-gradient(180deg, hsl(var(--background) / 0.18), hsl(var(--card)) 30%);
+  box-shadow:
+    inset 0 1px 2px hsl(var(--foreground) / 0.05),
+    0 1px 0 hsl(var(--background) / 0.86);
+}
+
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus,
+.source-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus-visible,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus,
+.source-ebook-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus-visible,
+.source-pdf-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus,
+.source-pdf-reader-shell .reader-note-comments-panel .reader-comment-box textarea:focus-visible {
+  border-color: hsl(var(--foreground) / 0.36);
+  box-shadow:
+    inset 0 1px 2px hsl(var(--foreground) / 0.06),
+    0 0 0 2px hsl(var(--foreground) / 0.055),
+    0 1px 0 hsl(var(--background) / 0.86);
+}
+
+.source-reader-shell .reader-composer-types button,
+.source-ebook-reader-shell .reader-composer-types button {
+  border-color: hsl(var(--border) / 0.72);
+  border-radius: 0;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+}
+
+.source-reader-shell .reader-composer-types button:hover,
+.source-reader-shell .reader-composer-types button.is-active,
+.source-ebook-reader-shell .reader-composer-types button:hover,
+.source-ebook-reader-shell .reader-composer-types button.is-active {
+  border-color: hsl(var(--foreground) / 0.42);
+  background: hsl(0 0% 0% / 0.055);
+  color: hsl(var(--foreground));
+}
+
+.source-reader-shell .reader-delete-note,
+.source-ebook-reader-shell .reader-delete-note,
+.source-pdf-reader-shell .reader-delete-note {
+  color: var(--app-action-danger-bg);
+}
+
+.source-reader-shell .reader-action-delete,
+.source-ebook-reader-shell .reader-action-delete,
+.source-pdf-reader-shell .reader-action-delete {
+  background: transparent;
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-delete-note > span,
+.source-ebook-reader-shell .reader-delete-note > span,
+.source-pdf-reader-shell .reader-delete-note > span {
+  display: inline;
+  width: auto;
+  height: auto;
+  place-items: normal;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  padding: 0;
+}
+
+.source-reader-shell .reader-article,
+.source-ebook-reader-shell .reader-article,
+.source-ebook-reader-shell .ebook-foliate-frame,
+.source-ebook-reader-shell .ebook-reader-status {
+  border-color: hsl(var(--border) / 0.82);
+  border-radius: 0;
+  background: var(--reader-content-bg, hsl(var(--card)));
+  box-shadow: none;
+}
