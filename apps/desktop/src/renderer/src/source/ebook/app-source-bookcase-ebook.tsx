@@ -6,7 +6,10 @@ import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from 
 import {
   articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
+  createEpubTextAnchor,
   createUserAnnotation,
+  findReaderSearchMatches,
+  type HighlightBox,
   type TocItem,
 } from '@yomitomo/core';
 import { sleep } from '@yomitomo/reader-ui/reader-animation';
@@ -20,6 +23,7 @@ import {
   ebookHighlightAnnotationsSignature,
   ebookSectionIndexForChapter,
   ebookTocItemsForReader,
+  foliateRangeHighlightBoxes,
   formatEbookPageLabel,
   isEbookPaginationReady,
   rangeForEbookAnchorInDocument,
@@ -188,6 +192,10 @@ export function EbookBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
+  const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
 
   const {
     temporaryBoxes,
@@ -207,6 +215,12 @@ export function EbookBookcase({
   });
   const [readerSettings, updateEbookReaderSettings] = useDesktopReaderSettings();
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
+  const searchResult = useMemo(
+    () => findReaderSearchMatches(ebookText, searchQuery),
+    [ebookText, searchQuery],
+  );
+  const activeSearchMatch =
+    searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const actionShortcuts = useMemo(
     () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
     [selectionActionShortcuts],
@@ -371,6 +385,10 @@ export function EbookBookcase({
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
+    setSearchOpen(false);
+    setSearchQuery('');
+    setActiveSearchMatchIndex(0);
+    setSearchBoxes([]);
   }, [
     article.id,
     cleanupEbookAgentTheater,
@@ -390,6 +408,24 @@ export function EbookBookcase({
     }
     scheduleEbookBoxUpdate('annotations_applied');
   }, [article.id, articleAnnotationSignature, scheduleEbookBoxUpdate]);
+
+  useEffect(() => {
+    setActiveSearchMatchIndex(0);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!searchOpen || !activeSearchMatch) {
+      setSearchBoxes([]);
+      return;
+    }
+    let cancelled = false;
+    void revealEbookSearchMatch(activeSearchMatch).then((nextBoxes) => {
+      if (!cancelled) setSearchBoxes(nextBoxes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSearchMatch, searchOpen]);
 
   useEffect(
     () => () => {
@@ -571,6 +607,39 @@ export function EbookBookcase({
     return true;
   }
 
+  async function revealEbookSearchMatch(match: { id: string; start: number; end: number }) {
+    const view = viewRef.current;
+    const index = article.ebook.index;
+    const canvasElement = canvasRef.current;
+    if (!view || !index || !canvasElement) return [];
+
+    const anchor = createEpubTextAnchor(index, ebookText, match.start, match.end);
+    const chapter = anchor.chapterId
+      ? index.chapters.find((item) => item.id === anchor.chapterId)
+      : null;
+    const sectionIndex = chapter ? ebookSectionIndexForChapter(article, view, chapter) : -1;
+    if (sectionIndex >= 0) await view.goTo(sectionIndex);
+    else if (typeof anchor.textStartInBook === 'number' && index.textLength > 0) {
+      await view.goToFraction(anchor.textStartInBook / index.textLength);
+    }
+
+    await waitForFoliateIdle();
+    await waitForAnimationFrame();
+    const doc = currentFoliateContent(view)?.doc;
+    const range = doc ? rangeForEbookAnchorInDocument(doc, anchor) : null;
+    if (!range) return [];
+    await view.renderer?.scrollToAnchor?.(range);
+    await waitForAnimationFrame();
+    return foliateRangeHighlightBoxes(range, canvasElement.getBoundingClientRect(), match.id).map(
+      (box) =>
+        Object.assign(box, {
+          annotationId: '__search__',
+          contributorId: '__search__',
+          color: '#d7a93f',
+        }),
+    );
+  }
+
   const resolveAnnotationNavigation = useCallback(
     ({
       activeId,
@@ -593,6 +662,19 @@ export function EbookBookcase({
   function navigateAnnotation(annotationId: string) {
     openAnnotation(annotationId);
     void goToAnnotation(annotationId);
+  }
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchBoxes([]);
+  }
+
+  function navigateSearchMatch(direction: 'previous' | 'next') {
+    const total = searchResult.matches.length;
+    if (total === 0) return;
+    setActiveSearchMatchIndex((index) =>
+      direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
+    );
   }
 
   function focusPageAnnotation(annotationId: string) {
@@ -699,6 +781,7 @@ export function EbookBookcase({
           commentsCloseKey,
           distillationAnimation,
           filteredAnnotations: annotations,
+          searchBoxes,
           temporaryBoxes,
         },
         article: {
@@ -794,6 +877,18 @@ export function EbookBookcase({
               />
             </>
           ),
+          search: {
+            activeMatchIndex: activeSearchMatchIndex,
+            limited: searchResult.limited,
+            matches: searchResult.matches,
+            open: searchOpen,
+            query: searchQuery,
+            onClose: closeSearch,
+            onNextMatch: () => navigateSearchMatch('next'),
+            onOpen: () => setSearchOpen(true),
+            onPreviousMatch: () => navigateSearchMatch('previous'),
+            onQueryChange: setSearchQuery,
+          },
         },
         userProfile,
       }}

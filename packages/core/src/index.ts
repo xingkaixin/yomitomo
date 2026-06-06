@@ -10,3 +10,4 @@ export * from './reading-memory/reading-memory';
 export * from './reading-memory/reading-memory-entries';
 export * from './reading-memory/reading-memory-view-assembly';
 export * from './reader/reader-dom';
+export * from './reader/search';

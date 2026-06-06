@@ -12,11 +12,15 @@ import {
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   findCurrentTocTarget,
+  findReaderSearchMatches,
   getArticleSelection,
+  type HighlightBox,
   isRangeInsideArticle,
   offsetFromArticleStart,
   rangeHighlightBoxes,
+  rangeFromOffsets,
   selectionActionPosition,
+  scrollReaderSurfaceToRect,
   createUserAnnotation,
   type TocItem,
 } from '@yomitomo/core';
@@ -135,6 +139,10 @@ export function WebSourceBookcase({
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [, setSettingsOpen] = useState(false);
   const [commentsCloseKey, setCommentsCloseKey] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
+  const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
 
   const {
     temporaryBoxes,
@@ -154,6 +162,13 @@ export function WebSourceBookcase({
   });
   const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
+  const articleText = articleRef.current?.textContent || '';
+  const searchResult = useMemo(
+    () => findReaderSearchMatches(articleText, searchQuery),
+    [articleText, searchQuery],
+  );
+  const activeSearchMatch =
+    searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
   const { boxes, tocItems } = useWebReaderBoxes({
     annotationAgents,
     annotations,
@@ -220,9 +235,47 @@ export function WebSourceBookcase({
     setTocOpen(defaultTocOpen());
     setSettingsOpen(false);
     setStatusMessage('');
+    setSearchOpen(false);
+    setSearchQuery('');
+    setActiveSearchMatchIndex(0);
+    setSearchBoxes([]);
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
+
+  useEffect(() => {
+    setActiveSearchMatchIndex(0);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!searchOpen || !activeSearchMatch) {
+      setSearchBoxes([]);
+      return;
+    }
+    const articleElement = articleRef.current;
+    const canvasElement = canvasRef.current;
+    const scrollElement = scrollRef.current;
+    if (!articleElement || !canvasElement || !scrollElement) return;
+
+    const range = rangeFromOffsets(articleElement, activeSearchMatch.start, activeSearchMatch.end);
+    if (!range) {
+      setSearchBoxes([]);
+      return;
+    }
+
+    const rect = range.getClientRects()[0];
+    if (rect) scrollReaderSurfaceToRect(scrollElement, rect, 82);
+    const canvasRect = canvasElement.getBoundingClientRect();
+    setSearchBoxes(
+      rangeHighlightBoxes(range, canvasRect, activeSearchMatch.id).map((box) =>
+        Object.assign(box, {
+          annotationId: '__search__',
+          contributorId: '__search__',
+          color: '#d7a93f',
+        }),
+      ),
+    );
+  }, [activeSearchMatch, searchOpen]);
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
@@ -369,12 +422,12 @@ export function WebSourceBookcase({
 
     const range = selection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) return;
-    const articleText = currentArticleText();
+    const selectedArticleText = currentArticleText();
     const start = offsetFromArticleStart(articleElement, range.startContainer, range.startOffset);
     const end = offsetFromArticleStart(articleElement, range.endContainer, range.endOffset);
     const anchor = article.ebook?.index
-      ? createEpubTextAnchor(article.ebook.index, articleText, start, end)
-      : createTextAnchor(articleText, start, end);
+      ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
+      : createTextAnchor(selectedArticleText, start, end);
     if (!anchor.exact.trim()) return;
 
     const rects = range.getClientRects();
@@ -475,6 +528,19 @@ export function WebSourceBookcase({
     });
   }
 
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearchBoxes([]);
+  }
+
+  function navigateSearchMatch(direction: 'previous' | 'next') {
+    const total = searchResult.matches.length;
+    if (total === 0) return;
+    setActiveSearchMatchIndex((index) =>
+      direction === 'next' ? (index + 1) % total : (index - 1 + total) % total,
+    );
+  }
+
   if (!article) {
     return (
       <section className="source-bookcase is-empty">
@@ -568,6 +634,7 @@ export function WebSourceBookcase({
           commentsCloseKey,
           distillationAnimation,
           filteredAnnotations: annotations,
+          searchBoxes,
           temporaryBoxes,
         }}
         article={{
@@ -611,6 +678,18 @@ export function WebSourceBookcase({
               onChange={updateReaderSettings}
             />
           ),
+          search: {
+            activeMatchIndex: activeSearchMatchIndex,
+            limited: searchResult.limited,
+            matches: searchResult.matches,
+            open: searchOpen,
+            query: searchQuery,
+            onClose: closeSearch,
+            onNextMatch: () => navigateSearchMatch('next'),
+            onOpen: () => setSearchOpen(true),
+            onPreviousMatch: () => navigateSearchMatch('previous'),
+            onQueryChange: setSearchQuery,
+          },
         }}
         userProfile={userProfile}
       />

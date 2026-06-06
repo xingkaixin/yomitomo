@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
 import { Composer, measureComposerPosition } from './reader-composer';
+import { ReaderFloatingToolbar } from './reader-toolbar';
 import { ReaderTocPanel } from './reader-toc-panel';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 
@@ -408,6 +409,46 @@ describe('ReaderTocPanel', () => {
     expect(screen.getByLabelText('2 划线，3 沉淀')).toBeTruthy();
     expect(screen.queryByText(/批注/)).toBeNull();
     expect(screen.queryByText(/评论/)).toBeNull();
+  });
+});
+
+describe('ReaderFloatingToolbar search mode', () => {
+  it('replaces the normal toolbar controls while searching', () => {
+    const onClose = vi.fn();
+
+    render(
+      <ReaderFloatingToolbar
+        annotationNavigation={{ previousId: 'a1', nextId: 'a2', totalCount: 2, currentIndex: 1 }}
+        controls={<button type="button">Aa</button>}
+        hasToc
+        search={{
+          activeMatchIndex: 0,
+          limited: true,
+          matches: [{ id: 'm1', start: 0, end: 4, preview: '目标' }],
+          open: true,
+          query: '目标',
+          onClose,
+          onNextMatch: vi.fn(),
+          onOpen: vi.fn(),
+          onPreviousMatch: vi.fn(),
+          onQueryChange: vi.fn(),
+        }}
+        showAnnotationNavigation
+        tocOpen={false}
+        onNavigateAnnotation={vi.fn()}
+        onToggleToc={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('搜索正文')).toBeTruthy();
+    expect(screen.getByText('1/1+')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '切换目录' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '上一个划线' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aa' })).toBeNull();
+
+    fireEvent.keyDown(screen.getByLabelText('正文搜索'), { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
 
