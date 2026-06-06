@@ -232,6 +232,7 @@ export async function runAgentDistillationReviewWithToolLoop(input: {
       id: '',
       author: 'ai',
       content: runtime.action.content,
+      proposals: runtime.action.proposals || [],
       createdAt: new Date().toISOString(),
       agentId: input.agent.id,
       agentUsername: input.agent.username,

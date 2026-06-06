@@ -1853,7 +1853,7 @@
 
 .annotation-sedimentation-document header button {
   display: inline-flex;
-  min-height: 36px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
   gap: 7px;
@@ -1945,12 +1945,190 @@
 }
 
 .annotation-sedimentation-review-list {
+  min-width: 0;
   overflow: auto;
+  overflow-x: hidden;
   padding: 18px 18px 10px;
 }
 
 .annotation-sedimentation-review-message {
+  justify-self: start;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-width: 0;
   font-size: 13px;
+  text-align: left;
+}
+
+.annotation-sedimentation-review-message.is-user > .reader-avatar-badge {
+  order: 0;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-message-bubble {
+  justify-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-message-bubble header {
+  width: 100%;
+  max-width: 100%;
+  justify-content: start;
+  text-align: left;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-markdown {
+  width: 100%;
+  max-width: 100%;
+  text-align: left;
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
+.annotation-sedimentation-review-message .annotation-discussion-markdown p,
+.annotation-sedimentation-review-message .annotation-discussion-markdown ul,
+.annotation-sedimentation-review-message .annotation-discussion-markdown ol,
+.annotation-sedimentation-review-message .annotation-discussion-markdown blockquote,
+.annotation-sedimentation-review-message .annotation-discussion-markdown pre {
+  margin-bottom: 7px;
+  overflow-wrap: anywhere;
+}
+
+.annotation-sedimentation-proposals {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.annotation-sedimentation-proposal {
+  display: grid;
+  gap: 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-reader-paper) 92%, var(--app-reader-ink) 8%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--app-reader-toolbar-border) 76%, transparent),
+    0 10px 24px color-mix(in srgb, var(--app-reader-ink) 8%, transparent);
+  padding: 10px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-proposal.is-ignored {
+  opacity: 0.56;
+}
+
+.annotation-sedimentation-proposal.is-ignored .annotation-sedimentation-proposal-main {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.annotation-sedimentation-proposal-main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.annotation-sedimentation-proposal-main header {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+
+.annotation-sedimentation-proposal-main header span {
+  display: inline-flex;
+  min-height: 22px;
+  flex: 0 0 auto;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-reader-accent-strong) 12%, transparent);
+  color: var(--app-reader-accent-strong);
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1;
+  padding: 0 8px;
+}
+
+.annotation-sedimentation-proposal-main header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-reader-ink);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-sedimentation-proposal-main p {
+  margin: 0;
+  color: var(--app-reader-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.annotation-sedimentation-proposal-main blockquote {
+  margin: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-reader-paper) 80%, var(--app-reader-ink) 20%);
+  color: var(--app-reader-ink);
+  font-family: var(--font-reader-serif, Georgia, Cambria, 'Times New Roman', serif);
+  font-size: 12px;
+  line-height: 1.55;
+  padding: 9px 10px;
+  white-space: pre-wrap;
+}
+
+.annotation-sedimentation-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.annotation-sedimentation-proposal-actions button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--app-reader-accent-strong);
+  color: var(--app-reader-paper);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 740;
+  padding: 0 10px;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.annotation-sedimentation-proposal-actions button.is-secondary {
+  background: var(--app-reader-toolbar-control-bg);
+  box-shadow: inset 0 0 0 1px var(--app-reader-toolbar-border);
+  color: var(--app-reader-ink);
+}
+
+.annotation-sedimentation-proposal-actions button:active {
+  transform: scale(0.96);
+}
+
+.annotation-sedimentation-proposal-state {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-action-primary-bg) 12%, transparent);
+  color: var(--app-action-primary-bg);
+  font-size: 12px;
+  font-weight: 760;
+  padding: 0 10px;
 }
 
 .annotation-sedimentation-review-empty {

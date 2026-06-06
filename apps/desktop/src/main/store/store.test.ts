@@ -738,6 +738,96 @@ describe('desktop store articles', () => {
     });
   });
 
+  it('normalizes distillation review proposals from persisted rows', () => {
+    const rows = buildArticleChildRows({
+      id: 'store-distillation-proposals-article',
+      annotations: [
+        {
+          ...annotationRecord('store-distillation-proposals-annotation', []),
+          distillation: {
+            status: 'unpublished',
+            content: '草稿',
+            reviewSessions: [
+              {
+                id: 'review-session-proposals',
+                agentId: 'review-agent-1',
+                messages: [
+                  {
+                    id: 'review-message-proposals',
+                    author: 'ai',
+                    content: '可以把讨论沉淀成可执行判断。',
+                    createdAt: '2026-05-17T01:30:00.000Z',
+                    proposals: [
+                      {
+                        id: 'proposal-insert',
+                        kind: 'insert',
+                        status: 'pending',
+                        title: '',
+                        content: '新增判断',
+                        updatedAt: '2026-05-17T01:31:00.000Z',
+                      },
+                      {
+                        id: 'proposal-invalid-replace',
+                        kind: 'replace',
+                        status: 'pending',
+                        title: '无效修改',
+                        targetText: '旧判断',
+                        updatedAt: '2026-05-17T01:32:00.000Z',
+                      },
+                    ],
+                  },
+                ],
+                createdAt: '2026-05-17T01:20:00.000Z',
+                updatedAt: '2026-05-17T01:30:00.000Z',
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const annotationRow = rows.annotationRows[0];
+    if (!annotationRow) throw new Error('expected annotation row');
+    const annotation = rowToAnnotation(
+      {
+        ...annotationRow,
+        annotationType: annotationRow.annotationType ?? null,
+        readingIntent: annotationRow.readingIntent ?? null,
+        whyHere: annotationRow.whyHere ?? null,
+        confidence: annotationRow.confidence ?? null,
+        moveType: annotationRow.moveType ?? null,
+        shouldShow: annotationRow.shouldShow ?? null,
+        agentId: annotationRow.agentId ?? null,
+        agentUsername: annotationRow.agentUsername ?? null,
+        agentNickname: annotationRow.agentNickname ?? null,
+        agentAvatar: annotationRow.agentAvatar ?? null,
+        agentAnnotationColor: annotationRow.agentAnnotationColor ?? null,
+        userId: annotationRow.userId ?? null,
+        userUsername: annotationRow.userUsername ?? null,
+        userNickname: annotationRow.userNickname ?? null,
+        userAvatar: annotationRow.userAvatar ?? null,
+        userAnnotationColor: annotationRow.userAnnotationColor ?? null,
+        distillationStatus: annotationRow.distillationStatus ?? null,
+        distillationContent: annotationRow.distillationContent ?? null,
+        distillationPublishedAt: annotationRow.distillationPublishedAt ?? null,
+        distillationUpdatedAt: annotationRow.distillationUpdatedAt ?? null,
+        distillationReviewSessions: annotationRow.distillationReviewSessions ?? null,
+      },
+      [],
+    );
+
+    const message = annotation.distillation?.reviewSessions?.[0]?.messages[0];
+    expect(message?.proposals).toEqual([
+      expect.objectContaining({
+        id: 'proposal-insert',
+        kind: 'insert',
+        status: 'pending',
+        title: '新增：新增判断',
+        content: '新增判断',
+      }),
+    ]);
+  });
+
   it('finds existing import articles by id before url identity', () => {
     const idMatch = articleSummaryRecord({
       id: 'id-match',

@@ -1,4 +1,8 @@
-import type { TextAnchor } from '@yomitomo/shared';
+import type {
+  AnnotationDistillationProposal,
+  AnnotationDistillationProposalKind,
+  TextAnchor,
+} from '@yomitomo/shared';
 import type { AssistantFinalAction } from './assistant-runtime-types';
 
 export function validateAssistantFinalAction(
@@ -72,7 +76,15 @@ export function validateAssistantFinalAction(
     if (!content) return { ok: false, reason: 'missing_review_content' };
     return {
       ok: true,
-      action: { type, annotationId, content, evidenceIds, confidence, reason },
+      action: {
+        type,
+        annotationId,
+        content,
+        proposals: proposalArray(value.proposals),
+        evidenceIds,
+        confidence,
+        reason,
+      },
     };
   }
 
@@ -119,6 +131,60 @@ function stringField(value: unknown) {
 function stringArray(value: unknown) {
   if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) return null;
   return value;
+}
+
+function proposalArray(value: unknown): AnnotationDistillationProposal[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    if (!isRecord(item)) return [];
+    const kind = proposalKind(item.kind);
+    if (!kind) return [];
+    const content = stringField(item.content);
+    const targetText = stringField(item.targetText);
+    const replacementText = stringField(item.replacementText);
+    if (!validProposalFields(kind, content, targetText, replacementText)) return [];
+    return [
+      {
+        id: stringField(item.id) || `${kind}_${index + 1}`,
+        kind,
+        status: 'pending',
+        title: stringField(item.title) || proposalTitle(kind, content, targetText),
+        rationale: stringField(item.rationale) || undefined,
+        insertAfterText: stringField(item.insertAfterText) || undefined,
+        targetText: targetText || undefined,
+        replacementText: kind === 'replace' ? replacementText : undefined,
+        content: kind === 'insert' ? content : undefined,
+        updatedAt: stringField(item.updatedAt),
+      },
+    ];
+  });
+}
+
+function proposalKind(value: unknown): AnnotationDistillationProposalKind | null {
+  return value === 'insert' || value === 'replace' || value === 'delete' ? value : null;
+}
+
+function validProposalFields(
+  kind: AnnotationDistillationProposalKind,
+  content: string,
+  targetText: string,
+  replacementText: string,
+) {
+  if (kind === 'insert') return Boolean(content);
+  if (kind === 'replace') return Boolean(targetText && replacementText);
+  return Boolean(targetText);
+}
+
+function proposalTitle(
+  kind: AnnotationDistillationProposalKind,
+  content: string,
+  targetText: string,
+) {
+  const text = kind === 'insert' ? content : targetText;
+  const preview = text.length > 18 ? `${text.slice(0, 18)}...` : text;
+  if (kind === 'insert') return preview ? `新增：${preview}` : '新增内容';
+  if (kind === 'replace') return preview ? `修改：${preview}` : '修改内容';
+  return preview ? `删除：${preview}` : '删除内容';
 }
 
 function evidenceIdArray(value: Record<string, unknown>) {

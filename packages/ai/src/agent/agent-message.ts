@@ -118,9 +118,13 @@ export function buildAgentDistillationReviewRuntimePayload(
     responseMode: 'distillation_review' as const,
     readingMemoryView: undefined,
   };
+  const proposalRequirement =
+    payload.distillationReviewMode === 'organize_discussion'
+      ? 'proposals 只能包含 insert，用 content 放可直接追加到沉淀稿的新增文本；不要生成 replace 或 delete。'
+      : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
   return {
-    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入沉淀审阅会话的助手消息，不要输出 JSON。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不替用户完整改写。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出沉淀审阅正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
+    system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，用 review_distillation final action 返回审阅正文和可采纳的稿件建议。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：返回 review_distillation final action。content 是自然语言审阅正文；proposals 是 0 到多条可采纳稿件建议，只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时返回空 proposals。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -266,6 +270,10 @@ function buildAgentDistillationReviewPrompt(
 ) {
   const draft = payload.instruction?.trim() || '用户还没有写沉淀草稿。';
   const discussion = formatCreateThoughtContext(payload.annotation);
+  const modeRequirement =
+    payload.distillationReviewMode === 'organize_discussion'
+      ? '本轮任务是整理讨论：只提出可新增到沉淀稿的方向，不要建议修改或删除现有草稿。'
+      : '本轮任务是审阅草稿：可以指出新增、修改或删除方向，但不要直接替用户改稿。';
   const task = `${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}
 
 用户高亮：
@@ -278,6 +286,7 @@ ${draft}
 ${discussion}
 
 请审阅这段沉淀。要求：
+- ${modeRequirement}
 - 输出应该帮助用户判断这段沉淀是否值得发布、是否缺证据、是否可以更准确。
 - 如果草稿为空，基于高亮、想法和讨论给出可沉淀方向、风险或反问。
 - 不要替用户完整改写，不要给发布决定，不要输出 Markdown 标题或 JSON。`;
