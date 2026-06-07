@@ -21,6 +21,7 @@ import type {
   LlmProvider,
   ProviderModel,
   ReaderChatState,
+  UiLanguage,
   UserFacingReleaseNote,
   UserProfile,
   WeReadBook,
@@ -546,7 +547,7 @@ export type DesktopIpcInvokeMap = {
     result: AppUpdateState;
   };
   'release-notes:get': {
-    args: [input: { version: string; source: 'local' | 'remote' }];
+    args: [input: { version: string; source: 'local' | 'remote'; language?: UiLanguage }];
     result: UserFacingReleaseNote | null;
   };
   'url:open': {

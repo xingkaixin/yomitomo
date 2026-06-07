@@ -1,0 +1,29 @@
+{
+  "version": "0.5.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "PDF import and reading",
+      "description": "Add local PDFs to the library with outlines, selection, annotations, and focused co-reading.",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "WeRead integration",
+      "description": "Sync notes and reading stats from WeRead into the local Yomitomo reading library.",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "Keyboard paging and reading fonts",
+      "description": "Added keyboard paging, bundled reading fonts, and automatic settings save feedback.",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "PDF and reader fixes",
+      "description": "Fixed PDF selection, outline behavior, annotation flow, and several reader interaction issues.",
+      "audience": "reader"
+    }
+  ]
+}

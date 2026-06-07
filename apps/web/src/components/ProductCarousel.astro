@@ -8,16 +8,17 @@ export type ProductCarouselSlide = {
 
 type Props = {
   slides: ProductCarouselSlide[];
+  label?: string;
 };
 
-const { slides } = Astro.props;
+const { slides, label = '产品介绍图' } = Astro.props;
 const loopedSlides = [...slides, ...slides, ...slides];
 const initialSlidePosition = slides.length;
 ---
 
 {
   slides.length > 0 ? (
-    <section class="product-carousel" aria-label="产品介绍图" data-product-carousel>
+    <section class="product-carousel" aria-label={label} data-product-carousel>
       <div class="product-carousel-viewport" data-carousel-viewport>
         {loopedSlides.map((slide, position) => {
           const index = position % slides.length;
@@ -26,7 +27,7 @@ const initialSlidePosition = slides.length;
           return (
           <figure
             class:list={['product-carousel-card', isInitial && 'is-active']}
-            aria-label={`查看${slide.title}`}
+            aria-label={slide.title}
             aria-pressed={isInitial}
             data-carousel-card
             data-carousel-index={index}
@@ -56,7 +57,7 @@ const initialSlidePosition = slides.length;
           <button
             class:list={['product-carousel-indicator', index === 0 && 'is-active']}
             type="button"
-            aria-label={`查看${slide.title}`}
+            aria-label={slide.title}
             aria-pressed={index === 0}
             data-carousel-index={index}
           />

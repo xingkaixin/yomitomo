@@ -303,6 +303,11 @@ const resources = {
           description: '查看版本发布说明和主要变化。',
           label: '查看更新记录',
         },
+        docs: {
+          title: '帮助文档',
+          description: '查看快速开始、阅读库、阅读器、AI 伴读和设置说明。',
+          label: '打开帮助文档',
+        },
         github: {
           title: 'GitHub 项目',
           description: '打开源码主页、README 和项目资料。',
@@ -354,14 +359,14 @@ const resources = {
         },
         updateState: {
           loading: '正在读取更新状态。',
-          checking: '正在检查 GitHub Releases 上的新版本。',
+          checking: '正在检查新版本。',
           available: '发现 {{version}}，可下载安装。',
           notAvailable: '当前已是最新版本。',
           downloading: '正在下载更新，已完成 {{percent}}%。',
           downloaded: '更新已下载，重启应用后完成安装。',
           error: '更新失败，请稍后重试。',
           unsupported: '当前环境不支持自动更新。',
-          idle: '可手动检查 GitHub Releases 上的新版本。',
+          idle: '可手动检查新版本。',
           errors: {
             failed: '更新失败，请稍后重试。',
             checkFailed: '检查更新失败，请稍后重试。',
@@ -1643,6 +1648,11 @@ const resources = {
           description: 'View version notes and key changes.',
           label: 'View release notes',
         },
+        docs: {
+          title: 'Help docs',
+          description: 'Read quick start, library, reader, AI companion, and settings docs.',
+          label: 'Open help docs',
+        },
         github: {
           title: 'GitHub project',
           description: 'Open the source repository, README, and project details.',
@@ -1695,14 +1705,14 @@ const resources = {
         },
         updateState: {
           loading: 'Reading update status.',
-          checking: 'Checking GitHub Releases for a new version.',
+          checking: 'Checking for a new version.',
           available: 'Found {{version}}. It is ready to download and install.',
           notAvailable: 'You are on the latest version.',
           downloading: 'Downloading update, {{percent}} complete.',
           downloaded: 'Update downloaded. Restart the app to finish installing.',
           error: 'Update failed. Try again later.',
           unsupported: 'Automatic updates are not supported in this environment.',
-          idle: 'You can manually check GitHub Releases for a new version.',
+          idle: 'You can manually check for a new version.',
           errors: {
             failed: 'Update failed. Try again later.',
             checkFailed: 'Failed to check for updates. Try again later.',

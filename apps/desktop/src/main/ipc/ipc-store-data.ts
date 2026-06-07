@@ -103,6 +103,6 @@ export function registerStoreDataIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('release-notes:get', async (_event, input) => {
     const { getReleaseNote } = await import('../app/release-notes');
-    return getReleaseNote(input.version, input.source);
+    return getReleaseNote(input.version, input.source, input.language);
   });
 }

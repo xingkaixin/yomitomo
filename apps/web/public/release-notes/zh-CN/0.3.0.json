@@ -1,0 +1,29 @@
+{
+  "version": "0.3.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "本地 EPUB 导入与阅读",
+      "description": "支持导入 EPUB，保存封面与章节元数据，并通过 Foliate 阅读器打开电子书。",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "段落级批注锚点",
+      "description": "结构化书籍索引和段落锚点，让批注、高亮和 AI 落点稳定绑定章节段落。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "剧透控制与阅读上下文",
+      "description": "新增剧透范围控制和阅读上下文打包，减少长书场景的上下文漂移。",
+      "audience": "ai"
+    },
+    {
+      "type": "new",
+      "title": "助手 dock 与批注导航",
+      "description": "新增助手阅读 dock、批注导航快捷键和长批注折叠。",
+      "audience": "reader"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": "0.4.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "应用更新流程",
+      "description": "桌面端新增应用更新，关于页、引导页和官网下载入口连到 GitHub Release。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "数据管理",
+      "description": "可查看数据目录与日志、备份与还原数据库，并在版本不兼容时给出明确提示。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Provider 安全保存 API key",
+      "description": "API key 安全保存，支持查看已保存 key、拉取模型列表和配置任务路由。",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "重心收敛到共读",
+      "description": "移除读后输出流程，产品重心收敛到原文锚点、想法线程、评论讨论和助手共读。",
+      "audience": "reader"
+    }
+  ]
+}

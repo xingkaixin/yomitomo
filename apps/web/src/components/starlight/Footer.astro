@@ -1,5 +1,7 @@
 ---
 import SiteFooter from '../SiteFooter.astro';
+
+const lang = Astro.url.pathname.startsWith('/en/') ? 'en' : 'zh-CN';
 ---
 
-<SiteFooter />
+<SiteFooter lang={lang} />

@@ -24,7 +24,7 @@ import {
   SettingsRow,
   SettingsToggle,
 } from '../settings/app-settings-kit';
-import type { AppSettings, DesktopStore } from '@yomitomo/shared';
+import { normalizeUiLanguage, type AppSettings, type DesktopStore } from '@yomitomo/shared';
 import type { AppInfo } from '../../../preload';
 import type { AppUpdateState } from '../../../app-update-types';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,6 @@ type LicensePackage = {
 
 const githubUrl = 'https://github.com/xingkaixin/yomitomo';
 const homepageUrl = 'https://yomitomo.app';
-const releasesUrl = 'https://github.com/xingkaixin/yomitomo/releases';
 const feedbackUrl = 'https://github.com/xingkaixin/yomitomo/issues';
 const thirdPartyPackages = parseThirdPartyNotices(thirdPartyNoticesRaw);
 type AppT = ReturnType<typeof useTranslation>['t'];
@@ -129,6 +128,7 @@ export function AboutSettings({
   const updateCopy = updateStateCopy(updateState, t);
   const updateButton = updateAction(updateState, t);
   const developerModeEnabled = Boolean(settings.developerModeEnabled);
+  const resourceUrls = localizedResourceUrls(settings.uiLanguage);
 
   const resourceRows: Array<{
     icon: React.ReactNode;
@@ -142,10 +142,17 @@ export function AboutSettings({
       title: t('about.releaseNotes.title'),
       description: t('about.releaseNotes.description'),
       label: t('about.releaseNotes.label'),
-      onAction: () => openExternal(releasesUrl),
+      onAction: () => openExternal(resourceUrls.releaseNotes),
     },
     {
       icon: <BookOpen size={18} />,
+      title: t('about.docs.title'),
+      description: t('about.docs.description'),
+      label: t('about.docs.label'),
+      onAction: () => openExternal(resourceUrls.docs),
+    },
+    {
+      icon: <ExternalLink size={18} />,
       title: t('about.github.title'),
       description: t('about.github.description'),
       label: t('about.github.label'),
@@ -156,7 +163,7 @@ export function AboutSettings({
       title: t('about.website.title'),
       description: t('about.website.description'),
       label: t('about.website.label'),
-      onAction: () => openExternal(homepageUrl),
+      onAction: () => openExternal(resourceUrls.homepage),
     },
     {
       icon: <MessageSquare size={18} />,
@@ -402,6 +409,17 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
 
 function formatVersion(version: string, t: AppT) {
   return version ? `v${version}` : t('about.loading');
+}
+
+function localizedResourceUrls(language: unknown) {
+  const normalized = normalizeUiLanguage(language);
+  const prefix = normalized === 'en' ? '/en' : '';
+
+  return {
+    homepage: `${homepageUrl}${prefix}/`,
+    docs: `${homepageUrl}${prefix}/docs/`,
+    releaseNotes: `${homepageUrl}${prefix}/changelogs/`,
+  };
 }
 
 function updateAction(

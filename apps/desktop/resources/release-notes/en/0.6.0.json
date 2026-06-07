@@ -1,0 +1,41 @@
+{
+  "version": "0.6.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Reading memory foundation",
+      "description": "Paragraphs, selections, threads, and annotations are remembered so assistants can reuse existing judgments later.",
+      "audience": "ai"
+    },
+    {
+      "type": "new",
+      "title": "Traceable assistant tool flow",
+      "description": "Assistant selection actions, thread replies, and co-reading loops now run through a diagnosable tool-call flow.",
+      "audience": "ai"
+    },
+    {
+      "type": "new",
+      "title": "Annotation discussions and distillation",
+      "description": "Annotations can open dedicated discussion windows where assistants help turn conclusions into publishable distilled cards.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Themes and reader paper",
+      "description": "Added the theme picker and reader paper backgrounds for unified web, EPUB, and PDF reading visuals.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Library and import polish",
+      "description": "Improved web article covers and progress, batch file import, card stats hints, and display metadata cleanup.",
+      "audience": "import"
+    },
+    {
+      "type": "fixed",
+      "title": "Reading regressions fixed",
+      "description": "Fixed PDF annotation anchors, EPUB arrow-key paging, reading progress restore, and related issues.",
+      "audience": "reader"
+    }
+  ]
+}
