@@ -20,6 +20,22 @@ describe('reader embedded styles', () => {
     expect(readerDesktopEmbeddedStyles).not.toContain('--reader-bg:#f5f1e8');
   });
 
+  it('keeps reader chrome draggable with centered article metadata', () => {
+    expect(readerConversationStyles).toContain('-webkit-app-region:drag');
+    expect(readerConversationStyles).toContain(
+      '.reader-back,.reader-toolbar-actions,.reader-toolbar-article-action,.reader-toolbar button{-webkit-app-region:no-drag}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article-copy{display:grid;gap:5px;min-width:0;justify-items:center;text-align:center}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article-meta{display:flex;align-items:center;justify-content:center;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-toolbar-article-copy,.reader-toolbar-article.has-cover .reader-toolbar-article-copy{justify-items:start;text-align:left}',
+    );
+  });
+
   it('keeps article blockquotes on reader theme tokens', () => {
     expect(readerStyles).toContain(
       '.reader-article blockquote{margin-left:0;padding-left:22px;border-left:4px solid var(--reader-yellow);color:var(--reader-ink)}',

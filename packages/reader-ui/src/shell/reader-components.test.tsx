@@ -7,8 +7,9 @@ import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
 import { Composer, measureComposerPosition } from './reader-composer';
 import { ReaderChatPanel } from './reader-chat-panel';
-import { ReaderFloatingToolbar } from './reader-toolbar';
+import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
 import { ReaderTocPanel } from './reader-toc-panel';
+import { defaultReaderUiLabels } from './reader-app-view-types';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
 
 const now = '2026-05-12T08:00:00.000Z';
@@ -471,6 +472,54 @@ describe('ReaderTocPanel', () => {
     expect(screen.getByLabelText('2 划线，3 沉淀')).toBeTruthy();
     expect(screen.queryByText(/批注/)).toBeNull();
     expect(screen.queryByText(/评论/)).toBeNull();
+  });
+});
+
+describe('ReaderToolbar', () => {
+  it('renders a library back button and clamps reading progress', () => {
+    const onClose = vi.fn();
+
+    const { container } = render(
+      <ReaderToolbar
+        extracted={{ title: 'Agentic Coding 的边界', byline: 'tison', content: '' }}
+        labels={{
+          ...defaultReaderUiLabels,
+          backToLibrary: '返回阅读库',
+          readingProgress: '阅读进度',
+          readerLibrary: '阅读库',
+        }}
+        readingProgress={1.42}
+        toolbarArticleAction={<button type="button">打开</button>}
+        onClose={onClose}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Agentic Coding 的边界')).toBeTruthy();
+    expect(
+      screen.getByRole('progressbar', { name: '阅读进度' }).getAttribute('aria-valuenow'),
+    ).toBe('100');
+    expect(container.querySelector('.reader-toolbar-progress span')?.getAttribute('style')).toBe(
+      'width: 100%;',
+    );
+  });
+
+  it('keeps cover visuals separate from right-side actions', () => {
+    const { container } = render(
+      <ReaderToolbar
+        articleLeadingVisual={<span data-testid="cover">封面</span>}
+        extracted={{ title: '电子书', content: '' }}
+        headerMeta={{ title: '电子书', byline: '作者', hasCover: true }}
+        toolbarArticleAction={<button type="button">右侧操作</button>}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('cover')).toBeTruthy();
+    expect(container.querySelector('.reader-toolbar-article-visual')?.textContent).toBe('封面');
+    expect(container.querySelector('.reader-toolbar-actions')?.textContent).toBe('右侧操作');
   });
 });
 

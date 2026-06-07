@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import i18next from 'i18next';
-import { ArrowLeft, ExternalLink, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ExternalLink, RefreshCw } from 'lucide-react';
 import type {
   UserProfile,
   WeReadBookDetail,
@@ -73,6 +73,8 @@ export function WeReadBookcase({
     detail.book.readingTime ?? detail.book.recordReadingTime,
     t,
   );
+  const readingProgress = clampWeReadReadingProgress(detail.book.readingProgress);
+  const readingProgressPercent = Math.round(readingProgress * 100);
   const visibleGroups = activeChapterUid
     ? groups.filter((group) => group.chapterUid === activeChapterUid)
     : groups;
@@ -81,28 +83,19 @@ export function WeReadBookcase({
     <section className="weread-bookcase">
       <header className="weread-bookcase-header">
         <button
-          className="source-reader-back-button"
+          className="reader-back weread-bookcase-back"
           type="button"
           aria-label={t('common.backToLibrary')}
           onClick={onClose}
         >
-          <ArrowLeft size={16} />
-          {t('common.backToLibrary')}
+          <ChevronLeft size={18} />
+          <span>{t('readerUi.readerLibrary')}</span>
         </button>
         <div className="weread-bookcase-title">
           <WeReadCover book={detail.book} variant="cover" />
           <div>
             <div className="weread-bookcase-heading">
               <h2>{detail.book.title}</h2>
-              <button
-                className="weread-open-book-button"
-                type="button"
-                aria-label={t('wereadBook.openWeRead')}
-                title={t('wereadBook.openWeRead')}
-                onClick={() => onOpenExternal({})}
-              >
-                <ExternalLink size={15} />
-              </button>
             </div>
             <p>
               {[detail.book.author || t('wereadBook.weReadFallback'), readingTimeLabel]
@@ -112,10 +105,29 @@ export function WeReadBookcase({
           </div>
         </div>
         <div className="weread-bookcase-actions">
+          <button
+            className="weread-open-book-button"
+            type="button"
+            aria-label={t('wereadBook.openWeRead')}
+            title={t('wereadBook.openWeRead')}
+            onClick={() => onOpenExternal({})}
+          >
+            <ExternalLink size={15} />
+          </button>
           <button type="button" disabled={syncing} onClick={onSync}>
             <RefreshCw size={15} />
             {syncing ? t('wereadBook.syncing') : t('wereadBook.syncBook')}
           </button>
+        </div>
+        <div
+          className="weread-bookcase-progress"
+          role="progressbar"
+          aria-label={t('readerUi.readingProgress')}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={readingProgressPercent}
+        >
+          <span style={{ width: `${readingProgressPercent}%` }} />
         </div>
       </header>
       <div className="weread-bookcase-body">
@@ -170,6 +182,11 @@ function formatWeReadReadingTime(value: number | undefined, t: AppT) {
   if (!value) return '';
   const minutes = Math.max(1, Math.round(value / 60));
   return t('wereadBook.readingTime', { minutes });
+}
+
+function clampWeReadReadingProgress(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value / 100));
 }
 
 function WeReadNoteCard({

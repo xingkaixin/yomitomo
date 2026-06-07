@@ -20,6 +20,8 @@ const theme: ReaderTheme = {
     border: 'rgba(40,35,29,.1)',
     controlBackground: 'rgba(255,253,248,.84)',
     controlHoverBackground: '#f0eadf',
+    progressTrack: 'rgba(40,35,29,.1)',
+    progressFill: '#c7a45e',
   },
   toc: {
     background: 'rgba(250,247,240,.62)',

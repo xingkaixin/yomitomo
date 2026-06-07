@@ -170,8 +170,11 @@ export function ReaderAppView({
       onPointerDownCapture={handleReaderPointerDownCapture}
     >
       <ReaderToolbar
+        articleLeadingVisual={toolbar?.articleLeadingVisual}
         extracted={article.extracted}
+        headerMeta={toolbar?.headerMeta}
         labels={labels}
+        readingProgress={toolbar?.readingProgress}
         toolbarArticleAction={toolbar?.articleAction}
         onClose={shell.onClose}
       />
