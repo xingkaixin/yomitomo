@@ -106,7 +106,7 @@ describe('AboutSettings', () => {
 
     render(<AboutSettings />);
 
-    expect(await screen.findByText('可手动检查 GitHub Releases 上的新版本。')).toBeTruthy();
+    expect(await screen.findByText('可手动检查新版本。')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /检查更新/ }));
 
     await waitFor(() => expect(desktop.checkForUpdates).toHaveBeenCalledOnce());
@@ -117,7 +117,7 @@ describe('AboutSettings', () => {
     const desktop = installDesktopAboutApi();
 
     render(<AboutSettings />);
-    await screen.findByText('可手动检查 GitHub Releases 上的新版本。');
+    await screen.findByText('可手动检查新版本。');
 
     act(() => {
       desktop.emitUpdate({
@@ -134,10 +134,16 @@ describe('AboutSettings', () => {
     expect(desktop.installUpdate).toHaveBeenCalledOnce();
   });
 
-  it('opens project and homepage links through the desktop bridge', async () => {
+  it('opens localized website links through the desktop bridge', async () => {
     const desktop = installDesktopAboutApi();
 
-    render(<AboutSettings />);
+    render(<AboutSettings settings={{ uiLanguage: 'zh-CN' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看更新记录/ }));
+
+    await waitFor(() =>
+      expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/changelogs/'),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /打开 GitHub/ }));
 
@@ -147,7 +153,24 @@ describe('AboutSettings', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /打开官网/ }));
 
-    await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app'));
+    await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/'));
+  });
+
+  it('opens English website links when English is selected', async () => {
+    const desktop = installDesktopAboutApi();
+
+    initializeAppI18n('en');
+    render(<AboutSettings settings={{ uiLanguage: 'en' }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /View release notes/ }));
+
+    await waitFor(() =>
+      expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/en/changelogs/'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Open website/ }));
+
+    await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/en/'));
   });
 
   it('filters open source packages in the license dialog', async () => {

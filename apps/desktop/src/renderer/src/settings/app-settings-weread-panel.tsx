@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { WeReadOpenMethod, WeReadSettings } from '@yomitomo/shared';
+import { normalizeUiLanguage, type WeReadOpenMethod, type WeReadSettings } from '@yomitomo/shared';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
@@ -19,10 +19,13 @@ import { Input } from '../components/ui/input';
 import { SettingsGroup, SettingsPage, SettingsRadioDot } from './app-settings-kit';
 import { useTranslation } from 'react-i18next';
 
-const WEREAD_API_KEY_HELP_URL = 'https://yomitomo.app/docs/weread-api-key/';
+const WEREAD_API_KEY_HELP_URLS = {
+  'zh-CN': 'https://yomitomo.app/docs/weread-api-key/',
+  en: 'https://yomitomo.app/en/docs/weread-api-key/',
+} as const;
 
 export function WeReadSettingsPanel() {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [settings, setSettings] = useState<WeReadSettings>({
     configured: false,
     openMethod: 'deeplink',
@@ -170,16 +173,17 @@ export function WeReadSettingsPanel() {
   }
 
   async function openWeReadApiKeyHelp() {
+    const helpUrl = WEREAD_API_KEY_HELP_URLS[normalizeUiLanguage(i18n.language)];
     const openUrl = window.yomitomoDesktop?.openUrl;
     if (!openUrl) {
-      window.open(WEREAD_API_KEY_HELP_URL, '_blank', 'noopener,noreferrer');
+      window.open(helpUrl, '_blank', 'noopener,noreferrer');
       return;
     }
 
     try {
-      await openUrl(WEREAD_API_KEY_HELP_URL);
+      await openUrl(helpUrl);
     } catch {
-      window.open(WEREAD_API_KEY_HELP_URL, '_blank', 'noopener,noreferrer');
+      window.open(helpUrl, '_blank', 'noopener,noreferrer');
     }
   }
 

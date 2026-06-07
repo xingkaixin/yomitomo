@@ -178,8 +178,11 @@ const api = {
   downloadUpdate: () => invokeDesktopIpc('updates:download'),
   installUpdate: () => invokeDesktopIpc('updates:install'),
   simulateUpdateAvailable: () => invokeDesktopIpc('updates:simulate-available'),
-  getReleaseNote: (version: string, source: 'local' | 'remote') =>
-    invokeDesktopIpc('release-notes:get', { version, source }),
+  getReleaseNote: (
+    version: string,
+    source: 'local' | 'remote',
+    language?: AppSettings['uiLanguage'],
+  ) => invokeDesktopIpc('release-notes:get', { version, source, language }),
   onUpdateStatus: (callback: (state: AppUpdateState) => void) => {
     const listener = (_event: IpcRendererEvent, state: AppUpdateState) => callback(state);
     ipcRenderer.on('updates:status', listener);

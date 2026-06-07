@@ -7,7 +7,7 @@ import type {
   ReleaseNoteHighlight,
   ReleaseNoteHighlightType,
 } from '@yomitomo/shared';
-import { selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
+import { normalizeUiLanguage, selectHighlights, shouldShowAfterUpdate } from '@yomitomo/shared';
 import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
@@ -38,6 +38,7 @@ export function UpdateReleaseDialog({
   store: DesktopStore;
   onSaveSettings: (settings: AppSettings) => Promise<DesktopStore>;
 }) {
+  const { i18n } = useTranslation();
   const [version, setVersion] = useState('');
   const [dialog, setDialog] = useState<ActiveReleaseDialog | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,33 +60,37 @@ export function UpdateReleaseDialog({
       void onSaveSettings({ ...settingsRef.current, lastSeenVersion: version });
     }
     if (!show) return;
-    void window.yomitomoDesktop.getReleaseNote(version, 'local').then((note) => {
-      setDialog({
-        scene: 'after-update',
-        version,
-        highlights: note ? selectHighlights(note, 'after-update') : [],
+    void window.yomitomoDesktop
+      .getReleaseNote(version, 'local', normalizeUiLanguage(i18n.language))
+      .then((note) => {
+        setDialog({
+          scene: 'after-update',
+          version,
+          highlights: note ? selectHighlights(note, 'after-update') : [],
+        });
       });
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
+  }, [i18n.language, version]);
 
   // A：检测到新版本时按目标版本远程拉文案；拉取失败仍弹纯版本号提示，不阻塞下载决策。
   useEffect(() => {
     const unsubscribe = window.yomitomoDesktop.onUpdateStatus((state) => {
       if (state.status !== 'available' || !state.availableVersion) return;
       const targetVersion = state.availableVersion;
-      void window.yomitomoDesktop.getReleaseNote(targetVersion, 'remote').then((note) => {
-        setDialog({
-          scene: 'before-update',
-          version: targetVersion,
-          highlights: note ? selectHighlights(note, 'before-update') : [],
+      void window.yomitomoDesktop
+        .getReleaseNote(targetVersion, 'remote', normalizeUiLanguage(i18n.language))
+        .then((note) => {
+          setDialog({
+            scene: 'before-update',
+            version: targetVersion,
+            highlights: note ? selectHighlights(note, 'before-update') : [],
+          });
         });
-      });
     });
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [i18n.language]);
 
   if (!dialog) return null;
 

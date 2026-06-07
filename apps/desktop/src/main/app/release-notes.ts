@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { app } from 'electron';
-import type { ReleaseNoteHighlight, UserFacingReleaseNote } from '@yomitomo/shared';
+import {
+  normalizeUiLanguage,
+  type ReleaseNoteHighlight,
+  type UiLanguage,
+  type UserFacingReleaseNote,
+} from '@yomitomo/shared';
 import { mainPath } from './main-paths';
 import { logError } from './logger';
 
@@ -19,32 +24,68 @@ const HIGHLIGHT_TYPES = new Set<ReleaseNoteHighlight['type']>([
 export async function getReleaseNote(
   version: string,
   source: ReleaseNoteSource,
+  language: unknown = 'zh-CN',
 ): Promise<UserFacingReleaseNote | null> {
   const safeVersion = sanitizeVersion(version);
+  const locale = normalizeUiLanguage(language);
   if (!safeVersion) return null;
-  if (source === 'local') return getLocalReleaseNote(safeVersion);
-  const remote = await fetchRemoteReleaseNote(safeVersion);
+  if (source === 'local') return getLocalReleaseNote(safeVersion, locale);
+  const remote = await fetchRemoteReleaseNote(safeVersion, locale);
   if (remote || app.isPackaged) return remote;
   // 开发环境官网文案可能尚未部署，回退本地打包文案，便于验证更新前弹窗。
-  return getLocalReleaseNote(safeVersion);
+  return getLocalReleaseNote(safeVersion, locale);
 }
 
-async function getLocalReleaseNote(version: string): Promise<UserFacingReleaseNote | null> {
+async function getLocalReleaseNote(
+  version: string,
+  locale: UiLanguage,
+): Promise<UserFacingReleaseNote | null> {
+  const localized = await readLocalReleaseNote(
+    `../../resources/release-notes/${locale}/${version}.json`,
+  );
+  if (localized) return localized;
+  if (locale !== 'zh-CN') {
+    const zh = await readLocalReleaseNote(`../../resources/release-notes/zh-CN/${version}.json`);
+    if (zh) return zh;
+  }
+  return readLocalReleaseNote(`../../resources/release-notes/${version}.json`);
+}
+
+async function readLocalReleaseNote(path: string): Promise<UserFacingReleaseNote | null> {
   try {
-    const raw = await readFile(mainPath(`../../resources/release-notes/${version}.json`), 'utf8');
+    const raw = await readFile(mainPath(path), 'utf8');
     return parseReleaseNote(raw);
   } catch {
     return null;
   }
 }
 
-async function fetchRemoteReleaseNote(version: string): Promise<UserFacingReleaseNote | null> {
+async function fetchRemoteReleaseNote(
+  version: string,
+  locale: UiLanguage,
+): Promise<UserFacingReleaseNote | null> {
+  const localized = await readRemoteReleaseNote(
+    `${REMOTE_BASE}/${locale}/${version}.json`,
+    version,
+  );
+  if (localized) return localized;
+  if (locale !== 'zh-CN') {
+    const zh = await readRemoteReleaseNote(`${REMOTE_BASE}/zh-CN/${version}.json`, version);
+    if (zh) return zh;
+  }
+  return readRemoteReleaseNote(`${REMOTE_BASE}/${version}.json`, version);
+}
+
+async function readRemoteReleaseNote(
+  url: string,
+  version: string,
+): Promise<UserFacingReleaseNote | null> {
   try {
-    const response = await fetch(`${REMOTE_BASE}/${version}.json`);
+    const response = await fetch(url);
     if (!response.ok) return null;
     return parseReleaseNote(await response.text());
   } catch (error) {
-    logError('release-notes.remote-failed', error, { version });
+    logError('release-notes.remote-failed', error, { url, version });
     return null;
   }
 }

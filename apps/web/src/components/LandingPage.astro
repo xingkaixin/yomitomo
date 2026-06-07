@@ -1,0 +1,671 @@
+---
+import desktopPackage from '../../../desktop/package.json';
+import ProductCarousel, { type ProductCarouselSlide } from './ProductCarousel.astro';
+import SiteFooter from './SiteFooter.astro';
+import SiteHeader from './SiteHeader.astro';
+import { githubUrl, youtubeUrl } from '../site-links';
+import '../styles/global.css';
+
+type Lang = 'zh-CN' | 'en';
+
+type Props = {
+  lang: Lang;
+};
+
+const { lang } = Astro.props;
+const isEnglish = lang === 'en';
+const siteUrl = 'https://yomitomo.app';
+const canonicalUrl = isEnglish ? `${siteUrl}/en/` : `${siteUrl}/`;
+const alternateUrl = isEnglish ? `${siteUrl}/` : `${siteUrl}/en/`;
+const pageTitle = isEnglish
+  ? 'Yomitomo - Local-first AI reading companion'
+  : 'Yomitomo - 本地优先的 AI 伴读桌面应用';
+const pageDescription = isEnglish
+  ? 'Yomitomo is a local-first AI reading companion for desktop. Highlight, capture thoughts, discuss with assistants, and keep reading judgments anchored to the source.'
+  : 'Yomitomo 是本地优先的 AI 伴读桌面应用。划线、记下想法、和 AI 助手讨论，把阅读判断留在原文现场。';
+const releaseVersion = desktopPackage.version;
+const releaseTag = `v${releaseVersion}`;
+const releaseBaseUrl = `https://download.yomitomo.app/releases/download/${releaseTag}`;
+const ogImageUrl = `${siteUrl}/assets/og-image.jpg`;
+const downloadPlatforms = [
+  {
+    platform: 'mac',
+    name: 'macOS',
+    href: `${releaseBaseUrl}/Yomitomo-${releaseVersion}-mac-arm64.dmg`,
+    label: 'Apple Silicon',
+    extension: '.dmg',
+  },
+  {
+    platform: 'windows',
+    name: 'Windows',
+    href: `${releaseBaseUrl}/Yomitomo-${releaseVersion}-win-x64.exe`,
+    label: 'x64',
+    extension: '.exe',
+  },
+];
+
+const copy = isEnglish
+  ? {
+      nav: {
+        problem: 'Problem',
+        value: 'What You Get',
+        how: 'How It Works',
+        ai: 'AI Companions',
+        faq: 'FAQ',
+        download: 'Download',
+      },
+      badge: 'Local-first AI reading companion',
+      heroTitleBefore: 'You read a lot. Almost',
+      heroEmphasis: 'none of it stays',
+      heroSub:
+        'Yomitomo helps you highlight, capture thoughts, and talk them through with AI companions, so you leave with judgments you can trace back to the source.',
+      primaryCta: 'Download for macOS',
+      secondaryCta: 'Download for Windows',
+      trust: ['Free', 'Open source', 'Your data stays local'],
+      sources: 'One home for everything you read',
+      sourceItems: ['Web articles', 'PDF', 'EPUB', 'WeRead'],
+      heroShotTitle: 'Reading, annotations, and assistant discussion in one workspace',
+      heroShotMeta: 'Current-language product screenshots',
+      problemEyebrow: 'The Problem',
+      problemTitle: "Reading tools save articles. They rarely save what you thought.",
+      problems: [
+        {
+          title: 'Saved does not mean read',
+          body: 'Read-it-later queues grow because saving is easy and returning with intent is hard.',
+        },
+        {
+          title: 'Finished still fades',
+          body: 'A good passage feels clear in the moment, then disappears because the judgment was never anchored.',
+        },
+        {
+          title: 'AI often replaces you',
+          body: 'Summaries move fast, but they can skip the exact place where your own thinking should happen.',
+        },
+      ],
+      valueEyebrow: 'What You Get',
+      valueTitle: 'Finish with something in hand.',
+      valueLead:
+        'Yomitomo turns highlights into evidence anchors and thoughts into durable reading units.',
+      valueCards: [
+        {
+          title: 'Judgments that return to evidence',
+          body: 'Every note stays attached to the exact source passage, so review starts from context.',
+        },
+        {
+          title: 'Discussions that move a thought forward',
+          body: 'A highlight can hold multiple notes, replies, and assistant comments instead of one static memo.',
+        },
+        {
+          title: 'A local reading memory',
+          body: 'Articles, annotations, discussions, provider settings, and API keys remain on your machine.',
+        },
+      ],
+      howEyebrow: 'How It Works',
+      howTitle: 'Three steps from reading to reusable judgment.',
+      steps: [
+        {
+          title: 'Highlight the source',
+          body: 'Mark the passage that made you stop. The highlight becomes the evidence anchor.',
+        },
+        {
+          title: 'Write the thought',
+          body: 'Capture the question, objection, connection, or takeaway while the context is still alive.',
+        },
+        {
+          title: 'Discuss and distill',
+          body: 'Invite assistants when useful, then turn scattered comments into a concise distilled note.',
+        },
+      ],
+      aiEyebrow: 'AI Companions',
+      aiTitle: 'Assistants are reading partners, not a replacement reader.',
+      aiLead:
+        'Use assistants when you want another angle: explanation, questioning, structure, evidence review, logic review, or editing.',
+      aiBullets: [
+        'Reading assistants help clarify, question, connect, and map structure.',
+        'Review assistants check evidence, logic, clarity, risk, and next steps.',
+        'Assistant replies are grounded in the source text, selection, and discussion.',
+      ],
+      faqEyebrow: 'FAQ',
+      faqTitle: 'Before you install',
+      faqs: [
+        {
+          q: 'Is Yomitomo free?',
+          a: 'Yes. The desktop app is free and open source.',
+        },
+        {
+          q: 'Where is my data stored?',
+          a: 'Reading data stays in the local desktop app data directory. API keys are saved in the system keyring.',
+        },
+        {
+          q: 'Which formats are supported?',
+          a: 'Yomitomo supports web articles, EPUB books, PDF documents, and WeRead sync through an API key.',
+        },
+        {
+          q: 'Does AI read instead of me?',
+          a: 'No. The product is designed around your highlights, notes, and discussions. AI joins the reading process when you ask for help.',
+        },
+      ],
+      finalTitle: 'Read slowly enough that your thinking stays.',
+      finalSub: 'Download Yomitomo and start building a reading record you can actually return to.',
+      versionLabel: 'Current version',
+      downloadTitle: 'Download Yomitomo',
+      platformMatch: 'Matches your system',
+    }
+  : {
+      nav: {
+        problem: '痛点',
+        value: '你会得到',
+        how: '怎么用',
+        ai: 'AI 伴读',
+        faq: 'FAQ',
+        download: '免费下载',
+      },
+      badge: '本地优先的 AI 伴读',
+      heroTitleBefore: '读了那么多，最后',
+      heroEmphasis: '什么都没留下',
+      heroSub:
+        'Yomitomo 帮你划线、记下想法、和 AI 助手讨论。读完之后留下的是能回到原文的判断，而不是又一份你再也不会打开的摘要。',
+      primaryCta: '下载 macOS 版',
+      secondaryCta: 'Windows 版',
+      trust: ['完全免费', '开源', '数据全在本地'],
+      sources: '一处管理你所有的阅读',
+      sourceItems: ['网页文章', 'PDF', 'EPUB', '微信读书'],
+      heroShotTitle: '阅读、批注和助手讨论在同一个现场',
+      heroShotMeta: '此处展示当前语言对应截图',
+      problemEyebrow: '痛点',
+      problemTitle: '收藏工具保存文章，但很少保存你当时真正想了什么。',
+      problems: [
+        {
+          title: '收藏不等于读完',
+          body: '稍后读队列越来越长，因为保存很顺滑，带着问题重新打开却很难。',
+        },
+        {
+          title: '读完还是会忘',
+          body: '当下觉得清楚的一段话，如果没有锚点和判断，很快就会从脑子里散掉。',
+        },
+        {
+          title: 'AI 容易替你读了',
+          body: '摘要很快，但它也可能跳过了你本来应该停下来形成判断的位置。',
+        },
+      ],
+      valueEyebrow: '你会得到什么',
+      valueTitle: '读完之后，手里真的有东西。',
+      valueLead: 'Yomitomo 把划线变成证据锚点，把想法变成阅读的最小产出。',
+      valueCards: [
+        {
+          title: '能回到证据的判断',
+          body: '每条想法都贴着具体原文，回看时不是凭记忆复盘，而是回到现场。',
+        },
+        {
+          title: '能继续推进的讨论',
+          body: '一条划线下可以挂多个想法、回复和助手评论，不再是一条静态笔记。',
+        },
+        {
+          title: '留在本机的阅读记忆',
+          body: '文章、批注、讨论、Provider 配置和 API Key 都保存在你的电脑上。',
+        },
+      ],
+      howEyebrow: '怎么用',
+      howTitle: '从阅读到可复用判断，只需要三步。',
+      steps: [
+        {
+          title: '划下原文',
+          body: '在让你停下来的段落划线。划线不是装饰，而是证据锚点。',
+        },
+        {
+          title: '写下想法',
+          body: '趁上下文还在，把疑问、质疑、联想或结论写成最小记录。',
+        },
+        {
+          title: '讨论并沉淀',
+          body: '需要时让助手加入讨论，再把分散评论整理成一段可保留的沉淀。',
+        },
+      ],
+      aiEyebrow: 'AI 伴读',
+      aiTitle: '助手是读伴，不是替身。',
+      aiLead:
+        '当你需要另一个角度时再叫它们进来：解释、追问、结构梳理、证据复核、逻辑检查或编辑压缩。',
+      aiBullets: [
+        '阅读助手帮你澄清、追问、关联和识别结构。',
+        '审阅助手检查证据、逻辑、表达、风险和行动线索。',
+        '助手回复会尽量回到原文、选区和已有讨论。',
+      ],
+      faqEyebrow: 'FAQ',
+      faqTitle: '安装前可以先确认这些',
+      faqs: [
+        {
+          q: 'Yomitomo 免费吗？',
+          a: '是。桌面端应用免费且开源。',
+        },
+        {
+          q: '我的数据存在哪里？',
+          a: '阅读数据保存在桌面端本地应用数据目录。API Key 使用系统 keyring 保存。',
+        },
+        {
+          q: '支持哪些格式？',
+          a: '支持网页文章、EPUB 电子书、PDF 文档，也可以通过 API Key 同步微信读书。',
+        },
+        {
+          q: 'AI 会替我读吗？',
+          a: '不会。产品围绕你的划线、想法和讨论设计，AI 只在你需要时加入阅读过程。',
+        },
+      ],
+      finalTitle: '读得慢一点，让想法真的留下来。',
+      finalSub: '下载 Yomitomo，开始建立一份以后能重新接上的阅读记录。',
+      versionLabel: '当前版本',
+      downloadTitle: '下载 Yomitomo',
+      platformMatch: '匹配当前系统',
+    };
+
+const productSlides: ProductCarouselSlide[] = isEnglish
+  ? [
+      {
+        title: 'Distill reading judgments',
+        caption: 'Turn important passages into notes, then discuss and review them with assistants.',
+        image: '/assets/carousel/read-distil.webp',
+        alt: 'Yomitomo distilled reading note interface',
+      },
+      {
+        title: 'PDF library',
+        caption: 'Manage papers and PDFs by progress, annotations, and discussions.',
+        image: '/assets/carousel/pdf-list.webp',
+        alt: 'Yomitomo PDF library',
+      },
+      {
+        title: 'EPUB library',
+        caption: 'Keep long books and their reading notes together.',
+        image: '/assets/carousel/epub-list.webp',
+        alt: 'Yomitomo EPUB library',
+      },
+      {
+        title: 'WeRead sync',
+        caption: 'Bring external reading notes into the same local workflow.',
+        image: '/assets/carousel/weread-list.webp',
+        alt: 'Yomitomo WeRead list',
+      },
+      {
+        title: 'Web article library',
+        caption: 'Save articles, annotations, discussions, and reading progress locally.',
+        image: '/assets/carousel/web-page-list.webp',
+        alt: 'Yomitomo web article library',
+      },
+      {
+        title: 'Annotations beside the source',
+        caption: 'Highlights keep evidence in place while notes stay next to the text.',
+        image: '/assets/carousel/read-ann.webp',
+        alt: 'Yomitomo reader annotation interface',
+      },
+      {
+        title: 'Annotation discussions',
+        caption: 'Keep a thought open until it becomes a judgment.',
+        image: '/assets/carousel/read-discussion.webp',
+        alt: 'Yomitomo annotation discussion interface',
+      },
+    ]
+  : [
+      {
+        title: '沉淀阅读判断',
+        caption: '把文章里的关键判断沉淀成想法，再交给阅读助手审阅和讨论。',
+        image: '/assets/carousel/read-distil.webp',
+        alt: 'Yomitomo 沉淀阅读判断界面',
+      },
+      {
+        title: 'PDF 阅读库',
+        caption: '论文和 PDF 按阅读进度、批注和讨论集中管理。',
+        image: '/assets/carousel/pdf-list.webp',
+        alt: 'Yomitomo PDF 阅读库界面',
+      },
+      {
+        title: '电子书阅读库',
+        caption: '电子书条目和阅读沉淀并列展示，长书也能持续积累。',
+        image: '/assets/carousel/epub-list.webp',
+        alt: 'Yomitomo 电子书阅读库界面',
+      },
+      {
+        title: '微信读书同步',
+        caption: '同步微信读书内容，把外部阅读也纳入同一套沉淀流程。',
+        image: '/assets/carousel/weread-list.webp',
+        alt: 'Yomitomo 微信读书列表界面',
+      },
+      {
+        title: '网页文章阅读库',
+        caption: '集中保存文章、批注和讨论，把阅读进度留在本机。',
+        image: '/assets/carousel/web-page-list.webp',
+        alt: 'Yomitomo 网页文章阅读库界面',
+      },
+      {
+        title: '原文旁批注',
+        caption: '划线保留证据位置，想法卡片持续挂在原文旁边。',
+        image: '/assets/carousel/read-ann.webp',
+        alt: 'Yomitomo 阅读批注界面',
+      },
+      {
+        title: '批注讨论',
+        caption: '围绕一条划线继续讨论，让想法从记录走向判断。',
+        image: '/assets/carousel/read-discussion.webp',
+        alt: 'Yomitomo 批注讨论界面',
+      },
+    ];
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${siteUrl}/#organization`,
+      name: 'Yomitomo',
+      url: siteUrl,
+      logo: `${siteUrl}/assets/yomitomo-logo.webp`,
+      sameAs: [githubUrl, youtubeUrl],
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${siteUrl}/#website`,
+      name: 'Yomitomo',
+      url: canonicalUrl,
+      inLanguage: lang,
+      publisher: {
+        '@id': `${siteUrl}/#organization`,
+      },
+    },
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${siteUrl}/#software`,
+      name: 'Yomitomo',
+      description: pageDescription,
+      url: canonicalUrl,
+      image: ogImageUrl,
+      applicationCategory: 'ProductivityApplication',
+      operatingSystem: ['macOS', 'Windows'],
+      softwareVersion: releaseVersion,
+      downloadUrl: downloadPlatforms.map((platform) => platform.href),
+      codeRepository: githubUrl,
+      license: `${githubUrl}/blob/main/LICENSE`,
+      publisher: {
+        '@id': `${siteUrl}/#organization`,
+      },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="description" content={pageDescription} />
+    <title>{pageTitle}</title>
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" hreflang={isEnglish ? 'zh-CN' : 'en'} href={alternateUrl} />
+    <link rel="alternate" hreflang={lang} href={canonicalUrl} />
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={isEnglish ? 'en_US' : 'zh_CN'} />
+    <meta property="og:site_name" content="Yomitomo" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={isEnglish ? 'Yomitomo product preview' : 'Yomitomo 产品界面预览'} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={pageDescription} />
+    <meta name="twitter:image" content={ogImageUrl} />
+    <meta name="twitter:image:alt" content={isEnglish ? 'Yomitomo product preview' : 'Yomitomo 产品界面预览'} />
+    <meta name="theme-color" content="#f8f6f2" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800;9..144,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    <script
+      is:inline
+      defer
+      src="https://cloud.umami.is/script.js"
+      data-website-id="5dbd6cbd-a95b-401c-9a9d-40b237b6e4fa"
+    ></script>
+  </head>
+  <body class="landing-page bg-page text-ink">
+    <div class="landing-glow" aria-hidden="true"></div>
+    <header class="site-header">
+      <SiteHeader lang={lang} />
+    </header>
+
+    <main>
+      <section class="hero page-container">
+        <span class="hero-badge">
+          <i aria-hidden="true"></i>
+          {copy.badge}
+          <span>{releaseTag}</span>
+        </span>
+        <h1 class="hero-headline">
+          {copy.heroTitleBefore}
+          <mark>
+            {copy.heroEmphasis}
+            <svg viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M1 8 C 25 2, 75 2, 99 7"></path>
+            </svg>
+          </mark>
+        </h1>
+        <p class="hero-sub">{copy.heroSub}</p>
+        <div class="cta-row" id="download">
+          <a class="btn btn-primary" href={downloadPlatforms[0].href}>{copy.primaryCta}</a>
+          <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{copy.secondaryCta}</a>
+        </div>
+        <div class="trust-row">
+          {copy.trust.map((item) => <span>{item}</span>)}
+        </div>
+
+        <div class="hero-shot reveal" data-parallax="0.05">
+          <div class="window-frame">
+            <div class="window-titlebar">
+              <span class="traffic"><i></i><i></i><i></i></span>
+              <span>{copy.heroShotMeta}</span>
+            </div>
+            <ProductCarousel slides={productSlides} label={isEnglish ? 'Product screenshots' : '产品介绍图'} />
+          </div>
+        </div>
+
+        <div class="sources reveal">
+          <p>{copy.sources}</p>
+          <div>
+            {copy.sourceItems.map((item) => <span>{item}</span>)}
+          </div>
+        </div>
+      </section>
+
+      <section class="section-block page-container" id="problem">
+        <div class="problem-panel reveal">
+          <p class="eyebrow">{copy.problemEyebrow}</p>
+          <h2>{copy.problemTitle}</h2>
+          <div class="problem-grid">
+            {
+              copy.problems.map((item, index) => (
+                <article>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.body}</p>
+                </article>
+              ))
+            }
+          </div>
+        </div>
+      </section>
+
+      <section class="section-block page-container" id="value">
+        <div class="section-center reveal">
+          <p class="eyebrow">{copy.valueEyebrow}</p>
+          <h2 class="section-title">{copy.valueTitle}</h2>
+          <p class="section-lead">{copy.valueLead}</p>
+        </div>
+        <div class="value-grid">
+          {
+            copy.valueCards.map((item) => (
+              <article class="value-card reveal">
+                <span class="card-icon" aria-hidden="true"></span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="section-block page-container" id="how">
+        <p class="eyebrow reveal">{copy.howEyebrow}</p>
+        <h2 class="section-title reveal">{copy.howTitle}</h2>
+        <div class="steps-grid">
+          {
+            copy.steps.map((item, index) => (
+              <article class="step-card reveal">
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <h3>{item.title}</h3>
+                <p>{item.body}</p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="section-block page-container" id="ai">
+        <div class="ai-split">
+          <div class="reveal">
+            <p class="eyebrow">{copy.aiEyebrow}</p>
+            <h2 class="section-title">{copy.aiTitle}</h2>
+            <p class="section-lead">{copy.aiLead}</p>
+            <ul class="ai-list">
+              {copy.aiBullets.map((item) => <li>{item}</li>)}
+            </ul>
+          </div>
+          <div class="ai-window reveal" data-parallax="0.08">
+            <div class="window-titlebar">
+              <span class="traffic"><i></i><i></i><i></i></span>
+              <span>{copy.aiEyebrow}</span>
+            </div>
+            <div class="assistant-stack">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <p>{copy.heroShotTitle}</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-block page-container" id="faq">
+        <div class="section-center reveal">
+          <p class="eyebrow">{copy.faqEyebrow}</p>
+          <h2 class="section-title">{copy.faqTitle}</h2>
+        </div>
+        <div class="faq-list reveal">
+          {
+            copy.faqs.map((item) => (
+              <details>
+                <summary>
+                  {item.q}
+                  <span aria-hidden="true"></span>
+                </summary>
+                <p>{item.a}</p>
+              </details>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="section-block page-container">
+        <div class="final-cta reveal">
+          <h2>{copy.finalTitle}</h2>
+          <p>{copy.finalSub}</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href={downloadPlatforms[0].href}>{copy.primaryCta}</a>
+            <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{copy.secondaryCta}</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="download-panel page-container" aria-labelledby="download-title">
+        <div>
+          <p class="install-version" aria-label={`${copy.versionLabel} ${releaseTag}`}>
+            <span class="version-pulse" aria-hidden="true"></span>
+            <span>{releaseTag}</span>
+          </p>
+          <h2 id="download-title">{copy.downloadTitle}</h2>
+        </div>
+        <div class="download-cards">
+          {
+            downloadPlatforms.map((platform) => (
+              <article class="download-card" data-platform={platform.platform}>
+                <h3>{platform.name}</h3>
+                <a class="download-option" href={platform.href}>
+                  <span>{platform.label}</span>
+                  <span>{platform.extension}</span>
+                </a>
+                <span class="download-match">{copy.platformMatch}</span>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+    </main>
+
+    <SiteFooter lang={lang} />
+    <script is:inline>
+      const platform = navigator.userAgentData?.platform || navigator.platform || '';
+      const os = /Win/i.test(platform) ? 'windows' : /Mac/i.test(platform) ? 'mac' : 'unknown';
+      document.documentElement.dataset.platform = os;
+
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reveals = document.querySelectorAll('.reveal');
+      if (reduceMotion) {
+        reveals.forEach((node) => node.classList.add('in'));
+      } else {
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              entry.target.classList.add('in');
+              observer.unobserve(entry.target);
+            }
+          },
+          { rootMargin: '0px 0px -10% 0px', threshold: 0.12 },
+        );
+        reveals.forEach((node) => observer.observe(node));
+      }
+
+      const parallaxTargets = Array.from(document.querySelectorAll('[data-parallax]'));
+      let frame = 0;
+      function updateParallax() {
+        frame = 0;
+        if (reduceMotion) return;
+        const viewportHeight = window.innerHeight || 1;
+        for (const target of parallaxTargets) {
+          const rect = target.getBoundingClientRect();
+          if (rect.bottom < -120 || rect.top > viewportHeight + 120) continue;
+          const strength = Number(target.dataset.parallax || 0);
+          const offset = (rect.top + rect.height / 2 - viewportHeight / 2) * strength * -1;
+          target.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
+        }
+      }
+      window.addEventListener(
+        'scroll',
+        () => {
+          if (frame) return;
+          frame = window.requestAnimationFrame(updateParallax);
+        },
+        { passive: true },
+      );
+      updateParallax();
+    </script>
+  </body>
+</html>

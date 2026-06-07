@@ -1,0 +1,29 @@
+{
+  "version": "0.3.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Local EPUB import and reading",
+      "description": "Import EPUB books, save cover and chapter metadata, and open books with the Foliate reader.",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "Paragraph-level annotation anchors",
+      "description": "Structured book indexing and paragraph anchors keep annotations, highlights, and AI outputs attached to stable chapter passages.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Spoiler control and reading context",
+      "description": "Added spoiler scope controls and reading context packaging to reduce context drift in long books.",
+      "audience": "ai"
+    },
+    {
+      "type": "new",
+      "title": "Assistant dock and annotation navigation",
+      "description": "Added the assistant reading dock, annotation navigation shortcuts, and long annotation collapse.",
+      "audience": "reader"
+    }
+  ]
+}

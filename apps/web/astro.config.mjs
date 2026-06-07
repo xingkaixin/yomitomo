@@ -13,6 +13,10 @@ export default defineConfig({
           label: '简体中文',
           lang: 'zh-CN',
         },
+        en: {
+          label: 'English',
+          lang: 'en',
+        },
       },
       favicon: '/assets/favicon.png',
       customCss: ['./src/styles/starlight.css'],

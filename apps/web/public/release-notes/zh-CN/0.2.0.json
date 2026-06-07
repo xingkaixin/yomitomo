@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "网页文章导入",
+      "description": "支持通过 URL 导入网页文章，导入时可持久化正文图片。",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "选区快捷键与批注筛选",
+      "description": "新增选区复制快捷键、批注动作与类型图标，以及右侧批注筛选。",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "重点共读",
+      "description": "新增重点共读流程，支持章节卡片、手动分配助手和章节消息。",
+      "audience": "ai"
+    },
+    {
+      "type": "changed",
+      "title": "消息发送快捷键可配置",
+      "description": "消息发送快捷键支持在设置中配置，并在阅读器中保持一致。",
+      "audience": "settings"
+    }
+  ]
+}

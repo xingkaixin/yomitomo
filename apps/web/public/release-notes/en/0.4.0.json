@@ -1,0 +1,29 @@
+{
+  "version": "0.4.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "App update flow",
+      "description": "The desktop app can update itself, with About, onboarding, and website downloads connected to release assets.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Data management",
+      "description": "Open the data directory and logs, back up or restore the database, and get clear compatibility errors.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Secure provider API keys",
+      "description": "API keys are stored securely, with saved-key reveal, model list fetching, and task routing configuration.",
+      "audience": "settings"
+    },
+    {
+      "type": "changed",
+      "title": "Focused on co-reading",
+      "description": "Removed the after-reading output flow so the product centers on source anchors, thought threads, discussions, and assistant co-reading.",
+      "audience": "reader"
+    }
+  ]
+}

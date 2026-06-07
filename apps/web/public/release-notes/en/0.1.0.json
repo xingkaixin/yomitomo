@@ -1,0 +1,29 @@
+{
+  "version": "0.1.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Local-first AI reading companion",
+      "description": "Yomitomo's first release: import articles, read with table of contents and typography controls, and keep data on your computer.",
+      "audience": "all"
+    },
+    {
+      "type": "new",
+      "title": "Highlights, annotations, and discussions",
+      "description": "Select text to create highlights, add annotation types, continue with comments, and maintain discussion threads.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "AI companions and close reading",
+      "description": "Configure reading assistants to annotate source selections or orchestrate multi-assistant chapter reading.",
+      "audience": "ai"
+    },
+    {
+      "type": "new",
+      "title": "Library and stats",
+      "description": "Save articles, annotations, comments, and reading state while building local reading trends.",
+      "audience": "all"
+    }
+  ]
+}

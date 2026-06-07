@@ -1,15 +1,36 @@
 ---
-import { changelogsUrl, docsUrl, githubUrl } from '../site-links';
+import {
+  changelogsUrl,
+  docsUrl,
+  englishChangelogsUrl,
+  englishDocsUrl,
+  githubUrl,
+} from '../site-links';
+
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+const homeUrl = isEnglish ? '/en/' : '/';
+const alternateUrl = isEnglish ? '/' : '/en/';
+const docsHref = isEnglish ? englishDocsUrl : docsUrl;
+const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
 ---
 
-<nav class="page-container site-nav" aria-label="主导航">
-  <a class="brand-link" href="/" aria-label="Yomitomo 首页">
+<nav class="page-container site-nav" aria-label={isEnglish ? 'Main navigation' : '主导航'}>
+  <a class="brand-link" href={homeUrl} aria-label={isEnglish ? 'Yomitomo home' : 'Yomitomo 首页'}>
     <img class="brand-logo" src="/assets/yomitomo-logo.webp" width="32" height="32" alt="" />
     <span class="brand-name">Yomitomo</span>
   </a>
   <div class="header-actions">
-    <a class="nav-text-link" href={docsUrl}>文档</a>
-    <a class="nav-text-link" href={changelogsUrl}>更新日志</a>
+    <a class="nav-text-link" href="#problem">{isEnglish ? 'Problem' : '痛点'}</a>
+    <a class="nav-text-link" href="#value">{isEnglish ? 'Value' : '你会得到'}</a>
+    <a class="nav-text-link" href="#how">{isEnglish ? 'How' : '怎么用'}</a>
+    <a class="nav-text-link" href={docsHref}>{isEnglish ? 'Docs' : '文档'}</a>
+    <a class="nav-text-link" href={changelogsHref}>{isEnglish ? 'Release Notes' : '更新日志'}</a>
+    <a class="language-link" href={alternateUrl}>{isEnglish ? '中' : 'EN'}</a>
     <a class="header-link" href={githubUrl} target="_blank" rel="noreferrer" aria-label="GitHub">
       <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true">
         <path
@@ -63,7 +84,7 @@ import { changelogsUrl, docsUrl, githubUrl } from '../site-links';
   .header-actions {
     display: inline-flex;
     align-items: center;
-    gap: clamp(12px, 2vw, 20px);
+    gap: clamp(10px, 1.7vw, 20px);
   }
 
   .nav-text-link {
@@ -97,6 +118,30 @@ import { changelogsUrl, docsUrl, githubUrl } from '../site-links';
       transform 160ms ease;
   }
 
+  .language-link {
+    display: inline-flex;
+    min-width: 40px;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-line, #e4ddd4);
+    border-radius: 999px;
+    background: var(--color-surface, #fffdfa);
+    color: var(--color-ink, #211c19);
+    font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+      border-color 160ms ease,
+      transform 160ms ease;
+  }
+
+  .language-link:hover {
+    border-color: hsl(8 64% 46% / 0.42);
+    transform: translateY(-1px);
+  }
+
   .header-link:hover {
     border-color: hsl(3 62% 42% / 0.34);
     background: hsl(0 0% 100% / 0.78);
@@ -120,6 +165,10 @@ import { changelogsUrl, docsUrl, githubUrl } from '../site-links';
     }
 
     .header-link {
+      display: none;
+    }
+
+    .header-actions .nav-text-link:nth-of-type(-n + 3) {
       display: none;
     }
   }

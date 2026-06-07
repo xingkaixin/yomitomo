@@ -11,15 +11,18 @@ const flattenSidebarGroup = (sidebar: StarlightRouteData['sidebar'], label: stri
 export const onRequest = defineRouteMiddleware((context) => {
   const { pathname } = context.url;
   const sidebar = context.locals.starlightRoute.sidebar;
+  const isEnglish = pathname.startsWith('/en/');
+  const docsPrefix = isEnglish ? '/en/docs' : '/docs';
+  const changelogsPrefix = isEnglish ? '/en/changelogs' : '/changelogs';
 
-  if (pathname.startsWith('/changelogs')) {
+  if (pathname.startsWith(changelogsPrefix)) {
     context.locals.starlightRoute.sidebar = flattenSidebarGroup(sidebar, '版本记录').toSorted(
       (a, b) => compareVersionLabelsDesc(a.label, b.label),
     );
     return;
   }
 
-  if (pathname.startsWith('/docs')) {
+  if (pathname.startsWith(docsPrefix)) {
     context.locals.starlightRoute.sidebar = flattenSidebarGroup(sidebar, '产品文档');
   }
 });

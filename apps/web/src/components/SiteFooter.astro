@@ -1,11 +1,30 @@
 ---
-import { githubUrl, xUrl, youtubeUrl } from '../site-links';
+import {
+  changelogsUrl,
+  docsUrl,
+  englishChangelogsUrl,
+  englishDocsUrl,
+  githubUrl,
+  xUrl,
+  youtubeUrl,
+} from '../site-links';
+
+type Props = {
+  lang?: 'zh-CN' | 'en';
+};
+
+const { lang = 'zh-CN' } = Astro.props;
+const isEnglish = lang === 'en';
+const docsHref = isEnglish ? englishDocsUrl : docsUrl;
+const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
 ---
 
 <footer class="site-footer">
   <div class="page-container footer-inner">
     <p class="footer-copy">© MIT 2026 Yomitomo</p>
-    <nav class="footer-links" aria-label="页脚链接">
+    <nav class="footer-links" aria-label={isEnglish ? 'Footer links' : '页脚链接'}>
+      <a href={docsHref}>{isEnglish ? 'Docs' : '文档'}</a>
+      <a href={changelogsHref}>{isEnglish ? 'Release Notes' : '更新日志'}</a>
       <a href={githubUrl} target="_blank" rel="noreferrer">GitHub</a>
       <a href={xUrl} target="_blank" rel="noreferrer">X</a>
       <a href={youtubeUrl} target="_blank" rel="noreferrer">YouTube</a>

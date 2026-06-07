@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Web article import",
+      "description": "Import web articles by URL and optionally persist body images during import.",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "Selection shortcuts and annotation filters",
+      "description": "Added selection copy shortcuts, annotation actions, type icons, and sidebar annotation filters.",
+      "audience": "reader"
+    },
+    {
+      "type": "new",
+      "title": "Focused co-reading",
+      "description": "Added focused co-reading with chapter cards, manual assistant assignment, and chapter messages.",
+      "audience": "ai"
+    },
+    {
+      "type": "changed",
+      "title": "Configurable send shortcut",
+      "description": "Message send shortcuts can now be configured in Settings and stay consistent in the Reader.",
+      "audience": "settings"
+    }
+  ]
+}

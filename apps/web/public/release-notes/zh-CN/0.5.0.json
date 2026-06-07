@@ -1,0 +1,29 @@
+{
+  "version": "0.5.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "PDF 导入与阅读",
+      "description": "支持本地 PDF 入库、目录、选区、批注和重点共读。",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "微信读书集成",
+      "description": "新增笔记同步与阅读统计，把微信读书的沉淀接入本地阅读库。",
+      "audience": "import"
+    },
+    {
+      "type": "new",
+      "title": "键盘翻页与阅读字体",
+      "description": "补齐键盘翻页、内置阅读字体和设置自动保存状态反馈。",
+      "audience": "reader"
+    },
+    {
+      "type": "fixed",
+      "title": "修复 PDF 与阅读器问题",
+      "description": "修复 PDF 选区、目录行为、批注流和多处阅读器交互问题。",
+      "audience": "reader"
+    }
+  ]
+}
