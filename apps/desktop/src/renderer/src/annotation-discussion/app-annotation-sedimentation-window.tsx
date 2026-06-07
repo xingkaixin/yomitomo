@@ -17,9 +17,10 @@ import type {
   ArticleRecord,
   Comment,
   PublicAgent,
+  UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId, renderMarkdown } from '@yomitomo/shared';
+import { makeId, normalizeUiLanguage, renderMarkdown } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
@@ -50,7 +51,13 @@ import {
 
 type SedimentationWindowStatus =
   | { type: 'loading' }
-  | { type: 'ready'; agents: Agent[]; article: ArticleRecord; annotation: Annotation }
+  | {
+      type: 'ready';
+      agents: Agent[];
+      article: ArticleRecord;
+      annotation: Annotation;
+      uiLanguage: UiLanguage;
+    }
   | { type: 'missing' }
   | { type: 'error'; message: string };
 
@@ -95,7 +102,13 @@ export function AnnotationSedimentationWindowApp() {
         const annotation = article?.annotations.find((item) => item.id === annotationId);
         setStatus(
           article && annotation
-            ? { type: 'ready', agents: store.agents, article, annotation }
+            ? {
+                type: 'ready',
+                agents: store.agents,
+                article,
+                annotation,
+                uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
+              }
             : { type: 'missing' },
         );
       })
@@ -143,8 +156,8 @@ function SedimentationShell({
   onStatusChange: (status: SedimentationWindowStatus) => void;
 }) {
   const { t } = useTranslation();
-  const { agents, article, annotation } = status;
-  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
+  const { agents, article, annotation, uiLanguage } = status;
+  const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
   const userProfile = sedimentationUserProfile(annotation, article);
   const [activeAgentIds, setActiveAgentIds] = useState<Set<string>>(
     () => new Set(reviewAgents[0] ? [reviewAgents[0].id] : []),
@@ -206,6 +219,7 @@ function SedimentationShell({
         nextArticle,
         agents,
         annotation.id,
+        uiLanguage,
         onStatusChange,
       );
       const nextDistillation =
@@ -243,6 +257,7 @@ function SedimentationShell({
         nextArticle,
         agents,
         annotation.id,
+        uiLanguage,
         onStatusChange,
       );
       const nextDistillation =
@@ -306,6 +321,7 @@ function SedimentationShell({
           reviewDraft: effectiveReviewDraft,
           reviewMode: input?.reviewMode || 'review',
           sessions,
+          uiLanguage,
           userMessage,
           onOptimisticSession: (session) => {
             const nextAnnotation = annotationWithReviewSession(workingAnnotation, session);
@@ -314,6 +330,7 @@ function SedimentationShell({
               agents,
               article: updateAnnotation(workingArticle, workingAnnotation.id, () => nextAnnotation),
               annotation: nextAnnotation,
+              uiLanguage,
             });
           },
         });
@@ -324,7 +341,7 @@ function SedimentationShell({
           () => result.annotation,
         );
       }
-      await saveAndRefresh(workingArticle, agents, annotation.id, onStatusChange);
+      await saveAndRefresh(workingArticle, agents, annotation.id, uiLanguage, onStatusChange);
     } catch (error) {
       setReviewNotice(assistantRuntimeErrorMessage(error, 'sedimentation.reviewFailed'));
     } finally {
@@ -393,7 +410,7 @@ function SedimentationShell({
       },
       updatedAt: new Date().toISOString(),
     }));
-    await saveAndRefresh(nextArticle, agents, annotation.id, onStatusChange);
+    await saveAndRefresh(nextArticle, agents, annotation.id, uiLanguage, onStatusChange);
   }
 
   return (
@@ -494,6 +511,7 @@ function SedimentationShell({
             </div>
           </header>
           <ReviewSessions
+            agents={reviewAgents}
             sessions={sessions}
             userProfile={userProfile}
             onProposalAccept={handleProposalAccept}
@@ -557,6 +575,7 @@ async function requestAgentReviewRound({
   reviewDraft,
   reviewMode,
   sessions,
+  uiLanguage,
   userMessage,
   onOptimisticSession,
 }: {
@@ -567,6 +586,7 @@ async function requestAgentReviewRound({
   reviewDraft: string;
   reviewMode: 'review' | 'organize_discussion';
   sessions: AnnotationDistillationReviewSession[];
+  uiLanguage?: UiLanguage;
   userMessage?: AnnotationDistillationReviewMessage;
   onOptimisticSession: (session: AnnotationDistillationReviewSession) => void;
 }) {
@@ -593,6 +613,7 @@ async function requestAgentReviewRound({
     {
       agentId: agent.id,
       agentUsername: agent.username,
+      uiLanguage,
       reviewMessageId: assistantMessage.id,
       distillationReviewMode: reviewMode,
       instruction: distillationReviewInstruction(draft, reviewDraft, session),
@@ -637,12 +658,14 @@ async function requestAgentReviewRound({
 }
 
 function ReviewSessions({
+  agents,
   onProposalAccept,
   onProposalIgnore,
   onProposalRestore,
   sessions,
   userProfile,
 }: {
+  agents: PublicAgent[];
   onProposalAccept: (
     messageId: string,
     proposal: AnnotationDistillationProposal,
@@ -653,7 +676,7 @@ function ReviewSessions({
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
-  const messages = reviewTimelineMessages(sessions);
+  const messages = reviewTimelineMessages(sessions, agents);
   const listRef = useRef<HTMLElement | null>(null);
   const scrollSignal = messages
     .map(
@@ -695,6 +718,7 @@ function ReviewSessions({
         <ReviewTimelineMessage
           item={message}
           key={message.key}
+          agents={agents}
           userProfile={userProfile}
           onProposalAccept={onProposalAccept}
           onProposalIgnore={onProposalIgnore}
@@ -711,12 +735,14 @@ type ReviewTimelineItem = {
 };
 
 function ReviewTimelineMessage({
+  agents,
   item,
   onProposalAccept,
   onProposalIgnore,
   onProposalRestore,
   userProfile,
 }: {
+  agents: PublicAgent[];
   item: ReviewTimelineItem;
   onProposalAccept: (
     messageId: string,
@@ -729,10 +755,14 @@ function ReviewTimelineMessage({
   const { t } = useTranslation();
   const { message } = item;
   const isUser = message.author === 'user';
-  const avatar = isUser ? userProfile.avatar : message.agentAvatar;
+  const agent = isUser ? undefined : agents.find((item) => item.id === message.agentId);
+  const avatar = isUser ? userProfile.avatar : agent?.avatar || message.agentAvatar;
   const nickname = isUser
     ? userProfile.nickname
-    : message.agentNickname || message.agentUsername || t('sedimentation.reviewAssistant');
+    : agent?.nickname ||
+      message.agentNickname ||
+      message.agentUsername ||
+      t('sedimentation.reviewAssistant');
   const fallback = isUser
     ? userProfile.nickname.slice(0, 1) || t('common.me')
     : nickname.slice(0, 1) || t('sedimentation.reviewAssistantFallback');
@@ -866,6 +896,7 @@ function proposalPreview(proposal: AnnotationDistillationProposal) {
 
 function reviewTimelineMessages(
   sessions: AnnotationDistillationReviewSession[],
+  agents: PublicAgent[],
 ): ReviewTimelineItem[] {
   const seenUserMessages = new Set<string>();
   const items: ReviewTimelineItem[] = [];
@@ -880,14 +911,16 @@ function reviewTimelineMessages(
         continue;
       }
 
+      const agentId = message.agentId || session.agentId;
+      const agent = agents.find((item) => item.id === agentId);
       items.push({
         key: `assistant:${session.id}:${message.id}`,
         message: {
           ...message,
-          agentId: message.agentId || session.agentId,
-          agentUsername: message.agentUsername || session.agentUsername,
-          agentNickname: message.agentNickname || session.agentNickname,
-          agentAvatar: message.agentAvatar || session.agentAvatar,
+          agentId,
+          agentUsername: agent?.username || message.agentUsername || session.agentUsername,
+          agentNickname: agent?.nickname || message.agentNickname || session.agentNickname,
+          agentAvatar: agent?.avatar || message.agentAvatar || session.agentAvatar,
         },
       });
     }
@@ -931,13 +964,20 @@ async function saveAndRefresh(
   nextArticle: ArticleRecord,
   agents: Agent[],
   annotationId: string,
+  uiLanguage: UiLanguage,
   onStatusChange: (status: SedimentationWindowStatus) => void,
 ): Promise<Annotation | null> {
   const patch = await window.yomitomoDesktop.saveArticle(nextArticle);
   const nextFullArticle = await window.yomitomoDesktop.getArticle(patch.article.id);
   const nextAnnotation = nextFullArticle?.annotations.find((item) => item.id === annotationId);
   if (!nextFullArticle || !nextAnnotation) return null;
-  onStatusChange({ type: 'ready', agents, article: nextFullArticle, annotation: nextAnnotation });
+  onStatusChange({
+    type: 'ready',
+    agents,
+    article: nextFullArticle,
+    annotation: nextAnnotation,
+    uiLanguage,
+  });
   return nextAnnotation;
 }
 

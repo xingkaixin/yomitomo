@@ -5,6 +5,9 @@ import {
   createPdfTextAnchor,
   createTextAnchor,
   defaultSelectionActionShortcuts,
+  resolveAgentPersonalityPresentation,
+  resolveAgentPublicIdentity,
+  resolvePromptAgentIdentity,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
   providerPresets,
@@ -108,6 +111,44 @@ describe('agent presets', () => {
 
   it('formats reading intent labels with icons', () => {
     expect(agentReadingIntentDisplayLabel('challenge')).toBe('⚔️ 挑战');
+  });
+
+  it('resolves locale-specific preset presentation without changing assistant identity', () => {
+    const agent = {
+      id: 'agent_reading_partner',
+      kind: 'annotation' as const,
+      presetId: 'reading-partner',
+      enabled: true,
+      providerId: 'provider_1',
+      nickname: '林知微',
+      username: '林知微',
+      avatar: 'zh-avatar',
+      annotationColor: '#8aa46a',
+      annotationDensity: 'medium' as const,
+      temperature: 0.4,
+      soul: agentPersonalities.find((personality) => personality.id === 'reading-partner')!.soul,
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    const publicAgent = resolveAgentPublicIdentity(agent, 'en');
+    const promptIdentity = resolvePromptAgentIdentity(agent, 'en');
+
+    expect(publicAgent.id).toBe(agent.id);
+    expect(publicAgent.presetId).toBe('reading-partner');
+    expect(publicAgent.nickname).toBe('June Hartley');
+    expect(publicAgent.username).toBe('JuneHartley');
+    expect(publicAgent.pinyin).toBeUndefined();
+    expect(promptIdentity.soul).toContain('Name: June Hartley');
+    expect(promptIdentity.soul).not.toBe(agent.soul);
+  });
+
+  it('keeps Chinese presentation as the default fallback', () => {
+    const presentation = resolveAgentPersonalityPresentation('reading-partner');
+
+    expect(presentation?.locale).toBe('zh-CN');
+    expect(presentation?.name).toBe('林知微');
+    expect(presentation?.pinyin).toBeTruthy();
   });
 });
 

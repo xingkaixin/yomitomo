@@ -4,6 +4,7 @@ import type {
   ArticleRecord,
   Comment as AnnotationComment,
   PublicAgent,
+  UiLanguage,
 } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { makeId } from '@yomitomo/shared';
@@ -19,6 +20,7 @@ type RunSourceAgentCommentRequestInput = {
   instruction?: string;
   readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
+  uiLanguage?: UiLanguage;
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
   articleText: string;
@@ -35,6 +37,7 @@ export async function runSourceAgentCommentRequest({
   instruction,
   readingIntent,
   reviewTargetCommentId,
+  uiLanguage,
   desktop,
   currentArticle,
   articleText,
@@ -119,6 +122,7 @@ export async function runSourceAgentCommentRequest({
       {
         agentId: agent.id,
         agentUsername: agent.username,
+        uiLanguage,
         readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
         instruction,
         reviewTargetCommentId,
@@ -130,11 +134,11 @@ export async function runSourceAgentCommentRequest({
         if (event.type === 'start') {
           const placeholderId = pendingCommentId;
           pendingCommentId = event.comment.id || placeholderId;
-          pendingComment = {
+          pendingComment = localizedAgentComment(agent, {
             ...event.comment,
             id: pendingCommentId,
             replyTo: replyTargetId,
-          };
+          });
           const nextAnnotations = updateAnnotationComment(
             annotationsRef.current,
             annotation.id,
@@ -188,7 +192,7 @@ export async function runSourceAgentCommentRequest({
       flushDelta();
     }
     const completedComment = {
-      ...finalComment,
+      ...localizedAgentComment(agent, finalComment),
       id: finalComment.id || pendingCommentId,
       replyTo: replyTargetId,
       assistantProgress:
@@ -222,6 +226,17 @@ export async function runSourceAgentCommentRequest({
     if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
     setStatusMessage('');
   }
+}
+
+function localizedAgentComment(agent: PublicAgent, comment: AnnotationComment): AnnotationComment {
+  return {
+    ...comment,
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+  };
 }
 
 function hasAnnotationComment(annotations: Annotation[], annotationId: string, commentId: string) {

@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { MoreHorizontal, Pin, PinOff, Trash2 } from 'lucide-react';
-import type { UserProfile } from '@yomitomo/shared';
+import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
@@ -16,6 +16,7 @@ import { formatRelativeTime, type DiscussionThread } from './app-annotation-disc
 const DISCUSSION_DELETE_HOLD_MS = 900;
 
 export function ThoughtListItem({
+  agents,
   isDeleting,
   isSelected,
   onDelete,
@@ -24,6 +25,7 @@ export function ThoughtListItem({
   thread,
   userProfile,
 }: {
+  agents: PublicAgent[];
   isDeleting: boolean;
   isSelected: boolean;
   onDelete: () => void;
@@ -34,7 +36,7 @@ export function ThoughtListItem({
 }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const author = commentPersona(thread.root, userProfile, []);
+  const author = commentPersona(thread.root, userProfile, agents);
   const itemClassName = [
     'annotation-discussion-idea',
     isSelected ? 'is-selected' : '',

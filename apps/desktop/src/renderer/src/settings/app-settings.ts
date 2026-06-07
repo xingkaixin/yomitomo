@@ -5,6 +5,8 @@ import type {
   DesktopStore,
   LlmProvider,
   MessageSendShortcut,
+  PublicAgent,
+  UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
 import i18next from 'i18next';
@@ -14,7 +16,12 @@ import {
   customPersonality,
   customPersonalityId,
   defaultAgentSoul,
+  localizedAgentPersonalitiesForKind,
+  localizedAgentPersonality,
   providerPresets,
+  resolveAgentPublicIdentity,
+  resolveAgentPresetId,
+  resolveAgentPersonalityPresentation,
   reviewAgentPersonalities,
 } from '@yomitomo/shared';
 export type { AgentPersonality } from '@yomitomo/shared';
@@ -119,8 +126,10 @@ export function findAgentPersonalityId(soul: string) {
   );
 }
 
-export function agentPersonalityName(agent: Agent) {
+export function agentPersonalityName(agent: Agent, uiLanguage?: UiLanguage) {
+  const presentation = resolveAgentPersonalityPresentation(resolveAgentPresetId(agent), uiLanguage);
   return (
+    presentation?.name ||
     agentPersonalities.find((personality) => personality.soul === agent.soul)?.name ||
     i18next.t('settings.agents.customPersonality', { defaultValue: 'Custom personality' })
   );
@@ -131,9 +140,20 @@ export function agentKindLabel(kind: AgentKind | undefined) {
   return i18next.t(`settings.agents.modes.${normalizedKind}`, { defaultValue: normalizedKind });
 }
 
-export function personalitiesForKind(kind: AgentKind | undefined) {
+export function personalitiesForKind(kind: AgentKind | undefined, uiLanguage?: UiLanguage) {
   const normalizedKind = kind || 'annotation';
-  return agentPersonalities.filter((personality) => personality.kind === normalizedKind);
+  return localizedAgentPersonalitiesForKind(normalizedKind, uiLanguage);
+}
+
+export function localizedPersonalityForAgent(agent: Agent, uiLanguage?: UiLanguage) {
+  const personality = agentPersonalities.find(
+    (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
+  );
+  return personality ? localizedAgentPersonality(personality, uiLanguage) : undefined;
+}
+
+export function publicAgentForLocale(agent: Agent, uiLanguage?: UiLanguage): PublicAgent {
+  return resolveAgentPublicIdentity(agent, uiLanguage);
 }
 
 export function userDraftHasChanges(draft: UserDraft, user: UserProfile) {

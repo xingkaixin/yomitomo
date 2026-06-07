@@ -8,6 +8,7 @@ import type {
   ReaderChatMessage,
   ReaderChatState,
   ReaderQuestionContext,
+  UiLanguage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import i18next from 'i18next';
@@ -18,6 +19,7 @@ type UseReaderChatSessionInput = {
   agents: PublicAgent[];
   article: ArticleRecord;
   getArticleText: () => string | Promise<string>;
+  uiLanguage?: UiLanguage;
   onSaveArticleReaderChatState?: (articleId: string, readerChatState?: ReaderChatState) => unknown;
 };
 
@@ -41,6 +43,7 @@ export function useReaderChatSession({
   agents,
   article,
   getArticleText,
+  uiLanguage,
   onSaveArticleReaderChatState,
 }: UseReaderChatSessionInput) {
   const [open, setOpen] = useState(false);
@@ -147,6 +150,7 @@ export function useReaderChatSession({
           articleText: await getArticleText(),
           context,
           question,
+          uiLanguage,
           userMessageId: userMessage.id,
         }),
         (event) => {
@@ -211,6 +215,7 @@ function readerChatPayload({
   articleText,
   context,
   question,
+  uiLanguage,
   userMessageId,
 }: {
   agent: PublicAgent;
@@ -218,6 +223,7 @@ function readerChatPayload({
   articleText: string;
   context?: ReaderQuestionContext;
   question: string;
+  uiLanguage?: UiLanguage;
   userMessageId: string;
 }): AgentMessagePayload {
   const anchor = context?.anchor || {
@@ -246,6 +252,7 @@ function readerChatPayload({
   return {
     agentId: agent.id,
     agentUsername: agent.username,
+    uiLanguage,
     article: promptArticle(article, articleText),
     annotation,
     instruction: context

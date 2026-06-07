@@ -6,6 +6,7 @@ import type {
   AnnotationType,
   PublicAgent,
   ReadingMemory,
+  UiLanguage,
 } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import type { PromptArticle } from '../../shell/app-reading-types';
@@ -30,11 +31,13 @@ export type SourceAgentAnnotationRuntimeContext = {
   article: PromptArticle;
   annotations: Annotation[];
   readingMemory?: ReadingMemory;
+  uiLanguage?: UiLanguage;
 };
 
 export type SourceAgentAnnotationPlaybackMode = 'target' | 'careful' | 'article';
 
 export type SourceAgentAnnotationRequestInput = {
+  agent: PublicAgent;
   payload: AgentAnnotatePayload;
   readingPlan: AgentReadingPlanItem[];
   playbackMode: SourceAgentAnnotationPlaybackMode;
@@ -58,9 +61,11 @@ export function buildAgentAnnotationRequestInput(
   const shouldSaveReadingMemory = !isTargetRequest && hasReadingPlan;
 
   return {
+    agent,
     payload: {
       agentId: agent.id,
       agentUsername: agent.username,
+      uiLanguage: context.uiLanguage,
       annotationType: options.annotationType,
       readingIntent: options.readingIntent,
       instruction: options.instruction,
@@ -161,7 +166,31 @@ export async function runSourceAgentAnnotationRequest({
   let annotationCount = 0;
   const result = await desktop.requestAgentAnnotationsStream(requestInput.payload, (event) => {
     if (event.type !== 'item') return;
-    if (onAnnotation(event.annotation)) annotationCount += 1;
+    if (onAnnotation(localizedAgentAnnotation(requestInput.agent, event.annotation)))
+      annotationCount += 1;
   });
   return { result, annotationCount };
+}
+
+function localizedAgentAnnotation(agent: PublicAgent, annotation: Annotation): Annotation {
+  return {
+    ...annotation,
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+    comments: annotation.comments.map((comment) =>
+      comment.author === 'ai'
+        ? {
+            ...comment,
+            agentId: agent.id,
+            agentUsername: agent.username,
+            agentNickname: agent.nickname,
+            agentAvatar: agent.avatar,
+            agentAnnotationColor: agent.annotationColor,
+          }
+        : comment,
+    ),
+  };
 }
