@@ -37,6 +37,7 @@ export function readerUiLabels(): ReaderUiLabels {
     deleteHighlight: i18next.t('readerUi.deleteHighlight'),
     distillations: i18next.t('readerUi.distillations'),
     emptyNotesDescription: i18next.t('readerUi.emptyNotesDescription'),
+    emptyNotesGestureLabel: i18next.t('readerUi.emptyNotesGestureLabel'),
     emptyNotesTitle: i18next.t('readerUi.emptyNotesTitle'),
     enterDiscussion: i18next.t('readerUi.enterDiscussion'),
     fontSize: i18next.t('readerUi.fontSize'),

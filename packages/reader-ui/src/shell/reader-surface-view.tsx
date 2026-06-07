@@ -25,6 +25,7 @@ import { defaultReaderUiLabels } from './reader-app-view-types';
 
 type AnnotationRailStyle = React.CSSProperties & {
   '--reader-empty-left': string;
+  '--reader-empty-top': string;
   '--reader-note-width': string;
 };
 import {
@@ -69,6 +70,7 @@ export type ReaderSurfaceViewProps = {
   temporaryBoxes: HighlightBox[];
   reviewAgents?: PublicAgent[];
   searchBoxes?: HighlightBox[];
+  showEmptyNotes?: boolean;
   userProfile: UserProfile;
   visibleAnnotationIds: Set<string>;
   visibleAnnotations: Annotation[];
@@ -154,6 +156,7 @@ export function ReaderSurfaceView({
   temporaryBoxes,
   reviewAgents = [],
   searchBoxes = [],
+  showEmptyNotes,
   userProfile,
   visibleAnnotationIds,
   visibleAnnotations,
@@ -202,6 +205,9 @@ export function ReaderSurfaceView({
     annotationRailLayout.mode === 'stacked'
       ? undefined
       : {
+          '--reader-empty-top': annotationRailLayout.viewportHeight
+            ? `${Math.max(0, annotationRailLayout.viewportHeight) / 2}px`
+            : '50vh',
           '--reader-empty-left': `${
             annotationRailLayout.mode === 'left'
               ? annotationRailLayout.leftRailLeft
@@ -277,7 +283,7 @@ export function ReaderSurfaceView({
             aria-label="引文讨论"
             style={annotationRailStyle}
           >
-            {annotations.length === 0 ? <EmptyNotes labels={labels} /> : null}
+            {(showEmptyNotes ?? annotations.length === 0) ? <EmptyNotes labels={labels} /> : null}
             {annotationRailItems.map(
               ({ annotation, isStackFront, railSide, stackCount, stackIndex, style }) => (
                 <AnnotationCard

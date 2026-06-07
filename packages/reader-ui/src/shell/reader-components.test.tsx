@@ -7,7 +7,9 @@ import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
 import { Composer, measureComposerPosition } from './reader-composer';
 import { ReaderChatPanel } from './reader-chat-panel';
+import { EmptyNotes } from './reader-empty-notes';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
+import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
@@ -162,6 +164,95 @@ describe('Composer shortcut labels', () => {
       placement: 'above',
       top: 168,
     });
+  });
+});
+
+describe('EmptyNotes', () => {
+  it('renders result-first copy and a labelled gesture illustration from labels', () => {
+    render(
+      <EmptyNotes
+        labels={{
+          emptyNotesDescription: '在正文里选中文字，即可高亮、写想法或发起讨论。',
+          emptyNotesGestureLabel: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
+          emptyNotesTitle: '划线、想法就留在这里',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('划线、想法就留在这里')).toBeTruthy();
+    expect(screen.getByText('在正文里选中文字，即可高亮、写想法或发起讨论。')).toBeTruthy();
+    expect(
+      screen.getByRole('img', {
+        name: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
+      }),
+    ).toBeTruthy();
+  });
+});
+
+describe('ReaderSurfaceView empty notes', () => {
+  function renderSurface(showEmptyNotes?: boolean) {
+    return render(
+      <ReaderSurfaceView
+        activeId={null}
+        agentTheaterBoxes={[]}
+        agents={[]}
+        annotationRailItems={[]}
+        annotationRailLayout={{
+          articleCenterX: 360,
+          leftRailLeft: 0,
+          mode: 'right',
+          railWidth: 260,
+          rightRailLeft: 740,
+          viewportHeight: 640,
+        }}
+        annotations={[]}
+        articleRef={React.createRef<HTMLElement>()}
+        boxes={[]}
+        canvasRef={React.createRef<HTMLDivElement>()}
+        commentsCloseKey={0}
+        composer={null}
+        exitingAnnotationIds={new Set()}
+        expandedPrimaryCommentIds={new Set()}
+        extracted={{ title: '文章', content: '<p>正文</p>' }}
+        highlightChoice={null}
+        messageSendShortcut="mod-enter"
+        noteRefForAnnotation={() => vi.fn()}
+        notesRef={React.createRef<HTMLElement>()}
+        selectionAction={null}
+        shortcutModifier="⌘"
+        showEmptyNotes={showEmptyNotes}
+        surfaceRef={React.createRef<HTMLDivElement>()}
+        temporaryBoxes={[]}
+        userProfile={userProfile}
+        visibleAnnotationIds={new Set()}
+        visibleAnnotations={[]}
+        onAddComment={vi.fn()}
+        onCancelComposer={vi.fn()}
+        onCloseHighlightChoice={vi.fn()}
+        onCopySelection={vi.fn()}
+        onCreateAnnotation={vi.fn()}
+        onDeleteAnnotation={vi.fn()}
+        onDeleteComment={vi.fn()}
+        onFocusAnnotation={vi.fn()}
+        onHighlightClick={vi.fn()}
+        onMouseUp={vi.fn()}
+        onOpenComposer={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+        onScrollToHighlight={vi.fn()}
+      />,
+    );
+  }
+
+  it('keeps the default whole-article empty state for readers without an override', () => {
+    renderSurface();
+
+    expect(screen.getByText(defaultReaderUiLabels.emptyNotesTitle)).toBeTruthy();
+  });
+
+  it('can suppress the empty state when a paged reader only has no notes on this page', () => {
+    renderSurface(false);
+
+    expect(screen.queryByText(defaultReaderUiLabels.emptyNotesTitle)).toBeNull();
   });
 });
 

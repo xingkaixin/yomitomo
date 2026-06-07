@@ -156,6 +156,10 @@
   height: calc(100vh - 118px);
 }
 
+.source-pdfium-spike-reader .reader-annotation-rail {
+  z-index: 4;
+}
+
 .source-pdfium-spike-reader .reader-annotation-rail > .reader-note {
   max-height: min(72vh, 560px);
   overflow: auto;

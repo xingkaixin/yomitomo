@@ -113,6 +113,7 @@ export type ReaderAnnotationModel = {
   } | null;
   filteredAnnotations: Annotation[];
   searchBoxes?: HighlightBox[];
+  showEmptyNotes?: boolean;
   temporaryBoxes: HighlightBox[];
 };
 
@@ -190,6 +191,7 @@ export type ReaderUiLabels = {
   deleteHighlight: string;
   distillations: string;
   emptyNotesDescription: string;
+  emptyNotesGestureLabel: string;
   emptyNotesTitle: string;
   enterDiscussion: string;
   fontSize: string;
@@ -261,8 +263,10 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   currentSelection: '当前选区',
   deleteHighlight: '长按删除划线',
   distillations: '沉淀',
-  emptyNotesDescription: '选中阅读器内的文本后，可以写下想法。高亮和讨论会保存在当前文章下。',
-  emptyNotesTitle: '选择一段文字记录想法',
+  emptyNotesDescription:
+    'Select text in the reader to highlight it, save a thought, or start a discussion.',
+  emptyNotesGestureLabel: 'Select text in the article to create a saved highlight or thought.',
+  emptyNotesTitle: 'Highlights and thoughts stay here',
   enterDiscussion: '进入讨论区',
   fontSize: '字号',
   highlightActions: '打开划线操作',

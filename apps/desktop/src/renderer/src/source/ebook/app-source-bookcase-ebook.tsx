@@ -832,6 +832,7 @@ export function EbookBookcase({
           distillationAnimation,
           filteredAnnotations: annotations,
           searchBoxes,
+          showEmptyNotes: annotations.length === 0,
           temporaryBoxes,
         },
         article: {
