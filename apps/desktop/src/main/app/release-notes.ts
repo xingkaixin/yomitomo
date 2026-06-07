@@ -48,7 +48,7 @@ async function getLocalReleaseNote(
     const zh = await readLocalReleaseNote(`../../resources/release-notes/zh-CN/${version}.json`);
     if (zh) return zh;
   }
-  return readLocalReleaseNote(`../../resources/release-notes/${version}.json`);
+  return null;
 }
 
 async function readLocalReleaseNote(path: string): Promise<UserFacingReleaseNote | null> {
@@ -73,7 +73,7 @@ async function fetchRemoteReleaseNote(
     const zh = await readRemoteReleaseNote(`${REMOTE_BASE}/zh-CN/${version}.json`, version);
     if (zh) return zh;
   }
-  return readRemoteReleaseNote(`${REMOTE_BASE}/${version}.json`, version);
+  return null;
 }
 
 async function readRemoteReleaseNote(

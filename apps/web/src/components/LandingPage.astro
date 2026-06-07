@@ -43,6 +43,8 @@ const downloadPlatforms = [
     extension: '.exe',
   },
 ];
+const primaryCtaLabel = isEnglish ? 'Download for macOS Apple Silicon' : '下载 macOS Apple Silicon 版';
+const secondaryCtaLabel = isEnglish ? 'Download for Windows x64' : 'Windows x64 版';
 
 const copy = isEnglish
   ? {
@@ -59,8 +61,6 @@ const copy = isEnglish
       heroEmphasis: 'none of it stays',
       heroSub:
         'Yomitomo helps you highlight, capture thoughts, and talk them through with AI companions, so you leave with judgments you can trace back to the source.',
-      primaryCta: 'Download for macOS',
-      secondaryCta: 'Download for Windows',
       trust: ['Free', 'Open source', 'Your data stays local'],
       sources: 'One home for everything you read',
       sourceItems: ['Web articles', 'PDF', 'EPUB', 'WeRead'],
@@ -147,9 +147,6 @@ const copy = isEnglish
       ],
       finalTitle: 'Read slowly enough that your thinking stays.',
       finalSub: 'Download Yomitomo and start building a reading record you can actually return to.',
-      versionLabel: 'Current version',
-      downloadTitle: 'Download Yomitomo',
-      platformMatch: 'Matches your system',
     }
   : {
       nav: {
@@ -165,8 +162,6 @@ const copy = isEnglish
       heroEmphasis: '什么都没留下',
       heroSub:
         'Yomitomo 帮你划线、记下想法、和 AI 助手讨论。读完之后留下的是能回到原文的判断，而不是又一份你再也不会打开的摘要。',
-      primaryCta: '下载 macOS 版',
-      secondaryCta: 'Windows 版',
       trust: ['完全免费', '开源', '数据全在本地'],
       sources: '一处管理你所有的阅读',
       sourceItems: ['网页文章', 'PDF', 'EPUB', '微信读书'],
@@ -252,9 +247,6 @@ const copy = isEnglish
       ],
       finalTitle: '读得慢一点，让想法真的留下来。',
       finalSub: '下载 Yomitomo，开始建立一份以后能重新接上的阅读记录。',
-      versionLabel: '当前版本',
-      downloadTitle: '下载 Yomitomo',
-      platformMatch: '匹配当前系统',
     };
 
 const productSlides: ProductCarouselSlide[] = isEnglish
@@ -392,6 +384,20 @@ const structuredData = {
     },
   ],
 };
+
+const heroSubSentences = isEnglish
+  ? [copy.heroSub]
+  : copy.heroSub
+      .split('。')
+      .map((sentence) => sentence.trim())
+      .filter(Boolean)
+      .map((sentence) => `${sentence}。`);
+const problemTitleLines = isEnglish
+  ? [copy.problemTitle]
+  : copy.problemTitle.split('，').map((line, index) => (index === 0 ? `${line}，` : line));
+const valueTitleLines = isEnglish
+  ? [copy.valueTitle]
+  : copy.valueTitle.split('，').map((line, index) => (index === 0 ? `${line}，` : line));
 ---
 
 <!doctype html>
@@ -439,7 +445,7 @@ const structuredData = {
   <body class="landing-page bg-page text-ink">
     <div class="landing-glow" aria-hidden="true"></div>
     <header class="site-header">
-      <SiteHeader lang={lang} />
+      <SiteHeader lang={lang} showLandingLinks />
     </header>
 
     <main>
@@ -451,6 +457,7 @@ const structuredData = {
         </span>
         <h1 class="hero-headline">
           {copy.heroTitleBefore}
+          <br class="hero-title-break" />
           <mark>
             {copy.heroEmphasis}
             <svg viewBox="0 0 100 12" preserveAspectRatio="none" aria-hidden="true">
@@ -458,10 +465,12 @@ const structuredData = {
             </svg>
           </mark>
         </h1>
-        <p class="hero-sub">{copy.heroSub}</p>
+        <p class="hero-sub">
+          {heroSubSentences.map((sentence) => <span class="hero-sub-line">{sentence}</span>)}
+        </p>
         <div class="cta-row" id="download">
-          <a class="btn btn-primary" href={downloadPlatforms[0].href}>{copy.primaryCta}</a>
-          <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{copy.secondaryCta}</a>
+          <a class="btn btn-primary" href={downloadPlatforms[0].href}>{primaryCtaLabel}</a>
+          <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{secondaryCtaLabel}</a>
         </div>
         <div class="trust-row">
           {copy.trust.map((item) => <span>{item}</span>)}
@@ -488,7 +497,15 @@ const structuredData = {
       <section class="section-block page-container" id="problem">
         <div class="problem-panel reveal">
           <p class="eyebrow">{copy.problemEyebrow}</p>
-          <h2>{copy.problemTitle}</h2>
+          <h2>
+            {
+              problemTitleLines.map((line) => (
+                <span>
+                  {line}
+                </span>
+              ))
+            }
+          </h2>
           <div class="problem-grid">
             {
               copy.problems.map((item, index) => (
@@ -506,7 +523,15 @@ const structuredData = {
       <section class="section-block page-container" id="value">
         <div class="section-center reveal">
           <p class="eyebrow">{copy.valueEyebrow}</p>
-          <h2 class="section-title">{copy.valueTitle}</h2>
+          <h2 class="section-title">
+            {
+              valueTitleLines.map((line) => (
+                <span>
+                  {line}
+                </span>
+              ))
+            }
+          </h2>
           <p class="section-lead">{copy.valueLead}</p>
         </div>
         <div class="value-grid">
@@ -524,7 +549,7 @@ const structuredData = {
 
       <section class="section-block page-container" id="how">
         <p class="eyebrow reveal">{copy.howEyebrow}</p>
-        <h2 class="section-title reveal">{copy.howTitle}</h2>
+        <h2 class="section-title title-nowrap reveal">{copy.howTitle}</h2>
         <div class="steps-grid">
           {
             copy.steps.map((item, index) => (
@@ -542,7 +567,7 @@ const structuredData = {
         <div class="ai-split">
           <div class="reveal">
             <p class="eyebrow">{copy.aiEyebrow}</p>
-            <h2 class="section-title">{copy.aiTitle}</h2>
+            <h2 class="section-title title-nowrap">{copy.aiTitle}</h2>
             <p class="section-lead">{copy.aiLead}</p>
             <ul class="ai-list">
               {copy.aiBullets.map((item) => <li>{item}</li>)}
@@ -585,36 +610,12 @@ const structuredData = {
 
       <section class="section-block page-container">
         <div class="final-cta reveal">
-          <h2>{copy.finalTitle}</h2>
+          <h2 class="title-nowrap">{copy.finalTitle}</h2>
           <p>{copy.finalSub}</p>
           <div class="cta-row">
-            <a class="btn btn-primary" href={downloadPlatforms[0].href}>{copy.primaryCta}</a>
-            <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{copy.secondaryCta}</a>
+            <a class="btn btn-primary" href={downloadPlatforms[0].href}>{primaryCtaLabel}</a>
+            <a class="btn btn-secondary" href={downloadPlatforms[1].href}>{secondaryCtaLabel}</a>
           </div>
-        </div>
-      </section>
-
-      <section class="download-panel page-container" aria-labelledby="download-title">
-        <div>
-          <p class="install-version" aria-label={`${copy.versionLabel} ${releaseTag}`}>
-            <span class="version-pulse" aria-hidden="true"></span>
-            <span>{releaseTag}</span>
-          </p>
-          <h2 id="download-title">{copy.downloadTitle}</h2>
-        </div>
-        <div class="download-cards">
-          {
-            downloadPlatforms.map((platform) => (
-              <article class="download-card" data-platform={platform.platform}>
-                <h3>{platform.name}</h3>
-                <a class="download-option" href={platform.href}>
-                  <span>{platform.label}</span>
-                  <span>{platform.extension}</span>
-                </a>
-                <span class="download-match">{copy.platformMatch}</span>
-              </article>
-            ))
-          }
         </div>
       </section>
     </main>

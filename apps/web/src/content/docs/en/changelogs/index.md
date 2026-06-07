@@ -5,6 +5,16 @@ sidebar:
   hidden: true
 ---
 
+## 0.7.0
+
+Released: 2026-06-08
+
+- Added desktop language switching, bilingual website docs, and localized assistant persona presentations.
+- Added persistent reader chat, in-reader full-text search, the unified floating toolbar, and the redesigned article header.
+- Improved settings, Library, annotation cards, update dialogs, and import/AI runtime stability.
+
+[View 0.7.0 release notes](/en/changelogs/v0-7-0/)
+
 ## 0.6.0
 
 Released: 2026-06-01
