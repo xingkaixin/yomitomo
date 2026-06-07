@@ -186,6 +186,10 @@
     text-wrap: balance;
   }
 
+  .hero-title-break {
+    display: block;
+  }
+
   .hero-headline mark {
     position: relative;
     display: inline-block;
@@ -218,6 +222,10 @@
     font-size: clamp(16px, 1.35vw, 21px);
     line-height: 1.66;
     text-wrap: pretty;
+  }
+
+  .hero-sub-line {
+    display: block;
   }
 
   .cta-row {
@@ -423,6 +431,23 @@
   .section-center .section-title,
   .section-center .section-lead {
     margin-inline: auto;
+  }
+
+  .section-title > span,
+  .problem-panel h2 > span {
+    display: block;
+  }
+
+  .title-nowrap {
+    max-width: none;
+    white-space: nowrap;
+    text-wrap: nowrap;
+  }
+
+  .final-cta .title-nowrap {
+    max-width: none;
+    white-space: nowrap;
+    text-wrap: nowrap;
   }
 
   .section-lead {
@@ -732,96 +757,6 @@
     color: var(--color-muted);
   }
 
-  .download-panel {
-    display: grid;
-    gap: 18px;
-    padding-bottom: clamp(64px, 9vh, 104px);
-  }
-
-  .install-version {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin: 0 0 4px;
-    color: var(--color-muted);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
-  }
-
-  .version-pulse {
-    width: 7px;
-    height: 7px;
-    border-radius: 999px;
-    background: var(--color-accent);
-    animation: version-pulse 1.4s ease-out infinite;
-  }
-
-  .download-panel h2 {
-    margin: 0;
-    font-family: var(--font-serif);
-    font-size: clamp(18px, 1.8vw, 24px);
-  }
-
-  .download-cards {
-    display: grid;
-    gap: 16px;
-  }
-
-  .download-card {
-    position: relative;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    background: var(--color-surface);
-    padding: clamp(22px, 3vw, 32px);
-  }
-
-  .download-card h3 {
-    margin: 0 0 18px;
-    font-family: var(--font-serif-en);
-    font-size: clamp(22px, 2.4vw, 30px);
-  }
-
-  .download-option {
-    display: flex;
-    min-height: 44px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-    color: var(--color-ink);
-    font-weight: 700;
-    text-decoration: none;
-  }
-
-  .download-option:hover {
-    color: var(--color-accent);
-  }
-
-  .download-match {
-    display: none;
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    border-radius: 999px;
-    background: var(--color-accent-soft);
-    padding: 5px 8px;
-    color: var(--color-accent);
-    font-size: 0.66rem;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  html[data-platform='mac'] .download-card[data-platform='mac'],
-  html[data-platform='windows'] .download-card[data-platform='windows'] {
-    border-color: hsl(8 64% 46% / 0.38);
-    box-shadow: 0 16px 44px hsl(8 64% 46% / 0.14);
-  }
-
-  html[data-platform='mac'] .download-card[data-platform='mac'] .download-match,
-  html[data-platform='windows'] .download-card[data-platform='windows'] .download-match {
-    display: inline-flex;
-  }
-
   .product-carousel {
     margin: 0;
   }
@@ -973,32 +908,10 @@
   }
 }
 
-@keyframes version-pulse {
-  0% {
-    box-shadow: 0 0 0 0 hsl(8 64% 46% / 0.38);
-    transform: scale(1);
-  }
-
-  70% {
-    box-shadow: 0 0 0 8px hsl(8 64% 46% / 0);
-    transform: scale(1.08);
-  }
-
-  100% {
-    box-shadow: 0 0 0 0 hsl(8 64% 46% / 0);
-    transform: scale(1);
-  }
-}
-
 @media (min-width: 760px) {
   .value-grid,
-  .steps-grid,
-  .download-cards {
+  .steps-grid {
     grid-template-columns: repeat(3, 1fr);
-  }
-
-  .download-cards {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1021,6 +934,11 @@
 
   .hero-headline mark {
     white-space: normal;
+  }
+
+  .title-nowrap {
+    white-space: normal;
+    text-wrap: balance;
   }
 
   .product-carousel-viewport {
@@ -1051,8 +969,7 @@
     scroll-behavior: auto;
   }
 
-  .hero-badge i::after,
-  .version-pulse {
+  .hero-badge i::after {
     animation: none;
   }
 

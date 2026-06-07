@@ -10,7 +10,7 @@ const sitemap = await readFile(sitemapSource, 'utf8');
 const requiredUrls = [
   'https://yomitomo.app/',
   'https://yomitomo.app/docs/',
-  'https://yomitomo.app/changelogs/v0-6-0/',
+  'https://yomitomo.app/changelogs/v0-7-0/',
 ];
 
 for (const url of requiredUrls) {

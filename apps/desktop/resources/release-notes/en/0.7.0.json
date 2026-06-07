@@ -1,0 +1,41 @@
+{
+  "version": "0.7.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "Language switching and bilingual docs",
+      "description": "The desktop app now supports language switching, with bilingual website docs and localized assistant persona presentations.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Reader chat and search",
+      "description": "Reader now includes persistent chat and full-text search so you can ask follow-ups and find keywords while reading.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Reader toolbar and article header",
+      "description": "Unified the floating reader toolbar and redesigned the article header, empty notes state, and annotation layout.",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "Settings and Library experience",
+      "description": "Reworked Settings IA, added Library content-source customization, and surfaced assistant usage in stats.",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "Release-notes dialogs",
+      "description": "The update flow can now show release notes for the target version and read bundled notes after update.",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "Reading and import stability",
+      "description": "Fixed issues across Settings, Reader, Library covers, SQLite native roots, and import flows.",
+      "audience": "reader"
+    }
+  ]
+}

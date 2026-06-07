@@ -1,0 +1,41 @@
+{
+  "version": "0.7.0",
+  "highlights": [
+    {
+      "type": "new",
+      "title": "语言切换与双语文档",
+      "description": "桌面端支持语言切换，官网文档和助手角色展示补齐中英文内容。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "阅读器聊天与搜索",
+      "description": "阅读器新增持久聊天和正文搜索，可以边读边追问并快速定位关键词。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "阅读器工具栏与文章头部",
+      "description": "统一悬浮阅读工具栏，重新设计文章 header、空笔记状态和批注布局。",
+      "audience": "reader"
+    },
+    {
+      "type": "changed",
+      "title": "设置与资料库体验",
+      "description": "设置页信息架构重做，资料库支持内容来源定制，并在统计中展示助手用量。",
+      "audience": "settings"
+    },
+    {
+      "type": "new",
+      "title": "更新说明弹窗",
+      "description": "应用更新流程会展示对应版本的更新说明，更新后也能读取本地打包文案。",
+      "audience": "settings"
+    },
+    {
+      "type": "fixed",
+      "title": "阅读与导入稳定性",
+      "description": "修复设置、阅读器、资料库封面、SQLite native root 和导入链路中的多处问题。",
+      "audience": "reader"
+    }
+  ]
+}

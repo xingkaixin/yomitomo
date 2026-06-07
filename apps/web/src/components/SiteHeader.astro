@@ -9,9 +9,10 @@ import {
 
 type Props = {
   lang?: 'zh-CN' | 'en';
+  showLandingLinks?: boolean;
 };
 
-const { lang = 'zh-CN' } = Astro.props;
+const { lang = 'zh-CN', showLandingLinks = false } = Astro.props;
 const isEnglish = lang === 'en';
 const homeUrl = isEnglish ? '/en/' : '/';
 const alternateUrl = isEnglish ? '/' : '/en/';
@@ -25,9 +26,21 @@ const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
     <span class="brand-name">Yomitomo</span>
   </a>
   <div class="header-actions">
-    <a class="nav-text-link" href="#problem">{isEnglish ? 'Problem' : '痛点'}</a>
-    <a class="nav-text-link" href="#value">{isEnglish ? 'Value' : '你会得到'}</a>
-    <a class="nav-text-link" href="#how">{isEnglish ? 'How' : '怎么用'}</a>
+    {
+      showLandingLinks && (
+        <>
+          <a class="nav-text-link landing-section-link" href="#problem">
+            {isEnglish ? 'Problem' : '痛点'}
+          </a>
+          <a class="nav-text-link landing-section-link" href="#value">
+            {isEnglish ? 'Value' : '你会得到'}
+          </a>
+          <a class="nav-text-link landing-section-link" href="#how">
+            {isEnglish ? 'How' : '怎么用'}
+          </a>
+        </>
+      )
+    }
     <a class="nav-text-link" href={docsHref}>{isEnglish ? 'Docs' : '文档'}</a>
     <a class="nav-text-link" href={changelogsHref}>{isEnglish ? 'Release Notes' : '更新日志'}</a>
     <a class="language-link" href={alternateUrl}>{isEnglish ? '中' : 'EN'}</a>
@@ -168,7 +181,7 @@ const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
       display: none;
     }
 
-    .header-actions .nav-text-link:nth-of-type(-n + 3) {
+    .landing-section-link {
       display: none;
     }
   }

@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.7.0 - 2026-06-08
+
+### 新功能
+
+- 新增桌面端语言切换、官网双语文档和本地化助手角色展示，让应用 UI、文档和助手说明面向中英文使用场景保持一致。(#324, #326, #327)
+- 阅读器新增持久聊天、正文搜索、统一悬浮工具栏、新版文章 header、空笔记状态和自适应批注布局，提升长文、EPUB 和 PDF 的日常阅读操作效率。(#314, #315, #321, #322, #329, #330)
+- 批注与讨论链路继续深化，支持选区输入器动作内嵌、回复路由到根助手，并在沉淀流程中生成更可执行的审阅建议。(#251, #316, #323)
+- 设置页和资料库重做信息架构，支持资料库内容来源定制、来源感知弹窗、方向感过渡动画、助手用量统计和黄昏靛蓝主题。(#260, #261, #262, #263, #264, #274)
+- 桌面端新增版本更新说明弹窗、本地批注写入、PDF/网页文章媒体封面重做、电子书导入封面反馈和本地化发布说明资源。(#258, #273, #275, #294)
+- AI、微信读书、文章导入、模型价格、图片内联和批注记忆链路逐步迁移到 Effect 编排，运行时错误边界和恢复路径更清晰。(#265, #266, #267, #268, #269, #270, #271)
+
+### 性能
+
+- 复用 EPUB 索引、阅读记忆视图和预计算批注匹配上下文，减少长书阅读、助手生成和记忆查询中的重复扫描。(#281, #303, #305)
+- 将助手摘要聚合下推到 SQL，并优化阅读记忆查询与文章仓库批量操作，降低本地数据库热路径开销。(#279, #280, #298)
+- 深化文章来源导入生命周期和 source reader controller，减少导入、打开和跨来源阅读时的状态耦合。(#296, #301)
+
+### 修复
+
+- 修复设置页 surface、设置菜单布局、标题栏文本约束、阅读器标题栏、批注卡片和通用 UI 打磨问题。(#311, #312, #320, #325, #328, #329)
+- 修复阅读库列表卡片、网页封面工具栏、扁平封面进度条、PDF 封面比例和官网产品轮播横向滚动问题。(#254, #256, #292, #318, #319)
+- 修复讨论头像距离、添加想法输入器、回复空想法打开位置和想法自动滚动范围问题。(#252, #253, #272, #313)
+- 修复 SQLite native root 隔离、文章摘要计数范围、provider keyring 回归风险、数据恢复失败路径和文章导入 worker 失败覆盖。(#276, #277, #293, #299, #307, #308)
+
+### 工程
+
+- 拆分桌面端 main、renderer、source reader、settings、PDFium、阅读器 shell 和全局 CSS 边界，降低单文件复杂度并让领域边界更清楚。(#282, #284, #285, #286, #287, #288, #289, #296, #317)
+- 拆分 shared/core/AI 领域模块、assistant runtime kernel、provider 和 reading memory 视图装配，并补充导出与运行时测试。(#290, #291, #297, #302, #303)
+- 新增 native root 验证、PR 模板、输出目录忽略规则，并更新 pnpm 和依赖版本。(#300, #306)
+- 补充数据管理、store-db 恢复、provider secrets、文章导入 worker、阅读器聊天和阅读器 shell 状态测试，覆盖更多本地数据与阅读路径。(#276, #277, #307, #308, #322)
+
+
 ## 0.6.0 - 2026-06-01
 
 ### 新功能
@@ -29,92 +61,6 @@
 - 移除 focus co-reading 旧流程，并裁剪桌面端打包产物中的 native module 文件，降低发布包冗余。(#197, #249)
 - 更新用户文档、官网下载区和第三方授权清单，确保官网版本入口与桌面端内置开源许可证信息一致。(#217, #240, #249)
 
-### Changelog Detail
-
-- #249 chore(desktop): trim packaged native module files @xingkaixin
-- #248 feat: run assistant thoughts in parallel @xingkaixin
-- #247 fix: remove implicit annotation metadata inference @xingkaixin
-- #246 fix(desktop): keep article imports responsive @xingkaixin
-- #245 feat(desktop): polish UI interactions @xingkaixin
-- #244 fix(reader): restore header drag behavior @xingkaixin
-- #243 feat(assistant): show deep progress summaries @xingkaixin
-- #242 feat(ai): migrate deep runtime to AI SDK @xingkaixin
-- #241 feat: deepen annotation assistant modes @xingkaixin
-- #240 docs: update user docs after PR 162 @xingkaixin
-- #239 fix: keep PDF pages original on dark paper @xingkaixin
-- #238 feat(desktop): align annotation stats language @xingkaixin
-- #237 feat(desktop): redesign discussion capsules @xingkaixin
-- #236 feat(desktop): refine discussion window flow @xingkaixin
-- #235 feat(desktop): show distillation status @xingkaixin
-- #234 fix(desktop): polish theme paper readers @xingkaixin
-- #233 fix(reader): adapt annotation UI theme tokens @xingkaixin
-- #232 feat(reader): count published sedimentations @xingkaixin
-- #231 feat(reader): publish sedimentation cards @xingkaixin
-- #230 feat: add annotation sedimentation window @xingkaixin
-- #229 feat(desktop): add assistant discussion participation @xingkaixin
-- #228 feat(desktop): add annotation discussion content @xingkaixin
-- #227 feat(desktop): add annotation discussion window @xingkaixin
-- #226 feat(reader): summarize annotation cards @xingkaixin
-- #225 feat(annotation): add lifecycle data foundation @xingkaixin
-- #224 feat(ebook): clean EPUB display titles @xingkaixin
-- #223 feat(library): format PDF display metadata @xingkaixin
-- #222 feat(library): align cover progress bars @xingkaixin
-- #221 feat(library): align stats and weread info @xingkaixin
-- #220 feat(library): add grouped stat tooltips @xingkaixin
-- #219 feat(desktop): support batch file imports @xingkaixin
-- #218 feat(desktop): refine web article import dialog @xingkaixin
-- #217 feat(web): refine download section @xingkaixin
-- #216 feat(weread): refine note index cards @xingkaixin
-- #215 perf(core): cache lexical related passages @xingkaixin
-- #214 fix(desktop): remove ebook header cover hover @xingkaixin
-- #213 refactor(ai): extract selection context utilities @xingkaixin
-- #212 fix(startup): skip repeated annotation memory backfill @xingkaixin
-- #211 feat(reader): add reader paper background controls @xingkaixin
-- #210 fix(theme): use tokens for state colors @xingkaixin
-- #209 feat(reader): add web article covers and progress @xingkaixin
-- #208 fix(library): persist page size setting @xingkaixin
-- #207 chore(desktop): remove pointer cursors from controls @xingkaixin
-- #206 fix(desktop): keep weread detail cover flat @xingkaixin
-- #205 feat(theme): add desktop theme selector @xingkaixin
-- #204 feat(theme): add desktop theme contract @xingkaixin
-- #203 feat(desktop): redesign about settings layout @xingkaixin
-- #202 feat(desktop): add assistant diagnostics views @xingkaixin
-- #201 feat(ai): add assistant execution runtime @xingkaixin
-- #200 fix(desktop): restore ebook arrow page turns @xingkaixin
-- #199 fix(desktop): contain PDF list text overflow @xingkaixin
-- #198 feat(desktop): add book cover hover effects @xingkaixin
-- #197 chore: remove focus co-reading @xingkaixin
-- #196 fix(reader): count ebook notes in logical chapters @xingkaixin
-- #195 feat(reader-ui): unify assistant avatar entries @xingkaixin
-- #194 feat(reader-ui): improve focus assistant UI @xingkaixin
-- #193 feat(reader): move shortcuts into tooltips @xingkaixin
-- #192 feat(reader-ui): refine annotation actions @xingkaixin
-- #191 fix(desktop): preserve PDF annotation anchors @xingkaixin
-- #190 feat(reader-ui): refine annotation card visuals @xingkaixin
-- #189 chore: enable type-aware lint and update deps @xingkaixin
-- #188 fix(ai): stabilize agent tool runtime @xingkaixin
-- #187 feat(desktop): add agent trace panel @xingkaixin
-- #186 feat(desktop): add co-reading tool loop @xingkaixin
-- #185 feat(desktop): route selection actions through tools @xingkaixin
-- #184 feat(desktop): route thread replies through tools @xingkaixin
-- #183 feat(ai): add runtime provider and tools @xingkaixin
-- #182 feat(ai): add assistant tool runtime model @xingkaixin
-- #181 fix(ai): guard thread memory provenance @xingkaixin
-- #180 fix(memory): dedupe repeated co-reading thoughts @xingkaixin
-- #179 feat(memory): backfill annotation memory @xingkaixin
-- #178 feat(memory): add article section memory view @xingkaixin
-- #177 feat(memory): add thread memory view @xingkaixin
-- #176 feat(memory): add selection memory view @xingkaixin
-- #175 feat(memory): sync annotation entries in store @xingkaixin
-- #174 feat: add annotation memory ingestion @xingkaixin
-- #173 feat: clean up memory projection writes @xingkaixin
-- #172 feat: add task memory views @xingkaixin
-- #171 feat: add memory anchors and corrections @xingkaixin
-- #170 feat: wire reading memory lifecycle @xingkaixin
-- #169 feat: prefer reading memory entries @xingkaixin
-- #168 feat: double write reading memory entries @xingkaixin
-- #167 feat: add reading memory store @xingkaixin
-- #166 feat: add reading memory schema foundation @xingkaixin
 
 ## 0.5.0 - 2026-05-26
 
@@ -144,64 +90,6 @@
 - 清理 PDF.js 依赖、函数作用域告警，补充 reader interaction flow、agent theater data flow 和桌面 store patch 规则文档。(#127, #128, #129, #132)
 - 新增开发资源隔离、release proxy worker、官网文档/changelog 页面和 animated logo 实验，完善发布与官网基础设施。(#107, #108, #111, #126)
 
-### Changelog Detail
-
-- #162 fix(desktop): align PDF thought expansion @xingkaixin
-- #161 perf(core): optimize EPUB index range lookup @xingkaixin
-- #160 fix(reader-ui): prevent assistant menu clipping @xingkaixin
-- #159 feat(weread): add API key setup docs @xingkaixin
-- #158 refactor(reader-ui): organize module boundaries @xingkaixin
-- #157 Centralize agent annotation actions @xingkaixin
-- #156 refactor(desktop): centralize source agent actions @xingkaixin
-- #155 test(desktop): cover file import dialog regressions @xingkaixin
-- #154 refactor(desktop): split store article settings @xingkaixin
-- #153 feat(desktop): add bundled reader fonts @xingkaixin
-- #152 refactor(shared): split type exports by domain @xingkaixin
-- #151 refactor(desktop): split store persistence @xingkaixin
-- #150 refactor(desktop): split main ipc registration @xingkaixin
-- #149 refactor(desktop): share source reader session @xingkaixin
-- #148 refactor(desktop): extract PDFium reader utils @xingkaixin
-- #147 refactor(desktop): abstract file import dialog @xingkaixin
-- #146 fix(reader): adjust medium annotation layout @xingkaixin
-- #145 feat(settings): add autosave status feedback @xingkaixin
-- #144 perf(reader-ui): reduce annotation scans @xingkaixin
-- #143 perf(core): index EPUB context lookups @xingkaixin
-- #142 perf(desktop): avoid full store reads during import @xingkaixin
-- #141 feat(reader): add arrow key page turns @xingkaixin
-- #140 feat(weread): add reading stats @xingkaixin
-- #139 feat(weread): add note sync @xingkaixin
-- #138 Improve PDF open performance tracing @xingkaixin
-- #137 Preload secondary desktop modules @xingkaixin
-- #136 Fix PDF selection and TOC behavior @xingkaixin
-- #135 Refactor article summary records @xingkaixin
-- #134 Unify PDF reader annotation visuals @xingkaixin
-- #133 feat(pdf): add focus co-reading @xingkaixin
-- #132 docs: add agent theater data flow @xingkaixin
-- #131 feat(pdf): show agent dock for assistant notes @xingkaixin
-- #130 Align PDFium annotation flow @xingkaixin
-- #129 chore(desktop): remove pdfjs dependency @xingkaixin
-- #128 chore(desktop): clear function scoping warnings @xingkaixin
-- #127 Add reader interaction flow docs @xingkaixin
-- #126 Add animated logo experiment @xingkaixin
-- #125 Migrate PDF reader to EmbedPDF @xingkaixin
-- #124 feat(pdf): add outline toc and improve selection @xingkaixin
-- #123 feat(desktop): add PDF reader MVP @xingkaixin
-- #122 feat(desktop): add PDF import scaffold @xingkaixin
-- #121 docs: document desktop store patch rules @xingkaixin
-- #120 feat(desktop): unify article patch application @xingkaixin
-- #119 feat(desktop): return import patches @xingkaixin
-- #118 feat(desktop): return article save patch @xingkaixin
-- #117 feat(desktop): add typed IPC contract map @xingkaixin
-- #116 fix(desktop): open reader links externally @xingkaixin
-- #115 perf(reader): reduce annotation scroll work @xingkaixin
-- #114 fix(reader): reduce layout-heavy reader animations @xingkaixin
-- #113 feat(desktop): optimize stats page loading @xingkaixin
-- #112 Optimize desktop startup performance @xingkaixin
-- #111 feat(web): add docs and changelog pages @xingkaixin
-- #110 fix(reader): inherit EPUB body font size @xingkaixin
-- #109 fix(desktop): close profile dialog after save @xingkaixin
-- #108 feat(desktop): isolate development resources @xingkaixin
-- #107 feat(download): add release proxy worker @xingkaixin
 
 ## 0.4.0 - 2026-05-21
 
@@ -235,63 +123,6 @@
 - 拆分 main app state、source bookcase、设置面板、reader 组件、批注评论输入器、助手批注队列、agent runtime、provider settings 和 EPUB runtime 边界，降低核心 UI 与运行时代码复杂度。(#53, #55, #56, #58, #60, #61, #63, #65, #66, #68, #69, #70)
 - 抽取阅读卡片工作流状态、source agent 请求管线和代码健康热点边界，并补充运行时性能热点审计文档。(#57, #62, #64, #67, #82)
 
-### Changelog Detail
-
-- #105 fix(reader): polish thought composer interactions @xingkaixin
-- #104 fix(reader): show pending assistant state @xingkaixin
-- #103 fix(reader): preserve target annotation ownership @xingkaixin
-- #102 feat(reader): route selection mentions @xingkaixin
-- #101 Add social preview assets and desktop links @xingkaixin
-- #100 Update web landing page downloads and SEO @xingkaixin
-- #99 fix(provider): simplify model settings @xingkaixin
-- #98 [codex] Reveal stored provider API keys @xingkaixin
-- #97 Improve model routing settings UI @xingkaixin
-- #96 feat(desktop): add data management settings @xingkaixin
-- #95 fix(desktop): preserve dev DB migration @xingkaixin
-- #94 feat(web): add product landing page @xingkaixin
-- #93 fix(desktop): show database compatibility errors @xingkaixin
-- #92 fix(library): lazy-load article payloads @xingkaixin
-- #91 [codex] Add review assistant comments @xingkaixin
-- #90 feat(reader): float toc and balance note rails @xingkaixin
-- #89 fix(desktop): refine profile avatar hover state @xingkaixin
-- #88 fix: preserve library source on return @xingkaixin
-- #87 fix(desktop): shrink EPUB import records @xingkaixin
-- #86 fix(desktop): adjust library home layout @xingkaixin
-- #85 feat(reader): update annotation discussion cards @xingkaixin
-- #84 Fix reader thought counts and co-reading controls @xingkaixin
-- #83 Fix reader library UI polish @xingkaixin
-- #82 perf: optimize runtime import hotspots @xingkaixin
-- #81 perf: optimize annotation hot paths @xingkaixin
-- #80 perf: reuse EPUB DOM text index @xingkaixin
-- #79 fix: stabilize ebook page updates @xingkaixin
-- #78 feat: refine annotation thought threads @xingkaixin
-- #77 fix(reader): align source reader layout @xingkaixin
-- #76 feat: remove reading output flows @xingkaixin
-- #75 fix(desktop): restore ebook page position @xingkaixin
-- #74 fix(desktop): speed up ebook page turns @xingkaixin
-- #73 fix(reader): align stacked annotation connector @xingkaixin
-- #72 fix: stabilize EPUB annotation rendering @xingkaixin
-- #71 fix(desktop): preserve provider name on key removal @xingkaixin
-- #70 refactor(desktop): split ebook runtime boundary @xingkaixin
-- #69 refactor(ai): split agent runtime boundary @xingkaixin
-- #68 refactor: split provider settings boundary @xingkaixin
-- #67 refactor: split code health boundaries @xingkaixin
-- #66 refactor: split source bookcase runtime state @xingkaixin
-- #65 refactor(desktop): split main app state @xingkaixin
-- #64 refactor: split code health hotspots @xingkaixin
-- #63 refactor(reader-ui): split agent annotation queue @xingkaixin
-- #62 refactor: extract source agent request pipeline @xingkaixin
-- #61 refactor(reader-ui): split reader app view shell @xingkaixin
-- #60 refactor: split reading library home @xingkaixin
-- #59 fix(desktop): guard stale reading card results @xingkaixin
-- #58 refactor(reader-ui): split annotation comment composer @xingkaixin
-- #57 refactor: extract reading card workflow state @xingkaixin
-- #56 refactor(settings): split settings panels @xingkaixin
-- #55 refactor(reader-ui): split reader components @xingkaixin
-- #54 feat(desktop): split source bookcase readers @xingkaixin
-- #53 refactor: split code health hotspots @xingkaixin
-- #52 fix(desktop): store provider API keys securely @xingkaixin
-- #51 feat(desktop): add app update flow @xingkaixin
 
 ## 0.3.0 - 2026-05-15
 
@@ -319,38 +150,6 @@
 
 - 新增 Turbo `typecheck` 任务，统一调度各 workspace package 的 TypeScript 类型检查。(#38)
 
-### Changelog Detail
-
-- #49 fix(desktop): correct license notices @xingkaixin
-- #48 fix(desktop): sync library groups with sort @xingkaixin
-- #47 feat(desktop): improve article import dialog @xingkaixin
-- #46 Reduce EPUB highlight recalculation @xingkaixin
-- #45 feat: add EPUB performance instrumentation @xingkaixin
-- #44 feat(reader-ui): collapse long annotation bodies @xingkaixin
-- #43 feat(reader): animate annotation agent dock @xingkaixin
-- #42 feat: add annotation navigation shortcuts @xingkaixin
-- #41 fix(epub): chunk long co-reading segments @xingkaixin
-- #40 feat: add EPUB co-reading evaluation matrix @xingkaixin
-- #39 feat(epub): add lexical related passages @xingkaixin
-- #38 feat: add turbo typescheck task @xingkaixin
-- #37 feat: add EPUB reading memory @xingkaixin
-- #36 feat: add EPUB segment annotations @xingkaixin
-- #35 [codex] Add EPUB thread-first context @xingkaixin
-- #34 feat(epub): Add EPUB annotation reader support @xingkaixin
-- #33 feat(ai): route epub co-reading by descriptors @xingkaixin
-- #32 feat(ai): add epub selection context @xingkaixin
-- #31 feat(ai): add reading context packing @xingkaixin
-- #30 feat(epub): add spoiler-scoped reading context @xingkaixin
-- #29 feat: add paragraph-aware text anchors @xingkaixin
-- #28 feat(epub): add structural book index @xingkaixin
-- #27 feat(desktop): add foliate epub reader @xingkaixin
-- #26 feat: add EPUB import and reader @xingkaixin
-- #25 feat: add reader shortcut customization @xingkaixin
-- #24 fix(reader-ui): stabilize focus assistant controls @xingkaixin
-- #23 fix(ai): cap short article annotations @xingkaixin
-- #22 fix(reader): fill embedded reader height @xingkaixin
-- #21 feat(reader): add agent reading dock @xingkaixin
-- #20 feat(reader): add scroll edge blur @xingkaixin
 
 ## 0.2.0 - 2026-05-11
 
@@ -379,22 +178,6 @@
 - 移除 Chrome extension 工作区、运行时、桌面配对桥接和上架资产，产品线收敛到桌面端应用。(#2)
 - 新增 GitHub Actions CI，在 PR 和 main 推送中运行 lint、format check、test 和 build，并固定检查时区。(#4)
 
-### Changelog Detail
-
-- #14 Add focus co-reading @xingkaixin
-- #13 feat(reader): infer annotation labels @xingkaixin
-- #12 fix(reader): include intro in assistant sections @xingkaixin
-- #11 feat(shortcuts): refine shortcut settings UI @xingkaixin
-- #10 fix(desktop): keep provider selects above dialog @xingkaixin
-- #9 feat(reader): add annotation filtering @xingkaixin
-- #8 feat(reader): add annotation icons @xingkaixin
-- #7 fix(reader): persist annotation intent and shortcuts @xingkaixin
-- #6 feat(reader): add selection shortcuts @xingkaixin
-- #5 feat: configure message send shortcuts @xingkaixin
-- #4 ci: add GitHub Actions checks @xingkaixin
-- #3 fix(tooling): run lint and format per package @xingkaixin
-- #2 refactor: remove Chrome extension support @xingkaixin
-- #1 Add desktop URL article import @xingkaixin
 
 ## 0.1.0 - 2026-05-10
 

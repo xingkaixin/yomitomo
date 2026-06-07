@@ -81,23 +81,23 @@ describe('release notes', () => {
     expect(note?.highlights[0]?.title).toBe('Reading memory');
   });
 
-  it('falls back to the legacy remote URL in development', async () => {
+  it('falls back from English remote notes to Chinese notes', async () => {
     const { getReleaseNote } = await import('./release-notes');
     vi.mocked(fetch)
-      .mockResolvedValueOnce(new Response('', { status: 404 }))
       .mockResolvedValueOnce(new Response('', { status: 404 }))
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             version: '0.6.0',
-            highlights: [{ type: 'fixed', title: 'Legacy fallback' }],
+            highlights: [{ type: 'fixed', title: '中文兜底' }],
           }),
         ),
       );
 
     const note = await getReleaseNote('0.6.0', 'remote', 'en');
 
-    expect(fetch).toHaveBeenNthCalledWith(3, 'https://yomitomo.app/release-notes/0.6.0.json');
-    expect(note?.highlights[0]?.title).toBe('Legacy fallback');
+    expect(fetch).toHaveBeenNthCalledWith(2, 'https://yomitomo.app/release-notes/zh-CN/0.6.0.json');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(note?.highlights[0]?.title).toBe('中文兜底');
   });
 });
