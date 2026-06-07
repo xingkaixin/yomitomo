@@ -95,7 +95,6 @@ export const readerConversationStyles = `
 .reader-note-persona strong{overflow:hidden;font-size:13px;font-weight:850;text-overflow:ellipsis;white-space:nowrap}
 .reader-note-persona em{color:var(--reader-muted);font-size:12px;font-style:normal;font-weight:700}
 .reader-note-quote{display:block;width:100%;margin-top:10px;padding:9px 11px;border:0;border-left:3px solid rgba(199,164,94,.72);border-radius:4px 10px 10px 4px;background:rgba(240,232,211,.54);color:#6a6056;font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);font-size:12px;font-style:italic;font-weight:600;line-height:1.45;text-align:left;text-decoration:none}
-.reader-note-quote:hover{color:var(--reader-red)}
 .reader-note-primary-comment{margin-top:11px;color:var(--app-reader-note-quote-text);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
 .reader-note-primary-comment .reader-markdown,.reader-note-primary-comment .reader-markdown p{font-size:13px;font-weight:760;line-height:1.62}
 .reader-comments{display:grid;gap:12px;margin-top:14px}
@@ -550,10 +549,9 @@ export const readerConversationStyles = `
 .reader-note-intent{border-color:color-mix(in srgb,var(--reader-ink) 12%,transparent);background:color-mix(in srgb,var(--reader-ink) 6%,transparent);color:var(--reader-muted)}
 .reader-note-quote{position:relative;z-index:1;display:grid;width:100%;gap:5px;padding:0;border:0;background:transparent;color:var(--reader-ink);font-family:var(--font-reader-serif, Charter, Georgia, Cambria, "Times New Roman", serif);text-align:left;text-decoration:none}
 .reader-note.has-discussion .reader-note-quote{padding-left:50px}
-.reader-note-quote:hover .reader-note-quote-text{color:var(--reader-red)}
 .reader-note-quote-mark{display:block;color:var(--reader-note-accent);font-family:var(--font-reader-serif, Georgia, Cambria, "Times New Roman", serif);font-size:28px;font-style:normal;font-weight:900;line-height:.78}
 .reader-note.has-discussion .reader-note-quote-mark{display:none}
-.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72;text-wrap:pretty;transition:color .14s ease}
+.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72;text-wrap:pretty}
 .reader-note.has-distillation .reader-note-quote{min-height:92px;align-items:center;padding:0}
 .reader-note.has-distillation .reader-note-quote-text{font-size:15px;font-weight:720;letter-spacing:0;line-height:1.7}
 .reader-note.is-distillation-publish .reader-note-body,.reader-note.is-distillation-unpublish .reader-note-body{transform-origin:center center;will-change:filter;animation:reader-distillation-surface-settle .42s cubic-bezier(.22,1,.36,1) both}
@@ -577,6 +575,7 @@ export const readerConversationStyles = `
 .reader-pending-agent-more{display:grid;min-width:25px;height:25px;place-items:center;margin-left:-8px;border:2px solid var(--reader-paper);border-radius:999px;background:var(--app-reader-agent-panel-hover-bg);color:var(--reader-muted);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-size:10px;font-weight:900;font-variant-numeric:tabular-nums}
 .reader-note-distillation-menu{position:absolute;right:18px;top:18px;z-index:5}
 .reader-note-distillation-menu .reader-action-menu-button{width:32px;height:32px;background:transparent;color:var(--reader-muted)}
+.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:rgba(40,35,29,.07);color:var(--reader-ink)}
 .reader-note-distillation-footer{position:relative;z-index:1;min-height:50px;align-items:center;justify-content:space-between;margin:0;padding:0 34px;border-top:0;background:transparent}
 .reader-note-distillation-footer::before{content:"";position:absolute;left:28px;right:28px;top:0;border-top:1.5px dashed color-mix(in srgb,var(--reader-note-accent) 36%,var(--app-reader-note-border));pointer-events:none}
 .reader-note-distillation-badge{display:inline-grid;width:24px;height:24px;place-items:center;border-radius:0;background:transparent;color:color-mix(in srgb,var(--reader-note-accent) 76%,var(--reader-muted));opacity:.9}

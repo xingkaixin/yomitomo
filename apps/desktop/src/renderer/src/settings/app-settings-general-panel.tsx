@@ -48,6 +48,8 @@ type ContentSourceDragFrame = {
   width: number;
 };
 
+type GeneralSaveSection = 'language' | 'collection' | 'libraryEntrances';
+
 const contentSourceIcons: Record<LibraryContentSourceId, React.ReactNode> = {
   web: <Globe size={18} />,
   ebook: <Book size={18} />,
@@ -82,6 +84,7 @@ export function GeneralSettings({
   const enabledSourceCount = sourceOptions.filter((option) => option.enabled).length;
   const [draggedSource, setDraggedSource] = useState<LibraryContentSourceId | null>(null);
   const [dragFrame, setDragFrame] = useState<ContentSourceDragFrame | null>(null);
+  const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<ContentSourceDragSession | null>(null);
   const draggedOption = draggedSource
@@ -100,6 +103,7 @@ export function GeneralSettings({
       libraryContentSources: nextSources,
     };
     onSettingsChange(nextDraft);
+    setSaveSection('libraryEntrances');
     onSave(nextDraft);
   }
 
@@ -109,7 +113,13 @@ export function GeneralSettings({
       uiLanguage: language,
     };
     onSettingsChange(nextDraft);
+    setSaveSection('language');
     onSave(nextDraft);
+  }
+
+  function retrySave(section: GeneralSaveSection) {
+    setSaveSection(section);
+    onSave();
   }
 
   function toggleContentSource(option: (typeof sourceOptions)[number]) {
@@ -227,8 +237,8 @@ export function GeneralSettings({
         aside={
           <AutoSaveStatus
             error={saveError}
-            state={saveState}
-            onRetry={canSave ? () => onSave() : undefined}
+            state={saveSection === 'language' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('language') : undefined}
           />
         }
       >
@@ -255,8 +265,8 @@ export function GeneralSettings({
         aside={
           <AutoSaveStatus
             error={saveError}
-            state={saveState}
-            onRetry={canSave ? () => onSave() : undefined}
+            state={saveSection === 'collection' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('collection') : undefined}
           />
         }
       >
@@ -273,6 +283,7 @@ export function GeneralSettings({
             onChange={(checked) => {
               const nextDraft = { ...settingsDraft, saveArticleImages: checked };
               onSettingsChange(nextDraft);
+              setSaveSection('collection');
               onSave(nextDraft);
             }}
           />
@@ -282,6 +293,13 @@ export function GeneralSettings({
       <SettingsGroup
         label={t('settings.general.libraryEntrancesGroup')}
         note={t('settings.general.libraryEntrancesNote')}
+        aside={
+          <AutoSaveStatus
+            error={saveError}
+            state={saveSection === 'libraryEntrances' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('libraryEntrances') : undefined}
+          />
+        }
         flush
       >
         <div className="settings-card settings-source-list" ref={sourceMenuRef} role="list">

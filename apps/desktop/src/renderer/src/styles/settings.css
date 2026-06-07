@@ -60,6 +60,8 @@
 }
 
 .task-route-select-trigger {
+  width: 248px;
+  max-width: 100%;
   min-height: 44px;
   justify-content: space-between;
   border-color: hsl(var(--border) / 0.78);
@@ -2520,6 +2522,7 @@
 }
 
 .provider-select-content {
+  width: min(340px, calc(100vw - 32px));
   padding: 4px;
 }
 
@@ -4572,9 +4575,15 @@
 
 .ui-popover-content,
 .ui-select-content {
+  -webkit-app-region: no-drag;
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   opacity: 1;
+}
+
+.ui-popover-content *,
+.ui-select-content * {
+  -webkit-app-region: no-drag;
 }
 
 .diagnostics-refresh {
@@ -5041,12 +5050,14 @@
   inset: 0;
   display: grid;
   place-items: center;
+  -webkit-app-region: no-drag;
   background: hsl(24 20% 10% / 0.42);
   padding: 22px;
 }
 
 .license-dialog {
   display: grid;
+  -webkit-app-region: no-drag;
   width: min(980px, 100%);
   max-height: min(820px, 88vh);
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -5057,6 +5068,10 @@
   background: hsl(var(--card));
   box-shadow: 0 32px 96px hsl(24 20% 10% / 0.34);
   padding: 22px;
+}
+
+.license-dialog * {
+  -webkit-app-region: no-drag;
 }
 
 .license-dialog header {

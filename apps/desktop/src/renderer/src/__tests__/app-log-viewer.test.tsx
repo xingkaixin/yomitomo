@@ -173,6 +173,17 @@ describe('AboutSettings', () => {
     await waitFor(() => expect(desktop.openUrl).toHaveBeenCalledWith('https://yomitomo.app/en/'));
   });
 
+  it('uses a local action icon for the license dialog row', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    const licenseButton = screen.getByRole('button', { name: /查看许可证/ });
+
+    expect(licenseButton.querySelector('.lucide-chevron-right')).toBeTruthy();
+    expect(licenseButton.querySelector('.lucide-external-link')).toBeNull();
+  });
+
   it('filters open source packages in the license dialog', async () => {
     installDesktopAboutApi();
 
@@ -188,6 +199,19 @@ describe('AboutSettings', () => {
     expect(screen.getByText('@mozilla/readability')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /@mozilla\/readability/ }));
     expect(screen.getAllByText('Apache-2.0').length).toBeGreaterThan(0);
+  });
+
+  it('closes the license dialog from the close button', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
+    expect(screen.getByRole('dialog', { name: '开源许可证' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭开源许可证' }));
+
+    expect(screen.queryByRole('dialog', { name: '开源许可证' })).toBeNull();
   });
 
   it('includes vendored foliate-js in the license dialog', async () => {

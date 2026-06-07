@@ -859,6 +859,57 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenCalledWith({ uiLanguage: 'en' });
   });
 
+  it('shows the saved status only on the general section that changed', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    const view = render(
+      <GeneralSettings
+        settingsDraft={{ uiLanguage: 'zh-CN', saveArticleImages: false }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+    view.rerender(
+      <GeneralSettings
+        settingsDraft={{ uiLanguage: 'en', saveArticleImages: false }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="saved"
+      />,
+    );
+
+    const languageSection = screen.getByText('界面').closest('section');
+    const collectionSection = screen.getByText('采集').closest('section');
+    const librarySection = screen.getByText('阅读库入口').closest('section');
+
+    expect(languageSection).toBeTruthy();
+    expect(collectionSection).toBeTruthy();
+    expect(librarySection).toBeTruthy();
+    expect(within(languageSection!).getByText('已保存')).toBeTruthy();
+    expect(within(collectionSection!).queryByText('已保存')).toBeNull();
+    expect(within(librarySection!).queryByText('已保存')).toBeNull();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /采集文章时保存正文图片/ }));
+    view.rerender(
+      <GeneralSettings
+        settingsDraft={{ uiLanguage: 'en', saveArticleImages: true }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="saved"
+      />,
+    );
+
+    expect(within(languageSection!).queryByText('已保存')).toBeNull();
+    expect(within(collectionSection!).getByText('已保存')).toBeTruthy();
+    expect(within(librarySection!).queryByText('已保存')).toBeNull();
+  });
+
   it('saves content source preferences and prevents disabling the final source', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();
@@ -1147,6 +1198,57 @@ describe('ShortcutSettings', () => {
     });
   });
 
+  it('shows shortcut saved status on the section that changed', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    const view = render(
+      <ShortcutSettings
+        settingsDraft={{ messageSendShortcut: 'enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('radio')[1]);
+    view.rerender(
+      <ShortcutSettings
+        settingsDraft={{ messageSendShortcut: 'mod-enter' }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="saved"
+      />,
+    );
+
+    const messageSection = screen.getByText('消息发送').closest('section');
+    const selectionSection = screen.getByText('阅读区选区操作').closest('section');
+
+    expect(messageSection).toBeTruthy();
+    expect(selectionSection).toBeTruthy();
+    expect(within(messageSection!).getByText('已保存')).toBeTruthy();
+    expect(within(selectionSection!).queryByText('已保存')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '设置复制快捷键' }));
+    fireEvent.keyDown(window, { key: 'x' });
+    view.rerender(
+      <ShortcutSettings
+        settingsDraft={{
+          messageSendShortcut: 'mod-enter',
+          selectionActionShortcuts: { copy: 'X', annotate: 'A', ask: 'Q' },
+        }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="saved"
+      />,
+    );
+
+    expect(within(messageSection!).queryByText('已保存')).toBeNull();
+    expect(within(selectionSection!).getByText('已保存')).toBeTruthy();
+  });
+
   it('keeps recording until a supported letter is pressed', () => {
     const onSettingsChange = vi.fn();
     render(
@@ -1340,5 +1442,23 @@ describe('UserProfileSettingsDialog', () => {
 
     expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
     expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
+  });
+
+  it('keeps the English username help copy compact', () => {
+    initializeAppI18n('en');
+
+    render(
+      <UserProfileSettingsDialog
+        draft={defaultUser}
+        canSave
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(screen.getByText('For @mentions: letters, numbers, _ and -.')).toBeTruthy();
+    expect(screen.queryByText(/Supports letters, numbers/)).toBeNull();
   });
 });

@@ -244,9 +244,8 @@
 }
 
 .library-search input:focus {
-  border-color: var(--app-interactive-hover-border);
   background: hsl(var(--card));
-  box-shadow: 0 0 0 2px var(--app-interactive-focus-ring);
+  box-shadow: none;
 }
 
 .library-add-trigger,
@@ -744,17 +743,23 @@
 .library-pagination button {
   min-width: 36px;
   height: 36px;
-  border-color: hsl(var(--border) / 0.86);
+  border-color: var(--app-action-secondary-border);
   border-radius: 0;
-  background: hsl(var(--card));
+  background: var(--app-action-secondary-bg);
+  color: var(--app-action-secondary-fg);
   box-shadow: none;
 }
 
 .library-pagination button:hover:not(:disabled),
 .library-pagination button.is-active {
-  border-color: hsl(var(--foreground));
-  background: hsl(var(--foreground));
-  color: hsl(var(--card));
+  border-color: var(--app-action-primary-border);
+  background: var(--app-action-primary-bg);
+  color: var(--app-action-primary-fg);
+}
+
+.library-pagination button:disabled {
+  background: var(--app-action-secondary-disabled-bg);
+  color: var(--app-action-secondary-disabled-fg);
 }
 
 .library-empty {
