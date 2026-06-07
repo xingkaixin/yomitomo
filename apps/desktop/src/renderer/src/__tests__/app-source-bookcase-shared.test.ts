@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
+  Agent,
   AgentMentionRoutePlan,
   Annotation,
   ArticleRecord,
@@ -9,6 +10,7 @@ import {
   agentInstructionFromNote,
   articleWithMergedAgentAnnotation,
   planSelectionMentionRoute,
+  publicAnnotationAgents,
   routeFocusReadingPlanMessages,
   targetAnchorReadingPlan,
 } from '../source/bookcase/app-source-bookcase-shared';
@@ -44,6 +46,36 @@ describe('agentInstructionFromNote', () => {
     expect(agentInstructionFromNote('@reader 总结一下', [agent({ nickname: 'reader' })])).toBe(
       '总结一下',
     );
+  });
+});
+
+describe('publicAnnotationAgents', () => {
+  it('uses locale persona assets instead of the stored legacy avatar', () => {
+    const agents: Agent[] = [
+      {
+        id: 'agent_reading_partner',
+        kind: 'annotation',
+        presetId: 'reading-partner',
+        enabled: true,
+        providerId: 'provider_1',
+        nickname: '林知微',
+        username: '林知微',
+        avatar: 'zh-legacy-avatar',
+        annotationColor: '#8a8f4f',
+        annotationDensity: 'medium',
+        temperature: 0.4,
+        soul: 'legacy soul',
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+
+    const [publicAgent] = publicAnnotationAgents(agents, 'en');
+
+    expect(publicAgent.nickname).toBe('June Hartley');
+    expect(publicAgent.username).toBe('JuneHartley');
+    expect(publicAgent.avatar).toContain('/agent-personas/en/annotation/reading-partner.webp');
+    expect(publicAgent.avatar).not.toBe('zh-legacy-avatar');
   });
 });
 

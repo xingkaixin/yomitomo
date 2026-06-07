@@ -1,5 +1,5 @@
-import type { AgentPersonality } from '@yomitomo/shared';
-import { agentPersonalities } from '@yomitomo/shared';
+import type { AgentPersonality, UiLanguage } from '@yomitomo/shared';
+import { resolvePromptAgentIdentity } from '@yomitomo/shared';
 
 export type PromptAgent = {
   presetId?: string;
@@ -8,28 +8,23 @@ export type PromptAgent = {
   nickname?: string;
 };
 
-export function buildAgentRoleCard(agent: PromptAgent) {
-  const personality = findAgentPersonality(agent);
-  const nickname = agent.nickname || personality?.name || agent.username || '伴读助手';
-  const username = agent.username || nickname;
+export function buildAgentRoleCard(agent: PromptAgent, uiLanguage?: UiLanguage) {
+  const identity = resolvePromptAgentIdentity(agent, uiLanguage);
+  const personality = identity.personality;
+  const nickname = identity.nickname || agent.username || '伴读助手';
+  const username = identity.username || nickname;
   const lines = [
     '## 角色卡',
     `- 当前身份：${nickname}（@${username}）`,
     ...buildPresetRoleLines(personality),
     '',
     '## 角色灵魂',
-    agent.soul,
+    identity.soul,
   ];
   return lines.filter((line) => line !== null).join('\n');
 }
 
-function findAgentPersonality(agent: PromptAgent) {
-  return agentPersonalities.find(
-    (personality) => personality.id === agent.presetId || personality.soul === agent.soul,
-  );
-}
-
-function buildPresetRoleLines(personality?: AgentPersonality) {
+function buildPresetRoleLines(personality?: AgentPersonality | null) {
   if (!personality) return [];
 
   return [

@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react';
-import type { Comment, UserProfile } from '@yomitomo/shared';
+import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
@@ -9,18 +9,20 @@ import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discuss
 import { LongPressDeleteButton } from './app-annotation-discussion-thread-list';
 
 export function DiscussionMessage({
+  agents,
   isDeleting,
   message,
   onDelete,
   userProfile,
 }: {
+  agents: PublicAgent[];
   isDeleting: boolean;
   message: Comment;
   onDelete: () => void;
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
-  const author = commentPersona(message, userProfile, []);
+  const author = commentPersona(message, userProfile, agents);
   const html = renderMarkdown(message.content);
   const className = [
     'annotation-discussion-message',

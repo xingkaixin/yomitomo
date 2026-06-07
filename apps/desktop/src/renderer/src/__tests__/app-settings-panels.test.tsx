@@ -723,7 +723,10 @@ describe('AgentSettings', () => {
     renderAgentSettings({
       agents: [
         agentSettingsAgents[0],
-        makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false),
+        {
+          ...makeAgent('agent_disabled', 'annotation', '沈清源', '沈清源', false),
+          presetId: 'concept-translator',
+        },
       ],
     });
 

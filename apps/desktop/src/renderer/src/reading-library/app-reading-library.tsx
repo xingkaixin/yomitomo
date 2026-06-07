@@ -11,6 +11,7 @@ import type {
   AppSettings,
   Comment,
   MessageSendShortcut,
+  PublicAgent,
   ReaderChatState,
   SelectionActionShortcuts,
   UserProfile,
@@ -18,8 +19,10 @@ import type {
   WeReadBookDetail,
   WeReadSettings,
 } from '@yomitomo/shared';
+import { normalizeUiLanguage } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
+import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 import type {
   ArticleUpdater,
   EbookImportProgressCallback,
@@ -524,6 +527,7 @@ export function ReadingLibrary({
                 messageSendShortcut={messageSendShortcut}
                 selectionActionShortcuts={selectionActionShortcuts}
                 selectedAnnotationId={selectedAnnotation?.id || null}
+                uiLanguage={normalizeUiLanguage(settings?.uiLanguage)}
                 userProfile={userProfile}
                 onFocusedAnnotation={handleSourceFocusedAnnotation}
                 onClose={openLibraryShelf}
@@ -542,6 +546,7 @@ export function ReadingLibrary({
       )}
       {selectedArticle && activeShelf === 'source' ? (
         <AnnotationDiscussionCapsules
+          agents={publicAnnotationAgents(agents, normalizeUiLanguage(settings?.uiLanguage))}
           article={selectedArticle}
           windows={currentMinimizedDiscussionWindows}
           onOpen={onOpenArticleDiscussion}
@@ -570,6 +575,7 @@ export type AnnotationDiscussionCapsuleItem = {
 export function annotationDiscussionCapsuleItems(
   article: ArticleRecord,
   windows: AnnotationDiscussionWindowState[],
+  agents: PublicAgent[] = [],
 ): AnnotationDiscussionCapsuleItem[] {
   return windows.map((windowState) => {
     const annotation = article.annotations.find((item) => item.id === windowState.annotationId);
@@ -582,13 +588,16 @@ export function annotationDiscussionCapsuleItems(
       quote: annotation?.anchor.exact.trim() || i18next.t('discussion.fallbackQuote'),
       ideaCount,
       replyCount,
-      assistants: assistantParticipants(comments),
+      assistants: assistantParticipants(comments, agents),
       pending: comments.some((comment) => comment.pending),
     };
   });
 }
 
-function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsuleAssistant[] {
+function assistantParticipants(
+  comments: Comment[],
+  agents: PublicAgent[],
+): AnnotationDiscussionCapsuleAssistant[] {
   const assistants = new Map<string, AnnotationDiscussionCapsuleAssistant>();
   for (const comment of comments) {
     if (comment.author !== 'ai') continue;
@@ -599,11 +608,13 @@ function assistantParticipants(comments: Comment[]): AnnotationDiscussionCapsule
       comment.agentAvatar ||
       comment.id;
     if (assistants.has(key)) continue;
+    const agent = agents.find((item) => item.id === comment.agentId);
     const name =
+      agent?.nickname ||
       comment.agentNickname?.trim() ||
       comment.agentUsername?.trim() ||
       i18next.t('common.assistant');
-    const avatar = comment.agentAvatar?.trim() || undefined;
+    const avatar = agent?.avatar || comment.agentAvatar?.trim() || undefined;
     assistants.set(key, {
       key,
       name,
@@ -626,10 +637,12 @@ function librarySourceTransitionDirectionForChange(
 }
 
 export function AnnotationDiscussionCapsules({
+  agents,
   article,
   windows,
   onOpen,
 }: {
+  agents?: PublicAgent[];
   article: ArticleRecord;
   windows: AnnotationDiscussionWindowState[];
   onOpen?: (
@@ -641,8 +654,8 @@ export function AnnotationDiscussionCapsules({
   const { t } = useTranslation();
   const [expandedByUser, setExpandedByUser] = useState(false);
   const items = useMemo(
-    () => annotationDiscussionCapsuleItems(article, windows),
-    [article, windows],
+    () => annotationDiscussionCapsuleItems(article, windows, agents),
+    [agents, article, windows],
   );
 
   if (windows.length === 0) return null;

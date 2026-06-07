@@ -73,6 +73,7 @@ export function WebSourceBookcase({
   messageSendShortcut,
   selectionActionShortcuts,
   selectedAnnotationId,
+  uiLanguage,
   userProfile,
   onFocusedAnnotation,
   onClose,
@@ -131,6 +132,7 @@ export function WebSourceBookcase({
     clearPendingOnArticleChange: true,
     clearPendingOnDeleteAnnotation: true,
     ignoreStaleArticleUpdates: true,
+    uiLanguage,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
     },
@@ -188,6 +190,7 @@ export function WebSourceBookcase({
     agents: annotationAgents,
     article,
     getArticleText: currentArticleText,
+    uiLanguage,
     onSaveArticleReaderChatState,
   });
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({

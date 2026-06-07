@@ -7,6 +7,7 @@ import type {
   Comment as AnnotationComment,
   PublicAgent,
   ReadingMemory,
+  UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
 import { resolveTextAnchor } from '@yomitomo/shared';
@@ -58,6 +59,7 @@ type UseSourceReaderSessionOptions = {
   onOpenAnnotation?: (annotationId: string) => void;
   onSaveArticle: (article: ArticleRecord) => Promise<void> | void;
   setStatusMessage?: (message: string) => void;
+  uiLanguage?: UiLanguage;
   userProfile: UserProfile;
 };
 
@@ -174,10 +176,14 @@ export function useSourceReaderSession({
   onOpenAnnotation,
   onSaveArticle,
   setStatusMessage,
+  uiLanguage,
   userProfile,
 }: UseSourceReaderSessionOptions) {
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
-  const reviewAgents = useMemo(() => publicReviewAgents(agents), [agents]);
+  const annotationAgents = useMemo(
+    () => publicAnnotationAgents(agents, uiLanguage),
+    [agents, uiLanguage],
+  );
+  const reviewAgents = useMemo(() => publicReviewAgents(agents, uiLanguage), [agents, uiLanguage]);
   const pendingAgents = usePendingAnnotationAgents();
   const { clearAllPendingAnnotationAgents, clearPendingAnnotationAgents } = pendingAgents;
   const requestAgentCommentRef = useRef<
@@ -251,6 +257,7 @@ export function useSourceReaderSession({
           currentArticle,
           articleText: await getArticleText(),
           reviewTargetCommentId,
+          uiLanguage,
           annotationsRef: sourceAnnotations.annotationsRef,
           applyAnnotations: sourceAnnotations.applyAnnotations,
           saveAnnotations: sourceAnnotations.saveAnnotations,
@@ -270,6 +277,7 @@ export function useSourceReaderSession({
       sourceAnnotations.applyAnnotations,
       sourceAnnotations.latestArticleRef,
       sourceAnnotations.saveAnnotations,
+      uiLanguage,
     ],
   );
   requestAgentCommentRef.current = requestAgentComment;
@@ -298,6 +306,7 @@ export function useSourceReaderSession({
         desktop,
         currentArticle,
         articleText: await getArticleText(),
+        uiLanguage,
         annotationsRef: sourceAnnotations.annotationsRef,
         applyAnnotations: sourceAnnotations.applyAnnotations,
         saveAnnotations: sourceAnnotations.saveAnnotations,
@@ -311,6 +320,7 @@ export function useSourceReaderSession({
       sourceAnnotations.applyAnnotations,
       sourceAnnotations.latestArticleRef,
       sourceAnnotations.saveAnnotations,
+      uiLanguage,
     ],
   );
 
@@ -354,6 +364,7 @@ export function useSourceReaderSession({
           article: context.article,
           annotations: sourceAnnotations.annotationsRef.current,
           readingMemory: context.readingMemory ?? currentArticle.focusCoReadingPlan?.readingMemory,
+          uiLanguage,
         },
       });
       const playback = await agentAnnotationAdapter.start?.({
@@ -471,6 +482,7 @@ export function useSourceReaderSession({
       sourceAnnotations.annotationsRef,
       sourceAnnotations.applyAnnotations,
       sourceAnnotations.latestArticleRef,
+      uiLanguage,
     ],
   );
 

@@ -110,6 +110,7 @@ function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
       article={sourceArticle}
       focusAnnotationId={null}
       selectedAnnotationId={null}
+      uiLanguage="zh-CN"
       userProfile={userProfile}
       onClose={vi.fn()}
       onFocusedAnnotation={vi.fn()}

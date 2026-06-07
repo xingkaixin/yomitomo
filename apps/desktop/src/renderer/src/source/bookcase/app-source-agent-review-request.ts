@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import type { Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import type { RefObject } from 'react';
 import { appendAnnotationComment } from '@yomitomo/core';
 import { promptArticle } from './app-source-bookcase-shared';
@@ -10,6 +10,7 @@ type RunSourceAgentReviewRequestInput = {
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentReview'>;
   currentArticle: ArticleRecord;
   articleText: string;
+  uiLanguage?: UiLanguage;
   annotationsRef: RefObject<Annotation[]>;
   applyAnnotations: (annotations: Annotation[]) => ArticleRecord | null;
   saveAnnotations: (annotations: Annotation[]) => Promise<void>;
@@ -22,6 +23,7 @@ export async function runSourceAgentReviewRequest({
   desktop,
   currentArticle,
   articleText,
+  uiLanguage,
   annotationsRef,
   applyAnnotations,
   saveAnnotations,
@@ -40,6 +42,7 @@ export async function runSourceAgentReviewRequest({
       const comments = await desktop.requestAgentReview({
         agentId: agent.id,
         agentUsername: agent.username,
+        uiLanguage,
         article: promptArticle(currentArticle, articleText),
         annotation: latestAnnotation(latestAnnotations, annotation.id) || annotation,
       });
@@ -76,9 +79,21 @@ function appendReviewComments(
     ) {
       continue;
     }
+    const localizedComment = {
+      ...comment,
+      agentId: agent.id,
+      agentUsername: agent.username,
+      agentNickname: agent.nickname,
+      agentAvatar: agent.avatar,
+      agentAnnotationColor: agent.annotationColor,
+    };
     nextAnnotations =
-      appendAnnotationComment(nextAnnotations, annotationId, comment, comment.createdAt) ||
-      nextAnnotations;
+      appendAnnotationComment(
+        nextAnnotations,
+        annotationId,
+        localizedComment,
+        localizedComment.createdAt,
+      ) || nextAnnotations;
   }
   return nextAnnotations;
 }

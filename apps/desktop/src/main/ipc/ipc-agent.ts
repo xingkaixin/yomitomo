@@ -12,14 +12,15 @@ import type {
   ArticleRecord,
   Comment,
   LlmProvider,
+  UiLanguage,
 } from '@yomitomo/shared';
 import type { AssistantRuntimeStreamEvent, AssistantToolName } from '@yomitomo/ai';
 import type { NormalizedAiUsage } from '@yomitomo/ai';
 import {
-  agentPersonalityName,
   makeId,
   normalizeAssistantExecutionMode,
   normalizeUiLanguage,
+  resolveAgentPublicIdentity,
 } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
@@ -67,7 +68,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const payloadWithRoster = {
       ...payload,
       uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-      agentRoster: publicCommentAgents(store.agents),
+      agentRoster: publicCommentAgents(
+        store.agents,
+        normalizeUiLanguage(store.settings.uiLanguage),
+      ),
     };
     const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
     const runtime =
@@ -143,7 +147,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const comments = await runAgentReview(provider, agent, {
       ...payload,
       uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-      agentRoster: publicCommentAgents(store.agents),
+      agentRoster: publicCommentAgents(
+        store.agents,
+        normalizeUiLanguage(store.settings.uiLanguage),
+      ),
     });
     for (const comment of comments) {
       comment.id = makeId('comment');
@@ -273,7 +280,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         const payloadWithRoster = {
           ...input.payload,
           uiLanguage: normalizeUiLanguage(store.settings.uiLanguage),
-          agentRoster: publicCommentAgents(store.agents),
+          agentRoster: publicCommentAgents(
+            store.agents,
+            normalizeUiLanguage(store.settings.uiLanguage),
+          ),
           readingIntent: input.payload.readingIntent || comment.readingIntent,
         };
         const streamRuntimeTextDelta = (delta: string) => {
@@ -852,7 +862,8 @@ function distillationReviewMessagePayload(
     ...payload,
     uiLanguage: normalizeUiLanguage(settings.uiLanguage),
     responseMode: 'distillation_review',
-    agentRoster: payload.agentRoster || publicCommentAgents(agents),
+    agentRoster:
+      payload.agentRoster || publicCommentAgents(agents, normalizeUiLanguage(settings.uiLanguage)),
   };
 }
 
@@ -1060,20 +1071,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function publicCommentAgents(agents: Agent[]) {
+function publicCommentAgents(agents: Agent[], uiLanguage: UiLanguage) {
   return agents
     .filter((agent) => agent.enabled)
-    .map((agent) => ({
-      id: agent.id,
-      kind: agent.kind,
-      enabled: agent.enabled,
-      presetId: agent.presetId,
-      nickname: agent.nickname,
-      username: agent.username,
-      avatar: agent.avatar,
-      annotationColor: agent.annotationColor,
-      annotationDensity: agent.annotationDensity,
-      personalityName: agentPersonalityName(agent),
-      temperature: agent.temperature,
-    }));
+    .map((agent) => resolveAgentPublicIdentity(agent, uiLanguage));
 }

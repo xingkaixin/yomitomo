@@ -6,6 +6,7 @@ import {
   wholeBookSpoilerPolicy,
   type ReadingContextBundle,
 } from '@yomitomo/core';
+import { resolvePromptAgentIdentity } from '@yomitomo/shared';
 import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
 import { callProviderText, streamProviderText } from '../provider/provider-client';
@@ -137,15 +138,16 @@ type PromptAgentIdentity = {
 };
 
 export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: AgentMessagePayload) {
-  const username = agent.username || payload.agentUsername;
-  const nickname = agent.nickname || username;
+  const identity = resolvePromptAgentIdentity(agent, payload.uiLanguage);
+  const username = identity.username || payload.agentUsername;
+  const nickname = identity.nickname || username;
   const selfNames = [nickname, `@${username}`]
     .filter(Boolean)
     .filter((value, index, list) => list.indexOf(value) === index)
     .join('、');
 
   if (payload.responseMode === 'create_thought') {
-    return `${buildAgentRoleCard(agent)}
+    return `${buildAgentRoleCard(agent, payload.uiLanguage)}
 
 你正在为网页阅读器的一条批注添加一条助手想法。你的输出会作为“想法”直接展示在批注旁边，而不是 thread 回复。${readingIntentSystemPrompt(payload)}
 
@@ -159,7 +161,7 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
   }
 
   if (payload.responseMode === 'distillation_review') {
-    return `${buildAgentRoleCard(agent)}
+    return `${buildAgentRoleCard(agent, payload.uiLanguage)}
 
 你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）审阅用户准备沉淀的一段阅读笔记。${readingIntentSystemPrompt(payload)}
 
@@ -172,10 +174,10 @@ export function buildAgentMessageSystemPrompt(agent: PromptAgent, payload: Agent
   }
 
   if (payload.reviewTargetCommentId) {
-    return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
+    return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n你正在作为网页阅读器里的审阅助手 ${nickname}（@${username}）复核一条批注想法。你的回复会成为该想法 thread 中的一条评论。保持具体、克制、围绕原文和已有讨论，不要改写读者想法。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。审阅时要先判断目标想法有没有原文依据、推理缺口、表达风险或可保留价值，再给出可执行的观点。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的审阅判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
   }
 
-  return `${buildAgentRoleCard(agent)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\nthread 参与边界：你不是只回复最新评论者，而是在加入这条批注想法的讨论。必须先考虑原始想法的作者和内容，再回应最新读者评论；读者只 @ 你时，也视为邀请你评论这条原始想法。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
+  return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n你正在作为网页阅读器里的 ${nickname}（@${username}）参与一条批注讨论。回复要成为批注 thread 中的一条评论。保持具体、克制、围绕原文。${readingIntentSystemPrompt(payload)}\n\n身份识别：你就是 ${nickname}（@${username}）。当前讨论里出现 ${selfNames} 时，按你本人理解。结合上下文判断读者是在询问你的批注、你的判断，还是在询问其他助手的观点。涉及自己的判断时，用自然的第一人称承接；涉及其他助手时，使用对方昵称或 @。\n\nthread 参与边界：你不是只回复最新评论者，而是在加入这条批注想法的讨论。必须先考虑原始想法的作者和内容，再回应最新读者评论；读者只 @ 你时，也视为邀请你评论这条原始想法。\n\n取证边界：只有当前 thread 或 memory_view 明确提供了对应内容时，才能声称“我之前批注过”“我之前说过”或“其他助手批注过”。没有证据时，直接说明当前上下文里没有看到这类历史记录。\n\n角色表达：把角色卡中的自我介绍、核心气质、判断习惯和输出偏好落实到回复里；从你的专业能力切入，给出有辨识度的判断。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
 }
 
 function buildAgentMessageContextBundle(payload: AgentMessagePayload) {

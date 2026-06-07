@@ -17,6 +17,21 @@ export * from './markdown';
 export * from './release-notes/release-note';
 
 export {
+  agentPersonalityCore,
+  agentPersonalityPresentations,
+  defaultAgentPersonalityLocale,
+  englishAgentPersonalityPresentations,
+  localizedAgentPersonalities,
+  localizedAgentPersonalitiesForKind,
+  localizedAgentPersonality,
+  resolveAgentPersonalityPresentation,
+  resolveAgentPresetId,
+  resolveAgentPublicIdentity,
+  resolvePromptAgentIdentity,
+  zhAgentPersonalityPresentations,
+} from './agents/agent-presentations';
+
+export {
   agentPersonalities,
   agentPersonalitiesForKind,
   annotationAgentPersonalities,

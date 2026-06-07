@@ -290,6 +290,7 @@ export function DiscussionThreadView({
           <div className={className}>
             {messages.map((message) => (
               <DiscussionMessage
+                agents={annotationAgents}
                 isDeleting={deletingCommentId === message.id}
                 key={message.id}
                 message={message}

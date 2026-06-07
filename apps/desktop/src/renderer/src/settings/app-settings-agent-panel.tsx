@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck } from 'lucide-react';
-import type { Agent, AgentKind, AppSettings, LlmProvider } from '@yomitomo/shared';
+import type { Agent, AgentKind, AppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
+import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import {
   agentPersonalities,
@@ -8,21 +9,11 @@ import {
   annotationColors,
   annotationDensityOptions,
   findAgentPersonalityId,
+  localizedPersonalityForAgent,
   personalitiesForKind,
   type AgentDraft,
 } from './app-settings';
-import chenYanshuCover from '../assets/agent-profiles/chen-yanshu-cover.webp';
-import guXingjianCover from '../assets/agent-profiles/gu-xingjian-cover.webp';
-import linZhiweiCover from '../assets/agent-profiles/lin-zhiwei-cover.webp';
-import shenQingyuanCover from '../assets/agent-profiles/shen-qingyuan-cover.webp';
-import xuWenquCover from '../assets/agent-profiles/xu-wenqu-cover.webp';
-import zhouYanCover from '../assets/agent-profiles/zhou-yan-cover.webp';
-import heMinghengCover from '../assets/reviewer-profiles/he-mingheng-cover.webp';
-import liangZhengyanCover from '../assets/reviewer-profiles/liang-zhengyan-cover.webp';
-import suDingbaiCover from '../assets/reviewer-profiles/su-dingbai-cover.webp';
-import tangJianCover from '../assets/reviewer-profiles/tang-jian-cover.webp';
-import xiaGuiningCover from '../assets/reviewer-profiles/xia-guining-cover.webp';
-import yeTinglanCover from '../assets/reviewer-profiles/ye-tinglan-cover.webp';
+import { resolveAgentPersonaAssets } from './agent-persona-assets';
 import { ColorPicker } from './app-settings-color-picker';
 import { AvatarImage, Field } from '../shell/app-ui';
 import type { SaveState } from '../shell/app-types';
@@ -60,80 +51,126 @@ const agentPronunciationMap: Record<string, string> = {
   'action-calibrator': 'Xià Guīníng',
 };
 
-const agentCoverMap: Record<string, string> = {
-  'reading-partner': linZhiweiCover,
-  'root-reviewer': zhouYanCover,
-  'question-mentor': xuWenquCover,
-  'insight-editor': chenYanshuCover,
-  'concept-translator': shenQingyuanCover,
-  'structure-navigator': guXingjianCover,
-  'evidence-archivist': liangZhengyanCover,
-  'reader-advocate': yeTinglanCover,
-  'final-copy-editor': tangJianCover,
-  'logic-auditor': heMinghengCover,
-  'risk-examiner': suDingbaiCover,
-  'action-calibrator': xiaGuiningCover,
-};
-
 const defaultAgentPresenceLine: AgentPresenceLine = {
   enter: '我在，陪你慢慢看。',
   rest: '我先休息一下，有需要再叫我。',
 };
 
-const agentPresenceLineMap: Partial<Record<string, AgentPresenceLine>> = {
-  'reading-partner': {
-    enter: '我在，陪你慢慢看。',
-    rest: '先走了，你继续读。',
-  },
-  'root-reviewer': {
-    enter: '铅笔备好了，开始拆。',
-    rest: '三角尺放下了，回头见。',
-  },
-  'question-mentor': {
-    enter: '来了，看看哪里值得停一下。',
-    rest: '问题先存着，想好了再聊。',
-  },
-  'insight-editor': {
-    enter: '我来收拾，散的交给我。',
-    rest: '线索收好了，用的时候翻。',
-  },
-  'concept-translator': {
-    enter: '在的，哪里读不顺跟我说。',
-    rest: '撤了，顺了就好。',
-  },
-  'structure-navigator': {
-    enter: '地图打开了，不会让你迷路。',
-    rest: '导航关了，路你已经认得。',
-  },
-  'evidence-archivist': {
-    enter: '把材料交过来，我逐条对。',
-    rest: '账清了，经得起查。',
-  },
-  'reader-advocate': {
-    enter: '我看看你的困惑有没有被漏掉。',
-    rest: '该留的都在了，撤了。',
-  },
-  'final-copy-editor': {
-    enter: '红笔带了，希望用不上。',
-    rest: '能存了。',
-  },
-  'logic-auditor': {
-    enter: '给我看看你的推理链。',
-    rest: '缝隙标完了，改不改你定。',
-  },
-  'risk-examiner': {
-    enter: '动手之前，先让我问几句。',
-    rest: '边界画完了，出了线别怪我。',
-  },
-  'action-calibrator': {
-    enter: '看看你的"接下来"能不能落地。',
-    rest: '能执行的都改好了，直接用。',
+const defaultAgentPresenceLines: Record<UiLanguage, AgentPresenceLine> = {
+  'zh-CN': defaultAgentPresenceLine,
+  en: {
+    enter: "I'm here. Let's read this through.",
+    rest: "I'll step back for now.",
   },
 };
 
-function agentPresenceLine(agent: Agent, nextEnabled: boolean) {
+const agentPresenceLineMap: Record<UiLanguage, Partial<Record<string, AgentPresenceLine>>> = {
+  'zh-CN': {
+    'reading-partner': {
+      enter: '我在，陪你慢慢看。',
+      rest: '先走了，你继续读。',
+    },
+    'root-reviewer': {
+      enter: '铅笔备好了，开始拆。',
+      rest: '三角尺放下了，回头见。',
+    },
+    'question-mentor': {
+      enter: '来了，看看哪里值得停一下。',
+      rest: '问题先存着，想好了再聊。',
+    },
+    'insight-editor': {
+      enter: '我来收拾，散的交给我。',
+      rest: '线索收好了，用的时候翻。',
+    },
+    'concept-translator': {
+      enter: '在的，哪里读不顺跟我说。',
+      rest: '撤了，顺了就好。',
+    },
+    'structure-navigator': {
+      enter: '地图打开了，不会让你迷路。',
+      rest: '导航关了，路你已经认得。',
+    },
+    'evidence-archivist': {
+      enter: '把材料交过来，我逐条对。',
+      rest: '账清了，经得起查。',
+    },
+    'reader-advocate': {
+      enter: '我看看你的困惑有没有被漏掉。',
+      rest: '该留的都在了，撤了。',
+    },
+    'final-copy-editor': {
+      enter: '红笔带了，希望用不上。',
+      rest: '能存了。',
+    },
+    'logic-auditor': {
+      enter: '给我看看你的推理链。',
+      rest: '缝隙标完了，改不改你定。',
+    },
+    'risk-examiner': {
+      enter: '动手之前，先让我问几句。',
+      rest: '边界画完了，出了线别怪我。',
+    },
+    'action-calibrator': {
+      enter: '看看你的"接下来"能不能落地。',
+      rest: '能执行的都改好了，直接用。',
+    },
+  },
+  en: {
+    'reading-partner': {
+      enter: "I'm in the margin.",
+      rest: "I'll leave the margin to you.",
+    },
+    'root-reviewer': {
+      enter: 'Pencil ready. Let me take it apart.',
+      rest: 'The set square is down for now.',
+    },
+    'question-mentor': {
+      enter: "I'm here. Let's find the next question.",
+      rest: "I'll leave the questions waiting.",
+    },
+    'insight-editor': {
+      enter: "I'll gather the useful threads.",
+      rest: 'The usable lines are saved.',
+    },
+    'concept-translator': {
+      enter: "I'm here. Point me at the unclear term.",
+      rest: 'Clear enough for now.',
+    },
+    'structure-navigator': {
+      enter: 'Map open. I will keep the route visible.',
+      rest: 'Navigation is off for now.',
+    },
+    'evidence-archivist': {
+      enter: "Hand me the material. I'll trace it back.",
+      rest: 'The ledger is squared.',
+    },
+    'reader-advocate': {
+      enter: "I'll watch for what the reader cared about.",
+      rest: 'The important traces are kept.',
+    },
+    'final-copy-editor': {
+      enter: 'Red pen ready. I hope I barely need it.',
+      rest: 'This can survive.',
+    },
+    'logic-auditor': {
+      enter: 'Show me the reasoning chain.',
+      rest: 'The gaps are marked.',
+    },
+    'risk-examiner': {
+      enter: 'Before action, let me ask about the boundary.',
+      rest: 'The boundaries are marked.',
+    },
+    'action-calibrator': {
+      enter: "Let's make the next step executable.",
+      rest: 'The doable version is ready.',
+    },
+  },
+};
+
+function agentPresenceLine(agent: Agent, nextEnabled: boolean, uiLanguage: UiLanguage) {
   const personalityId = agent.presetId || findAgentPersonalityId(agent.soul);
-  const lines = agentPresenceLineMap[personalityId] || defaultAgentPresenceLine;
+  const lines =
+    agentPresenceLineMap[uiLanguage][personalityId] || defaultAgentPresenceLines[uiLanguage];
   return nextEnabled ? lines.enter : lines.rest;
 }
 
@@ -164,8 +201,8 @@ function routeNoticeCopy(filter: AgentFilter, hasProviders: boolean, t: Translat
   };
 }
 
-function previewAgentsForFilter(filter: AgentFilter): AgentCardModel[] {
-  return personalitiesForKind(filter).map((personality) => ({
+function previewAgentsForFilter(filter: AgentFilter, uiLanguage: UiLanguage): AgentCardModel[] {
+  return personalitiesForKind(filter, uiLanguage).map((personality) => ({
     agent: {
       id: `agent_preview_${personality.id}`,
       kind: personality.kind,
@@ -174,7 +211,9 @@ function previewAgentsForFilter(filter: AgentFilter): AgentCardModel[] {
       providerId: '',
       nickname: personality.name,
       username: personality.name,
-      avatar: personality.name.slice(0, 1),
+      avatar:
+        resolveAgentPersonaAssets(uiLanguage, personality.id)?.avatar ||
+        personality.name.slice(0, 1),
       annotationColor: personality.defaultColor,
       annotationDensity: 'medium',
       temperature: personality.temperature,
@@ -186,12 +225,16 @@ function previewAgentsForFilter(filter: AgentFilter): AgentCardModel[] {
   }));
 }
 
-function visibleAgentsForFilter(agents: Agent[], filter: AgentFilter): AgentCardModel[] {
+function visibleAgentsForFilter(
+  agents: Agent[],
+  filter: AgentFilter,
+  uiLanguage: UiLanguage,
+): AgentCardModel[] {
   const filteredAgents = agents
     .filter((agent) => (agent.kind || 'annotation') === filter)
     .map((agent) => ({ agent, persisted: true }));
 
-  return filteredAgents.length > 0 ? filteredAgents : previewAgentsForFilter(filter);
+  return filteredAgents.length > 0 ? filteredAgents : previewAgentsForFilter(filter, uiLanguage);
 }
 
 export function AgentSettings({
@@ -213,7 +256,8 @@ export function AgentSettings({
   const { t } = useTranslation();
   const [filter, setFilter] = useState<AgentFilter>('annotation');
   const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
-  const visibleAgents = visibleAgentsForFilter(agents, filter);
+  const uiLanguage = normalizeUiLanguage(settings.uiLanguage);
+  const visibleAgents = visibleAgentsForFilter(agents, filter, uiLanguage);
   const routeConfigured = hasAgentRoute(settings, providers, filter);
   const routeNotice = routeConfigured ? null : routeNoticeCopy(filter, providers.length > 0, t);
   const emptyKindLabel = t(`settings.agents.kindLabels.${filter}`);
@@ -234,7 +278,7 @@ export function AgentSettings({
       agentId: agent.id,
       id: `${agent.id}-${nextEnabled ? 'enter' : 'rest'}-${Date.now()}`,
       state: nextEnabled ? 'enter' : 'rest',
-      text: agentPresenceLine(agent, nextEnabled),
+      text: agentPresenceLine(agent, nextEnabled, uiLanguage),
     });
     onToggle(agent);
   }
@@ -290,6 +334,7 @@ export function AgentSettings({
                 canToggle={routeConfigured && persisted}
                 key={agent.id}
                 lineCue={lineCue?.agentId === agent.id ? lineCue : null}
+                uiLanguage={uiLanguage}
                 onToggle={handleAgentToggle}
               />
             ))
@@ -304,23 +349,27 @@ function AgentProfileListCard({
   agent,
   canToggle,
   lineCue,
+  uiLanguage,
   onToggle,
 }: {
   agent: Agent;
   canToggle: boolean;
   lineCue: AgentLineCue | null;
+  uiLanguage: UiLanguage;
   onToggle: (agent: Agent) => void;
 }) {
   const { t } = useTranslation();
-  const personalityName = agentPersonalityName(agent);
-  const personality = agentPersonalities.find(
-    (item) => item.id === (agent.presetId || findAgentPersonalityId(agent.soul)),
-  );
-  const cover = personality ? agentCoverMap[personality.id] : undefined;
+  const personalityName = agentPersonalityName(agent, uiLanguage);
+  const personality = localizedPersonalityForAgent(agent, uiLanguage);
+  const assets = resolveAgentPersonaAssets(uiLanguage, personality?.id);
+  const cover = assets?.cover;
+  const avatar = assets?.avatar || agent.avatar;
   const intro = personality?.selfIntroduction || personality?.introduction || '';
   const motto = personality?.description || personalityName;
   const roleTitle = personality?.roleTitle || personalityName;
-  const pronunciation = personality ? agentPronunciationMap[personality.id] : '';
+  const pronunciation =
+    uiLanguage === 'zh-CN' && personality ? agentPronunciationMap[personality.id] : '';
+  const displayName = personality?.name || agent.nickname;
 
   const enabled = canToggle && agent.enabled;
   const statusLabel = canToggle
@@ -366,21 +415,21 @@ function AgentProfileListCard({
               <img
                 className="agent-list-cover"
                 src={cover}
-                alt={t('settings.agents.coverAlt', { name: agent.nickname })}
+                alt={t('settings.agents.coverAlt', { name: displayName })}
               />
             ) : (
               <div className="agent-list-cover is-placeholder">
                 <AvatarImage
-                  value={agent.avatar}
+                  value={avatar}
                   className="size-16"
-                  fallback={agent.nickname.slice(0, 1)}
+                  fallback={displayName.slice(0, 1)}
                 />
               </div>
             )}
           </div>
           <div className="agent-list-heading">
             <div className="agent-list-name-row">
-              <h3>{agent.nickname}</h3>
+              <h3>{displayName}</h3>
               {pronunciation ? <span>{pronunciation}</span> : null}
             </div>
             {motto ? <blockquote>{motto}</blockquote> : null}
@@ -397,9 +446,9 @@ function AgentProfileListCard({
             aria-label={
               canToggle
                 ? agent.enabled
-                  ? t('settings.agents.toggleRest', { name: agent.nickname })
-                  : t('settings.agents.toggleJoin', { name: agent.nickname })
-                : t('settings.agents.toggleNeedsRoute', { name: agent.nickname })
+                  ? t('settings.agents.toggleRest', { name: displayName })
+                  : t('settings.agents.toggleJoin', { name: displayName })
+                : t('settings.agents.toggleNeedsRoute', { name: displayName })
             }
             type="checkbox"
             checked={canToggle && agent.enabled}

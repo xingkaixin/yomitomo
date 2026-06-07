@@ -1,3 +1,5 @@
+import type { UiLanguage } from '../settings-types';
+
 export type AgentAnnotationDensity = 'low' | 'medium' | 'high';
 
 export type AgentReadingIntent = 'explain' | 'decompose' | 'challenge' | 'question' | 'connect';
@@ -22,6 +24,25 @@ export type AgentPersonality = {
   defaultColor: string;
   defaultEnabled: boolean;
   soul: string;
+};
+
+export type AgentPersonalityPresentation = {
+  id: string;
+  locale: UiLanguage;
+  name: string;
+  username: string;
+  pinyin?: string;
+  roleTitle: string;
+  description: string;
+  introduction: string;
+  selfIntroduction?: string;
+  sceneDescription: string;
+  portraitPrompt: string;
+  scenePrompt: string;
+  soul: string;
+  avatar?: string;
+  cover?: string;
+  pronunciation?: string;
 };
 
 export type Agent = {

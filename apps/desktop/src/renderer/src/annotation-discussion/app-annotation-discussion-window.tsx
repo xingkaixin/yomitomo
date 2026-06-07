@@ -6,7 +6,15 @@ import {
   PanelLeftOpen,
   Plus,
 } from 'lucide-react';
-import type { Agent, Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
+import type {
+  Agent,
+  Annotation,
+  ArticleRecord,
+  Comment,
+  PublicAgent,
+  UiLanguage,
+} from '@yomitomo/shared';
+import { normalizeUiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import {
   appendAnnotationComment,
@@ -60,7 +68,13 @@ const DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH = 760;
 
 type DiscussionWindowStatus =
   | { type: 'loading' }
-  | { type: 'ready'; agents: Agent[]; article: ArticleRecord; annotation: Annotation }
+  | {
+      type: 'ready';
+      agents: Agent[];
+      article: ArticleRecord;
+      annotation: Annotation;
+      uiLanguage: UiLanguage;
+    }
   | { type: 'missing' }
   | { type: 'error'; message: string };
 
@@ -105,7 +119,13 @@ export function AnnotationDiscussionWindowApp() {
         const annotation = article?.annotations.find((item) => item.id === annotationId);
         setStatus(
           article && annotation
-            ? { type: 'ready', agents: store.agents, article, annotation }
+            ? {
+                type: 'ready',
+                agents: store.agents,
+                article,
+                annotation,
+                uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
+              }
             : { type: 'missing' },
         );
       })
@@ -130,6 +150,7 @@ export function AnnotationDiscussionWindowApp() {
         annotation={status.annotation}
         className={windowClassName}
         style={windowTransition.style}
+        uiLanguage={status.uiLanguage}
       />
     );
   }
@@ -157,12 +178,14 @@ function AnnotationDiscussionShell({
   article,
   className,
   style,
+  uiLanguage,
 }: {
   agents: Agent[];
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
   style: CSSProperties;
+  uiLanguage: UiLanguage;
 }) {
   const { t } = useTranslation();
   const [currentArticle, setCurrentArticle] = useState(article);
@@ -205,7 +228,10 @@ function AnnotationDiscussionShell({
     currentArticleRef.current = currentArticle;
   }, [currentArticle]);
 
-  const annotationAgents = useMemo(() => publicAnnotationAgents(agents), [agents]);
+  const annotationAgents = useMemo(
+    () => publicAnnotationAgents(agents, uiLanguage),
+    [agents, uiLanguage],
+  );
   const userProfile = annotationUserProfile(currentAnnotation, currentArticle);
   const threads = useMemo(
     () => discussionThreads(currentAnnotation, pinnedThoughtIds),
@@ -542,6 +568,7 @@ function AnnotationDiscussionShell({
       desktop: window.yomitomoDesktop,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),
+      uiLanguage,
       annotationsRef,
       applyAnnotations,
       saveAnnotations,
@@ -561,6 +588,7 @@ function AnnotationDiscussionShell({
       annotation: annotationValue,
       instruction,
       readingIntent,
+      uiLanguage,
       desktop: window.yomitomoDesktop,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),
@@ -700,6 +728,7 @@ function AnnotationDiscussionShell({
                   isDeleting={deletingCommentId === thread.root.id}
                   isSelected={thread.root.id === selectedThread?.root.id}
                   thread={thread}
+                  agents={annotationAgents}
                   userProfile={userProfile}
                   onDelete={() => void deleteComment(thread.root.id)}
                   onPin={() => togglePinnedThought(thread.root.id)}

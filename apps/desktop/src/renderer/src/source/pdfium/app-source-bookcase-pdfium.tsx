@@ -134,6 +134,7 @@ export function PdfiumBookcase({
   messageSendShortcut,
   selectionActionShortcuts,
   selectedAnnotationId,
+  uiLanguage,
   userProfile,
   onFocusedAnnotation,
   onClose,
@@ -297,6 +298,7 @@ export function PdfiumBookcase({
                         selectionActionShortcuts={selectionActionShortcuts}
                         tocItems={tocItems}
                         tocOpen={tocOpen}
+                        uiLanguage={uiLanguage}
                         userProfile={userProfile}
                         onClose={onClose}
                         onCloseToc={() => setTocOpen(false)}
@@ -355,6 +357,7 @@ function PdfiumDocument({
   selectionActionShortcuts,
   tocItems,
   tocOpen,
+  uiLanguage,
   userProfile,
   onClose,
   onCloseToc,
@@ -384,6 +387,7 @@ function PdfiumDocument({
   selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
   tocItems: TocItem[];
   tocOpen: boolean;
+  uiLanguage: SourceBookcaseProps['uiLanguage'];
   userProfile: SourceBookcaseProps['userProfile'];
   onClose: SourceBookcaseProps['onClose'];
   onCloseToc: () => void;
@@ -498,6 +502,7 @@ function PdfiumDocument({
     annotations: articleAnnotations,
     article,
     ignoreStaleArticleUpdates: true,
+    uiLanguage,
     getArticleText: currentArticleText,
     onOpenAnnotation,
     onDeleteArticleAnnotation,
@@ -510,6 +515,7 @@ function PdfiumDocument({
     agents: annotationAgents,
     article,
     getArticleText: currentArticleText,
+    uiLanguage,
     onSaveArticleReaderChatState,
   });
   const {

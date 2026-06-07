@@ -10,9 +10,10 @@ import type {
   MessageSendShortcut,
   PublicAgent,
   SelectionActionShortcuts,
+  UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { agentPersonalities, agentPersonalityName } from '@yomitomo/shared';
+import { resolveAgentPresetId, resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { findMentionedAgents, sortAnnotations, type HighlightBox } from '@yomitomo/core';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
 import type { SelectionAction } from '@yomitomo/reader-ui/reader-app-view';
@@ -20,6 +21,7 @@ import { annotationNavigationForReferenceIndex } from '@yomitomo/reader-ui/reade
 import i18next from 'i18next';
 import type { ArticleUpdater, PromptArticle } from '../../shell/app-reading-types';
 import type { WindowAnimationSourceRect } from '../../../../ipc-contract';
+import { resolveAgentPersonaAssets } from '../../settings/agent-persona-assets';
 export {
   normalizeDesktopReaderSettings,
   readDesktopReaderSettings,
@@ -165,52 +167,22 @@ export function annotationViewportPositions(
   );
 }
 
-export function publicAnnotationAgents(agents: Agent[]): PublicAgent[] {
+export function publicAnnotationAgents(agents: Agent[], uiLanguage?: UiLanguage): PublicAgent[] {
   return agents
     .filter((agent) => agent.kind === 'annotation' && agent.enabled)
-    .map((agent) => {
-      const personality = agentPersonalities.find(
-        (item) => item.id === agent.presetId || item.soul === agent.soul,
-      );
-      return {
-        id: agent.id,
-        kind: agent.kind,
-        enabled: agent.enabled,
-        presetId: agent.presetId,
-        nickname: agent.nickname,
-        username: agent.username,
-        avatar: agent.avatar,
-        annotationColor: agent.annotationColor,
-        annotationDensity: agent.annotationDensity,
-        personalityName: agentPersonalityName(agent),
-        pinyin: personality?.pinyin,
-        temperature: agent.temperature,
-      };
-    });
+    .map((agent) => publicAgentWithPersonaAssets(agent, uiLanguage));
 }
 
-export function publicReviewAgents(agents: Agent[]): PublicAgent[] {
+export function publicReviewAgents(agents: Agent[], uiLanguage?: UiLanguage): PublicAgent[] {
   return agents
     .filter((agent) => agent.kind === 'review' && agent.enabled)
-    .map((agent) => {
-      const personality = agentPersonalities.find(
-        (item) => item.id === agent.presetId || item.soul === agent.soul,
-      );
-      return {
-        id: agent.id,
-        kind: agent.kind,
-        enabled: agent.enabled,
-        presetId: agent.presetId,
-        nickname: agent.nickname,
-        username: agent.username,
-        avatar: agent.avatar,
-        annotationColor: agent.annotationColor,
-        annotationDensity: agent.annotationDensity,
-        personalityName: agentPersonalityName(agent),
-        pinyin: personality?.pinyin,
-        temperature: agent.temperature,
-      };
-    });
+    .map((agent) => publicAgentWithPersonaAssets(agent, uiLanguage));
+}
+
+function publicAgentWithPersonaAssets(agent: Agent, uiLanguage?: UiLanguage): PublicAgent {
+  const publicAgent = resolveAgentPublicIdentity(agent, uiLanguage);
+  const assets = resolveAgentPersonaAssets(uiLanguage || 'zh-CN', resolveAgentPresetId(agent));
+  return assets ? { ...publicAgent, avatar: assets.avatar } : publicAgent;
 }
 
 export function targetAnchorReadingPlan(
@@ -466,6 +438,7 @@ export type SourceBookcaseProps = {
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   selectedAnnotationId: string | null;
+  uiLanguage: UiLanguage;
   userProfile: UserProfile;
   onFocusedAnnotation: () => void;
   onClose: () => void;

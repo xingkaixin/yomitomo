@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import i18next from 'i18next';
-import type { Annotation, ArticleRecord, Comment, PublicAgent } from '@yomitomo/shared';
+import type { Annotation, ArticleRecord, Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import { makeId } from '@yomitomo/shared';
 import {
   appendAnnotationComment,
@@ -21,6 +21,7 @@ type RunSourceAgentThoughtRequestInput = {
   annotation: Annotation;
   instruction: string;
   readingIntent?: Comment['readingIntent'];
+  uiLanguage?: UiLanguage;
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
   articleText: string;
@@ -37,6 +38,7 @@ export async function runSourceAgentThoughtRequest({
   annotation,
   instruction,
   readingIntent,
+  uiLanguage,
   desktop,
   currentArticle,
   articleText,
@@ -108,6 +110,7 @@ export async function runSourceAgentThoughtRequest({
       {
         agentId: agent.id,
         agentUsername: agent.username,
+        uiLanguage,
         responseMode: 'create_thought',
         readingIntent: readingIntent || annotation.readingIntent,
         instruction,
@@ -121,12 +124,13 @@ export async function runSourceAgentThoughtRequest({
             annotationsRef.current,
             annotation.id,
             pendingCommentId,
-            () => ({
-              ...event.comment,
-              id: pendingCommentId,
-              replyTo: undefined,
-              pending: true,
-            }),
+            () =>
+              localizedAgentComment(agent, {
+                ...event.comment,
+                id: pendingCommentId,
+                replyTo: undefined,
+                pending: true,
+              }),
           );
           if (nextAnnotations) applyAnnotations(nextAnnotations);
           return;
@@ -158,7 +162,7 @@ export async function runSourceAgentThoughtRequest({
       flushDelta();
     }
     const completedComment = {
-      ...finalComment,
+      ...localizedAgentComment(agent, finalComment),
       id: pendingCommentId,
       replyTo: undefined,
       content: finalComment.content || streamedContent,
@@ -195,4 +199,15 @@ export async function runSourceAgentThoughtRequest({
     if (pendingFrame) window.cancelAnimationFrame(pendingFrame);
     setStatusMessage('');
   }
+}
+
+function localizedAgentComment(agent: PublicAgent, comment: Comment): Comment {
+  return {
+    ...comment,
+    agentId: agent.id,
+    agentUsername: agent.username,
+    agentNickname: agent.nickname,
+    agentAvatar: agent.avatar,
+    agentAnnotationColor: agent.annotationColor,
+  };
 }

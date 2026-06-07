@@ -72,6 +72,7 @@ export function EbookBookcase({
   messageSendShortcut,
   selectionActionShortcuts,
   selectedAnnotationId,
+  uiLanguage,
   userProfile,
   onFocusedAnnotation,
   onClose,
@@ -152,6 +153,7 @@ export function EbookBookcase({
     clearPendingOnArticleChange: true,
     clearPendingOnDeleteAnnotation: true,
     ignoreStaleArticleUpdates: true,
+    uiLanguage,
     onBeforeDeleteAnnotation: (annotationId) => {
       noteRefs.current.delete(annotationId);
     },
@@ -224,6 +226,7 @@ export function EbookBookcase({
     agents: annotationAgents,
     article,
     getArticleText: currentArticleText,
+    uiLanguage,
     onSaveArticleReaderChatState,
   });
   const searchResult = useMemo(
