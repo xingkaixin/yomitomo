@@ -107,4 +107,19 @@ describe('source reader annotation styles', () => {
     expect(styles).toContain('.source-pdf-reader-shell .reader-review-invite {');
     expect(styles).toContain('background: hsl(var(--card));');
   });
+
+  it('keeps embedded reader empty states from inheriting note card borders', () => {
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-empty,[\s\S]*\.source-ebook-reader-shell \.reader-empty,[\s\S]*\.source-pdf-reader-shell \.reader-empty \{[\s\S]*border: 0;[\s\S]*background: transparent;[\s\S]*box-shadow: none;[\s\S]*\}/,
+    );
+    expect(styles).not.toMatch(
+      /\.source-pdf-reader-shell \.reader-note,\s*\.source-pdf-reader-shell \.reader-empty/,
+    );
+  });
+
+  it('keeps PDFium annotation rail above the full-size PDF article surface', () => {
+    expect(styles).toMatch(
+      /\.source-pdfium-spike-reader \.reader-annotation-rail \{[\s\S]*z-index: 4;[\s\S]*\}/,
+    );
+  });
 });

@@ -125,6 +125,33 @@ function debugPdfLayout(event: string, details: Record<string, unknown>) {
   console.info(`[yomitomo:pdf-layout] ${event}`, details);
 }
 
+function debugRect(rect: DOMRect | undefined) {
+  if (!rect) return null;
+  return {
+    bottom: Math.round(rect.bottom),
+    height: Math.round(rect.height),
+    left: Math.round(rect.left),
+    right: Math.round(rect.right),
+    top: Math.round(rect.top),
+    width: Math.round(rect.width),
+  };
+}
+
+function debugComputedStyle(element: Element | null) {
+  if (!element) return null;
+  const style = window.getComputedStyle(element);
+  return {
+    display: style.display,
+    left: style.left,
+    opacity: style.opacity,
+    position: style.position,
+    top: style.top,
+    transform: style.transform,
+    visibility: style.visibility,
+    zIndex: style.zIndex,
+  };
+}
+
 export function PdfiumBookcase({
   agents,
   annotations: articleAnnotations,
@@ -625,6 +652,54 @@ function PdfiumDocument({
     layoutPageWidth,
     noteRefs,
     pageMetrics,
+    zoom,
+  ]);
+  useEffect(() => {
+    if (!pdfLayoutDebugEnabled()) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      const surface = surfaceRef.current;
+      const rail = notesRef.current;
+      const empty = canvas?.querySelector<HTMLElement>('.reader-empty') ?? null;
+      const viewport = canvas?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
+      const firstPage = canvas?.querySelector<HTMLElement>('[data-pdfium-page-index]') ?? null;
+      const readerApp = canvas?.closest<HTMLElement>('.reader-app') ?? null;
+
+      debugPdfLayout('empty-state', {
+        annotationCount: annotations.length,
+        appClasses: readerApp?.className ?? null,
+        canvasRect: debugRect(canvas?.getBoundingClientRect()),
+        emptyComputed: debugComputedStyle(empty),
+        emptyExists: Boolean(empty),
+        emptyRect: debugRect(empty?.getBoundingClientRect()),
+        firstPageRect: debugRect(firstPage?.getBoundingClientRect()),
+        layout: annotationRailLayout ?? null,
+        layoutPageWidth,
+        pageMetricKeys: Object.keys(pageMetrics),
+        railComputed: debugComputedStyle(rail),
+        railRect: debugRect(rail?.getBoundingClientRect()),
+        surfaceRect: debugRect(surface?.getBoundingClientRect()),
+        viewportHeight: annotationRailViewportHeight,
+        viewportRect: debugRect(viewport?.getBoundingClientRect()),
+        viewportWidth: annotationRailViewportWidth,
+        visibleAnnotationCount: visiblePdfAnnotations.length,
+        zoom,
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    annotationRailLayout,
+    annotationRailViewportHeight,
+    annotationRailViewportWidth,
+    annotations.length,
+    canvasRef,
+    layoutPageWidth,
+    notesRef,
+    pageMetrics,
+    surfaceRef,
+    visiblePdfAnnotations.length,
     zoom,
   ]);
   const annotationTotals = useMemo(

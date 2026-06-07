@@ -569,20 +569,25 @@
 }
 
 .source-reader-shell .reader-note,
-.source-reader-shell .reader-empty,
-.source-ebook-reader-shell .reader-note,
-.source-ebook-reader-shell .reader-empty {
+.source-ebook-reader-shell .reader-note {
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
   background: hsl(var(--card));
   box-shadow: none;
 }
 
-.source-pdf-reader-shell .reader-note,
-.source-pdf-reader-shell .reader-empty {
+.source-pdf-reader-shell .reader-note {
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
   background: hsl(var(--card));
+  box-shadow: none;
+}
+
+.source-reader-shell .reader-empty,
+.source-ebook-reader-shell .reader-empty,
+.source-pdf-reader-shell .reader-empty {
+  border: 0;
+  background: transparent;
   box-shadow: none;
 }
 

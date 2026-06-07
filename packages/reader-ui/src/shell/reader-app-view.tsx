@@ -66,6 +66,7 @@ export function ReaderAppView({
     railLayoutOverride,
     railViewportHeight,
     searchBoxes,
+    showEmptyNotes,
     temporaryBoxes,
   } = annotationModel;
   const {
@@ -247,6 +248,7 @@ export function ReaderAppView({
           selectionActionShortcuts={selectionActionShortcuts}
           shortcutModifier={shortcutModifier}
           searchBoxes={searchBoxes}
+          showEmptyNotes={showEmptyNotes}
           surfaceRef={surfaceRef}
           temporaryBoxes={temporaryBoxes}
           userProfile={userProfile}

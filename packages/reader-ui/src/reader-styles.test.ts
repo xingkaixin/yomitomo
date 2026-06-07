@@ -197,6 +197,26 @@ describe('reader embedded styles', () => {
       '.reader-app.is-embedded:has(.reader-comment-agent-more-menu) .reader-surface',
     );
   });
+
+  it('keeps the empty annotation state centered and visually quiet', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-annotation-rail>.reader-empty{position:absolute;left:var(--reader-empty-left,0);top:var(--reader-empty-top,50vh);',
+    );
+    expect(readerConversationStyles).toContain('transform:translateY(-50%)');
+    expect(readerConversationStyles).toContain(
+      '.reader-empty{display:grid;justify-items:center;gap:14px;margin:0;padding:18px 4px;border:0!important;',
+    );
+    expect(readerStyles).not.toContain('.reader-empty,.reader-note{');
+    expect(readerStyles).toContain(
+      '.reader-empty{display:grid;justify-items:center;gap:14px;margin:0;padding:18px 4px;border:0;',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-empty-gesture{display:grid;width:min(260px,100%);justify-items:center;gap:9px;margin-top:8px}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-empty,.reader-app.is-annotation-stacked .reader-annotation-rail>.reader-note{position:relative;top:auto!important;left:auto!important;width:100%;pointer-events:auto;transform:none}',
+    );
+  });
 });
 
 function combinedReaderStyles() {
