@@ -2709,8 +2709,7 @@ const resources = {
           nickname: 'Nickname',
           nicknameDescription: 'Display name used in thoughts and replies.',
           username: 'Username',
-          usernameDescription:
-            'Used for @ mentions. Supports letters, numbers, underscores, and hyphens.',
+          usernameDescription: 'For @mentions: letters, numbers, _ and -.',
           annotationColor: 'Annotation color',
           save: 'Save',
           saving: 'Saving',

@@ -1167,11 +1167,8 @@
 }
 
 .library-search input:focus {
-  border-color: var(--app-interactive-hover-border);
   background: hsl(45 72% 99% / 0.92);
-  box-shadow:
-    0 0 0 3px var(--app-interactive-focus-ring),
-    0 8px 22px hsl(31 34% 24% / 0.08);
+  box-shadow: none;
 }
 
 .library-toolbar {

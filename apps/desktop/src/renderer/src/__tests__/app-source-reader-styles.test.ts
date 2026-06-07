@@ -81,6 +81,11 @@ describe('source reader annotation styles', () => {
     expect(styles).toContain('border-radius: 0;');
   });
 
+  it('does not recolor source note quote text on hover', () => {
+    expect(styles).not.toContain('.source-note-quote:hover');
+    expect(styles).not.toMatch(/\.source-note-quote:hover\s*\{[\s\S]*color:/);
+  });
+
   it('keeps composer cancel buttons neutral in embedded readers', () => {
     expect(styles).toContain(
       '.source-pdf-reader-shell .floating-composer-actions .reader-composer-cancel',

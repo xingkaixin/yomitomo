@@ -128,8 +128,30 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).toContain(
       '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72',
     );
+    expect(readerConversationStyles).not.toContain(
+      '.reader-note-quote:hover .reader-note-quote-text',
+    );
+    expect(readerConversationStyles).not.toContain(
+      '.reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72;text-wrap:pretty;transition:color',
+    );
     expect(readerConversationStyles).toContain(
       '.reader-thought-summary .reader-markdown-content,.reader-thought-summary .reader-markdown-content p{font-size:13px;font-weight:520;line-height:1.68}',
+    );
+  });
+
+  it('does not recolor annotation quotes on hover', () => {
+    expect(readerStyles).not.toContain('.reader-note-quote:hover{color:var(--reader-red)}');
+    expect(readerConversationStyles).not.toContain(
+      '.reader-note-quote:hover .reader-note-quote-text{color:var(--reader-red)}',
+    );
+  });
+
+  it('keeps distillation card action hover aligned with annotation cards', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:rgba(40,35,29,.07);color:var(--reader-ink)}',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:rgba(40,35,29,.07);color:var(--reader-ink)}',
     );
   });
 

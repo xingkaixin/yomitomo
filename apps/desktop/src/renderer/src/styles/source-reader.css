@@ -478,10 +478,6 @@
   opacity: 0.92;
 }
 
-.source-note-quote:hover {
-  color: hsl(8 36% 34%);
-}
-
 .source-note-primary-comment {
   margin-top: 11px;
   color: hsl(31 21% 24%);

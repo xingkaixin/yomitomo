@@ -135,6 +135,7 @@ export function AboutSettings({
     title: string;
     description: string;
     label: string;
+    actionIcon: React.ReactNode;
     onAction: () => void;
   }> = [
     {
@@ -142,6 +143,7 @@ export function AboutSettings({
       title: t('about.releaseNotes.title'),
       description: t('about.releaseNotes.description'),
       label: t('about.releaseNotes.label'),
+      actionIcon: <ExternalLink size={16} />,
       onAction: () => openExternal(resourceUrls.releaseNotes),
     },
     {
@@ -149,6 +151,7 @@ export function AboutSettings({
       title: t('about.docs.title'),
       description: t('about.docs.description'),
       label: t('about.docs.label'),
+      actionIcon: <ExternalLink size={16} />,
       onAction: () => openExternal(resourceUrls.docs),
     },
     {
@@ -156,6 +159,7 @@ export function AboutSettings({
       title: t('about.github.title'),
       description: t('about.github.description'),
       label: t('about.github.label'),
+      actionIcon: <ExternalLink size={16} />,
       onAction: () => openExternal(githubUrl),
     },
     {
@@ -163,6 +167,7 @@ export function AboutSettings({
       title: t('about.website.title'),
       description: t('about.website.description'),
       label: t('about.website.label'),
+      actionIcon: <ExternalLink size={16} />,
       onAction: () => openExternal(resourceUrls.homepage),
     },
     {
@@ -170,6 +175,7 @@ export function AboutSettings({
       title: t('about.feedback.title'),
       description: t('about.feedback.description'),
       label: t('about.feedback.label'),
+      actionIcon: <ExternalLink size={16} />,
       onAction: () => openExternal(feedbackUrl),
     },
     {
@@ -177,6 +183,7 @@ export function AboutSettings({
       title: t('about.licenses.title'),
       description: t('about.licenses.description', { count: thirdPartyPackages.length }),
       label: t('about.licenses.label'),
+      actionIcon: <ChevronRight size={16} />,
       onAction: () => setLicensesOpen(true),
     },
   ];
@@ -242,9 +249,7 @@ export function AboutSettings({
               <strong>{row.title}</strong>
               <p>{row.description}</p>
             </div>
-            <div className="settings-row-control">
-              <ExternalLink size={16} />
-            </div>
+            <div className="settings-row-control">{row.actionIcon}</div>
           </button>
         ))}
       </SettingsGroup>

@@ -81,6 +81,7 @@ function messageSendShortcutCopy(
 }
 
 type SelectionShortcutAction = keyof SelectionActionShortcuts;
+type ShortcutSaveSection = 'message' | 'selection';
 
 const selectionShortcutRows: Array<{
   action: SelectionShortcutAction;
@@ -225,6 +226,7 @@ export function ShortcutSettings({
 }) {
   const { t } = useTranslation();
   const [recordingAction, setRecordingAction] = useState<SelectionShortcutAction | null>(null);
+  const [saveSection, setSaveSection] = useState<ShortcutSaveSection | null>(null);
   const selectedShortcut = normalizeMessageSendShortcut(settingsDraft.messageSendShortcut);
   const shortcutModifier = getShortcutModifier();
   const selectionShortcuts = React.useMemo(
@@ -267,8 +269,10 @@ export function ShortcutSettings({
         !selectionActionShortcutsConflict(
           normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
         )
-      )
+      ) {
+        setSaveSection('selection');
         onSave(nextDraft);
+      }
       finishRecording();
     }
 
@@ -289,8 +293,15 @@ export function ShortcutSettings({
       !selectionActionShortcutsConflict(
         normalizeSelectionActionShortcutDraft(nextDraft.selectionActionShortcuts),
       )
-    )
+    ) {
+      setSaveSection('selection');
       onSave(nextDraft);
+    }
+  }
+
+  function retrySave(section: ShortcutSaveSection) {
+    setSaveSection(section);
+    onSave();
   }
 
   return (
@@ -305,8 +316,8 @@ export function ShortcutSettings({
             <span className="settings-hint">{t('settings.shortcuts.messageHint')}</span>
             <AutoSaveStatus
               error={saveError}
-              state={saveState}
-              onRetry={canSave ? () => onSave() : undefined}
+              state={saveSection === 'message' ? saveState : 'idle'}
+              onRetry={canSave ? () => retrySave('message') : undefined}
             />
           </>
         }
@@ -328,6 +339,7 @@ export function ShortcutSettings({
               onClick={() => {
                 const nextDraft = { ...settingsDraft, messageSendShortcut: option.value };
                 onSettingsChange(nextDraft);
+                setSaveSection('message');
                 onSave(nextDraft);
               }}
             >
@@ -353,7 +365,16 @@ export function ShortcutSettings({
 
       <SettingsGroup
         label={t('settings.shortcuts.selectionGroup')}
-        aside={<span className="settings-hint">{t('settings.shortcuts.selectionHint')}</span>}
+        aside={
+          <>
+            <span className="settings-hint">{t('settings.shortcuts.selectionHint')}</span>
+            <AutoSaveStatus
+              error={saveError}
+              state={saveSection === 'selection' ? saveState : 'idle'}
+              onRetry={canSave ? () => retrySave('selection') : undefined}
+            />
+          </>
+        }
       >
         {selectionShortcutRows.map((row) => {
           const rowLabel = t(row.labelKey);

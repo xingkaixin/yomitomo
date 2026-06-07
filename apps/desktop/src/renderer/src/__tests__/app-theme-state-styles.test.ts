@@ -43,17 +43,32 @@ describe('theme state styles', () => {
     expect(styles).not.toContain('background: hsl(5 54% 38% / 0.12);');
   });
 
-  it('keeps library search focus on interactive focus tokens', () => {
+  it('keeps library search focus from adding a border ring', () => {
     const searchFocusRules = ruleBodies('.library-search input:focus');
 
     expect(searchFocusRules.length).toBeGreaterThan(0);
-    expect(
-      searchFocusRules.every((rule) => rule.includes('var(--app-interactive-hover-border)')),
-    ).toBe(true);
+    expect(searchFocusRules.every((rule) => rule.includes('box-shadow: none;'))).toBe(true);
+    expect(searchFocusRules.some((rule) => rule.includes('border-color:'))).toBe(false);
     expect(
       searchFocusRules.some((rule) => rule.includes('var(--app-interactive-focus-ring)')),
-    ).toBe(true);
+    ).toBe(false);
     expect(searchFocusRules.some((rule) => rule.includes('hsl(3 62% 39% / 0.12)'))).toBe(false);
+  });
+
+  it('keeps library pagination readable on action tokens', () => {
+    const paginationRules = ruleBodies('.library-pagination button');
+    const activeRules = ruleBodies(
+      '.library-pagination button:hover:not(:disabled),\n.library-pagination button.is-active',
+    );
+    const disabledRules = ruleBodies('.library-pagination button:disabled');
+
+    expect(paginationRules.some((rule) => rule.includes('var(--app-action-secondary-fg)'))).toBe(
+      true,
+    );
+    expect(activeRules.some((rule) => rule.includes('var(--app-action-primary-fg)'))).toBe(true);
+    expect(
+      disabledRules.some((rule) => rule.includes('var(--app-action-secondary-disabled-fg)')),
+    ).toBe(true);
   });
 
   it('keeps assistant line cues on theme surfaces', () => {

@@ -35,4 +35,22 @@ describe('settings styles', () => {
     ]);
     expect(styles).not.toContain('.agent-list-heading blockquote::after');
   });
+
+  it('keeps task route provider selectors at a stable width', () => {
+    expectRule('.task-route-select-trigger', ['width: 248px;', 'max-width: 100%;']);
+    expectRule('.provider-select-content', ['width: min(340px, calc(100vw - 32px));']);
+  });
+
+  it('keeps floating menus clickable over draggable window chrome', () => {
+    expectRule('.ui-select-content', ['-webkit-app-region: no-drag;']);
+    expectRule('.ui-select-content *', ['-webkit-app-region: no-drag;']);
+    expectRule('.ui-popover-content', ['-webkit-app-region: no-drag;']);
+    expectRule('.ui-popover-content *', ['-webkit-app-region: no-drag;']);
+  });
+
+  it('keeps the license dialog clickable over draggable window chrome', () => {
+    expectRule('.license-dialog-overlay', ['-webkit-app-region: no-drag;']);
+    expectRule('.license-dialog', ['-webkit-app-region: no-drag;']);
+    expectRule('.license-dialog *', ['-webkit-app-region: no-drag;']);
+  });
 });
