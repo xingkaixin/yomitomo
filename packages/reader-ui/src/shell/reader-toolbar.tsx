@@ -1,10 +1,11 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, List, PencilLine, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronUp, List, PencilLine, Search, X } from 'lucide-react';
 import type {
   AnnotationNavigationDirection,
   AnnotationNavigationState,
   ReaderSearchToolbarState,
   ReaderArticle,
+  ReaderHeaderArticleMeta,
   ReaderUiLabels,
 } from './reader-app-view-types';
 import { defaultReaderUiLabels } from './reader-app-view-types';
@@ -12,7 +13,10 @@ import { ReaderTooltip } from '../shared/reader-component-primitives';
 
 export type ReaderToolbarProps = {
   extracted: ReaderArticle;
+  articleLeadingVisual?: React.ReactNode;
+  headerMeta?: ReaderHeaderArticleMeta;
   labels?: ReaderUiLabels;
+  readingProgress?: number;
   toolbarArticleAction?: React.ReactNode;
   onClose: () => void;
 };
@@ -31,38 +35,81 @@ export type ReaderFloatingToolbarProps = {
 
 export function ReaderToolbar({
   extracted,
+  articleLeadingVisual,
+  headerMeta,
   labels = defaultReaderUiLabels,
+  readingProgress,
   toolbarArticleAction,
   onClose,
 }: ReaderToolbarProps) {
+  const articleMeta: ReaderHeaderArticleMeta = {
+    title: headerMeta?.title ?? extracted.title,
+    byline: headerMeta?.byline ?? extracted.byline,
+    dateLabel: headerMeta?.dateLabel ?? extracted.excerpt,
+    hasCover: headerMeta?.hasCover ?? false,
+  };
+  const metaItems = [articleMeta.byline, articleMeta.dateLabel].filter((item): item is string =>
+    Boolean(item),
+  );
+  const progress = clampReaderProgress(readingProgress);
+  const progressNow = Math.round(progress * 100);
+
   return (
     <header className="reader-toolbar">
-      <div className="reader-toolbar-article">
+      <button
+        className="reader-back"
+        type="button"
+        onClick={onClose}
+        aria-label={labels.backToLibrary}
+      >
+        <ChevronLeft size={18} />
+        <span>{labels.readerLibrary}</span>
+      </button>
+      <div
+        className={[
+          'reader-toolbar-article',
+          articleMeta.hasCover ? 'has-cover' : '',
+          toolbarArticleAction ? 'has-action' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {articleLeadingVisual ? (
+          <div className="reader-toolbar-article-visual">{articleLeadingVisual}</div>
+        ) : null}
         <div className="reader-toolbar-article-copy">
-          <div className="reader-toolbar-article-title">{extracted.title}</div>
-          {extracted.byline || extracted.excerpt ? (
+          <div className="reader-toolbar-article-title">{articleMeta.title}</div>
+          {metaItems.length > 0 ? (
             <p className="reader-toolbar-article-meta">
-              {extracted.byline ? <span>{extracted.byline}</span> : null}
-              {extracted.excerpt ? <span>{extracted.excerpt}</span> : null}
+              {metaItems.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
             </p>
           ) : null}
         </div>
+      </div>
+      <div className="reader-toolbar-actions">
         {toolbarArticleAction ? (
           <div className="reader-toolbar-article-action">{toolbarArticleAction}</div>
         ) : null}
       </div>
-      <div className="reader-toolbar-actions">
-        <button
-          className="reader-close"
-          type="button"
-          onClick={onClose}
-          aria-label={labels.closeReader}
-        >
-          <X size={18} />
-        </button>
+      <div
+        className="reader-toolbar-progress"
+        role="progressbar"
+        aria-label={labels.readingProgress}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progressNow}
+      >
+        <span style={{ width: `${progressNow}%` }} />
       </div>
     </header>
   );
+}
+
+function clampReaderProgress(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
 }
 
 export function ReaderFloatingToolbar({

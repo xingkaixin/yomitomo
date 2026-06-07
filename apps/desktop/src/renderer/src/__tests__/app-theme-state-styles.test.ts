@@ -84,10 +84,18 @@ describe('theme state styles', () => {
   });
 
   it('keeps the WeRead reader header aligned with source reader chrome', () => {
-    expect(styles).toContain(`.weread-bookcase-header {
-  display: grid;`);
-    expect(styles).toContain('border-bottom: 1px solid hsl(var(--foreground));');
+    expect(styles).toMatch(/\.weread-bookcase-header \{[\s\S]*display: grid;/);
+    expect(styles).toContain(
+      'padding: 14px var(--reader-titlebar-padding-right) 17px var(--reader-titlebar-back-left);',
+    );
+    expect(styles).toContain('border-bottom: 0;');
     expect(styles).toContain('background: hsl(var(--card));');
+    expect(styles).toMatch(/\.weread-bookcase-header \{[\s\S]*-webkit-app-region: drag;/);
+    expect(styles).toMatch(
+      /\.weread-bookcase-header \.reader-back \{[\s\S]*background: transparent;[\s\S]*color: var\(--app-reader-muted\);/,
+    );
+    expect(styles).toContain('background: var(--app-reader-toolbar-progress-track);');
+    expect(styles).toContain('background: var(--app-reader-toolbar-progress-fill);');
     expect(styles).toMatch(/\.weread-bookcase-title \{[\s\S]*-webkit-app-region: drag;[\s\S]*\}/);
     expect(styles).toMatch(
       /\.weread-bookcase-header button \{[\s\S]*-webkit-app-region: no-drag;[\s\S]*\}/,

@@ -14,6 +14,7 @@ export function readerUiLabels(): ReaderUiLabels {
     assistantCompleted: i18next.t('readerUi.assistantCompleted'),
     assistantReadingActive: i18next.t('readerUi.assistantReadingActive'),
     assistantReadingStatus: i18next.t('readerUi.assistantReadingStatus'),
+    backToLibrary: i18next.t('readerUi.backToLibrary'),
     assistantParticipationSummary: (names, processing) =>
       names.length > 2
         ? i18next.t('readerUi.assistantParticipationSummary', {
@@ -61,6 +62,8 @@ export function readerUiLabels(): ReaderUiLabels {
     readerChatPlaceholder: i18next.t('readerUi.readerChatPlaceholder'),
     readerChatSelectionPlaceholder: i18next.t('readerUi.readerChatSelectionPlaceholder'),
     readerControls: i18next.t('readerUi.readerControls'),
+    readingProgress: i18next.t('readerUi.readingProgress'),
+    readerLibrary: i18next.t('readerUi.readerLibrary'),
     recordThought: i18next.t('readerUi.recordThought'),
     searchBody: i18next.t('readerUi.searchBody'),
     searchBodyPlaceholder: i18next.t('readerUi.searchBodyPlaceholder'),

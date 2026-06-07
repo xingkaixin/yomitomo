@@ -1,5 +1,4 @@
 import type React from 'react';
-import { ChevronLeft } from 'lucide-react';
 import { ReaderAppView, type ReaderAppViewProps } from '@yomitomo/reader-ui/reader-app-view';
 import {
   readerConversationStyles,
@@ -7,7 +6,6 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import { sourceEbookReaderStyles } from './app-source-bookcase-ebook-utils';
-import { useTranslation } from 'react-i18next';
 
 type EbookReaderShellProps = {
   readerApp: ReaderAppViewProps;
@@ -27,19 +25,10 @@ export function EbookReaderShell({
   measureHostRef,
   onReaderKeyDown,
 }: EbookReaderShellProps) {
-  const { t } = useTranslation();
   const readerSettings = readerApp.settings.readerSettings;
 
   return (
     <section className="source-bookcase source-ebook-reader-shell ebook-reader-shell">
-      <button
-        className="source-reader-back-button"
-        type="button"
-        onClick={readerApp.actions.shell.onClose}
-      >
-        <ChevronLeft size={16} />
-        <span>{t('common.backToLibrary')}</span>
-      </button>
       <style>{`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceEbookReaderStyles}`}</style>
       <ReaderAppView
         {...readerApp}

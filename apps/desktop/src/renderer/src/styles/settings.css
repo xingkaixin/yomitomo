@@ -1968,8 +1968,7 @@
   color: hsl(var(--foreground));
 }
 
-.library-sync-button,
-.weread-bookcase-actions button {
+.library-sync-button {
   display: inline-flex;
   min-height: 36px;
   align-items: center;
@@ -1988,39 +1987,58 @@
     background-color 140ms ease;
 }
 
-.library-sync-button:hover:not(:disabled),
-.weread-bookcase-actions button:hover:not(:disabled) {
+.library-sync-button:hover:not(:disabled) {
   border-color: hsl(var(--foreground) / 0.24);
   background: hsl(var(--card));
 }
 
-.library-sync-button:active:not(:disabled),
+.library-sync-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.library-sync-button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.weread-bookcase-actions button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 12px;
+  font-weight: 820;
+  padding: 0 10px;
+  transition:
+    transform 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.weread-bookcase-actions button:hover:not(:disabled),
+.weread-bookcase-actions button:focus-visible:not(:disabled) {
+  background: hsl(var(--foreground) / 0.08);
+  outline: 0;
+}
+
 .weread-bookcase-actions button:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-.library-sync-button:disabled,
 .weread-bookcase-actions button:disabled {
   cursor: default;
   opacity: 0.55;
 }
 
 .weread-open-book-button {
-  display: inline-flex;
-  width: 36px;
-  min-height: 36px;
-  align-items: center;
+  width: 40px;
   justify-content: center;
-  border: 1px solid hsl(var(--border) / 0.74);
-  border-radius: 999px;
-  background: hsl(var(--background) / 0.88);
-  color: hsl(var(--foreground));
   padding: 0;
-}
-
-.weread-open-book-button:hover {
-  border-color: hsl(var(--foreground) / 0.24);
-  background: hsl(var(--card));
 }
 
 .weread-book-cover {
@@ -2068,22 +2086,65 @@
 }
 
 .weread-bookcase-header {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(112px, 1fr) minmax(0, 2fr) minmax(112px, 1fr);
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid hsl(var(--foreground));
+  border-bottom: 0;
   background: hsl(var(--card));
-  padding: 14px var(--reader-titlebar-padding-right) 14px var(--reader-titlebar-padding-left);
-  -webkit-app-region: no-drag;
+  padding: 14px var(--reader-titlebar-padding-right) 17px var(--reader-titlebar-back-left);
+  -webkit-app-region: drag;
+}
+
+.weread-bookcase-header .reader-back {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-reader-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 820;
+  padding: 0 8px;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.weread-bookcase-header .reader-back span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weread-bookcase-header .reader-back:hover,
+.weread-bookcase-header .reader-back:focus-visible {
+  background: var(--app-reader-toolbar-control-hover-bg);
+  color: var(--app-reader-ink);
+  outline: 0;
+}
+
+.weread-bookcase-header .reader-back:active {
+  transform: scale(0.96);
 }
 
 .weread-bookcase-title {
   display: flex;
+  grid-column: 2;
   min-width: 0;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   perspective: 920px;
+  text-align: center;
   -webkit-app-region: drag;
 }
 
@@ -2102,6 +2163,7 @@
   display: flex;
   min-width: 0;
   align-items: center;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -2129,13 +2191,35 @@
 
 .weread-bookcase-actions {
   display: flex;
+  grid-column: 3;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   -webkit-app-region: no-drag;
 }
 
 .weread-bookcase-header button {
   -webkit-app-region: no-drag;
+}
+
+.weread-bookcase-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  overflow: hidden;
+  background: var(--app-reader-toolbar-progress-track);
+  pointer-events: none;
+}
+
+.weread-bookcase-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  background: var(--app-reader-toolbar-progress-fill);
+  transition: width 180ms ease;
 }
 
 .weread-bookcase-body {

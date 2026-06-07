@@ -15,6 +15,8 @@ export type ReaderTheme = {
     border: string;
     controlBackground: string;
     controlHoverBackground: string;
+    progressTrack: string;
+    progressFill: string;
   };
   toc: {
     background: string;
@@ -82,6 +84,8 @@ export const readerThemeVariableNames = [
   '--app-reader-toolbar-border',
   '--app-reader-toolbar-control-bg',
   '--app-reader-toolbar-control-hover-bg',
+  '--app-reader-toolbar-progress-track',
+  '--app-reader-toolbar-progress-fill',
   '--app-reader-toc-bg',
   '--app-reader-toc-item-hover-bg',
   '--app-reader-note-bg',
@@ -135,6 +139,8 @@ export function readerThemeToCssVariables(theme: ReaderTheme): CssVariableMap {
     '--app-reader-toolbar-border': theme.toolbar.border,
     '--app-reader-toolbar-control-bg': theme.toolbar.controlBackground,
     '--app-reader-toolbar-control-hover-bg': theme.toolbar.controlHoverBackground,
+    '--app-reader-toolbar-progress-track': theme.toolbar.progressTrack,
+    '--app-reader-toolbar-progress-fill': theme.toolbar.progressFill,
     '--app-reader-toc-bg': theme.toc.background,
     '--app-reader-toc-item-hover-bg': theme.toc.itemHoverBackground,
     '--app-reader-note-bg': theme.note.background,

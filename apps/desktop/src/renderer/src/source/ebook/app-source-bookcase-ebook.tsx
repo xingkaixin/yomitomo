@@ -863,7 +863,7 @@ export function EbookBookcase({
           open: tocOpen,
         },
         toolbar: {
-          articleAction: (
+          articleLeadingVisual: (
             <span className="ebook-toolbar-cover">
               <ArticleBook article={article} />
             </span>
@@ -930,6 +930,12 @@ export function EbookBookcase({
               />
             </>
           ),
+          headerMeta: {
+            title: articleDisplayTitle(article),
+            byline: article.byline || article.ebook.metadata.fileName,
+            hasCover: true,
+          },
+          readingProgress: progress,
           search: {
             activeMatchIndex: activeSearchMatchIndex,
             limited: searchResult.limited,

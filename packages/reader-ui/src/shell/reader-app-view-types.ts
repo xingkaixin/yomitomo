@@ -41,6 +41,13 @@ export type ReaderArticle = {
   content: string;
 };
 
+export type ReaderHeaderArticleMeta = {
+  title: string;
+  byline?: string;
+  dateLabel?: string;
+  hasCover?: boolean;
+};
+
 export type AnnotationNavigationDirection = 'previous' | 'next';
 
 export type AnnotationNavigationRequest = {
@@ -152,7 +159,10 @@ export type ReaderTocModel = {
 
 export type ReaderToolbarModel = {
   articleAction?: React.ReactNode;
+  articleLeadingVisual?: React.ReactNode;
   controls?: React.ReactNode;
+  headerMeta?: ReaderHeaderArticleMeta;
+  readingProgress?: number;
   search?: ReaderSearchToolbarState;
 };
 
@@ -168,6 +178,7 @@ export type ReaderUiLabels = {
   assistantParticipationSummary: (names: string[], processing: boolean) => string;
   assistantReadingActive: string;
   assistantReadingStatus: string;
+  backToLibrary: string;
   cancel: string;
   closeReader: string;
   closeHighlightChoice: string;
@@ -204,6 +215,8 @@ export type ReaderUiLabels = {
   readerChatPlaceholder: string;
   readerChatSelectionPlaceholder: string;
   readerControls: string;
+  readingProgress: string;
+  readerLibrary: string;
   recordThought: string;
   searchBody: string;
   searchBodyPlaceholder: string;
@@ -237,6 +250,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
     const suffix = names.length > 2 ? `等 ${names.length} 位助手` : '参与';
     return `${visibleNames}${suffix}${processing ? '，处理中' : ''}`;
   },
+  backToLibrary: '阅读库',
   cancel: '取消',
   closeReader: '关闭阅读器',
   closeHighlightChoice: '关闭划线选择',
@@ -273,6 +287,8 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   readerChatPlaceholder: '输入你的问题',
   readerChatSelectionPlaceholder: '围绕这段文字提问',
   readerControls: '阅读控制',
+  readingProgress: '阅读进度',
+  readerLibrary: '阅读库',
   recordThought: '记录想法',
   searchBody: '搜索正文',
   searchBodyPlaceholder: '搜索正文',

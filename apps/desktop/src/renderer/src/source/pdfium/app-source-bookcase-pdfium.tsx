@@ -75,6 +75,7 @@ import {
   pdfiumVisibleAnnotations,
   pdfiumAnnotationAgentName,
   pdfiumAnnotationRailLayout,
+  pageProgress,
   pdfPageProgressPercent,
   pdfiumTemporaryBoxes,
   pdfiumTocAnnotationStats,
@@ -90,7 +91,6 @@ import {
   recordPdfOpenTimingOnce,
   type PdfOpenTrace,
 } from './app-source-bookcase-pdfium-open-trace';
-import { PdfiumBookcaseToolbar } from './app-source-bookcase-pdfium-shell';
 import { usePdfiumPageMetrics } from './app-source-bookcase-pdfium-page-metrics';
 import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-reading';
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
@@ -259,11 +259,6 @@ export function PdfiumBookcase({
 
   return (
     <section className="source-bookcase source-pdf-reader-shell source-pdfium-spike-shell">
-      <PdfiumBookcaseToolbar
-        author={article.pdf.metadata.author}
-        title={article.pdf.metadata.title || article.title}
-        onClose={onClose}
-      />
       <div className="pdf-reader-main pdfium-spike-main">
         {status ? (
           <div
@@ -1326,6 +1321,11 @@ function PdfiumDocument({
               />
             </>
           ),
+          headerMeta: {
+            title: article.pdf.metadata.title || article.title,
+            byline: article.pdf.metadata.author,
+          },
+          readingProgress: pageProgress(currentPage - 1, pageCount),
           search: {
             activeMatchIndex: activeSearchMatchIndex,
             limited: searchResult.limited,

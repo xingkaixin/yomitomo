@@ -126,6 +126,8 @@ const defaultReaderTheme: ReaderTheme = {
     border: 'rgba(40,35,29,.1)',
     controlBackground: 'rgba(255,253,248,.84)',
     controlHoverBackground: '#f0eadf',
+    progressTrack: 'rgba(40,35,29,.1)',
+    progressFill: '#c7a45e',
   },
   toc: {
     background: 'rgba(250,247,240,.62)',
@@ -302,6 +304,8 @@ const beigePaperReaderTheme: ReaderTheme = {
     border: 'rgba(74,50,27,.14)',
     controlBackground: 'rgba(255,248,234,.84)',
     controlHoverBackground: '#ead7b8',
+    progressTrack: 'rgba(74,50,27,.12)',
+    progressFill: '#b9873d',
   },
   toc: {
     background: 'rgba(235,217,184,.58)',
@@ -474,6 +478,8 @@ const inkBlackReaderTheme: ReaderTheme = {
     border: 'rgba(224,217,204,.1)',
     controlBackground: 'rgba(36,32,25,.86)',
     controlHoverBackground: '#302a22',
+    progressTrack: 'rgba(224,217,204,.12)',
+    progressFill: '#e0844f',
   },
   toc: {
     background: 'rgba(36,32,25,.62)',
@@ -646,6 +652,8 @@ const duskIndigoReaderTheme: ReaderTheme = {
     border: 'hsl(222 13% 27% / 0.82)',
     controlBackground: 'hsl(223 15% 15% / 0.86)',
     controlHoverBackground: 'hsl(221 15% 19%)',
+    progressTrack: 'hsl(222 13% 35% / 0.45)',
+    progressFill: '#ef7e58',
   },
   toc: {
     background: 'hsl(223 15% 15% / 0.62)',
@@ -818,6 +826,8 @@ const inkPaperReaderTheme: ReaderTheme = {
     border: 'rgba(27,54,93,.12)',
     controlBackground: 'rgba(250,249,245,.84)',
     controlHoverBackground: '#e8e6dc',
+    progressTrack: 'rgba(27,54,93,.12)',
+    progressFill: '#1b365d',
   },
   toc: {
     background: 'rgba(232,230,220,.58)',

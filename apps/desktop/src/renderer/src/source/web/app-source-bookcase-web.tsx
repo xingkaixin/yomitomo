@@ -1,6 +1,5 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
 import {
@@ -95,6 +94,9 @@ export function WebSourceBookcase({
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
   const [statusMessage, setStatusMessage] = useState('');
+  const [readingProgress, setReadingProgress] = useState(
+    () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
+  );
   const {
     addComment,
     annotations,
@@ -255,6 +257,7 @@ export function WebSourceBookcase({
     setActiveSearchMatchIndex(0);
     setSearchBoxes([]);
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
+    setReadingProgress(lastSavedWebProgressRef.current ?? 0);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
 
@@ -306,6 +309,7 @@ export function WebSourceBookcase({
       if (cancelled) return;
       const maxScrollTop = webReaderMaxScrollTop(scrollElement);
       if (maxScrollTop > 0) scrollElement.scrollTo({ top: maxScrollTop * savedProgress });
+      setReadingProgress(savedProgress);
       restoredWebProgressArticleRef.current = article.id;
     };
     const frame = window.requestAnimationFrame(() => {
@@ -334,13 +338,18 @@ export function WebSourceBookcase({
       lastSavedWebProgressRef.current = progress;
       void onSaveArticleReadingProgress(article.id, webReadingProgressSnapshot(progress));
     };
+    const updateProgress = () => {
+      setReadingProgress(webReaderProgress(scrollElement));
+    };
     const scheduleSave = () => {
+      updateProgress();
       if (saveTimer !== undefined) window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(saveProgress, 450);
     };
 
     const initialFrame = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
+        updateProgress();
         if (webReaderMaxScrollTop(scrollElement) <= 0) saveProgress();
       });
     });
@@ -613,10 +622,6 @@ export function WebSourceBookcase({
 
   return (
     <section className="source-bookcase source-reader-shell">
-      <button className="source-reader-back-button" type="button" onClick={onClose}>
-        <ChevronLeft size={16} />
-        <span>{t('common.backToLibrary')}</span>
-      </button>
       <style>
         {`${readerStyles}\n${readerConversationStyles}\n${readerDesktopEmbeddedStyles}\n${sourceReaderTocStyles}`}
       </style>
@@ -744,6 +749,12 @@ export function WebSourceBookcase({
             onPreviousMatch: () => navigateSearchMatch('previous'),
             onQueryChange: setSearchQuery,
           },
+          headerMeta: {
+            title: article.title,
+            byline: article.byline,
+            hasCover: Boolean(article.leadImageUrl),
+          },
+          readingProgress,
         }}
         userProfile={userProfile}
       />
