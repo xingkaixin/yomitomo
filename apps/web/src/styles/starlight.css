@@ -193,6 +193,16 @@ h1#_top {
   .sidebar-content {
     height: auto;
   }
+
+  .content-panel:has(.site-footer) > .sl-container {
+    display: flex;
+    min-height: calc(100vh - var(--sl-nav-height));
+    flex-direction: column;
+  }
+
+  main .site-footer {
+    margin-block-start: auto;
+  }
 }
 
 @media (max-width: 50rem) {
