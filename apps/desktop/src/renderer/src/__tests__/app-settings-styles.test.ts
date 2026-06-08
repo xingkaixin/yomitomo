@@ -28,12 +28,12 @@ describe('settings styles', () => {
   });
 
   it('keeps agent taglines underlined per wrapped line', () => {
-    expectRule('.agent-list-heading blockquote', [
+    expectRule('.agent-list-motto', [
       'text-decoration-line: underline;',
       'text-decoration-style: wavy;',
       'text-decoration-color:',
     ]);
-    expect(styles).not.toContain('.agent-list-heading blockquote::after');
+    expect(styles).not.toContain('.agent-list-motto::after');
   });
 
   it('keeps task route provider selectors at a stable width', () => {

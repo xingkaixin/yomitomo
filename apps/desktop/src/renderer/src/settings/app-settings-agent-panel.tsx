@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck } from 'lucide-react';
+import { BookOpen, Bot, Eye, EyeOff, Settings2, ShieldCheck, X } from 'lucide-react';
 import type { Agent, AgentKind, AppSettings, LlmProvider, UiLanguage } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
+import {
+  elementDialogSourceRect,
+  useSourceAwareDialogTransition,
+  type DialogSourceRect,
+} from '../shell/app-dialog-transition';
 import { useTranslation } from 'react-i18next';
 import {
   agentPersonalities,
@@ -256,6 +261,7 @@ export function AgentSettings({
   const { t } = useTranslation();
   const [filter, setFilter] = useState<AgentFilter>('annotation');
   const [lineCue, setLineCue] = useState<AgentLineCue | null>(null);
+  const [detail, setDetail] = useState<{ agent: Agent; sourceRect: DialogSourceRect } | null>(null);
   const uiLanguage = normalizeUiLanguage(settings.uiLanguage);
   const visibleAgents = visibleAgentsForFilter(agents, filter, uiLanguage);
   const routeConfigured = hasAgentRoute(settings, providers, filter);
@@ -328,48 +334,83 @@ export function AgentSettings({
               <p>{t('settings.agents.emptyDescription')}</p>
             </div>
           ) : (
-            visibleAgents.map(({ agent, persisted }) => (
+            visibleAgents.map(({ agent, persisted }, index) => (
               <AgentProfileListCard
                 agent={agent}
                 canToggle={routeConfigured && persisted}
+                flipped={index % 2 === 1}
                 key={agent.id}
                 lineCue={lineCue?.agentId === agent.id ? lineCue : null}
                 uiLanguage={uiLanguage}
+                onOpenDetail={(detailAgent, sourceRect) =>
+                  setDetail({ agent: detailAgent, sourceRect })
+                }
                 onToggle={handleAgentToggle}
               />
             ))
           )}
         </div>
       </section>
+      {detail ? (
+        <AgentProfileDetailDialog
+          agent={detail.agent}
+          sourceRect={detail.sourceRect}
+          uiLanguage={uiLanguage}
+          onClose={() => setDetail(null)}
+        />
+      ) : null}
     </div>
   );
+}
+
+type AgentProfileFields = {
+  cover: string | undefined;
+  avatar: string;
+  intro: string;
+  motto: string;
+  roleTitle: string;
+  pronunciation: string;
+  displayName: string;
+};
+
+function resolveAgentProfileFields(agent: Agent, uiLanguage: UiLanguage): AgentProfileFields {
+  const personalityName = agentPersonalityName(agent, uiLanguage);
+  const personality = localizedPersonalityForAgent(agent, uiLanguage);
+  const assets = resolveAgentPersonaAssets(uiLanguage, personality?.id);
+  return {
+    cover: assets?.cover,
+    avatar: assets?.avatar || agent.avatar,
+    intro: personality?.selfIntroduction || personality?.introduction || '',
+    motto: personality?.description || personalityName,
+    roleTitle: personality?.roleTitle || personalityName,
+    pronunciation:
+      uiLanguage === 'zh-CN' && personality ? agentPronunciationMap[personality.id] || '' : '',
+    displayName: personality?.name || agent.nickname,
+  };
 }
 
 function AgentProfileListCard({
   agent,
   canToggle,
+  flipped,
   lineCue,
   uiLanguage,
+  onOpenDetail,
   onToggle,
 }: {
   agent: Agent;
   canToggle: boolean;
+  flipped: boolean;
   lineCue: AgentLineCue | null;
   uiLanguage: UiLanguage;
+  onOpenDetail: (agent: Agent, sourceRect: DialogSourceRect) => void;
   onToggle: (agent: Agent) => void;
 }) {
   const { t } = useTranslation();
-  const personalityName = agentPersonalityName(agent, uiLanguage);
-  const personality = localizedPersonalityForAgent(agent, uiLanguage);
-  const assets = resolveAgentPersonaAssets(uiLanguage, personality?.id);
-  const cover = assets?.cover;
-  const avatar = assets?.avatar || agent.avatar;
-  const intro = personality?.selfIntroduction || personality?.introduction || '';
-  const motto = personality?.description || personalityName;
-  const roleTitle = personality?.roleTitle || personalityName;
-  const pronunciation =
-    uiLanguage === 'zh-CN' && personality ? agentPronunciationMap[personality.id] : '';
-  const displayName = personality?.name || agent.nickname;
+  const { cover, avatar, motto, roleTitle, pronunciation, displayName } = resolveAgentProfileFields(
+    agent,
+    uiLanguage,
+  );
 
   const enabled = canToggle && agent.enabled;
   const statusLabel = canToggle
@@ -385,6 +426,7 @@ function AgentProfileListCard({
   const cardClassName = [
     'agent-list-card',
     enabled ? 'is-enabled' : '',
+    flipped ? 'is-flipped' : '',
     canToggle ? '' : 'needs-route',
   ]
     .filter(Boolean)
@@ -395,72 +437,147 @@ function AgentProfileListCard({
       className={cardClassName}
       style={{ '--agent-accent': agent.annotationColor } as React.CSSProperties}
     >
-      <div className="agent-list-body">
-        <div className="agent-list-identity">
-          <div className="agent-list-cover-frame">
-            <span className={statusClassName}>{statusLabel}</span>
-            {lineCue ? (
-              <span
-                className={
-                  lineCue.state === 'enter'
-                    ? 'agent-list-line-bubble is-entering'
-                    : 'agent-list-line-bubble is-resting'
-                }
-                key={lineCue.id}
-              >
-                {lineCue.text}
-              </span>
-            ) : null}
-            {cover ? (
-              <img
-                className="agent-list-cover"
-                src={cover}
-                alt={t('settings.agents.coverAlt', { name: displayName })}
-              />
-            ) : (
-              <div className="agent-list-cover is-placeholder">
-                <AvatarImage
-                  value={avatar}
-                  className="size-16"
-                  fallback={displayName.slice(0, 1)}
-                />
-              </div>
-            )}
+      <div className="agent-list-photo">
+        <span className={statusClassName}>{statusLabel}</span>
+        {lineCue ? (
+          <span
+            className={
+              lineCue.state === 'enter'
+                ? 'agent-list-line-bubble is-entering'
+                : 'agent-list-line-bubble is-resting'
+            }
+            key={lineCue.id}
+          >
+            {lineCue.text}
+          </span>
+        ) : null}
+        {cover ? (
+          <img
+            className="agent-list-cover"
+            src={cover}
+            alt={t('settings.agents.coverAlt', { name: displayName })}
+          />
+        ) : (
+          <div className="agent-list-cover is-placeholder">
+            <AvatarImage value={avatar} className="size-16" fallback={displayName.slice(0, 1)} />
           </div>
-          <div className="agent-list-heading">
-            <div className="agent-list-name-row">
-              <h3>{displayName}</h3>
-              {pronunciation ? <span>{pronunciation}</span> : null}
-            </div>
-            {motto ? <blockquote>{motto}</blockquote> : null}
-          </div>
-        </div>
-        <div className="agent-list-content">
-          {intro ? <p className="agent-list-intro">{intro}</p> : null}
+        )}
+        <div className="agent-list-nameplate">
+          <span className="agent-list-name">{displayName}</span>
+          {pronunciation ? <span className="agent-list-pinyin">{pronunciation}</span> : null}
         </div>
       </div>
-      <div className="agent-list-footer">
-        <span className="agent-list-role">{roleTitle}</span>
-        <label className={canToggle ? 'agent-card-toggle' : 'agent-card-toggle is-disabled'}>
-          <input
-            aria-label={
-              canToggle
-                ? agent.enabled
-                  ? t('settings.agents.toggleRest', { name: displayName })
-                  : t('settings.agents.toggleJoin', { name: displayName })
-                : t('settings.agents.toggleNeedsRoute', { name: displayName })
-            }
-            type="checkbox"
-            checked={canToggle && agent.enabled}
-            disabled={!canToggle}
-            onChange={() => {
-              if (canToggle) onToggle(agent);
-            }}
-          />
-          <span className="settings-toggle-switch" aria-hidden="true" />
-        </label>
+      <div className="agent-list-text">
+        <div className="agent-list-headline">
+          <span className="agent-list-role">{roleTitle}</span>
+          {motto ? <blockquote className="agent-list-motto">{motto}</blockquote> : null}
+        </div>
+        <div className="agent-list-footer">
+          <button
+            type="button"
+            className="agent-list-detail-button"
+            aria-label={t('settings.agents.detail.open', { name: displayName })}
+            onClick={(event) => onOpenDetail(agent, elementDialogSourceRect(event.currentTarget))}
+          >
+            <BookOpen size={14} />
+            {t('settings.agents.detail.introLabel')}
+          </button>
+          <label className={canToggle ? 'agent-card-toggle' : 'agent-card-toggle is-disabled'}>
+            <input
+              aria-label={
+                canToggle
+                  ? agent.enabled
+                    ? t('settings.agents.toggleRest', { name: displayName })
+                    : t('settings.agents.toggleJoin', { name: displayName })
+                  : t('settings.agents.toggleNeedsRoute', { name: displayName })
+              }
+              type="checkbox"
+              checked={canToggle && agent.enabled}
+              disabled={!canToggle}
+              onChange={() => {
+                if (canToggle) onToggle(agent);
+              }}
+            />
+            <span className="settings-toggle-switch" aria-hidden="true" />
+          </label>
+        </div>
       </div>
     </article>
+  );
+}
+
+function AgentProfileDetailDialog({
+  agent,
+  sourceRect,
+  uiLanguage,
+  onClose,
+}: {
+  agent: Agent;
+  sourceRect: DialogSourceRect;
+  uiLanguage: UiLanguage;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const dialogStyle = useSourceAwareDialogTransition(sourceRect);
+  const { cover, avatar, intro, pronunciation, displayName } = resolveAgentProfileFields(
+    agent,
+    uiLanguage,
+  );
+
+  useEffect(() => {
+    function closeWithEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+
+    window.addEventListener('keydown', closeWithEscape);
+    return () => window.removeEventListener('keydown', closeWithEscape);
+  }, [onClose]);
+
+  return (
+    <div
+      className="agent-detail-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        aria-label={displayName}
+        aria-modal="true"
+        className="agent-detail-dialog source-aware-dialog"
+        role="dialog"
+        style={{ ...dialogStyle, '--agent-accent': agent.annotationColor } as React.CSSProperties}
+      >
+        <button
+          type="button"
+          className="agent-detail-close"
+          aria-label={t('settings.agents.detail.close')}
+          onClick={onClose}
+        >
+          <X size={18} />
+        </button>
+        <div className="agent-detail-photo">
+          {cover ? (
+            <img
+              className="agent-detail-cover"
+              src={cover}
+              alt={t('settings.agents.coverAlt', { name: displayName })}
+            />
+          ) : (
+            <div className="agent-detail-cover is-placeholder">
+              <AvatarImage value={avatar} className="size-20" fallback={displayName.slice(0, 1)} />
+            </div>
+          )}
+          <div className="agent-list-nameplate">
+            <span className="agent-list-name">{displayName}</span>
+            {pronunciation ? <span className="agent-list-pinyin">{pronunciation}</span> : null}
+          </div>
+        </div>
+        <div className="agent-detail-body">
+          {intro ? <p className="agent-detail-intro">{intro}</p> : null}
+        </div>
+      </section>
+    </div>
   );
 }
 

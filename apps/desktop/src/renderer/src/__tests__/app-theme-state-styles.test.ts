@@ -78,9 +78,6 @@ describe('theme state styles', () => {
     expect(styles).toContain('var(--agent-accent, var(--app-interactive-link)) 28%');
     expect(styles).toContain('background: hsl(var(--card));');
     expect(styles).toContain('color: hsl(var(--foreground));');
-    expect(styles).toContain(`.agent-list-line-bubble::after {
-  border-color: inherit;
-  background: hsl(var(--card));`);
   });
 
   it('keeps the WeRead reader header aligned with source reader chrome', () => {

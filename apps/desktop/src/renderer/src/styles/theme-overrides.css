@@ -2808,7 +2808,7 @@
 .agent-list-card.is-enabled,
 .agent-list-card:hover,
 .agent-list-card.is-enabled:hover {
-  border-radius: 0;
+  border-radius: 16px;
   background: hsl(var(--card));
   box-shadow: none;
   filter: none;
@@ -2818,12 +2818,8 @@
   border-color: hsl(var(--foreground) / 0.72);
 }
 
-.agent-list-intro {
+.agent-detail-intro {
   color: hsl(var(--foreground));
-}
-
-.agent-list-card:not(.is-enabled) .agent-list-intro {
-  color: hsl(var(--muted-foreground));
 }
 
 .agent-list-line-bubble,
@@ -2841,13 +2837,7 @@
     0 0 0 1px hsl(var(--foreground) / 0.06);
 }
 
-.agent-list-line-bubble::after {
-  border-color: inherit;
-  background: hsl(var(--card));
-}
-
-.agent-list-status-badge,
-.agent-list-role {
+.agent-list-status-badge {
   border-radius: 0;
   background: hsl(var(--card));
 }

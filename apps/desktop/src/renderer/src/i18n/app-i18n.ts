@@ -1178,6 +1178,11 @@ const resources = {
           toggleRest: '让{{name}}先休息',
           toggleJoin: '请{{name}}加入',
           toggleNeedsRoute: '{{name}}需要先配置模型路由',
+          detail: {
+            open: '查看{{name}}的介绍',
+            close: '关闭',
+            introLabel: '自我介绍',
+          },
           form: {
             choosePreset: '选择左侧预设助手查看介绍。',
             portraitPrompt: '工作照提示词',
@@ -2559,6 +2564,11 @@ const resources = {
           toggleRest: 'Let {{name}} rest',
           toggleJoin: 'Ask {{name}} to join',
           toggleNeedsRoute: '{{name}} needs a model route first',
+          detail: {
+            open: 'View {{name}} introduction',
+            close: 'Close',
+            introLabel: 'Introduction',
+          },
           form: {
             choosePreset: 'Select a preset assistant on the left to view its introduction.',
             portraitPrompt: 'Portrait prompt',
