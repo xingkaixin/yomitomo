@@ -375,6 +375,13 @@ function SedimentationShell({
     setDraft(result.draft);
     await updateProposalStatus(messageId, proposal.id, 'accepted');
     setReviewNotice('');
+    requestAnimationFrame(() => {
+      const textarea = draftTextareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(result.changeOffset, result.changeOffset + result.changeLength);
+      scrollTextareaToOffset(textarea, result.changeOffset);
+    });
   }
 
   async function handleProposalIgnore(messageId: string, proposalId: string) {
@@ -839,7 +846,7 @@ function ReviewProposalList({
               <strong>{proposal.title}</strong>
             </header>
             {proposal.rationale ? <p>{proposal.rationale}</p> : null}
-            <blockquote>{proposalPreview(proposal)}</blockquote>
+            <ProposalDiffPreview proposal={proposal} />
           </div>
           <div className="annotation-sedimentation-proposal-actions">
             {proposal.status === 'pending' ? (
@@ -886,12 +893,27 @@ function proposalKindLabel(kind: AnnotationDistillationProposal['kind']) {
   return i18next.t('sedimentation.proposalKind.delete');
 }
 
-function proposalPreview(proposal: AnnotationDistillationProposal) {
-  if (proposal.kind === 'insert') return proposal.content || '';
-  if (proposal.kind === 'replace') {
-    return `${proposal.targetText || ''}\n→\n${proposal.replacementText || ''}`;
+function ProposalDiffPreview({ proposal }: { proposal: AnnotationDistillationProposal }) {
+  if (proposal.kind === 'insert') {
+    return (
+      <blockquote className="proposal-diff">
+        <ins className="proposal-diff-insert">{proposal.content || ''}</ins>
+      </blockquote>
+    );
   }
-  return proposal.targetText || '';
+  if (proposal.kind === 'replace') {
+    return (
+      <blockquote className="proposal-diff">
+        <del className="proposal-diff-delete">{proposal.targetText || ''}</del>
+        <ins className="proposal-diff-insert">{proposal.replacementText || ''}</ins>
+      </blockquote>
+    );
+  }
+  return (
+    <blockquote className="proposal-diff">
+      <del className="proposal-diff-delete">{proposal.targetText || ''}</del>
+    </blockquote>
+  );
 }
 
 function reviewTimelineMessages(
@@ -1166,4 +1188,13 @@ function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord
     annotationColor: annotation.userAnnotationColor || annotation.color,
     updatedAt: article.updatedAt,
   };
+}
+
+function scrollTextareaToOffset(textarea: HTMLTextAreaElement, offset: number) {
+  const text = textarea.value.slice(0, offset);
+  const linesBefore = text.split('\n').length - 1;
+  const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 28;
+  const targetTop = linesBefore * lineHeight;
+  const visibleHeight = textarea.clientHeight;
+  textarea.scrollTop = Math.max(0, targetTop - visibleHeight / 3);
 }

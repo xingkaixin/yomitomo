@@ -190,7 +190,12 @@ describe('annotation distillation proposals', () => {
       { start: 0, end: 3 },
     );
 
-    expect(result).toEqual({ ok: true, draft: '第一段\n新增段落\n第二段' });
+    expect(result).toEqual({
+      ok: true,
+      draft: '第一段\n新增段落\n第二段',
+      changeOffset: 4,
+      changeLength: 4,
+    });
   });
 
   it('replaces a proposal target only when the text is unique', () => {
@@ -208,7 +213,7 @@ describe('annotation distillation proposals', () => {
       null,
     );
 
-    expect(result).toEqual({ ok: true, draft: '新判断需要收敛' });
+    expect(result).toEqual({ ok: true, draft: '新判断需要收敛', changeOffset: 0, changeLength: 3 });
   });
 
   it('keeps the draft unchanged when a replace target appears multiple times', () => {
@@ -246,7 +251,7 @@ describe('annotation distillation proposals', () => {
       null,
     );
 
-    expect(result).toEqual({ ok: true, draft: '保留。继续。' });
+    expect(result).toEqual({ ok: true, draft: '保留。继续。', changeOffset: 3, changeLength: 0 });
   });
 });
 

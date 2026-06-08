@@ -1784,7 +1784,7 @@
 .annotation-sedimentation-body {
   display: grid;
   min-height: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 45%);
 }
 
 .annotation-sedimentation-document {
@@ -1886,8 +1886,10 @@
 
 .annotation-sedimentation-document textarea {
   width: 100%;
+  max-width: 640px;
   min-width: 0;
   min-height: 0;
+  margin: 0 auto;
   resize: none;
   border: 0;
   outline: none;
@@ -2080,6 +2082,26 @@
   line-height: 1.55;
   padding: 9px 10px;
   white-space: pre-wrap;
+}
+
+.proposal-diff {
+  display: grid;
+  gap: 4px;
+}
+
+.proposal-diff-delete {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-danger, #e53e3e) 12%, transparent);
+  color: var(--app-reader-danger, #e53e3e);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.proposal-diff-insert {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--app-reader-primary, #38a169) 12%, transparent);
+  color: var(--app-reader-primary, #38a169);
+  text-decoration: none;
 }
 
 .annotation-sedimentation-proposal-actions {
