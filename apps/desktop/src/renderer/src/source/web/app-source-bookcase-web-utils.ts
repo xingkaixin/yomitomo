@@ -87,7 +87,7 @@ export function webAnnotationNavigationState({
 }) {
   const activeNavigation = navigationForActiveAnnotation(annotations, activeId);
   if (activeNavigation) return activeNavigation;
-  if (annotations.length === 0) return { previousId: null, nextId: null };
+  if (annotations.length === 0) return annotationNavigationForInsertionIndex(annotations, 0);
   if (!canvasElement || !scrollElement)
     return annotationNavigationForInsertionIndex(annotations, 0);
 
@@ -156,13 +156,9 @@ function annotationNavigationForViewportRange(
   viewportTop: number,
   viewportBottom: number,
 ) {
-  const previous = positions.findLast((position) => position.bottom < viewportTop);
   const next = positions.find((position) => position.top > viewportBottom);
-
-  return {
-    previousId: previous ? (annotations[previous.index]?.id ?? null) : null,
-    nextId: next ? (annotations[next.index]?.id ?? null) : null,
-  };
+  const insertionIndex = next?.index ?? annotations.length;
+  return annotationNavigationForInsertionIndex(annotations, insertionIndex);
 }
 
 function escapeHtml(value: string) {

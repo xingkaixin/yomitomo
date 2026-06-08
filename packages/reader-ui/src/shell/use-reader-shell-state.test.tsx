@@ -103,8 +103,10 @@ function ShellStateProbe({
     onNavigateAnnotation,
     onOpenComposer: vi.fn(),
     onResolveAnnotationNavigation: ({ annotations: visibleAnnotations }) => ({
+      currentIndex: visibleAnnotations.length > 0 ? 1 : 0,
       previousId: null,
       nextId: visibleAnnotations[1]?.id ?? null,
+      totalCount: visibleAnnotations.length,
     }),
     onToggleSettings: vi.fn(),
   });

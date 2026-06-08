@@ -56,10 +56,10 @@ export type AnnotationNavigationRequest = {
 };
 
 export type AnnotationNavigationState = {
-  currentIndex?: number;
+  currentIndex: number;
   previousId: string | null;
   nextId: string | null;
-  totalCount?: number;
+  totalCount: number;
 };
 
 export type ReaderSearchToolbarMatch = {

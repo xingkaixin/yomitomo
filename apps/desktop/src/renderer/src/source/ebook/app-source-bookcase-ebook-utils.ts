@@ -120,7 +120,7 @@ export function ebookAnnotationNavigationState({
   article: ArticleRecord & { ebook: NonNullable<ArticleRecord['ebook']> };
   view: FoliateViewElement | null;
 }) {
-  if (annotations.length === 0) return { previousId: null, nextId: null };
+  if (annotations.length === 0) return annotationNavigationForInsertionIndex(annotations, 0);
 
   const pageAnnotationIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
   if (activeId && pageAnnotationIds.has(activeId)) {
@@ -145,17 +145,18 @@ function annotationNavigationForTextRange(
   rangeStart: number,
   rangeEnd: number,
 ) {
-  let previousId: string | null = null;
-  let nextId: string | null = null;
+  let insertionIndex = annotations.length;
 
-  for (const annotation of annotations) {
+  for (let index = 0; index < annotations.length; index += 1) {
+    const annotation = annotations[index];
     const start = annotationTextStart(annotation);
     const end = annotationTextEnd(annotation);
-    if (end <= rangeStart) previousId = annotation.id;
-    if (nextId === null && start >= rangeEnd) nextId = annotation.id;
+    if (end <= rangeStart) continue;
+    if (start >= rangeEnd) insertionIndex = index;
+    break;
   }
 
-  return { previousId, nextId };
+  return annotationNavigationForInsertionIndex(annotations, insertionIndex);
 }
 
 function annotationTextStart(annotation: Annotation) {

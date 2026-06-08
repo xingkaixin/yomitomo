@@ -1,10 +1,10 @@
 import type { Annotation } from '@yomitomo/shared';
 
 export type AnnotationNavigationTargets = {
-  currentIndex?: number;
+  currentIndex: number;
   previousId: string | null;
   nextId: string | null;
-  totalCount?: number;
+  totalCount: number;
 };
 
 export function annotationNavigationForReferenceIndex(
