@@ -311,6 +311,45 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
   });
 
+  it('keeps disabled root assistants hidden while allowing the automatic reply rule', async () => {
+    const desktop = installDesktopApi(
+      article(
+        annotation({
+          comments: [
+            aiComment({
+              id: 'thought_ai',
+              agentId: 'agent_2',
+              agentNickname: '林知',
+              agentUsername: 'lin',
+            }),
+          ],
+        }),
+      ),
+      {
+        agents: agents().concat(
+          agent({ id: 'agent_2', nickname: '林知', username: 'lin', enabled: false }),
+        ),
+      },
+    );
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    const replyInput = await screen.findByPlaceholderText(
+      '回复这条想法，输入 @助手 可邀请助手参与讨论',
+    );
+    fireEvent.change(replyInput, { target: { value: '继续说' } });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce());
+    expect(desktop.requestAgentCommentStream.mock.calls[0]?.[0]).toMatchObject({
+      agentId: 'agent_2',
+      agentUsername: 'lin',
+      instruction: '继续说',
+      allowDisabledAgentForRule: true,
+    });
+  });
+
   it('respects explicit mentions instead of adding the root assistant', async () => {
     const desktop = installDesktopApi(
       article(
@@ -512,6 +551,27 @@ describe('discussion reply targeting', () => {
 
     expect(replyTargetAgents('继续说', rootThought(), publicAgents)).toEqual([]);
     expect(discussionReplyPlaceholder(rootThought(), publicAgents)).toBe(
+      '回复这条想法，输入 @助手 可邀请助手参与讨论',
+    );
+  });
+
+  it('can target a disabled root assistant only when using the rule roster', () => {
+    const disabledRoot = aiComment({
+      agentId: 'agent_2',
+      agentUsername: 'lin',
+      agentNickname: '林知',
+    });
+    const roster = agents().concat(
+      agent({ id: 'agent_2', nickname: '林知', username: 'lin', enabled: false }),
+    );
+    const visibleAgents = publicAnnotationAgents(roster);
+    const ruleAgents = publicAnnotationAgents(roster, undefined, { includeDisabled: true });
+
+    expect(replyTargetAgents('继续说', disabledRoot, visibleAgents)).toEqual([]);
+    expect(
+      replyTargetAgents('继续说', disabledRoot, ruleAgents).map((item) => item.username),
+    ).toEqual(['lin']);
+    expect(discussionReplyPlaceholder(disabledRoot, visibleAgents)).toBe(
       '回复这条想法，输入 @助手 可邀请助手参与讨论',
     );
   });

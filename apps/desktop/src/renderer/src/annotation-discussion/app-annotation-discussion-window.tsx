@@ -232,6 +232,10 @@ function AnnotationDiscussionShell({
     () => publicAnnotationAgents(agents, uiLanguage),
     [agents, uiLanguage],
   );
+  const replyRuleAgents = useMemo(
+    () => publicAnnotationAgents(agents, uiLanguage, { includeDisabled: true }),
+    [agents, uiLanguage],
+  );
   const userProfile = annotationUserProfile(currentAnnotation, currentArticle);
   const threads = useMemo(
     () => discussionThreads(currentAnnotation, pinnedThoughtIds),
@@ -349,12 +353,18 @@ function AnnotationDiscussionShell({
       if (!nextAnnotations || !nextAnnotation) return;
 
       await saveAnnotations(nextAnnotations);
-      const targetAgents = replyTargetAgents(trimmed, selectedRoot, annotationAgents);
+      const mentionedAgents = findMentionedAgents(trimmed, annotationAgents);
+      const targetAgents =
+        mentionedAgents.length > 0
+          ? mentionedAgents
+          : replyTargetAgents(trimmed, selectedRoot, replyRuleAgents);
       const instruction = agentInstructionFromNote(trimmed, targetAgents) || undefined;
       for (const agent of targetAgents) {
         const latestAnnotation =
           annotationsRef.current.find((item) => item.id === currentAnnotation.id) || nextAnnotation;
-        await requestAgentReply(agent, latestAnnotation, userComment, instruction);
+        await requestAgentReply(agent, latestAnnotation, userComment, instruction, {
+          allowDisabledAgentForRule: mentionedAgents.length === 0,
+        });
       }
     } catch (error) {
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
@@ -559,12 +569,14 @@ function AnnotationDiscussionShell({
     annotationValue: Annotation,
     userComment: Comment,
     instruction?: string,
+    options: { allowDisabledAgentForRule?: boolean } = {},
   ) {
     await runSourceAgentCommentRequest({
       agent,
       annotation: annotationValue,
       userComment,
       instruction,
+      allowDisabledAgentForRule: options.allowDisabledAgentForRule,
       desktop: window.yomitomoDesktop,
       currentArticle: currentArticleRef.current,
       articleText: discussionArticleText(currentArticleRef.current),

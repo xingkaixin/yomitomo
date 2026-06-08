@@ -15,6 +15,7 @@ export type AgentMessagePayload = {
   readingIntent?: AgentReadingIntent;
   instruction?: string;
   reviewTargetCommentId?: string;
+  allowDisabledAgentForRule?: boolean;
   agentRoster?: PublicAgent[];
   readerProgress?: ReaderProgress;
   readingMemoryView?: ReadingMemoryView;

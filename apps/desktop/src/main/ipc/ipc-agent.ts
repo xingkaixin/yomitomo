@@ -55,7 +55,13 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const ai = await context.getAiModule();
     const { readStore } = await context.getStoreModule();
     const store = await readStore();
-    const agent = findCommentAgent(store.agents, payload.agentId, payload.agentUsername);
+    const taskType = agentMessageRuntimeTaskType(payload);
+    const agent = findCommentAgent(
+      store.agents,
+      payload.agentId,
+      payload.agentUsername,
+      payload.allowDisabledAgentForRule && taskType === 'thread_reply',
+    );
     if (!agent) throw new Error(`AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
       context,
@@ -73,7 +79,6 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         normalizeUiLanguage(store.settings.uiLanguage),
       ),
     };
-    const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
     const runtime =
       requestedMode === 'deep_verification'
         ? taskType === 'thread_reply'
@@ -246,10 +251,12 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         const ai = await context.getAiModule();
         const { readStore } = await context.getStoreModule();
         const store = await readStore();
+        const taskType = agentMessageRuntimeTaskType(input.payload);
         const agent = findCommentAgent(
           store.agents,
           input.payload.agentId,
           input.payload.agentUsername,
+          input.payload.allowDisabledAgentForRule && taskType === 'thread_reply',
         );
         if (!agent) throw new Error(`AGENT_NOT_FOUND:${input.payload.agentUsername}`);
         const provider = await taskProvider(
@@ -296,7 +303,6 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           applyRuntimeProgress(comment, progressEvent);
           event.sender.send(channel, { type: 'progress', progress: progressEvent });
         };
-        const taskType = agentMessageRuntimeTaskType(payloadWithRoster);
         const runtime =
           requestedMode === 'deep_verification'
             ? taskType === 'thread_reply'
@@ -665,9 +671,14 @@ function findAnnotationAgent(agents: Agent[], agentId: string | undefined, usern
     .find((agent) => agent.id === agentId || agent.username === username);
 }
 
-function findCommentAgent(agents: Agent[], agentId: string | undefined, username: string) {
+function findCommentAgent(
+  agents: Agent[],
+  agentId: string | undefined,
+  username: string,
+  includeDisabled = false,
+) {
   return agents
-    .filter((agent) => agent.enabled)
+    .filter((agent) => agent.enabled || (includeDisabled && agent.kind === 'annotation'))
     .find((agent) => agent.id === agentId || agent.username === username);
 }
 
