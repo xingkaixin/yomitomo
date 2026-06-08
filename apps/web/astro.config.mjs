@@ -57,6 +57,10 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'docs' } }],
         },
         {
+          label: '博客',
+          items: [{ autogenerate: { directory: 'blog' } }],
+        },
+        {
           label: '版本记录',
           items: [{ autogenerate: { directory: 'changelogs' } }],
         },

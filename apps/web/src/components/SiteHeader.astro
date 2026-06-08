@@ -1,7 +1,9 @@
 ---
 import {
+  blogUrl,
   changelogsUrl,
   docsUrl,
+  englishBlogUrl,
   englishChangelogsUrl,
   englishDocsUrl,
   githubUrl,
@@ -17,6 +19,7 @@ const isEnglish = lang === 'en';
 const homeUrl = isEnglish ? '/en/' : '/';
 const alternateUrl = isEnglish ? '/' : '/en/';
 const docsHref = isEnglish ? englishDocsUrl : docsUrl;
+const blogHref = isEnglish ? englishBlogUrl : blogUrl;
 const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
 ---
 
@@ -42,6 +45,7 @@ const changelogsHref = isEnglish ? englishChangelogsUrl : changelogsUrl;
       )
     }
     <a class="nav-text-link" href={docsHref}>{isEnglish ? 'Docs' : '文档'}</a>
+    <a class="nav-text-link" href={blogHref}>{isEnglish ? 'Blog' : '博客'}</a>
     <a class="nav-text-link" href={changelogsHref}>{isEnglish ? 'Release Notes' : '更新日志'}</a>
     <a class="language-link" href={alternateUrl}>{isEnglish ? '中' : 'EN'}</a>
     <a class="header-link" href={githubUrl} target="_blank" rel="noreferrer" aria-label="GitHub">
