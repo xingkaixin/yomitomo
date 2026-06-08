@@ -59,10 +59,10 @@ export type PdfPageGeometryEntry = {
 };
 
 export type PdfAnnotationNavigationState = {
-  currentIndex?: number;
+  currentIndex: number;
   previousId: string | null;
   nextId: string | null;
-  totalCount?: number;
+  totalCount: number;
 };
 
 export function pdfiumAnnotationAgentName(annotation: Annotation) {
