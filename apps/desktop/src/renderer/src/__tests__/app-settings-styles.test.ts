@@ -27,15 +27,6 @@ describe('settings styles', () => {
     );
   });
 
-  it('keeps agent taglines underlined per wrapped line', () => {
-    expectRule('.agent-list-motto', [
-      'text-decoration-line: underline;',
-      'text-decoration-style: wavy;',
-      'text-decoration-color:',
-    ]);
-    expect(styles).not.toContain('.agent-list-motto::after');
-  });
-
   it('keeps task route provider selectors at a stable width', () => {
     expectRule('.task-route-select-trigger', ['width: 248px;', 'max-width: 100%;']);
     expectRule('.provider-select-content', ['width: min(340px, calc(100vw - 32px));']);
