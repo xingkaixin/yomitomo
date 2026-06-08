@@ -561,7 +561,7 @@ export const readerConversationStyles = `
 .reader-note.has-distillation .reader-note-body{position:relative;display:grid;grid-template-rows:minmax(0,1fr) auto;overflow:visible;min-height:184px;padding:0;background:transparent}
 .reader-note-distillation-ticket{position:absolute;inset:0;z-index:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .reader-note.has-distillation.is-active .reader-note-distillation-ticket{filter:drop-shadow(0 0 0 color-mix(in srgb,var(--reader-note-accent) 26%,transparent)) drop-shadow(0 12px 22px color-mix(in srgb,var(--reader-ink) 14%,transparent)) drop-shadow(0 5px 14px color-mix(in srgb,var(--reader-note-accent) 14%,transparent))}
-.reader-note.is-distillation-publish .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after,.reader-note.is-distillation-unpublish .reader-note-body::after{content:"";position:absolute;inset:-40% -65%;z-index:2;background:linear-gradient(105deg,transparent 38%,color-mix(in srgb,var(--reader-paper) 14%,transparent) 44%,color-mix(in srgb,var(--reader-paper) 78%,transparent) 50%,color-mix(in srgb,var(--reader-paper) 16%,transparent) 56%,transparent 62%);pointer-events:none;transform:translateX(-58%) rotate(10deg);animation:reader-distillation-shimmer 1.05s cubic-bezier(.22,1,.36,1) .26s both}
+
 .reader-note.has-distillation .reader-note-card-header{position:relative;z-index:1;display:grid;min-height:126px;align-items:center;padding:28px 56px 18px 34px}
 .reader-note-owner{display:grid;width:30px;height:30px;place-items:center;flex:0 0 auto;border:0;border-radius:999px;background:transparent;color:inherit;padding:0}
 .reader-note-owner .reader-avatar-badge{width:30px;height:30px;overflow:hidden;border-radius:999px;background:var(--reader-avatar-color,var(--reader-green))}
@@ -581,12 +581,19 @@ export const readerConversationStyles = `
 .reader-note-quote-text{display:block;color:var(--reader-ink);font-size:14px;font-style:normal;font-weight:690;line-height:1.72;text-wrap:pretty}
 .reader-note.has-distillation .reader-note-quote{min-height:92px;align-items:center;padding:0}
 .reader-note.has-distillation .reader-note-quote-text{font-size:15px;font-weight:720;letter-spacing:0;line-height:1.7}
-.reader-note.is-distillation-publish .reader-note-body,.reader-note.is-distillation-unpublish .reader-note-body{transform-origin:center center;will-change:filter;animation:reader-distillation-surface-settle .42s cubic-bezier(.22,1,.36,1) both}
+.reader-note.is-distillation-morph-out .reader-note-body{transform-origin:center center;will-change:transform,opacity;animation:reader-distillation-morph-out 200ms cubic-bezier(.22,1,.36,1) both}
+.reader-note.is-distillation-morph-in .reader-note-body{transform-origin:center center;will-change:transform,opacity;animation:reader-distillation-morph-in 300ms cubic-bezier(.22,1,.36,1) both}
+.reader-note.is-distillation-unpublish-wobble .reader-note-body{transform-origin:center center;will-change:transform;animation:reader-distillation-unpublish-wobble 150ms ease both}
+.reader-note.is-distillation-update .reader-note-body{transform-origin:center center;will-change:transform;animation:reader-distillation-update-breathe 400ms cubic-bezier(.22,1,.36,1) both}
 .reader-note.is-distillation-update .reader-note-quote-text{animation:reader-distillation-fade .82s cubic-bezier(.22,1,.36,1)}
-@keyframes reader-distillation-surface-settle{0%{filter:brightness(1.025) saturate(1.04)}100%{filter:brightness(1) saturate(1)}}
+.reader-note.is-distillation-morph-in .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after{content:"";position:absolute;inset:-40% -65%;z-index:2;background:linear-gradient(105deg,transparent 38%,color-mix(in srgb,var(--reader-paper) 14%,transparent) 44%,color-mix(in srgb,var(--reader-paper) 78%,transparent) 50%,color-mix(in srgb,var(--reader-paper) 16%,transparent) 56%,transparent 62%);pointer-events:none;transform:translateX(-58%) rotate(10deg);animation:reader-distillation-shimmer 1.05s cubic-bezier(.22,1,.36,1) both}
+@keyframes reader-distillation-morph-out{0%{transform:scale(1);opacity:1}100%{transform:scale(.97);opacity:.6}}
+@keyframes reader-distillation-morph-in{0%{transform:scale(.97);opacity:.6}100%{transform:scale(1);opacity:1}}
+@keyframes reader-distillation-unpublish-wobble{0%{transform:rotate(0)}30%{transform:rotate(1deg)}70%{transform:rotate(-1deg)}100%{transform:rotate(0)}}
+@keyframes reader-distillation-update-breathe{0%{transform:scale(1)}50%{transform:scale(1.01)}100%{transform:scale(1)}}
 @keyframes reader-distillation-fade{0%{opacity:.16;transform:translateY(7px);filter:blur(3px)}42%{opacity:.5;filter:blur(1.6px)}100%{opacity:1;transform:translateY(0);filter:blur(0)}}
 @keyframes reader-distillation-shimmer{0%{opacity:0;transform:translateX(-58%) rotate(10deg)}12%{opacity:1}100%{opacity:0;transform:translateX(58%) rotate(10deg)}}
-@media (prefers-reduced-motion: reduce){.reader-note.is-distillation-publish .reader-note-body,.reader-note.is-distillation-unpublish .reader-note-body,.reader-note.is-distillation-update .reader-note-quote-text,.reader-note.is-distillation-publish .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after,.reader-note.is-distillation-unpublish .reader-note-body::after{animation:none;will-change:auto}}
+@media (prefers-reduced-motion: reduce){.reader-note.is-distillation-morph-out .reader-note-body,.reader-note.is-distillation-morph-in .reader-note-body,.reader-note.is-distillation-unpublish-wobble .reader-note-body,.reader-note.is-distillation-update .reader-note-body,.reader-note.is-distillation-update .reader-note-quote-text,.reader-note.is-distillation-morph-in .reader-note-body::after,.reader-note.is-distillation-update .reader-note-body::after{animation:none;will-change:auto}}
 .reader-thought-author-stack{display:inline-flex;min-width:0;align-items:center}
 .reader-thought-author-avatar{display:grid;width:25px;height:25px;place-items:center;border-radius:999px;background:transparent}
 .reader-thought-author-avatar+.reader-thought-author-avatar{margin-left:-8px}
