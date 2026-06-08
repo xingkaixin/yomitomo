@@ -167,9 +167,13 @@ export function annotationViewportPositions(
   );
 }
 
-export function publicAnnotationAgents(agents: Agent[], uiLanguage?: UiLanguage): PublicAgent[] {
+export function publicAnnotationAgents(
+  agents: Agent[],
+  uiLanguage?: UiLanguage,
+  options: { includeDisabled?: boolean } = {},
+): PublicAgent[] {
   return agents
-    .filter((agent) => agent.kind === 'annotation' && agent.enabled)
+    .filter((agent) => agent.kind === 'annotation' && (options.includeDisabled || agent.enabled))
     .map((agent) => publicAgentWithPersonaAssets(agent, uiLanguage));
 }
 

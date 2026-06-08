@@ -20,6 +20,7 @@ type RunSourceAgentCommentRequestInput = {
   instruction?: string;
   readingIntent?: AgentReadingIntent;
   reviewTargetCommentId?: string;
+  allowDisabledAgentForRule?: boolean;
   uiLanguage?: UiLanguage;
   desktop: Pick<typeof window.yomitomoDesktop, 'requestAgentCommentStream'>;
   currentArticle: ArticleRecord;
@@ -37,6 +38,7 @@ export async function runSourceAgentCommentRequest({
   instruction,
   readingIntent,
   reviewTargetCommentId,
+  allowDisabledAgentForRule,
   uiLanguage,
   desktop,
   currentArticle,
@@ -126,6 +128,7 @@ export async function runSourceAgentCommentRequest({
         readingIntent: readingIntent || annotation.readingIntent || userComment.readingIntent,
         instruction,
         reviewTargetCommentId,
+        allowDisabledAgentForRule,
         article: promptArticle(currentArticle, articleText),
         annotation,
         userComment,
