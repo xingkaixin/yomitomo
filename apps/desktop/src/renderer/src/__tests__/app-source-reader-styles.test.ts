@@ -40,6 +40,30 @@ describe('source reader annotation styles', () => {
     expect(styles).not.toContain('background: hsl(48 100% 99% / 0.74);');
   });
 
+  it('keeps PDF table of contents on shared embedded reader styles', () => {
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-app\.has-toc\.is-toc-open \.reader-toc,[\s\S]*\.source-ebook-reader-shell \.reader-app\.has-toc\.is-toc-open \.reader-toc,[\s\S]*\.source-pdf-reader-shell \.reader-app\.has-toc\.is-toc-open \.reader-toc \{[\s\S]*z-index: 240;[\s\S]*border-radius: 0;[\s\S]*background: hsl\(var\(--card\)\);[\s\S]*box-shadow: none;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-floating-toolbar,[\s\S]*\.source-ebook-reader-shell \.reader-floating-toolbar,[\s\S]*\.source-pdf-reader-shell \.reader-floating-toolbar \{[\s\S]*z-index: 250;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-toc-markers i,[\s\S]*\.source-ebook-reader-shell \.reader-toc-markers i,[\s\S]*\.source-pdf-reader-shell \.reader-toc-markers i \{[\s\S]*border-color: hsl\(var\(--border\) \/ 0\.82\);[\s\S]*box-shadow: none;[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /\.source-reader-shell \.reader-toc-summary,[\s\S]*\.source-ebook-reader-shell \.reader-toc-summary,[\s\S]*\.source-pdf-reader-shell \.reader-toc-summary \{[\s\S]*border-radius: 0;[\s\S]*background: hsl\(var\(--card\)\);[\s\S]*color: hsl\(var\(--muted-foreground\)\);[\s\S]*\}/,
+    );
+    expect(styles).toMatch(
+      /\.source-pdf-reader-shell \.reader-app\.has-toc \.reader-toc \{[\s\S]*top: 84px;[\s\S]*z-index: 240;[\s\S]*width: min\(320px, calc\(100% - 36px\)\);[\s\S]*\}/,
+    );
+    expect(styles).not.toMatch(
+      /\.source-pdf-reader-shell \.reader-app\.has-toc \.reader-toc \{[\s\S]*background: var\(--app-reader-toc-bg\);/,
+    );
+    expect(styles).not.toMatch(
+      /\.source-pdf-reader-shell \.reader-app\.has-toc \.reader-toc \{[\s\S]*box-shadow: var\(--app-reader-selection-menu-shadow\);/,
+    );
+  });
+
   it('uses the independent reader content background for source readers', () => {
     expect(styles).toContain('background: var(--reader-content-bg, hsl(var(--card)));');
     expect(styles).toMatch(

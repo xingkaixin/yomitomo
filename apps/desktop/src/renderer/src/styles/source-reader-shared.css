@@ -173,6 +173,12 @@
   outline: 0;
 }
 
+.source-reader-shell .reader-floating-toolbar,
+.source-ebook-reader-shell .reader-floating-toolbar,
+.source-pdf-reader-shell .reader-floating-toolbar {
+  z-index: 250;
+}
+
 .source-reader-shell .reader-floating-toolbar .reader-icon-button,
 .source-ebook-reader-shell .reader-floating-toolbar .reader-icon-button,
 .source-pdf-reader-shell .reader-floating-toolbar .reader-icon-button,
@@ -231,13 +237,15 @@
 .source-reader-shell .reader-toc,
 .source-reader-shell .reader-notes,
 .source-ebook-reader-shell .reader-toc,
-.source-ebook-reader-shell .reader-notes {
+.source-ebook-reader-shell .reader-notes,
+.source-pdf-reader-shell .reader-toc {
   border-color: hsl(var(--border) / 0.72);
   background: hsl(var(--card));
 }
 
 .source-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
-.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-toc {
+.source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
+.source-pdf-reader-shell .reader-app.has-toc.is-toc-open .reader-toc {
   z-index: 240;
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
@@ -275,13 +283,15 @@
 }
 
 .source-reader-shell .reader-toc-markers i,
-.source-ebook-reader-shell .reader-toc-markers i {
+.source-ebook-reader-shell .reader-toc-markers i,
+.source-pdf-reader-shell .reader-toc-markers i {
   border-color: hsl(var(--border) / 0.82);
   box-shadow: none;
 }
 
 .source-reader-shell .reader-toc-summary,
-.source-ebook-reader-shell .reader-toc-summary {
+.source-ebook-reader-shell .reader-toc-summary,
+.source-pdf-reader-shell .reader-toc-summary {
   border-color: hsl(var(--border) / 0.72);
   border-radius: 0;
   background: hsl(var(--card));
