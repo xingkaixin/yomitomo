@@ -143,6 +143,7 @@ export function ReadingLibrary({
   const [distillationAnimation, setDistillationAnimation] = useState<{
     annotationId: string;
     transition: AnnotationDistillationCommittedEvent['transition'];
+    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
     token: number;
   } | null>(null);
   const articleLoadRef = useRef(0);
@@ -308,10 +309,9 @@ export function ReadingLibrary({
   async function focusCommittedDistillation(event: AnnotationDistillationCommittedEvent) {
     const fullArticle = await onReadArticle(event.articleId);
     if (!fullArticle) return;
-    const committedArticle = articleWithCommittedDistillation(fullArticle, event);
     setLibrarySource(librarySourceForArticle(fullArticle));
     setSelectedArticleId(fullArticle.id);
-    setSelectedArticle(committedArticle);
+    setSelectedArticle(fullArticle);
     setSelectedWeReadBook(null);
     setRouteTransition('enter-source');
     setActiveShelf('source');
@@ -320,28 +320,82 @@ export function ReadingLibrary({
     pendingDistillationAnimationRef.current = event;
   }
 
-  function playDistillationAnimation(event: AnnotationDistillationCommittedEvent) {
-    setDistillationAnimation({
-      annotationId: event.annotationId,
-      transition: event.transition,
-      token: Date.now(),
-    });
+  function clearDistillationTimer() {
     if (distillationAnimationTimerRef.current !== null) {
       window.clearTimeout(distillationAnimationTimerRef.current);
-    }
-    distillationAnimationTimerRef.current = window.setTimeout(() => {
-      setDistillationAnimation((current) =>
-        current?.annotationId === event.annotationId ? null : current,
-      );
       distillationAnimationTimerRef.current = null;
-    }, 1700);
+    }
+  }
+
+  function playDistillationMorph(event: AnnotationDistillationCommittedEvent) {
+    const token = Date.now();
+    const MORPH_OUT_MS = 200;
+    const MORPH_IN_MS = 300;
+    const WOBBLE_MS = 150;
+
+    clearDistillationTimer();
+
+    if (event.transition === 'update') {
+      setSelectedArticle((current) =>
+        current ? articleWithCommittedDistillation(current, event) : current,
+      );
+      setDistillationAnimation({
+        annotationId: event.annotationId,
+        transition: 'update',
+        phase: 'update',
+        token,
+      });
+      distillationAnimationTimerRef.current = window.setTimeout(() => {
+        setDistillationAnimation((current) => (current?.token === token ? null : current));
+        distillationAnimationTimerRef.current = null;
+      }, 650);
+      return;
+    }
+
+    const startMorphOut = () => {
+      setDistillationAnimation({
+        annotationId: event.annotationId,
+        transition: event.transition,
+        phase: 'morph-out',
+        token,
+      });
+      distillationAnimationTimerRef.current = window.setTimeout(() => {
+        setSelectedArticle((current) =>
+          current ? articleWithCommittedDistillation(current, event) : current,
+        );
+        setDistillationAnimation({
+          annotationId: event.annotationId,
+          transition: event.transition,
+          phase: 'morph-in',
+          token,
+        });
+        distillationAnimationTimerRef.current = window.setTimeout(() => {
+          setDistillationAnimation((current) => (current?.token === token ? null : current));
+          distillationAnimationTimerRef.current = null;
+        }, MORPH_IN_MS);
+      }, MORPH_OUT_MS);
+    };
+
+    if (event.transition === 'unpublish') {
+      setDistillationAnimation({
+        annotationId: event.annotationId,
+        transition: 'unpublish',
+        phase: 'unpublish-wobble',
+        token,
+      });
+      distillationAnimationTimerRef.current = window.setTimeout(() => {
+        startMorphOut();
+      }, WOBBLE_MS);
+    } else {
+      startMorphOut();
+    }
   }
 
   function handleSourceFocusedAnnotation() {
     const pendingAnimation = pendingDistillationAnimationRef.current;
     pendingDistillationAnimationRef.current = null;
     setSourceFocusAnnotationId(null);
-    if (pendingAnimation) playDistillationAnimation(pendingAnimation);
+    if (pendingAnimation) playDistillationMorph(pendingAnimation);
   }
 
   async function openWeReadBook(book: WeReadBook) {

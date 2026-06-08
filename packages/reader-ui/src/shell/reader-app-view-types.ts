@@ -109,6 +109,7 @@ export type ReaderAnnotationModel = {
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
+    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
     token: number;
   } | null;
   filteredAnnotations: Annotation[];

@@ -52,6 +52,7 @@ export function AnnotationCard({
   distillationAnimation?: {
     annotationId: string;
     transition: 'publish' | 'update' | 'unpublish';
+    phase: 'morph-out' | 'morph-in' | 'update' | 'unpublish-wobble';
     token: number;
   } | null;
   exiting?: boolean;
@@ -106,7 +107,7 @@ export function AnnotationCard({
     'reader-note',
     active ? 'is-active' : '',
     annotation.distillation?.status === 'published' ? 'has-distillation' : 'has-discussion',
-    distillationAnimation ? `is-distillation-${distillationAnimation.transition}` : '',
+    distillationAnimation ? `is-distillation-${distillationAnimation.phase}` : '',
     exiting ? 'is-filtering-out' : '',
     stackCount > 1 ? 'is-stacked' : '',
     isStackFront ? 'is-stack-front' : '',
