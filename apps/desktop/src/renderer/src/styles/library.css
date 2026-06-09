@@ -52,7 +52,7 @@
   position: absolute;
   bottom: 18px;
   left: 18px;
-  z-index: 90;
+  z-index: var(--app-z-floating);
   display: flex;
   width: min(360px, calc(100% - 36px));
   flex-direction: column;
@@ -379,7 +379,7 @@
 .library-import-modal {
   position: fixed;
   inset: 0;
-  z-index: 220;
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
   padding: 24px;

@@ -1111,7 +1111,7 @@
 
   position: fixed;
   inset: 0;
-  z-index: 320;
+  z-index: var(--app-z-modal);
   display: grid;
   align-items: start;
   justify-items: center;

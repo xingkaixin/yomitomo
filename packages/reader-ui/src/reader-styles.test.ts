@@ -9,6 +9,8 @@ import {
 describe('reader embedded styles', () => {
   it('uses app-provided reader theme variables for core reader surfaces', () => {
     expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
+    expect(readerConversationStyles).toContain('--reader-z-popover:var(--app-z-popover,160)');
+    expect(readerConversationStyles).toContain('--reader-z-tooltip:var(--app-z-tooltip,340)');
     expect(readerConversationStyles).toContain('--app-viewport-height:100vh');
     expect(readerConversationStyles).toContain('@supports (height:100dvh)');
     expect(combinedReaderStyles()).toContain('--reader-content-bg');
@@ -118,7 +120,7 @@ describe('reader embedded styles', () => {
       '.reader-composer .floating-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-composer{position:absolute;z-index:120;width:min(520px,calc(100vw - 24px));',
+      '.reader-composer{position:absolute;z-index:var(--reader-z-popover);width:min(520px,calc(100vw - 24px));',
     );
     expect(readerConversationStyles).toContain(
       '.reader-composer textarea{display:block;min-height:88px;max-height:calc(1.55em * 8 + 28px);',

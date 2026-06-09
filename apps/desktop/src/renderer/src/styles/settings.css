@@ -596,7 +596,7 @@
 
 .provider-model-menu {
   position: fixed;
-  z-index: 130;
+  z-index: var(--app-z-dropdown);
   overflow: hidden;
   border-radius: 12px;
   padding: 10px;
@@ -1186,7 +1186,7 @@
 .agent-detail-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
   background: hsl(24 22% 10% / 0.34);
@@ -1404,7 +1404,7 @@
 
 .provider-editor-dialog-overlay {
   position: fixed;
-  z-index: 92;
+  z-index: var(--app-z-modal);
   inset: 0;
   display: grid;
   place-items: center;
@@ -1538,7 +1538,7 @@
 .agent-create-overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
   background: hsl(24 22% 10% / 0.32);
@@ -1614,7 +1614,7 @@
 .user-profile-dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--app-z-modal);
   display: grid;
   place-items: center;
   background: hsl(24 22% 10% / 0.34);
@@ -5197,7 +5197,7 @@
 
 .license-dialog-overlay {
   position: fixed;
-  z-index: 80;
+  z-index: var(--app-z-modal);
   inset: 0;
   display: grid;
   place-items: center;
@@ -5411,7 +5411,7 @@ button.license-package-row:hover {
 .onboarding-screen {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--app-z-modal);
   display: block;
   overflow: hidden;
   background: hsl(42 70% 96%);

@@ -2423,7 +2423,7 @@
 }
 
 .reader-tooltip-content {
-  z-index: 240;
+  z-index: var(--app-z-tooltip);
   max-width: min(260px, calc(100vw - 24px));
   border: 1px solid color-mix(in srgb, var(--app-reader-paper) 16%, transparent);
   border-radius: 8px;

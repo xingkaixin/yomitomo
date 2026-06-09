@@ -47,6 +47,7 @@ export type AppTheme = {
     subtlePanelShadow: string;
     cardShadow: string;
     overlayScrim: string;
+    zIndex: AppThemeZIndex;
   };
   action: {
     primary: ThemeControlState;
@@ -103,6 +104,18 @@ export type PaperPatternTheme = {
   size: string;
 };
 
+export type AppThemeZIndex = {
+  sticky: string;
+  floating: string;
+  dropdown: string;
+  popover: string;
+  panel: string;
+  overlay: string;
+  modal: string;
+  tooltip: string;
+  topOverlay: string;
+};
+
 export const defaultThemeId = 'default';
 export const beigePaperThemeId = 'beige-paper';
 export const inkBlackThemeId = 'ink-black';
@@ -110,6 +123,18 @@ export const duskIndigoThemeId = 'dusk-indigo';
 export const inkPaperThemeId = 'ink-paper';
 const cachedThemeStorageKey = 'yomitomo.themeId';
 const cachedThemeIdsByToneStorageKey = 'yomitomo.themeIdsByTone';
+
+const appThemeZIndex: AppThemeZIndex = {
+  sticky: '20',
+  floating: '80',
+  dropdown: '130',
+  popover: '160',
+  panel: '240',
+  overlay: '260',
+  modal: '320',
+  tooltip: '340',
+  topOverlay: '360',
+};
 
 const defaultReaderTheme: ReaderTheme = {
   background: '#f5f1e8',
@@ -225,6 +250,7 @@ export const defaultTheme: AppTheme = {
     subtlePanelShadow: '0 12px 36px hsl(31 34% 24% / 0.05)',
     cardShadow: '0 7px 18px hsl(31 34% 24% / 0.13)',
     overlayScrim: 'rgba(40,35,29,.14)',
+    zIndex: appThemeZIndex,
   },
   action: {
     primary: {
@@ -399,6 +425,7 @@ export const beigePaperTheme: AppTheme = {
     subtlePanelShadow: '0 12px 38px hsl(31 45% 20% / 0.08)',
     cardShadow: '0 8px 22px hsl(31 45% 20% / 0.15)',
     overlayScrim: 'rgba(74,50,27,.18)',
+    zIndex: appThemeZIndex,
   },
   action: {
     primary: {
@@ -573,6 +600,7 @@ export const inkBlackTheme: AppTheme = {
     subtlePanelShadow: '0 12px 30px hsl(0 0% 0% / 0.5)',
     cardShadow: '0 8px 18px hsl(0 0% 0% / 0.45)',
     overlayScrim: 'rgba(0,0,0,.42)',
+    zIndex: appThemeZIndex,
   },
   action: {
     primary: {
@@ -747,6 +775,7 @@ export const duskIndigoTheme: AppTheme = {
     subtlePanelShadow: '0 12px 30px hsl(228 40% 3% / 0.55)',
     cardShadow: '0 1px 0 hsl(220 40% 100% / 0.05) inset, 0 8px 18px hsl(228 40% 3% / 0.5)',
     overlayScrim: 'hsl(228 40% 3% / 0.5)',
+    zIndex: appThemeZIndex,
   },
   action: {
     primary: {
@@ -921,6 +950,7 @@ export const inkPaperTheme: AppTheme = {
     subtlePanelShadow: '0 10px 30px hsl(60 3% 8% / 0.055)',
     cardShadow: '0 7px 18px hsl(60 3% 8% / 0.1)',
     overlayScrim: 'rgba(20,20,19,.16)',
+    zIndex: appThemeZIndex,
   },
   action: {
     primary: {
@@ -1041,6 +1071,15 @@ export function themeToCssVariables(theme: AppTheme): CssVariableMap {
     '--app-subtle-panel-shadow': theme.effect.subtlePanelShadow,
     '--app-card-shadow': theme.effect.cardShadow,
     '--app-overlay-scrim': theme.effect.overlayScrim,
+    '--app-z-sticky': theme.effect.zIndex.sticky,
+    '--app-z-floating': theme.effect.zIndex.floating,
+    '--app-z-dropdown': theme.effect.zIndex.dropdown,
+    '--app-z-popover': theme.effect.zIndex.popover,
+    '--app-z-panel': theme.effect.zIndex.panel,
+    '--app-z-overlay': theme.effect.zIndex.overlay,
+    '--app-z-modal': theme.effect.zIndex.modal,
+    '--app-z-tooltip': theme.effect.zIndex.tooltip,
+    '--app-z-top-overlay': theme.effect.zIndex.topOverlay,
     '--app-action-primary-bg': theme.action.primary.background,
     '--app-action-primary-fg': theme.action.primary.foreground,
     '--app-action-primary-border': theme.action.primary.border,

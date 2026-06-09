@@ -577,7 +577,7 @@
   position: absolute;
   top: 58px;
   right: 18px;
-  z-index: 140;
+  z-index: var(--app-z-popover);
   display: grid;
   width: min(860px, calc(100% - 36px));
   gap: 12px;
