@@ -324,8 +324,8 @@ body {
 
 .discussion-modal-panel {
   position: relative;
-  width: min(780px, calc(100vw - 48px));
-  max-height: min(640px, calc(100vh - 48px));
+  width: min(920px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 48px));
   overflow: hidden;
   border: 1px solid var(--color-reader-line);
   border-radius: 18px;
@@ -403,7 +403,7 @@ body {
 /* Two-column layout */
 .annotation-discussion-layout {
   display: grid;
-  grid-template-columns: minmax(200px, 32%) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 34%) minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -633,6 +633,97 @@ body {
 
 .annotation-discussion-message.is-user .annotation-discussion-message-header {
   text-align: right;
+}
+
+/* Yomitomo messages aligned right (same as user in desktop) */
+.annotation-discussion-message.is-yomitomo {
+  justify-self: end;
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.annotation-discussion-message.is-yomitomo .reader-avatar-badge {
+  order: 2;
+}
+
+.annotation-discussion-message.is-yomitomo .annotation-discussion-message-header {
+  text-align: right;
+}
+
+/* Agent avatar stack on annotation cards */
+.reader-agent-avatar-stack {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: visible;
+  padding: 4px 0;
+}
+
+.reader-agent-avatar-stack-item {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 28px;
+  place-items: center;
+  margin-left: -8px;
+  border: 2px solid var(--reader-paper);
+  border-radius: 999px;
+  background: var(--reader-paper);
+  box-shadow: 0 2px 7px rgba(40, 35, 29, 0.12);
+  transition: transform 0.2s ease;
+}
+
+.reader-agent-avatar-stack-item:first-child {
+  margin-left: 0;
+}
+
+.reader-agent-avatar-stack-item:hover {
+  transform: translateY(-2px) scale(1.1);
+  z-index: 2;
+}
+
+.reader-agent-avatar-stack-item .reader-avatar-badge {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+}
+
+/* Discussion entry button on annotation card */
+.reader-note-discussion-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 1px solid rgba(74, 124, 89, 0.22);
+  border-radius: 10px;
+  background: rgba(74, 124, 89, 0.08);
+  color: rgba(74, 124, 89, 0.85);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+}
+
+.reader-note-discussion-entry:hover {
+  background: rgba(74, 124, 89, 0.14);
+  color: var(--color-reader-ink);
+}
+
+.reader-note-discussion-entry:active {
+  transform: scale(0.98);
+}
+
+/* Discussion card toolbar */
+.reader-note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 0;
 }
 
 /* Scroll reveal */

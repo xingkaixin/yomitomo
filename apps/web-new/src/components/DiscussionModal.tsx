@@ -1,32 +1,38 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Bot } from 'lucide-react';
-import type { Annotation, Thought, Comment } from '../data/article';
+import { X } from 'lucide-react';
+import { getAgent, type Annotation, type Thought } from '../data/article';
 
-function Avatar({
-  initials,
-  color,
-  isAgent,
+/** Simplified avatar using reader-ui's AvatarBadge. */
+function AgentAvatar({
+  agentId,
+  size = 28,
 }: {
-  initials: string;
-  color: string;
-  isAgent?: boolean;
+  agentId: string;
+  size?: number;
 }) {
+  const agent = getAgent(agentId);
+  const isImage = agent.avatar.startsWith('/') || agent.avatar.startsWith('http');
   return (
-    <div
+    <span
       className="reader-avatar-badge"
       style={{
-        backgroundColor: color,
-        color: 'white',
-        fontSize: 11,
-        fontWeight: 800,
+        width: size,
+        height: size,
+        background: isImage ? 'transparent' : agent.annotationColor,
+        fontSize: size < 24 ? 9 : 11,
+        flexShrink: 0,
       }}
     >
-      {isAgent ? <Bot size={12} /> : initials}
-    </div>
+      {isImage ? (
+        <img alt="" src={agent.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+      ) : (
+        agent.avatar
+      )}
+    </span>
   );
 }
 
-// ── Discussion Modal (mirrors desktop annotation-discussion-window layout) ──
+// ── Discussion Modal (mirrors desktop annotation-discussion-window) ──
 
 type DiscussionModalProps = {
   open: boolean;
@@ -40,9 +46,8 @@ export default function DiscussionModal({
   onClose,
 }: DiscussionModalProps) {
   const [selectedId, setSelectedId] = useState<string>(annotation.thoughts[0]?.id ?? '');
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Reset selection when opening or switching annotations
+  // Reset selection when opening
   useEffect(() => {
     if (open && annotation.thoughts.length > 0) {
       setSelectedId(annotation.thoughts[0].id);
@@ -77,7 +82,7 @@ export default function DiscussionModal({
 
   return (
     <div
-      className={`discussion-modal-overlay${open ? ' is-open' : ''}`}
+      className="discussion-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -85,8 +90,7 @@ export default function DiscussionModal({
       aria-modal="true"
       aria-label="讨论区"
     >
-      <div className="discussion-modal-panel" ref={panelRef}>
-        {/* Window structure mirrors desktop annotation-discussion-window */}
+      <div className="discussion-modal-panel">
         <div className="annotation-discussion-window">
           {/* Quote area */}
           <section className="annotation-discussion-quote">
@@ -106,29 +110,28 @@ export default function DiscussionModal({
               </div>
 
               <div className="annotation-discussion-idea-list">
-                {annotation.thoughts.map((thought) => (
-                  <button
-                    key={thought.id}
-                    type="button"
-                    className={`annotation-discussion-idea${selectedId === thought.id ? ' is-selected' : ''}`}
-                    onClick={() => setSelectedId(thought.id)}
-                  >
-                    <div className="annotation-discussion-idea-main">
-                      <Avatar
-                        initials={thought.author.initials}
-                        color={thought.author.color}
-                        isAgent={thought.author.isAgent}
-                      />
-                      <div className="annotation-discussion-idea-text">
-                        <strong>{thought.author.name}</strong>
-                        <em>{thought.content}</em>
-                        {thought.comments.length > 0 && (
-                          <small>{thought.comments.length} 条回复</small>
-                        )}
+                {annotation.thoughts.map((thought) => {
+                  const author = getAgent(thought.authorId);
+                  return (
+                    <button
+                      key={thought.id}
+                      type="button"
+                      className={`annotation-discussion-idea${selectedId === thought.id ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedId(thought.id)}
+                    >
+                      <div className="annotation-discussion-idea-main">
+                        <AgentAvatar agentId={thought.authorId} />
+                        <div className="annotation-discussion-idea-text">
+                          <strong>{author.nickname}</strong>
+                          <em>{thought.content}</em>
+                          {thought.comments.length > 0 && (
+                            <small>{thought.comments.length} 条回复</small>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </aside>
 
@@ -145,7 +148,7 @@ export default function DiscussionModal({
           </div>
         </div>
 
-        {/* Close button overlay */}
+        {/* Close button */}
         <button
           className="discussion-modal-close"
           type="button"
@@ -163,6 +166,7 @@ export default function DiscussionModal({
 
 function ThreadView({ thought }: { thought: Thought }) {
   const messagesRef = useRef<HTMLDivElement>(null);
+  const author = getAgent(thought.authorId);
 
   // Auto-scroll to bottom when thought changes
   useEffect(() => {
@@ -181,12 +185,8 @@ function ThreadView({ thought }: { thought: Thought }) {
         {/* Root thought */}
         <div className="annotation-discussion-root-thought">
           <div className="annotation-discussion-root-thought-header">
-            <Avatar
-              initials={thought.author.initials}
-              color={thought.author.color}
-              isAgent={thought.author.isAgent}
-            />
-            <strong>{thought.author.name}</strong>
+            <AgentAvatar agentId={thought.authorId} />
+            <strong>{author.nickname}</strong>
           </div>
           <div className="annotation-discussion-markdown">
             <p>{thought.content}</p>
@@ -215,21 +215,18 @@ function ThreadView({ thought }: { thought: Thought }) {
 
 // ── Message Bubble ──────────────────────────────────
 
-function MessageBubble({ comment }: { comment: Comment }) {
-  const isUser = !comment.author.isAgent;
+function MessageBubble({ comment }: { comment: { id: string; authorId: string; content: string } }) {
+  const author = getAgent(comment.authorId);
+  const isYomitomo = comment.authorId === 'yomitomo';
 
   return (
     <div
-      className={`annotation-discussion-message${isUser ? ' is-user' : ''}`}
+      className={`annotation-discussion-message${isYomitomo ? ' is-yomitomo' : ''}`}
     >
-      <Avatar
-        initials={comment.author.initials}
-        color={comment.author.color}
-        isAgent={comment.author.isAgent}
-      />
+      <AgentAvatar agentId={comment.authorId} />
       <div className="annotation-discussion-message-bubble">
         <div className="annotation-discussion-message-header">
-          <strong>{comment.author.name}</strong>
+          <strong>{author.nickname}</strong>
         </div>
         <div className="annotation-discussion-markdown">
           <p>{comment.content}</p>

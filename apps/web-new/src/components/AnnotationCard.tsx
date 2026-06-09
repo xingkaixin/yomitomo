@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layers2 } from 'lucide-react';
-import {
-  ReadonlyAnnotationCard,
-  type ReadonlyAnnotationCardAuthor,
-  type ReadonlyAnnotationCardThought,
-} from '@yomitomo/reader-ui/reader-readonly-annotation-card';
-import type { Annotation } from '../data/article';
+import { Layers2, MessageCircle } from 'lucide-react';
+import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
+import { getAgent, type Annotation } from '../data/article';
 import DiscussionModal from './DiscussionModal';
 
 type AnnotationCardProps = {
@@ -13,32 +9,40 @@ type AnnotationCardProps = {
   onActivate: (id: string | null) => void;
 };
 
-function toAuthor(author: Annotation['author']): ReadonlyAnnotationCardAuthor {
-  return {
-    color: author.color,
-    fallback: author.initials,
-    name: author.name,
-  };
-}
-
-/** Build placeholder thoughts so ReadonlyAnnotationCard shows the count badge. */
-function countOnlyThoughts(annotation: Annotation): ReadonlyAnnotationCardThought[] {
-  return annotation.thoughts.map((t) => ({
-    id: t.id,
-    author: { color: t.author.color, fallback: t.author.initials, name: t.author.name },
-    content: '',
-    createdAt: annotation.createdAt,
-  }));
+/** Simplified avatar stack using reader-ui CSS classes. */
+function AgentAvatarStack({ agentIds }: { agentIds: string[] }) {
+  return (
+    <span className="reader-agent-avatar-stack">
+      {agentIds.map((id) => {
+        const agent = getAgent(id);
+        const isImage = agent.avatar.startsWith('/') || agent.avatar.startsWith('http');
+        return (
+          <span
+            key={id}
+            className="reader-agent-avatar-stack-item"
+            style={{ '--reader-avatar-color': agent.annotationColor } as React.CSSProperties}
+            title={agent.nickname}
+          >
+            <AvatarBadge
+              avatar={isImage ? agent.avatar : undefined}
+              fallback={isImage ? 'AI' : agent.avatar}
+            />
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 // ── Distillation Card (mirrors desktop AnnotationCard has-distillation) ──
 
 function DistillationCard({ annotation }: { annotation: Annotation }) {
+  const agent = getAgent(annotation.authorId);
   return (
     <article
       className="reader-note has-distillation"
       style={{
-        '--reader-note-accent': annotation.author.color,
+        '--reader-note-accent': agent.annotationColor,
       } as React.CSSProperties}
     >
       <div className="reader-note-body">
@@ -90,6 +94,52 @@ function DistillationCard({ annotation }: { annotation: Annotation }) {
   );
 }
 
+// ── Discussion Card (quote + avatar stack + action) ──
+
+function DiscussionCard({
+  annotation,
+  onOpenDiscussion,
+}: {
+  annotation: Annotation;
+  onOpenDiscussion: () => void;
+}) {
+  const agent = getAgent(annotation.authorId);
+
+  return (
+    <article
+      className="reader-note"
+      style={{
+        '--reader-note-accent': agent.annotationColor,
+      } as React.CSSProperties}
+    >
+      <div className="reader-note-body">
+        <header className="reader-note-card-header">
+          <span className="reader-note-owner" style={{ background: agent.annotationColor }}>
+            <AvatarBadge
+              avatar={agent.avatar.startsWith('/') ? agent.avatar : undefined}
+              fallback={agent.avatar.startsWith('/') ? 'AI' : agent.avatar}
+            />
+          </span>
+          <strong className="reader-note-owner-name">{agent.nickname}</strong>
+          <time className="reader-note-time">{annotation.createdAt}</time>
+        </header>
+
+        <blockquote className="reader-note-quote">
+          <p className="reader-note-quote-text">{annotation.quote}</p>
+        </blockquote>
+
+        <footer className="reader-note-toolbar">
+          <AgentAvatarStack agentIds={annotation.agentIds} />
+          <button className="reader-note-discussion-entry" type="button" onClick={onOpenDiscussion}>
+            <MessageCircle size={13} />
+            <span>进入讨论区</span>
+          </button>
+        </footer>
+      </div>
+    </article>
+  );
+}
+
 // ── Main Export ────────────────────────────────────────
 
 export default function AnnotationCard({
@@ -118,7 +168,6 @@ export default function AnnotationCard({
   }, []);
 
   const isDistillation = annotation.type === 'distillation';
-  const hasDiscussion = annotation.type !== 'distillation' && annotation.thoughts.length > 0;
 
   return (
     <>
@@ -131,25 +180,14 @@ export default function AnnotationCard({
         {isDistillation ? (
           <DistillationCard annotation={annotation} />
         ) : (
-          <ReadonlyAnnotationCard
-            id={annotation.id}
-            quote={annotation.quote}
-            author={toAuthor(annotation.author)}
-            createdAt={annotation.createdAt}
-            thoughts={countOnlyThoughts(annotation)}
-            action={
-              hasDiscussion
-                ? {
-                    label: '进入讨论区',
-                    onClick: () => setModalOpen(true),
-                  }
-                : undefined
-            }
+          <DiscussionCard
+            annotation={annotation}
+            onOpenDiscussion={() => setModalOpen(true)}
           />
         )}
       </div>
 
-      {hasDiscussion && (
+      {!isDistillation && annotation.thoughts.length > 0 && (
         <DiscussionModal
           open={modalOpen}
           annotation={annotation}
