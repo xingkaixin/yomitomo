@@ -1,0 +1,32 @@
+{
+  "name": "@yomitomo/web-new",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src --type-aware",
+    "lint:fix": "oxlint src --fix",
+    "format": "oxfmt --write \"src/**/*.{ts,tsx,css,html}\"",
+    "format:check": "oxfmt --check \"src/**/*.{ts,tsx,css,html}\"",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "lucide-react": "^0.511.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.4.1",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
+  }
+}
