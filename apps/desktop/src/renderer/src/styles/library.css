@@ -5,7 +5,6 @@
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) 58px 58px;
   gap: 12px;
   transition: grid-template-columns var(--resize-dur) var(--resize-ease);
-  will-change: grid-template-columns;
 }
 
 .library-home,
@@ -20,7 +19,6 @@
   gap: 8px;
   overflow: visible;
   transition: grid-template-columns var(--resize-dur) var(--resize-ease);
-  will-change: grid-template-columns;
 }
 
 .library-bookcase-screen.is-library-expanded {
