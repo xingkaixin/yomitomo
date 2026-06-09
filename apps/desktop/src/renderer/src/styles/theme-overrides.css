@@ -452,16 +452,41 @@
     color 150ms ease;
 }
 
+.library-list-item-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.library-list-item-open:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.45);
+  outline-offset: -2px;
+}
+
+.library-list-item > :not(.library-list-item-open) {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.library-list-item .library-item-actions {
+  z-index: 3;
+  pointer-events: auto;
+}
+
 .library-web-item {
   grid-template-columns: minmax(120px, 0.55fr) minmax(0, 1.75fr) minmax(220px, 0.9fr);
 }
 
 .library-web-item:hover,
-.library-web-item:focus-visible,
+.library-web-item:focus-within,
 .library-ebook-shelf-item:hover,
 .library-ebook-shelf-item:focus-visible,
 .library-ebook-list-item:hover,
-.library-ebook-list-item:focus-visible {
+.library-ebook-list-item:focus-within {
   background: hsl(0 0% 0% / 0.025);
   outline: 0;
 }

@@ -58,13 +58,6 @@ export function ArticleLibraryCard({
     setDeleteHolding(false);
   }
 
-  function openCardWithKeyboard(event: React.KeyboardEvent<HTMLElement>) {
-    if (event.target !== event.currentTarget) return;
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    event.preventDefault();
-    onOpen();
-  }
-
   function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
     event.stopPropagation();
     if (deleteTimerRef.current !== null) return;
@@ -78,14 +71,13 @@ export function ArticleLibraryCard({
   }
 
   return (
-    <article
-      className="library-card"
-      role="button"
-      tabIndex={0}
-      aria-label={t('library.actions.openArticle', { title })}
-      onClick={onOpen}
-      onKeyDown={openCardWithKeyboard}
-    >
+    <article className="library-card">
+      <button
+        className="library-card-open-surface"
+        type="button"
+        aria-label={t('library.actions.openArticle', { title })}
+        onClick={onOpen}
+      />
       <div className="library-card-top-actions">
         <button
           className="library-card-open-icon"

@@ -134,6 +134,16 @@ export function GeneralSettings({
     if (option) toggleContentSource(option);
   }
 
+  function moveContentSourceByKeyboard(id: LibraryContentSourceId, direction: -1 | 1) {
+    const currentIndex = sourcePreferences.findIndex((preference) => preference.id === id);
+    const targetIndex = currentIndex + direction;
+    if (currentIndex < 0 || targetIndex < 0 || targetIndex >= sourcePreferences.length) return;
+    const nextSources = [...sourcePreferences];
+    const [moved] = nextSources.splice(currentIndex, 1);
+    nextSources.splice(targetIndex, 0, moved);
+    saveContentSources(nextSources);
+  }
+
   function finishContentSourceDrag(nextSources?: LibraryContentSourcePreference[]) {
     const session = dragSessionRef.current;
     session?.cleanup();
@@ -302,7 +312,12 @@ export function GeneralSettings({
         }
         flush
       >
-        <div className="settings-card settings-source-list" ref={sourceMenuRef} role="list">
+        <div
+          className="settings-card settings-source-list"
+          ref={sourceMenuRef}
+          role="group"
+          aria-label={t('settings.general.libraryEntrancesGroup')}
+        >
           {sourceOptions.map((option) => {
             const disableBlocked = option.enabled && enabledSourceCount <= 1;
             const sourceLabel = t(`library.sources.${option.value}`);
@@ -320,13 +335,22 @@ export function GeneralSettings({
                 role="button"
                 tabIndex={0}
                 aria-disabled={disableBlocked || undefined}
+                aria-keyshortcuts="Enter Space ArrowUp ArrowDown"
                 aria-pressed={option.enabled}
-                aria-label={t('settings.general.toggleEntrance', { label: sourceLabel })}
+                aria-label={t('settings.general.libraryEntranceControl', {
+                  label: sourceLabel,
+                })}
                 onPointerDown={(event) => startContentSourcePointerDrag(event, option.value)}
                 onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
-                  event.preventDefault();
-                  toggleContentSource(option);
+                  if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    moveContentSourceByKeyboard(option.value, event.key === 'ArrowUp' ? -1 : 1);
+                    return;
+                  }
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleContentSource(option);
+                  }
                 }}
               >
                 <span className="settings-source-grip" aria-hidden="true">
@@ -345,7 +369,7 @@ export function GeneralSettings({
               </div>
             );
           })}
-          <div className="settings-source-row is-coming-soon" role="listitem">
+          <div className="settings-source-row is-coming-soon">
             <span className="settings-source-icon" aria-hidden="true">
               <MoreHorizontal size={18} />
             </span>

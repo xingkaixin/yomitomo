@@ -153,7 +153,7 @@ describe('ProviderForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '模型' })).toBeTruthy();
     expect(listProviderModels).toHaveBeenCalledOnce();
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ modelInputMode: 'list', modelName: 'gpt-5.2' }),
@@ -191,7 +191,7 @@ describe('ProviderForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '模型' })).toBeTruthy();
   });
 
   it('filters long fetched model lists in the model menu', () => {
@@ -208,13 +208,14 @@ describe('ProviderForm', () => {
       />,
     );
 
-    fireEvent.keyDown(screen.getByRole('combobox', { name: '模型' }), { key: 'ArrowDown' });
+    fireEvent.keyDown(screen.getByRole('button', { name: '模型' }), { key: 'ArrowDown' });
     const search = screen.getByLabelText('搜索模型') as HTMLInputElement;
     expect(document.activeElement).toBe(search);
     fireEvent.change(search, { target: { value: 'qwen' } });
 
     const listbox = screen.getByRole('listbox');
-    expect(within(listbox).getByText('qwen-max-latest')).toBeTruthy();
+    expect(within(listbox).getByRole('option', { name: 'qwen-max-latest' })).toBeTruthy();
+    expect(within(listbox).queryByRole('button', { name: 'qwen-max-latest' })).toBeNull();
     expect(within(listbox).queryByText('model-01')).toBeNull();
   });
 
@@ -820,7 +821,11 @@ describe('GeneralSettings', () => {
 
     expect(list).toBeTruthy();
     expect(screen.getByText('阅读库入口')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '切换电子书入口' })).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: '切换电子书入口，使用上下方向键调整顺序',
+      }),
+    ).toBeTruthy();
   });
 
   it('updates the save images setting', () => {
@@ -930,7 +935,9 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    const ebookItem = screen.getByRole('button', {
+      name: '切换电子书入口，使用上下方向键调整顺序',
+    });
     fireEvent.pointerDown(ebookItem, {
       button: 0,
       clientX: 130,
@@ -975,7 +982,11 @@ describe('GeneralSettings', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: '切换网页文章入口' }).getAttribute('aria-disabled'),
+      screen
+        .getByRole('button', {
+          name: '切换网页文章入口，使用上下方向键调整顺序',
+        })
+        .getAttribute('aria-disabled'),
     ).toBe('true');
   });
 
@@ -998,7 +1009,9 @@ describe('GeneralSettings', () => {
       />,
     );
 
-    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    const ebookItem = screen.getByRole('button', {
+      name: '切换电子书入口，使用上下方向键调整顺序',
+    });
     fireEvent.pointerDown(ebookItem, {
       button: 0,
       clientX: 130,
@@ -1019,6 +1032,44 @@ describe('GeneralSettings', () => {
           { id: 'web', enabled: true },
           { id: 'ebook', enabled: true },
           { id: 'pdf', enabled: true },
+          { id: 'weread', enabled: false },
+        ],
+      }),
+    );
+  });
+
+  it('reorders library entries with keyboard arrows', () => {
+    const onSave = vi.fn();
+    render(
+      <GeneralSettings
+        settingsDraft={{
+          libraryContentSources: [
+            { id: 'web', enabled: true },
+            { id: 'ebook', enabled: true },
+            { id: 'pdf', enabled: true },
+            { id: 'weread', enabled: false },
+          ],
+        }}
+        canSave={false}
+        onSettingsChange={vi.fn()}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.keyDown(
+      screen.getByRole('button', {
+        name: '切换电子书入口，使用上下方向键调整顺序',
+      }),
+      { key: 'ArrowDown' },
+    );
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        libraryContentSources: [
+          { id: 'web', enabled: true },
+          { id: 'pdf', enabled: true },
+          { id: 'ebook', enabled: true },
           { id: 'weread', enabled: false },
         ],
       }),
@@ -1067,7 +1118,9 @@ describe('GeneralSettings', () => {
         }) as DOMRect;
     });
 
-    const ebookItem = screen.getByRole('button', { name: '切换电子书入口' });
+    const ebookItem = screen.getByRole('button', {
+      name: '切换电子书入口，使用上下方向键调整顺序',
+    });
     fireEvent.pointerDown(ebookItem, {
       button: 0,
       clientX: 50,
@@ -1442,6 +1495,26 @@ describe('UserProfileSettingsDialog', () => {
 
     expect(dialog.classList.contains('source-aware-dialog')).toBe(true);
     expect(dialog.getAttribute('style')).toContain('--dialog-source-origin-x');
+  });
+
+  it('exposes the selected annotation color state', () => {
+    render(
+      <UserProfileSettingsDialog
+        draft={defaultUser}
+        canSave
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        saveState="idle"
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', { name: '选择颜色 #f4c95d' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(
+      screen.getByRole('button', { name: '选择颜色 #efa927' }).getAttribute('aria-pressed'),
+    ).toBe('false');
   });
 
   it('keeps the English username help copy compact', () => {

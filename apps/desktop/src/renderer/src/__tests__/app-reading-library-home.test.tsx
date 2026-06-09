@@ -306,8 +306,8 @@ describe('ReadingLibrary home', () => {
 
     expect(
       within(screen.getByRole('tablist', { name: '阅读库内容类型' }))
-        .getByRole('button', { name: /PDF/ })
-        .getAttribute('aria-pressed'),
+        .getByRole('tab', { name: /PDF/ })
+        .getAttribute('aria-selected'),
     ).toBe('true');
     expect(screen.getByText('共 1 份')).toBeTruthy();
   });
@@ -343,7 +343,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('共 2 篇')).toBeTruthy();
     expect(screen.queryByText(/网页文章 · 共/)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(
       container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
@@ -351,7 +351,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('共 1 本')).toBeTruthy();
     expect(screen.queryByText(/电子书 · 共/)).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: /网页文章/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /网页文章/ }));
 
     expect(
       container.querySelector('.library-home-body')?.getAttribute('data-source-transition'),
@@ -369,7 +369,7 @@ describe('ReadingLibrary home', () => {
       '较早文章',
     ]);
     expect(screen.queryByLabelText('0 条划线 · 0 条沉淀')).toBeNull();
-    expect(screen.getByRole('button', { name: /PDF/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
   });
 
@@ -520,7 +520,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(screen.queryByRole('button', { name: '书架' })).toBeNull();
     expect(screen.queryByRole('button', { name: '列表' })).toBeNull();
@@ -557,7 +557,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(screen.getAllByText('艾伦·图灵传——如谜的解谜者').length).toBeGreaterThan(0);
     expect(screen.queryByText(/87届奥斯卡/)).toBeNull();
@@ -585,7 +585,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
     expect(screen.queryByText(/豆瓣评分/)).toBeNull();
@@ -613,7 +613,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
 
     expect(screen.getAllByText('一个故事的99种讲法').length).toBeGreaterThan(0);
     expect(screen.queryByText(/浦睿文化出品/)).toBeNull();
@@ -643,7 +643,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
 
     expect(screen.getByText('共 1 份')).toBeTruthy();
     expect(screen.getByText('Basant Mounir; Farida Madkour et al.')).toBeTruthy();
@@ -677,11 +677,11 @@ describe('ReadingLibrary home', () => {
     renderLibrary([]);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /微信读书/ }).getAttribute('aria-disabled')).toBe(
+      expect(screen.getByRole('tab', { name: /微信读书/ }).getAttribute('aria-disabled')).toBe(
         'false',
       );
     });
-    fireEvent.click(screen.getByRole('button', { name: /微信读书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /微信读书/ }));
 
     expect(
       await screen.findByRole('button', { name: '打开微信读书笔记：微信读书标题' }),
@@ -714,9 +714,9 @@ describe('ReadingLibrary home', () => {
     });
 
     const sourceTabs = within(screen.getByRole('tablist', { name: '阅读库内容类型' }));
-    expect(sourceTabs.queryByRole('button', { name: /网页文章/ })).toBeNull();
-    expect(sourceTabs.getByRole('button', { name: /电子书/ })).toBeTruthy();
-    expect(sourceTabs.queryByRole('button', { name: /微信读书/ })).toBeNull();
+    expect(sourceTabs.queryByRole('tab', { name: /网页文章/ })).toBeNull();
+    expect(sourceTabs.getByRole('tab', { name: /电子书/ })).toBeTruthy();
+    expect(sourceTabs.queryByRole('tab', { name: /微信读书/ })).toBeNull();
     await waitFor(() => expect(syncWeRead).not.toHaveBeenCalled());
   });
 
@@ -742,7 +742,7 @@ describe('ReadingLibrary home', () => {
     const onReadArticle = vi.fn().mockResolvedValue(null);
     renderLibrary([pdfSummary], { onReadArticle });
 
-    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
     fireEvent.click(screen.getByRole('button', { name: '打开PDF：PDF 标题' }));
 
     await waitFor(() => {
@@ -871,7 +871,7 @@ describe('ReadingLibrary home', () => {
       }),
     ]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '打开电子书：电子书标题' }));
     expect(await screen.findByRole('button', { name: '返回阅读库' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '返回阅读库' }));
@@ -879,8 +879,8 @@ describe('ReadingLibrary home', () => {
     const sourceTabs = screen.getByRole('tablist', { name: '阅读库内容类型' });
     expect(
       within(sourceTabs)
-        .getByRole('button', { name: /电子书/ })
-        .getAttribute('aria-pressed'),
+        .getByRole('tab', { name: /电子书/ })
+        .getAttribute('aria-selected'),
     ).toBe('true');
     expect(screen.getByRole('button', { name: '打开电子书：电子书标题' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章：网页文章' })).toBeNull();
@@ -995,7 +995,7 @@ describe('ReadingLibrary home', () => {
   it('opens ebook import dialog from the ebook section action', () => {
     renderLibrary([]);
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
 
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -1026,7 +1026,7 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportEbookFile });
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
     const file = fileWithSize('book.epub', 1024);
     selectImportFile(container, 'library-ebook-file', file);
@@ -1082,7 +1082,7 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportEbookFile });
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
     const one = fileWithSize('one.epub', 1024);
     const two = fileWithSize('two.epub', 1024);
@@ -1130,7 +1130,7 @@ describe('ReadingLibrary home', () => {
       onReadArticle,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
     selectImportFile(container, 'library-ebook-file', fileWithSize('duplicate.epub', 1024));
 
@@ -1144,7 +1144,7 @@ describe('ReadingLibrary home', () => {
     const onImportEbookFile = vi.fn();
     const { container } = renderLibrary([], { onImportEbookFile });
 
-    fireEvent.click(screen.getByRole('button', { name: /电子书/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
     selectImportFile(container, 'library-ebook-file', fileWithSize('notes.txt', 1024));
 
@@ -1182,7 +1182,7 @@ describe('ReadingLibrary home', () => {
     });
     const { container } = renderLibrary([], { onImportPdfFile });
 
-    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
     const file = fileWithSize('paper.pdf', 2048);
     selectImportFile(container, 'library-pdf-file', file);
@@ -1223,7 +1223,7 @@ describe('ReadingLibrary home', () => {
       onReadArticle,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
     selectImportFile(container, 'library-pdf-file', fileWithSize('duplicate.pdf', 2048));
 
@@ -1237,7 +1237,7 @@ describe('ReadingLibrary home', () => {
     const onImportPdfFile = vi.fn();
     const { container } = renderLibrary([], { onImportPdfFile });
 
-    fireEvent.click(screen.getByRole('button', { name: /PDF/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /PDF/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加 PDF' }));
     selectImportFile(container, 'library-pdf-file', fileWithSize('book.epub', 1024));
 

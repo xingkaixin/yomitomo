@@ -1075,6 +1075,7 @@ const resources = {
           moreTypes: '更多类型',
           comingSoon: '敬请期待',
           toggleEntrance: '切换{{label}}入口',
+          libraryEntranceControl: '切换{{label}}入口，使用上下方向键调整顺序',
         },
         data: {
           trailRoot: '设置',
@@ -2455,6 +2456,7 @@ const resources = {
           moreTypes: 'More types',
           comingSoon: 'Coming soon',
           toggleEntrance: 'Toggle {{label}} entry',
+          libraryEntranceControl: 'Toggle {{label}} entry, use Up and Down arrows to reorder',
         },
         data: {
           trailRoot: 'Settings',

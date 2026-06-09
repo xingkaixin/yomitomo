@@ -1307,9 +1307,23 @@
   transform: translateY(-2px);
 }
 
-.library-card:focus-visible {
+.library-card:focus-within {
   outline: 2px solid hsl(79 24% 46% / 0.62);
   outline-offset: 3px;
+}
+
+.library-card-open-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.library-card-open-surface:focus-visible {
+  outline: 0;
 }
 
 .library-card-top-actions {
