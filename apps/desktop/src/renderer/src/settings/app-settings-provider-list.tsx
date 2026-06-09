@@ -163,6 +163,7 @@ function ProviderCard({
                 }
                 type="button"
                 role="menuitem"
+                aria-label={t('settings.models.holdDeleteProviderAria', { name: displayName })}
                 onPointerCancel={clearDeleteTimer}
                 onPointerDown={startDeleteHold}
                 onPointerLeave={clearDeleteTimer}
@@ -173,7 +174,7 @@ function ProviderCard({
                 onKeyUp={clearDeleteTimer}
               >
                 <Trash2 size={14} />
-                {t('settings.models.holdDelete')}
+                {t('settings.models.holdDeleteProvider')}
               </button>
             </div>
           ) : null}

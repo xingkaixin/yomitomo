@@ -522,7 +522,10 @@ describe('ProviderSettings', () => {
     );
 
     fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
-    const deleteButton = screen.getByRole('menuitem', { name: '长按删除' });
+    const deleteButton = screen.getByRole('menuitem', {
+      name: /会删除供应商配置和系统安全凭据库中的 API Key/,
+    });
+    expect(deleteButton.textContent).toContain('长按删除供应商');
     fireEvent.pointerDown(deleteButton);
     expect(deleteButton.className).toContain('is-holding-delete');
     fireEvent.pointerUp(deleteButton);
@@ -1187,6 +1190,41 @@ describe('WeReadSettingsPanel', () => {
     expect(apiKeyInput.type).toBe('text');
     expect(readWeReadApiKey).toHaveBeenCalledOnce();
   });
+
+  it('confirms before deleting the stored api key', async () => {
+    const saveWeReadSettings = vi.fn().mockResolvedValue({
+      settings: { configured: false, openMethod: 'deeplink' },
+      books: [],
+    });
+    Object.defineProperty(window, 'yomitomoDesktop', {
+      configurable: true,
+      value: {
+        getWeReadState: vi.fn().mockResolvedValue({
+          settings: { configured: true, openMethod: 'deeplink' },
+          books: [],
+        }),
+        saveWeReadSettings,
+      },
+    });
+
+    render(<WeReadSettingsPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '删除已保存 Key' }));
+    expect(screen.getByRole('dialog', { name: '删除微信读书 API Key？' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
+    expect(saveWeReadSettings).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '删除已保存 Key' }));
+    const dialog = screen.getByRole('dialog', { name: '删除微信读书 API Key？' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '删除已保存 Key' }));
+
+    await waitFor(() =>
+      expect(saveWeReadSettings).toHaveBeenCalledWith({
+        removeApiKey: true,
+        openMethod: 'deeplink',
+      }),
+    );
+  });
 });
 
 describe('ShortcutSettings', () => {
@@ -1429,11 +1467,42 @@ describe('DataManagementSettings', () => {
     await waitFor(() => expect(desktop.backupDatabase).toHaveBeenCalledOnce());
     expect(await screen.findByText(/数据库已备份到/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: '还原数据库' }));
+    fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
+    expect(screen.getByRole('dialog', { name: '从备份还原数据库？' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
+    expect(desktop.restoreDatabase).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '从备份还原数据库' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '从备份还原数据库？' })).getByRole('button', {
+        name: '选择备份并还原',
+      }),
+    );
     await waitFor(() => expect(desktop.restoreDatabase).toHaveBeenCalledOnce());
     expect(onStoreUpdated).toHaveBeenCalledWith(
       expect.objectContaining({ settings: expect.objectContaining({ logRetentionDays: 90 }) }),
     );
+  });
+
+  it('confirms before clearing the log file', async () => {
+    const desktop = installDesktopDataApi();
+
+    render(<DataManagementSettings settings={{}} onStoreUpdated={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '清空日志文件' }));
+    expect(screen.getByRole('dialog', { name: '清空日志文件？' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
+    expect(desktop.clearLog).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '清空日志文件' }));
+    fireEvent.click(
+      within(screen.getByRole('dialog', { name: '清空日志文件？' })).getByRole('button', {
+        name: '清空日志文件',
+      }),
+    );
+
+    await waitFor(() => expect(desktop.clearLog).toHaveBeenCalledOnce());
+    expect(await screen.findByText('日志文件已清空。')).toBeTruthy();
   });
 });
 

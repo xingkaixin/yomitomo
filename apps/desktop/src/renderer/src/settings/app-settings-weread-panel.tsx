@@ -17,6 +17,7 @@ import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { SettingsGroup, SettingsPage, SettingsRadioDot } from './app-settings-kit';
+import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { useTranslation } from 'react-i18next';
 
 const WEREAD_API_KEY_HELP_URLS = {
@@ -38,6 +39,7 @@ export function WeReadSettingsPanel() {
   const [openMethodSaveError, setOpenMethodSaveError] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [openMethodSaveState, setOpenMethodSaveState] = useState<SaveState>('idle');
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [testState, setTestState] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
   const revealRequestRef = useRef(0);
@@ -81,6 +83,7 @@ export function WeReadSettingsPanel() {
 
   async function removeStoredApiKey() {
     if (!window.yomitomoDesktop || !settings.configured) return;
+    setRemoveConfirmOpen(false);
     setSaveState('saving');
     setApiKeyMessage('');
     try {
@@ -306,7 +309,7 @@ export function WeReadSettingsPanel() {
             disabled={!canRemove}
             type="button"
             variant="secondary"
-            onClick={removeStoredApiKey}
+            onClick={() => setRemoveConfirmOpen(true)}
           >
             <Trash2 size={15} />
             {t('settings.weread.remove')}
@@ -323,6 +326,15 @@ export function WeReadSettingsPanel() {
           <p className="settings-error-text">{testMessage}</p>
         ) : null}
       </SettingsGroup>
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('settings.weread.removeConfirm')}
+        description={t('settings.weread.removeConfirmDescription')}
+        open={removeConfirmOpen}
+        title={t('settings.weread.removeConfirmTitle')}
+        onCancel={() => setRemoveConfirmOpen(false)}
+        onConfirm={() => void removeStoredApiKey()}
+      />
 
       <SettingsGroup
         label={t('settings.weread.openMethodGroup')}

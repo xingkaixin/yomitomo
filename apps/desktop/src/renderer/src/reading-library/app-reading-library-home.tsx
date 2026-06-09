@@ -738,7 +738,7 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
               style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
               type="button"
               role="menuitem"
-              aria-label={t('library.actions.deleteHold', { title })}
+              aria-label={t('library.actions.deleteArticleHoldAria', { title })}
               onClick={(event) => event.preventDefault()}
               onContextMenu={(event) => event.preventDefault()}
               onPointerCancel={stopDeleteHold}
@@ -747,7 +747,7 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
               onPointerUp={stopDeleteHold}
             >
               <Trash2 size={14} />
-              <span>{t('library.actions.deleteHoldLabel')}</span>
+              <span>{t('library.actions.deleteArticleHoldLabel')}</span>
             </button>
           </div>
         ) : null}
