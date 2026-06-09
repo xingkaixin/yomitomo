@@ -1344,12 +1344,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .agent-list-line-bubble {
-    animation: none;
-  }
-}
-
 .detail-pane {
   min-width: 0;
   border-radius: 18px;
@@ -1934,6 +1928,39 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .agent-list-line-bubble,
+  .provider-test-status,
+  .save-action.is-saved,
+  .auto-save-status.is-saved,
+  .activity-stamp.status-today,
+  .onboarding-screen::after,
+  .onboarding-background,
+  .onboarding-enter-button {
+    animation: none;
+  }
+
+  .settings-toggle-switch::after {
+    transition-duration: 1ms;
+    transition-timing-function: linear;
+  }
+
+  .onboarding-line {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+    transition-duration: 0ms;
+  }
+
+  .onboarding-screen::after {
+    opacity: 0;
+  }
+
+  .onboarding-background {
+    filter: brightness(1) saturate(1.04) contrast(1.02);
+  }
+}
+
 .field-copy {
   display: grid;
   gap: 4px;
@@ -1987,13 +2014,6 @@
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 760;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .settings-toggle-switch::after {
-    transition-duration: 1ms;
-    transition-timing-function: linear;
-  }
 }
 
 .shortcut-conflict-badge {
@@ -5636,28 +5656,5 @@ button.license-package-row:hover {
 
   .onboarding-enter-button {
     height: 44px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .onboarding-screen::after,
-  .onboarding-background,
-  .onboarding-enter-button {
-    animation: none;
-  }
-
-  .onboarding-line {
-    opacity: 1;
-    filter: blur(0);
-    transform: none;
-    transition-duration: 0ms;
-  }
-
-  .onboarding-screen::after {
-    opacity: 0;
-  }
-
-  .onboarding-background {
-    filter: brightness(1) saturate(1.04) contrast(1.02);
   }
 }
