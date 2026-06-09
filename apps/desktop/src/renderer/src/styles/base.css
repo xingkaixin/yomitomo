@@ -1,6 +1,8 @@
 @layer base {
   :root {
-    --font-ui: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei UI', system-ui, sans-serif;
+    --font-ui:
+      'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', system-ui, -apple-system,
+      BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     --font-reader-serif: 'Source Serif 4', 'Noto Serif SC', 'Songti SC', Georgia, serif;
     --background: 0 0% 98%;

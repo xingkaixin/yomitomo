@@ -3,6 +3,7 @@ import { timestamp } from '@yomitomo/core';
 import type { ReaderSettings } from './reader-types';
 
 export const defaultReaderBackgroundColor = '#fffdf8';
+export const readerBodyLineHeight = '1.78';
 
 export type ReaderBackgroundTone = 'light' | 'dark';
 

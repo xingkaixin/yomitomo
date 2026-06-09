@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { readerBodyLineHeight } from './reader-settings';
 import {
   readerConversationStyles,
   readerDesktopEmbeddedStyles,
@@ -48,6 +49,12 @@ describe('reader embedded styles', () => {
     );
     expect(readerStyles).not.toContain(
       '.reader-markdown blockquote{margin:8px 0;padding-left:10px;border-left:3px solid rgba(159,91,80,.28);color:#5d5147}',
+    );
+  });
+
+  it('uses the shared body line height for article reading', () => {
+    expect(readerStyles).toContain(
+      `.reader-article{position:relative;z-index:1;padding:56px 64px;border:1px solid var(--app-reader-note-border);border-radius:22px;background:var(--reader-paper);box-shadow:var(--app-reader-note-shadow);font-size:var(--reader-font-size);line-height:${readerBodyLineHeight};`,
     );
   });
 
