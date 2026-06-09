@@ -62,10 +62,8 @@ function ArticleContent({
 }
 
 function AnnotationRail({
-  activeAnnotationId,
   onActivate,
 }: {
-  activeAnnotationId: string | null;
   onActivate: (id: string | null) => void;
 }) {
   return (
@@ -78,7 +76,7 @@ function AnnotationRail({
           <AnnotationCard
             key={annotation.id}
             annotation={annotation}
-            isActive={activeAnnotationId === annotation.id}
+            
             onActivate={onActivate}
           />
         ))}
@@ -117,10 +115,8 @@ function AnnotationRail({
 }
 
 function MobileAnnotations({
-  activeAnnotationId,
   onActivate,
 }: {
-  activeAnnotationId: string | null;
   onActivate: (id: string | null) => void;
 }) {
   return (
@@ -133,7 +129,7 @@ function MobileAnnotations({
           <AnnotationCard
             key={annotation.id}
             annotation={annotation}
-            isActive={activeAnnotationId === annotation.id}
+            
             onActivate={onActivate}
           />
         ))}
@@ -191,13 +187,11 @@ export default function ReaderArticle() {
           </div>
           <div className="w-[340px] shrink-0 pt-12">
             <AnnotationRail
-              activeAnnotationId={activeAnnotationId}
               onActivate={handleActivate}
             />
           </div>
         </div>
         <MobileAnnotations
-          activeAnnotationId={activeAnnotationId}
           onActivate={handleActivate}
         />
       </main>

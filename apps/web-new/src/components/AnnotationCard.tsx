@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Layers2 } from 'lucide-react';
+import { Layers2 } from 'lucide-react';
 import {
   ReadonlyAnnotationCard,
   type ReadonlyAnnotationCardAuthor,
@@ -10,11 +10,9 @@ import DiscussionModal from './DiscussionModal';
 
 type AnnotationCardProps = {
   annotation: Annotation;
-  isActive: boolean;
   onActivate: (id: string | null) => void;
 };
 
-/** Map article data author to ReadonlyAnnotationCard's author shape. */
 function toAuthor(author: Annotation['author']): ReadonlyAnnotationCardAuthor {
   return {
     color: author.color,
@@ -23,69 +21,14 @@ function toAuthor(author: Annotation['author']): ReadonlyAnnotationCardAuthor {
   };
 }
 
-/** Map article comments to ReadonlyAnnotationCard thoughts. */
-function toThoughts(annotation: Annotation): ReadonlyAnnotationCardThought[] {
-  if (annotation.type === 'note' && annotation.content) {
-    return [
-      {
-        id: `${annotation.id}-thought`,
-        author: toAuthor(annotation.author),
-        content: annotation.content,
-        createdAt: annotation.createdAt,
-      },
-    ];
-  }
-  return [];
-}
-
-// ── Note Card ──────────────────────────────────────────
-
-function NoteCard({ annotation }: { annotation: Annotation }) {
-  return (
-    <ReadonlyAnnotationCard
-      id={annotation.id}
-      quote={annotation.quote}
-      author={toAuthor(annotation.author)}
-      createdAt={annotation.createdAt}
-      thoughts={toThoughts(annotation)}
-    />
-  );
-}
-
-// ── Discussion Card ────────────────────────────────────
-
-function DiscussionCard({
-  annotation,
-  onOpenDiscussion,
-}: {
-  annotation: Annotation;
-  onOpenDiscussion: () => void;
-}) {
-  const thoughts: ReadonlyAnnotationCardThought[] = (annotation.comments ?? []).map((c) => ({
-    id: c.id,
-    author: {
-      color: c.author.color,
-      fallback: c.author.initials,
-      name: c.author.name,
-    },
-    content: c.content,
+/** Build placeholder thoughts so ReadonlyAnnotationCard shows the count badge. */
+function countOnlyThoughts(annotation: Annotation): ReadonlyAnnotationCardThought[] {
+  return annotation.thoughts.map((t) => ({
+    id: t.id,
+    author: { color: t.author.color, fallback: t.author.initials, name: t.author.name },
+    content: '',
     createdAt: annotation.createdAt,
   }));
-
-  return (
-    <ReadonlyAnnotationCard
-      id={annotation.id}
-      quote={annotation.quote}
-      author={toAuthor(annotation.author)}
-      createdAt={annotation.createdAt}
-      thoughts={thoughts}
-      action={{
-        icon: <MessageCircle size={14} />,
-        label: '进入讨论区',
-        onClick: onOpenDiscussion,
-      }}
-    />
-  );
 }
 
 // ── Distillation Card (mirrors desktop AnnotationCard has-distillation) ──
@@ -99,7 +42,6 @@ function DistillationCard({ annotation }: { annotation: Annotation }) {
       } as React.CSSProperties}
     >
       <div className="reader-note-body">
-        {/* SVG ticket shape — identical to desktop reader-annotation-card.tsx */}
         <svg
           className="reader-note-distillation-ticket"
           viewBox="0 0 560 340"
@@ -175,6 +117,9 @@ export default function AnnotationCard({
     return () => observer.disconnect();
   }, []);
 
+  const isDistillation = annotation.type === 'distillation';
+  const hasDiscussion = annotation.type !== 'distillation' && annotation.thoughts.length > 0;
+
   return (
     <>
       <div
@@ -183,23 +128,31 @@ export default function AnnotationCard({
         className="reveal"
         onClick={() => onActivate(annotation.id)}
       >
-        {annotation.type === 'note' && <NoteCard annotation={annotation} />}
-        {annotation.type === 'discussion' && (
-          <DiscussionCard
-            annotation={annotation}
-            onOpenDiscussion={() => setModalOpen(true)}
-          />
-        )}
-        {annotation.type === 'distillation' && (
+        {isDistillation ? (
           <DistillationCard annotation={annotation} />
+        ) : (
+          <ReadonlyAnnotationCard
+            id={annotation.id}
+            quote={annotation.quote}
+            author={toAuthor(annotation.author)}
+            createdAt={annotation.createdAt}
+            thoughts={countOnlyThoughts(annotation)}
+            action={
+              hasDiscussion
+                ? {
+                    label: '进入讨论区',
+                    onClick: () => setModalOpen(true),
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
 
-      {annotation.type === 'discussion' && annotation.comments && (
+      {hasDiscussion && (
         <DiscussionModal
           open={modalOpen}
-          quote={annotation.quote}
-          comments={annotation.comments}
+          annotation={annotation}
           onClose={() => setModalOpen(false)}
         />
       )}
