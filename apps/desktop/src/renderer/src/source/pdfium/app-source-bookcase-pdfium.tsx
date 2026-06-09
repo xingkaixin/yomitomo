@@ -142,8 +142,11 @@ function debugComputedStyle(element: Element | null) {
   const style = window.getComputedStyle(element);
   return {
     display: style.display,
+    height: style.height,
     left: style.left,
+    minHeight: style.minHeight,
     opacity: style.opacity,
+    overflow: style.overflow,
     position: style.position,
     top: style.top,
     transform: style.transform,
@@ -665,6 +668,9 @@ function PdfiumDocument({
       const viewport = canvas?.querySelector<HTMLElement>('.pdfium-spike-viewport') ?? null;
       const firstPage = canvas?.querySelector<HTMLElement>('[data-pdfium-page-index]') ?? null;
       const readerApp = canvas?.closest<HTMLElement>('.reader-app') ?? null;
+      const readerMain = canvas?.closest<HTMLElement>('.reader-main') ?? null;
+      const pdfReaderMain = canvas?.closest<HTMLElement>('.pdf-reader-main') ?? null;
+      const shell = canvas?.closest<HTMLElement>('.source-pdf-reader-shell') ?? null;
 
       debugPdfLayout('empty-state', {
         annotationCount: annotations.length,
@@ -677,8 +683,14 @@ function PdfiumDocument({
         layout: annotationRailLayout ?? null,
         layoutPageWidth,
         pageMetricKeys: Object.keys(pageMetrics),
+        pdfReaderMainComputed: debugComputedStyle(pdfReaderMain),
+        pdfReaderMainRect: debugRect(pdfReaderMain?.getBoundingClientRect()),
         railComputed: debugComputedStyle(rail),
         railRect: debugRect(rail?.getBoundingClientRect()),
+        readerMainComputed: debugComputedStyle(readerMain),
+        readerMainRect: debugRect(readerMain?.getBoundingClientRect()),
+        shellComputed: debugComputedStyle(shell),
+        shellRect: debugRect(shell?.getBoundingClientRect()),
         surfaceRect: debugRect(surface?.getBoundingClientRect()),
         viewportHeight: annotationRailViewportHeight,
         viewportRect: debugRect(viewport?.getBoundingClientRect()),

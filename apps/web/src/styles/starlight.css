@@ -1,4 +1,9 @@
 :root {
+  --app-viewport-height: 100vh;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-inline-start: env(safe-area-inset-left, 0px);
+  --safe-inline-end: env(safe-area-inset-right, 0px);
   --sl-font:
     -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', 'Segoe UI', system-ui,
     sans-serif;
@@ -19,6 +24,12 @@
   --sl-color-accent-low: #f6d8d4;
   --sl-color-accent: #a43f37;
   --sl-color-accent-high: #5b1b16;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-viewport-height: 100dvh;
+  }
 }
 
 :root[data-theme='light'] {
@@ -42,7 +53,7 @@
 
 .header {
   height: auto;
-  padding: 0;
+  padding: var(--safe-top) var(--safe-inline-end) 0 var(--safe-inline-start);
   border-bottom: 1px solid hsl(0 0% 100% / 0.68);
   background: hsl(0 0% 98% / 0.74);
   box-shadow: 0 12px 30px hsl(0 0% 0% / 0.05);
@@ -187,7 +198,7 @@ h1#_top {
 @media (min-width: 50rem) {
   .sidebar-pane {
     inset-block-end: auto;
-    max-height: calc(100vh - var(--sl-nav-height));
+    max-height: calc(var(--app-viewport-height) - var(--sl-nav-height) - var(--safe-bottom));
   }
 
   .sidebar-content {
@@ -196,7 +207,7 @@ h1#_top {
 
   .content-panel:has(.site-footer) > .sl-container {
     display: flex;
-    min-height: calc(100vh - var(--sl-nav-height));
+    min-height: calc(var(--app-viewport-height) - var(--sl-nav-height) - var(--safe-bottom));
     flex-direction: column;
   }
 

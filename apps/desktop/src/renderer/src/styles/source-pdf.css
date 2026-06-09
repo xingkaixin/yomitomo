@@ -9,9 +9,11 @@
   --reader-yellow: var(--app-reader-accent);
   --reader-yellow-strong: var(--app-reader-accent-strong);
   --ebook-content-width: 100%;
+  --pdf-reader-toolbar-height: 66px;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
+  height: 100%;
   min-height: 0;
   background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
   background-size: var(--app-paper-pattern-size) var(--app-paper-pattern-size);
@@ -26,6 +28,7 @@
 
 .pdf-reader-main {
   position: relative;
+  height: 100%;
   min-height: 0;
   border: 0;
   background: var(--app-paper-pattern-image), var(--app-paper-pattern-bg);
@@ -40,7 +43,7 @@
 .source-pdf-reader-shell .reader-toolbar {
   position: relative;
   z-index: 20;
-  min-height: 66px;
+  min-height: var(--pdf-reader-toolbar-height);
   border-bottom: 0;
   background: hsl(var(--card));
   padding: 12px var(--reader-titlebar-padding-right) 12px var(--reader-titlebar-back-left);
@@ -62,6 +65,8 @@
 }
 
 .source-pdf-reader-shell .reader-main {
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
 }
 
@@ -142,14 +147,43 @@
   height: 100%;
 }
 
+.source-pdfium-spike-reader .reader-app {
+  grid-template-rows: var(--pdf-reader-toolbar-height) minmax(0, 1fr);
+  height: var(--app-viewport-height);
+}
+
+.source-pdfium-spike-reader .reader-main {
+  height: calc(var(--app-viewport-height) - var(--pdf-reader-toolbar-height));
+}
+
 .source-pdfium-spike-reader .reader-surface {
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   padding: 18px 0 12px;
 }
 
+.source-pdfium-spike-reader .reader-toc {
+  position: absolute;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.source-pdfium-spike-reader .reader-surface-frame {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.source-pdfium-spike-reader .reader-surface-frame,
+.source-pdfium-spike-reader .reader-canvas {
+  height: 100%;
+  min-height: 0;
+}
+
 .source-pdfium-spike-reader .reader-article {
   width: 100%;
-  height: calc(100vh - 118px);
+  height: 100%;
+  min-height: 0;
 }
 
 .source-pdfium-spike-reader .reader-annotation-rail {
@@ -157,7 +191,7 @@
 }
 
 .source-pdfium-spike-reader .reader-annotation-rail > .reader-note {
-  max-height: min(72vh, 560px);
+  max-height: min(calc(var(--app-viewport-height) * 0.72), 560px);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
