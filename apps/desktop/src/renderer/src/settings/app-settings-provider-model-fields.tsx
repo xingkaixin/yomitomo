@@ -1,4 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Keyboard, RefreshCw, Search } from 'lucide-react';
 import type { ProviderDraft } from './app-settings';
@@ -97,9 +105,11 @@ function ProviderModelPicker({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const [menuPosition, setMenuPosition] = useState<ProviderModelMenuPosition | null>(null);
   const selectedModel = models.includes(modelName) ? modelName : '';
   const filteredModels = useMemo(() => {
@@ -111,6 +121,13 @@ function ProviderModelPicker({
   useEffect(() => {
     setQuery('');
   }, [models]);
+
+  useEffect(() => {
+    optionRefs.current = [];
+    setActiveIndex((current) =>
+      filteredModels.length === 0 ? 0 : Math.min(current, filteredModels.length - 1),
+    );
+  }, [filteredModels]);
 
   useEffect(() => {
     if (!open) return;
@@ -128,8 +145,12 @@ function ProviderModelPicker({
 
   useEffect(() => {
     if (!open) return;
-    searchRef.current?.focus();
-  }, [open]);
+    if (models.length > 8) {
+      searchRef.current?.focus();
+      return;
+    }
+    optionRefs.current[activeIndex]?.focus();
+  }, [activeIndex, models.length, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -154,6 +175,7 @@ function ProviderModelPicker({
 
   function openPicker() {
     setMenuPosition(providerModelMenuPosition(triggerRef.current, models.length > 8));
+    setActiveIndex(Math.max(0, models.indexOf(selectedModel)));
     setOpen(true);
   }
 
@@ -162,17 +184,61 @@ function ProviderModelPicker({
     closePicker();
   }
 
+  function focusOption(index: number) {
+    setActiveIndex(index);
+    optionRefs.current[index]?.focus();
+  }
+
+  function moveActiveOption(direction: -1 | 1) {
+    if (filteredModels.length === 0) return;
+    const nextIndex = (activeIndex + direction + filteredModels.length) % filteredModels.length;
+    focusOption(nextIndex);
+  }
+
+  function handleOptionsKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      moveActiveOption(1);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      moveActiveOption(-1);
+      return;
+    }
+    if (event.key === 'Home') {
+      event.preventDefault();
+      focusOption(0);
+      return;
+    }
+    if (event.key === 'End') {
+      event.preventDefault();
+      focusOption(Math.max(0, filteredModels.length - 1));
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      const model = filteredModels[activeIndex];
+      if (model) selectModel(model);
+      return;
+    }
+    if (event.key === 'Escape') {
+      closePicker();
+      triggerRef.current?.focus();
+    }
+  }
+
   return (
     <div className="provider-model-picker" ref={rootRef}>
       <button
         aria-controls={listboxId}
         aria-expanded={open}
+        aria-haspopup="listbox"
         aria-labelledby={labelledBy}
         className="provider-model-trigger"
         disabled={models.length === 0}
         id={id}
         ref={triggerRef}
-        role="combobox"
         type="button"
         onClick={() => {
           if (open) {
@@ -217,6 +283,10 @@ function ProviderModelPicker({
                     onChange={(event) => setQuery(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Escape') closePicker();
+                      if (event.key === 'ArrowDown' && filteredModels.length > 0) {
+                        event.preventDefault();
+                        focusOption(activeIndex);
+                      }
                     }}
                   />
                 </div>
@@ -225,19 +295,31 @@ function ProviderModelPicker({
                 className="provider-model-options"
                 id={listboxId}
                 role="listbox"
+                aria-activedescendant={
+                  filteredModels[activeIndex]
+                    ? providerModelOptionId(listboxId, activeIndex)
+                    : undefined
+                }
                 style={{ maxHeight: menuPosition.optionsMaxHeight }}
+                tabIndex={models.length > 8 ? -1 : 0}
+                onKeyDown={handleOptionsKeyDown}
               >
-                {filteredModels.map((model) => (
-                  <button
+                {filteredModels.map((model, index) => (
+                  <div
                     aria-selected={model === selectedModel}
                     className="provider-model-option"
+                    id={providerModelOptionId(listboxId, index)}
                     key={model}
                     role="option"
-                    type="button"
+                    ref={(element) => {
+                      optionRefs.current[index] = element;
+                    }}
+                    tabIndex={index === activeIndex ? 0 : -1}
                     onClick={() => selectModel(model)}
+                    onMouseEnter={() => setActiveIndex(index)}
                   >
                     {model}
-                  </button>
+                  </div>
                 ))}
               </div>
               {filteredModels.length === 0 ? (
@@ -295,4 +377,8 @@ function providerModelMenuPosition(
     top,
     width,
   };
+}
+
+function providerModelOptionId(listboxId: string, index: number) {
+  return `${listboxId}-option-${index}`;
 }

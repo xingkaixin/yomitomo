@@ -113,6 +113,8 @@ export function LibraryHome({
     normalizeLibraryPageSize(settings.libraryPageSize),
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const sourceTabRefs = useRef(new Map<LibrarySource, HTMLButtonElement>());
+  const pendingSourceFocusRef = useRef<LibrarySource | null>(null);
   const sourceOptions = useMemo(() => libraryContentSourceOptions(settings), [settings]);
   const filteredArticles = useMemo(
     () =>
@@ -131,6 +133,7 @@ export function LibraryHome({
   );
   const activeItemsLength =
     activeSource === 'weread' ? filteredWeReadBooks.length : sourceArticles.length;
+  const activeSourcePanelId = librarySourcePanelId(activeSource);
   const pageCount = Math.max(1, Math.ceil(activeItemsLength / pageSize));
   const pageArticles = sourceArticles.slice((page - 1) * pageSize, page * pageSize);
   const pageWeReadBooks = filteredWeReadBooks.slice((page - 1) * pageSize, page * pageSize);
@@ -165,6 +168,10 @@ export function LibraryHome({
   useEffect(() => {
     setPageTransitionDirection('none');
     setPage(1);
+    if (pendingSourceFocusRef.current === activeSource) {
+      pendingSourceFocusRef.current = null;
+      sourceTabRefs.current.get(activeSource)?.focus();
+    }
   }, [activeSource, pageSize, searchQuery]);
 
   useEffect(() => {
@@ -192,28 +199,61 @@ export function LibraryHome({
             className="library-source-tabs"
             role="tablist"
             aria-label={t('library.sourceTabsLabel')}
+            onKeyDown={(event) => {
+              if (
+                event.key !== 'ArrowLeft' &&
+                event.key !== 'ArrowRight' &&
+                event.key !== 'Home' &&
+                event.key !== 'End'
+              )
+                return;
+              event.preventDefault();
+              const enabledOptions = sourceOptions.filter(
+                (item) => item.value !== 'weread' || wereadSettings.configured,
+              );
+              if (enabledOptions.length === 0) return;
+              const currentIndex = Math.max(
+                0,
+                enabledOptions.findIndex((item) => item.value === activeSource),
+              );
+              const nextIndex =
+                event.key === 'Home'
+                  ? 0
+                  : event.key === 'End'
+                    ? enabledOptions.length - 1
+                    : event.key === 'ArrowRight'
+                      ? (currentIndex + 1) % enabledOptions.length
+                      : (currentIndex - 1 + enabledOptions.length) % enabledOptions.length;
+              const nextSource = enabledOptions[nextIndex].value;
+              pendingSourceFocusRef.current = nextSource;
+              onActiveSourceChange(nextSource);
+            }}
           >
             {sourceOptions.map((option) => {
-              const disabledReason =
-                option.value === 'weread' && !wereadSettings.configured
-                  ? t('library.weReadSetupTooltip')
-                  : undefined;
+              const selected = activeSource === option.value;
+              const unavailable = option.value === 'weread' && !wereadSettings.configured;
+              const disabledReason = unavailable ? t('library.weReadSetupTooltip') : undefined;
               return (
                 <button
-                  aria-pressed={activeSource === option.value}
-                  aria-disabled={option.value === 'weread' && !wereadSettings.configured}
-                  className={[
-                    activeSource === option.value ? 'is-active' : '',
-                    option.value === 'weread' && !wereadSettings.configured ? 'is-disabled' : '',
-                  ]
+                  aria-controls={librarySourcePanelId(option.value)}
+                  aria-disabled={unavailable}
+                  aria-selected={selected}
+                  className={[selected ? 'is-active' : '', unavailable ? 'is-disabled' : '']
                     .filter(Boolean)
                     .join(' ')}
                   data-tooltip={disabledReason}
+                  id={librarySourceTabId(option.value)}
+                  ref={(element) => {
+                    if (element) sourceTabRefs.current.set(option.value, element);
+                    else sourceTabRefs.current.delete(option.value);
+                  }}
+                  role="tab"
+                  tabIndex={selected ? 0 : -1}
                   title={disabledReason}
                   key={option.value}
                   type="button"
                   onClick={() => {
-                    if (option.value === 'weread' && !wereadSettings.configured) return;
+                    if (unavailable) return;
                     onActiveSourceChange(option.value);
                   }}
                 >
@@ -267,6 +307,9 @@ export function LibraryHome({
       <div className="library-home-body" data-source-transition={sourceTransitionDirection}>
         <div
           className="library-source-panel"
+          id={activeSourcePanelId}
+          role="tabpanel"
+          aria-labelledby={librarySourceTabId(activeSource)}
           data-page-transition={pageTransitionDirection}
           key={activeSource}
         >
@@ -423,14 +466,13 @@ function WebArticleListItem({
   const title = articleDisplayTitle(article);
 
   return (
-    <article
-      className="library-list-item library-web-item"
-      role="button"
-      tabIndex={0}
-      aria-label={t('library.actions.openArticle', { title })}
-      onClick={onOpen}
-      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
-    >
+    <article className="library-list-item library-web-item">
+      <button
+        className="library-list-item-open"
+        type="button"
+        aria-label={t('library.actions.openArticle', { title })}
+        onClick={onOpen}
+      />
       <div className="library-web-item-cover" aria-hidden="true">
         <ArticleBook article={article} />
         <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
@@ -467,17 +509,16 @@ function LibraryDocumentListItem({
   const title = articleDisplayTitle(article);
 
   return (
-    <article
-      className="library-list-item library-ebook-list-item"
-      role="button"
-      tabIndex={0}
-      aria-label={t('library.actions.openDocument', {
-        title,
-        type: article.sourceType === 'pdf' ? 'PDF' : t('library.fallback.ebook'),
-      })}
-      onClick={onOpen}
-      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
-    >
+    <article className="library-list-item library-ebook-list-item">
+      <button
+        className="library-list-item-open"
+        type="button"
+        aria-label={t('library.actions.openDocument', {
+          title,
+          type: article.sourceType === 'pdf' ? 'PDF' : t('library.fallback.ebook'),
+        })}
+        onClick={onOpen}
+      />
       <div className="library-ebook-cover-column">
         <ArticleBook article={article} />
         <LibraryCoverProgress progress={article.readingProgress?.progress ?? 0} />
@@ -522,14 +563,13 @@ function WeReadBookListItem({
   const { t, i18n } = useTranslation();
   const lastReadAt = formatWeReadLastReadDate(book.lastReadAt, i18n.language);
   return (
-    <article
-      className="library-list-item library-ebook-list-item"
-      role="button"
-      tabIndex={0}
-      aria-label={t('library.actions.openWeRead', { title: book.title })}
-      onClick={onOpen}
-      onKeyDown={(event) => openItemWithKeyboard(event, onOpen)}
-    >
+    <article className="library-list-item library-ebook-list-item">
+      <button
+        className="library-list-item-open"
+        type="button"
+        aria-label={t('library.actions.openWeRead', { title: book.title })}
+        onClick={onOpen}
+      />
       <div className="library-ebook-cover-column">
         <WeReadCover book={book} />
         <LibraryCoverProgress progress={book.readingProgress / 100} />
@@ -773,18 +813,19 @@ function libraryCountStatsLabel(
   });
 }
 
-function openItemWithKeyboard(event: React.KeyboardEvent<HTMLElement>, onOpen: () => void) {
-  if (event.target !== event.currentTarget) return;
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  event.preventDefault();
-  onOpen();
-}
-
 function articleCounts(article: ArticleSummaryRecord) {
   return {
     annotations: articleAnnotationCount(article),
     distillations: articleDistillationCount(article),
   };
+}
+
+function librarySourceTabId(source: LibrarySource) {
+  return `library-source-tab-${source}`;
+}
+
+function librarySourcePanelId(source: LibrarySource) {
+  return `library-source-panel-${source}`;
 }
 
 function LibraryCoverProgress({ progress }: { progress: number }) {

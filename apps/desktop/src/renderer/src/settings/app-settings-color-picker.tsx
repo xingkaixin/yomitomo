@@ -19,6 +19,7 @@ export function ColorPicker({
           key={color}
           style={{ backgroundColor: color }}
           type="button"
+          aria-pressed={value === color}
           aria-label={t('settings.profile.chooseColor', { color })}
           onClick={() => onChange(color)}
         >

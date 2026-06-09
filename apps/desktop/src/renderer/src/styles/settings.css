@@ -640,6 +640,7 @@
   border-radius: 8px;
   background: transparent;
   color: hsl(var(--foreground));
+  cursor: pointer;
   font: inherit;
   font-size: 14px;
   padding: 9px 10px;
