@@ -11,6 +11,7 @@ import {
   mappedFoliateRangeRects,
   type FoliateTocItem,
 } from '../source/ebook/app-ebook-reader-utils';
+import { defaultTheme, inkBlackTheme } from '../theme/app-theme';
 
 const now = '2026-05-27T00:00:00.000Z';
 
@@ -157,11 +158,15 @@ describe('configureFoliateView', () => {
     renderer.setAttribute('animated', '');
     renderer.setStyles = vi.fn();
 
-    configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
-      fontSize: 18,
-      contentWidth: 720,
-      backgroundColor: '#f7eddc',
-    });
+    configureFoliateView(
+      { renderer } as Parameters<typeof configureFoliateView>[0],
+      {
+        fontSize: 18,
+        contentWidth: 720,
+        backgroundColor: '#f7eddc',
+      },
+      defaultTheme.reader,
+    );
 
     expect(renderer.hasAttribute('animated')).toBe(false);
     expect(renderer.getAttribute('flow')).toBe('paginated');
@@ -173,11 +178,15 @@ describe('configureFoliateView', () => {
     };
     renderer.setStyles = vi.fn();
 
-    configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
-      fontSize: 22,
-      contentWidth: 720,
-      backgroundColor: '#eef4e8',
-    });
+    configureFoliateView(
+      { renderer } as Parameters<typeof configureFoliateView>[0],
+      {
+        fontSize: 22,
+        contentWidth: 720,
+        backgroundColor: '#eef4e8',
+      },
+      defaultTheme.reader,
+    );
 
     const styles = vi.mocked(renderer.setStyles).mock.calls[0]?.[0];
     expect(styles).toContain('font-size: 22px;');
@@ -193,14 +202,22 @@ describe('configureFoliateView', () => {
     };
     renderer.setStyles = vi.fn();
 
-    configureFoliateView({ renderer } as Parameters<typeof configureFoliateView>[0], {
-      fontSize: 18,
-      contentWidth: 720,
-      backgroundColor: '#242019',
-    });
+    configureFoliateView(
+      { renderer } as Parameters<typeof configureFoliateView>[0],
+      {
+        fontSize: 18,
+        contentWidth: 720,
+        backgroundColor: '#242019',
+      },
+      inkBlackTheme.reader,
+    );
 
     const styles = vi.mocked(renderer.setStyles).mock.calls[0]?.[0];
-    expect(styles).toContain('color: #e0d9cc;');
+    expect(styles).toContain(`color: ${inkBlackTheme.reader.ink};`);
+    expect(styles).toContain(`color: ${inkBlackTheme.reader.muted};`);
+    expect(styles).toContain(
+      `text-decoration-color: color-mix(in srgb, ${inkBlackTheme.reader.ink} 36%, transparent);`,
+    );
     expect(styles).toContain('color-scheme: dark;');
     expect(styles).toContain('body {\n      background: #242019;\n      color: inherit;');
   });

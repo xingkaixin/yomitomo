@@ -14,6 +14,7 @@ import type {
 } from '@yomitomo/shared';
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { defaultTheme } from '../theme/app-theme';
 
 const now = '2026-05-09T12:00:00.000Z';
 
@@ -154,6 +155,7 @@ function renderLibrary(
     <ReadingLibrary
       agents={[]}
       articles={articles}
+      readerTheme={defaultTheme.reader}
       settings={options.settings}
       userProfile={userProfile}
       onDeleteArticle={vi.fn()}

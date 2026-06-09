@@ -15,6 +15,7 @@ import type {
   EbookPageTurnTrace,
   FoliateViewElement,
 } from '../source/ebook/app-ebook-reader-utils';
+import { defaultTheme } from '../theme/app-theme';
 
 const now = '2026-05-16T08:00:00.000Z';
 
@@ -81,6 +82,7 @@ function FoliateViewProbe({
 }) {
   latestViewState = useEbookFoliateView({
     article,
+    readerTheme: defaultTheme.reader,
     readerSettings: { fontSize: 18, contentWidth: 720, backgroundColor: '#fffdf8' },
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners,

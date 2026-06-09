@@ -70,6 +70,7 @@ export function EbookBookcase({
   distillationAnimation,
   focusAnnotationId,
   messageSendShortcut,
+  readerTheme,
   selectionActionShortcuts,
   selectedAnnotationId,
   uiLanguage,
@@ -270,6 +271,7 @@ export function EbookBookcase({
     goToTocItem,
   } = useEbookFoliateView({
     article,
+    readerTheme,
     readerSettings,
     onSaveArticleReadingProgress,
     onAttachFoliateDocumentListeners: attachFoliateDocumentListenersBridge,

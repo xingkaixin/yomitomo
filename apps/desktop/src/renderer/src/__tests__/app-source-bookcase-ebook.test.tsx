@@ -8,6 +8,7 @@ import type { HighlightBox } from '@yomitomo/core';
 import type { EbookPageTurnTrace } from '../source/ebook/app-ebook-reader-utils';
 import { EbookBookcase } from '../source/ebook/app-source-bookcase-ebook';
 import type { EbookArticleRecord } from '../source/bookcase/app-source-bookcase-shared';
+import { defaultTheme } from '../theme/app-theme';
 
 const mocks = vi.hoisted(() => ({
   attachFoliateDocumentListeners: vi.fn(),
@@ -212,6 +213,7 @@ function renderEbookBookcase(sourceArticle: EbookArticleRecord, annotations: Ann
       annotations={annotations}
       article={sourceArticle}
       focusAnnotationId={null}
+      readerTheme={defaultTheme.reader}
       selectedAnnotationId={null}
       uiLanguage="zh-CN"
       userProfile={userProfile}
@@ -250,6 +252,7 @@ describe('EbookBookcase', () => {
         annotations={progressArticle.annotations}
         article={progressArticle}
         focusAnnotationId={null}
+        readerTheme={defaultTheme.reader}
         selectedAnnotationId={null}
         uiLanguage="zh-CN"
         userProfile={userProfile}
@@ -309,6 +312,7 @@ describe('EbookBookcase', () => {
         annotations={annotations}
         article={ebookArticle({ annotations })}
         focusAnnotationId={null}
+        readerTheme={defaultTheme.reader}
         selectedAnnotationId={null}
         uiLanguage="zh-CN"
         userProfile={userProfile}

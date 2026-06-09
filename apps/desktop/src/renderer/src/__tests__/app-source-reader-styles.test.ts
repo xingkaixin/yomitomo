@@ -65,7 +65,7 @@ describe('source reader annotation styles', () => {
   });
 
   it('uses the independent reader content background for source readers', () => {
-    expect(styles).toContain('background: var(--reader-content-bg, hsl(var(--card)));');
+    expect(styles).toContain('background: var(--reader-content-bg, var(--app-reader-paper));');
     expect(styles).toMatch(
       /\.pdfium-spike-viewport \{[\s\S]*background: var\(--app-paper-pattern-image\), var\(--app-paper-pattern-bg\);[\s\S]*background-size: var\(--app-paper-pattern-size\) var\(--app-paper-pattern-size\);/,
     );

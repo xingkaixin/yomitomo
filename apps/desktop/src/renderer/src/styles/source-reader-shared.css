@@ -1593,8 +1593,8 @@
 .source-ebook-reader-shell .reader-article,
 .source-ebook-reader-shell .ebook-foliate-frame,
 .source-ebook-reader-shell .ebook-reader-status {
-  border-color: hsl(var(--border) / 0.82);
+  border-color: var(--app-reader-line);
   border-radius: 0;
-  background: var(--reader-content-bg, hsl(var(--card)));
+  background: var(--reader-content-bg, var(--app-reader-paper));
   box-shadow: none;
 }

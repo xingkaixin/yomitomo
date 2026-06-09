@@ -140,7 +140,7 @@ describe('reader embedded styles', () => {
       '.reader-comment-agent-tray .reader-agent-avatar-stack,.reader-comment-agent-tray .reader-agent-avatar-stack-item{overflow:visible}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-selection-primary{height:36px;border:1px solid rgba(37,29,22,.09);background:var(--reader-paper);',
+      '.reader-selection-primary{height:36px;border:1px solid var(--reader-ink-hairline);background:var(--reader-paper);',
     );
     expect(readerConversationStyles).toContain(
       '.reader-composer .reader-agent-menu,.reader-comment-box .reader-agent-menu{right:auto;bottom:calc(100% + 8px);width:190px;',
@@ -171,10 +171,10 @@ describe('reader embedded styles', () => {
 
   it('keeps distillation card action hover aligned with annotation cards', () => {
     expect(readerConversationStyles).toContain(
-      '.reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:rgba(40,35,29,.07);color:var(--reader-ink)}',
+      '.reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:rgba(40,35,29,.07);color:var(--reader-ink)}',
+      '.reader-note-distillation-menu .reader-action-menu-button:hover,.reader-note-distillation-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}',
     );
   });
 
