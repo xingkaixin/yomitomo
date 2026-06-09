@@ -511,6 +511,9 @@ const resources = {
           deleteArticleHold: '长按删除文章：{{title}}',
           deleteHold: '长按删除：{{title}}',
           deleteHoldLabel: '长按删除',
+          deleteArticleHoldLabel: '长按删除阅读材料',
+          deleteArticleHoldAria:
+            '长按删除阅读材料：{{title}}。会从本地阅读库删除此材料，以及其中的划线、想法、评论和沉淀；此操作无法从应用内恢复。',
           openWeReadExternal: '打开微信读书',
           progress: '阅读进度',
         },
@@ -1033,6 +1036,9 @@ const resources = {
       },
       settings: {
         navLabel: '设置分类',
+        confirm: {
+          cancel: '取消，保留现状',
+        },
         sections: {
           collection: '通用',
           models: '模型与路由',
@@ -1094,12 +1100,20 @@ const resources = {
           retentionDays: '{{count}} 天',
           retentionSavedDays: '日志将保留最近 {{count}} 天。',
           retentionSavedForever: '日志将永久保留，直到手动清空。',
-          clearLog: '清空日志',
+          clearLog: '清空日志文件',
+          clearLogConfirmTitle: '清空日志文件？',
+          clearLogConfirmDescription:
+            '会清空当前本机日志文件中的内容。操作不会删除数据库、文章或设置，但清空后的日志无法从应用内恢复。',
+          clearLogConfirm: '清空日志文件',
           logCleared: '日志文件已清空。',
           databaseGroup: '数据库',
           backupNote: '备份不含钥匙串中的模型密钥，也不含单独保存的 EPUB 原文件。',
           backupDatabase: '备份数据库',
-          restoreDatabase: '还原数据库',
+          restoreDatabase: '从备份还原数据库',
+          restoreDatabaseConfirmTitle: '从备份还原数据库？',
+          restoreDatabaseConfirmDescription:
+            '选择备份文件后，会用该备份覆盖当前本地数据库。模型 API Key 保存在系统安全凭据库中，不会包含在备份中；还原前会先备份当前数据库。',
+          restoreDatabaseConfirm: '选择备份并还原',
           backupCanceled: '已取消数据库备份。',
           backupDone: '数据库已备份到 {{path}}',
           restoreCanceled: '已取消数据库还原。',
@@ -1238,7 +1252,11 @@ const resources = {
           testSuccess: '测试成功',
           testFailed: '测试失败',
           apiKeyRequired: '请先配置微信读书 API Key。',
-          remove: '移除',
+          remove: '删除已保存 Key',
+          removeConfirmTitle: '删除微信读书 API Key？',
+          removeConfirmDescription:
+            '会从系统安全凭据库删除已保存的微信读书 API Key。已同步到本地的书籍、划线、想法和阅读进度不会被删除。',
+          removeConfirm: '删除已保存 Key',
           help: '如何获取 API Key',
           saveFailed: '保存失败，请重试。',
           saveFailedWithMessage: '保存失败：{{message}}',
@@ -1291,6 +1309,9 @@ const resources = {
           openProviderMenu: '打开{{name}}设置菜单',
           edit: '编辑',
           holdDelete: '长按删除',
+          holdDeleteProvider: '长按删除供应商',
+          holdDeleteProviderAria:
+            '长按删除模型供应商 {{name}}。会删除供应商配置和系统安全凭据库中的 API Key，并清空使用它的任务路由；已有批注和对话不会被删除。',
           presetProvider: '预设服务商',
           chooseProviderPreset: '选择服务商',
           providerPresets: {
@@ -1872,6 +1893,9 @@ const resources = {
           deleteArticleHold: 'Hold to delete article: {{title}}',
           deleteHold: 'Hold to delete: {{title}}',
           deleteHoldLabel: 'Hold to delete',
+          deleteArticleHoldLabel: 'Hold to delete reading item',
+          deleteArticleHoldAria:
+            'Hold to delete reading item: {{title}}. This removes the item from the local library, including its highlights, thoughts, comments, and distilled notes. It cannot be restored from inside the app.',
           openWeReadExternal: 'Open in WeRead',
           progress: 'Reading progress',
         },
@@ -2411,6 +2435,9 @@ const resources = {
       },
       settings: {
         navLabel: 'Settings categories',
+        confirm: {
+          cancel: 'Cancel, keep current data',
+        },
         sections: {
           collection: 'General',
           models: 'Models & routing',
@@ -2476,13 +2503,21 @@ const resources = {
           retentionDays: '{{count}} days',
           retentionSavedDays: 'Logs will keep the most recent {{count}} days.',
           retentionSavedForever: 'Logs will be kept until manually cleared.',
-          clearLog: 'Clear logs',
+          clearLog: 'Clear log file',
+          clearLogConfirmTitle: 'Clear the log file?',
+          clearLogConfirmDescription:
+            'This clears the contents of the current local log file. It does not delete the database, articles, or settings, but cleared logs cannot be restored from inside the app.',
+          clearLogConfirm: 'Clear log file',
           logCleared: 'Log file cleared.',
           databaseGroup: 'Database',
           backupNote:
             'Backups do not include model keys in the keychain or separately saved EPUB source files.',
           backupDatabase: 'Back up database',
-          restoreDatabase: 'Restore database',
+          restoreDatabase: 'Restore from backup',
+          restoreDatabaseConfirmTitle: 'Restore the database from a backup?',
+          restoreDatabaseConfirmDescription:
+            'After you choose a backup file, it will overwrite the current local database. Model API keys stay in the system secure credential store and are not included in backups; the current database is backed up before restore.',
+          restoreDatabaseConfirm: 'Choose backup and restore',
           backupCanceled: 'Database backup canceled.',
           backupDone: 'Database backed up to {{path}}',
           restoreCanceled: 'Database restore canceled.',
@@ -2627,7 +2662,11 @@ const resources = {
           testSuccess: 'Test succeeded',
           testFailed: 'Test failed',
           apiKeyRequired: 'Configure the WeRead API key first.',
-          remove: 'Remove',
+          remove: 'Delete saved key',
+          removeConfirmTitle: 'Delete the WeRead API key?',
+          removeConfirmDescription:
+            'This deletes the saved WeRead API key from the system secure credential store. Books, highlights, thoughts, and reading progress already synced locally are not deleted.',
+          removeConfirm: 'Delete saved key',
           help: 'How to get an API Key',
           saveFailed: 'Save failed. Try again.',
           saveFailedWithMessage: 'Save failed: {{message}}',
@@ -2685,6 +2724,9 @@ const resources = {
           openProviderMenu: 'Open {{name}} settings menu',
           edit: 'Edit',
           holdDelete: 'Hold to delete',
+          holdDeleteProvider: 'Hold to delete provider',
+          holdDeleteProviderAria:
+            'Hold to delete model provider {{name}}. This deletes the provider config and API key in the system secure credential store, and clears task routes that use it. Existing annotations and conversations are not deleted.',
           presetProvider: 'Preset provider',
           chooseProviderPreset: 'Choose provider',
           providerPresets: {

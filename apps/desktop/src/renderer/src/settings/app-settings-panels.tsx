@@ -35,6 +35,7 @@ import { messageSendShortcutOptions } from './app-settings';
 import type { DataManagementPathKind, DataManagementPaths } from '../../../preload';
 import { CopyIconButton } from '../shell/app-ui';
 import { AutoSaveStatus } from './app-settings-save-status';
+import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Kbd } from '../components/ui/kbd';
@@ -463,6 +464,7 @@ export function DataManagementSettings({
   const [retentionSaveState, setRetentionSaveState] = useState<SaveState>('idle');
   const [retentionSaveError, setRetentionSaveError] = useState('');
   const [lastRetentionDays, setLastRetentionDays] = useState<number | undefined>(undefined);
+  const [confirmAction, setConfirmAction] = useState<'clear-log' | 'restore-db' | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -505,6 +507,7 @@ export function DataManagementSettings({
   }
 
   async function clearLog() {
+    setConfirmAction(null);
     await runDataAction('clear-log', async () => {
       await window.yomitomoDesktop.clearLog();
       setStatus(t('settings.data.logCleared'));
@@ -523,6 +526,7 @@ export function DataManagementSettings({
   }
 
   async function restoreDatabase() {
+    setConfirmAction(null);
     await runDataAction('restore-db', async () => {
       const result = await window.yomitomoDesktop.restoreDatabase();
       if (result.canceled) {
@@ -554,6 +558,20 @@ export function DataManagementSettings({
 
   const activeRetentionDays = settings.logRetentionDays;
   const retentionValue = activeRetentionDays || 0;
+  const confirmDialog =
+    confirmAction === 'clear-log'
+      ? {
+          title: t('settings.data.clearLogConfirmTitle'),
+          description: t('settings.data.clearLogConfirmDescription'),
+          confirmLabel: t('settings.data.clearLogConfirm'),
+        }
+      : confirmAction === 'restore-db'
+        ? {
+            title: t('settings.data.restoreDatabaseConfirmTitle'),
+            description: t('settings.data.restoreDatabaseConfirmDescription'),
+            confirmLabel: t('settings.data.restoreDatabaseConfirm'),
+          }
+        : null;
 
   return (
     <SettingsPage
@@ -617,7 +635,7 @@ export function DataManagementSettings({
               disabled={busyAction === 'clear-log'}
               type="button"
               variant="secondary"
-              onClick={() => void clearLog()}
+              onClick={() => setConfirmAction('clear-log')}
             >
               <Trash2 size={15} />
               {t('settings.data.clearLog')}
@@ -653,7 +671,7 @@ export function DataManagementSettings({
               disabled={busyAction === 'restore-db'}
               type="button"
               variant="secondary"
-              onClick={() => void restoreDatabase()}
+              onClick={() => setConfirmAction('restore-db')}
             >
               <Upload size={15} />
               {t('settings.data.restoreDatabase')}
@@ -663,6 +681,20 @@ export function DataManagementSettings({
       </div>
 
       {status ? <p className="data-management-status">{status}</p> : null}
+      {confirmDialog ? (
+        <SettingsConfirmDialog
+          cancelLabel={t('settings.confirm.cancel')}
+          confirmLabel={confirmDialog.confirmLabel}
+          description={confirmDialog.description}
+          open
+          title={confirmDialog.title}
+          onCancel={() => setConfirmAction(null)}
+          onConfirm={() => {
+            if (confirmAction === 'clear-log') void clearLog();
+            if (confirmAction === 'restore-db') void restoreDatabase();
+          }}
+        />
+      ) : null}
     </SettingsPage>
   );
 }

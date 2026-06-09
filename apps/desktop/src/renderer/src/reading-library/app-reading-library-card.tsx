@@ -122,7 +122,7 @@ export function ArticleLibraryCard({
                 style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
                 type="button"
                 role="menuitem"
-                aria-label={t('library.actions.deleteArticleHold', { title })}
+                aria-label={t('library.actions.deleteArticleHoldAria', { title })}
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
@@ -137,7 +137,7 @@ export function ArticleLibraryCard({
                 onPointerUp={stopDeleteHold}
               >
                 <Trash2 size={14} />
-                <span>{t('library.actions.deleteHoldLabel')}</span>
+                <span>{t('library.actions.deleteArticleHoldLabel')}</span>
               </button>
             </div>
           ) : null}

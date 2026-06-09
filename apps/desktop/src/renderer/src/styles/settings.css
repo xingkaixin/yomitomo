@@ -1456,6 +1456,75 @@
   padding-right: 0;
 }
 
+.settings-confirm-dialog-overlay {
+  position: fixed;
+  z-index: var(--app-z-modal);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: hsl(24 20% 10% / 0.38);
+  padding: 24px;
+}
+
+.settings-confirm-dialog {
+  display: grid;
+  width: min(480px, 100%);
+  gap: 18px;
+  border: 1px solid hsl(var(--border) / 0.82);
+  border-radius: 12px;
+  background: hsl(var(--card));
+  box-shadow: 0 30px 110px hsl(31 34% 18% / 0.28);
+  padding: 18px;
+}
+
+.settings-confirm-dialog header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.settings-confirm-dialog-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 10px;
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+}
+
+.settings-confirm-dialog h2 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 18px;
+  font-weight: 880;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.settings-confirm-dialog p {
+  margin: 6px 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.settings-confirm-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.settings-confirm-danger-action {
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
+.settings-confirm-danger-action:hover:not(:disabled) {
+  background: hsl(var(--destructive) / 0.92);
+}
+
 .agent-profile-card {
   display: grid;
   gap: 14px;
