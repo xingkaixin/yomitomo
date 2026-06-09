@@ -1,5 +1,25 @@
+import { useEffect } from 'react';
+import { readerConversationStyles } from '@yomitomo/reader-ui/reader-styles';
 import ReaderToolbar from './components/ReaderToolbar';
 import ReaderArticle from './components/ReaderArticle';
+
+/**
+ * Inject reader-ui CSS once on mount.
+ * This provides all .reader-note, .reader-annotation-connection, .reader-comment
+ * etc. class styles used by AnnotationConnection, ReadonlyAnnotationCard, and
+ * the distillation ticket.
+ */
+function ReaderUiStyles() {
+  useEffect(() => {
+    const id = 'reader-ui-styles';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = readerConversationStyles;
+    document.head.appendChild(style);
+  }, []);
+  return null;
+}
 
 export default function App() {
   return (
@@ -13,6 +33,7 @@ export default function App() {
         }}
         aria-hidden="true"
       />
+      <ReaderUiStyles />
       <ReaderToolbar />
       <ReaderArticle />
       <footer className="relative border-t border-[#e8e0d4] py-8 text-center">

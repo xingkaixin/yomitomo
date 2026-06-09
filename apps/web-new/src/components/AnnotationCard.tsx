@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { MessageCircle, Layers2, Clock, Bot } from 'lucide-react';
+import { MessageCircle, Layers2 } from 'lucide-react';
+import {
+  ReadonlyAnnotationCard,
+  type ReadonlyAnnotationCardAuthor,
+  type ReadonlyAnnotationCardThought,
+} from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import type { Annotation } from '../data/article';
 import DiscussionModal from './DiscussionModal';
 
@@ -9,139 +14,144 @@ type AnnotationCardProps = {
   onActivate: (id: string | null) => void;
 };
 
-function Avatar({
-  initials,
-  color,
-  isAgent,
-}: {
-  initials: string;
-  color: string;
-  isAgent?: boolean;
-}) {
+/** Map article data author to ReadonlyAnnotationCard's author shape. */
+function toAuthor(author: Annotation['author']): ReadonlyAnnotationCardAuthor {
+  return {
+    color: author.color,
+    fallback: author.initials,
+    name: author.name,
+  };
+}
+
+/** Map article comments to ReadonlyAnnotationCard thoughts. */
+function toThoughts(annotation: Annotation): ReadonlyAnnotationCardThought[] {
+  if (annotation.type === 'note' && annotation.content) {
+    return [
+      {
+        id: `${annotation.id}-thought`,
+        author: toAuthor(annotation.author),
+        content: annotation.content,
+        createdAt: annotation.createdAt,
+      },
+    ];
+  }
+  return [];
+}
+
+// ── Note Card ──────────────────────────────────────────
+
+function NoteCard({ annotation }: { annotation: Annotation }) {
   return (
-    <div
-      className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white"
-      style={{ backgroundColor: color }}
-      title={isAgent ? 'AI 助手' : undefined}
-    >
-      {isAgent ? <Bot size={12} /> : initials}
-    </div>
+    <ReadonlyAnnotationCard
+      id={annotation.id}
+      quote={annotation.quote}
+      author={toAuthor(annotation.author)}
+      createdAt={annotation.createdAt}
+      thoughts={toThoughts(annotation)}
+    />
   );
 }
 
-function NoteCard({ annotation, isActive }: { annotation: Annotation; isActive: boolean }) {
-  return (
-    <div
-      className={`annotation-card p-4 ${isActive ? 'is-active' : ''}`}
-    >
-      <div className="flex gap-3">
-        <div className="quote-bar" />
-        <div className="flex-1 space-y-3">
-          <p className="text-sm leading-relaxed text-[#5a4d3e] italic">
-            「{annotation.quote}」
-          </p>
-          <div className="flex items-center gap-2">
-            <Avatar initials={annotation.author.initials} color={annotation.author.color} />
-            <span className="text-xs font-medium text-[#2a2218]">{annotation.author.name}</span>
-            <span className="text-xs text-[#9e9285]">{annotation.createdAt}</span>
-          </div>
-          <p className="text-sm leading-relaxed text-[#3a3028]">{annotation.content}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ── Discussion Card ────────────────────────────────────
 
 function DiscussionCard({
   annotation,
-  isActive,
   onOpenDiscussion,
 }: {
   annotation: Annotation;
-  isActive: boolean;
   onOpenDiscussion: () => void;
 }) {
-  const commentCount = annotation.comments?.length ?? 0;
+  const thoughts: ReadonlyAnnotationCardThought[] = (annotation.comments ?? []).map((c) => ({
+    id: c.id,
+    author: {
+      color: c.author.color,
+      fallback: c.author.initials,
+      name: c.author.name,
+    },
+    content: c.content,
+    createdAt: annotation.createdAt,
+  }));
 
   return (
-    <div className={`annotation-card overflow-hidden ${isActive ? 'is-active' : ''}`}>
-      <div className="p-4">
-        <div className="flex gap-3">
-          <div className="quote-bar" />
-          <div className="flex-1 space-y-2">
-            <p className="text-sm leading-relaxed text-[#5a4d3e] italic">
-              「{annotation.quote}」
-            </p>
-            <div className="flex items-center gap-2">
-              <Avatar initials={annotation.author.initials} color={annotation.author.color} isAgent />
-              <span className="text-xs font-medium text-[#2a2218]">{annotation.author.name}</span>
-              <span className="text-xs text-[#9e9285]">{annotation.createdAt}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer: discussion summary + enter button */}
-      <div className="flex items-center justify-between border-t border-[#e8e0d4] bg-[#faf8f5] px-3 py-2">
-        <span className="flex items-center gap-1.5 text-xs text-[#7a6e5f]">
-          <MessageCircle size={13} />
-          {commentCount} 条讨论
-        </span>
-        <button
-          type="button"
-          className="discussion-entry-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenDiscussion();
-          }}
-        >
-          <MessageCircle size={14} />
-          进入讨论区
-        </button>
-      </div>
-    </div>
+    <ReadonlyAnnotationCard
+      id={annotation.id}
+      quote={annotation.quote}
+      author={toAuthor(annotation.author)}
+      createdAt={annotation.createdAt}
+      thoughts={thoughts}
+      action={{
+        icon: <MessageCircle size={14} />,
+        label: '进入讨论区',
+        onClick: onOpenDiscussion,
+      }}
+    />
   );
 }
 
-function DistillationCard({
-  annotation,
-  isActive,
-}: {
-  annotation: Annotation;
-  isActive: boolean;
-}) {
+// ── Distillation Card (mirrors desktop AnnotationCard has-distillation) ──
+
+function DistillationCard({ annotation }: { annotation: Annotation }) {
   return (
-    <div
-      className={`distillation-card p-5 ${isActive ? 'ring-2 ring-[#f4c95d]/60' : ''}`}
+    <article
+      className="reader-note has-distillation"
+      style={{
+        '--reader-note-accent': annotation.author.color,
+      } as React.CSSProperties}
     >
-      <div className="ticket-notch" aria-hidden="true" />
-      <div className="mb-3 flex items-center gap-2">
-        <Layers2 size={14} className="text-[#b8860b]" />
-        <span className="text-xs font-medium tracking-wider text-[#8a7a60] uppercase">
-          沉淀
-        </span>
-      </div>
+      <div className="reader-note-body">
+        {/* SVG ticket shape — identical to desktop reader-annotation-card.tsx */}
+        <svg
+          className="reader-note-distillation-ticket"
+          viewBox="0 0 560 340"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <filter
+              id={`reader-note-ticket-shadow-${annotation.id}`}
+              x="-8%"
+              y="-10%"
+              width="116%"
+              height="124%"
+              colorInterpolationFilters="sRGB"
+            >
+              <feDropShadow dx="0" dy="10" stdDeviation="10" floodOpacity="0.12" />
+              <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.1" />
+            </filter>
+          </defs>
+          <path
+            filter={`url(#reader-note-ticket-shadow-${annotation.id})`}
+            d="M16,0 H544 A16,16 0 0 1 560,16 V60 C560,60 544,60 544,76 C544,92 560,92 560,92 V324 A16,16 0 0 1 544,340 H16 A16,16 0 0 1 0,324 V280 C0,280 16,280 16,264 C16,248 0,248 0,248 V16 A16,16 0 0 1 16,0 Z"
+            fill="var(--reader-note-ticket-fill)"
+            stroke="var(--reader-note-ticket-stroke)"
+            strokeWidth="1.25"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
 
-      <div className="mb-4 flex gap-3">
-        <div className="quote-bar" />
-        <p className="text-sm leading-relaxed text-[#5a4d3e] italic">
-          「{annotation.quote}」
-        </p>
-      </div>
+        <header className="reader-note-card-header">
+          <button className="reader-note-quote" type="button">
+            <span className="reader-note-quote-text">{annotation.content}</span>
+          </button>
+        </header>
 
-      <p className="text-sm leading-[1.8] text-[#3a3028]">{annotation.content}</p>
-
-      <div className="mt-4 flex items-center gap-1.5 text-xs text-[#9e9285]">
-        <Clock size={12} />
-        <span>{annotation.createdAt}</span>
+        <footer className="reader-note-toolbar reader-note-distillation-footer">
+          <span className="reader-note-distillation-badge" aria-hidden="true">
+            <Layers2 size={16} strokeWidth={1.9} />
+          </span>
+          <span className="reader-note-distillation-time">
+            <time dateTime={annotation.createdAt}>{annotation.createdAt}</time>
+          </span>
+        </footer>
       </div>
-    </div>
+    </article>
   );
 }
+
+// ── Main Export ────────────────────────────────────────
 
 export default function AnnotationCard({
   annotation,
-  isActive,
   onActivate,
 }: AnnotationCardProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -150,7 +160,6 @@ export default function AnnotationCard({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -162,7 +171,6 @@ export default function AnnotationCard({
       },
       { rootMargin: '0px 0px -5% 0px', threshold: 0.15 },
     );
-
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -175,16 +183,15 @@ export default function AnnotationCard({
         className="reveal"
         onClick={() => onActivate(annotation.id)}
       >
-        {annotation.type === 'note' && <NoteCard annotation={annotation} isActive={isActive} />}
+        {annotation.type === 'note' && <NoteCard annotation={annotation} />}
         {annotation.type === 'discussion' && (
           <DiscussionCard
             annotation={annotation}
-            isActive={isActive}
             onOpenDiscussion={() => setModalOpen(true)}
           />
         )}
         {annotation.type === 'distillation' && (
-          <DistillationCard annotation={annotation} isActive={isActive} />
+          <DistillationCard annotation={annotation} />
         )}
       </div>
 

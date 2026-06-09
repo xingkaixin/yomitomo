@@ -2,24 +2,6 @@ import { useEffect, useState } from 'react';
 import { AnnotationConnection as ReaderAnnotationConnection } from '@yomitomo/reader-ui/reader-annotation-connection';
 import type { ActiveConnection } from '@yomitomo/reader-ui/reader-types';
 import { buildAnnotationConnectionPath } from '@yomitomo/reader-ui/reader-connection-path';
-import { readerConversationStyles } from '@yomitomo/reader-ui/reader-styles';
-
-/**
- * Inject reader-ui connection CSS once.
- * We only need a small subset, but importing the full conversation styles
- * ensures all reader-annotation-connection* classes are available.
- */
-let stylesInjected = false;
-function ensureConnectionStyles() {
-  if (stylesInjected || typeof document === 'undefined') return;
-  const existing = document.getElementById('reader-ui-connection-styles');
-  if (existing) return;
-  const style = document.createElement('style');
-  style.id = 'reader-ui-connection-styles';
-  style.textContent = readerConversationStyles;
-  document.head.appendChild(style);
-  stylesInjected = true;
-}
 
 function computeConnection(annotationId: string): ActiveConnection | null {
   const highlight = document.querySelector<HTMLElement>(
@@ -36,7 +18,6 @@ function computeConnection(annotationId: string): ActiveConnection | null {
   const endX = cRect.left - 6;
   const endY = cRect.top + Math.min(72, cRect.height / 2);
 
-  // Both elements must be visible in viewport
   if (startX >= endX || hRect.bottom < 0 || hRect.top > window.innerHeight) return null;
   if (cRect.bottom < 0 || cRect.top > window.innerHeight) return null;
 
@@ -50,10 +31,6 @@ type AnnotationConnectionProps = {
 
 export default function AnnotationConnection({ annotationId }: AnnotationConnectionProps) {
   const [connection, setConnection] = useState<ActiveConnection | null>(null);
-
-  useEffect(() => {
-    ensureConnectionStyles();
-  }, []);
 
   useEffect(() => {
     if (!annotationId) {
