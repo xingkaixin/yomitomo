@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
-import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
+import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import jetBrainsMonoBoldUrl from '../../assets/fonts/JetBrainsMono-Bold.woff2?url';
 import jetBrainsMonoRegularUrl from '../../assets/fonts/JetBrainsMono-Regular.woff2?url';
@@ -201,7 +201,7 @@ function foliateReaderCss(settings: ReaderSettings) {
     }
 
     p, li, blockquote, dd {
-      line-height: 1.4;
+      line-height: ${readerBodyLineHeight};
       hanging-punctuation: allow-end last;
       widows: 2;
     }

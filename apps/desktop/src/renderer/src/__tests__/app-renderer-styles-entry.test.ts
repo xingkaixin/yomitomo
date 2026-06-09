@@ -28,6 +28,9 @@ describe('renderer styles entry', () => {
     expect(styles).toContain(
       "src: url('./assets/fonts/NotoSansSC-Regular.ttf') format('truetype');",
     );
+    expect(styles).toContain(
+      "--font-ui:\n      'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans SC', system-ui, -apple-system,\n      BlinkMacSystemFont, sans-serif;",
+    );
     expect(styles).not.toContain("url('../assets/fonts/");
     expect(styles).toContain('.app-shell {');
     expect(styles).toContain('.annotation-discussion-window {');

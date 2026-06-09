@@ -31,7 +31,7 @@
     background: var(--color-page);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    font-size: clamp(15px, 0.35vw + 13.5px, 17px);
+    font-size: 16px;
     line-height: 1.72;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

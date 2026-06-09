@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import { buildTocAnnotationStats } from '@yomitomo/core';
+import { readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
 import {
   configureFoliateView,
   ebookTocItemsForReader,
@@ -183,6 +184,7 @@ describe('configureFoliateView', () => {
     expect(styles).toContain('background: #eef4e8;');
     expect(styles).toContain('body {\n      background: #eef4e8;');
     expect(styles).toContain('font-size: inherit;');
+    expect(styles).toContain(`line-height: ${readerBodyLineHeight};`);
   });
 
   it('keeps ebook text readable on dark reader paper', () => {
