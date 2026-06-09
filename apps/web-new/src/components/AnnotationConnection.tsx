@@ -1,6 +1,27 @@
 import { useEffect, useState } from 'react';
+import { AnnotationConnection as ReaderAnnotationConnection } from '@yomitomo/reader-ui/reader-annotation-connection';
+import type { ActiveConnection } from '@yomitomo/reader-ui/reader-types';
+import { buildAnnotationConnectionPath } from '@yomitomo/reader-ui/reader-connection-path';
+import { readerConversationStyles } from '@yomitomo/reader-ui/reader-styles';
 
-function computePath(annotationId: string): string | null {
+/**
+ * Inject reader-ui connection CSS once.
+ * We only need a small subset, but importing the full conversation styles
+ * ensures all reader-annotation-connection* classes are available.
+ */
+let stylesInjected = false;
+function ensureConnectionStyles() {
+  if (stylesInjected || typeof document === 'undefined') return;
+  const existing = document.getElementById('reader-ui-connection-styles');
+  if (existing) return;
+  const style = document.createElement('style');
+  style.id = 'reader-ui-connection-styles';
+  style.textContent = readerConversationStyles;
+  document.head.appendChild(style);
+  stylesInjected = true;
+}
+
+function computeConnection(annotationId: string): ActiveConnection | null {
   const highlight = document.querySelector<HTMLElement>(
     `[data-annotation-id="${annotationId}"]`,
   );
@@ -10,55 +31,55 @@ function computePath(annotationId: string): string | null {
   const hRect = highlight.getBoundingClientRect();
   const cRect = card.getBoundingClientRect();
 
-  const startX = hRect.right;
+  const startX = hRect.right + 6;
   const startY = hRect.top + hRect.height / 2;
-  const endX = cRect.left;
-  const endY = cRect.top + cRect.height / 2;
+  const endX = cRect.left - 6;
+  const endY = cRect.top + Math.min(72, cRect.height / 2);
 
-  // Not visible
-  if (startX >= endX || startY < 0 || endY < 0) return null;
+  // Both elements must be visible in viewport
+  if (startX >= endX || hRect.bottom < 0 || hRect.top > window.innerHeight) return null;
+  if (cRect.bottom < 0 || cRect.top > window.innerHeight) return null;
 
-  const midX = (startX + endX) / 2;
-  const d = `M ${startX.toFixed(1)} ${startY.toFixed(1)} C ${midX.toFixed(1)} ${startY.toFixed(1)}, ${midX.toFixed(1)} ${endY.toFixed(1)}, ${endX.toFixed(1)} ${endY.toFixed(1)}`;
-  return d;
+  const path = buildAnnotationConnectionPath(startX, startY, endX, endY);
+  return { path, color: 'rgba(199, 164, 94, 0.55)' };
 }
 
 type AnnotationConnectionProps = {
   annotationId: string | null;
 };
 
-export default function AnnotationConnection({
-  annotationId,
-}: AnnotationConnectionProps) {
-  const [path, setPath] = useState<string | null>(null);
+export default function AnnotationConnection({ annotationId }: AnnotationConnectionProps) {
+  const [connection, setConnection] = useState<ActiveConnection | null>(null);
+
+  useEffect(() => {
+    ensureConnectionStyles();
+  }, []);
 
   useEffect(() => {
     if (!annotationId) {
-      setPath(null);
+      setConnection(null);
       return;
     }
 
-    const update = () => {
-      setPath(computePath(annotationId));
+    const update = () => setConnection(computeConnection(annotationId));
+    update();
+
+    let frame = 0;
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(update);
     };
 
-    update();
-    const interval = setInterval(update, 80);
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
     };
   }, [annotationId]);
 
-  if (!annotationId || !path) return null;
+  if (!connection) return null;
 
-  return (
-    <svg className="annotation-connection" aria-hidden="true">
-      <path d={path} />
-    </svg>
-  );
+  return <ReaderAnnotationConnection connection={connection} />;
 }

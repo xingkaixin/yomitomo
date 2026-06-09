@@ -250,6 +250,9 @@ importers:
 
   apps/web-new:
     dependencies:
+      '@yomitomo/reader-ui':
+        specifier: workspace:*
+        version: link:../../packages/reader-ui
       lucide-react:
         specifier: ^0.511.0
         version: 0.511.0(react@19.2.7)

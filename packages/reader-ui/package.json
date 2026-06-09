@@ -19,6 +19,8 @@
     "./reader-styles": "./src/reader-styles.ts",
     "./reader-theme": "./src/reader-theme.ts",
     "./reader-shortcuts": "./src/reader-shortcuts.ts",
+    "./reader-annotation-connection": "./src/annotations/reader-annotation-connection.tsx",
+    "./reader-connection-path": "./src/reader-connection-path.ts",
     "./reader-types": "./src/reader-types.ts",
     "./use-agent-annotation-queue": "./src/agent/use-agent-annotation-queue.ts",
     "./use-agent-reading-dock": "./src/agent/use-agent-reading-dock.ts"
