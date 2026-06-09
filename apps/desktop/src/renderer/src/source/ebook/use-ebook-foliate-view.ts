@@ -2,6 +2,7 @@ import type React from 'react';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import i18next from 'i18next';
 import type { ArticleReadingProgress } from '@yomitomo/shared';
+import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import {
@@ -28,6 +29,7 @@ type EbookReaderState = {
 
 type UseEbookFoliateViewInput = {
   article: EbookBookcaseProps['article'];
+  readerTheme: ReaderTheme;
   readerSettings: ReaderSettings;
   onSaveArticleReadingProgress: EbookBookcaseProps['onSaveArticleReadingProgress'];
   onAttachFoliateDocumentListeners: (view: FoliateViewElement | null) => void;
@@ -109,6 +111,7 @@ export function ebookReadingProgressRestoreTarget(
 
 export function useEbookFoliateView({
   article,
+  readerTheme,
   readerSettings,
   onSaveArticleReadingProgress,
   onAttachFoliateDocumentListeners,
@@ -124,6 +127,7 @@ export function useEbookFoliateView({
   const pageInfoSectionIndexRef = useRef<number | undefined>(undefined);
   const paginationLayoutKeyRef = useRef('');
   const readerSettingsRef = useRef<ReaderSettings>(readerSettings);
+  const readerThemeRef = useRef<ReaderTheme>(readerTheme);
   const onSaveArticleReadingProgressRef = useRef(onSaveArticleReadingProgress);
   const onBeforePageTurnRef = useRef(onBeforePageTurn);
   const pageTurnQueueRef = useRef<PageTurnDirection[]>([]);
@@ -187,9 +191,10 @@ export function useEbookFoliateView({
 
   useEffect(() => {
     readerSettingsRef.current = readerSettings;
-    configureFoliateView(viewRef.current, readerSettings);
+    readerThemeRef.current = readerTheme;
+    configureFoliateView(viewRef.current, readerSettings, readerTheme);
     onScheduleEbookBoxUpdate('reader_settings');
-  }, [onScheduleEbookBoxUpdate, readerSettings]);
+  }, [onScheduleEbookBoxUpdate, readerSettings, readerTheme]);
 
   useEffect(() => {
     readerStateStatusRef.current = readerState.status;
@@ -277,7 +282,7 @@ export function useEbookFoliateView({
         if (cancelled) return;
 
         viewRef.current = view;
-        configureFoliateView(view, readerSettingsRef.current);
+        configureFoliateView(view, readerSettingsRef.current, readerThemeRef.current);
         setTocItems(flattenFoliateToc(view.book?.toc ?? []));
         setSectionFractions(view.getSectionFractions?.() ?? []);
         readerStateStatusRef.current = 'ready';
@@ -409,7 +414,7 @@ export function useEbookFoliateView({
         measureView.className = 'ebook-foliate-view';
         measureHostElement.replaceChildren(measureView);
         await measureView.open(sourceEbookFile);
-        configureFoliateView(measureView, readerSettingsRef.current);
+        configureFoliateView(measureView, readerSettingsRef.current, readerThemeRef.current);
 
         for (const [index, section] of sections.entries()) {
           if (cancelled) return;

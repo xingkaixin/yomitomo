@@ -3,6 +3,7 @@ import type { Annotation, ArticleRecord, PublicAgent, UserProfile } from '@yomit
 import { hashText } from '@yomitomo/shared';
 import { annotationColor, type TocItem } from '@yomitomo/core';
 import { readerBackgroundTone, readerBodyLineHeight } from '@yomitomo/reader-ui/reader-settings';
+import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import type { ReaderReadingSection, ReaderSettings } from '@yomitomo/reader-ui/reader-types';
 import jetBrainsMonoBoldUrl from '../../assets/fonts/JetBrainsMono-Bold.woff2?url';
 import jetBrainsMonoRegularUrl from '../../assets/fonts/JetBrainsMono-Regular.woff2?url';
@@ -113,7 +114,11 @@ export function recordEbookPageTurnTrace(
   });
 }
 
-export function configureFoliateView(view: FoliateViewElement | null, settings: ReaderSettings) {
+export function configureFoliateView(
+  view: FoliateViewElement | null,
+  settings: ReaderSettings,
+  theme: ReaderTheme,
+) {
   if (!view?.renderer) return;
   view.renderer.removeAttribute('animated');
   view.renderer.setAttribute('flow', 'paginated');
@@ -122,7 +127,7 @@ export function configureFoliateView(view: FoliateViewElement | null, settings: 
   view.renderer.setAttribute('max-inline-size', `${settings.contentWidth}px`);
   view.renderer.setAttribute('max-block-size', '1200px');
   view.renderer.setAttribute('max-column-count', '1');
-  view.renderer.setStyles?.(foliateReaderCss(settings));
+  view.renderer.setStyles?.(foliateReaderCss(settings, theme));
 }
 
 export function closeFoliateView(view: FoliateViewElement | null) {
@@ -133,12 +138,10 @@ export function closeFoliateView(view: FoliateViewElement | null) {
   }
 }
 
-function foliateReaderCss(settings: ReaderSettings) {
+function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
   const isDarkBackground = readerBackgroundTone(settings.backgroundColor) === 'dark';
   const colorScheme = isDarkBackground ? 'dark' : 'light';
-  const readerInk = isDarkBackground ? '#e0d9cc' : '#28231d';
-  const readerMuted = isDarkBackground ? '#a39a8b' : '#746d63';
-  const linkUnderline = isDarkBackground ? 'rgba(224, 217, 204, .34)' : 'rgba(40, 35, 29, .36)';
+  const linkUnderline = `color-mix(in srgb, ${theme.ink} 36%, transparent)`;
 
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -187,7 +190,7 @@ function foliateReaderCss(settings: ReaderSettings) {
 
     html {
       background: ${settings.backgroundColor};
-      color: ${readerInk};
+      color: ${theme.ink};
       color-scheme: ${colorScheme};
       font-size: ${settings.fontSize}px;
     }
@@ -231,7 +234,7 @@ function foliateReaderCss(settings: ReaderSettings) {
     }
 
     figcaption, caption, small {
-      color: ${readerMuted};
+      color: ${theme.muted};
     }
 
     aside[epub|type~="endnote"],

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ArticleRecord, UserProfile } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
+import { defaultTheme } from '../theme/app-theme';
 
 vi.mock('../source/web/app-source-bookcase-web', () => ({
   WebSourceBookcase: ({ article: sourceArticle }: { article: ArticleRecord }) => (
@@ -109,6 +110,7 @@ function renderSourceBookcase(sourceArticle: ArticleRecord | null) {
       annotations={sourceArticle?.annotations ?? []}
       article={sourceArticle}
       focusAnnotationId={null}
+      readerTheme={defaultTheme.reader}
       selectedAnnotationId={null}
       uiLanguage="zh-CN"
       userProfile={userProfile}

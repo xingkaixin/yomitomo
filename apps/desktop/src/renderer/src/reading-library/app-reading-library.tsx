@@ -21,6 +21,7 @@ import type {
 } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { sortAnnotations, sortArticles } from '@yomitomo/core';
+import type { ReaderTheme } from '@yomitomo/reader-ui/reader-theme';
 import { SourceBookcase } from '../source/bookcase/app-source-bookcase';
 import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 import type {
@@ -51,6 +52,7 @@ export function ReadingLibrary({
   agents,
   articles,
   messageSendShortcut,
+  readerTheme,
   settings,
   selectionActionShortcuts,
   openArticleId,
@@ -76,6 +78,7 @@ export function ReadingLibrary({
   agents: Agent[];
   articles: ArticleSummaryRecord[];
   messageSendShortcut?: MessageSendShortcut;
+  readerTheme: ReaderTheme;
   settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   openArticleId?: string | null;
@@ -579,6 +582,7 @@ export function ReadingLibrary({
                 distillationAnimation={distillationAnimation}
                 focusAnnotationId={sourceFocusAnnotationId}
                 messageSendShortcut={messageSendShortcut}
+                readerTheme={readerTheme}
                 selectionActionShortcuts={selectionActionShortcuts}
                 selectedAnnotationId={selectedAnnotation?.id || null}
                 uiLanguage={normalizeUiLanguage(settings?.uiLanguage)}

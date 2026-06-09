@@ -691,6 +691,7 @@ function App() {
               agents={store.agents}
               articles={store.articles}
               messageSendShortcut={store.settings.messageSendShortcut}
+              readerTheme={themeRegistry[activeThemeId].reader}
               settings={store.settings}
               selectionActionShortcuts={store.settings.selectionActionShortcuts}
               openArticleId={pendingOpenArticleId}
