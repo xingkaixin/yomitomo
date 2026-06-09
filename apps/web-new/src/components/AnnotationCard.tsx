@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Layers2, MessageCircle } from 'lucide-react';
+import { Layers2, MessageCircle, Quote } from 'lucide-react';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { getAgent, type Annotation } from '../data/article';
 import DiscussionModal from './DiscussionModal';
@@ -9,13 +9,13 @@ type AnnotationCardProps = {
   onActivate: (id: string | null) => void;
 };
 
-/** Simplified avatar stack using reader-ui CSS classes. */
+/** Avatar stack with negative margins, matching desktop reader-agent-avatar-stack. */
 function AgentAvatarStack({ agentIds }: { agentIds: string[] }) {
   return (
     <span className="reader-agent-avatar-stack">
       {agentIds.map((id) => {
         const agent = getAgent(id);
-        const isImage = agent.avatar.startsWith('/') || agent.avatar.startsWith('http');
+        const isImage = agent.avatar.startsWith('/');
         return (
           <span
             key={id}
@@ -34,15 +34,14 @@ function AgentAvatarStack({ agentIds }: { agentIds: string[] }) {
   );
 }
 
-// ── Distillation Card (mirrors desktop AnnotationCard has-distillation) ──
+// ── Distillation Card ──────────────────────────────────
 
 function DistillationCard({ annotation }: { annotation: Annotation }) {
-  const agent = getAgent(annotation.authorId);
   return (
     <article
       className="reader-note has-distillation"
       style={{
-        '--reader-note-accent': agent.annotationColor,
+        '--reader-note-accent': '#b8860b',
       } as React.CSSProperties}
     >
       <div className="reader-note-body">
@@ -94,7 +93,7 @@ function DistillationCard({ annotation }: { annotation: Annotation }) {
   );
 }
 
-// ── Discussion Card (quote + avatar stack + action) ──
+// ── Discussion Card ────────────────────────────────────
 
 function DiscussionCard({
   annotation,
@@ -103,38 +102,39 @@ function DiscussionCard({
   annotation: Annotation;
   onOpenDiscussion: () => void;
 }) {
-  const agent = getAgent(annotation.authorId);
-
   return (
     <article
       className="reader-note"
       style={{
-        '--reader-note-accent': agent.annotationColor,
+        '--reader-note-accent': 'var(--color-reader-gold)',
       } as React.CSSProperties}
     >
       <div className="reader-note-body">
-        <header className="reader-note-card-header">
-          <span className="reader-note-owner" style={{ background: agent.annotationColor }}>
-            <AvatarBadge
-              avatar={agent.avatar.startsWith('/') ? agent.avatar : undefined}
-              fallback={agent.avatar.startsWith('/') ? 'AI' : agent.avatar}
-            />
-          </span>
-          <strong className="reader-note-owner-name">{agent.nickname}</strong>
-          <time className="reader-note-time">{annotation.createdAt}</time>
-        </header>
-
+        {/* Quote area with Quote SVG icon */}
         <blockquote className="reader-note-quote">
+          <span className="reader-note-quote-icon" aria-hidden="true">
+            <Quote size={16} strokeWidth={2.2} />
+          </span>
           <p className="reader-note-quote-text">{annotation.quote}</p>
         </blockquote>
 
+        {/* Footer: avatar stack left, entry button right, time bottom-right */}
         <footer className="reader-note-toolbar">
           <AgentAvatarStack agentIds={annotation.agentIds} />
-          <button className="reader-note-discussion-entry" type="button" onClick={onOpenDiscussion}>
+          <button
+            className="reader-note-discussion-entry"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenDiscussion();
+            }}
+          >
             <MessageCircle size={13} />
             <span>进入讨论区</span>
           </button>
         </footer>
+
+        <time className="reader-note-time">{annotation.createdAt}</time>
       </div>
     </article>
   );

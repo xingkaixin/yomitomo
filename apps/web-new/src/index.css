@@ -328,7 +328,7 @@ body {
 .discussion-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 9999;
   display: grid;
   place-items: center;
   background: rgba(42, 34, 24, 0.35);
@@ -345,8 +345,8 @@ body {
 
 .discussion-modal-panel {
   position: relative;
-  width: min(920px, calc(100vw - 48px));
-  max-height: min(680px, calc(100vh - 48px));
+  width: min(960px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 48px));
   overflow: hidden;
   border: 1px solid var(--color-reader-line);
   border-radius: 18px;
@@ -668,6 +668,28 @@ body {
 
 .annotation-discussion-message.is-yomitomo .annotation-discussion-message-header {
   text-align: right;
+}
+
+/* Quote icon in discussion card */
+.reader-note-quote-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-reader-gold) 14%, transparent);
+  color: var(--color-reader-gold);
+}
+
+/* Time in bottom-right of card body */
+.reader-note-body > .reader-note-time {
+  display: block;
+  text-align: right;
+  font-size: 10px;
+  color: var(--color-reader-faint);
+  padding-top: 6px;
 }
 
 /* Agent avatar stack on annotation cards */
