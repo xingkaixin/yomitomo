@@ -19,6 +19,20 @@
 }
 
 @layer base {
+  :root {
+    --app-viewport-height: 100vh;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-inline-start: env(safe-area-inset-left, 0px);
+    --safe-inline-end: env(safe-area-inset-right, 0px);
+  }
+
+  @supports (height: 100dvh) {
+    :root {
+      --app-viewport-height: 100dvh;
+    }
+  }
+
   *,
   ::before,
   ::after {
@@ -39,7 +53,7 @@
 
   body {
     overflow-x: clip;
-    min-height: 100vh;
+    min-height: var(--app-viewport-height);
     margin: 0;
   }
 
@@ -65,7 +79,8 @@
     box-sizing: border-box;
     width: min(100%, 1140px);
     margin-inline: auto;
-    padding-inline: clamp(22px, 5vw, 72px);
+    padding-inline-start: max(clamp(22px, 5vw, 72px), var(--safe-inline-start));
+    padding-inline-end: max(clamp(22px, 5vw, 72px), var(--safe-inline-end));
   }
 
   .landing-page::before {
@@ -127,6 +142,7 @@
     z-index: 50;
     border-bottom: 1px solid var(--color-line);
     background: var(--color-page);
+    padding-top: var(--safe-top);
   }
 
   .hero {
@@ -765,9 +781,12 @@
     display: flex;
     overflow-x: auto;
     gap: clamp(16px, 3vw, 28px);
-    padding: 18px clamp(18px, 3vw, 32px) 26px;
+    padding-block: 18px calc(26px + var(--safe-bottom));
+    padding-inline-start: max(clamp(18px, 3vw, 32px), var(--safe-inline-start));
+    padding-inline-end: max(clamp(18px, 3vw, 32px), var(--safe-inline-end));
     cursor: grab;
-    scroll-padding-inline: clamp(18px, 3vw, 32px);
+    scroll-padding-inline-start: max(clamp(18px, 3vw, 32px), var(--safe-inline-start));
+    scroll-padding-inline-end: max(clamp(18px, 3vw, 32px), var(--safe-inline-end));
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     touch-action: pan-y;

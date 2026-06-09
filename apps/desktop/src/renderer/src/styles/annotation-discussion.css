@@ -325,7 +325,7 @@
 .annotation-discussion-add-modal {
   display: grid;
   width: min(820px, calc(100vw - 44px));
-  max-height: min(680px, calc(100vh - 44px));
+  max-height: min(680px, calc(var(--app-viewport-height) - 44px));
   min-width: 0;
   gap: 0;
   overflow: visible;
@@ -1748,7 +1748,7 @@
 .annotation-sedimentation-window {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  height: 100vh;
+  height: var(--app-viewport-height);
   overflow: hidden;
   background: var(--app-reader-paper);
   color: var(--app-reader-ink);
@@ -2290,7 +2290,7 @@
 
 .annotation-sedimentation-empty {
   display: grid;
-  height: 100vh;
+  height: var(--app-viewport-height);
   place-content: center;
   gap: 8px;
   background: var(--app-reader-paper);

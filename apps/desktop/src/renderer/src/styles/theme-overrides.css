@@ -1107,7 +1107,7 @@
 }
 
 .theme-dialog-overlay {
-  --theme-dialog-top: clamp(96px, 22vh, 220px);
+  --theme-dialog-top: clamp(96px, calc(var(--app-viewport-height) * 0.22), 220px);
 
   position: fixed;
   inset: 0;
@@ -1123,7 +1123,7 @@
 .theme-dialog {
   display: grid;
   width: min(980px, calc(100vw - 48px));
-  max-height: min(720px, calc(100vh - var(--theme-dialog-top) - 24px));
+  max-height: min(720px, calc(var(--app-viewport-height) - var(--theme-dialog-top) - 24px));
   overflow: auto;
   border: 1px solid hsl(var(--border) / 0.82);
   border-radius: 12px;

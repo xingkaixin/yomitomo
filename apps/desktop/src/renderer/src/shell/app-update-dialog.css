@@ -74,7 +74,7 @@
   display: flex;
   flex-direction: column;
   gap: 13px;
-  max-height: 38vh;
+  max-height: calc(var(--app-viewport-height) * 0.38);
   overflow-y: auto;
 }
 

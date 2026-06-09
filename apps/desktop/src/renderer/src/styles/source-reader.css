@@ -589,7 +589,7 @@
 
 .source-note-comments-panel {
   display: grid;
-  height: min(620px, calc(100vh - 112px));
+  height: min(620px, calc(var(--app-viewport-height) - 112px));
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   overflow: hidden;
@@ -609,7 +609,7 @@
 
   .source-note-comments-panel {
     height: auto;
-    max-height: calc(100vh - 152px);
+    max-height: calc(var(--app-viewport-height) - 152px);
   }
 }
 

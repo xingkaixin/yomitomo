@@ -1198,7 +1198,7 @@
   display: flex;
   position: relative;
   width: min(560px, 100%);
-  max-height: min(800px, calc(100vh - 48px));
+  max-height: min(800px, calc(var(--app-viewport-height) - 48px));
   flex-direction: column;
   overflow: hidden;
   border: 1px solid hsl(var(--border) / 0.82);
@@ -1421,7 +1421,7 @@
 .provider-editor-dialog {
   position: relative;
   width: min(880px, calc(100vw - 48px));
-  max-height: min(820px, calc(100vh - 48px));
+  max-height: min(820px, calc(var(--app-viewport-height) - 48px));
   overflow: auto;
   border: 1px solid hsl(var(--border) / 0.78);
   border-radius: 18px;
@@ -1630,7 +1630,7 @@
 .user-profile-dialog {
   display: grid;
   width: min(720px, 100%);
-  max-height: min(760px, calc(100vh - 48px));
+  max-height: min(760px, calc(var(--app-viewport-height) - 48px));
   gap: 18px;
   overflow: auto;
   border: 1px solid hsl(var(--border) / 0.82);
@@ -5190,7 +5190,7 @@
   display: grid;
   -webkit-app-region: no-drag;
   width: min(980px, 100%);
-  max-height: min(820px, 88vh);
+  max-height: min(820px, calc(var(--app-viewport-height) * 0.88));
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 18px;
   overflow: hidden;

@@ -9,6 +9,8 @@ import {
 describe('reader embedded styles', () => {
   it('uses app-provided reader theme variables for core reader surfaces', () => {
     expect(combinedReaderStyles()).toContain('--reader-bg:var(--app-reader-bg)');
+    expect(readerConversationStyles).toContain('--app-viewport-height:100vh');
+    expect(readerConversationStyles).toContain('@supports (height:100dvh)');
     expect(combinedReaderStyles()).toContain('--reader-content-bg');
     expect(combinedReaderStyles()).toContain(
       '.reader-article{background:var(--reader-content-bg,var(--reader-paper))}',
@@ -82,7 +84,7 @@ describe('reader embedded styles', () => {
       '.reader-discussion-thread.is-open{grid-template-rows:auto auto auto;margin-bottom:14px;border:1px solid var(--app-reader-note-border);outline:0;background:var(--reader-paper);box-shadow:none}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-thread-detail{display:grid;max-height:min(46vh,420px);min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;gap:0;padding:0 14px 18px}',
+      '.reader-thread-detail{display:grid;max-height:min(calc(var(--app-viewport-height) * 0.46),420px);min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;gap:0;padding:0 14px 18px}',
     );
   });
 
