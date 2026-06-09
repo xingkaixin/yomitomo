@@ -176,7 +176,7 @@
 .source-reader-shell .reader-floating-toolbar,
 .source-ebook-reader-shell .reader-floating-toolbar,
 .source-pdf-reader-shell .reader-floating-toolbar {
-  z-index: 250;
+  z-index: var(--app-z-overlay);
 }
 
 .source-reader-shell .reader-floating-toolbar .reader-icon-button,
@@ -246,7 +246,7 @@
 .source-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
 .source-ebook-reader-shell .reader-app.has-toc.is-toc-open .reader-toc,
 .source-pdf-reader-shell .reader-app.has-toc.is-toc-open .reader-toc {
-  z-index: 240;
+  z-index: var(--app-z-panel);
   border-color: hsl(var(--border) / 0.82);
   border-radius: 0;
   background: hsl(var(--card));
@@ -694,7 +694,7 @@
 .source-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover),
 .source-ebook-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover),
 .source-pdf-reader-shell .reader-app.is-embedded:has(.reader-agent-annotate-popover) {
-  z-index: 260;
+  z-index: var(--app-z-modal);
   overflow: visible;
 }
 

@@ -74,6 +74,8 @@ describe('app theme contract', () => {
 
       expect(variables['--background']).toBe(theme.palette.background);
       expect(variables['--app-shell-background']).toBe(theme.effect.shellBackground);
+      expect(variables['--app-z-modal']).toBe(theme.effect.zIndex.modal);
+      expect(variables['--app-z-tooltip']).toBe(theme.effect.zIndex.tooltip);
       expect(variables['--font-reader-serif']).toBe(theme.font.readerSerif);
       expect(variables['--app-action-primary-bg']).toBe(theme.action.primary.background);
       expect(variables['--app-interactive-link']).toBe(theme.interactive.link);
@@ -104,6 +106,7 @@ describe('app theme contract', () => {
     expect(root.dataset.theme).toBe(beigePaperThemeId);
     expect(styleValues.get('--background')).toBe(beigePaperTheme.palette.background);
     expect(styleValues.get('--app-reader-paper')).toBe(beigePaperTheme.reader.paper);
+    expect(styleValues.get('--app-z-modal')).toBe(beigePaperTheme.effect.zIndex.modal);
   });
 
   it('normalizes and caches startup theme ids', () => {

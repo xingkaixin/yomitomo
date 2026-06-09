@@ -39,7 +39,7 @@
 
 .source-bookcase-actions {
   position: relative;
-  z-index: 160;
+  z-index: var(--app-z-popover);
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -575,7 +575,7 @@
 .source-note-comments-popover {
   position: absolute;
   top: 0;
-  z-index: 120;
+  z-index: var(--app-z-popover);
   width: min(380px, calc(100vw - 32px));
 }
 
@@ -1060,7 +1060,7 @@
 .source-selection-menu,
 .source-composer {
   position: absolute;
-  z-index: 150;
+  z-index: var(--app-z-popover);
   font-family: var(--font-ui);
 }
 
@@ -1447,7 +1447,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 170;
+  z-index: var(--app-z-overlay);
   display: flex;
   align-items: center;
   gap: 3px;

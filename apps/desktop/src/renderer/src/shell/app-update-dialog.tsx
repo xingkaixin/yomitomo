@@ -243,7 +243,7 @@ function fireReleaseConfetti() {
 
   const canvas = document.createElement('canvas');
   canvas.style.cssText =
-    'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:80';
+    'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:var(--app-z-top-overlay)';
   document.body.appendChild(canvas);
   const ctx = canvas.getContext('2d');
   if (!ctx) {
