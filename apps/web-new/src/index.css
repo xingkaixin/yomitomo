@@ -20,6 +20,27 @@
 }
 
 body {
+  /* Map web-new colors to reader-ui CSS variable names */
+  --reader-paper: var(--color-reader-paper);
+  --reader-bg: var(--color-reader-bg);
+  --reader-ink: var(--color-reader-ink);
+  --reader-ink-subtle: var(--color-reader-line);
+  --reader-muted: var(--color-reader-muted);
+  --reader-green: var(--color-reader-green);
+  --reader-yellow-strong: var(--color-reader-gold);
+  --reader-soft-shadow: 0 1px 3px rgba(42, 34, 24, 0.06), 0 1px 2px rgba(42, 34, 24, 0.04);
+  --reader-avatar-color: var(--color-reader-accent);
+  --app-reader-note-bg: var(--color-reader-gold-soft);
+  --app-reader-note-border: var(--color-reader-line);
+  --app-reader-toc-bg: #faf8f5;
+  --app-reader-line: var(--color-reader-line);
+  --app-reader-toolbar-border: var(--color-reader-line);
+  --reader-paper-panel: #f9f6f1;
+  --font-ui: var(--font-sans);
+  --font-reader-serif: var(--font-serif);
+  --reader-note-ticket-fill: var(--color-reader-gold-soft);
+  --reader-note-ticket-stroke: var(--color-reader-line);
+
   font-family: var(--font-sans);
   background-color: var(--color-reader-bg);
   color: var(--color-reader-ink);
@@ -689,41 +710,6 @@ body {
   width: 24px;
   height: 24px;
   font-size: 10px;
-}
-
-/* Discussion entry button on annotation card */
-.reader-note-discussion-entry {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  border: 1px solid rgba(74, 124, 89, 0.22);
-  border-radius: 10px;
-  background: rgba(74, 124, 89, 0.08);
-  color: rgba(74, 124, 89, 0.85);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
-}
-
-.reader-note-discussion-entry:hover {
-  background: rgba(74, 124, 89, 0.14);
-  color: var(--color-reader-ink);
-}
-
-.reader-note-discussion-entry:active {
-  transform: scale(0.98);
-}
-
-/* Discussion card toolbar */
-.reader-note-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0 0;
 }
 
 /* Scroll reveal */

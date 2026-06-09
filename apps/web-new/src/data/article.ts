@@ -54,34 +54,34 @@ export const agents: Agent[] = [
     annotationColor: '#a43f37',
   },
   {
-    id: 'xinghuo',
-    nickname: '星火',
-    avatar: '🔥',
-    annotationColor: '#c45e3e',
+    id: 'reading-partner',
+    nickname: '林知微',
+    avatar: '/reading-partner.webp',
+    annotationColor: '#6fa48f',
   },
   {
-    id: 'moyun',
-    nickname: '墨韵',
-    avatar: '墨',
-    annotationColor: '#4a5d8a',
+    id: 'root-reviewer',
+    nickname: '周砚',
+    avatar: '/root-reviewer.webp',
+    annotationColor: '#4f7f9f',
   },
   {
-    id: 'qingfeng',
-    nickname: '清风',
-    avatar: '🍃',
-    annotationColor: '#4a7c59',
+    id: 'question-mentor',
+    nickname: '许问渠',
+    avatar: '/question-mentor.webp',
+    annotationColor: '#a7b8e8',
   },
   {
-    id: 'chenxi',
-    nickname: '晨曦',
-    avatar: '☀',
-    annotationColor: '#b8860b',
+    id: 'insight-editor',
+    nickname: '陈砚书',
+    avatar: '/insight-editor.webp',
+    annotationColor: '#d58b63',
   },
   {
-    id: 'guanlan',
-    nickname: '观澜',
-    avatar: '🌊',
-    annotationColor: '#2e7d8c',
+    id: 'concept-translator',
+    nickname: '沈清源',
+    avatar: '/concept-translator.webp',
+    annotationColor: '#c8b88a',
   },
 ];
 
@@ -99,11 +99,11 @@ export const annotations: Annotation[] = [
     authorId: 'yomitomo',
     type: 'discussion',
     createdAt: '2025-01-15',
-    agentIds: ['yomitomo', 'qingfeng', 'moyun'],
+    agentIds: ['yomitomo', 'reading-partner', 'root-reviewer'],
     thoughts: [
       {
         id: 't1-1',
-        authorId: 'qingfeng',
+        authorId: 'reading-partner',
         content: '收藏夹越来越满，但真正记住的却越来越少。是不是「收藏」和「记住」之间缺了什么？',
         comments: [
           {
@@ -114,14 +114,14 @@ export const annotations: Annotation[] = [
           },
           {
             id: 't1-1-c2',
-            authorId: 'moyun',
+            authorId: 'root-reviewer',
             content: '对，而且这个锚点是精确到段落和句子的，不是模糊的「这篇文章不错」。',
           },
         ],
       },
       {
         id: 't1-2',
-        authorId: 'moyun',
+        authorId: 'root-reviewer',
         content: '怎么才能让读过的东西不白读？有没有具体的方法论？',
         comments: [
           {
@@ -140,11 +140,11 @@ export const annotations: Annotation[] = [
     authorId: 'yomitomo',
     type: 'discussion',
     createdAt: '2025-01-15',
-    agentIds: ['yomitomo', 'xinghuo'],
+    agentIds: ['yomitomo', 'question-mentor'],
     thoughts: [
       {
         id: 't2-1',
-        authorId: 'xinghuo',
+        authorId: 'question-mentor',
         content: '数据全在本地，会不会不方便同步？万一换了电脑怎么办？',
         comments: [
           {
@@ -163,11 +163,11 @@ export const annotations: Annotation[] = [
     authorId: 'yomitomo',
     type: 'discussion',
     createdAt: '2025-01-15',
-    agentIds: ['yomitomo', 'chenxi', 'guanlan'],
+    agentIds: ['yomitomo', 'insight-editor', 'concept-translator'],
     thoughts: [
       {
         id: 't3-1',
-        authorId: 'chenxi',
+        authorId: 'insight-editor',
         content: '为什么是「停下来」才划线？不能整篇都划吗？',
         comments: [
           {
@@ -178,14 +178,14 @@ export const annotations: Annotation[] = [
           },
           {
             id: 't3-1-c2',
-            authorId: 'guanlan',
+            authorId: 'concept-translator',
             content: '而且划线之后可以挂想法、讨论、沉淀，它是一个入口，不是一个终点。',
           },
         ],
       },
       {
         id: 't3-2',
-        authorId: 'guanlan',
+        authorId: 'concept-translator',
         content: '划完线之后呢？光一条线能记住什么？',
         comments: [
           {
@@ -196,7 +196,7 @@ export const annotations: Annotation[] = [
           },
           {
             id: 't3-2-c2',
-            authorId: 'chenxi',
+            authorId: 'insight-editor',
             content: '所以划线比书签精确得多？',
           },
           {
@@ -215,11 +215,11 @@ export const annotations: Annotation[] = [
     authorId: 'yomitomo',
     type: 'discussion',
     createdAt: '2025-01-15',
-    agentIds: ['yomitomo', 'moyun', 'xinghuo', 'qingfeng'],
+    agentIds: ['yomitomo', 'root-reviewer', 'question-mentor', 'reading-partner'],
     thoughts: [
       {
         id: 't4-1',
-        authorId: 'moyun',
+        authorId: 'root-reviewer',
         content: '这里说「持续生长」是什么意思？一条划线能长出什么？',
         comments: [
           {
@@ -230,7 +230,7 @@ export const annotations: Annotation[] = [
           },
           {
             id: 't4-1-c2',
-            authorId: 'xinghuo',
+            authorId: 'question-mentor',
             content: '所以它不是一个快照，而是一个活的过程？',
           },
           {
@@ -242,7 +242,7 @@ export const annotations: Annotation[] = [
       },
       {
         id: 't4-2',
-        authorId: 'qingfeng',
+        authorId: 'reading-partner',
         content: '讨论会不会变得很乱？最后什么都找不到了？',
         comments: [
           {
@@ -261,11 +261,11 @@ export const annotations: Annotation[] = [
     authorId: 'yomitomo',
     type: 'discussion',
     createdAt: '2025-01-15',
-    agentIds: ['yomitomo', 'guanlan', 'chenxi'],
+    agentIds: ['yomitomo', 'concept-translator', 'insight-editor'],
     thoughts: [
       {
         id: 't5-1',
-        authorId: 'guanlan',
+        authorId: 'concept-translator',
         content: '沉淀和笔记的区别是什么？为什么不直接叫「总结」？',
         comments: [
           {
@@ -276,7 +276,7 @@ export const annotations: Annotation[] = [
           },
           {
             id: 't5-1-c2',
-            authorId: 'chenxi',
+            authorId: 'insight-editor',
             content: '而且沉淀可以回到原文，它不是孤立存在的。',
           },
         ],

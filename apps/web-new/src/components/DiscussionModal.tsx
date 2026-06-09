@@ -82,7 +82,7 @@ export default function DiscussionModal({
 
   return (
     <div
-      className="discussion-modal-overlay"
+      className="discussion-modal-overlay is-open"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
