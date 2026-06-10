@@ -16,8 +16,13 @@
     "deploy:cf": "pnpm build && wrangler pages deploy dist --project-name yomitomo"
   },
   "dependencies": {
+    "@astrojs/react": "^5.0.7",
     "@astrojs/starlight": "^0.39.3",
-    "astro": "^6.4.4"
+    "@yomitomo/reader-ui": "workspace:*",
+    "astro": "^6.4.4",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
