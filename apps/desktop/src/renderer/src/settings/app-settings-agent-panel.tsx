@@ -334,11 +334,10 @@ export function AgentSettings({
               <p>{t('settings.agents.emptyDescription')}</p>
             </div>
           ) : (
-            visibleAgents.map(({ agent, persisted }, index) => (
+            visibleAgents.map(({ agent, persisted }) => (
               <AgentProfileListCard
                 agent={agent}
                 canToggle={routeConfigured && persisted}
-                flipped={index % 2 === 1}
                 key={agent.id}
                 lineCue={lineCue?.agentId === agent.id ? lineCue : null}
                 uiLanguage={uiLanguage}
@@ -392,7 +391,6 @@ function resolveAgentProfileFields(agent: Agent, uiLanguage: UiLanguage): AgentP
 function AgentProfileListCard({
   agent,
   canToggle,
-  flipped,
   lineCue,
   uiLanguage,
   onOpenDetail,
@@ -400,7 +398,6 @@ function AgentProfileListCard({
 }: {
   agent: Agent;
   canToggle: boolean;
-  flipped: boolean;
   lineCue: AgentLineCue | null;
   uiLanguage: UiLanguage;
   onOpenDetail: (agent: Agent, sourceRect: DialogSourceRect) => void;
@@ -413,20 +410,9 @@ function AgentProfileListCard({
   );
 
   const enabled = canToggle && agent.enabled;
-  const statusLabel = canToggle
-    ? agent.enabled
-      ? t('settings.agents.status.present')
-      : t('settings.agents.status.resting')
-    : t('settings.agents.status.pending');
-  const statusClassName = !canToggle
-    ? 'agent-list-status-badge is-pending'
-    : agent.enabled
-      ? 'agent-list-status-badge'
-      : 'agent-list-status-badge is-resting';
   const cardClassName = [
     'agent-list-card',
     enabled ? 'is-enabled' : '',
-    flipped ? 'is-flipped' : '',
     canToggle ? '' : 'needs-route',
   ]
     .filter(Boolean)
@@ -438,7 +424,7 @@ function AgentProfileListCard({
       style={{ '--agent-accent': agent.annotationColor } as React.CSSProperties}
     >
       <div className="agent-list-photo">
-        <span className={statusClassName}>{statusLabel}</span>
+        {roleTitle ? <span className="agent-list-role-badge">{roleTitle}</span> : null}
         {lineCue ? (
           <span
             className={
@@ -468,10 +454,7 @@ function AgentProfileListCard({
         </div>
       </div>
       <div className="agent-list-text">
-        <div className="agent-list-headline">
-          <span className="agent-list-role">{roleTitle}</span>
-          {motto ? <blockquote className="agent-list-motto">{motto}</blockquote> : null}
-        </div>
+        {motto ? <blockquote className="agent-list-motto">{motto}</blockquote> : null}
         <div className="agent-list-footer">
           <button
             type="button"
