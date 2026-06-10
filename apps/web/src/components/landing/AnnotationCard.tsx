@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Layers2, MessageCircle, Quote } from 'lucide-react';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
-import { getAgent, type Annotation } from '../data/article';
+import type { Annotation } from './data/article';
+import { useAgentResolver, useLanding } from './LandingContext';
 import DiscussionModal from './DiscussionModal';
 
 type AnnotationCardProps = {
@@ -11,9 +12,13 @@ type AnnotationCardProps = {
 
 /** Avatar stack with negative margins, matching desktop reader-agent-avatar-stack. */
 function AgentAvatarStack({ agentIds }: { agentIds: string[] }) {
+  const getAgent = useAgentResolver();
+  // Only show assistant avatars; drop the Yomitomo brand badge.
+  const assistantIds = agentIds.filter((id) => id !== 'yomitomo');
+  const ids = assistantIds.length > 0 ? assistantIds : agentIds;
   return (
     <span className="reader-agent-avatar-stack">
-      {agentIds.map((id) => {
+      {ids.map((id) => {
         const agent = getAgent(id);
         const isImage = agent.avatar.startsWith('/');
         return (
@@ -40,9 +45,11 @@ function DistillationCard({ annotation }: { annotation: Annotation }) {
   return (
     <article
       className="reader-note has-distillation"
-      style={{
-        '--reader-note-accent': '#b8860b',
-      } as React.CSSProperties}
+      style={
+        {
+          '--reader-note-accent': '#b8860b',
+        } as React.CSSProperties
+      }
     >
       <div className="reader-note-body">
         <svg
@@ -102,12 +109,15 @@ function DiscussionCard({
   annotation: Annotation;
   onOpenDiscussion: () => void;
 }) {
+  const { ui } = useLanding();
   return (
     <article
       className="reader-note"
-      style={{
-        '--reader-note-accent': 'var(--color-reader-gold)',
-      } as React.CSSProperties}
+      style={
+        {
+          '--reader-note-accent': 'var(--color-reader-gold)',
+        } as React.CSSProperties
+      }
     >
       <div className="reader-note-body">
         {/* Quote area with Quote SVG icon */}
@@ -118,7 +128,10 @@ function DiscussionCard({
           <p className="reader-note-quote-text">{annotation.quote}</p>
         </blockquote>
 
-        {/* Footer: avatar stack left, entry button right, time bottom-right */}
+        {/* Time sits at the bottom-right of the body, above the footer. */}
+        <time className="reader-note-time">{annotation.createdAt}</time>
+
+        {/* Footer: avatar stack left, entry button right. */}
         <footer className="reader-note-toolbar">
           <AgentAvatarStack agentIds={annotation.agentIds} />
           <button
@@ -130,11 +143,9 @@ function DiscussionCard({
             }}
           >
             <MessageCircle size={13} />
-            <span>进入讨论区</span>
+            <span>{ui.enterDiscussion}</span>
           </button>
         </footer>
-
-        <time className="reader-note-time">{annotation.createdAt}</time>
       </div>
     </article>
   );
@@ -142,10 +153,7 @@ function DiscussionCard({
 
 // ── Main Export ────────────────────────────────────────
 
-export default function AnnotationCard({
-  annotation,
-  onActivate,
-}: AnnotationCardProps) {
+export default function AnnotationCard({ annotation, onActivate }: AnnotationCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -180,10 +188,7 @@ export default function AnnotationCard({
         {isDistillation ? (
           <DistillationCard annotation={annotation} />
         ) : (
-          <DiscussionCard
-            annotation={annotation}
-            onOpenDiscussion={() => setModalOpen(true)}
-          />
+          <DiscussionCard annotation={annotation} onOpenDiscussion={() => setModalOpen(true)} />
         )}
       </div>
 

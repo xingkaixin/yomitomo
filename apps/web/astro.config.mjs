@@ -1,10 +1,12 @@
 import starlight from '@astrojs/starlight';
+import react from '@astrojs/react';
 import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   site: 'https://yomitomo.app',
   output: 'static',
   integrations: [
+    react(),
     starlight({
       title: 'Yomitomo 文档',
       description: 'Yomitomo 的产品使用文档和版本更新记录。',

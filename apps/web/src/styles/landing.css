@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
   --color-reader-bg: #fffdf8;
@@ -14,9 +14,9 @@
   --color-reader-green: #4a7c59;
   --color-reader-green-soft: #edf5ef;
 
-  --font-serif: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
-  --font-sans: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --font-serif: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  --font-sans: Inter, 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
 }
 
 body {
@@ -48,246 +48,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ========== Reader Toolbar (mimics reader-ui) ========== */
-
-.reader-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  display: grid;
-  grid-template-columns: minmax(112px, 1fr) minmax(0, 2fr) minmax(112px, 1fr);
-  align-items: center;
-  gap: 18px;
-  padding: 14px 28px 17px;
-  background: rgba(255, 253, 248, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--color-reader-line);
-  font-family: var(--font-sans);
-}
-
-.reader-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.reader-back {
-  display: inline-flex;
-  min-width: 0;
-  min-height: 36px;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-reader-muted);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 0 8px;
-  text-decoration: none;
-  transition: background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
-}
-
-.reader-back span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reader-back:hover,
-.reader-back:focus-visible {
-  background: rgba(42, 34, 24, 0.04);
-  color: var(--color-reader-ink);
-  outline: 0;
-}
-
-.reader-back:active {
-  transform: scale(0.96);
-}
-
-.reader-brand {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-reader-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.reader-toolbar-article {
-  display: flex;
-  flex: 1 1 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-width: 0;
-  grid-column: 2;
-}
-
-.reader-toolbar-article-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  justify-items: center;
-  text-align: center;
-}
-
-.reader-toolbar-article-title {
-  overflow: hidden;
-  color: var(--color-reader-ink);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.18;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reader-toolbar-article-meta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 0;
-  margin: 0;
-  color: var(--color-reader-muted);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.reader-toolbar-article-meta span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.reader-toolbar-article-meta span + span::before {
-  content: "";
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  margin-right: 8px;
-  border-radius: 999px;
-  background: rgba(42, 34, 24, 0.2);
-  vertical-align: 2px;
-}
-
-.reader-toolbar-actions {
-  grid-column: 3;
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.reader-toolbar-nav {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.reader-toolbar-nav-link {
-  display: inline-flex;
-  min-height: 32px;
-  align-items: center;
-  padding: 0 10px;
-  border-radius: 6px;
-  color: var(--color-reader-muted);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background-color 0.14s ease, color 0.14s ease;
-}
-
-.reader-toolbar-nav-link:hover {
-  background: rgba(42, 34, 24, 0.04);
-  color: var(--color-reader-ink);
-}
-
-.reader-toolbar-divider {
-  width: 1px;
-  height: 18px;
-  background: var(--color-reader-line);
-}
-
-.reader-toolbar-social {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.reader-icon-button {
-  display: inline-grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--color-reader-muted);
-  transition: background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
-}
-
-.reader-icon-button:hover {
-  background: rgba(42, 34, 24, 0.04);
-  color: var(--color-reader-ink);
-}
-
-.reader-icon-button:active {
-  transform: scale(0.96);
-}
-
-.reader-toolbar-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  overflow: hidden;
-  background: rgba(232, 224, 212, 0.6);
-  pointer-events: none;
-}
-
-.reader-toolbar-progress span {
-  display: block;
-  height: 100%;
-  border-radius: 0 999px 999px 0;
-  background: var(--color-reader-accent);
-  transition: width 0.18s ease;
-}
-
-@media (max-width: 860px) {
-  .reader-toolbar {
-    grid-template-columns: 1fr auto 1fr;
-    gap: 12px;
-    padding: 10px 16px 13px;
-  }
-
-  .reader-toolbar-nav {
-    display: none;
-  }
-
-  .reader-toolbar-divider {
-    display: none;
-  }
-
-  .reader-toolbar-article-title {
-    font-size: 13px;
-  }
-
-  .reader-toolbar-article-meta {
-    display: none;
-  }
-}
-
 /* ========== Highlight (underline only, no background tint) ========== */
 
 .reader-highlight {
@@ -298,7 +58,7 @@ body {
 }
 
 .reader-highlight::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -328,12 +88,14 @@ body {
 .discussion-modal-overlay {
   position: fixed;
   inset: 0;
+  /* Above the annotation connection line (z-index 4) and highlight underlines,
+     so the discussion window is never bled through by 划线. */
   z-index: 9999;
   display: grid;
   place-items: center;
-  background: rgba(42, 34, 24, 0.35);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(42, 34, 24, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   padding: 24px;
   opacity: 0;
   transition: opacity 0.25s ease;
@@ -351,7 +113,9 @@ body {
   border: 1px solid var(--color-reader-line);
   border-radius: 18px;
   background: var(--color-reader-paper);
-  box-shadow: 0 28px 80px rgba(42, 34, 24, 0.22), 0 8px 20px rgba(42, 34, 24, 0.06);
+  box-shadow:
+    0 28px 80px rgba(42, 34, 24, 0.22),
+    0 8px 20px rgba(42, 34, 24, 0.06);
   transform: scale(0.97);
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -375,7 +139,10 @@ body {
   color: var(--color-reader-muted);
   padding: 0;
   cursor: pointer;
-  transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
 }
 
 .discussion-modal-close:hover {
@@ -537,26 +304,16 @@ body {
 /* Thread view (right panel) */
 .annotation-discussion-thread {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
-}
-
-.annotation-discussion-thread-header {
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--color-reader-line);
-}
-
-.annotation-discussion-thread-header strong {
-  font-size: 13px;
-  font-weight: 800;
 }
 
 .annotation-discussion-thread-body {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   overflow: hidden;
-  padding: 16px 18px;
-  gap: 16px;
+  padding: 20px 20px 18px;
+  gap: 14px;
 }
 
 .annotation-discussion-thread-placeholder {
@@ -567,21 +324,16 @@ body {
   font-size: 13px;
 }
 
-/* Root thought */
+/* Root thought (想法) shown at the top of the thread panel */
 .annotation-discussion-root-thought {
   max-width: min(860px, 100%);
 }
 
-.annotation-discussion-root-thought-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.annotation-discussion-root-thought-header strong {
-  font-size: 13px;
-  font-weight: 700;
+.annotation-discussion-root-thought .annotation-discussion-markdown {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.74;
+  color: var(--color-reader-ink);
 }
 
 .annotation-discussion-markdown {
@@ -683,13 +435,20 @@ body {
   color: var(--color-reader-gold);
 }
 
-/* Time in bottom-right of card body */
+/* Time in bottom-right of card body, above the footer */
 .reader-note-body > .reader-note-time {
   display: block;
   text-align: right;
   font-size: 10px;
   color: var(--color-reader-faint);
-  padding-top: 6px;
+  padding-top: 10px;
+}
+
+/* Discussion card footer: avatar left, entry button right */
+.reader-note .reader-note-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
 }
 
 /* Agent avatar stack on annotation cards */
@@ -738,7 +497,9 @@ body {
 .reveal {
   opacity: 0;
   transform: translateY(16px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
 }
 
 .reveal.in {

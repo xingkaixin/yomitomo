@@ -1,7 +1,16 @@
 ---
-import SiteHeader from '../SiteHeader.astro';
+import Masthead from '../Masthead.astro';
 
-const lang = Astro.url.pathname.startsWith('/en/') ? 'en' : 'zh-CN';
+const path = Astro.url.pathname;
+const lang = path.startsWith('/en/') ? 'en' : 'zh-CN';
+const normalized = path.replace(/^\/en/, '');
+const active = normalized.startsWith('/blog')
+  ? 'blog'
+  : normalized.startsWith('/changelogs')
+    ? 'changelogs'
+    : normalized.startsWith('/docs')
+      ? 'docs'
+      : undefined;
 ---
 
-<SiteHeader lang={lang} />
+<Masthead lang={lang} active={active} />

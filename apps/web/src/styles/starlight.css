@@ -24,6 +24,17 @@
   --sl-color-accent-low: #f6d8d4;
   --sl-color-accent: #a43f37;
   --sl-color-accent-high: #5b1b16;
+
+  /* The custom Masthead header (big title + section nav) is taller than
+     Starlight's default nav. Match --sl-nav-height to its real height so the
+     sticky sidebar / content start below it instead of under it. */
+  --sl-nav-height: 201px;
+}
+
+@media (max-width: 50rem) {
+  :root {
+    --sl-nav-height: 170px;
+  }
 }
 
 @supports (height: 100dvh) {
@@ -33,9 +44,11 @@
 }
 
 :root[data-theme='light'] {
-  --sl-color-bg: #f9f8f6;
-  --sl-color-bg-nav: #f9f8f6;
-  --sl-color-bg-sidebar: #f9f8f6;
+  /* Match the landing page background so navigating between the home page and
+     the docs/blog/changelog pages does not flash a different surface color. */
+  --sl-color-bg: #fffdf8;
+  --sl-color-bg-nav: #fffdf8;
+  --sl-color-bg-sidebar: #fffdf8;
   --sl-color-text: #141414;
   --sl-color-text-accent: #8f332d;
   --sl-color-gray-1: #242424;
@@ -54,10 +67,8 @@
 .header {
   height: auto;
   padding: var(--safe-top) var(--safe-inline-end) 0 var(--safe-inline-start);
-  border-bottom: 1px solid hsl(0 0% 100% / 0.68);
-  background: hsl(0 0% 98% / 0.74);
-  box-shadow: 0 12px 30px hsl(0 0% 0% / 0.05);
-  backdrop-filter: blur(18px) saturate(1.2);
+  border-bottom: 0;
+  background: #fffdf8;
 }
 
 .header > astro-slot {
@@ -186,12 +197,11 @@ h1#_top {
 }
 
 @media (min-width: 72rem) {
+  /* Keep the footer inside the content column (to the right of the fixed
+     sidebar) so a long sidebar never overlaps the footer. */
   main .site-footer {
-    width: 100vw;
-    margin-inline-start: calc(
-      -1 * var(--docs-shell-margin) - var(--sl-sidebar-width) -
-        (var(--docs-shell-width) - var(--sl-sidebar-width) - var(--sl-content-width)) / 2
-    );
+    width: 100%;
+    margin-inline-start: 0;
   }
 }
 
