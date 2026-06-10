@@ -41,6 +41,7 @@ import {
 } from '../context/segment-annotation-runner';
 import {
   instructionPromptLine,
+  readingAssistantPrinciplesPrompt,
   readingIntentPromptLine,
   readingIntentSystemPrompt,
   spoilerScopePrompt,
@@ -393,7 +394,7 @@ function buildAgentAnnotateSystemPrompt(agent: Agent, payload: AgentAnnotatePayl
   const scope = payload.targetAnchor
     ? `你正在作为网页阅读器里的 @${username} 对读者选中的文本创建批注。批注以目标选区为锚点，可以参考提供的局部上下文，但只围绕目标选区本身展开。`
     : `你正在作为网页阅读器里的 @${username} 主动阅读文章并创建批注。只标出真正值得讨论的原文片段：金句、关键判断、强论点、反常规观点、潜在漏洞、值得追问的前提、与读者决策相关的信息。平平无奇的句子直接跳过。`;
-  return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n${scope}${readingIntentSystemPrompt(payload)}${responseLanguageSystemPrompt(payload.uiLanguage)}`;
+  return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n${scope}${readingAssistantPrinciplesPrompt(payload.uiLanguage)}${readingIntentSystemPrompt(payload)}${responseLanguageSystemPrompt(payload.uiLanguage)}`;
 }
 
 function targetAnchorSuggestion(payload: AgentAnnotatePayload) {

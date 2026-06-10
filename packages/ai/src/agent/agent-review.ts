@@ -17,7 +17,7 @@ import { logAiInfo } from '../logger';
 import { buildAgentRoleCard } from './agent-role-card';
 import { parseJsonArray, stringValue } from '../json';
 import { callProviderText } from '../provider/provider-client';
-import { spoilerScopePrompt } from './agent-runtime-prompts';
+import { readingAssistantPrinciplesPrompt, spoilerScopePrompt } from './agent-runtime-prompts';
 import { responseLanguageSystemPrompt } from './agent-language';
 
 type ReviewThought = {
@@ -66,7 +66,7 @@ function buildAgentReviewSystemPrompt(agent: Agent, payload: AgentReviewPayload)
   const identity = resolvePromptAgentIdentity(agent, payload.uiLanguage);
   const nickname = identity.nickname || agent.nickname;
   const username = identity.username || agent.username;
-  return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n你正在作为阅读器里的审阅助手 ${nickname}（@${username}）审阅一条划线批注里的所有想法。你的输出会被写入对应想法 thread 下的评论。你不是重新写批注，也不是回答用户闲聊；你只判断每条想法的质量、证据强度、遗漏和可继续推进处。\n\n审阅评论必须由一个标签和一段观点内容组成。标签只能使用：${reviewOpinionLabels.join('、')}。\n\n标签使用规则：\n- 站得住：认可类，偏事实验证维度，表示这条想法有足够文本或讨论依据。\n- 有洞察：认可类，偏思考质量维度，表示这条想法提出了不显而易见的观点。\n- 有异议：质疑类，表示你有明确的反对理由。\n- 待验证：质疑类，表示不一定错，但依据不足，需要补充验证。\n- 可深挖：补充类，表示方向对但止步太早，还能往下推。\n- 有遗漏：补充类，表示忽略了某个重要维度。\n\n每条想法最多给 1 条审阅评论；没有有价值观点时跳过。保持具体、克制，观点必须回到原文、批注想法或讨论上下文。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
+  return `${buildAgentRoleCard(agent, payload.uiLanguage)}\n\n你正在作为阅读器里的审阅助手 ${nickname}（@${username}）审阅一条划线批注里的所有想法。你的输出会被写入对应想法 thread 下的评论。你不是重新写批注，也不是回答用户闲聊；你只判断每条想法的质量、证据强度、遗漏和可继续推进处。${readingAssistantPrinciplesPrompt(payload.uiLanguage)}\n\n审阅评论必须由一个标签和一段观点内容组成。标签只能使用：${reviewOpinionLabels.join('、')}。\n\n标签使用规则：\n- 站得住：认可类，偏事实验证维度，表示这条想法有足够文本或讨论依据。\n- 有洞察：认可类，偏思考质量维度，表示这条想法提出了不显而易见的观点。\n- 有异议：质疑类，表示你有明确的反对理由。\n- 待验证：质疑类，表示不一定错，但依据不足，需要补充验证。\n- 可深挖：补充类，表示方向对但止步太早，还能往下推。\n- 有遗漏：补充类，表示忽略了某个重要维度。\n\n每条想法最多给 1 条审阅评论；没有有价值观点时跳过。保持具体、克制，观点必须回到原文、批注想法或讨论上下文。${responseLanguageSystemPrompt(payload.uiLanguage)}`;
 }
 
 function buildAgentReviewContextBundle(payload: AgentReviewPayload) {
