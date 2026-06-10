@@ -237,6 +237,24 @@ describe('annotation distillation proposals', () => {
     });
   });
 
+  it('replaces a proposal target when only whitespace differs', () => {
+    const result = applyDistillationProposalToDraft(
+      '旧判断需要\n收敛',
+      {
+        id: 'proposal_1',
+        kind: 'replace',
+        status: 'pending',
+        title: '修改',
+        targetText: '旧判断需要 收敛',
+        replacementText: '新判断',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({ ok: true, draft: '新判断', changeOffset: 0, changeLength: 3 });
+  });
+
   it('deletes a proposal target only when the text is unique', () => {
     const result = applyDistillationProposalToDraft(
       '保留。删除这句。继续。',
@@ -252,6 +270,28 @@ describe('annotation distillation proposals', () => {
     );
 
     expect(result).toEqual({ ok: true, draft: '保留。继续。', changeOffset: 3, changeLength: 0 });
+  });
+
+  it('deletes a proposal target when only whitespace differs', () => {
+    const result = applyDistillationProposalToDraft(
+      '保留。\n删除这句。\n继续。',
+      {
+        id: 'proposal_1',
+        kind: 'delete',
+        status: 'pending',
+        title: '删除',
+        targetText: '删除这句。',
+        updatedAt: now,
+      },
+      null,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      draft: '保留。\n\n继续。',
+      changeOffset: 4,
+      changeLength: 0,
+    });
   });
 });
 

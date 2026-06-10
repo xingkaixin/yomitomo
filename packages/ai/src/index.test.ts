@@ -168,6 +168,9 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('当前讨论里出现 林知微、@林知微 时，按你本人理解。');
     expect(prompt).toContain('涉及自己的判断时，用自然的第一人称承接');
     expect(prompt).toContain('角色卡中的自我介绍、核心气质、判断习惯和输出偏好');
+    expect(prompt).toContain('## 阅读助手原则');
+    expect(prompt).toContain('你是阅读助手，不是普通摘要器');
+    expect(prompt).toContain('始终保留用户与原文之间的连接');
   });
 
   it('keeps assistant-created thoughts concise and non-dialogic', () => {
@@ -223,8 +226,27 @@ describe('agent message prompts', () => {
 
     expect(system).toContain('只有当前 thread 或 memory_view 明确提供了对应内容时');
     expect(system).toContain('没有证据时，直接说明当前上下文里没有看到这类历史记录');
+    expect(system).not.toContain('## 审阅助手原则');
     expect(prompt).toContain('历史断言规则');
     expect(prompt).toContain('才能说“我之前批注过”“我之前说过”或“其他助手批注过”');
+  });
+
+  it('adds draft review principles to distillation review prompts', () => {
+    const system = buildAgentMessageSystemPrompt(
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
+      { ...payload, responseMode: 'distillation_review' },
+    );
+
+    expect(system).toContain('## 审阅助手原则');
+    expect(system).toContain('你是面向阅读沉淀稿的审阅助手');
+    expect(system).toContain('之前阅读助手说过的话不能自动视为证据');
+    expect(system).toContain('用户当前草稿是要改进的对象，不应被整体覆盖');
+    expect(system).toContain('新增、修改、删除、合并、拆分、移动、澄清、补证据');
   });
 
   it('adds the selected interface language to assistant replies', () => {
@@ -240,7 +262,26 @@ describe('agent message prompts', () => {
 
     expect(system).toContain('回复语言');
     expect(system).toContain('English');
+    expect(system).toContain('## Reading Assistant Principles');
+    expect(system).toContain('You are a reading assistant, not a generic summarizer.');
     expect(system).toContain('引用原文、用户名、助手名、代码、JSON 字段名和工具参数保持原样');
+  });
+
+  it('uses English draft review principles for English distillation reviews', () => {
+    const system = buildAgentMessageSystemPrompt(
+      {
+        presetId: 'reading-partner',
+        soul: readingPartnerSoul,
+        username: lin.username,
+        nickname: lin.nickname,
+      },
+      { ...payload, responseMode: 'distillation_review', uiLanguage: 'en' },
+    );
+
+    expect(system).toContain('## Review Assistant Principles');
+    expect(system).toContain('You are a review assistant for reading distillation drafts.');
+    expect(system).toContain('Prior assistant comments are not evidence by themselves.');
+    expect(system).toContain("Preserve the user's voice.");
   });
 
   it('builds a thought review prompt with all thoughts and the target thought', () => {
@@ -758,6 +799,8 @@ describe('agent annotations', () => {
     const requestBody = JSON.parse(requestBodyText(fetchMock.mock.calls[0]?.[1]?.body)) as {
       messages: Array<{ content: string }>;
     };
+    expect(requestBody.messages[0]?.content).toContain('## 阅读助手原则');
+    expect(requestBody.messages[0]?.content).toContain('你的默认回答应该像原文旁边的一层智能批注');
     expect(requestBody.messages[1]?.content).toContain('最多 1 条');
     expect(annotations).toHaveLength(1);
     expect(annotations[0]?.anchor.exact).toBe('第一句很短');

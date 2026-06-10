@@ -116,11 +116,7 @@ function validSelectionEnd(draft: string, selection: DraftSelectionSnapshot | nu
 
 function uniqueTextMatch(draft: string, text: string) {
   const index = draft.indexOf(text);
-  if (index < 0)
-    return {
-      ok: false as const,
-      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
-    };
+  if (index < 0) return uniqueCompactTextMatch(draft, text);
   if (draft.indexOf(text, index + text.length) >= 0) {
     return {
       ok: false as const,
@@ -128,6 +124,59 @@ function uniqueTextMatch(draft: string, text: string) {
     };
   }
   return { ok: true as const, index, text };
+}
+
+function uniqueCompactTextMatch(draft: string, text: string) {
+  const target = compactText(text);
+  if (!target) {
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+    };
+  }
+  const source = compactDraft(draft);
+  const compactIndex = source.text.indexOf(target);
+  if (compactIndex < 0) {
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+    };
+  }
+  if (source.text.indexOf(target, compactIndex + target.length) >= 0) {
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetAmbiguous'),
+    };
+  }
+  const start = source.offsets[compactIndex];
+  const last = source.offsets[compactIndex + target.length - 1];
+  if (start === undefined || last === undefined) {
+    return {
+      ok: false as const,
+      reason: i18next.t('sedimentation.proposalErrors.targetNotFound'),
+    };
+  }
+  return {
+    ok: true as const,
+    index: start,
+    text: draft.slice(start, last + 1),
+  };
+}
+
+function compactDraft(value: string) {
+  const offsets: number[] = [];
+  let text = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (/\s/.test(char)) continue;
+    text += char;
+    offsets.push(index);
+  }
+  return { text, offsets };
+}
+
+function compactText(value: string) {
+  return value.replace(/\s+/g, '');
 }
 
 function insertTextAt(
