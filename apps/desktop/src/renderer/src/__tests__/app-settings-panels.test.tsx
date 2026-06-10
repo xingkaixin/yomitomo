@@ -736,16 +736,14 @@ describe('AgentSettings', () => {
 
     expect(screen.getByText('林知微')).toBeTruthy();
     expect(screen.getByText('沈清源')).toBeTruthy();
-    expect(screen.getByText('在场')).toBeTruthy();
-    expect(screen.getByText('休息中')).toBeTruthy();
     expect(screen.queryByText('让TA在场')).toBeNull();
     expect(screen.queryByText('请TA加入')).toBeNull();
   });
 
-  it('marks enabled agent work photos with a status badge', () => {
+  it('shows the role badge on the work photo', () => {
     renderAgentSettings();
 
-    expect(screen.getAllByText('在场')).toHaveLength(1);
+    expect(screen.getByText('页边同读者')).toBeTruthy();
   });
 
   it('shows preset assistant cards before provider configuration', () => {

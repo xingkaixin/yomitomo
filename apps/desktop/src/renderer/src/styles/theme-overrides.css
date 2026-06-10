@@ -2862,8 +2862,7 @@
     0 0 0 1px hsl(var(--foreground) / 0.06);
 }
 
-.agent-list-status-badge {
-  border-radius: 0;
+.agent-list-role-badge {
   background: hsl(var(--card));
 }
 
