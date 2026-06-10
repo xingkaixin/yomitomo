@@ -224,7 +224,7 @@ export default function ReaderArticle({ downloads }: { downloads: Downloads }) {
               onActivate={handleActivate}
             />
           </div>
-          <div className="w-[340px] shrink-0 pt-12">
+          <div className="hidden w-[340px] shrink-0 pt-12 lg:block">
             <AnnotationRail
               items={right}
               header={ui.railHeader}

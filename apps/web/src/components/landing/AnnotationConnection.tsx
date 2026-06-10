@@ -49,7 +49,16 @@ export default function AnnotationConnection({ annotationId }: AnnotationConnect
       return;
     }
 
-    const update = () => setConnection(computeConnection(annotationId, annotations));
+    // Connection lines only make sense when the annotation rail sits beside
+    // the article (lg+). Below that the cards stack under the article, so a
+    // line would shoot across the whole page.
+    const update = () => {
+      if (!window.matchMedia('(min-width: 1024px)').matches) {
+        setConnection(null);
+        return;
+      }
+      setConnection(computeConnection(annotationId, annotations));
+    };
     update();
 
     let frame = 0;

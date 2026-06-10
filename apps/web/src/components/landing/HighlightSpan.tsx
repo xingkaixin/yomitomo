@@ -19,10 +19,12 @@ export default function HighlightSpan({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       onActivate(annotationId);
-      const card = document.getElementById(`annotation-${annotationId}`);
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      // The desktop rail and the mobile stack both render a card with this id,
+      // but only one is visible per layout. Scroll to the visible one so the
+      // click always lands somewhere (offsetParent is null when display:none).
+      const cards = document.querySelectorAll<HTMLElement>(`[id="annotation-${annotationId}"]`);
+      const card = Array.from(cards).find((el) => el.offsetParent !== null) ?? cards[0];
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     },
     [annotationId, onActivate],
   );
