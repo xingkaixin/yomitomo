@@ -15,6 +15,7 @@ import { registerProviderIpc } from './ipc/ipc-provider';
 import { registerStoreDataIpc } from './ipc/ipc-store-data';
 import { registerWeReadIpc } from './ipc/ipc-weread';
 import { modelPriceRefreshIntervalMs } from './providers/model-pricing-repository';
+import { secureRendererWebPreferences } from './windows/renderer-window-security';
 import { windowChromeOptions } from './windows/window-chrome';
 import { mainPath } from './app/main-paths';
 
@@ -130,12 +131,7 @@ async function createWindow() {
     backgroundColor: '#ffffff',
     title: 'Yomitomo',
     icon: appIconPath,
-    webPreferences: {
-      preload: mainPath('../preload/index.mjs'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+    webPreferences: secureRendererWebPreferences(),
   });
   mainWindow = browserWindow;
   recordStartupTiming('window.created');
