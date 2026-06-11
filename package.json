@@ -17,12 +17,15 @@
     "deploy:cf": "pnpm --filter @yomitomo/web deploy:cf",
     "deploy:download": "pnpm --filter @yomitomo/download deploy:cf",
     "build": "turbo build",
+    "build:app": "pnpm --filter @yomitomo/desktop build",
+    "build:web": "pnpm --filter @yomitomo/web build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "turbo run format",
     "format:check": "turbo run format:check",
-    "test": "turbo test"
+    "test": "turbo test",
+    "test:app:e2e": "pnpm --filter @yomitomo/desktop test:e2e"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",
