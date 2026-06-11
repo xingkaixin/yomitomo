@@ -17,6 +17,7 @@ import {
   insertAssistantExecutionRun,
   type AssistantExecutionRunInput,
 } from '../assistant/assistant-execution-repository';
+import { logError } from '../app/logger';
 import {
   listAssistantExecutionRuns,
   summarizeAssistantExecutions,
@@ -469,7 +470,8 @@ function backfillAnnotationMemoryOnce(database: StoreDatabase, profile?: StoreRe
     markAnnotationMemoryBackfillComplete(database);
     annotationMemoryBackfilled = true;
   } catch (error) {
-    console.warn('[reading-memory] backfill annotation memory entries failed', { error });
+    annotationMemoryBackfilled = true;
+    logError('reading-memory.backfill_annotation_memory_failed', error);
   }
 }
 

@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { rm } from 'node:fs/promises';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
@@ -11,6 +12,8 @@ import {
 const testState = vi.hoisted(() => ({
   secrets: new Map<string, string>(),
   providerApiKeyRef: (providerId: string) => `provider:${providerId}:apiKey`,
+  backfillAnnotationMemoryEntries: vi.fn(),
+  logErrors: [] as Array<{ event: string; error: unknown; data?: Record<string, unknown> }>,
 }));
 
 vi.mock('electron', () => ({
@@ -18,6 +21,13 @@ vi.mock('electron', () => ({
     getPath: () => '/tmp/yomitomo-store-test',
   },
 }));
+
+vi.mock('../native/sqlite', async () => {
+  const { default: SQLiteDatabase } = await import('better-sqlite3');
+  return {
+    loadSQLiteDatabase: () => SQLiteDatabase,
+  };
+});
 
 vi.mock('../providers/provider-secrets', () => {
   return {
@@ -35,6 +45,20 @@ vi.mock('../providers/provider-secrets', () => {
   };
 });
 
+vi.mock('../articles/article-repository', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../articles/article-repository')>();
+  return {
+    ...actual,
+    backfillStoredArticleAnnotationMemoryEntries: testState.backfillAnnotationMemoryEntries,
+  };
+});
+
+vi.mock('../app/logger', () => ({
+  logError: (event: string, error: unknown, data?: Record<string, unknown>) => {
+    testState.logErrors.push({ event, error, data });
+  },
+}));
+
 import {
   buildArticleReadingProgressPatch,
   buildAgentRecord,
@@ -42,8 +66,10 @@ import {
   buildArticleReaderChatStatePatch,
   buildArticleUpsertPatch,
   buildProviderRecord,
+  closeDatabase,
   findArticleInListByIdentity,
   mergeSettingsForUpsert,
+  readStore,
   readStoredProviderApiKey,
   resolveProviderApiKeyStorage,
 } from './store';
@@ -54,6 +80,26 @@ import {
   type ArticleSummaryRow,
 } from './store-normalizers';
 import { normalizeWeReadReadingStats } from '../weread/weread-repository';
+import { getDatabase } from './store-db';
+import * as schema from '../db/schema';
+
+beforeEach(async () => {
+  closeDatabase();
+  await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
+  testState.secrets.clear();
+  testState.backfillAnnotationMemoryEntries.mockReset();
+  testState.backfillAnnotationMemoryEntries.mockReturnValue({
+    articleCount: 0,
+    annotationCount: 0,
+    entryCount: 0,
+  });
+  testState.logErrors = [];
+});
+
+afterEach(async () => {
+  closeDatabase();
+  await rm('/tmp/yomitomo-store-test', { recursive: true, force: true });
+});
 
 describe('desktop store settings', () => {
   it('preserves missing settings fields during partial upserts', () => {
@@ -176,10 +222,6 @@ describe('desktop store settings', () => {
   });
 });
 
-beforeEach(() => {
-  testState.secrets.clear();
-});
-
 describe('desktop store providers', () => {
   it('resolves new provider api keys into keyring refs', async () => {
     testState.secrets.clear();
@@ -266,6 +308,28 @@ describe('desktop store providers', () => {
     testState.secrets.set('provider:provider_1:apiKey', 'sk-stored');
 
     await expect(readStoredProviderApiKey('provider_1')).resolves.toBe('sk-stored');
+  });
+});
+
+describe('desktop store annotation memory backfill', () => {
+  it('does not retry a failed annotation memory backfill in the same process', async () => {
+    const error = new Error('backfill failed');
+    testState.backfillAnnotationMemoryEntries.mockImplementation(() => {
+      throw error;
+    });
+
+    await readStore();
+    await readStore();
+
+    expect(testState.backfillAnnotationMemoryEntries).toHaveBeenCalledTimes(1);
+    expect(testState.logErrors).toEqual([
+      {
+        event: 'reading-memory.backfill_annotation_memory_failed',
+        error,
+        data: undefined,
+      },
+    ]);
+    expect(readAnnotationMemoryBackfillVersion()).toBeNull();
   });
 });
 
@@ -941,4 +1005,14 @@ function storeSummaryRow(): ArticleSummaryRow {
     createdAt: '2026-05-17T00:00:00.000Z',
     updatedAt: '2026-05-17T00:00:00.000Z',
   };
+}
+
+function readAnnotationMemoryBackfillVersion() {
+  return (
+    getDatabase()
+      .select({ version: schema.appSettings.annotationMemoryBackfillVersion })
+      .from(schema.appSettings)
+      .limit(1)
+      .get()?.version || null
+  );
 }
