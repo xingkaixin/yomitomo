@@ -16,14 +16,14 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/anthropic": "^3.0.82",
     "@ai-sdk/google": "^3.0.80",
-    "@ai-sdk/openai": "^3.0.67",
+    "@ai-sdk/openai": "^3.0.69",
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
-    "ai": "^6.0.196",
-    "effect": "^3.21.2"
+    "ai": "^6.0.199",
+    "effect": "^3.21.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
