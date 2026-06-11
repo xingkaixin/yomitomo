@@ -5,8 +5,9 @@ import { NoopLogger, type PdfDocumentObject } from '@embedpdf/models';
 import { init } from '@embedpdf/pdfium';
 import { nativeImage } from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
+import { MAX_PDF_IMPORT_BYTES } from '../../ipc-contract';
 
-export const MAX_PDF_BYTES = 120 * 1024 * 1024;
+export const MAX_PDF_BYTES = MAX_PDF_IMPORT_BYTES;
 
 // 封面缩略图：约 300px 宽的 JPEG，导入期一次性渲染并本地持久化。
 const PDF_THUMBNAIL_TARGET_WIDTH = 300;
@@ -31,7 +32,7 @@ export async function articleRecordFromPdfFile(
   const fileName = input.fileName.trim() || 'Untitled.pdf';
   const fileSize = input.data.byteLength;
   if (!isPdfFile(fileName, input.mimeType)) throw new Error('PDF_IMPORT_INVALID_FILE');
-  if (fileSize > MAX_PDF_BYTES) throw new Error('PDF_IMPORT_FILE_TOO_LARGE');
+  if (fileSize > MAX_PDF_IMPORT_BYTES) throw new Error('PDF_IMPORT_FILE_TOO_LARGE');
 
   const bytes = new Uint8Array(input.data);
   const contentHash = pdfContentHash(bytes);
