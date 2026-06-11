@@ -13,6 +13,7 @@ import type {
 import { Effect } from 'effect';
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway';
+export const WEREAD_REQUEST_TIMEOUT_MS = 30_000;
 export const WEREAD_SKILL_VERSION = '1.0.3';
 
 type WeReadGatewayResponse = Record<string, unknown>;
@@ -21,6 +22,7 @@ type WeReadClientError =
   | WeReadGatewayDecodeError
   | WeReadHttpError
   | WeReadNetworkError
+  | WeReadTimeoutError
   | WeReadUpgradeError;
 
 class WeReadHttpError extends Error {
@@ -36,6 +38,14 @@ class WeReadNetworkError extends Error {
 
   constructor(cause: unknown) {
     super(`WeRead request failed: ${errorMessage(cause)}`);
+  }
+}
+
+class WeReadTimeoutError extends Error {
+  readonly _tag = 'WeReadTimeoutError';
+
+  constructor(readonly apiName: string) {
+    super(`WeRead request timed out: ${apiName}`);
   }
 }
 
@@ -215,27 +225,43 @@ function requestWeReadEffect(
   params: Record<string, unknown> = {},
 ): Effect.Effect<WeReadGatewayResponse, WeReadClientError> {
   return Effect.gen(function* () {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), WEREAD_REQUEST_TIMEOUT_MS);
     const response = yield* Effect.tryPromise({
-      try: () =>
-        fetch(WEREAD_GATEWAY_URL, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            api_name: apiName,
-            skill_version: WEREAD_SKILL_VERSION,
-            ...params,
-          }),
-        }),
-      catch: (error) => new WeReadNetworkError(error),
+      try: async () => {
+        let responseReceived = false;
+        try {
+          const gatewayResponse = await fetch(WEREAD_GATEWAY_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
+            body: JSON.stringify({
+              api_name: apiName,
+              skill_version: WEREAD_SKILL_VERSION,
+              ...params,
+            }),
+          });
+          responseReceived = true;
+          return gatewayResponse;
+        } finally {
+          if (!responseReceived) clearTimeout(timeout);
+        }
+      },
+      catch: (error) =>
+        isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadNetworkError(error),
     });
-    if (!response.ok) return yield* Effect.fail(new WeReadHttpError(response.status));
+    if (!response.ok) {
+      clearTimeout(timeout);
+      return yield* Effect.fail(new WeReadHttpError(response.status));
+    }
 
     const value = yield* Effect.tryPromise({
-      try: () => response.json() as Promise<unknown>,
-      catch: (error) => new WeReadGatewayDecodeError(error),
+      try: () => (response.json() as Promise<unknown>).finally(() => clearTimeout(timeout)),
+      catch: (error) =>
+        isAbortError(error) ? new WeReadTimeoutError(apiName) : new WeReadGatewayDecodeError(error),
     });
     const data = gatewayResponseValue(value);
     if (data.upgrade_info && typeof data.upgrade_info === 'object') {
@@ -252,6 +278,10 @@ function requestWeReadEffect(
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isAbortError(error: unknown) {
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 function notebookBookFromResponse(item: Record<string, unknown>): WeReadBook {
