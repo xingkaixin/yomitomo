@@ -231,7 +231,10 @@ function ReaderChatMessageView({
   const nickname = isAssistant ? assistant?.nickname || labels.assistant : labels.me;
   const avatar = isAssistant ? assistant?.avatar : undefined;
   const fallback = nickname.slice(0, 1) || (isAssistant ? labels.assistant.slice(0, 1) : labels.me);
-  const html = isAssistant ? renderSafeMarkdown(message.content || labels.assistantAnswering) : '';
+  const html = useMemo(
+    () => (isAssistant ? renderSafeMarkdown(message.content || labels.assistantAnswering) : ''),
+    [isAssistant, labels.assistantAnswering, message.content],
+  );
 
   return (
     <article className={`reader-chat-message is-${message.role}`}>

@@ -779,6 +779,11 @@ function ReviewTimelineMessage({
     'annotation-sedimentation-review-message',
     isUser ? 'is-user' : 'is-assistant',
   ].join(' ');
+  const reviewingLabel = t('sedimentation.reviewing');
+  const html = useMemo(
+    () => renderSafeMarkdown(message.content || reviewingLabel),
+    [message.content, reviewingLabel],
+  );
 
   return (
     <article className={className}>
@@ -796,7 +801,7 @@ function ReviewTimelineMessage({
         <div
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{
-            __html: renderSafeMarkdown(message.content || t('sedimentation.reviewing')),
+            __html: html,
           }}
         />
         {!isUser && message.proposals?.length ? (

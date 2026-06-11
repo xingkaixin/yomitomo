@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageCircle, Send } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
@@ -74,7 +74,10 @@ export function DiscussionThreadView({
   const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const rootThoughtHtml = renderSafeMarkdown(thread.root.content);
+  const rootThoughtHtml = useMemo(
+    () => renderSafeMarkdown(thread.root.content),
+    [thread.root.content],
+  );
   const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
   const messagesVersion = messages
     .map((message) => `${message.id}:${message.content}:${message.pending ? 'pending' : 'ready'}`)

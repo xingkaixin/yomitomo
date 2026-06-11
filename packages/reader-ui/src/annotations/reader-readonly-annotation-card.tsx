@@ -133,7 +133,7 @@ function QuoteContent({ quote }: { quote: string }) {
 }
 
 function ReadonlyThoughtView({ thought }: { thought: ReadonlyAnnotationCardThought }) {
-  const html = renderSafeMarkdown(thought.content);
+  const html = React.useMemo(() => renderSafeMarkdown(thought.content), [thought.content]);
   return (
     <div className="reader-comment is-root">
       <AvatarBadge avatar={thought.author.avatar} fallback={thought.author.fallback} />

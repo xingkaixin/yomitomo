@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
@@ -25,7 +25,7 @@ export function DiscussionMessage({
   const { t } = useTranslation();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const author = commentPersona(message, userProfile, agents);
-  const html = renderSafeMarkdown(message.content);
+  const html = useMemo(() => renderSafeMarkdown(message.content), [message.content]);
   const className = [
     'annotation-discussion-message',
     message.author === 'user' ? 'is-user' : 'is-assistant',
