@@ -112,11 +112,11 @@ pnpm build
 - 业务逻辑放在 `packages/core/src`，按领域拆分模块，再从 `packages/core/src/index.ts` 导出。
 - AI provider 调用、AI SDK 运行时、模型输入预算、AI 生成链路和阅读上下文打包放在 `packages/ai/src`，再从 `packages/ai/src/index.ts` 导出。
 - 桌面端复用的阅读器 UI、样式、工具和 hooks 放在 `packages/reader-ui/src`。
-- 桌面端 renderer 的设置业务和通用展示工具放在 `apps/desktop/src/renderer/src/app-*` 模块。
+- 桌面端 renderer 的设置业务放在 `apps/desktop/src/renderer/src/settings`，通用应用外壳和展示工具放在 `apps/desktop/src/renderer/src/shell` 等模块。
 - 桌面端持久化路径基于 Electron `app.getPath("userData")`。
-- 桌面端文章导入逻辑放在 `apps/desktop/src/main/article-import.ts`。
-- 桌面端 PDF 导入逻辑放在 `apps/desktop/src/main/pdf-import.ts`，PDF 阅读器相关 UI 和 PDFium 工具留在桌面端/reader-ui 边界内，不要把 Electron 专用逻辑放进共享包。
-- 桌面端微信读书同步逻辑放在 `apps/desktop/src/main/weread-*`，共享包只承载微信读书协议类型。
+- 桌面端文章导入逻辑放在 `apps/desktop/src/main/articles/article-import.ts`。
+- 桌面端 PDF 导入逻辑放在 `apps/desktop/src/main/pdf/pdf-import.ts`，PDF 阅读器相关 UI 和 PDFium 工具留在桌面端/reader-ui 边界内，不要把 Electron 专用逻辑放进共享包。
+- 桌面端微信读书同步逻辑放在 `apps/desktop/src/main/weread`，共享包只承载微信读书协议类型。
 - 桌面端 provider API key 通过系统 keyring 保存，SQLite 只保留 provider 配置和 key 引用。
 - 桌面端 invoke 型 IPC 必须先在 `apps/desktop/src/ipc-contract.ts` 的 `DesktopIpcInvokeMap` 中声明 channel、args 和 result，再在 main/preload 中使用；不要在 `ipcMain.handle` 或 `ipcRenderer.invoke` 两端重复手写裸字符串和返回类型断言。
 - 桌面端 main 侧注册 invoke handler 时使用 `handleDesktopIpc(...)`，preload 侧调用 invoke 时使用 `invokeDesktopIpc(...)`，确保 channel、payload 和 result 来自同一份 contract。
