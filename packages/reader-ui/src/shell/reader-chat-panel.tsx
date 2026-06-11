@@ -242,9 +242,9 @@ function ReaderChatMessageView({
       <div className="reader-chat-message-bubble">
         <header>
           {isAssistant ? <strong>{nickname}</strong> : <span aria-hidden="true" />}
-          <ReaderTooltip content={formatTime(message.createdAt)}>
+          <ReaderTooltip content={formatTime(message.createdAt, labels)}>
             <time dateTime={message.createdAt} tabIndex={0}>
-              {formatRelativeTime(message.createdAt)}
+              {formatRelativeTime(message.createdAt, labels)}
             </time>
           </ReaderTooltip>
         </header>

@@ -7,6 +7,7 @@ import type {
   WeReadReadingStatsSnapshot,
   WeReadReadingStatsState,
 } from '@yomitomo/shared';
+import { formatDateTimeValue } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 
@@ -309,12 +310,12 @@ function formatDuration(value: number) {
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
+  return formatDateTimeValue(value, i18next.language, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function errorMessage(error: unknown, fallback: string) {

@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import { providerPresets, type LlmProvider } from '@yomitomo/shared';
+import { providerPresets, type LlmProvider, type RelativeTimeParts } from '@yomitomo/shared';
 import type { ReaderUiLabels } from '@yomitomo/reader-ui/reader-app-view';
 
 export function readerUiLabels(): ReaderUiLabels {
@@ -39,6 +39,7 @@ export function readerUiLabels(): ReaderUiLabels {
     deleteAnnotationConfirmTitle: i18next.t('readerUi.deleteAnnotationConfirmTitle'),
     deleteAnnotationConfirmDescription: i18next.t('readerUi.deleteAnnotationConfirmDescription'),
     deleteAnnotationConfirmAction: i18next.t('readerUi.deleteAnnotationConfirmAction'),
+    dateLocale: i18next.language || 'zh-CN',
     distillations: i18next.t('readerUi.distillations'),
     emptyNotesDescription: i18next.t('readerUi.emptyNotesDescription'),
     emptyNotesGestureLabel: i18next.t('readerUi.emptyNotesGestureLabel'),
@@ -67,6 +68,7 @@ export function readerUiLabels(): ReaderUiLabels {
     readerChatSelectionPlaceholder: i18next.t('readerUi.readerChatSelectionPlaceholder'),
     readerControls: i18next.t('readerUi.readerControls'),
     readingProgress: i18next.t('readerUi.readingProgress'),
+    relativeTimeLabel: readerRelativeTimeLabel,
     readerLibrary: i18next.t('readerUi.readerLibrary'),
     recordThought: i18next.t('readerUi.recordThought'),
     searchBody: i18next.t('readerUi.searchBody'),
@@ -88,6 +90,11 @@ export function readerUiLabels(): ReaderUiLabels {
       i18next.t('readerUi.tocSummary', { annotations, distillations }),
     toggleToc: i18next.t('readerUi.toggleToc'),
   };
+}
+
+function readerRelativeTimeLabel(parts: RelativeTimeParts) {
+  if (parts.unit === 'second') return i18next.t('readerUi.relativeTime.justNow');
+  return i18next.t(`readerUi.relativeTime.${parts.unit}`, { count: parts.count });
 }
 
 export function themeDisplayName(themeId: string) {

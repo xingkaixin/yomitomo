@@ -14,6 +14,8 @@ export * from './text-anchor';
 
 export * from './markdown';
 
+export * from './date-time';
+
 export * from './release-notes/release-note';
 
 export {

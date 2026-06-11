@@ -5,6 +5,7 @@ import type {
   PublicAgent,
   UserProfile,
 } from '@yomitomo/shared';
+import { formatDateTimeValue, relativeTimeParts } from '@yomitomo/shared';
 import { findMentionedAgents, type getMentionQuery } from '@yomitomo/core';
 import { mentionDraftWithAgent } from '@yomitomo/reader-ui/reader-mention-utils';
 import i18next from 'i18next';
@@ -125,17 +126,12 @@ export function discussionThreads(
 }
 
 export function formatRelativeTime(value: string) {
-  const deltaMs = Date.now() - timestamp(value);
-  const minute = 60_000;
-  const hour = minute * 60;
-  const day = hour * 24;
-  if (deltaMs < minute) return i18next.t('discussion.time.justNow');
-  if (deltaMs < hour)
-    return i18next.t('discussion.time.minutesAgo', { count: Math.floor(deltaMs / minute) });
-  if (deltaMs < day)
-    return i18next.t('discussion.time.hoursAgo', { count: Math.floor(deltaMs / hour) });
-  if (deltaMs < day * 7)
-    return i18next.t('discussion.time.daysAgo', { count: Math.floor(deltaMs / day) });
+  const parts = relativeTimeParts(value);
+  if (!parts) return value;
+  if (parts.unit === 'second') return i18next.t('discussion.time.justNow');
+  if (parts.unit === 'minute') return i18next.t('discussion.time.minutesAgo', parts);
+  if (parts.unit === 'hour') return i18next.t('discussion.time.hoursAgo', parts);
+  if (parts.unit === 'day') return i18next.t('discussion.time.daysAgo', parts);
   return formatAbsoluteTime(value);
 }
 
@@ -198,12 +194,12 @@ function timestamp(value: string) {
 }
 
 export function formatAbsoluteTime(value: string) {
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
+  return formatDateTimeValue(value, i18next.language, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function htmlText(value: string) {

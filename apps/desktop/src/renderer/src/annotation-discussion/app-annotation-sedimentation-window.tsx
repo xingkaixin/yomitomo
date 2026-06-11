@@ -23,6 +23,7 @@ import type {
 import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
@@ -1159,30 +1160,6 @@ function compactTitleText(value: string) {
 function timestamp(value: string) {
   const time = Date.parse(value);
   return Number.isNaN(time) ? 0 : time;
-}
-
-function formatRelativeTime(value: string) {
-  const deltaMs = Date.now() - timestamp(value);
-  const minute = 60_000;
-  const hour = minute * 60;
-  const day = hour * 24;
-  if (deltaMs < minute) return i18next.t('discussion.time.justNow');
-  if (deltaMs < hour)
-    return i18next.t('discussion.time.minutesAgo', { count: Math.floor(deltaMs / minute) });
-  if (deltaMs < day)
-    return i18next.t('discussion.time.hoursAgo', { count: Math.floor(deltaMs / hour) });
-  if (deltaMs < day * 7)
-    return i18next.t('discussion.time.daysAgo', { count: Math.floor(deltaMs / day) });
-  return formatAbsoluteTime(value);
-}
-
-function formatAbsoluteTime(value: string) {
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
 }
 
 function sedimentationUserProfile(annotation: Annotation, article: ArticleRecord): UserProfile {

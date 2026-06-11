@@ -248,6 +248,7 @@ export function AnnotationCard({
               </span>
               <ReaderRelativeTime
                 className="reader-note-distillation-time"
+                labels={labels}
                 value={distillationPublishedAt}
               />
             </footer>
@@ -264,7 +265,7 @@ export function AnnotationCard({
               </span>
               <span className="reader-note-meta-copy">
                 <strong>{author.nickname}</strong>
-                <ReaderRelativeTime value={annotation.createdAt} />
+                <ReaderRelativeTime labels={labels} value={annotation.createdAt} />
               </span>
               <DeleteActionMenu
                 ariaLabel={labels.openHighlightActions}
@@ -431,11 +432,19 @@ function avatarColorStyle(color: string): React.CSSProperties {
   return style;
 }
 
-function ReaderRelativeTime({ className, value }: { className?: string; value: string }) {
+function ReaderRelativeTime({
+  className,
+  labels,
+  value,
+}: {
+  className?: string;
+  labels: ReaderUiLabels;
+  value: string;
+}) {
   return (
-    <ReaderTooltip content={formatTime(value)}>
+    <ReaderTooltip content={formatTime(value, labels)}>
       <time className={className} dateTime={value} tabIndex={0}>
-        {formatRelativeTime(value)}
+        {formatRelativeTime(value, labels)}
       </time>
     </ReaderTooltip>
   );

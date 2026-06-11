@@ -4,6 +4,8 @@ import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
+import type { ReaderUiLabels } from '../shell/reader-app-view-types';
+import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
 
 type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
@@ -38,6 +40,7 @@ export function ReadonlyAnnotationCard({
   quote,
   style,
   thoughts,
+  labels = defaultReaderUiLabels,
 }: {
   action?: ReadonlyAnnotationCardAction;
   author: ReadonlyAnnotationCardAuthor;
@@ -47,6 +50,7 @@ export function ReadonlyAnnotationCard({
   quote?: string;
   style?: React.CSSProperties;
   thoughts: ReadonlyAnnotationCardThought[];
+  labels?: ReaderUiLabels;
 }) {
   const annotationStyle = {
     ...noteStyle(author.color, false),
@@ -86,7 +90,7 @@ export function ReadonlyAnnotationCard({
             <strong>{author.name}</strong>
           </span>
           <span className="reader-note-time-actions">
-            <time dateTime={createdAt}>{formatTime(createdAt)}</time>
+            <time dateTime={createdAt}>{formatTime(createdAt, labels)}</time>
           </span>
         </div>
         <footer className="reader-note-toolbar reader-readonly-note-toolbar">
@@ -111,7 +115,7 @@ export function ReadonlyAnnotationCard({
           <div className="reader-note-comments-panel">
             <div className="reader-comments">
               {thoughts.map((thought) => (
-                <ReadonlyThoughtView key={thought.id} thought={thought} />
+                <ReadonlyThoughtView key={thought.id} labels={labels} thought={thought} />
               ))}
             </div>
           </div>
@@ -132,7 +136,13 @@ function QuoteContent({ quote }: { quote: string }) {
   );
 }
 
-function ReadonlyThoughtView({ thought }: { thought: ReadonlyAnnotationCardThought }) {
+function ReadonlyThoughtView({
+  labels,
+  thought,
+}: {
+  labels: ReaderUiLabels;
+  thought: ReadonlyAnnotationCardThought;
+}) {
   const html = React.useMemo(() => renderSafeMarkdown(thought.content), [thought.content]);
   return (
     <div className="reader-comment is-root">
@@ -140,7 +150,7 @@ function ReadonlyThoughtView({ thought }: { thought: ReadonlyAnnotationCardThoug
       <div className="reader-comment-body">
         <div className="reader-comment-author">
           <strong>{thought.author.name}</strong>
-          <time dateTime={thought.createdAt}>{formatTime(thought.createdAt)}</time>
+          <time dateTime={thought.createdAt}>{formatTime(thought.createdAt, labels)}</time>
         </div>
         <div className="reader-markdown reader-comment-markdown">
           <div className="reader-markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
