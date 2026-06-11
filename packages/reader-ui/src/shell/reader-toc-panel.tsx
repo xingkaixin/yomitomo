@@ -32,6 +32,8 @@ export function ReaderTocPanel({
       <div className="reader-toc-title">{labels.toc}</div>
       {tocItems.map((item) => {
         const stats = tocAnnotationStats.get(item.index);
+        const colors = stats?.colors ?? [];
+        const distillationCount = stats?.distillationCount ?? 0;
         return (
           <button
             className="reader-toc-item"
@@ -43,16 +45,14 @@ export function ReaderTocPanel({
             <span className="reader-toc-item-main">
               <span>{item.text}</span>
               <span className="reader-toc-meta">
-                {(stats?.colors.length || 0) > 0 ? (
+                {colors.length > 0 ? (
                   <span className="reader-toc-markers">
-                    {stats!.colors.slice(0, 5).map((color) => (
+                    {colors.slice(0, 5).map((color) => (
                       <i key={color} style={{ backgroundColor: color }} />
                     ))}
                   </span>
                 ) : null}
-                {(stats?.distillationCount || 0) > 0 ? (
-                  <strong>{stats?.distillationCount}</strong>
-                ) : null}
+                {distillationCount > 0 ? <strong>{distillationCount}</strong> : null}
               </span>
             </span>
           </button>
