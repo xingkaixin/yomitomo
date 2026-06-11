@@ -164,7 +164,10 @@ function registerCommentHandler(
 function ipcContext(store: ReturnType<typeof storeWith>, ai: Record<string, unknown>) {
   const storeModule = {
     hydrateProviderApiKey: vi.fn(async (llmProvider: LlmProvider) => llmProvider),
-    readStore: vi.fn(async () => store),
+    readAgentRuntimeContext: vi.fn(async () => store),
+    readStore: vi.fn(async () => {
+      throw new Error('READ_STORE_SHOULD_NOT_BE_USED');
+    }),
     recordAssistantExecutionRun: vi.fn(),
   };
   return {

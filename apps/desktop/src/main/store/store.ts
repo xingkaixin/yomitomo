@@ -187,6 +187,14 @@ export async function readStore(): Promise<DesktopStore> {
   return readStoreInternal();
 }
 
+export type AgentRuntimeStoreContext = Pick<DesktopStore, 'agents' | 'providers' | 'settings'>;
+
+export async function readAgentRuntimeContext(): Promise<AgentRuntimeStoreContext> {
+  const database = getDatabase();
+  await migrateProviderApiKeys(database);
+  return readAgentRuntimeContextRows(database);
+}
+
 export async function readStoreWithProfile(): Promise<{
   store: DesktopStore;
   profile: StoreReadProfileEntry[];
@@ -539,6 +547,17 @@ function readStoreRows(database: StoreDatabase, profile?: StoreReadProfileEntry[
     }),
     { articleCount: articleRows.length, agentCount: agentRows.length },
   );
+}
+
+function readAgentRuntimeContextRows(database: StoreDatabase): AgentRuntimeStoreContext {
+  const settings = database.select().from(schema.appSettings).limit(1).get();
+  const providerRows = database.select().from(schema.providers).all();
+  const agentRows = ensurePresetAgents(database, providerRows, settings);
+  return {
+    settings: rowToSettings(settings),
+    providers: providerRows.map(rowToProvider),
+    agents: agentRows.map(rowToAgent),
+  };
 }
 
 function writeStoreRows(database: StoreDatabase, store: WritableDesktopStore) {
