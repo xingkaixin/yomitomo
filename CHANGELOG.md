@@ -2,202 +2,196 @@
 
 ## 0.7.0 - 2026-06-08
 
-### 新功能
+### Features
 
-- 新增桌面端语言切换、官网双语文档和本地化助手角色展示，让应用 UI、文档和助手说明面向中英文使用场景保持一致。(#324, #326, #327)
-- 阅读器新增持久聊天、正文搜索、统一悬浮工具栏、新版文章 header、空笔记状态和自适应批注布局，提升长文、EPUB 和 PDF 的日常阅读操作效率。(#314, #315, #321, #322, #329, #330)
-- 批注与讨论链路继续深化，支持选区输入器动作内嵌、回复路由到根助手，并在沉淀流程中生成更可执行的审阅建议。(#251, #316, #323)
-- 设置页和资料库重做信息架构，支持资料库内容来源定制、来源感知弹窗、方向感过渡动画、助手用量统计和黄昏靛蓝主题。(#260, #261, #262, #263, #264, #274)
-- 桌面端新增版本更新说明弹窗、本地批注写入、PDF/网页文章媒体封面重做、电子书导入封面反馈和本地化发布说明资源。(#258, #273, #275, #294)
-- AI、微信读书、文章导入、模型价格、图片内联和批注记忆链路逐步迁移到 Effect 编排，运行时错误边界和恢复路径更清晰。(#265, #266, #267, #268, #269, #270, #271)
+- Added desktop language switching, bilingual website documentation, and localized assistant role presentation so the app UI, documentation, and assistant descriptions stay consistent for Chinese and English usage. (#324, #326, #327)
+- Added persistent reader chat, body search, a unified floating toolbar, a redesigned article header, empty note states, and adaptive annotation layouts to improve daily reading workflows for long articles, EPUBs, and PDFs. (#314, #315, #321, #322, #329, #330)
+- Continued deepening the annotation and discussion flow with inline selection-input actions, reply routing to the root assistant, and more actionable review suggestions in the insight flow. (#251, #316, #323)
+- Reworked the settings page and library information architecture with customizable library content sources, source-aware popovers, directional transition animations, assistant usage statistics, and a dusk indigo theme. (#260, #261, #262, #263, #264, #274)
+- Added a desktop release-notes dialog, local annotation writes, redesigned PDF/web article media covers, ebook import cover feedback, and localized release-note resources. (#258, #273, #275, #294)
+- Gradually migrated AI, WeRead, article import, model pricing, inline images, and annotation memory flows to Effect orchestration for clearer runtime error boundaries and recovery paths. (#265, #266, #267, #268, #269, #270, #271)
 
-### 性能
+### Performance
 
-- 复用 EPUB 索引、阅读记忆视图和预计算批注匹配上下文，减少长书阅读、助手生成和记忆查询中的重复扫描。(#281, #303, #305)
-- 将助手摘要聚合下推到 SQL，并优化阅读记忆查询与文章仓库批量操作，降低本地数据库热路径开销。(#279, #280, #298)
-- 深化文章来源导入生命周期和 source reader controller，减少导入、打开和跨来源阅读时的状态耦合。(#296, #301)
+- Reused EPUB indexes, reading memory views, and precomputed annotation-match context to reduce repeated scans during long-book reading, assistant generation, and memory queries. (#281, #303, #305)
+- Pushed assistant summary aggregation down to SQL and optimized reading memory queries plus batch operations in the article repository, reducing local database hot-path cost. (#279, #280, #298)
+- Deepened the article-source import lifecycle and source reader controller to reduce state coupling during import, open, and cross-source reading flows. (#296, #301)
 
-### 修复
+### Fixes
 
-- 修复设置页 surface、设置菜单布局、标题栏文本约束、阅读器标题栏、批注卡片和通用 UI 打磨问题。(#311, #312, #320, #325, #328, #329)
-- 修复阅读库列表卡片、网页封面工具栏、扁平封面进度条、PDF 封面比例和官网产品轮播横向滚动问题。(#254, #256, #292, #318, #319)
-- 修复讨论头像距离、添加想法输入器、回复空想法打开位置和想法自动滚动范围问题。(#252, #253, #272, #313)
-- 修复 SQLite native root 隔离、文章摘要计数范围、provider keyring 回归风险、数据恢复失败路径和文章导入 worker 失败覆盖。(#276, #277, #293, #299, #307, #308)
+- Fixed settings page surfaces, settings menu layout, title bar text constraints, reader title bar, annotation cards, and general UI polish issues. (#311, #312, #320, #325, #328, #329)
+- Fixed reading library list cards, web cover toolbar, flat cover progress bar, PDF cover ratio, and horizontal scrolling in the website product carousel. (#254, #256, #292, #318, #319)
+- Fixed discussion avatar spacing, the add-thought input, empty-reply opening position, and thought auto-scroll range. (#252, #253, #272, #313)
+- Fixed SQLite native root isolation, article summary count range, provider keyring regression risk, data restore failure paths, and article import worker failure coverage. (#276, #277, #293, #299, #307, #308)
 
-### 工程
+### Engineering
 
-- 拆分桌面端 main、renderer、source reader、settings、PDFium、阅读器 shell 和全局 CSS 边界，降低单文件复杂度并让领域边界更清楚。(#282, #284, #285, #286, #287, #288, #289, #296, #317)
-- 拆分 shared/core/AI 领域模块、assistant runtime kernel、provider 和 reading memory 视图装配，并补充导出与运行时测试。(#290, #291, #297, #302, #303)
-- 新增 native root 验证、PR 模板、输出目录忽略规则，并更新 pnpm 和依赖版本。(#300, #306)
-- 补充数据管理、store-db 恢复、provider secrets、文章导入 worker、阅读器聊天和阅读器 shell 状态测试，覆盖更多本地数据与阅读路径。(#276, #277, #307, #308, #322)
-
+- Split desktop main, renderer, source reader, settings, PDFium, reader shell, and global CSS boundaries to reduce single-file complexity and clarify domain boundaries. (#282, #284, #285, #286, #287, #288, #289, #296, #317)
+- Split shared/core/AI domain modules, assistant runtime kernel, provider assembly, and reading memory view assembly, while adding exports and runtime tests. (#290, #291, #297, #302, #303)
+- Added native root verification, a PR template, output directory ignore rules, and updated pnpm and dependency versions. (#300, #306)
+- Added tests for data management, store-db restore, provider secrets, article import worker, reader chat, and reader shell state to cover more local data and reading paths. (#276, #277, #307, #308, #322)
 
 ## 0.6.0 - 2026-06-01
 
-### 新功能
+### Features
 
-- 新增阅读记忆底座，把阅读过程中的段落、选区、线程和批注记忆写入本地存储，并在后续助手生成中优先复用已有判断链路。(#166, #167, #168, #169, #170, #171, #172, #173, #174, #175, #176, #177, #178, #179)
-- AI 助手运行时升级为可追踪的工具调用链路，支持选区动作、线程回复、共读工具循环、调用诊断视图，并将深度运行时迁移到 AI SDK。(#182, #183, #184, #185, #186, #187, #201, #202, #242)
-- 批注讨论升级为独立讨论窗口和沉淀流程，支持助手参与讨论、沉淀稿整理、审阅助手反馈、发布沉淀卡片和沉淀统计。(#225, #226, #227, #228, #229, #230, #231, #232, #235, #236, #237, #238, #241, #243, #248)
-- 桌面端新增主题契约、主题选择器和阅读器纸张背景控制，统一网页文章、EPUB 和 PDF 的阅读视觉，并在暗色纸张下保留 PDF 原始页面颜色。(#204, #205, #210, #211, #233, #234, #239)
-- 阅读库和导入体验支持网页文章封面与进度、批量文件导入、导入对话框打磨、卡片统计提示和 PDF/EPUB 显示元数据清理。(#209, #216, #218, #219, #220, #221, #222, #223, #224)
+- Added the reading memory foundation, writing paragraphs, selections, threads, and annotation memory from the reading process into local storage, then prioritizing existing reasoning chains in later assistant generation. (#166, #167, #168, #169, #170, #171, #172, #173, #174, #175, #176, #177, #178, #179)
+- Upgraded the AI assistant runtime into a traceable tool-call flow with selection actions, thread replies, co-reading tool loops, invocation diagnostics, and a deep runtime migration to AI SDK. (#182, #183, #184, #185, #186, #187, #201, #202, #242)
+- Upgraded annotation discussions into a standalone discussion window and insight flow, supporting assistant participation, insight drafts, review-assistant feedback, published insight cards, and insight statistics. (#225, #226, #227, #228, #229, #230, #231, #232, #235, #236, #237, #238, #241, #243, #248)
+- Added the desktop theme contract, theme selector, and reader paper background controls to unify reading visuals across web articles, EPUBs, and PDFs while preserving original PDF page colors on dark paper. (#204, #205, #210, #211, #233, #234, #239)
+- Improved reading library and import workflows with web article covers and progress, batch file import, polished import dialogs, card statistic tips, and cleaned PDF/EPUB display metadata. (#209, #216, #218, #219, #220, #221, #222, #223, #224)
 
-### 性能
+### Performance
 
-- 缓存 lexical related passages，减少长文和长书共读时的重复关联段落检索。(#215)
-- 优化文章导入流程，避免导入期间阻塞 UI 响应。(#246)
-- 跳过重复的批注记忆回填，避免启动后反复执行同一批历史数据迁移。(#212)
+- Cached lexical related passages to reduce repeated related-passage retrieval during long-article and long-book co-reading. (#215)
+- Optimized article import to avoid blocking UI responsiveness during imports. (#246)
+- Skipped duplicate annotation memory backfills to avoid rerunning the same historical data migration after startup. (#212)
 
-### 修复
+### Fixes
 
-- 修复 PDF 批注锚点、列表文本溢出、PDF 暗色纸张颜色、EPUB 方向键翻页和阅读器 header 拖拽回归。(#191, #199, #200, #239, #244)
-- 修复阅读记忆和助手运行时中的重复想法、线程记忆来源和工具调用稳定性问题。(#180, #181, #188)
-- 修复阅读库分页大小持久化、微信读书详情封面、电子书章节笔记计数、电子书 header 封面 hover 和批注元数据隐式推断问题。(#196, #206, #208, #214, #247)
-- 打磨批注卡片、助手头像、批注动作、快捷键 tooltip、封面 hover、关于页、主题纸张和通用 UI 交互。(#190, #192, #193, #194, #195, #203, #245)
+- Fixed PDF annotation anchors, list text overflow, PDF dark paper colors, EPUB arrow-key paging, and reader header dragging regressions. (#191, #199, #200, #239, #244)
+- Fixed duplicate thoughts, thread memory sources, and tool-call stability issues in reading memory and the assistant runtime. (#180, #181, #188)
+- Fixed reading library page-size persistence, WeRead detail covers, ebook chapter note counts, ebook header cover hover, and implicit annotation metadata inference. (#196, #206, #208, #214, #247)
+- Polished annotation cards, assistant avatars, annotation actions, keyboard shortcut tooltips, cover hover, the About page, theme paper, and general UI interactions. (#190, #192, #193, #194, #195, #203, #245)
 
-### 工程
+### Engineering
 
-- 启用 type-aware lint 并更新依赖，抽取 selection context 工具，迁移深度运行时到 AI SDK，减少运行时边界重复逻辑。(#189, #213, #242)
-- 移除 focus co-reading 旧流程，并裁剪桌面端打包产物中的 native module 文件，降低发布包冗余。(#197, #249)
-- 更新用户文档、官网下载区和第三方授权清单，确保官网版本入口与桌面端内置开源许可证信息一致。(#217, #240, #249)
-
+- Enabled type-aware linting and updated dependencies, extracted selection context utilities, migrated the deep runtime to AI SDK, and reduced duplicated runtime-boundary logic. (#189, #213, #242)
+- Removed the old focus co-reading flow and trimmed native module files from desktop build artifacts to reduce release package redundancy. (#197, #249)
+- Updated user documentation, website download sections, and third-party license notices so website version entry points match the desktop app's built-in open-source license information. (#217, #240, #249)
 
 ## 0.5.0 - 2026-05-26
 
-### 新功能
+### Features
 
-- 桌面端新增 PDF 导入和阅读链路，支持本地 PDF 入库、目录、选区、批注视觉统一、助手 dock 和 PDF 重点共读。(#122, #123, #124, #125, #130, #131, #133, #134)
-- 微信读书集成新增笔记同步、阅读统计和 API key 设置说明，方便把微信读书沉淀接入 Yomitomo 的本地阅读库。(#139, #140, #159)
-- 阅读体验补齐键盘翻页、内置阅读字体和设置自动保存状态反馈，让 EPUB、PDF 和设置页的日常操作更稳定可感知。(#141, #145, #153)
-- 桌面端文章更新链路改为 typed IPC 和局部 article patch，减少全量 store 替换对阅读状态、设置草稿和多窗口同步的干扰。(#117, #118, #119, #120, #121)
+- Added desktop PDF import and reading, including local PDF library import, outline support, selection, unified annotation visuals, assistant dock, and PDF-focused co-reading. (#122, #123, #124, #125, #130, #131, #133, #134)
+- Added WeRead note sync, reading statistics, and API key setup guidance so WeRead insights can be brought into Yomitomo's local reading library. (#139, #140, #159)
+- Completed more reading basics with keyboard paging, bundled reading fonts, and autosave status feedback for settings, making daily EPUB, PDF, and settings workflows more stable and visible. (#141, #145, #153)
+- Changed the desktop article update flow to typed IPC and partial article patches, reducing disruption to reading state, settings drafts, and multi-window sync from full store replacement. (#117, #118, #119, #120, #121)
 
-### 性能
+### Performance
 
-- 优化桌面端启动、统计页加载和二级模块预加载，并减少导入流程中的全量 store 读取。(#112, #113, #137, #142)
-- 为 EPUB 上下文和索引范围查询建立索引，降低长书章节定位、上下文检索和批注生成的重复扫描成本。(#143, #161)
-- 减少阅读器批注扫描和滚动时的布局工作，并补充 PDF 打开性能追踪，方便定位大文档加载瓶颈。(#115, #138, #144)
+- Optimized desktop startup, statistics page loading, secondary module preloading, and reduced full-store reads during imports. (#112, #113, #137, #142)
+- Added indexes for EPUB context and indexed range queries to reduce repeated scan cost for long-book chapter location, context retrieval, and annotation generation. (#143, #161)
+- Reduced reader annotation scans and layout work during scrolling, and added PDF open performance tracing to help locate large-document loading bottlenecks. (#115, #138, #144)
 
-### 修复
+### Fixes
 
-- 修复 PDF 选区、目录行为、批注流和 PDF 想法展开对齐问题。(#130, #136, #162)
-- 修复阅读器正文字号继承、外部链接打开、动画布局成本、中等宽度批注布局和助手菜单裁切问题。(#110, #114, #116, #146, #160)
-- 修复桌面端资料页保存后弹窗关闭、文件导入对话框回归风险，并补充相关测试覆盖。(#109, #155)
+- Fixed PDF selection, outline behavior, annotation flow, and PDF thought expansion alignment. (#130, #136, #162)
+- Fixed reader body font-size inheritance, external link opening, animation layout cost, medium-width annotation layout, and assistant menu clipping. (#110, #114, #116, #146, #160)
+- Fixed the desktop profile dialog closing after save and a file import dialog regression risk, with related test coverage added. (#109, #155)
 
-### 工程
+### Engineering
 
-- 拆分桌面端 article summary records、store 持久化、article settings、main IPC 注册、文件导入对话框、PDFium reader utils 和 source reader session 边界，降低主进程与阅读器耦合。(#135, #147, #148, #149, #150, #151, #154, #156)
-- 拆分 shared 类型导出和 reader-ui 模块边界，并集中 agent annotation actions，减少跨包导入面和重复动作逻辑。(#152, #157, #158)
-- 清理 PDF.js 依赖、函数作用域告警，补充 reader interaction flow、agent theater data flow 和桌面 store patch 规则文档。(#127, #128, #129, #132)
-- 新增开发资源隔离、release proxy worker、官网文档/changelog 页面和 animated logo 实验，完善发布与官网基础设施。(#107, #108, #111, #126)
-
+- Split desktop article summary records, store persistence, article settings, main IPC registration, file import dialogs, PDFium reader utilities, and source reader session boundaries to reduce coupling between the main process and reader. (#135, #147, #148, #149, #150, #151, #154, #156)
+- Split shared type exports and reader-ui module boundaries, and centralized agent annotation actions to reduce cross-package import surface and duplicated action logic. (#152, #157, #158)
+- Cleaned PDF.js dependencies and function-scope warnings, and added docs for reader interaction flow, agent theater data flow, and desktop store patch rules. (#127, #128, #129, #132)
+- Added dev resource isolation, release proxy worker, website docs/changelog pages, and an animated logo experiment to improve release and website infrastructure. (#107, #108, #111, #126)
 
 ## 0.4.0 - 2026-05-21
 
-### 新功能
+### Features
 
-- 桌面端新增应用更新流程，并把关于页、引导页和官网下载入口连到 GitHub Release 产物。(#51, #100, #101)
-- 新增产品官网 `apps/web`，提供 Yomitomo landing page、macOS / Windows 下载链接、SEO 元信息、sitemap、robots 和社交预览图。(#94, #100, #101)
-- 设置页新增数据管理能力，可查看数据目录、日志和数据库文件，备份/还原 SQLite 数据库，并在数据库版本不兼容时给出明确提示。(#93, #95, #96)
-- Provider 设置改为安全保存 API key，支持显式查看已保存 key、拉取模型列表、配置任务路由，并简化模型设置表单。(#52, #97, #98, #99)
-- 阅读器想法和讨论体验升级，支持选区 `@助手` 路由、审阅助手评论、批注讨论卡、悬浮目录、双侧笔记栏和待处理助手状态。(#78, #85, #90, #91, #102, #104)
+- Added the desktop app update flow and connected the About page, onboarding page, and website download entry points to GitHub Release artifacts. (#51, #100, #101)
+- Added the `apps/web` product website with the Yomitomo landing page, macOS / Windows download links, SEO metadata, sitemap, robots, and social preview images. (#94, #100, #101)
+- Added data management to Settings, including opening the data directory, logs, and database file, backing up/restoring SQLite data, and showing clear prompts for incompatible database versions. (#93, #95, #96)
+- Changed provider settings to store API keys securely, support explicitly viewing saved keys, fetch model lists, configure task routing, and simplify the model settings form. (#52, #97, #98, #99)
+- Upgraded reader thoughts and discussions with selection `@assistant` routing, review-assistant comments, annotation discussion cards, floating outlines, dual note sidebars, and pending assistant states. (#78, #85, #90, #91, #102, #104)
 
-### 调整
+### Changes
 
-- 移除读后输出流程，让产品重心收敛到原文锚点、想法线程、评论讨论和助手共读。(#76)
-- 阅读库拆分网页文章和 EPUB 电子书入口，优化首页布局、返回来源、资料卡片和 EPUB 导入记录体积。(#54, #86, #87, #88)
-- 阅读器布局和交互进一步打磨，包括源阅读器布局、批注连接线、想法计数、共读控制、头像 hover 和想法输入器交互。(#77, #83, #84, #89, #103, #105)
+- Removed the post-reading output flow so the product focus converges on source anchors, thought threads, comment discussions, and assistant co-reading. (#76)
+- Split the reading library into web article and EPUB ebook entry points, optimizing the home layout, return source, library cards, and EPUB import record size. (#54, #86, #87, #88)
+- Further polished reader layout and interactions, including source reader layout, annotation connector lines, thought counts, co-reading controls, avatar hover, and thought input interactions. (#77, #83, #84, #89, #103, #105)
 
-### 性能
+### Performance
 
-- EPUB 阅读复用 DOM 文本索引，减少翻页、页面更新和批注渲染的重复计算。(#74, #79, #80)
-- 优化批注热路径、运行时 import 热点和阅读库 article payload 加载，降低大书和大库场景下的启动与交互成本。(#81, #82, #92)
+- Reused DOM text indexes for EPUB reading to reduce repeated computation during paging, page updates, and annotation rendering. (#74, #79, #80)
+- Optimized annotation hot paths, runtime import hotspots, and reading library article payload loading to reduce startup and interaction cost for large books and large libraries. (#81, #82, #92)
 
-### 修复
+### Fixes
 
-- 修复 EPUB 批注渲染、翻页速度、页面位置恢复、页面更新和堆叠批注连接线稳定性问题。(#72, #73, #74, #75, #79)
-- 修复 Provider 删除 API key 后名称保留、开发数据库迁移历史保留、数据库兼容错误展示和目标批注归属保持问题。(#71, #93, #95, #103)
-- 修复阅读库返回后来源丢失、助手待处理态不可见、想法输入器交互细节和共读控制状态问题。(#84, #88, #104, #105)
+- Fixed EPUB annotation rendering, paging speed, page position restoration, page updates, and stacked annotation connector-line stability. (#72, #73, #74, #75, #79)
+- Fixed provider name retention after API key deletion, dev database migration history retention, database compatibility error display, and target annotation ownership preservation. (#71, #93, #95, #103)
+- Fixed lost source state after returning to the reading library, invisible pending assistant states, thought-input interaction details, and co-reading control states. (#84, #88, #104, #105)
 
-### 工程
+### Engineering
 
-- 拆分 main app state、source bookcase、设置面板、reader 组件、批注评论输入器、助手批注队列、agent runtime、provider settings 和 EPUB runtime 边界，降低核心 UI 与运行时代码复杂度。(#53, #55, #56, #58, #60, #61, #63, #65, #66, #68, #69, #70)
-- 抽取阅读卡片工作流状态、source agent 请求管线和代码健康热点边界，并补充运行时性能热点审计文档。(#57, #62, #64, #67, #82)
-
+- Split main app state, source bookcase, settings panels, reader components, annotation comment input, assistant annotation queue, agent runtime, provider settings, and EPUB runtime boundaries to reduce core UI and runtime complexity. (#53, #55, #56, #58, #60, #61, #63, #65, #66, #68, #69, #70)
+- Extracted reading card workflow state, source agent request pipeline, and code health hotspot boundaries, and added a runtime performance hotspot audit document. (#57, #62, #64, #67, #82)
 
 ## 0.3.0 - 2026-05-15
 
-### 新功能
+### Features
 
-- 桌面端新增本地 EPUB 导入与阅读，支持导入对话框、封面和章节元数据保存，并通过 Foliate 阅读器打开电子书。(#26, #27, #47)
-- EPUB 阅读链路新增结构化书籍索引、paragraph-aware 文本锚点和 segment 级批注任务，让批注、高亮和 AI 落点能稳定绑定章节、段落和片段范围。(#28, #29, #34, #36)
-- AI 伴读新增剧透范围控制、阅读上下文打包、选区上下文、thread-first 回复上下文、descriptor 路由和 EPUB 阅读记忆，减少长书场景中的上下文漂移。(#30, #31, #32, #33, #35, #37)
-- EPUB 共读新增同章 lexical related passages、评估矩阵和长片段切分，提升章节路由、证据召回和长段落共读的稳定性。(#39, #40, #41)
-- 阅读器新增助手阅读 dock、滚动边缘模糊、批注导航快捷键、长批注折叠和助手 dock 动画。(#20, #21, #42, #43, #44)
-- 阅读器选区复制和添加批注快捷键支持在设置中自定义，并在网页阅读器和 EPUB 阅读器中复用。(#25)
+- Added local EPUB import and reading to the desktop app, including import dialogs, cover and chapter metadata persistence, and opening ebooks through the Foliate reader. (#26, #27, #47)
+- Added structured book indexes, paragraph-aware text anchors, and segment-level annotation tasks to the EPUB reading flow so annotations, highlights, and AI targets bind reliably to chapters, paragraphs, and segment ranges. (#28, #29, #34, #36)
+- Added spoiler range control, reading context packaging, selection context, thread-first reply context, descriptor routing, and EPUB reading memory to AI co-reading to reduce context drift in long books. (#30, #31, #32, #33, #35, #37)
+- Added same-chapter lexical related passages, an evaluation matrix, and long-segment splitting to EPUB co-reading to improve chapter routing, evidence recall, and long-paragraph co-reading stability. (#39, #40, #41)
+- Added the assistant reading dock, scroll-edge blur, annotation navigation shortcuts, long-annotation collapse, and assistant dock animation to the reader. (#20, #21, #42, #43, #44)
+- Added customizable selection copy and add-annotation shortcuts in settings, reused by both the web reader and EPUB reader. (#25)
 
-### 性能
+### Performance
 
-- 新增 EPUB 性能埋点，记录导入、索引、批注生成和阅读器关键步骤耗时。(#45)
-- 减少 EPUB 高亮重算，降低翻页、滚动和批注变化时的重复计算成本。(#46)
+- Added EPUB performance metrics for import, indexing, annotation generation, and key reader steps. (#45)
+- Reduced EPUB highlight recomputation to lower repeated compute cost during paging, scrolling, and annotation changes. (#46)
 
-### 修复
+### Fixes
 
-- 修复嵌入式阅读器高度不足、精读助手控件焦点不稳定，以及短文场景下自动批注过多的问题。(#22, #23, #24)
-- 修复阅读库排序变化后分组不同步的问题。(#48)
-- 修正桌面端第三方许可证声明和生产依赖清单。(#49)
+- Fixed embedded reader height, unstable focus in close-reading assistant controls, and excessive automatic annotations in short-article scenarios. (#22, #23, #24)
+- Fixed reading library groups going out of sync after sort order changes. (#48)
+- Corrected desktop third-party license notices and the production dependency list. (#49)
 
-### 工程
+### Engineering
 
-- 新增 Turbo `typecheck` 任务，统一调度各 workspace package 的 TypeScript 类型检查。(#38)
-
+- Added the Turbo `typecheck` task to orchestrate TypeScript type checks across workspace packages. (#38)
 
 ## 0.2.0 - 2026-05-11
 
-### 新功能
+### Features
 
-- 桌面端阅读库支持通过 URL 导入网页文章，导入时可持久化正文图片，并补齐阅读器正文的基础排版。(#1)
-- 阅读器新增选区复制与快捷键、批注动作/类型图标、右侧批注筛选，让高亮、批注和证据展示更易扫描。(#6, #8, #9)
-- 消息发送快捷键支持在设置中配置，并在阅读器发送、取消、提示文案中保持一致。(#5, #11)
-- 用户批注支持异步推断批注类型和阅读意图，@ 助手消息可拆分为多助手任务规划。(#13)
-- 新增重点共读流程，支持章节卡片、手动分配助手、章节消息和基于文章分析的路由生成。(#14)
+- Added URL-based web article import to the desktop reading library, with persisted body images during import and basic reader body typography. (#1)
+- Added selection copy shortcuts, annotation action/type icons, and right-side annotation filters to the reader, making highlights, annotations, and evidence easier to scan. (#6, #8, #9)
+- Made message send shortcuts configurable in settings and kept the behavior consistent across reader send, cancel, and prompt text. (#5, #11)
+- Added asynchronous annotation type and reading intent inference for user annotations, and allowed `@assistant` messages to be split into multi-assistant task plans. (#13)
+- Added the focused co-reading flow with chapter cards, manual assistant assignment, chapter messages, and article-analysis-based routing generation. (#14)
 
-### 修复
+### Fixes
 
-- 修复用户批注意图和快捷键持久化、快捷键提示归位、批注卡片单击展开，以及 SubmitShortcutKeys 组件排版问题。(#7)
-- 修复 Provider 编辑器在紧凑布局中 select 菜单被 dialog overlay 遮挡的问题。(#10)
-- 修复助手阅读章节遗漏正文开头内容、受页脚浅层标题影响导致章节规划失真的问题。(#12)
-- 修复自动批注标签展示过长和重点共读合入后用户批注评论恢复的问题。(#13, #14)
-- 修复 lint/format 任务按根级单任务运行的问题，改为 workspace package 级调度。(#3)
+- Fixed persisted user annotation intent and shortcuts, restored shortcut hints, single-click annotation card expansion, and SubmitShortcutKeys component layout. (#7)
+- Fixed provider editor select menus being covered by the dialog overlay in compact layouts. (#10)
+- Fixed assistant reading chapters omitting the beginning of the body and shallow footer headings distorting chapter planning. (#12)
+- Fixed overlong automatic annotation labels and user annotation comment restoration after merging focused co-reading. (#13, #14)
+- Fixed lint/format tasks running as single root-level tasks instead of workspace-package-level orchestration. (#3)
 
-### 文档
+### Documentation
 
-- 更新开发代理文档中的 lint/format 流程，并清理 Chrome extension 相关说明、隐私文本、第三方声明和分发资料。(#2, #3)
+- Updated development agent documentation for lint/format workflows, and cleaned Chrome extension references, privacy text, third-party notices, and distribution materials. (#2, #3)
 
-### 杂项
+### Miscellaneous
 
-- 移除 Chrome extension 工作区、运行时、桌面配对桥接和上架资产，产品线收敛到桌面端应用。(#2)
-- 新增 GitHub Actions CI，在 PR 和 main 推送中运行 lint、format check、test 和 build，并固定检查时区。(#4)
-
+- Removed the Chrome extension workspace, runtime, desktop pairing bridge, and store assets so the product line converges on the desktop app. (#2)
+- Added GitHub Actions CI to run lint, format check, tests, and build on PRs and pushes to main, with the check timezone pinned. (#4)
 
 ## 0.1.0 - 2026-05-10
 
-Yomitomo 的首个版本，提供本地优先的 AI 伴读体验。桌面端负责导入文章、保存阅读数据、管理 LLM provider 和阅读助手，并提供阅读、批注和统计工作流。
+Yomitomo's first release provided a local-first AI reading companion experience. The desktop app imported articles, saved reading data, managed LLM providers and reading assistants, and provided reading, annotation, and statistics workflows.
 
-### 核心功能
+### Core Features
 
-- 文章阅读器：支持导入文章、阅读视图、目录、字号、内容宽度和批注侧栏。
-- 高亮与批注：支持选中文本创建高亮、添加批注类型、继续评论和维护讨论线程。
-- AI 伴读助手：支持配置阅读助手，让助手围绕原文、选区和讨论生成批注或回复。
-- 主动精读：支持选择一个或多个助手，对文章章节进行编排式精读和批注。
-- 阅读库：支持保存文章正文、原文链接、批注、评论和阅读状态。
-- 阅读统计：支持按文章、批注和讨论沉淀本地阅读趋势。
-- 本地优先：阅读数据、provider 和助手配置保存在用户本机。
+- Article reader: import articles and use reading view, outline, font size, content width, and the annotation sidebar.
+- Highlights and annotations: select text to create highlights, add annotation types, continue comments, and maintain discussion threads.
+- AI reading assistants: configure reading assistants so they can generate annotations or replies around the source text, selections, and discussions.
+- Proactive close reading: select one or more assistants to orchestrate close reading and annotations for article chapters.
+- Reading library: save article body text, original-source links, annotations, comments, and reading state.
+- Reading statistics: produce local reading trends by article, annotation, and discussion insight.
+- Local-first: reading data, provider configuration, and assistant configuration stay on the user's machine.
 
-### 桌面端
+### Desktop App
 
-- 基于 Electron 构建，提供阅读库、设置、助手、供应商、统计和日志视图。
-- 使用 SQLite 保存文章、批注、评论、provider 和助手。
-- 支持配置 OpenAI-compatible、OpenAI Responses、Anthropic 和 Gemini 等 LLM provider。
-- 支持创建和管理阅读助手、审核助手，并关联指定 provider 与模型。
-- 支持在桌面端集中回看和管理阅读资料。
-- 支持通过审核助手检查事实归因、证据链和覆盖度。
+- Built on Electron with reading library, settings, assistants, providers, statistics, and log views.
+- Uses SQLite to store articles, annotations, comments, providers, and assistants.
+- Supports OpenAI-compatible, OpenAI Responses, Anthropic, Gemini, and other LLM providers.
+- Supports creating and managing reading assistants and review assistants, each connected to a specific provider and model.
+- Supports reviewing and managing reading materials centrally in the desktop app.
+- Supports review assistants for checking factual attribution, evidence chains, and coverage.
