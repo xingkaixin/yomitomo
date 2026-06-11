@@ -23,6 +23,7 @@ import { ColorPicker } from './app-settings-color-picker';
 import { AvatarImage, Field } from '../shell/app-ui';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import { SegmentedControl } from '../components/ui/segmented-control';
 
 type AgentFilter = AgentKind;
@@ -507,60 +508,53 @@ function AgentProfileDetailDialog({
     uiLanguage,
   );
 
-  useEffect(() => {
-    function closeWithEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-
-    window.addEventListener('keydown', closeWithEscape);
-    return () => window.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
-
   return (
-    <div
-      className="agent-detail-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        aria-label={displayName}
-        aria-modal="true"
-        className="agent-detail-dialog source-aware-dialog"
-        role="dialog"
-        style={{ ...dialogStyle, '--agent-accent': agent.annotationColor } as React.CSSProperties}
-      >
-        <button
-          type="button"
-          className="agent-detail-close"
-          aria-label={t('settings.agents.detail.close')}
-          onClick={onClose}
-        >
-          <X size={18} />
-        </button>
-        <div className="agent-detail-photo">
-          {cover ? (
-            <img
-              className="agent-detail-cover"
-              src={cover}
-              alt={t('settings.agents.coverAlt', { name: displayName })}
-            />
-          ) : (
-            <div className="agent-detail-cover is-placeholder">
-              <AvatarImage value={avatar} className="size-20" fallback={displayName.slice(0, 1)} />
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogPortal>
+        <DialogOverlay className="agent-detail-overlay">
+          <DialogContent
+            aria-label={displayName}
+            className="agent-detail-dialog source-aware-dialog"
+            style={
+              { ...dialogStyle, '--agent-accent': agent.annotationColor } as React.CSSProperties
+            }
+          >
+            <button
+              type="button"
+              className="agent-detail-close"
+              aria-label={t('settings.agents.detail.close')}
+              onClick={onClose}
+            >
+              <X size={18} />
+            </button>
+            <div className="agent-detail-photo">
+              {cover ? (
+                <img
+                  className="agent-detail-cover"
+                  src={cover}
+                  alt={t('settings.agents.coverAlt', { name: displayName })}
+                />
+              ) : (
+                <div className="agent-detail-cover is-placeholder">
+                  <AvatarImage
+                    value={avatar}
+                    className="size-20"
+                    fallback={displayName.slice(0, 1)}
+                  />
+                </div>
+              )}
+              <div className="agent-list-nameplate">
+                <span className="agent-list-name">{displayName}</span>
+                {pronunciation ? <span className="agent-list-pinyin">{pronunciation}</span> : null}
+              </div>
             </div>
-          )}
-          <div className="agent-list-nameplate">
-            <span className="agent-list-name">{displayName}</span>
-            {pronunciation ? <span className="agent-list-pinyin">{pronunciation}</span> : null}
-          </div>
-        </div>
-        <div className="agent-detail-body">
-          {intro ? <p className="agent-detail-intro">{intro}</p> : null}
-        </div>
-      </section>
-    </div>
+            <div className="agent-detail-body">
+              {intro ? <p className="agent-detail-intro">{intro}</p> : null}
+            </div>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 

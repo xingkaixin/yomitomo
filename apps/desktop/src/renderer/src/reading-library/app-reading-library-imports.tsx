@@ -15,6 +15,7 @@ import {
 import type { ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
@@ -483,159 +484,166 @@ function ArticleImportDialog({
     importState === 'error' ? 'Error' : importMessage || t('library.import.article.idleFooter');
 
   return (
-    <div
-      className="library-import-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="library-article-import-title"
-    >
-      <button
-        className="library-import-modal-scrim"
-        type="button"
-        aria-label={t('library.import.article.close')}
-        onClick={closeImportDialog}
-      />
-      <form
-        className={`library-import-dialog library-article-import-dialog is-${importState}`}
-        onSubmit={submitImport}
-      >
-        <header>
-          <div>
-            <strong id="library-article-import-title">{t('library.import.article.title')}</strong>
-            <span>{importHeaderMessage}</span>
-          </div>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && closeImportDialog()}>
+      <DialogPortal>
+        <DialogOverlay className="library-import-modal">
           <button
+            className="library-import-modal-scrim"
             type="button"
             aria-label={t('library.import.article.close')}
             onClick={closeImportDialog}
-          >
-            <X size={17} />
-          </button>
-        </header>
-        <div
-          className={[
-            'library-article-import-box',
-            importState === 'submitting' ? 'is-submitting' : '',
-            importState === 'imported' ? 'is-imported' : '',
-            importState === 'duplicate' ? 'is-duplicate' : '',
-            importState === 'error' ? 'is-error' : '',
-            showParsedTitle ? 'has-parsed-title' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <label className="library-article-import-url">
-            <span>{t('library.import.article.urlLabel')}</span>
-            <span className="library-article-import-input">
-              {showParsedTitle && importState === 'imported' ? (
-                <span className="library-article-import-result-check" aria-hidden="true">
-                  <Check className="library-article-import-result-icon" size={16} />
-                </span>
-              ) : (
-                <Globe2 size={16} />
-              )}
-              <input
-                aria-label={t('library.import.article.urlLabel')}
-                disabled={importState === 'submitting' || importState === 'imported'}
-                inputMode="url"
-                placeholder={t('library.import.article.placeholder')}
-                title={articleInputTitle}
-                type="text"
-                value={articleInputValue}
-                onBlur={() => setInputFocused(false)}
-                onChange={(event) => {
-                  setImportUrl(event.target.value);
-                  if (importState !== 'submitting') {
-                    clearImportCloseTimer();
-                    clearCancelDelayTimer();
-                    setImportState('idle');
-                    setImportMessage('');
-                    setImportArticle(null);
-                    setImportProgress(0);
-                    setCancelAvailable(false);
-                  }
-                }}
-                onFocus={() => setInputFocused(true)}
+          />
+          <DialogContent
+            aria-labelledby="library-article-import-title"
+            render={(props) => (
+              <form
+                {...props}
+                className={`library-import-dialog library-article-import-dialog is-${importState}`}
+                onSubmit={submitImport}
               />
-            </span>
-          </label>
-          <span className="library-article-import-actions">
-            <Button
-              className="library-article-import-submit"
-              disabled={importState === 'submitting'}
-              type="submit"
-            >
-              {importState === 'submitting' ? (
-                <LoaderCircle className="is-spinning" size={16} />
-              ) : (
-                <Globe2 size={16} />
-              )}
-              {importState === 'submitting'
-                ? t('library.import.article.parsingButton')
-                : t('library.import.article.parse')}
-            </Button>
-            {importState === 'submitting' && cancelAvailable ? (
-              <Button
-                className="library-article-import-cancel"
+            )}
+          >
+            <header>
+              <div>
+                <strong id="library-article-import-title">
+                  {t('library.import.article.title')}
+                </strong>
+                <span>{importHeaderMessage}</span>
+              </div>
+              <button
                 type="button"
-                variant="secondary"
-                onClick={cancelImport}
+                aria-label={t('library.import.article.close')}
+                onClick={closeImportDialog}
               >
-                <X size={16} />
-                {t('library.import.article.cancel')}
-              </Button>
-            ) : null}
-          </span>
-          {importState === 'idle' ? null : (
-            <span
-              className="library-import-progress"
-              role="progressbar"
-              aria-label={t('library.import.article.progress')}
-              aria-valuemax={100}
-              aria-valuemin={0}
-              aria-valuenow={importProgressPercent}
-              style={
-                {
-                  '--library-import-progress': `${importProgressPercent}%`,
-                } as React.CSSProperties
-              }
+                <X size={17} />
+              </button>
+            </header>
+            <div
+              className={[
+                'library-article-import-box',
+                importState === 'submitting' ? 'is-submitting' : '',
+                importState === 'imported' ? 'is-imported' : '',
+                importState === 'duplicate' ? 'is-duplicate' : '',
+                importState === 'error' ? 'is-error' : '',
+                showParsedTitle ? 'has-parsed-title' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
-              <span className="library-import-progress-track">
-                <span />
+              <label className="library-article-import-url">
+                <span>{t('library.import.article.urlLabel')}</span>
+                <span className="library-article-import-input">
+                  {showParsedTitle && importState === 'imported' ? (
+                    <span className="library-article-import-result-check" aria-hidden="true">
+                      <Check className="library-article-import-result-icon" size={16} />
+                    </span>
+                  ) : (
+                    <Globe2 size={16} />
+                  )}
+                  <input
+                    aria-label={t('library.import.article.urlLabel')}
+                    disabled={importState === 'submitting' || importState === 'imported'}
+                    inputMode="url"
+                    placeholder={t('library.import.article.placeholder')}
+                    title={articleInputTitle}
+                    type="text"
+                    value={articleInputValue}
+                    onBlur={() => setInputFocused(false)}
+                    onChange={(event) => {
+                      setImportUrl(event.target.value);
+                      if (importState !== 'submitting') {
+                        clearImportCloseTimer();
+                        clearCancelDelayTimer();
+                        setImportState('idle');
+                        setImportMessage('');
+                        setImportArticle(null);
+                        setImportProgress(0);
+                        setCancelAvailable(false);
+                      }
+                    }}
+                    onFocus={() => setInputFocused(true)}
+                  />
+                </span>
+              </label>
+              <span className="library-article-import-actions">
+                <Button
+                  className="library-article-import-submit"
+                  disabled={importState === 'submitting'}
+                  type="submit"
+                >
+                  {importState === 'submitting' ? (
+                    <LoaderCircle className="is-spinning" size={16} />
+                  ) : (
+                    <Globe2 size={16} />
+                  )}
+                  {importState === 'submitting'
+                    ? t('library.import.article.parsingButton')
+                    : t('library.import.article.parse')}
+                </Button>
+                {importState === 'submitting' && cancelAvailable ? (
+                  <Button
+                    className="library-article-import-cancel"
+                    type="button"
+                    variant="secondary"
+                    onClick={cancelImport}
+                  >
+                    <X size={16} />
+                    {t('library.import.article.cancel')}
+                  </Button>
+                ) : null}
               </span>
-              <em>{importProgressPercent}%</em>
-            </span>
-          )}
-          {importState === 'duplicate' ? (
-            <span className="library-article-duplicate-callout" role="status">
-              <CircleAlert size={16} />
-              <span>
-                <strong>{t('library.import.article.duplicateTitle')}</strong>
-                <em>{t('library.import.article.duplicateDescription')}</em>
-              </span>
-            </span>
-          ) : null}
-        </div>
-        <footer>
-          <span>{importFooterMessage}</span>
-          {importArticle && importState === 'duplicate' ? (
-            <button
-              type="button"
-              onClick={() => {
-                clearImportCloseTimer();
-                onClose();
-                onOpenArticle(importArticle);
-              }}
-            >
-              <ExternalLink size={14} />
-              {importState === 'duplicate'
-                ? t('library.import.article.openDuplicate')
-                : t('library.import.article.openArticle')}
-            </button>
-          ) : null}
-        </footer>
-      </form>
-    </div>
+              {importState === 'idle' ? null : (
+                <span
+                  className="library-import-progress"
+                  role="progressbar"
+                  aria-label={t('library.import.article.progress')}
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={importProgressPercent}
+                  style={
+                    {
+                      '--library-import-progress': `${importProgressPercent}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="library-import-progress-track">
+                    <span />
+                  </span>
+                  <em>{importProgressPercent}%</em>
+                </span>
+              )}
+              {importState === 'duplicate' ? (
+                <span className="library-article-duplicate-callout" role="status">
+                  <CircleAlert size={16} />
+                  <span>
+                    <strong>{t('library.import.article.duplicateTitle')}</strong>
+                    <em>{t('library.import.article.duplicateDescription')}</em>
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <footer>
+              <span>{importFooterMessage}</span>
+              {importArticle && importState === 'duplicate' ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearImportCloseTimer();
+                    onClose();
+                    onOpenArticle(importArticle);
+                  }}
+                >
+                  <ExternalLink size={14} />
+                  {importState === 'duplicate'
+                    ? t('library.import.article.openDuplicate')
+                    : t('library.import.article.openArticle')}
+                </button>
+              ) : null}
+            </footer>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 
@@ -980,206 +988,215 @@ function FileImportDialog({
   const importProgressPercent = Math.round(clampNumber(batchProgress, 0, 100, 0));
 
   return (
-    <div
-      className="library-import-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={config.titleId}
-    >
-      <button
-        className="library-import-modal-scrim"
-        type="button"
-        aria-label={config.closeLabel}
-        onClick={closeImportDialog}
-      />
-      <section className={`library-import-dialog is-${importState}`}>
-        <header>
-          <div>
-            <strong id={config.titleId}>{config.title}</strong>
-            <span>{importMessage || config.batchIdleMessage}</span>
-          </div>
-          <button type="button" aria-label={config.closeLabel} onClick={closeImportDialog}>
-            <X size={17} />
-          </button>
-        </header>
-        <label
-          className={[
-            'library-ebook-dropzone',
-            dragging ? 'is-dragging' : '',
-            importState === 'submitting' ? 'is-submitting' : '',
-            importState === 'imported' ? 'is-imported' : '',
-            importState === 'error' ? 'is-error' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          htmlFor={config.inputId}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            setDragging(false);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            if (importState !== 'submitting') setDragging(true);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            if (importState === 'submitting') return;
-            void importFiles(event.dataTransfer.files);
-          }}
-        >
-          <input
-            accept={config.accept}
-            disabled={importState === 'submitting'}
-            id={config.inputId}
-            multiple
-            ref={inputRef}
-            type="file"
-            onChange={(event) => void importFiles(event.target.files || undefined)}
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && closeImportDialog()}>
+      <DialogPortal>
+        <DialogOverlay className="library-import-modal">
+          <button
+            className="library-import-modal-scrim"
+            type="button"
+            aria-label={config.closeLabel}
+            onClick={closeImportDialog}
           />
-          <span
-            className={[
-              'library-ebook-dropzone-icon',
-              importState === 'imported' ? 'is-success' : '',
-              importState === 'error' ? 'is-error' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {importState === 'submitting' ? (
-              <LoaderCircle className="is-spinning" size={22} />
-            ) : importState === 'imported' ? (
-              <Check className="library-import-success-icon" size={24} />
-            ) : importState === 'error' ? (
-              <X size={24} />
-            ) : dragging ? (
-              <FileUp size={24} />
-            ) : (
-              <Upload size={24} />
+          <DialogContent
+            aria-labelledby={config.titleId}
+            render={(props) => (
+              <section {...props} className={`library-import-dialog is-${importState}`} />
             )}
-          </span>
-          <span className="library-ebook-dropzone-copy">
-            <strong>{importDropTitle()}</strong>
-            <em>{config.dropHint}</em>
-          </span>
-          {showProgress ? (
-            <span
-              className="library-import-progress"
-              role="progressbar"
-              aria-label={config.progressLabel}
-              aria-valuemax={100}
-              aria-valuemin={0}
-              aria-valuenow={importProgressPercent}
-              style={
-                {
-                  '--library-import-progress': `${importProgressPercent}%`,
-                } as React.CSSProperties
-              }
-            >
-              <span className="library-import-progress-track">
-                <span />
-              </span>
-              <em>{importProgressPercent}%</em>
-            </span>
-          ) : null}
-        </label>
-        {showCelebration ? (
-          <div
-            className="library-ebook-import-celebration"
-            role="status"
-            aria-label={t('library.import.ebook.celebration')}
           >
-            <div className="library-ebook-import-cover-stack" aria-hidden="true">
-              {celebrationItems.map((item) => (
-                <span
-                  className={['library-ebook-import-cover-card', item.coverUrl ? 'has-cover' : '']
-                    .filter(Boolean)
-                    .join(' ')}
-                  key={item.id}
-                  style={
-                    {
-                      '--ebook-import-cover-position': item.position,
-                      '--ebook-import-cover-lift': `${item.lift}px`,
-                      '--ebook-import-cover-order': item.order,
-                      '--ebook-import-cover-z': celebrationItems.length - item.order,
-                    } as React.CSSProperties
-                  }
-                >
-                  {item.coverUrl ? (
-                    <img alt="" src={item.coverUrl} />
-                  ) : (
-                    <span className="library-ebook-import-cover-placeholder">
-                      {coverPlaceholderTitle(item.title)}
-                    </span>
-                  )}
-                </span>
-              ))}
-              {hiddenCelebrationCount > 0 ? (
-                <span className="library-ebook-import-cover-more">+{hiddenCelebrationCount}</span>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-        {showResults ? (
-          <div className="library-file-import-results" role="status">
-            {importItems.map((item) => (
-              <article
+            <header>
+              <div>
+                <strong id={config.titleId}>{config.title}</strong>
+                <span>{importMessage || config.batchIdleMessage}</span>
+              </div>
+              <button type="button" aria-label={config.closeLabel} onClick={closeImportDialog}>
+                <X size={17} />
+              </button>
+            </header>
+            <label
+              className={[
+                'library-ebook-dropzone',
+                dragging ? 'is-dragging' : '',
+                importState === 'submitting' ? 'is-submitting' : '',
+                importState === 'imported' ? 'is-imported' : '',
+                importState === 'error' ? 'is-error' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              htmlFor={config.inputId}
+              onDragLeave={(event) => {
+                event.preventDefault();
+                setDragging(false);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (importState !== 'submitting') setDragging(true);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragging(false);
+                if (importState === 'submitting') return;
+                void importFiles(event.dataTransfer.files);
+              }}
+            >
+              <input
+                accept={config.accept}
+                disabled={importState === 'submitting'}
+                id={config.inputId}
+                multiple
+                ref={inputRef}
+                type="file"
+                onChange={(event) => void importFiles(event.target.files || undefined)}
+              />
+              <span
                 className={[
-                  'library-file-import-result',
-                  `is-${item.status}`,
-                  item.article?.leadImageUrl ? 'has-cover' : '',
+                  'library-ebook-dropzone-icon',
+                  importState === 'imported' ? 'is-success' : '',
+                  importState === 'error' ? 'is-error' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
-                key={item.id}
               >
-                <span className="library-file-import-cover" aria-hidden="true">
-                  {item.article?.leadImageUrl ? (
-                    <img alt="" src={item.article.leadImageUrl} />
-                  ) : item.status === 'importing' ? (
-                    <LoaderCircle className="is-spinning" size={18} />
-                  ) : item.status === 'error' ? (
-                    <X size={18} />
-                  ) : config.kind === 'pdf' ? (
-                    <FileText size={18} />
-                  ) : (
-                    <BookText size={18} />
-                  )}
+                {importState === 'submitting' ? (
+                  <LoaderCircle className="is-spinning" size={22} />
+                ) : importState === 'imported' ? (
+                  <Check className="library-import-success-icon" size={24} />
+                ) : importState === 'error' ? (
+                  <X size={24} />
+                ) : dragging ? (
+                  <FileUp size={24} />
+                ) : (
+                  <Upload size={24} />
+                )}
+              </span>
+              <span className="library-ebook-dropzone-copy">
+                <strong>{importDropTitle()}</strong>
+                <em>{config.dropHint}</em>
+              </span>
+              {showProgress ? (
+                <span
+                  className="library-import-progress"
+                  role="progressbar"
+                  aria-label={config.progressLabel}
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={importProgressPercent}
+                  style={
+                    {
+                      '--library-import-progress': `${importProgressPercent}%`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <span className="library-import-progress-track">
+                    <span />
+                  </span>
+                  <em>{importProgressPercent}%</em>
                 </span>
-                <span className="library-file-import-result-copy">
-                  <strong>{item.article?.title || item.fileName}</strong>
-                  <em>{item.message || item.fileName}</em>
-                </span>
-                <span className="library-file-import-result-state">
-                  {fileImportItemStateLabel(item, t)}
-                </span>
-              </article>
-            ))}
-          </div>
-        ) : null}
-        <footer>
-          <span>{importMessage || config.footerHint}</span>
-          {duplicateArticle ? (
-            <button
-              type="button"
-              onClick={() => {
-                clearImportCloseTimer();
-                onClose();
-                onOpenArticle(duplicateArticle);
-              }}
-            >
-              <ExternalLink size={14} />
-              {config.openDuplicateLabel}
-            </button>
-          ) : importState === 'error' ? (
-            <button type="button" onClick={resetImport}>
-              {config.kind === 'pdf'
-                ? t('library.import.pdf.reselect')
-                : t('library.import.ebook.reselect')}
-            </button>
-          ) : null}
-        </footer>
-      </section>
-    </div>
+              ) : null}
+            </label>
+            {showCelebration ? (
+              <div
+                className="library-ebook-import-celebration"
+                role="status"
+                aria-label={t('library.import.ebook.celebration')}
+              >
+                <div className="library-ebook-import-cover-stack" aria-hidden="true">
+                  {celebrationItems.map((item) => (
+                    <span
+                      className={[
+                        'library-ebook-import-cover-card',
+                        item.coverUrl ? 'has-cover' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      key={item.id}
+                      style={
+                        {
+                          '--ebook-import-cover-position': item.position,
+                          '--ebook-import-cover-lift': `${item.lift}px`,
+                          '--ebook-import-cover-order': item.order,
+                          '--ebook-import-cover-z': celebrationItems.length - item.order,
+                        } as React.CSSProperties
+                      }
+                    >
+                      {item.coverUrl ? (
+                        <img alt="" src={item.coverUrl} />
+                      ) : (
+                        <span className="library-ebook-import-cover-placeholder">
+                          {coverPlaceholderTitle(item.title)}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                  {hiddenCelebrationCount > 0 ? (
+                    <span className="library-ebook-import-cover-more">
+                      +{hiddenCelebrationCount}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+            {showResults ? (
+              <div className="library-file-import-results" role="status">
+                {importItems.map((item) => (
+                  <article
+                    className={[
+                      'library-file-import-result',
+                      `is-${item.status}`,
+                      item.article?.leadImageUrl ? 'has-cover' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    key={item.id}
+                  >
+                    <span className="library-file-import-cover" aria-hidden="true">
+                      {item.article?.leadImageUrl ? (
+                        <img alt="" src={item.article.leadImageUrl} />
+                      ) : item.status === 'importing' ? (
+                        <LoaderCircle className="is-spinning" size={18} />
+                      ) : item.status === 'error' ? (
+                        <X size={18} />
+                      ) : config.kind === 'pdf' ? (
+                        <FileText size={18} />
+                      ) : (
+                        <BookText size={18} />
+                      )}
+                    </span>
+                    <span className="library-file-import-result-copy">
+                      <strong>{item.article?.title || item.fileName}</strong>
+                      <em>{item.message || item.fileName}</em>
+                    </span>
+                    <span className="library-file-import-result-state">
+                      {fileImportItemStateLabel(item, t)}
+                    </span>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            <footer>
+              <span>{importMessage || config.footerHint}</span>
+              {duplicateArticle ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    clearImportCloseTimer();
+                    onClose();
+                    onOpenArticle(duplicateArticle);
+                  }}
+                >
+                  <ExternalLink size={14} />
+                  {config.openDuplicateLabel}
+                </button>
+              ) : importState === 'error' ? (
+                <button type="button" onClick={resetImport}>
+                  {config.kind === 'pdf'
+                    ? t('library.import.pdf.reselect')
+                    : t('library.import.ebook.reselect')}
+                </button>
+              ) : null}
+            </footer>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }

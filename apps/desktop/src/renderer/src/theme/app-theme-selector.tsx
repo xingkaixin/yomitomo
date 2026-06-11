@@ -26,6 +26,14 @@ import {
   themeDisplayDescription,
   themeDisplayName,
 } from '../i18n/app-i18n-labels';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
@@ -95,106 +103,98 @@ export function ThemeSelector({
         <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
       </button>
       {open ? (
-        <div
-          className="theme-dialog-overlay"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) onOpenChange(false);
-          }}
-        >
-          <section
-            aria-labelledby="theme-dialog-title"
-            aria-modal="true"
-            className="theme-dialog source-aware-dialog"
-            role="dialog"
-            style={dialogStyle}
-          >
-            <header className="theme-dialog-header">
-              <div>
-                <span className="theme-dialog-icon">
-                  <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
-                </span>
-                <div>
-                  <h2 id="theme-dialog-title">{t('theme.title')}</h2>
-                  <p>{t('theme.description')}</p>
-                </div>
-              </div>
-              <button
-                aria-label={t('theme.close')}
-                className="theme-dialog-close"
-                type="button"
-                onClick={() => onOpenChange(false)}
-              >
-                <X aria-hidden="true" size={18} />
-              </button>
-            </header>
-            <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
-              {themeToneOptions.map((option) => (
-                <button
-                  aria-pressed={activeTone === option.tone}
-                  className={activeTone === option.tone ? 'is-active' : undefined}
-                  key={option.tone}
-                  type="button"
-                  onClick={() => selectTone(option.tone)}
-                >
-                  {t(option.labelKey)}
-                </button>
-              ))}
-            </div>
-            <div className="theme-card-grid">
-              {visibleToneThemeIds.map((themeId) => {
-                const theme = themeRegistry[themeId];
-                return (
-                  <ThemeCard
-                    active={activeThemeId === themeId}
-                    key={themeId}
-                    theme={theme}
-                    t={t}
-                    onClick={() => selectTheme(themeId)}
-                  />
-                );
-              })}
-            </div>
-            <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
-              <div>
-                <h3 id="reader-paper-title">{t('theme.readerPaperTitle')}</h3>
-                <p>{t('theme.readerPaperDescription')}</p>
-              </div>
-              <div className="theme-reader-paper-options">
-                {visibleReaderBackgroundOptions.map((option) => {
-                  const label = readerPaperDisplayName(option.label);
-                  return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+          <DialogPortal>
+            <DialogOverlay className="theme-dialog-overlay">
+              <DialogContent className="theme-dialog source-aware-dialog" style={dialogStyle}>
+                <header className="theme-dialog-header">
+                  <div>
+                    <span className="theme-dialog-icon">
+                      <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
+                    </span>
+                    <div>
+                      <DialogTitle id="theme-dialog-title">{t('theme.title')}</DialogTitle>
+                      <DialogDescription>{t('theme.description')}</DialogDescription>
+                    </div>
+                  </div>
+                  <button
+                    aria-label={t('theme.close')}
+                    className="theme-dialog-close"
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    <X aria-hidden="true" size={18} />
+                  </button>
+                </header>
+                <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
+                  {themeToneOptions.map((option) => (
                     <button
-                      aria-label={t('theme.readerPaperOption', { label })}
-                      aria-pressed={readerBackgroundColor === option.value}
-                      className={
-                        readerBackgroundColor === option.value
-                          ? 'theme-reader-paper-option is-active'
-                          : 'theme-reader-paper-option'
-                      }
-                      key={option.value}
-                      style={{ '--reader-paper-option': option.value } as CSSProperties}
-                      title={label}
+                      aria-pressed={activeTone === option.tone}
+                      className={activeTone === option.tone ? 'is-active' : undefined}
+                      key={option.tone}
                       type="button"
-                      onClick={() => selectReaderBackground(option.value)}
+                      onClick={() => selectTone(option.tone)}
                     >
-                      <span aria-hidden="true" className="theme-reader-paper-swatch" />
-                      <strong>{label}</strong>
-                      <span className="theme-reader-paper-check" aria-hidden="true">
-                        {readerBackgroundColor === option.value ? (
-                          <Check size={15} strokeWidth={2.4} />
-                        ) : null}
-                      </span>
+                      {t(option.labelKey)}
                     </button>
-                  );
-                })}
-              </div>
-              {activeTone === 'dark' ? (
-                <p className="theme-reader-paper-note">{t('theme.pdfKeepsOriginalColor')}</p>
-              ) : null}
-            </section>
-          </section>
-        </div>
+                  ))}
+                </div>
+                <div className="theme-card-grid">
+                  {visibleToneThemeIds.map((themeId) => {
+                    const theme = themeRegistry[themeId];
+                    return (
+                      <ThemeCard
+                        active={activeThemeId === themeId}
+                        key={themeId}
+                        theme={theme}
+                        t={t}
+                        onClick={() => selectTheme(themeId)}
+                      />
+                    );
+                  })}
+                </div>
+                <section aria-labelledby="reader-paper-title" className="theme-reader-paper">
+                  <div>
+                    <h3 id="reader-paper-title">{t('theme.readerPaperTitle')}</h3>
+                    <p>{t('theme.readerPaperDescription')}</p>
+                  </div>
+                  <div className="theme-reader-paper-options">
+                    {visibleReaderBackgroundOptions.map((option) => {
+                      const label = readerPaperDisplayName(option.label);
+                      return (
+                        <button
+                          aria-label={t('theme.readerPaperOption', { label })}
+                          aria-pressed={readerBackgroundColor === option.value}
+                          className={
+                            readerBackgroundColor === option.value
+                              ? 'theme-reader-paper-option is-active'
+                              : 'theme-reader-paper-option'
+                          }
+                          key={option.value}
+                          style={{ '--reader-paper-option': option.value } as CSSProperties}
+                          title={label}
+                          type="button"
+                          onClick={() => selectReaderBackground(option.value)}
+                        >
+                          <span aria-hidden="true" className="theme-reader-paper-swatch" />
+                          <strong>{label}</strong>
+                          <span className="theme-reader-paper-check" aria-hidden="true">
+                            {readerBackgroundColor === option.value ? (
+                              <Check size={15} strokeWidth={2.4} />
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {activeTone === 'dark' ? (
+                    <p className="theme-reader-paper-note">{t('theme.pdfKeepsOriginalColor')}</p>
+                  ) : null}
+                </section>
+              </DialogContent>
+            </DialogOverlay>
+          </DialogPortal>
+        </Dialog>
       ) : null}
     </>
   );

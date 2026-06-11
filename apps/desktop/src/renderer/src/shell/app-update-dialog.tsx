@@ -12,6 +12,7 @@ import { resolveAppThemeId, themeRegistry } from '../theme/app-theme';
 import coverLighterImage from '../assets/update/updater-cover-lighter.webp';
 import coverDarkerImage from '../assets/update/updater-cover-darker.webp';
 import { useTranslation } from 'react-i18next';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 
 type ReleaseDialogScene = 'before-update' | 'after-update';
 
@@ -157,76 +158,78 @@ export function UpdateReleaseDialogView({
       : t('updateDialog.beforeLead');
 
   return (
-    <div className="update-dialog-overlay" role="presentation" onClick={onSecondary}>
-      <div
-        className="update-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${badge} ${version}`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div
-          className="update-dialog-cover"
-          style={coverImage ? { backgroundImage: `url(${coverImage})` } : undefined}
-        >
-          <span className="update-dialog-badge">{badge}</span>
-          <span className="update-dialog-version">v{version}</span>
-          <span className="update-dialog-tagline">{t('updateDialog.tagline')}</span>
-        </div>
-        <div className="update-dialog-body">
-          <p className="update-dialog-lead">{lead}</p>
-          {hasHighlights ? (
-            <ul className="update-dialog-list">
-              {highlights.map((highlight, index) => {
-                const Icon = TYPE_ICON[highlight.type];
-                return (
-                  <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
-                    <span className={`update-dialog-tag is-${highlight.type}`}>
-                      <Icon size={13} aria-hidden />
-                      {t(`updateDialog.type.${highlight.type}`)}
-                    </span>
-                    <span className="update-dialog-text">
-                      <span className="update-dialog-title">{highlight.title}</span>
-                      {highlight.description ? (
-                        <span className="update-dialog-desc">{highlight.description}</span>
-                      ) : null}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </div>
-        <div className="update-dialog-footer">
-          {isAfter ? (
-            <button className="update-dialog-button is-primary" type="button" onClick={onPrimary}>
-              <PenLine size={16} aria-hidden />
-              {t('updateDialog.start')}
-            </button>
-          ) : (
-            <>
-              <button
-                className="update-dialog-button is-ghost"
-                type="button"
-                disabled={busy}
-                onClick={onSecondary}
-              >
-                {t('updateDialog.later')}
-              </button>
-              <button
-                className="update-dialog-button is-primary"
-                type="button"
-                disabled={busy}
-                onClick={onPrimary}
-              >
-                <ArrowUpCircle size={16} aria-hidden />
-                {busy ? t('updateDialog.downloading') : t('updateDialog.updateNow')}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onSecondary()}>
+      <DialogPortal>
+        <DialogOverlay className="update-dialog-overlay">
+          <DialogContent className="update-dialog" aria-label={`${badge} ${version}`}>
+            <div
+              className="update-dialog-cover"
+              style={coverImage ? { backgroundImage: `url(${coverImage})` } : undefined}
+            >
+              <span className="update-dialog-badge">{badge}</span>
+              <span className="update-dialog-version">v{version}</span>
+              <span className="update-dialog-tagline">{t('updateDialog.tagline')}</span>
+            </div>
+            <div className="update-dialog-body">
+              <p className="update-dialog-lead">{lead}</p>
+              {hasHighlights ? (
+                <ul className="update-dialog-list">
+                  {highlights.map((highlight, index) => {
+                    const Icon = TYPE_ICON[highlight.type];
+                    return (
+                      <li className="update-dialog-item" key={`${highlight.type}-${index}`}>
+                        <span className={`update-dialog-tag is-${highlight.type}`}>
+                          <Icon size={13} aria-hidden />
+                          {t(`updateDialog.type.${highlight.type}`)}
+                        </span>
+                        <span className="update-dialog-text">
+                          <span className="update-dialog-title">{highlight.title}</span>
+                          {highlight.description ? (
+                            <span className="update-dialog-desc">{highlight.description}</span>
+                          ) : null}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+            <div className="update-dialog-footer">
+              {isAfter ? (
+                <button
+                  className="update-dialog-button is-primary"
+                  type="button"
+                  onClick={onPrimary}
+                >
+                  <PenLine size={16} aria-hidden />
+                  {t('updateDialog.start')}
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="update-dialog-button is-ghost"
+                    type="button"
+                    disabled={busy}
+                    onClick={onSecondary}
+                  >
+                    {t('updateDialog.later')}
+                  </button>
+                  <button
+                    className="update-dialog-button is-primary"
+                    type="button"
+                    disabled={busy}
+                    onClick={onPrimary}
+                  >
+                    <ArrowUpCircle size={16} aria-hidden />
+                    {busy ? t('updateDialog.downloading') : t('updateDialog.updateNow')}
+                  </button>
+                </>
+              )}
+            </div>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 

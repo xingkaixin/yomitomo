@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState } from 'react';
 import { BookOpen, Check, Save, ShieldCheck, Zap, X } from 'lucide-react';
 import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft, ProviderTestState } from './app-settings';
@@ -10,6 +9,7 @@ import type { SaveState } from '../shell/app-types';
 import { AutoSaveStatus } from './app-settings-save-status';
 import { SettingsGroup, SettingsPage, SettingsRow, SettingsSegmented } from './app-settings-kit';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -75,17 +75,6 @@ export function ProviderSettings({
     ),
   );
 
-  useEffect(() => {
-    if (!providerEditorOpen) return;
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setProviderEditorOpen(false);
-    }
-
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [providerEditorOpen]);
-
   function selectProvider(provider: LlmProvider) {
     onSelect(provider);
     setProviderEditorOpen(true);
@@ -115,14 +104,13 @@ export function ProviderSettings({
   }
 
   const editorDialog =
-    providerEditorOpen && typeof document !== 'undefined'
-      ? createPortal(
-          <div className="provider-editor-dialog-overlay" role="presentation">
-            <section
+    providerEditorOpen && typeof document !== 'undefined' ? (
+      <Dialog open={providerEditorOpen} onOpenChange={setProviderEditorOpen}>
+        <DialogPortal>
+          <DialogOverlay className="provider-editor-dialog-overlay">
+            <DialogContent
               aria-labelledby="provider-editor-dialog-title"
-              aria-modal="true"
               className="provider-editor-dialog"
-              role="dialog"
             >
               <ProviderEditorContent
                 draft={draft}
@@ -137,11 +125,11 @@ export function ProviderSettings({
                 onSave={saveProviderAndClose}
                 onTest={testProvider}
               />
-            </section>
-          </div>,
-          document.body,
-        )
-      : null;
+            </DialogContent>
+          </DialogOverlay>
+        </DialogPortal>
+      </Dialog>
+    ) : null;
 
   return (
     <>

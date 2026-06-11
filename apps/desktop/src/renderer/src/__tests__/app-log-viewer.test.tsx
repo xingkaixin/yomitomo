@@ -214,6 +214,17 @@ describe('AboutSettings', () => {
     expect(screen.queryByRole('dialog', { name: '开源许可证' })).toBeNull();
   });
 
+  it('closes the license dialog on Escape', async () => {
+    installDesktopAboutApi();
+
+    render(<AboutSettings />);
+
+    fireEvent.click(screen.getByRole('button', { name: /查看许可证/ }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: '开源许可证' }), { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: '开源许可证' })).toBeNull();
+  });
+
   it('includes vendored foliate-js in the license dialog', async () => {
     installDesktopAboutApi();
 

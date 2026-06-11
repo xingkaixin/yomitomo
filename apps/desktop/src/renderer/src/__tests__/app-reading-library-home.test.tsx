@@ -187,7 +187,9 @@ function selectImportFile(container: HTMLElement, inputId: string, file: File) {
 }
 
 function selectImportFiles(container: HTMLElement, inputId: string, files: File[]) {
-  const input = container.querySelector<HTMLInputElement>(`#${inputId}`);
+  const input =
+    container.querySelector<HTMLInputElement>(`#${inputId}`) ||
+    document.querySelector<HTMLInputElement>(`#${inputId}`);
   expect(input).toBeTruthy();
   fireEvent.change(input!, { target: { files } });
 }

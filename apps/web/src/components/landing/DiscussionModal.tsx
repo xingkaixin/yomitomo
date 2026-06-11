@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Dialog } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
 import type { Annotation, Thought } from './data/article';
 import { useAgentResolver, useLanding } from './LandingContext';
@@ -53,115 +53,85 @@ export default function DiscussionModal({ open, annotation, onClose }: Discussio
     }
   }, [open, annotation.id, annotation.thoughts]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
-
-  // Lock body scroll
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [open]);
-
   if (!open) return null;
 
   const selectedThought = annotation.thoughts.find((t) => t.id === selectedId);
 
-  // Portal to <body> so the overlay escapes any ancestor transform/stacking
-  // context (e.g. the card's `.reveal` translate), letting z-index:9999 truly
-  // sit above the article highlights and connection line.
-  return createPortal(
-    <div
-      className="discussion-modal-overlay is-open"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={ui.discussionLabel}
-    >
-      <div className="discussion-modal-panel">
-        <div className="annotation-discussion-window">
-          {/* Quote area */}
-          <section className="annotation-discussion-quote">
-            <strong>{ui.quoteLabel}</strong>
-            <p>{annotation.quote}</p>
-          </section>
+  return (
+    <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="discussion-modal-overlay is-open">
+          <Dialog.Popup className="discussion-modal-panel" aria-label={ui.discussionLabel}>
+            <div className="annotation-discussion-window">
+              {/* Quote area */}
+              <section className="annotation-discussion-quote">
+                <strong>{ui.quoteLabel}</strong>
+                <p>{annotation.quote}</p>
+              </section>
 
-          {/* Two-column layout */}
-          <div className="annotation-discussion-layout">
-            {/* Left sidebar: thought list */}
-            <aside className="annotation-discussion-ideas">
-              <div className="annotation-discussion-ideas-header">
-                <strong>{ui.ideasLabel}</strong>
-                <span className="annotation-discussion-ideas-count">
-                  {annotation.thoughts.length}
-                </span>
-              </div>
+              {/* Two-column layout */}
+              <div className="annotation-discussion-layout">
+                {/* Left sidebar: thought list */}
+                <aside className="annotation-discussion-ideas">
+                  <div className="annotation-discussion-ideas-header">
+                    <strong>{ui.ideasLabel}</strong>
+                    <span className="annotation-discussion-ideas-count">
+                      {annotation.thoughts.length}
+                    </span>
+                  </div>
 
-              <div className="annotation-discussion-idea-list">
-                {annotation.thoughts.map((thought) => {
-                  const author = getAgent(thought.authorId);
-                  return (
-                    <button
-                      key={thought.id}
-                      type="button"
-                      className={`annotation-discussion-idea${selectedId === thought.id ? ' is-selected' : ''}`}
-                      onClick={() => setSelectedId(thought.id)}
-                    >
-                      <div className="annotation-discussion-idea-main">
-                        <AgentAvatar agentId={thought.authorId} />
-                        <div className="annotation-discussion-idea-text">
-                          <strong>{author.nickname}</strong>
-                          <em>{thought.content}</em>
-                          {thought.comments.length > 0 && (
-                            <small>{ui.replies(thought.comments.length)}</small>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
+                  <div className="annotation-discussion-idea-list">
+                    {annotation.thoughts.map((thought) => {
+                      const author = getAgent(thought.authorId);
+                      return (
+                        <button
+                          key={thought.id}
+                          type="button"
+                          className={`annotation-discussion-idea${selectedId === thought.id ? ' is-selected' : ''}`}
+                          onClick={() => setSelectedId(thought.id)}
+                        >
+                          <div className="annotation-discussion-idea-main">
+                            <AgentAvatar agentId={thought.authorId} />
+                            <div className="annotation-discussion-idea-text">
+                              <strong>{author.nickname}</strong>
+                              <em>{thought.content}</em>
+                              {thought.comments.length > 0 && (
+                                <small>{ui.replies(thought.comments.length)}</small>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </aside>
 
-            {/* Right main: thread view */}
-            <div className="annotation-discussion-thread">
-              {selectedThought ? (
-                <ThreadView thought={selectedThought} />
-              ) : (
-                <div className="annotation-discussion-thread-placeholder">
-                  <p>{ui.selectThought}</p>
+                {/* Right main: thread view */}
+                <div className="annotation-discussion-thread">
+                  {selectedThought ? (
+                    <ThreadView thought={selectedThought} />
+                  ) : (
+                    <div className="annotation-discussion-thread-placeholder">
+                      <p>{ui.selectThought}</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Close button */}
-        <button
-          className="discussion-modal-close"
-          type="button"
-          onClick={onClose}
-          aria-label="关闭"
-        >
-          <X size={16} />
-        </button>
-      </div>
-    </div>,
-    document.body,
+            {/* Close button */}
+            <button
+              className="discussion-modal-close"
+              type="button"
+              onClick={onClose}
+              aria-label="关闭"
+            >
+              <X size={16} />
+            </button>
+          </Dialog.Popup>
+        </Dialog.Backdrop>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
