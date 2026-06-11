@@ -3,6 +3,7 @@ import type {
   AssistantRuntimeProgressEvent,
   AssistantRuntimeProgressSummary,
 } from '@yomitomo/shared';
+import { desktopIpcErrorCodes, isDesktopIpcErrorLike } from '../../../ipc-errors';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 
@@ -53,6 +54,8 @@ export function AssistantRuntimeProgressList({
 }
 
 export function assistantRuntimeErrorMessage(error: unknown, fallbackKey: string) {
+  const ipcMessage = assistantRuntimeIpcErrorMessage(error);
+  if (ipcMessage) return ipcMessage;
   const message = error instanceof Error ? error.message : '';
   if (message === 'AGENT_REPLY_FAILED') return i18next.t(fallbackKey);
   if (message === 'AGENT_DISTILLATION_REVIEW_FAILED') {
@@ -73,6 +76,28 @@ export function assistantRuntimeErrorMessage(error: unknown, fallbackKey: string
   const agentNotFound = agentNotFoundMessage(message);
   if (agentNotFound) return agentNotFound;
   return message || i18next.t(fallbackKey);
+}
+
+function assistantRuntimeIpcErrorMessage(error: unknown) {
+  if (!isDesktopIpcErrorLike(error)) return '';
+  const username = typeof error.detail?.username === 'string' ? error.detail.username : '';
+  const name = username ? `@${username}` : '';
+  if (error.code === desktopIpcErrorCodes.agentNotFound) {
+    return i18next.t('assistantErrors.agentNotFound', { name });
+  }
+  if (error.code === desktopIpcErrorCodes.reviewAgentNotFound) {
+    return i18next.t('assistantErrors.reviewAgentNotFound', { name });
+  }
+  if (error.code === desktopIpcErrorCodes.annotationAgentNotFound) {
+    return i18next.t('assistantErrors.annotationAgentNotFound', { name });
+  }
+  if (error.code === desktopIpcErrorCodes.providerRouteRequired) {
+    const task = typeof error.detail?.task === 'string' ? error.detail.task : '';
+    if (task === 'readingAssistant')
+      return i18next.t('settings.models.readingProviderRouteRequired');
+    if (task === 'reviewAssistant') return i18next.t('settings.models.reviewProviderRouteRequired');
+  }
+  return '';
 }
 
 function agentNotFoundMessage(message: string) {

@@ -6,6 +6,7 @@ import type {
   DesktopIpcInvokeChannel,
   DesktopIpcInvokeResult,
 } from '../../ipc-contract';
+import { serializeDesktopIpcError } from '../../ipc-errors';
 
 export interface DesktopMainIpcContext {
   getMainWindow: () => BrowserWindow | null;
@@ -33,5 +34,12 @@ export function handleDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
   channel: Channel,
   handler: DesktopIpcHandler<Channel>,
 ) {
-  ipcMain.handle(channel, handler);
+  ipcMain.handle(channel, async (event, ...args: DesktopIpcInvokeArgs<Channel>) => {
+    try {
+      const value = await handler(event, ...args);
+      return { ok: true, value };
+    } catch (error) {
+      return { ok: false, error: serializeDesktopIpcError(error) };
+    }
+  });
 }
