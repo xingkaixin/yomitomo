@@ -28,5 +28,9 @@ export function getDesktopAppProfile(): DesktopAppProfile {
 export function configureDesktopAppStorage() {
   const profile = getDesktopAppProfile();
   app.setName('Yomitomo');
+  if (process.env.YOMITOMO_USER_DATA_DIR) {
+    app.setPath('userData', process.env.YOMITOMO_USER_DATA_DIR);
+    return;
+  }
   app.setPath('userData', join(app.getPath('appData'), profile.userDataDirectory));
 }
