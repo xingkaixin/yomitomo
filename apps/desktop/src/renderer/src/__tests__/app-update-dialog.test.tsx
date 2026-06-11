@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReleaseNoteHighlight } from '@yomitomo/shared';
 import { UpdateReleaseDialogView } from '../shell/app-update-dialog';
@@ -62,6 +62,26 @@ describe('UpdateReleaseDialogView', () => {
     expect(screen.getByText('发现新版本')).toBeTruthy();
     expect(screen.getByText('立即更新')).toBeTruthy();
     expect(screen.getByText('稍后')).toBeTruthy();
+  });
+
+  it('closes through the secondary action on Escape', () => {
+    const onSecondary = vi.fn();
+
+    render(
+      <UpdateReleaseDialogView
+        scene="before-update"
+        version="0.7.0"
+        highlights={[highlights[0]]}
+        onPrimary={() => undefined}
+        onSecondary={onSecondary}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole('dialog', { name: '发现新版本 0.7.0' }), {
+      key: 'Escape',
+    });
+
+    expect(onSecondary).toHaveBeenCalledOnce();
   });
 
   it('degrades to a version-only prompt when there are no highlights', () => {

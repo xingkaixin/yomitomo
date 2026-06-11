@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 import thirdPartyNoticesRaw from '../../../../../../THIRD_PARTY_NOTICES.md?raw';
 import { Button } from '../components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import {
   SettingsGroup,
@@ -302,113 +310,99 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
     );
   }, [query]);
 
-  useEffect(() => {
-    function closeWithEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-
-    window.addEventListener('keydown', closeWithEscape);
-    return () => window.removeEventListener('keydown', closeWithEscape);
-  }, [onClose]);
-
   return (
-    <div
-      className="license-dialog-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        aria-labelledby="license-dialog-title"
-        aria-modal="true"
-        className="license-dialog"
-        role="dialog"
-      >
-        <header>
-          <div>
-            <h2 id="license-dialog-title">{t('about.licenses.title')}</h2>
-            <p>{t('about.licenses.dialogDescription', { count: thirdPartyPackages.length })}</p>
-          </div>
-          <button
-            aria-label={t('about.licenses.close')}
-            className="license-dialog-close"
-            type="button"
-            onClick={onClose}
-          >
-            <X size={20} />
-          </button>
-        </header>
+    <Dialog open onOpenChange={(nextOpen) => !nextOpen && onClose()}>
+      <DialogPortal>
+        <DialogOverlay className="license-dialog-overlay">
+          <DialogContent className="license-dialog">
+            <header>
+              <div>
+                <DialogTitle id="license-dialog-title">{t('about.licenses.title')}</DialogTitle>
+                <DialogDescription>
+                  {t('about.licenses.dialogDescription', { count: thirdPartyPackages.length })}
+                </DialogDescription>
+              </div>
+              <button
+                aria-label={t('about.licenses.close')}
+                className="license-dialog-close"
+                type="button"
+                onClick={onClose}
+              >
+                <X size={20} />
+              </button>
+            </header>
 
-        <label className="license-search">
-          <Search size={17} />
-          <Input
-            placeholder={t('about.licenses.searchPlaceholder')}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+            <label className="license-search">
+              <Search size={17} />
+              <Input
+                placeholder={t('about.licenses.searchPlaceholder')}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
 
-        <div className="license-list" role="list">
-          <article className="license-package is-source" role="listitem">
-            <div className="license-package-row">
-              <Package size={16} />
-              <strong>Yomitomo</strong>
-              <em>{t('about.licenses.source')}</em>
-              <span>MIT</span>
-            </div>
-          </article>
-          {visiblePackages.map((item) => {
-            const packageKey = licensePackageKey(item);
-            const expanded = expandedPackage === packageKey;
-            return (
-              <article className="license-package" key={packageKey} role="listitem">
-                <button
-                  aria-expanded={expanded}
-                  className="license-package-row"
-                  type="button"
-                  onClick={() => setExpandedPackage(expanded ? '' : packageKey)}
-                >
-                  {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <strong>{item.name}</strong>
-                  <em>{item.versions}</em>
-                  <span>{item.license}</span>
-                </button>
-                {expanded ? (
-                  <div className="license-package-detail">
-                    <dl>
-                      <div>
-                        <dt>{t('about.licenses.package')}</dt>
-                        <dd>{item.name}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('about.licenses.version')}</dt>
-                        <dd>{item.versions}</dd>
-                      </div>
-                      <div>
-                        <dt>{t('about.licenses.license')}</dt>
-                        <dd>{item.license}</dd>
-                      </div>
-                    </dl>
-                    {item.homepage ? (
-                      <Button
-                        className="action-button about-link-action"
-                        type="button"
-                        variant="secondary"
-                        onClick={() => openExternal(item.homepage)}
-                      >
-                        Homepage
-                        <ExternalLink size={15} />
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
+            <div className="license-list" role="list">
+              <article className="license-package is-source" role="listitem">
+                <div className="license-package-row">
+                  <Package size={16} />
+                  <strong>Yomitomo</strong>
+                  <em>{t('about.licenses.source')}</em>
+                  <span>MIT</span>
+                </div>
               </article>
-            );
-          })}
-        </div>
-      </section>
-    </div>
+              {visiblePackages.map((item) => {
+                const packageKey = licensePackageKey(item);
+                const expanded = expandedPackage === packageKey;
+                return (
+                  <article className="license-package" key={packageKey} role="listitem">
+                    <button
+                      aria-expanded={expanded}
+                      className="license-package-row"
+                      type="button"
+                      onClick={() => setExpandedPackage(expanded ? '' : packageKey)}
+                    >
+                      {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      <strong>{item.name}</strong>
+                      <em>{item.versions}</em>
+                      <span>{item.license}</span>
+                    </button>
+                    {expanded ? (
+                      <div className="license-package-detail">
+                        <dl>
+                          <div>
+                            <dt>{t('about.licenses.package')}</dt>
+                            <dd>{item.name}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('about.licenses.version')}</dt>
+                            <dd>{item.versions}</dd>
+                          </div>
+                          <div>
+                            <dt>{t('about.licenses.license')}</dt>
+                            <dd>{item.license}</dd>
+                          </div>
+                        </dl>
+                        {item.homepage ? (
+                          <Button
+                            className="action-button about-link-action"
+                            type="button"
+                            variant="secondary"
+                            onClick={() => openExternal(item.homepage)}
+                          >
+                            Homepage
+                            <ExternalLink size={15} />
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 

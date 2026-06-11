@@ -1207,6 +1207,13 @@ describe('WeReadSettingsPanel', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '删除已保存 Key' }));
     expect(screen.getByRole('dialog', { name: '删除微信读书 API Key？' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('dialog', { name: '删除微信读书 API Key？' }), {
+      key: 'Escape',
+    });
+    expect(screen.queryByRole('dialog', { name: '删除微信读书 API Key？' })).toBeNull();
+    expect(saveWeReadSettings).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '删除已保存 Key' }));
     fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
     expect(saveWeReadSettings).not.toHaveBeenCalled();
 

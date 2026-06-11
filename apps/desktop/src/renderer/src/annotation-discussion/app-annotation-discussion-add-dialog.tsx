@@ -24,6 +24,7 @@ import {
   type AddThoughtAgentRun,
 } from './app-annotation-discussion-add-run';
 import { insertMentionAtCaret } from './app-annotation-discussion-utils';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 
 export function AddThoughtDialog({
   agents,
@@ -125,174 +126,185 @@ export function AddThoughtDialog({
   }
 
   return (
-    <div className="annotation-discussion-modal-backdrop" role="presentation">
-      <section
-        className="annotation-discussion-add-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="annotation-discussion-add-title"
-      >
-        <header>
-          <Plus size={19} />
-          <h2 id="annotation-discussion-add-title">{t('discussion.addThought.title')}</h2>
-          <ReaderTooltip
-            content={<ShortcutTooltipContent keys={['Esc']} label={t('discussion.close')} />}
+    <Dialog
+      open
+      disablePointerDismissal
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && canCancel) onCancel();
+      }}
+    >
+      <DialogPortal>
+        <DialogOverlay className="annotation-discussion-modal-backdrop">
+          <DialogContent
+            className="annotation-discussion-add-modal"
+            aria-labelledby="annotation-discussion-add-title"
           >
-            <button
-              className="annotation-discussion-add-close"
-              type="button"
-              aria-label={t('discussion.addThought.close')}
-              disabled={!canCancel}
-              onClick={onCancel}
-            >
-              <X size={15} />
-            </button>
-          </ReaderTooltip>
-        </header>
-        {showingAssistantRun ? (
-          <AddThoughtAssistantRunPanel
-            celebrating={celebrating}
-            runs={runningAgents}
-            onClose={onCancel}
-            onRetry={onRetry}
-            onRetryAll={onRetryAll}
-          />
-        ) : (
-          <FloatingComposer
-            ref={textareaRef}
-            className="annotation-discussion-add-editor"
-            accessory={
-              <div className="annotation-discussion-add-composer-accessory">
-                <div
-                  className="annotation-discussion-add-mode"
-                  role="tablist"
-                  aria-label={t('discussion.addThought.mode')}
+            <header>
+              <Plus size={19} />
+              <h2 id="annotation-discussion-add-title">{t('discussion.addThought.title')}</h2>
+              <ReaderTooltip
+                content={<ShortcutTooltipContent keys={['Esc']} label={t('discussion.close')} />}
+              >
+                <button
+                  className="annotation-discussion-add-close"
+                  type="button"
+                  aria-label={t('discussion.addThought.close')}
+                  disabled={!canCancel}
+                  onClick={onCancel}
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === 'self'}
-                    className={mode === 'self' ? 'is-active' : ''}
-                    onClick={() => onModeChange('self')}
-                  >
-                    {t('discussion.addThought.selfMode')}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === 'assistant'}
-                    className={mode === 'assistant' ? 'is-active' : ''}
-                    onClick={() => onModeChange('assistant')}
-                  >
-                    {t('discussion.addThought.assistantMode')}
-                  </button>
-                </div>
-                {mode === 'assistant' ? (
-                  <div className="annotation-discussion-add-agents">
-                    <AgentAvatarStack
-                      agents={agents}
-                      ariaLabel={t('discussion.addThought.insertMention')}
-                      onAgentClick={insertAgentMention}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            }
-            mentionMenu={
-              matchedAgents.length > 0 ? (
-                <div className="reader-agent-menu annotation-discussion-mention-menu annotation-discussion-add-mention-menu">
-                  {matchedAgents.map((agent, index) => (
-                    <button
-                      className={index === selectedMentionIndex ? 'is-active' : ''}
-                      key={agent.id}
-                      ref={(element) => {
-                        mentionCandidateRefs.current[index] = element;
-                      }}
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => selectMentionAgent(agent)}
-                    >
-                      <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />
-                      <span>
-                        <strong>{agent.nickname}</strong>
-                        <em>@{agent.username}</em>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : null
-            }
-            submitDisabled={!canSubmit}
-            submitIcon={<Plus size={14} />}
-            submitLabel={
-              submitting ? t('discussion.addThought.adding') : t('discussion.addThought.add')
-            }
-            submitTooltip={
-              <SubmitShortcutTooltipContent
-                label={t('discussion.addThought.add')}
-                shortcut="mod-enter"
-                shortcutModifier={shortcutModifier}
+                  <X size={15} />
+                </button>
+              </ReaderTooltip>
+            </header>
+            {showingAssistantRun ? (
+              <AddThoughtAssistantRunPanel
+                celebrating={celebrating}
+                runs={runningAgents}
+                onClose={onCancel}
+                onRetry={onRetry}
+                onRetryAll={onRetryAll}
               />
-            }
-            textarea={{
-              'aria-label':
-                mode === 'self'
-                  ? t('discussion.addThought.selfTextarea')
-                  : t('discussion.addThought.assistantTextarea'),
-              value: draft,
-              placeholder:
-                mode === 'self'
-                  ? t('discussion.addThought.selfPlaceholder')
-                  : t('discussion.addThought.assistantPlaceholder'),
-              rows: 1,
-              disabled: submitting,
-              autoFocus: true,
-              onChange: (event) => {
-                onDraftChange(event.currentTarget.value);
-                updateCaret(event.currentTarget);
-                requestAnimationFrame(resizeAddThoughtTextarea);
-              },
-              onClick: (event) => updateCaret(event.currentTarget),
-              onKeyDown: (event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault();
-                  onCancel();
-                  return;
+            ) : (
+              <FloatingComposer
+                ref={textareaRef}
+                className="annotation-discussion-add-editor"
+                accessory={
+                  <div className="annotation-discussion-add-composer-accessory">
+                    <div
+                      className="annotation-discussion-add-mode"
+                      role="tablist"
+                      aria-label={t('discussion.addThought.mode')}
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === 'self'}
+                        className={mode === 'self' ? 'is-active' : ''}
+                        onClick={() => onModeChange('self')}
+                      >
+                        {t('discussion.addThought.selfMode')}
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mode === 'assistant'}
+                        className={mode === 'assistant' ? 'is-active' : ''}
+                        onClick={() => onModeChange('assistant')}
+                      >
+                        {t('discussion.addThought.assistantMode')}
+                      </button>
+                    </div>
+                    {mode === 'assistant' ? (
+                      <div className="annotation-discussion-add-agents">
+                        <AgentAvatarStack
+                          agents={agents}
+                          ariaLabel={t('discussion.addThought.insertMention')}
+                          onAgentClick={insertAgentMention}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
                 }
-                if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
-                  event.preventDefault();
-                  setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
-                  return;
+                mentionMenu={
+                  matchedAgents.length > 0 ? (
+                    <div className="reader-agent-menu annotation-discussion-mention-menu annotation-discussion-add-mention-menu">
+                      {matchedAgents.map((agent, index) => (
+                        <button
+                          className={index === selectedMentionIndex ? 'is-active' : ''}
+                          key={agent.id}
+                          ref={(element) => {
+                            mentionCandidateRefs.current[index] = element;
+                          }}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectMentionAgent(agent)}
+                        >
+                          <AvatarBadge
+                            avatar={agent.avatar}
+                            fallback={agent.nickname.slice(0, 1)}
+                          />
+                          <span>
+                            <strong>{agent.nickname}</strong>
+                            <em>@{agent.username}</em>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null
                 }
-                if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
-                  event.preventDefault();
-                  setSelectedMentionIndex(
-                    (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
-                  );
-                  return;
+                submitDisabled={!canSubmit}
+                submitIcon={<Plus size={14} />}
+                submitLabel={
+                  submitting ? t('discussion.addThought.adding') : t('discussion.addThought.add')
                 }
-                if (matchedAgents.length > 0 && event.key === 'Tab') {
-                  event.preventDefault();
-                  const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
-                  if (agent) selectMentionAgent(agent);
-                  return;
+                submitTooltip={
+                  <SubmitShortcutTooltipContent
+                    label={t('discussion.addThought.add')}
+                    shortcut="mod-enter"
+                    shortcutModifier={shortcutModifier}
+                  />
                 }
-                if (isMessageSendShortcutEvent(event, 'mod-enter')) {
-                  event.preventDefault();
-                  onSubmit();
-                }
-              },
-              onKeyUp: (event) => {
-                if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
-                  return;
-                updateCaret(event.currentTarget);
-              },
-              onSelect: (event) => updateCaret(event.currentTarget),
-            }}
-            onSubmit={onSubmit}
-          />
-        )}
-      </section>
-    </div>
+                textarea={{
+                  'aria-label':
+                    mode === 'self'
+                      ? t('discussion.addThought.selfTextarea')
+                      : t('discussion.addThought.assistantTextarea'),
+                  value: draft,
+                  placeholder:
+                    mode === 'self'
+                      ? t('discussion.addThought.selfPlaceholder')
+                      : t('discussion.addThought.assistantPlaceholder'),
+                  rows: 1,
+                  disabled: submitting,
+                  autoFocus: true,
+                  onChange: (event) => {
+                    onDraftChange(event.currentTarget.value);
+                    updateCaret(event.currentTarget);
+                    requestAnimationFrame(resizeAddThoughtTextarea);
+                  },
+                  onClick: (event) => updateCaret(event.currentTarget),
+                  onKeyDown: (event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault();
+                      onCancel();
+                      return;
+                    }
+                    if (matchedAgents.length > 0 && event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      setSelectedMentionIndex((index) => (index + 1) % matchedAgents.length);
+                      return;
+                    }
+                    if (matchedAgents.length > 0 && event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setSelectedMentionIndex(
+                        (index) => (index - 1 + matchedAgents.length) % matchedAgents.length,
+                      );
+                      return;
+                    }
+                    if (matchedAgents.length > 0 && event.key === 'Tab') {
+                      event.preventDefault();
+                      const agent = matchedAgents[selectedMentionIndex] || matchedAgents[0];
+                      if (agent) selectMentionAgent(agent);
+                      return;
+                    }
+                    if (isMessageSendShortcutEvent(event, 'mod-enter')) {
+                      event.preventDefault();
+                      onSubmit();
+                    }
+                  },
+                  onKeyUp: (event) => {
+                    if (event.key === 'Tab' || event.key === 'ArrowDown' || event.key === 'ArrowUp')
+                      return;
+                    updateCaret(event.currentTarget);
+                  },
+                  onSelect: (event) => updateCaret(event.currentTarget),
+                }}
+                onSubmit={onSubmit}
+              />
+            )}
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }

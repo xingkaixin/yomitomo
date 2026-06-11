@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Layers2,
@@ -16,6 +16,14 @@ import { noteStyle } from '../reader-style-utils';
 import type { AnnotationRailSide } from './reader-annotations';
 import type { ReaderUiLabels } from '../shell/reader-app-view-types';
 import { defaultReaderUiLabels } from '../shell/reader-app-view-types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../components/ui/dialog';
 
 type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
@@ -532,47 +540,34 @@ function ReaderConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  useEffect(() => {
-    if (!open) return;
-
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') onCancel();
-    }
-
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [onCancel, open]);
-
   if (!open) return null;
 
   return (
-    <div className="reader-confirm-overlay" role="presentation" onMouseDown={onCancel}>
-      <section
-        aria-label={title}
-        aria-modal="true"
-        className="reader-confirm-dialog"
-        role="dialog"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <header>
-          <span className="reader-confirm-icon" aria-hidden="true">
-            <AlertTriangle size={20} />
-          </span>
-          <div>
-            <h2>{title}</h2>
-            <p>{description}</p>
-          </div>
-        </header>
-        <footer>
-          <button className="reader-confirm-cancel" type="button" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button className="reader-confirm-delete" type="button" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </footer>
-      </section>
-    </div>
+    <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
+      <DialogPortal>
+        <DialogOverlay className="reader-confirm-overlay">
+          <DialogContent className="reader-confirm-dialog">
+            <header>
+              <span className="reader-confirm-icon" aria-hidden="true">
+                <AlertTriangle size={20} />
+              </span>
+              <div>
+                <DialogTitle>{title}</DialogTitle>
+                <DialogDescription>{description}</DialogDescription>
+              </div>
+            </header>
+            <footer>
+              <button className="reader-confirm-cancel" type="button" onClick={onCancel}>
+                {cancelLabel}
+              </button>
+              <button className="reader-confirm-delete" type="button" onClick={onConfirm}>
+                {confirmLabel}
+              </button>
+            </footer>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 

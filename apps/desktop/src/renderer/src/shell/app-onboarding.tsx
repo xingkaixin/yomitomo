@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import type { AppSettings, DesktopStore } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
+import { Dialog, DialogContent, DialogPortal } from '../components/ui/dialog';
 import onboardingBackground from '../assets/onboarding/onboarding-background.webp';
 
 type OnboardingCopyBlock = {
@@ -96,33 +97,36 @@ export function OnboardingFlow({
   }
 
   return (
-    <section
-      aria-label={t('onboarding.ariaLabel')}
-      aria-modal="true"
-      className="onboarding-screen"
-      role="dialog"
-    >
-      <img alt="" className="onboarding-background" src={onboardingBackground} />
-      <div className="onboarding-copy">
-        <div className="onboarding-scroll">
-          {onboardingCopyBlocks.map((block) => (
-            <OnboardingCopyLine block={block} key={block.id} visibleLineCount={visibleLineCount} />
-          ))}
-        </div>
-        {status ? <p className="onboarding-status">{status}</p> : null}
-        {copyComplete ? (
-          <Button
-            className="onboarding-enter-button"
-            disabled={busy}
-            type="button"
-            onClick={completeOnboarding}
-          >
-            {busy ? t('onboarding.entering') : t('onboarding.enter')}
-            <ArrowRight size={18} />
-          </Button>
-        ) : null}
-      </div>
-    </section>
+    <Dialog open modal disablePointerDismissal>
+      <DialogPortal>
+        <DialogContent className="onboarding-screen" aria-label={t('onboarding.ariaLabel')}>
+          <img alt="" className="onboarding-background" src={onboardingBackground} />
+          <div className="onboarding-copy">
+            <div className="onboarding-scroll">
+              {onboardingCopyBlocks.map((block) => (
+                <OnboardingCopyLine
+                  block={block}
+                  key={block.id}
+                  visibleLineCount={visibleLineCount}
+                />
+              ))}
+            </div>
+            {status ? <p className="onboarding-status">{status}</p> : null}
+            {copyComplete ? (
+              <Button
+                className="onboarding-enter-button"
+                disabled={busy}
+                type="button"
+                onClick={completeOnboarding}
+              >
+                {busy ? t('onboarding.entering') : t('onboarding.enter')}
+                <ArrowRight size={18} />
+              </Button>
+            ) : null}
+          </div>
+        </DialogContent>
+      </DialogPortal>
+    </Dialog>
   );
 }
 

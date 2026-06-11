@@ -526,7 +526,14 @@ describe('AnnotationCard', () => {
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog').textContent).toContain('删除这条划线？');
 
+    // Escape 关闭确认弹窗，不删除
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+
     // 取消后不删除
+    fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
     fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-cancel')!);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onDelete).not.toHaveBeenCalled();
