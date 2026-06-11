@@ -52,6 +52,56 @@ describe('article source import lifecycle', () => {
     expect(saveThumbnail).toHaveBeenCalledWith(existing.id);
   });
 
+  it('cleans persisted source assets when saving a new article fails', async () => {
+    const record = articleRecord('pdf-new', { sourceType: 'pdf' });
+    const error = new Error('save failed');
+    const repository = repositoryStub({ saveError: error });
+    const saveSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const saveThumbnail = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const cleanupSourceFile = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+    const cleanupThumbnail = vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue();
+
+    await expect(
+      importArticleSource({
+        record,
+        repository,
+        saveSourceFile,
+        saveThumbnail,
+        cleanupSourceFile,
+        cleanupThumbnail,
+      }),
+    ).rejects.toBe(error);
+
+    expect(cleanupThumbnail).toHaveBeenCalledWith(record.id);
+    expect(cleanupSourceFile).toHaveBeenCalledWith(record.id);
+  });
+
+  it('logs cleanup failures without hiding the original save failure', async () => {
+    const record = articleRecord('pdf-cleanup-fails', { sourceType: 'pdf' });
+    const saveError = new Error('save failed');
+    const cleanupError = new Error('cleanup failed');
+    const repository = repositoryStub({ saveError });
+    const logError = vi.fn();
+
+    await expect(
+      importArticleSource({
+        record,
+        repository,
+        saveSourceFile: vi.fn<(articleId: string) => Promise<void>>().mockResolvedValue(),
+        cleanupSourceFile: vi
+          .fn<(articleId: string) => Promise<void>>()
+          .mockRejectedValue(cleanupError),
+        logError,
+      }),
+    ).rejects.toBe(saveError);
+
+    expect(logError).toHaveBeenCalledWith('article_source_import.cleanup_failed', cleanupError, {
+      articleId: record.id,
+      sourceFileSaved: true,
+      thumbnailSaved: false,
+    });
+  });
+
   it('replaces a challenge article while preserving createdAt', async () => {
     const record = articleRecord('article-next', {
       createdAt: '2026-06-04T02:00:00.000Z',
@@ -101,11 +151,15 @@ function repositoryStub(input: {
   existingIdentity?: ArticleIdentity;
   existingArticle?: ArticleRecord | null;
   patch?: ArticleUpsertPatch;
+  saveError?: Error;
 }): ArticleSourceImportRepository {
   return {
     findArticleByIdentity: vi.fn(() => input.existingIdentity || null),
     readArticle: vi.fn(async () => input.existingArticle || null),
-    saveArticle: vi.fn(async (article) => input.patch || articlePatch(article.id)),
+    saveArticle: vi.fn(async (article) => {
+      if (input.saveError) throw input.saveError;
+      return input.patch || articlePatch(article.id);
+    }),
   };
 }
 
