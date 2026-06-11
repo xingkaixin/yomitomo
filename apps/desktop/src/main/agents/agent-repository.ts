@@ -134,7 +134,7 @@ function defaultAgentProviderId(
     ? settings.readingAssistantProviderId
     : settings?.defaultProviderId && hasProvider(providerRows, settings.defaultProviderId)
       ? settings.defaultProviderId
-      : providerRows[0].id;
+      : (providerRows[0]?.id ?? '');
 }
 
 function hasProvider(providerRows: Array<Pick<LlmProvider, 'id'>>, providerId: string) {
