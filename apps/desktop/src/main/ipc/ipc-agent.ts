@@ -9,6 +9,7 @@ import type {
   AnnotationDistillationReviewMessage,
   AssistantRuntimeProgressEvent,
   AppSettings,
+  AssistantExecutionMode,
   ArticleRecord,
   Comment,
   LlmProvider,
@@ -79,24 +80,27 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         normalizeUiLanguage(store.settings.uiLanguage),
       ),
     };
+    const selectedRuntime = selectAgentRuntime({
+      requestedMode,
+      taskType,
+      supportedTaskTypes: ['thread_reply', 'create_thought'],
+    });
     const runtime =
-      requestedMode === 'deep_verification'
-        ? taskType === 'thread_reply'
-          ? await runAgentThreadReplyWithToolLoop({
+      selectedRuntime === 'thread_reply'
+        ? await runAgentThreadReplyWithToolLoop({
+            ai,
+            provider,
+            agent,
+            payload: payloadWithRoster,
+          })
+        : selectedRuntime === 'create_thought'
+          ? await runAgentCreateThoughtWithToolLoop({
               ai,
               provider,
               agent,
               payload: payloadWithRoster,
             })
-          : taskType === 'create_thought'
-            ? await runAgentCreateThoughtWithToolLoop({
-                ai,
-                provider,
-                agent,
-                payload: payloadWithRoster,
-              })
-            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' }
-        : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+          : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
     logAgentMessageRuntime(
       context,
       runtime,
@@ -181,8 +185,13 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       store.agents,
       store.settings,
     );
+    const selectedRuntime = selectAgentRuntime({
+      requestedMode,
+      taskType: 'distillation_review',
+      supportedTaskTypes: ['distillation_review'],
+    });
     const runtime =
-      requestedMode === 'deep_verification'
+      selectedRuntime === 'distillation_review'
         ? await runAgentDistillationReviewWithToolLoop({
             ai,
             provider,
@@ -303,10 +312,28 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           applyRuntimeProgress(comment, progressEvent);
           event.sender.send(channel, { type: 'progress', progress: progressEvent });
         };
+        const selectedRuntime = selectAgentRuntime({
+          requestedMode,
+          taskType,
+          supportedTaskTypes: ['thread_reply', 'create_thought'],
+        });
         const runtime =
-          requestedMode === 'deep_verification'
-            ? taskType === 'thread_reply'
-              ? await runAgentThreadReplyWithToolLoop({
+          selectedRuntime === 'thread_reply'
+            ? await runAgentThreadReplyWithToolLoop({
+                ai,
+                provider,
+                agent,
+                payload: payloadWithRoster,
+                onRuntimeEvent: (runtimeEvent) => {
+                  if (runtimeEvent.type === 'text_delta') {
+                    streamRuntimeTextDelta(runtimeEvent.delta);
+                  } else {
+                    streamRuntimeProgress(runtimeEvent);
+                  }
+                },
+              })
+            : selectedRuntime === 'create_thought'
+              ? await runAgentCreateThoughtWithToolLoop({
                   ai,
                   provider,
                   agent,
@@ -319,22 +346,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
                     }
                   },
                 })
-              : taskType === 'create_thought'
-                ? await runAgentCreateThoughtWithToolLoop({
-                    ai,
-                    provider,
-                    agent,
-                    payload: payloadWithRoster,
-                    onRuntimeEvent: (runtimeEvent) => {
-                      if (runtimeEvent.type === 'text_delta') {
-                        streamRuntimeTextDelta(runtimeEvent.delta);
-                      } else {
-                        streamRuntimeProgress(runtimeEvent);
-                      }
-                    },
-                  })
-                : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' }
-            : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
+              : { status: 'fallback' as const, failureReason: 'runtime_not_applicable' };
         logAgentMessageRuntime(
           context,
           runtime,
@@ -439,8 +451,13 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           applyRuntimeProgress(message, progressEvent);
           event.sender.send(channel, { type: 'progress', progress: progressEvent });
         };
+        const selectedRuntime = selectAgentRuntime({
+          requestedMode,
+          taskType: 'distillation_review',
+          supportedTaskTypes: ['distillation_review'],
+        });
         const runtime =
-          requestedMode === 'deep_verification'
+          selectedRuntime === 'distillation_review'
             ? await runAgentDistillationReviewWithToolLoop({
                 ai,
                 provider,
@@ -696,6 +713,17 @@ function agentMessageRuntimeTaskType(payload: AgentMessagePayload) {
   if (payload.responseMode === 'create_thought') return 'create_thought';
   if (payload.responseMode === 'distillation_review') return 'distillation_review';
   return 'thread_reply';
+}
+
+type AgentRuntimeTaskType = ReturnType<typeof agentMessageRuntimeTaskType>;
+
+export function selectAgentRuntime(input: {
+  requestedMode: AssistantExecutionMode;
+  taskType: AgentRuntimeTaskType;
+  supportedTaskTypes: AgentRuntimeTaskType[];
+}) {
+  if (input.requestedMode !== 'deep_verification') return null;
+  return input.supportedTaskTypes.includes(input.taskType) ? input.taskType : null;
 }
 
 async function extractDistillationReviewProposals(input: {
