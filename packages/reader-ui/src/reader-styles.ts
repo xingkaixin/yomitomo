@@ -53,8 +53,7 @@ export const readerConversationStyles = `
 .reader-floating-value.is-wide{min-width:58px}
 .reader-floating-value.is-annotation-progress{min-width:34px}
 .reader-floating-slider{width:92px;min-width:72px;max-width:13vw}
-.reader-toolbar-popover-control{position:relative;display:inline-flex}
-.reader-toolbar-popover{position:absolute;left:50%;top:calc(100% + 8px);z-index:var(--reader-z-popover);width:190px;padding:9px;border:1px solid var(--app-reader-toolbar-border);border-radius:8px;background:var(--app-reader-toolbar-bg);box-shadow:var(--reader-soft-shadow),inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 58%,transparent);transform:translateX(-50%)}
+.reader-toolbar-popover{width:190px;padding:9px;border:1px solid var(--app-reader-toolbar-border);border-radius:8px;background:var(--app-reader-toolbar-bg);box-shadow:var(--reader-soft-shadow),inset 0 1px 0 color-mix(in srgb,var(--reader-paper) 58%,transparent)}
 .reader-toolbar-popover-slider-row{display:grid;grid-template-columns:24px minmax(0,1fr) 24px auto;align-items:center;gap:7px}
 .reader-toolbar-popover-slider-row strong{min-width:38px;color:var(--reader-ink);font-size:12px;font-weight:850;text-align:right}
 .reader-toolbar-popover-step{display:grid;width:24px;height:24px;place-items:center;border:0;border-radius:6px;background:transparent;color:var(--reader-ink);font:inherit}
