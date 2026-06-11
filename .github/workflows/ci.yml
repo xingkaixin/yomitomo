@@ -36,6 +36,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: UI primitive boundary check
+        run: pnpm ui:check-primitives
+
       - name: Format check
         run: pnpm format:check
 

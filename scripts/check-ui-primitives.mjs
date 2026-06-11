@@ -3,20 +3,16 @@ import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const allowedRadixImports = new Set([
-  'apps/desktop/src/renderer/src/components/ui/popover.tsx',
-  'apps/desktop/src/renderer/src/components/ui/select.tsx',
-]);
-
-const allowedRadixPackageFiles = new Set([
-  'apps/desktop/package.json',
-]);
-
 const radixModulePattern =
   /\b(?:import|export)\b[\s\S]*?\bfrom\s*['"]@radix-ui\/|import\s*['"]@radix-ui\/|require\(\s*['"]@radix-ui\//;
 const radixPackagePattern = /"@radix-ui\/[^"]+"\s*:/;
+const radixLockfilePattern = /['"]?@radix-ui\//;
 
 function hasRadixReference(file, source) {
+  if (file === 'pnpm-lock.yaml') {
+    return radixLockfilePattern.test(source);
+  }
+
   if (file.endsWith('package.json')) {
     return radixPackagePattern.test(source);
   }
@@ -34,6 +30,7 @@ function trackedFiles() {
     [
       'ls-files',
       'package.json',
+      'pnpm-lock.yaml',
       'apps',
       'packages',
       'scripts',
@@ -53,18 +50,14 @@ for (const file of trackedFiles()) {
   const normalizedFile = relative(process.cwd(), file);
 
   if (hasRadixReference(normalizedFile, source)) {
-    const allowed =
-      allowedRadixImports.has(normalizedFile) || allowedRadixPackageFiles.has(normalizedFile);
-    if (!allowed) {
-      violations.push(`${normalizedFile}: unexpected @radix-ui reference`);
-    }
+    violations.push(`${normalizedFile}: unexpected @radix-ui reference`);
   }
 }
 
 if (violations.length > 0) {
   console.error('UI primitive boundary check failed:');
   for (const violation of violations) console.error(`- ${violation}`);
-  console.error('\nUse @base-ui/react for new UI primitives. Existing Radix wrappers are migration-only.');
+  console.error('\nUse @base-ui/react for UI primitives. Radix imports and dependencies are retired.');
   process.exit(1);
 }
 

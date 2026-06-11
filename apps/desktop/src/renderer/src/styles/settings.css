@@ -2742,12 +2742,6 @@
   padding: 9px 34px 9px 10px;
 }
 
-.provider-select-item [data-radix-select-item-text] {
-  display: block;
-  min-width: 0;
-  flex: 1;
-}
-
 .provider-option-content {
   display: grid;
   width: 100%;
