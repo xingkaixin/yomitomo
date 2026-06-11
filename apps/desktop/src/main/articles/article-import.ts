@@ -1,7 +1,13 @@
 import { basename, dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Worker } from 'node:worker_threads';
-import { BrowserWindow, type WebContents } from 'electron';
+import {
+  BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  type Session,
+  type WebContents,
+} from 'electron';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { Effect } from 'effect';
 
@@ -180,17 +186,15 @@ async function loadRenderedArticleHtml(
   userAgent: string | undefined,
   signal: AbortSignal,
 ): Promise<ArticleHtml> {
+  const importId = createArticleImportId();
+  const webPreferences = createArticleImportWebPreferences(importId);
   const browserWindow = new BrowserWindow({
     show: false,
     width: 1280,
     height: 900,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      partition: 'persist:yomitomo-import',
-      sandbox: true,
-    },
+    webPreferences,
   });
+  logArticleImportSession(url, importId, webPreferences.partition);
 
   const deadline = Date.now() + RENDERED_IMPORT_TIMEOUT_MS;
   const timeout = setTimeout(() => {
@@ -215,7 +219,52 @@ async function loadRenderedArticleHtml(
   } finally {
     signal.removeEventListener('abort', abort);
     clearTimeout(timeout);
+    const importSession = browserWindow.webContents.session;
     if (!browserWindow.isDestroyed()) browserWindow.destroy();
+    await clearArticleImportSession(importSession, importId);
+  }
+}
+
+function createArticleImportId() {
+  return randomUUID();
+}
+
+function createArticleImportWebPreferences(
+  importId: string,
+): NonNullable<BrowserWindowConstructorOptions['webPreferences']> {
+  return {
+    contextIsolation: true,
+    nodeIntegration: false,
+    partition: `yomitomo-import-${importId}`,
+    sandbox: true,
+  };
+}
+
+async function clearArticleImportSession(importSession: Session, importId: string) {
+  try {
+    await importSession.clearStorageData();
+    await importSession.clearCache();
+  } catch (error) {
+    console.warn('[article-import] failed to clear temporary session', {
+      error,
+      importId,
+    });
+  }
+}
+
+function logArticleImportSession(url: string, importId: string, partition: string | undefined) {
+  console.info('[article-import] rendered import session', {
+    host: importUrlHost(url),
+    importId,
+    persistent: partition?.startsWith('persist:') === true,
+  });
+}
+
+function importUrlHost(url: string) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
   }
 }
 

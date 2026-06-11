@@ -51,10 +51,35 @@ vi.mock('node:worker_threads', () => ({
 vi.mock('electron', () => ({
   BrowserWindow: class MockBrowserWindow {
     readonly webContents = {
-      executeJavaScript: vi.fn(),
+      executeJavaScript: vi.fn().mockResolvedValue({
+        html: '<html><body>正文</body></html>',
+        text: '正文',
+        title: 'Article',
+        url: 'https://example.com/post',
+      }),
+      session: {
+        clearCache: vi.fn().mockResolvedValue(undefined),
+        clearStorageData: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    readonly options: {
+      webPreferences?: {
+        partition?: string;
+        sandbox?: boolean;
+      };
     };
 
     destroyed = false;
+
+    constructor(options: {
+      webPreferences?: {
+        partition?: string;
+        sandbox?: boolean;
+      };
+    }) {
+      this.options = options;
+      browserWindowMocks.instances.push(this);
+    }
 
     async loadURL() {
       return undefined;
@@ -70,12 +95,31 @@ vi.mock('electron', () => ({
   },
 }));
 
+const browserWindowMocks = vi.hoisted(() => ({
+  instances: [] as Array<{
+    destroyed: boolean;
+    options: {
+      webPreferences?: {
+        partition?: string;
+        sandbox?: boolean;
+      };
+    };
+    webContents: {
+      session: {
+        clearCache: ReturnType<typeof vi.fn>;
+        clearStorageData: ReturnType<typeof vi.fn>;
+      };
+    };
+  }>,
+}));
+
 import { articleRecordFromUrl, cancelArticleImport } from './article-import';
 
 describe('article import', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     workerMocks.instances.length = 0;
+    browserWindowMocks.instances.length = 0;
     workerMocks.MockWorker.nextMessage = undefined;
     workerMocks.MockWorker.delayMessage = false;
   });
@@ -129,6 +173,34 @@ describe('article import', () => {
     await expect(pending).rejects.toThrow('ARTICLE_IMPORT_CANCELED');
     expect(workerMocks.instances[0].terminated).toBe(true);
     expect(cancelArticleImport('import-cancel')).toBe(false);
+  });
+
+  it('loads challenge pages in an isolated temporary browser session', async () => {
+    const article = articleRecord();
+    workerMocks.MockWorker.nextMessage = { ok: true, article };
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('<html>cf-browser-verification</html>'),
+    );
+
+    await expect(articleRecordFromUrl('https://example.com/post')).resolves.toEqual(article);
+
+    expect(browserWindowMocks.instances).toHaveLength(1);
+    const browserWindow = browserWindowMocks.instances[0];
+    const partition = browserWindow.options.webPreferences?.partition;
+    expect(partition).toMatch(/^yomitomo-import-/);
+    expect(partition?.startsWith('persist:')).toBe(false);
+    expect(browserWindow.options.webPreferences?.sandbox).toBe(true);
+    expect(browserWindow.destroyed).toBe(true);
+    expect(browserWindow.webContents.session.clearStorageData).toHaveBeenCalledOnce();
+    expect(browserWindow.webContents.session.clearCache).toHaveBeenCalledOnce();
+    expect(console.info).toHaveBeenCalledWith(
+      '[article-import] rendered import session',
+      expect.objectContaining({
+        host: 'example.com',
+        persistent: false,
+      }),
+    );
   });
 });
 
