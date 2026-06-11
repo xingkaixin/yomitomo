@@ -48,7 +48,6 @@ issues:
 
 - `apps/desktop/src/renderer/src/components/ui/popover.tsx` -> RD-591
 - `apps/desktop/src/renderer/src/components/ui/select.tsx` -> RD-591
-- `packages/reader-ui/src/components/ui/tooltip.tsx` -> RD-592
 
-`apps/desktop/package.json` and `packages/reader-ui/package.json` may keep
-their Radix dependencies until RD-597 removes the final leftovers.
+`apps/desktop/package.json` may keep its Radix dependencies until RD-597 removes
+the final leftovers.
