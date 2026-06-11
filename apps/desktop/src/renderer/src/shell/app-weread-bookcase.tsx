@@ -15,6 +15,7 @@ import type {
 import { ReadonlyAnnotationCard } from '@yomitomo/reader-ui/reader-readonly-annotation-card';
 import { WeReadCover } from '../reading-library/app-reading-library-home';
 import { useTranslation } from 'react-i18next';
+import { readerUiLabels } from '../i18n/app-i18n-labels';
 
 export type WeReadNoteGroup = {
   key: string;
@@ -201,6 +202,7 @@ function WeReadNoteCard({
   onOpenExternal: () => void;
 }) {
   const { t } = useTranslation();
+  const labels = readerUiLabels();
   const model = weReadReadonlyNoteCardModel(group, fallbackAuthor, userProfile, t('common.me'));
   return (
     <ReadonlyAnnotationCard
@@ -213,6 +215,7 @@ function WeReadNoteCard({
       className="weread-note-card"
       createdAt={model.createdAt}
       id={model.id}
+      labels={labels}
       quote={model.quote}
       thoughts={model.thoughts}
     />

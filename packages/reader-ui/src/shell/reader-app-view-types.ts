@@ -5,6 +5,7 @@ import type {
   PublicAgent,
   ReaderChatState,
   ReaderQuestionContext,
+  RelativeTimeParts,
   SelectionActionShortcuts,
   UserProfile,
 } from '@yomitomo/shared';
@@ -194,6 +195,7 @@ export type ReaderUiLabels = {
   deleteAnnotationConfirmTitle: string;
   deleteAnnotationConfirmDescription: string;
   deleteAnnotationConfirmAction: string;
+  dateLocale?: string;
   distillations: string;
   emptyNotesDescription: string;
   emptyNotesGestureLabel: string;
@@ -222,6 +224,7 @@ export type ReaderUiLabels = {
   readerChatSelectionPlaceholder: string;
   readerControls: string;
   readingProgress: string;
+  relativeTimeLabel?: (parts: RelativeTimeParts) => string;
   readerLibrary: string;
   recordThought: string;
   searchBody: string;

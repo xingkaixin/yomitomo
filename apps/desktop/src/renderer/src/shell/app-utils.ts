@@ -4,6 +4,7 @@ import type {
   ArticleSummaryRecord,
   Comment as AnnotationComment,
 } from '@yomitomo/shared';
+import { formatDateTimeValue } from '@yomitomo/shared';
 import i18next from 'i18next';
 
 export type LogEntry = {
@@ -112,24 +113,20 @@ export function formatLogData(data: unknown) {
 }
 
 export function formatDateTime(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
+  return formatDateTimeValue(value, i18next.language, {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date);
+  });
 }
 
 export function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(i18next.language || 'zh-CN', {
+  return formatDateTimeValue(value, i18next.language, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(date);
+  });
 }
 
 function validExternalUrl(value: string) {

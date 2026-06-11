@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatRelativeTime, formatTime } from './reader-date-utils';
+import { formatRelativeTime, formatTime, type ReaderDateLabels } from './reader-date-utils';
 
 describe('reader date utils', () => {
   beforeEach(() => {
@@ -23,5 +23,16 @@ describe('reader date utils', () => {
 
   it('formats full time for exact timestamp tooltips', () => {
     expect(formatTime('2026-05-27T11:45:00.000Z')).toContain('2026');
+  });
+
+  it('uses injected labels for localized relative time', () => {
+    const labels: ReaderDateLabels = {
+      dateLocale: 'en-US',
+      relativeTimeLabel: (parts) =>
+        parts.unit === 'second' ? 'Just now' : `${parts.count} ${parts.unit}s ago`,
+    };
+
+    expect(formatRelativeTime('2026-05-27T11:59:30.000Z', labels)).toBe('Just now');
+    expect(formatRelativeTime('2026-05-27T11:45:00.000Z', labels)).toBe('15 minutes ago');
   });
 });
