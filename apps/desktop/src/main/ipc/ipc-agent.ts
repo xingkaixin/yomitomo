@@ -42,8 +42,8 @@ import { appendAgentRuntimeTrace } from '../agents/agent-runtime-trace-log';
 export function registerAgentIpc(context: DesktopMainIpcContext) {
   handleDesktopIpc('agent:mention-route', async (_event, payload) => {
     const { planAgentMentionRoute } = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
+    const { readAgentRuntimeContext } = await context.getStoreModule();
+    const store = await readAgentRuntimeContext();
     const provider = await taskProvider(
       context,
       store.providers,
@@ -54,8 +54,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('agent:comment', async (_event, payload) => {
     const ai = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
+    const { readAgentRuntimeContext } = await context.getStoreModule();
+    const store = await readAgentRuntimeContext();
     const taskType = agentMessageRuntimeTaskType(payload);
     const agent = findCommentAgent(
       store.agents,
@@ -143,8 +143,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('agent:review', async (_event, payload) => {
     const { runAgentReview } = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
+    const { readAgentRuntimeContext } = await context.getStoreModule();
+    const store = await readAgentRuntimeContext();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
@@ -168,8 +168,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
   });
   handleDesktopIpc('agent:distillation-review', async (_event, payload) => {
     const ai = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
+    const { readAgentRuntimeContext } = await context.getStoreModule();
+    const store = await readAgentRuntimeContext();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
@@ -258,8 +258,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       const channel = `agent:comment:stream:${input.requestId}`;
       try {
         const ai = await context.getAiModule();
-        const { readStore } = await context.getStoreModule();
-        const store = await readStore();
+        const { readAgentRuntimeContext } = await context.getStoreModule();
+        const store = await readAgentRuntimeContext();
         const taskType = agentMessageRuntimeTaskType(input.payload);
         const agent = findCommentAgent(
           store.agents,
@@ -407,8 +407,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       const channel = `agent:distillation-review:stream:${input.requestId}`;
       try {
         const ai = await context.getAiModule();
-        const { readStore } = await context.getStoreModule();
-        const store = await readStore();
+        const { readAgentRuntimeContext } = await context.getStoreModule();
+        const store = await readAgentRuntimeContext();
         const agent = findReviewAgent(
           store.agents,
           input.payload.agentId,
@@ -530,8 +530,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
   );
   handleDesktopIpc('agent:annotate', async (_event, payload) => {
     const ai = await context.getAiModule();
-    const { readStore } = await context.getStoreModule();
-    const store = await readStore();
+    const { readAgentRuntimeContext } = await context.getStoreModule();
+    const store = await readAgentRuntimeContext();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
     if (!agent) throw new Error(`ANNOTATION_AGENT_NOT_FOUND:${payload.agentUsername}`);
     const provider = await taskProvider(
@@ -582,8 +582,8 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       const channel = `agent:annotate:stream:${input.requestId}`;
       try {
         const ai = await context.getAiModule();
-        const { readStore } = await context.getStoreModule();
-        const store = await readStore();
+        const { readAgentRuntimeContext } = await context.getStoreModule();
+        const store = await readAgentRuntimeContext();
         const agent = findAnnotationAgent(
           store.agents,
           input.payload.agentId,
