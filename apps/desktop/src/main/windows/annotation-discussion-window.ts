@@ -6,6 +6,7 @@ import type {
 } from '../../ipc-contract';
 import { handleDesktopIpc, type DesktopMainIpcContext } from '../ipc/ipc';
 import { mainPath } from '../app/main-paths';
+import { secureRendererWebPreferences } from './renderer-window-security';
 import {
   appendWindowAnimationSourceSearchParams,
   installWindowCloseAnimation,
@@ -59,12 +60,7 @@ function openAnnotationDiscussionWindow(
     hasShadow: true,
     title: discussionWindowInitialTitle(input),
     icon: mainPath('../../resources/icon.png'),
-    webPreferences: {
-      preload: mainPath('../preload/index.mjs'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+    webPreferences: secureRendererWebPreferences(),
   });
 
   discussionWindows.set(key, {

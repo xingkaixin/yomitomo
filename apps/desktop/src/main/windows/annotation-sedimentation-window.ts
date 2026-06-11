@@ -9,6 +9,7 @@ import {
   minimizeOtherAnnotationDiscussionWindows,
 } from './annotation-discussion-window';
 import { mainPath } from '../app/main-paths';
+import { secureRendererWebPreferences } from './renderer-window-security';
 import {
   appendWindowAnimationSourceSearchParams,
   installWindowCloseAnimation,
@@ -62,12 +63,7 @@ function openAnnotationSedimentationWindow(
     hasShadow: true,
     title: sedimentationWindowInitialTitle(input),
     icon: mainPath('../../resources/icon.png'),
-    webPreferences: {
-      preload: mainPath('../preload/index.mjs'),
-      sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+    webPreferences: secureRendererWebPreferences(),
   });
 
   sedimentationWindows.set(key, {

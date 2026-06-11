@@ -70,6 +70,13 @@ export default defineConfig({
   preload: {
     build: {
       outDir: resolve(root, 'dist/preload'),
+      rollupOptions: {
+        external: ['electron', /^electron\/.+/],
+        output: {
+          entryFileNames: '[name].cjs',
+          format: 'cjs',
+        },
+      },
     },
     plugins: [externalizeDepsPlugin({ exclude: workspaceDeps })],
   },
