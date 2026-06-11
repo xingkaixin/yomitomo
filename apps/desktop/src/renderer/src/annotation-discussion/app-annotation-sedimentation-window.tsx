@@ -762,7 +762,7 @@ function ReviewTimelineMessage({
   const { t } = useTranslation();
   const { message } = item;
   const isUser = message.author === 'user';
-  const agent = isUser ? undefined : agents.find((item) => item.id === message.agentId);
+  const agent = isUser ? undefined : agents.find((candidate) => candidate.id === message.agentId);
   const avatar = isUser ? userProfile.avatar : agent?.avatar || message.agentAvatar;
   const nickname = isUser
     ? userProfile.nickname
