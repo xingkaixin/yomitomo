@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import type { EbookImportFileInput, PdfImportFileInput } from '../../ipc-contract';
+import type { ArticleRecord } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
 
@@ -79,12 +80,14 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromEpubFile } = await import('../ebooks/ebook-import');
-    const { saveEbookSourceFile } = await import('../ebooks/ebook-storage');
+    const { deleteEbookSourceFile, saveEbookSourceFile } = await import('../ebooks/ebook-storage');
     const record = await articleRecordFromEpubFile(input, { performanceLogger: context.logInfo });
     return importArticleSource({
       record,
       repository: { findArticleByIdentity, readArticle, saveArticle },
       saveSourceFile: (articleId) => saveEbookSourceFile(articleId, input.data),
+      cleanupSourceFile: deleteEbookSourceFile,
+      logError: context.logError,
     });
   });
   handleDesktopIpc('ebook:read-file', async (_event, articleId) => {
@@ -96,14 +99,17 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { findArticleByIdentity, readArticle, saveArticle } = await context.getStoreModule();
     const { importArticleSource } = await import('../articles/article-source-import');
     const { articleRecordFromPdfFile } = await import('../pdf/pdf-import');
-    const { savePdfSourceFile } = await import('../pdf/pdf-storage');
-    const { savePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
+    const { deletePdfSourceFile, savePdfSourceFile } = await import('../pdf/pdf-storage');
+    const { deletePdfThumbnail, savePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
     const { article: record, thumbnail } = await articleRecordFromPdfFile(input);
     return importArticleSource({
       record,
       repository: { findArticleByIdentity, readArticle, saveArticle },
       saveSourceFile: (articleId) => savePdfSourceFile(articleId, input.data),
       saveThumbnail: thumbnail ? (articleId) => savePdfThumbnail(articleId, thumbnail) : undefined,
+      cleanupSourceFile: deletePdfSourceFile,
+      cleanupThumbnail: thumbnail ? deletePdfThumbnail : undefined,
+      logError: context.logError,
     });
   });
   handleDesktopIpc('pdf:get-thumbnail', async (_event, articleId) => {
@@ -139,16 +145,42 @@ export function registerArticleIpc(context: DesktopMainIpcContext) {
     const { deleteArticle, readArticle } = await context.getStoreModule();
     const article = await readArticle(id);
     const patch = await deleteArticle(id);
-    if (article?.sourceType === 'pdf') {
-      const { deletePdfSourceFile } = await import('../pdf/pdf-storage');
-      const { deletePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
-      await deletePdfSourceFile(id);
-      await deletePdfThumbnail(id);
-    }
+    await cleanupDeletedArticleSourceAssets({
+      articleId: id,
+      sourceType: article?.sourceType,
+      logError: context.logError,
+    });
     return patch;
   });
 }
 
 function articleImportUrlInput(input: string | { url: string; requestId?: string }) {
   return typeof input === 'string' ? { url: input, requestId: undefined } : input;
+}
+
+export async function cleanupDeletedArticleSourceAssets(input: {
+  articleId: string;
+  sourceType: ArticleRecord['sourceType'] | undefined;
+  logError: DesktopMainIpcContext['logError'];
+}) {
+  try {
+    if (input.sourceType === 'pdf') {
+      const { deletePdfSourceFile } = await import('../pdf/pdf-storage');
+      const { deletePdfThumbnail } = await import('../pdf/pdf-thumbnail-storage');
+      await deletePdfSourceFile(input.articleId);
+      await deletePdfThumbnail(input.articleId);
+      return;
+    }
+
+    if (input.sourceType === 'ebook') {
+      const { deleteEbookSourceFile } = await import('../ebooks/ebook-storage');
+      await deleteEbookSourceFile(input.articleId);
+    }
+  } catch (error) {
+    input.logError('article_source.cleanup_failed', error, {
+      articleId: input.articleId,
+      sourceType: input.sourceType,
+    });
+    throw new Error('ARTICLE_SOURCE_CLEANUP_FAILED', { cause: error });
+  }
 }

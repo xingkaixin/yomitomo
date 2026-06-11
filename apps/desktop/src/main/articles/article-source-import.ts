@@ -15,6 +15,9 @@ export type ArticleSourceImportLifecycleInput = {
   mergeExistingArticle?: (record: ArticleRecord, existingArticle: ArticleRecord) => ArticleRecord;
   saveSourceFile?: (articleId: string) => Promise<void>;
   saveThumbnail?: (articleId: string) => Promise<void>;
+  cleanupSourceFile?: (articleId: string) => Promise<void>;
+  cleanupThumbnail?: (articleId: string) => Promise<void>;
+  logError?: (event: string, error: unknown, data?: Record<string, unknown>) => void;
 };
 
 export async function importArticleSource(
@@ -37,8 +40,14 @@ export async function importArticleSource(
     existingArticle && input.mergeExistingArticle
       ? input.mergeExistingArticle(input.record, existingArticle)
       : input.record;
-  await persistSourceAssets(input, article.id);
-  const patch = await input.repository.saveArticle(article);
+  const cleanupSourceAssets = await persistSourceAssets(input, article.id);
+  let patch: ArticleUpsertPatch;
+  try {
+    patch = await input.repository.saveArticle(article);
+  } catch (error) {
+    await cleanupSourceAssets();
+    throw error;
+  }
   return { status: 'imported', article, patch };
 }
 
@@ -60,6 +69,42 @@ function shouldReturnDuplicate(
 }
 
 async function persistSourceAssets(input: ArticleSourceImportLifecycleInput, articleId: string) {
-  await input.saveSourceFile?.(articleId);
-  await input.saveThumbnail?.(articleId);
+  let sourceFileSaved = false;
+  let thumbnailSaved = false;
+
+  try {
+    await input.saveSourceFile?.(articleId);
+    sourceFileSaved = Boolean(input.saveSourceFile);
+    await input.saveThumbnail?.(articleId);
+    thumbnailSaved = Boolean(input.saveThumbnail);
+  } catch (error) {
+    await cleanupPersistedSourceAssets(input, articleId, {
+      sourceFileSaved,
+      thumbnailSaved,
+    });
+    throw error;
+  }
+
+  return () =>
+    cleanupPersistedSourceAssets(input, articleId, {
+      sourceFileSaved,
+      thumbnailSaved,
+    });
+}
+
+async function cleanupPersistedSourceAssets(
+  input: ArticleSourceImportLifecycleInput,
+  articleId: string,
+  saved: { sourceFileSaved: boolean; thumbnailSaved: boolean },
+) {
+  try {
+    if (saved.thumbnailSaved) await input.cleanupThumbnail?.(articleId);
+    if (saved.sourceFileSaved) await input.cleanupSourceFile?.(articleId);
+  } catch (error) {
+    input.logError?.('article_source_import.cleanup_failed', error, {
+      articleId,
+      sourceFileSaved: saved.sourceFileSaved,
+      thumbnailSaved: saved.thumbnailSaved,
+    });
+  }
 }

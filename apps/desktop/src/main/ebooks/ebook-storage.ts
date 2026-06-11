@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app } from 'electron';
 
@@ -27,6 +27,10 @@ export async function readEbookSourceFile(articleId: string) {
     }
     throw error;
   }
+}
+
+export async function deleteEbookSourceFile(articleId: string) {
+  await rm(ebookFilePath(articleId), { force: true });
 }
 
 function errorCode(error: unknown) {
