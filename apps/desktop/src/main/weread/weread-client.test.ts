@@ -4,6 +4,7 @@ import {
   fetchWeReadNotebooks,
   fetchWeReadReadingStats,
   testWeReadConnection,
+  WEREAD_REQUEST_TIMEOUT_MS,
   WEREAD_SKILL_VERSION,
 } from './weread-client';
 
@@ -19,6 +20,7 @@ function requestBody(call: Parameters<typeof fetch>) {
 describe('weread client', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('paginates notebooks and keeps the external Promise API sorted', async () => {
@@ -78,6 +80,24 @@ describe('weread client', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(response({}, 502));
 
     await expect(testWeReadConnection('secret')).rejects.toThrow('WeRead request failed: HTTP 502');
+  });
+
+  it('aborts a hanging gateway request after the configured timeout', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    );
+
+    const result = testWeReadConnection('secret');
+    const assertion = expect(result).rejects.toThrow('WeRead request timed out: /user/notebooks');
+    await vi.advanceTimersByTimeAsync(WEREAD_REQUEST_TIMEOUT_MS);
+
+    await assertion;
   });
 
   it('rejects with the gateway business error from the Effect boundary', async () => {
