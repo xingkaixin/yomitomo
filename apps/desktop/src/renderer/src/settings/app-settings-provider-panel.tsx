@@ -347,6 +347,9 @@ function TaskProviderRoutes({
       </SettingsRow>
       {taskRouteOptions.map((option) => {
         const title = t(option.titleKey);
+        const selectedProvider = providers.find(
+          (provider) => provider.id === settingsDraft[option.key],
+        );
         return (
           <SettingsRow
             key={option.key}
@@ -377,7 +380,24 @@ function TaskProviderRoutes({
                       ? t('settings.models.chooseProvider')
                       : t('settings.models.addProviderFirst')
                   }
-                />
+                >
+                  {selectedProvider ? (
+                    <span className="provider-option-content">
+                      <img
+                        className="provider-select-logo"
+                        src={
+                          providerLogoMap[selectedProvider.logo || 'anthropic.png'] ||
+                          providerLogoMap['anthropic.png']
+                        }
+                        alt=""
+                      />
+                      <span className="provider-select-item-copy">
+                        <strong>{providerDisplayName(selectedProvider)}</strong>
+                        <span>{selectedProvider.modelName}</span>
+                      </span>
+                    </span>
+                  ) : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="theme-select-content provider-select-content">
                 <SelectGroup>

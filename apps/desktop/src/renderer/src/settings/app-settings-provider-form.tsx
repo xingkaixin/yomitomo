@@ -59,6 +59,8 @@ export function ProviderForm({
     });
   }
 
+  const selectedPreset = providerPresets.find((preset) => preset.id === draft.presetId);
+
   return (
     <div className="settings-form-grid">
       <Field
@@ -72,7 +74,18 @@ export function ProviderForm({
             aria-labelledby="provider-preset-label"
             className="provider-select-trigger"
           >
-            <SelectValue placeholder={t('settings.models.chooseProviderPreset')} />
+            <SelectValue placeholder={t('settings.models.chooseProviderPreset')}>
+              {selectedPreset ? (
+                <span className="provider-preset-item">
+                  <img
+                    className="provider-preset-logo"
+                    src={providerLogoMap[selectedPreset.logo]}
+                    alt=""
+                  />
+                  {providerPresetDisplayName(selectedPreset.id, selectedPreset.name)}
+                </span>
+              ) : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent className={selectContentClassName}>
             <SelectGroup>
