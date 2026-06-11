@@ -44,6 +44,7 @@
     "@embedpdf/plugin-selection": "2.14.3",
     "@embedpdf/plugin-viewport": "2.14.3",
     "@embedpdf/plugin-zoom": "2.14.3",
+    "@base-ui/react": "^1.1.0",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",
     "@tailwindcss/postcss": "^4.3.0",

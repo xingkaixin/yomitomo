@@ -35,6 +35,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@base-ui/react": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@yomitomo/core": "workspace:*",
     "@yomitomo/shared": "workspace:*",
