@@ -190,6 +190,10 @@ export type ReaderUiLabels = {
   copySelection: string;
   currentSelection: string;
   deleteHighlight: string;
+  deleteAnnotation: string;
+  deleteAnnotationConfirmTitle: string;
+  deleteAnnotationConfirmDescription: string;
+  deleteAnnotationConfirmAction: string;
   distillations: string;
   emptyNotesDescription: string;
   emptyNotesGestureLabel: string;
@@ -198,7 +202,6 @@ export type ReaderUiLabels = {
   fontSize: string;
   highlightActions: string;
   highlightChoice: string;
-  holdDelete: string;
   me: string;
   nextHighlight: string;
   nextSearchResult: string;
@@ -262,7 +265,12 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   collapseReaderChat: '收起阅读问答',
   copySelection: '复制',
   currentSelection: '当前选区',
-  deleteHighlight: '长按删除划线',
+  deleteHighlight: '删除划线',
+  deleteAnnotation: '删除',
+  deleteAnnotationConfirmTitle: '删除这条划线？',
+  deleteAnnotationConfirmDescription:
+    '会删除这条划线，以及它的想法和评论。此操作无法从应用内恢复。',
+  deleteAnnotationConfirmAction: '删除划线',
   distillations: '沉淀',
   emptyNotesDescription:
     'Select text in the reader to highlight it, save a thought, or start a discussion.',
@@ -272,7 +280,6 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   fontSize: '字号',
   highlightActions: '打开划线操作',
   highlightChoice: '选择划线',
-  holdDelete: '长按删除',
   me: '我',
   nextHighlight: '下一个划线',
   nextSearchResult: '下一个搜索结果',

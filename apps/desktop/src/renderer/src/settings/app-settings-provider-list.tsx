@@ -4,8 +4,7 @@ import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName } from '../i18n/app-i18n-labels';
-
-const DELETE_HOLD_MS = 900;
+import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 
 export function ProviderList({
   providers,
@@ -85,9 +84,8 @@ function ProviderCard({
 }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [holdingDelete, setHoldingDelete] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const cardRef = useRef<HTMLElement | null>(null);
-  const deleteTimerRef = useRef<number | null>(null);
   const logo =
     providerLogoMap[provider.logo || 'anthropic.png'] || providerLogoMap['anthropic.png'];
   const displayName = providerDisplayName(provider);
@@ -103,30 +101,14 @@ function ProviderCard({
     return () => document.removeEventListener('pointerdown', closeOutside);
   }, [menuOpen]);
 
-  useEffect(() => () => clearDeleteTimer(), []);
-
-  function clearDeleteTimer() {
-    if (deleteTimerRef.current !== null) {
-      window.clearTimeout(deleteTimerRef.current);
-      deleteTimerRef.current = null;
-    }
-    setHoldingDelete(false);
-  }
-
-  function startDeleteHold() {
-    if (deleteTimerRef.current !== null) return;
-    setHoldingDelete(true);
-    deleteTimerRef.current = window.setTimeout(() => {
-      deleteTimerRef.current = null;
-      setHoldingDelete(false);
-      setMenuOpen(false);
-      onDelete(provider.id);
-    }, DELETE_HOLD_MS);
-  }
-
   function editProvider() {
     setMenuOpen(false);
     onEdit(provider);
+  }
+
+  function confirmDelete() {
+    setConfirmOpen(false);
+    onDelete(provider.id);
   }
 
   return (
@@ -156,30 +138,31 @@ function ProviderCard({
                 {t('settings.models.edit')}
               </button>
               <button
-                className={
-                  holdingDelete
-                    ? 'provider-delete-menu-item is-holding-delete'
-                    : 'provider-delete-menu-item'
-                }
+                className="provider-delete-menu-item"
                 type="button"
                 role="menuitem"
-                aria-label={t('settings.models.holdDeleteProviderAria', { name: displayName })}
-                onPointerCancel={clearDeleteTimer}
-                onPointerDown={startDeleteHold}
-                onPointerLeave={clearDeleteTimer}
-                onPointerUp={clearDeleteTimer}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') startDeleteHold();
+                aria-label={t('settings.models.deleteProviderAria', { name: displayName })}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setConfirmOpen(true);
                 }}
-                onKeyUp={clearDeleteTimer}
               >
                 <Trash2 size={14} />
-                {t('settings.models.holdDeleteProvider')}
+                {t('settings.models.deleteProvider')}
               </button>
             </div>
           ) : null}
         </div>
       </footer>
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('settings.models.deleteProviderConfirm')}
+        description={t('settings.models.deleteProviderConfirmDescription')}
+        open={confirmOpen}
+        title={t('settings.models.deleteProviderConfirmTitle', { name: displayName })}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={confirmDelete}
+      />
     </article>
   );
 }

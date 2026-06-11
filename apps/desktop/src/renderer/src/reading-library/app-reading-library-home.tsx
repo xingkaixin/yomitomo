@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Search,
   Smartphone,
-  Trash2,
 } from 'lucide-react';
 import type {
   AppSettings,
@@ -52,9 +51,9 @@ import {
 import { libraryContentSourceOptions } from './app-library-content-sources';
 import { urlHost } from '../shell/app-utils';
 import { LibraryImportControls, type ArticleImportResult } from './app-reading-library-imports';
+import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 
 const LIBRARY_PAGE_SIZE_OPTIONS = [6, 12, 18, 24] as const;
-const ARTICLE_DELETE_HOLD_MS = 1400;
 
 export function LibraryHome({
   activeSource,
@@ -681,34 +680,8 @@ function libraryDocumentSourceLabel(article: ArticleSummaryRecord, ebookFallback
 
 function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () => void }) {
   const { t } = useTranslation();
-  const [deleteHolding, setDeleteHolding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const deleteTimerRef = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    },
-    [],
-  );
-
-  function stopDeleteHold() {
-    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    deleteTimerRef.current = null;
-    setDeleteHolding(false);
-  }
-
-  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    if (deleteTimerRef.current !== null) return;
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDeleteHolding(true);
-    deleteTimerRef.current = window.setTimeout(() => {
-      deleteTimerRef.current = null;
-      onDelete();
-    }, ARTICLE_DELETE_HOLD_MS);
-  }
+  const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
 
   return (
     <div
@@ -716,7 +689,6 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
       onBlur={(event) => {
         if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
         setMenuOpen(false);
-        stopDeleteHold();
       }}
       onClick={(event) => event.stopPropagation()}
     >
@@ -733,25 +705,17 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
         </button>
         {menuOpen ? (
           <div className="library-card-menu-popover" role="menu">
-            <button
-              className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
-              style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
-              type="button"
-              role="menuitem"
-              aria-label={t('library.actions.deleteArticleHoldAria', { title })}
-              onClick={(event) => event.preventDefault()}
-              onContextMenu={(event) => event.preventDefault()}
-              onPointerCancel={stopDeleteHold}
-              onPointerDown={startDeleteHold}
-              onPointerLeave={stopDeleteHold}
-              onPointerUp={stopDeleteHold}
-            >
-              <Trash2 size={14} />
-              <span>{t('library.actions.deleteArticleHoldLabel')}</span>
-            </button>
+            <ArticleDeleteMenuItem
+              title={title}
+              onSelect={() => {
+                setMenuOpen(false);
+                requestDelete();
+              }}
+            />
           </div>
         ) : null}
       </div>
+      {deleteDialog}
     </div>
   );
 }

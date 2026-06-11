@@ -98,9 +98,13 @@ describe('reading library styles', () => {
     expectRule('.library-item-actions', [
       'top: 10px;',
       'right: 10px;',
-      'opacity: 1;',
+      'opacity: 0;',
       'transform: none;',
     ]);
+    // 操作按钮默认隐藏，仅在 hover / 键盘 focus 时显现。
+    expect(styles).toMatch(
+      /\.library-ebook-list-item:focus-within \.library-item-actions \{\s*opacity: 1;/,
+    );
     expectRule('.library-web-item', ['padding: 18px 68px 18px 16px;']);
     expectRule('.library-ebook-list-item', ['padding: 18px 68px 18px 0;']);
     expectRule('.library-ebook-list-item', ['padding: 18px 68px 18px 16px;']);

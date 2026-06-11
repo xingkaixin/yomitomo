@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { renderMarkdown } from '@yomitomo/shared';
@@ -6,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
 import { formatAbsoluteTime, formatRelativeTime } from './app-annotation-discussion-utils';
-import { LongPressDeleteButton } from './app-annotation-discussion-thread-list';
+import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 
 export function DiscussionMessage({
   agents,
@@ -22,6 +23,7 @@ export function DiscussionMessage({
   userProfile: UserProfile;
 }) {
   const { t } = useTranslation();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const author = commentPersona(message, userProfile, agents);
   const html = renderMarkdown(message.content);
   const className = [
@@ -44,14 +46,15 @@ export function DiscussionMessage({
             </time>
           </ReaderTooltip>
           {message.pending ? <em>{t('discussion.replying')}</em> : null}
-          <LongPressDeleteButton
+          <button
             className="annotation-discussion-message-delete"
+            type="button"
             disabled={isDeleting}
-            label={t('discussion.deleteReplyHold')}
-            onDelete={onDelete}
+            aria-label={t('discussion.deleteReplyAria')}
+            onClick={() => setConfirmOpen(true)}
           >
             <Trash2 size={13} />
-          </LongPressDeleteButton>
+          </button>
         </header>
         <AssistantRuntimeProgressList progress={message.assistantProgress} />
         <div
@@ -59,6 +62,18 @@ export function DiscussionMessage({
           dangerouslySetInnerHTML={{ __html: html }}
         />
       </div>
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('discussion.deleteReplyConfirm')}
+        description={t('discussion.deleteReplyConfirmDescription')}
+        open={confirmOpen}
+        title={t('discussion.deleteReplyConfirmTitle')}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onDelete();
+        }}
+      />
     </article>
   );
 }

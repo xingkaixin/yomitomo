@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine, Trash2 } from 'lucide-react';
+import { ArrowUpRight, Clock3, Layers2, MoreHorizontal, PencilLine } from 'lucide-react';
 import type { ArticleSummaryRecord } from '@yomitomo/shared';
 import { formatDate, urlHost } from '../shell/app-utils';
 import { ArticleBook, formatPdfAuthors, useArticleSiteIcon } from '../shell/app-article-book';
+import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 import {
   articleAnnotationCount,
   articleDistillationCount,
@@ -13,8 +14,6 @@ import {
   formatLibraryRelativeTime,
   libraryArticleStatus,
 } from './app-reading-library-utils';
-
-const ARTICLE_DELETE_HOLD_MS = 1400;
 
 export function ArticleLibraryCard({
   article,
@@ -26,10 +25,8 @@ export function ArticleLibraryCard({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
-  const [deleteHolding, setDeleteHolding] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [siteIconFailed, setSiteIconFailed] = useState(false);
-  const deleteTimerRef = useRef<number | null>(null);
   const annotations = articleAnnotationCount(article);
   const distillations = articleDistillationCount(article);
   const statsLabel = t('library.stats.label', { annotations, distillations });
@@ -40,35 +37,11 @@ export function ArticleLibraryCard({
   const siteIconUrl = useArticleSiteIcon(article.id, !isEbook && !isPdf) || '';
   const authorLabel = libraryArticleAuthorLabel(article);
   const title = articleDisplayTitle(article);
-
-  useEffect(
-    () => () => {
-      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    },
-    [],
-  );
+  const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
 
   useEffect(() => {
     setSiteIconFailed(false);
   }, [siteIconUrl]);
-
-  function stopDeleteHold() {
-    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    deleteTimerRef.current = null;
-    setDeleteHolding(false);
-  }
-
-  function startDeleteHold(event: React.PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    if (deleteTimerRef.current !== null) return;
-
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDeleteHolding(true);
-    deleteTimerRef.current = window.setTimeout(() => {
-      deleteTimerRef.current = null;
-      onDelete();
-    }, ARTICLE_DELETE_HOLD_MS);
-  }
 
   return (
     <article className="library-card">
@@ -95,7 +68,6 @@ export function ArticleLibraryCard({
           onBlur={(event) => {
             if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
             setMenuOpen(false);
-            stopDeleteHold();
           }}
         >
           <button
@@ -117,32 +89,18 @@ export function ArticleLibraryCard({
               role="menu"
               onClick={(event) => event.stopPropagation()}
             >
-              <button
-                className={deleteHolding ? 'library-item-delete is-holding' : 'library-item-delete'}
-                style={{ '--delete-hold-ms': `${ARTICLE_DELETE_HOLD_MS}ms` } as React.CSSProperties}
-                type="button"
-                role="menuitem"
-                aria-label={t('library.actions.deleteArticleHoldAria', { title })}
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
+              <ArticleDeleteMenuItem
+                title={title}
+                onSelect={() => {
+                  setMenuOpen(false);
+                  requestDelete();
                 }}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                }}
-                onPointerCancel={stopDeleteHold}
-                onPointerDown={startDeleteHold}
-                onPointerLeave={stopDeleteHold}
-                onPointerUp={stopDeleteHold}
-              >
-                <Trash2 size={14} />
-                <span>{t('library.actions.deleteArticleHoldLabel')}</span>
-              </button>
+              />
             </div>
           ) : null}
         </div>
       </div>
+      {deleteDialog}
       <div className="library-card-main">
         <ArticleBook article={article} />
         <div className="library-card-copy">

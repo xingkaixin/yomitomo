@@ -834,29 +834,6 @@
   background: var(--app-reader-toolbar-control-bg);
 }
 
-.annotation-discussion-hold-delete {
-  position: relative;
-  overflow: hidden;
-}
-
-.annotation-discussion-hold-delete::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0;
-  background: color-mix(in srgb, var(--app-action-danger-bg) 13%, transparent);
-  content: '';
-}
-
-.annotation-discussion-hold-delete.is-holding::before {
-  animation: library-delete-hold var(--delete-hold-ms) linear forwards;
-}
-
-.annotation-discussion-hold-delete svg,
-.annotation-discussion-hold-delete span {
-  position: relative;
-  z-index: 1;
-}
-
 .annotation-discussion-idea-delete,
 .annotation-discussion-message-delete {
   color: var(--app-action-danger-bg);

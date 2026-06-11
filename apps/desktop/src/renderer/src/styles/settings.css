@@ -384,20 +384,6 @@
   background: color-mix(in srgb, var(--app-action-danger-bg) 8%, transparent);
 }
 
-.provider-card-menu button.provider-delete-menu-item.is-holding-delete::before {
-  animation: provider-delete-progress 900ms linear forwards;
-}
-
-@keyframes provider-delete-progress {
-  from {
-    width: 0;
-  }
-
-  to {
-    width: 100%;
-  }
-}
-
 .provider-card-model {
   overflow: hidden;
   min-width: 0;

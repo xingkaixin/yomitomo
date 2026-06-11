@@ -2893,10 +2893,6 @@
   transform: scale(0.96);
 }
 
-.library-item-delete.is-holding::before {
-  animation: library-delete-hold var(--delete-hold-ms) linear forwards;
-}
-
 @keyframes library-delete-hold {
   to {
     width: 100%;
