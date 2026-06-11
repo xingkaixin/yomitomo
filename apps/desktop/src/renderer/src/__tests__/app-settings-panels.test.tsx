@@ -153,7 +153,7 @@ describe('ProviderForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 2 个模型')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '模型' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
     expect(listProviderModels).toHaveBeenCalledOnce();
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ modelInputMode: 'list', modelName: 'gpt-5.2' }),
@@ -191,7 +191,7 @@ describe('ProviderForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /获取/ }));
 
     expect(await screen.findByText('已获取 1 个模型')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '模型' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '模型' })).toBeTruthy();
   });
 
   it('filters long fetched model lists in the model menu', () => {
@@ -208,10 +208,9 @@ describe('ProviderForm', () => {
       />,
     );
 
-    fireEvent.keyDown(screen.getByRole('button', { name: '模型' }), { key: 'ArrowDown' });
-    const search = screen.getByLabelText('搜索模型') as HTMLInputElement;
-    expect(document.activeElement).toBe(search);
-    fireEvent.change(search, { target: { value: 'qwen' } });
+    const combobox = screen.getByRole('combobox', { name: '模型' }) as HTMLInputElement;
+    fireEvent.click(combobox);
+    fireEvent.change(combobox, { target: { value: 'qwen' } });
 
     const listbox = screen.getByRole('listbox');
     expect(within(listbox).getByRole('option', { name: 'qwen-max-latest' })).toBeTruthy();

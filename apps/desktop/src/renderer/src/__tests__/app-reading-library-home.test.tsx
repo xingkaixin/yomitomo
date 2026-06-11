@@ -390,12 +390,10 @@ describe('ReadingLibrary home', () => {
 
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(18);
 
-    fireEvent.pointerDown(screen.getByRole('combobox', { name: '每页显示数量' }), {
-      button: 0,
-      ctrlKey: false,
-      pointerType: 'mouse',
-    });
-    fireEvent.click(await screen.findByRole('option', { name: '每页 24 项' }));
+    fireEvent.click(screen.getByRole('combobox', { name: '每页显示数量' }));
+    const pageSizeOption = await screen.findByRole('option', { name: '每页 24 项' });
+    fireEvent.pointerDown(pageSizeOption, { pointerType: 'mouse' });
+    fireEvent.click(pageSizeOption);
 
     expect(onSaveSettings).toHaveBeenCalledWith({
       libraryPageSize: 24,
