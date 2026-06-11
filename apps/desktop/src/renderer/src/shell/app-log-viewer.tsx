@@ -25,6 +25,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
+import { IconButton } from '../components/ui/icon-button';
 import { Input } from '../components/ui/input';
 import {
   SettingsGroup,
@@ -322,14 +323,13 @@ function OpenSourceLicensesDialog({ onClose }: { onClose: () => void }) {
                   {t('about.licenses.dialogDescription', { count: thirdPartyPackages.length })}
                 </DialogDescription>
               </div>
-              <button
+              <IconButton
                 aria-label={t('about.licenses.close')}
                 className="license-dialog-close"
-                type="button"
                 onClick={onClose}
               >
                 <X size={20} />
-              </button>
+              </IconButton>
             </header>
 
             <label className="license-search">

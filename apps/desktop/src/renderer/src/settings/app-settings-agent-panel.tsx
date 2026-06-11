@@ -20,10 +20,12 @@ import {
 } from './app-settings';
 import { resolveAgentPersonaAssets } from './agent-persona-assets';
 import { ColorPicker } from './app-settings-color-picker';
-import { AvatarImage, Field } from '../shell/app-ui';
+import { AvatarImage } from '../shell/app-ui';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
+import { Field } from '../components/ui/field';
+import { IconButton } from '../components/ui/icon-button';
 import { SegmentedControl } from '../components/ui/segmented-control';
 
 type AgentFilter = AgentKind;
@@ -519,14 +521,13 @@ function AgentProfileDetailDialog({
               { ...dialogStyle, '--agent-accent': agent.annotationColor } as React.CSSProperties
             }
           >
-            <button
-              type="button"
+            <IconButton
               className="agent-detail-close"
               aria-label={t('settings.agents.detail.close')}
               onClick={onClose}
             >
               <X size={18} />
-            </button>
+            </IconButton>
             <div className="agent-detail-photo">
               {cover ? (
                 <img

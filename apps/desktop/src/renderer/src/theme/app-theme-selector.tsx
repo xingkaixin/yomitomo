@@ -34,6 +34,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
+import { IconButton } from '../components/ui/icon-button';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
@@ -90,18 +91,17 @@ export function ThemeSelector({
 
   return (
     <>
-      <button
+      <IconButton
         aria-label={t('theme.open')}
         className="app-nav-theme-button"
         data-tooltip={t('theme.title')}
-        type="button"
         onClick={(event) => {
           setSourceRect(elementDialogSourceRect(event.currentTarget));
           onOpenChange(true);
         }}
       >
         <Palette aria-hidden="true" size={18} strokeWidth={2.2} />
-      </button>
+      </IconButton>
       {open ? (
         <Dialog open={open} onOpenChange={onOpenChange}>
           <DialogPortal>
@@ -117,14 +117,13 @@ export function ThemeSelector({
                       <DialogDescription>{t('theme.description')}</DialogDescription>
                     </div>
                   </div>
-                  <button
+                  <IconButton
                     aria-label={t('theme.close')}
                     className="theme-dialog-close"
-                    type="button"
                     onClick={() => onOpenChange(false)}
                   >
                     <X aria-hidden="true" size={18} />
-                  </button>
+                  </IconButton>
                 </header>
                 <div className="theme-tone-switch" role="group" aria-label={t('theme.category')}>
                   {themeToneOptions.map((option) => (
