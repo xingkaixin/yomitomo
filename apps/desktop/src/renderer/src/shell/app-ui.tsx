@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Check, Clipboard, ExternalLink } from 'lucide-react';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { articleExternalUrl, isImageAvatar, isSvgAvatar } from './app-utils';
-import { Label } from '../components/ui/label';
+import { IconButton } from '../components/ui/icon-button';
 import { useTranslation } from 'react-i18next';
 
 export function CopyIconButton({ label, value }: { label: string; value: string }) {
@@ -16,15 +16,14 @@ export function CopyIconButton({ label, value }: { label: string; value: string 
   }
 
   return (
-    <button
+    <IconButton
       aria-label={copied ? t('common.copied') : label}
       className={copied ? 'copy-icon-button is-copied' : 'copy-icon-button'}
       data-tooltip={copied ? t('common.copied') : label}
-      type="button"
       onClick={copy}
     >
       {copied ? <Check size={15} /> : <Clipboard size={14} />}
-    </button>
+    </IconButton>
   );
 }
 
@@ -54,17 +53,31 @@ export function OpenArticleButton({
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
+  if (iconOnly) {
+    return (
+      <IconButton
+        aria-label={t('common.openOriginalLink')}
+        className="open-article-button is-icon-only"
+        disabled={!url}
+        title={url ? t('common.openOriginalLink') : t('common.originalLinkUnavailable')}
+        onClick={open}
+      >
+        <ExternalLink size={16} />
+      </IconButton>
+    );
+  }
+
   return (
     <button
       aria-label={t('common.openOriginalLink')}
-      className={iconOnly ? 'open-article-button is-icon-only' : 'open-article-button'}
+      className="open-article-button"
       disabled={!url}
       type="button"
       title={url ? t('common.openOriginalLink') : t('common.originalLinkUnavailable')}
       onClick={open}
     >
       <ExternalLink size={16} />
-      {iconOnly ? null : <span>{t('common.openOriginalLink')}</span>}
+      <span>{t('common.openOriginalLink')}</span>
     </button>
   );
 }
@@ -115,38 +128,5 @@ export function AvatarImage({
     <span className={classes}>
       {image ? <img alt="" src={value} /> : <span>{value || fallback}</span>}
     </span>
-  );
-}
-
-export function Field({
-  id,
-  label,
-  description,
-  descriptionId,
-  className = '',
-  children,
-}: {
-  id?: string;
-  label: string;
-  description?: string;
-  descriptionId?: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const fallbackId = React.useId();
-  const labelId = id ? `${id}-label` : `${fallbackId}-label`;
-  const resolvedDescriptionId =
-    descriptionId || (id && description ? `${id}-description` : undefined);
-
-  return (
-    <div className={`grid gap-2 ${className}`}>
-      <div className="field-copy">
-        <Label htmlFor={id} id={labelId}>
-          {label}
-        </Label>
-        {description ? <p id={resolvedDescriptionId}>{description}</p> : null}
-      </div>
-      {children}
-    </div>
   );
 }

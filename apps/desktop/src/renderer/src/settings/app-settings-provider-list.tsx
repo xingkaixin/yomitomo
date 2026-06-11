@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import { IconButton } from '../components/ui/icon-button';
 
 export function ProviderList({
   providers,
@@ -119,13 +120,12 @@ function ProviderCard({
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <div className="provider-card-actions">
             <DropdownMenuTrigger asChild>
-              <button
+              <IconButton
                 className="provider-card-menu-button"
-                type="button"
                 aria-label={t('settings.models.openProviderMenu', { name: displayName })}
               >
                 <Settings2 size={16} />
-              </button>
+              </IconButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="provider-card-menu">
               <DropdownMenuItem asChild>

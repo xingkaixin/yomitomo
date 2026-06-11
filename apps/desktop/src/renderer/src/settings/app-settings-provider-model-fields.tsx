@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Combobox } from '@base-ui/react/combobox';
 import { Check, ChevronDown, Keyboard, RefreshCw } from 'lucide-react';
 import type { ProviderDraft } from './app-settings';
-import { Field } from '../shell/app-ui';
 import { Button } from '../components/ui/button';
+import { Field } from '../components/ui/field';
 import { Input } from '../components/ui/input';
 import { useTranslation } from 'react-i18next';
 
