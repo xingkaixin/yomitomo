@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lightbulb } from 'lucide-react';
-import { renderMarkdown } from '@yomitomo/shared';
+import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { AvatarBadge } from '../shared/reader-component-primitives';
 import { formatTime } from '../reader-date-utils';
 import { noteStyle } from '../reader-style-utils';
@@ -133,7 +133,7 @@ function QuoteContent({ quote }: { quote: string }) {
 }
 
 function ReadonlyThoughtView({ thought }: { thought: ReadonlyAnnotationCardThought }) {
-  const html = renderMarkdown(thought.content);
+  const html = renderSafeMarkdown(thought.content);
   return (
     <div className="reader-comment is-root">
       <AvatarBadge avatar={thought.author.avatar} fallback={thought.author.fallback} />
