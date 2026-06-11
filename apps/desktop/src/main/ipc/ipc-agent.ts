@@ -25,6 +25,7 @@ import {
 } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
 import { handleDesktopIpc } from './ipc';
+import { DesktopIpcError, desktopIpcErrorCodes, serializeDesktopIpcError } from '../../ipc-errors';
 import {
   agentAnnotatePayloadWithReadingMemoryEntries,
   agentMessagePayloadWithReadingMemoryView,
@@ -63,7 +64,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       payload.agentUsername,
       payload.allowDisabledAgentForRule && taskType === 'thread_reply',
     );
-    if (!agent) throw new Error(`AGENT_NOT_FOUND:${payload.agentUsername}`);
+    if (!agent) throw agentNotFoundError(payload.agentUsername);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -146,7 +147,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readAgentRuntimeContext } = await context.getStoreModule();
     const store = await readAgentRuntimeContext();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
+    if (!agent) throw reviewAgentNotFoundError(payload.agentUsername);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -171,7 +172,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readAgentRuntimeContext } = await context.getStoreModule();
     const store = await readAgentRuntimeContext();
     const agent = findReviewAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${payload.agentUsername}`);
+    if (!agent) throw reviewAgentNotFoundError(payload.agentUsername);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -267,7 +268,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentUsername,
           input.payload.allowDisabledAgentForRule && taskType === 'thread_reply',
         );
-        if (!agent) throw new Error(`AGENT_NOT_FOUND:${input.payload.agentUsername}`);
+        if (!agent) throw agentNotFoundError(input.payload.agentUsername);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -388,10 +389,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           comment: { ...comment, pending: false },
         });
       } catch (error) {
-        event.sender.send(channel, {
-          type: 'error',
-          message: error instanceof Error ? error.message : 'AGENT_REPLY_FAILED',
-        });
+        event.sender.send(channel, agentStreamError(error, 'AGENT_REPLY_FAILED'));
       }
     },
   );
@@ -414,7 +412,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`REVIEW_AGENT_NOT_FOUND:${input.payload.agentUsername}`);
+        if (!agent) throw reviewAgentNotFoundError(input.payload.agentUsername);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -521,10 +519,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           message,
         });
       } catch (error) {
-        event.sender.send(channel, {
-          type: 'error',
-          message: error instanceof Error ? error.message : 'AGENT_DISTILLATION_REVIEW_FAILED',
-        });
+        event.sender.send(channel, agentStreamError(error, 'AGENT_DISTILLATION_REVIEW_FAILED'));
       }
     },
   );
@@ -533,7 +528,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const { readAgentRuntimeContext } = await context.getStoreModule();
     const store = await readAgentRuntimeContext();
     const agent = findAnnotationAgent(store.agents, payload.agentId, payload.agentUsername);
-    if (!agent) throw new Error(`ANNOTATION_AGENT_NOT_FOUND:${payload.agentUsername}`);
+    if (!agent) throw annotationAgentNotFoundError(payload.agentUsername);
     const provider = await taskProvider(
       context,
       store.providers,
@@ -589,7 +584,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           input.payload.agentId,
           input.payload.agentUsername,
         );
-        if (!agent) throw new Error(`ANNOTATION_AGENT_NOT_FOUND:${input.payload.agentUsername}`);
+        if (!agent) throw annotationAgentNotFoundError(input.payload.agentUsername);
         const provider = await taskProvider(
           context,
           store.providers,
@@ -643,10 +638,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           readingMemory: result.readingMemory,
         });
       } catch (error) {
-        event.sender.send(channel, {
-          type: 'error',
-          message: error instanceof Error ? error.message : 'AGENT_ANNOTATION_FAILED',
-        });
+        event.sender.send(channel, agentStreamError(error, 'AGENT_ANNOTATION_FAILED'));
       }
     },
   );
@@ -677,9 +669,53 @@ async function taskProvider(
 ): Promise<LlmProvider> {
   const providerId = settings[providerTaskSettings[task]] || settings.defaultProviderId;
   const provider = providers.find((item) => item.id === providerId);
-  if (!provider) throw new Error(`PROVIDER_ROUTE_REQUIRED:${task}`);
+  if (!provider) throw providerRouteRequiredError(task);
   const { hydrateProviderApiKey } = await context.getStoreModule();
   return hydrateProviderApiKey(provider);
+}
+
+function agentNotFoundError(username: string) {
+  return new DesktopIpcError(
+    desktopIpcErrorCodes.agentNotFound,
+    desktopIpcErrorCodes.agentNotFound,
+    {
+      detail: { username },
+    },
+  );
+}
+
+function reviewAgentNotFoundError(username: string) {
+  return new DesktopIpcError(
+    desktopIpcErrorCodes.reviewAgentNotFound,
+    desktopIpcErrorCodes.reviewAgentNotFound,
+    { detail: { username } },
+  );
+}
+
+function annotationAgentNotFoundError(username: string) {
+  return new DesktopIpcError(
+    desktopIpcErrorCodes.annotationAgentNotFound,
+    desktopIpcErrorCodes.annotationAgentNotFound,
+    { detail: { username } },
+  );
+}
+
+function providerRouteRequiredError(task: ProviderTask) {
+  return new DesktopIpcError(
+    desktopIpcErrorCodes.providerRouteRequired,
+    desktopIpcErrorCodes.providerRouteRequired,
+    { detail: { task } },
+  );
+}
+
+function agentStreamError(error: unknown, fallbackMessage: string) {
+  const serialized = serializeDesktopIpcError(error);
+  return {
+    type: 'error' as const,
+    message:
+      serialized.code === desktopIpcErrorCodes.handlerFailed ? fallbackMessage : serialized.message,
+    error: serialized,
+  };
 }
 
 function findAnnotationAgent(agents: Agent[], agentId: string | undefined, username: string) {

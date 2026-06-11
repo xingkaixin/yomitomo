@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Agent, AgentMessagePayload, AppSettings, LlmProvider } from '@yomitomo/shared';
+import {
+  desktopIpcErrorCodes,
+  desktopIpcErrorFromSerialized,
+  type DesktopIpcInvokeEnvelope,
+} from '../../ipc-errors';
 import type { DesktopMainIpcContext } from './ipc';
 
 const ipcHandlers = vi.hoisted(() => new Map<string, (...args: unknown[]) => unknown>());
@@ -74,15 +79,19 @@ describe('agent IPC comment handler', () => {
   it('throws when the target comment agent does not exist', async () => {
     const handler = registerCommentHandler(storeWith({ agents: [] }));
 
-    await expect(handler({} as never, messagePayload())).rejects.toThrow('AGENT_NOT_FOUND:agent');
+    await expect(handler({} as never, messagePayload())).rejects.toMatchObject({
+      code: desktopIpcErrorCodes.agentNotFound,
+      detail: { username: 'agent' },
+    });
   });
 
   it('throws when the provider route is missing', async () => {
     const handler = registerCommentHandler(storeWith({ providers: [] }));
 
-    await expect(handler({} as never, messagePayload())).rejects.toThrow(
-      'PROVIDER_ROUTE_REQUIRED:readingAssistant',
-    );
+    await expect(handler({} as never, messagePayload())).rejects.toMatchObject({
+      code: desktopIpcErrorCodes.providerRouteRequired,
+      detail: { task: 'readingAssistant' },
+    });
   });
 
   it('uses the tool-loop runtime for deep verification thread replies', async () => {
@@ -158,7 +167,11 @@ function registerCommentHandler(
   registerAgentIpc(ipcContext(store, ai));
   const handler = ipcHandlers.get('agent:comment');
   if (!handler) throw new Error('agent:comment handler was not registered');
-  return handler as (event: never, payload: AgentMessagePayload) => Promise<unknown>;
+  return async (event: never, payload: AgentMessagePayload) => {
+    const envelope = (await handler(event, payload)) as DesktopIpcInvokeEnvelope<unknown>;
+    if (envelope.ok) return envelope.value;
+    throw desktopIpcErrorFromSerialized(envelope.error);
+  };
 }
 
 function ipcContext(store: ReturnType<typeof storeWith>, ai: Record<string, unknown>) {

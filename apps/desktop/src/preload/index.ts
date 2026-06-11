@@ -21,6 +21,11 @@ import type {
 } from '@yomitomo/shared';
 import type { AppUpdateState } from '../app-update-types';
 import { DesktopStoreLoadError } from '../app-store-errors';
+import {
+  desktopIpcErrorFromSerialized,
+  type DesktopIpcInvokeEnvelope,
+  type SerializedDesktopIpcError,
+} from '../ipc-errors';
 import type {
   DataManagementPathKind,
   DesktopIpcInvokeArgs,
@@ -260,7 +265,7 @@ const api = {
           | { type: 'delta'; delta: string }
           | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
           | { type: 'done'; message: AnnotationDistillationReviewMessage }
-          | { type: 'error'; message: string },
+          | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
       ) => {
         if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
           onEvent(message);
@@ -268,7 +273,12 @@ const api = {
         }
         ipcRenderer.removeListener(channel, listener);
         if (message.type === 'done') resolve(message.message);
-        else reject(new Error(message.message));
+        else
+          reject(
+            message.error
+              ? desktopIpcErrorFromSerialized(message.error)
+              : new Error(message.message),
+          );
       };
       ipcRenderer.on(channel, listener);
       ipcRenderer.send('agent:distillation-review:stream', { requestId, payload });
@@ -293,7 +303,7 @@ const api = {
           | { type: 'delta'; delta: string }
           | { type: 'progress'; progress: AssistantRuntimeProgressEvent }
           | { type: 'done'; comment: Comment }
-          | { type: 'error'; message: string },
+          | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
       ) => {
         if (message.type === 'start' || message.type === 'delta' || message.type === 'progress') {
           onEvent(message);
@@ -301,7 +311,12 @@ const api = {
         }
         ipcRenderer.removeListener(channel, listener);
         if (message.type === 'done') resolve(message.comment);
-        else reject(new Error(message.message));
+        else
+          reject(
+            message.error
+              ? desktopIpcErrorFromSerialized(message.error)
+              : new Error(message.message),
+          );
       };
       ipcRenderer.on(channel, listener);
       ipcRenderer.send('agent:comment:stream', { requestId, payload });
@@ -328,7 +343,7 @@ const api = {
               annotations: ArticleRecord['annotations'];
               readingMemory?: AgentAnnotateResult['readingMemory'];
             }
-          | { type: 'error'; message: string },
+          | { type: 'error'; message: string; error?: SerializedDesktopIpcError },
       ) => {
         if (message.type === 'start' || message.type === 'item') {
           onEvent(message);
@@ -337,7 +352,12 @@ const api = {
         ipcRenderer.removeListener(channel, listener);
         if (message.type === 'done')
           resolve({ annotations: message.annotations, readingMemory: message.readingMemory });
-        else reject(new Error(message.message));
+        else
+          reject(
+            message.error
+              ? desktopIpcErrorFromSerialized(message.error)
+              : new Error(message.message),
+          );
       };
       ipcRenderer.on(channel, listener);
       ipcRenderer.send('agent:annotate:stream', { requestId, payload });
@@ -355,7 +375,14 @@ function invokeDesktopIpc<Channel extends DesktopIpcInvokeChannel>(
   channel: Channel,
   ...args: DesktopIpcInvokeArgs<Channel>
 ): Promise<DesktopIpcInvokeResult<Channel>> {
-  return ipcRenderer.invoke(channel, ...args) as Promise<DesktopIpcInvokeResult<Channel>>;
+  return ipcRenderer.invoke(channel, ...args).then((result) => {
+    const envelope = result as DesktopIpcInvokeEnvelope<DesktopIpcInvokeResult<Channel>>;
+    if (envelope && typeof envelope === 'object' && 'ok' in envelope) {
+      if (envelope.ok) return envelope.value;
+      throw desktopIpcErrorFromSerialized(envelope.error);
+    }
+    return result as DesktopIpcInvokeResult<Channel>;
+  });
 }
 
 function makeRequestId() {
