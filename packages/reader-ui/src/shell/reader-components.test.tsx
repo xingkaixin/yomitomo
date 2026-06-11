@@ -522,7 +522,7 @@ describe('AnnotationCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
     // 点击菜单里的删除入口只打开确认弹窗，不直接删除
-    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除划线' }));
     expect(onDelete).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog').textContent).toContain('删除这条划线？');
 
@@ -533,14 +533,14 @@ describe('AnnotationCard', () => {
 
     // 取消后不删除
     fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
-    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除划线' }));
     fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-cancel')!);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(onDelete).not.toHaveBeenCalled();
 
     // 重新触发并确认后才删除
     fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
-    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除划线' }));
     fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-delete')!);
 
     expect(onDelete).toHaveBeenCalledWith('annotation-1');

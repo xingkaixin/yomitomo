@@ -7,6 +7,11 @@ import { formatDate, urlHost } from '../shell/app-utils';
 import { ArticleBook, formatPdfAuthors, useArticleSiteIcon } from '../shell/app-article-book';
 import { ArticleDeleteMenuItem, useArticleDeleteConfirm } from './app-reading-library-delete';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
   articleAnnotationCount,
   articleDistillationCount,
   articleDisplayTitle,
@@ -63,30 +68,20 @@ export function ArticleLibraryCard({
         >
           <ArrowUpRight size={16} />
         </button>
-        <div
-          className="library-card-menu"
-          onBlur={(event) => {
-            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-            setMenuOpen(false);
-          }}
-        >
-          <button
-            className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-            type="button"
-            aria-label={t('library.actions.more', { title })}
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            onClick={(event) => {
-              event.stopPropagation();
-              setMenuOpen((current) => !current);
-            }}
-          >
-            <MoreHorizontal size={17} />
-          </button>
-          {menuOpen ? (
-            <div
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <div className="library-card-menu">
+            <DropdownMenuTrigger asChild>
+              <button
+                className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+                type="button"
+                aria-label={t('library.actions.more', { title })}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <MoreHorizontal size={17} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
               className="library-card-menu-popover"
-              role="menu"
               onClick={(event) => event.stopPropagation()}
             >
               <ArticleDeleteMenuItem
@@ -96,9 +91,9 @@ export function ArticleLibraryCard({
                   requestDelete();
                 }}
               />
-            </div>
-          ) : null}
-        </div>
+            </DropdownMenuContent>
+          </div>
+        </DropdownMenu>
       </div>
       {deleteDialog}
       <div className="library-card-main">

@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 import type { LlmProvider } from '@yomitomo/shared';
 import { providerLogoMap } from './app-settings-provider-assets';
 import { useTranslation } from 'react-i18next';
 import { providerDisplayName } from '../i18n/app-i18n-labels';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 export function ProviderList({
   providers,
@@ -85,21 +91,9 @@ function ProviderCard({
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const cardRef = useRef<HTMLElement | null>(null);
   const logo =
     providerLogoMap[provider.logo || 'anthropic.png'] || providerLogoMap['anthropic.png'];
   const displayName = providerDisplayName(provider);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function closeOutside(event: PointerEvent) {
-      if (!cardRef.current?.contains(event.target as Node)) setMenuOpen(false);
-    }
-
-    document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
-  }, [menuOpen]);
 
   function editProvider() {
     setMenuOpen(false);
@@ -112,7 +106,7 @@ function ProviderCard({
   }
 
   return (
-    <article className={menuOpen ? 'provider-card is-menu-open' : 'provider-card'} ref={cardRef}>
+    <article className={menuOpen ? 'provider-card is-menu-open' : 'provider-card'}>
       <header className="provider-card-header">
         <div className="provider-card-identity">
           <img className="provider-card-logo" src={logo} alt="" />
@@ -122,37 +116,41 @@ function ProviderCard({
       </header>
       <footer className="provider-card-footer">
         <span className="provider-card-model">{provider.modelName}</span>
-        <div className="provider-card-actions">
-          <button
-            className="provider-card-menu-button"
-            type="button"
-            aria-label={t('settings.models.openProviderMenu', { name: displayName })}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <Settings2 size={16} />
-          </button>
-          {menuOpen ? (
-            <div className="provider-card-menu" role="menu">
-              <button type="button" role="menuitem" onClick={editProvider}>
-                <Pencil size={14} />
-                {t('settings.models.edit')}
-              </button>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <div className="provider-card-actions">
+            <DropdownMenuTrigger asChild>
               <button
-                className="provider-delete-menu-item"
+                className="provider-card-menu-button"
                 type="button"
-                role="menuitem"
-                aria-label={t('settings.models.deleteProviderAria', { name: displayName })}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setConfirmOpen(true);
-                }}
+                aria-label={t('settings.models.openProviderMenu', { name: displayName })}
               >
-                <Trash2 size={14} />
-                {t('settings.models.deleteProvider')}
+                <Settings2 size={16} />
               </button>
-            </div>
-          ) : null}
-        </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="provider-card-menu">
+              <DropdownMenuItem asChild>
+                <button type="button" onClick={editProvider}>
+                  <Pencil size={14} />
+                  {t('settings.models.edit')}
+                </button>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <button
+                  className="provider-delete-menu-item"
+                  type="button"
+                  aria-label={t('settings.models.deleteProviderAria', { name: displayName })}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setConfirmOpen(true);
+                  }}
+                >
+                  <Trash2 size={14} />
+                  {t('settings.models.deleteProvider')}
+                </button>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </div>
+        </DropdownMenu>
       </footer>
       <SettingsConfirmDialog
         cancelLabel={t('settings.confirm.cancel')}
