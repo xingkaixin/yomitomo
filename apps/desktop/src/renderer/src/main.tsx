@@ -598,7 +598,7 @@ function App() {
   }).format(new Date());
   const appShellClassName = [
     'app-shell',
-    `is-${window.yomitomoDesktop.platform ?? 'unknown'}`,
+    `is-${desktopPlatform()}`,
     libraryReaderOpen ? 'is-reader-open' : '',
   ]
     .filter(Boolean)
@@ -838,7 +838,7 @@ function App() {
 
 function StartupShell() {
   return (
-    <main className={`app-shell is-${window.yomitomoDesktop.platform ?? 'unknown'}`}>
+    <main className={`app-shell is-${desktopPlatform()}`}>
       <AppMasthead />
       <StartupNav />
       <section className="settings-content">
@@ -920,6 +920,10 @@ const RootApp =
 
 createRoot(document.getElementById('root')!).render(<RootApp />);
 recordStartupTiming('react.render_scheduled');
+
+function desktopPlatform() {
+  return window.yomitomoDesktop?.platform ?? 'unknown';
+}
 
 function recordStartupTiming(event: string, data: Record<string, unknown> = {}) {
   const desktop = window.yomitomoDesktop;
