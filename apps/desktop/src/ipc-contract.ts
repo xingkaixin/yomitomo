@@ -286,11 +286,15 @@ export type EbookImportFileInput = {
   data: ArrayBuffer;
 };
 
+export const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
+
 export type PdfImportFileInput = {
   fileName: string;
   mimeType?: string;
   data: ArrayBuffer;
 };
+
+export const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
 
 export type PerformanceTimingInput = {
   event: string;

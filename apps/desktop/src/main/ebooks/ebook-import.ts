@@ -17,8 +17,8 @@ import {
   type ArticleRecord,
   type EbookChapterRecord,
 } from '@yomitomo/shared';
+import { MAX_EBOOK_IMPORT_BYTES } from '../../ipc-contract';
 
-const MAX_EPUB_BYTES = 80 * 1024 * 1024;
 const EPUB_MIME = 'application/epub+zip';
 const XHTML_TYPES = new Set(['application/xhtml+xml', 'text/html', 'application/xml', 'text/xml']);
 const CHAPTER_PARAGRAPH_SELECTOR = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,figcaption,td,th';
@@ -88,7 +88,7 @@ export async function articleRecordFromEpubFile(
   const fileName = input.fileName.trim() || 'Untitled.epub';
   const fileSize = input.data.byteLength;
   if (!isEpubFile(fileName, input.mimeType)) throw new Error('EBOOK_IMPORT_INVALID_FILE');
-  if (fileSize > MAX_EPUB_BYTES) throw new Error('EBOOK_IMPORT_FILE_TOO_LARGE');
+  if (fileSize > MAX_EBOOK_IMPORT_BYTES) throw new Error('EBOOK_IMPORT_FILE_TOO_LARGE');
 
   const zipStartedAt = performanceStart();
   const zip = await JSZip.loadAsync(Buffer.from(input.data));

@@ -71,6 +71,9 @@ importers:
       react-i18next:
         specifier: ^16.3.5
         version: 16.6.6(i18next@25.10.10(typescript@6.0.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
     devDependencies:
       '@base-ui/react':
         specifier: ^1.1.0

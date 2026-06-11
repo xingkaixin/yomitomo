@@ -31,7 +31,8 @@
     "i18next": "^25.7.1",
     "jsdom": "^29.1.1",
     "jszip": "^3.10.1",
-    "react-i18next": "^16.3.5"
+    "react-i18next": "^16.3.5",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@base-ui/react": "^1.1.0",
