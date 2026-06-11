@@ -1,6 +1,7 @@
 import i18next from 'i18next';
 import type { Annotation, ArticleRecord } from '@yomitomo/shared';
 import type { HighlightBox } from '@yomitomo/core';
+import { sanitizeArticleContentHtml } from '@yomitomo/core/article-extraction';
 import {
   annotationNavigationForInsertionIndex,
   annotationNavigationForReferenceIndex,
@@ -106,26 +107,10 @@ export function webAnnotationNavigationState({
 }
 
 export function sourceArticleBodyHtml(article: ArticleRecord) {
-  const container = document.createElement('div');
-  container.innerHTML =
+  const html =
     article.contentHtml ||
     `<p>${escapeHtml(article.excerpt || i18next.t('source.emptyContent'))}</p>`;
-  container.querySelectorAll('script, style, link, iframe, object, embed').forEach((element) => {
-    element.remove();
-  });
-  container.querySelectorAll<HTMLElement>('*').forEach((element) => {
-    Array.from(element.attributes).forEach((attribute) => {
-      const name = attribute.name.toLowerCase();
-      const value = attribute.value.trimStart().slice(0, 32).toLowerCase();
-      if (
-        name.startsWith('on') ||
-        ((name === 'href' || name === 'src') && value.startsWith('javascript:'))
-      ) {
-        element.removeAttribute(attribute.name);
-      }
-    });
-  });
-  return container.innerHTML;
+  return sanitizeArticleContentHtml(document, html, article.canonicalUrl || article.url);
 }
 
 export function articleLinkExternalUrl(article: ArticleRecord, href: string | null) {

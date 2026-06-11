@@ -1,5 +1,6 @@
 import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
+import type { Config } from 'dompurify';
 import type { ArticleRecord } from '@yomitomo/shared';
 import { hashText } from '@yomitomo/shared';
 
@@ -29,6 +30,12 @@ export type ArticlePreview = {
   readingMinutes: number;
   readerActive: boolean;
 };
+
+export const readerHtmlPurifyConfig = {
+  ADD_TAGS: ['math', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub', 'msqrt', 'semantics', 'annotation'],
+  ADD_ATTR: ['display', 'xmlns', 'encoding'],
+  ALLOWED_URI_REGEXP: /^(?:(?:https?):|data:image\/|(?:[^:/?#]+(?:[/?#]|$))|[/?#])/i,
+} satisfies Config;
 
 export async function extractCurrentArticle(): Promise<ExtractedArticle> {
   return extractArticleFromDocument(document, location.href);
@@ -357,21 +364,7 @@ export function sanitizeArticleContentHtml(
 export function sanitizeArticleContent(articleDocument: Document, html: string, baseUrl: string) {
   const purifyWindow = articleDocument.defaultView;
   const purifier = purifyWindow ? DOMPurify(purifyWindow) : DOMPurify;
-  const sanitized = purifier.sanitize(html, {
-    ADD_TAGS: [
-      'math',
-      'mrow',
-      'mi',
-      'mo',
-      'mn',
-      'msup',
-      'msub',
-      'msqrt',
-      'semantics',
-      'annotation',
-    ],
-    ADD_ATTR: ['display', 'xmlns', 'encoding'],
-  });
+  const sanitized = purifier.sanitize(html, readerHtmlPurifyConfig);
   const container = normalizeReaderContent(articleDocument, sanitized, baseUrl);
   return {
     html: container.innerHTML,
