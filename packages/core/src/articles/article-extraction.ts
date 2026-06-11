@@ -2,7 +2,7 @@ import { Readability } from '@mozilla/readability';
 import DOMPurify from 'dompurify';
 import type { Config } from 'dompurify';
 import type { ArticleRecord } from '@yomitomo/shared';
-import { hashText } from '@yomitomo/shared';
+import { hashText, renderMarkdown } from '@yomitomo/shared';
 
 export type ExtractedArticle = {
   id: string;
@@ -359,6 +359,14 @@ export function sanitizeArticleContentHtml(
   baseUrl: string,
 ) {
   return sanitizeArticleContent(articleDocument, html, baseUrl).html;
+}
+
+export function renderSafeMarkdown(content: string, articleDocument: Document = document) {
+  return sanitizeArticleContentHtml(
+    articleDocument,
+    renderMarkdown(content),
+    documentPageUrl(articleDocument) || 'https://yomitomo.local/',
+  );
 }
 
 export function sanitizeArticleContent(articleDocument: Document, html: string, baseUrl: string) {

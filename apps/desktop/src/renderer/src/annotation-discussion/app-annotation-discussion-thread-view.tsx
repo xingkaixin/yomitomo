@@ -2,8 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, MessageCircle, Send } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
 import { getMentionQuery } from '@yomitomo/core';
+import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
 import {
   matchesAgentMentionQuery,
@@ -74,7 +74,7 @@ export function DiscussionThreadView({
   const mentionCandidateRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
-  const rootThoughtHtml = renderMarkdown(thread.root.content);
+  const rootThoughtHtml = renderSafeMarkdown(thread.root.content);
   const rootVersion = `${thread.root.content}:${thread.root.pending ? 'pending' : 'ready'}`;
   const messagesVersion = messages
     .map((message) => `${message.id}:${message.content}:${message.pending ? 'pending' : 'ready'}`)

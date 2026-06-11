@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Comment, PublicAgent, UserProfile } from '@yomitomo/shared';
-import { renderMarkdown } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
+import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge, ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
@@ -25,7 +25,7 @@ export function DiscussionMessage({
   const { t } = useTranslation();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const author = commentPersona(message, userProfile, agents);
-  const html = renderMarkdown(message.content);
+  const html = renderSafeMarkdown(message.content);
   const className = [
     'annotation-discussion-message',
     message.author === 'user' ? 'is-user' : 'is-assistant',

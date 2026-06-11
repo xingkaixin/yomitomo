@@ -20,11 +20,12 @@ import type {
   UiLanguage,
   UserProfile,
 } from '@yomitomo/shared';
-import { makeId, normalizeUiLanguage, renderMarkdown } from '@yomitomo/shared';
+import { makeId, normalizeUiLanguage } from '@yomitomo/shared';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { applyAppTheme, readCachedThemeId, themeRegistry } from '../theme/app-theme';
 import { FloatingComposer } from '@yomitomo/reader-ui/floating-composer';
+import { renderSafeMarkdown } from '@yomitomo/core/article-extraction';
 import { promptArticle, publicReviewAgents } from '../source/bookcase/app-source-bookcase-shared';
 import { articlePlainText } from '../shell/app-utils';
 import {
@@ -795,7 +796,7 @@ function ReviewTimelineMessage({
         <div
           className="annotation-discussion-markdown"
           dangerouslySetInnerHTML={{
-            __html: renderMarkdown(message.content || t('sedimentation.reviewing')),
+            __html: renderSafeMarkdown(message.content || t('sedimentation.reviewing')),
           }}
         />
         {!isUser && message.proposals?.length ? (
