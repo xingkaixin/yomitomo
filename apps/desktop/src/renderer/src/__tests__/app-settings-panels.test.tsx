@@ -495,8 +495,7 @@ describe('ProviderSettings', () => {
     expect(onSave).toHaveBeenCalledOnce();
   });
 
-  it('deletes a provider only after holding delete', () => {
-    vi.useFakeTimers();
+  it('deletes a provider only after confirming in the dialog', () => {
     const provider = makeProvider('provider_1', 'Anthropic');
     const onDelete = vi.fn();
 
@@ -522,21 +521,21 @@ describe('ProviderSettings', () => {
     );
 
     fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
-    const deleteButton = screen.getByRole('menuitem', {
-      name: /会删除供应商配置和系统安全凭据库中的 API Key/,
-    });
-    expect(deleteButton.textContent).toContain('长按删除供应商');
-    fireEvent.pointerDown(deleteButton);
-    expect(deleteButton.className).toContain('is-holding-delete');
-    fireEvent.pointerUp(deleteButton);
-    expect(deleteButton.className).not.toContain('is-holding-delete');
-    vi.advanceTimersByTime(900);
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除模型供应商：Anthropic' }));
+    // 弹窗出现但未确认前不删除
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog').textContent).toContain('删除供应商「Anthropic」？');
+
+    // 取消不删除并关闭弹窗
+    fireEvent.click(screen.getByRole('button', { name: '取消，保留现状' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(onDelete).not.toHaveBeenCalled();
 
-    fireEvent.pointerDown(deleteButton);
-    vi.advanceTimersByTime(900);
+    // 重新触发并确认后才删除
+    fireEvent.click(screen.getByLabelText('打开Anthropic设置菜单'));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除模型供应商：Anthropic' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除供应商' }));
     expect(onDelete).toHaveBeenCalledWith('provider_1');
-    vi.useRealTimers();
   });
 
   it('guides users to add a provider before editing routes', () => {

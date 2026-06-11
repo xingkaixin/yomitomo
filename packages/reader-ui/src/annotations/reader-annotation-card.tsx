@@ -1,5 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Layers2, Lightbulb, MessageCircle, MoreHorizontal, Quote, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  Layers2,
+  Lightbulb,
+  MessageCircle,
+  MoreHorizontal,
+  Quote,
+  Trash2,
+} from 'lucide-react';
 import type { Annotation, MessageSendShortcut, PublicAgent, UserProfile } from '@yomitomo/shared';
 import { annotationPersona as annotationAuthor, commentPersona } from '@yomitomo/core';
 import { AvatarBadge, ReaderTooltip } from '../shared/reader-component-primitives';
@@ -13,18 +21,12 @@ type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
 };
 
-type DeleteHoldStyle = React.CSSProperties & {
-  '--delete-hold-ms': string;
-};
-
 export type ReaderWindowSourceRect = {
   x: number;
   y: number;
   width: number;
   height: number;
 };
-
-const DELETE_HOLD_MS = 1600;
 
 export function AnnotationCard({
   active,
@@ -443,16 +445,12 @@ function DeleteActionMenu({
   onOpenDiscussion?: (sourceElement: Element) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   function closeOnBlur(event: React.FocusEvent<HTMLDivElement>) {
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
     setOpen(false);
-  }
-
-  function deleteAndClose() {
-    setOpen(false);
-    onDelete();
   }
 
   function openDiscussionAndClose(sourceElement: Element) {
@@ -487,72 +485,94 @@ function DeleteActionMenu({
               <span>{labels.enterDiscussion}</span>
             </button>
           ) : null}
-          <HoldDeleteButton
-            ariaLabel={deleteAriaLabel}
+          <button
             className="reader-delete-note reader-action-delete"
-            label={labels.holdDelete}
-            onDelete={deleteAndClose}
-          />
+            type="button"
+            aria-label={deleteAriaLabel}
+            onClick={() => {
+              setOpen(false);
+              setConfirmOpen(true);
+            }}
+          >
+            <Trash2 size={13} />
+            <span>{labels.deleteAnnotation}</span>
+          </button>
         </div>
       ) : null}
+      <ReaderConfirmDialog
+        cancelLabel={labels.cancel}
+        confirmLabel={labels.deleteAnnotationConfirmAction}
+        description={labels.deleteAnnotationConfirmDescription}
+        open={confirmOpen}
+        title={labels.deleteAnnotationConfirmTitle}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onDelete();
+        }}
+      />
     </div>
   );
 }
 
-function HoldDeleteButton({
-  ariaLabel,
-  className,
-  iconSize = 13,
-  label = '长按删除',
-  onDelete,
+function ReaderConfirmDialog({
+  cancelLabel,
+  confirmLabel,
+  description,
+  open,
+  title,
+  onCancel,
+  onConfirm,
 }: {
-  ariaLabel: string;
-  className: string;
-  iconSize?: number;
-  label?: string;
-  onDelete: () => void;
+  cancelLabel: string;
+  confirmLabel: string;
+  description: string;
+  open: boolean;
+  title: string;
+  onCancel: () => void;
+  onConfirm: () => void;
 }) {
-  const [holding, setHolding] = useState(false);
-  const timerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!open) return;
 
-  useEffect(() => () => stopTimer(), []);
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onCancel();
+    }
 
-  function stopTimer() {
-    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    timerRef.current = null;
-  }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onCancel, open]);
 
-  function clearHold() {
-    stopTimer();
-    setHolding(false);
-  }
-
-  function startHold(event: React.PointerEvent<HTMLButtonElement>) {
-    if (timerRef.current !== null) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setHolding(true);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      onDelete();
-    }, DELETE_HOLD_MS);
-  }
+  if (!open) return null;
 
   return (
-    <button
-      className={[className, holding ? 'is-holding' : ''].filter(Boolean).join(' ')}
-      style={{ '--delete-hold-ms': `${DELETE_HOLD_MS}ms` } as DeleteHoldStyle}
-      type="button"
-      aria-label={ariaLabel}
-      onClick={(event) => event.preventDefault()}
-      onContextMenu={(event) => event.preventDefault()}
-      onPointerCancel={clearHold}
-      onPointerDown={startHold}
-      onPointerLeave={clearHold}
-      onPointerUp={clearHold}
-    >
-      <Trash2 size={iconSize} />
-      <span>{label}</span>
-    </button>
+    <div className="reader-confirm-overlay" role="presentation" onMouseDown={onCancel}>
+      <section
+        aria-label={title}
+        aria-modal="true"
+        className="reader-confirm-dialog"
+        role="dialog"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <header>
+          <span className="reader-confirm-icon" aria-hidden="true">
+            <AlertTriangle size={20} />
+          </span>
+          <div>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+        </header>
+        <footer>
+          <button className="reader-confirm-cancel" type="button" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button className="reader-confirm-delete" type="button" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </footer>
+      </section>
+    </div>
   );
 }
 

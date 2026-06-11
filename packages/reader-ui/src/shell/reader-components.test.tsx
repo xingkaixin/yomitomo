@@ -497,53 +497,47 @@ describe('AnnotationCard', () => {
     expect(screen.queryByText('需要批注的原文')).toBeNull();
   });
 
-  it('keeps long-press delete on the annotation card', () => {
-    vi.useFakeTimers();
-    const originalSetPointerCapture = Object.getOwnPropertyDescriptor(
-      HTMLElement.prototype,
-      'setPointerCapture',
-    );
-    HTMLElement.prototype.setPointerCapture = vi.fn();
+  it('deletes the annotation only after confirming in the dialog', () => {
     const onDelete = vi.fn();
     const onDeleteComment = vi.fn();
 
-    try {
-      render(
-        <AnnotationCard
-          active
-          agents={[]}
-          annotation={annotation()}
-          commentsCloseKey={0}
-          messageSendShortcut="enter"
-          noteRef={vi.fn()}
-          primaryCommentExpanded
-          shortcutModifier="⌘"
-          userProfile={userProfile}
-          onAddComment={vi.fn()}
-          onDelete={onDelete}
-          onDeleteComment={onDeleteComment}
-          onFocus={vi.fn()}
-          onPrimaryCommentExpandedChange={vi.fn()}
-        />,
-      );
+    render(
+      <AnnotationCard
+        active
+        agents={[]}
+        annotation={annotation()}
+        commentsCloseKey={0}
+        messageSendShortcut="enter"
+        noteRef={vi.fn()}
+        primaryCommentExpanded
+        shortcutModifier="⌘"
+        userProfile={userProfile}
+        onAddComment={vi.fn()}
+        onDelete={onDelete}
+        onDeleteComment={onDeleteComment}
+        onFocus={vi.fn()}
+        onPrimaryCommentExpandedChange={vi.fn()}
+      />,
+    );
 
-      fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
-      fireEvent.pointerDown(screen.getByRole('button', { name: '长按删除划线' }), {
-        pointerId: 1,
-      });
-      vi.advanceTimersByTime(1600);
+    fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
+    // 点击菜单里的删除入口只打开确认弹窗，不直接删除
+    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog').textContent).toContain('删除这条划线？');
 
-      expect(onDelete).toHaveBeenCalledWith('annotation-1');
-      expect(onDeleteComment).not.toHaveBeenCalled();
-    } finally {
-      if (originalSetPointerCapture) {
-        Object.defineProperty(
-          HTMLElement.prototype,
-          'setPointerCapture',
-          originalSetPointerCapture,
-        );
-      }
-    }
+    // 取消后不删除
+    fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-cancel')!);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+
+    // 重新触发并确认后才删除
+    fireEvent.click(screen.getByRole('button', { name: '打开划线操作' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除划线' }));
+    fireEvent.click(screen.getByRole('dialog').querySelector('.reader-confirm-delete')!);
+
+    expect(onDelete).toHaveBeenCalledWith('annotation-1');
+    expect(onDeleteComment).not.toHaveBeenCalled();
   });
 });
 

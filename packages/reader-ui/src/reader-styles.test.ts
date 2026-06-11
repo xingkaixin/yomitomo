@@ -103,14 +103,11 @@ describe('reader embedded styles', () => {
       '.reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:color-mix(in srgb,var(--reader-red) 14%,transparent);z-index:0}',
-    );
-    expect(readerConversationStyles).toContain(
       '.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}',
     );
-    expect(readerConversationStyles).not.toContain(
-      '.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:rgba(159,91,80,.14);z-index:0}',
-    );
+    // 删除入口改为点击触发确认弹窗，不再保留长按进度条与计时动画。
+    expect(readerConversationStyles).not.toContain('reader-delete-hold');
+    expect(readerConversationStyles).not.toContain('.reader-delete-note.is-holding');
   });
 
   it('styles shortcut tooltips and keeps composer cancel neutral', () => {

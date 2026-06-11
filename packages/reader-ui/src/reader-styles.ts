@@ -462,13 +462,19 @@ export const readerConversationStyles = `
 .reader-markdown pre code{background:transparent;color:inherit;padding:0}
 .reader-markdown a{color:inherit;text-decoration:underline;text-decoration-color:rgba(37,29,22,.35);text-decoration-thickness:1px;text-underline-offset:.16em}
 .reader-markdown a:hover{color:var(--reader-red);text-decoration-color:currentColor}
-.reader-delete-note{position:relative;display:inline-flex;align-items:center;gap:5px;isolation:isolate;overflow:hidden;justify-content:center;height:40px;border:0;border-radius:999px;background:transparent;color:var(--reader-red);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-weight:850;padding:0 12px;line-height:1;touch-action:none;user-select:none;white-space:nowrap}
-.reader-delete-note::before{content:"";position:absolute;inset:0 auto 0 0;width:0;background:color-mix(in srgb,var(--reader-red) 14%,transparent);z-index:0}
+.reader-delete-note{display:inline-flex;align-items:center;gap:5px;justify-content:center;height:40px;border:0;border-radius:999px;background:transparent;color:var(--reader-red);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-weight:850;padding:0 12px;line-height:1;white-space:nowrap}
 .reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}
-.reader-delete-note svg,.reader-delete-note span{position:relative;z-index:1}
 .reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}
-.reader-delete-note.is-holding::before{animation:reader-delete-hold var(--delete-hold-ms) linear forwards}
-@keyframes reader-delete-hold{to{width:100%}}
+.reader-confirm-overlay{position:fixed;inset:0;z-index:var(--reader-z-modal);display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--reader-ink) 38%,transparent)}
+.reader-confirm-dialog{width:min(420px,100%);display:grid;gap:16px;padding:20px;border:1px solid var(--app-reader-note-border);border-radius:16px;background:var(--reader-paper);box-shadow:var(--reader-elevated-shadow);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-confirm-dialog header{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+.reader-confirm-icon{display:grid;width:36px;height:36px;place-items:center;border-radius:999px;background:color-mix(in srgb,var(--reader-red) 14%,transparent);color:var(--reader-red)}
+.reader-confirm-dialog h2{margin:0;color:var(--reader-ink);font-size:15px;font-weight:850;line-height:1.3}
+.reader-confirm-dialog p{margin:6px 0 0;color:var(--reader-muted);font-size:13px;line-height:1.55}
+.reader-confirm-dialog footer{display:flex;justify-content:flex-end;gap:8px}
+.reader-confirm-dialog footer button{border:0;border-radius:999px;font-family:inherit;font-size:13px;font-weight:760;padding:9px 14px}
+.reader-confirm-cancel{background:var(--reader-paper-hover);color:var(--reader-ink)}
+.reader-confirm-delete{background:var(--reader-red);color:white}
 .reader-agent-annotate-popover{position:fixed;inset:0;z-index:var(--reader-z-modal);display:grid;place-items:center;width:auto;padding:34px;pointer-events:none}
 .reader-agent-annotate-popover .reader-agent-annotate-menu{margin:0}
 .reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
@@ -784,7 +790,7 @@ export const readerConversationStyles = `
 .reader-highlight-dots i{display:block;width:5px;height:5px;border:1px solid rgba(37,29,22,.14);border-radius:999px;box-shadow:0 1px 2px rgba(37,29,22,.14)}
 .reader-highlight:focus-visible{outline:0;box-shadow:none}
 .reader-highlight:focus-visible::before{opacity:1;filter:drop-shadow(0 1px 0 var(--reader-paper)) drop-shadow(0 0 6px rgba(37,29,22,.24))}
-@media(prefers-reduced-motion:reduce){.t-dropdown{transition:none!important}.reader-app *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.reader-tooltip-content{animation:none!important}.reader-virtual-cursor{transition:none!important}.reader-virtual-cursor.is-leaving{animation:none!important;opacity:0}.reader-completion-burst{display:none!important}.reader-agent-dock.is-completing,.reader-agent-dock-item.is-active,.reader-review-invite.is-reviewing svg,.reader-review-active-avatars>span,.reader-thought-review-motion>span,.reader-pending-agent-avatar::after,.reader-pending-thought-progress i{animation:none!important}.reader-agent-dock.is-completing{opacity:0;filter:none;transform:translateX(-50%)}.reader-agent-dock-item.is-active{transform:none}.reader-pending-agent-avatar::after{opacity:1;box-shadow:none}.reader-pending-thought-progress i{transform:none}.reader-delete-note.is-holding::before{animation:none!important;width:100%}.reader-spinner{animation:none!important;border-top-color:rgba(23,63,44,.22)}}
+@media(prefers-reduced-motion:reduce){.t-dropdown{transition:none!important}.reader-app *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}.reader-tooltip-content{animation:none!important}.reader-virtual-cursor{transition:none!important}.reader-virtual-cursor.is-leaving{animation:none!important;opacity:0}.reader-completion-burst{display:none!important}.reader-agent-dock.is-completing,.reader-agent-dock-item.is-active,.reader-review-invite.is-reviewing svg,.reader-review-active-avatars>span,.reader-thought-review-motion>span,.reader-pending-agent-avatar::after,.reader-pending-thought-progress i{animation:none!important}.reader-agent-dock.is-completing{opacity:0;filter:none;transform:translateX(-50%)}.reader-agent-dock-item.is-active{transform:none}.reader-pending-agent-avatar::after{opacity:1;box-shadow:none}.reader-pending-thought-progress i{transform:none}.reader-spinner{animation:none!important;border-top-color:rgba(23,63,44,.22)}}
 @media(max-width:1320px){.reader-main{grid-template-columns:minmax(0,1fr)}.reader-toc-toggle{display:grid}}
 .reader-app.is-annotation-right .reader-article{width:min(var(--reader-layout-article-width,var(--reader-content-width)),var(--reader-content-width),100%);margin:0}
 .reader-app.is-annotation-stacked .reader-annotation-rail{position:relative;inset:auto;width:min(var(--reader-content-width),100%);display:grid;gap:14px;margin:16px auto 0;pointer-events:auto}

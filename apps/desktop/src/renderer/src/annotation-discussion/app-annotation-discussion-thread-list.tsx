@@ -1,19 +1,11 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent,
-  type ReactNode,
-} from 'react';
+import { useState } from 'react';
 import { MoreHorizontal, Pin, PinOff, Trash2 } from 'lucide-react';
 import type { PublicAgent, UserProfile } from '@yomitomo/shared';
 import { commentPersona } from '@yomitomo/core';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { formatRelativeTime, type DiscussionThread } from './app-annotation-discussion-utils';
-
-const DISCUSSION_DELETE_HOLD_MS = 900;
+import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
 
 export function ThoughtListItem({
   agents,
@@ -36,6 +28,7 @@ export function ThoughtListItem({
 }) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const author = commentPersona(thread.root, userProfile, agents);
   const itemClassName = [
     'annotation-discussion-idea',
@@ -98,16 +91,21 @@ export function ThoughtListItem({
                 {thread.isPinned ? t('discussion.unpinThought') : t('discussion.pinThought')}
               </span>
             </button>
-            <LongPressDeleteButton
+            <button
               className="annotation-discussion-idea-delete"
+              type="button"
+              role="menuitem"
               disabled={isDeleting}
-              label={t('discussion.deleteThoughtHold')}
-              onDelete={onDelete}
-              onComplete={() => setMenuOpen(false)}
+              aria-label={t('discussion.deleteThoughtAria')}
+              onClick={(event) => {
+                event.stopPropagation();
+                setMenuOpen(false);
+                setConfirmOpen(true);
+              }}
             >
               <Trash2 size={13} />
-              <span>{t('discussion.holdDelete')}</span>
-            </LongPressDeleteButton>
+              <span>{t('discussion.deleteThought')}</span>
+            </button>
           </div>
         ) : null}
       </div>
@@ -116,78 +114,18 @@ export function ThoughtListItem({
           <Pin size={10} />
         </span>
       ) : null}
+      <SettingsConfirmDialog
+        cancelLabel={t('settings.confirm.cancel')}
+        confirmLabel={t('discussion.deleteThoughtConfirm')}
+        description={t('discussion.deleteThoughtConfirmDescription')}
+        open={confirmOpen}
+        title={t('discussion.deleteThoughtConfirmTitle')}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          onDelete();
+        }}
+      />
     </article>
-  );
-}
-
-export function LongPressDeleteButton({
-  children,
-  className,
-  disabled,
-  label,
-  onComplete,
-  onDelete,
-}: {
-  children: ReactNode;
-  className?: string;
-  disabled?: boolean;
-  label: string;
-  onComplete?: () => void;
-  onDelete: () => void;
-}) {
-  const deleteTimerRef = useRef<number | null>(null);
-  const [holding, setHolding] = useState(false);
-
-  useEffect(
-    () => () => {
-      if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    },
-    [],
-  );
-
-  function stopHold() {
-    if (deleteTimerRef.current !== null) window.clearTimeout(deleteTimerRef.current);
-    deleteTimerRef.current = null;
-    setHolding(false);
-  }
-
-  function startHold(event: PointerEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (disabled || deleteTimerRef.current !== null) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setHolding(true);
-    deleteTimerRef.current = window.setTimeout(() => {
-      deleteTimerRef.current = null;
-      setHolding(false);
-      onDelete();
-      onComplete?.();
-    }, DISCUSSION_DELETE_HOLD_MS);
-  }
-
-  return (
-    <button
-      className={['annotation-discussion-hold-delete', holding ? 'is-holding' : '', className || '']
-        .filter(Boolean)
-        .join(' ')}
-      style={{ '--delete-hold-ms': `${DISCUSSION_DELETE_HOLD_MS}ms` } as CSSProperties}
-      type="button"
-      disabled={disabled}
-      aria-label={label}
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-      }}
-      onPointerCancel={stopHold}
-      onPointerDown={startHold}
-      onPointerLeave={stopHold}
-      onPointerUp={stopHold}
-    >
-      {children}
-    </button>
   );
 }
