@@ -9,6 +9,7 @@ import { Composer, measureComposerPosition } from './reader-composer';
 import { ReaderChatPanel } from './reader-chat-panel';
 import { EmptyNotes } from './reader-empty-notes';
 import { ReaderFloatingToolbar, ReaderToolbar } from './reader-toolbar';
+import { ReaderSettingsToolbarControls } from './reader-toolbar-controls';
 import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { defaultReaderUiLabels } from './reader-app-view-types';
@@ -186,6 +187,35 @@ describe('EmptyNotes', () => {
         name: '在正文里选中文字后，生成一条保存在右侧的划线或想法',
       }),
     ).toBeTruthy();
+  });
+});
+
+describe('ReaderSettingsToolbarControls', () => {
+  it('uses popover dismissal for toolbar sliders', () => {
+    const onChange = vi.fn();
+    render(
+      <ReaderSettingsToolbarControls
+        labels={{ articleWidth: '文章宽度', fontSize: '字号' }}
+        settings={{ backgroundColor: '#fbf6ec', contentWidth: 720, fontSize: 18 }}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '字号' }));
+
+    expect(screen.getByRole('slider', { name: '字号' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '减少字号' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '文章宽度' }));
+
+    const widthSlider = screen.getByRole('slider', { name: '文章宽度' });
+    expect(screen.queryByRole('slider', { name: '字号' })).toBeNull();
+    expect(widthSlider).toBeTruthy();
+
+    widthSlider.focus();
+    fireEvent.keyDown(widthSlider, { key: 'Escape' });
+
+    expect(screen.queryByRole('slider', { name: '文章宽度' })).toBeNull();
   });
 });
 
