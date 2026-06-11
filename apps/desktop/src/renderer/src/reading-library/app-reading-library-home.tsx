@@ -28,6 +28,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
@@ -632,42 +638,34 @@ function WeReadItemActions({
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
   return (
-    <div
-      className="library-item-actions"
-      tabIndex={-1}
-      onBlur={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget)) return;
-        setMenuOpen(false);
-      }}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="library-card-menu">
-        <button
-          className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-          type="button"
-          aria-label={t('library.actions.more', { title })}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={() => setMenuOpen((current) => !current)}
-        >
-          <MoreHorizontal size={17} />
-        </button>
-        {menuOpen ? (
-          <div className="library-card-menu-popover" role="menu">
+    <div className="library-item-actions" onClick={(event) => event.stopPropagation()}>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <div className="library-card-menu">
+          <DropdownMenuTrigger asChild>
             <button
+              className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
               type="button"
-              role="menuitem"
-              onClick={() => {
-                setMenuOpen(false);
-                onOpenExternal();
-              }}
+              aria-label={t('library.actions.more', { title })}
             >
-              <Smartphone size={14} />
-              <span>{t('library.actions.openWeReadExternal')}</span>
+              <MoreHorizontal size={17} />
             </button>
-          </div>
-        ) : null}
-      </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="library-card-menu-popover">
+            <DropdownMenuItem asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onOpenExternal();
+                }}
+              >
+                <Smartphone size={14} />
+                <span>{t('library.actions.openWeReadExternal')}</span>
+              </button>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </div>
+      </DropdownMenu>
     </div>
   );
 }
@@ -684,27 +682,19 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
   const { dialog: deleteDialog, requestDelete } = useArticleDeleteConfirm(title, onDelete);
 
   return (
-    <div
-      className="library-item-actions"
-      onBlur={(event) => {
-        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-        setMenuOpen(false);
-      }}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="library-card-menu">
-        <button
-          className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
-          type="button"
-          aria-label={t('library.actions.more', { title })}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={() => setMenuOpen((current) => !current)}
-        >
-          <MoreHorizontal size={17} />
-        </button>
-        {menuOpen ? (
-          <div className="library-card-menu-popover" role="menu">
+    <div className="library-item-actions" onClick={(event) => event.stopPropagation()}>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <div className="library-card-menu">
+          <DropdownMenuTrigger asChild>
+            <button
+              className={menuOpen ? 'library-card-more is-active' : 'library-card-more'}
+              type="button"
+              aria-label={t('library.actions.more', { title })}
+            >
+              <MoreHorizontal size={17} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="library-card-menu-popover">
             <ArticleDeleteMenuItem
               title={title}
               onSelect={() => {
@@ -712,9 +702,9 @@ function LibraryItemActions({ title, onDelete }: { title: string; onDelete: () =
                 requestDelete();
               }}
             />
-          </div>
-        ) : null}
-      </div>
+          </DropdownMenuContent>
+        </div>
+      </DropdownMenu>
       {deleteDialog}
     </div>
   );

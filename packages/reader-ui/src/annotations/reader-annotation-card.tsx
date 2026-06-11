@@ -24,6 +24,12 @@ import {
   DialogPortal,
   DialogTitle,
 } from '../components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 type AvatarColorStyle = React.CSSProperties & {
   '--reader-avatar-color': string;
@@ -455,71 +461,69 @@ function DeleteActionMenu({
   const [open, setOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  function closeOnBlur(event: React.FocusEvent<HTMLDivElement>) {
-    const nextTarget = event.relatedTarget;
-    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
-    setOpen(false);
-  }
-
   function openDiscussionAndClose(sourceElement: Element) {
     setOpen(false);
     onOpenDiscussion?.(sourceElement);
   }
 
   return (
-    <div
-      className={[className, 'reader-action-menu', open ? 'is-open' : ''].filter(Boolean).join(' ')}
-      onBlur={closeOnBlur}
-    >
-      <button
-        className="reader-action-menu-button"
-        type="button"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        onClick={() => setOpen((current) => !current)}
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <div
+        className={[className, 'reader-action-menu', open ? 'is-open' : '']
+          .filter(Boolean)
+          .join(' ')}
       >
-        <MoreHorizontal size={16} />
-      </button>
-      {open ? (
-        <div className="reader-action-menu-panel t-dropdown is-open" data-origin="top-right">
-          {onOpenDiscussion ? (
-            <button
-              className="reader-action-menu-item"
-              type="button"
-              aria-label={discussionAriaLabel}
-              onClick={(event) => openDiscussionAndClose(event.currentTarget)}
-            >
-              <MessageCircle size={13} />
-              <span>{labels.enterDiscussion}</span>
-            </button>
-          ) : null}
-          <button
-            className="reader-delete-note reader-action-delete"
-            type="button"
-            aria-label={deleteAriaLabel}
-            onClick={() => {
-              setOpen(false);
-              setConfirmOpen(true);
-            }}
-          >
-            <Trash2 size={13} />
-            <span>{labels.deleteAnnotation}</span>
+        <DropdownMenuTrigger asChild>
+          <button className="reader-action-menu-button" type="button" aria-label={ariaLabel}>
+            <MoreHorizontal size={16} />
           </button>
-        </div>
-      ) : null}
-      <ReaderConfirmDialog
-        cancelLabel={labels.cancel}
-        confirmLabel={labels.deleteAnnotationConfirmAction}
-        description={labels.deleteAnnotationConfirmDescription}
-        open={confirmOpen}
-        title={labels.deleteAnnotationConfirmTitle}
-        onCancel={() => setConfirmOpen(false)}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          onDelete();
-        }}
-      />
-    </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="reader-action-menu-panel t-dropdown is-open"
+          data-origin="top-right"
+        >
+          {onOpenDiscussion ? (
+            <DropdownMenuItem asChild>
+              <button
+                className="reader-action-menu-item"
+                type="button"
+                aria-label={discussionAriaLabel}
+                onClick={(event) => openDiscussionAndClose(event.currentTarget)}
+              >
+                <MessageCircle size={13} />
+                <span>{labels.enterDiscussion}</span>
+              </button>
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem asChild>
+            <button
+              className="reader-delete-note reader-action-delete"
+              type="button"
+              aria-label={deleteAriaLabel}
+              onClick={() => {
+                setOpen(false);
+                setConfirmOpen(true);
+              }}
+            >
+              <Trash2 size={13} />
+              <span>{labels.deleteAnnotation}</span>
+            </button>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+        <ReaderConfirmDialog
+          cancelLabel={labels.cancel}
+          confirmLabel={labels.deleteAnnotationConfirmAction}
+          description={labels.deleteAnnotationConfirmDescription}
+          open={confirmOpen}
+          title={labels.deleteAnnotationConfirmTitle}
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            onDelete();
+          }}
+        />
+      </div>
+    </DropdownMenu>
   );
 }
 

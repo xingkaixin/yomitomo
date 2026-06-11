@@ -6,6 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { formatRelativeTime, type DiscussionThread } from './app-annotation-discussion-utils';
 import { SettingsConfirmDialog } from '../settings/app-settings-confirm-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 
 export function ThoughtListItem({
   agents,
@@ -55,60 +61,53 @@ export function ThoughtListItem({
           </small>
         </span>
       </button>
-      <div
-        className="annotation-discussion-idea-actions"
-        onBlur={(event) => {
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-          setMenuOpen(false);
-        }}
-      >
-        <button
-          className={menuOpen ? 'is-active' : ''}
-          type="button"
-          aria-label={t('discussion.moreThoughtActions')}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={(event) => {
-            event.stopPropagation();
-            setMenuOpen((current) => !current);
-          }}
-        >
-          <MoreHorizontal size={14} />
-        </button>
-        {menuOpen ? (
-          <div className="annotation-discussion-idea-menu" role="menu">
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <div className="annotation-discussion-idea-actions">
+          <DropdownMenuTrigger asChild>
             <button
+              className={menuOpen ? 'is-active' : ''}
               type="button"
-              role="menuitem"
-              onClick={(event) => {
-                event.stopPropagation();
-                onPin();
-                setMenuOpen(false);
-              }}
+              aria-label={t('discussion.moreThoughtActions')}
+              onClick={(event) => event.stopPropagation()}
             >
-              {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
-              <span>
-                {thread.isPinned ? t('discussion.unpinThought') : t('discussion.pinThought')}
-              </span>
+              <MoreHorizontal size={14} />
             </button>
-            <button
-              className="annotation-discussion-idea-delete"
-              type="button"
-              role="menuitem"
-              disabled={isDeleting}
-              aria-label={t('discussion.deleteThoughtAria')}
-              onClick={(event) => {
-                event.stopPropagation();
-                setMenuOpen(false);
-                setConfirmOpen(true);
-              }}
-            >
-              <Trash2 size={13} />
-              <span>{t('discussion.deleteThought')}</span>
-            </button>
-          </div>
-        ) : null}
-      </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="annotation-discussion-idea-menu">
+            <DropdownMenuItem asChild>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPin();
+                  setMenuOpen(false);
+                }}
+              >
+                {thread.isPinned ? <PinOff size={13} /> : <Pin size={13} />}
+                <span>
+                  {thread.isPinned ? t('discussion.unpinThought') : t('discussion.pinThought')}
+                </span>
+              </button>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <button
+                className="annotation-discussion-idea-delete"
+                type="button"
+                disabled={isDeleting}
+                aria-label={t('discussion.deleteThoughtAria')}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpen(false);
+                  setConfirmOpen(true);
+                }}
+              >
+                <Trash2 size={13} />
+                <span>{t('discussion.deleteThought')}</span>
+              </button>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </div>
+      </DropdownMenu>
       {thread.isPinned ? (
         <span className="annotation-discussion-idea-pin-badge" aria-label={t('discussion.pinned')}>
           <Pin size={10} />

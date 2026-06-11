@@ -16,6 +16,12 @@ import type { ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
@@ -237,68 +243,77 @@ export function LibraryImportControls({
 
   return (
     <>
-      <div
-        className="library-add-control"
-        onBlur={(event) => {
-          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-          setAddMenuOpen(false);
-        }}
-      >
-        <Button
-          aria-expanded={defaultImportType ? undefined : addMenuOpen}
-          aria-haspopup={defaultImportType ? undefined : 'menu'}
-          aria-label={
-            defaultImportType === 'ebook'
-              ? t('library.import.addEbook')
-              : defaultImportType === 'pdf'
-                ? t('library.import.addPdf')
-                : t('library.import.addWebArticle')
-          }
-          className="library-add-trigger"
-          type="button"
-          variant="secondary"
-          onClick={() => {
-            if (defaultImportType === 'web') {
-              openArticleImportDialog();
-              return;
-            }
-            if (defaultImportType === 'ebook') {
-              openEbookImportDialog();
-              return;
-            }
-            if (defaultImportType === 'pdf') {
-              openPdfImportDialog();
-              return;
-            }
-            setAddMenuOpen((current) => !current);
-          }}
-        >
-          <Plus size={16} />
-          {defaultImportType === 'web' ? (
-            <span>{t('library.import.addWebArticle')}</span>
-          ) : defaultImportType === 'ebook' ? (
-            <span>{t('library.import.addEbook')}</span>
-          ) : defaultImportType === 'pdf' ? (
-            <span>{t('library.import.addPdf')}</span>
-          ) : null}
-        </Button>
-        {!defaultImportType && addMenuOpen ? (
-          <div className="library-add-menu-popover" role="menu">
-            <button type="button" role="menuitem" onClick={openArticleImportDialog}>
-              <Globe2 size={15} />
-              {t('library.import.addWebArticle')}
-            </button>
-            <button type="button" role="menuitem" onClick={openEbookImportDialog}>
-              <BookText size={15} />
-              {t('library.import.epubEbook')}
-            </button>
-            <button type="button" role="menuitem" onClick={openPdfImportDialog}>
-              <FileText size={15} />
-              {t('library.import.pdfDocument')}
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+        <div className="library-add-control">
+          {defaultImportType ? (
+            <Button
+              aria-label={
+                defaultImportType === 'ebook'
+                  ? t('library.import.addEbook')
+                  : defaultImportType === 'pdf'
+                    ? t('library.import.addPdf')
+                    : t('library.import.addWebArticle')
+              }
+              className="library-add-trigger"
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                if (defaultImportType === 'web') {
+                  openArticleImportDialog();
+                  return;
+                }
+                if (defaultImportType === 'ebook') {
+                  openEbookImportDialog();
+                  return;
+                }
+                openPdfImportDialog();
+              }}
+            >
+              <Plus size={16} />
+              {defaultImportType === 'web' ? (
+                <span>{t('library.import.addWebArticle')}</span>
+              ) : defaultImportType === 'ebook' ? (
+                <span>{t('library.import.addEbook')}</span>
+              ) : (
+                <span>{t('library.import.addPdf')}</span>
+              )}
+            </Button>
+          ) : (
+            <>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-label={t('library.import.addWebArticle')}
+                  className="library-add-trigger"
+                  type="button"
+                  variant="secondary"
+                >
+                  <Plus size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="library-add-menu-popover">
+                <DropdownMenuItem asChild>
+                  <button type="button" onClick={openArticleImportDialog}>
+                    <Globe2 size={15} />
+                    {t('library.import.addWebArticle')}
+                  </button>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <button type="button" onClick={openEbookImportDialog}>
+                    <BookText size={15} />
+                    {t('library.import.epubEbook')}
+                  </button>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <button type="button" onClick={openPdfImportDialog}>
+                    <FileText size={15} />
+                    {t('library.import.pdfDocument')}
+                  </button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </>
+          )}
+        </div>
+      </DropdownMenu>
       {articleImportOpen ? (
         <ArticleImportDialog
           onClose={() => setArticleImportOpen(false)}
