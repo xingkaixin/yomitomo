@@ -202,7 +202,10 @@ describe('reader embedded styles', () => {
       '.reader-note.has-discussion .reader-note-toolbar{margin:20px -22px 0;border-top:1.5px solid color-mix(in srgb,var(--reader-note-accent) 46%,var(--app-reader-note-border));background:color-mix(in srgb,var(--app-reader-note-bg) 82%,var(--reader-bg))}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-note.has-distillation{position:relative;overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--app-reader-note-bg);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 48%,var(--app-reader-note-border))}',
+      '.reader-note.has-distillation{overflow:visible;border:0;background:transparent;box-shadow:none;--reader-note-ticket-fill:var(--app-reader-note-bg);--reader-note-ticket-stroke:color-mix(in srgb,var(--reader-note-accent) 48%,var(--app-reader-note-border))}',
+    );
+    expect(readerConversationStyles).not.toContain(
+      '.reader-note.has-distillation{position:relative;',
     );
     expect(readerConversationStyles).toContain(
       '.reader-note-distillation-footer::before{content:"";position:absolute;left:28px;right:28px;top:0;border-top:1.5px dashed color-mix(in srgb,var(--reader-note-accent) 36%,var(--app-reader-note-border));pointer-events:none}',
