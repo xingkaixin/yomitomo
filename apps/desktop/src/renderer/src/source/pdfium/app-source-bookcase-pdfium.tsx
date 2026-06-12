@@ -882,7 +882,10 @@ function PdfiumDocument({
 
   function handleSelection(anchor: ReturnType<typeof createPdfTextAnchor> | null) {
     if (!anchor?.exact.trim()) {
-      clearSelection();
+      // Embedpdf clears its selection on pointerdown/focus changes; while our
+      // selection menu or composer owns the highlight, blank-click clearing is
+      // handled by the reader shell pointer capture instead.
+      if (!selectionAction && !composer) clearSelection();
       return;
     }
     const metric = pageMetrics[anchor.pageIndex];

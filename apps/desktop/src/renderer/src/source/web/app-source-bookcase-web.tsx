@@ -446,7 +446,10 @@ export function WebSourceBookcase({
 
     const selection = getArticleSelection(articleElement);
     if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      clearSelection();
+      // Clicks inside the composer bubble up with an empty native selection;
+      // while the composer owns the highlight, blank-click clearing is handled
+      // by the reader shell pointer capture instead.
+      if (!composer) clearSelection();
       return;
     }
 

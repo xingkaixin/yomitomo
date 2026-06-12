@@ -203,6 +203,10 @@ function foliateReaderCss(settings: ReaderSettings, theme: ReaderTheme) {
       overflow-wrap: break-word;
     }
 
+    ::selection {
+      background: rgb(77 155 114 / 0.18);
+    }
+
     p, li, blockquote, dd {
       line-height: ${readerBodyLineHeight};
       hanging-punctuation: allow-end last;
