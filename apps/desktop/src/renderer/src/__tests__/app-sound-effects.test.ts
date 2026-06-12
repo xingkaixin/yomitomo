@@ -73,4 +73,21 @@ describe('app sound effects', () => {
     expect(createdAudio.at(-1)?.volume).toBe(0.4);
     expect(play).toHaveBeenCalledTimes(1);
   });
+
+  it('plays import success effects with the shared base volume', () => {
+    vi.stubGlobal('Audio', MockAudio);
+
+    playAppSoundEffect('library.import_success_single', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.5,
+    });
+    playAppSoundEffect('library.import_success_multiple', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.25,
+    });
+
+    expect(createdAudio[0].volume).toBe(0.4);
+    expect(createdAudio[1].volume).toBe(0.2);
+    expect(play).toHaveBeenCalledTimes(2);
+  });
 });
