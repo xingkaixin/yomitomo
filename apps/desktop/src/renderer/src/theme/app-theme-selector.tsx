@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { Check, Palette, X } from 'lucide-react';
+import { Palette, X } from 'lucide-react';
 import {
   defaultReaderBackgroundForTone,
   readerBackgroundOptions,
@@ -129,12 +129,27 @@ export function ThemeSelector({
                   {themeToneOptions.map((option) => (
                     <button
                       aria-pressed={activeTone === option.tone}
-                      className={activeTone === option.tone ? 'is-active' : undefined}
+                      className={
+                        activeTone === option.tone
+                          ? 'theme-tone-option is-active'
+                          : 'theme-tone-option'
+                      }
                       key={option.tone}
                       type="button"
                       onClick={() => selectTone(option.tone)}
                     >
                       {t(option.labelKey)}
+                      <svg
+                        aria-hidden="true"
+                        className="theme-scribble theme-tone-underline"
+                        preserveAspectRatio="none"
+                        viewBox="0 0 60 12"
+                      >
+                        <path
+                          d="M3 4 C18 2 40 3 57 3 C58 3 57 4 56 4 C38 5 16 6 4 9 C20 8 42 7 56 8"
+                          pathLength={1}
+                        />
+                      </svg>
                     </button>
                   ))}
                 </div>
@@ -176,12 +191,7 @@ export function ThemeSelector({
                           onClick={() => selectReaderBackground(option.value)}
                         >
                           <span aria-hidden="true" className="theme-reader-paper-sheet">
-                            <svg className="theme-reader-paper-scribble" viewBox="0 0 70 78">
-                              <path
-                                d="M48 8 C34 0 10 8 6 26 C2 46 12 68 33 70 C54 72 68 56 65 36 C62 16 46 2 27 7 C17 10 10 17 8 27 C6 36 9 45 15 52"
-                                pathLength={1}
-                              />
-                            </svg>
+                            <ScribbleCircle />
                           </span>
                           <strong>{label}</strong>
                         </button>
@@ -198,6 +208,17 @@ export function ThemeSelector({
         </Dialog>
       ) : null}
     </>
+  );
+}
+
+function ScribbleCircle() {
+  return (
+    <svg className="theme-scribble" viewBox="0 0 70 78">
+      <path
+        d="M48 8 C34 0 10 8 6 26 C2 46 12 68 33 70 C54 72 68 56 65 36 C62 16 46 2 27 7 C17 10 10 17 8 27 C6 36 9 45 15 52"
+        pathLength={1}
+      />
+    </svg>
   );
 }
 
@@ -277,7 +298,9 @@ function ThemeCard({
           <small>{themeDisplayDescription(theme.meta.id, theme.meta.description)}</small>
         </span>
         <span className="theme-card-check" aria-hidden="true">
-          {active ? <Check size={15} strokeWidth={2.4} /> : null}
+          <svg className="theme-scribble" viewBox="0 0 36 32">
+            <path d="M4 18 C7 18 10 22 12.5 27 C16 16 23 7 33 3 C28 6 22 12 18 19" pathLength={1} />
+          </svg>
         </span>
       </span>
     </button>
