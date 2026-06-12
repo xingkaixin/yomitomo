@@ -94,7 +94,7 @@ describe('reader embedded styles', () => {
     expect(readerConversationStyles).not.toContain('.reader-comment .reader-comment-author span{');
     expect(readerConversationStyles).toContain('.reader-comment .reader-comment-author>span{');
     expect(readerConversationStyles).toContain(
-      '.reader-action-menu-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:36;display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border);border-radius:10px;background:var(--reader-paper);',
+      '.reader-action-menu-panel{display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border,color-mix(in srgb,var(--app-reader-ink,#251d16) 12%,transparent));border-radius:10px;background:var(--reader-paper,var(--app-reader-paper,#fffaf0));',
     );
     expect(readerConversationStyles).toContain(
       '.reader-action-delete{width:100%;height:32px;justify-content:flex-start;border-radius:7px;background:transparent;box-shadow:none;',
@@ -103,11 +103,23 @@ describe('reader embedded styles', () => {
       '.reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}',
     );
     expect(readerConversationStyles).toContain(
-      '.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}',
+      '.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red,var(--app-reader-danger,#8a3f32)) 7%,transparent)}',
     );
     // 删除入口改为点击触发确认弹窗，不再保留长按进度条与计时动画。
     expect(readerConversationStyles).not.toContain('reader-delete-hold');
     expect(readerConversationStyles).not.toContain('.reader-delete-note.is-holding');
+  });
+
+  it('keeps reader portal surfaces on app-level fallbacks', () => {
+    expect(readerConversationStyles).toContain(
+      '.reader-confirm-overlay{position:fixed;inset:0;z-index:var(--reader-z-modal,var(--app-z-modal,320));',
+    );
+    expect(readerConversationStyles).toContain(
+      'background:var(--reader-paper,var(--app-reader-paper,#fffaf0));',
+    );
+    expect(readerConversationStyles).toContain(
+      '.reader-confirm-delete{background:var(--reader-red,var(--app-reader-danger,#8a3f32));color:var(--app-reader-paper,#fff)}',
+    );
   });
 
   it('styles shortcut tooltips and keeps composer cancel neutral', () => {

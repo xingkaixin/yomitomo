@@ -468,19 +468,19 @@ export const readerConversationStyles = `
 .reader-markdown pre code{background:transparent;color:inherit;padding:0}
 .reader-markdown a{color:inherit;text-decoration:underline;text-decoration-color:rgba(37,29,22,.35);text-decoration-thickness:1px;text-underline-offset:.16em}
 .reader-markdown a:hover{color:var(--reader-red);text-decoration-color:currentColor}
-.reader-delete-note{display:inline-flex;align-items:center;gap:5px;justify-content:center;height:40px;border:0;border-radius:999px;background:transparent;color:var(--reader-red);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-weight:850;padding:0 12px;line-height:1;white-space:nowrap}
-.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red) 7%,transparent)}
+.reader-delete-note{display:inline-flex;align-items:center;gap:5px;justify-content:center;height:40px;border:0;border-radius:999px;background:transparent;color:var(--reader-red,var(--app-reader-danger,#8a3f32));font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);font-weight:850;padding:0 12px;line-height:1;white-space:nowrap}
+.reader-delete-note:hover{background:color-mix(in srgb,var(--reader-red,var(--app-reader-danger,#8a3f32)) 7%,transparent)}
 .reader-delete-note>span{display:inline;width:auto;height:auto;place-items:normal;border-radius:0;background:transparent;color:inherit;font-size:inherit;font-weight:inherit;line-height:1;padding:0}
-.reader-confirm-overlay{position:fixed;inset:0;z-index:var(--reader-z-modal);display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--reader-ink) 38%,transparent)}
-.reader-confirm-dialog{width:min(420px,100%);display:grid;gap:16px;padding:20px;border:1px solid var(--app-reader-note-border);border-radius:16px;background:var(--reader-paper);box-shadow:var(--reader-elevated-shadow);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif)}
+.reader-confirm-overlay{position:fixed;inset:0;z-index:var(--reader-z-modal,var(--app-z-modal,320));background:color-mix(in srgb,var(--reader-ink,var(--app-reader-ink,#251d16)) 38%,transparent)}
+.reader-confirm-dialog{position:fixed;left:50%;top:50%;z-index:calc(var(--reader-z-modal,var(--app-z-modal,320)) + 1);width:min(420px,calc(100vw - 48px));display:grid;gap:16px;padding:20px;border:1px solid var(--app-reader-note-border,color-mix(in srgb,var(--app-reader-ink,#251d16) 14%,transparent));border-radius:16px;background:var(--reader-paper,var(--app-reader-paper,#fffaf0));box-shadow:0 22px 70px color-mix(in srgb,var(--reader-ink,var(--app-reader-ink,#251d16)) 22%,transparent);color:var(--reader-ink,var(--app-reader-ink,#251d16));font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);transform:translate(-50%,-50%)}
 .reader-confirm-dialog header{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
-.reader-confirm-icon{display:grid;width:36px;height:36px;place-items:center;border-radius:999px;background:color-mix(in srgb,var(--reader-red) 14%,transparent);color:var(--reader-red)}
-.reader-confirm-dialog h2{margin:0;color:var(--reader-ink);font-size:15px;font-weight:850;line-height:1.3}
-.reader-confirm-dialog p{margin:6px 0 0;color:var(--reader-muted);font-size:13px;line-height:1.55}
+.reader-confirm-icon{display:grid;width:36px;height:36px;place-items:center;border-radius:999px;background:color-mix(in srgb,var(--reader-red,var(--app-reader-danger,#8a3f32)) 14%,transparent);color:var(--reader-red,var(--app-reader-danger,#8a3f32))}
+.reader-confirm-dialog h2{margin:0;color:var(--reader-ink,var(--app-reader-ink,#251d16));font-size:15px;font-weight:850;line-height:1.3}
+.reader-confirm-dialog p{margin:6px 0 0;color:var(--reader-muted,var(--app-reader-muted,#756a5d));font-size:13px;line-height:1.55}
 .reader-confirm-dialog footer{display:flex;justify-content:flex-end;gap:8px}
 .reader-confirm-dialog footer button{border:0;border-radius:999px;font-family:inherit;font-size:13px;font-weight:760;padding:9px 14px}
-.reader-confirm-cancel{background:var(--reader-paper-hover);color:var(--reader-ink)}
-.reader-confirm-delete{background:var(--reader-red);color:white}
+.reader-confirm-cancel{background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)));color:var(--reader-ink,var(--app-reader-ink,#251d16))}
+.reader-confirm-delete{background:var(--reader-red,var(--app-reader-danger,#8a3f32));color:var(--app-reader-paper,#fff)}
 .reader-agent-annotate-popover{position:fixed;inset:0;z-index:var(--reader-z-modal);display:grid;place-items:center;width:auto;padding:34px;pointer-events:none}
 .reader-agent-annotate-popover .reader-agent-annotate-menu{margin:0}
 .reader-toc-item-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
@@ -557,11 +557,11 @@ export const readerConversationStyles = `
 .reader-action-menu-button:hover,.reader-action-menu.is-open .reader-action-menu-button{background:var(--reader-paper-hover);color:var(--reader-ink)}
 .reader-action-menu-button:active{transform:scale(.96)}
 .reader-action-menu-button:focus-visible{outline:2px solid rgba(37,29,22,.22);outline-offset:2px}
-.reader-action-menu-panel{position:absolute;right:0;top:calc(100% + 7px);z-index:36;display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border);border-radius:10px;background:var(--reader-paper);box-shadow:var(--reader-soft-shadow);font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);transform-origin:top right}
-.reader-action-menu-item{display:inline-flex;width:100%;height:32px;align-items:center;justify-content:flex-start;gap:7px;border:0;border-radius:7px;background:transparent;color:var(--reader-ink);font:inherit;font-size:12px;font-weight:760;padding:0 9px}
-.reader-action-menu-item:hover{background:var(--reader-paper-hover)}
+.reader-action-menu-panel{display:grid;min-width:132px;padding:4px;border:1px solid var(--app-reader-selection-menu-border,color-mix(in srgb,var(--app-reader-ink,#251d16) 12%,transparent));border-radius:10px;background:var(--reader-paper,var(--app-reader-paper,#fffaf0));box-shadow:var(--reader-soft-shadow,0 8px 20px color-mix(in srgb,var(--app-reader-ink,#251d16) 10%,transparent));color:var(--reader-ink,var(--app-reader-ink,#251d16));font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);transform-origin:top right}
+.reader-action-menu-item{display:inline-flex;width:100%;height:32px;align-items:center;justify-content:flex-start;gap:7px;border:0;border-radius:7px;background:transparent;color:var(--reader-ink,var(--app-reader-ink,#251d16));font:inherit;font-size:12px;font-weight:760;padding:0 9px}
+.reader-action-menu-item:hover{background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)))}
 .reader-action-delete{width:100%;height:32px;justify-content:flex-start;border-radius:7px;background:transparent;box-shadow:none;font-size:12px;padding:0 9px}
-.reader-action-delete:hover{background:var(--reader-paper-hover)}
+.reader-action-delete:hover{background:var(--reader-paper-hover,color-mix(in srgb,var(--app-reader-ink,#251d16) 6%,var(--app-reader-paper,#fffaf0)))}
 .reader-annotation-connection{position:fixed;inset:0;z-index:4;width:100vw;height:var(--app-viewport-height);overflow:visible;pointer-events:none}
 .reader-annotation-connection-line{fill:none;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 4px 8px rgba(55,42,24,.18));opacity:.9}
 .reader-annotation-arrowhead{fill:none;stroke-width:2.15;stroke-linecap:round;stroke-linejoin:round;opacity:.94}
