@@ -5,6 +5,7 @@ import type {
   AgentReadingIntent,
   AgentReadingPlanItem,
   Annotation,
+  AppSettings,
   ArticleReadingProgress,
   ArticleRecord,
   MessageSendShortcut,
@@ -443,6 +444,7 @@ export type SourceBookcaseProps = {
   } | null;
   focusAnnotationId: string | null;
   messageSendShortcut?: MessageSendShortcut;
+  settings?: AppSettings;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
   selectedAnnotationId: string | null;
   uiLanguage: UiLanguage;

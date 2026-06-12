@@ -63,6 +63,7 @@ export function ReaderAppView({
     commentsCloseKey,
     distillationAnimation,
     filteredAnnotations,
+    newAnnotationIds,
     railLayoutOverride,
     railViewportHeight,
     searchBoxes,
@@ -242,6 +243,7 @@ export function ReaderAppView({
           highlightChoice={highlightChoice}
           labels={labels}
           messageSendShortcut={messageSendShortcut}
+          newAnnotationIds={newAnnotationIds}
           noteRefForAnnotation={noteRefForAnnotation}
           notesRef={notesRef}
           selectionAction={selectionAction}

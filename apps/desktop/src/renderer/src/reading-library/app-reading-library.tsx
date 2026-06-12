@@ -585,6 +585,7 @@ export function ReadingLibrary({
                 focusAnnotationId={sourceFocusAnnotationId}
                 messageSendShortcut={messageSendShortcut}
                 readerTheme={readerTheme}
+                settings={settings}
                 selectionActionShortcuts={selectionActionShortcuts}
                 selectedAnnotationId={selectedAnnotation?.id || null}
                 uiLanguage={normalizeUiLanguage(settings?.uiLanguage)}

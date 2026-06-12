@@ -51,6 +51,7 @@ import {
   type WebSourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
@@ -70,6 +71,7 @@ export function WebSourceBookcase({
   distillationAnimation,
   focusAnnotationId,
   messageSendShortcut,
+  settings,
   selectionActionShortcuts,
   selectedAnnotationId,
   uiLanguage,
@@ -93,6 +95,10 @@ export function WebSourceBookcase({
   const lastSavedWebProgressRef = useRef<number | null>(null);
   const restoredWebProgressArticleRef = useRef<string | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
+    article.id,
+    settings,
+  );
   const [statusMessage, setStatusMessage] = useState('');
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
@@ -493,6 +499,7 @@ export function WebSourceBookcase({
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
+    markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
   }
 
@@ -690,6 +697,7 @@ export function WebSourceBookcase({
           commentsCloseKey,
           distillationAnimation,
           filteredAnnotations: annotations,
+          newAnnotationIds,
           searchBoxes,
           temporaryBoxes,
         }}

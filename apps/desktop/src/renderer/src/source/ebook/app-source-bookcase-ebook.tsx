@@ -55,6 +55,7 @@ import {
 } from '../../shell/use-reader-page-turn-keys';
 import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
@@ -71,6 +72,7 @@ export function EbookBookcase({
   focusAnnotationId,
   messageSendShortcut,
   readerTheme,
+  settings,
   selectionActionShortcuts,
   selectedAnnotationId,
   uiLanguage,
@@ -92,6 +94,10 @@ export function EbookBookcase({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
+    article.id,
+    settings,
+  );
   const scheduleEbookBoxUpdateRef = useRef<(reason: EbookBoxUpdateReason) => void>(() => {});
   const pageTurnTraceRef = useRef<EbookPageTurnTrace | null>(null);
   const beforeEbookPageTurnRef = useRef<(trace: EbookPageTurnTrace) => void>(() => {});
@@ -542,6 +548,7 @@ export function EbookBookcase({
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
+    markAnnotationCreated(annotation.id);
     openAnnotation(annotation.id);
   }
 
@@ -833,6 +840,7 @@ export function EbookBookcase({
           commentsCloseKey,
           distillationAnimation,
           filteredAnnotations: annotations,
+          newAnnotationIds,
           searchBoxes,
           showEmptyNotes: annotations.length === 0,
           temporaryBoxes,

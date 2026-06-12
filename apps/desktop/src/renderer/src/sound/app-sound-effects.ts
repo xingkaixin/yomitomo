@@ -1,5 +1,8 @@
 import type { AppSettings } from '@yomitomo/shared';
 import { normalizeSoundEffectsVolume } from '@yomitomo/shared';
+import highlightOnPaperSoundUrl1 from '../assets/audio/highlight-on-paper-01.mp3';
+import highlightOnPaperSoundUrl2 from '../assets/audio/highlight-on-paper-02.mp3';
+import highlightOnPaperSoundUrl3 from '../assets/audio/highlight-on-paper-03.mp3';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
@@ -10,38 +13,43 @@ export type AppSoundEffectId =
   | 'library.import_success_multiple'
   | 'library.import_success_single'
   | 'library.delete_item'
+  | 'reader.annotation_created'
   | 'settings.sound_preview'
   | 'theme.paper_switch';
 
 type SoundEffectDefinition = {
   baseVolume: number;
-  url: string;
+  urls: string[];
 };
 
 const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   'library.import_success_multiple': {
     baseVolume: 0.8,
-    url: importSuccessMultipleSoundUrl,
+    urls: [importSuccessMultipleSoundUrl],
   },
   'library.import_success_single': {
     baseVolume: 0.8,
-    url: importSuccessSingleSoundUrl,
+    urls: [importSuccessSingleSoundUrl],
   },
   'library.delete_item': {
     baseVolume: 0.8,
-    url: paperBinTossSoundUrl,
+    urls: [paperBinTossSoundUrl],
+  },
+  'reader.annotation_created': {
+    baseVolume: 0.75,
+    urls: [highlightOnPaperSoundUrl1, highlightOnPaperSoundUrl2, highlightOnPaperSoundUrl3],
   },
   'settings.sound_preview': {
     baseVolume: 1,
-    url: soundPreviewUrl,
+    urls: [soundPreviewUrl],
   },
   'theme.paper_switch': {
     baseVolume: 0.4,
-    url: scribbleCircleSoundUrl,
+    urls: [scribbleCircleSoundUrl],
   },
 };
 
-const audioByEffectId = new Map<AppSoundEffectId, HTMLAudioElement>();
+const audioByUrl = new Map<string, HTMLAudioElement>();
 
 export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSettings) {
   if (settings.soundEffectsEnabled === false) return;
@@ -49,7 +57,8 @@ export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSett
   const volume = normalizeSoundEffectsVolume(settings.soundEffectsVolume) * definition.baseVolume;
   if (volume <= 0) return;
 
-  const audio = audioByEffectId.get(effectId) || createAudio(effectId, definition.url);
+  const url = chooseSoundUrl(definition.urls);
+  const audio = audioByUrl.get(url) || createAudio(url);
   audio.volume = volume;
   audio.currentTime = 0;
   try {
@@ -59,8 +68,13 @@ export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSett
   }
 }
 
-function createAudio(effectId: AppSoundEffectId, url: string) {
+function chooseSoundUrl(urls: string[]) {
+  if (urls.length <= 1) return urls[0] || '';
+  return urls[Math.floor(Math.random() * urls.length)] || urls[0];
+}
+
+function createAudio(url: string) {
   const audio = new Audio(url);
-  audioByEffectId.set(effectId, audio);
+  audioByUrl.set(url, audio);
   return audio;
 }
