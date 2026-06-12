@@ -36,7 +36,7 @@ import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dial
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
-import brandPronunciationUrl from './assets/audio/yomitomo.m4a';
+import { playAppSoundEffect } from './sound/app-sound-effects';
 import './styles.css';
 
 const startupUiLanguage = readCachedUiLanguage();
@@ -630,7 +630,7 @@ function App() {
   return (
     <main className={appShellClassName}>
       <header className="app-masthead">
-        <BrandTitle />
+        <BrandTitle settings={store.settings} />
         <time className="app-masthead-date" dateTime={new Date().toISOString()}>
           {today}
         </time>
@@ -855,13 +855,10 @@ function AppMasthead() {
   );
 }
 
-function BrandTitle() {
+function BrandTitle({ settings }: { settings?: AppSettings }) {
   const { t } = useTranslation();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const playPronunciation = () => {
-    audioRef.current ??= new Audio(brandPronunciationUrl);
-    audioRef.current.currentTime = 0;
-    void audioRef.current.play();
+    playAppSoundEffect('brand.pronunciation', settings || {});
   };
   return (
     <div className="app-masthead-title">

@@ -10,6 +10,7 @@ import {
 } from '../annotation-discussion/app-annotation-discussion-window';
 import {
   discussionReplyPlaceholder,
+  formatRelativeTime,
   replyTargetAgents,
 } from '../annotation-discussion/app-annotation-discussion-utils';
 import { initializeAppI18n } from '../i18n/app-i18n';
@@ -27,11 +28,35 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   window.localStorage.clear();
   Reflect.deleteProperty(window, 'yomitomoDesktop');
   window.history.replaceState({}, '', '/');
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('discussion time formatting', () => {
+  it('keeps older Chinese discussion times relative', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-12T12:00:00.000Z'));
+    initializeAppI18n('zh-CN');
+
+    expect(formatRelativeTime('2026-06-01T04:17:00.000Z')).toBe('1 周前');
+    expect(formatRelativeTime('2026-05-01T04:17:00.000Z')).toBe('1 个月前');
+    expect(formatRelativeTime('2025-05-01T04:17:00.000Z')).toBe('1 年前');
+  });
+
+  it('keeps older English discussion times relative with pluralization', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-12T12:00:00.000Z'));
+    initializeAppI18n('en');
+
+    expect(formatRelativeTime('2026-06-12T11:59:00.000Z')).toBe('1 minute ago');
+    expect(formatRelativeTime('2026-06-01T04:17:00.000Z')).toBe('1 week ago');
+    expect(formatRelativeTime('2026-05-01T04:17:00.000Z')).toBe('1 month ago');
+    expect(formatRelativeTime('2025-05-01T04:17:00.000Z')).toBe('1 year ago');
+  });
 });
 
 describe('AnnotationDiscussionWindowApp', () => {

@@ -3,6 +3,7 @@ import { normalizeSoundEffectsVolume } from '@yomitomo/shared';
 import highlightOnPaperSoundUrl1 from '../assets/audio/highlight-on-paper-01.mp3';
 import highlightOnPaperSoundUrl2 from '../assets/audio/highlight-on-paper-02.mp3';
 import highlightOnPaperSoundUrl3 from '../assets/audio/highlight-on-paper-03.mp3';
+import brandPronunciationUrl from '../assets/audio/yomitomo.m4a';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
@@ -10,6 +11,7 @@ import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
 export type AppSoundEffectId =
+  | 'brand.pronunciation'
   | 'library.import_success_multiple'
   | 'library.import_success_single'
   | 'library.delete_item'
@@ -19,10 +21,16 @@ export type AppSoundEffectId =
 
 type SoundEffectDefinition = {
   baseVolume: number;
+  replayBehavior?: 'restart' | 'skip_while_playing';
   urls: string[];
 };
 
 const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
+  'brand.pronunciation': {
+    baseVolume: 1,
+    replayBehavior: 'skip_while_playing',
+    urls: [brandPronunciationUrl],
+  },
   'library.import_success_multiple': {
     baseVolume: 0.8,
     urls: [importSuccessMultipleSoundUrl],
@@ -50,6 +58,7 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
 };
 
 const audioByUrl = new Map<string, HTMLAudioElement>();
+const playingUrls = new Set<string>();
 
 export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSettings) {
   if (settings.soundEffectsEnabled === false) return;
@@ -59,11 +68,20 @@ export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSett
 
   const url = chooseSoundUrl(definition.urls);
   const audio = audioByUrl.get(url) || createAudio(url);
+  if (definition.replayBehavior === 'skip_while_playing' && playingUrls.has(url)) return;
+
   audio.volume = volume;
   audio.currentTime = 0;
+  if (definition.replayBehavior === 'skip_while_playing') markAudioPlaying(url, audio);
   try {
-    void audio.play();
+    const playResult = audio.play();
+    if (playResult instanceof Promise) {
+      void playResult.catch(() => {
+        playingUrls.delete(url);
+      });
+    }
   } catch {
+    playingUrls.delete(url);
     // Browser autoplay/media support can reject effect playback; the UI action should still succeed.
   }
 }
@@ -77,4 +95,13 @@ function createAudio(url: string) {
   const audio = new Audio(url);
   audioByUrl.set(url, audio);
   return audio;
+}
+
+function markAudioPlaying(url: string, audio: HTMLAudioElement) {
+  playingUrls.add(url);
+  const clearPlaying = () => {
+    playingUrls.delete(url);
+  };
+  audio.addEventListener('ended', clearPlaying, { once: true });
+  audio.addEventListener('pause', clearPlaying, { once: true });
 }

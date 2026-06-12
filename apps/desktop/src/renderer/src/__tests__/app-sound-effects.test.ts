@@ -4,18 +4,36 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 const play = vi.fn().mockResolvedValue(undefined);
-const createdAudio: Array<{ currentTime: number; play: typeof play; src: string; volume: number }> =
-  [];
+const createdAudio: MockAudio[] = [];
 
 class MockAudio {
   currentTime = 0;
+  ended = false;
+  paused = true;
   volume = 1;
+  private listeners = new Map<string, Set<() => void>>();
 
   constructor(public src: string) {
     createdAudio.push(this);
   }
 
-  play = play;
+  play = vi.fn(() => {
+    this.ended = false;
+    this.paused = false;
+    return play();
+  });
+
+  addEventListener(event: string, listener: () => void) {
+    const listeners = this.listeners.get(event) || new Set<() => void>();
+    listeners.add(listener);
+    this.listeners.set(event, listeners);
+  }
+
+  finishPlayback() {
+    this.ended = true;
+    this.paused = true;
+    for (const listener of this.listeners.get('ended') || []) listener();
+  }
 }
 
 afterEach(() => {
@@ -61,6 +79,32 @@ describe('app sound effects', () => {
 
     expect(createdAudio.at(-1)?.volume).toBe(0.35);
     expect(play).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips repeated brand pronunciation while the current playback is active', () => {
+    vi.stubGlobal('Audio', MockAudio);
+
+    playAppSoundEffect('brand.pronunciation', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 1,
+    });
+    playAppSoundEffect('brand.pronunciation', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 1,
+    });
+
+    expect(createdAudio).toHaveLength(1);
+    expect(play).toHaveBeenCalledTimes(1);
+
+    createdAudio[0].finishPlayback();
+    playAppSoundEffect('brand.pronunciation', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 1,
+    });
+
+    expect(createdAudio).toHaveLength(1);
+    expect(play).toHaveBeenCalledTimes(2);
+    createdAudio[0].finishPlayback();
   });
 
   it('plays the library delete effect with its base volume', () => {

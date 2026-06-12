@@ -89,9 +89,9 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
 </nav>
 
 <script is:inline define:vars={{ locale: lang }}>
-  const el = document.querySelector('[data-masthead-date]');
-  if (el) {
-    el.textContent = new Intl.DateTimeFormat(locale, {
+  const dateEl = document.querySelector('[data-masthead-date]');
+  if (dateEl) {
+    dateEl.textContent = new Intl.DateTimeFormat(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -100,16 +100,39 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
   }
 
   let audio = null;
-  for (const el of document.querySelectorAll('[data-brand-pronounce]')) {
-    el.addEventListener('click', () => {
+  let pronunciationPlaying = false;
+  for (const pronounceEl of document.querySelectorAll('[data-brand-pronounce]')) {
+    pronounceEl.addEventListener('click', () => {
       audio ??= new Audio('/assets/yomitomo.m4a');
+      if (pronunciationPlaying) return;
+      pronunciationPlaying = true;
+      const clearPlaying = () => {
+        pronunciationPlaying = false;
+      };
+      audio.addEventListener('ended', clearPlaying, { once: true });
+      audio.addEventListener('pause', clearPlaying, { once: true });
       audio.currentTime = 0;
-      void audio.play();
+      try {
+        const playResult = audio.play();
+        if (playResult instanceof Promise) {
+          void playResult.catch(clearPlaying);
+        }
+      } catch {
+        clearPlaying();
+      }
     });
   }
 </script>
 
 <style>
+  @font-face {
+    font-family: 'Fraunces';
+    src: url('/assets/fonts/Fraunces-VariableFont.ttf') format('truetype');
+    font-display: swap;
+    font-style: normal;
+    font-weight: 100 900;
+  }
+
   .app-masthead {
     position: relative;
     display: grid;
@@ -136,9 +159,13 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
     cursor: default;
     user-select: none;
     color: #2a2218;
-    font-family: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+    font-family: 'Fraunces', 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
     font-size: clamp(44px, 6vw, 88px);
-    font-weight: 820;
+    font-variation-settings:
+      'SOFT' 80,
+      'WONK' 0,
+      'opsz' 72;
+    font-weight: 700;
     letter-spacing: 0;
     line-height: 0.92;
   }

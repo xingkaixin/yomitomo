@@ -344,7 +344,7 @@ export function rowToSettings(
   return {
     uiLanguage: normalizeUiLanguage(row?.uiLanguage),
     themeId: row?.themeId || undefined,
-    soundEffectsEnabled: Boolean(row?.soundEffectsEnabled ?? true),
+    soundEffectsEnabled: normalizeBooleanSetting(row?.soundEffectsEnabled, true),
     soundEffectsVolume: normalizeSoundEffectsVolume(row?.soundEffectsVolume),
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),
@@ -382,6 +382,10 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
     onboardingCompletedAt: settings?.onboardingCompletedAt || undefined,
     lastSeenVersion: settings?.lastSeenVersion || undefined,
   };
+}
+
+function normalizeBooleanSetting(value: unknown, fallback = false) {
+  return value === undefined || value === null ? fallback : Boolean(value);
 }
 
 function normalizeLogRetentionDays(value: unknown) {

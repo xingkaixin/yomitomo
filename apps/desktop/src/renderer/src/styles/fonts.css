@@ -1,4 +1,12 @@
 @font-face {
+  font-family: 'Fraunces';
+  src: url('./assets/fonts/Fraunces-VariableFont.ttf') format('truetype');
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
+@font-face {
   font-family: 'JetBrains Mono';
   src: url('./assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
   font-display: swap;
