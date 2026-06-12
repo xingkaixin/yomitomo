@@ -91,7 +91,7 @@ export function useReaderShellInteractions({
       event.preventDefault();
       event.stopPropagation();
       if (shortcut === 'copy') {
-        void onCopySelection(activeSelectionAction);
+        void Promise.resolve(onCopySelection(activeSelectionAction)).then(onClearSelection);
         return;
       }
       if (shortcut === 'ask' && onAskSelection) {
@@ -108,6 +108,7 @@ export function useReaderShellInteractions({
   }, [
     composer,
     onAskSelection,
+    onClearSelection,
     onCopySelection,
     onOpenComposer,
     selectionAction,

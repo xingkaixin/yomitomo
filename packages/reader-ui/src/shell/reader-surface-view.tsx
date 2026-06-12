@@ -77,6 +77,7 @@ export type ReaderSurfaceViewProps = {
   visibleAnnotations: Annotation[];
   onAddComment: (annotationId: string, content: string, replyTo?: string) => void | Promise<void>;
   onCancelComposer: () => void;
+  onClearSelection: () => void;
   onCloseHighlightChoice: () => void;
   onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onCreateAnnotation: (note: string) => void | Promise<void>;
@@ -163,6 +164,7 @@ export function ReaderSurfaceView({
   visibleAnnotations,
   onAddComment,
   onCancelComposer,
+  onClearSelection,
   onCloseHighlightChoice,
   onCopySelection,
   onCreateAnnotation,
@@ -330,6 +332,7 @@ export function ReaderSurfaceView({
               onAnnotate={() => onOpenComposer(selectionAction)}
               onAsk={chat ? () => onAskSelection?.(selectionAction) : undefined}
               onCopy={() => onCopySelection(selectionAction)}
+              onCopySettled={onClearSelection}
             />
           ) : null}
           {highlightChoice && highlightChoiceAnnotations.length > 1 ? (

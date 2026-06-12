@@ -136,7 +136,7 @@ export function useEbookSelection({
       event.preventDefault();
       event.stopPropagation();
       if (shortcut === 'copy') {
-        void copySelection(activeSelectionAction);
+        void Promise.resolve(copySelection(activeSelectionAction)).then(clearSelection);
         return;
       }
       if (shortcut === 'ask') {
@@ -145,7 +145,15 @@ export function useEbookSelection({
       }
       openComposer(activeSelectionAction);
     },
-    [actionShortcuts, askSelection, composer, copySelection, openComposer, selectionAction],
+    [
+      actionShortcuts,
+      askSelection,
+      clearSelection,
+      composer,
+      copySelection,
+      openComposer,
+      selectionAction,
+    ],
   );
 
   return {

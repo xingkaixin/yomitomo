@@ -188,6 +188,7 @@ export type ReaderUiLabels = {
   closeSearch: string;
   closeSidebar: string;
   collapseReaderChat: string;
+  copiedSelection: string;
   copySelection: string;
   currentSelection: string;
   deleteHighlight: string;
@@ -266,6 +267,7 @@ export const defaultReaderUiLabels: ReaderUiLabels = {
   closeSearch: '关闭搜索',
   closeSidebar: '关闭侧栏',
   collapseReaderChat: '收起阅读问答',
+  copiedSelection: '已复制',
   copySelection: '复制',
   currentSelection: '当前选区',
   deleteHighlight: '删除划线',

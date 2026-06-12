@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AnnotationCard } from '../annotations/reader-annotation-card';
 import { SelectionMenu } from './reader-selection-menu';
@@ -19,6 +19,7 @@ const now = '2026-05-12T08:00:00.000Z';
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });
@@ -258,6 +259,7 @@ describe('ReaderSurfaceView empty notes', () => {
         visibleAnnotations={[]}
         onAddComment={vi.fn()}
         onCancelComposer={vi.fn()}
+        onClearSelection={vi.fn()}
         onCloseHighlightChoice={vi.fn()}
         onCopySelection={vi.fn()}
         onCreateAnnotation={vi.fn()}
@@ -747,5 +749,35 @@ describe('SelectionMenu', () => {
     expect(screen.getByText('X')).toBeTruthy();
     expect(screen.getByText('B')).toBeTruthy();
     expect(screen.getByText('Y')).toBeTruthy();
+  });
+
+  it('shows copy success before closing the menu', async () => {
+    vi.useFakeTimers();
+    const onCopy = vi.fn().mockResolvedValue(undefined);
+    const onCopySettled = vi.fn();
+
+    render(
+      <SelectionMenu
+        action={{ x: 10, y: 20 }}
+        onAnnotate={vi.fn()}
+        onCopy={onCopy}
+        onCopySettled={onCopySettled}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /复制/ }));
+      await Promise.resolve();
+    });
+
+    expect(onCopy).toHaveBeenCalledOnce();
+    expect(screen.getByText('已复制')).toBeTruthy();
+    expect(onCopySettled).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(520);
+    });
+
+    expect(onCopySettled).toHaveBeenCalledOnce();
   });
 });

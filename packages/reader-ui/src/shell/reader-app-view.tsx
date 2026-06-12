@@ -256,6 +256,7 @@ export function ReaderAppView({
           visibleAnnotations={visibleAnnotations}
           onAddComment={annotationActions.onAddComment}
           onCancelComposer={selectionActions.onCancelComposer}
+          onClearSelection={selectionActions.onClearSelection}
           onCloseHighlightChoice={selectionActions.onCloseHighlightChoice}
           onCopySelection={selectionActions.onCopySelection}
           onCreateAnnotation={annotationActions.onCreateAnnotation}

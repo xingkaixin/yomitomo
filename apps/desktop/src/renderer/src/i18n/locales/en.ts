@@ -229,6 +229,7 @@ export const enResources = {
       closeSearch: 'Close search',
       closeSidebar: 'Close sidebar',
       collapseReaderChat: 'Collapse reader Q&A',
+      copiedSelection: 'Copied',
       copySelection: 'Copy',
       currentSelection: 'Current selection',
       deleteHighlight: 'Delete highlight',
