@@ -785,12 +785,14 @@ export const readerConversationStyles = `
 .reader-app :where(.reader-composer textarea,.reader-note-comments-panel .reader-comment-box textarea):focus-visible{outline:0;box-shadow:none}
 .reader-highlight{overflow:visible;background:transparent;box-shadow:none;mix-blend-mode:normal}
 .reader-highlight.is-active{background:transparent;box-shadow:none}
-.reader-highlight.is-active::after{content:"";position:absolute;inset:0 -1px;border-radius:4px;background:var(--highlight-fill,rgba(244,201,93,.16))}
 .reader-highlight::before{content:"";position:absolute;z-index:1;left:min(var(--highlight-edge-size,0px),42%);right:min(var(--highlight-edge-size,0px),42%);bottom:var(--highlight-offset,-2px);height:var(--highlight-thickness,4px);border-radius:999px;background:var(--highlight-line,#f4c95d);opacity:var(--highlight-opacity,.78);-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 6' preserveAspectRatio='none'%3E%3Cpath d='M0 3 C4 0 8 6 12 3 S20 0 24 3' stroke='black' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");-webkit-mask-repeat:repeat-x;mask-repeat:repeat-x;-webkit-mask-size:24px 100%;mask-size:24px 100%;filter:drop-shadow(0 1px 0 var(--reader-paper))}
 .reader-highlight.is-new::before{transform-origin:left center;animation:reader-highlight-grow .42s cubic-bezier(.22,1,.36,1) both;animation-delay:var(--highlight-grow-delay,0ms)}
 .reader-highlight.is-active::before{opacity:1;filter:drop-shadow(0 1px 0 var(--reader-paper)) drop-shadow(0 0 5px rgba(37,29,22,.2))}
 .reader-highlight.is-filter-dimmed{cursor:default}.reader-highlight.is-filter-dimmed .reader-highlight-dots{opacity:.42}
 .reader-highlight.is-temporary,.reader-highlight.is-agent-theater{background:transparent;box-shadow:none}
+.reader-highlight.is-temporary{border-radius:3px;background:rgba(77,155,114,.18)}
+.reader-highlight.is-temporary::before,.reader-highlight.is-temporary .reader-highlight-dots{display:none}
+.reader-article ::selection,.reader-article::selection{background:rgba(77,155,114,.18)}
 .reader-highlight-dots{position:absolute;z-index:2;bottom:var(--highlight-dot-offset,-3px);display:flex;gap:2px;align-items:center;pointer-events:none}
 .reader-highlight.is-new .reader-highlight-dots{animation:reader-highlight-dots-in .18s ease-out both;animation-delay:calc(var(--highlight-grow-delay,0ms) + .24s)}
 .reader-highlight-dots.is-start{left:0}
