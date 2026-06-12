@@ -15,6 +15,11 @@ import type {
 import { ReadingLibrary, groupLibraryArticles } from '../reading-library/app-reading-library';
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { defaultTheme } from '../theme/app-theme';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
+
+vi.mock('../sound/app-sound-effects', () => ({
+  playAppSoundEffect: vi.fn(),
+}));
 
 const now = '2026-05-09T12:00:00.000Z';
 
@@ -143,6 +148,7 @@ function renderLibrary(
       onProgress?: (progress: number) => void,
     ) => Promise<{ status: 'imported' | 'duplicate'; article: ArticleRecord }>;
     onReadArticle?: (articleId: string) => Promise<ArticleRecord | null>;
+    onDeleteArticle?: (articleId: string) => Promise<void> | void;
     onSaveArticleReadingProgress?: (
       articleId: string,
       progress: ArticleReadingProgress,
@@ -158,7 +164,7 @@ function renderLibrary(
       readerTheme={defaultTheme.reader}
       settings={options.settings}
       userProfile={userProfile}
-      onDeleteArticle={vi.fn()}
+      onDeleteArticle={options.onDeleteArticle || vi.fn()}
       onImportEbookFile={options.onImportEbookFile || vi.fn()}
       onImportPdfFile={options.onImportPdfFile || vi.fn()}
       onImportArticleUrl={options.onImportArticleUrl || vi.fn()}
@@ -373,6 +379,27 @@ describe('ReadingLibrary home', () => {
     expect(screen.queryByLabelText('0 条划线 · 0 条沉淀')).toBeNull();
     expect(screen.getByRole('tab', { name: /PDF/ })).toBeTruthy();
     expect(screen.getByText('最近添加 · 降序')).toBeTruthy();
+  });
+
+  it('plays the shared delete sound after confirming a reading item delete', async () => {
+    const onDeleteArticle = vi.fn().mockResolvedValue(undefined);
+    renderLibrary([article({ title: '待删除文章' })], {
+      onDeleteArticle,
+      settings: {
+        soundEffectsEnabled: true,
+        soundEffectsVolume: 0.42,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '更多操作：待删除文章' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除阅读材料：待删除文章' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除材料' }));
+
+    await waitFor(() => expect(onDeleteArticle).toHaveBeenCalledWith('article_1'));
+    expect(playAppSoundEffect).toHaveBeenCalledWith('library.delete_item', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.42,
+    });
   });
 
   it('restores and saves the library page size preference', async () => {

@@ -39,6 +39,7 @@ import {
   type LibrarySort,
   type LibrarySource,
 } from './app-reading-library-utils';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
 import type {
   AnnotationDiscussionWindowState,
   AnnotationDistillationCommittedEvent,
@@ -285,6 +286,7 @@ export function ReadingLibrary({
 
   async function deleteLibraryArticle(articleId: string) {
     await onDeleteArticle(articleId);
+    playAppSoundEffect('library.delete_item', settings || {});
     if (selectedArticleId === articleId) {
       setSelectedArticle(null);
       openLibraryShelf();
