@@ -9,6 +9,7 @@ import {
 import type {
   Agent,
   Annotation,
+  AppSettings,
   ArticleRecord,
   Comment,
   PublicAgent,
@@ -30,6 +31,7 @@ import {
   publicAnnotationAgents,
 } from '../source/bookcase/app-source-bookcase-shared';
 import { runSourceAgentCommentRequest } from '../source/bookcase/app-source-agent-comment-request';
+import { playAppSoundEffect, stopAppSoundEffect } from '../sound/app-sound-effects';
 import {
   AnnotationLayoutControl,
   type AnnotationMessageLayoutMode,
@@ -73,6 +75,7 @@ type DiscussionWindowStatus =
       agents: Agent[];
       article: ArticleRecord;
       annotation: Annotation;
+      settings: AppSettings;
       uiLanguage: UiLanguage;
     }
   | { type: 'missing' }
@@ -124,6 +127,7 @@ export function AnnotationDiscussionWindowApp() {
                 agents: store.agents,
                 article,
                 annotation,
+                settings: store.settings || {},
                 uiLanguage: normalizeUiLanguage(store.settings?.uiLanguage),
               }
             : { type: 'missing' },
@@ -149,6 +153,7 @@ export function AnnotationDiscussionWindowApp() {
         article={status.article}
         annotation={status.annotation}
         className={windowClassName}
+        settings={status.settings}
         style={windowTransition.style}
         uiLanguage={status.uiLanguage}
       />
@@ -177,6 +182,7 @@ function AnnotationDiscussionShell({
   annotation,
   article,
   className,
+  settings,
   style,
   uiLanguage,
 }: {
@@ -184,6 +190,7 @@ function AnnotationDiscussionShell({
   annotation: Annotation;
   article: ArticleRecord;
   className: string;
+  settings: AppSettings;
   style: CSSProperties;
   uiLanguage: UiLanguage;
 }) {
@@ -259,6 +266,13 @@ function AnnotationDiscussionShell({
   useEffect(() => {
     if (!ideasAutoCollapsed) setIdeasOverlayOpen(false);
   }, [ideasAutoCollapsed]);
+
+  const assistantThoughtWriting = addThoughtAgentRuns.some((run) => run.status === 'active');
+  useEffect(() => {
+    if (!assistantThoughtWriting) return;
+    playAppSoundEffect('discussion.assistant_thought_writing', settings);
+    return () => stopAppSoundEffect('discussion.assistant_thought_writing');
+  }, [assistantThoughtWriting, settings]);
 
   useEffect(() => {
     if (!threads.length) {
