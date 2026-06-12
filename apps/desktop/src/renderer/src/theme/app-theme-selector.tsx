@@ -175,13 +175,15 @@ export function ThemeSelector({
                           type="button"
                           onClick={() => selectReaderBackground(option.value)}
                         >
-                          <span aria-hidden="true" className="theme-reader-paper-swatch" />
-                          <strong>{label}</strong>
-                          <span className="theme-reader-paper-check" aria-hidden="true">
-                            {readerBackgroundColor === option.value ? (
-                              <Check size={15} strokeWidth={2.4} />
-                            ) : null}
+                          <span aria-hidden="true" className="theme-reader-paper-sheet">
+                            <svg className="theme-reader-paper-scribble" viewBox="0 0 70 78">
+                              <path
+                                d="M48 8 C34 0 10 8 6 26 C2 46 12 68 33 70 C54 72 68 56 65 36 C62 16 46 2 27 7 C17 10 10 17 8 27 C6 36 9 45 15 52"
+                                pathLength={1}
+                              />
+                            </svg>
                           </span>
+                          <strong>{label}</strong>
                         </button>
                       );
                     })}

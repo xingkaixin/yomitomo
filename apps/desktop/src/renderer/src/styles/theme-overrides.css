@@ -1500,79 +1500,98 @@
 }
 
 .theme-reader-paper-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 176px);
-  gap: 8px;
-  justify-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-start;
 }
 
 .theme-reader-paper-option {
-  display: flex;
-  width: 176px;
-  min-width: 0;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid hsl(var(--border) / 0.78);
-  border-radius: 8px;
-  background: hsl(var(--card) / 0.74);
+  --paper-tilt: -1.4deg;
+  display: grid;
+  width: 84px;
+  justify-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
   color: hsl(var(--foreground));
-  padding: 9px 10px;
-  text-align: left;
-  transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease,
-    transform 150ms ease;
+  padding: 14px 8px 10px;
 }
 
-.theme-reader-paper-option:hover,
+.theme-reader-paper-option:nth-child(even) {
+  --paper-tilt: 1.6deg;
+}
+
 .theme-reader-paper-option:focus-visible {
-  border-color: var(--app-action-secondary-border);
-  box-shadow: var(--app-subtle-panel-shadow);
+  box-shadow: 0 0 0 2px var(--app-action-secondary-border);
   outline: 0;
 }
 
-.theme-reader-paper-option.is-active {
-  border-color: hsl(var(--border) / 0.78);
-  box-shadow: none;
-}
-
-.theme-reader-paper-option:active {
-  transform: scale(0.99);
-}
-
-.theme-reader-paper-swatch {
+.theme-reader-paper-sheet {
+  position: relative;
   display: block;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
+  width: 42px;
+  height: 50px;
   border: 1px solid hsl(var(--border) / 0.8);
-  border-radius: 999px;
+  border-radius: 3px 5px 2px 6px / 5px 3px 6px 2px;
   background: var(--reader-paper-option);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.64);
+  box-shadow:
+    0 2px 5px rgb(0 0 0 / 0.14),
+    inset 0 0 0 1px rgb(255 255 255 / 0.4);
+  transform: rotate(var(--paper-tilt));
+  transition: transform 150ms ease;
+}
+
+.theme-reader-paper-option:hover .theme-reader-paper-sheet {
+  transform: rotate(var(--paper-tilt)) translateY(-2px) scale(1.05);
+}
+
+.theme-reader-paper-option:active .theme-reader-paper-sheet {
+  transform: rotate(var(--paper-tilt)) scale(0.97);
+}
+
+.theme-reader-paper-scribble {
+  position: absolute;
+  inset: -12px -14px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.theme-reader-paper-scribble path {
+  fill: none;
+  stroke: hsl(var(--foreground));
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.theme-reader-paper-option.is-active .theme-reader-paper-scribble path {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 320ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-reader-paper-option.is-active .theme-reader-paper-scribble path {
+    transition: none;
+  }
 }
 
 .theme-reader-paper-option strong {
-  flex: 1 1 auto;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 780;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 760;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.theme-reader-paper-check {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--app-interactive-badge-border);
-  border-radius: 999px;
-  background: var(--app-interactive-badge-bg);
-  color: var(--app-interactive-badge-fg);
+.theme-reader-paper-option.is-active strong {
+  color: hsl(var(--foreground));
 }
 
 .theme-reader-paper-note {
