@@ -4,6 +4,7 @@ import type { AppSettings, ArticleSummaryRecord } from '@yomitomo/shared';
 import { normalizeUiLanguage } from '@yomitomo/shared';
 import { readerBackgroundTone } from '@yomitomo/reader-ui/reader-settings';
 import { useTranslation } from 'react-i18next';
+import { Volume2 } from 'lucide-react';
 
 import type { SettingsSectionKey } from './settings/app-settings-panels';
 import { AvatarImage } from './shell/app-ui';
@@ -35,6 +36,7 @@ import { elementDialogSourceRect, type DialogSourceRect } from './shell/app-dial
 import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
+import brandPronunciationUrl from './assets/audio/yomitomo.m4a';
 import './styles.css';
 
 const startupUiLanguage = readCachedUiLanguage();
@@ -628,11 +630,7 @@ function App() {
   return (
     <main className={appShellClassName}>
       <header className="app-masthead">
-        <div className="app-masthead-title">
-          <h1>
-            Yomitomo <em>{t('brandSuffix')}</em>
-          </h1>
-        </div>
+        <BrandTitle />
         <time className="app-masthead-date" dateTime={new Date().toISOString()}>
           {today}
         </time>
@@ -849,15 +847,34 @@ function StartupShell() {
 }
 
 function AppMasthead() {
-  const { t } = useTranslation();
   return (
     <header className="app-masthead">
-      <div className="app-masthead-title">
-        <h1>
-          Yomitomo <em>{t('brandSuffix')}</em>
-        </h1>
-      </div>
+      <BrandTitle />
     </header>
+  );
+}
+
+function BrandTitle() {
+  const { t } = useTranslation();
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playPronunciation = () => {
+    audioRef.current ??= new Audio(brandPronunciationUrl);
+    audioRef.current.currentTime = 0;
+    void audioRef.current.play();
+  };
+  return (
+    <div className="app-masthead-title">
+      <h1 onClick={playPronunciation}>Yomitomo</h1>
+      <button
+        aria-label={t('brandPronounce')}
+        className="app-masthead-phonetic"
+        type="button"
+        onClick={playPronunciation}
+      >
+        /joːmitomo/
+        <Volume2 aria-hidden="true" size={13} />
+      </button>
+    </div>
   );
 }
 
