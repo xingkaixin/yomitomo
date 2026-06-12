@@ -1,7 +1,7 @@
 export const zhCNResources = {
   app: {
     appTitle: 'Yomitomo | 伴读 · 你的 AI 阅读伙伴',
-    brandSuffix: '伴读',
+    brandPronounce: '播放产品名发音',
     common: {
       cancel: '取消',
       copied: '已复制',

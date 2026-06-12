@@ -240,9 +240,7 @@ function ThemeCard({
       <span className="theme-preview-frame" style={previewStyle}>
         <span className="theme-preview-shell">
           <span className="theme-preview-masthead">
-            <span className="theme-preview-brand">
-              Yomitomo <em>{t('brandSuffix')}</em>
-            </span>
+            <span className="theme-preview-brand">Yomitomo</span>
             <span className="theme-preview-actions">
               <span />
               <span />

@@ -3,7 +3,7 @@ import type { AppLocaleResource } from './zh-CN';
 export const enResources = {
   app: {
     appTitle: 'Yomitomo | Reader · Your AI reading companion',
-    brandSuffix: 'Reader',
+    brandPronounce: 'Play name pronunciation',
     common: {
       cancel: 'Cancel',
       copied: 'Copied',

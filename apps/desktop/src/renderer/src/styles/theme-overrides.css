@@ -952,9 +952,10 @@
   display: grid;
   grid-column: 2;
   justify-items: center;
-  gap: 12px;
+  gap: 6px;
   padding-top: 2px;
   text-align: center;
+  -webkit-app-region: no-drag;
 }
 
 .app-masthead-title > span {
@@ -967,6 +968,8 @@
 
 .app-masthead-title h1 {
   margin: 0;
+  cursor: default;
+  user-select: none;
   color: hsl(var(--foreground));
   font-family: var(--font-reader-serif);
   font-size: clamp(52px, 6.2vw, 92px);
@@ -975,9 +978,34 @@
   line-height: 0.92;
 }
 
-.app-masthead-title h1 em {
+.app-masthead-phonetic {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 0;
+  cursor: default;
+  transition: color 0.14s ease;
+}
+
+.app-masthead-phonetic svg {
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+
+.app-masthead-title:hover .app-masthead-phonetic,
+.app-masthead-phonetic:focus-visible {
   color: var(--app-interactive-link);
-  font-style: normal;
+}
+
+.app-masthead-title:hover .app-masthead-phonetic svg,
+.app-masthead-phonetic:focus-visible svg {
+  opacity: 1;
 }
 
 .app-masthead-date {
@@ -1339,7 +1367,6 @@
   line-height: 1;
 }
 
-.theme-preview-brand em,
 .theme-preview-nav .is-active {
   color: var(--app-interactive-link);
   font-style: normal;
