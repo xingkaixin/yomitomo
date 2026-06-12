@@ -489,6 +489,8 @@ function DeleteActionMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           className="reader-action-menu-panel t-dropdown is-open"
+          side="bottom"
+          sideOffset={7}
           data-origin="top-right"
         >
           {onOpenDiscussion ? (
@@ -558,27 +560,26 @@ function ReaderConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onCancel()}>
       <DialogPortal>
-        <DialogOverlay className="reader-confirm-overlay">
-          <DialogContent className="reader-confirm-dialog">
-            <header>
-              <span className="reader-confirm-icon" aria-hidden="true">
-                <AlertTriangle size={20} />
-              </span>
-              <div>
-                <DialogTitle>{title}</DialogTitle>
-                <DialogDescription>{description}</DialogDescription>
-              </div>
-            </header>
-            <footer>
-              <button className="reader-confirm-cancel" type="button" onClick={onCancel}>
-                {cancelLabel}
-              </button>
-              <button className="reader-confirm-delete" type="button" onClick={onConfirm}>
-                {confirmLabel}
-              </button>
-            </footer>
-          </DialogContent>
-        </DialogOverlay>
+        <DialogOverlay className="reader-confirm-overlay" />
+        <DialogContent className="reader-confirm-dialog">
+          <header>
+            <span className="reader-confirm-icon" aria-hidden="true">
+              <AlertTriangle size={20} />
+            </span>
+            <div>
+              <DialogTitle>{title}</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
+            </div>
+          </header>
+          <footer>
+            <button className="reader-confirm-cancel" type="button" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+            <button className="reader-confirm-delete" type="button" onClick={onConfirm}>
+              {confirmLabel}
+            </button>
+          </footer>
+        </DialogContent>
       </DialogPortal>
     </Dialog>
   );

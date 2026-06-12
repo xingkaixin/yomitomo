@@ -41,7 +41,7 @@ export const DropdownMenuContent = React.forwardRef<
       align={align}
       side={side}
       sideOffset={sideOffset}
-      style={{ zIndex: 'var(--app-z-popover, 36)' }}
+      style={{ zIndex: 'var(--reader-z-popover, var(--app-z-popover, 160))' }}
     >
       <MenuPrimitive.Popup
         className={className}
