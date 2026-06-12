@@ -61,4 +61,16 @@ describe('app sound effects', () => {
     expect(createdAudio.at(-1)?.volume).toBe(0.35);
     expect(play).toHaveBeenCalledTimes(1);
   });
+
+  it('plays the library delete effect with its base volume', () => {
+    vi.stubGlobal('Audio', MockAudio);
+
+    playAppSoundEffect('library.delete_item', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.5,
+    });
+
+    expect(createdAudio.at(-1)?.volume).toBe(0.4);
+    expect(play).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,9 +1,13 @@
 import type { AppSettings } from '@yomitomo/shared';
 import { normalizeSoundEffectsVolume } from '@yomitomo/shared';
+import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
 import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
-export type AppSoundEffectId = 'settings.sound_preview' | 'theme.paper_switch';
+export type AppSoundEffectId =
+  | 'library.delete_item'
+  | 'settings.sound_preview'
+  | 'theme.paper_switch';
 
 type SoundEffectDefinition = {
   baseVolume: number;
@@ -11,6 +15,10 @@ type SoundEffectDefinition = {
 };
 
 const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
+  'library.delete_item': {
+    baseVolume: 0.8,
+    url: paperBinTossSoundUrl,
+  },
   'settings.sound_preview': {
     baseVolume: 1,
     url: soundPreviewUrl,
