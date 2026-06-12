@@ -12,8 +12,9 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import type { ArticleRecord } from '@yomitomo/shared';
+import type { AppSettings, ArticleRecord } from '@yomitomo/shared';
 import { clampNumber } from '@yomitomo/reader-ui/reader-settings';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/button';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '../components/ui/dialog';
 import {
@@ -26,7 +27,7 @@ import type {
   EbookImportProgressCallback,
   PdfImportProgressCallback,
 } from '../shell/app-reading-types';
-import { useTranslation } from 'react-i18next';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 const MAX_EBOOK_IMPORT_BYTES = 80 * 1024 * 1024;
 const MAX_PDF_IMPORT_BYTES = 120 * 1024 * 1024;
@@ -193,8 +194,17 @@ function centerFirstOrder(count: number) {
   return new Map(indexes.map((index, order) => [index, order]));
 }
 
+function playImportSuccessSound(importedCount: number, settings: AppSettings) {
+  if (importedCount <= 0) return;
+  playAppSoundEffect(
+    importedCount > 1 ? 'library.import_success_multiple' : 'library.import_success_single',
+    settings,
+  );
+}
+
 export function LibraryImportControls({
   defaultImportType,
+  settings,
   onImportEbookFile,
   onImportPdfFile,
   onImportArticleUrl,
@@ -202,6 +212,7 @@ export function LibraryImportControls({
   onOpenArticle,
 }: {
   defaultImportType?: 'web' | 'ebook' | 'pdf';
+  settings: AppSettings;
   onImportEbookFile: (
     file: File,
     onProgress?: EbookImportProgressCallback,
@@ -316,6 +327,7 @@ export function LibraryImportControls({
       </DropdownMenu>
       {articleImportOpen ? (
         <ArticleImportDialog
+          settings={settings}
           onClose={() => setArticleImportOpen(false)}
           onImportArticleUrl={onImportArticleUrl}
           onCancelArticleImport={onCancelArticleImport}
@@ -324,6 +336,7 @@ export function LibraryImportControls({
       ) : null}
       {ebookImportOpen ? (
         <EbookImportDialog
+          settings={settings}
           onClose={() => setEbookImportOpen(false)}
           onImportEbookFile={onImportEbookFile}
           onOpenArticle={onOpenArticle}
@@ -331,6 +344,7 @@ export function LibraryImportControls({
       ) : null}
       {pdfImportOpen ? (
         <PdfImportDialog
+          settings={settings}
           onClose={() => setPdfImportOpen(false)}
           onImportPdfFile={onImportPdfFile}
           onOpenArticle={onOpenArticle}
@@ -341,11 +355,13 @@ export function LibraryImportControls({
 }
 
 function ArticleImportDialog({
+  settings,
   onClose,
   onImportArticleUrl,
   onCancelArticleImport,
   onOpenArticle,
 }: {
+  settings: AppSettings;
   onClose: () => void;
   onImportArticleUrl: (url: string, requestId?: string) => Promise<ArticleImportResult>;
   onCancelArticleImport?: (requestId: string) => Promise<boolean> | boolean;
@@ -433,6 +449,7 @@ function ArticleImportDialog({
       setImportProgress(100);
       setImportState('imported');
       setImportMessage(t('library.import.article.imported'));
+      playImportSuccessSound(1, settings);
       setCancelAvailable(false);
       setInputFocused(false);
       importCloseTimerRef.current = window.setTimeout(() => {
@@ -663,10 +680,12 @@ function ArticleImportDialog({
 }
 
 function EbookImportDialog({
+  settings,
   onClose,
   onImportEbookFile,
   onOpenArticle,
 }: {
+  settings: AppSettings;
   onClose: () => void;
   onImportEbookFile: (
     file: File,
@@ -705,6 +724,7 @@ function EbookImportDialog({
         openDuplicateLabel: t('library.import.ebook.openDuplicate'),
         onImportFile: onImportEbookFile,
       }}
+      settings={settings}
       onClose={onClose}
       onOpenArticle={onOpenArticle}
     />
@@ -712,10 +732,12 @@ function EbookImportDialog({
 }
 
 function PdfImportDialog({
+  settings,
   onClose,
   onImportPdfFile,
   onOpenArticle,
 }: {
+  settings: AppSettings;
   onClose: () => void;
   onImportPdfFile: (
     file: File,
@@ -754,6 +776,7 @@ function PdfImportDialog({
         openDuplicateLabel: t('library.import.pdf.openDuplicate'),
         onImportFile: onImportPdfFile,
       }}
+      settings={settings}
       onClose={onClose}
       onOpenArticle={onOpenArticle}
     />
@@ -762,10 +785,12 @@ function PdfImportDialog({
 
 function FileImportDialog({
   config,
+  settings,
   onClose,
   onOpenArticle,
 }: {
   config: FileImportDialogConfig;
+  settings: AppSettings;
   onClose: () => void;
   onOpenArticle: (article: ArticleRecord) => void;
 }) {
@@ -965,6 +990,7 @@ function FileImportDialog({
         : t('library.import.importedFiles', { count: successCount }),
     );
     setBatchProgress(100);
+    playImportSuccessSound(importedCount, settings);
     if (failedCount === 0) {
       importCloseTimerRef.current = window.setTimeout(
         () => {

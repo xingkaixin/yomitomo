@@ -944,6 +944,7 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('无需重复导入，可以直接打开已有文章。')).toBeTruthy();
     expect(screen.getByRole('button', { name: '打开已有文章' })).toBeTruthy();
     expect(screen.getByDisplayValue('重复文章')).toBeTruthy();
+    expect(playAppSoundEffect).not.toHaveBeenCalled();
   });
 
   it('auto closes the webpage import dialog after a successful import', async () => {
@@ -952,7 +953,13 @@ describe('ReadingLibrary home', () => {
       status: 'imported',
       article: imported,
     });
-    renderLibrary([], { onImportArticleUrl });
+    renderLibrary([], {
+      onImportArticleUrl,
+      settings: {
+        soundEffectsEnabled: true,
+        soundEffectsVolume: 0.6,
+      },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '添加网页文章' }));
     fireEvent.change(screen.getByLabelText('网页地址'), {
@@ -972,6 +979,10 @@ describe('ReadingLibrary home', () => {
     ).toBe('100');
     expect(screen.getByDisplayValue('新导入文章')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开文章' })).toBeNull();
+    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_single', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.6,
+    });
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), { timeout: 2000 });
   });
@@ -1051,7 +1062,13 @@ describe('ReadingLibrary home', () => {
       onProgress?.(42);
       return { status: 'imported' as const, article: imported };
     });
-    const { container } = renderLibrary([], { onImportEbookFile });
+    const { container } = renderLibrary([], {
+      onImportEbookFile,
+      settings: {
+        soundEffectsEnabled: true,
+        soundEffectsVolume: 0.7,
+      },
+    });
 
     fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
@@ -1065,6 +1082,10 @@ describe('ReadingLibrary home', () => {
     expect((await screen.findAllByText('已导入 1 个文件')).length).toBeGreaterThan(0);
     expect(screen.getByText('导入电子书')).toBeTruthy();
     expect(screen.queryByRole('button', { name: '打开电子书' })).toBeNull();
+    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_single', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.7,
+    });
   });
 
   it('imports multiple ebook files sequentially', async () => {
@@ -1107,7 +1128,13 @@ describe('ReadingLibrary home', () => {
         article: file.name === 'one.epub' ? importedOne : importedTwo,
       };
     });
-    const { container } = renderLibrary([], { onImportEbookFile });
+    const { container } = renderLibrary([], {
+      onImportEbookFile,
+      settings: {
+        soundEffectsEnabled: true,
+        soundEffectsVolume: 0.4,
+      },
+    });
 
     fireEvent.click(screen.getByRole('tab', { name: /电子书/ }));
     fireEvent.click(screen.getByRole('button', { name: '添加电子书' }));
@@ -1120,6 +1147,10 @@ describe('ReadingLibrary home', () => {
     expect(screen.getByText('第一本电子书')).toBeTruthy();
     expect(screen.getByText('第二本电子书')).toBeTruthy();
     expect((await screen.findAllByText('已导入 2 个文件')).length).toBeGreaterThan(0);
+    expect(playAppSoundEffect).toHaveBeenCalledWith('library.import_success_multiple', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.4,
+    });
   });
 
   it('opens an existing ebook from the duplicate import state', async () => {

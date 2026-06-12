@@ -282,6 +282,7 @@ export function LibraryHome({
             {activeSource === 'weread' ? null : (
               <LibraryImportControls
                 defaultImportType={activeSource}
+                settings={settings}
                 onImportEbookFile={onImportEbookFile}
                 onImportPdfFile={onImportPdfFile}
                 onImportArticleUrl={onImportArticleUrl}

@@ -1,10 +1,14 @@
 import type { AppSettings } from '@yomitomo/shared';
 import { normalizeSoundEffectsVolume } from '@yomitomo/shared';
+import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
+import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
 import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
 export type AppSoundEffectId =
+  | 'library.import_success_multiple'
+  | 'library.import_success_single'
   | 'library.delete_item'
   | 'settings.sound_preview'
   | 'theme.paper_switch';
@@ -15,6 +19,14 @@ type SoundEffectDefinition = {
 };
 
 const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
+  'library.import_success_multiple': {
+    baseVolume: 0.8,
+    url: importSuccessMultipleSoundUrl,
+  },
+  'library.import_success_single': {
+    baseVolume: 0.8,
+    url: importSuccessSingleSoundUrl,
+  },
   'library.delete_item': {
     baseVolume: 0.8,
     url: paperBinTossSoundUrl,
