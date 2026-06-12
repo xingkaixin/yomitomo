@@ -971,9 +971,13 @@
   cursor: default;
   user-select: none;
   color: hsl(var(--foreground));
-  font-family: var(--font-reader-serif);
+  font-family: 'Fraunces', var(--font-reader-serif);
   font-size: clamp(52px, 6.2vw, 92px);
-  font-weight: 820;
+  font-variation-settings:
+    'SOFT' 80,
+    'WONK' 0,
+    'opsz' 72;
+  font-weight: 700;
   letter-spacing: 0;
   line-height: 0.92;
 }

@@ -129,10 +129,7 @@ export function formatRelativeTime(value: string) {
   const parts = relativeTimeParts(value);
   if (!parts) return value;
   if (parts.unit === 'second') return i18next.t('discussion.time.justNow');
-  if (parts.unit === 'minute') return i18next.t('discussion.time.minutesAgo', parts);
-  if (parts.unit === 'hour') return i18next.t('discussion.time.hoursAgo', parts);
-  if (parts.unit === 'day') return i18next.t('discussion.time.daysAgo', parts);
-  return formatAbsoluteTime(value);
+  return i18next.t(`discussion.time.${parts.unit}`, { count: parts.count });
 }
 
 export function discussionArticleText(article: ArticleRecord) {

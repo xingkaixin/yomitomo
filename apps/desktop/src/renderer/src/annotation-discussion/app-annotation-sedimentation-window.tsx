@@ -447,7 +447,14 @@ function SedimentationShell({
             </div>
             <div className="annotation-sedimentation-document-actions">
               {isPublished ? (
-                <ReaderTooltip content={t('sedimentation.unpublishTooltip')}>
+                <ReaderTooltip
+                  content={
+                    <SedimentationActionTooltipContent
+                      label={t('sedimentation.unpublish')}
+                      description={t('sedimentation.unpublishTooltip')}
+                    />
+                  }
+                >
                   <button
                     className="is-secondary"
                     type="button"
@@ -459,7 +466,14 @@ function SedimentationShell({
                   </button>
                 </ReaderTooltip>
               ) : null}
-              <ReaderTooltip content={t('sedimentation.organizeTooltip')}>
+              <ReaderTooltip
+                content={
+                  <SedimentationActionTooltipContent
+                    label={t('sedimentation.organizeDiscussion')}
+                    description={t('sedimentation.organizeTooltip')}
+                  />
+                }
+              >
                 <button
                   className="is-secondary"
                   type="button"
@@ -664,6 +678,21 @@ async function requestAgentReviewRound({
   return {
     annotation: annotationWithReviewSession(annotation, workingSession),
   };
+}
+
+function SedimentationActionTooltipContent({
+  description,
+  label,
+}: {
+  description: string;
+  label: string;
+}) {
+  return (
+    <span className="annotation-sedimentation-action-tooltip">
+      <strong>{label}</strong>
+      <em>{description}</em>
+    </span>
+  );
 }
 
 function ReviewSessions({

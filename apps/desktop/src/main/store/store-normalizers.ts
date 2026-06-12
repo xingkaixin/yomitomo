@@ -344,7 +344,7 @@ export function rowToSettings(
   return {
     uiLanguage: normalizeUiLanguage(row?.uiLanguage),
     themeId: row?.themeId || undefined,
-    soundEffectsEnabled: Boolean(row?.soundEffectsEnabled ?? true),
+    soundEffectsEnabled: row?.soundEffectsEnabled ?? true,
     soundEffectsVolume: normalizeSoundEffectsVolume(row?.soundEffectsVolume),
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),

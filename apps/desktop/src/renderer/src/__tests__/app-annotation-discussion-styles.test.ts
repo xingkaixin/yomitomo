@@ -78,4 +78,24 @@ describe('annotation discussion styles', () => {
       'is-ideas-overlay-open .annotation-discussion-thread {\n  padding',
     );
   });
+
+  it('switches sedimentation document actions to icon buttons in narrow windows', () => {
+    expect(styles).toContain('flex: 0 0 auto;');
+    expect(styles).toContain('white-space: nowrap;');
+    expect(styles).toContain('.annotation-sedimentation-action-tooltip {');
+    expect(styles).toContain('max-width: 260px;');
+    expect(styles).toContain('@media (max-width: 1040px) {');
+    expect(styles).toContain(`  .annotation-sedimentation-document header button {
+    width: 40px;
+    padding: 0;
+  }`);
+    expect(styles).toContain(`  .annotation-sedimentation-document header button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }`);
+  });
 });
