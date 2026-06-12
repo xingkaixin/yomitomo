@@ -7,11 +7,13 @@ import brandPronunciationUrl from '../assets/audio/yomitomo.m4a';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
+import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
 import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
 export type AppSoundEffectId =
   | 'brand.pronunciation'
+  | 'discussion.assistant_thought_writing'
   | 'library.import_success_multiple'
   | 'library.import_success_single'
   | 'library.delete_item'
@@ -21,6 +23,7 @@ export type AppSoundEffectId =
 
 type SoundEffectDefinition = {
   baseVolume: number;
+  loop?: boolean;
   replayBehavior?: 'restart' | 'skip_while_playing';
   urls: string[];
 };
@@ -30,6 +33,12 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     baseVolume: 1,
     replayBehavior: 'skip_while_playing',
     urls: [brandPronunciationUrl],
+  },
+  'discussion.assistant_thought_writing': {
+    baseVolume: 0.5,
+    loop: true,
+    replayBehavior: 'skip_while_playing',
+    urls: [pencilWritingLoopSoundUrl],
   },
   'library.import_success_multiple': {
     baseVolume: 0.8,
@@ -71,6 +80,7 @@ export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSett
   if (definition.replayBehavior === 'skip_while_playing' && playingUrls.has(url)) return;
 
   audio.volume = volume;
+  audio.loop = definition.loop === true;
   audio.currentTime = 0;
   if (definition.replayBehavior === 'skip_while_playing') markAudioPlaying(url, audio);
   try {
@@ -83,6 +93,15 @@ export function playAppSoundEffect(effectId: AppSoundEffectId, settings: AppSett
   } catch {
     playingUrls.delete(url);
     // Browser autoplay/media support can reject effect playback; the UI action should still succeed.
+  }
+}
+
+export function stopAppSoundEffect(effectId: AppSoundEffectId) {
+  for (const url of soundEffects[effectId].urls) {
+    const audio = audioByUrl.get(url);
+    if (!audio || audio.paused) continue;
+    audio.pause();
+    audio.currentTime = 0;
   }
 }
 
