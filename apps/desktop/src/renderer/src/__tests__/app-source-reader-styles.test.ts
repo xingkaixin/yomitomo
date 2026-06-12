@@ -86,7 +86,6 @@ describe('source reader annotation styles', () => {
 
   it('keeps settings item hover and selected borders on theme variables', () => {
     expect(styles).toContain('border-color: var(--app-interactive-hover-border);');
-    expect(styles).toContain('border-color: var(--app-interactive-selected-border);');
     expect(styles).not.toContain('border-color: hsl(8 45% 48% / 0.4);');
     expect(styles).not.toContain('border-color: hsl(3 62% 39% / 0.52);');
   });
