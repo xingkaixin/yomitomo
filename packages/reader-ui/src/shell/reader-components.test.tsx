@@ -14,6 +14,7 @@ import { ReaderSurfaceView } from './reader-surface-view';
 import { ReaderTocPanel } from './reader-toc-panel';
 import { defaultReaderUiLabels } from './reader-app-view-types';
 import type { Annotation, PublicAgent, UserProfile } from '@yomitomo/shared';
+import type { HighlightBox } from '@yomitomo/core';
 
 const now = '2026-05-12T08:00:00.000Z';
 
@@ -221,7 +222,15 @@ describe('ReaderSettingsToolbarControls', () => {
 });
 
 describe('ReaderSurfaceView empty notes', () => {
-  function renderSurface(showEmptyNotes?: boolean) {
+  function renderSurface(
+    showEmptyNotes?: boolean,
+    highlights: {
+      annotations?: Annotation[];
+      boxes?: HighlightBox[];
+      newAnnotationIds?: Set<string>;
+    } = {},
+  ) {
+    const annotations = highlights.annotations ?? [];
     return render(
       <ReaderSurfaceView
         activeId={null}
@@ -236,9 +245,9 @@ describe('ReaderSurfaceView empty notes', () => {
           rightRailLeft: 740,
           viewportHeight: 640,
         }}
-        annotations={[]}
+        annotations={annotations}
         articleRef={React.createRef<HTMLElement>()}
-        boxes={[]}
+        boxes={highlights.boxes ?? []}
         canvasRef={React.createRef<HTMLDivElement>()}
         commentsCloseKey={0}
         composer={null}
@@ -247,6 +256,7 @@ describe('ReaderSurfaceView empty notes', () => {
         extracted={{ title: '文章', content: '<p>正文</p>' }}
         highlightChoice={null}
         messageSendShortcut="mod-enter"
+        newAnnotationIds={highlights.newAnnotationIds}
         noteRefForAnnotation={() => vi.fn()}
         notesRef={React.createRef<HTMLElement>()}
         selectionAction={null}
@@ -255,8 +265,8 @@ describe('ReaderSurfaceView empty notes', () => {
         surfaceRef={React.createRef<HTMLDivElement>()}
         temporaryBoxes={[]}
         userProfile={userProfile}
-        visibleAnnotationIds={new Set()}
-        visibleAnnotations={[]}
+        visibleAnnotationIds={new Set(annotations.map((item) => item.id))}
+        visibleAnnotations={annotations}
         onAddComment={vi.fn()}
         onCancelComposer={vi.fn()}
         onClearSelection={vi.fn()}
@@ -285,6 +295,30 @@ describe('ReaderSurfaceView empty notes', () => {
     renderSurface(false);
 
     expect(screen.queryByText(defaultReaderUiLabels.emptyNotesTitle)).toBeNull();
+  });
+
+  it('marks newly created highlight segments for the grow animation', () => {
+    const createdAnnotation = annotation({ id: 'annotation-new' });
+    const { container } = renderSurface(false, {
+      annotations: [createdAnnotation],
+      boxes: [
+        {
+          id: 'box-1',
+          annotationId: createdAnnotation.id,
+          color: createdAnnotation.color,
+          top: 12,
+          left: 24,
+          width: 120,
+          height: 20,
+        },
+      ],
+      newAnnotationIds: new Set([createdAnnotation.id]),
+    });
+
+    const highlight = container.querySelector<HTMLElement>('.reader-highlight');
+
+    expect(highlight?.classList.contains('is-new')).toBe(true);
+    expect(highlight?.style.getPropertyValue('--highlight-grow-delay')).toBe('0ms');
   });
 });
 

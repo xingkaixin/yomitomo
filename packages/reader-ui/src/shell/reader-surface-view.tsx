@@ -28,6 +28,9 @@ type AnnotationRailStyle = React.CSSProperties & {
   '--reader-empty-top': string;
   '--reader-note-width': string;
 };
+type HighlightGrowStyle = React.CSSProperties & {
+  '--highlight-grow-delay'?: string;
+};
 import {
   buildAnnotationRailItems,
   buildHighlightSegments,
@@ -61,6 +64,7 @@ export type ReaderSurfaceViewProps = {
   highlightChoice: HighlightChoice | null;
   labels?: ReaderUiLabels;
   messageSendShortcut: MessageSendShortcut;
+  newAnnotationIds?: Set<string>;
   pendingAnnotationAgents?: Record<string, PublicAgent[]>;
   noteRefForAnnotation: (annotationId: string) => (element: HTMLElement | null) => void;
   notesRef: React.RefObject<HTMLElement | null>;
@@ -96,6 +100,8 @@ export type ReaderSurfaceViewProps = {
   onPrimaryCommentExpandedChange: (annotationId: string, expanded: boolean) => void;
   onScrollToHighlight: (annotationId: string) => void;
 };
+
+const emptyNewAnnotationIds = new Set<string>();
 
 function HighlightDots({ colors }: { colors: string[] }) {
   if (colors.length <= 1) return null;
@@ -148,6 +154,7 @@ export function ReaderSurfaceView({
   highlightChoice,
   labels = defaultReaderUiLabels,
   messageSendShortcut,
+  newAnnotationIds = emptyNewAnnotationIds,
   pendingAnnotationAgents = {},
   noteRefForAnnotation,
   notesRef,
@@ -189,6 +196,18 @@ export function ReaderSurfaceView({
     [agentTheaterBoxes],
   );
   const searchSegments = React.useMemo(() => buildHighlightSegments(searchBoxes), [searchBoxes]);
+  const newHighlightDelayBySegmentId = React.useMemo(() => {
+    const delays = new Map<string, number>();
+    if (newAnnotationIds.size === 0) return delays;
+
+    let newSegmentIndex = 0;
+    for (const segment of highlightSegments) {
+      if (!segment.annotationIds.some((id) => newAnnotationIds.has(id))) continue;
+      delays.set(segment.id, Math.min(newSegmentIndex * 55, 280));
+      newSegmentIndex += 1;
+    }
+    return delays;
+  }, [highlightSegments, newAnnotationIds]);
   const visibleAnnotationById = React.useMemo(
     () => new Map(visibleAnnotations.map((annotation) => [annotation.id, annotation])),
     [visibleAnnotations],
@@ -238,11 +257,16 @@ export function ReaderSurfaceView({
                 visibleAnnotationIds.has(id),
               );
               const annotationId = clickableAnnotationIds[0] || segment.annotationIds[0] || '';
-              const segmentStyle = highlightSegmentStyle(segment, active) as React.CSSProperties;
+              const growDelay = newHighlightDelayBySegmentId.get(segment.id);
+              const isNew = growDelay !== undefined;
+              const segmentStyle = {
+                ...(highlightSegmentStyle(segment, active) as React.CSSProperties),
+                ...(isNew ? { '--highlight-grow-delay': `${growDelay}ms` } : {}),
+              } as HighlightGrowStyle;
               return (
                 <button
                   aria-label={highlightLabel(annotationId)}
-                  className={['reader-highlight', active ? 'is-active' : '']
+                  className={['reader-highlight', active ? 'is-active' : '', isNew ? 'is-new' : '']
                     .filter(Boolean)
                     .join(' ')}
                   key={`highlight-${segment.id}`}

@@ -61,6 +61,7 @@ import {
   type SourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
+import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
 import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import {
   useReaderPageTurnKeys,
@@ -162,6 +163,7 @@ export function PdfiumBookcase({
   distillationAnimation,
   focusAnnotationId,
   messageSendShortcut,
+  settings,
   selectionActionShortcuts,
   selectedAnnotationId,
   uiLanguage,
@@ -320,6 +322,7 @@ export function PdfiumBookcase({
                         distillationAnimation={distillationAnimation}
                         focusAnnotationId={focusAnnotationId}
                         selectedAnnotationId={selectedAnnotationId}
+                        settings={settings}
                         selectionActionShortcuts={selectionActionShortcuts}
                         tocItems={tocItems}
                         tocOpen={tocOpen}
@@ -379,6 +382,7 @@ function PdfiumDocument({
   distillationAnimation,
   focusAnnotationId,
   selectedAnnotationId,
+  settings,
   selectionActionShortcuts,
   tocItems,
   tocOpen,
@@ -409,6 +413,7 @@ function PdfiumDocument({
   distillationAnimation: SourceBookcaseProps['distillationAnimation'];
   focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
   selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
+  settings: SourceBookcaseProps['settings'];
   selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
   tocItems: TocItem[];
   tocOpen: boolean;
@@ -434,6 +439,10 @@ function PdfiumDocument({
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const notesRef = useRef<HTMLElement | null>(null);
   const noteRefs = useRef(new Map<string, HTMLElement>());
+  const { markAnnotationCreated, newAnnotationIds } = useRecentAnnotationFeedback(
+    article.id,
+    settings,
+  );
   const recordedOpenPhasesRef = useRef(new Set<string>());
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const documentState = useDocumentState(documentId);
@@ -1133,6 +1142,7 @@ function PdfiumDocument({
     cancelComposer();
     const annotation = createUserAnnotation(currentComposer.anchor, userProfile, note);
     await saveAnnotations([...currentArticle.annotations, annotation]);
+    markAnnotationCreated(annotation.id);
     onOpenAnnotation(annotation.id);
   }
 
@@ -1279,6 +1289,7 @@ function PdfiumDocument({
           commentsCloseKey,
           distillationAnimation,
           filteredAnnotations: visiblePdfAnnotations,
+          newAnnotationIds,
           railLayoutOverride: annotationRailLayout,
           railViewportHeight: annotationRailViewportHeight,
           searchBoxes,

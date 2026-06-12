@@ -21,6 +21,7 @@ class MockAudio {
 afterEach(() => {
   play.mockClear();
   createdAudio.length = 0;
+  vi.restoreAllMocks();
 });
 
 describe('app sound effects', () => {
@@ -88,6 +89,26 @@ describe('app sound effects', () => {
 
     expect(createdAudio[0].volume).toBe(0.4);
     expect(createdAudio[1].volume).toBe(0.2);
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  it('randomly chooses a highlight creation variant at the shared volume', () => {
+    vi.stubGlobal('Audio', MockAudio);
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+
+    playAppSoundEffect('reader.annotation_created', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.5,
+    });
+    playAppSoundEffect('reader.annotation_created', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.5,
+    });
+
+    expect(createdAudio).toHaveLength(2);
+    expect(new Set(createdAudio.map((audio) => audio.src)).size).toBe(2);
+    expect(createdAudio[0].volume).toBe(0.375);
+    expect(createdAudio[1].volume).toBe(0.375);
     expect(play).toHaveBeenCalledTimes(2);
   });
 });
