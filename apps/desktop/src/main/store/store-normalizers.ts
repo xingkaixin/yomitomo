@@ -44,6 +44,7 @@ import {
   normalizeReviewOpinionLabel,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  normalizeSoundEffectsVolume,
   normalizeUiLanguage,
   providerPresets,
 } from '@yomitomo/shared';
@@ -247,6 +248,12 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     themeId: settingsFieldProvided(settings, 'themeId')
       ? settings.themeId || undefined
       : existing?.themeId || undefined,
+    soundEffectsEnabled: settingsFieldProvided(settings, 'soundEffectsEnabled')
+      ? Boolean(settings.soundEffectsEnabled)
+      : (existing?.soundEffectsEnabled ?? true),
+    soundEffectsVolume: settingsFieldProvided(settings, 'soundEffectsVolume')
+      ? normalizeSoundEffectsVolume(settings.soundEffectsVolume)
+      : normalizeSoundEffectsVolume(existing?.soundEffectsVolume),
     libraryPageSize: settingsFieldProvided(settings, 'libraryPageSize')
       ? normalizeLibraryPageSize(settings.libraryPageSize)
       : normalizeLibraryPageSize(existing?.libraryPageSize),
@@ -337,6 +344,8 @@ export function rowToSettings(
   return {
     uiLanguage: normalizeUiLanguage(row?.uiLanguage),
     themeId: row?.themeId || undefined,
+    soundEffectsEnabled: Boolean(row?.soundEffectsEnabled ?? true),
+    soundEffectsVolume: normalizeSoundEffectsVolume(row?.soundEffectsVolume),
     libraryPageSize: normalizeLibraryPageSize(row?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(row?.libraryContentSources),
     defaultProviderId: row?.defaultProviderId || undefined,
@@ -357,6 +366,8 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
   return {
     uiLanguage: normalizeUiLanguage(settings?.uiLanguage),
     themeId: settings?.themeId || undefined,
+    soundEffectsEnabled: settings?.soundEffectsEnabled ?? true,
+    soundEffectsVolume: normalizeSoundEffectsVolume(settings?.soundEffectsVolume),
     libraryPageSize: normalizeLibraryPageSize(settings?.libraryPageSize),
     libraryContentSources: normalizeLibraryContentSources(settings?.libraryContentSources),
     defaultProviderId: settings?.defaultProviderId || undefined,

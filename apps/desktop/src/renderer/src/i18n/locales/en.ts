@@ -1124,6 +1124,12 @@ export const enResources = {
           'Controls the app language and makes assistants reply in the same language by default.',
         languageZh: '简体中文',
         languageEn: 'English',
+        soundGroup: 'Sound',
+        soundEffectsTitle: 'Enable app sound effects',
+        soundEffectsDescription: 'Controls app sounds and feedback effects.',
+        soundVolumeTitle: 'Sound effect volume',
+        soundVolumeDescription: 'Controls playback volume for all app sound effects.',
+        soundVolumeValue: '{{value}}%',
         collectionGroup: 'Capture',
         saveImagesTitle: 'Save article images while capturing',
         saveImagesDescription:

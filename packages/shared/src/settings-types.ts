@@ -27,6 +27,8 @@ export const defaultLibraryContentSourceOrder: LibraryContentSourceId[] = [
 export type AppSettings = {
   uiLanguage?: UiLanguage;
   themeId?: string;
+  soundEffectsEnabled?: boolean;
+  soundEffectsVolume?: number;
   libraryPageSize?: number;
   libraryContentSources?: LibraryContentSourcePreference[];
   defaultProviderId?: string;
@@ -48,6 +50,12 @@ export function normalizeUiLanguage(value: unknown): UiLanguage {
 
 export function normalizeAssistantExecutionMode(value: unknown): AssistantExecutionMode {
   return value === 'deep_verification' ? 'deep_verification' : 'fast_response';
+}
+
+export function normalizeSoundEffectsVolume(value: unknown): number {
+  const volume = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(volume)) return 0.7;
+  return Math.min(1, Math.max(0, volume));
 }
 
 export function normalizeLibraryContentSources(value: unknown): LibraryContentSourcePreference[] {

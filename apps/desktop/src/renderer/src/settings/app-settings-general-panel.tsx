@@ -7,13 +7,18 @@ import {
   Image as ImageIcon,
   MessageCircle,
   MoreHorizontal,
+  Volume2,
 } from 'lucide-react';
 import type {
   AppSettings,
   LibraryContentSourceId,
   LibraryContentSourcePreference,
 } from '@yomitomo/shared';
-import { normalizeUiLanguage, type UiLanguage } from '@yomitomo/shared';
+import {
+  normalizeSoundEffectsVolume,
+  normalizeUiLanguage,
+  type UiLanguage,
+} from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
@@ -24,6 +29,7 @@ import {
   SettingsSegmented,
   SettingsToggle,
 } from './app-settings-kit';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
 import {
   allLibraryContentSourceOptions,
   libraryContentSourcePreferences,
@@ -48,7 +54,18 @@ type ContentSourceDragFrame = {
   width: number;
 };
 
-type GeneralSaveSection = 'language' | 'collection' | 'libraryEntrances';
+type GeneralSaveSection = 'language' | 'sound' | 'collection' | 'libraryEntrances';
+
+const soundVolumeCommitKeys = new Set([
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+]);
 
 const contentSourceIcons: Record<LibraryContentSourceId, React.ReactNode> = {
   web: <Globe size={18} />,
@@ -82,11 +99,16 @@ export function GeneralSettings({
   const displayPreferences = dragPreviewPreferences || sourcePreferences;
   const sourceOptions = allLibraryContentSourceOptions(displayPreferences);
   const enabledSourceCount = sourceOptions.filter((option) => option.enabled).length;
+  const savedSoundVolumePercent = Math.round(
+    normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) * 100,
+  );
+  const [soundVolumePercent, setSoundVolumePercent] = useState(savedSoundVolumePercent);
   const [draggedSource, setDraggedSource] = useState<LibraryContentSourceId | null>(null);
   const [dragFrame, setDragFrame] = useState<ContentSourceDragFrame | null>(null);
   const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
   const sourceMenuRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<ContentSourceDragSession | null>(null);
+  const committedSoundVolumePercentRef = useRef(savedSoundVolumePercent);
   const draggedOption = draggedSource
     ? sourceOptions.find((option) => option.value === draggedSource)
     : null;
@@ -96,6 +118,11 @@ export function GeneralSettings({
       dragSessionRef.current?.cleanup();
     };
   }, []);
+
+  useEffect(() => {
+    setSoundVolumePercent(savedSoundVolumePercent);
+    committedSoundVolumePercentRef.current = savedSoundVolumePercent;
+  }, [savedSoundVolumePercent]);
 
   function saveContentSources(nextSources: AppSettings['libraryContentSources']) {
     const nextDraft = {
@@ -115,6 +142,32 @@ export function GeneralSettings({
     onSettingsChange(nextDraft);
     setSaveSection('language');
     onSave(nextDraft);
+  }
+
+  function saveSoundSettings(
+    patch: Partial<Pick<AppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>>,
+  ) {
+    const nextDraft = {
+      ...settingsDraft,
+      ...patch,
+    };
+    onSettingsChange(nextDraft);
+    setSaveSection('sound');
+    onSave(nextDraft);
+    return nextDraft;
+  }
+
+  function toggleSoundEffects(checked: boolean) {
+    const nextDraft = saveSoundSettings({ soundEffectsEnabled: checked });
+    if (checked) playAppSoundEffect('settings.sound_preview', nextDraft);
+  }
+
+  function commitSoundVolume() {
+    if (committedSoundVolumePercentRef.current === soundVolumePercent) return;
+    committedSoundVolumePercentRef.current = soundVolumePercent;
+    const nextVolume = soundVolumePercent / 100;
+    const nextDraft = saveSoundSettings({ soundEffectsVolume: nextVolume });
+    playAppSoundEffect('settings.sound_preview', nextDraft);
   }
 
   function retrySave(section: GeneralSaveSection) {
@@ -267,6 +320,60 @@ export function GeneralSettings({
             ]}
             onChange={saveUiLanguage}
           />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup
+        label={t('settings.general.soundGroup')}
+        aside={
+          <AutoSaveStatus
+            error={saveError}
+            state={saveSection === 'sound' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('sound') : undefined}
+          />
+        }
+      >
+        <SettingsRow
+          align="start"
+          leading={<Volume2 size={20} />}
+          title={t('settings.general.soundEffectsTitle')}
+          description={t('settings.general.soundEffectsDescription')}
+        >
+          <SettingsToggle
+            id="general-sound-effects"
+            checked={settingsDraft.soundEffectsEnabled ?? true}
+            label={t('settings.general.soundEffectsTitle')}
+            onChange={toggleSoundEffects}
+          />
+        </SettingsRow>
+        <SettingsRow
+          align="start"
+          leading={<Volume2 size={20} />}
+          title={t('settings.general.soundVolumeTitle')}
+          description={t('settings.general.soundVolumeDescription')}
+        >
+          <label className="settings-slider-control">
+            <input
+              aria-label={t('settings.general.soundVolumeTitle')}
+              disabled={settingsDraft.soundEffectsEnabled === false}
+              max={100}
+              min={0}
+              step={5}
+              type="range"
+              value={soundVolumePercent}
+              onBlur={commitSoundVolume}
+              onChange={(event) => setSoundVolumePercent(Number(event.currentTarget.value))}
+              onKeyUp={(event) => {
+                if (soundVolumeCommitKeys.has(event.key)) commitSoundVolume();
+              }}
+              onPointerUp={commitSoundVolume}
+            />
+            <span>
+              {t('settings.general.soundVolumeValue', {
+                value: soundVolumePercent,
+              })}
+            </span>
+          </label>
         </SettingsRow>
       </SettingsGroup>
 

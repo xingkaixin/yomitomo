@@ -16,6 +16,15 @@ afterEach(cleanup);
 
 beforeEach(() => {
   initializeAppI18n('zh-CN');
+  vi.stubGlobal(
+    'Audio',
+    class {
+      currentTime = 0;
+      volume = 1;
+
+      play = vi.fn().mockResolvedValue(undefined);
+    },
+  );
 });
 
 describe('ThemeSelector', () => {

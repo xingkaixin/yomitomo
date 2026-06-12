@@ -21,6 +21,10 @@ export const appSettings = sqliteTable('app_settings', {
   id: text('id').primaryKey(),
   uiLanguage: text('ui_language').notNull().default('zh-CN'),
   themeId: text('theme_id'),
+  soundEffectsEnabled: integer('sound_effects_enabled', { mode: 'boolean' })
+    .notNull()
+    .default(true),
+  soundEffectsVolume: real('sound_effects_volume').notNull().default(0.7),
   libraryPageSize: integer('library_page_size'),
   libraryContentSources: text('library_content_sources', { mode: 'json' }),
   defaultProviderId: text('default_provider_id'),

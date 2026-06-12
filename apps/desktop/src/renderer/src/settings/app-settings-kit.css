@@ -805,6 +805,29 @@
   outline-offset: 2px;
 }
 
+.settings-slider-control {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) 48px;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-slider-control input {
+  width: 100%;
+  accent-color: hsl(var(--primary));
+}
+
+.settings-slider-control input:disabled {
+  opacity: 0.45;
+}
+
+.settings-slider-control span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .settings-radio-dot {
   display: inline-block;
   width: 18px;

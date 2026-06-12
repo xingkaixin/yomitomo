@@ -6,6 +6,7 @@ import {
   normalizeLibraryContentSources,
   normalizeSelectionActionShortcutDraft,
   normalizeSelectionActionShortcuts,
+  normalizeSoundEffectsVolume,
   selectionActionShortcutsConflict,
 } from '@yomitomo/shared';
 import { changeAppI18nLanguage } from '../i18n/app-i18n';
@@ -92,6 +93,10 @@ export function useSettingsDrafts({
     () =>
       normalizeUiLanguage(settingsDraft.uiLanguage) !==
         normalizeUiLanguage(store.settings.uiLanguage) ||
+      (settingsDraft.soundEffectsEnabled ?? true) !==
+        (store.settings.soundEffectsEnabled ?? true) ||
+      normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) !==
+        normalizeSoundEffectsVolume(store.settings.soundEffectsVolume) ||
       Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
       libraryContentSourcesChanged(
         settingsDraft.libraryContentSources,
@@ -100,9 +105,13 @@ export function useSettingsDrafts({
     [
       settingsDraft.libraryContentSources,
       settingsDraft.saveArticleImages,
+      settingsDraft.soundEffectsEnabled,
+      settingsDraft.soundEffectsVolume,
       settingsDraft.uiLanguage,
       store.settings.libraryContentSources,
       store.settings.saveArticleImages,
+      store.settings.soundEffectsEnabled,
+      store.settings.soundEffectsVolume,
       store.settings.uiLanguage,
     ],
   );
