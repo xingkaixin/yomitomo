@@ -661,6 +661,7 @@ function App() {
           activeThemeId={activeThemeId}
           open={themeDialogOpen}
           readerBackgroundColor={readerBackgroundColor}
+          soundSettings={store.settings}
           readerBackgroundsByTone={readerBackgroundsByTone}
           themeIdsByTone={themeIdsByTone}
           onOpenChange={setThemeDialogOpen}

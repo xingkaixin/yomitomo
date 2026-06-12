@@ -3,6 +3,7 @@ import {
   normalizeLibraryContentSources,
   normalizeMessageSendShortcut,
   normalizeSelectionActionShortcuts,
+  normalizeSoundEffectsVolume,
   normalizeUiLanguage,
 } from '@yomitomo/shared';
 import * as schema from '../db/schema';
@@ -58,6 +59,8 @@ export function upsertSettings(database: StoreExecutor, settings: AppSettings) {
     id: 'default',
     uiLanguage: normalizeUiLanguage(merged.uiLanguage),
     themeId: merged.themeId || null,
+    soundEffectsEnabled: merged.soundEffectsEnabled ?? true,
+    soundEffectsVolume: normalizeSoundEffectsVolume(merged.soundEffectsVolume),
     libraryPageSize: merged.libraryPageSize || null,
     libraryContentSources: normalizeLibraryContentSources(merged.libraryContentSources),
     defaultProviderId: merged.defaultProviderId || null,

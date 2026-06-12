@@ -35,11 +35,14 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { IconButton } from '../components/ui/icon-button';
+import type { AppSettings } from '@yomitomo/shared';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
 
 type ThemeSelectorProps = {
   activeThemeId: AppThemeId;
   open: boolean;
   readerBackgroundColor: string;
+  soundSettings?: Pick<AppSettings, 'soundEffectsEnabled' | 'soundEffectsVolume'>;
   readerBackgroundsByTone?: Record<ReaderBackgroundTone, string>;
   themeIdsByTone?: Record<AppThemeTone, AppThemeId>;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +54,7 @@ export function ThemeSelector({
   activeThemeId,
   open,
   readerBackgroundColor,
+  soundSettings = {},
   readerBackgroundsByTone = defaultReaderBackgroundsByTone,
   themeIdsByTone = defaultThemeIdsByTone,
   onOpenChange,
@@ -82,6 +86,9 @@ export function ThemeSelector({
   }
 
   function selectReaderBackground(backgroundColor: string) {
+    if (backgroundColor !== readerBackgroundColor) {
+      playAppSoundEffect('theme.paper_switch', soundSettings);
+    }
     const tone = readerBackgroundTone(backgroundColor);
     if (tone !== activeTone) {
       onSelectTheme(themeIdsByTone[tone], backgroundColor);

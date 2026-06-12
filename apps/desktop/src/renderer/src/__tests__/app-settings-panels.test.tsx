@@ -18,6 +18,11 @@ import {
 import { defaultUser, emptyProvider, emptyStore, type AgentDraft } from '../settings/app-settings';
 import type { Agent, AppSettings, LlmProvider } from '@yomitomo/shared';
 import { initializeAppI18n } from '../i18n/app-i18n';
+import { playAppSoundEffect } from '../sound/app-sound-effects';
+
+vi.mock('../sound/app-sound-effects', () => ({
+  playAppSoundEffect: vi.fn(),
+}));
 
 const localStorageStore: Record<string, string> = {};
 
@@ -863,6 +868,60 @@ describe('GeneralSettings', () => {
     expect(onSave).toHaveBeenCalledWith({ uiLanguage: 'en' });
   });
 
+  it('saves sound effect controls', () => {
+    const onSettingsChange = vi.fn();
+    const onSave = vi.fn();
+    const view = render(
+      <GeneralSettings
+        settingsDraft={{ soundEffectsEnabled: false, soundEffectsVolume: 0.7 }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '启用应用音效' }));
+    expect(onSave).toHaveBeenLastCalledWith({
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.7,
+    });
+    expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.7,
+    });
+
+    view.rerender(
+      <GeneralSettings
+        settingsDraft={{ soundEffectsEnabled: true, soundEffectsVolume: 0.7 }}
+        canSave={false}
+        onSettingsChange={onSettingsChange}
+        onSave={onSave}
+        saveState="idle"
+      />,
+    );
+    const slider = screen.getByRole('slider', { name: '音效响度' });
+    fireEvent.change(slider, {
+      target: { value: '35' },
+    });
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSettingsChange).toHaveBeenCalledTimes(1);
+
+    fireEvent.pointerUp(slider);
+    expect(onSettingsChange).toHaveBeenLastCalledWith({
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
+    });
+    expect(onSave).toHaveBeenLastCalledWith({
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
+    });
+    expect(playAppSoundEffect).toHaveBeenLastCalledWith('settings.sound_preview', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.35,
+    });
+  });
+
   it('shows the saved status only on the general section that changed', () => {
     const onSettingsChange = vi.fn();
     const onSave = vi.fn();
@@ -889,12 +948,15 @@ describe('GeneralSettings', () => {
 
     const languageSection = screen.getByText('界面').closest('section');
     const collectionSection = screen.getByText('采集').closest('section');
+    const soundSection = screen.getByText('音效').closest('section');
     const librarySection = screen.getByText('阅读库入口').closest('section');
 
     expect(languageSection).toBeTruthy();
     expect(collectionSection).toBeTruthy();
+    expect(soundSection).toBeTruthy();
     expect(librarySection).toBeTruthy();
     expect(within(languageSection!).getByText('已保存')).toBeTruthy();
+    expect(within(soundSection!).queryByText('已保存')).toBeNull();
     expect(within(collectionSection!).queryByText('已保存')).toBeNull();
     expect(within(librarySection!).queryByText('已保存')).toBeNull();
 

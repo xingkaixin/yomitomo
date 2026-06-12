@@ -1091,6 +1091,12 @@ export const zhCNResources = {
         languageDescription: '控制应用界面语言，并让助手默认使用相同语言回复。',
         languageZh: '简体中文',
         languageEn: 'English',
+        soundGroup: '音效',
+        soundEffectsTitle: '启用应用音效',
+        soundEffectsDescription: '控制应用内提示音和反馈音效。',
+        soundVolumeTitle: '音效响度',
+        soundVolumeDescription: '统一控制所有应用音效的播放响度。',
+        soundVolumeValue: '{{value}}%',
         collectionGroup: '采集',
         saveImagesTitle: '采集文章时保存正文图片',
         saveImagesDescription:

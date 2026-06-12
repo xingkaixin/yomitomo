@@ -134,6 +134,8 @@ describe('store normalizers settings', () => {
       ],
       assistantExecutionMode: 'fast_response',
       messageSendShortcut: 'enter',
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.7,
       saveArticleImages: false,
       developerModeEnabled: false,
     });
@@ -154,6 +156,8 @@ describe('store normalizers settings', () => {
         reviewAssistantProviderId: '',
         assistantExecutionMode: 'invalid',
         messageSendShortcut: 'invalid',
+        soundEffectsEnabled: 0,
+        soundEffectsVolume: 2,
         selectionActionShortcuts: { copy: '', annotate: 'B', ask: 'Q' },
         saveArticleImages: 1,
         developerModeEnabled: 0,
@@ -173,6 +177,8 @@ describe('store normalizers settings', () => {
       ],
       assistantExecutionMode: 'fast_response',
       messageSendShortcut: 'enter',
+      soundEffectsEnabled: false,
+      soundEffectsVolume: 1,
       saveArticleImages: true,
       developerModeEnabled: false,
       logRetentionDays: undefined,
@@ -183,10 +189,11 @@ describe('store normalizers settings', () => {
     expect(
       mergeSettingsForUpsert(
         { logRetentionDays: 90 },
-        { themeId: 'ink-paper', saveArticleImages: true },
+        { themeId: 'ink-paper', soundEffectsVolume: 0.25, saveArticleImages: true },
       ),
     ).toMatchObject({
       themeId: 'ink-paper',
+      soundEffectsVolume: 0.25,
       saveArticleImages: true,
       logRetentionDays: 90,
     });

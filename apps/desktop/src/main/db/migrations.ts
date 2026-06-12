@@ -725,4 +725,11 @@ ALTER TABLE articles ADD COLUMN reader_chat_state TEXT;
 ALTER TABLE app_settings ADD COLUMN ui_language TEXT NOT NULL DEFAULT 'zh-CN';
 `,
   },
+  {
+    id: '0050_sound_effect_settings',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN sound_effects_enabled INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE app_settings ADD COLUMN sound_effects_volume REAL NOT NULL DEFAULT 0.7;
+`,
+  },
 ];
