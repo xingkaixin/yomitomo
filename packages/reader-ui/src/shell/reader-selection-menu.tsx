@@ -1,4 +1,5 @@
-import { Copy, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
+import { Check, Copy, MessageCircleQuestion, MessageSquarePlus } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { SelectionActionShortcuts } from '@yomitomo/shared';
 import { normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import { Kbd } from '../components/ui/kbd';
@@ -13,15 +14,39 @@ export function SelectionMenu({
   onAnnotate,
   onAsk,
   onCopy,
+  onCopySettled,
 }: {
   action: SelectionMenuAction;
   labels?: ReaderUiLabels;
   shortcuts?: Partial<SelectionActionShortcuts>;
   onAnnotate: () => void;
   onAsk?: () => void;
-  onCopy: () => void;
+  onCopy: () => void | Promise<void>;
+  onCopySettled?: () => void;
 }) {
   const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
+  const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
+  const closeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  async function copy() {
+    if (copyState !== 'idle') return;
+    setCopyState('copying');
+    try {
+      await onCopy();
+      setCopyState('copied');
+      closeTimerRef.current = window.setTimeout(() => onCopySettled?.(), 520);
+    } catch {
+      setCopyState('idle');
+    }
+  }
+
+  const copied = copyState === 'copied';
 
   return (
     <div
@@ -30,10 +55,32 @@ export function SelectionMenu({
       onMouseDown={(event) => event.preventDefault()}
       onMouseUp={(event) => event.stopPropagation()}
     >
-      <button className="reader-selection-primary" type="button" onClick={onCopy}>
-        <Copy size={15} strokeWidth={2.2} />
-        {labels.copySelection}
-        <Kbd className="reader-kbd">{shortcutKeys.copy}</Kbd>
+      <button
+        aria-live="polite"
+        className={copied ? 'reader-selection-primary is-copied' : 'reader-selection-primary'}
+        disabled={copyState === 'copying'}
+        type="button"
+        onClick={() => void copy()}
+      >
+        <span
+          aria-hidden="true"
+          className="reader-selection-copy-icon t-icon-swap"
+          data-state={copied ? 'b' : 'a'}
+        >
+          <span className="t-icon" data-icon="a">
+            <Copy size={15} strokeWidth={2.2} />
+          </span>
+          <span className="t-icon" data-icon="b">
+            <Check size={15} strokeWidth={2.4} />
+          </span>
+        </span>
+        <span>{copied ? labels.copiedSelection : labels.copySelection}</span>
+        <Kbd
+          aria-hidden={copied ? 'true' : undefined}
+          className={copied ? 'reader-kbd reader-selection-copy-shortcut is-hidden' : 'reader-kbd'}
+        >
+          {shortcutKeys.copy}
+        </Kbd>
       </button>
       <button className="reader-selection-primary" type="button" onClick={onAnnotate}>
         <MessageSquarePlus size={15} strokeWidth={2.2} />

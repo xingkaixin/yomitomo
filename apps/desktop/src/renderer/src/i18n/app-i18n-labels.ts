@@ -32,6 +32,7 @@ export function readerUiLabels(): ReaderUiLabels {
     closeSearch: i18next.t('readerUi.closeSearch'),
     closeSidebar: i18next.t('readerUi.closeSidebar'),
     collapseReaderChat: i18next.t('readerUi.collapseReaderChat'),
+    copiedSelection: i18next.t('readerUi.copiedSelection'),
     copySelection: i18next.t('readerUi.copySelection'),
     currentSelection: i18next.t('readerUi.currentSelection'),
     deleteHighlight: i18next.t('readerUi.deleteHighlight'),

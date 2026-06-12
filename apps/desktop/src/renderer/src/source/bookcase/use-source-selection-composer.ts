@@ -44,13 +44,9 @@ export function useSourceSelectionComposer({
     setTemporaryBoxes((boxes) => (boxes.length > 0 ? [] : boxes));
   }, []);
 
-  const copySelection = useCallback(
-    async (action: SourceSelectionAction) => {
-      await navigator.clipboard.writeText(action.anchor.exact);
-      clearSelection();
-    },
-    [clearSelection],
-  );
+  const copySelection = useCallback(async (action: SourceSelectionAction) => {
+    await navigator.clipboard.writeText(action.anchor.exact);
+  }, []);
 
   const openComposer = useCallback(
     (action: SourceSelectionAction) => {

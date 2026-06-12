@@ -861,7 +861,7 @@ function PdfiumDocument({
     if (!shortcut) return;
     event.preventDefault();
     if (shortcut === 'copy') {
-      void copySelection(selectionAction);
+      void Promise.resolve(copySelection(selectionAction)).then(clearSelection);
       return;
     }
     if (shortcut === 'ask') {
