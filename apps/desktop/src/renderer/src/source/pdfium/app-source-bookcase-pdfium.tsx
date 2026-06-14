@@ -2,25 +2,17 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { createPluginRegistration } from '@embedpdf/core';
 import { EmbedPDF, useDocumentState } from '@embedpdf/core/react';
-import { usePdfiumEngine } from '@embedpdf/engines/react';
-import pdfiumWasmUrl from '@embedpdf/pdfium/pdfium.wasm?url';
-import {
-  DocumentContent,
-  DocumentManagerPluginPackage,
-} from '@embedpdf/plugin-document-manager/react';
+import { DocumentContent } from '@embedpdf/plugin-document-manager/react';
 import {
   GlobalPointerProvider,
-  InteractionManagerPluginPackage,
   PagePointerProvider,
 } from '@embedpdf/plugin-interaction-manager/react';
-import { RenderLayer, RenderPluginPackage } from '@embedpdf/plugin-render/react';
-import { Scroller, ScrollPluginPackage } from '@embedpdf/plugin-scroll/react';
-import { BookmarkPluginPackage } from '@embedpdf/plugin-bookmark/react';
-import { SelectionLayer, SelectionPluginPackage } from '@embedpdf/plugin-selection/react';
-import { Viewport, ViewportPluginPackage } from '@embedpdf/plugin-viewport/react';
-import { ZoomPluginPackage, useZoom, ZoomMode } from '@embedpdf/plugin-zoom/react';
+import { RenderLayer } from '@embedpdf/plugin-render/react';
+import { Scroller } from '@embedpdf/plugin-scroll/react';
+import { SelectionLayer } from '@embedpdf/plugin-selection/react';
+import { Viewport } from '@embedpdf/plugin-viewport/react';
+import { useZoom } from '@embedpdf/plugin-zoom/react';
 import { ChevronLeft, ChevronRight, LoaderCircle, ZoomIn } from 'lucide-react';
 import type { PdfEngine } from '@embedpdf/models';
 import {
@@ -56,7 +48,6 @@ import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-anima
 import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   articleWithMergedAgentAnnotation,
-  rendererPerformanceElapsedMs,
   useDesktopReaderSettings,
   type SourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
@@ -86,9 +77,6 @@ import {
 import { createPdfiumSourceReaderController } from './app-source-bookcase-pdfium-controller';
 import { EmbedPdfSelectionBridge } from './app-source-bookcase-pdfium-selection-bridge';
 import {
-  pdfOpenTrace,
-  pdfiumFontFallback,
-  recordPdfOpenTiming,
   recordPdfOpenTimingOnce,
   type PdfOpenTrace,
 } from './app-source-bookcase-pdfium-open-trace';
@@ -98,6 +86,14 @@ import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-tex
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
 import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
+import { usePdfiumDocumentSource } from './use-pdfium-document-source';
+import { usePdfiumPlugins } from './use-pdfium-plugins';
+import {
+  debugComputedStyle,
+  debugPdfLayout,
+  debugRect,
+  pdfLayoutDebugEnabled,
+} from './pdfium-layout-debug';
 
 type PdfArticleRecord = ArticleRecord & { pdf: NonNullable<ArticleRecord['pdf']> };
 type PdfiumLoadedDocument = NonNullable<
@@ -108,52 +104,6 @@ function firstVisiblePdfPageWidth(pageMetrics: Record<number, { top: number; wid
   const firstPage = Object.values(pageMetrics).toSorted((left, right) => left.top - right.top)[0];
   const width = firstPage?.width ?? 0;
   return Number.isFinite(width) && width > 0 ? Math.round(width) : 0;
-}
-
-function pdfLayoutDebugEnabled() {
-  try {
-    return (
-      (window as unknown as { yomitomoPdfLayoutDebug?: boolean }).yomitomoPdfLayoutDebug === true ||
-      window.localStorage.getItem('yomitomo:pdf-layout-debug') === '1'
-    );
-  } catch {
-    return false;
-  }
-}
-
-function debugPdfLayout(event: string, details: Record<string, unknown>) {
-  if (!pdfLayoutDebugEnabled()) return;
-  console.info(`[yomitomo:pdf-layout] ${event}`, details);
-}
-
-function debugRect(rect: DOMRect | undefined) {
-  if (!rect) return null;
-  return {
-    bottom: Math.round(rect.bottom),
-    height: Math.round(rect.height),
-    left: Math.round(rect.left),
-    right: Math.round(rect.right),
-    top: Math.round(rect.top),
-    width: Math.round(rect.width),
-  };
-}
-
-function debugComputedStyle(element: Element | null) {
-  if (!element) return null;
-  const style = window.getComputedStyle(element);
-  return {
-    display: style.display,
-    height: style.height,
-    left: style.left,
-    minHeight: style.minHeight,
-    opacity: style.opacity,
-    overflow: style.overflow,
-    position: style.position,
-    top: style.top,
-    transform: style.transform,
-    visibility: style.visibility,
-    zIndex: style.zIndex,
-  };
 }
 
 export function PdfiumBookcase({
@@ -180,109 +130,12 @@ export function PdfiumBookcase({
   onUpdateArticle,
 }: SourceBookcaseProps & { article: PdfArticleRecord }) {
   const { t } = useTranslation();
-  const openTraceRef = useRef<PdfOpenTrace | null>(null);
-  const recordedOpenPhasesRef = useRef(new Set<string>());
-  const [buffer, setBuffer] = useState<ArrayBuffer | null>(null);
-  const [loadError, setLoadError] = useState('');
   const [tocItems, setTocItems] = useState<TocItem[]>([]);
   const [tocOpen, setTocOpen] = useState(false);
-  if (!openTraceRef.current || openTraceRef.current.articleId !== article.id) {
-    openTraceRef.current = pdfOpenTrace(article.id);
-    recordedOpenPhasesRef.current = new Set();
-  }
-  const openTrace = openTraceRef.current;
-  const {
-    engine,
-    error: engineError,
-    isLoading,
-  } = usePdfiumEngine({
-    wasmUrl: pdfiumWasmUrl,
-    worker: false,
-    fontFallback: pdfiumFontFallback,
-  });
-
-  useEffect(() => {
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'open_requested', {
-      fileSize: article.pdf.metadata.fileSize,
-      pageCount: article.pdf.metadata.pageCount,
-    });
-  }, [article.id, article.pdf.metadata.fileSize, article.pdf.metadata.pageCount, openTrace]);
-
-  useEffect(() => {
-    if (!engine || isLoading) return;
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_done');
-  }, [engine, isLoading, openTrace]);
-
-  useEffect(() => {
-    if (!engineError) return;
-    recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'engine_init_error', {
-      message: engineError.message,
-    });
-  }, [engineError, openTrace]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fileReadStartedAt = performance.now();
-    setBuffer(null);
-    setLoadError('');
-    recordPdfOpenTiming(openTrace, 'file_read_start', {
-      fileSize: article.pdf.metadata.fileSize,
-    });
-
-    void window.yomitomoDesktop
-      .readPdfFile(article.id)
-      .then((data) => {
-        const copyStartedAt = performance.now();
-        const nextBuffer = data.slice(0);
-        if (!cancelled) {
-          setBuffer(nextBuffer);
-          recordPdfOpenTiming(openTrace, 'file_read_done', {
-            byteLength: nextBuffer.byteLength,
-            copyDurationMs: rendererPerformanceElapsedMs(copyStartedAt),
-            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
-          });
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          const message = pdfReadErrorMessage(error);
-          setLoadError(message);
-          recordPdfOpenTiming(openTrace, 'file_read_error', {
-            durationMs: rendererPerformanceElapsedMs(fileReadStartedAt),
-            message,
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [article.id, article.pdf.metadata.fileSize, openTrace]);
-
+  const { buffer, engine, engineError, isLoading, loadError, openTrace } =
+    usePdfiumDocumentSource(article);
   const documentId = `embedpdf-${article.id}`;
-  const plugins = useMemo(() => {
-    if (!buffer) return [];
-    return [
-      createPluginRegistration(DocumentManagerPluginPackage, {
-        initialDocuments: [
-          {
-            autoActivate: true,
-            buffer,
-            documentId,
-            name: article.pdf.metadata.title || article.title,
-            scale: 1,
-          },
-        ],
-      }),
-      createPluginRegistration(ViewportPluginPackage),
-      createPluginRegistration(ScrollPluginPackage, { defaultPageGap: 24 }),
-      createPluginRegistration(RenderPluginPackage),
-      createPluginRegistration(InteractionManagerPluginPackage),
-      createPluginRegistration(SelectionPluginPackage, { marquee: { enabled: false } }),
-      createPluginRegistration(BookmarkPluginPackage),
-      createPluginRegistration(ZoomPluginPackage, { defaultZoomLevel: ZoomMode.FitPage }),
-    ];
-  }, [article.pdf.metadata.title, article.title, buffer, documentId]);
+  const plugins = usePdfiumPlugins({ article, buffer, documentId });
 
   const status =
     loadError ||
@@ -309,38 +162,45 @@ export function PdfiumBookcase({
                   {({ isLoaded, isError, documentState }) =>
                     isLoaded ? (
                       <PdfiumDocument
-                        agents={agents}
-                        annotations={articleAnnotations}
-                        article={article}
-                        documentId={activeDocumentId}
-                        engine={engine}
-                        openTrace={openTrace}
-                        messageSendShortcut={messageSendShortcut}
-                        pageCount={
-                          documentState.document?.pageCount || article.pdf.metadata.pageCount
-                        }
-                        distillationAnimation={distillationAnimation}
-                        focusAnnotationId={focusAnnotationId}
-                        selectedAnnotationId={selectedAnnotationId}
-                        settings={settings}
-                        selectionActionShortcuts={selectionActionShortcuts}
-                        tocItems={tocItems}
-                        tocOpen={tocOpen}
-                        uiLanguage={uiLanguage}
-                        userProfile={userProfile}
-                        onClose={onClose}
-                        onCloseToc={() => setTocOpen(false)}
-                        onDeleteArticleAnnotation={onDeleteArticleAnnotation}
-                        onDeleteArticleComment={onDeleteArticleComment}
-                        onFocusedAnnotation={onFocusedAnnotation}
-                        onSetTocItems={setTocItems}
-                        onToggleToc={() => setTocOpen((open) => !open)}
-                        onOpenAnnotationDiscussion={onOpenAnnotationDiscussion}
-                        onOpenAnnotation={onOpenAnnotation}
-                        onSaveArticle={onSaveArticle}
-                        onSaveArticleReadingProgress={onSaveArticleReadingProgress}
-                        onSaveArticleReaderChatState={onSaveArticleReaderChatState}
-                        onUpdateArticle={onUpdateArticle}
+                        actions={{
+                          onClose,
+                          onDeleteArticleAnnotation,
+                          onDeleteArticleComment,
+                          onFocusedAnnotation,
+                          onOpenAnnotationDiscussion,
+                          onOpenAnnotation,
+                          onSaveArticle,
+                          onSaveArticleReadingProgress,
+                          onSaveArticleReaderChatState,
+                          onUpdateArticle,
+                        }}
+                        document={{
+                          documentId: activeDocumentId,
+                          engine,
+                          openTrace,
+                          pageCount:
+                            documentState.document?.pageCount || article.pdf.metadata.pageCount,
+                        }}
+                        source={{
+                          agents,
+                          annotations: articleAnnotations,
+                          article,
+                          distillationAnimation,
+                          focusAnnotationId,
+                          messageSendShortcut,
+                          selectedAnnotationId,
+                          settings,
+                          selectionActionShortcuts,
+                          uiLanguage,
+                          userProfile,
+                        }}
+                        toc={{
+                          items: tocItems,
+                          open: tocOpen,
+                          onClose: () => setTocOpen(false),
+                          onSetItems: setTocItems,
+                          onToggle: () => setTocOpen((open) => !open),
+                        }}
                       />
                     ) : isError ? (
                       <div className="pdf-reader-status is-error" role="status">
@@ -363,76 +223,81 @@ export function PdfiumBookcase({
   );
 }
 
-function pdfReadErrorMessage(error: unknown) {
-  if (!(error instanceof Error) || !error.message) return i18next.t('pdfReader.readFailed');
-  if (error.message === 'PDF_SOURCE_FILE_MISSING') return i18next.t('pdfReader.sourceMissing');
-  if (error.message === 'PDF_SOURCE_INVALID_ID') return i18next.t('pdfReader.readFailed');
-  return error.message;
-}
+type PdfiumDocumentProps = {
+  actions: {
+    onClose: SourceBookcaseProps['onClose'];
+    onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
+    onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
+    onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
+    onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
+    onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
+    onSaveArticle: SourceBookcaseProps['onSaveArticle'];
+    onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
+    onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
+    onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
+  };
+  document: {
+    documentId: string;
+    engine: PdfEngine;
+    openTrace: PdfOpenTrace;
+    pageCount: number;
+  };
+  source: {
+    agents: SourceBookcaseProps['agents'];
+    annotations: SourceBookcaseProps['annotations'];
+    article: PdfArticleRecord;
+    distillationAnimation: SourceBookcaseProps['distillationAnimation'];
+    focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
+    messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
+    selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
+    settings: SourceBookcaseProps['settings'];
+    selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
+    uiLanguage: SourceBookcaseProps['uiLanguage'];
+    userProfile: SourceBookcaseProps['userProfile'];
+  };
+  toc: {
+    items: TocItem[];
+    open: boolean;
+    onClose: () => void;
+    onSetItems: (items: TocItem[]) => void;
+    onToggle: () => void;
+  };
+};
 
-function PdfiumDocument({
-  agents,
-  annotations: articleAnnotations,
-  article,
-  documentId,
-  engine,
-  openTrace,
-  messageSendShortcut,
-  pageCount,
-  distillationAnimation,
-  focusAnnotationId,
-  selectedAnnotationId,
-  settings,
-  selectionActionShortcuts,
-  tocItems,
-  tocOpen,
-  uiLanguage,
-  userProfile,
-  onClose,
-  onCloseToc,
-  onDeleteArticleAnnotation,
-  onDeleteArticleComment,
-  onOpenAnnotationDiscussion,
-  onOpenAnnotation,
-  onSaveArticle,
-  onSaveArticleReadingProgress,
-  onSaveArticleReaderChatState,
-  onSetTocItems,
-  onFocusedAnnotation,
-  onToggleToc,
-  onUpdateArticle,
-}: {
-  agents: SourceBookcaseProps['agents'];
-  annotations: SourceBookcaseProps['annotations'];
-  article: PdfArticleRecord;
-  documentId: string;
-  engine: PdfEngine;
-  openTrace: PdfOpenTrace;
-  messageSendShortcut: SourceBookcaseProps['messageSendShortcut'];
-  pageCount: number;
-  distillationAnimation: SourceBookcaseProps['distillationAnimation'];
-  focusAnnotationId: SourceBookcaseProps['focusAnnotationId'];
-  selectedAnnotationId: SourceBookcaseProps['selectedAnnotationId'];
-  settings: SourceBookcaseProps['settings'];
-  selectionActionShortcuts: SourceBookcaseProps['selectionActionShortcuts'];
-  tocItems: TocItem[];
-  tocOpen: boolean;
-  uiLanguage: SourceBookcaseProps['uiLanguage'];
-  userProfile: SourceBookcaseProps['userProfile'];
-  onClose: SourceBookcaseProps['onClose'];
-  onCloseToc: () => void;
-  onDeleteArticleAnnotation: SourceBookcaseProps['onDeleteArticleAnnotation'];
-  onDeleteArticleComment: SourceBookcaseProps['onDeleteArticleComment'];
-  onOpenAnnotationDiscussion: SourceBookcaseProps['onOpenAnnotationDiscussion'];
-  onOpenAnnotation: SourceBookcaseProps['onOpenAnnotation'];
-  onSaveArticle: SourceBookcaseProps['onSaveArticle'];
-  onSaveArticleReadingProgress: SourceBookcaseProps['onSaveArticleReadingProgress'];
-  onSaveArticleReaderChatState: SourceBookcaseProps['onSaveArticleReaderChatState'];
-  onSetTocItems: (items: TocItem[]) => void;
-  onFocusedAnnotation: SourceBookcaseProps['onFocusedAnnotation'];
-  onToggleToc: () => void;
-  onUpdateArticle: SourceBookcaseProps['onUpdateArticle'];
-}) {
+function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps) {
+  const {
+    agents,
+    annotations: articleAnnotations,
+    article,
+    distillationAnimation,
+    focusAnnotationId,
+    messageSendShortcut,
+    selectedAnnotationId,
+    settings,
+    selectionActionShortcuts,
+    uiLanguage,
+    userProfile,
+  } = source;
+  const { documentId, engine, openTrace, pageCount } = document;
+  const {
+    onClose,
+    onDeleteArticleAnnotation,
+    onDeleteArticleComment,
+    onFocusedAnnotation,
+    onOpenAnnotationDiscussion,
+    onOpenAnnotation,
+    onSaveArticle,
+    onSaveArticleReadingProgress,
+    onSaveArticleReaderChatState,
+    onUpdateArticle,
+  } = actions;
+  const {
+    items: tocItems,
+    open: tocOpen,
+    onClose: onCloseToc,
+    onSetItems: onSetTocItems,
+    onToggle: onToggleToc,
+  } = toc;
   const { t } = useTranslation();
   const articleRef = useRef<HTMLElement | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -514,18 +379,18 @@ function PdfiumDocument({
       finishAgentDock: (agentId, succeeded) => finishPdfiumAgentDock(agentId, succeeded),
       finishVirtualReading: (agentId, suffix) => finishPdfiumVirtualReading(agentId, suffix),
       getDocument: () => documentState?.document ?? undefined,
-      getPageGeometry: (document, page) =>
+      getPageGeometry: (pdfDocument, page) =>
         engine
           .getPageGeometry(
-            document as PdfiumLoadedDocument,
+            pdfDocument as PdfiumLoadedDocument,
             page as PdfiumLoadedDocument['pages'][number],
           )
           .toPromise(),
       getPdfTextDocument: () => pdfTextDocument,
       isCurrentArticle,
-      pageGeometriesForReadingPlan: (document, textDocument, readingPlan) =>
+      pageGeometriesForReadingPlan: (pdfDocument, textDocument, readingPlan) =>
         pdfiumPageGeometriesForReadingPlan(
-          document as PdfiumLoadedDocument,
+          pdfDocument as PdfiumLoadedDocument,
           textDocument,
           readingPlan,
         ),
@@ -757,10 +622,10 @@ function PdfiumDocument({
   }, [article.id]);
 
   useEffect(() => {
-    const document = documentState?.document;
-    if (!document) return;
+    const loadedPdfDocument = documentState?.document;
+    if (!loadedPdfDocument) return;
     recordPdfOpenTimingOnce(recordedOpenPhasesRef, openTrace, 'document_ready', {
-      pageCount: document.pageCount,
+      pageCount: loadedPdfDocument.pageCount,
     });
   }, [documentState?.document, openTrace]);
 
@@ -1168,7 +1033,7 @@ function PdfiumDocument({
   }
 
   async function pdfiumPageGeometriesForReadingPlan(
-    document: PdfiumLoadedDocument,
+    pdfDocument: PdfiumLoadedDocument,
     textDocument: PdfTextDocument,
     readingPlan: AgentReadingPlanItem[],
   ) {
@@ -1182,9 +1047,9 @@ function PdfiumDocument({
 
     const entries = await Promise.all(
       Array.from(pageIndexes).map(async (pageIndex) => {
-        const page = document.pages[pageIndex];
+        const page = pdfDocument.pages[pageIndex];
         if (!page) return null;
-        const geometry = await engine.getPageGeometry(document, page).toPromise();
+        const geometry = await engine.getPageGeometry(pdfDocument, page).toPromise();
         return [pageIndex, { geometry, width: page.size.width, height: page.size.height }] as const;
       }),
     );
