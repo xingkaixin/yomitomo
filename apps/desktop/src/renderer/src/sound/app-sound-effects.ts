@@ -8,12 +8,14 @@ import distillationCommitStampUrl from '../assets/audio/distillation-commit-stam
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
+import penClickSoundUrl from '../assets/audio/pen-click.mp3';
 import pencilWritingLoopSoundUrl from '../assets/audio/pencil-writing-loop.mp3';
 import scribbleCircleSoundUrl from '../assets/audio/scribble-circle.m4a';
 import soundPreviewUrl from '../assets/audio/sound-preview.mp3';
 
 export type AppSoundEffectId =
   | 'brand.pronunciation'
+  | 'discussion.assistant_thought_done'
   | 'discussion.assistant_thought_writing'
   | 'library.import_success_multiple'
   | 'library.import_success_single'
@@ -35,6 +37,11 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
     baseVolume: 1,
     replayBehavior: 'skip_while_playing',
     urls: [brandPronunciationUrl],
+  },
+  'discussion.assistant_thought_done': {
+    baseVolume: 0.55,
+    replayBehavior: 'restart',
+    urls: [penClickSoundUrl],
   },
   'discussion.assistant_thought_writing': {
     baseVolume: 0.5,
