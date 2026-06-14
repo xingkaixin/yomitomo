@@ -124,6 +124,12 @@ describe('reader embedded styles', () => {
 
   it('styles shortcut tooltips and keeps composer cancel neutral', () => {
     expect(readerConversationStyles).toContain('.reader-tooltip-content{');
+    expect(readerConversationStyles).toContain(
+      'z-index:var(--reader-z-tooltip,var(--app-z-tooltip,340));',
+    );
+    expect(readerConversationStyles).toContain(
+      'background:var(--reader-ink,var(--app-reader-ink,#251d16));',
+    );
     expect(readerConversationStyles).toContain('.reader-shortcut-tooltip{');
     expect(readerConversationStyles).toContain(
       '.reader-composer .floating-composer-actions .reader-composer-cancel{background:color-mix(in srgb,var(--reader-ink) 8%,transparent);color:var(--reader-ink)}',

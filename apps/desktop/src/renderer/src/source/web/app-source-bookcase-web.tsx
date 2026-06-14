@@ -1005,21 +1005,22 @@ function ReaderTranslationToolbarButton({
   const buttonLabel = visible ? labels.hideTranslation : labels.showTranslation;
   return (
     <Popover open={menuOpen} onOpenChange={onMenuOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          aria-label={buttonLabel}
-          className={['reader-icon-button', visible ? 'is-active' : '', busy ? 'is-busy' : '']
-            .filter(Boolean)
-            .join(' ')}
-          title={buttonLabel}
-          type="button"
-        >
-          {busy ? <RefreshCw size={18} /> : visible ? <EyeOff size={18} /> : <Eye size={18} />}
-        </button>
-      </PopoverTrigger>
+      <ReaderTooltip content={buttonLabel} side="bottom">
+        <PopoverTrigger asChild>
+          <button
+            aria-label={buttonLabel}
+            className={['reader-icon-button', visible ? 'is-active' : '', busy ? 'is-busy' : '']
+              .filter(Boolean)
+              .join(' ')}
+            type="button"
+          >
+            {busy ? <RefreshCw size={18} /> : visible ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </PopoverTrigger>
+      </ReaderTooltip>
       <PopoverContent align="end" className="reader-translation-menu" side="bottom" sideOffset={10}>
         <button
-          title={buttonLabel}
+          aria-label={buttonLabel}
           type="button"
           onClick={() => {
             onSetVisible(!visible);
@@ -1030,8 +1031,8 @@ function ReaderTranslationToolbarButton({
           <span>{buttonLabel}</span>
         </button>
         <button
+          aria-label={labels.retranslateArticle}
           disabled={busy}
-          title={labels.retranslateArticle}
           type="button"
           onClick={() => {
             onMenuOpenChange(false);
@@ -1042,9 +1043,9 @@ function ReaderTranslationToolbarButton({
           <span>{labels.retranslateArticle}</span>
         </button>
         <button
+          aria-label={labels.deleteTranslation}
           className="is-danger"
           disabled={busy}
-          title={labels.deleteTranslation}
           type="button"
           onClick={() => {
             onMenuOpenChange(false);
