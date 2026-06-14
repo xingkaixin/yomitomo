@@ -2,14 +2,8 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
+import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
-  createTextAnchor,
-  normalizeMessageSendShortcut,
-  normalizeSelectionActionShortcuts,
-  resolveTextAnchor,
-} from '@yomitomo/shared';
-import {
-  articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   findCurrentTocTarget,
@@ -35,24 +29,20 @@ import {
   readerDesktopEmbeddedStyles,
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
-import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   buildTocAnnotationStats,
   readerAnnotationScrollTop,
 } from '@yomitomo/reader-ui/reader-annotations';
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
-import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { articleIdentityLine } from '../../shell/app-utils';
 import {
   defaultTocOpen,
-  useDesktopReaderSettings,
   usesOverlayToc,
   type WebSourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
-import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { sourceTocOptions, useWebReaderBoxes } from './use-web-reader-boxes';
 import {
   articleLinkExternalUrl,
@@ -62,7 +52,7 @@ import {
 } from './app-source-bookcase-web-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createWebSourceReaderController } from './app-source-bookcase-web-controller';
-import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
+import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 
 export function WebSourceBookcase({
   agents,
@@ -103,27 +93,15 @@ export function WebSourceBookcase({
   const [readingProgress, setReadingProgress] = useState(
     () => normalizeSavedWebProgress(article.readingProgress) ?? 0,
   );
-  const {
-    addComment,
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    applyAnnotations,
-    deleteAnnotation,
-    deleteComment,
-    latestArticleRef,
-    pendingAnnotationAgents,
-    reviewAgents,
-    saveAnnotations,
-  } = useSourceReaderSession({
+  const sourceReaderSession = useSourceReaderSession({
     agents,
     agentAnnotationAdapter: createWebSourceReaderController({
-      applyAnnotations: (nextAnnotations) => applyAnnotations(nextAnnotations),
+      applyAnnotations: (nextAnnotations) => sourceReaderSession.applyAnnotations(nextAnnotations),
       currentArticleText,
       enqueueAgentAnnotation: (annotation) => enqueueAgentAnnotation(annotation),
       finishVirtualReading: (agentId, message) => finishVirtualReading(agentId, message),
       finishVirtualReadingIfIdle: (agentId) => finishVirtualReadingIfIdle(agentId),
-      getAnnotations: () => annotationsRef.current,
+      getAnnotations: () => sourceReaderSession.annotationsRef.current,
       isAgentAnnotating: (agentId) => annotatingAgentIds.includes(agentId),
       isCurrentArticle,
       markAgentAnnotating: (agentId, annotating) => markAgentAnnotating(agentId, annotating),
@@ -152,14 +130,46 @@ export function WebSourceBookcase({
     setStatusMessage,
     userProfile,
   });
+  const {
+    addComment,
+    annotations,
+    annotationsRef,
+    annotationAgents,
+    deleteAnnotation,
+    deleteComment,
+    latestArticleRef,
+    pendingAnnotationAgents,
+    reviewAgents,
+    saveAnnotations,
+  } = sourceReaderSession;
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [, setSettingsOpen] = useState(false);
-  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
 
+  const {
+    actionShortcuts,
+    annotationTotals,
+    commentsCloseKey,
+    labels,
+    readerChat,
+    readerSettings,
+    selection,
+    sendShortcut,
+    shortcutModifier,
+    updateReaderSettings,
+  } = useSourceReaderWorkspace({
+    article,
+    canvasRef,
+    getArticleText: currentArticleText,
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: sourceReaderSession,
+    uiLanguage,
+    onSaveArticleReaderChatState,
+  });
   const {
     temporaryBoxes,
     highlightChoice,
@@ -172,11 +182,7 @@ export function WebSourceBookcase({
     cancelComposer,
     copySelection,
     openComposer,
-  } = useSourceSelectionComposer({
-    canvasRef,
-    onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
-  });
-  const [readerSettings, updateReaderSettings] = useDesktopReaderSettings();
+  } = selection;
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
   const articleText = articleRef.current?.textContent || '';
   const searchResult = useMemo(
@@ -194,13 +200,6 @@ export function WebSourceBookcase({
     contentHtml,
     userProfile,
   });
-  const readerChat = useReaderChatSession({
-    agents: annotationAgents,
-    article,
-    getArticleText: currentArticleText,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,
@@ -214,13 +213,6 @@ export function WebSourceBookcase({
   const tocStats = useMemo(
     () => buildTocAnnotationStats(tocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, tocItems, userProfile],
-  );
-  const annotationTotals = useMemo(
-    () => ({
-      annotations: annotations.length,
-      distillations: articlePublishedDistillationCount(annotations),
-    }),
-    [annotations],
   );
   const {
     agentDockCompleting,
@@ -444,8 +436,8 @@ export function WebSourceBookcase({
     const canvasElement = canvasRef.current;
     if (!articleElement || !canvasElement) return;
 
-    const selection = getArticleSelection(articleElement);
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    const articleSelection = getArticleSelection(articleElement);
+    if (!articleSelection || articleSelection.rangeCount === 0 || articleSelection.isCollapsed) {
       // Clicks inside the composer bubble up with an empty native selection;
       // while the composer owns the highlight, blank-click clearing is handled
       // by the reader shell pointer capture instead.
@@ -453,7 +445,7 @@ export function WebSourceBookcase({
       return;
     }
 
-    const range = selection.getRangeAt(0);
+    const range = articleSelection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) return;
     const selectedArticleText = currentArticleText();
     const start = offsetFromArticleStart(articleElement, range.startContainer, range.startOffset);
@@ -479,7 +471,7 @@ export function WebSourceBookcase({
         }),
       ),
     );
-    selection.removeAllRanges();
+    articleSelection.removeAllRanges();
   }
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
@@ -622,14 +614,6 @@ export function WebSourceBookcase({
     excerpt: statusMessage,
     content: contentHtml,
   };
-  const shortcutModifier = getShortcutModifier();
-  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
-  const actionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
-    [selectionActionShortcuts],
-  );
-  const labels = readerUiLabels();
-
   return (
     <section className="source-bookcase source-reader-shell">
       <style>

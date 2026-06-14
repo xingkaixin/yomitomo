@@ -3,9 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Annotation, ReaderQuestionContext } from '@yomitomo/shared';
-import { normalizeMessageSendShortcut, normalizeSelectionActionShortcuts } from '@yomitomo/shared';
 import {
-  articlePublishedDistillationCount,
   annotationIdsAtHighlightPoint,
   createEpubTextAnchor,
   createUserAnnotation,
@@ -16,7 +14,6 @@ import {
 import { sleep } from '@yomitomo/reader-ui/reader-animation';
 import { buildTocAnnotationStats } from '@yomitomo/reader-ui/reader-annotations';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
-import { getShortcutModifier } from '@yomitomo/reader-ui/reader-shortcuts';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import {
   currentFoliateContent,
@@ -41,7 +38,6 @@ import { playEbookAgentAnnotationPlayback } from './app-source-ebook-agent-playb
 import {
   articleWithMergedAgentAnnotation,
   defaultTocOpen,
-  useDesktopReaderSettings,
   usesOverlayToc,
   type EbookBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
@@ -53,16 +49,14 @@ import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
 } from '../../shell/use-reader-page-turn-keys';
-import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
-import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import { ebookAnnotationNavigationState } from './app-source-bookcase-ebook-utils';
 import { ArticleBook } from '../../shell/app-article-book';
 import { articleDisplayTitle } from '../../reading-library/app-reading-library-utils';
 import { useSourceReaderSession } from '../bookcase/use-source-reader-session';
 import { createEbookSourceReaderController } from './app-source-bookcase-ebook-controller';
-import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
+import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 
 export function EbookBookcase({
   agents,
@@ -118,20 +112,7 @@ export function EbookBookcase({
     cleanupFoliateDocumentListenersRef.current();
   }, []);
   const [statusMessage, setStatusMessage] = useState('');
-  const {
-    addComment,
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    applyAnnotations,
-    deleteAnnotation,
-    deleteComment,
-    latestArticleRef,
-    pendingAnnotationAgents,
-    replaceAnnotations,
-    reviewAgents,
-    saveAnnotations,
-  } = useSourceReaderSession({
+  const sourceReaderSession = useSourceReaderSession({
     agents,
     agentAnnotationAdapter: createEbookSourceReaderController({
       appendAgentAnnotationToArticle,
@@ -169,12 +150,12 @@ export function EbookBookcase({
       const previousHighlightSignature = ebookHighlightAnnotationsSignature(
         previousAnnotations,
         userProfile,
-        annotationAgents,
+        sourceReaderSession.annotationAgents,
       );
       const nextHighlightSignature = ebookHighlightAnnotationsSignature(
         nextAnnotations,
         userProfile,
-        annotationAgents,
+        sourceReaderSession.annotationAgents,
       );
       if (nextHighlightSignature !== previousHighlightSignature) {
         scheduleEbookBoxUpdate('annotations_applied');
@@ -184,12 +165,12 @@ export function EbookBookcase({
       const previousHighlightSignature = ebookHighlightAnnotationsSignature(
         previousAnnotations,
         userProfile,
-        annotationAgents,
+        sourceReaderSession.annotationAgents,
       );
       const nextHighlightSignature = ebookHighlightAnnotationsSignature(
         nextAnnotations,
         userProfile,
-        annotationAgents,
+        sourceReaderSession.annotationAgents,
       );
       if (nextHighlightSignature !== previousHighlightSignature) {
         scheduleEbookBoxUpdate('annotations_saved');
@@ -202,15 +183,50 @@ export function EbookBookcase({
     setStatusMessage,
     userProfile,
   });
+  const {
+    addComment,
+    annotations,
+    annotationsRef,
+    annotationAgents,
+    applyAnnotations,
+    deleteAnnotation,
+    deleteComment,
+    latestArticleRef,
+    pendingAnnotationAgents,
+    replaceAnnotations,
+    reviewAgents,
+    saveAnnotations,
+  } = sourceReaderSession;
   const [annotatingAgentIds, setAnnotatingAgentIds] = useState<string[]>([]);
   const [tocOpen, setTocOpen] = useState(() => defaultTocOpen());
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
 
+  const {
+    actionShortcuts,
+    annotationTotals,
+    closeFloatingComments,
+    commentsCloseKey,
+    labels,
+    readerChat,
+    readerSettings,
+    selection,
+    sendShortcut,
+    shortcutModifier,
+    updateReaderSettings: updateEbookReaderSettings,
+  } = useSourceReaderWorkspace({
+    article,
+    canvasRef,
+    getArticleText: currentArticleText,
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: sourceReaderSession,
+    uiLanguage,
+    onSaveArticleReaderChatState,
+  });
   const {
     temporaryBoxes,
     highlightChoice,
@@ -223,30 +239,14 @@ export function EbookBookcase({
     cancelComposer,
     copySelection,
     openComposer,
-  } = useSourceSelectionComposer({
-    canvasRef,
-    onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
-  });
-  const [readerSettings, updateEbookReaderSettings] = useDesktopReaderSettings();
+  } = selection;
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
-  const readerChat = useReaderChatSession({
-    agents: annotationAgents,
-    article,
-    getArticleText: currentArticleText,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
   const searchResult = useMemo(
     () => findReaderSearchMatches(ebookText, searchQuery),
     [ebookText, searchQuery],
   );
   const activeSearchMatch =
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
-  const actionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
-    [selectionActionShortcuts],
-  );
-  const labels = readerUiLabels();
   const articleAnnotationSignature = useMemo(
     () => ebookHighlightAnnotationsSignature(articleAnnotations, userProfile, annotationAgents),
     [annotationAgents, articleAnnotations, userProfile],
@@ -360,13 +360,6 @@ export function EbookBookcase({
     () => buildTocAnnotationStats(readerTocItems, annotations, userProfile, annotationAgents),
     [annotationAgents, annotations, readerTocItems, userProfile],
   );
-  const annotationTotals = useMemo(
-    () => ({
-      annotations: annotations.length,
-      distillations: articlePublishedDistillationCount(annotations),
-    }),
-    [annotations],
-  );
   const {
     agentDockCompleting: ebookAgentDockCompleting,
     agentDockItems: ebookAgentDockItems,
@@ -405,7 +398,7 @@ export function EbookBookcase({
     clearAnnotationUiState();
     setAnnotatingAgentIds([]);
     cleanupEbookAgentTheater();
-    setCommentsCloseKey((key) => key + 1);
+    closeFloatingComments();
     setStatusMessage('');
     setSettingsOpen(false);
     setTocOpen(defaultTocOpen());
@@ -415,6 +408,7 @@ export function EbookBookcase({
     setSearchBoxes([]);
   }, [
     article.id,
+    closeFloatingComments,
     cleanupEbookAgentTheater,
     clearAnnotationUiState,
     replaceAnnotations,
@@ -768,8 +762,6 @@ export function EbookBookcase({
     excerpt: statusMessage,
     content: '',
   };
-  const shortcutModifier = getShortcutModifier();
-  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
   const pageAnnotations = useMemo(() => {
     const visibleIds = new Set(boxes.map((box) => box.annotationId).filter(Boolean));
     return annotations.filter((annotation) => visibleIds.has(annotation.id));

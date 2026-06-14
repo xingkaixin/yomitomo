@@ -18,8 +18,6 @@ import type { PdfEngine } from '@embedpdf/models';
 import {
   createPdfTextAnchor,
   isPdfTextAnchor,
-  normalizeMessageSendShortcut,
-  normalizeSelectionActionShortcuts,
   type AgentReadingPlanItem,
   type Annotation,
   type ArticleRecord,
@@ -27,7 +25,6 @@ import {
 } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
-  articlePublishedDistillationCount,
   createUserAnnotation,
   findReaderSearchMatches,
   selectionActionPosition,
@@ -35,7 +32,6 @@ import {
   type TocItem,
 } from '@yomitomo/core';
 import { ReaderAppView } from '@yomitomo/reader-ui/reader-app-view';
-import { readerUiLabels } from '../../i18n/app-i18n-labels';
 import { ReaderToolbarSliderPopover } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { mergeAgentAnnotationAsThought } from '@yomitomo/reader-ui/reader-agent-annotation-playback';
@@ -45,15 +41,13 @@ import {
   readerStyles,
 } from '@yomitomo/reader-ui/reader-styles';
 import { animateTheaterHighlight, sleep } from '@yomitomo/reader-ui/reader-animation';
-import { getShortcutModifier, selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
+import { selectionActionShortcut } from '@yomitomo/reader-ui/reader-shortcuts';
 import {
   articleWithMergedAgentAnnotation,
-  useDesktopReaderSettings,
   type SourceBookcaseProps,
 } from '../bookcase/app-source-bookcase-shared';
 import { useSourceActiveConnection } from '../bookcase/use-source-active-connection';
 import { useRecentAnnotationFeedback } from '../bookcase/use-recent-annotation-feedback';
-import { useSourceSelectionComposer } from '../bookcase/use-source-selection-composer';
 import {
   useReaderPageTurnKeys,
   type ReaderPageTurnDirection,
@@ -85,7 +79,7 @@ import { usePdfiumVirtualReading } from './app-source-bookcase-pdfium-virtual-re
 import { usePdfiumDocumentText } from './app-source-bookcase-pdfium-document-text';
 import { usePdfiumReadingProgress } from './app-source-bookcase-pdfium-reading-progress';
 import { usePdfiumNavigation } from './app-source-bookcase-pdfium-navigation';
-import { useReaderChatSession } from '../bookcase/use-reader-chat-session';
+import { useSourceReaderWorkspace } from '../bookcase/use-source-reader-workspace';
 import { usePdfiumDocumentSource } from './use-pdfium-document-source';
 import { usePdfiumPlugins } from './use-pdfium-plugins';
 import {
@@ -312,9 +306,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
   const agentAnnotationPlaybackQueueRef = useRef(Promise.resolve());
   const documentState = useDocumentState(documentId);
   const { provides: zoomControls } = useZoom(documentId);
-  const [commentsCloseKey, setCommentsCloseKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
-  const [readerSettings, updatePdfReaderSettings] = useDesktopReaderSettings();
   const [agentTheaterBoxes, setAgentTheaterBoxes] = useState<HighlightBox[]>([]);
   const [layoutPageWidth, setLayoutPageWidth] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -358,19 +350,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     pageCount,
     onSaveArticleReadingProgress,
   });
-  const {
-    addComment,
-    annotations,
-    annotationsRef,
-    annotationAgents,
-    applyAnnotations,
-    deleteAnnotation,
-    deleteComment,
-    latestArticleRef,
-    pendingAnnotationAgents,
-    reviewAgents,
-    saveAnnotations,
-  } = useSourceReaderSession({
+  const sourceReaderSession = useSourceReaderSession({
     agents,
     agentAnnotationAdapter: createPdfiumSourceReaderController({
       enqueueAgentAnnotationPlayback: (articleId, annotation) =>
@@ -410,13 +390,19 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     setStatusMessage,
     userProfile,
   });
-  const readerChat = useReaderChatSession({
-    agents: annotationAgents,
-    article,
-    getArticleText: currentArticleText,
-    uiLanguage,
-    onSaveArticleReaderChatState,
-  });
+  const {
+    addComment,
+    annotations,
+    annotationsRef,
+    annotationAgents,
+    applyAnnotations,
+    deleteAnnotation,
+    deleteComment,
+    latestArticleRef,
+    pendingAnnotationAgents,
+    reviewAgents,
+    saveAnnotations,
+  } = sourceReaderSession;
   const {
     agentDockCompleting,
     agentDockItems,
@@ -439,20 +425,33 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     onClearTheaterBoxes: () => setAgentTheaterBoxes([]),
     pageMetricsRef,
   });
-  const actionShortcuts = useMemo(
-    () => normalizeSelectionActionShortcuts(selectionActionShortcuts),
-    [selectionActionShortcuts],
-  );
-  const labels = readerUiLabels();
+  const {
+    actionShortcuts,
+    annotationTotals,
+    commentsCloseKey,
+    labels,
+    readerChat,
+    readerSettings,
+    selection,
+    sendShortcut,
+    shortcutModifier,
+    updateReaderSettings: updatePdfReaderSettings,
+  } = useSourceReaderWorkspace({
+    article,
+    canvasRef,
+    getArticleText: currentArticleText,
+    messageSendShortcut,
+    selectionActionShortcuts,
+    session: sourceReaderSession,
+    uiLanguage,
+    onSaveArticleReaderChatState,
+  });
   const searchResult = useMemo(
     () => findReaderSearchMatches(pdfTextDocument?.text || '', searchQuery),
     [pdfTextDocument?.text, searchQuery],
   );
   const activeSearchMatch =
     searchResult.matches[Math.min(activeSearchMatchIndex, searchResult.matches.length - 1)] || null;
-  const sendShortcut = normalizeMessageSendShortcut(messageSendShortcut);
-  const shortcutModifier = getShortcutModifier();
-
   const {
     temporaryBoxes,
     highlightChoice,
@@ -465,10 +464,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     cancelComposer,
     copySelection,
     openComposer,
-  } = useSourceSelectionComposer({
-    canvasRef,
-    onOpenComposer: () => setCommentsCloseKey((key) => key + 1),
-  });
+  } = selection;
   const boxes = useMemo(
     () => pdfiumAnnotationBoxes(annotations, pageMetrics, userProfile, annotationAgents),
     [annotationAgents, annotations, pageMetrics, userProfile],
@@ -588,13 +584,6 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     visiblePdfAnnotations.length,
     zoom,
   ]);
-  const annotationTotals = useMemo(
-    () => ({
-      annotations: annotations.length,
-      distillations: articlePublishedDistillationCount(annotations),
-    }),
-    [annotations],
-  );
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
     annotationAgents,
     annotations,
