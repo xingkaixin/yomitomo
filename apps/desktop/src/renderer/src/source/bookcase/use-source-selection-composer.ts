@@ -15,6 +15,7 @@ export function useSourceSelectionComposer({
   const [temporaryBoxes, setTemporaryBoxes] = useState<HighlightBox[]>([]);
   const [highlightChoice, setHighlightChoice] = useState<HighlightChoice | null>(null);
   const [selectionAction, setSelectionAction] = useState<SourceSelectionAction | null>(null);
+  const [copyRequestKey, setCopyRequestKey] = useState(0);
   const [composer, setComposer] = useState<SourceSelectionAction | null>(null);
 
   const clearSelection = useCallback(() => {
@@ -48,6 +49,10 @@ export function useSourceSelectionComposer({
     await navigator.clipboard.writeText(action.anchor.exact);
   }, []);
 
+  const requestSelectionCopy = useCallback(() => {
+    setCopyRequestKey((key) => key + 1);
+  }, []);
+
   const openComposer = useCallback(
     (action: SourceSelectionAction) => {
       const canvasWidth = canvasRef.current?.clientWidth || 360;
@@ -68,6 +73,7 @@ export function useSourceSelectionComposer({
     highlightChoice,
     setHighlightChoice,
     selectionAction,
+    copyRequestKey,
     setSelectionAction,
     composer,
     setComposer,
@@ -76,6 +82,7 @@ export function useSourceSelectionComposer({
     openSelectionAction,
     cancelComposer,
     copySelection,
+    requestSelectionCopy,
     openComposer,
   };
 }

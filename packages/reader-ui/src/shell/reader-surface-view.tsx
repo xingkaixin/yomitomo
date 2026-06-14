@@ -70,6 +70,7 @@ export type ReaderSurfaceViewProps = {
   notesRef: React.RefObject<HTMLElement | null>;
   selectionAction: SelectionAction | null;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;
+  selectionCopyRequestKey?: number;
   shortcutModifier: string;
   surfaceRef: React.RefObject<HTMLDivElement | null>;
   temporaryBoxes: HighlightBox[];
@@ -160,6 +161,7 @@ export function ReaderSurfaceView({
   notesRef,
   selectionAction,
   selectionActionShortcuts,
+  selectionCopyRequestKey,
   shortcutModifier,
   surfaceRef,
   temporaryBoxes,
@@ -353,6 +355,7 @@ export function ReaderSurfaceView({
               action={selectionAction}
               labels={labels}
               shortcuts={selectionActionShortcuts}
+              copyRequestKey={selectionCopyRequestKey}
               onAnnotate={() => onOpenComposer(selectionAction)}
               onAsk={chat ? () => onAskSelection?.(selectionAction) : undefined}
               onCopy={() => onCopySelection(selectionAction)}

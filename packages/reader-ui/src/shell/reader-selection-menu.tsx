@@ -15,10 +15,12 @@ export function SelectionMenu({
   onAsk,
   onCopy,
   onCopySettled,
+  copyRequestKey = 0,
 }: {
   action: SelectionMenuAction;
   labels?: ReaderUiLabels;
   shortcuts?: Partial<SelectionActionShortcuts>;
+  copyRequestKey?: number;
   onAnnotate: () => void;
   onAsk?: () => void;
   onCopy: () => void | Promise<void>;
@@ -27,6 +29,7 @@ export function SelectionMenu({
   const shortcutKeys = normalizeSelectionActionShortcuts(shortcuts);
   const [copyState, setCopyState] = useState<'idle' | 'copying' | 'copied'>('idle');
   const closeTimerRef = useRef<number | null>(null);
+  const lastCopyRequestKeyRef = useRef(copyRequestKey);
 
   useEffect(() => {
     return () => {
@@ -45,6 +48,12 @@ export function SelectionMenu({
       setCopyState('idle');
     }
   }
+
+  useEffect(() => {
+    if (copyRequestKey === lastCopyRequestKeyRef.current) return;
+    lastCopyRequestKeyRef.current = copyRequestKey;
+    void copy();
+  }, [copyRequestKey]);
 
   const copied = copyState === 'copied';
 

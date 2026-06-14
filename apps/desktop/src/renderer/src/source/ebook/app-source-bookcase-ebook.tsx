@@ -232,12 +232,14 @@ export function EbookBookcase({
     highlightChoice,
     setHighlightChoice,
     selectionAction,
+    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
     openSelectionAction,
     cancelComposer,
     copySelection,
+    requestSelectionCopy,
     openComposer,
   } = selection;
   const ebookText = useMemo(() => ebookArticleText(article), [article]);
@@ -305,7 +307,7 @@ export function EbookBookcase({
     composer,
     clearSelection,
     askSelection,
-    copySelection,
+    requestSelectionCopy,
     openComposer,
     openSelectionAction,
     setStatusMessage,
@@ -851,7 +853,7 @@ export function EbookBookcase({
           notesRef: railRef,
           surfaceRef,
         },
-        selection: { composer, highlightChoice, selectionAction },
+        selection: { composer, copyRequestKey, highlightChoice, selectionAction },
         settings: {
           messageSendShortcut: sendShortcut,
           readerSettings,

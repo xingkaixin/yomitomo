@@ -99,7 +99,6 @@ function ShellStateProbe({
     onClearSelection: vi.fn(),
     onCloseFloatingPanels: vi.fn(),
     onCloseHighlightChoice: vi.fn(),
-    onCopySelection: vi.fn(),
     onNavigateAnnotation,
     onOpenComposer: vi.fn(),
     onResolveAnnotationNavigation: ({ annotations: visibleAnnotations }) => ({

@@ -133,6 +133,7 @@ export type ReaderAgentModel = {
 
 export type ReaderSelectionModel = {
   composer: PendingComposer | null;
+  copyRequestKey?: number;
   highlightChoice: HighlightChoice | null;
   selectionAction: SelectionAction | null;
 };
