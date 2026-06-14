@@ -955,7 +955,6 @@
   gap: 6px;
   padding-top: 2px;
   text-align: center;
-  -webkit-app-region: no-drag;
 }
 
 .app-masthead-title > span {
@@ -995,6 +994,7 @@
   padding: 0;
   cursor: default;
   transition: color 0.14s ease;
+  -webkit-app-region: no-drag;
 }
 
 .app-masthead-phonetic svg {
@@ -1002,12 +1002,12 @@
   transition: opacity 0.14s ease;
 }
 
-.app-masthead-title:hover .app-masthead-phonetic,
+.app-masthead-phonetic:hover,
 .app-masthead-phonetic:focus-visible {
   color: var(--app-interactive-link);
 }
 
-.app-masthead-title:hover .app-masthead-phonetic svg,
+.app-masthead-phonetic:hover svg,
 .app-masthead-phonetic:focus-visible svg {
   opacity: 1;
 }
