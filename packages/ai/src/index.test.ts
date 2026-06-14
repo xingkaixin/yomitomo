@@ -670,6 +670,29 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('当前批注讨论和刚刚触发你的读者评论优先级更高');
   });
 
+  it('uses fast reading context snapshot for non-epub thread replies', () => {
+    const prompt = buildAgentPrompt(provider, payload, lin, {
+      readingContext: {
+        memoryEvidence: [
+          {
+            summary: '助手之前提醒过迭代上下文',
+            text: 'comment: 助手之前提醒过迭代上下文',
+            provenance: {
+              articleId: 'article_1',
+              sourceType: 'comment',
+              sourceCommentId: 'comment_1',
+              agentId: lin.id,
+            },
+          },
+        ],
+      },
+    });
+
+    expect(prompt).toContain('thread memory_view');
+    expect(prompt).toContain('comment: 助手之前提醒过迭代上下文');
+    expect(prompt).toContain('"source": "comment"');
+  });
+
   it('parses per-agent mention instructions', () => {
     const instructions = parseAgentMentionInstructions(
       JSON.stringify([

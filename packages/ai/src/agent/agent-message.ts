@@ -11,6 +11,7 @@ import { budgetArticleText, formatBudgetNotice } from '../provider/budget';
 import { logAiInfo } from '../logger';
 import { callProviderText, streamProviderText } from '../provider/provider-client';
 import { buildAgentRoleCard, type PromptAgent } from './agent-role-card';
+import type { AgentMessageRunOptions } from './agent-message-reading-context';
 import {
   buildSelectionThreadContext,
   selectionThreadContextPrompt,
@@ -25,14 +26,20 @@ import {
 import { memoryViewContextBlocks } from '../context/reading-view-assembler';
 import { responseLanguageSystemPrompt } from './agent-language';
 
+export type {
+  AgentMessageReadingContextSnapshot,
+  AgentMessageRunOptions,
+} from './agent-message-reading-context';
+
 export async function runAgentStream(
   provider: LlmProvider,
   agent: PromptAgent & { temperature: number },
   payload: AgentMessagePayload,
   onDelta: (delta: string) => void,
+  options: AgentMessageRunOptions = {},
 ): Promise<void> {
   const system = buildAgentMessageSystemPrompt(agent, payload);
-  const user = buildAgentPrompt(provider, payload, agent);
+  const user = buildAgentPrompt(provider, payload, agent, options);
   await streamProviderText(
     provider,
     { system, user, maxTokens: agentMessageMaxTokens(payload), temperature: agent.temperature },
@@ -53,9 +60,10 @@ export async function runAgent(
     soul: string;
   },
   payload: AgentMessagePayload,
+  options: AgentMessageRunOptions = {},
 ): Promise<Comment> {
   const system = buildAgentMessageSystemPrompt(agent, payload);
-  const user = buildAgentPrompt(provider, payload, agent);
+  const user = buildAgentPrompt(provider, payload, agent, options);
   const content = await callProviderText(provider, {
     system,
     user,
@@ -222,6 +230,7 @@ export function buildAgentPrompt(
   provider: LlmProvider,
   payload: AgentMessagePayload,
   agent?: PromptAgentIdentity,
+  options: AgentMessageRunOptions = {},
 ) {
   const context = buildAgentMessageContextBundle(payload);
   const comments = focusedThreadComments(payload)
@@ -236,14 +245,22 @@ export function buildAgentPrompt(
     ? `\n\n读者对你的具体要求：${payload.instruction}`
     : '';
   const threadContextPrompt = selectionThreadPromptBlock(payload, context);
-  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+  const memoryViewPrompt = payload.article.ebookIndex
+    ? ''
+    : threadMemoryViewPromptBlock(payload, options);
 
   if (payload.responseMode === 'create_thought') {
-    return buildAgentCreateThoughtPrompt(provider, payload, context, threadContextPrompt);
+    return buildAgentCreateThoughtPrompt(provider, payload, context, threadContextPrompt, options);
   }
 
   if (payload.responseMode === 'distillation_review') {
-    return buildAgentDistillationReviewPrompt(provider, payload, context, threadContextPrompt);
+    return buildAgentDistillationReviewPrompt(
+      provider,
+      payload,
+      context,
+      threadContextPrompt,
+      options,
+    );
   }
 
   if (payload.reviewTargetCommentId) {
@@ -254,6 +271,7 @@ export function buildAgentPrompt(
       participants,
       selfInstruction,
       threadContextPrompt,
+      options,
     );
   }
 
@@ -272,6 +290,7 @@ function buildAgentDistillationReviewPrompt(
   payload: AgentMessagePayload,
   context: ReadingContextBundle,
   threadContextPrompt: string,
+  options: AgentMessageRunOptions = {},
 ) {
   const draft = payload.instruction?.trim() || '用户还没有写沉淀草稿。';
   const discussion = formatCreateThoughtContext(payload.annotation);
@@ -302,7 +321,9 @@ ${discussion}
 
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
-  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+  const memoryViewPrompt = payload.article.ebookIndex
+    ? ''
+    : threadMemoryViewPromptBlock(payload, options);
 
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}
 
@@ -319,6 +340,7 @@ function buildAgentCreateThoughtPrompt(
   payload: AgentMessagePayload,
   context: ReadingContextBundle,
   threadContextPrompt: string,
+  options: AgentMessageRunOptions = {},
 ) {
   const readerInstruction = payload.instruction ? `\n\n读者给你的指令：${payload.instruction}` : '';
   const existingThoughts = formatCreateThoughtContext(payload.annotation);
@@ -342,7 +364,9 @@ ${existingThoughts}
 
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
-  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+  const memoryViewPrompt = payload.article.ebookIndex
+    ? ''
+    : threadMemoryViewPromptBlock(payload, options);
 
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}
 
@@ -361,6 +385,7 @@ function buildAgentThoughtReviewPrompt(
   participants: string,
   selfInstruction: string,
   threadContextPrompt: string,
+  options: AgentMessageRunOptions = {},
 ) {
   const targetComment =
     payload.annotation.comments.find((comment) => comment.id === payload.reviewTargetCommentId) ||
@@ -375,7 +400,9 @@ function buildAgentThoughtReviewPrompt(
   const article = budgetArticleText(provider, 'agent-message', context.articleText);
   const budgetNotice = formatBudgetNotice([article.report]);
 
-  const memoryViewPrompt = payload.article.ebookIndex ? '' : threadMemoryViewPromptBlock(payload);
+  const memoryViewPrompt = payload.article.ebookIndex
+    ? ''
+    : threadMemoryViewPromptBlock(payload, options);
   return `文章标题：${payload.article.title}\n文章 URL：${payload.article.url}\n\n${budgetNotice}\n\n可用原文范围：\n${article.text}${memoryViewPrompt}${readingIntentPromptLine(payload)}${spoilerScopePrompt(context)}\n\n用户高亮：\n${payload.annotation.anchor.exact}\n\n讨论参与者：\n${participants}\n\n${selfInstruction}\n\n${reviewTask}`;
 }
 
@@ -384,15 +411,24 @@ function selectionThreadPromptBlock(payload: AgentMessagePayload, context: Readi
   return threadContext ? selectionThreadContextPrompt(threadContext) : '';
 }
 
-function threadMemoryViewPromptBlock(payload: AgentMessagePayload) {
-  const blocks = memoryViewContextBlocks(payload.readingMemoryView);
-  if (blocks.length === 0) return '';
-  return `\n\nthread memory_view：\n${JSON.stringify(
-    blocks.map((block) => ({
+function threadMemoryViewPromptBlock(
+  payload: AgentMessagePayload,
+  options: AgentMessageRunOptions = {},
+) {
+  const blocks =
+    options.readingContext?.memoryEvidence?.map((evidence, index) => ({
+      id: `reading-context:memory:${index + 1}`,
+      source: evidence.provenance.sourceType,
+      text: evidence.text || evidence.summary,
+    })) ||
+    memoryViewContextBlocks(payload.readingMemoryView).map((block) => ({
       id: block.id,
       source: block.source,
       text: block.text,
-    })),
+    }));
+  if (blocks.length === 0) return '';
+  return `\n\nthread memory_view：\n${JSON.stringify(
+    blocks,
     null,
     2,
   )}\n\nmemory_view 使用规则：\n- memory_view 是同篇文章内已有批注、讨论和共读记忆，只能作为相关背景，不能覆盖当前 thread。\n- 当前批注讨论和刚刚触发你的读者评论优先级更高。\n- 只有 memory_view 或当前 thread 明确提供证据时，才能声称自己或其他助手曾经批注、评论或表达过某个观点。\n- 如果 memory_view 与当前 thread 无关，忽略它。`;

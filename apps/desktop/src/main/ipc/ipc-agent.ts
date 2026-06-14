@@ -26,6 +26,7 @@ import {
   runAgentDistillationReviewWithToolLoop,
   runAgentThreadReplyWithToolLoop,
 } from '../agents/agent-thread-runtime';
+import { agentMessageReadingContextSnapshot } from '../assistant/assistant-reading-context-provider';
 import {
   agentMessageRuntimeTaskType,
   agentNotFoundError,
@@ -122,18 +123,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       taskType,
       context.elapsedMs(startedAt),
     );
+    const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
     const comment =
       runtime.status === 'comment'
         ? runtime.comment
-        : await ai.runAgent(
-            provider,
-            agent,
-            agentMessagePayloadWithReadingMemoryView({
-              payload: payloadWithRoster,
-              logInfo: context.logInfo,
-              logError: context.logError,
-            }),
-          );
+        : await ai.runAgent(provider, agent, fastInput.payload, fastInput.options);
     if (runtime.status !== 'comment') {
       recordAssistantExecutionRun(context, {
         agent,
@@ -220,19 +214,12 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       'distillation_review',
       context.elapsedMs(startedAt),
     );
+    const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
     const message =
       runtime.status === 'message'
         ? runtime.message
         : commentToDistillationReviewMessage(
-            await ai.runAgent(
-              provider,
-              agent,
-              agentMessagePayloadWithReadingMemoryView({
-                payload: payloadWithRoster,
-                logInfo: context.logInfo,
-                logError: context.logError,
-              }),
-            ),
+            await ai.runAgent(provider, agent, fastInput.payload, fastInput.options),
             payload.reviewMessageId,
           );
     if (!message.proposals?.length) {
@@ -344,15 +331,17 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           sender.send({ type: 'delta', delta: comment.content });
         }
       } else {
-        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-          payload: payloadWithRoster,
-          logInfo: context.logInfo,
-          logError: context.logError,
-        });
-        await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
-          comment.content += delta;
-          sender.send({ type: 'delta', delta });
-        });
+        const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
+        await ai.runAgentStream(
+          provider,
+          agent,
+          fastInput.payload,
+          (delta) => {
+            comment.content += delta;
+            sender.send({ type: 'delta', delta });
+          },
+          fastInput.options,
+        );
         recordAssistantExecutionRun(context, {
           agent,
           provider,
@@ -439,15 +428,17 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         }
         message.proposals = runtime.message.proposals || [];
       } else {
-        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-          payload: payloadWithRoster,
-          logInfo: context.logInfo,
-          logError: context.logError,
-        });
-        await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
-          message.content += delta;
-          sender.send({ type: 'delta', delta });
-        });
+        const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
+        await ai.runAgentStream(
+          provider,
+          agent,
+          fastInput.payload,
+          (delta) => {
+            message.content += delta;
+            sender.send({ type: 'delta', delta });
+          },
+          fastInput.options,
+        );
         message.proposals = await extractDistillationReviewProposals({
           ai,
           provider,
@@ -619,4 +610,25 @@ function agentMessageReplyTo(payload: AgentMessagePayload) {
   if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review')
     return undefined;
   return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
+}
+
+function agentMessageFastInput(
+  context: DesktopMainIpcContext,
+  payload: AgentMessagePayload,
+  agentId: string,
+) {
+  const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+    payload,
+    logInfo: context.logInfo,
+    logError: context.logError,
+  });
+  return {
+    payload: payloadWithMemory,
+    options: {
+      readingContext: agentMessageReadingContextSnapshot({
+        payload,
+        agentId,
+      }),
+    },
+  };
 }
