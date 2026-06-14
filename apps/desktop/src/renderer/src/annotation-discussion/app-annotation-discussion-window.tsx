@@ -541,11 +541,13 @@ function AnnotationDiscussionShell({
             task.instruction,
             task.readingIntent,
             {
-              onComplete: () =>
+              onComplete: () => {
                 updateAddThoughtAgentRun(task.agent.id, {
                   errorMessage: undefined,
                   status: 'done',
-                }),
+                });
+                playAppSoundEffect('discussion.assistant_thought_done', settings);
+              },
               onError: () => updateAddThoughtAgentRun(task.agent.id, { status: 'failed' }),
               onProgress: (progress) =>
                 updateAddThoughtAgentRun(task.agent.id, (current) => ({

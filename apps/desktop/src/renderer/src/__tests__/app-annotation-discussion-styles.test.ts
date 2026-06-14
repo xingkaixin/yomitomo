@@ -19,17 +19,20 @@ describe('annotation discussion styles', () => {
     );
   });
 
-  it('tilts add thought assistant avatars without layout movement while running', () => {
+  it('draws an ink line under writing assistants and settles it on completion', () => {
     expect(styles).toMatch(
-      /\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-avatar \{[\s\S]*animation: annotation-discussion-add-agent-sway 1\.08s ease-in-out infinite;[\s\S]*will-change: transform;[\s\S]*\}/,
+      /\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-inkline::before \{[\s\S]*animation: annotation-discussion-add-ink-write 1\.15s ease-in-out infinite;[\s\S]*\}/,
     );
     expect(styles).toMatch(
-      /@keyframes annotation-discussion-add-agent-sway \{[\s\S]*transform: rotate\(-6deg\);[\s\S]*transform: rotate\(6deg\);[\s\S]*\}/,
+      /\.annotation-discussion-add-run-agent\.is-done \.annotation-discussion-add-run-inkline::after \{[\s\S]*transform: scaleX\(1\);[\s\S]*\}/,
     );
-    expect(styles).not.toContain('annotation-discussion-add-agent-hop');
-    expect(styles).not.toMatch(/@keyframes annotation-discussion-add-agent-sway \{[^@]*translateY/);
     expect(styles).toMatch(
-      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-avatar \{[\s\S]*animation: none;[\s\S]*transform: rotate\(0deg\);[\s\S]*will-change: auto;[\s\S]*\}/,
+      /\.annotation-discussion-add-run-agent\.is-done \.annotation-discussion-add-run-avatar \{[\s\S]*animation: annotation-discussion-add-avatar-settle 0\.5s/,
+    );
+    expect(styles).not.toContain('annotation-discussion-add-agent-sway');
+    expect(styles).not.toContain('reader-completion-burst');
+    expect(styles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.annotation-discussion-add-run-agent\.is-active \.annotation-discussion-add-run-inkline::before \{[\s\S]*animation: none;[\s\S]*\}/,
     );
   });
 
