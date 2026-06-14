@@ -16,6 +16,11 @@ import {
 import { initializeAppI18n } from '../i18n/app-i18n';
 import { publicAnnotationAgents } from '../source/bookcase/app-source-bookcase-shared';
 
+vi.mock('../sound/app-sound-effects', () => ({
+  playAppSoundEffect: vi.fn(),
+  stopAppSoundEffect: vi.fn(),
+}));
+
 const now = '2026-05-31T06:00:00.000Z';
 
 beforeEach(() => {
