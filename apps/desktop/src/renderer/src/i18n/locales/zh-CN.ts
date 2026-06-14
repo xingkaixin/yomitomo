@@ -785,6 +785,7 @@ export const zhCNResources = {
       threadView: {
         rootThought: '想法内容',
         assistantReplying: '助手回复中',
+        replyQueue: '助手回复队列',
         expanded: '讨论展开',
         noDiscussionTitle: '当前没有讨论',
         noDiscussionDescription: '这条想法还没有回复。',

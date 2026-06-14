@@ -68,6 +68,12 @@ export { insertMentionAtSelection } from './app-annotation-discussion-utils';
 type DiscussionLayoutMode = AnnotationMessageLayoutMode;
 const DISCUSSION_IDEAS_AUTO_COLLAPSE_WIDTH = 760;
 
+type ReplyAgentRun = {
+  agent: PublicAgent;
+  rootId: string;
+  status: 'active' | 'queued';
+};
+
 type DiscussionWindowStatus =
   | { type: 'loading' }
   | {
@@ -213,6 +219,7 @@ function AnnotationDiscussionShell({
   const [addThoughtAgentRuns, setAddThoughtAgentRuns] = useState<AddThoughtAgentRun[]>([]);
   const [addThoughtCelebrating, setAddThoughtCelebrating] = useState(false);
   const [sendingReply, setSendingReply] = useState(false);
+  const [replyAgentRuns, setReplyAgentRuns] = useState<ReplyAgentRun[]>([]);
   const [statusMessage, setStatusMessage] = useState('');
   const [sendError, setSendError] = useState('');
   const [removed, setRemoved] = useState(false);
@@ -373,7 +380,21 @@ function AnnotationDiscussionShell({
           ? mentionedAgents
           : replyTargetAgents(trimmed, selectedRoot, replyRuleAgents);
       const instruction = agentInstructionFromNote(trimmed, targetAgents) || undefined;
-      for (const agent of targetAgents) {
+      setReplyAgentRuns(
+        targetAgents.map((agent, index) => ({
+          agent,
+          rootId: selectedRoot.id,
+          status: index === 0 ? 'active' : 'queued',
+        })),
+      );
+      for (const [index, agent] of targetAgents.entries()) {
+        setReplyAgentRuns(
+          targetAgents.slice(index).map((runAgent, runIndex) => ({
+            agent: runAgent,
+            rootId: selectedRoot.id,
+            status: runIndex === 0 ? 'active' : 'queued',
+          })),
+        );
         const latestAnnotation =
           annotationsRef.current.find((item) => item.id === currentAnnotation.id) || nextAnnotation;
         await requestAgentReply(agent, latestAnnotation, userComment, instruction, {
@@ -384,6 +405,7 @@ function AnnotationDiscussionShell({
       setSendError(assistantRuntimeErrorMessage(error, 'discussion.replyFailed'));
     } finally {
       setSendingReply(false);
+      setReplyAgentRuns([]);
       setStatusMessage('');
     }
   }
@@ -794,6 +816,9 @@ function AnnotationDiscussionShell({
           </header>
           {selectedThread ? (
             <DiscussionThreadView
+              activeReplyAgents={replyAgentRuns.filter(
+                (run) => run.rootId === selectedThread.root.id,
+              )}
               deletingCommentId={deletingCommentId}
               layoutMode={layoutMode}
               thread={selectedThread}

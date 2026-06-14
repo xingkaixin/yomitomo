@@ -415,6 +415,59 @@ describe('AnnotationDiscussionWindowApp', () => {
     });
   });
 
+  it('shows active and queued assistant replies above the composer', async () => {
+    const firstRequest = deferred<Comment>();
+    const secondRequest = deferred<Comment>();
+    const desktop = installDesktopApi(article(annotation({ comments: [rootThought()] })), {
+      agents: agents().concat(agent({ id: 'agent_2', nickname: '林知', username: 'lin' })),
+      requestAgentCommentStream: vi.fn((payload) =>
+        payload.agentUsername === 'zhou' ? firstRequest.promise : secondRequest.promise,
+      ),
+    });
+    openDiscussionRoute();
+
+    render(<AnnotationDiscussionWindowApp />);
+
+    fireEvent.change(await screen.findByPlaceholderText(/回复这条想法/), {
+      target: { value: '@zhou @lin 你们分别回应一下' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '回复' }));
+
+    expect(await screen.findByRole('region', { name: '助手回复队列' })).toBeTruthy();
+    expect(
+      document.querySelector('.annotation-discussion-reply-agent-active [title="周现"]'),
+    ).toBeTruthy();
+    expect(screen.queryByText('周现 正在回复')).toBeNull();
+    expect(document.querySelector('[title="林知"]')).toBeTruthy();
+    expect(desktop.requestAgentCommentStream).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      firstRequest.resolve(
+        aiComment({ agentId: 'agent_1', agentNickname: '周现', agentUsername: 'zhou' }),
+      );
+      await firstRequest.promise;
+    });
+
+    await waitFor(() => expect(desktop.requestAgentCommentStream).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        document.querySelector(
+          '.annotation-discussion-reply-agent-active-avatar.is-promoted[title="林知"]',
+        ),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByText('林知 正在回复')).toBeNull();
+
+    await act(async () => {
+      secondRequest.resolve(
+        aiComment({ agentId: 'agent_2', agentNickname: '林知', agentUsername: 'lin' }),
+      );
+      await secondRequest.promise;
+    });
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: '助手回复队列' })).toBeNull());
+  });
+
   it('keeps a reply-free thought at the top instead of scrolling to the bottom', async () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, 'scrollTo', {

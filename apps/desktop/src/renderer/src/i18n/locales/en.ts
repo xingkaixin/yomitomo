@@ -807,6 +807,7 @@ export const enResources = {
       threadView: {
         rootThought: 'Thought content',
         assistantReplying: 'Assistant replying',
+        replyQueue: 'Assistant reply queue',
         expanded: 'Discussion expanded',
         noDiscussionTitle: 'No discussion yet',
         noDiscussionDescription: 'This thought has no replies yet.',
