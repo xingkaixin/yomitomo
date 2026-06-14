@@ -339,6 +339,9 @@ export function ReadingLibrary({
     const WOBBLE_MS = 150;
 
     clearDistillationTimer();
+    if (event.transition === 'publish' || event.transition === 'update') {
+      playAppSoundEffect('reader.distillation_committed', settings || {});
+    }
 
     if (event.transition === 'update') {
       setSelectedArticle((current) =>

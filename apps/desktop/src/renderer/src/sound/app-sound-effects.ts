@@ -4,6 +4,7 @@ import highlightOnPaperSoundUrl1 from '../assets/audio/highlight-on-paper-01.mp3
 import highlightOnPaperSoundUrl2 from '../assets/audio/highlight-on-paper-02.mp3';
 import highlightOnPaperSoundUrl3 from '../assets/audio/highlight-on-paper-03.mp3';
 import brandPronunciationUrl from '../assets/audio/yomitomo.m4a';
+import distillationCommitStampUrl from '../assets/audio/distillation-commit-stamp.mp3';
 import importSuccessMultipleSoundUrl from '../assets/audio/import-success-multiple.mp3';
 import importSuccessSingleSoundUrl from '../assets/audio/import-success-single.mp3';
 import paperBinTossSoundUrl from '../assets/audio/paper-bin-toss.mp3';
@@ -18,6 +19,7 @@ export type AppSoundEffectId =
   | 'library.import_success_single'
   | 'library.delete_item'
   | 'reader.annotation_created'
+  | 'reader.distillation_committed'
   | 'settings.sound_preview'
   | 'theme.paper_switch';
 
@@ -55,6 +57,10 @@ const soundEffects: Record<AppSoundEffectId, SoundEffectDefinition> = {
   'reader.annotation_created': {
     baseVolume: 0.75,
     urls: [highlightOnPaperSoundUrl1, highlightOnPaperSoundUrl2, highlightOnPaperSoundUrl3],
+  },
+  'reader.distillation_committed': {
+    baseVolume: 0.8,
+    urls: [distillationCommitStampUrl],
   },
   'settings.sound_preview': {
     baseVolume: 1,
