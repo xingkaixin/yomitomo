@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Check, Save, ShieldCheck, Zap, X } from 'lucide-react';
+import { BookOpen, Check, Languages, Save, ShieldCheck, Zap, X } from 'lucide-react';
 import type { AppSettings, AssistantExecutionMode, LlmProvider } from '@yomitomo/shared';
 import type { ProviderDraft, ProviderTestState } from './app-settings';
 import { providerLogoMap } from './app-settings-provider-assets';
@@ -70,9 +70,11 @@ export function ProviderSettings({
   const [providerEditorOpen, setProviderEditorOpen] = useState(false);
   const testStatus = testState.status;
   const usedProviderIds = new Set(
-    [settingsDraft.readingAssistantProviderId, settingsDraft.reviewAssistantProviderId].filter(
-      (id): id is string => Boolean(id),
-    ),
+    [
+      settingsDraft.readingAssistantProviderId,
+      settingsDraft.reviewAssistantProviderId,
+      settingsDraft.bilingualTranslationProviderId,
+    ].filter((id): id is string => Boolean(id)),
   );
 
   function selectProvider(provider: LlmProvider) {
@@ -254,7 +256,10 @@ function ProviderEditorContent({
 }
 
 const taskRouteOptions: Array<{
-  key: keyof Pick<AppSettings, 'readingAssistantProviderId' | 'reviewAssistantProviderId'>;
+  key: keyof Pick<
+    AppSettings,
+    'readingAssistantProviderId' | 'reviewAssistantProviderId' | 'bilingualTranslationProviderId'
+  >;
   descriptionKey: string;
   icon: React.ReactNode;
   titleKey: string;
@@ -270,6 +275,12 @@ const taskRouteOptions: Array<{
     titleKey: 'settings.models.reviewRouteTitle',
     descriptionKey: 'settings.models.reviewRouteDescription',
     icon: <ShieldCheck size={18} />,
+  },
+  {
+    key: 'bilingualTranslationProviderId',
+    titleKey: 'settings.models.translationRouteTitle',
+    descriptionKey: 'settings.models.translationRouteDescription',
+    icon: <Languages size={18} />,
   },
 ];
 

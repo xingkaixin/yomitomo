@@ -130,6 +130,21 @@ export function offsetFromArticleStart(article: HTMLElement, node: Node, offset:
   return range.toString().length;
 }
 
+export function offsetFromArticleStartIgnoringSelector(
+  article: HTMLElement,
+  node: Node,
+  offset: number,
+  ignoredSelector: string,
+) {
+  const range = document.createRange();
+  range.selectNodeContents(article);
+  range.setEnd(node, offset);
+  const container = document.createElement('div');
+  container.append(range.cloneContents());
+  container.querySelectorAll(ignoredSelector).forEach((element) => element.remove());
+  return container.textContent?.length || 0;
+}
+
 export function getArticleSelection(article: HTMLElement) {
   const rootNode = article.getRootNode();
   if (rootNode instanceof ShadowRoot) {
@@ -244,6 +259,29 @@ export function rangeHighlightBoxes(
 }
 
 export function rangeFromOffsets(rootElement: HTMLElement, start: number, end: number) {
+  return rangeFromOffsetsWithFilter(rootElement, start, end);
+}
+
+export function rangeFromOffsetsIgnoringSelector(
+  rootElement: HTMLElement,
+  start: number,
+  end: number,
+  ignoredSelector: string,
+) {
+  return rangeFromOffsetsWithFilter(
+    rootElement,
+    start,
+    end,
+    (node) => !textNodeIgnored(node, ignoredSelector),
+  );
+}
+
+function rangeFromOffsetsWithFilter(
+  rootElement: HTMLElement,
+  start: number,
+  end: number,
+  acceptTextNode: (node: Text) => boolean = () => true,
+) {
   const walker = document.createTreeWalker(rootElement, NodeFilter.SHOW_TEXT);
   let currentOffset = 0;
   let startNode: Text | null = null;
@@ -254,8 +292,9 @@ export function rangeFromOffsets(rootElement: HTMLElement, start: number, end: n
   while (walker.nextNode()) {
     const node = walker.currentNode;
     if (!isTextNode(node)) continue;
+    if (!acceptTextNode(node)) continue;
     const nextOffset = currentOffset + node.data.length;
-    if (!startNode && start >= currentOffset && start <= nextOffset) {
+    if (!startNode && start >= currentOffset && start < nextOffset) {
       startNode = node;
       startOffset = start - currentOffset;
     }
@@ -272,6 +311,11 @@ export function rangeFromOffsets(rootElement: HTMLElement, start: number, end: n
   range.setStart(startNode, startOffset);
   range.setEnd(endNode, endOffset);
   return range;
+}
+
+function textNodeIgnored(node: Node, ignoredSelector: string) {
+  const parent = node.parentElement;
+  return Boolean(parent?.closest(ignoredSelector));
 }
 
 function isTextNode(node: Node): node is Text {

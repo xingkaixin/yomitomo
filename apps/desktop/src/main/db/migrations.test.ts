@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { migrations } from './migrations';
+import { ensureAdditiveSchemaColumns, migrations } from './migrations';
 
 describe('reading memory migrations', () => {
   it('adds library content source preferences to app settings', () => {
@@ -42,6 +42,35 @@ describe('reading memory migrations', () => {
     }
 
     expect(columnNames(database, 'articles')).toContain('reader_chat_state');
+  });
+
+  it('repairs bilingual translation settings columns for databases with old applied migrations', () => {
+    const database = new DatabaseSync(':memory:');
+    for (const id of ['0001_initial', '0005_settings_reading_card']) {
+      const migration = migrations.find((item) => item.id === id);
+      if (!migration) throw new Error(`missing migration ${id}`);
+      database.exec(migration.sql);
+    }
+    database.exec(`
+ALTER TABLE app_settings ADD COLUMN bilingual_translation_provider_id TEXT;
+ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
+`);
+
+    expect(columnNames(database, 'app_settings')).not.toContain('bilingual_translation_style');
+
+    expect(ensureAdditiveSchemaColumns(database)).toEqual([
+      'app_settings.bilingual_translation_style',
+      'app_settings.bilingual_translation_ai_context_aware',
+    ]);
+    expect(columnNames(database, 'app_settings')).toEqual(
+      expect.arrayContaining([
+        'bilingual_translation_provider_id',
+        'bilingual_translation_target_language',
+        'bilingual_translation_style',
+        'bilingual_translation_ai_context_aware',
+      ]),
+    );
+    expect(ensureAdditiveSchemaColumns(database)).toEqual([]);
   });
 
   it('creates reading memory tables, indexes, and fts virtual table', () => {

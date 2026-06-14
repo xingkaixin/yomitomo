@@ -97,6 +97,12 @@ export {
   streamYomitomoText,
   type YomitomoTextGenerationResult,
 } from './provider/generation-runtime';
+export {
+  bilingualTranslationPromptVersion,
+  translateBilingualArticleBlocks,
+  type BilingualTranslationBlock,
+  type BilingualTranslationResult,
+} from './translation/bilingual-translation';
 export { extractJsonObjects } from './json';
 export {
   parseAgentMentionInstructions,

@@ -1,28 +1,37 @@
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Eye, EyeOff, Languages, RefreshCw, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { Annotation, ArticleReadingProgress, ReaderQuestionContext } from '@yomitomo/shared';
+import type {
+  Annotation,
+  ArticleReadingProgress,
+  ArticleTranslation,
+  ReaderQuestionContext,
+} from '@yomitomo/shared';
 import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
+  articleHtmlWithBilingualTranslation,
   createEpubTextAnchor,
   findCurrentTocTarget,
   findReaderSearchMatches,
   getArticleSelection,
   type HighlightBox,
   isRangeInsideArticle,
-  offsetFromArticleStart,
+  offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
-  rangeFromOffsets,
+  rangeFromOffsetsIgnoringSelector,
   selectionActionPosition,
   scrollReaderSurfaceToRect,
   createUserAnnotation,
+  sourceTextContent,
   type TocItem,
 } from '@yomitomo/core';
 import {
   ReaderAppView,
   type AnnotationNavigationDirection,
 } from '@yomitomo/reader-ui/reader-app-view';
+import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
 import { ReaderSettingsToolbarControls } from '@yomitomo/reader-ui/reader-toolbar-controls';
 import {
   readerConversationStyles,
@@ -36,6 +45,16 @@ import {
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
+import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import {
   defaultTocOpen,
   usesOverlayToc,
@@ -148,6 +167,16 @@ export function WebSourceBookcase({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const [searchBoxes, setSearchBoxes] = useState<HighlightBox[]>([]);
+  const [translation, setTranslation] = useState<ArticleTranslation | null>(null);
+  const [translationVisible, setTranslationVisible] = useState(false);
+  const [translationBusy, setTranslationBusy] = useState(false);
+  const [translationMenuOpen, setTranslationMenuOpen] = useState(false);
+  const [translationConfirm, setTranslationConfirm] = useState<TranslationConfirmAction | null>(
+    null,
+  );
+  const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
+  const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
+  const translationInProgress = translationBusy || translation?.status === 'translating';
 
   const {
     actionShortcuts,
@@ -185,7 +214,13 @@ export function WebSourceBookcase({
     openComposer,
   } = selection;
   const contentHtml = useMemo(() => (article ? sourceArticleBodyHtml(article) : ''), [article]);
-  const articleText = articleRef.current?.textContent || '';
+  const translatedContentHtml = useMemo(() => {
+    if (!translationVisible || !translation) return contentHtml;
+    return articleHtmlWithBilingualTranslation(document, contentHtml, translation, {
+      style: bilingualTranslationStyle,
+    });
+  }, [bilingualTranslationStyle, contentHtml, translation, translationVisible]);
+  const articleText = articleRef.current ? sourceTextContent(articleRef.current) : '';
   const searchResult = useMemo(
     () => findReaderSearchMatches(articleText, searchQuery),
     [articleText, searchQuery],
@@ -198,7 +233,7 @@ export function WebSourceBookcase({
     article,
     articleRef,
     canvasRef,
-    contentHtml,
+    contentHtml: translatedContentHtml,
     userProfile,
   });
   const { activeConnection, recalculateActiveConnection } = useSourceActiveConnection({
@@ -255,10 +290,46 @@ export function WebSourceBookcase({
     setSearchQuery('');
     setActiveSearchMatchIndex(0);
     setSearchBoxes([]);
+    setTranslation(null);
+    setTranslationVisible(false);
+    setTranslationMenuOpen(false);
+    setTranslationConfirm(null);
     lastSavedWebProgressRef.current = normalizeSavedWebProgress(article.readingProgress);
     setReadingProgress(lastSavedWebProgressRef.current ?? 0);
     restoredWebProgressArticleRef.current = null;
   }, [article?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (article.sourceType !== 'web') return;
+    void window.yomitomoDesktop
+      .getCurrentArticleTranslation({
+        articleId: article.id,
+        targetLanguage: bilingualTranslationTargetLanguage,
+      })
+      .then((current) => {
+        if (cancelled) return;
+        setTranslation(current);
+        setTranslationVisible(Boolean(current));
+      })
+      .catch(() => {
+        if (!cancelled) setTranslation(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id, article.sourceType, bilingualTranslationTargetLanguage]);
+
+  useEffect(() => {
+    const subscribe = (window.yomitomoDesktop as Partial<typeof window.yomitomoDesktop>)
+      .onArticleTranslationUpdated;
+    if (!subscribe) return;
+    return subscribe((nextTranslation) => {
+      if (nextTranslation.articleId !== article.id) return;
+      setTranslation(nextTranslation);
+      setTranslationVisible(true);
+    });
+  }, [article.id]);
 
   useEffect(() => {
     setActiveSearchMatchIndex(0);
@@ -274,7 +345,12 @@ export function WebSourceBookcase({
     const scrollElement = scrollRef.current;
     if (!articleElement || !canvasElement || !scrollElement) return;
 
-    const range = rangeFromOffsets(articleElement, activeSearchMatch.start, activeSearchMatch.end);
+    const range = rangeFromOffsetsIgnoringSelector(
+      articleElement,
+      activeSearchMatch.start,
+      activeSearchMatch.end,
+      '[data-reader-translation]',
+    );
     if (!range) {
       setSearchBoxes([]);
       return;
@@ -425,7 +501,7 @@ export function WebSourceBookcase({
   }
 
   function currentArticleText() {
-    return articleRef.current?.textContent || '';
+    return articleRef.current ? sourceTextContent(articleRef.current) : '';
   }
 
   function isCurrentArticle(articleId: string) {
@@ -448,9 +524,24 @@ export function WebSourceBookcase({
 
     const range = articleSelection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) return;
+    if (rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
+      articleSelection.removeAllRanges();
+      clearSelection();
+      return;
+    }
     const selectedArticleText = currentArticleText();
-    const start = offsetFromArticleStart(articleElement, range.startContainer, range.startOffset);
-    const end = offsetFromArticleStart(articleElement, range.endContainer, range.endOffset);
+    const start = offsetFromArticleStartIgnoringSelector(
+      articleElement,
+      range.startContainer,
+      range.startOffset,
+      '[data-reader-translation]',
+    );
+    const end = offsetFromArticleStartIgnoringSelector(
+      articleElement,
+      range.endContainer,
+      range.endOffset,
+      '[data-reader-translation]',
+    );
     const anchor = article.ebook?.index
       ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
       : createTextAnchor(selectedArticleText, start, end);
@@ -477,6 +568,14 @@ export function WebSourceBookcase({
 
   function handleArticleClick(event: React.MouseEvent<HTMLElement>) {
     const target = event.target instanceof Element ? event.target : null;
+    const translationAction = target?.closest<HTMLElement>('[data-reader-translation-action]');
+    if (translationAction) {
+      event.preventDefault();
+      const blockId = translationAction.getAttribute('data-reader-translation-block-id');
+      if (blockId) void requestBilingualTranslation({ sourceBlockIds: [blockId] });
+      return;
+    }
+
     const anchor = target?.closest<HTMLAnchorElement>('a[href]');
     if (!anchor) return;
 
@@ -485,6 +584,45 @@ export function WebSourceBookcase({
 
     event.preventDefault();
     void window.yomitomoDesktop.openUrl(url);
+  }
+
+  async function requestBilingualTranslation(
+    input: {
+      force?: boolean;
+      sourceBlockIds?: string[];
+    } = {},
+  ) {
+    if (translationBusy) return;
+    if (!input.force && !input.sourceBlockIds?.length && translation && !translationVisible) {
+      setTranslationVisible(true);
+      return;
+    }
+    setTranslationBusy(true);
+    try {
+      const nextTranslation = await window.yomitomoDesktop.translateArticle({
+        articleId: article.id,
+        force: input.force,
+        sourceBlockIds: input.sourceBlockIds,
+        targetLanguage: bilingualTranslationTargetLanguage,
+      });
+      setTranslation(nextTranslation);
+      setTranslationVisible(true);
+    } catch (error) {
+      setStatusMessage(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
+    } finally {
+      setTranslationBusy(false);
+    }
+  }
+
+  async function deleteBilingualTranslation() {
+    if (translationBusy) return;
+    await window.yomitomoDesktop.deleteCurrentArticleTranslation({
+      articleId: article.id,
+      targetLanguage: bilingualTranslationTargetLanguage,
+    });
+    setTranslation(null);
+    setTranslationVisible(false);
+    setTranslationMenuOpen(false);
   }
 
   async function createAnnotation(note: string) {
@@ -523,10 +661,15 @@ export function WebSourceBookcase({
     const scrollElement = scrollRef.current;
     if (!anchor || !articleElement || !scrollElement) return;
 
-    const position = resolveTextAnchor(articleElement.textContent || '', anchor);
+    const position = resolveTextAnchor(sourceTextContent(articleElement), anchor);
     if (!position) return;
 
-    const range = rangeFromOffsets(articleElement, position.start, position.end);
+    const range = rangeFromOffsetsIgnoringSelector(
+      articleElement,
+      position.start,
+      position.end,
+      '[data-reader-translation]',
+    );
     if (!range) return;
 
     scrollReaderSurfaceToRect(scrollElement, range.getBoundingClientRect(), 48);
@@ -693,7 +836,7 @@ export function WebSourceBookcase({
           content: (
             <div
               className="reader-article-body"
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
+              dangerouslySetInnerHTML={{ __html: translatedContentHtml }}
               onClick={handleArticleClick}
             />
           ),
@@ -727,11 +870,29 @@ export function WebSourceBookcase({
         toolbar={{
           articleAction: <OpenArticleButton article={article} iconOnly />,
           controls: (
-            <ReaderSettingsToolbarControls
-              labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
-              settings={readerSettings}
-              onChange={updateReaderSettings}
-            />
+            <>
+              <ReaderTranslationToolbarButton
+                busy={translationInProgress}
+                hasTranslation={Boolean(translation)}
+                labels={{
+                  deleteTranslation: t('source.deleteTranslation'),
+                  hideTranslation: t('source.hideTranslation'),
+                  retranslateArticle: t('source.retranslateArticle'),
+                  showTranslation: t('source.showTranslation'),
+                  translateArticle: t('source.translateArticle'),
+                }}
+                menuOpen={translationMenuOpen}
+                visible={translationVisible}
+                onConfirm={(action) => setTranslationConfirm(action)}
+                onMenuOpenChange={setTranslationMenuOpen}
+                onSetVisible={setTranslationVisible}
+              />
+              <ReaderSettingsToolbarControls
+                labels={{ articleWidth: labels.articleWidth, fontSize: labels.fontSize }}
+                settings={readerSettings}
+                onChange={updateReaderSettings}
+              />
+            </>
           ),
           search: {
             activeMatchIndex: activeSearchMatchIndex,
@@ -754,7 +915,207 @@ export function WebSourceBookcase({
         }}
         userProfile={userProfile}
       />
+      <ReaderTranslationConfirmDialog
+        action={translationConfirm}
+        labels={{
+          cancel: t('common.cancel'),
+          confirmDeleteTranslation: t('source.confirmDeleteTranslation'),
+          confirmDeleteTranslationDescription: t('source.confirmDeleteTranslationDescription'),
+          confirmDeleteTranslationTitle: t('source.confirmDeleteTranslationTitle'),
+          confirmRetranslate: t('source.confirmRetranslate'),
+          confirmRetranslateDescription: t('source.confirmRetranslateDescription'),
+          confirmRetranslateTitle: t('source.confirmRetranslateTitle'),
+          confirmTranslate: t('source.confirmTranslate'),
+          confirmTranslateDescription: t('source.confirmTranslateDescription'),
+          confirmTranslateTitle: t('source.confirmTranslateTitle'),
+        }}
+        onClose={() => setTranslationConfirm(null)}
+        onConfirm={async (action) => {
+          setTranslationConfirm(null);
+          if (action === 'delete') await deleteBilingualTranslation();
+          else await requestBilingualTranslation({ force: action === 'retranslate' });
+        }}
+      />
     </section>
+  );
+}
+
+type TranslationConfirmAction = 'translate' | 'retranslate' | 'delete';
+
+type ReaderTranslationLabels = {
+  deleteTranslation: string;
+  hideTranslation: string;
+  retranslateArticle: string;
+  showTranslation: string;
+  translateArticle: string;
+};
+
+function ReaderTranslationToolbarButton({
+  busy,
+  hasTranslation,
+  labels,
+  menuOpen,
+  visible,
+  onConfirm,
+  onMenuOpenChange,
+  onSetVisible,
+}: {
+  busy: boolean;
+  hasTranslation: boolean;
+  labels: ReaderTranslationLabels;
+  menuOpen: boolean;
+  visible: boolean;
+  onConfirm: (action: TranslationConfirmAction) => void;
+  onMenuOpenChange: (open: boolean) => void;
+  onSetVisible: (visible: boolean) => void;
+}) {
+  if (!hasTranslation) {
+    return (
+      <ReaderTooltip content={labels.translateArticle} side="bottom">
+        <button
+          aria-label={labels.translateArticle}
+          className={['reader-icon-button', busy ? 'is-busy' : ''].filter(Boolean).join(' ')}
+          disabled={busy}
+          type="button"
+          onClick={() => onConfirm('translate')}
+        >
+          {busy ? <RefreshCw size={18} /> : <Languages size={18} />}
+        </button>
+      </ReaderTooltip>
+    );
+  }
+
+  const buttonLabel = visible ? labels.hideTranslation : labels.showTranslation;
+  return (
+    <Popover open={menuOpen} onOpenChange={onMenuOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          aria-label={buttonLabel}
+          className={['reader-icon-button', visible ? 'is-active' : '', busy ? 'is-busy' : '']
+            .filter(Boolean)
+            .join(' ')}
+          title={buttonLabel}
+          type="button"
+        >
+          {busy ? <RefreshCw size={18} /> : visible ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="reader-translation-menu" side="bottom" sideOffset={10}>
+        <button
+          title={buttonLabel}
+          type="button"
+          onClick={() => {
+            onSetVisible(!visible);
+            onMenuOpenChange(false);
+          }}
+        >
+          {visible ? <EyeOff size={15} /> : <Eye size={15} />}
+          <span>{buttonLabel}</span>
+        </button>
+        <button
+          disabled={busy}
+          title={labels.retranslateArticle}
+          type="button"
+          onClick={() => {
+            onMenuOpenChange(false);
+            onConfirm('retranslate');
+          }}
+        >
+          <RefreshCw size={15} />
+          <span>{labels.retranslateArticle}</span>
+        </button>
+        <button
+          className="is-danger"
+          disabled={busy}
+          title={labels.deleteTranslation}
+          type="button"
+          onClick={() => {
+            onMenuOpenChange(false);
+            onConfirm('delete');
+          }}
+        >
+          <Trash2 size={15} />
+          <span>{labels.deleteTranslation}</span>
+        </button>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+type ReaderTranslationConfirmLabels = {
+  cancel: string;
+  confirmDeleteTranslation: string;
+  confirmDeleteTranslationDescription: string;
+  confirmDeleteTranslationTitle: string;
+  confirmRetranslate: string;
+  confirmRetranslateDescription: string;
+  confirmRetranslateTitle: string;
+  confirmTranslate: string;
+  confirmTranslateDescription: string;
+  confirmTranslateTitle: string;
+};
+
+function ReaderTranslationConfirmDialog({
+  action,
+  labels,
+  onClose,
+  onConfirm,
+}: {
+  action: TranslationConfirmAction | null;
+  labels: ReaderTranslationConfirmLabels;
+  onClose: () => void;
+  onConfirm: (action: TranslationConfirmAction) => Promise<void>;
+}) {
+  const copy =
+    action === 'delete'
+      ? {
+          confirm: labels.confirmDeleteTranslation,
+          description: labels.confirmDeleteTranslationDescription,
+          title: labels.confirmDeleteTranslationTitle,
+        }
+      : action === 'retranslate'
+        ? {
+            confirm: labels.confirmRetranslate,
+            description: labels.confirmRetranslateDescription,
+            title: labels.confirmRetranslateTitle,
+          }
+        : {
+            confirm: labels.confirmTranslate,
+            description: labels.confirmTranslateDescription,
+            title: labels.confirmTranslateTitle,
+          };
+  return (
+    <Dialog open={Boolean(action)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <DialogPortal>
+        <DialogOverlay className="reader-translation-confirm-overlay">
+          <DialogContent
+            aria-describedby="reader-translation-confirm-description"
+            aria-labelledby="reader-translation-confirm-title"
+            className="reader-translation-confirm"
+          >
+            <DialogTitle id="reader-translation-confirm-title">{copy.title}</DialogTitle>
+            <DialogDescription id="reader-translation-confirm-description">
+              {copy.description}
+            </DialogDescription>
+            <div className="reader-translation-confirm-actions">
+              <button type="button" onClick={onClose}>
+                {labels.cancel}
+              </button>
+              <button
+                className={action === 'delete' ? 'is-danger' : 'is-primary'}
+                disabled={!action}
+                type="button"
+                onClick={() => {
+                  if (action) void onConfirm(action);
+                }}
+              >
+                {copy.confirm}
+              </button>
+            </div>
+          </DialogContent>
+        </DialogOverlay>
+      </DialogPortal>
+    </Dialog>
   );
 }
 
@@ -781,4 +1142,12 @@ function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
     progress,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
+  const nodes = [range.startContainer, range.endContainer];
+  return nodes.some((node) => {
+    const element = node instanceof Element ? node : node.parentElement;
+    return Boolean(element?.closest(selector));
+  });
 }

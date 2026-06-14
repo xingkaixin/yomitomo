@@ -97,6 +97,12 @@ export function useSettingsDrafts({
         (store.settings.soundEffectsEnabled ?? true) ||
       normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) !==
         normalizeSoundEffectsVolume(store.settings.soundEffectsVolume) ||
+      (settingsDraft.bilingualTranslationTargetLanguage || 'zh-CN') !==
+        (store.settings.bilingualTranslationTargetLanguage || 'zh-CN') ||
+      (settingsDraft.bilingualTranslationStyle || 'dashedLine') !==
+        (store.settings.bilingualTranslationStyle || 'dashedLine') ||
+      Boolean(settingsDraft.bilingualTranslationAiContextAware) !==
+        Boolean(store.settings.bilingualTranslationAiContextAware) ||
       Boolean(settingsDraft.saveArticleImages) !== Boolean(store.settings.saveArticleImages) ||
       libraryContentSourcesChanged(
         settingsDraft.libraryContentSources,
@@ -104,11 +110,17 @@ export function useSettingsDrafts({
       ),
     [
       settingsDraft.libraryContentSources,
+      settingsDraft.bilingualTranslationAiContextAware,
+      settingsDraft.bilingualTranslationStyle,
+      settingsDraft.bilingualTranslationTargetLanguage,
       settingsDraft.saveArticleImages,
       settingsDraft.soundEffectsEnabled,
       settingsDraft.soundEffectsVolume,
       settingsDraft.uiLanguage,
       store.settings.libraryContentSources,
+      store.settings.bilingualTranslationAiContextAware,
+      store.settings.bilingualTranslationStyle,
+      store.settings.bilingualTranslationTargetLanguage,
       store.settings.saveArticleImages,
       store.settings.soundEffectsEnabled,
       store.settings.soundEffectsVolume,
@@ -151,13 +163,17 @@ export function useSettingsDrafts({
         (store.settings.readingAssistantProviderId || '') ||
       (settingsDraft.reviewAssistantProviderId || '') !==
         (store.settings.reviewAssistantProviderId || '') ||
+      (settingsDraft.bilingualTranslationProviderId || '') !==
+        (store.settings.bilingualTranslationProviderId || '') ||
       (settingsDraft.assistantExecutionMode || 'fast_response') !==
         (store.settings.assistantExecutionMode || 'fast_response'),
     [
       settingsDraft.assistantExecutionMode,
+      settingsDraft.bilingualTranslationProviderId,
       settingsDraft.readingAssistantProviderId,
       settingsDraft.reviewAssistantProviderId,
       store.settings.assistantExecutionMode,
+      store.settings.bilingualTranslationProviderId,
       store.settings.readingAssistantProviderId,
       store.settings.reviewAssistantProviderId,
     ],

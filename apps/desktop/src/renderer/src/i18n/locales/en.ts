@@ -727,6 +727,27 @@ export const enResources = {
         'This is the reader floating Q&A. Answer around the selected quote and the user question; do not write the reply as an annotation discussion.',
       readerChatArticleInstruction:
         'This is the reader floating Q&A. Answer around the current article and the user question; do not write the reply as an annotation discussion.',
+      translateArticle: 'Bilingual translation',
+      confirmTranslateTitle: 'Translate this article?',
+      confirmTranslateDescription:
+        'This will call the bilingual translation model and save paragraph results. Existing results are reused unless you translate again.',
+      confirmTranslate: 'Start translation',
+      confirmRetranslateTitle: 'Translate this article again?',
+      confirmRetranslateDescription:
+        'This will replace saved translations for the current target language.',
+      confirmRetranslate: 'Translate again',
+      confirmDeleteTranslationTitle: 'Delete this article translation?',
+      confirmDeleteTranslationDescription:
+        'Only the translation cache for the current target language will be deleted. Original text and annotations are kept.',
+      confirmDeleteTranslation: 'Delete translation',
+      showTranslation: 'Show translation',
+      hideTranslation: 'Hide translation',
+      retranslateArticle: 'Translate again',
+      deleteTranslation: 'Delete translation',
+      retryTranslationSegment: 'Retry this paragraph',
+      translatingArticle: 'Generating bilingual translation',
+      translationReady: 'Bilingual translation is ready',
+      translationFailed: 'Bilingual translation failed. Try again later.',
     },
     discussion: {
       title: 'Annotation discussion',
@@ -1135,6 +1156,26 @@ export const enResources = {
           'Controls the app language and makes assistants reply in the same language by default.',
         languageZh: '简体中文',
         languageEn: 'English',
+        translationGroup: 'Translation',
+        translationTargetTitle: 'Bilingual translation target language',
+        translationTargetDescription:
+          'Used for web article bilingual translation. Existing results are reused per target language.',
+        translationLanguageZh: 'Chinese',
+        translationLanguageEn: 'English',
+        translationStyleTitle: 'Translation style',
+        translationStyleDescription:
+          'Controls how translated text is visually separated from the original text.',
+        translationStyleDashedLine: 'Dashed line',
+        translationStyleBlur: 'Blur',
+        translationStyleBlockquote: 'Quote line',
+        translationStyleWeakened: 'Muted',
+        translationStyleBorder: 'Border',
+        translationStylePreviewSource: 'Original text keeps the reader typography.',
+        translationStylePreviewTranslation:
+          'Translation appears below the original with this style.',
+        translationAiContextTitle: 'AI context-aware translation',
+        translationAiContextDescription:
+          'Adds article title, summary, and nearby paragraph context while translating. More accurate, but uses more input tokens.',
         soundGroup: 'Sound',
         soundEffectsTitle: 'Enable app sound effects',
         soundEffectsDescription: 'Controls app sounds and feedback effects.',
@@ -1366,6 +1407,8 @@ export const enResources = {
         reviewRouteTitle: 'Deep review assistant',
         reviewRouteDescription:
           'Used to review evidence, logic, and expression in reading materials.',
+        translationRouteTitle: 'Bilingual translation',
+        translationRouteDescription: 'Used for web article paragraph translation and refresh.',
         routeNoProviderDescription: 'Add a provider before assigning it to {{title}}.',
         providerSelectAria: '{{title}} provider',
         chooseProvider: 'Choose provider',
@@ -1426,6 +1469,8 @@ export const enResources = {
         providerApiKeyRequired: 'Configure the provider API Key first.',
         readingProviderRouteRequired: 'Choose a provider for the reading assistant route first.',
         reviewProviderRouteRequired: 'Choose a provider for the deep review assistant route first.',
+        translationProviderRouteRequired:
+          'Choose a provider for the bilingual translation route first.',
         presetModelsWithApiKey: 'Showing preset models. Enter an API Key to fetch a live list',
         apiKeyRequiredForModels: 'Enter an API Key to fetch models',
         fetchedModels: 'Fetched {{count}} models',

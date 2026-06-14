@@ -79,6 +79,50 @@ export type ArticleStorePatch =
   | (ArticleReadingProgressPatch & { type: 'article-reading-progress' })
   | (ArticleDeletePatch & { type: 'article-delete' });
 
+export type ArticleTranslationStatus = 'idle' | 'translating' | 'ready' | 'failed';
+
+export type ArticleTranslationSegment = {
+  id: string;
+  translationId: string;
+  sourceBlockId: string;
+  sourceTextHash: string;
+  sourceText: string;
+  translatedText?: string;
+  status: ArticleTranslationStatus;
+  error?: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ArticleTranslation = {
+  id: string;
+  articleId: string;
+  sourceContentHash: string;
+  targetLanguage: string;
+  promptVersion: number;
+  providerId?: string;
+  providerName?: string;
+  modelName?: string;
+  status: ArticleTranslationStatus;
+  error?: string;
+  segments: ArticleTranslationSegment[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ArticleTranslationRequest = {
+  articleId: string;
+  sourceBlockIds?: string[];
+  targetLanguage?: string;
+  force?: boolean;
+};
+
+export type ArticleTranslationDeleteRequest = {
+  articleId: string;
+  targetLanguage?: string;
+};
+
 export type ArticleRecord = {
   id: string;
   url: string;

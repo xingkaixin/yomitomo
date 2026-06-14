@@ -570,7 +570,7 @@ describe('ProviderSettings', () => {
     expect(
       screen.getByText('当前还没有可选供应商。新增并保存供应商后，这里会开放选择。'),
     ).toBeTruthy();
-    expect(screen.getAllByText('先新增供应商')).toHaveLength(2);
+    expect(screen.getAllByText('先新增供应商')).toHaveLength(3);
     expect(screen.getByText('添加供应商')).toBeTruthy();
     expect(screen.getByText('配置模型服务商和 API Key')).toBeTruthy();
     expect(screen.queryByText('管理模型服务商、API Key、Base URL 和可用模型。')).toBeNull();

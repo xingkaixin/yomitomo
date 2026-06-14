@@ -4,6 +4,15 @@ export type AssistantExecutionMode = 'fast_response' | 'deep_verification';
 
 export type UiLanguage = 'zh-CN' | 'en';
 
+export type BilingualTranslationTargetLanguage = 'zh-CN' | 'en';
+
+export type BilingualTranslationStyle =
+  | 'blur'
+  | 'blockquote'
+  | 'weakened'
+  | 'dashedLine'
+  | 'border';
+
 export type SelectionActionShortcuts = {
   copy: string;
   annotate: string;
@@ -34,6 +43,10 @@ export type AppSettings = {
   defaultProviderId?: string;
   readingAssistantProviderId?: string;
   reviewAssistantProviderId?: string;
+  bilingualTranslationProviderId?: string;
+  bilingualTranslationTargetLanguage?: string;
+  bilingualTranslationStyle?: BilingualTranslationStyle;
+  bilingualTranslationAiContextAware?: boolean;
   assistantExecutionMode?: AssistantExecutionMode;
   messageSendShortcut?: MessageSendShortcut;
   selectionActionShortcuts?: Partial<SelectionActionShortcuts>;

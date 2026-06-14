@@ -6,6 +6,7 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleTranslation,
   ArticleUpsertPatch,
   Comment,
   DesktopStore,
@@ -46,6 +47,11 @@ import {
   writeArticleRows,
   type ArticleIdentity,
 } from '../articles/article-repository';
+import {
+  deleteArticleTranslationRows,
+  readCurrentArticleTranslationRows,
+  upsertArticleTranslationRows,
+} from '../articles/article-translation-repository';
 import * as schema from '../db/schema';
 import { providerApiKeyRef, saveProviderApiKey } from '../providers/provider-secrets';
 import {
@@ -232,6 +238,35 @@ export async function readArticleSummary(id: string) {
   return readArticleSummaryRows(database, id);
 }
 
+export async function readCurrentArticleTranslation(input: {
+  articleId: string;
+  sourceContentHash: string;
+  targetLanguage: string;
+  promptVersion: number;
+}) {
+  return readCurrentArticleTranslationRows(getDatabase(), input);
+}
+
+export async function saveArticleTranslation(
+  translation: Omit<ArticleTranslation, 'segments'> & {
+    segments?: ArticleTranslation['segments'];
+  },
+) {
+  return upsertArticleTranslationRows(getDatabase(), translation);
+}
+
+export async function deleteCurrentArticleTranslation(input: {
+  articleId: string;
+  sourceContentHash: string;
+  targetLanguage: string;
+  promptVersion: number;
+}) {
+  const translation = readCurrentArticleTranslationRows(getDatabase(), input);
+  if (!translation) return null;
+  deleteArticleTranslationRows(getDatabase(), translation.id);
+  return translation;
+}
+
 export function readImportSettings(): Pick<AppSettings, 'saveArticleImages'> {
   return readImportSettingsRows(getDatabase());
 }
@@ -355,7 +390,8 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
     if (
       settings?.defaultProviderId === id ||
       settings?.readingAssistantProviderId === id ||
-      settings?.reviewAssistantProviderId === id
+      settings?.reviewAssistantProviderId === id ||
+      settings?.bilingualTranslationProviderId === id
     ) {
       upsertSettings(tx, {
         defaultProviderId:
@@ -368,6 +404,10 @@ export async function deleteProvider(id: string): Promise<DesktopStore> {
           settings.reviewAssistantProviderId === id
             ? undefined
             : (settings.reviewAssistantProviderId ?? undefined),
+        bilingualTranslationProviderId:
+          settings.bilingualTranslationProviderId === id
+            ? undefined
+            : (settings.bilingualTranslationProviderId ?? undefined),
         saveArticleImages: settings.saveArticleImages,
       });
     }

@@ -34,6 +34,16 @@ export { inlineArticleFavicon, inlineArticleImages } from './articles/article-im
 export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';
 
 export {
+  articleHtmlWithBilingualTranslation,
+  extractWebArticleTranslationBlocks,
+  sourceTextContent,
+} from './articles/article-translation';
+export type {
+  ArticleBilingualTranslationRenderOptions,
+  WebArticleTranslationBlock,
+} from './articles/article-translation';
+
+export {
   buildEpubBookIndex,
   createEpubTextAnchor,
   createEpubTextAnchorFromQuote,
@@ -131,7 +141,9 @@ export {
   isPrimaryTocItem,
   isRangeInsideArticle,
   offsetFromArticleStart,
+  offsetFromArticleStartIgnoringSelector,
   rangeFromOffsets,
+  rangeFromOffsetsIgnoringSelector,
   rangeHighlightBoxes,
   scrollReaderSurfaceToElement,
   scrollReaderSurfaceToRect,

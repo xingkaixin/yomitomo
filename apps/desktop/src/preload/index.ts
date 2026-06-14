@@ -13,6 +13,9 @@ import type {
   AppSettings,
   ArticleRecord,
   ArticleReadingProgress,
+  ArticleTranslation,
+  ArticleTranslationDeleteRequest,
+  ArticleTranslationRequest,
   Comment,
   DesktopStore,
   LlmProvider,
@@ -221,6 +224,20 @@ const api = {
       articleId,
       readerChatState,
     }),
+  getCurrentArticleTranslation: (input: ArticleTranslationRequest) =>
+    invokeDesktopIpc('article-translation:get-current', input),
+  translateArticle: (input: ArticleTranslationRequest) =>
+    invokeDesktopIpc('article-translation:translate', input),
+  deleteCurrentArticleTranslation: (input: ArticleTranslationDeleteRequest) =>
+    invokeDesktopIpc('article-translation:delete-current', input),
+  onArticleTranslationUpdated: (callback: (translation: ArticleTranslation) => void) => {
+    const listener = (_event: IpcRendererEvent, translation: ArticleTranslation) =>
+      callback(translation);
+    ipcRenderer.on('article-translation:updated', listener);
+    return () => {
+      ipcRenderer.removeListener('article-translation:updated', listener);
+    };
+  },
   importArticleUrl: (url: string, requestId?: string) =>
     invokeDesktopIpc('article:import-url', articleImportUrlInput(url, requestId)),
   cancelArticleUrlImport: (requestId: string) =>

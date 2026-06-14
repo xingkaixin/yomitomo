@@ -8,6 +8,8 @@ import {
   extractTocItems,
   findCurrentTocTarget,
   highlightSegmentStyle,
+  offsetFromArticleStartIgnoringSelector,
+  rangeFromOffsetsIgnoringSelector,
   type HighlightBox,
 } from './reader-dom';
 
@@ -197,5 +199,33 @@ describe('reader DOM toc', () => {
     ]);
     expect(findCurrentTocTarget(article, items[0])).toBe(article);
     expect(articleTitleTocItems(article, '   ')).toEqual([]);
+  });
+});
+
+describe('reader DOM translated text boundaries', () => {
+  it('maps offsets while ignoring bilingual translation nodes', () => {
+    const article = document.createElement('article');
+    article.innerHTML =
+      '<p>Alpha source</p><div data-reader-translation="true">阿尔法译文</div><p>Beta source</p>';
+
+    const betaText = article.querySelectorAll('p')[1]?.firstChild;
+    expect(betaText).toBeTruthy();
+    expect(
+      offsetFromArticleStartIgnoringSelector(
+        article,
+        betaText as Text,
+        4,
+        '[data-reader-translation]',
+      ),
+    ).toBe('Alpha sourceBeta'.length);
+
+    const range = rangeFromOffsetsIgnoringSelector(
+      article,
+      'Alpha source'.length,
+      'Alpha sourceBeta'.length,
+      '[data-reader-translation]',
+    );
+
+    expect(range?.toString()).toBe('Beta');
   });
 });
