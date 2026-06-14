@@ -60,7 +60,6 @@ export type UseReaderShellStateOptions = {
   onCloseFloatingPanels: () => void;
   onCloseHighlightChoice: () => void;
   onAskSelection?: (action: SelectionAction) => void;
-  onCopySelection: (action: SelectionAction) => void | Promise<void>;
   onNavigateAnnotation?: (annotationId: string, direction: AnnotationNavigationDirection) => void;
   onOpenComposer: (action: SelectionAction) => void;
   onResolveAnnotationNavigation?: (
@@ -97,7 +96,6 @@ export function useReaderShellState({
   onCloseFloatingPanels,
   onCloseHighlightChoice,
   onAskSelection,
-  onCopySelection,
   onNavigateAnnotation,
   onOpenComposer,
   onResolveAnnotationNavigation,
@@ -125,6 +123,10 @@ export function useReaderShellState({
         annotations: annotationRail.visibleAnnotations,
       }) ?? emptyAnnotationNavigation,
   );
+  const [selectionCopyRequestKey, setSelectionCopyRequestKey] = React.useState(0);
+  const requestSelectionCopy = React.useCallback(() => {
+    setSelectionCopyRequestKey((key) => key + 1);
+  }, []);
   const interactions = useReaderShellInteractions({
     activeId,
     composer,
@@ -139,7 +141,7 @@ export function useReaderShellState({
     onCloseFloatingPanels,
     onCloseHighlightChoice,
     onAskSelection,
-    onCopySelection,
+    onCopySelection: requestSelectionCopy,
     onOpenComposer,
     onToggleSettings,
   });
@@ -196,6 +198,7 @@ export function useReaderShellState({
     annotationRailLayout,
     handleReaderPointerDownCapture: interactions.handleReaderPointerDownCapture,
     navigateAnnotation,
+    selectionCopyRequestKey,
     toggleSettings: interactions.toggleSettings,
   };
 }

@@ -88,7 +88,7 @@ export function ReaderAppView({
     shortcutModifier,
     showSettings = true,
   } = settings;
-  const { composer, highlightChoice, selectionAction } = selection;
+  const { composer, copyRequestKey = 0, highlightChoice, selectionAction } = selection;
   const { articleRef, canvasRef, noteRefs, notesRef, surfaceRef } = refs;
   const { embedded = false } = options ?? {};
   const tocOpen = toc.open;
@@ -99,6 +99,7 @@ export function ReaderAppView({
     annotationRailLayout,
     handleReaderPointerDownCapture,
     navigateAnnotation,
+    selectionCopyRequestKey: shellSelectionCopyRequestKey,
   } = useReaderShellState({
     activeId,
     annotationRailLayoutOverride: railLayoutOverride,
@@ -125,7 +126,6 @@ export function ReaderAppView({
     onCloseFloatingPanels: shell.onCloseFloatingPanels,
     onCloseHighlightChoice: selectionActions.onCloseHighlightChoice,
     onAskSelection: selectionActions.onAskSelection,
-    onCopySelection: selectionActions.onCopySelection,
     onNavigateAnnotation: annotationActions.onNavigateAnnotation,
     onOpenComposer: selectionActions.onOpenComposer,
     onResolveAnnotationNavigation: annotationActions.onResolveAnnotationNavigation,
@@ -248,6 +248,7 @@ export function ReaderAppView({
           notesRef={notesRef}
           selectionAction={selectionAction}
           selectionActionShortcuts={selectionActionShortcuts}
+          selectionCopyRequestKey={shellSelectionCopyRequestKey + copyRequestKey}
           shortcutModifier={shortcutModifier}
           searchBoxes={searchBoxes}
           showEmptyNotes={showEmptyNotes}

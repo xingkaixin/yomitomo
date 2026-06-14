@@ -30,7 +30,7 @@ type UseEbookSelectionInput = {
   composer: SourceSelectionAction | null;
   clearSelection: () => void;
   askSelection: (action: SourceSelectionAction) => void;
-  copySelection: (action: SourceSelectionAction) => void | Promise<void>;
+  requestSelectionCopy: () => void;
   openComposer: (action: SourceSelectionAction) => void;
   openSelectionAction: (
     action: SourceSelectionAction,
@@ -51,7 +51,7 @@ export function useEbookSelection({
   composer,
   clearSelection,
   askSelection,
-  copySelection,
+  requestSelectionCopy,
   openComposer,
   openSelectionAction,
   setStatusMessage,
@@ -136,7 +136,7 @@ export function useEbookSelection({
       event.preventDefault();
       event.stopPropagation();
       if (shortcut === 'copy') {
-        void Promise.resolve(copySelection(activeSelectionAction)).then(clearSelection);
+        requestSelectionCopy();
         return;
       }
       if (shortcut === 'ask') {
@@ -150,7 +150,7 @@ export function useEbookSelection({
       askSelection,
       clearSelection,
       composer,
-      copySelection,
+      requestSelectionCopy,
       openComposer,
       selectionAction,
     ],

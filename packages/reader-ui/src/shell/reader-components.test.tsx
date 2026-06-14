@@ -814,4 +814,42 @@ describe('SelectionMenu', () => {
 
     expect(onCopySettled).toHaveBeenCalledOnce();
   });
+
+  it('shows copy success when copy is requested by shortcut state', async () => {
+    vi.useFakeTimers();
+    const onCopy = vi.fn().mockResolvedValue(undefined);
+    const onCopySettled = vi.fn();
+    const { rerender } = render(
+      <SelectionMenu
+        action={{ x: 10, y: 20 }}
+        copyRequestKey={0}
+        onAnnotate={vi.fn()}
+        onCopy={onCopy}
+        onCopySettled={onCopySettled}
+      />,
+    );
+
+    await act(async () => {
+      rerender(
+        <SelectionMenu
+          action={{ x: 10, y: 20 }}
+          copyRequestKey={1}
+          onAnnotate={vi.fn()}
+          onCopy={onCopy}
+          onCopySettled={onCopySettled}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(onCopy).toHaveBeenCalledOnce();
+    expect(screen.getByText('已复制')).toBeTruthy();
+    expect(onCopySettled).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(520);
+    });
+
+    expect(onCopySettled).toHaveBeenCalledOnce();
+  });
 });

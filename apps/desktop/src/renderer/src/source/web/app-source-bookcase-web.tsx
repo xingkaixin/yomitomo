@@ -175,6 +175,7 @@ export function WebSourceBookcase({
     highlightChoice,
     setHighlightChoice,
     selectionAction,
+    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
@@ -709,7 +710,7 @@ export function WebSourceBookcase({
           notesRef: railRef,
           surfaceRef: scrollRef,
         }}
-        selection={{ composer, highlightChoice, selectionAction }}
+        selection={{ composer, copyRequestKey, highlightChoice, selectionAction }}
         settings={{
           messageSendShortcut: sendShortcut,
           readerSettings,

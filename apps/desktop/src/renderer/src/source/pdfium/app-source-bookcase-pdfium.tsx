@@ -457,12 +457,14 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     highlightChoice,
     setHighlightChoice,
     selectionAction,
+    copyRequestKey,
     composer,
     clearSelection,
     clearAnnotationUiState,
     openSelectionAction,
     cancelComposer,
     copySelection,
+    requestSelectionCopy,
     openComposer,
   } = selection;
   const boxes = useMemo(
@@ -724,7 +726,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
     if (!shortcut) return;
     event.preventDefault();
     if (shortcut === 'copy') {
-      void Promise.resolve(copySelection(selectionAction)).then(clearSelection);
+      requestSelectionCopy();
       return;
     }
     if (shortcut === 'ask') {
@@ -1205,7 +1207,7 @@ function PdfiumDocument({ actions, document, source, toc }: PdfiumDocumentProps)
           notesRef,
           surfaceRef,
         }}
-        selection={{ composer, highlightChoice, selectionAction }}
+        selection={{ composer, copyRequestKey, highlightChoice, selectionAction }}
         settings={{
           messageSendShortcut: sendShortcut,
           readerSettings,
