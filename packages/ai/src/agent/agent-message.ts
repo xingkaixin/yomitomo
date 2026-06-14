@@ -24,7 +24,7 @@ import {
   spoilerScopePrompt,
 } from './agent-runtime-prompts';
 import { memoryViewContextBlocks } from '../context/reading-view-assembler';
-import { responseLanguageSystemPrompt } from './agent-language';
+import { finalResponseLanguageReminder, responseLanguageSystemPrompt } from './agent-language';
 
 export type {
   AgentMessageReadingContextSnapshot,
@@ -96,7 +96,7 @@ export function buildAgentThreadReplyRuntimePayload(
   };
   return {
     system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 回复批注 thread。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入 thread 的回复正文，不要输出 JSON。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出回复正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\nthread 回复要求：\n- 先理解当前批注 thread 的原始想法：谁写的、想法内容是什么、它和原文锚点是什么关系。\n- 如果读者只是 @ 你，默认是在邀请你评论或接续这条原始想法，而不是只和读者单独聊天。\n- 回复应当自然带入原始想法作者的观点：可以补充、回应、赞同、追问或挑战，但不要让原始想法作者在语义上消失。\n- 如果原始想法来自其他助手，必要时用对方昵称或 @ 指代其观点。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出回复正文，不要输出 JSON、字段名、证据列表或解释性包装。${finalResponseLanguageReminder(payload.uiLanguage)}`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -114,7 +114,7 @@ export function buildAgentCreateThoughtRuntimePayload(
   };
   return {
     system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 为当前批注添加顶层助手想法。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，最终直接输出将写入当前批注的顶层助手想法，不要输出 JSON。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出顶层助手想法正文，不要输出 JSON、字段名、证据列表或解释性包装。`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n新增想法要求：\n- 先理解当前高亮、已有想法和讨论，避免重复已有观点。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 你的输出会作为当前批注下的新顶层想法，不是回复某一条评论。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：直接输出顶层助手想法正文，不要输出 JSON、字段名、证据列表或解释性包装。${finalResponseLanguageReminder(payload.uiLanguage)}`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };
@@ -136,7 +136,7 @@ export function buildAgentDistillationReviewRuntimePayload(
       : 'proposals 可以为空，也可以包含 insert、replace、delete；replace/delete 必须带当前草稿中明确存在的 targetText。';
   return {
     system: `${buildAgentMessageSystemPrompt(agent, runtimePayload)}\n\n你现在通过 assistant tool runtime 审阅当前批注的沉淀稿。工具调用由 API tools 协议完成；如果需要上下文，调用可用工具。完成工具探索后，用 review_distillation final action 返回审阅正文和可采纳的稿件建议。`,
-    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：返回 review_distillation final action。content 是自然语言审阅正文；proposals 是 0 到多条可采纳稿件建议，只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时返回空 proposals。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}`,
+    user: `${buildAgentPrompt(provider, runtimePayload, agent)}\n\n沉淀审阅要求：\n- 先核对当前高亮、已有想法和讨论，再判断沉淀稿是否站得住。\n- 可以查证原文上下文、当前 thread 和阅读记忆。\n- 只输出审阅意见、质疑、补充或可带走的判断框架，不直接发布或覆盖沉淀稿。\n- 没有工具证据时不要编造历史断言。\n\n最终输出要求：返回 review_distillation final action。content 是自然语言审阅正文；proposals 是 0 到多条可采纳稿件建议，只允许 insert、replace、delete。insert 必须带 content；replace 必须带 targetText 和 replacementText；delete 必须带 targetText。没有可靠建议时返回空 proposals。删除和替换必须能在当前草稿中找到明确目标，不要无依据删除用户观点。${proposalRequirement}${finalResponseLanguageReminder(payload.uiLanguage)}`,
     maxTokens: 1200,
     temperature: agent.temperature,
   };

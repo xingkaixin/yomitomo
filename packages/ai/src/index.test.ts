@@ -15,8 +15,10 @@ import {
   readingMemoryFromEntries,
 } from '@yomitomo/core';
 import {
+  buildAgentCreateThoughtRuntimePayload,
   buildAgentMessageSystemPrompt,
   buildAgentPrompt,
+  buildAgentThreadReplyRuntimePayload,
   extractJsonObjects,
   parseAgentMentionInstructions,
   parseAgentMentionRoutePlan,
@@ -266,6 +268,31 @@ describe('agent message prompts', () => {
     expect(system).toContain('引用原文、用户名、助手名、代码、JSON 字段名和工具参数保持原样');
   });
 
+  it('repeats response language near tool runtime final output requirements', () => {
+    const runtimeAgent = {
+      id: lin.id,
+      presetId: 'reading-partner',
+      soul: readingPartnerSoul,
+      username: lin.username,
+      nickname: lin.nickname,
+      avatar: lin.avatar,
+      annotationColor: lin.annotationColor,
+      temperature: lin.temperature,
+    };
+    const replyRuntime = buildAgentThreadReplyRuntimePayload(provider, runtimeAgent, {
+      ...payload,
+      uiLanguage: 'zh-CN',
+    });
+    const thoughtRuntime = buildAgentCreateThoughtRuntimePayload(provider, runtimeAgent, {
+      ...payload,
+      responseMode: 'create_thought',
+      uiLanguage: 'en',
+    });
+
+    expect(replyRuntime.user.slice(-160)).toContain('最终面向读者的自然语言内容必须使用简体中文');
+    expect(thoughtRuntime.user.slice(-160)).toContain('最终面向读者的自然语言内容必须使用English');
+  });
+
   it('uses English draft review principles for English distillation reviews', () => {
     const system = buildAgentMessageSystemPrompt(
       {
@@ -401,6 +428,7 @@ describe('agent message prompts', () => {
     expect(prompt).toContain('"source": "latest-user-comment"');
     expect(prompt).toContain('@林知微 这和前文矛盾吗？');
     expect(prompt).toContain('回复必须回到 thread-first 上下文中的原文依据');
+    expect(prompt).toContain('自然语言回复正文必须遵守回复语言设置');
     expect(prompt).not.toContain('可用原文范围');
     expect(prompt).not.toContain('未来章节不应出现。');
   });
