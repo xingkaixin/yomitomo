@@ -1,13 +1,150 @@
-export * from './reader/annotations';
-export * from './articles/article-images';
-export * from './epub/ebook-index';
-export * from './reader/lexical-related-passages';
-export * from './performance';
-export * from './reader/reading';
-export * from './reader/reading-context';
-export * from './reader/reader-annotations';
-export * from './reading-memory/reading-memory';
-export * from './reading-memory/reading-memory-entries';
-export * from './reading-memory/reading-memory-view-assembly';
-export * from './reader/reader-dom';
-export * from './reader/search';
+export {
+  annotationColor,
+  annotationDensityInstruction,
+  annotationDensityMax,
+  annotationPersona,
+  annotationPrimaryComment,
+  annotationThoughtComments,
+  annotationThreadComments,
+  annotationToPublicAgent,
+  annotationTypeLabel,
+  annotationTypeLabels,
+  appendAnnotationComment,
+  commentPersona,
+  createAgentAnnotation,
+  createUserAnnotation,
+  createUserComment,
+  deleteAnnotationComment,
+  findMentionedAgents,
+  getMentionQuery,
+  normalizeAnnotationType,
+  parseAnnotationSuggestions,
+  replaceMentionQuery,
+  updateAnnotationComment,
+} from './reader/annotations';
+export type {
+  AnnotationPersona,
+  AnnotationSuggestion,
+  CreateAgentAnnotationOptions,
+  CreateUserAnnotationOptions,
+  MentionQuery,
+} from './reader/annotations';
+
+export { inlineArticleFavicon, inlineArticleImages } from './articles/article-images';
+export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article-images';
+
+export {
+  buildEpubBookIndex,
+  createEpubTextAnchor,
+  createEpubTextAnchorFromQuote,
+  epubIndexText,
+  locateEpubOffset,
+  locateEpubTextAnchor,
+  resolveEpubTextAnchor,
+} from './epub/ebook-index';
+export type {
+  BuildEpubBookIndexInput,
+  CreateEpubTextAnchorFromQuoteOptions,
+  EpubBookIndexChapterInput,
+  EpubIndexLocation,
+  LocateEpubIndexOptions,
+} from './epub/ebook-index';
+
+export {
+  buildCurrentChapterLexicalRelatedPassages,
+  createLexicalRelatedPassageCache,
+} from './reader/lexical-related-passages';
+export type {
+  BuildCurrentChapterLexicalRelatedPassagesInput,
+  LexicalRelatedPassageCache,
+  LexicalRelatedPassageScope,
+} from './reader/lexical-related-passages';
+
+export { performanceElapsedMs, performanceStart } from './performance';
+export type { PerformanceTimingLogger } from './performance';
+
+export {
+  computeReadingActivityDays,
+  computeReadingStats,
+  sortAnnotations,
+  sortArticles,
+  timestamp,
+} from './reader/reading';
+export type { ReadingActivityDay, ReadingStats, ReadingStatsPeriod } from './reader/reading';
+
+export {
+  buildReadingContextBundle,
+  readingContextTextForRange,
+  segmentAnnotationSpoilerPolicy,
+  selectionAnnotationSpoilerPolicy,
+  selectionThreadSpoilerPolicy,
+  wholeBookSpoilerPolicy,
+} from './reader/reading-context';
+export type {
+  BuildReadingContextBundleInput,
+  ReadingContextBundle,
+  ReadingContextChapterSummaryInput,
+  ReadingContextPassageInput,
+  ReadingContextTextRange,
+} from './reader/reading-context';
+
+export {
+  annotationHasPublishedDistillation,
+  annotationStoredColor,
+  articlePublishedDistillationCount,
+  buildTocAnnotationStats,
+} from './reader/reader-annotations';
+export type { TocAnnotationStats } from './reader/reader-annotations';
+
+export { mergeReadingMemory } from './reading-memory/reading-memory';
+
+export {
+  activeReadingMemoryEntries,
+  applySupersededEntryFilter,
+  normalizeReadingMemoryEntry,
+  readingMemoryAnchorCheckpointEntries,
+  readingMemoryCorrectionEntry,
+  readingMemoryEntriesFromAnnotationThread,
+  readingMemoryEntriesFromMemoryDelta,
+  readingMemoryEntryFromAnnotation,
+  readingMemoryEntryFromComment,
+  readingMemoryEntrySearchText,
+  readingMemoryFromEntries,
+} from './reading-memory/reading-memory-entries';
+
+export {
+  readingMemoryViewRequestForAnnotatePayload,
+  readingMemoryViewRequestForMessagePayload,
+} from './reading-memory/reading-memory-view-assembly';
+export type { ReadingMemoryViewRequest } from './reading-memory/reading-memory-view-assembly';
+
+export {
+  alphaColor,
+  annotationIdsAtHighlightPoint,
+  articleTitleTocItems,
+  buildHighlightSegments,
+  cursorPositionFromOffset,
+  extractTocItems,
+  findCurrentTocTarget,
+  getArticleSelection,
+  highlightSegmentStyle,
+  highlightStyle,
+  isPrimaryTocItem,
+  isRangeInsideArticle,
+  offsetFromArticleStart,
+  rangeFromOffsets,
+  rangeHighlightBoxes,
+  scrollReaderSurfaceToElement,
+  scrollReaderSurfaceToRect,
+  selectionActionPosition,
+} from './reader/reader-dom';
+export type {
+  ExtractTocOptions,
+  HighlightBox,
+  HighlightPoint,
+  HighlightSegment,
+  TocItem,
+} from './reader/reader-dom';
+
+export { findReaderSearchMatches } from './reader/search';
+export type { ReaderSearchMatch, ReaderSearchOptions, ReaderSearchResult } from './reader/search';
