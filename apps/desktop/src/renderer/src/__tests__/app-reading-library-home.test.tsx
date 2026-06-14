@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   Annotation,
@@ -815,6 +815,80 @@ describe('ReadingLibrary home', () => {
     ).toBe('enter-library');
     expect(screen.queryByText('正文')).toBeNull();
     expect(screen.getByRole('button', { name: '打开文章：网页文章' })).toBeTruthy();
+  });
+
+  it('plays the distillation committed sound for publish and update events', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+    let onCommitted:
+      | ((event: {
+          articleId: string;
+          annotationId: string;
+          transition: 'publish' | 'update' | 'unpublish';
+        }) => void)
+      | null = null;
+    vi.stubGlobal('yomitomoDesktop', {
+      onAnnotationDistillationCommitted: vi.fn((listener) => {
+        onCommitted = listener;
+        return vi.fn();
+      }),
+    });
+    const fullArticle = article({
+      id: 'distillation_article',
+      title: '沉淀文章',
+    });
+    const settings = {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.55,
+    };
+    renderLibrary([articleSummary(fullArticle)], {
+      onReadArticle: vi.fn().mockResolvedValue(fullArticle),
+      settings,
+    });
+
+    await waitFor(() => expect(onCommitted).toBeTruthy());
+
+    await act(async () => {
+      onCommitted?.({
+        articleId: 'distillation_article',
+        annotationId: 'missing_annotation',
+        transition: 'publish',
+      });
+    });
+
+    await waitFor(() =>
+      expect(playAppSoundEffect).toHaveBeenCalledWith('reader.distillation_committed', settings),
+    );
+
+    await act(async () => {
+      onCommitted?.({
+        articleId: 'distillation_article',
+        annotationId: 'missing_annotation',
+        transition: 'update',
+      });
+    });
+
+    await waitFor(() =>
+      expect(playAppSoundEffect).toHaveBeenCalledWith('reader.distillation_committed', settings),
+    );
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      onCommitted?.({
+        articleId: 'distillation_article',
+        annotationId: 'missing_annotation',
+        transition: 'unpublish',
+      });
+    });
+
+    await waitFor(() => expect(screen.getAllByText('沉淀文章').length).toBeGreaterThan(0));
+    expect(playAppSoundEffect).toHaveBeenCalledTimes(2);
   });
 
   it('saves webpage reading progress from the reader scroll position', async () => {

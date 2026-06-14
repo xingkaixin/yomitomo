@@ -136,6 +136,18 @@ describe('app sound effects', () => {
     expect(play).toHaveBeenCalledTimes(2);
   });
 
+  it('plays the distillation committed effect through the shared settings volume', () => {
+    vi.stubGlobal('Audio', MockAudio);
+
+    playAppSoundEffect('reader.distillation_committed', {
+      soundEffectsEnabled: true,
+      soundEffectsVolume: 0.5,
+    });
+
+    expect(createdAudio.at(-1)?.volume).toBe(0.4);
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
   it('randomly chooses a highlight creation variant at the shared volume', () => {
     vi.stubGlobal('Audio', MockAudio);
     vi.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0.99);
