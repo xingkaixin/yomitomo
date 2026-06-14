@@ -148,6 +148,10 @@ describe('desktop store settings', () => {
       ],
       readingAssistantProviderId: undefined,
       reviewAssistantProviderId: undefined,
+      bilingualTranslationProviderId: undefined,
+      bilingualTranslationTargetLanguage: 'zh-CN',
+      bilingualTranslationStyle: 'dashedLine',
+      bilingualTranslationAiContextAware: false,
       assistantExecutionMode: 'deep_verification',
       messageSendShortcut: 'mod-enter',
       selectionActionShortcuts: { copy: 'X', annotate: 'B', ask: 'Q' },
@@ -157,6 +161,7 @@ describe('desktop store settings', () => {
       developerModeEnabled: false,
       logRetentionDays: 30,
       onboardingCompletedAt: '2026-05-12T00:00:00.000Z',
+      lastSeenVersion: undefined,
     });
   });
 

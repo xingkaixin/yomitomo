@@ -5,8 +5,11 @@ import {
   Globe,
   GripVertical,
   Image as ImageIcon,
+  Check,
+  ChevronDown,
   MessageCircle,
   MoreHorizontal,
+  Languages,
   Volume2,
 } from 'lucide-react';
 import type {
@@ -35,6 +38,20 @@ import {
   libraryContentSourcePreferences,
   setLibraryContentSourceEnabled,
 } from '../reading-library/app-library-content-sources';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+
+const translationLanguageOptions = [
+  { value: 'zh-CN', labelKey: 'settings.general.translationLanguageZh' },
+  { value: 'en', labelKey: 'settings.general.translationLanguageEn' },
+] as const;
+
+const translationStyleOptions = [
+  { value: 'dashedLine', labelKey: 'settings.general.translationStyleDashedLine' },
+  { value: 'blur', labelKey: 'settings.general.translationStyleBlur' },
+  { value: 'blockquote', labelKey: 'settings.general.translationStyleBlockquote' },
+  { value: 'weakened', labelKey: 'settings.general.translationStyleWeakened' },
+  { value: 'border', labelKey: 'settings.general.translationStyleBorder' },
+] as const;
 
 type ContentSourceDragSession = {
   cleanup: () => void;
@@ -54,7 +71,7 @@ type ContentSourceDragFrame = {
   width: number;
 };
 
-type GeneralSaveSection = 'language' | 'sound' | 'collection' | 'libraryEntrances';
+type GeneralSaveSection = 'language' | 'translation' | 'sound' | 'collection' | 'libraryEntrances';
 
 const soundVolumeCommitKeys = new Set([
   'ArrowLeft',
@@ -103,6 +120,8 @@ export function GeneralSettings({
     normalizeSoundEffectsVolume(settingsDraft.soundEffectsVolume) * 100,
   );
   const [soundVolumePercent, setSoundVolumePercent] = useState(savedSoundVolumePercent);
+  const [translationLanguageOpen, setTranslationLanguageOpen] = useState(false);
+  const [translationStyleOpen, setTranslationStyleOpen] = useState(false);
   const [draggedSource, setDraggedSource] = useState<LibraryContentSourceId | null>(null);
   const [dragFrame, setDragFrame] = useState<ContentSourceDragFrame | null>(null);
   const [saveSection, setSaveSection] = useState<GeneralSaveSection | null>(null);
@@ -141,6 +160,25 @@ export function GeneralSettings({
     };
     onSettingsChange(nextDraft);
     setSaveSection('language');
+    onSave(nextDraft);
+  }
+
+  function saveTranslationSettings(
+    patch: Partial<
+      Pick<
+        AppSettings,
+        | 'bilingualTranslationTargetLanguage'
+        | 'bilingualTranslationStyle'
+        | 'bilingualTranslationAiContextAware'
+      >
+    >,
+  ) {
+    const nextDraft = {
+      ...settingsDraft,
+      ...patch,
+    };
+    onSettingsChange(nextDraft);
+    setSaveSection('translation');
     onSave(nextDraft);
   }
 
@@ -319,6 +357,165 @@ export function GeneralSettings({
               { label: t('settings.general.languageEn'), value: 'en' },
             ]}
             onChange={saveUiLanguage}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <SettingsGroup
+        label={t('settings.general.translationGroup')}
+        aside={
+          <AutoSaveStatus
+            error={saveError}
+            state={saveSection === 'translation' ? saveState : 'idle'}
+            onRetry={canSave ? () => retrySave('translation') : undefined}
+          />
+        }
+      >
+        <SettingsRow
+          align="start"
+          leading={<Languages size={20} />}
+          title={t('settings.general.translationTargetTitle')}
+          description={t('settings.general.translationTargetDescription')}
+        >
+          <Popover open={translationLanguageOpen} onOpenChange={setTranslationLanguageOpen}>
+            <PopoverTrigger asChild>
+              <button
+                aria-expanded={translationLanguageOpen}
+                aria-label={t('settings.general.translationTargetTitle')}
+                className="settings-combobox-trigger"
+                role="combobox"
+                type="button"
+              >
+                <span>
+                  {t(
+                    translationLanguageOptions.find(
+                      (option) =>
+                        option.value ===
+                        (settingsDraft.bilingualTranslationTargetLanguage || 'zh-CN'),
+                    )?.labelKey || 'settings.general.translationLanguageZh',
+                  )}
+                </span>
+                <ChevronDown size={15} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="settings-combobox-popover" sideOffset={8}>
+              <div className="settings-combobox-list" role="listbox">
+                {translationLanguageOptions.map((option) => {
+                  const selected =
+                    option.value === (settingsDraft.bilingualTranslationTargetLanguage || 'zh-CN');
+                  return (
+                    <button
+                      aria-selected={selected}
+                      className={
+                        selected
+                          ? 'settings-combobox-option is-selected'
+                          : 'settings-combobox-option'
+                      }
+                      key={option.value}
+                      role="option"
+                      type="button"
+                      onClick={() => {
+                        saveTranslationSettings({
+                          bilingualTranslationTargetLanguage: option.value,
+                        });
+                        setTranslationLanguageOpen(false);
+                      }}
+                    >
+                      <span>{t(option.labelKey)}</span>
+                      {selected ? <Check size={14} /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </SettingsRow>
+        <SettingsRow
+          align="start"
+          className="settings-translation-style-row"
+          leading={<Languages size={20} />}
+          title={t('settings.general.translationStyleTitle')}
+          description={t('settings.general.translationStyleDescription')}
+        >
+          <>
+            <div className="settings-translation-style-control">
+              <Popover open={translationStyleOpen} onOpenChange={setTranslationStyleOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    aria-expanded={translationStyleOpen}
+                    aria-label={t('settings.general.translationStyleTitle')}
+                    className="settings-combobox-trigger"
+                    role="combobox"
+                    type="button"
+                  >
+                    <span>
+                      {t(
+                        translationStyleOptions.find(
+                          (option) =>
+                            option.value ===
+                            (settingsDraft.bilingualTranslationStyle || 'dashedLine'),
+                        )?.labelKey || 'settings.general.translationStyleDashedLine',
+                      )}
+                    </span>
+                    <ChevronDown size={15} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="settings-combobox-popover" sideOffset={8}>
+                  <div className="settings-combobox-list" role="listbox">
+                    {translationStyleOptions.map((option) => {
+                      const selected =
+                        option.value === (settingsDraft.bilingualTranslationStyle || 'dashedLine');
+                      return (
+                        <button
+                          aria-selected={selected}
+                          className={
+                            selected
+                              ? 'settings-combobox-option is-selected'
+                              : 'settings-combobox-option'
+                          }
+                          key={option.value}
+                          role="option"
+                          type="button"
+                          onClick={() => {
+                            saveTranslationSettings({
+                              bilingualTranslationStyle: option.value,
+                            });
+                            setTranslationStyleOpen(false);
+                          }}
+                        >
+                          <span>{t(option.labelKey)}</span>
+                          {selected ? <Check size={14} /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div
+              className="settings-translation-style-preview"
+              data-style={settingsDraft.bilingualTranslationStyle || 'dashedLine'}
+            >
+              <p>{t('settings.general.translationStylePreviewSource')}</p>
+              <p data-translation-preview="true">
+                {t('settings.general.translationStylePreviewTranslation')}
+              </p>
+            </div>
+          </>
+        </SettingsRow>
+        <SettingsRow
+          align="start"
+          leading={<Languages size={20} />}
+          title={t('settings.general.translationAiContextTitle')}
+          description={t('settings.general.translationAiContextDescription')}
+        >
+          <SettingsToggle
+            id="general-translation-ai-context"
+            checked={Boolean(settingsDraft.bilingualTranslationAiContextAware)}
+            label={t('settings.general.translationAiContextTitle')}
+            onChange={(checked) =>
+              saveTranslationSettings({ bilingualTranslationAiContextAware: checked })
+            }
           />
         </SettingsRow>
       </SettingsGroup>

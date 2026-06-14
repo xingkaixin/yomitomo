@@ -12,7 +12,7 @@ import {
   readDatabaseReaderLevel,
   writeDatabaseReaderLevel,
 } from '../db/compatibility';
-import { migrations } from '../db/migrations';
+import { ensureAdditiveSchemaColumns, migrations } from '../db/migrations';
 import * as schema from '../db/schema';
 import { loadSQLiteDatabase } from '../native/sqlite';
 
@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS __yomitomo_migrations (
     })();
     applied.add(migration.id);
   }
+
+  ensureAdditiveSchemaColumns(database);
 
   const compatibility = databaseReaderCompatibility(applied, readDatabaseReaderLevel(database));
   writeDatabaseReaderLevel(database, compatibility.requiredReaderLevel);

@@ -21,8 +21,19 @@ const fileNameSchema = z.string().min(1).max(512);
 const mimeTypeSchema = z.string().min(1).max(255).optional();
 const httpUrlSchema = z.string().min(1).max(4096).refine(isHttpUrl);
 const arrayBufferSchema = z.custom<ArrayBuffer>(isArrayBuffer);
+const articleTranslationRequestSchema = z.object({
+  articleId: idSchema,
+  force: z.boolean().optional(),
+  sourceBlockIds: z.array(z.string().min(1).max(160)).optional(),
+  targetLanguage: z.string().min(1).max(80).optional(),
+});
 
 const desktopIpcInvokeSchemas: DesktopIpcSchemaMap = {
+  'article-translation:get-current': z.tuple([articleTranslationRequestSchema]),
+  'article-translation:translate': z.tuple([articleTranslationRequestSchema]),
+  'article-translation:delete-current': z.tuple([
+    articleTranslationRequestSchema.pick({ articleId: true, targetLanguage: true }),
+  ]),
   'article:import-url': z.tuple([
     z.union([
       httpUrlSchema,

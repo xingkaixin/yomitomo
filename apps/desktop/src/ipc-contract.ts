@@ -15,6 +15,9 @@ import type {
   ArticleReadingProgress,
   ArticleReadingProgressPatch,
   ArticleRecord,
+  ArticleTranslation,
+  ArticleTranslationDeleteRequest,
+  ArticleTranslationRequest,
   ArticleUpsertPatch,
   Comment,
   DesktopStore,
@@ -449,6 +452,18 @@ export type DesktopIpcInvokeMap = {
   'article:save': {
     args: [article: ArticleRecord];
     result: ArticleUpsertPatch;
+  };
+  'article-translation:get-current': {
+    args: [input: ArticleTranslationRequest];
+    result: ArticleTranslation | null;
+  };
+  'article-translation:translate': {
+    args: [input: ArticleTranslationRequest];
+    result: ArticleTranslation;
+  };
+  'article-translation:delete-current': {
+    args: [input: ArticleTranslationDeleteRequest];
+    result: ArticleTranslation | null;
   };
   'data:database-backup': {
     args: [];

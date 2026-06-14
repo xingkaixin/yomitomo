@@ -10,11 +10,12 @@ import { resolveAgentPublicIdentity } from '@yomitomo/shared';
 import { DesktopIpcError, desktopIpcErrorCodes } from '../../ipc-errors';
 import type { DesktopMainIpcContext } from '../ipc/ipc';
 
-export type ProviderTask = 'readingAssistant' | 'reviewAssistant';
+export type ProviderTask = 'readingAssistant' | 'reviewAssistant' | 'bilingualTranslation';
 
 const providerTaskSettings: Record<ProviderTask, keyof AppSettings> = {
   readingAssistant: 'readingAssistantProviderId',
   reviewAssistant: 'reviewAssistantProviderId',
+  bilingualTranslation: 'bilingualTranslationProviderId',
 };
 
 export async function taskProvider(

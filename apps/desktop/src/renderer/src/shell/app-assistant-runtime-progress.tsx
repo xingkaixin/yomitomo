@@ -73,6 +73,9 @@ export function assistantRuntimeErrorMessage(error: unknown, fallbackKey: string
   if (message === 'PROVIDER_ROUTE_REQUIRED:reviewAssistant') {
     return i18next.t('settings.models.reviewProviderRouteRequired');
   }
+  if (message === 'PROVIDER_ROUTE_REQUIRED:bilingualTranslation') {
+    return i18next.t('settings.models.translationProviderRouteRequired');
+  }
   const agentNotFound = agentNotFoundMessage(message);
   if (agentNotFound) return agentNotFound;
   return message || i18next.t(fallbackKey);
@@ -96,6 +99,9 @@ function assistantRuntimeIpcErrorMessage(error: unknown) {
     if (task === 'readingAssistant')
       return i18next.t('settings.models.readingProviderRouteRequired');
     if (task === 'reviewAssistant') return i18next.t('settings.models.reviewProviderRouteRequired');
+    if (task === 'bilingualTranslation') {
+      return i18next.t('settings.models.translationProviderRouteRequired');
+    }
   }
   return '';
 }

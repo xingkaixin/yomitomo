@@ -30,6 +30,12 @@ export const appSettings = sqliteTable('app_settings', {
   defaultProviderId: text('default_provider_id'),
   readingAssistantProviderId: text('reading_assistant_provider_id'),
   reviewAssistantProviderId: text('review_assistant_provider_id'),
+  bilingualTranslationProviderId: text('bilingual_translation_provider_id'),
+  bilingualTranslationTargetLanguage: text('bilingual_translation_target_language'),
+  bilingualTranslationStyle: text('bilingual_translation_style'),
+  bilingualTranslationAiContextAware: integer('bilingual_translation_ai_context_aware', {
+    mode: 'boolean',
+  }),
   assistantExecutionMode: text('assistant_execution_mode').notNull().default('fast_response'),
   messageSendShortcut: text('message_send_shortcut').notNull().default('enter'),
   selectionActionShortcuts: text('selection_action_shortcuts', { mode: 'json' }),
@@ -337,6 +343,61 @@ export const readingMemoryProjections = sqliteTable(
       table.articleId,
       table.viewType,
       table.viewKey,
+    ),
+  ],
+);
+
+export const articleTranslations = sqliteTable(
+  'article_translations',
+  {
+    id: text('id').primaryKey(),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    sourceContentHash: text('source_content_hash').notNull(),
+    targetLanguage: text('target_language').notNull(),
+    promptVersion: integer('prompt_version').notNull(),
+    providerId: text('provider_id'),
+    providerName: text('provider_name'),
+    modelName: text('model_name'),
+    status: text('status').notNull(),
+    error: text('error'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('article_translations_article_idx').on(table.articleId, table.updatedAt),
+    uniqueIndex('article_translations_current_idx').on(
+      table.articleId,
+      table.sourceContentHash,
+      table.targetLanguage,
+      table.promptVersion,
+    ),
+  ],
+);
+
+export const articleTranslationSegments = sqliteTable(
+  'article_translation_segments',
+  {
+    id: text('id').primaryKey(),
+    translationId: text('translation_id')
+      .notNull()
+      .references(() => articleTranslations.id, { onDelete: 'cascade' }),
+    sourceBlockId: text('source_block_id').notNull(),
+    sourceTextHash: text('source_text_hash').notNull(),
+    sourceText: text('source_text').notNull(),
+    translatedText: text('translated_text'),
+    status: text('status').notNull(),
+    error: text('error'),
+    order: integer('order_index').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('article_translation_segments_translation_idx').on(table.translationId, table.order),
+    uniqueIndex('article_translation_segments_block_idx').on(
+      table.translationId,
+      table.sourceBlockId,
     ),
   ],
 );

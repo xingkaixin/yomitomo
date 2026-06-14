@@ -38,6 +38,27 @@ export function mergeSettingsForUpsert(settings: AppSettings, existing?: AppSett
     reviewAssistantProviderId: settingsFieldProvided(settings, 'reviewAssistantProviderId')
       ? settings.reviewAssistantProviderId || undefined
       : existing?.reviewAssistantProviderId || undefined,
+    bilingualTranslationProviderId: settingsFieldProvided(
+      settings,
+      'bilingualTranslationProviderId',
+    )
+      ? settings.bilingualTranslationProviderId || undefined
+      : existing?.bilingualTranslationProviderId || undefined,
+    bilingualTranslationTargetLanguage: settingsFieldProvided(
+      settings,
+      'bilingualTranslationTargetLanguage',
+    )
+      ? normalizeTranslationTargetLanguage(settings.bilingualTranslationTargetLanguage)
+      : normalizeTranslationTargetLanguage(existing?.bilingualTranslationTargetLanguage),
+    bilingualTranslationStyle: settingsFieldProvided(settings, 'bilingualTranslationStyle')
+      ? normalizeTranslationStyle(settings.bilingualTranslationStyle)
+      : normalizeTranslationStyle(existing?.bilingualTranslationStyle),
+    bilingualTranslationAiContextAware: settingsFieldProvided(
+      settings,
+      'bilingualTranslationAiContextAware',
+    )
+      ? Boolean(settings.bilingualTranslationAiContextAware)
+      : Boolean(existing?.bilingualTranslationAiContextAware),
     assistantExecutionMode: settingsFieldProvided(settings, 'assistantExecutionMode')
       ? normalizeAssistantExecutionMode(settings.assistantExecutionMode)
       : normalizeAssistantExecutionMode(existing?.assistantExecutionMode),
@@ -82,6 +103,12 @@ export function rowToSettings(
     defaultProviderId: row?.defaultProviderId || undefined,
     readingAssistantProviderId: row?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: row?.reviewAssistantProviderId || undefined,
+    bilingualTranslationProviderId: row?.bilingualTranslationProviderId || undefined,
+    bilingualTranslationTargetLanguage: normalizeTranslationTargetLanguage(
+      row?.bilingualTranslationTargetLanguage,
+    ),
+    bilingualTranslationStyle: normalizeTranslationStyle(row?.bilingualTranslationStyle),
+    bilingualTranslationAiContextAware: Boolean(row?.bilingualTranslationAiContextAware),
     assistantExecutionMode: normalizeAssistantExecutionMode(row?.assistantExecutionMode),
     messageSendShortcut: normalizeMessageSendShortcut(row?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(row?.selectionActionShortcuts),
@@ -104,6 +131,12 @@ export function normalizeSettings(settings: AppSettings | undefined): AppSetting
     defaultProviderId: settings?.defaultProviderId || undefined,
     readingAssistantProviderId: settings?.readingAssistantProviderId || undefined,
     reviewAssistantProviderId: settings?.reviewAssistantProviderId || undefined,
+    bilingualTranslationProviderId: settings?.bilingualTranslationProviderId || undefined,
+    bilingualTranslationTargetLanguage: normalizeTranslationTargetLanguage(
+      settings?.bilingualTranslationTargetLanguage,
+    ),
+    bilingualTranslationStyle: normalizeTranslationStyle(settings?.bilingualTranslationStyle),
+    bilingualTranslationAiContextAware: Boolean(settings?.bilingualTranslationAiContextAware),
     assistantExecutionMode: normalizeAssistantExecutionMode(settings?.assistantExecutionMode),
     messageSendShortcut: normalizeMessageSendShortcut(settings?.messageSendShortcut),
     selectionActionShortcuts: normalizeSelectionActionShortcuts(settings?.selectionActionShortcuts),
@@ -125,4 +158,20 @@ function normalizeLogRetentionDays(value: unknown) {
 
 function normalizeLibraryPageSize(value: unknown) {
   return value === 6 || value === 12 || value === 18 || value === 24 ? value : undefined;
+}
+
+function normalizeTranslationTargetLanguage(value: unknown) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text === 'en' || text.toLowerCase() === 'english') return 'en';
+  return 'zh-CN';
+}
+
+function normalizeTranslationStyle(value: unknown) {
+  return value === 'blur' ||
+    value === 'blockquote' ||
+    value === 'weakened' ||
+    value === 'border' ||
+    value === 'dashedLine'
+    ? value
+    : 'dashedLine';
 }

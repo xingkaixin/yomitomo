@@ -732,4 +732,97 @@ ALTER TABLE app_settings ADD COLUMN sound_effects_enabled INTEGER NOT NULL DEFAU
 ALTER TABLE app_settings ADD COLUMN sound_effects_volume REAL NOT NULL DEFAULT 0.7;
 `,
   },
+  {
+    id: '0051_article_translations',
+    sql: `
+ALTER TABLE app_settings ADD COLUMN bilingual_translation_provider_id TEXT;
+ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT;
+
+CREATE TABLE IF NOT EXISTS article_translations (
+  id TEXT PRIMARY KEY NOT NULL,
+  article_id TEXT NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
+  source_content_hash TEXT NOT NULL,
+  target_language TEXT NOT NULL,
+  prompt_version INTEGER NOT NULL,
+  provider_id TEXT,
+  provider_name TEXT,
+  model_name TEXT,
+  status TEXT NOT NULL,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS article_translations_article_idx
+ON article_translations(article_id, updated_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS article_translations_current_idx
+ON article_translations(article_id, source_content_hash, target_language, prompt_version);
+
+CREATE TABLE IF NOT EXISTS article_translation_segments (
+  id TEXT PRIMARY KEY NOT NULL,
+  translation_id TEXT NOT NULL REFERENCES article_translations(id) ON DELETE CASCADE,
+  source_block_id TEXT NOT NULL,
+  source_text_hash TEXT NOT NULL,
+  source_text TEXT NOT NULL,
+  translated_text TEXT,
+  status TEXT NOT NULL,
+  error TEXT,
+  order_index INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS article_translation_segments_translation_idx
+ON article_translation_segments(translation_id, order_index);
+
+CREATE UNIQUE INDEX IF NOT EXISTS article_translation_segments_block_idx
+ON article_translation_segments(translation_id, source_block_id);
+`,
+  },
 ];
+
+type MigrationDatabase = {
+  exec(sql: string): unknown;
+  prepare(sql: string): { all(): unknown[] };
+};
+
+export function ensureAdditiveSchemaColumns(database: MigrationDatabase) {
+  const added: string[] = [];
+  for (const column of [
+    {
+      name: 'bilingual_translation_provider_id',
+      sql: 'ALTER TABLE app_settings ADD COLUMN bilingual_translation_provider_id TEXT',
+    },
+    {
+      name: 'bilingual_translation_target_language',
+      sql: 'ALTER TABLE app_settings ADD COLUMN bilingual_translation_target_language TEXT',
+    },
+    {
+      name: 'bilingual_translation_style',
+      sql: 'ALTER TABLE app_settings ADD COLUMN bilingual_translation_style TEXT',
+    },
+    {
+      name: 'bilingual_translation_ai_context_aware',
+      sql: 'ALTER TABLE app_settings ADD COLUMN bilingual_translation_ai_context_aware INTEGER',
+    },
+  ]) {
+    if (tableHasColumn(database, 'app_settings', column.name)) continue;
+    database.exec(column.sql);
+    added.push(`app_settings.${column.name}`);
+  }
+  return added;
+}
+
+function tableHasColumn(database: MigrationDatabase, table: string, column: string) {
+  return database
+    .prepare(`PRAGMA table_info(${table})`)
+    .all()
+    .some((row) => recordField(row, 'name') === column);
+}
+
+function recordField(input: unknown, field: string): unknown {
+  return typeof input === 'object' && input !== null && !Array.isArray(input)
+    ? (input as Record<string, unknown>)[field]
+    : undefined;
+}
