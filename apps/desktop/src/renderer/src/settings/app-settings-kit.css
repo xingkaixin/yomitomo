@@ -651,6 +651,55 @@
   color: hsl(var(--foreground));
 }
 
+.settings-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.settings-row-title-text {
+  min-width: 0;
+}
+
+.settings-row-info-trigger {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  margin-left: 1px;
+  border-radius: 999px;
+  color: hsl(var(--muted-foreground) / 0.72);
+  cursor: help;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.settings-row-info-trigger:hover,
+.settings-row-info-trigger:focus-visible {
+  background: var(--app-interactive-hover-bg);
+  color: hsl(var(--foreground));
+}
+
+.settings-row-info-trigger:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.42);
+  outline-offset: 1px;
+}
+
+.settings-row-info-trigger.is-decorative {
+  pointer-events: none;
+}
+
+.settings-row-info-tooltip {
+  display: block;
+  max-width: 260px;
+  text-wrap: pretty;
+}
+
 .settings-row-copy > p {
   margin: 0;
   font-size: 13px;
@@ -736,6 +785,11 @@
 
 .settings-row-button:hover {
   background: var(--app-interactive-hover-bg);
+}
+
+.settings-row-button.about-resource-row,
+.settings-row-button.about-resource-row * {
+  cursor: default;
 }
 
 .settings-row-button:focus-visible {

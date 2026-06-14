@@ -16,7 +16,13 @@ import { AutoSaveStatus } from './app-settings-save-status';
 import type { SaveState } from '../shell/app-types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { SettingsGroup, SettingsPage, SettingsRadioDot } from './app-settings-kit';
+import {
+  SettingsGroup,
+  SettingsPage,
+  SettingsRadioDot,
+  SettingsRowCopy,
+  SettingsRowDescriptionTooltip,
+} from './app-settings-kit';
 import { SettingsConfirmDialog } from './app-settings-confirm-dialog';
 import { useTranslation } from 'react-i18next';
 
@@ -352,25 +358,24 @@ export function WeReadSettingsPanel() {
           const label = t(option.labelKey);
           const description = t(option.descriptionKey);
           return (
-            <button
-              aria-checked={active}
-              className="settings-row settings-row-button"
-              key={option.value}
-              type="button"
-              role="radio"
-              onClick={() => {
-                if (active) return;
-                void saveOpenMethod(option.value);
-              }}
-            >
-              <span className="settings-row-leading">
-                <SettingsRadioDot checked={active} />
-              </span>
-              <div className="settings-row-copy">
-                <strong>{label}</strong>
-                <p>{description}</p>
-              </div>
-            </button>
+            <SettingsRowDescriptionTooltip description={description} key={option.value}>
+              <button
+                aria-checked={active}
+                aria-label={`${label}. ${description}`}
+                className="settings-row settings-row-button"
+                type="button"
+                role="radio"
+                onClick={() => {
+                  if (active) return;
+                  void saveOpenMethod(option.value);
+                }}
+              >
+                <span className="settings-row-leading">
+                  <SettingsRadioDot checked={active} />
+                </span>
+                <SettingsRowCopy title={label} description={description} infoMode="decorative" />
+              </button>
+            </SettingsRowDescriptionTooltip>
           );
         })}
       </SettingsGroup>

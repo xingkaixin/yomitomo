@@ -31,6 +31,8 @@ import {
   SettingsGroup,
   SettingsPage,
   SettingsRow,
+  SettingsRowCopy,
+  SettingsRowDescriptionTooltip,
   SettingsToggle,
 } from '../settings/app-settings-kit';
 import { normalizeUiLanguage, type AppSettings, type DesktopStore } from '@yomitomo/shared';
@@ -246,20 +248,22 @@ export function AboutSettings({
 
       <SettingsGroup label={t('about.resourcesGroup')}>
         {resourceRows.map((row) => (
-          <button
-            aria-label={row.label}
-            className="settings-row settings-row-button"
-            key={row.title}
-            type="button"
-            onClick={row.onAction}
-          >
-            <span className="settings-row-leading">{row.icon}</span>
-            <div className="settings-row-copy">
-              <strong>{row.title}</strong>
-              <p>{row.description}</p>
-            </div>
-            <div className="settings-row-control">{row.actionIcon}</div>
-          </button>
+          <SettingsRowDescriptionTooltip description={row.description} key={row.title}>
+            <button
+              aria-label={`${row.label}. ${row.description}`}
+              className="settings-row settings-row-button about-resource-row"
+              type="button"
+              onClick={row.onAction}
+            >
+              <span className="settings-row-leading">{row.icon}</span>
+              <SettingsRowCopy
+                title={row.title}
+                description={row.description}
+                infoMode="decorative"
+              />
+              <div className="settings-row-control">{row.actionIcon}</div>
+            </button>
+          </SettingsRowDescriptionTooltip>
         ))}
       </SettingsGroup>
 

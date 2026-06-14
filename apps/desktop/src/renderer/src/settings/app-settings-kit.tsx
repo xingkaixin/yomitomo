@@ -1,5 +1,6 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ReaderTooltip } from '@yomitomo/reader-ui/reader-component-primitives';
+import { ChevronRight, Info } from 'lucide-react';
 import './app-settings-kit.css';
 
 /**
@@ -150,15 +151,96 @@ export function SettingsRow({
   return (
     <div className={`settings-row settings-row-${align} ${className}`.trim()}>
       {leading ? <span className="settings-row-leading">{leading}</span> : null}
-      {title || description ? (
-        <div className="settings-row-copy">
-          {title ? <strong>{title}</strong> : null}
-          {description ? <p>{description}</p> : null}
-        </div>
-      ) : null}
+      {title || description ? <SettingsRowCopy title={title} description={description} /> : null}
       {children ? <div className="settings-row-control">{children}</div> : null}
     </div>
   );
+}
+
+export function SettingsRowCopy({
+  title,
+  description,
+  infoMode = 'interactive',
+}: {
+  title?: React.ReactNode;
+  description?: React.ReactNode;
+  /**
+   * decorative 用于整行本身已经是 button 的场景，避免在 button 中嵌套可聚焦控件。
+   * 这类行应由父级按钮承载 tooltip。
+   */
+  infoMode?: 'interactive' | 'decorative';
+}) {
+  const tooltipDescription = settingTooltipDescription(description);
+  const showVisibleDescription = description && !tooltipDescription;
+  return (
+    <div className="settings-row-copy">
+      {title ? (
+        <strong className="settings-row-title">
+          <span className="settings-row-title-text">{title}</span>
+          {tooltipDescription ? (
+            <SettingsInfoIndicator
+              description={tooltipDescription}
+              interactive={infoMode === 'interactive'}
+            />
+          ) : null}
+        </strong>
+      ) : null}
+      {showVisibleDescription ? <p>{description}</p> : null}
+    </div>
+  );
+}
+
+export function SettingsRowDescriptionTooltip({
+  description,
+  children,
+}: {
+  description?: React.ReactNode;
+  children: React.ReactElement;
+}) {
+  const tooltipDescription = settingTooltipDescription(description);
+  if (!tooltipDescription) return children;
+  return (
+    <ReaderTooltip content={<SettingsTooltipContent>{tooltipDescription}</SettingsTooltipContent>}>
+      {children}
+    </ReaderTooltip>
+  );
+}
+
+function SettingsInfoIndicator({
+  description,
+  interactive,
+}: {
+  description: string;
+  interactive: boolean;
+}) {
+  const indicator = (
+    <span
+      aria-hidden={interactive ? undefined : true}
+      aria-label={interactive ? description : undefined}
+      className={
+        interactive ? 'settings-row-info-trigger' : 'settings-row-info-trigger is-decorative'
+      }
+      tabIndex={interactive ? 0 : undefined}
+    >
+      <Info size={13} strokeWidth={2.2} />
+    </span>
+  );
+
+  if (!interactive) return indicator;
+  return (
+    <ReaderTooltip content={<SettingsTooltipContent>{description}</SettingsTooltipContent>}>
+      {indicator}
+    </ReaderTooltip>
+  );
+}
+
+function SettingsTooltipContent({ children }: { children: React.ReactNode }) {
+  return <span className="settings-row-info-tooltip">{children}</span>;
+}
+
+function settingTooltipDescription(description: React.ReactNode) {
+  if (typeof description !== 'string') return '';
+  return description.trim();
 }
 
 export function SettingsToggle({
