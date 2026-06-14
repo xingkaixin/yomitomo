@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import * as sharedPublicApi from './index';
 import {
   agentPersonalities,
   agentReadingIntentDisplayLabel,
@@ -16,6 +17,82 @@ import {
   isPdfTextAnchor,
   selectionActionShortcutsConflict,
 } from './index';
+
+const sharedRuntimeExports = [
+  'EPUB_TITLE_CLEANUP_VERSION',
+  'agentPersonalities',
+  'agentPersonalitiesForKind',
+  'agentPersonalityCore',
+  'agentPersonalityName',
+  'agentPersonalityPresentations',
+  'agentReadingIntentDisplayLabel',
+  'agentReadingIntentIcon',
+  'agentReadingIntentLabel',
+  'agentReadingIntentOptions',
+  'annotationAgentPersonalities',
+  'cleanEpubDisplayTitle',
+  'cleanEpubFileNameTitle',
+  'compareVersions',
+  'createPdfTextAnchor',
+  'createTextAnchor',
+  'customPersonality',
+  'customPersonalityId',
+  'defaultAgentPersonalityLocale',
+  'defaultAgentSoul',
+  'defaultLibraryContentSourceOrder',
+  'defaultMessageSendShortcut',
+  'defaultSelectionActionShortcuts',
+  'englishAgentPersonalityPresentations',
+  'findAgentPersonalityId',
+  'formatDateTimeValue',
+  'hashText',
+  'isPdfTextAnchor',
+  'localizedAgentPersonalities',
+  'localizedAgentPersonalitiesForKind',
+  'localizedAgentPersonality',
+  'makeId',
+  'normalizeAgentReadingIntent',
+  'normalizeAnnotationConfidence',
+  'normalizeAnnotationEvidenceSource',
+  'normalizeAnnotationMove',
+  'normalizeAnnotationType',
+  'normalizeAssistantExecutionMode',
+  'normalizeLibraryContentSources',
+  'normalizeMessageSendShortcut',
+  'normalizeReviewOpinionLabel',
+  'normalizeSelectionActionShortcutDraft',
+  'normalizeSelectionActionShortcutKey',
+  'normalizeSelectionActionShortcuts',
+  'normalizeSoundEffectsVolume',
+  'normalizeTraceItemType',
+  'normalizeUiLanguage',
+  'providerPresets',
+  'readingPartnerSoul',
+  'relativeTimeParts',
+  'renderMarkdown',
+  'resolveAgentPersonalityPresentation',
+  'resolveAgentPresetId',
+  'resolveAgentPublicIdentity',
+  'resolvePromptAgentIdentity',
+  'resolveTextAnchor',
+  'reviewAgentPersonalities',
+  'reviewOpinionLabelTone',
+  'reviewOpinionLabels',
+  'selectHighlights',
+  'selectionActionShortcutsConflict',
+  'shouldShowAfterUpdate',
+  'textAnchorQuoteHash',
+  'zhAgentPersonalityPresentations',
+];
+
+describe('shared public surface', () => {
+  it('keeps runtime exports explicit and reviewed', () => {
+    const runtimeExports = Object.keys(sharedPublicApi);
+
+    expect(runtimeExports).toHaveLength(sharedRuntimeExports.length);
+    expect(new Set(runtimeExports)).toEqual(new Set(sharedRuntimeExports));
+  });
+});
 
 describe('shared text anchors', () => {
   it('resolves repeated exact text with prefix and suffix context', () => {

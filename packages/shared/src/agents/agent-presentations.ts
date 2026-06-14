@@ -364,8 +364,8 @@ export function resolveAgentPublicIdentity(
   };
 }
 
-export function resolvePromptAgentIdentity<T extends AgentPresentationLookup>(
-  agent: T,
+export function resolvePromptAgentIdentity(
+  agent: AgentPresentationLookup,
   locale: UiLanguage = defaultAgentPersonalityLocale,
 ) {
   const presetId = resolveAgentPresetId(agent);
