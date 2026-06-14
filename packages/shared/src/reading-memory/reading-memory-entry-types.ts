@@ -1,6 +1,13 @@
 import type { TextAnchor } from '../anchor-types';
 import type { TextRange, TraceItem } from '../reader-context-types';
 
+/**
+ * Article-scoped reading context retrieval index.
+ *
+ * The historical "reading memory" name is kept for database/API stability; these entries are not
+ * cross-article personal memory. Current writers emit summary, trace, anchor, reader_signal and
+ * progress entries. correction, preference and retrieval_note are reserved compatibility values.
+ */
 export type ReadingMemoryEntryKind =
   | 'summary'
   | 'trace'
@@ -13,6 +20,10 @@ export type ReadingMemoryEntryKind =
 
 export type ReadingMemoryScope = 'segment' | 'chapter' | 'book' | 'reader' | 'agent';
 
+/**
+ * Current production writers use default visibility only. Other values are reserved so older rows
+ * and external payloads can still be normalized without a schema migration.
+ */
 export type ReadingMemoryVisibility = 'default' | 'hidden' | 'agent_private' | 'debug_only';
 
 export type ReadingMemorySourceType =

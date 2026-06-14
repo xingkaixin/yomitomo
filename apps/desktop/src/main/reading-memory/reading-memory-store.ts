@@ -4,14 +4,11 @@ import type {
   ReaderProgress,
   ReadingMemoryEntry,
   ReadingMemoryView,
-  TextAnchor,
   TextRange,
 } from '@yomitomo/shared';
-import { makeId } from '@yomitomo/shared';
 import {
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
-  readingMemoryCorrectionEntry,
   readingMemoryEntrySearchText,
 } from '@yomitomo/core';
 import { getSqliteExecutor } from '../store/store-db';
@@ -95,17 +92,6 @@ export type SoftDeleteReadingMemoryEntriesBySourceOptions = {
   useTransaction?: boolean;
 };
 
-export type AppendReadingMemoryCorrectionOptions = {
-  articleId: string;
-  targetEntryId: string;
-  reason: string;
-  replacement?: unknown;
-  readerId?: string;
-  anchor?: TextAnchor;
-  createdAt?: string;
-  executor?: ReadingMemorySqliteExecutor;
-};
-
 type ReadingMemoryWriteStatements = {
   insertEntry: SqliteStatement;
   upsertEntry: SqliteStatement;
@@ -166,35 +152,6 @@ export function upsertReadingMemoryEntries(
   };
   if (options.useTransaction === false) run();
   else withReadingMemoryTransaction(database, run);
-}
-
-export function appendReadingMemoryCorrection(options: AppendReadingMemoryCorrectionOptions) {
-  const executor = options.executor || defaultExecutor();
-  return withReadingMemoryTransaction(executor, () => {
-    const target = readReadingMemoryEntries({
-      articleId: options.articleId,
-      includeDeleted: false,
-      applySupersedes: false,
-      executor,
-    }).find((entry) => entry.id === options.targetEntryId);
-    if (!target) return null;
-
-    const correction = readingMemoryCorrectionEntry({
-      id: makeId('reading_memory_correction'),
-      articleId: options.articleId,
-      targetEntry: target,
-      reason: options.reason,
-      replacement: options.replacement,
-      readerId: options.readerId,
-      anchor: options.anchor,
-      createdAt: options.createdAt || new Date().toISOString(),
-    });
-    if (!correction) return null;
-
-    appendReadingMemoryEntryInTransaction(executor, correction);
-    deleteProjectionRows(executor, options.articleId);
-    return correction;
-  });
 }
 
 export function readReadingMemoryEntries(options: ReadReadingMemoryEntriesOptions) {

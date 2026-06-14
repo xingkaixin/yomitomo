@@ -5,7 +5,6 @@ import {
   normalizeReadingMemoryEntry,
   readingMemoryAnchorCheckpointEntries,
   readingMemoryEntriesFromAnnotationThread,
-  readingMemoryCorrectionEntry,
   readingMemoryEntriesFromMemoryDelta,
   readingMemoryEntryFromAnnotation,
   readingMemoryEntryFromComment,
@@ -370,13 +369,26 @@ describe('reading memory entries', () => {
       kind: 'trace',
       payload: { items: [traceItem('旧判断')] },
     });
-    const correction = readingMemoryCorrectionEntry({
+    const correction = entry({
       id: 'correction_1',
       articleId: 'article_1',
-      targetEntry: old,
-      reason: '旧判断不成立',
-      replacement: '应理解为人物在试探环境',
+      kind: 'correction',
+      scope: old.scope,
+      chapterId: old.chapterId,
+      segmentId: old.segmentId,
+      paragraphId: old.paragraphId,
+      textRange: old.textRange,
+      sourceType: 'correction',
+      sourceId: 'correction_1',
+      sourceTaskId: undefined,
+      sourceEntryIds: ['old_trace'],
+      supersedesEntryId: 'old_trace',
+      payload: {
+        reason: '旧判断不成立',
+        replacement: '应理解为人物在试探环境',
+      },
       createdAt: '2026-05-26T01:00:00.000Z',
+      updatedAt: '2026-05-26T01:00:00.000Z',
       anchor: {
         exact: '目标句子',
         prefix: '',
@@ -393,7 +405,7 @@ describe('reading memory entries', () => {
       supersedesEntryId: 'old_trace',
     });
 
-    const memory = readingMemoryFromEntries([old, correction!]);
+    const memory = readingMemoryFromEntries([old, correction]);
 
     expect(
       memory?.readingTraces.flatMap((trace) => trace.items.map((item) => item.content)),

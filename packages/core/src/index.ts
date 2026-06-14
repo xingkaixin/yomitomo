@@ -103,7 +103,6 @@ export {
   applySupersededEntryFilter,
   normalizeReadingMemoryEntry,
   readingMemoryAnchorCheckpointEntries,
-  readingMemoryCorrectionEntry,
   readingMemoryEntriesFromAnnotationThread,
   readingMemoryEntriesFromMemoryDelta,
   readingMemoryEntryFromAnnotation,

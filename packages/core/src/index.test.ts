@@ -63,7 +63,6 @@ const coreRuntimeExports = [
   'rangeHighlightBoxes',
   'readingContextTextForRange',
   'readingMemoryAnchorCheckpointEntries',
-  'readingMemoryCorrectionEntry',
   'readingMemoryEntriesFromAnnotationThread',
   'readingMemoryEntriesFromMemoryDelta',
   'readingMemoryEntryFromAnnotation',

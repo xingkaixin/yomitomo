@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReadingMemoryEntry } from '@yomitomo/shared';
 import { migrations } from '../db/migrations';
 import {
-  appendReadingMemoryCorrection,
   appendReadingMemoryEntries,
   buildReadingMemoryView,
   deleteReadingMemoryForArticle,
@@ -333,58 +332,6 @@ describe('reading memory store', () => {
         executor: database,
       }),
     ).toEqual([]);
-  });
-
-  it('appends correction entries that supersede the target memory', () => {
-    const database = memoryDatabase();
-    appendReadingMemoryEntries(
-      [
-        entry({
-          id: 'wrong_trace',
-          kind: 'trace',
-          payload: {
-            items: [
-              {
-                type: 'agent_observation',
-                content: 'wrong memory',
-                evidenceAnchors: [],
-                confidence: 'medium',
-                createdFromTask: 'chapter_segment_annotation',
-              },
-            ],
-          },
-        }),
-      ],
-      database,
-    );
-
-    const correction = appendReadingMemoryCorrection({
-      articleId: 'article_1',
-      targetEntryId: 'wrong_trace',
-      reason: '用户修正了错误记忆',
-      replacement: 'correct memory',
-      createdAt: '2026-05-26T01:00:00.000Z',
-      executor: database,
-    });
-
-    expect(correction).toMatchObject({
-      kind: 'correction',
-      sourceType: 'correction',
-      supersedesEntryId: 'wrong_trace',
-      payload: { reason: '用户修正了错误记忆', replacement: 'correct memory' },
-    });
-    expect(
-      readReadingMemoryEntries({ articleId: 'article_1', executor: database }).map(
-        (item) => item.kind,
-      ),
-    ).toEqual(['correction']);
-    expect(
-      searchReadingMemoryEntries({
-        articleId: 'article_1',
-        query: 'correct',
-        executor: database,
-      }).map((item) => item.kind),
-    ).toEqual(['correction']);
   });
 
   it('builds segment memory views with structured entries and scoped FTS results', () => {
