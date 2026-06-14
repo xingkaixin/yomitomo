@@ -1,5 +1,7 @@
 import type { ArticleTranslation } from '@yomitomo/shared';
-import { hashText } from '@yomitomo/shared';
+import type { TextAnchor } from '@yomitomo/shared';
+import { createTextAnchor, hashText, resolveTextAnchor } from '@yomitomo/shared';
+import { offsetFromArticleStart, rangeFromOffsets } from '../reader/reader-dom';
 
 export type WebArticleTranslationBlock = {
   id: string;
@@ -81,6 +83,45 @@ export function sourceTextContent(
   return clone.textContent || '';
 }
 
+export function translationElementForRange(range: Range) {
+  const start = translationElementForNode(range.startContainer);
+  const end = translationElementForNode(range.endContainer);
+  return start && start === end ? start : null;
+}
+
+export function translationElementForAnchor(root: HTMLElement, anchor: TextAnchor) {
+  if (!anchor.segmentId) return null;
+  return Array.from(root.querySelectorAll<HTMLElement>('[data-reader-translation]')).find(
+    (element) => element.getAttribute('data-reader-translation-block-id') === anchor.segmentId,
+  );
+}
+
+export function createTranslationTextAnchor(range: Range, element: HTMLElement) {
+  const blockId = element.getAttribute('data-reader-translation-block-id');
+  if (!blockId) return null;
+
+  const text = element.textContent || '';
+  const start = offsetFromArticleStart(element, range.startContainer, range.startOffset);
+  const end = offsetFromArticleStart(element, range.endContainer, range.endOffset);
+  const anchor = createTextAnchor(text, start, end);
+  if (!anchor.exact.trim()) return null;
+
+  return { ...anchor, segmentId: blockId };
+}
+
+export function rangeForTranslationTextAnchor(root: HTMLElement, anchor: TextAnchor) {
+  const element = translationElementForAnchor(root, anchor);
+  if (!element) return null;
+
+  const position = resolveTextAnchor(element.textContent || '', anchor);
+  if (!position) return null;
+  return rangeFromOffsets(element, position.start, position.end);
+}
+
+export function textForTranslationAnchor(root: HTMLElement, anchor: TextAnchor) {
+  return translationElementForAnchor(root, anchor)?.textContent || '';
+}
+
 function isTopLevelTranslationBlock(element: HTMLElement) {
   return !element.parentElement?.closest(translatableBlockSelector);
 }
@@ -95,6 +136,11 @@ function shouldTranslateBlock(element: HTMLElement, text: string) {
 
 function normalizeTranslationBlockText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+function translationElementForNode(node: Node) {
+  const element = node instanceof Element ? node : node.parentElement;
+  return element?.closest<HTMLElement>('[data-reader-translation]') || null;
 }
 
 function createTranslationElement(

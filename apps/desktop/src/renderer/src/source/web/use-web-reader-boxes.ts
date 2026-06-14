@@ -6,6 +6,7 @@ import {
   articleTitleTocItems,
   extractTocItems,
   rangeFromOffsetsIgnoringSelector,
+  rangeForTranslationTextAnchor,
   rangeHighlightBoxes,
   sourceTextContent,
   type ExtractTocOptions,
@@ -70,16 +71,20 @@ export function useWebReaderBoxes({
         let resolvedAnchorCount = 0;
         let rangeCount = 0;
         const nextBoxes = annotations.flatMap((annotation) => {
-          const position = resolveTextAnchor(text, annotation.anchor);
-          if (!position) return [];
-          resolvedAnchorCount += 1;
-          const range = rangeFromOffsetsIgnoringSelector(
-            articleElement,
-            position.start,
-            position.end,
-            '[data-reader-translation]',
-          );
+          const range = annotation.anchor.segmentId
+            ? rangeForTranslationTextAnchor(articleElement, annotation.anchor)
+            : (() => {
+                const position = resolveTextAnchor(text, annotation.anchor);
+                if (!position) return null;
+                return rangeFromOffsetsIgnoringSelector(
+                  articleElement,
+                  position.start,
+                  position.end,
+                  '[data-reader-translation]',
+                );
+              })();
           if (!range) return [];
+          resolvedAnchorCount += 1;
           rangeCount += 1;
           return rangeHighlightBoxes(range, canvasRect, annotation.id).map((box) =>
             Object.assign(box, {

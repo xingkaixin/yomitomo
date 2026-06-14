@@ -35,8 +35,12 @@ export type { ArticleImageInlineOptions, ImageFetcher } from './articles/article
 
 export {
   articleHtmlWithBilingualTranslation,
+  createTranslationTextAnchor,
   extractWebArticleTranslationBlocks,
+  rangeForTranslationTextAnchor,
   sourceTextContent,
+  textForTranslationAnchor,
+  translationElementForRange,
 } from './articles/article-translation';
 export type {
   ArticleBilingualTranslationRenderOptions,

@@ -12,6 +12,7 @@ import { createTextAnchor, resolveTextAnchor } from '@yomitomo/shared';
 import {
   annotationIdsAtHighlightPoint,
   articleHtmlWithBilingualTranslation,
+  createTranslationTextAnchor,
   createEpubTextAnchor,
   findCurrentTocTarget,
   findReaderSearchMatches,
@@ -20,11 +21,14 @@ import {
   isRangeInsideArticle,
   offsetFromArticleStartIgnoringSelector,
   rangeHighlightBoxes,
+  rangeForTranslationTextAnchor,
   rangeFromOffsetsIgnoringSelector,
   selectionActionPosition,
   scrollReaderSurfaceToRect,
   createUserAnnotation,
   sourceTextContent,
+  textForTranslationAnchor,
+  translationElementForRange,
   type TocItem,
 } from '@yomitomo/core';
 import {
@@ -524,27 +528,33 @@ export function WebSourceBookcase({
 
     const range = articleSelection.getRangeAt(0);
     if (!isRangeInsideArticle(range, articleElement)) return;
-    if (rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
+    const translationElement = translationElementForRange(range);
+    if (!translationElement && rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
       articleSelection.removeAllRanges();
       clearSelection();
       return;
     }
-    const selectedArticleText = currentArticleText();
-    const start = offsetFromArticleStartIgnoringSelector(
-      articleElement,
-      range.startContainer,
-      range.startOffset,
-      '[data-reader-translation]',
-    );
-    const end = offsetFromArticleStartIgnoringSelector(
-      articleElement,
-      range.endContainer,
-      range.endOffset,
-      '[data-reader-translation]',
-    );
-    const anchor = article.ebook?.index
-      ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
-      : createTextAnchor(selectedArticleText, start, end);
+    const anchor = translationElement
+      ? createTranslationTextAnchor(range, translationElement)
+      : (() => {
+          const selectedArticleText = currentArticleText();
+          const start = offsetFromArticleStartIgnoringSelector(
+            articleElement,
+            range.startContainer,
+            range.startOffset,
+            '[data-reader-translation]',
+          );
+          const end = offsetFromArticleStartIgnoringSelector(
+            articleElement,
+            range.endContainer,
+            range.endOffset,
+            '[data-reader-translation]',
+          );
+          return article.ebook?.index
+            ? createEpubTextAnchor(article.ebook.index, selectedArticleText, start, end)
+            : createTextAnchor(selectedArticleText, start, end);
+        })();
+    if (!anchor) return;
     if (!anchor.exact.trim()) return;
 
     const rects = range.getClientRects();
@@ -643,14 +653,18 @@ export function WebSourceBookcase({
   }
 
   function readerQuestionContext(anchor: Annotation['anchor']): ReaderQuestionContext {
+    const contextText =
+      anchor.segmentId && articleRef.current
+        ? textForTranslationAnchor(articleRef.current, anchor)
+        : currentArticleText();
     return {
       sourceType: article.sourceType || 'web',
       quote: anchor.exact,
       title: article.title,
       anchor,
-      nearbyText: currentArticleText().slice(
+      nearbyText: contextText.slice(
         Math.max(0, anchor.start - 500),
-        Math.min(currentArticleText().length, anchor.end + 500),
+        Math.min(contextText.length, anchor.end + 500),
       ),
     };
   }
@@ -661,15 +675,18 @@ export function WebSourceBookcase({
     const scrollElement = scrollRef.current;
     if (!anchor || !articleElement || !scrollElement) return;
 
-    const position = resolveTextAnchor(sourceTextContent(articleElement), anchor);
-    if (!position) return;
-
-    const range = rangeFromOffsetsIgnoringSelector(
-      articleElement,
-      position.start,
-      position.end,
-      '[data-reader-translation]',
-    );
+    const range = anchor.segmentId
+      ? rangeForTranslationTextAnchor(articleElement, anchor)
+      : (() => {
+          const position = resolveTextAnchor(sourceTextContent(articleElement), anchor);
+          if (!position) return null;
+          return rangeFromOffsetsIgnoringSelector(
+            articleElement,
+            position.start,
+            position.end,
+            '[data-reader-translation]',
+          );
+        })();
     if (!range) return;
 
     scrollReaderSurfaceToRect(scrollElement, range.getBoundingClientRect(), 48);
@@ -1146,8 +1163,16 @@ function webReadingProgressSnapshot(progress: number): ArticleReadingProgress {
 
 function rangeIntersectsIgnoredSelector(range: Range, selector: string) {
   const nodes = [range.startContainer, range.endContainer];
-  return nodes.some((node) => {
-    const element = node instanceof Element ? node : node.parentElement;
-    return Boolean(element?.closest(selector));
-  });
+  if (
+    nodes.some((node) => {
+      const element = node instanceof Element ? node : node.parentElement;
+      return Boolean(element?.closest(selector));
+    })
+  ) {
+    return true;
+  }
+
+  const container = document.createElement('div');
+  container.append(range.cloneContents());
+  return Boolean(container.querySelector(selector));
 }
