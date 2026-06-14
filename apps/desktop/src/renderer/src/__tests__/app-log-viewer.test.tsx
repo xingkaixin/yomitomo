@@ -98,7 +98,7 @@ describe('AboutSettings', () => {
 
     expect(await screen.findByText('v0.1.0')).toBeTruthy();
     expect(screen.getByText('开源许可证')).toBeTruthy();
-    expect(screen.getByText(/Yomitomo 使用 MIT/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Yomitomo 使用 MIT/ })).toBeTruthy();
   });
 
   it('checks for updates from the version row', async () => {
@@ -106,18 +106,18 @@ describe('AboutSettings', () => {
 
     render(<AboutSettings />);
 
-    expect(await screen.findByText('可手动检查新版本。')).toBeTruthy();
+    expect(await screen.findByLabelText('可手动检查新版本。')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /检查更新/ }));
 
     await waitFor(() => expect(desktop.checkForUpdates).toHaveBeenCalledOnce());
-    expect(await screen.findByText('当前已是最新版本。')).toBeTruthy();
+    expect(await screen.findByLabelText('当前已是最新版本。')).toBeTruthy();
   });
 
   it('downloads and installs an available update', async () => {
     const desktop = installDesktopAboutApi();
 
     render(<AboutSettings />);
-    await screen.findByText('可手动检查新版本。');
+    await screen.findByLabelText('可手动检查新版本。');
 
     act(() => {
       desktop.emitUpdate({
