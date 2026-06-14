@@ -37,7 +37,8 @@ vi.mock('../agents/agent-reading-memory', () => memoryMocks);
 
 vi.mock('../agents/agent-runtime-trace-log', () => traceMocks);
 
-import { registerAgentIpc, selectAgentRuntime } from './ipc-agent';
+import { selectAgentRuntime } from '../agents/agent-runtime-routing';
+import { registerAgentIpc } from './ipc-agent';
 
 beforeEach(() => {
   ipcHandlers.clear();
