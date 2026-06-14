@@ -12,7 +12,6 @@ import {
   buildEpubBookIndex,
   createEpubTextAnchor,
   epubIndexText,
-  readingMemoryCorrectionEntry,
   readingMemoryFromEntries,
 } from '@yomitomo/core';
 import {
@@ -1569,13 +1568,27 @@ describe('agent annotations', () => {
       segmentId: ebookIndex.segments[0].id,
       payload: { items: [traceItem('旧判断不应再出现')] },
     });
-    const correction = readingMemoryCorrectionEntry({
+    const correction = memoryEntry({
       id: 'correction_1',
       articleId: 'book-1',
-      targetEntry: wrongTrace,
-      reason: '旧判断不成立',
-      replacement: '应理解为人物在试探环境',
+      kind: 'correction',
+      scope: wrongTrace.scope,
+      chapterId: wrongTrace.chapterId,
+      segmentId: wrongTrace.segmentId,
+      paragraphId: wrongTrace.paragraphId,
+      textRange: wrongTrace.textRange,
+      anchor: wrongTrace.anchor,
+      sourceType: 'correction',
+      sourceId: 'correction_1',
+      sourceTaskId: undefined,
+      sourceEntryIds: ['wrong_trace'],
+      supersedesEntryId: 'wrong_trace',
+      payload: {
+        reason: '旧判断不成立',
+        replacement: '应理解为人物在试探环境',
+      },
       createdAt: '2026-05-26T01:00:00.000Z',
+      updatedAt: '2026-05-26T01:00:00.000Z',
     });
     const annotationPrompts: string[] = [];
     vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
@@ -1614,7 +1627,7 @@ describe('agent annotations', () => {
     await runAgentAnnotateWithMemory(provider, agent, {
       agentId: agent.id,
       agentUsername: agent.username,
-      readingMemory: readingMemoryFromEntries([wrongTrace, correction!]),
+      readingMemory: readingMemoryFromEntries([wrongTrace, correction]),
       readingPlan: [
         {
           sectionId: chapter.id,

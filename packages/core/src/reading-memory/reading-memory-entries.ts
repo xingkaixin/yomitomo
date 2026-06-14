@@ -20,9 +20,11 @@ const ENTRY_KINDS = new Set<ReadingMemoryEntryKind>([
   'summary',
   'trace',
   'anchor',
+  // Reserved compatibility kind. There is no production writer for new correction entries.
   'correction',
   'reader_signal',
   'progress',
+  // Reserved compatibility kinds; kept so existing rows can still be normalized.
   'preference',
   'retrieval_note',
 ]);
@@ -31,6 +33,7 @@ const ENTRY_SCOPES = new Set<ReadingMemoryScope>(['segment', 'chapter', 'book', 
 
 const ENTRY_VISIBILITIES = new Set<ReadingMemoryVisibility>([
   'default',
+  // Non-default visibilities are reserved compatibility values, not enabled writer paths.
   'hidden',
   'agent_private',
   'debug_only',
@@ -42,6 +45,7 @@ const SOURCE_TYPES = new Set<ReadingMemorySourceType>([
   'annotation',
   'comment',
   'progress',
+  // Reserved compatibility source type. There is no production writer for new correction entries.
   'correction',
   'import',
 ]);
@@ -281,44 +285,6 @@ export function readingMemoryAnchorCheckpointEntries(input: {
   }
 
   return checkpoints;
-}
-
-export function readingMemoryCorrectionEntry(input: {
-  id: string;
-  articleId: string;
-  targetEntry: ReadingMemoryEntry;
-  reason: string;
-  replacement?: unknown;
-  createdAt: string;
-  readerId?: string;
-  anchor?: TextAnchor;
-}): ReadingMemoryEntry | null {
-  const reason = input.reason.trim();
-  if (!reason) return null;
-  return {
-    id: input.id,
-    articleId: input.articleId,
-    kind: 'correction',
-    scope: input.targetEntry.scope,
-    visibility: 'default',
-    payloadVersion: 1,
-    chapterId: input.targetEntry.chapterId,
-    segmentId: input.targetEntry.segmentId,
-    paragraphId: input.targetEntry.paragraphId,
-    textRange: input.targetEntry.textRange,
-    readerId: input.readerId,
-    sourceType: 'correction',
-    sourceId: input.id,
-    sourceEntryIds: [input.targetEntry.id],
-    supersedesEntryId: input.targetEntry.id,
-    anchor: input.anchor || input.targetEntry.anchor,
-    payload: {
-      reason,
-      replacement: input.replacement,
-    },
-    createdAt: input.createdAt,
-    updatedAt: input.createdAt,
-  };
 }
 
 export function readingMemoryFromEntries(entries: ReadingMemoryEntry[]): ReadingMemory | undefined {

@@ -57,7 +57,6 @@ function memoryEntryBlockText(entry: ReadingMemoryEntry) {
   const sourcePayload = memorySourcePayloadText(entry);
   if (sourcePayload) return sourcePayload;
 
-  if (entry.kind === 'retrieval_note') return stringifyValue(entry.payload);
   return '';
 }
 

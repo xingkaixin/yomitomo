@@ -155,9 +155,11 @@ function normalizeMemoryKind(value: unknown): ReadingMemoryEntryKind {
   return value === 'summary' ||
     value === 'trace' ||
     value === 'anchor' ||
+    // Reserved compatibility kind. Current writers do not create correction rows.
     value === 'correction' ||
     value === 'reader_signal' ||
     value === 'progress' ||
+    // Reserved compatibility kinds. Keep row parsing stable for older databases.
     value === 'preference' ||
     value === 'retrieval_note'
     ? value
@@ -176,6 +178,7 @@ function normalizeMemoryScope(value: unknown): ReadingMemoryScope {
 
 function normalizeMemoryVisibility(value: unknown): ReadingMemoryVisibility {
   return value === 'default' ||
+    // Non-default visibility values are reserved; default is the only enabled writer path.
     value === 'hidden' ||
     value === 'agent_private' ||
     value === 'debug_only'
@@ -189,6 +192,7 @@ function normalizeMemorySourceType(value: unknown): ReadingMemorySourceType {
     value === 'annotation' ||
     value === 'comment' ||
     value === 'progress' ||
+    // Reserved compatibility source type. Current writers do not create correction rows.
     value === 'correction' ||
     value === 'import'
     ? value
