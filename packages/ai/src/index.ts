@@ -112,6 +112,8 @@ export {
   buildAgentPrompt,
   runAgent,
   runAgentStream,
+  type AgentMessageReadingContextSnapshot,
+  type AgentMessageRunOptions,
 } from './agent/agent-message';
 export {
   buildAgentCoReadingRuntimePayload,

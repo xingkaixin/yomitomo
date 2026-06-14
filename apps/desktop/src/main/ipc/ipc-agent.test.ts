@@ -23,6 +23,10 @@ const traceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getPath: () => '/tmp/yomitomo-ipc-agent-test',
+  },
   ipcMain: {
     handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) => {
       ipcHandlers.set(channel, handler);
@@ -152,6 +156,7 @@ describe('agent IPC comment handler', () => {
       expect.objectContaining({ id: 'provider_1' }),
       expect.objectContaining({ id: 'agent_1' }),
       expect.objectContaining({ agentUsername: 'agent' }),
+      expect.objectContaining({ readingContext: undefined }),
     );
     expect(result).toMatchObject({
       author: 'ai',

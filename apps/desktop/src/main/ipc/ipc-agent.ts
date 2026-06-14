@@ -1,4 +1,5 @@
 import type {
+  Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
   AgentDistillationReviewPayload,
@@ -7,6 +8,7 @@ import type {
   AssistantRuntimeProgressEvent,
   ArticleRecord,
   Comment,
+  LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
@@ -26,6 +28,7 @@ import {
   runAgentDistillationReviewWithToolLoop,
   runAgentThreadReplyWithToolLoop,
 } from '../agents/agent-thread-runtime';
+import { agentMessageReadingContextSnapshot } from '../assistant/assistant-reading-context-provider';
 import {
   agentMessageRuntimeTaskType,
   agentNotFoundError,
@@ -125,15 +128,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
     const comment =
       runtime.status === 'comment'
         ? runtime.comment
-        : await ai.runAgent(
-            provider,
-            agent,
-            agentMessagePayloadWithReadingMemoryView({
-              payload: payloadWithRoster,
-              logInfo: context.logInfo,
-              logError: context.logError,
-            }),
-          );
+        : await runFastAgent(context, ai, provider, agent, payloadWithRoster);
     if (runtime.status !== 'comment') {
       recordAssistantExecutionRun(context, {
         agent,
@@ -224,15 +219,7 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       runtime.status === 'message'
         ? runtime.message
         : commentToDistillationReviewMessage(
-            await ai.runAgent(
-              provider,
-              agent,
-              agentMessagePayloadWithReadingMemoryView({
-                payload: payloadWithRoster,
-                logInfo: context.logInfo,
-                logError: context.logError,
-              }),
-            ),
+            await runFastAgent(context, ai, provider, agent, payloadWithRoster),
             payload.reviewMessageId,
           );
     if (!message.proposals?.length) {
@@ -344,15 +331,17 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
           sender.send({ type: 'delta', delta: comment.content });
         }
       } else {
-        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-          payload: payloadWithRoster,
-          logInfo: context.logInfo,
-          logError: context.logError,
-        });
-        await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
-          comment.content += delta;
-          sender.send({ type: 'delta', delta });
-        });
+        const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
+        await ai.runAgentStream(
+          provider,
+          agent,
+          fastInput.payload,
+          (delta) => {
+            comment.content += delta;
+            sender.send({ type: 'delta', delta });
+          },
+          fastInput.options,
+        );
         recordAssistantExecutionRun(context, {
           agent,
           provider,
@@ -439,15 +428,17 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
         }
         message.proposals = runtime.message.proposals || [];
       } else {
-        const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
-          payload: payloadWithRoster,
-          logInfo: context.logInfo,
-          logError: context.logError,
-        });
-        await ai.runAgentStream(provider, agent, payloadWithMemory, (delta) => {
-          message.content += delta;
-          sender.send({ type: 'delta', delta });
-        });
+        const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
+        await ai.runAgentStream(
+          provider,
+          agent,
+          fastInput.payload,
+          (delta) => {
+            message.content += delta;
+            sender.send({ type: 'delta', delta });
+          },
+          fastInput.options,
+        );
         message.proposals = await extractDistillationReviewProposals({
           ai,
           provider,
@@ -619,4 +610,52 @@ function agentMessageReplyTo(payload: AgentMessagePayload) {
   if (payload.responseMode === 'create_thought' || payload.responseMode === 'distillation_review')
     return undefined;
   return payload.reviewTargetCommentId || payload.userComment.replyTo || payload.userComment.id;
+}
+
+function agentMessageFastInput(
+  context: DesktopMainIpcContext,
+  payload: AgentMessagePayload,
+  agentId: string,
+) {
+  const payloadWithMemory = agentMessagePayloadWithReadingMemoryView({
+    payload,
+    logInfo: context.logInfo,
+    logError: context.logError,
+  });
+  return {
+    payload: payloadWithMemory,
+    options: {
+      readingContext: safeAgentMessageReadingContextSnapshot(context, payload, agentId),
+    },
+  };
+}
+
+async function runFastAgent(
+  context: DesktopMainIpcContext,
+  ai: Pick<Awaited<ReturnType<DesktopMainIpcContext['getAiModule']>>, 'runAgent'>,
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentMessagePayload,
+) {
+  const fastInput = agentMessageFastInput(context, payload, agent.id);
+  return ai.runAgent(provider, agent, fastInput.payload, fastInput.options);
+}
+
+function safeAgentMessageReadingContextSnapshot(
+  context: DesktopMainIpcContext,
+  payload: AgentMessagePayload,
+  agentId: string,
+) {
+  try {
+    return agentMessageReadingContextSnapshot({
+      payload,
+      agentId,
+    });
+  } catch (error) {
+    context.logError('reading_context.snapshot_failed', error, {
+      articleId: payload.article.id,
+      agentId,
+    });
+    return undefined;
+  }
 }
