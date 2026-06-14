@@ -1,4 +1,5 @@
 import type {
+  Agent,
   AgentAnnotatePayload,
   AgentAnnotateResult,
   AgentDistillationReviewPayload,
@@ -7,6 +8,7 @@ import type {
   AssistantRuntimeProgressEvent,
   ArticleRecord,
   Comment,
+  LlmProvider,
 } from '@yomitomo/shared';
 import { makeId, normalizeAssistantExecutionMode, normalizeUiLanguage } from '@yomitomo/shared';
 import type { DesktopMainIpcContext } from './ipc';
@@ -123,11 +125,10 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       taskType,
       context.elapsedMs(startedAt),
     );
-    const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
     const comment =
       runtime.status === 'comment'
         ? runtime.comment
-        : await ai.runAgent(provider, agent, fastInput.payload, fastInput.options);
+        : await runFastAgent(context, ai, provider, agent, payloadWithRoster);
     if (runtime.status !== 'comment') {
       recordAssistantExecutionRun(context, {
         agent,
@@ -214,12 +215,11 @@ export function registerAgentIpc(context: DesktopMainIpcContext) {
       'distillation_review',
       context.elapsedMs(startedAt),
     );
-    const fastInput = agentMessageFastInput(context, payloadWithRoster, agent.id);
     const message =
       runtime.status === 'message'
         ? runtime.message
         : commentToDistillationReviewMessage(
-            await ai.runAgent(provider, agent, fastInput.payload, fastInput.options),
+            await runFastAgent(context, ai, provider, agent, payloadWithRoster),
             payload.reviewMessageId,
           );
     if (!message.proposals?.length) {
@@ -625,10 +625,37 @@ function agentMessageFastInput(
   return {
     payload: payloadWithMemory,
     options: {
-      readingContext: agentMessageReadingContextSnapshot({
-        payload,
-        agentId,
-      }),
+      readingContext: safeAgentMessageReadingContextSnapshot(context, payload, agentId),
     },
   };
+}
+
+async function runFastAgent(
+  context: DesktopMainIpcContext,
+  ai: Pick<Awaited<ReturnType<DesktopMainIpcContext['getAiModule']>>, 'runAgent'>,
+  provider: LlmProvider,
+  agent: Agent,
+  payload: AgentMessagePayload,
+) {
+  const fastInput = agentMessageFastInput(context, payload, agent.id);
+  return ai.runAgent(provider, agent, fastInput.payload, fastInput.options);
+}
+
+function safeAgentMessageReadingContextSnapshot(
+  context: DesktopMainIpcContext,
+  payload: AgentMessagePayload,
+  agentId: string,
+) {
+  try {
+    return agentMessageReadingContextSnapshot({
+      payload,
+      agentId,
+    });
+  } catch (error) {
+    context.logError('reading_context.snapshot_failed', error, {
+      articleId: payload.article.id,
+      agentId,
+    });
+    return undefined;
+  }
 }
