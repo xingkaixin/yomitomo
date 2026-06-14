@@ -862,7 +862,7 @@ function BrandTitle({ settings }: { settings?: AppSettings }) {
   };
   return (
     <div className="app-masthead-title">
-      <h1 onClick={playPronunciation}>Yomitomo</h1>
+      <h1>Yomitomo</h1>
       <button
         aria-label={t('brandPronounce')}
         className="app-masthead-phonetic"
