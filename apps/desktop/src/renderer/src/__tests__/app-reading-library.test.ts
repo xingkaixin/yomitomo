@@ -70,7 +70,7 @@ describe('buildAnnotationRailItems', () => {
     expect(second.isStackFront).toBe(true);
   });
 
-  it('uses measured card height to push later annotation groups', () => {
+  it('stacks nearby measured card groups instead of pushing them away', () => {
     const items = buildAnnotationRailItems(
       [annotation('annotation_1', 0, 10), annotation('annotation_2', 20, 30)],
       [
@@ -83,7 +83,11 @@ describe('buildAnnotationRailItems', () => {
 
     expect(items.map((item) => [item.annotation.id, item.style.top])).toEqual([
       ['annotation_1', 210],
-      ['annotation_2', 568],
+      ['annotation_2', 252],
+    ]);
+    expect(items.map((item) => [item.annotation.id, item.stackCount])).toEqual([
+      ['annotation_1', 2],
+      ['annotation_2', 2],
     ]);
   });
 });
