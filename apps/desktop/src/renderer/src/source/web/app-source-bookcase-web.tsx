@@ -182,6 +182,10 @@ export function WebSourceBookcase({
   const bilingualTranslationTargetLanguage = settings?.bilingualTranslationTargetLanguage;
   const bilingualTranslationStyle = settings?.bilingualTranslationStyle || 'dashedLine';
   const translationInProgress = translationBusy || translation?.status === 'translating';
+  const translationAnnotationCount = useMemo(() => {
+    if (!translation) return 0;
+    return translationAnnotationsForBlocks(annotations, currentTranslationBlockIds()).length;
+  }, [annotations, translation]);
 
   const {
     actionShortcuts,
@@ -598,6 +602,19 @@ export function WebSourceBookcase({
     void window.yomitomoDesktop.openUrl(url);
   }
 
+  function currentTranslationBlockIds() {
+    return new Set((translation?.segments || []).map((segment) => segment.sourceBlockId));
+  }
+
+  // 译文锚定在生成文本上，删除/重翻会让旧划线失效，连带删除受影响段的译文批注，
+  // 复用单条删除生命周期（讨论、已沉淀卡片、store patch 一并清理）。
+  async function deleteTranslationAnnotations(blockIds: Set<string>) {
+    const affected = translationAnnotationsForBlocks(annotationsRef.current, blockIds);
+    for (const annotation of affected) {
+      await deleteAnnotation(annotation.id);
+    }
+  }
+
   async function requestBilingualTranslation(
     input: {
       force?: boolean;
@@ -611,6 +628,12 @@ export function WebSourceBookcase({
     }
     setTranslationBusy(true);
     try {
+      const retranslatedBlockIds = input.force
+        ? currentTranslationBlockIds()
+        : input.sourceBlockIds?.length
+          ? new Set(input.sourceBlockIds)
+          : null;
+      if (retranslatedBlockIds) await deleteTranslationAnnotations(retranslatedBlockIds);
       const nextTranslation = await window.yomitomoDesktop.translateArticle({
         articleId: article.id,
         force: input.force,
@@ -629,6 +652,7 @@ export function WebSourceBookcase({
   async function deleteBilingualTranslation() {
     if (translationBusy) return;
     try {
+      await deleteTranslationAnnotations(currentTranslationBlockIds());
       await window.yomitomoDesktop.deleteCurrentArticleTranslation({
         articleId: article.id,
         targetLanguage: bilingualTranslationTargetLanguage,
@@ -940,6 +964,11 @@ export function WebSourceBookcase({
       />
       <ReaderTranslationConfirmDialog
         action={translationConfirm}
+        annotationNotice={
+          translationConfirm && translationConfirm !== 'translate' && translationAnnotationCount > 0
+            ? t('source.translationAnnotationsRemovalNotice', { count: translationAnnotationCount })
+            : ''
+        }
         labels={{
           cancel: t('common.cancel'),
           confirmDeleteTranslation: t('source.confirmDeleteTranslation'),
@@ -1081,11 +1110,13 @@ type ReaderTranslationConfirmLabels = {
 
 function ReaderTranslationConfirmDialog({
   action,
+  annotationNotice,
   labels,
   onClose,
   onConfirm,
 }: {
   action: TranslationConfirmAction | null;
+  annotationNotice: string;
   labels: ReaderTranslationConfirmLabels;
   onClose: () => void;
   onConfirm: (action: TranslationConfirmAction) => Promise<void>;
@@ -1119,7 +1150,7 @@ function ReaderTranslationConfirmDialog({
           >
             <DialogTitle id="reader-translation-confirm-title">{copy.title}</DialogTitle>
             <DialogDescription id="reader-translation-confirm-description">
-              {copy.description}
+              {annotationNotice ? `${copy.description} ${annotationNotice}` : copy.description}
             </DialogDescription>
             <div className="reader-translation-confirm-actions">
               <button type="button" onClick={onClose}>
@@ -1140,6 +1171,12 @@ function ReaderTranslationConfirmDialog({
         </DialogOverlay>
       </DialogPortal>
     </Dialog>
+  );
+}
+
+function translationAnnotationsForBlocks(annotations: Annotation[], blockIds: Set<string>) {
+  return annotations.filter(
+    (annotation) => annotation.anchor.segmentId && blockIds.has(annotation.anchor.segmentId),
   );
 }
 

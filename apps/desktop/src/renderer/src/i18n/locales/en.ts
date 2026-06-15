@@ -738,8 +738,12 @@ export const enResources = {
       confirmRetranslate: 'Translate again',
       confirmDeleteTranslationTitle: 'Delete this article translation?',
       confirmDeleteTranslationDescription:
-        'Only the translation cache for the current target language will be deleted. Original text and annotations are kept.',
+        'This deletes the translation cache for the current target language. The original text is kept.',
       confirmDeleteTranslation: 'Delete translation',
+      translationAnnotationsRemovalNotice:
+        'This also deletes {{count}} annotation on the translation, including its discussion and distilled card. This cannot be undone.',
+      translationAnnotationsRemovalNotice_other:
+        'This also deletes {{count}} annotations on the translation, including their discussions and distilled cards. This cannot be undone.',
       showTranslation: 'Show translation',
       hideTranslation: 'Hide translation',
       retranslateArticle: 'Translate again',
