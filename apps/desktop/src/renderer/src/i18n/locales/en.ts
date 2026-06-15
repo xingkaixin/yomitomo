@@ -518,6 +518,10 @@ export const enResources = {
       weReadSetupTitle: 'WeRead setup required',
       weReadSetupDescription:
         'Configure the WeRead API key in Settings / WeRead before syncing highlights and thoughts.',
+      weReadSyncSuccess: 'WeRead sync complete',
+      weReadSyncSuccessDescription:
+        'Synced {{books}} books · {{bookmarks}} highlights · {{reviews}} thoughts',
+      weReadSyncFailed: 'WeRead sync failed',
       total: {
         web: '{{count}} articles',
         ebook: '{{count}} books',
@@ -1038,6 +1042,9 @@ export const enResources = {
       weread: {
         cacheReadFailed: 'Failed to read WeRead stats cache',
         queryFailed: 'Failed to query WeRead stats',
+        querySuccess: 'WeRead stats updated',
+        querySuccessDescription: 'Fetched {{period}} stats · {{days}} reading days · {{duration}}',
+        querySuccessDescriptionFallback: 'Fetched {{period}} stats',
         periodTabs: 'WeRead stats period',
         previousPeriod: 'Previous period',
         nextPeriod: 'Next period',

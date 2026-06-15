@@ -10,6 +10,7 @@ import type {
 import { formatDateTimeValue } from '@yomitomo/shared';
 import { Button } from '../components/ui/button';
 import { SegmentedControl } from '../components/ui/segmented-control';
+import { appToast } from '../shell/app-toast';
 
 const MODES: WeReadReadingStatsMode[] = ['weekly', 'monthly', 'annually', 'overall'];
 
@@ -58,8 +59,24 @@ export function WeReadReadingStatsPanel() {
         ...(mode === 'overall' ? {} : { baseTime: activePeriodStart * 1000 }),
       });
       setState(nextState);
+      const queriedSnapshot = nextState.snapshots.find(
+        (item) => item.mode === mode && item.periodStart === activePeriodStart,
+      );
+      appToast.success(t('readingStats.weread.querySuccess'), {
+        description: queriedSnapshot
+          ? t('readingStats.weread.querySuccessDescription', {
+              days: queriedSnapshot.data.readDays ?? 0,
+              duration: formatDuration(queriedSnapshot.data.totalReadTime),
+              period: periodLabel(mode, activePeriodStart),
+            })
+          : t('readingStats.weread.querySuccessDescriptionFallback', {
+              period: periodLabel(mode, activePeriodStart),
+            }),
+      });
     } catch (error) {
-      setMessage(errorMessage(error, t('readingStats.weread.queryFailed')));
+      const failureMessage = errorMessage(error, t('readingStats.weread.queryFailed'));
+      setMessage(failureMessage);
+      appToast.error(t('readingStats.weread.queryFailed'), { description: failureMessage });
     } finally {
       setLoading(false);
     }
