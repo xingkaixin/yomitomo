@@ -527,6 +527,19 @@ export function ReadingLibrary({
     });
   }
 
+  async function deleteSelectedArticleAnnotation(articleId: string, annotationId: string) {
+    if (!onDeleteArticleAnnotation) return;
+    await onDeleteArticleAnnotation(articleId, annotationId);
+    setSelectedArticle((current) =>
+      current?.id === articleId
+        ? {
+            ...current,
+            annotations: current.annotations.filter((annotation) => annotation.id !== annotationId),
+          }
+        : current,
+    );
+  }
+
   const libraryHomeProps = {
     activeSource: librarySource,
     articles,
@@ -595,7 +608,9 @@ export function ReadingLibrary({
                 userProfile={userProfile}
                 onFocusedAnnotation={handleSourceFocusedAnnotation}
                 onClose={openLibraryShelf}
-                onDeleteArticleAnnotation={onDeleteArticleAnnotation}
+                onDeleteArticleAnnotation={
+                  onDeleteArticleAnnotation ? deleteSelectedArticleAnnotation : undefined
+                }
                 onDeleteArticleComment={onDeleteArticleComment}
                 onOpenAnnotationDiscussion={onOpenArticleDiscussion}
                 onOpenAnnotation={setSelectedAnnotationId}
