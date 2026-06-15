@@ -718,8 +718,12 @@ export const zhCNResources = {
       confirmRetranslateDescription: '会覆盖当前目标语言下已保存的译文结果。',
       confirmRetranslate: '重新翻译',
       confirmDeleteTranslationTitle: '删除这篇文章的译文？',
-      confirmDeleteTranslationDescription: '只会删除当前目标语言下的译文缓存，不会影响原文和批注。',
+      confirmDeleteTranslationDescription: '会删除当前目标语言下的译文缓存，不影响原文。',
       confirmDeleteTranslation: '删除译文',
+      translationAnnotationsRemovalNotice:
+        '同时会删除译文上的 {{count}} 条批注，连同它们的讨论与已沉淀卡片，且无法恢复。',
+      translationAnnotationsRemovalNotice_other:
+        '同时会删除译文上的 {{count}} 条批注，连同它们的讨论与已沉淀卡片，且无法恢复。',
       showTranslation: '显示译文',
       hideTranslation: '隐藏译文',
       retranslateArticle: '重新翻译',
