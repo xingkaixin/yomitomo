@@ -32,6 +32,7 @@ import type {
 import { LibraryHome, type LibrarySourceTransitionDirection } from './app-reading-library-home';
 import { enabledLibraryContentSources } from './app-library-content-sources';
 import { WeReadBookcase } from '../shell/app-weread-bookcase';
+import { appToast } from '../shell/app-toast';
 import type { ArticleImportResult } from './app-reading-library-imports';
 import {
   groupLibraryArticles,
@@ -119,6 +120,7 @@ export function ReadingLibrary({
   onSaveSettings?: (settings: AppSettings) => Promise<void> | void;
   onUpdateArticle: (articleId: string, update: ArticleUpdater) => Promise<void> | void;
 }) {
+  const { t } = useTranslation();
   const [activeShelf, setActiveShelf] = useState<'library' | 'source'>('library');
   const [routeTransition, setRouteTransition] = useState<'enter-library' | 'enter-source' | 'none'>(
     'none',
@@ -441,13 +443,25 @@ export function ReadingLibrary({
     setLibrarySource(nextSource);
   }
 
-  async function syncWeReadLibrary() {
+  async function syncWeReadLibrary(options: { manual?: boolean } = {}) {
     if (!window.yomitomoDesktop || !wereadSourceEnabled) return;
     setWeReadSyncing(true);
     try {
       const result = await window.yomitomoDesktop.syncWeRead();
       setWeReadSettings(result.settings);
       setWeReadBooks(result.books);
+      if (options.manual) {
+        const summary = weReadLibrarySyncSummary(result.books);
+        appToast.success(t('library.weReadSyncSuccess'), {
+          description: t('library.weReadSyncSuccessDescription', summary),
+        });
+      }
+    } catch (error) {
+      if (options.manual) {
+        appToast.error(t('library.weReadSyncFailed'), {
+          description: errorMessage(error, t('library.weReadSyncFailed')),
+        });
+      }
     } finally {
       setWeReadSyncing(false);
     }
@@ -555,7 +569,7 @@ export function ReadingLibrary({
     onOpenWeReadBook: (book: WeReadBook) => void openWeReadBook(book),
     onOpenWeReadExternal: (book: WeReadBook) => void openWeReadExternal(book),
     onSaveSettings: onSaveSettings || (() => undefined),
-    onSyncWeRead: () => void syncWeReadLibrary(),
+    onSyncWeRead: () => void syncWeReadLibrary({ manual: true }),
     settings: settings || {},
     wereadBooks,
     wereadOpenMessage,
@@ -872,4 +886,19 @@ function weReadOpenErrorMessage(error: unknown) {
     return i18next.t('wereadBook.nativeAppMissing');
   }
   return message || i18next.t('wereadBook.openFailed');
+}
+
+function weReadLibrarySyncSummary(books: WeReadBook[]) {
+  return books.reduce(
+    (summary, book) => ({
+      books: summary.books + 1,
+      bookmarks: summary.bookmarks + book.bookmarkCount,
+      reviews: summary.reviews + book.reviewCount,
+    }),
+    { books: 0, bookmarks: 0, reviews: 0 },
+  );
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }

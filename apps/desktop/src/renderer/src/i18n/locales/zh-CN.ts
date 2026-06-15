@@ -505,6 +505,10 @@ export const zhCNResources = {
       toolbarLabel: '阅读库工具栏',
       weReadSetupTitle: '需要配置微信读书',
       weReadSetupDescription: '请先到设置 / 微信读书配置 API Key，再同步你的划线和想法。',
+      weReadSyncSuccess: '微信读书同步完成',
+      weReadSyncSuccessDescription:
+        '已同步 {{books}} 本书 · {{bookmarks}} 条划线 · {{reviews}} 条想法',
+      weReadSyncFailed: '微信读书同步失败',
       total: {
         web: '共 {{count}} 篇',
         ebook: '共 {{count}} 本',
@@ -1006,6 +1010,9 @@ export const zhCNResources = {
       weread: {
         cacheReadFailed: '读取微信读书统计缓存失败',
         queryFailed: '查询微信读书统计失败',
+        querySuccess: '微信读书统计已更新',
+        querySuccessDescription: '已获取{{period}}统计 · 阅读 {{days}} 天 · {{duration}}',
+        querySuccessDescriptionFallback: '已获取{{period}}统计',
         periodTabs: '微信读书统计周期',
         previousPeriod: '上一个周期',
         nextPeriod: '下一个周期',
