@@ -42,18 +42,24 @@ export type AnnotationRailLayout = {
   viewportHeight?: number;
 };
 
+type GroupRect = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+};
+
 type PositionedAnnotationRailItem = {
   annotation: Annotation;
   index: number;
   preferredSide: AnnotationRailSide;
-  start: number;
-  end: number;
+  rect: GroupRect | null;
   top: number;
 };
 
 type HighlightBoxGroup = {
   boxes: HighlightBox[];
-  minTop: number;
+  rect: GroupRect;
 };
 
 export type AnnotationFilterGroup = 'person' | 'type' | 'action';
@@ -247,9 +253,9 @@ export function buildAnnotationRailItems(
     const group = boxesByAnnotation.get(box.annotationId);
     if (group) {
       group.boxes.push(box);
-      group.minTop = Math.min(group.minTop, box.top);
+      group.rect = expandRect(group.rect, box);
     } else {
-      boxesByAnnotation.set(box.annotationId, { boxes: [box], minTop: box.top });
+      boxesByAnnotation.set(box.annotationId, { boxes: [box], rect: rectFromBox(box) });
     }
   }
 
@@ -257,16 +263,13 @@ export function buildAnnotationRailItems(
     .map((annotation, index) => {
       const boxGroup = boxesByAnnotation.get(annotation.id);
       const annotationBoxes = boxGroup?.boxes || [];
-      const top =
-        annotationBoxes.length > 0 && boxGroup
-          ? Math.max(0, boxGroup.minTop - 10)
-          : 120 + index * 150;
+      const rect = boxGroup?.rect ?? null;
+      const top = rect ? Math.max(0, rect.top - 10) : 120 + index * 150;
       return {
         annotation,
         index,
         preferredSide: annotationRailSide(annotationBoxes, railLayout),
-        start: annotation.anchor.start,
-        end: annotation.anchor.end,
+        rect,
         top,
       };
     })
@@ -428,26 +431,69 @@ function sameStrings(left: readonly string[], right: readonly string[]) {
 }
 
 function buildAnnotationRailGroups(positioned: PositionedAnnotationRailItem[]) {
-  const sorted = [...positioned].toSorted(
-    (left, right) => left.start - right.start || left.end - right.end || left.index - right.index,
-  );
   const groups: PositionedAnnotationRailItem[][] = [];
-  let currentGroup: PositionedAnnotationRailItem[] = [];
-  let currentEnd = Number.NEGATIVE_INFINITY;
-
-  for (const item of sorted) {
-    if (currentGroup.length === 0 || item.start >= currentEnd) {
-      currentGroup = [item];
-      groups.push(currentGroup);
-      currentEnd = item.end;
-      continue;
-    }
-
-    currentGroup.push(item);
-    currentEnd = Math.max(currentEnd, item.end);
+  const withRect: PositionedAnnotationRailItem[] = [];
+  for (const item of positioned) {
+    if (item.rect) withRect.push(item);
+    else groups.push([item]);
   }
 
-  return groups;
+  // Stack only annotations whose highlight boxes truly collide in 2D. Anchor offsets
+  // are not comparable across translation segments (each segment restarts near 0), so
+  // grouping uses rendered geometry to keep cross-segment annotations apart.
+  const parent = withRect.map((_, index) => index);
+  const find = (index: number): number => {
+    let root = index;
+    while (parent[root] !== root) root = parent[root];
+    while (parent[index] !== root) {
+      const next = parent[index];
+      parent[index] = root;
+      index = next;
+    }
+    return root;
+  };
+  for (let i = 0; i < withRect.length; i += 1) {
+    for (let j = i + 1; j < withRect.length; j += 1) {
+      if (rectsOverlap(withRect[i].rect!, withRect[j].rect!)) parent[find(j)] = find(i);
+    }
+  }
+
+  const componentByRoot = new Map<number, PositionedAnnotationRailItem[]>();
+  withRect.forEach((item, index) => {
+    const root = find(index);
+    const component = componentByRoot.get(root);
+    if (component) component.push(item);
+    else componentByRoot.set(root, [item]);
+  });
+
+  return [...groups, ...componentByRoot.values()];
+}
+
+function rectFromBox(box: HighlightBox): GroupRect {
+  return {
+    top: box.top,
+    bottom: box.top + box.height,
+    left: box.left,
+    right: box.left + box.width,
+  };
+}
+
+function expandRect(rect: GroupRect, box: HighlightBox): GroupRect {
+  return {
+    top: Math.min(rect.top, box.top),
+    bottom: Math.max(rect.bottom, box.top + box.height),
+    left: Math.min(rect.left, box.left),
+    right: Math.max(rect.right, box.left + box.width),
+  };
+}
+
+function rectsOverlap(left: GroupRect, right: GroupRect) {
+  return (
+    left.left < right.right &&
+    right.left < left.right &&
+    left.top < right.bottom &&
+    right.top < left.bottom
+  );
 }
 
 function annotationRailSide(
