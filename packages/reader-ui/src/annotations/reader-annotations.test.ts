@@ -356,6 +356,103 @@ describe('reader annotation filters', () => {
     expect(items[0]?.style.top).toBe(242);
   });
 
+  it('compresses rail group gaps only when vertical space is cramped', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 20, 30) }),
+      annotation('third', { anchor: anchor('third', 40, 50) }),
+    ];
+    const boxes = [
+      box('first', { top: 100 }),
+      box('second', { top: 230 }),
+      box('third', { top: 360 }),
+    ];
+    const railLayout = {
+      articleCenterX: 500,
+      leftRailLeft: 24,
+      mode: 'right' as const,
+      railWidth: 320,
+      rightRailLeft: 980,
+    };
+    const noteHeights = { first: 100, second: 100, third: 100 };
+
+    const roomyItems = buildAnnotationRailItems(annotations, boxes, null, noteHeights, railLayout);
+    const crampedItems = buildAnnotationRailItems(annotations, boxes, null, noteHeights, {
+      ...railLayout,
+      viewportHeight: 330,
+    });
+
+    const roomyGap = Number(roomyItems[1]?.style.top) - Number(roomyItems[0]?.style.top) - 100;
+    const crampedGap =
+      Number(crampedItems[1]?.style.top) - Number(crampedItems[0]?.style.top) - 100;
+
+    expect(roomyGap).toBe(30);
+    expect(crampedGap).toBe(10);
+  });
+
+  it('stacks nearby rail groups before pushing cards away from the highlighted text', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 20, 30) }),
+      annotation('third', { anchor: anchor('third', 40, 50) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [box('first', { top: 100 }), box('second', { top: 180 }), box('third', { top: 258 })],
+      null,
+      { first: 100, second: 100, third: 100 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+      },
+    );
+
+    expect(items.map((item) => [item.annotation.id, item.stackCount, item.style.top])).toEqual([
+      ['first', 3, 90],
+      ['second', 3, 132],
+      ['third', 3, 174],
+    ]);
+  });
+
+  it('compresses stacked rail card offsets when one group is taller than the viewport', () => {
+    const annotations = [
+      annotation('first', { anchor: anchor('first', 0, 10) }),
+      annotation('second', { anchor: anchor('second', 5, 15) }),
+      annotation('third', { anchor: anchor('third', 10, 20) }),
+    ];
+    const items = buildAnnotationRailItems(
+      annotations,
+      [
+        box('first', { top: 100, left: 120 }),
+        box('second', { top: 104, left: 124 }),
+        box('third', { top: 108, left: 128 }),
+      ],
+      null,
+      { first: 140, second: 140, third: 140 },
+      {
+        articleCenterX: 500,
+        leftRailLeft: 24,
+        mode: 'right',
+        railWidth: 320,
+        rightRailLeft: 980,
+        viewportHeight: 210,
+      },
+    );
+    const byId = new Map(items.map((item) => [item.annotation.id, item]));
+    const firstTop = Number(byId.get('first')?.style.top);
+    const secondTop = Number(byId.get('second')?.style.top);
+    const secondStyle = byId.get('second')?.style as { '--stack-offset'?: string } | undefined;
+    const secondOffset = parseFloat(String(secondStyle?.['--stack-offset']));
+
+    expect(secondTop - firstTop).toBeLessThan(42);
+    expect(secondTop - firstTop).toBeGreaterThanOrEqual(24);
+    expect(secondOffset).toBeLessThan(14);
+    expect(secondOffset).toBeGreaterThanOrEqual(8);
+  });
+
   it('resolves navigation around an explicit reference annotation', () => {
     const annotations = [annotation('first'), annotation('second'), annotation('third')];
 
