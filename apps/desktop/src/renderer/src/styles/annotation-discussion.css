@@ -1292,6 +1292,20 @@
   border-radius: 999px;
 }
 
+.annotation-discussion-add-run-writing-avatar {
+  display: block;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 999px;
+  background-image: var(--agent-writing-sprite);
+  background-position: 0 0;
+  background-repeat: no-repeat;
+  background-size: var(--agent-writing-sheet-width) 42px;
+  animation: annotation-discussion-add-writing-avatar var(--agent-writing-duration) steps(7)
+    infinite;
+}
+
 .annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar {
   animation: annotation-discussion-add-avatar-settle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1520,6 +1534,12 @@
   }
 }
 
+@keyframes annotation-discussion-add-writing-avatar {
+  to {
+    background-position-x: var(--agent-writing-travel);
+  }
+}
+
 @keyframes annotation-discussion-add-check-pop {
   0% {
     opacity: 0;
@@ -1547,6 +1567,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .annotation-discussion-add-run-agent.is-active .annotation-discussion-add-run-inkline::before {
+    animation: none;
+  }
+  .annotation-discussion-add-run-writing-avatar {
     animation: none;
   }
   .annotation-discussion-add-run-agent.is-done .annotation-discussion-add-run-avatar,

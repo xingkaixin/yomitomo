@@ -1,0 +1,39 @@
+{
+  "locale": "zh-CN",
+  "kind": "annotation",
+  "frameCount": 7,
+  "frameWidth": 192,
+  "frameHeight": 192,
+  "rows": [
+    {
+      "row": 0,
+      "presetId": "reading-partner",
+      "sprite": "reading-partner-writing.webp"
+    },
+    {
+      "row": 1,
+      "presetId": "root-reviewer",
+      "sprite": "root-reviewer-writing.webp"
+    },
+    {
+      "row": 2,
+      "presetId": "question-mentor",
+      "sprite": "question-mentor-writing.webp"
+    },
+    {
+      "row": 3,
+      "presetId": "insight-editor",
+      "sprite": "insight-editor-writing.webp"
+    },
+    {
+      "row": 4,
+      "presetId": "concept-translator",
+      "sprite": "concept-translator-writing.webp"
+    },
+    {
+      "row": 5,
+      "presetId": "structure-navigator",
+      "sprite": "structure-navigator-writing.webp"
+    }
+  ]
+}

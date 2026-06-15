@@ -1,9 +1,13 @@
 import type { CSSProperties } from 'react';
 import { Check } from 'lucide-react';
-import type { Comment, PublicAgent } from '@yomitomo/shared';
+import type { Comment, PublicAgent, UiLanguage } from '@yomitomo/shared';
 import { useTranslation } from 'react-i18next';
 import { AvatarBadge } from '@yomitomo/reader-ui/reader-component-primitives';
 import { AssistantRuntimeProgressList } from '../shell/app-assistant-runtime-progress';
+import {
+  agentWritingAnimationDuration,
+  resolveAgentWritingAnimation,
+} from './app-agent-writing-animation-assets';
 
 export type AddThoughtAgentRunStatus = 'active' | 'done' | 'failed';
 
@@ -21,6 +25,13 @@ type AgentRunAvatarStyle = CSSProperties & {
   '--agent-run-delay': string;
 };
 
+type AgentWritingAnimationStyle = CSSProperties & {
+  '--agent-writing-duration': string;
+  '--agent-writing-sheet-width': string;
+  '--agent-writing-sprite': string;
+  '--agent-writing-travel': string;
+};
+
 export function AddThoughtAssistantRunPanel({
   celebrating,
   onClose,
@@ -34,7 +45,8 @@ export function AddThoughtAssistantRunPanel({
   onRetryAll: () => void;
   runs: AddThoughtAgentRun[];
 }) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const uiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'zh-CN';
   const activeCount = runs.filter((run) => run.status === 'active').length;
   const doneCount = runs.filter((run) => run.status === 'done').length;
   const failedRuns = runs.filter((run) => run.status === 'failed');
@@ -69,7 +81,11 @@ export function AddThoughtAssistantRunPanel({
                 } as AgentRunAvatarStyle
               }
             >
-              <AvatarBadge avatar={run.agent.avatar} fallback={run.agent.nickname.slice(0, 1)} />
+              <AddThoughtAssistantAvatar
+                agent={run.agent}
+                status={run.status}
+                locale={uiLanguage}
+              />
               {run.status === 'done' ? (
                 <span className="annotation-discussion-add-run-check">
                   <Check size={11} strokeWidth={3} />
@@ -105,6 +121,36 @@ export function AddThoughtAssistantRunPanel({
         </footer>
       ) : null}
     </div>
+  );
+}
+
+function AddThoughtAssistantAvatar({
+  agent,
+  locale,
+  status,
+}: {
+  agent: PublicAgent;
+  locale: UiLanguage;
+  status: AddThoughtAgentRunStatus;
+}) {
+  const animation = resolveAgentWritingAnimation(locale, agent.presetId);
+  if (status !== 'active' || !animation) {
+    return <AvatarBadge avatar={agent.avatar} fallback={agent.nickname.slice(0, 1)} />;
+  }
+  const avatarSize = 42;
+  return (
+    <span
+      aria-hidden="true"
+      className="annotation-discussion-add-run-writing-avatar"
+      style={
+        {
+          '--agent-writing-duration': agentWritingAnimationDuration(animation),
+          '--agent-writing-sheet-width': `${animation.frameCount * avatarSize}px`,
+          '--agent-writing-sprite': `url("${animation.sprite}")`,
+          '--agent-writing-travel': `${animation.frameCount * -avatarSize}px`,
+        } as AgentWritingAnimationStyle
+      }
+    />
   );
 }
 
