@@ -410,10 +410,17 @@ describe('reader annotation filters', () => {
       },
     );
 
-    expect(items.map((item) => [item.annotation.id, item.stackCount, item.style.top])).toEqual([
-      ['first', 3, 90],
-      ['second', 3, 132],
-      ['third', 3, 174],
+    expect(
+      items.map((item) => [
+        item.annotation.id,
+        item.stackCount,
+        item.style.top,
+        (item.style as Record<string, string>)['--stack-offset-y'],
+      ]),
+    ).toEqual([
+      ['first', 3, 90, '0px'],
+      ['second', 3, 90, '42px'],
+      ['third', 3, 90, '84px'],
     ]);
   });
 
@@ -442,13 +449,14 @@ describe('reader annotation filters', () => {
       },
     );
     const byId = new Map(items.map((item) => [item.annotation.id, item]));
-    const firstTop = Number(byId.get('first')?.style.top);
-    const secondTop = Number(byId.get('second')?.style.top);
-    const secondStyle = byId.get('second')?.style as { '--stack-offset'?: string } | undefined;
+    const secondStyle = byId.get('second')?.style as
+      | { '--stack-offset'?: string; '--stack-offset-y'?: string }
+      | undefined;
     const secondOffset = parseFloat(String(secondStyle?.['--stack-offset']));
+    const secondOffsetY = parseFloat(String(secondStyle?.['--stack-offset-y']));
 
-    expect(secondTop - firstTop).toBeLessThan(42);
-    expect(secondTop - firstTop).toBeGreaterThanOrEqual(24);
+    expect(secondOffsetY).toBeLessThan(42);
+    expect(secondOffsetY).toBeGreaterThanOrEqual(24);
     expect(secondOffset).toBeLessThan(14);
     expect(secondOffset).toBeGreaterThanOrEqual(8);
   });

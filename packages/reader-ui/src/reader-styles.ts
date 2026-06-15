@@ -109,15 +109,12 @@ export const readerConversationStyles = `
 .reader-article{width:min(var(--reader-content-width),100%);max-width:100%;margin:0 auto}
 .reader-annotation-rail{position:absolute;inset:0;min-height:100%;font-family:var(--font-ui, ui-sans-serif, system-ui, sans-serif);pointer-events:none}
 .reader-annotation-rail>.reader-empty{position:absolute;left:var(--reader-empty-left,0);top:var(--reader-empty-top,50vh);width:var(--reader-note-width,var(--reader-annotation-rail-width));pointer-events:auto;transform:translateY(-50%)}
-.reader-annotation-rail>.reader-note{position:absolute;width:var(--reader-note-width,var(--reader-annotation-rail-width));margin:0;pointer-events:auto;transition:opacity .18s ease,filter .18s ease,transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.reader-annotation-rail>.reader-note{position:absolute;width:var(--reader-note-width,var(--reader-annotation-rail-width));margin:0;pointer-events:auto;transform-origin:top center;transition:opacity .18s ease,filter .2s ease,transform .22s cubic-bezier(.22,1,.36,1),box-shadow .22s ease,border-color .16s ease}
 .reader-annotation-rail>.reader-note.is-filtering-out{opacity:0;filter:blur(2px);pointer-events:none}
-.reader-annotation-rail>.reader-note.is-stacked{transform:translateX(calc(var(--stack-offset,0px)))}
-.reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked{transform:translateX(calc(var(--stack-offset,0px) * -1))}
-.reader-annotation-rail>.reader-note[data-stack-index="1"]{--stack-offset:10px}
-.reader-annotation-rail>.reader-note[data-stack-index="2"]{--stack-offset:20px}
-.reader-annotation-rail>.reader-note[data-stack-index="3"]{--stack-offset:30px}
-.reader-annotation-rail>.reader-note.is-active{transform:translateX(0)}
-.reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front)
+.reader-annotation-rail>.reader-note.is-stacked{transform:translate(var(--stack-offset,0px),var(--stack-offset-y,0px)) scale(var(--stack-scale,1))}
+.reader-annotation-rail>.reader-note[data-rail-side="left"].is-stacked{transform:translate(calc(var(--stack-offset,0px) * -1),var(--stack-offset-y,0px)) scale(var(--stack-scale,1))}
+.reader-annotation-rail>.reader-note.is-stack-front{box-shadow:var(--reader-elevated-shadow)}
+.reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front){box-shadow:var(--reader-soft-shadow);filter:brightness(.985)}
 .reader-annotation-rail>.reader-note.is-stacked:not(.is-stack-front) .reader-note-toolbar{pointer-events:none}
 .reader-notes{padding:0 16px 32px;scroll-padding-top:80px}
 .reader-notes-header{margin:0 -16px 14px;padding:14px 16px;background:var(--app-reader-toc-bg);box-shadow:0 8px 18px color-mix(in srgb,var(--reader-ink) 5%,transparent)}

@@ -346,10 +346,13 @@ export function buildAnnotationRailItems(
       const stackDepth = stackCount > 1 ? (stackIndex - frontIndex + stackCount) % stackCount : 0;
       const isStackFront = stackDepth === 0;
       const isActive = item.annotation.id === activeId;
+      const cappedDepth = Math.min(stackDepth, 4);
       const style: React.CSSProperties = {
-        top: groupTop + stackDepth * spacing.stackTopOffset,
+        top: groupTop,
         zIndex: isActive ? 90 : isStackFront ? 40 : 10 + stackCount - stackDepth,
-        '--stack-offset': `${Math.min(stackDepth, 4) * spacing.stackXOffset}px`,
+        '--stack-offset': `${cappedDepth * spacing.stackXOffset}px`,
+        '--stack-offset-y': `${stackDepth * spacing.stackTopOffset}px`,
+        '--stack-scale': `${1 - cappedDepth * 0.03}`,
       } as React.CSSProperties;
       if (railLayout && railLayout.mode !== 'stacked') {
         style.left = railSide === 'left' ? railLayout.leftRailLeft : railLayout.rightRailLeft;

@@ -81,9 +81,15 @@ describe('buildAnnotationRailItems', () => {
       { annotation_1: 340 },
     );
 
-    expect(items.map((item) => [item.annotation.id, item.style.top])).toEqual([
-      ['annotation_1', 210],
-      ['annotation_2', 252],
+    expect(
+      items.map((item) => [
+        item.annotation.id,
+        item.style.top,
+        (item.style as Record<string, string>)['--stack-offset-y'],
+      ]),
+    ).toEqual([
+      ['annotation_1', 210, '0px'],
+      ['annotation_2', 210, '42px'],
     ]);
     expect(items.map((item) => [item.annotation.id, item.stackCount])).toEqual([
       ['annotation_1', 2],
