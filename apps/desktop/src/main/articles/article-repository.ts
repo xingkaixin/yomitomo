@@ -1,7 +1,6 @@
 import { and, count, desc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm';
 import type {
   Annotation,
-  AnnotationDistillationReviewSession,
   ArticleDeletePatch,
   ArticleReaderChatStatePatch,
   ArticleRecord,
@@ -509,9 +508,7 @@ function readArticleSummaryCountsInternal(
   return countsByArticle;
 }
 
-function countAiDistillationReviewMessages(
-  sessions: AnnotationDistillationReviewSession[] | unknown,
-) {
+function countAiDistillationReviewMessages(sessions: unknown) {
   if (!Array.isArray(sessions)) return 0;
   return sessions.reduce(
     (total, session) => total + countAiDistillationReviewSessionMessages(session),
