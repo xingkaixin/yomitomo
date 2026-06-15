@@ -26,9 +26,84 @@ const navLinks = [
 
 const languageLabel = isEnglish ? '中' : 'EN';
 const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名发音';
+const showAssistantStickers = active === 'home';
+
+const assistantStickerNames = {
+  'zh-CN': {
+    'reading-partner': '林知微',
+    'root-reviewer': '周砚',
+    'question-mentor': '许问渠',
+    'insight-editor': '陈砚书',
+    'concept-translator': '沈清源',
+    'structure-navigator': '顾行简',
+    'evidence-archivist': '梁证言',
+    'reader-advocate': '叶听澜',
+    'final-copy-editor': '唐简',
+    'logic-auditor': '何明衡',
+    'risk-examiner': '苏定白',
+    'action-calibrator': '夏归宁',
+  },
+  en: {
+    'reading-partner': 'June Hartley',
+    'root-reviewer': 'Gideon Frost',
+    'question-mentor': 'Maya Brooks',
+    'insight-editor': 'Marcus Reed',
+    'concept-translator': 'Iris Chen',
+    'structure-navigator': 'Daniel Park',
+    'evidence-archivist': 'Arthur Whitfield',
+    'reader-advocate': 'Hannah Wells',
+    'final-copy-editor': 'Julian Cross',
+    'logic-auditor': 'Simone Carter',
+    'risk-examiner': 'Victor Tan',
+    'action-calibrator': 'Grace Kim',
+  },
+} as const;
+
+const assistantStickerLayout = [
+  { id: 'reading-partner', kind: 'annotation', x: 8, y: 32, rotate: -9 },
+  { id: 'root-reviewer', kind: 'annotation', x: 19, y: 70, rotate: 6 },
+  { id: 'question-mentor', kind: 'annotation', x: 29, y: 36, rotate: -4 },
+  { id: 'insight-editor', kind: 'annotation', x: 8, y: 77, rotate: 8 },
+  { id: 'concept-translator', kind: 'annotation', x: 20, y: 25, rotate: 5 },
+  { id: 'structure-navigator', kind: 'annotation', x: 30, y: 73, rotate: -7 },
+  { id: 'evidence-archivist', kind: 'review', x: 70, y: 34, rotate: 7 },
+  { id: 'reader-advocate', kind: 'review', x: 80, y: 72, rotate: -5 },
+  { id: 'final-copy-editor', kind: 'review', x: 88, y: 58, rotate: 9 },
+  { id: 'logic-auditor', kind: 'review', x: 70, y: 76, rotate: -8 },
+  { id: 'risk-examiner', kind: 'review', x: 81, y: 25, rotate: -3 },
+  { id: 'action-calibrator', kind: 'review', x: 89, y: 72, rotate: 5 },
+] as const;
+
+const assistantStickers = assistantStickerLayout.map((item) => {
+  const name = assistantStickerNames[lang][item.id];
+  return {
+    ...item,
+    name,
+    src: `/agent-personas/${lang}/${item.kind}/${item.id}.webp`,
+    label: isEnglish ? `Move assistant sticker: ${name}` : `移动助手贴纸：${name}`,
+  };
+});
 ---
 
 <header class="app-masthead">
+  {
+    showAssistantStickers ? (
+      <div class="app-masthead-sticker-layer" aria-label={isEnglish ? 'Assistant stickers' : '助手贴纸'}>
+        {assistantStickers.map((sticker) => (
+          <button
+            aria-label={sticker.label}
+            class="app-masthead-sticker"
+            data-assistant-sticker
+            style={`--sticker-x:${sticker.x}%;--sticker-y:${sticker.y}%;--sticker-size:48px;--sticker-rotate:${sticker.rotate}deg;`}
+            title={sticker.name}
+            type="button"
+          >
+            <img src={sticker.src} alt="" loading="eager" decoding="async" />
+          </button>
+        ))}
+      </div>
+    ) : null
+  }
   <div class="app-masthead-title">
     <h1>Yomitomo</h1>
     <button
@@ -122,6 +197,64 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
       }
     });
   }
+
+  const stickers = document.querySelectorAll('[data-assistant-sticker]');
+  let activeSticker = null;
+  let activePointerId = null;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function moveSticker(sticker, clientX, clientY) {
+    const masthead = sticker.closest('.app-masthead');
+    if (!masthead) return;
+    const mastheadRect = masthead.getBoundingClientRect();
+    const maxLeft = Math.max(0, mastheadRect.width - sticker.offsetWidth);
+    const maxTop = Math.max(0, mastheadRect.height - sticker.offsetHeight);
+    const nextLeft = clamp(clientX - mastheadRect.left - dragOffsetX, 0, maxLeft);
+    const nextTop = clamp(clientY - mastheadRect.top - dragOffsetY, 0, maxTop);
+    sticker.style.left = `${nextLeft}px`;
+    sticker.style.top = `${nextTop}px`;
+  }
+
+  for (const sticker of stickers) {
+    sticker.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      const masthead = sticker.closest('.app-masthead');
+      if (!masthead) return;
+      const mastheadRect = masthead.getBoundingClientRect();
+      dragOffsetX = event.clientX - mastheadRect.left - sticker.offsetLeft;
+      dragOffsetY = event.clientY - mastheadRect.top - sticker.offsetTop;
+      sticker.classList.add('is-dragging');
+      sticker.setPointerCapture(event.pointerId);
+      activeSticker = sticker;
+      activePointerId = event.pointerId;
+      event.preventDefault();
+    });
+
+    sticker.addEventListener('pointermove', (event) => {
+      if (activeSticker !== sticker || activePointerId !== event.pointerId) return;
+      moveSticker(sticker, event.clientX, event.clientY);
+    });
+
+    sticker.addEventListener('pointerup', (event) => {
+      if (activeSticker !== sticker || activePointerId !== event.pointerId) return;
+      sticker.classList.remove('is-dragging');
+      sticker.releasePointerCapture(event.pointerId);
+      activeSticker = null;
+      activePointerId = null;
+    });
+
+    sticker.addEventListener('pointercancel', (event) => {
+      if (activeSticker !== sticker || activePointerId !== event.pointerId) return;
+      sticker.classList.remove('is-dragging');
+      activeSticker = null;
+      activePointerId = null;
+    });
+  }
 </script>
 
 <style>
@@ -140,12 +273,83 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
     align-items: start;
     gap: 28px;
     min-height: 148px;
+    overflow: hidden;
     border-bottom: 1px solid #2a2218;
     background: #fffdf8;
     padding: 22px 34px 18px;
   }
 
+  .app-masthead-sticker-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .app-masthead-sticker {
+    position: absolute;
+    top: calc(var(--sticker-y) - var(--sticker-size) / 2);
+    left: calc(var(--sticker-x) - var(--sticker-size) / 2);
+    display: grid;
+    box-sizing: border-box;
+    width: var(--sticker-size);
+    height: var(--sticker-size);
+    place-items: center;
+    border: 1px solid rgba(255, 250, 240, 0.92);
+    border-radius: 15px;
+    background: #fffaf0;
+    box-shadow:
+      0 1px 1px rgba(42, 34, 24, 0.1),
+      0 0 0 1px rgba(42, 34, 24, 0.08);
+    cursor: grab;
+    overflow: hidden;
+    padding: 4px;
+    pointer-events: auto;
+    touch-action: none;
+    transform: rotate(var(--sticker-rotate));
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms ease,
+      filter 150ms ease;
+    user-select: none;
+  }
+
+  .app-masthead-sticker:hover,
+  .app-masthead-sticker:focus-visible {
+    border-color: rgba(255, 250, 240, 1);
+    box-shadow:
+      0 2px 3px rgba(42, 34, 24, 0.12),
+      0 0 0 1px rgba(42, 34, 24, 0.1);
+    filter: saturate(1.03);
+    outline: 0;
+  }
+
+  .app-masthead-sticker.is-dragging {
+    z-index: 4;
+    box-shadow:
+      0 0 0 1px rgba(42, 34, 24, 0.1),
+      0 16px 28px rgba(42, 34, 24, 0.22);
+    cursor: grabbing;
+    transform: rotate(var(--sticker-rotate));
+  }
+
+  .app-masthead-sticker img {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    border-radius: 11px;
+    object-fit: cover;
+    outline: 1px solid rgba(0, 0, 0, 0.1);
+    outline-offset: -1px;
+    pointer-events: none;
+    user-select: none;
+  }
+
   .app-masthead-title {
+    position: relative;
+    z-index: 3;
     display: grid;
     grid-column: 2;
     justify-items: center;
@@ -201,6 +405,8 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
   }
 
   .app-masthead-date {
+    position: relative;
+    z-index: 3;
     grid-column: 3;
     justify-self: end;
     color: #7a6e5f;
@@ -356,6 +562,10 @@ const pronounceLabel = isEnglish ? 'Play name pronunciation' : '播放产品名�
   }
 
   @media (max-width: 760px) {
+    .app-masthead-sticker-layer {
+      display: none;
+    }
+
     .app-masthead {
       grid-template-columns: minmax(0, 1fr) auto;
       min-height: 116px;
