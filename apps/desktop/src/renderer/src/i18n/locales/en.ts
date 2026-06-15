@@ -748,6 +748,8 @@ export const enResources = {
       translatingArticle: 'Generating bilingual translation',
       translationReady: 'Bilingual translation is ready',
       translationFailed: 'Bilingual translation failed. Try again later.',
+      deleteTranslationFailed: 'Could not delete the translation. Try again later.',
+      mixedSelectionToast: 'Select only the original text or only the translation',
     },
     discussion: {
       title: 'Annotation discussion',

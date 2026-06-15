@@ -29,6 +29,8 @@
     "drizzle-orm": "^0.45.2",
     "effect": "^3.21.3",
     "electron-updater": "^6.8.9",
+    "framer-motion": "^12.40.0",
+    "goey-toast": "^0.5.0",
     "i18next": "^25.7.1",
     "jsdom": "^29.1.1",
     "jszip": "^3.10.1",

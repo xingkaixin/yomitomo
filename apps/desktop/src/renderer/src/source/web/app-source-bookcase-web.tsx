@@ -49,6 +49,7 @@ import {
 import { useAgentAnnotationQueue } from '@yomitomo/reader-ui/use-agent-annotation-queue';
 import { OpenArticleButton } from '../../shell/app-ui';
 import { articleIdentityLine } from '../../shell/app-utils';
+import { appToast } from '../../shell/app-toast';
 import { assistantRuntimeErrorMessage } from '../../shell/app-assistant-runtime-progress';
 import {
   Dialog,
@@ -532,6 +533,7 @@ export function WebSourceBookcase({
     if (!translationElement && rangeIntersectsIgnoredSelector(range, '[data-reader-translation]')) {
       articleSelection.removeAllRanges();
       clearSelection();
+      appToast.warning(t('source.mixedSelectionToast'));
       return;
     }
     const anchor = translationElement
@@ -618,7 +620,7 @@ export function WebSourceBookcase({
       setTranslation(nextTranslation);
       setTranslationVisible(true);
     } catch (error) {
-      setStatusMessage(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
+      appToast.error(assistantRuntimeErrorMessage(error, 'source.translationFailed'));
     } finally {
       setTranslationBusy(false);
     }
@@ -626,13 +628,17 @@ export function WebSourceBookcase({
 
   async function deleteBilingualTranslation() {
     if (translationBusy) return;
-    await window.yomitomoDesktop.deleteCurrentArticleTranslation({
-      articleId: article.id,
-      targetLanguage: bilingualTranslationTargetLanguage,
-    });
-    setTranslation(null);
-    setTranslationVisible(false);
-    setTranslationMenuOpen(false);
+    try {
+      await window.yomitomoDesktop.deleteCurrentArticleTranslation({
+        articleId: article.id,
+        targetLanguage: bilingualTranslationTargetLanguage,
+      });
+      setTranslation(null);
+      setTranslationVisible(false);
+      setTranslationMenuOpen(false);
+    } catch (error) {
+      appToast.error(assistantRuntimeErrorMessage(error, 'source.deleteTranslationFailed'));
+    }
   }
 
   async function createAnnotation(note: string) {

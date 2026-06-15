@@ -728,6 +728,8 @@ export const zhCNResources = {
       translatingArticle: '正在生成双语翻译',
       translationReady: '双语翻译已完成',
       translationFailed: '双语翻译失败，请稍后重试',
+      deleteTranslationFailed: '删除译文失败，请稍后重试',
+      mixedSelectionToast: '请只选择原文或只选择译文',
     },
     discussion: {
       title: '批注讨论',

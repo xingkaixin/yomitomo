@@ -37,7 +37,9 @@ import { UpdateReleaseDialog } from './shell/app-update-dialog';
 import { changeAppI18nLanguage, initializeAppI18n } from './i18n/app-i18n';
 import { readCachedUiLanguage, writeCachedUiLanguage } from './i18n/app-language-cache';
 import { playAppSoundEffect } from './sound/app-sound-effects';
+import { AppToaster, useHeaderToastOffset } from './shell/app-toast';
 import './styles.css';
+import 'goey-toast/styles.css';
 
 const startupUiLanguage = readCachedUiLanguage();
 initializeAppI18n(startupUiLanguage);
@@ -303,6 +305,7 @@ function App() {
   const [statsNavigationStartedAt, setStatsNavigationStartedAt] = useState<number | undefined>();
   const windowShowRequestedRef = useRef(false);
   const idlePreloadStartedRef = useRef(false);
+  const toastTopOffset = useHeaderToastOffset(libraryReaderOpen);
 
   useEffect(() => {
     recordStartupTiming('app.mounted');
@@ -831,6 +834,7 @@ function App() {
           return nextStore;
         }}
       />
+      <AppToaster tone={themeRegistry[activeThemeId].meta.tone} topOffset={toastTopOffset} />
     </main>
   );
 }
